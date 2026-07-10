@@ -25,10 +25,10 @@ argocd app add-source APPNAME [flags]
       --dest-name string                           K8s cluster Name (e.g. minikube)
       --dest-namespace string                      K8s target namespace
       --dest-server string                         K8s cluster URL (e.g. https://kubernetes.default.svc)
-      --directory-allow-custom-extensions          Disable the built-in file extension filter so that include/exclude patterns can match files with custom extensions (e.g. *.yaml.sealed); when set, include/exclude become the only filters
       --directory-exclude string                   Set glob expression used to exclude files from application source path
       --directory-include string                   Set glob expression used to include files from application source path
       --directory-recurse                          Recurse directory
+      --directory-require-json-or-yaml-extension   Require files to have a .yaml, .yml, .json, or .jsonnet extension to be considered manifests (default true). Set to false to disable the built-in extension filter so that include/exclude patterns can match files with custom extensions (e.g. *.yaml.sealed) (default true)
       --dry-source-path string                     Path in repository to the app directory for the dry source
       --dry-source-repo string                     Repository URL of the app dry source
       --dry-source-revision string                 Revision of the app dry source

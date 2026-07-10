@@ -135,22 +135,17 @@ spec:
 
 By default, a directory-type application only considers files with the built-in manifest extensions
 `.yaml`, `.yml`, `.json`, and `.jsonnet`. Any other file is skipped *before* the `include`/`exclude`
-patterns are ever evaluated. This means an `include` pattern like `*.yaml.sealed` has no effect on its
-own since the file is filtered out by extension first, so the pattern never gets a chance to match.
+patterns are evaluated, so an `include` pattern like `*.yaml.sealed` has no effect on its own.
 
-This is a problem for workflows that store manifests under a non-standard extension by convention. A
-common example is [Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets), where encrypted
-resources are named `*.yaml.sealed` to signal that they are sealed rather than plain YAML.
-
-To support these cases, set `allowCustomExtensions: true`. When enabled, the built-in extension filter is
-**disabled entirely**, and the `include`/`exclude` glob patterns become the *only* mechanism that decides
-which files are treated as manifests.
+To render files stored under a non-standard extension — for example the `*.yaml.sealed` files used by
+[Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets) — set `requireJsonOrYamlExtension: false`.
+This disables the built-in extension filter, so the `include`/`exclude` patterns become the only mechanism
+deciding which files are rendered. The field defaults to `true`, so existing applications are unaffected
+unless they opt out explicitly.
 
 ```shell
-argocd app set guestbook --directory-allow-custom-extensions --directory-include "{*.yaml.sealed,*.yaml,*.yml,*.json}"
+argocd app set guestbook --directory-require-json-or-yaml-extension=false --directory-include "{*.yaml.sealed,*.yaml,*.yml,*.json}"
 ```
-
-To accomplish the same thing declaratively, use this syntax:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -158,45 +153,28 @@ kind: Application
 spec:
   source:
     directory:
-      allowCustomExtensions: true
+      requireJsonOrYamlExtension: false
       include: '{*.yaml.sealed,*.yaml,*.yml,*.json}'
 ```
 
 > [!IMPORTANT]
-> When `allowCustomExtensions` is `true`, **you are fully responsible for filtering.** Because the
-> built-in extension filter is turned off, the standard `.yaml`, `.yml`, `.json`, and `.jsonnet`
-> extensions are **no longer matched automatically** so you must list every extension you want in the
-> `include` pattern, including the standard ones. If your example above only used
-> `include: '*.yaml.sealed'`, your regular `.yaml` and `.json` manifests would be silently ignored.
+> When the filter is disabled, **you are responsible for all filtering via `include`/`exclude`.** The
+> standard extensions are no longer matched automatically, so you must list every extension you want to
+> render, including the standard ones — `include: '*.yaml.sealed'` alone would silently ignore your regular
+> `.yaml` and `.json` manifests. Any selected file is always parsed as YAML (JSON is valid YAML, so `.json`
+> content is still handled correctly).
 
-#### Why is this opt-in and defaulted to off?
+The `include` and `exclude` patterns use [gobwas/glob](https://github.com/gobwas/glob) syntax, which
+supports brace alternation (`{*.yaml,*.yml}`) and wildcards that match across directory separators.
+`exclude` is applied first, then `include`, so a file is selected when it matches `include` (or `include`
+is empty) **and** does not match `exclude`.
 
-The field defaults to `false` so that existing applications behave exactly as before as turning on custom
-extensions is a deliberate choice, never a silent change. The built-in extension filter also acts as a
-safety net: it keeps unrelated files (documentation, license files, images, lockfiles) out of manifest
-generation without any configuration. Disabling it hands that responsibility to you, which is why it is
-gated behind an explicit flag.
-
-#### Filtering behavior with the flag enabled
-
-The `include` and `exclude` patterns work exactly as described in the sections above. `exclude` is applied
-first, then `include`. The only difference is that the extension pre-filter is skipped. So a file is
-selected when it matches `include` (or `include` is empty) **and** does not match `exclude`.
-
-If you set `allowCustomExtensions: true` **without** any `include` or `exclude`, then *every* file in the
-directory is read and treated as a candidate manifest. Argo CD logs a warning in this case because it is
-rarely what you want:
-
-- Non-manifest files (that don't contain `apiVersion`, `kind`, and `metadata`) are still safely ignored,
-  but every file is read from disk and its size counts toward the maximum combined manifest size limit
-  (the `reposerver.max.combined.directory.manifests.size` setting, default `10M`) which is a large binary in the
-  directory that can cause manifest generation to fail.
-- A stray file that happens to be a valid Kubernetes manifest would be applied to your cluster
-  unintentionally.
-
-This "consider everything" behavior is intentional and can be useful for repositories that are structured
-so that *every* file is a manifest regardless of extension. If that is your case, prefer scoping it with an
-`exclude` pattern for the known non-manifest files rather than leaving both patterns empty:
+If you disable the filter **without** any `include` or `exclude`, *every* file in the directory is read
+and treated as a candidate manifest, and Argo CD logs a warning. Non-manifest files (those without
+`apiVersion`, `kind`, and `metadata`) are still ignored, but each file is read from disk and its size
+counts toward the maximum combined manifest size (`reposerver.max.combined.directory.manifests.size`,
+default `10M`). Prefer scoping with an `exclude` pattern for known non-manifest files rather than leaving
+both empty:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -204,7 +182,7 @@ kind: Application
 spec:
   source:
     directory:
-      allowCustomExtensions: true
+      requireJsonOrYamlExtension: false
       exclude: '{*.md,LICENSE,*.png}'
 ```
 

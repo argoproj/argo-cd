@@ -937,8 +937,12 @@ type ApplicationSourceDirectory struct {
 	Exclude string `json:"exclude,omitempty" protobuf:"bytes,3,opt,name=exclude"`
 	// Include contains a glob pattern to match paths against that should be explicitly included during manifest generation
 	Include string `json:"include,omitempty" protobuf:"bytes,4,opt,name=include"`
-	// AllowCustomExtensions lets a user add custom extensions other than what is already supported today like .yaml.sealed
-	AllowCustomExtensions bool `json:"allowCustomExtensions,omitempty" protobuf:"bytes,5,opt,name=allowCustomExtensions"`
+	// RequireJsonOrYamlExtension controls whether the built-in file-extension filter is applied during
+	// manifest generation. When true (the default when unset), only files with a .yaml, .yml, .json, or
+	// .jsonnet extension are considered as potential manifests. Set it to false to disable the filter so
+	// that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude glob
+	// patterns instead. A nil value is treated as true to preserve backwards-compatible behavior.
+	RequireJsonOrYamlExtension *bool `json:"requireJsonOrYamlExtension,omitempty" protobuf:"bytes,5,opt,name=requireJsonOrYamlExtension"`
 }
 
 // IsZero returns true if the ApplicationSourceDirectory is considered empty

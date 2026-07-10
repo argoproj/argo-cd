@@ -181,11 +181,6 @@ spec:
                       directory:
                         description: Directory holds path/directory specific options
                         properties:
-                          allowCustomExtensions:
-                            description: AllowCustomExtensions lets a user add custom
-                              extensions other than what is already supported today
-                              like .yaml.sealed
-                            type: boolean
                           exclude:
                             description: Exclude contains a glob pattern to match
                               paths against that should be explicitly excluded from
@@ -243,6 +238,14 @@ spec:
                           recurse:
                             description: Recurse specifies whether to scan a directory
                               recursively for manifests
+                            type: boolean
+                          requireJsonOrYamlExtension:
+                            description: |-
+                              RequireJsonOrYamlExtension controls whether the built-in file-extension filter is applied during
+                              manifest generation. When true (the default when unset), only files with a .yaml, .yml, .json, or
+                              .jsonnet extension are considered as potential manifests. Set it to false to disable the filter so
+                              that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude glob
+                              patterns instead. A nil value is treated as true to preserve backwards-compatible behavior.
                             type: boolean
                         type: object
                       helm:
@@ -578,11 +581,6 @@ spec:
                         directory:
                           description: Directory holds path/directory specific options
                           properties:
-                            allowCustomExtensions:
-                              description: AllowCustomExtensions lets a user add custom
-                                extensions other than what is already supported today
-                                like .yaml.sealed
-                              type: boolean
                             exclude:
                               description: Exclude contains a glob pattern to match
                                 paths against that should be explicitly excluded from
@@ -641,6 +639,14 @@ spec:
                             recurse:
                               description: Recurse specifies whether to scan a directory
                                 recursively for manifests
+                              type: boolean
+                            requireJsonOrYamlExtension:
+                              description: |-
+                                RequireJsonOrYamlExtension controls whether the built-in file-extension filter is applied during
+                                manifest generation. When true (the default when unset), only files with a .yaml, .yml, .json, or
+                                .jsonnet extension are considered as potential manifests. Set it to false to disable the filter so
+                                that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude glob
+                                patterns instead. A nil value is treated as true to preserve backwards-compatible behavior.
                               type: boolean
                           type: object
                         helm:
@@ -1097,11 +1103,6 @@ spec:
                   directory:
                     description: Directory holds path/directory specific options
                     properties:
-                      allowCustomExtensions:
-                        description: AllowCustomExtensions lets a user add custom
-                          extensions other than what is already supported today like
-                          .yaml.sealed
-                        type: boolean
                       exclude:
                         description: Exclude contains a glob pattern to match paths
                           against that should be explicitly excluded from being used
@@ -1158,6 +1159,14 @@ spec:
                       recurse:
                         description: Recurse specifies whether to scan a directory
                           recursively for manifests
+                        type: boolean
+                      requireJsonOrYamlExtension:
+                        description: |-
+                          RequireJsonOrYamlExtension controls whether the built-in file-extension filter is applied during
+                          manifest generation. When true (the default when unset), only files with a .yaml, .yml, .json, or
+                          .jsonnet extension are considered as potential manifests. Set it to false to disable the filter so
+                          that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude glob
+                          patterns instead. A nil value is treated as true to preserve backwards-compatible behavior.
                         type: boolean
                     type: object
                   helm:
@@ -1482,11 +1491,6 @@ spec:
                       directory:
                         description: Directory specifies path/directory specific options
                         properties:
-                          allowCustomExtensions:
-                            description: AllowCustomExtensions lets a user add custom
-                              extensions other than what is already supported today
-                              like .yaml.sealed
-                            type: boolean
                           exclude:
                             description: Exclude contains a glob pattern to match
                               paths against that should be explicitly excluded from
@@ -1544,6 +1548,14 @@ spec:
                           recurse:
                             description: Recurse specifies whether to scan a directory
                               recursively for manifests
+                            type: boolean
+                          requireJsonOrYamlExtension:
+                            description: |-
+                              RequireJsonOrYamlExtension controls whether the built-in file-extension filter is applied during
+                              manifest generation. When true (the default when unset), only files with a .yaml, .yml, .json, or
+                              .jsonnet extension are considered as potential manifests. Set it to false to disable the filter so
+                              that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude glob
+                              patterns instead. A nil value is treated as true to preserve backwards-compatible behavior.
                             type: boolean
                         type: object
                       helm:
@@ -1904,11 +1916,6 @@ spec:
                     directory:
                       description: Directory holds path/directory specific options
                       properties:
-                        allowCustomExtensions:
-                          description: AllowCustomExtensions lets a user add custom
-                            extensions other than what is already supported today
-                            like .yaml.sealed
-                          type: boolean
                         exclude:
                           description: Exclude contains a glob pattern to match paths
                             against that should be explicitly excluded from being
@@ -1965,6 +1972,14 @@ spec:
                         recurse:
                           description: Recurse specifies whether to scan a directory
                             recursively for manifests
+                          type: boolean
+                        requireJsonOrYamlExtension:
+                          description: |-
+                            RequireJsonOrYamlExtension controls whether the built-in file-extension filter is applied during
+                            manifest generation. When true (the default when unset), only files with a .yaml, .yml, .json, or
+                            .jsonnet extension are considered as potential manifests. Set it to false to disable the filter so
+                            that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude glob
+                            patterns instead. A nil value is treated as true to preserve backwards-compatible behavior.
                           type: boolean
                       type: object
                     helm:
@@ -2470,11 +2485,6 @@ spec:
                         directory:
                           description: Directory holds path/directory specific options
                           properties:
-                            allowCustomExtensions:
-                              description: AllowCustomExtensions lets a user add custom
-                                extensions other than what is already supported today
-                                like .yaml.sealed
-                              type: boolean
                             exclude:
                               description: Exclude contains a glob pattern to match
                                 paths against that should be explicitly excluded from
@@ -2533,6 +2543,14 @@ spec:
                             recurse:
                               description: Recurse specifies whether to scan a directory
                                 recursively for manifests
+                              type: boolean
+                            requireJsonOrYamlExtension:
+                              description: |-
+                                RequireJsonOrYamlExtension controls whether the built-in file-extension filter is applied during
+                                manifest generation. When true (the default when unset), only files with a .yaml, .yml, .json, or
+                                .jsonnet extension are considered as potential manifests. Set it to false to disable the filter so
+                                that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude glob
+                                patterns instead. A nil value is treated as true to preserve backwards-compatible behavior.
                               type: boolean
                           type: object
                         helm:
@@ -2870,11 +2888,6 @@ spec:
                           directory:
                             description: Directory holds path/directory specific options
                             properties:
-                              allowCustomExtensions:
-                                description: AllowCustomExtensions lets a user add
-                                  custom extensions other than what is already supported
-                                  today like .yaml.sealed
-                                type: boolean
                               exclude:
                                 description: Exclude contains a glob pattern to match
                                   paths against that should be explicitly excluded
@@ -2933,6 +2946,14 @@ spec:
                               recurse:
                                 description: Recurse specifies whether to scan a directory
                                   recursively for manifests
+                                type: boolean
+                              requireJsonOrYamlExtension:
+                                description: |-
+                                  RequireJsonOrYamlExtension controls whether the built-in file-extension filter is applied during
+                                  manifest generation. When true (the default when unset), only files with a .yaml, .yml, .json, or
+                                  .jsonnet extension are considered as potential manifests. Set it to false to disable the filter so
+                                  that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude glob
+                                  patterns instead. A nil value is treated as true to preserve backwards-compatible behavior.
                                 type: boolean
                             type: object
                           helm:
@@ -3422,11 +3443,6 @@ spec:
                                 description: Directory holds path/directory specific
                                   options
                                 properties:
-                                  allowCustomExtensions:
-                                    description: AllowCustomExtensions lets a user
-                                      add custom extensions other than what is already
-                                      supported today like .yaml.sealed
-                                    type: boolean
                                   exclude:
                                     description: Exclude contains a glob pattern to
                                       match paths against that should be explicitly
@@ -3488,6 +3504,14 @@ spec:
                                   recurse:
                                     description: Recurse specifies whether to scan
                                       a directory recursively for manifests
+                                    type: boolean
+                                  requireJsonOrYamlExtension:
+                                    description: |-
+                                      RequireJsonOrYamlExtension controls whether the built-in file-extension filter is applied during
+                                      manifest generation. When true (the default when unset), only files with a .yaml, .yml, .json, or
+                                      .jsonnet extension are considered as potential manifests. Set it to false to disable the filter so
+                                      that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude glob
+                                      patterns instead. A nil value is treated as true to preserve backwards-compatible behavior.
                                     type: boolean
                                 type: object
                               helm:
@@ -3844,11 +3868,6 @@ spec:
                                   description: Directory holds path/directory specific
                                     options
                                   properties:
-                                    allowCustomExtensions:
-                                      description: AllowCustomExtensions lets a user
-                                        add custom extensions other than what is already
-                                        supported today like .yaml.sealed
-                                      type: boolean
                                     exclude:
                                       description: Exclude contains a glob pattern
                                         to match paths against that should be explicitly
@@ -3910,6 +3929,14 @@ spec:
                                     recurse:
                                       description: Recurse specifies whether to scan
                                         a directory recursively for manifests
+                                      type: boolean
+                                    requireJsonOrYamlExtension:
+                                      description: |-
+                                        RequireJsonOrYamlExtension controls whether the built-in file-extension filter is applied during
+                                        manifest generation. When true (the default when unset), only files with a .yaml, .yml, .json, or
+                                        .jsonnet extension are considered as potential manifests. Set it to false to disable the filter so
+                                        that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude glob
+                                        patterns instead. A nil value is treated as true to preserve backwards-compatible behavior.
                                       type: boolean
                                   type: object
                                 helm:
@@ -4398,11 +4425,6 @@ spec:
                           directory:
                             description: Directory holds path/directory specific options
                             properties:
-                              allowCustomExtensions:
-                                description: AllowCustomExtensions lets a user add
-                                  custom extensions other than what is already supported
-                                  today like .yaml.sealed
-                                type: boolean
                               exclude:
                                 description: Exclude contains a glob pattern to match
                                   paths against that should be explicitly excluded
@@ -4461,6 +4483,14 @@ spec:
                               recurse:
                                 description: Recurse specifies whether to scan a directory
                                   recursively for manifests
+                                type: boolean
+                              requireJsonOrYamlExtension:
+                                description: |-
+                                  RequireJsonOrYamlExtension controls whether the built-in file-extension filter is applied during
+                                  manifest generation. When true (the default when unset), only files with a .yaml, .yml, .json, or
+                                  .jsonnet extension are considered as potential manifests. Set it to false to disable the filter so
+                                  that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude glob
+                                  patterns instead. A nil value is treated as true to preserve backwards-compatible behavior.
                                 type: boolean
                             type: object
                           helm:
@@ -4807,11 +4837,6 @@ spec:
                               description: Directory holds path/directory specific
                                 options
                               properties:
-                                allowCustomExtensions:
-                                  description: AllowCustomExtensions lets a user add
-                                    custom extensions other than what is already supported
-                                    today like .yaml.sealed
-                                  type: boolean
                                 exclude:
                                   description: Exclude contains a glob pattern to
                                     match paths against that should be explicitly
@@ -4872,6 +4897,14 @@ spec:
                                 recurse:
                                   description: Recurse specifies whether to scan a
                                     directory recursively for manifests
+                                  type: boolean
+                                requireJsonOrYamlExtension:
+                                  description: |-
+                                    RequireJsonOrYamlExtension controls whether the built-in file-extension filter is applied during
+                                    manifest generation. When true (the default when unset), only files with a .yaml, .yml, .json, or
+                                    .jsonnet extension are considered as potential manifests. Set it to false to disable the filter so
+                                    that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude glob
+                                    patterns instead. A nil value is treated as true to preserve backwards-compatible behavior.
                                   type: boolean
                               type: object
                             helm:
@@ -5341,11 +5374,6 @@ spec:
                                 description: Directory specifies path/directory specific
                                   options
                                 properties:
-                                  allowCustomExtensions:
-                                    description: AllowCustomExtensions lets a user
-                                      add custom extensions other than what is already
-                                      supported today like .yaml.sealed
-                                    type: boolean
                                   exclude:
                                     description: Exclude contains a glob pattern to
                                       match paths against that should be explicitly
@@ -5407,6 +5435,14 @@ spec:
                                   recurse:
                                     description: Recurse specifies whether to scan
                                       a directory recursively for manifests
+                                    type: boolean
+                                  requireJsonOrYamlExtension:
+                                    description: |-
+                                      RequireJsonOrYamlExtension controls whether the built-in file-extension filter is applied during
+                                      manifest generation. When true (the default when unset), only files with a .yaml, .yml, .json, or
+                                      .jsonnet extension are considered as potential manifests. Set it to false to disable the filter so
+                                      that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude glob
+                                      patterns instead. A nil value is treated as true to preserve backwards-compatible behavior.
                                     type: boolean
                                 type: object
                               helm:
@@ -5809,11 +5845,6 @@ spec:
                                 description: Directory specifies path/directory specific
                                   options
                                 properties:
-                                  allowCustomExtensions:
-                                    description: AllowCustomExtensions lets a user
-                                      add custom extensions other than what is already
-                                      supported today like .yaml.sealed
-                                    type: boolean
                                   exclude:
                                     description: Exclude contains a glob pattern to
                                       match paths against that should be explicitly
@@ -5875,6 +5906,14 @@ spec:
                                   recurse:
                                     description: Recurse specifies whether to scan
                                       a directory recursively for manifests
+                                    type: boolean
+                                  requireJsonOrYamlExtension:
+                                    description: |-
+                                      RequireJsonOrYamlExtension controls whether the built-in file-extension filter is applied during
+                                      manifest generation. When true (the default when unset), only files with a .yaml, .yml, .json, or
+                                      .jsonnet extension are considered as potential manifests. Set it to false to disable the filter so
+                                      that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude glob
+                                      patterns instead. A nil value is treated as true to preserve backwards-compatible behavior.
                                     type: boolean
                                 type: object
                               helm:
@@ -6346,11 +6385,6 @@ spec:
                           directory:
                             description: Directory holds path/directory specific options
                             properties:
-                              allowCustomExtensions:
-                                description: AllowCustomExtensions lets a user add
-                                  custom extensions other than what is already supported
-                                  today like .yaml.sealed
-                                type: boolean
                               exclude:
                                 description: Exclude contains a glob pattern to match
                                   paths against that should be explicitly excluded
@@ -6409,6 +6443,14 @@ spec:
                               recurse:
                                 description: Recurse specifies whether to scan a directory
                                   recursively for manifests
+                                type: boolean
+                              requireJsonOrYamlExtension:
+                                description: |-
+                                  RequireJsonOrYamlExtension controls whether the built-in file-extension filter is applied during
+                                  manifest generation. When true (the default when unset), only files with a .yaml, .yml, .json, or
+                                  .jsonnet extension are considered as potential manifests. Set it to false to disable the filter so
+                                  that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude glob
+                                  patterns instead. A nil value is treated as true to preserve backwards-compatible behavior.
                                 type: boolean
                             type: object
                           helm:
@@ -6755,11 +6797,6 @@ spec:
                               description: Directory holds path/directory specific
                                 options
                               properties:
-                                allowCustomExtensions:
-                                  description: AllowCustomExtensions lets a user add
-                                    custom extensions other than what is already supported
-                                    today like .yaml.sealed
-                                  type: boolean
                                 exclude:
                                   description: Exclude contains a glob pattern to
                                     match paths against that should be explicitly
@@ -6820,6 +6857,14 @@ spec:
                                 recurse:
                                   description: Recurse specifies whether to scan a
                                     directory recursively for manifests
+                                  type: boolean
+                                requireJsonOrYamlExtension:
+                                  description: |-
+                                    RequireJsonOrYamlExtension controls whether the built-in file-extension filter is applied during
+                                    manifest generation. When true (the default when unset), only files with a .yaml, .yml, .json, or
+                                    .jsonnet extension are considered as potential manifests. Set it to false to disable the filter so
+                                    that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude glob
+                                    patterns instead. A nil value is treated as true to preserve backwards-compatible behavior.
                                   type: boolean
                               type: object
                             helm:
@@ -7339,8 +7384,6 @@ spec:
                                       type: string
                                     directory:
                                       properties:
-                                        allowCustomExtensions:
-                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -7381,6 +7424,8 @@ spec:
                                               type: array
                                           type: object
                                         recurse:
+                                          type: boolean
+                                        requireJsonOrYamlExtension:
                                           type: boolean
                                       type: object
                                     helm:
@@ -7582,8 +7627,6 @@ spec:
                                       properties:
                                         directory:
                                           properties:
-                                            allowCustomExtensions:
-                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -7624,6 +7667,8 @@ spec:
                                                   type: array
                                               type: object
                                             recurse:
+                                              type: boolean
+                                            requireJsonOrYamlExtension:
                                               type: boolean
                                           type: object
                                         helm:
@@ -7847,8 +7892,6 @@ spec:
                                         type: string
                                       directory:
                                         properties:
-                                          allowCustomExtensions:
-                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -7889,6 +7932,8 @@ spec:
                                                 type: array
                                             type: object
                                           recurse:
+                                            type: boolean
+                                          requireJsonOrYamlExtension:
                                             type: boolean
                                         type: object
                                       helm:
@@ -8259,8 +8304,6 @@ spec:
                                       type: string
                                     directory:
                                       properties:
-                                        allowCustomExtensions:
-                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -8301,6 +8344,8 @@ spec:
                                               type: array
                                           type: object
                                         recurse:
+                                          type: boolean
+                                        requireJsonOrYamlExtension:
                                           type: boolean
                                       type: object
                                     helm:
@@ -8502,8 +8547,6 @@ spec:
                                       properties:
                                         directory:
                                           properties:
-                                            allowCustomExtensions:
-                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -8544,6 +8587,8 @@ spec:
                                                   type: array
                                               type: object
                                             recurse:
+                                              type: boolean
+                                            requireJsonOrYamlExtension:
                                               type: boolean
                                           type: object
                                         helm:
@@ -8767,8 +8812,6 @@ spec:
                                         type: string
                                       directory:
                                         properties:
-                                          allowCustomExtensions:
-                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -8809,6 +8852,8 @@ spec:
                                                 type: array
                                             type: object
                                           recurse:
+                                            type: boolean
+                                          requireJsonOrYamlExtension:
                                             type: boolean
                                         type: object
                                       helm:
@@ -9180,8 +9225,6 @@ spec:
                                       type: string
                                     directory:
                                       properties:
-                                        allowCustomExtensions:
-                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -9222,6 +9265,8 @@ spec:
                                               type: array
                                           type: object
                                         recurse:
+                                          type: boolean
+                                        requireJsonOrYamlExtension:
                                           type: boolean
                                       type: object
                                     helm:
@@ -9423,8 +9468,6 @@ spec:
                                       properties:
                                         directory:
                                           properties:
-                                            allowCustomExtensions:
-                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -9465,6 +9508,8 @@ spec:
                                                   type: array
                                               type: object
                                             recurse:
+                                              type: boolean
+                                            requireJsonOrYamlExtension:
                                               type: boolean
                                           type: object
                                         helm:
@@ -9688,8 +9733,6 @@ spec:
                                         type: string
                                       directory:
                                         properties:
-                                          allowCustomExtensions:
-                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -9730,6 +9773,8 @@ spec:
                                                 type: array
                                             type: object
                                           recurse:
+                                            type: boolean
+                                          requireJsonOrYamlExtension:
                                             type: boolean
                                         type: object
                                       helm:
@@ -10079,8 +10124,6 @@ spec:
                                       type: string
                                     directory:
                                       properties:
-                                        allowCustomExtensions:
-                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -10121,6 +10164,8 @@ spec:
                                               type: array
                                           type: object
                                         recurse:
+                                          type: boolean
+                                        requireJsonOrYamlExtension:
                                           type: boolean
                                       type: object
                                     helm:
@@ -10322,8 +10367,6 @@ spec:
                                       properties:
                                         directory:
                                           properties:
-                                            allowCustomExtensions:
-                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -10364,6 +10407,8 @@ spec:
                                                   type: array
                                               type: object
                                             recurse:
+                                              type: boolean
+                                            requireJsonOrYamlExtension:
                                               type: boolean
                                           type: object
                                         helm:
@@ -10587,8 +10632,6 @@ spec:
                                         type: string
                                       directory:
                                         properties:
-                                          allowCustomExtensions:
-                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -10629,6 +10672,8 @@ spec:
                                                 type: array
                                             type: object
                                           recurse:
+                                            type: boolean
+                                          requireJsonOrYamlExtension:
                                             type: boolean
                                         type: object
                                       helm:
@@ -11003,8 +11048,6 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
-                                                  allowCustomExtensions:
-                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -11045,6 +11088,8 @@ spec:
                                                         type: array
                                                     type: object
                                                   recurse:
+                                                    type: boolean
+                                                  requireJsonOrYamlExtension:
                                                     type: boolean
                                                 type: object
                                               helm:
@@ -11246,8 +11291,6 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
-                                                      allowCustomExtensions:
-                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -11288,6 +11331,8 @@ spec:
                                                             type: array
                                                         type: object
                                                       recurse:
+                                                        type: boolean
+                                                      requireJsonOrYamlExtension:
                                                         type: boolean
                                                     type: object
                                                   helm:
@@ -11511,8 +11556,6 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
-                                                    allowCustomExtensions:
-                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -11553,6 +11596,8 @@ spec:
                                                           type: array
                                                       type: object
                                                     recurse:
+                                                      type: boolean
+                                                    requireJsonOrYamlExtension:
                                                       type: boolean
                                                   type: object
                                                 helm:
@@ -11923,8 +11968,6 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
-                                                  allowCustomExtensions:
-                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -11965,6 +12008,8 @@ spec:
                                                         type: array
                                                     type: object
                                                   recurse:
+                                                    type: boolean
+                                                  requireJsonOrYamlExtension:
                                                     type: boolean
                                                 type: object
                                               helm:
@@ -12166,8 +12211,6 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
-                                                      allowCustomExtensions:
-                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -12208,6 +12251,8 @@ spec:
                                                             type: array
                                                         type: object
                                                       recurse:
+                                                        type: boolean
+                                                      requireJsonOrYamlExtension:
                                                         type: boolean
                                                     type: object
                                                   helm:
@@ -12431,8 +12476,6 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
-                                                    allowCustomExtensions:
-                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -12473,6 +12516,8 @@ spec:
                                                           type: array
                                                       type: object
                                                     recurse:
+                                                      type: boolean
+                                                    requireJsonOrYamlExtension:
                                                       type: boolean
                                                   type: object
                                                 helm:
@@ -12844,8 +12889,6 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
-                                                  allowCustomExtensions:
-                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -12886,6 +12929,8 @@ spec:
                                                         type: array
                                                     type: object
                                                   recurse:
+                                                    type: boolean
+                                                  requireJsonOrYamlExtension:
                                                     type: boolean
                                                 type: object
                                               helm:
@@ -13087,8 +13132,6 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
-                                                      allowCustomExtensions:
-                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -13129,6 +13172,8 @@ spec:
                                                             type: array
                                                         type: object
                                                       recurse:
+                                                        type: boolean
+                                                      requireJsonOrYamlExtension:
                                                         type: boolean
                                                     type: object
                                                   helm:
@@ -13352,8 +13397,6 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
-                                                    allowCustomExtensions:
-                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -13394,6 +13437,8 @@ spec:
                                                           type: array
                                                       type: object
                                                     recurse:
+                                                      type: boolean
+                                                    requireJsonOrYamlExtension:
                                                       type: boolean
                                                   type: object
                                                 helm:
@@ -13743,8 +13788,6 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
-                                                  allowCustomExtensions:
-                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -13785,6 +13828,8 @@ spec:
                                                         type: array
                                                     type: object
                                                   recurse:
+                                                    type: boolean
+                                                  requireJsonOrYamlExtension:
                                                     type: boolean
                                                 type: object
                                               helm:
@@ -13986,8 +14031,6 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
-                                                      allowCustomExtensions:
-                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -14028,6 +14071,8 @@ spec:
                                                             type: array
                                                         type: object
                                                       recurse:
+                                                        type: boolean
+                                                      requireJsonOrYamlExtension:
                                                         type: boolean
                                                     type: object
                                                   helm:
@@ -14251,8 +14296,6 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
-                                                    allowCustomExtensions:
-                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -14293,6 +14336,8 @@ spec:
                                                           type: array
                                                       type: object
                                                     recurse:
+                                                      type: boolean
+                                                    requireJsonOrYamlExtension:
                                                       type: boolean
                                                   type: object
                                                 helm:
@@ -14650,8 +14695,6 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
-                                                  allowCustomExtensions:
-                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -14692,6 +14735,8 @@ spec:
                                                         type: array
                                                     type: object
                                                   recurse:
+                                                    type: boolean
+                                                  requireJsonOrYamlExtension:
                                                     type: boolean
                                                 type: object
                                               helm:
@@ -14893,8 +14938,6 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
-                                                      allowCustomExtensions:
-                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -14935,6 +14978,8 @@ spec:
                                                             type: array
                                                         type: object
                                                       recurse:
+                                                        type: boolean
+                                                      requireJsonOrYamlExtension:
                                                         type: boolean
                                                     type: object
                                                   helm:
@@ -15158,8 +15203,6 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
-                                                    allowCustomExtensions:
-                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -15200,6 +15243,8 @@ spec:
                                                           type: array
                                                       type: object
                                                     recurse:
+                                                      type: boolean
+                                                    requireJsonOrYamlExtension:
                                                       type: boolean
                                                   type: object
                                                 helm:
@@ -15784,8 +15829,6 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
-                                                  allowCustomExtensions:
-                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -15826,6 +15869,8 @@ spec:
                                                         type: array
                                                     type: object
                                                   recurse:
+                                                    type: boolean
+                                                  requireJsonOrYamlExtension:
                                                     type: boolean
                                                 type: object
                                               helm:
@@ -16027,8 +16072,6 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
-                                                      allowCustomExtensions:
-                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -16069,6 +16112,8 @@ spec:
                                                             type: array
                                                         type: object
                                                       recurse:
+                                                        type: boolean
+                                                      requireJsonOrYamlExtension:
                                                         type: boolean
                                                     type: object
                                                   helm:
@@ -16292,8 +16337,6 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
-                                                    allowCustomExtensions:
-                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -16334,6 +16377,8 @@ spec:
                                                           type: array
                                                       type: object
                                                     recurse:
+                                                      type: boolean
+                                                    requireJsonOrYamlExtension:
                                                       type: boolean
                                                   type: object
                                                 helm:
@@ -16915,8 +16960,6 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
-                                                  allowCustomExtensions:
-                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -16957,6 +17000,8 @@ spec:
                                                         type: array
                                                     type: object
                                                   recurse:
+                                                    type: boolean
+                                                  requireJsonOrYamlExtension:
                                                     type: boolean
                                                 type: object
                                               helm:
@@ -17158,8 +17203,6 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
-                                                      allowCustomExtensions:
-                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -17200,6 +17243,8 @@ spec:
                                                             type: array
                                                         type: object
                                                       recurse:
+                                                        type: boolean
+                                                      requireJsonOrYamlExtension:
                                                         type: boolean
                                                     type: object
                                                   helm:
@@ -17423,8 +17468,6 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
-                                                    allowCustomExtensions:
-                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -17465,6 +17508,8 @@ spec:
                                                           type: array
                                                       type: object
                                                     recurse:
+                                                      type: boolean
+                                                    requireJsonOrYamlExtension:
                                                       type: boolean
                                                   type: object
                                                 helm:
@@ -17831,8 +17876,6 @@ spec:
                                       type: string
                                     directory:
                                       properties:
-                                        allowCustomExtensions:
-                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -17873,6 +17916,8 @@ spec:
                                               type: array
                                           type: object
                                         recurse:
+                                          type: boolean
+                                        requireJsonOrYamlExtension:
                                           type: boolean
                                       type: object
                                     helm:
@@ -18074,8 +18119,6 @@ spec:
                                       properties:
                                         directory:
                                           properties:
-                                            allowCustomExtensions:
-                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -18116,6 +18159,8 @@ spec:
                                                   type: array
                                               type: object
                                             recurse:
+                                              type: boolean
+                                            requireJsonOrYamlExtension:
                                               type: boolean
                                           type: object
                                         helm:
@@ -18339,8 +18384,6 @@ spec:
                                         type: string
                                       directory:
                                         properties:
-                                          allowCustomExtensions:
-                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -18381,6 +18424,8 @@ spec:
                                                 type: array
                                             type: object
                                           recurse:
+                                            type: boolean
+                                          requireJsonOrYamlExtension:
                                             type: boolean
                                         type: object
                                       helm:
@@ -18757,8 +18802,6 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
-                                                  allowCustomExtensions:
-                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -18799,6 +18842,8 @@ spec:
                                                         type: array
                                                     type: object
                                                   recurse:
+                                                    type: boolean
+                                                  requireJsonOrYamlExtension:
                                                     type: boolean
                                                 type: object
                                               helm:
@@ -19000,8 +19045,6 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
-                                                      allowCustomExtensions:
-                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -19042,6 +19085,8 @@ spec:
                                                             type: array
                                                         type: object
                                                       recurse:
+                                                        type: boolean
+                                                      requireJsonOrYamlExtension:
                                                         type: boolean
                                                     type: object
                                                   helm:
@@ -19265,8 +19310,6 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
-                                                    allowCustomExtensions:
-                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -19307,6 +19350,8 @@ spec:
                                                           type: array
                                                       type: object
                                                     recurse:
+                                                      type: boolean
+                                                    requireJsonOrYamlExtension:
                                                       type: boolean
                                                   type: object
                                                 helm:
@@ -19677,8 +19722,6 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
-                                                  allowCustomExtensions:
-                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -19719,6 +19762,8 @@ spec:
                                                         type: array
                                                     type: object
                                                   recurse:
+                                                    type: boolean
+                                                  requireJsonOrYamlExtension:
                                                     type: boolean
                                                 type: object
                                               helm:
@@ -19920,8 +19965,6 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
-                                                      allowCustomExtensions:
-                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -19962,6 +20005,8 @@ spec:
                                                             type: array
                                                         type: object
                                                       recurse:
+                                                        type: boolean
+                                                      requireJsonOrYamlExtension:
                                                         type: boolean
                                                     type: object
                                                   helm:
@@ -20185,8 +20230,6 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
-                                                    allowCustomExtensions:
-                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -20227,6 +20270,8 @@ spec:
                                                           type: array
                                                       type: object
                                                     recurse:
+                                                      type: boolean
+                                                    requireJsonOrYamlExtension:
                                                       type: boolean
                                                   type: object
                                                 helm:
@@ -20598,8 +20643,6 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
-                                                  allowCustomExtensions:
-                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -20640,6 +20683,8 @@ spec:
                                                         type: array
                                                     type: object
                                                   recurse:
+                                                    type: boolean
+                                                  requireJsonOrYamlExtension:
                                                     type: boolean
                                                 type: object
                                               helm:
@@ -20841,8 +20886,6 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
-                                                      allowCustomExtensions:
-                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -20883,6 +20926,8 @@ spec:
                                                             type: array
                                                         type: object
                                                       recurse:
+                                                        type: boolean
+                                                      requireJsonOrYamlExtension:
                                                         type: boolean
                                                     type: object
                                                   helm:
@@ -21106,8 +21151,6 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
-                                                    allowCustomExtensions:
-                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -21148,6 +21191,8 @@ spec:
                                                           type: array
                                                       type: object
                                                     recurse:
+                                                      type: boolean
+                                                    requireJsonOrYamlExtension:
                                                       type: boolean
                                                   type: object
                                                 helm:
@@ -21497,8 +21542,6 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
-                                                  allowCustomExtensions:
-                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -21539,6 +21582,8 @@ spec:
                                                         type: array
                                                     type: object
                                                   recurse:
+                                                    type: boolean
+                                                  requireJsonOrYamlExtension:
                                                     type: boolean
                                                 type: object
                                               helm:
@@ -21740,8 +21785,6 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
-                                                      allowCustomExtensions:
-                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -21782,6 +21825,8 @@ spec:
                                                             type: array
                                                         type: object
                                                       recurse:
+                                                        type: boolean
+                                                      requireJsonOrYamlExtension:
                                                         type: boolean
                                                     type: object
                                                   helm:
@@ -22005,8 +22050,6 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
-                                                    allowCustomExtensions:
-                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -22047,6 +22090,8 @@ spec:
                                                           type: array
                                                       type: object
                                                     recurse:
+                                                      type: boolean
+                                                    requireJsonOrYamlExtension:
                                                       type: boolean
                                                   type: object
                                                 helm:
@@ -22404,8 +22449,6 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
-                                                  allowCustomExtensions:
-                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -22446,6 +22489,8 @@ spec:
                                                         type: array
                                                     type: object
                                                   recurse:
+                                                    type: boolean
+                                                  requireJsonOrYamlExtension:
                                                     type: boolean
                                                 type: object
                                               helm:
@@ -22647,8 +22692,6 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
-                                                      allowCustomExtensions:
-                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -22689,6 +22732,8 @@ spec:
                                                             type: array
                                                         type: object
                                                       recurse:
+                                                        type: boolean
+                                                      requireJsonOrYamlExtension:
                                                         type: boolean
                                                     type: object
                                                   helm:
@@ -22912,8 +22957,6 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
-                                                    allowCustomExtensions:
-                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -22954,6 +22997,8 @@ spec:
                                                           type: array
                                                       type: object
                                                     recurse:
+                                                      type: boolean
+                                                    requireJsonOrYamlExtension:
                                                       type: boolean
                                                   type: object
                                                 helm:
@@ -23538,8 +23583,6 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
-                                                  allowCustomExtensions:
-                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -23580,6 +23623,8 @@ spec:
                                                         type: array
                                                     type: object
                                                   recurse:
+                                                    type: boolean
+                                                  requireJsonOrYamlExtension:
                                                     type: boolean
                                                 type: object
                                               helm:
@@ -23781,8 +23826,6 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
-                                                      allowCustomExtensions:
-                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -23823,6 +23866,8 @@ spec:
                                                             type: array
                                                         type: object
                                                       recurse:
+                                                        type: boolean
+                                                      requireJsonOrYamlExtension:
                                                         type: boolean
                                                     type: object
                                                   helm:
@@ -24046,8 +24091,6 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
-                                                    allowCustomExtensions:
-                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -24088,6 +24131,8 @@ spec:
                                                           type: array
                                                       type: object
                                                     recurse:
+                                                      type: boolean
+                                                    requireJsonOrYamlExtension:
                                                       type: boolean
                                                   type: object
                                                 helm:
@@ -24669,8 +24714,6 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
-                                                  allowCustomExtensions:
-                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -24711,6 +24754,8 @@ spec:
                                                         type: array
                                                     type: object
                                                   recurse:
+                                                    type: boolean
+                                                  requireJsonOrYamlExtension:
                                                     type: boolean
                                                 type: object
                                               helm:
@@ -24912,8 +24957,6 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
-                                                      allowCustomExtensions:
-                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -24954,6 +24997,8 @@ spec:
                                                             type: array
                                                         type: object
                                                       recurse:
+                                                        type: boolean
+                                                      requireJsonOrYamlExtension:
                                                         type: boolean
                                                     type: object
                                                   helm:
@@ -25177,8 +25222,6 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
-                                                    allowCustomExtensions:
-                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -25219,6 +25262,8 @@ spec:
                                                           type: array
                                                       type: object
                                                     recurse:
+                                                      type: boolean
+                                                    requireJsonOrYamlExtension:
                                                       type: boolean
                                                   type: object
                                                 helm:
@@ -25589,8 +25634,6 @@ spec:
                                       type: string
                                     directory:
                                       properties:
-                                        allowCustomExtensions:
-                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -25631,6 +25674,8 @@ spec:
                                               type: array
                                           type: object
                                         recurse:
+                                          type: boolean
+                                        requireJsonOrYamlExtension:
                                           type: boolean
                                       type: object
                                     helm:
@@ -25832,8 +25877,6 @@ spec:
                                       properties:
                                         directory:
                                           properties:
-                                            allowCustomExtensions:
-                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -25874,6 +25917,8 @@ spec:
                                                   type: array
                                               type: object
                                             recurse:
+                                              type: boolean
+                                            requireJsonOrYamlExtension:
                                               type: boolean
                                           type: object
                                         helm:
@@ -26097,8 +26142,6 @@ spec:
                                         type: string
                                       directory:
                                         properties:
-                                          allowCustomExtensions:
-                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -26139,6 +26182,8 @@ spec:
                                                 type: array
                                             type: object
                                           recurse:
+                                            type: boolean
+                                          requireJsonOrYamlExtension:
                                             type: boolean
                                         type: object
                                       helm:
@@ -26495,8 +26540,6 @@ spec:
                                       type: string
                                     directory:
                                       properties:
-                                        allowCustomExtensions:
-                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -26537,6 +26580,8 @@ spec:
                                               type: array
                                           type: object
                                         recurse:
+                                          type: boolean
+                                        requireJsonOrYamlExtension:
                                           type: boolean
                                       type: object
                                     helm:
@@ -26738,8 +26783,6 @@ spec:
                                       properties:
                                         directory:
                                           properties:
-                                            allowCustomExtensions:
-                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -26780,6 +26823,8 @@ spec:
                                                   type: array
                                               type: object
                                             recurse:
+                                              type: boolean
+                                            requireJsonOrYamlExtension:
                                               type: boolean
                                           type: object
                                         helm:
@@ -27003,8 +27048,6 @@ spec:
                                         type: string
                                       directory:
                                         properties:
-                                          allowCustomExtensions:
-                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -27045,6 +27088,8 @@ spec:
                                                 type: array
                                             type: object
                                           recurse:
+                                            type: boolean
+                                          requireJsonOrYamlExtension:
                                             type: boolean
                                         type: object
                                       helm:
@@ -27629,8 +27674,6 @@ spec:
                                       type: string
                                     directory:
                                       properties:
-                                        allowCustomExtensions:
-                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -27671,6 +27714,8 @@ spec:
                                               type: array
                                           type: object
                                         recurse:
+                                          type: boolean
+                                        requireJsonOrYamlExtension:
                                           type: boolean
                                       type: object
                                     helm:
@@ -27872,8 +27917,6 @@ spec:
                                       properties:
                                         directory:
                                           properties:
-                                            allowCustomExtensions:
-                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -27914,6 +27957,8 @@ spec:
                                                   type: array
                                               type: object
                                             recurse:
+                                              type: boolean
+                                            requireJsonOrYamlExtension:
                                               type: boolean
                                           type: object
                                         helm:
@@ -28137,8 +28182,6 @@ spec:
                                         type: string
                                       directory:
                                         properties:
-                                          allowCustomExtensions:
-                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -28179,6 +28222,8 @@ spec:
                                                 type: array
                                             type: object
                                           recurse:
+                                            type: boolean
+                                          requireJsonOrYamlExtension:
                                             type: boolean
                                         type: object
                                       helm:
@@ -28760,8 +28805,6 @@ spec:
                                       type: string
                                     directory:
                                       properties:
-                                        allowCustomExtensions:
-                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -28802,6 +28845,8 @@ spec:
                                               type: array
                                           type: object
                                         recurse:
+                                          type: boolean
+                                        requireJsonOrYamlExtension:
                                           type: boolean
                                       type: object
                                     helm:
@@ -29003,8 +29048,6 @@ spec:
                                       properties:
                                         directory:
                                           properties:
-                                            allowCustomExtensions:
-                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -29045,6 +29088,8 @@ spec:
                                                   type: array
                                               type: object
                                             recurse:
+                                              type: boolean
+                                            requireJsonOrYamlExtension:
                                               type: boolean
                                           type: object
                                         helm:
@@ -29268,8 +29313,6 @@ spec:
                                         type: string
                                       directory:
                                         properties:
-                                          allowCustomExtensions:
-                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -29310,6 +29353,8 @@ spec:
                                                 type: array
                                             type: object
                                           recurse:
+                                            type: boolean
+                                          requireJsonOrYamlExtension:
                                             type: boolean
                                         type: object
                                       helm:
@@ -29753,8 +29798,6 @@ spec:
                             type: string
                           directory:
                             properties:
-                              allowCustomExtensions:
-                                type: boolean
                               exclude:
                                 type: string
                               include:
@@ -29795,6 +29838,8 @@ spec:
                                     type: array
                                 type: object
                               recurse:
+                                type: boolean
+                              requireJsonOrYamlExtension:
                                 type: boolean
                             type: object
                           helm:
@@ -29996,8 +30041,6 @@ spec:
                             properties:
                               directory:
                                 properties:
-                                  allowCustomExtensions:
-                                    type: boolean
                                   exclude:
                                     type: string
                                   include:
@@ -30038,6 +30081,8 @@ spec:
                                         type: array
                                     type: object
                                   recurse:
+                                    type: boolean
+                                  requireJsonOrYamlExtension:
                                     type: boolean
                                 type: object
                               helm:
@@ -30261,8 +30306,6 @@ spec:
                               type: string
                             directory:
                               properties:
-                                allowCustomExtensions:
-                                  type: boolean
                                 exclude:
                                   type: string
                                 include:
@@ -30303,6 +30346,8 @@ spec:
                                       type: array
                                   type: object
                                 recurse:
+                                  type: boolean
+                                requireJsonOrYamlExtension:
                                   type: boolean
                               type: object
                             helm:
