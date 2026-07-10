@@ -165,7 +165,7 @@ export const PodDebugViewer: React.FC<PodDebugViewerProps> = ({selectedNode, app
     }
 
     const setTerminalRef = useCallback(
-        node => {
+        (node: HTMLElement) => {
             if (terminal && connected) {
                 disconnect();
             }

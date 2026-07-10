@@ -547,9 +547,9 @@ export class ApplicationsService {
     public getDebugImages(projectName: string, appName: string, appNamespace: string): Promise<string[]> {
         const params = new URLSearchParams({appName, projectName, appNamespace: appNamespace || ''});
         return fetch(`${requests.toAbsURL('/debug-images')}?${params.toString()}`, {credentials: 'include'})
-            .then(res => (res.ok ? res.json() : {images: []}))
-            .then(body => (body.images || []) as string[])
-            .catch(() => []);
+            .then(res => (res.ok ? res.json() : {images: [] as string[]}))
+            .then((body: {images?: string[]}) => body.images || [])
+            .catch((): string[] => []);
     }
 
     private getLogsQuery(query: {

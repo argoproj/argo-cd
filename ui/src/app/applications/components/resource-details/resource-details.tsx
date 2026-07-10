@@ -73,7 +73,8 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
         logsAllowed: boolean,
         debugEnabled?: boolean,
         debugAllowed?: boolean,
-        debugImages?: string[]
+        debugImages?: string[],
+        controlledState?: {summary: models.ResourceStatus; state: models.ResourceDiff} | null
     ) => {
         if (!node || node === undefined) {
             return [];
@@ -336,7 +337,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                             ? await services.applications.getDebugImages(application.spec.project, application.metadata.name, application.metadata.namespace)
                             : [];
                         const debugAllowed = debugEnabled && debugImages.length > 0;
-                        const links = await services.applications.getResourceLinks(application.metadata.name, application.metadata.namespace, selectedNode).catch(() => null);
+                        const links = await services.applications.getResourceLinks(application.metadata.name, application.metadata.namespace, selectedNode).catch((): null => null);
                         const resourceActionsMenuItems = await AppUtils.getResourceActionsMenuItems(selectedNode, application.metadata, appContext);
                         return {
                             controlledState,
@@ -425,7 +426,8 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     data.logsAllowed,
                                     data.debugEnabled,
                                     data.debugAllowed,
-                                    data.debugImages
+                                    data.debugImages,
+                                    data.controlledState
                                 )}
                                 selectedTabKey={tab}
                                 onTabSelected={selected => appContext.navigation.goto('.', {tab: selected}, {replace: true})}
