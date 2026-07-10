@@ -1737,11 +1737,9 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 		settings.ExecShells = []string{"bash", "sh", "powershell", "cmd"}
 	}
 	settings.DebugEnabled = argoCDCM.Data[debugEnabledKey] == "true"
-	debugImages := argoCDCM.Data[debugImagesKey]
-	if debugImages != "" {
+	// No default allowlist: operators must explicitly set exec.debug.images (enforced at the debug endpoint).
+	if debugImages := argoCDCM.Data[debugImagesKey]; debugImages != "" {
 		settings.DebugImages = strings.Split(debugImages, ",")
-	} else {
-		settings.DebugImages = []string{"busybox:latest", "alpine:latest", "nicolaka/netshoot:latest"}
 	}
 	settings.TrackingMethod = argoCDCM.Data[settingsResourceTrackingMethodKey]
 	settings.OIDCTLSInsecureSkipVerify = argoCDCM.Data[oidcTLSInsecureSkipVerifyKey] == "true"
