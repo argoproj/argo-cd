@@ -37,7 +37,7 @@ jobs:
             This pull request has been marked as stale because it has had no activity for 90 days. Please comment if this is still relevant.
 
           days-before-stale: 90
-          days-before-close: -1   # Auto-close diabled
+          days-before-close: -1   # Auto-close disabled
 
           exempt-issue-labels: >
             bug, security, breaking/high, breaking/medium, breaking/low
