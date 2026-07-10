@@ -22,3 +22,9 @@ rules:
   - delete
   - update
   - patch
+- apiGroups:
+  - ""
+  resources:
+  - "namespaces"
+  verbs:
+  - list

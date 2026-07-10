@@ -303,6 +303,7 @@ See [ignore differences per resource](sync-options.md#respect-ignore-differences
 
 ## Labels
 
+<<<<<<< HEAD
 | Label key | Target resource(s) | Summary |
 |-----------|--------------------|---------|
 | [`argocd.argoproj.io/auto-label-cluster-info`](#auto-label-cluster-info) | Cluster Secret | Opts the cluster secret into dynamic cluster-info labels. |
@@ -346,3 +347,10 @@ Identifies certain types of Secrets used by Argo CD. See the
 [Declarative Setup docs](../operator-manual/declarative-setup.md) for details about the first three,
 and [AppSet-in-any-namespace docs](../operator-manual/applicationset/Appset-Any-Namespace.md) for
 the last one.
+=======
+| Label key                      | Target resource(es) | Possible values                                      | Description                                                                                                                                                                                                                                                                       |
+|--------------------------------|---------------------|------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| argocd.argoproj.io/instance    | Application         | any                                                  | Recommended tracking label to [avoid conflicts with other tools which use `app.kubernetes.io/instance`](../faq.md#why-is-my-app-out-of-sync-even-after-syncing).                                                                                                                  |
+| argocd.argoproj.io/secret-type | Secret              | `cluster`, `repository`, `repo-creds`, `scm-creds` | Identifies certain types of Secrets used by Argo CD. See the [Declarative Setup docs](../operator-manual/declarative-setup.md) for details about the first three, and [AppSet-in-any-namespace docs](../operator-manual/applicationset/Appset-Any-Namespace.md) for the last one. |
+| argocd.argoproj.io/source-namespace | Namespace              | any | Sets the namespace as a source namespace for applications. For use in [apps in any namespace](../operator-manual/app-any-namespace.md). |
+>>>>>>> d677d6d62 (feat: allow for application source namespaces to be found by label)
