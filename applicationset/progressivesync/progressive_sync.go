@@ -130,6 +130,7 @@ func (m *Manager) PerformReverseDeletion(ctx context.Context, logCtx *log.Entry,
 				logCtx.Infof("application %s successfully deleted", step.AppName)
 				continue
 			}
+			return 0, fmt.Errorf("error retrieving application %s: %w", step.AppName, err)
 		}
 		// Check if the application is already being deleted
 		if retrievedApp.DeletionTimestamp != nil {
@@ -138,8 +139,16 @@ func (m *Manager) PerformReverseDeletion(ctx context.Context, logCtx *log.Entry,
 				return 0, errors.New("application has not been deleted in over 2 minutes")
 			}
 		}
-		// The application has not been deleted yet, trigger its deletion
+		// The application has not been deleted yet, trigger its deletion.
+		// A NotFound here means the object is already gone from the API server while our
+		// (cache-backed) Get above still saw it — a stale informer cache. Treat it as
+		// already deleted and move on, otherwise we would error-loop forever and never
+		// remove the ApplicationSet finalizer.
 		if err := m.Client.Delete(ctx, &retrievedApp); err != nil {
+			if apierrors.IsNotFound(err) {
+				logCtx.Infof("application %s already deleted", step.AppName)
+				continue
+			}
 			return 0, err
 		}
 		return requeueTime, nil
