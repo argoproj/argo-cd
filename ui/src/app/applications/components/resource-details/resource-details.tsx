@@ -256,8 +256,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                             await services.applications.managedResources(application.metadata.name, application.metadata.namespace, {
                                 fields: ['items.normalizedLiveState', 'items.predictedLiveState', 'items.group', 'items.kind', 'items.namespace', 'items.name']
                             })
-                        }
-                    >
+                        }>
                         {managedResources => <ApplicationResourcesDiff states={managedResources} />}
                     </DataLoader>
                 )
@@ -354,8 +353,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                             childResources,
                             resourceActionsMenuItems
                         };
-                    }}
-                >
+                    }}>
                     {data => (
                         <React.Fragment>
                             <div className='resource-details__header'>
@@ -373,15 +371,13 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                 <button
                                     onClick={() => appContext.navigation.goto('.', {deploy: AppUtils.nodeKey(selectedNode)}, {replace: true})}
                                     style={{marginLeft: 'auto', marginRight: '5px'}}
-                                    className='argo-button argo-button--base'
-                                >
+                                    className='argo-button argo-button--base'>
                                     <i className='fa fa-sync-alt' /> <span className='show-for-large'>SYNC</span>
                                 </button>
                                 <button
                                     onClick={() => AppUtils.deletePopup(appContext, selectedNode, application, !!data.controlledState, data.childResources, props.appChanged)}
                                     style={{marginRight: '5px'}}
-                                    className='argo-button argo-button--base'
-                                >
+                                    className='argo-button argo-button--base'>
                                     <i className='fa fa-trash' /> <span className='show-for-large'>DELETE</span>
                                 </button>
                                 {data.resourceActionsMenuItems?.length > 0 && (
@@ -391,8 +387,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                             <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
                                                 <i className='fa fa-ellipsis-v' />
                                             </button>
-                                        )}
-                                    >
+                                        )}>
                                         {() => AppUtils.renderResourceActionMenu(data.resourceActionsMenuItems)}
                                     </DropDown>
                                 )}
