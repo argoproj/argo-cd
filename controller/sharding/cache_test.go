@@ -657,6 +657,9 @@ func TestClusterSharding_GetAppDistribution_ConcurrentWithWrites(t *testing.T) {
 	}()
 
 	wg.Wait()
+
+	// The goroutines have joined: the final read must reflect every write.
+	assert.Equal(t, 5000, sharding.GetAppDistribution()["https://serverA"])
 }
 
 // TestClusterSharding_UpdateShard_ConcurrentWithReads exercises UpdateShard
@@ -702,6 +705,10 @@ func TestClusterSharding_UpdateShard_ConcurrentWithReads(t *testing.T) {
 	}()
 
 	wg.Wait()
+
+	// The goroutines have joined: the last write (UpdateShard(4999 % 2)) must
+	// have taken effect.
+	assert.Equal(t, 1, sharding.Shard)
 }
 
 // TestClusterSharding_Run_DebouncesRecomputes verifies that once the background
