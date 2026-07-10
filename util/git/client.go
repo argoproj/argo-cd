@@ -1009,7 +1009,7 @@ func (m *nativeGitClient) optimizedLsRemoteRefPrefixPlan() ([]string, []string, 
 }
 
 func (m *nativeGitClient) optimizedLsRemoteCacheKey(parts ...string) string {
-	return m.repoURL + "|ls-remote-optimized|" + strings.Join(parts, ",")
+	return fmt.Sprintf("ls-remote-optimized|%s|%s", m.repoURL, strings.Join(parts, ","))
 }
 
 func (m *nativeGitClient) getOptimizedLsRemoteRefs(cacheKey string, fetch func() ([]*plumbing.Reference, error)) ([]*plumbing.Reference, error) {
