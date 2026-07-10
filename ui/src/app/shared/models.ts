@@ -644,6 +644,8 @@ export interface AuthSettings {
     uiBannerPosition: string;
     uiLoginButtonText: string;
     execEnabled: boolean;
+    debugEnabled: boolean;
+    debugImages: string[];
     appsInAnyNamespaceEnabled: boolean;
     hydratorEnabled: boolean;
     syncWithReplaceAllowed: boolean;
