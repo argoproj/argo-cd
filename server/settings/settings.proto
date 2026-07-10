@@ -49,6 +49,8 @@ message Settings {
     bool syncWithReplaceAllowed = 29;
     string uiLoginButtonText = 30;
     bool resourceViewEnabled = 31;
+    bool debugEnabled = 32;
+    repeated string debugImages = 33;
 }
 
 message GoogleAnalyticsConfig {
