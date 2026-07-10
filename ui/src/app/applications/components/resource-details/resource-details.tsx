@@ -274,8 +274,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                             await services.applications.managedResources(application.metadata.name, application.metadata.namespace, {
                                 fields: ['items.normalizedLiveState', 'items.predictedLiveState', 'items.group', 'items.kind', 'items.namespace', 'items.name']
                             })
-                        }
-                    >
+                        }>
                         {managedResources => <ApplicationResourcesDiff states={managedResources} />}
                     </DataLoader>
                 )
