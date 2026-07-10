@@ -161,8 +161,7 @@ const ProgressiveSyncStatus = ({application, collapsed}: {application: models.Ap
                 const appSet = appSetList.items?.find(item => item.metadata.name === appSetRef.name && item.metadata.namespace === application.metadata.namespace);
 
                 return {appSet};
-            }}
-        >
+            }}>
             {({appSet}: {appSet: models.ApplicationSet}) => {
                 // Hide panel if: Progressive Sync disabled, no permission, or not RollingSync strategy
                 if (!appSet || !appSet.status?.applicationStatus || appSet?.spec?.strategy?.type !== 'RollingSync') {
