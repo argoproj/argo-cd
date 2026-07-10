@@ -655,3 +655,48 @@ func TestClusterSharding_GetAppDistribution_ConcurrentWithWrites(t *testing.T) {
 
 	wg.Wait()
 }
+
+// TestClusterSharding_UpdateShard_ConcurrentWithReads exercises UpdateShard
+// concurrently with IsManagedCluster. UpdateShard must take the write lock
+// while mutating sharding.Shard; run with -race to detect a regression.
+func TestClusterSharding_UpdateShard_ConcurrentWithReads(t *testing.T) {
+	sharding := setupTestSharding(0, 2)
+	sharding.Init(
+		&v1alpha1.ClusterList{
+			Items: []v1alpha1.Cluster{
+				{ID: "1", Server: "https://serverA"},
+			},
+		},
+		&v1alpha1.ApplicationList{},
+	)
+	cluster := &v1alpha1.Cluster{ID: "1", Server: "https://serverA"}
+
+	done := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	// Writer: flips the shard assignment back and forth (real writes to sharding.Shard).
+	go func() {
+		defer wg.Done()
+		defer close(done)
+		for i := 0; i < 5000; i++ {
+			sharding.UpdateShard(i % 2)
+		}
+	}()
+
+	// Reader: hammers IsManagedCluster, which reads sharding.Shard under RLock,
+	// for the whole lifetime of the writer.
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-done:
+				return
+			default:
+				sharding.IsManagedCluster(cluster)
+			}
+		}
+	}()
+
+	wg.Wait()
+}
