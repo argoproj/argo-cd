@@ -50,7 +50,7 @@ backend code will live outside Argo CD main repository.
 
 The initiative to implement the anomaly detection capability in Argo CD
 highlighted the need to improve the existing UI extensions feature. The
-new capability will required the UI to have access to data that isn't
+new capability will require the UI to have access to data that isn't
 available as part of Application's owned resources. It is necessary to
 access an API defined by the extension's development team so the proper
 information can be displayed.
