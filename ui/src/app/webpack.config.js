@@ -236,6 +236,11 @@ const config = {
                 context: ['/terminal'],
                 target: process.env.ARGOCD_API_URL || 'ws://localhost:8080',
                 ws: true,
+            },
+            {
+                context: ['/debug'],
+                target: process.env.ARGOCD_API_URL || 'ws://localhost:8080',
+                ws: true,
             }
         ]
     }

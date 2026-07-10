@@ -122,7 +122,13 @@ func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRe
 
 // CanI checks if the current account has permission to perform an action
 func (s *Server) CanI(ctx context.Context, r *account.CanIRequest) (*account.CanIResponse, error) {
-	if !slices.Contains(rbac.Actions, r.Action) {
+	// Some actions carry a path suffix after the base action (e.g. "action/apps/Deployment/restart"
+	// or "debug/<image>"). Validate only the base action against the known action list.
+	baseAction := r.Action
+	if i := strings.Index(r.Action, "/"); i != -1 {
+		baseAction = r.Action[:i]
+	}
+	if !slices.Contains(rbac.Actions, baseAction) {
 		return nil, status.Errorf(codes.InvalidArgument, "%v does not contain %s", rbac.Actions, r.Action)
 	}
 	if !slices.Contains(rbac.Resources, r.Resource) {
