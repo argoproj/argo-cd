@@ -90,7 +90,7 @@ func (sharding *ClusterSharding) Init(clusters *v1alpha1.ClusterList, apps *v1al
 	newApps := make(map[string]*v1alpha1.Application, len(apps.Items))
 	for i := range apps.Items {
 		app := apps.Items[i]
-		newApps[app.Name] = &app
+		newApps[app.QualifiedName()] = &app
 	}
 	sharding.Apps = newApps
 	sharding.updateDistribution()
@@ -221,8 +221,11 @@ func (sharding *ClusterSharding) AddApp(a *v1alpha1.Application) {
 	sharding.lock.Lock()
 	defer sharding.lock.Unlock()
 
-	_, ok := sharding.Apps[a.Name]
-	sharding.Apps[a.Name] = a
+	// Key by QualifiedName (namespace/name) so that same-named apps in
+	// different namespaces (apps-in-any-namespace) do not collide and
+	// undercount the cluster's app load.
+	_, ok := sharding.Apps[a.QualifiedName()]
+	sharding.Apps[a.QualifiedName()] = a
 	if !ok {
 		sharding.updateDistribution()
 	} else {
@@ -233,8 +236,8 @@ func (sharding *ClusterSharding) AddApp(a *v1alpha1.Application) {
 func (sharding *ClusterSharding) DeleteApp(a *v1alpha1.Application) {
 	sharding.lock.Lock()
 	defer sharding.lock.Unlock()
-	if _, ok := sharding.Apps[a.Name]; ok {
-		delete(sharding.Apps, a.Name)
+	if _, ok := sharding.Apps[a.QualifiedName()]; ok {
+		delete(sharding.Apps, a.QualifiedName())
 		sharding.updateDistribution()
 	}
 }
@@ -243,9 +246,13 @@ func (sharding *ClusterSharding) UpdateApp(a *v1alpha1.Application) {
 	sharding.lock.Lock()
 	defer sharding.lock.Unlock()
 
-	_, ok := sharding.Apps[a.Name]
-	sharding.Apps[a.Name] = a
-	if !ok {
+	old, ok := sharding.Apps[a.QualifiedName()]
+	sharding.Apps[a.QualifiedName()] = a
+	// Recompute the distribution when the app is new, or when its destination
+	// cluster changed: the consistent-hashing-with-bounded-loads algorithm
+	// weights each cluster by its app count (keyed on Destination.Server), so a
+	// destination change alters the load and must trigger a redistribution.
+	if !ok || old.Spec.Destination.Server != a.Spec.Destination.Server {
 		sharding.updateDistribution()
 	} else {
 		log.Debugf("Skipping sharding distribution update. No relevant changes")
@@ -255,14 +262,16 @@ func (sharding *ClusterSharding) UpdateApp(a *v1alpha1.Application) {
 // GetAppDistribution should be not be called from a DestributionFunction because
 // it could cause a deadlock when updateDistribution is called.
 func (sharding *ClusterSharding) GetAppDistribution() map[string]int {
+	// Hold the read lock for the whole iteration. Copying the map reference and
+	// releasing the lock before ranging over it is a concurrent map iteration
+	// while AddApp/UpdateApp/DeleteApp write under the write lock, which is a
+	// fatal runtime panic. GetDistribution already holds its lock this way.
 	sharding.lock.RLock()
-	clusters := sharding.Clusters
-	apps := sharding.Apps
-	sharding.lock.RUnlock()
+	defer sharding.lock.RUnlock()
 
-	appDistribution := make(map[string]int, len(clusters))
+	appDistribution := make(map[string]int, len(sharding.Clusters))
 
-	for _, a := range apps {
+	for _, a := range sharding.Apps {
 		if _, ok := appDistribution[a.Spec.Destination.Server]; !ok {
 			appDistribution[a.Spec.Destination.Server] = 0
 		}

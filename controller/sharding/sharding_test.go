@@ -1053,3 +1053,9 @@ spec:
 	}
 	return app
 }
+
+func createAppWithNamespace(name string, namespace string, server string) v1alpha1.Application {
+	app := createApp(name, server)
+	app.Namespace = namespace
+	return app
+}

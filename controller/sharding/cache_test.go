@@ -1,6 +1,8 @@
 package sharding
 
 import (
+	"fmt"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -534,4 +536,122 @@ func TestHasShardingUpdates(t *testing.T) {
 			assert.Equal(t, tc.expected, hasShardingUpdates(tc.old, tc.new))
 		})
 	}
+}
+
+// TestClusterSharding_AddApp_SameNameDifferentNamespace ensures apps that share
+// a name across namespaces (apps-in-any-namespace) are tracked separately and
+// counted independently, instead of colliding on a name-only map key.
+func TestClusterSharding_AddApp_SameNameDifferentNamespace(t *testing.T) {
+	t.Parallel()
+	sharding := setupTestSharding(0, 2)
+
+	sharding.Init(
+		&v1alpha1.ClusterList{
+			Items: []v1alpha1.Cluster{
+				{ID: "1", Server: "https://serverA"},
+			},
+		},
+		&v1alpha1.ApplicationList{},
+	)
+
+	appA := createAppWithNamespace("frontend", "team-a", "https://serverA")
+	appB := createAppWithNamespace("frontend", "team-b", "https://serverA")
+	sharding.AddApp(&appA)
+	sharding.AddApp(&appB)
+
+	assert.Len(t, sharding.Apps, 2, "same-named apps in different namespaces must not collide")
+
+	appDistribution := sharding.GetAppDistribution()
+	assert.Equal(t, 2, appDistribution["https://serverA"], "both apps must be counted for the cluster")
+}
+
+// TestClusterSharding_UpdateApp_DestinationChange ensures that changing an
+// existing app's destination cluster triggers a redistribution (the consistent
+// hashing algorithm weights clusters by app count), while an update that leaves
+// the destination unchanged does not.
+func TestClusterSharding_UpdateApp_DestinationChange(t *testing.T) {
+	t.Parallel()
+	sharding := setupTestSharding(0, 2)
+
+	// Spy on the distribution function to observe whether updateDistribution ran.
+	var shardCalls int
+	sharding.getClusterShard = func(_ *v1alpha1.Cluster) int {
+		shardCalls++
+		return 0
+	}
+
+	sharding.Init(
+		&v1alpha1.ClusterList{
+			Items: []v1alpha1.Cluster{
+				{ID: "1", Server: "https://serverA"},
+				{ID: "2", Server: "https://serverB"},
+			},
+		},
+		&v1alpha1.ApplicationList{
+			Items: []v1alpha1.Application{
+				createApp("app1", "https://serverA"),
+			},
+		},
+	)
+
+	// Moving the app to a different destination cluster must recompute.
+	shardCalls = 0
+	movedApp := createApp("app1", "https://serverB")
+	sharding.UpdateApp(&movedApp)
+	assert.Positive(t, shardCalls, "destination change should trigger updateDistribution")
+
+	appDistribution := sharding.GetAppDistribution()
+	assert.Equal(t, 1, appDistribution["https://serverB"], "app should now be counted on serverB")
+	assert.Equal(t, 0, appDistribution["https://serverA"], "app should no longer be counted on serverA")
+
+	// An update that does not change the destination must skip redistribution.
+	shardCalls = 0
+	sameApp := createApp("app1", "https://serverB")
+	sharding.UpdateApp(&sameApp)
+	assert.Zero(t, shardCalls, "no destination change should skip updateDistribution")
+}
+
+// TestClusterSharding_GetAppDistribution_ConcurrentWithWrites exercises
+// GetAppDistribution concurrently with map writes. It must hold the read lock
+// for the whole iteration; run with -race to detect a regression.
+func TestClusterSharding_GetAppDistribution_ConcurrentWithWrites(t *testing.T) {
+	sharding := setupTestSharding(0, 2)
+	sharding.Init(
+		&v1alpha1.ClusterList{
+			Items: []v1alpha1.Cluster{
+				{ID: "1", Server: "https://serverA"},
+			},
+		},
+		&v1alpha1.ApplicationList{},
+	)
+
+	done := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	// Writer: continuously insert new apps (unique keys => real map writes).
+	go func() {
+		defer wg.Done()
+		defer close(done)
+		for i := 0; i < 5000; i++ {
+			app := createApp(fmt.Sprintf("app-%d", i), "https://serverA")
+			sharding.AddApp(&app)
+		}
+	}()
+
+	// Reader: hammer GetAppDistribution for the whole lifetime of the writer,
+	// so its (unlocked, in the buggy version) map iteration overlaps writes.
+	go func() {
+		defer wg.Done()
+		for {
+			select {
+			case <-done:
+				return
+			default:
+				_ = sharding.GetAppDistribution()
+			}
+		}
+	}()
+
+	wg.Wait()
 }
