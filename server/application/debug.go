@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"math/rand"
 	"net/http"
 	"slices"
 	"time"
@@ -24,6 +23,7 @@ import (
 	applisters "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/db"
+	"github.com/argoproj/argo-cd/v3/util/rand"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 	"github.com/argoproj/argo-cd/v3/util/security"
 	util_session "github.com/argoproj/argo-cd/v3/util/session"
@@ -342,7 +342,12 @@ func enforceDebugAccess(enf *rbac.Enforcer, claims any, appRBACName, image strin
 
 // startDebugProcess creates an ephemeral container on the target pod and returns the container name.
 func startDebugProcess(ctx context.Context, k8sClient kubernetes.Interface, namespace, podName, image, targetContainer string) (string, error) {
-	debugContainerName := common.DebugContainerNamePrefix + randomSuffix(6)
+	// RFC1123 lowercase-alphanumeric suffix keeps the container name valid.
+	suffix, err := rand.StringFromCharset(6, "abcdefghijklmnopqrstuvwxyz0123456789")
+	if err != nil {
+		return "", fmt.Errorf("cannot generate debug container name: %w", err)
+	}
+	debugContainerName := common.DebugContainerNamePrefix + suffix
 
 	ephemeralContainer := corev1.EphemeralContainer{
 		EphemeralContainerCommon: corev1.EphemeralContainerCommon{
@@ -436,13 +441,4 @@ func attachToContainer(k8sClient kubernetes.Interface, cfg *rest.Config, namespa
 		TerminalSizeQueue: ptyHandler,
 		Tty:               true,
 	})
-}
-
-func randomSuffix(n int) string {
-	const letters = "abcdefghijklmnopqrstuvwxyz0123456789"
-	b := make([]byte, n)
-	for i := range b {
-		b[i] = letters[rand.Intn(len(letters))]
-	}
-	return string(b)
 }

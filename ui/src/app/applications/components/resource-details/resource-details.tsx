@@ -414,7 +414,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                             ? await services.applications.getDebugImages(application.spec.project, application.metadata.name, application.metadata.namespace)
                             : [];
                         const debugAllowed = debugEnabled && debugImages.length > 0;
-                        const links = await services.applications.getResourceLinks(application.metadata.name, application.metadata.namespace, selectedNode).catch(() => null);
+                        const links = await services.applications.getResourceLinks(application.metadata.name, application.metadata.namespace, selectedNode).catch((): null => null);
                         const resourceActionsMenuItems = await AppUtils.getResourceActionsMenuItems(selectedNode, application.metadata, appContext);
                         return {
                             controlledState,
