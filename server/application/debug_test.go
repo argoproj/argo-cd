@@ -145,6 +145,21 @@ func TestDebugHandler_WithFeatureFlagMiddleware_enabled(t *testing.T) {
 	_ = called
 }
 
+func TestDebugHandler_WithFeatureFlagMiddleware_enabledNoImages(t *testing.T) {
+	// Enabled without a configured allowlist is a misconfiguration: there is no default,
+	// so the endpoint must reject the request instead of silently allowing anything.
+	handler := &debugHandler{
+		getSettings: func() (*settings.ArgoCDSettings, error) {
+			return &settings.ArgoCDSettings{DebugEnabled: true}, nil
+		},
+	}
+	middleware := handler.WithFeatureFlagMiddleware()
+	request := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "https://argocd.example.com/debug", http.NoBody)
+	recorder := httptest.NewRecorder()
+	middleware.ServeHTTP(recorder, request)
+	assert.Equal(t, http.StatusInternalServerError, recorder.Result().StatusCode)
+}
+
 func TestEnforceDebugAccess(t *testing.T) {
 	t.Parallel()
 
