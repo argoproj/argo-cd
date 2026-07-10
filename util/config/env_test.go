@@ -148,3 +148,21 @@ func TestFlagWithEqualSign(t *testing.T) {
 
 	assert.Equal(t, "bar", GetFlag("foo", ""))
 }
+
+func TestStringSliceFlagMultipleHeaders(t *testing.T) {
+	loadOpts(t, "--header 'Content-Type: application/json' --header 'Authorization: Bearer token'")
+	strings := GetStringSliceFlag("header", []string{})
+
+	assert.Len(t, strings, 2)
+	assert.Equal(t, "Content-Type: application/json", strings[0])
+	assert.Equal(t, "Authorization: Bearer token", strings[1])
+}
+
+func TestStringSliceFlagMultipleHeadersMixed(t *testing.T) {
+	loadOpts(t, "--header 'Content-Type: application/json' --header='Authorization: Bearer token'")
+	strings := GetStringSliceFlag("header", []string{})
+
+	assert.Len(t, strings, 2)
+	assert.Equal(t, "Content-Type: application/json", strings[0])
+	assert.Equal(t, "Authorization: Bearer token", strings[1])
+}
