@@ -1349,7 +1349,7 @@ func TestSelectiveSyncOnly(t *testing.T) {
 }
 
 func TestUnnamedHooksGetUniqueNames(t *testing.T) {
-	t.Run("Truncated revision", func(t *testing.T) {
+	t.Run("generateName not set", func(t *testing.T) {
 		syncCtx := newTestSyncCtx(nil)
 
 		pod := testingutils.NewPod()
@@ -1361,24 +1361,28 @@ func TestUnnamedHooksGetUniqueNames(t *testing.T) {
 
 		assert.True(t, successful)
 		assert.Len(t, tasks, 2)
-		assert.Contains(t, tasks[0].name(), "foobarb-presync-")
-		assert.Contains(t, tasks[1].name(), "foobarb-postsync-")
+		assert.Equal(t, len(tasks[0].name()), 5)
+		assert.Equal(t, len(tasks[1].name()), 5)
 		assert.Empty(t, pod.GetName())
 	})
 
-	t.Run("Short revision", func(t *testing.T) {
+	t.Run("generateName set", func(t *testing.T) {
 		syncCtx := newTestSyncCtx(nil)
+
 		pod := testingutils.NewPod()
 		pod.SetName("")
+		pod.SetGenerateName("foo-")
 		pod.SetAnnotations(map[string]string{synccommon.AnnotationKeyHook: "PreSync,PostSync"})
 		syncCtx.hooks = []*unstructured.Unstructured{pod}
-		syncCtx.revision = "foobar"
+
 		tasks, successful := syncCtx.getSyncTasks(context.Background())
 
 		assert.True(t, successful)
 		assert.Len(t, tasks, 2)
-		assert.Contains(t, tasks[0].name(), "foobar-presync-")
-		assert.Contains(t, tasks[1].name(), "foobar-postsync-")
+		assert.Contains(t, tasks[0].name(), "foo-")
+		assert.Equal(t, len(tasks[0].name()), 9)
+		assert.Contains(t, tasks[1].name(), "foo-")
+		assert.Equal(t, len(tasks[1].name()), 9)
 		assert.Empty(t, pod.GetName())
 	})
 }
