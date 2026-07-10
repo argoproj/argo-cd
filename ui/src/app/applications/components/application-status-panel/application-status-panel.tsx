@@ -145,8 +145,7 @@ const ProgressiveSyncStatus = ({application}: {application: models.Application})
                 const appSet = appSetList.items?.find(item => item.metadata.name === appSetRef.name);
 
                 return {appSet};
-            }}
-        >
+            }}>
             {({appSet}: {appSet: models.ApplicationSet}) => {
                 // Hide panel if: Progressive Sync disabled, no permission, or not RollingSync strategy
                 if (!appSet || !appSet.status?.applicationStatus || appSet?.spec?.strategy?.type !== 'RollingSync') {
@@ -471,8 +470,7 @@ export const ApplicationStatusPanel = ({application, collapsed, hasDebugContaine
                 input={application}
                 load={async app => {
                     return await services.applications.getApplicationSyncWindowState(app.metadata.name, app.metadata.namespace);
-                }}
-            >
+                }}>
                 {(data: models.ApplicationSyncWindowState) => (
                     <React.Fragment>
                         {data?.assignedWindows && (
