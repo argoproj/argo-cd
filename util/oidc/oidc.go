@@ -632,7 +632,7 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// GetValueFromEncryptedCache is a convenience method for retreiving a value from cache and decrypting it.  If the cache
+// GetValueFromEncryptedCache is a convenience method for retrieving a value from cache and decrypting it.  If the cache
 // does not contain a value for the given key, a nil value is returned.  Return handling should check for error and then
 // check for nil.
 func (a *ClientApp) GetValueFromEncryptedCache(ctx context.Context, key string) (value []byte, err error) {
