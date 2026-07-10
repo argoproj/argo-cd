@@ -211,11 +211,17 @@ function PaginateContent<T>({
     // the page only once the user manually paginates (`userPaginatedForKey`), and reset on key change.
     const userPaginatedForKey = React.useRef<string | null>(null);
     const getItemKeyRef = React.useRef(getItemKey);
-    getItemKeyRef.current = getItemKey;
     const onPageChangeRef = React.useRef(onPageChange);
-    onPageChangeRef.current = onPageChange;
     const currentPageRef = React.useRef(currentPage);
-    currentPageRef.current = currentPage;
+
+    // Keep the latest values in refs so the highlight effect below can read them without
+    // listing them as dependencies (which would make it re-run on every render). Refs must be
+    // mutated after render, so we sync them in an effect declared before that one.
+    React.useEffect(() => {
+        getItemKeyRef.current = getItemKey;
+        onPageChangeRef.current = onPageChange;
+        currentPageRef.current = currentPage;
+    });
 
     React.useEffect(() => {
         if (!focusItemKey || !getItemKeyRef.current) {

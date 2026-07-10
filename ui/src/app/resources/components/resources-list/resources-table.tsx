@@ -40,7 +40,7 @@ export const ResourcesTable = (props: {resources: models.Resource[]; onOpenDetai
     const [selectedResource, navResource, reset] = useNav(props.resources.length);
     const ctxh = React.useContext(Context);
 
-    const {useKeybinding} = React.useContext(KeybindingContext);
+    const {registerKeybinding} = React.useContext(KeybindingContext);
 
     const getSortArrow = (activeKey: ResourceSortKey, direction: 'asc' | 'desc', key: ResourceSortKey) => {
         if (activeKey !== key) {
@@ -58,16 +58,16 @@ export const ResourcesTable = (props: {resources: models.Resource[]; onOpenDetai
         );
     };
 
-    useKeybinding({keys: Key.DOWN, action: () => navResource(1)});
-    useKeybinding({keys: Key.UP, action: () => navResource(-1)});
-    useKeybinding({
+    registerKeybinding({keys: Key.DOWN, action: () => navResource(1)});
+    registerKeybinding({keys: Key.UP, action: () => navResource(-1)});
+    registerKeybinding({
         keys: Key.ESCAPE,
         action: () => {
             reset();
             return selectedResource > -1 ? true : false;
         }
     });
-    useKeybinding({
+    registerKeybinding({
         keys: Key.ENTER,
         action: () => {
             if (selectedResource > -1 && selectedResource < props.resources.length) {
