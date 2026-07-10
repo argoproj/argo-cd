@@ -111,7 +111,7 @@ Example:
 apiVersion: argoproj.io/v1alpha1
 kind: ArgoCDExtension
 metadata:
-  name: my-cool-extention
+  name: my-cool-extension
   finalizers:
     - extensions-finalizer.argocd.argoproj.io
 spec:
