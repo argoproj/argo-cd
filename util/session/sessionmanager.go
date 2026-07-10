@@ -603,7 +603,7 @@ func (mgr *SessionManager) VerifyToken(ctx context.Context, tokenString string) 
 
 		id := tokenUniqueID(claims)
 		if id == "" {
-			log.Warnf("token does not have jti claim")
+			log.Warnf("token does not have jti or uti claim")
 		}
 		// Workaround for Dex token, because does not have jti.
 		if id == "" {
