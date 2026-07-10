@@ -192,7 +192,7 @@ const ResourceTableRow = (props: {
     navigateToApplication: (ctx: ContextApis, resource: models.Resource, e?: React.MouseEvent) => void;
 }) => {
     const {resource, groupKind, index: i, selectedResource, ctx, openDetails, navigateToApplication} = props;
-    const appLinkTruncation = useTruncatedElement<HTMLButtonElement>(resource.appName ?? '');
+    const {ref: appLinkRef, isTruncated: appLinkIsTruncated} = useTruncatedElement<HTMLButtonElement>(resource.appName ?? '');
 
     return (
         <div
@@ -221,8 +221,8 @@ const ResourceTableRow = (props: {
                     </TruncatedTextTooltip>
                 </div>
                 <div className='columns small-2 resources-table__col-application' onClick={e => e.stopPropagation()}>
-                    <Tooltip content={resource.appName} enabled={!!resource.appName && appLinkTruncation.isTruncated}>
-                        <button ref={appLinkTruncation.ref} type='button' className='resources-table__application-link' onClick={e => navigateToApplication(ctx, resource, e)}>
+                    <Tooltip content={resource.appName} enabled={!!resource.appName && appLinkIsTruncated}>
+                        <button ref={appLinkRef} type='button' className='resources-table__application-link' onClick={e => navigateToApplication(ctx, resource, e)}>
                             {resource.appName}
                         </button>
                     </Tooltip>

@@ -170,13 +170,13 @@ const ResourcesToolbar: React.FC<ResourcesToolbarProps> = ({pref, ctx, healthBar
                 className={`resources-list__accordion argo-button argo-button--base${healthBarPrefs.showHealthStatusBar ? '-o' : ''}`}
                 style={{border: 'none'}}
                 onClick={() => {
-                    healthBarPrefs.showHealthStatusBar = !healthBarPrefs.showHealthStatusBar;
+                    const showHealthStatusBar = !healthBarPrefs.showHealthStatusBar;
                     services.viewPreferences.updatePreferences({
                         resourcesList: {
                             ...pref,
                             statusBarView: {
                                 ...healthBarPrefs,
-                                showHealthStatusBar: healthBarPrefs.showHealthStatusBar
+                                showHealthStatusBar
                             }
                         }
                     });
