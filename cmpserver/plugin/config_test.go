@@ -124,6 +124,20 @@ metadata:
 			expectedErr: "invalid plugin configuration file. spec.generate command should be non-empty",
 		},
 		{
+			// version is reported before the missing spec.generate error so users
+			// migrating off the removed field always see the actionable message first.
+			name: "version is no longer supported",
+			fileContents: `
+kind: ConfigManagementPlugin
+metadata:
+  name: name
+spec:
+  version: v1.0
+`,
+			expected:    nil,
+			expectedErr: errVersionUnsupported.Error(),
+		},
+		{
 			name: "valid config",
 			fileContents: `
 kind: ConfigManagementPlugin
@@ -181,7 +195,7 @@ func Test_PluginConfig_Address(t *testing.T) {
 		expected string
 	}{
 		{
-			name: "no version specified",
+			name: "address is based on metadata.name",
 			config: &PluginConfig{
 				TypeMeta: metav1.TypeMeta{
 					Kind: ConfigManagementPluginKind,
@@ -191,21 +205,6 @@ func Test_PluginConfig_Address(t *testing.T) {
 				},
 			},
 			expected: "name",
-		},
-		{
-			name: "version specified",
-			config: &PluginConfig{
-				TypeMeta: metav1.TypeMeta{
-					Kind: ConfigManagementPluginKind,
-				},
-				Metadata: metav1.ObjectMeta{
-					Name: "name",
-				},
-				Spec: PluginConfigSpec{
-					Version: "version",
-				},
-			},
-			expected: "name-version",
 		},
 	}
 

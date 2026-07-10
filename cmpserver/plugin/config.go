@@ -16,6 +16,10 @@ const (
 	ConfigManagementPluginKind string = "ConfigManagementPlugin"
 )
 
+// errVersionUnsupported is returned when a plugin configuration still sets the removed spec.version
+// field. Keeping it in one place lets the validator and its tests share a single source of truth.
+var errVersionUnsupported = errors.New("invalid plugin configuration file. spec.version is no longer supported. Remove it and, if you need to distinguish plugin versions, append the version to metadata.name instead (e.g. metadata.name: <name>-<version>)")
+
 type PluginConfig struct {
 	metav1.TypeMeta `json:",inline"`
 	Metadata        metav1.ObjectMeta `json:"metadata"`
@@ -23,6 +27,11 @@ type PluginConfig struct {
 }
 
 type PluginConfigSpec struct {
+	// Version is no longer supported. It is retained only so that the CMP server can
+	// detect a config that still sets it and return an actionable error. Append the
+	// version to metadata.name instead (e.g. metadata.name: <name>-<version>).
+	//
+	// Deprecated: unsupported in Argo CD 4.0.
 	Version          string     `json:"version"`
 	Init             Command    `json:"init,omitempty"`
 	Generate         Command    `json:"generate"`
@@ -89,6 +98,9 @@ func ValidatePluginConfig(config PluginConfig) error {
 	if config.Kind != ConfigManagementPluginKind {
 		return fmt.Errorf("invalid plugin configuration file. kind should be %s, found %s", ConfigManagementPluginKind, config.Kind)
 	}
+	if config.Spec.Version != "" {
+		return errVersionUnsupported
+	}
 	if len(config.Spec.Generate.Command) == 0 {
 		return errors.New("invalid plugin configuration file. spec.generate command should be non-empty")
 	}
@@ -97,12 +109,6 @@ func ValidatePluginConfig(config PluginConfig) error {
 }
 
 func (cfg *PluginConfig) Address() string {
-	var address string
 	pluginSockFilePath := common.GetPluginSockFilePath()
-	if cfg.Spec.Version != "" {
-		address = fmt.Sprintf("%s/%s-%s.sock", pluginSockFilePath, cfg.Metadata.Name, cfg.Spec.Version)
-	} else {
-		address = fmt.Sprintf("%s/%s.sock", pluginSockFilePath, cfg.Metadata.Name)
-	}
-	return address
+	return fmt.Sprintf("%s/%s.sock", pluginSockFilePath, cfg.Metadata.Name)
 }

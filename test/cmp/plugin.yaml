@@ -3,7 +3,6 @@ kind: ConfigManagementPlugin
 metadata:
   name: cmp-plugin
 spec:
-  version: v1.0
   init:
     command: [env]
   generate:

@@ -217,8 +217,8 @@ func TestCMPDiscoverWithPluginName(t *testing.T) {
 		Path("guestbook").
 		When().
 		CreateFromFile(func(app *Application) {
-			// specifically mention the plugin to use (name is based on <plugin name>-<version>
-			app.Spec.Source.Plugin = &ApplicationSourcePlugin{Name: "cmp-find-glob-v1.0"}
+			// specifically mention the plugin to use (name is based on the plugin's metadata.name)
+			app.Spec.Source.Plugin = &ApplicationSourcePlugin{Name: "cmp-find-glob"}
 		}).
 		Sync().
 		Then().
@@ -292,7 +292,7 @@ func TestPreserveFileModeForCMP(t *testing.T) {
 		Path("cmp-preserve-file-mode").
 		When().
 		CreateFromFile(func(app *Application) {
-			app.Spec.Source.Plugin = &ApplicationSourcePlugin{Name: "cmp-preserve-file-mode-v1.0"}
+			app.Spec.Source.Plugin = &ApplicationSourcePlugin{Name: "cmp-preserve-file-mode"}
 		}).
 		Refresh(RefreshTypeNormal).
 		Then().
