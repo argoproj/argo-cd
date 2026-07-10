@@ -80,6 +80,11 @@ func (s *debugHandler) WithFeatureFlagMiddleware() http.Handler {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
+		if len(argocdSettings.DebugImages) == 0 {
+			log.Error("debug feature is enabled but no images are configured; set exec.debug.images")
+			http.Error(w, "exec.debug.images must be set when exec.debug.enabled is true", http.StatusInternalServerError)
+			return
+		}
 		s.ServeHTTP(w, r)
 	})
 }
