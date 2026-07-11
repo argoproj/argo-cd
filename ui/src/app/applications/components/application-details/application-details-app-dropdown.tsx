@@ -62,10 +62,7 @@ export const ApplicationsDetailsAppDropdown = (props: {appName: string; appNames
                                 const label = needsNamespace ? `${app.metadata.namespace}/${app.metadata.name}` : app.metadata.name;
                                 const key = app.metadata.namespace ? `${app.metadata.namespace}/${app.metadata.name}` : app.metadata.name;
                                 return (
-                                    <li
-                                        className='application-details-app-dropdown__item'
-                                        key={key}
-                                        onClick={() => ctx.navigation.goto(`/${getAppUrl(app)}`)}>
+                                    <li className='application-details-app-dropdown__item' key={key} onClick={() => ctx.navigation.goto(`/${getAppUrl(app)}`)}>
                                         <i className={`icon ${resourceIconClass(props.objectListKind)} resource-icon__font-icon application-details-app-dropdown__resource-icon`} />
                                         <span>
                                             {label}
