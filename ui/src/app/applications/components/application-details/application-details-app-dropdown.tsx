@@ -9,7 +9,7 @@ function resourceIconClass(objectListKind: string): string {
     return objectListKind === 'applicationset' ? 'argo-icon-applicationset' : 'argo-icon-application';
 }
 
-export const ApplicationsDetailsAppDropdown = (props: {appName: string; objectListKind: string}) => {
+export const ApplicationsDetailsAppDropdown = (props: {appName: string; appNamespace: string; objectListKind: string}) => {
     const [opened, setOpened] = React.useState(false);
     const [appFilter, setAppFilter] = React.useState('');
     const ctx = React.useContext(Context);
@@ -42,22 +42,39 @@ export const ApplicationsDetailsAppDropdown = (props: {appName: string; objectLi
                         />
                     </li>
                     <DataLoader load={() => services.applications.list([], props.objectListKind, {fields: ['items.metadata.name', 'items.metadata.namespace']})}>
-                        {apps =>
-                            apps.items
+                        {apps => {
+                            const filtered = apps.items
                                 .filter(app => {
                                     return appFilter.length === 0 || app.metadata.name.toLowerCase().includes(appFilter.toLowerCase());
                                 })
-                                .slice(0, 100) // take top 100 results after filtering to avoid performance issues
-                                .map(app => (
-                                    <li className='application-details-app-dropdown__item' key={app.metadata.name} onClick={() => ctx.navigation.goto(`/${getAppUrl(app)}`)}>
+                                .slice(0, 100); // take top 100 results after filtering to avoid performance issues
+
+                            // Determine which names appear in more than one namespace so we can show
+                            // the namespace prefix only when disambiguation is needed.
+                            const nameCounts = new Map<string, number>();
+                            for (const app of filtered) {
+                                nameCounts.set(app.metadata.name, (nameCounts.get(app.metadata.name) ?? 0) + 1);
+                            }
+
+                            return filtered.map(app => {
+                                const isCurrent = app.metadata.name === props.appName && app.metadata.namespace === props.appNamespace;
+                                const needsNamespace = app.metadata.namespace && nameCounts.get(app.metadata.name) > 1;
+                                const label = needsNamespace ? `${app.metadata.namespace}/${app.metadata.name}` : app.metadata.name;
+                                const key = app.metadata.namespace ? `${app.metadata.namespace}/${app.metadata.name}` : app.metadata.name;
+                                return (
+                                    <li
+                                        className='application-details-app-dropdown__item'
+                                        key={key}
+                                        onClick={() => ctx.navigation.goto(`/${getAppUrl(app)}`)}>
                                         <i className={`icon ${resourceIconClass(props.objectListKind)} resource-icon__font-icon application-details-app-dropdown__resource-icon`} />
                                         <span>
-                                            {app.metadata.name}
-                                            {app.metadata.name === props.appName && ' (current)'}
+                                            {label}
+                                            {isCurrent && ' (current)'}
                                         </span>
                                     </li>
-                                ))
-                        }
+                                );
+                            });
+                        }}
                     </DataLoader>
                 </ul>
             )}
