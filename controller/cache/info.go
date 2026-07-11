@@ -614,7 +614,7 @@ func generateHTTPRouteURLs(un *unstructured.Unstructured) []string {
 		if hostname == "" || strings.HasPrefix(hostname, "*") {
 			continue
 		}
-		urlStr := fmt.Sprintf("http://%s", hostname)
+		urlStr := "http://" + hostname
 		if err := settings.ValidateExternalURL(urlStr); err != nil {
 			log.Warnf("Invalid URL generated for HTTPRoute %s/%s hostname %q: %v", un.GetNamespace(), un.GetName(), hostname, err)
 			continue
