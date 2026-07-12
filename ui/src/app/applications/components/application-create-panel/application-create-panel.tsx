@@ -18,6 +18,7 @@ import {SourcePanel} from './source-panel';
 import './application-create-panel.scss';
 import {getAppDefaultSource} from '../utils';
 import {APP_SOURCE_TYPES, normalizeTypeFieldsForSource} from '../shared/app-source-edit';
+import {validateApplicationCreate} from './application-create-panel-validation';
 
 const jsonMergePatch = require('json-merge-patch');
 
@@ -253,49 +254,7 @@ export const ApplicationCreatePanel = (props: {
                             />
                         )) || (
                             <Form
-                                validateError={(a: models.Application) => {
-                                    const hasHydrator = !!a.spec.sourceHydrator;
-                                    const source = a.spec.source;
-
-                                    const destinationErrors = {
-                                        'spec.destination.server':
-                                            !a.spec.destination.server && (!a.spec.destination.hasOwnProperty('name') || a.spec.destination.name === '')
-                                                ? 'Cluster URL is required'
-                                                : undefined,
-                                        'spec.destination.name':
-                                            !a.spec.destination.name && (!a.spec.destination.hasOwnProperty('server') || a.spec.destination.server === '')
-                                                ? 'Cluster name is required'
-                                                : undefined
-                                    };
-
-                                    if (multiSourceMode && !hasHydrator) {
-                                        const errs: Record<string, string | undefined> = {
-                                            'metadata.name': !a.metadata.name ? 'Application Name is required' : undefined,
-                                            'spec.project': !a.spec.project ? 'Project Name is required' : undefined,
-                                            ...destinationErrors
-                                        };
-                                        const sources = a.spec.sources || [];
-                                        for (let i = 0; i < sources.length; i++) {
-                                            const s = sources[i];
-                                            errs[`spec.sources[${i}].repoURL`] = !s?.repoURL ? 'Repository URL is required' : undefined;
-                                            errs[`spec.sources[${i}].targetRevision`] = !s?.targetRevision && s?.hasOwnProperty('chart') ? 'Version is required' : undefined;
-                                            errs[`spec.sources[${i}].path`] = !s?.path && !s?.chart ? 'Path is required' : undefined;
-                                            errs[`spec.sources[${i}].chart`] = !s?.path && !s?.chart ? 'Chart is required' : undefined;
-                                        }
-                                        return errs;
-                                    }
-
-                                    return {
-                                        'metadata.name': !a.metadata.name ? 'Application Name is required' : undefined,
-                                        'spec.project': !a.spec.project ? 'Project Name is required' : undefined,
-                                        'spec.source.repoURL': !hasHydrator && !source?.repoURL ? 'Repository URL is required' : undefined,
-                                        'spec.source.targetRevision':
-                                            !hasHydrator && !source?.targetRevision && source?.hasOwnProperty('chart') ? 'Version is required' : undefined,
-                                        'spec.source.path': !hasHydrator && !source?.path && !source?.chart ? 'Path is required' : undefined,
-                                        'spec.source.chart': !hasHydrator && !source?.path && !source?.chart ? 'Chart is required' : undefined,
-                                        ...destinationErrors
-                                    };
-                                }}
+                                validateError={(a: models.Application) => validateApplicationCreate(a, multiSourceMode)}
                                 defaultValues={app}
                                 formDidUpdate={state => debouncedOnAppChanged(state.values as any)}
                                 onSubmit={onCreateApp}
