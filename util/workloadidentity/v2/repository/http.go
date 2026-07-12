@@ -289,10 +289,21 @@ func extractStringField(body []byte, fieldName string) (string, error) {
 
 // parseRepoURL parses a repository URL and extracts the registry host and path.
 // e.g., "oci://quay.io/myorg/myrepo" -> ("quay.io", "myorg/myrepo", nil)
+// Scheme-less URLs (e.g. "myregistry.azurecr.io/myrepo", the standard form for
+// Helm OCI repositories) are supported.
 func parseRepoURL(repoURL string) (registry, repoPath string, err error) {
 	u, err := url.Parse(repoURL)
-	if err != nil {
-		return "", "", fmt.Errorf("invalid URL %q: %w", repoURL, err)
+	if err != nil || u.Host == "" {
+		// Scheme-less URLs parse with an empty Host (the whole string lands in
+		// Path, or in Scheme/Opaque when a port is present), so re-parse with a
+		// synthetic scheme.
+		u, err = url.Parse("oci://" + repoURL)
+		if err != nil {
+			return "", "", fmt.Errorf("invalid URL %q: %w", repoURL, err)
+		}
+	}
+	if u.Host == "" {
+		return "", "", fmt.Errorf("could not determine registry host from URL %q", repoURL)
 	}
 
 	registry = u.Host

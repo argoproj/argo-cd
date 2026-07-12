@@ -77,7 +77,6 @@ func TestNewIdentityProvider(t *testing.T) {
 		repo      *v1alpha1.Repository
 		saName    string
 		createSA  bool
-		wantNil   bool
 		wantError bool
 	}{
 		{
@@ -85,7 +84,6 @@ func TestNewIdentityProvider(t *testing.T) {
 			repo:      &v1alpha1.Repository{Repo: "", WorkloadIdentityProvider: "k8s", Project: "default"},
 			saName:    "argocd-project-default",
 			createSA:  true,
-			wantNil:   false,
 			wantError: false,
 		},
 		{
@@ -93,7 +91,6 @@ func TestNewIdentityProvider(t *testing.T) {
 			repo:      &v1alpha1.Repository{Repo: "oci://123456789012.dkr.ecr.us-west-2.amazonaws.com/repo", WorkloadIdentityProvider: "aws", Project: "default"},
 			saName:    "argocd-project-default",
 			createSA:  true,
-			wantNil:   false,
 			wantError: false,
 		},
 		{
@@ -101,7 +98,6 @@ func TestNewIdentityProvider(t *testing.T) {
 			repo:      &v1alpha1.Repository{Repo: "oci://us-docker.pkg.dev/project/repo", WorkloadIdentityProvider: "gcp", Project: "default"},
 			saName:    "argocd-project-default",
 			createSA:  true,
-			wantNil:   false,
 			wantError: false,
 		},
 		{
@@ -109,7 +105,6 @@ func TestNewIdentityProvider(t *testing.T) {
 			repo:      &v1alpha1.Repository{Repo: "oci://myregistry.azurecr.io/repo", WorkloadIdentityProvider: "azure", Project: "default"},
 			saName:    "argocd-project-default",
 			createSA:  true,
-			wantNil:   false,
 			wantError: false,
 		},
 		{
@@ -121,7 +116,6 @@ func TestNewIdentityProvider(t *testing.T) {
 			repo:      &v1alpha1.Repository{Repo: "", WorkloadIdentityProvider: "k8s", Project: "nonexistent"},
 			saName:    "argocd-project-nonexistent",
 			createSA:  false,
-			wantNil:   false,
 			wantError: false,
 		},
 		{
@@ -131,24 +125,21 @@ func TestNewIdentityProvider(t *testing.T) {
 			repo:      &v1alpha1.Repository{Repo: "oci://123456789012.dkr.ecr.us-west-2.amazonaws.com/repo", WorkloadIdentityProvider: "aws", Project: "default"},
 			saName:    "argocd-project-default",
 			createSA:  false,
-			wantNil:   false,
 			wantError: false,
 		},
 		{
-			name:      "unknown provider - returns nil",
+			name:      "unknown provider - returns error",
 			repo:      &v1alpha1.Repository{WorkloadIdentityProvider: "unknown", Project: "default"},
 			saName:    "argocd-project-default",
 			createSA:  true,
-			wantNil:   true,
-			wantError: false,
+			wantError: true,
 		},
 		{
-			name:      "empty provider - returns nil",
+			name:      "empty provider - returns error",
 			repo:      &v1alpha1.Repository{Project: "default"},
 			saName:    "argocd-project-default",
 			createSA:  true,
-			wantNil:   true,
-			wantError: false,
+			wantError: true,
 		},
 	}
 
@@ -171,15 +162,12 @@ func TestNewIdentityProvider(t *testing.T) {
 
 			if tt.wantError {
 				require.Error(t, err)
+				assert.Nil(t, provider)
 				return
 			}
 
 			require.NoError(t, err)
-			if tt.wantNil {
-				assert.Nil(t, provider)
-			} else {
-				assert.NotNil(t, provider)
-			}
+			assert.NotNil(t, provider)
 		})
 	}
 }

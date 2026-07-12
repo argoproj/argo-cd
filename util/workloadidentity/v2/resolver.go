@@ -52,7 +52,7 @@ func NewIdentityProvider(repository *v1alpha1.Repository, clientset kubernetes.I
 	case "azure":
 		return identity.NewAzureProvider(repository, k8sProvider), nil
 	default:
-		return nil, nil
+		return nil, fmt.Errorf("unknown workload identity provider %q, must be one of: k8s, aws, gcp, azure", repository.WorkloadIdentityProvider)
 	}
 }
 

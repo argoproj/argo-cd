@@ -513,6 +513,29 @@ func TestParseRepoURL(t *testing.T) {
 			expectedRegistry: "registry.example.com:5000",
 			expectedPath:     "myrepo",
 		},
+		{
+			name:             "scheme-less URL",
+			repoURL:          "myregistry.azurecr.io/myorg/myrepo",
+			expectedRegistry: "myregistry.azurecr.io",
+			expectedPath:     "myorg/myrepo",
+		},
+		{
+			name:             "scheme-less URL without path",
+			repoURL:          "myregistry.azurecr.io",
+			expectedRegistry: "myregistry.azurecr.io",
+			expectedPath:     "",
+		},
+		{
+			name:             "scheme-less URL with port",
+			repoURL:          "registry.example.com:5000/myrepo",
+			expectedRegistry: "registry.example.com:5000",
+			expectedPath:     "myrepo",
+		},
+		{
+			name:      "empty URL",
+			repoURL:   "",
+			expectErr: true,
+		},
 	}
 
 	for _, tt := range tests {
