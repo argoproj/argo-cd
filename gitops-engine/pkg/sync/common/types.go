@@ -135,13 +135,18 @@ const (
 	HookDeletePolicyHookSucceeded      HookDeletePolicy = "HookSucceeded"
 	HookDeletePolicyHookFailed         HookDeletePolicy = "HookFailed"
 	HookDeletePolicyBeforeHookCreation HookDeletePolicy = "BeforeHookCreation"
+	// HookDeletePolicyNever applies the hook resource but never deletes it automatically.
+	// The resource persists across syncs, which makes it suitable for permanent resources
+	// (e.g. ServiceAccount, ConfigMap, Secret, RBAC) that must be created in a hook phase.
+	HookDeletePolicyNever HookDeletePolicy = "Never"
 )
 
 func NewHookDeletePolicy(p string) (HookDeletePolicy, bool) {
 	return HookDeletePolicy(p),
 		p == string(HookDeletePolicyHookSucceeded) ||
 			p == string(HookDeletePolicyHookFailed) ||
-			p == string(HookDeletePolicyBeforeHookCreation)
+			p == string(HookDeletePolicyBeforeHookCreation) ||
+			p == string(HookDeletePolicyNever)
 }
 
 type ResourceSyncResult struct {
