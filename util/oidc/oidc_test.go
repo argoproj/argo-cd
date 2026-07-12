@@ -1498,6 +1498,7 @@ clientID: test-client-id
 clientSecret: test-client-secret
 requestedScopes: ["oidc"]`, oidcTestServer.URL),
 				OIDCTLSInsecureSkipVerify: true,
+				UserSessionDuration:       24 * time.Hour,
 			}
 			app, err := NewClientApp(cdSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
 			require.NoError(t, err)
@@ -1587,6 +1588,47 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		"SessionStart must be preserved across token refreshes")
 }
 
+func TestClientApp_GetUpdatedOidcTokenFromCache_SessionCeilingExceeded(t *testing.T) {
+	const sessionDuration = 10 * time.Minute
+	sessionStart := time.Now().Add(-11 * time.Minute)
+
+	oidcTestServer := test.GetOIDCTestServer(t, nil)
+	t.Cleanup(oidcTestServer.Close)
+
+	cdSettings := &settings.ArgoCDSettings{
+		URL: "https://argocd.example.com",
+		OIDCConfigRAW: fmt.Sprintf(`
+name: Test
+issuer: %s
+clientID: test-client-id
+clientSecret: test-client-secret
+requestedScopes: ["oidc"]`, oidcTestServer.URL),
+		OIDCTLSInsecureSkipVerify: true,
+		UserSessionDuration:       sessionDuration,
+	}
+	app, err := NewClientApp(cdSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
+	require.NoError(t, err)
+
+	sub, sid := "alice", "s1"
+	cacheKey := formatOidcTokenCacheKey(sub, sid)
+	originalJSON, err := json.Marshal(&OidcTokenCache{
+		Token:        &oauth2.Token{RefreshToken: "not empty"},
+		SessionStart: sessionStart,
+	})
+	require.NoError(t, err)
+	require.NoError(t, app.SetValueInEncryptedCache(t.Context(), cacheKey, originalJSON, time.Minute))
+
+	token, err := app.GetUpdatedOidcTokenFromCache(t.Context(), sub, sid)
+	require.NoError(t, err)
+	assert.Nil(t, token, "expired session must not yield a refreshed token")
+
+	// The refreshed token must not overwrite the cache entry with the default TTL
+	cachedValue, err := app.GetValueFromEncryptedCache(t.Context(), cacheKey)
+	require.NoError(t, err)
+	assert.JSONEq(t, string(originalJSON), string(cachedValue),
+		"expired session must not be re-cached with the cache's default TTL")
+}
+
 func TestClientApp_CheckAndGetRefreshToken(t *testing.T) {
 	tests := []struct {
 		name                  string
@@ -1650,6 +1692,7 @@ clientSecret: test-client-secret
 refreshTokenThreshold: %s
 requestedScopes: ["oidc"]`, oidcTestServer.URL, tt.refreshTokenThreshold),
 				OIDCTLSInsecureSkipVerify: true,
+				UserSessionDuration:       24 * time.Hour,
 			}
 			// The base href (the last argument for NewClientApp) is what HandleLogin will fall back to when no explicit
 			// redirect URL is given.

@@ -787,6 +787,12 @@ func (a *ClientApp) GetUpdatedOidcTokenFromCache(ctx context.Context, subject st
 			return nil, err
 		}
 		ttl := sessionRemainingTTL(oidcTokenCache.SessionStart, a.settings.UserSessionDuration)
+		if ttl <= 0 {
+			log.Info("session exceeded UserSessionDuration, forcing re-authentication")
+
+			// Return nil to force re-authentication
+			return nil, nil
+		}
 		err = a.SetValueInEncryptedCache(ctx, cacheKey, oidcTokenCacheJSON, ttl)
 		if err != nil {
 			span.SetStatus(codes.Error, err.Error())
