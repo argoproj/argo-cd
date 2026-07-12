@@ -173,3 +173,58 @@ i.menu_icon {
         display: none !important;
     }
 }
+
+.project-group {
+    margin-bottom: 24px;
+
+    &__header {
+        display: flex;
+        align-items: center;
+        padding: 12px 16px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        user-select: none;
+        border-radius: 4px;
+        margin-bottom: 12px;
+        transition: background-color 0.2s ease, color 0.2s ease;
+
+        @include themify($themes) {
+            background-color: themed('background-2');
+            color: themed('text-1');
+            border: 1px solid themed('border');
+        }
+
+        &:hover {
+            @include themify($themes) {
+                background-color: themed('light-argo-gray-2');
+            }
+        }
+
+        i {
+            font-size: 18px;
+            width: 20px;
+            text-align: center;
+            margin-right: 8px;
+            @include themify($themes) {
+                color: themed('text-2');
+            }
+        }
+
+        &__title {
+            flex-grow: 1;
+        }
+
+        &__count {
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-weight: normal;
+            @include themify($themes) {
+                background-color: themed('background-1');
+                color: themed('text-2');
+            }
+        }
+    }
+}
+

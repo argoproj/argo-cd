@@ -47,6 +47,23 @@ const useItemsPerContainer = (itemRef: any, containerRef: any): number => {
 
 export const ApplicationTiles = ({applications, syncApplication, refreshApplication, deleteApplication}: ApplicationTilesProps) => {
     const [selectedApp, navApp, reset] = useNav(applications.length);
+    const [collapsedProjects, setCollapsedProjects] = React.useState<Record<string, boolean>>({});
+
+    const getProjName = (app: models.AbstractApplication) => {
+        return isApp(app) ? app.spec?.project || 'default' : 'default';
+    };
+
+    const groupedApps = React.useMemo(() => {
+        const groupsMap = new Map<string, {app: models.AbstractApplication; index: number}[]>();
+        applications.forEach((app, i) => {
+            const proj = getProjName(app);
+            if (!groupsMap.has(proj)) {
+                groupsMap.set(proj, []);
+            }
+            groupsMap.get(proj).push({app, index: i});
+        });
+        return Array.from(groupsMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+    }, [applications]);
 
     const ctxh = React.useContext(Context);
     const firstTileRef = React.useRef<HTMLDivElement>(null);
@@ -101,34 +118,93 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
         <Consumer>
             {ctx => (
                 <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                    {pref => (
-                        <div className='applications-tiles argo-table-list argo-table-list--clickable' ref={appContainerRef}>
-                            {applications.map((app, i) =>
-                                isApp(app) ? (
-                                    <ApplicationTile
-                                        key={AppUtils.appInstanceName(app)}
-                                        app={app as models.Application}
-                                        selected={selectedApp === i}
-                                        pref={pref}
-                                        ctx={ctx}
-                                        tileRef={i === 0 ? firstTileRef : undefined}
-                                        syncApplication={syncApplication}
-                                        refreshApplication={refreshApplication}
-                                        deleteApplication={deleteApplication}
-                                    />
+                    {pref => {
+                        let firstVisibleIndex = -1;
+                        if (pref.appList.groupByProject) {
+                            for (const [project, appsInGroup] of groupedApps) {
+                                if (!collapsedProjects[project] && appsInGroup.length > 0) {
+                                    firstVisibleIndex = appsInGroup[0].index;
+                                    break;
+                                }
+                            }
+                        } else {
+                            firstVisibleIndex = 0;
+                        }
+
+                        return (
+                            <div ref={appContainerRef}>
+                                {pref.appList.groupByProject ? (
+                                    groupedApps.map(([project, appsInGroup]) => {
+                                        const isCollapsed = !!collapsedProjects[project];
+                                        return (
+                                            <div key={project} className='project-group'>
+                                                <div className='project-group__header' onClick={() => setCollapsedProjects({...collapsedProjects, [project]: !isCollapsed})}>
+                                                    <i className={`fa fa-angle-${isCollapsed ? 'right' : 'down'}`} />
+                                                    <span className='project-group__header__title'>{project}</span>
+                                                    <span className='project-group__header__count'>{appsInGroup.length}</span>
+                                                </div>
+                                                {!isCollapsed && (
+                                                    <div className='applications-tiles argo-table-list argo-table-list--clickable'>
+                                                        {appsInGroup.map(({app, index}) =>
+                                                            isApp(app) ? (
+                                                                <ApplicationTile
+                                                                    key={AppUtils.appInstanceName(app)}
+                                                                    app={app as models.Application}
+                                                                    selected={selectedApp === index}
+                                                                    pref={pref}
+                                                                    ctx={ctx}
+                                                                    tileRef={index === firstVisibleIndex ? firstTileRef : undefined}
+                                                                    syncApplication={syncApplication}
+                                                                    refreshApplication={refreshApplication}
+                                                                    deleteApplication={deleteApplication}
+                                                                />
+                                                            ) : (
+                                                                <AppSetTile
+                                                                    key={AppUtils.appInstanceName(app)}
+                                                                    appSet={app as models.ApplicationSet}
+                                                                    selected={selectedApp === index}
+                                                                    pref={pref}
+                                                                    ctx={ctx}
+                                                                    tileRef={index === firstVisibleIndex ? firstTileRef : undefined}
+                                                                />
+                                                            )
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })
                                 ) : (
-                                    <AppSetTile
-                                        key={AppUtils.appInstanceName(app)}
-                                        appSet={app as models.ApplicationSet}
-                                        selected={selectedApp === i}
-                                        pref={pref}
-                                        ctx={ctx}
-                                        tileRef={i === 0 ? firstTileRef : undefined}
-                                    />
-                                )
-                            )}
-                        </div>
-                    )}
+                                    <div className='applications-tiles argo-table-list argo-table-list--clickable'>
+                                        {applications.map((app, i) =>
+                                            isApp(app) ? (
+                                                <ApplicationTile
+                                                    key={AppUtils.appInstanceName(app)}
+                                                    app={app as models.Application}
+                                                    selected={selectedApp === i}
+                                                    pref={pref}
+                                                    ctx={ctx}
+                                                    tileRef={i === 0 ? firstTileRef : undefined}
+                                                    syncApplication={syncApplication}
+                                                    refreshApplication={refreshApplication}
+                                                    deleteApplication={deleteApplication}
+                                                />
+                                            ) : (
+                                                <AppSetTile
+                                                    key={AppUtils.appInstanceName(app)}
+                                                    appSet={app as models.ApplicationSet}
+                                                    selected={selectedApp === i}
+                                                    pref={pref}
+                                                    ctx={ctx}
+                                                    tileRef={i === 0 ? firstTileRef : undefined}
+                                                />
+                                            )
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    }}
                 </DataLoader>
             )}
         </Consumer>
