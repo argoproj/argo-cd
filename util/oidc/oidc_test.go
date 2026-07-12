@@ -1381,7 +1381,7 @@ func TestGetOidcTokenCacheFromJSON(t *testing.T) {
 		},
 		{
 			name:           "simple",
-			oidcTokenCache: NewOidcTokenCache("", (&oauth2.Token{}).WithExtra(map[string]any{"id_token": "simple"})),
+			oidcTokenCache: NewOidcTokenCache("", (&oauth2.Token{}).WithExtra(map[string]any{"id_token": "simple"}), time.Time{}),
 			expectIdToken:  "simple",
 		},
 	}
@@ -1424,7 +1424,7 @@ func TestClientApp_GetTokenSourceFromCache(t *testing.T) {
 		},
 		{
 			name:           "simple",
-			oidcTokenCache: NewOidcTokenCache("", (&oauth2.Token{}).WithExtra(map[string]any{"id_token": "simple"})),
+			oidcTokenCache: NewOidcTokenCache("", (&oauth2.Token{}).WithExtra(map[string]any{"id_token": "simple"}), time.Time{}),
 			provider:       &fakeProvider{},
 		},
 	}
@@ -1498,6 +1498,7 @@ clientID: test-client-id
 clientSecret: test-client-secret
 requestedScopes: ["oidc"]`, oidcTestServer.URL),
 				OIDCTLSInsecureSkipVerify: true,
+				UserSessionDuration:       24 * time.Hour,
 			}
 			app, err := NewClientApp(cdSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
 			require.NoError(t, err)
@@ -1517,6 +1518,115 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 			}
 		})
 	}
+}
+
+func TestSessionRemainingTTL(t *testing.T) {
+	const dur = 10 * time.Minute
+
+	t.Run("zero session start returns original full duration", func(t *testing.T) {
+		ttl := sessionRemainingTTL(time.Time{}, dur)
+		assert.Equal(t, dur, ttl)
+	})
+
+	t.Run("active session returns remaining time", func(t *testing.T) {
+		sessionStart := time.Now().Add(-4 * time.Minute)
+		ttl := sessionRemainingTTL(sessionStart, dur)
+		// ~6 min remaining; accept ±5s of test jitter
+		assert.InDelta(t, (6 * time.Minute).Seconds(), ttl.Seconds(), 5)
+	})
+
+	t.Run("expired session returns zero", func(t *testing.T) {
+		sessionStart := time.Now().Add(-11 * time.Minute)
+		ttl := sessionRemainingTTL(sessionStart, dur)
+		assert.Equal(t, time.Duration(0), ttl)
+	})
+}
+
+func TestClientApp_GetUpdatedOidcTokenFromCache_SessionCeiling(t *testing.T) {
+	// 10 minute UserSessionDuration, 9 minutes of current session already passed
+	const sessionDuration = 10 * time.Minute
+	sessionStart := time.Now().Add(-9 * time.Minute)
+
+	oidcTestServer := test.GetOIDCTestServer(t, nil)
+	t.Cleanup(oidcTestServer.Close)
+
+	cdSettings := &settings.ArgoCDSettings{
+		URL: "https://argocd.example.com",
+		OIDCConfigRAW: fmt.Sprintf(`
+name: Test
+issuer: %s
+clientID: test-client-id
+clientSecret: test-client-secret
+requestedScopes: ["oidc"]`, oidcTestServer.URL),
+		OIDCTLSInsecureSkipVerify: true,
+		UserSessionDuration:       sessionDuration,
+	}
+	app, err := NewClientApp(cdSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
+	require.NoError(t, err)
+
+	sub, sid := "alice", "s1"
+	oidcTokenCacheJSON, err := json.Marshal(&OidcTokenCache{
+		Token:        &oauth2.Token{RefreshToken: "not empty"},
+		SessionStart: sessionStart,
+	})
+	require.NoError(t, err)
+	require.NoError(t, app.SetValueInEncryptedCache(t.Context(), formatOidcTokenCacheKey(sub, sid), oidcTokenCacheJSON, sessionDuration))
+
+	_, err = app.GetUpdatedOidcTokenFromCache(t.Context(), sub, sid)
+	require.NoError(t, err)
+
+	// Retrieve the updated entry and confirm SessionStart was not reset to now.
+	updatedJSON, err := app.GetValueFromEncryptedCache(t.Context(), formatOidcTokenCacheKey(sub, sid))
+	require.NoError(t, err)
+	require.NotNil(t, updatedJSON, "cache entry should exist after refresh")
+
+	updatedCache, err := GetOidcTokenCacheFromJSON(updatedJSON)
+	require.NoError(t, err)
+
+	// TTL should be less than 1 minute after token refresh
+	assert.WithinDuration(t, sessionStart, updatedCache.SessionStart, 5*time.Second,
+		"SessionStart must be preserved across token refreshes")
+}
+
+func TestClientApp_GetUpdatedOidcTokenFromCache_SessionCeilingExceeded(t *testing.T) {
+	const sessionDuration = 10 * time.Minute
+	sessionStart := time.Now().Add(-11 * time.Minute)
+
+	oidcTestServer := test.GetOIDCTestServer(t, nil)
+	t.Cleanup(oidcTestServer.Close)
+
+	cdSettings := &settings.ArgoCDSettings{
+		URL: "https://argocd.example.com",
+		OIDCConfigRAW: fmt.Sprintf(`
+name: Test
+issuer: %s
+clientID: test-client-id
+clientSecret: test-client-secret
+requestedScopes: ["oidc"]`, oidcTestServer.URL),
+		OIDCTLSInsecureSkipVerify: true,
+		UserSessionDuration:       sessionDuration,
+	}
+	app, err := NewClientApp(cdSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
+	require.NoError(t, err)
+
+	sub, sid := "alice", "s1"
+	cacheKey := formatOidcTokenCacheKey(sub, sid)
+	originalJSON, err := json.Marshal(&OidcTokenCache{
+		Token:        &oauth2.Token{RefreshToken: "not empty"},
+		SessionStart: sessionStart,
+	})
+	require.NoError(t, err)
+	require.NoError(t, app.SetValueInEncryptedCache(t.Context(), cacheKey, originalJSON, time.Minute))
+
+	token, err := app.GetUpdatedOidcTokenFromCache(t.Context(), sub, sid)
+	require.NoError(t, err)
+	assert.Nil(t, token, "expired session must not yield a refreshed token")
+
+	// The refreshed token must not overwrite the cache entry with the default TTL
+	cachedValue, err := app.GetValueFromEncryptedCache(t.Context(), cacheKey)
+	require.NoError(t, err)
+	assert.JSONEq(t, string(originalJSON), string(cachedValue),
+		"expired session must not be re-cached with the cache's default TTL")
 }
 
 func TestClientApp_CheckAndGetRefreshToken(t *testing.T) {
@@ -1582,6 +1692,7 @@ clientSecret: test-client-secret
 refreshTokenThreshold: %s
 requestedScopes: ["oidc"]`, oidcTestServer.URL, tt.refreshTokenThreshold),
 				OIDCTLSInsecureSkipVerify: true,
+				UserSessionDuration:       24 * time.Hour,
 			}
 			// The base href (the last argument for NewClientApp) is what HandleLogin will fall back to when no explicit
 			// redirect URL is given.
