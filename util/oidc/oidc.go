@@ -125,10 +125,25 @@ type OidcTokenCache struct {
 	Token *oauth2.Token `json:"token"`
 	// TokenExtraIdToken captures value of id_token
 	TokenExtraIdToken string `json:"token_extra_id_token"`
+	// SessionStart records when the OIDC session was first established
+	SessionStart time.Time `json:"session_start"`
 }
 
-// NewOidcTokenCache initializes the struct from a redirect URL and an existing token
-func NewOidcTokenCache(redirectURL string, token *oauth2.Token) *OidcTokenCache {
+// SessionDuration bounded TTL to ensure refreshed sessions
+// cannot extend beyond the originally configured session lifetime
+func sessionRemainingTTL(sessionStart time.Time, sessionDuration time.Duration) time.Duration {
+	if sessionStart.IsZero() {
+		return sessionDuration
+	}
+	remaining := time.Until(sessionStart.Add(sessionDuration))
+	if remaining < 0 {
+		return 0
+	}
+	return remaining
+}
+
+// NewOidcTokenCache initializes the struct from a redirect URL, an existing token, and the session start time
+func NewOidcTokenCache(redirectURL string, token *oauth2.Token, sessionStart time.Time) *OidcTokenCache {
 	var idToken string
 	if token.Extra("id_token") == nil {
 		idToken = ""
@@ -139,6 +154,7 @@ func NewOidcTokenCache(redirectURL string, token *oauth2.Token) *OidcTokenCache 
 		RedirectURL:       redirectURL,
 		Token:             token,
 		TokenExtraIdToken: idToken,
+		SessionStart:      sessionStart,
 	}
 }
 
@@ -598,14 +614,15 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Cache encrypted raw token for background refresh
-	oidcTokenCache := NewOidcTokenCache(a.getRedirectURIForRequest(r), token)
+	oidcTokenCache := NewOidcTokenCache(a.getRedirectURIForRequest(r), token, time.Now())
 	oidcTokenCacheJSON, err := json.Marshal(oidcTokenCache)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	sid := jwtutil.StringField(claims, "sid")
-	err = a.SetValueInEncryptedCache(ctx, formatOidcTokenCacheKey(sub, sid), oidcTokenCacheJSON, GetTokenExpiration(claims))
+	ttl := sessionRemainingTTL(oidcTokenCache.SessionStart, a.settings.UserSessionDuration)
+	err = a.SetValueInEncryptedCache(ctx, formatOidcTokenCacheKey(sub, sid), oidcTokenCacheJSON, ttl)
 	if err != nil {
 		claimsJSON, _ := json.Marshal(claims)
 		log.Errorf("cannot cache encrypted oidc token: %v (claims=%s)", err, claimsJSON)
@@ -770,14 +787,22 @@ func (a *ClientApp) GetUpdatedOidcTokenFromCache(ctx context.Context, subject st
 	}
 	if token.AccessToken != oidcTokenCache.Token.AccessToken {
 		span.AddEvent("updating cache with latest token")
-		oidcTokenCache = NewOidcTokenCache(oidcTokenCache.RedirectURL, token)
+
+		oidcTokenCache = NewOidcTokenCache(oidcTokenCache.RedirectURL, token, oidcTokenCache.SessionStart)
 		oidcTokenCacheJSON, err = json.Marshal(oidcTokenCache)
 		if err != nil {
 			err = fmt.Errorf("failed to marshal oidc oidcTokenCache refresher: %w", err)
 			span.SetStatus(codes.Error, err.Error())
 			return nil, err
 		}
-		err = a.SetValueInEncryptedCache(ctx, cacheKey, oidcTokenCacheJSON, time.Until(token.Expiry))
+		ttl := sessionRemainingTTL(oidcTokenCache.SessionStart, a.settings.UserSessionDuration)
+		if ttl <= 0 {
+			log.Info("session exceeded UserSessionDuration, forcing re-authentication")
+
+			// Return nil to force re-authentication
+			return nil, nil
+		}
+		err = a.SetValueInEncryptedCache(ctx, cacheKey, oidcTokenCacheJSON, ttl)
 		if err != nil {
 			span.SetStatus(codes.Error, err.Error())
 			return nil, err
