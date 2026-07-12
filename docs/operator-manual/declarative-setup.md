@@ -1281,7 +1281,7 @@ spec:
   project: default
   source:
     chart: sealed-secrets
-    repoURL: https://bitnami-labs.github.io/sealed-secrets
+    repoURL: https://bitnami.github.io/sealed-secrets
     targetRevision: 1.16.1
     helm:
       releaseName: sealed-secrets
