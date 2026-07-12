@@ -1,4 +1,4 @@
-import {AutocompleteField, DataLoader, DropDownMenu, FormField} from 'argo-ui';
+import {AutocompleteField, DataLoader, DropDownMenu, FormField, Text} from 'argo-ui';
 import * as React from 'react';
 import {FormApi} from 'argo-ui';
 import {RevisionHelpIcon} from '../../../shared/components';
@@ -103,6 +103,9 @@ export const SourcePanel = (props: SourcePanelProps) => {
                                             }
                                             currentRepoType.current = type;
                                             /* eslint-enable react-hooks/refs */
+                                            if (type !== 'git') {
+                                                delete source.ref;
+                                            }
                                             switch (type) {
                                                 case 'git':
                                                 case 'oci':
@@ -117,6 +120,8 @@ export const SourcePanel = (props: SourcePanelProps) => {
                                                     if (Object.prototype.hasOwnProperty.call(source, 'path')) {
                                                         source.chart = source.path;
                                                         delete source.path;
+                                                    } else if (!Object.prototype.hasOwnProperty.call(source, 'chart')) {
+                                                        source.chart = '';
                                                     }
                                                     source.targetRevision = '';
                                                     source.repoURL = lastGitOrHelmUrl.current;
@@ -241,6 +246,11 @@ export const SourcePanel = (props: SourcePanelProps) => {
                         }}
                     </DataLoader>
                 )}
+            {isMulti && repoType === 'git' && (
+                <div className='argo-form-row'>
+                    <FormField formApi={props.formApi} label='Ref' qeId={`application-create-source-${qeSourceN}-field-ref`} field={fieldPath(idx, 'ref')} component={Text} />
+                </div>
+            )}
         </React.Fragment>
     );
 };
