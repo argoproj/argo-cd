@@ -62,6 +62,187 @@ func _createEmptyGitRepo(ctx context.Context) (string, error) {
 	return tempDir, err
 }
 
+// fakeGitRefCache is an in-memory stand-in for the reposerver git ref cache. It
+// lets a test steer which branch of getRefs runs and records how the cache was
+// used. Its GetOrLockGitReferences mirrors the real contract (see
+// reposerver/cache/cache.go): on a cache hit it fills references and returns an
+// empty lock id; when the caller wins the lock it echoes the caller's lockId
+// back; on error it returns the error.
+type fakeGitRefCache struct {
+	mu sync.Mutex
+
+	// Behavior knobs for GetOrLockGitReferences.
+	cachedRefs []*plumbing.Reference // non-nil => simulate a cache hit
+	getLockErr error                 // non-nil => return this error (get/lock failure)
+	// When cachedRefs is nil and getLockErr is nil, the caller becomes the lock
+	// owner (its lockId is echoed back) and is expected to populate the cache.
+
+	// Behavior knob for SetGitReferences.
+	setErr error
+
+	// Call recording.
+	getOrLockCalls int
+	setCalls       int
+	setRefs        []*plumbing.Reference
+	unlockCalls    int
+}
+
+func (f *fakeGitRefCache) GetOrLockGitReferences(_ string, lockId string, references *[]*plumbing.Reference) (string, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.getOrLockCalls++
+	if f.getLockErr != nil {
+		// Foreign (empty) lock id + error => getRefs takes its error path.
+		return "", f.getLockErr
+	}
+	if f.cachedRefs != nil {
+		// Cache hit: fill the caller's slice and return an empty lock id so the
+		// caller is not the lock owner and returns the cached value directly.
+		*references = f.cachedRefs
+		return "", nil
+	}
+	// No cached data and no error => caller wins the lock (owns population).
+	return lockId, nil
+}
+
+func (f *fakeGitRefCache) SetGitReferences(_ string, references []*plumbing.Reference) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.setCalls++
+	f.setRefs = references
+	return f.setErr
+}
+
+func (f *fakeGitRefCache) UnlockGitReferences(_ string, _ string) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.unlockCalls++
+	return nil
+}
+
+// newSpiedClient builds a nativeGitClient wired to the given cache and counts
+// how many times the remote-listing path (OnLsRemote) is entered, which is the
+// step immediately before the actual network fetch in getRefs. A count of zero
+// therefore proves the cache short-circuited before any remote call.
+func newSpiedClient(t *testing.T, repoURL string, cache gitRefCache, loadRefFromCache bool) (*nativeGitClient, *int) {
+	t.Helper()
+	lsRemoteCalls := 0
+	return &nativeGitClient{
+		EventHandlers: EventHandlers{
+			OnLsRemote: func(string) func() {
+				lsRemoteCalls++
+				return func() {}
+			},
+		},
+		repoURL:          repoURL,
+		creds:            NopCreds{},
+		gitRefCache:      cache,
+		loadRefFromCache: loadRefFromCache,
+	}, &lsRemoteCalls
+}
+
+func Test_nativeGitClient_getRefs(t *testing.T) {
+	// A synthetic ref set used by the pure-cache paths, which never touch a real
+	// repository.
+	cachedRefs := []*plumbing.Reference{
+		plumbing.NewHashReference("refs/heads/master", plumbing.NewHash("abcdef0123456789abcdef0123456789abcdef01")),
+	}
+
+	t.Run("cache hit returns cached refs without any remote call", func(t *testing.T) {
+		cache := &fakeGitRefCache{cachedRefs: cachedRefs}
+		// A deliberately unreachable URL: if getRefs fell through to a fetch it
+		// would fail, so a clean return proves the cache short-circuited.
+		client, lsRemoteCalls := newSpiedClient(t, "file:///does-not-exist", cache, true)
+
+		refs, err := client.getRefs()
+
+		require.NoError(t, err)
+		assert.Equal(t, cachedRefs, refs)
+		assert.Equal(t, 0, *lsRemoteCalls, "must not hit the remote on a cache hit")
+		assert.Equal(t, 0, cache.setCalls, "must not re-populate the cache on a hit")
+		assert.Equal(t, 0, cache.unlockCalls, "must not unlock when not the lock owner")
+	})
+
+	t.Run("get/lock error is propagated without a remote call", func(t *testing.T) {
+		wantErr := errors.New("cache exploded")
+		cache := &fakeGitRefCache{getLockErr: wantErr}
+		client, lsRemoteCalls := newSpiedClient(t, "file:///does-not-exist", cache, true)
+
+		refs, err := client.getRefs()
+
+		require.ErrorIs(t, err, wantErr)
+		assert.Nil(t, refs)
+		assert.Equal(t, 0, *lsRemoteCalls, "must not hit the remote when the cache errors")
+		assert.Equal(t, 0, cache.setCalls)
+	})
+
+	t.Run("lock owner fetches, populates cache, and does not unlock", func(t *testing.T) {
+		tempDir, err := _createEmptyGitRepo(t.Context())
+		require.NoError(t, err)
+		cache := &fakeGitRefCache{} // no cached data, no error => caller owns the lock
+		client, lsRemoteCalls := newSpiedClient(t, "file://"+tempDir, cache, true)
+
+		refs, err := client.getRefs()
+
+		require.NoError(t, err)
+		assert.NotEmpty(t, refs, "a real repo must advertise at least one ref")
+		assert.Equal(t, 1, *lsRemoteCalls, "lock owner must perform the remote listing")
+		assert.Equal(t, 1, cache.setCalls, "lock owner must store the fetched refs")
+		assert.Equal(t, refs, cache.setRefs, "the stored refs must match what was returned")
+		// SetGitReferences overwrites the lock with real data, so the deferred
+		// unlock must be skipped (needsUnlock=false).
+		assert.Equal(t, 0, cache.unlockCalls, "must not unlock after a successful store")
+	})
+
+	t.Run("failed cache store still returns refs and releases the lock", func(t *testing.T) {
+		tempDir, err := _createEmptyGitRepo(t.Context())
+		require.NoError(t, err)
+		cache := &fakeGitRefCache{setErr: errors.New("redis down")}
+		client, lsRemoteCalls := newSpiedClient(t, "file://"+tempDir, cache, true)
+
+		refs, err := client.getRefs()
+
+		// A store failure is logged, not surfaced: the caller still gets the refs.
+		require.NoError(t, err)
+		assert.NotEmpty(t, refs)
+		assert.Equal(t, 1, *lsRemoteCalls)
+		assert.Equal(t, 1, cache.setCalls)
+		// Store failed => needsUnlock stayed true => the deferred unlock must fire
+		// so the lock is not left stranded.
+		assert.Equal(t, 1, cache.unlockCalls, "must release the lock when the store fails")
+	})
+
+	t.Run("loadRefFromCache=false skips the lock but still stores fetched refs", func(t *testing.T) {
+		tempDir, err := _createEmptyGitRepo(t.Context())
+		require.NoError(t, err)
+		cache := &fakeGitRefCache{}
+		client, lsRemoteCalls := newSpiedClient(t, "file://"+tempDir, cache, false)
+
+		refs, err := client.getRefs()
+
+		require.NoError(t, err)
+		assert.NotEmpty(t, refs)
+		assert.Equal(t, 1, *lsRemoteCalls)
+		// The get/lock block is guarded by loadRefFromCache and is skipped...
+		assert.Equal(t, 0, cache.getOrLockCalls, "must not read or lock the cache when loadRefFromCache is false")
+		// ...but the store block is guarded only by gitRefCache != nil, so it runs.
+		assert.Equal(t, 1, cache.setCalls, "results are still written back to the cache")
+		assert.Equal(t, 0, cache.unlockCalls)
+	})
+
+	t.Run("no cache configured fetches directly", func(t *testing.T) {
+		tempDir, err := _createEmptyGitRepo(t.Context())
+		require.NoError(t, err)
+		client, lsRemoteCalls := newSpiedClient(t, "file://"+tempDir, nil, false)
+
+		refs, err := client.getRefs()
+
+		require.NoError(t, err)
+		assert.NotEmpty(t, refs)
+		assert.Equal(t, 1, *lsRemoteCalls)
+	})
+}
+
 func Test_nativeGitClient_cleanupOrphanedTempPackfiles(t *testing.T) {
 	root := t.TempDir()
 	packDir := filepath.Join(root, ".git", "objects", "pack")
@@ -1809,6 +1990,53 @@ func Test_nativeGitClient_AddAndPushNote(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, customNote, strings.TrimSpace(string(outBytes)))
 	})
+}
+
+func Test_isRetryableNotePushError(t *testing.T) {
+	tests := []struct {
+		name   string
+		errStr string
+		want   bool
+	}{
+		{
+			name:   "fetch first",
+			errStr: "Updates were rejected because the remote contains work that you do not have locally. fetch first",
+			want:   true,
+		},
+		{
+			name:   "reference already exists",
+			errStr: "failed to push some refs: reference already exists",
+			want:   true,
+		},
+		{
+			name:   "incorrect old value",
+			errStr: "update_ref failed for ref 'refs/notes/hydrator.metadata': cannot update the ref: incorrect old value",
+			want:   true,
+		},
+		{
+			name:   "failed to update ref",
+			errStr: "error: failed to update ref",
+			want:   true,
+		},
+		{
+			name: "cannot lock ref from concurrent shard",
+			errStr: " ! [remote rejected]     refs/notes/hydrator.metadata -> refs/notes/hydrator.metadata " +
+				"(cannot lock ref 'refs/notes/hydrator.metadata': is at 477134654bdd5531fc0f76bf026be86515e8685f " +
+				"but expected 30b2c9044a27f1b853fee454ab9bfef183fb9e0d)\n" +
+				"error: failed to push some refs to 'https://github.example.com/org/deployments.git'",
+			want: true,
+		},
+		{
+			name:   "non-retryable error",
+			errStr: "fatal: Authentication failed for 'https://github.example.com/org/deployments.git'",
+			want:   false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, isRetryableNotePushError(tt.errStr))
+		})
+	}
 }
 
 func Test_nativeGitClient_HasFileChanged(t *testing.T) {

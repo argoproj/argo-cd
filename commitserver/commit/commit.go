@@ -12,7 +12,6 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"
 	"github.com/argoproj/argo-cd/v3/commitserver/metrics"
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/gpgsign"
 	"github.com/argoproj/argo-cd/v3/util/io"
@@ -48,20 +47,6 @@ func NewService(gitCredsStore git.CredsStore, metricsServer *metrics.Server, sig
 		signingConfig:     signingConfig,
 		branchLock:        sync.NewKeyLock(),
 	}
-}
-
-type hydratorMetadataFile struct {
-	RepoURL  string   `json:"repoURL,omitempty"`
-	DrySHA   string   `json:"drySha,omitempty"`
-	Commands []string `json:"commands,omitempty"`
-	Author   string   `json:"author,omitempty"`
-	Date     string   `json:"date,omitempty"`
-	// Subject is the subject line of the DRY commit message, i.e. `git show --format=%s`.
-	Subject string `json:"subject,omitempty"`
-	// Body is the body of the DRY commit message, excluding the subject line, i.e. `git show --format=%b`.
-	// Known Argocd- trailers with valid values are removed, but all other trailers are kept.
-	Body       string                       `json:"body,omitempty"`
-	References []v1alpha1.RevisionReference `json:"references,omitempty"`
 }
 
 // CommitNote represents the structure of the git note associated with a hydrated commit.

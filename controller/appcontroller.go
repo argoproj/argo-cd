@@ -17,12 +17,12 @@ import (
 	"sync"
 	"time"
 
-	clustercache "github.com/argoproj/argo-cd/gitops-engine/pkg/cache"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
-	synccommon "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
-	resourceutil "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/resource"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	clustercache "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	resourceutil "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/resource"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/semaphore"
@@ -455,7 +455,8 @@ func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]b
 		if ref.Namespace == "" {
 			namespace = "(cluster-scoped)"
 		}
-		logCtx.WithFields(log.Fields{
+
+		refreshLogCtx := logCtx.WithFields(log.Fields{
 			"comparison-level": level,
 			"namespace":        namespace,
 			"name":             ref.Name,
@@ -463,7 +464,16 @@ func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]b
 			"kind":             ref.Kind,
 			"server":           app.Spec.Destination.Server,
 			"cluster-name":     app.Spec.Destination.Name,
-		}).Debug("Requesting app refresh caused by object update")
+		})
+		// A managed resource change triggers an actual reconciliation (CompareWithRecent),
+		// so log it at Info to give visibility into what caused the reconcile. Other object
+		// updates (orphan, child of managed resources) only refresh the resource tree,
+		// so keep them at Debug level to limit noise.
+		if isManagedResource {
+			refreshLogCtx.Info("Requesting app refresh caused by object update")
+		} else {
+			refreshLogCtx.Debug("Requesting app refresh caused by object update")
+		}
 
 		ctrl.requestAppRefresh(app.QualifiedName(), &level, nil)
 	}
@@ -1802,6 +1812,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	if hasErrors {
 		app.Status.Sync.Status = appv1.SyncStatusCodeUnknown
 		app.Status.Health.Status = health.HealthStatusUnknown
+		app.Status.Health.Message = ""
 		patchDuration = ctrl.persistReconciliationStatus(origApp, &app.Status)
 
 		if err := ctrl.cache.SetAppResourcesTree(app.InstanceName(ctrl.namespace), &appv1.ApplicationTree{}); err != nil {
@@ -1908,6 +1919,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	}
 	app.Status.Sync = *compareResult.syncStatus
 	app.Status.Health.Status = compareResult.healthStatus
+	app.Status.Health.Message = compareResult.healthMessage
 	app.Status.Resources = compareResult.resources
 	sort.Slice(app.Status.Resources, func(i, j int) bool {
 		return resourceStatusKey(app.Status.Resources[i]) < resourceStatusKey(app.Status.Resources[j])
@@ -2170,10 +2182,19 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 		newStatus.Health.LastTransitionTime = &now
 
 		message := fmt.Sprintf("Updated health status: %s -> %s", orig.Status.Health.Status, newStatus.Health.Status)
+		if newStatus.Health.Message != "" {
+			message = fmt.Sprintf("%s (%s)", message, newStatus.Health.Message)
+		}
 		ctrl.logAppEvent(context.TODO(), orig, argo.EventInfo{Reason: argo.EventReasonResourceUpdated, Type: corev1.EventTypeNormal}, message)
 	} else {
 		// make sure the last transition time is the same and populated if the health is the same
 		newStatus.Health.LastTransitionTime = orig.Status.Health.LastTransitionTime
+		if newStatus.ResourceHealthSource != appv1.ResourceHealthLocationInline {
+			// Preserve the existing health message if the resource health is not inline to avoid
+			// updating the status. In that case, the health message is persisted and reflects
+			// what caused the last health transition instead of the immediate state.
+			newStatus.Health.Message = orig.Status.Health.Message
+		}
 	}
 	patch, modified, err := createMergePatch(
 		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: orig.GetAnnotations()}, Status: orig.Status},

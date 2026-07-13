@@ -1757,13 +1757,7 @@ func (m *nativeGitClient) AddAndPushNote(ctx context.Context, sha string, namesp
 		log.Debugf("AddAndPushNote push failed (attempt %d): %v", attempt, err)
 
 		// Check if this is a retryable error
-		errStr := err.Error()
-		isRetryable := strings.Contains(errStr, "fetch first") || // Remote updated after our fetch (concurrent push completed between our fetch and push)
-			strings.Contains(errStr, "reference already exists") || // Concurrent push is holding the lock (git server-side lock)
-			strings.Contains(errStr, "incorrect old value") || // Git detected our local ref is stale (concurrent update)
-			strings.Contains(errStr, "failed to update ref") // Generic ref update failure that may include transient issues
-
-		if !isRetryable {
+		if !isRetryableNotePushError(err.Error()) {
 			return struct{}{}, backoff.Permanent(fmt.Errorf("failed to push note: %w", err))
 		}
 
@@ -1778,6 +1772,20 @@ func (m *nativeGitClient) AddAndPushNote(ctx context.Context, sha string, namesp
 		return fmt.Errorf("failed to push note after retries: %w", err)
 	}
 	return nil
+}
+
+// isRetryableNotePushError reports whether a failed git notes push is caused by a
+// concurrent update to the same notes ref and is therefore safe to retry after
+// re-fetching the remote ref. Multiple application controller shards can hydrate
+// and push to the same refs/notes ref at once, and git reports the resulting
+// collision through several different messages depending on the git version and
+// server, including "cannot lock ref" when the server already holds the ref lock.
+func isRetryableNotePushError(errStr string) bool {
+	return strings.Contains(errStr, "fetch first") || // Remote updated after our fetch (concurrent push completed between our fetch and push)
+		strings.Contains(errStr, "reference already exists") || // Concurrent push is holding the lock (git server-side lock)
+		strings.Contains(errStr, "incorrect old value") || // Git detected our local ref is stale (concurrent update)
+		strings.Contains(errStr, "failed to update ref") || // Generic ref update failure that may include transient issues
+		strings.Contains(errStr, "cannot lock ref") // Server could not lock the notes ref because a concurrent push from another shard holds it
 }
 
 // HasFileChanged returns the outout of git diff considering whether it is tracked or un-tracked

@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube/mocks"
-	testingutils "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/testing"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/tracing"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube/mocks"
+	testingutils "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/testing"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/tracing"
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -329,7 +329,13 @@ func TestApplyOptionsConfiguration(t *testing.T) {
 				assert.Equal(t, tc.strategy, capturedOpts.DryRunStrategy)
 				assert.Equal(t, "test-manager", capturedOpts.FieldManager)
 				assert.True(t, capturedOpts.Overwrite)
-				assert.True(t, capturedOpts.OpenAPIPatch)
+				if tc.strategy == cmdutil.DryRunClient {
+					// workaround for https://github.com/kubernetes/kubernetes/issues/139538
+					// in kubectl v1.36
+					assert.False(t, capturedOpts.OpenAPIPatch)
+				} else {
+					assert.True(t, capturedOpts.OpenAPIPatch)
+				}
 				assert.False(t, capturedOpts.ServerSideApply)
 				assert.False(t, capturedOpts.ForceConflicts)
 			})
