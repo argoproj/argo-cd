@@ -3,6 +3,7 @@ package cache
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -10,8 +11,8 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/text"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/text"
 	"github.com/cespare/xxhash/v2"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -695,8 +696,8 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	}
 	if !initializing || isPodInitializedConditionTrue(&pod.Status) {
 		hasRunning := false
-		for i := len(pod.Status.ContainerStatuses) - 1; i >= 0; i-- {
-			container := pod.Status.ContainerStatuses[i]
+		for _, v := range slices.Backward(pod.Status.ContainerStatuses) {
+			container := v
 
 			restarts += int(container.RestartCount)
 			switch {

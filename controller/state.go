@@ -11,17 +11,17 @@ import (
 	goSync "sync"
 	"time"
 
-	synccommon "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync"
-	hookutil "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/hook"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/ignore"
-	resourceutil "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/resource"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/syncwaves"
-	kubeutil "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync"
+	hookutil "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/hook"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/ignore"
+	resourceutil "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/resource"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/syncwaves"
+	kubeutil "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 
 	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
 
@@ -103,6 +103,7 @@ type AppStateManager interface {
 type comparisonResult struct {
 	syncStatus           *v1alpha1.SyncStatus
 	healthStatus         health.HealthStatusCode
+	healthMessage        string
 	resources            []v1alpha1.ResourceStatus
 	managedResources     []managedResource
 	reconciliationResult sync.ReconciliationResult
@@ -799,8 +800,8 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 	}
 	conditions = append(conditions, dedupConditions...)
 
-	for i := len(targetObjs) - 1; i >= 0; i-- {
-		targetObj := targetObjs[i]
+	for i, v := range slices.Backward(targetObjs) {
+		targetObj := v
 		gvk := targetObj.GroupVersionKind()
 		if resFilter.IsExcludedResource(gvk.Group, gvk.Kind, destCluster.Server) {
 			targetObjs = append(targetObjs[:i], targetObjs[i+1:]...)
@@ -1105,7 +1106,7 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 
 	ts.AddCheckpoint("sync_ms")
 
-	healthStatus, err := setApplicationHealth(managedResources, resourceSummaries, resourceOverrides, app, m.persistResourceHealth)
+	healthStatus, healthMessage, err := setApplicationHealth(managedResources, resourceSummaries, resourceOverrides, app, m.persistResourceHealth)
 	if err != nil {
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: "error setting app health: " + err.Error(), LastTransitionTime: &now})
 	}
@@ -1141,6 +1142,7 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 	compRes := comparisonResult{
 		syncStatus:              syncStatus,
 		healthStatus:            healthStatus,
+		healthMessage:           healthMessage,
 		resources:               resourceSummaries,
 		managedResources:        managedResources,
 		reconciliationResult:    reconciliation,

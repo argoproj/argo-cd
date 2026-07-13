@@ -17,12 +17,12 @@ import (
 	"sync"
 	"time"
 
-	clustercache "github.com/argoproj/argo-cd/gitops-engine/pkg/cache"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
-	synccommon "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
-	resourceutil "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/resource"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	clustercache "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	resourceutil "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/resource"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
 	otel_codes "go.opentelemetry.io/otel/codes"
@@ -234,37 +234,7 @@ func NewApplicationController(
 	indexers := cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}
 	projInformer := v1alpha1.NewAppProjectInformer(applicationClientset, namespace, appResyncPeriod, indexers)
 	var err error
-	_, err = projInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj any) {
-			if key, err := cache.MetaNamespaceKeyFunc(obj); err == nil {
-				ctrl.projectRefreshQueue.AddRateLimited(key)
-				if projMeta, ok := obj.(metav1.Object); ok {
-					ctrl.InvalidateProjectsCache(projMeta.GetName())
-				}
-			}
-		},
-		UpdateFunc: func(_, new any) {
-			if key, err := cache.MetaNamespaceKeyFunc(new); err == nil {
-				ctrl.projectRefreshQueue.AddRateLimited(key)
-				if projMeta, ok := new.(metav1.Object); ok {
-					ctrl.InvalidateProjectsCache(projMeta.GetName())
-				}
-			}
-		},
-		DeleteFunc: func(obj any) {
-			// Unwrap DeletedFinalStateUnknown tombstones
-			if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
-				obj = tombstone.Obj
-			}
-			if key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj); err == nil {
-				// immediately push to queue for deletes
-				ctrl.projectRefreshQueue.Add(key)
-				if projMeta, ok := obj.(metav1.Object); ok {
-					ctrl.InvalidateProjectsCache(projMeta.GetName())
-				}
-			}
-		},
-	})
+	_, err = projInformer.AddEventHandler(ctrl.appProjectEventHandlerFuncs())
 	if err != nil {
 		return nil, err
 	}
@@ -487,7 +457,8 @@ func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]b
 		if ref.Namespace == "" {
 			namespace = "(cluster-scoped)"
 		}
-		logCtx.WithFields(log.Fields{
+
+		refreshLogCtx := logCtx.WithFields(log.Fields{
 			"comparison-level": level,
 			"namespace":        namespace,
 			"name":             ref.Name,
@@ -495,7 +466,16 @@ func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]b
 			"kind":             ref.Kind,
 			"server":           app.Spec.Destination.Server,
 			"cluster-name":     app.Spec.Destination.Name,
-		}).Debug("Requesting app refresh caused by object update")
+		})
+		// A managed resource change triggers an actual reconciliation (CompareWithRecent),
+		// so log it at Info to give visibility into what caused the reconcile. Other object
+		// updates (orphan, child of managed resources) only refresh the resource tree,
+		// so keep them at Debug level to limit noise.
+		if isManagedResource {
+			refreshLogCtx.Info("Requesting app refresh caused by object update")
+		} else {
+			refreshLogCtx.Debug("Requesting app refresh caused by object update")
+		}
 
 		ctrl.requestAppRefresh(app.QualifiedName(), &level, nil)
 	}
@@ -1853,6 +1833,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	if hasErrors {
 		app.Status.Sync.Status = appv1.SyncStatusCodeUnknown
 		app.Status.Health.Status = health.HealthStatusUnknown
+		app.Status.Health.Message = ""
 		patchDuration = ctrl.persistReconciliationStatus(ctx, origApp, &app.Status)
 
 		if err := ctrl.cache.SetAppResourcesTree(app.InstanceName(ctrl.namespace), &appv1.ApplicationTree{}); err != nil {
@@ -1959,6 +1940,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	}
 	app.Status.Sync = *compareResult.syncStatus
 	app.Status.Health.Status = compareResult.healthStatus
+	app.Status.Health.Message = compareResult.healthMessage
 	app.Status.Resources = compareResult.resources
 	sort.Slice(app.Status.Resources, func(i, j int) bool {
 		return resourceStatusKey(app.Status.Resources[i]) < resourceStatusKey(app.Status.Resources[j])
@@ -2230,10 +2212,19 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 		newStatus.Health.LastTransitionTime = &now
 
 		message := fmt.Sprintf("Updated health status: %s -> %s", orig.Status.Health.Status, newStatus.Health.Status)
+		if newStatus.Health.Message != "" {
+			message = fmt.Sprintf("%s (%s)", message, newStatus.Health.Message)
+		}
 		ctrl.logAppEvent(context.TODO(), orig, argo.EventInfo{Reason: argo.EventReasonResourceUpdated, Type: corev1.EventTypeNormal}, message)
 	} else {
 		// make sure the last transition time is the same and populated if the health is the same
 		newStatus.Health.LastTransitionTime = orig.Status.Health.LastTransitionTime
+		if newStatus.ResourceHealthSource != appv1.ResourceHealthLocationInline {
+			// Preserve the existing health message if the resource health is not inline to avoid
+			// updating the status. In that case, the health message is persisted and reflects
+			// what caused the last health transition instead of the immediate state.
+			newStatus.Health.Message = orig.Status.Health.Message
+		}
 	}
 	patch, modified, err := createMergePatch(
 		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: orig.GetAnnotations()}, Status: orig.Status},
@@ -2647,83 +2638,129 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 		},
 	)
 	lister := applisters.NewApplicationLister(informer.GetIndexer())
-	_, err := informer.AddEventHandler(
-		cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj any) {
-				if !ctrl.canProcessApp(obj) {
-					return
-				}
-				key, err := cache.MetaNamespaceKeyFunc(obj)
-				if err == nil {
-					ctrl.appRefreshQueue.AddRateLimited(key)
-				}
-				newApp, newOK := obj.(*appv1.Application)
-				if err == nil && newOK {
-					ctrl.clusterSharding.AddApp(newApp)
-				}
-			},
-			UpdateFunc: func(old, new any) {
-				if !ctrl.canProcessApp(new) {
-					return
-				}
-
-				key, err := cache.MetaNamespaceKeyFunc(new)
-				if err != nil {
-					return
-				}
-
-				var compareWith *CompareWith
-				var delay *time.Duration
-
-				oldApp, oldOK := old.(*appv1.Application)
-				newApp, newOK := new.(*appv1.Application)
-				if oldOK && newOK {
-					if automatedSyncEnabled(oldApp, newApp) {
-						log.WithFields(applog.GetAppLogFields(newApp)).Info("Enabled automated sync")
-						compareWith = CompareWithLatest.Pointer()
-					}
-					if ctrl.statusRefreshJitter != 0 && oldApp.ResourceVersion == newApp.ResourceVersion {
-						// Handler is refreshing the apps, add a random jitter to spread the load and avoid spikes
-						jitter := time.Duration(float64(ctrl.statusRefreshJitter) * rand.Float64())
-						delay = &jitter
-					}
-				}
-
-				ctrl.requestAppRefresh(newApp.QualifiedName(), compareWith, delay)
-				if !newOK || (delay != nil && *delay != time.Duration(0)) {
-					ctrl.appOperationQueue.AddRateLimited(key)
-				}
-				if ctrl.hydrator != nil {
-					ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
-				}
-				ctrl.clusterSharding.UpdateApp(newApp)
-			},
-			DeleteFunc: func(obj any) {
-				// Unwrap DeletedFinalStateUnknown tombstones
-				if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
-					obj = tombstone.Obj
-				}
-				if !ctrl.canProcessApp(obj) {
-					return
-				}
-				// IndexerInformer uses a delta queue, therefore for deletes we have to use this
-				// key function.
-				key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
-				if err == nil {
-					// for deletes, we immediately add to the refresh queue
-					ctrl.appRefreshQueue.Add(key)
-				}
-				delApp, delOK := obj.(*appv1.Application)
-				if err == nil && delOK {
-					ctrl.clusterSharding.DeleteApp(delApp)
-				}
-			},
-		},
-	)
+	_, err := informer.AddEventHandler(ctrl.applicationEventHandlerFuncs())
 	if err != nil {
 		return nil, nil
 	}
 	return informer, lister
+}
+
+// appProjectEventHandlerFuncs returns the informer event handlers for AppProject
+// objects. Adds and updates are rate-limited onto the project refresh queue, while
+// deletes are enqueued immediately; in all cases the project cache is invalidated.
+// DeleteFunc unwraps cache.DeletedFinalStateUnknown tombstones, and objects that do
+// not implement metav1.Object are skipped for cache invalidation.
+func (ctrl *ApplicationController) appProjectEventHandlerFuncs() cache.ResourceEventHandlerFuncs {
+	return cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj any) {
+			if key, err := cache.MetaNamespaceKeyFunc(obj); err == nil {
+				ctrl.projectRefreshQueue.AddRateLimited(key)
+				if projMeta, ok := obj.(metav1.Object); ok {
+					ctrl.InvalidateProjectsCache(projMeta.GetName())
+				}
+			}
+		},
+		UpdateFunc: func(_, new any) {
+			if key, err := cache.MetaNamespaceKeyFunc(new); err == nil {
+				ctrl.projectRefreshQueue.AddRateLimited(key)
+				if projMeta, ok := new.(metav1.Object); ok {
+					ctrl.InvalidateProjectsCache(projMeta.GetName())
+				}
+			}
+		},
+		DeleteFunc: func(obj any) {
+			// Unwrap DeletedFinalStateUnknown tombstones
+			if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+				obj = tombstone.Obj
+			}
+			if key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj); err == nil {
+				// immediately push to queue for deletes
+				ctrl.projectRefreshQueue.Add(key)
+				if projMeta, ok := obj.(metav1.Object); ok {
+					ctrl.InvalidateProjectsCache(projMeta.GetName())
+				}
+			}
+		},
+	}
+}
+
+// applicationEventHandlerFuncs returns the informer event handlers for Application
+// objects. Events for applications this controller cannot process (per canProcessApp)
+// are ignored. DeleteFunc unwraps cache.DeletedFinalStateUnknown tombstones and
+// immediately enqueues a refresh, while add/update use the rate-limited queues. The
+// cluster sharding cache is updated to reflect the application's lifecycle.
+func (ctrl *ApplicationController) applicationEventHandlerFuncs() cache.ResourceEventHandlerFuncs {
+	return cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj any) {
+			if !ctrl.canProcessApp(obj) {
+				return
+			}
+			key, err := cache.MetaNamespaceKeyFunc(obj)
+			if err == nil {
+				ctrl.appRefreshQueue.AddRateLimited(key)
+			}
+			newApp, newOK := obj.(*appv1.Application)
+			if err == nil && newOK {
+				ctrl.clusterSharding.AddApp(newApp)
+			}
+		},
+		UpdateFunc: func(old, new any) {
+			if !ctrl.canProcessApp(new) {
+				return
+			}
+
+			key, err := cache.MetaNamespaceKeyFunc(new)
+			if err != nil {
+				return
+			}
+
+			var compareWith *CompareWith
+			var delay *time.Duration
+
+			oldApp, oldOK := old.(*appv1.Application)
+			newApp, newOK := new.(*appv1.Application)
+			if oldOK && newOK {
+				if automatedSyncEnabled(oldApp, newApp) {
+					log.WithFields(applog.GetAppLogFields(newApp)).Info("Enabled automated sync")
+					compareWith = CompareWithLatest.Pointer()
+				}
+				if ctrl.statusRefreshJitter != 0 && oldApp.ResourceVersion == newApp.ResourceVersion {
+					// Handler is refreshing the apps, add a random jitter to spread the load and avoid spikes
+					jitter := time.Duration(float64(ctrl.statusRefreshJitter) * rand.Float64())
+					delay = &jitter
+				}
+			}
+
+			ctrl.requestAppRefresh(newApp.QualifiedName(), compareWith, delay)
+			if !newOK || (delay != nil && *delay != time.Duration(0)) {
+				ctrl.appOperationQueue.AddRateLimited(key)
+			}
+			if ctrl.hydrator != nil {
+				ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
+			}
+			ctrl.clusterSharding.UpdateApp(newApp)
+		},
+		DeleteFunc: func(obj any) {
+			// Unwrap DeletedFinalStateUnknown tombstones
+			if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+				obj = tombstone.Obj
+			}
+			if !ctrl.canProcessApp(obj) {
+				return
+			}
+			// IndexerInformer uses a delta queue, therefore for deletes we have to use this
+			// key function.
+			key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(obj)
+			if err == nil {
+				// for deletes, we immediately add to the refresh queue
+				ctrl.appRefreshQueue.Add(key)
+			}
+			delApp, delOK := obj.(*appv1.Application)
+			if err == nil && delOK {
+				ctrl.clusterSharding.DeleteApp(delApp)
+			}
+		},
+	}
 }
 
 func (ctrl *ApplicationController) projectErrorToCondition(err error, app *appv1.Application) appv1.ApplicationCondition {

@@ -143,7 +143,7 @@ func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTLS b
 				continue
 			}
 			if connectorCfg, ok := connector["config"].(map[string]any); ok {
-				connector["config"] = settings.EscapeDollarSignsInMap(connectorCfg)
+				connector["config"] = settings.EscapeDollarSignsInConnectorConfig(connectorCfg, argocdSettings.Secrets)
 				escapedConnectors[i] = connector
 			}
 		}

@@ -30,14 +30,13 @@ import (
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2/textlogger"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"k8s.io/kubectl/pkg/scheme"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/hook"
-	resourceutil "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/resource"
-	kubeutil "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/hook"
+	resourceutil "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/resource"
+	kubeutil "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 )
 
 var tracer = otel.Tracer("github.com/argoproj/argo-cd/gitops-engine/pkg/sync")
@@ -1423,45 +1422,18 @@ func (sc *syncContext) applyObject(ctx context.Context, t *syncTask, dryRun, val
 	defer span.End()
 
 	dryRunStrategy := cmdutil.DryRunNone
-	// Temporarily commented out DryRunClient selection, it is currently broken in client-go 1.36,
-	// see https://github.com/kubernetes/kubernetes/issues/139538
-	//
-	// if dryRun {
-	// 	// irrespective of the dry run mode set in the sync context, always run
-	// 	// in client dry run mode as the goal is to validate only the
-	// 	// yaml correctness of the rendered manifests.
-	// 	// running dry-run in server mode breaks the auto create namespace feature
-	// 	// https://github.com/argoproj/argo-cd/issues/13874
-	// 	dryRunStrategy = cmdutil.DryRunClient
-	// }
+	if dryRun {
+		// irrespective of the dry run mode set in the sync context, always run
+		// in client dry run mode as the goal is to validate only the
+		// yaml correctness of the rendered manifests.
+		dryRunStrategy = cmdutil.DryRunClient
+	}
 
 	var err error
 	var message string
 	shouldReplace := sc.replace || resourceutil.HasAnnotationOption(t.targetObj, common.AnnotationSyncOptions, common.SyncOptionReplace) || (t.liveObj != nil && resourceutil.HasAnnotationOption(t.liveObj, common.AnnotationSyncOptions, common.SyncOptionReplace))
 	force := sc.force || resourceutil.HasAnnotationOption(t.targetObj, common.AnnotationSyncOptions, common.SyncOptionForce) || (t.liveObj != nil && resourceutil.HasAnnotationOption(t.liveObj, common.AnnotationSyncOptions, common.SyncOptionForce))
 
-	if dryRun {
-		// workaround for the go-client bug,
-		if t.liveObj == nil {
-			// this case not affected by the k8s bug
-			dryRunStrategy = cmdutil.DryRunClient
-		} else {
-			_, err := scheme.Scheme.New(t.groupVersionKind())
-			if err == nil {
-				// client dry-run works for object in the scheme (internal k8s objects)
-				dryRunStrategy = cmdutil.DryRunClient
-			} else {
-				// server-side  dry-run won't work with force or replace options
-				if shouldReplace || force {
-					// faking dry-run success, if something is wrong
-					// with the manifest, so be it, it will fail on real apply
-					return common.ResultCodeSynced, message
-				}
-				// using server-side dry run instead of client-side
-				dryRunStrategy = cmdutil.DryRunServer
-			}
-		}
-	}
 	serverSideApply := sc.shouldUseServerSideApply(t.targetObj, dryRun)
 
 	// Check if we need to perform client-side apply migration for server-side apply
