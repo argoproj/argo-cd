@@ -17,14 +17,15 @@ import (
 	"sync"
 	"time"
 
-	clustercache "github.com/argoproj/argo-cd/gitops-engine/pkg/cache"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
-	synccommon "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
-	resourceutil "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/resource"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	clustercache "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	resourceutil "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/resource"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
+	otel_codes "go.opentelemetry.io/otel/codes"
 	"golang.org/x/sync/semaphore"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -72,6 +73,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/helm"
 	logutils "github.com/argoproj/argo-cd/v3/util/log"
 	settings_util "github.com/argoproj/argo-cd/v3/util/settings"
+	traceutil "github.com/argoproj/argo-cd/v3/util/trace"
 )
 
 const (
@@ -1240,7 +1242,10 @@ func (ctrl *ApplicationController) getPermittedAppLiveObjects(destCluster *appv1
 	return objsMap, nil
 }
 
-func (ctrl *ApplicationController) finalizeApplicationDeletion(ctx context.Context, app *appv1.Application, projectClusters func(project string) ([]*appv1.Cluster, error)) error {
+func (ctrl *ApplicationController) finalizeApplicationDeletion(ctx context.Context, app *appv1.Application, projectClusters func(project string) ([]*appv1.Cluster, error)) (retErr error) {
+	ctx, span := tracer.Start(ctx, "controller.finalizeApplicationDeletion")
+	setAppTraceAttrs(span, app)
+	defer func() { traceutil.EndSpan(span, retErr) }()
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 	// Get refreshed application info, since informer app copy might be stale
 	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(ctx, app.Name, metav1.GetOptions{})
@@ -1475,13 +1480,26 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	// processAppOperationQueueItem is a workqueue entry point with no inbound request
 	// context, so context.Background() roots this operation's context tree.
 	ctx := context.Background()
+	ctx, span := tracer.Start(ctx, "controller.Operation")
+	setAppTraceAttrs(span, app)
 	var state *appv1.OperationState
+	// Registered first so it runs last: after the panic-recovery and timing defers below have
+	// finalized state. The operation reports failure via state.Phase (not a return value), so map
+	// a terminal failed phase onto the span status; panics are handled by the recovery defer.
+	defer func() {
+		if state != nil && state.Phase.Failed() {
+			span.SetStatus(otel_codes.Error, state.Message)
+		}
+		span.End()
+	}()
 	defer func() {
 		// Recover from any unexpected panics and automatically set the status to be failed
 		if r := recover(); r != nil {
 			logCtx.Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
+			span.SetStatus(otel_codes.Error, fmt.Sprintf("%v", r))
 			state.Phase = synccommon.OperationError
 			if rerr, ok := r.(error); ok {
+				span.RecordError(rerr)
 				state.Message = rerr.Error()
 			} else {
 				state.Message = fmt.Sprintf("%v", r)
@@ -1792,6 +1810,9 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	// processAppRefreshQueueItem is a workqueue entry point with no inbound request
 	// context, so context.Background() roots this reconciliation's context tree.
 	ctx := context.Background()
+	ctx, span := tracer.Start(ctx, "controller.Refresh")
+	setAppTraceAttrs(span, origApp)
+	defer span.End()
 
 	startTime := time.Now()
 	ts := stats.NewTimingStats()
@@ -1830,7 +1851,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 					}
 				}
 
-				patchDuration = ctrl.persistReconciliationStatus(origApp, &app.Status)
+				patchDuration = ctrl.persistReconciliationStatus(ctx, origApp, &app.Status)
 				return processNext
 			}
 			logCtx.Warnf("Failed to get cached managed resources for tree reconciliation, fall back to full reconciliation")
@@ -1844,7 +1865,8 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	if hasErrors {
 		app.Status.Sync.Status = appv1.SyncStatusCodeUnknown
 		app.Status.Health.Status = health.HealthStatusUnknown
-		patchDuration = ctrl.persistReconciliationStatus(origApp, &app.Status)
+		app.Status.Health.Message = ""
+		patchDuration = ctrl.persistReconciliationStatus(ctx, origApp, &app.Status)
 
 		if err := ctrl.cache.SetAppResourcesTree(app.InstanceName(ctrl.namespace), &appv1.ApplicationTree{}); err != nil {
 			logCtx.WithError(err).Warn("failed to set app resource tree")
@@ -1927,7 +1949,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		// decision: when the app is OutOfSync, always let autoSync compare the desired revision
 		// against the last synced one (#27875).
 		shouldCompareRevisions := compareResult.revisionsMayHaveChanges || compareResult.syncStatus.Status == appv1.SyncStatusCodeOutOfSync
-		syncErrCond, opDuration := ctrl.autoSync(app, compareResult.syncStatus, compareResult.resources, shouldCompareRevisions)
+		syncErrCond, opDuration := ctrl.autoSync(ctx, app, compareResult.syncStatus, compareResult.resources, shouldCompareRevisions)
 		setOpDuration = opDuration
 		if syncErrCond != nil {
 			app.Status.SetConditions(
@@ -1950,6 +1972,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	}
 	app.Status.Sync = *compareResult.syncStatus
 	app.Status.Health.Status = compareResult.healthStatus
+	app.Status.Health.Message = compareResult.healthMessage
 	app.Status.Resources = compareResult.resources
 	sort.Slice(app.Status.Resources, func(i, j int) bool {
 		return resourceStatusKey(app.Status.Resources[i]) < resourceStatusKey(app.Status.Resources[j])
@@ -1991,7 +2014,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		}
 	}
 	ts.AddCheckpoint("process_finalizers_ms")
-	patchDuration = ctrl.persistReconciliationStatus(origApp, &app.Status)
+	patchDuration = ctrl.persistReconciliationStatus(ctx, origApp, &app.Status)
 	// This is a partly a duplicate of patch_ms, but more descriptive and allows to have measurement for the next step.
 	ts.AddCheckpoint("persist_app_status_ms")
 	return processNext
@@ -2190,16 +2213,25 @@ func createMergePatch(orig, newV any) ([]byte, bool, error) {
 }
 
 // persistReconciliationStatus persists updates to application status and consumes the refresh annotation.
-func (ctrl *ApplicationController) persistReconciliationStatus(orig *appv1.Application, newStatus *appv1.ApplicationStatus) time.Duration {
+func (ctrl *ApplicationController) persistReconciliationStatus(ctx context.Context, orig *appv1.Application, newStatus *appv1.ApplicationStatus) time.Duration {
 	newAnnotations := make(map[string]string)
 	maps.Copy(newAnnotations, orig.GetAnnotations())
 	delete(newAnnotations, appv1.AnnotationKeyRefresh)
-	return ctrl.persistAppStatus(orig, newStatus, newAnnotations)
+	return ctrl.persistAppStatus(ctx, orig, newStatus, newAnnotations)
 }
 
 // persistAppStatus persists updates to application status and optionally updates annotations.
 // If no changes were made, it is a no-op
-func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, newStatus *appv1.ApplicationStatus, newAnnotations map[string]string) (patchDuration time.Duration) {
+func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *appv1.Application, newStatus *appv1.ApplicationStatus, newAnnotations map[string]string) (patchDuration time.Duration) {
+	// NB: leaf span only — the status patch below deliberately stays on context.Background() so a
+	// canceled reconcile ctx never aborts a durable status write. The span just measures it.
+	_, span := tracer.Start(ctx, "controller.persistAppStatus")
+	setAppTraceAttrs(span, orig)
+	// spanErr records a failed status write on the span so a trace doesn't look successful when
+	// the patch below failed. These are Kubernetes API/merge-patch errors, not repo URLs, so
+	// recording the message via EndSpan does not risk leaking credentials.
+	var spanErr error
+	defer func() { traceutil.EndSpan(span, spanErr) }()
 	logCtx := log.WithFields(applog.GetAppLogFields(orig))
 	if orig.Status.Sync.Status != newStatus.Sync.Status {
 		message := fmt.Sprintf("Updated sync status: %s -> %s", orig.Status.Sync.Status, newStatus.Sync.Status)
@@ -2212,15 +2244,25 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 		newStatus.Health.LastTransitionTime = &now
 
 		message := fmt.Sprintf("Updated health status: %s -> %s", orig.Status.Health.Status, newStatus.Health.Status)
+		if newStatus.Health.Message != "" {
+			message = fmt.Sprintf("%s (%s)", message, newStatus.Health.Message)
+		}
 		ctrl.logAppEvent(context.TODO(), orig, argo.EventInfo{Reason: argo.EventReasonResourceUpdated, Type: corev1.EventTypeNormal}, message)
 	} else {
 		// make sure the last transition time is the same and populated if the health is the same
 		newStatus.Health.LastTransitionTime = orig.Status.Health.LastTransitionTime
+		if newStatus.ResourceHealthSource != appv1.ResourceHealthLocationInline {
+			// Preserve the existing health message if the resource health is not inline to avoid
+			// updating the status. In that case, the health message is persisted and reflects
+			// what caused the last health transition instead of the immediate state.
+			newStatus.Health.Message = orig.Status.Health.Message
+		}
 	}
 	patch, modified, err := createMergePatch(
 		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: orig.GetAnnotations()}, Status: orig.Status},
 		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: newAnnotations}, Status: *newStatus})
 	if err != nil {
+		spanErr = err
 		logCtx.WithError(err).Error("Error constructing app status patch")
 		return patchDuration
 	}
@@ -2235,6 +2277,7 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 	}()
 	_, err = ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, patch, metav1.PatchOptions{})
 	if err != nil {
+		spanErr = err
 		if apierrors.IsRequestEntityTooLargeError(err) {
 			logCtx.WithError(err).Warn("Application status exceeds the Kubernetes resource size limit; falling back to error condition only")
 			fallbackStatus := orig.Status.DeepCopy()
@@ -2282,7 +2325,10 @@ func (ctrl *ApplicationController) persistAppStatus(orig *appv1.Application, new
 }
 
 // autoSync will initiate a sync operation for an application configured with automated sync
-func (ctrl *ApplicationController) autoSync(app *appv1.Application, syncStatus *appv1.SyncStatus, resources []appv1.ResourceStatus, shouldCompareRevisions bool) (*appv1.ApplicationCondition, time.Duration) {
+func (ctrl *ApplicationController) autoSync(ctx context.Context, app *appv1.Application, syncStatus *appv1.SyncStatus, resources []appv1.ResourceStatus, shouldCompareRevisions bool) (*appv1.ApplicationCondition, time.Duration) {
+	_, span := tracer.Start(ctx, "controller.autoSync")
+	setAppTraceAttrs(span, app)
+	defer span.End()
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 	ts := stats.NewTimingStats()
 	defer func() {
