@@ -18,8 +18,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.etcd.io/etcd/api/v3/v3rpc/rpctypes"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	grpcstatus "google.golang.org/grpc/status"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -4159,12 +4157,78 @@ func TestIsOperationStatePayloadTooLargeError(t *testing.T) {
 		assert.True(t, isOperationStatePayloadTooLargeError(err))
 	})
 
-	t.Run("gRPC ResourceExhausted status error", func(t *testing.T) {
-		err := grpcstatus.Error(codes.ResourceExhausted, "trying to send message larger than max")
-		assert.True(t, isOperationStatePayloadTooLargeError(err))
-	})
-
 	t.Run("unrelated error returns false", func(t *testing.T) {
 		assert.False(t, isOperationStatePayloadTooLargeError(errors.New("some other error")))
 	})
+
+	t.Run("error is nil, returns false", func(t *testing.T) {
+		assert.False(t, isOperationStatePayloadTooLargeError(nil))
+	})
+}
+
+func TestSetOperationStateTooLargeRequest(t *testing.T) {
+	newState := &v1alpha1.OperationState{
+		Operation: v1alpha1.Operation{
+			Sync: &v1alpha1.SyncOperation{Revision: "HEAD"},
+		},
+		Phase:   synccommon.OperationRunning,
+		Message: "running",
+	}
+
+	tests := []struct {
+		name           string
+		setupApp       func() *v1alpha1.Application
+		wantPhase      string
+		wantMsgContain string
+	}{
+		{
+			name: "operationState is nil",
+			setupApp: func() *v1alpha1.Application {
+				app := newFakeApp()
+				app.Status.OperationState = nil
+				return app
+			},
+		},
+		{
+			name: "operationState is not nil",
+			setupApp: func() *v1alpha1.Application {
+				return newFakeApp()
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := tt.setupApp()
+			ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+
+			patchCallCount := 0
+			fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+			defaultReactor := fakeAppCs.ReactionChain[0]
+			fakeAppCs.ReactionChain = nil
+			fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+				return defaultReactor.React(action)
+			})
+			var capturedPatch []byte
+			fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+				patchCallCount++
+				if patchCallCount == 1 {
+					return true, nil, apierrors.NewRequestEntityTooLargeError("limit is 3145728")
+				}
+				capturedPatch = action.(kubetesting.PatchAction).GetPatch()
+				return defaultReactor.React(action)
+			})
+
+			ctrl.setOperationState(t.Context(), app, newState)
+
+			assert.Equal(t, 2, patchCallCount)
+
+			var patchedObj map[string]any
+			require.NoError(t, json.Unmarshal(capturedPatch, &patchedObj))
+			phase, _, _ := unstructured.NestedString(patchedObj, "status", "operationState", "phase")
+			message, _, _ := unstructured.NestedString(patchedObj, "status", "operationState", "message")
+			assert.Equal(t, string(synccommon.OperationError), phase)
+			assert.Contains(t, message, "exceeds the Kubernetes resource size limit")
+		})
+	}
 }

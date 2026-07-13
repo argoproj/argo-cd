@@ -1664,32 +1664,36 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 		return nil
 	})
 
-	if isOperationStatePayloadTooLargeError(nonRetryableError) {
-		logCtx.WithError(err).Warn("Application status exceeds the Kubernetes resource size limit; falling back to error condition only")
-		fallbackStatus := app.Status.DeepCopy()
+	if nonRetryableError != nil {
+		fallbackStatus := &appv1.OperationState{}
+		if app.Status.OperationState != nil {
+			fallbackStatus = app.Status.OperationState.DeepCopy()
+		}
+		fallbackStatus.Phase = synccommon.OperationError
+		fallbackStatus.Message = nonRetryableError.Error()
 
-		fallbackStatus.SetConditions([]appv1.ApplicationCondition{
-			{
-				Type:    appv1.ApplicationConditionUnknownError,
-				Message: "Application status exceeds the Kubernetes resource size limit and could not be persisted. The displayed status may be stale. Reduce the number of managed resources, set ApplyOutOfSyncOnly=true, lower spec.revisionHistoryLimit, or split the Application.",
-			},
-		},
-			map[appv1.ApplicationConditionType]bool{
-				appv1.ApplicationConditionUnknownError: true,
-			})
+		if isOperationStatePayloadTooLargeError(nonRetryableError) {
+			logCtx.WithError(nonRetryableError).Warn("Application operation status exceeds the Kubernetes resource size limit; falling back to operation error")
+
+			fallbackStatus.Message = fmt.Sprintf("Operation state patch exceeds the Kubernetes resource size limit and could not be persisted. Reduce the number of managed resources, set ApplyOutOfSyncOnly=true, lower spec.revisionHistoryLimit, or split the Application. error: %s",
+				nonRetryableError.Error())
+		}
 
 		fallbackPatch := map[string]any{
 			"status": map[string]any{
-				"operationState": state,
+				"operationState": fallbackStatus,
 			},
 		}
 
 		fallbackPatchJSON, err := json.Marshal(fallbackPatch)
 		if err != nil {
 			logCtx.WithError(err).Error("Error marshaling fallback patch")
+			return
 		}
+
 		if _, fbErr := ctrl.PatchAppWithWriteBack(context.Background(), app.Name, app.Namespace, types.MergePatchType, fallbackPatchJSON, metav1.PatchOptions{}); fbErr != nil {
 			logCtx.WithError(fbErr).Error("Error persisting fallback status with error condition")
+			return
 		}
 		return
 	}
@@ -1737,6 +1741,9 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 //     unwrapped through the REST layer, so we fall back to string matching.
 //   - etcdserver: request is too large
 func isOperationStatePayloadTooLargeError(err error) bool {
+	if err == nil {
+		return false
+	}
 	if apierrors.IsRequestEntityTooLargeError(err) {
 		return true
 	}
