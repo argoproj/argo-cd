@@ -1777,6 +1777,20 @@ func TestListRefs_NilRepo(t *testing.T) {
 	assert.Equal(t, codes.InvalidArgument, status.Code(err))
 }
 
+func TestGetAppDetails_NonExistentPath(t *testing.T) {
+	service := newService(t, "../../util/kustomize/testdata/kustomization_yaml")
+
+	_, err := service.GetAppDetails(t.Context(), &apiclient.RepoServerAppDetailsQuery{
+		Repo: &v1alpha1.Repository{},
+		Source: &v1alpha1.ApplicationSource{
+			Path: "does-not-exist",
+		},
+	})
+
+	require.Error(t, err)
+	assert.Equal(t, codes.InvalidArgument, status.Code(err))
+}
+
 func TestGetAppDetailsHelm(t *testing.T) {
 	service := newService(t, "../../util/helm/testdata/dependency")
 
