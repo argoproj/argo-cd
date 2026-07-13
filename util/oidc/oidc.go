@@ -924,7 +924,11 @@ func (a *ClientApp) SetGroupsClaimFromEndpoint(ctx context.Context, claims jwt.C
 			if groupClaims["sub"] != userInfo["sub"] {
 				return groupClaims, errors.New("subject of claims from user info endpoint didn't match subject of idToken, see https://openid.net/specs/openid-connect-core-1_0.html#UserInfo")
 			}
-			groupClaims["groups"] = userInfo["groups"]
+			groupsClaim := a.settings.UserInfoGroupsClaim()
+			if userInfo[groupsClaim] == nil {
+				log.Warnf("groups claim '%s' not found in UserInfo response, user will have no groups", groupsClaim)
+			}
+			groupClaims["groups"] = userInfo[groupsClaim]
 			return groupClaims, nil
 		}
 
@@ -939,11 +943,6 @@ func (a *ClientApp) SetGroupsClaimFromEndpoint(ctx context.Context, claims jwt.C
 			}
 			return groupClaims, nil
 		}
-		groupsClaim := a.settings.UserInfoGroupsClaim()
-		if userInfo[groupsClaim] == nil {
-			log.Warnf("groups claim '%s' not found in UserInfo response, user will have no groups", groupsClaim)
-		}
-		groupClaims["groups"] = userInfo[groupsClaim]
 	}
 
 	return groupClaims, nil
