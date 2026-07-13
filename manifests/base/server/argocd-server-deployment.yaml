@@ -238,6 +238,20 @@ spec:
                   name: argocd-cmd-params-cm
                   key: redis.server
                   optional: true
+
+            - name: REDIS_SENTINEL_HOSTS
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: redis.sentinel.hosts
+                  optional: true
+
+            - name: REDIS_SENTINEL_MASTER
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: redis.sentinel.master
+                  optional: true
             - name: REDIS_COMPRESSION
               valueFrom:
                 configMapKeyRef:
@@ -303,6 +317,12 @@ spec:
                 configMapKeyRef:
                   name: argocd-cmd-params-cm
                   key: otlp.attrs
+                  optional: true
+            - name: ARGOCD_SERVER_OTLP_SAMPLE_RATIO
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: otlp.sample.ratio
                   optional: true
             - name: ARGOCD_APPLICATION_NAMESPACES
               valueFrom:

@@ -10,6 +10,9 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	otel_codes "go.opentelemetry.io/otel/codes"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
@@ -27,15 +30,26 @@ import (
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2/textlogger"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"k8s.io/kubectl/pkg/scheme"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/hook"
-	resourceutil "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/resource"
-	kubeutil "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/hook"
+	resourceutil "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/resource"
+	kubeutil "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 )
+
+var tracer = otel.Tracer("github.com/argoproj/argo-cd/gitops-engine/pkg/sync")
+
+// taskTraceAttrs returns the standard argocd.resource.* span attributes for a sync task.
+func taskTraceAttrs(t *syncTask) []attribute.KeyValue {
+	return []attribute.KeyValue{
+		attribute.String("argocd.resource.group", t.group()),
+		attribute.String("argocd.resource.kind", t.kind()),
+		attribute.String("argocd.resource.namespace", t.namespace()),
+		attribute.String("argocd.resource.name", t.name()),
+	}
+}
 
 type reconciledResource struct {
 	Target *unstructured.Unstructured
@@ -477,6 +491,9 @@ func (sc *syncContext) setRunningPhase(tasks syncTasks, isPendingDeletion bool) 
 
 // Sync executes next synchronization step and updates operation status.
 func (sc *syncContext) Sync(ctx context.Context) {
+	ctx, span := tracer.Start(ctx, "sync.Sync")
+	span.SetAttributes(attribute.Bool("argocd.sync.started", sc.started()))
+	defer span.End()
 	sc.log.WithValues("skipHooks", sc.skipHooks, "started", sc.started()).Info("Syncing")
 	tasks, ok := sc.getSyncTasks(ctx)
 	if !ok {
@@ -724,6 +741,8 @@ func (sc *syncContext) Sync(ctx context.Context) {
 // Terminate terminates sync operation. The method is asynchronous: it starts deletion is related K8S resources
 // such as in-flight resource hooks, updates operation status, and exists without waiting for resource completion.
 func (sc *syncContext) Terminate(ctx context.Context) {
+	ctx, span := tracer.Start(ctx, "sync.Terminate")
+	defer span.End()
 	sc.log.V(1).Info("terminating")
 	tasks, _ := sc.getSyncTasks(ctx)
 
@@ -953,6 +972,13 @@ func (sc *syncContext) containsResource(resource reconciledResource) bool {
 
 // generates the list of sync tasks we will be performing during this sync.
 func (sc *syncContext) getSyncTasks(ctx context.Context) (_ syncTasks, successful bool) {
+	ctx, span := tracer.Start(ctx, "sync.getSyncTasks")
+	defer func() {
+		if !successful {
+			span.SetStatus(otel_codes.Error, "one or more sync tasks failed to generate")
+		}
+		span.End()
+	}()
 	resourceTasks := syncTasks{}
 	successful = true
 
@@ -1388,46 +1414,26 @@ func (sc *syncContext) performCSAUpgradeMigration(ctx context.Context, liveObj *
 }
 
 func (sc *syncContext) applyObject(ctx context.Context, t *syncTask, dryRun, validate bool) (common.ResultCode, string) {
+	ctx, span := tracer.Start(ctx, "sync.apply")
+	if span.IsRecording() {
+		span.SetAttributes(taskTraceAttrs(t)...)
+		span.SetAttributes(attribute.Bool("argocd.sync.dry_run", dryRun))
+	}
+	defer span.End()
+
 	dryRunStrategy := cmdutil.DryRunNone
-	// Temporarily commented out DryRunClient selection, it is currently broken in client-go 1.36,
-	// see https://github.com/kubernetes/kubernetes/issues/139538
-	//
-	// if dryRun {
-	// 	// irrespective of the dry run mode set in the sync context, always run
-	// 	// in client dry run mode as the goal is to validate only the
-	// 	// yaml correctness of the rendered manifests.
-	// 	// running dry-run in server mode breaks the auto create namespace feature
-	// 	// https://github.com/argoproj/argo-cd/issues/13874
-	// 	dryRunStrategy = cmdutil.DryRunClient
-	// }
+	if dryRun {
+		// irrespective of the dry run mode set in the sync context, always run
+		// in client dry run mode as the goal is to validate only the
+		// yaml correctness of the rendered manifests.
+		dryRunStrategy = cmdutil.DryRunClient
+	}
 
 	var err error
 	var message string
 	shouldReplace := sc.replace || resourceutil.HasAnnotationOption(t.targetObj, common.AnnotationSyncOptions, common.SyncOptionReplace) || (t.liveObj != nil && resourceutil.HasAnnotationOption(t.liveObj, common.AnnotationSyncOptions, common.SyncOptionReplace))
 	force := sc.force || resourceutil.HasAnnotationOption(t.targetObj, common.AnnotationSyncOptions, common.SyncOptionForce) || (t.liveObj != nil && resourceutil.HasAnnotationOption(t.liveObj, common.AnnotationSyncOptions, common.SyncOptionForce))
 
-	if dryRun {
-		// workaround for the go-client bug,
-		if t.liveObj == nil {
-			// this case not affected by the k8s bug
-			dryRunStrategy = cmdutil.DryRunClient
-		} else {
-			_, err := scheme.Scheme.New(t.groupVersionKind())
-			if err == nil {
-				// client dry-run works for object in the scheme (internal k8s objects)
-				dryRunStrategy = cmdutil.DryRunClient
-			} else {
-				// server-side  dry-run won't work with force or replace options
-				if shouldReplace || force {
-					// faking dry-run success, if something is wrong
-					// with the manifest, so be it, it will fail on real apply
-					return common.ResultCodeSynced, message
-				}
-				// using server-side dry run instead of client-side
-				dryRunStrategy = cmdutil.DryRunServer
-			}
-		}
-	}
 	serverSideApply := sc.shouldUseServerSideApply(t.targetObj, dryRun)
 
 	// Check if we need to perform client-side apply migration for server-side apply
@@ -1479,7 +1485,15 @@ func (sc *syncContext) applyObject(ctx context.Context, t *syncTask, dryRun, val
 }
 
 // pruneObject deletes the object if both prune is true and dryRun is false. Otherwise appropriate message
-func (sc *syncContext) pruneObject(ctx context.Context, liveObj *unstructured.Unstructured, prune, dryRun bool) (common.ResultCode, string) {
+func (sc *syncContext) pruneObject(ctx context.Context, t *syncTask, prune, dryRun bool) (common.ResultCode, string) {
+	ctx, span := tracer.Start(ctx, "sync.prune")
+	if span.IsRecording() {
+		span.SetAttributes(taskTraceAttrs(t)...)
+		span.SetAttributes(attribute.Bool("argocd.sync.dry_run", dryRun))
+	}
+	defer span.End()
+
+	liveObj := t.liveObj
 	if !prune {
 		return common.ResultCodePruneSkipped, "ignored (requires pruning)"
 	} else if isPruningDisabled(liveObj, sc.defaultPruneOption) {
@@ -1612,6 +1626,15 @@ const (
 func (sc *syncContext) runTasks(ctx context.Context, tasks syncTasks, dryRun bool) runState {
 	dryRun = dryRun || sc.dryRun
 
+	ctx, span := tracer.Start(ctx, "sync.runTasks")
+	if span.IsRecording() {
+		span.SetAttributes(
+			attribute.Bool("argocd.sync.dry_run", dryRun),
+			attribute.Int("argocd.sync.num_tasks", len(tasks)),
+		)
+	}
+	defer span.End()
+
 	sc.log.WithValues("numTasks", len(tasks), "dryRun", dryRun).V(1).Info("Running tasks")
 
 	state := successful
@@ -1658,7 +1681,7 @@ func (sc *syncContext) runTasks(ctx context.Context, tasks syncTasks, dryRun boo
 			ss.Go(func(state runState) runState {
 				logCtx := sc.log.WithValues("dryRun", dryRun, "task", t)
 				logCtx.V(1).Info("Pruning")
-				result, message := sc.pruneObject(ctx, t.liveObj, sc.prune, dryRun)
+				result, message := sc.pruneObject(ctx, t, sc.prune, dryRun)
 				if result == common.ResultCodeSyncFailed {
 					state = failed
 					logCtx.WithValues("message", message).Info("Pruning failed")

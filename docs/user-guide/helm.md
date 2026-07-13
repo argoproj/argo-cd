@@ -16,7 +16,7 @@ spec:
   project: default
   source:
     chart: sealed-secrets
-    repoURL: https://bitnami-labs.github.io/sealed-secrets
+    repoURL: https://bitnami.github.io/sealed-secrets
     targetRevision: 1.16.1
     helm:
       releaseName: sealed-secrets
@@ -640,7 +640,7 @@ RUN helm plugin install ${GCS_PLUGIN_REPO} --version ${GCS_PLUGIN_VERSION}
 ENV HELM_PLUGINS="/home/argocd/.local/share/helm/plugins/"
 ```
 
-The `HELM_PLUGINS` environment property required for ArgoCD to locate plugins correctly.
+The `HELM_PLUGINS` environment variable required for Argo CD to locate plugins correctly.
 
 Once built, use the custom image for ArgoCD installation.
 
