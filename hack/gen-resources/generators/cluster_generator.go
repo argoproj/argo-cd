@@ -233,7 +233,7 @@ func (cg *ClusterGenerator) generate(i int, opts *util.GenerateOpts) error {
 }
 
 func (cg *ClusterGenerator) Generate(opts *util.GenerateOpts) error {
-	log.Printf("Excute in parallel with %v", opts.ClusterOpts.Concurrency)
+	log.Printf("Execute in parallel with %v", opts.ClusterOpts.Concurrency)
 
 	wg := util.New(opts.ClusterOpts.Concurrency)
 	for l := 1; l <= opts.ClusterOpts.Samples; l++ {
