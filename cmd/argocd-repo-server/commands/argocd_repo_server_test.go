@@ -2,8 +2,10 @@ package commands
 
 import (
 	ctls "crypto/tls"
+	"os"
 	"testing"
 
+	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -84,4 +86,91 @@ func TestBuildHealthCheckTLSConfig_MutatingReturnedCertDoesNotAffectSource(t *te
 	cfg.ClientCertificates[0] = ctls.Certificate{}
 
 	assert.Equal(t, originalDER, hcCert.Certificate[0], "mutating the returned config must not affect the source certificate")
+}
+
+func TestOtlpHeadersFromEnv(t *testing.T) {
+	tests := []struct {
+		name        string
+		setNew      bool
+		newVal      string
+		setOld      bool
+		oldVal      string
+		want        map[string]string
+		wantWarning bool
+	}{
+		{
+			name: "neither variable set returns an empty map",
+			want: map[string]string{},
+		},
+		{
+			name:   "canonical variable is parsed",
+			setNew: true,
+			newVal: "key1=value1,key2=value2",
+			want:   map[string]string{"key1": "value1", "key2": "value2"},
+		},
+		{
+			name:        "deprecated variable is used with a warning",
+			setOld:      true,
+			oldVal:      "key1=value1",
+			want:        map[string]string{"key1": "value1"},
+			wantWarning: true,
+		},
+		{
+			name:   "canonical variable takes precedence over the deprecated one",
+			setNew: true,
+			newVal: "new=1",
+			setOld: true,
+			oldVal: "old=1",
+			want:   map[string]string{"new": "1"},
+		},
+		{
+			name:        "empty deprecated variable is treated as set and used",
+			setOld:      true,
+			oldVal:      "",
+			want:        map[string]string{},
+			wantWarning: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Register cleanup to restore any ambient values, then clear both variables so
+			// os.LookupEnv reflects exactly what this case sets (unset vs. set-but-empty matter).
+			t.Setenv(envOTLPHeaders, "")
+			t.Setenv(envOTLPHeadersDeprecated, "")
+			require.NoError(t, os.Unsetenv(envOTLPHeaders))
+			require.NoError(t, os.Unsetenv(envOTLPHeadersDeprecated))
+
+			if tt.setNew {
+				t.Setenv(envOTLPHeaders, tt.newVal)
+			}
+			if tt.setOld {
+				t.Setenv(envOTLPHeadersDeprecated, tt.oldVal)
+			}
+
+			hook := logtest.NewGlobal()
+			defer hook.Reset()
+
+			got := otlpHeadersFromEnv()
+			assert.Equal(t, tt.want, got)
+
+			if tt.wantWarning {
+				require.NotNil(t, hook.LastEntry(), "expected a deprecation warning to be logged")
+				assert.Contains(t, hook.LastEntry().Message, "is deprecated")
+			} else {
+				assert.Nil(t, hook.LastEntry(), "no deprecation warning should be logged")
+			}
+		})
+	}
+}
+
+// TestNewCommand_OTLPHeadersFlagUsesEnv proves the otlp-headers flag default is wired to
+// otlpHeadersFromEnv, so the canonical environment variable actually reaches the flag.
+func TestNewCommand_OTLPHeadersFlagUsesEnv(t *testing.T) {
+	t.Setenv(envOTLPHeaders, "traceparent=abc123")
+
+	cmd := NewCommand()
+
+	got, err := cmd.Flags().GetStringToString("otlp-headers")
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{"traceparent": "abc123"}, got)
 }
