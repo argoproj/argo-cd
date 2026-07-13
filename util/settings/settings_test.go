@@ -1497,7 +1497,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 		_, err = kubeClient.CoreV1().Secrets("default").Update(t.Context(), tlsSecret, metav1.UpdateOptions{})
 		require.NoError(t, err)
 
-		// allow time for the udpate to resolve to avoid timing issues below
+		// allow time for the update to resolve to avoid timing issues below
 		time.Sleep(250 * time.Millisecond)
 
 		// should be called again after secret update resolves
