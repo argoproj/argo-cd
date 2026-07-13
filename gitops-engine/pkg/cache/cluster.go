@@ -1094,6 +1094,7 @@ func (c *clusterCache) checkPermission(ctx context.Context, reviewInterface auth
 func (c *clusterCache) sync() error {
 	c.log.Info("Start syncing cluster")
 
+	start := time.Now()
 	syncLock := sync.Mutex{}
 
 	for i := range c.apisMeta {
@@ -1152,6 +1153,7 @@ func (c *clusterCache) sync() error {
 		go c.processEvents()
 	}
 
+	discoveryEnd := time.Now()
 	err = kube.RunAllAsync(len(apis), func(i int) error {
 		api := apis[i]
 
@@ -1203,12 +1205,17 @@ func (c *clusterCache) sync() error {
 			return nil
 		})
 	})
+	log := c.log.WithValues(
+		"total_ms", time.Since(start).Milliseconds(),
+		"discovery_ms", discoveryEnd.Sub(start).Milliseconds(),
+		"list_ms", time.Since(discoveryEnd).Milliseconds(),
+	)
 	if err != nil {
-		c.log.Error(err, "Failed to sync cluster")
+		log.Error(err, "Failed to sync cluster")
 		return fmt.Errorf("failed to sync cluster %s: %w", c.config.Host, err)
 	}
 
-	c.log.Info("Cluster successfully synced")
+	log.Info("Cluster successfully synced")
 	return nil
 }
 
