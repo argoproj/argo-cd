@@ -170,6 +170,8 @@ spec:
     - iat: 1535390316
 ```
 
+`namespaceResourceWhitelist` also determines which child resources are visible in the Application resource tree in the UI. To observe workload children such as `Pod` and `apps/ReplicaSet` under a `Deployment`, those GroupKinds must be included in the whitelist. See [Projects](../user-guide/projects.md) for details.
+
 ## Repositories
 
 > [!NOTE]
@@ -1279,7 +1281,7 @@ spec:
   project: default
   source:
     chart: sealed-secrets
-    repoURL: https://bitnami-labs.github.io/sealed-secrets
+    repoURL: https://bitnami.github.io/sealed-secrets
     targetRevision: 1.16.1
     helm:
       releaseName: sealed-secrets

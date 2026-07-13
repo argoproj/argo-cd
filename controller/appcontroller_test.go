@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	clustercache "github.com/argoproj/argo-cd/gitops-engine/pkg/cache"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube/kubetest"
+	clustercache "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube/kubetest"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -26,9 +26,9 @@ import (
 	statecache "github.com/argoproj/argo-cd/v3/controller/cache"
 	"github.com/argoproj/argo-cd/v3/controller/sharding"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/cache/mocks"
-	synccommon "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache/mocks"
+	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	appsv1 "k8s.io/api/apps/v1"
@@ -84,6 +84,9 @@ type fakeData struct {
 	// time GenerateManifest is called. Useful for asserting fields that the
 	// controller derives, like SourceIntegrity.
 	onGenerateManifest func(req *apiclient.ManifestRequest)
+	// persistResourceHealth controls whether managed resource health is stored
+	// inline on the Application. When nil it defaults to true.
+	persistResourceHealth *bool
 }
 
 type MockKubectl struct {
@@ -196,6 +199,10 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 	// Initialize the settings manager to ensure cluster cache is ready
 	_ = settingsMgr.ResyncInformers()
 	kubectl := &MockKubectl{Kubectl: &kubetest.MockKubectlCmd{}}
+	persistResourceHealth := true
+	if data.persistResourceHealth != nil {
+		persistResourceHealth = *data.persistResourceHealth
+	}
 	ctrl, err := NewApplicationController(
 		test.FakeArgoCDNamespace,
 		settingsMgr,
@@ -221,7 +228,7 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 		[]string{},
 		[]string{},
 		0,
-		true,
+		persistResourceHealth,
 		nil,
 		data.applicationNamespaces,
 		nil,
@@ -1101,7 +1108,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
-		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -1153,7 +1160,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
-		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -1187,7 +1194,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
-		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -1217,7 +1224,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 				return defaultReactor.React(action)
 			})
-			err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+			err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
 				return []*v1alpha1.Cluster{}, nil
 			})
 			require.NoError(t, err)
@@ -1260,7 +1267,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
-		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -1304,7 +1311,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			return true, &v1alpha1.Application{}, nil
 		})
-		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -1346,7 +1353,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
-		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -1386,7 +1393,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
-		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -1429,7 +1436,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
-		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -1470,7 +1477,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
-		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -1517,7 +1524,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 			patched = true
 			return true, &v1alpha1.Application{}, nil
 		})
-		err := ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -1588,7 +1595,7 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		})
 
 		// Execute deletion
-		err = ctrl.finalizeApplicationDeletion(app, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err = ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 		require.NoError(t, err)
@@ -1672,7 +1679,7 @@ func TestFinalizeAppDeletionWithImpersonation(t *testing.T) {
 		f := setup(test.FakeDestNamespace, "")
 
 		// when
-		err := f.controller.finalizeApplicationDeletion(f.application, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := f.controller.finalizeApplicationDeletion(t.Context(), f.application, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 
@@ -1686,7 +1693,7 @@ func TestFinalizeAppDeletionWithImpersonation(t *testing.T) {
 		f := setup(test.FakeDestNamespace, "test-sa")
 
 		// when
-		err := f.controller.finalizeApplicationDeletion(f.application, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := f.controller.finalizeApplicationDeletion(t.Context(), f.application, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 
@@ -1701,7 +1708,7 @@ func TestFinalizeAppDeletionWithImpersonation(t *testing.T) {
 		f.application.Spec.Destination.Name = "invalid"
 
 		// when
-		err := f.controller.finalizeApplicationDeletion(f.application, func(_ string) ([]*v1alpha1.Cluster, error) {
+		err := f.controller.finalizeApplicationDeletion(t.Context(), f.application, func(_ string) ([]*v1alpha1.Cluster, error) {
 			return []*v1alpha1.Cluster{}, nil
 		})
 
@@ -1879,7 +1886,7 @@ func TestSetOperationStateOnDeletedApp(t *testing.T) {
 		patched = true
 		return true, &v1alpha1.Application{}, apierrors.NewNotFound(schema.GroupResource{}, "my-app")
 	})
-	ctrl.setOperationState(newFakeApp(), &v1alpha1.OperationState{Phase: synccommon.OperationSucceeded})
+	ctrl.setOperationState(t.Context(), newFakeApp(), &v1alpha1.OperationState{Phase: synccommon.OperationSucceeded})
 	assert.True(t, patched)
 }
 
@@ -1899,7 +1906,7 @@ func TestSetOperationStateLogRetries(t *testing.T) {
 		}
 		return true, &v1alpha1.Application{}, nil
 	})
-	ctrl.setOperationState(newFakeApp(), &v1alpha1.OperationState{Phase: synccommon.OperationSucceeded})
+	ctrl.setOperationState(t.Context(), newFakeApp(), &v1alpha1.OperationState{Phase: synccommon.OperationSucceeded})
 	assert.True(t, patched)
 	require.GreaterOrEqual(t, len(hook.Entries), 1)
 	entry := hook.Entries[0]
@@ -2182,7 +2189,7 @@ func TestRefreshAppConditions(t *testing.T) {
 		app := newFakeApp()
 		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app, &defaultProj}}, nil)
 
-		_, hasErrors := ctrl.refreshAppConditions(app)
+		_, hasErrors := ctrl.refreshAppConditions(t.Context(), app)
 		assert.False(t, hasErrors)
 		assert.Empty(t, app.Status.Conditions)
 	})
@@ -2193,7 +2200,7 @@ func TestRefreshAppConditions(t *testing.T) {
 
 		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app, &defaultProj}}, nil)
 
-		_, hasErrors := ctrl.refreshAppConditions(app)
+		_, hasErrors := ctrl.refreshAppConditions(t.Context(), app)
 		assert.False(t, hasErrors)
 		assert.Len(t, app.Status.Conditions, 1)
 		assert.Equal(t, v1alpha1.ApplicationConditionExcludedResourceWarning, app.Status.Conditions[0].Type)
@@ -2206,7 +2213,7 @@ func TestRefreshAppConditions(t *testing.T) {
 
 		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app, &defaultProj}}, nil)
 
-		_, hasErrors := ctrl.refreshAppConditions(app)
+		_, hasErrors := ctrl.refreshAppConditions(t.Context(), app)
 		assert.True(t, hasErrors)
 		assert.Len(t, app.Status.Conditions, 1)
 		assert.Equal(t, v1alpha1.ApplicationConditionInvalidSpecError, app.Status.Conditions[0].Type)
@@ -2273,7 +2280,7 @@ func TestUpdateReconciledAt(t *testing.T) {
 	})
 }
 
-func TestUpdateHealthStatusTransitionTime(t *testing.T) {
+func TestUpdateHealthStatus(t *testing.T) {
 	deployment := kube.MustToUnstructured(&appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
@@ -2284,11 +2291,16 @@ func TestUpdateHealthStatusTransitionTime(t *testing.T) {
 			Namespace: "default",
 		},
 	})
+	// The single managed Deployment is the cause of any non-Healthy aggregated app health.
+	deploymentCause := "Caused by apps/Deployment:default/demo"
 	testCases := []struct {
-		name           string
-		app            *v1alpha1.Application
-		configMapData  map[string]string
-		expectedStatus health.HealthStatusCode
+		name                  string
+		app                   *v1alpha1.Application
+		persistResourceHealth bool
+		initialMessage        string
+		configMapData         map[string]string
+		expectedStatus        health.HealthStatusCode
+		expectedMessage       string
 	}{
 		{
 			name: "Degraded to Missing",
@@ -2302,7 +2314,8 @@ apps/Deployment:
     hs.message = ""
     return hs`,
 			},
-			expectedStatus: health.HealthStatusMissing,
+			expectedStatus:  health.HealthStatusMissing,
+			expectedMessage: deploymentCause,
 		},
 		{
 			name: "Missing to Progressing",
@@ -2316,7 +2329,8 @@ apps/Deployment:
     hs.message = ""
     return hs`,
 			},
-			expectedStatus: health.HealthStatusProgressing,
+			expectedStatus:  health.HealthStatusProgressing,
+			expectedMessage: deploymentCause,
 		},
 		{
 			name: "Progressing to Healthy",
@@ -2331,6 +2345,8 @@ apps/Deployment:
     return hs`,
 			},
 			expectedStatus: health.HealthStatusHealthy,
+			// A Healthy app has no contributing causes.
+			expectedMessage: "",
 		},
 		{
 			name: "Healthy  to Degraded",
@@ -2344,12 +2360,53 @@ apps/Deployment:
     hs.message = ""
     return hs`,
 			},
-			expectedStatus: health.HealthStatusDegraded,
+			expectedStatus:  health.HealthStatusDegraded,
+			expectedMessage: deploymentCause,
+		},
+		{
+			// No health transition with non-inline resource health: the status stays Degraded,
+			// and both the last transition time and the previous health message are preserved.
+			name:           "Degraded stays Degraded (non-inline preserves message)",
+			app:            newFakeAppWithHealthAndTime(health.HealthStatusDegraded, testTimestamp),
+			initialMessage: "Caused by apps/Deployment:default/previous",
+			configMapData: map[string]string{
+				"resource.customizations": `
+apps/Deployment:
+  health.lua: |
+    hs = {}
+    hs.status = "Degraded"
+    hs.message = ""
+    return hs`,
+			},
+			expectedStatus:  health.HealthStatusDegraded,
+			expectedMessage: "Caused by apps/Deployment:default/previous",
+		},
+		{
+			// No health transition with inline resource health: the status stays Degraded, but
+			// the freshly computed message replaces the previous one.
+			name:                  "Degraded stays Degraded (inline updates message)",
+			app:                   newFakeAppWithHealthAndTime(health.HealthStatusDegraded, testTimestamp),
+			persistResourceHealth: true,
+			initialMessage:        "Caused by apps/Deployment:default/previous",
+			configMapData: map[string]string{
+				"resource.customizations": `
+apps/Deployment:
+  health.lua: |
+    hs = {}
+    hs.status = "Degraded"
+    hs.message = ""
+    return hs`,
+			},
+			expectedStatus:  health.HealthStatusDegraded,
+			expectedMessage: deploymentCause,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			// A health transition happens when the resulting status differs from the initial one.
+			expectTransition := tc.app.Status.Health.Status != tc.expectedStatus
+			tc.app.Status.Health.Message = tc.initialMessage
 			ctrl := newFakeController(t.Context(), &fakeData{
 				apps: []runtime.Object{tc.app, &defaultProj},
 				manifestResponse: &apiclient.ManifestResponse{
@@ -2361,7 +2418,8 @@ apps/Deployment:
 				managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
 					kube.GetResourceKey(deployment): deployment,
 				},
-				configMapData: tc.configMapData,
+				configMapData:         tc.configMapData,
+				persistResourceHealth: &tc.persistResourceHealth,
 			}, nil)
 
 			ctrl.processAppRefreshQueueItem()
@@ -2369,7 +2427,17 @@ apps/Deployment:
 			require.NoError(t, err)
 			assert.NotEmpty(t, apps)
 			assert.Equal(t, tc.expectedStatus, apps[0].Status.Health.Status)
-			assert.NotEqual(t, testTimestamp, *apps[0].Status.Health.LastTransitionTime)
+			// The health message reports the resource(s) that caused the aggregated app health.
+			assert.Equal(t, tc.expectedMessage, apps[0].Status.Health.Message)
+			if expectTransition {
+				// A health transition bumps the last transition time.
+				assert.NotEqual(t, testTimestamp, *apps[0].Status.Health.LastTransitionTime)
+			} else {
+				// Without a transition, the last transition time is preserved (compare the
+				// instant, since round-tripping through the client normalizes the location).
+				assert.True(t, testTimestamp.Time.Equal(apps[0].Status.Health.LastTransitionTime.Time),
+					"last transition time should be preserved when health does not change")
+			}
 		})
 	}
 }
