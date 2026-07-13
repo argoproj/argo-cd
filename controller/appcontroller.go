@@ -1053,7 +1053,10 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 		return processNext
 	}
 	app := origApp.DeepCopy()
+
 	if !ctrl.shouldProcessOperation(app) {
+		// Exit early if the app was added to the operation queue,
+		// but it does not need to process an operation.
 		return processNext
 	}
 
@@ -1105,6 +1108,8 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 	return processNext
 }
 
+// shouldProcessOperation reports whether an application needs to be handled by the operation queue.
+// It is used to avoid enqueuing and processing application operations unnecessarily.
 func (ctrl *ApplicationController) shouldProcessOperation(app *appv1.Application) bool {
 	return app.Operation != nil || app.DeletionTimestamp != nil
 }
