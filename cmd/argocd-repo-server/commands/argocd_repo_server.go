@@ -52,18 +52,6 @@ var (
 	helmUserAgent                                = env.StringFromEnv(common.EnvHelmUserAgent, "")
 )
 
-const (
-	// envOTLPHeaders is the environment variable holding the OTLP collector headers. It follows the
-	// ARGOCD_<COMPONENT>_OTLP_HEADERS convention used by every other Argo CD component (e.g.
-	// ARGOCD_SERVER_OTLP_HEADERS, ARGOCD_APPLICATION_CONTROLLER_OTLP_HEADERS) and matches the name
-	// the shipped repo-server Deployment already injects from the otlp.headers config map key.
-	envOTLPHeaders = "ARGOCD_REPO_SERVER_OTLP_HEADERS"
-	// envOTLPHeadersDeprecated is the legacy, inconsistently-named variable that omits the "SERVER"
-	// segment. It is retained only for backward compatibility with existing deployments that set it
-	// directly, and is superseded by envOTLPHeaders.
-	envOTLPHeadersDeprecated = "ARGOCD_REPO_OTLP_HEADERS"
-)
-
 func NewCommand() *cobra.Command {
 	var (
 		parallelismLimit                   int64
@@ -273,7 +261,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortRepoServerMetrics, "Start metrics server on given port")
 	command.Flags().StringVar(&otlpAddress, "otlp-address", env.StringFromEnv("ARGOCD_REPO_SERVER_OTLP_ADDRESS", ""), "OpenTelemetry collector address to send traces to")
 	command.Flags().BoolVar(&otlpInsecure, "otlp-insecure", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_OTLP_INSECURE", true), "OpenTelemetry collector insecure mode")
-	command.Flags().StringToStringVar(&otlpHeaders, "otlp-headers", otlpHeadersFromEnv(), "List of OpenTelemetry collector extra headers sent with traces, headers are comma-separated key-value pairs(e.g. key1=value1,key2=value2)")
+	command.Flags().StringToStringVar(&otlpHeaders, "otlp-headers", env.ParseStringToStringFromEnv("ARGOCD_REPO_SERVER_OTLP_HEADERS", map[string]string{}, ","), "List of OpenTelemetry collector extra headers sent with traces, headers are comma-separated key-value pairs(e.g. key1=value1,key2=value2)")
 	command.Flags().StringSliceVar(&otlpAttrs, "otlp-attrs", env.StringsFromEnv("ARGOCD_REPO_SERVER_OTLP_ATTRS", []string{}, ","), "List of OpenTelemetry collector extra attrs when send traces, each attribute is separated by a colon(e.g. key:value)")
 	command.Flags().StringVar(&maxCombinedDirectoryManifestsSize, "max-combined-directory-manifests-size", env.StringFromEnv("ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE", "10M"), "Max combined size of manifest files in a directory-type Application")
 	command.Flags().StringArrayVar(&cmpTarExcludedGlobs, "plugin-tar-exclude", env.StringsFromEnv("ARGOCD_REPO_SERVER_PLUGIN_TAR_EXCLUSIONS", []string{}, ";"), "Globs to filter when sending tarballs to plugins.")
@@ -312,24 +300,4 @@ func buildHealthCheckTLSConfig(healthCheckClientCert *ctls.Certificate, disableT
 		cfg.ClientCertificates = []ctls.Certificate{*healthCheckClientCert}
 	}
 	return cfg
-}
-
-// otlpHeadersFromEnv resolves the OTLP collector headers from the environment, preferring the
-// canonical envOTLPHeaders and falling back to the deprecated envOTLPHeadersDeprecated for backward
-// compatibility. When only the deprecated variable is set, a warning is logged so operators migrate.
-// If the canonical variable is present it always wins, even when the deprecated one is also set.
-// An empty map is returned when neither variable is set.
-func otlpHeadersFromEnv() map[string]string {
-	// The canonical, correctly-named variable takes precedence.
-	if _, ok := os.LookupEnv(envOTLPHeaders); ok {
-		return env.ParseStringToStringFromEnv(envOTLPHeaders, map[string]string{}, ",")
-	}
-
-	// Fall back to the deprecated variable, warning the operator to migrate.
-	if _, ok := os.LookupEnv(envOTLPHeadersDeprecated); ok {
-		log.Warnf("environment variable %q is deprecated, use %q instead", envOTLPHeadersDeprecated, envOTLPHeaders)
-		return env.ParseStringToStringFromEnv(envOTLPHeadersDeprecated, map[string]string{}, ",")
-	}
-
-	return map[string]string{}
 }
