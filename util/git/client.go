@@ -276,11 +276,11 @@ func NewClient(rawRepoURL string, creds Creds, insecure bool, enableLfs bool, pr
 	r := regexp.MustCompile(`([/:])`)
 	normalizedGitURL := NormalizeGitURL(rawRepoURL)
 	if normalizedGitURL == "" {
-		return nil, fmt.Errorf("repository %q cannot be initialized: %w", rawRepoURL, ErrInvalidRepoURL)
+		return nil, fmt.Errorf("repository %q cannot be initialized: %w", SanitizeRepoURL(rawRepoURL), ErrInvalidRepoURL)
 	}
 	root := filepath.Join(os.TempDir(), r.ReplaceAllString(normalizedGitURL, "_"))
 	if root == os.TempDir() {
-		return nil, fmt.Errorf("repository %q cannot be initialized, because its root would be system temp at %s", rawRepoURL, root)
+		return nil, fmt.Errorf("repository %q cannot be initialized, because its root would be system temp at %s", SanitizeRepoURL(rawRepoURL), root)
 	}
 	return NewClientExt(rawRepoURL, root, creds, insecure, enableLfs, proxy, noProxy, opts...)
 }
@@ -431,7 +431,7 @@ func buildSSHAuth(repoURL string, creds *SSHCreds) (transport.AuthMethod, error)
 		// avoids handing back an AuthMethod with no host-key verification.
 		// For the no-credentials path, newAuth catches this and lets go-git
 		// fall back to its DefaultAuthBuilder.
-		return nil, fmt.Errorf("could not set up SSH known hosts callback for %s: %w", repoURL, err)
+		return nil, fmt.Errorf("could not set up SSH known hosts callback for %s: %w", SanitizeRepoURL(repoURL), err)
 	}
 
 	if creds == nil {
@@ -1030,7 +1030,7 @@ func (m *nativeGitClient) RevisionMetadata(ctx context.Context, revision string)
 	cmd.Stdin = strings.NewReader(message)
 	out, err = m.runCmdOutput(cmd, runOpts{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to interpret trailers for revision %q in repo %q: %w", revision, m.repoURL, err)
+		return nil, fmt.Errorf("failed to interpret trailers for revision %q in repo %q: %w", revision, SanitizeRepoURL(m.repoURL), err)
 	}
 	relatedCommits, _ := GetReferences(log.WithFields(log.Fields{"repo": m.repoURL, "revision": revision}), out)
 
