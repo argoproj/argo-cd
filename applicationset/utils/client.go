@@ -87,7 +87,7 @@ func (c *cacheSyncingClient) retrieveStore(ctx context.Context, obj client.Objec
 }
 
 func (c *cacheSyncingClient) execAndSyncCache(ctx context.Context, op func() error, obj client.Object, deleteObj bool) error {
-	// execute the operation first and only sync cache if it succeeds
+	// Execute the operation first; on success sync the informer cache. If it returns NotFound, also attempt to evict any stale entry from the cache.
 	var opErr error
 	if err := op(); err != nil {
 		// A NotFound means the object is already gone from the API server. Fall through to
