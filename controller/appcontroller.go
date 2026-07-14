@@ -2594,24 +2594,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 		&appv1.Application{},
 		refreshTimeout,
 		cache.Indexers{
-			cache.NamespaceIndex: func(obj any) ([]string, error) {
-				app, ok := obj.(*appv1.Application)
-				if ok && ctrl.projInformer.HasSynced() {
-					// We only generally work with applications that are in one
-					// the allowed namespaces.
-					if ctrl.isAppNamespaceAllowed(app) {
-						// If the application is not allowed to use the project,
-						// log an error.
-						if _, err := ctrl.getAppProj(app); err != nil {
-							ctrl.setAppCondition(app, ctrl.projectErrorToCondition(err, app))
-						} else if _, err = argo.GetDestinationCluster(context.Background(), app.Spec.Destination, ctrl.db); err != nil {
-							ctrl.setAppCondition(app, appv1.ApplicationCondition{Type: appv1.ApplicationConditionInvalidSpecError, Message: err.Error()})
-						}
-					}
-				}
-
-				return cache.MetaNamespaceIndexFunc(obj)
-			},
+			cache.NamespaceIndex: cache.MetaNamespaceIndexFunc,
 			orphanedIndex: func(obj any) (i []string, e error) {
 				app, ok := obj.(*appv1.Application)
 				if !ok {
