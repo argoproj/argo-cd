@@ -1,3 +1,4 @@
+/* eslint-disable no-prototype-builtins */
 type operatorFn = (labels: {[name: string]: string}, key: string, values: string[]) => boolean;
 
 const operators: {[type: string]: operatorFn} = {

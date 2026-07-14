@@ -11,7 +11,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 
-	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
+	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 )
 
 type Kube struct {

@@ -2,14 +2,16 @@ package scm_provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
-	pathpkg "path"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	"github.com/hashicorp/go-retryablehttp"
-	"github.com/xanzy/go-gitlab"
+	gitlab "gitlab.com/gitlab-org/api/client-go"
+
+	"github.com/argoproj/argo-cd/v3/applicationset/utils"
+	"github.com/argoproj/argo-cd/v3/util/proxy"
 )
 
 type GitlabProvider struct {
@@ -18,12 +20,13 @@ type GitlabProvider struct {
 	allBranches           bool
 	includeSubgroups      bool
 	includeSharedProjects bool
+	includeArchivedRepos  bool
 	topic                 string
 }
 
 var _ SCMProviderService = &GitlabProvider{}
 
-func NewGitlabProvider(ctx context.Context, organization string, token string, url string, allBranches, includeSubgroups, includeSharedProjects, insecure bool, scmRootCAPath, topic string) (*GitlabProvider, error) {
+func NewGitlabProvider(organization string, token string, url string, allBranches, includeSubgroups, includeSharedProjects, includeArchivedRepos, insecure bool, scmRootCAPath, topic string, caCerts []byte, proxyURL, noProxy string) (*GitlabProvider, error) {
 	// Undocumented environment variable to set a default token, to be used in testing to dodge anonymous rate limits.
 	if token == "" {
 		token = os.Getenv("GITLAB_TOKEN")
@@ -31,7 +34,8 @@ func NewGitlabProvider(ctx context.Context, organization string, token string, u
 	var client *gitlab.Client
 
 	tr := http.DefaultTransport.(*http.Transport).Clone()
-	tr.TLSClientConfig = utils.GetTlsConfig(scmRootCAPath, insecure)
+	tr.TLSClientConfig = utils.GetTlsConfig(scmRootCAPath, insecure, caCerts)
+	tr.Proxy = proxy.GetCallback(proxyURL, noProxy)
 
 	retryClient := retryablehttp.NewClient()
 	retryClient.HTTPClient.Transport = tr
@@ -50,14 +54,22 @@ func NewGitlabProvider(ctx context.Context, organization string, token string, u
 		}
 	}
 
-	return &GitlabProvider{client: client, organization: organization, allBranches: allBranches, includeSubgroups: includeSubgroups, includeSharedProjects: includeSharedProjects, topic: topic}, nil
+	return &GitlabProvider{
+		client:                client,
+		organization:          organization,
+		allBranches:           allBranches,
+		includeSubgroups:      includeSubgroups,
+		includeSharedProjects: includeSharedProjects,
+		includeArchivedRepos:  includeArchivedRepos,
+		topic:                 topic,
+	}, nil
 }
 
 func (g *GitlabProvider) GetBranches(ctx context.Context, repo *Repository) ([]*Repository, error) {
 	repos := []*Repository{}
 	branches, err := g.listBranches(ctx, repo)
 	if err != nil {
-		return nil, fmt.Errorf("error listing branches for %s/%s: %v", repo.Organization, repo.Repository, err)
+		return nil, fmt.Errorf("error listing branches for %s/%s: %w", repo.Organization, repo.Repository, err)
 	}
 
 	for _, branch := range branches {
@@ -74,19 +86,29 @@ func (g *GitlabProvider) GetBranches(ctx context.Context, repo *Repository) ([]*
 	return repos, nil
 }
 
-func (g *GitlabProvider) ListRepos(ctx context.Context, cloneProtocol string) ([]*Repository, error) {
+func (g *GitlabProvider) ListRepos(_ context.Context, cloneProtocol string) ([]*Repository, error) {
+	snippetsListOptions := gitlab.ExploreSnippetsOptions{
+		ListOptions: gitlab.ListOptions{
+			PerPage: 100,
+		},
+	}
 	opt := &gitlab.ListGroupProjectsOptions{
-		ListOptions:      gitlab.ListOptions{PerPage: 100},
+		ListOptions:      snippetsListOptions.ListOptions,
 		IncludeSubGroups: &g.includeSubgroups,
 		WithShared:       &g.includeSharedProjects,
 		Topic:            &g.topic,
+	}
+
+	// gitlab does not include Archived repos by default
+	if g.includeArchivedRepos {
+		opt.Archived = gitlab.Ptr(true)
 	}
 
 	repos := []*Repository{}
 	for {
 		gitlabRepos, resp, err := g.client.Groups.ListGroupProjects(g.organization, opt)
 		if err != nil {
-			return nil, fmt.Errorf("error listing projects for %s: %v", g.organization, err)
+			return nil, fmt.Errorf("error listing projects for %s: %w", g.organization, err)
 		}
 		for _, gitlabRepo := range gitlabRepos {
 			var url string
@@ -100,12 +122,21 @@ func (g *GitlabProvider) ListRepos(ctx context.Context, cloneProtocol string) ([
 				return nil, fmt.Errorf("unknown clone protocol for Gitlab %v", cloneProtocol)
 			}
 
+			var repoLabels []string
+			if len(gitlabRepo.Topics) == 0 {
+				// fallback to for gitlab prior to 14.5
+				//nolint:staticcheck
+				repoLabels = gitlabRepo.TagList
+			} else {
+				repoLabels = gitlabRepo.Topics
+			}
+
 			repos = append(repos, &Repository{
 				Organization: gitlabRepo.Namespace.FullPath,
 				Repository:   gitlabRepo.Path,
 				URL:          url,
 				Branch:       gitlabRepo.DefaultBranch,
-				Labels:       gitlabRepo.TagList,
+				Labels:       repoLabels,
 				RepositoryId: gitlabRepo.ID,
 			})
 		}
@@ -120,40 +151,31 @@ func (g *GitlabProvider) ListRepos(ctx context.Context, cloneProtocol string) ([
 func (g *GitlabProvider) RepoHasPath(_ context.Context, repo *Repository, path string) (bool, error) {
 	p, _, err := g.client.Projects.GetProject(repo.Organization+"/"+repo.Repository, nil)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("error getting Project Info: %w", err)
 	}
-	directories := []string{
-		path,
-		pathpkg.Dir(path),
-	}
-	for _, directory := range directories {
-		options := gitlab.ListTreeOptions{
-			Path: &directory,
-			Ref:  &repo.Branch,
-		}
-		for {
-			treeNode, resp, err := g.client.Repositories.ListTree(p.ID, &options)
+
+	// search if the path is a file and exists in the repo
+	fileOptions := gitlab.GetFileOptions{Ref: &repo.Branch}
+	_, _, err = g.client.RepositoryFiles.GetFile(p.ID, path, &fileOptions)
+	if err != nil {
+		if errors.Is(err, gitlab.ErrNotFound) {
+			// no file found, check for a directory
+			options := gitlab.ListTreeOptions{
+				Path: &path,
+				Ref:  &repo.Branch,
+			}
+			_, _, err := g.client.Repositories.ListTree(p.ID, &options)
 			if err != nil {
+				if errors.Is(err, gitlab.ErrNotFound) {
+					return false, nil // no file or directory found
+				}
 				return false, err
 			}
-			if path == directory {
-				if resp.TotalItems > 0 {
-					return true, nil
-				}
-			}
-			for i := range treeNode {
-				if treeNode[i].Path == path {
-					return true, nil
-				}
-			}
-			if resp.NextPage == 0 {
-				// no future pages
-				break
-			}
-			options.Page = resp.NextPage
+			return true, nil // directory found
 		}
+		return false, err
 	}
-	return false, nil
+	return true, nil // file found
 }
 
 func (g *GitlabProvider) listBranches(_ context.Context, repo *Repository) ([]gitlab.Branch, error) {
@@ -172,8 +194,13 @@ func (g *GitlabProvider) listBranches(_ context.Context, repo *Repository) ([]gi
 		return branches, nil
 	}
 	// Otherwise, scrape the ListBranches API.
+	snippetsListOptions := gitlab.ExploreSnippetsOptions{
+		ListOptions: gitlab.ListOptions{
+			PerPage: 100,
+		},
+	}
 	opt := &gitlab.ListBranchesOptions{
-		ListOptions: gitlab.ListOptions{PerPage: 100},
+		ListOptions: snippetsListOptions.ListOptions,
 	}
 	for {
 		gitlabBranches, resp, err := g.client.Branches.ListBranches(repo.RepositoryId, opt)

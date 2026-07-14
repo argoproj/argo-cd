@@ -1,0 +1,58 @@
+apiVersion: camel.apache.org/v1
+kind: Integration
+metadata:
+  annotations:
+    camel.apache.org/operator.id: camel-k
+  generation: 1
+  name: camelk-example
+  namespace: default
+spec:
+  sources:
+  - content: |
+      from('timer:tick?period=3000')
+        .setBody().constant('Hello world from Camel-K')
+        .to('log:info')
+    name: camelk-example.groovy
+  traits: {}
+status:
+  conditions:
+  - firstTruthyTime: "2024-01-26T16:01:50Z"
+    lastTransitionTime: "2024-01-26T16:01:50Z"
+    lastUpdateTime: "2024-01-26T16:01:50Z"
+    message: camel-k/camel-k
+    reason: IntegrationPlatformAvailable
+    status: "True"
+    type: IntegrationPlatformAvailable
+  - firstTruthyTime: "2024-01-26T16:01:52Z"
+    lastTransitionTime: "2024-01-26T16:01:52Z"
+    lastUpdateTime: "2024-01-26T16:01:52Z"
+    message: kit-cmkkksgve68c73e60i60
+    reason: IntegrationKitAvailable
+    status: "True"
+    type: IntegrationKitAvailable
+  - lastTransitionTime: "2024-01-26T16:01:52Z"
+    lastUpdateTime: "2024-01-26T16:01:52Z"
+    message: different controller strategy used (knative-service)
+    reason: CronJobNotAvailableReason
+    status: "False"
+    type: CronJobAvailable
+  - lastTransitionTime: "2024-01-26T16:01:52Z"
+    lastUpdateTime: "2024-01-26T16:01:52Z"
+    message: 'controller strategy: knative-service'
+    reason: DeploymentAvailable
+    status: "False"
+    type: DeploymentAvailable
+  - firstTruthyTime: "2024-01-26T16:01:52Z"
+    lastTransitionTime: "2024-01-26T16:01:52Z"
+    lastUpdateTime: "2024-01-26T16:01:52Z"
+    message: Knative service name is api-example
+    reason: KnativeServiceAvailable
+    status: "True"
+    type: KnativeServiceAvailable
+  - lastTransitionTime: "2024-01-26T16:01:52Z"
+    lastUpdateTime: "2024-01-26T16:02:55Z"
+    message: back-off 40s restarting failed container=integration pod=camelk-example-deployment
+    reason: Error
+    status: "False"
+    type: Ready
+  phase: Error

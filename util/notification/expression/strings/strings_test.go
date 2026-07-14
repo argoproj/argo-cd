@@ -1,13 +1,13 @@
 package strings
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestNewExprs(t *testing.T) {
+	t.Parallel()
 	funcs := []string{
 		"ReplaceAll",
 		"ToUpper",
@@ -21,6 +21,7 @@ func TestNewExprs(t *testing.T) {
 }
 
 func TestReplaceAll(t *testing.T) {
+	t.Parallel()
 	exprs := NewExprs()
 	input := "test_replace"
 	expected := "test=replace"
@@ -31,6 +32,7 @@ func TestReplaceAll(t *testing.T) {
 }
 
 func TestUpperAndLower(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		fn       string
 		input    string
@@ -50,7 +52,8 @@ func TestUpperAndLower(t *testing.T) {
 	exprs := NewExprs()
 
 	for _, testCase := range testCases {
-		t.Run(fmt.Sprintf("With success case: Func: %s", testCase.fn), func(tc *testing.T) {
+		t.Run("With success case: Func: "+testCase.fn, func(t *testing.T) {
+			t.Parallel()
 			toUpperFn, ok := exprs[testCase.fn].(func(s string) string)
 			assert.True(t, ok)
 
@@ -58,5 +61,4 @@ func TestUpperAndLower(t *testing.T) {
 			assert.Equal(t, testCase.expected, actual)
 		})
 	}
-
 }

@@ -1,0 +1,29 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "Not yet reconciled"
+  inputPath: testdata/ISBServiceRollout/progressing-observedgen.yaml
+- healthStatus:
+    status: Healthy
+    message: "Healthy"
+  inputPath: testdata/ISBServiceRollout/healthy.yaml
+- healthStatus:
+    status: Degraded
+    message: "ISBService Failed"
+  inputPath: testdata/ISBServiceRollout/degraded.yaml
+- healthStatus:
+    status: Progressing
+    message: "Not yet reconciled"
+  inputPath: testdata/ISBServiceRollout/progressing-nostatus.yaml
+- healthStatus:
+    status: Progressing
+    message: "Child Progressing"
+  inputPath: testdata/ISBServiceRollout/progressing-reason.yaml
+- healthStatus:
+    status: Progressing
+    message: "Update in progress"
+  inputPath: testdata/ISBServiceRollout/pending-upgrade-in-progress.yaml
+- healthStatus:
+    status: Degraded
+    message: "Progressive upgrade failed"
+  inputPath: testdata/ISBServiceRollout/progressive-failed.yaml

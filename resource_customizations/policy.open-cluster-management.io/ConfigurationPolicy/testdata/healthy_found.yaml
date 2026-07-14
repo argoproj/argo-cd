@@ -1,0 +1,67 @@
+apiVersion: policy.open-cluster-management.io/v1
+kind: ConfigurationPolicy
+metadata:
+  name: policy-namespace
+  generation: 3
+  namespace: local-cluster
+spec:
+  object-templates:
+    - complianceType: musthave
+      objectDefinition:
+        apiVersion: v1
+        kind: Namespace
+        metadata:
+          name: argo-example
+      recreateOption: None
+    - complianceType: musthave
+      objectDefinition:
+        apiVersion: v1
+        kind: Namespace
+        metadata:
+          name: argo-example-2
+      recreateOption: None
+  pruneObjectBehavior: None
+  remediationAction: enforce
+  severity: low
+status:
+  compliancyDetails:
+    - Compliant: Compliant
+      Validity: {}
+      conditions:
+        - lastTransitionTime: '2024-07-29T16:58:59Z'
+          message: 'namespaces [argo-example] found as specified'
+          reason: K8s `must have` object already exists
+          status: 'True'
+          type: notification
+    - Compliant: Compliant
+      Validity: {}
+      conditions:
+        - lastTransitionTime: '2024-07-29T16:58:59Z'
+          message: 'namespaces [argo-example-2] found as specified'
+          reason: K8s `must have` object already exists
+          status: 'True'
+          type: notification
+  compliant: Compliant
+  lastEvaluated: '2024-07-29T16:59:26Z'
+  lastEvaluatedGeneration: 3
+  relatedObjects:
+    - compliant: Compliant
+      object:
+        apiVersion: v1
+        kind: Namespace
+        metadata:
+          name: argo-example
+      properties:
+        createdByPolicy: true
+        uid: 782f50ee-4fa9-41d6-900e-66d9eaf8b111
+      reason: Resource found as expected
+    - compliant: Compliant
+      object:
+        apiVersion: v1
+        kind: Namespace
+        metadata:
+          name: argo-example-2
+      properties:
+        createdByPolicy: true
+        uid: ce34051f-a0dc-4db2-9f8f-64cc9223d4d7
+      reason: Resource found as expected

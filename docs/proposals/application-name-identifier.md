@@ -31,7 +31,7 @@ managed (i.e. reconciled from Git). The default label used is the well-known
 label `app.kubernetes.io/instance`.
 
 This proposal suggests to introduce the `trackingMethod` setting that allows
-controlling how applicaton resources are identified and allows switching to
+controlling how application resources are identified and allows switching to
 using the annotation instead of `app.kubernetes.io/instance` label.
 
 ## Motivation
@@ -135,7 +135,7 @@ one in charge of a given resource.
 
 #### Include resource identifies in the `app.kubernetes.io/instance` annotation
 
-The `app.kubernetes.io/instance` annotation might be accidently added or copied
+The `app.kubernetes.io/instance` annotation might be accidentally added or copied
 same as label. To prevent Argo CD confusion the annotation value should include
 the identifier of the resource annotation was applied to. The resource identifier
 includes the group, kind, namespace and name of the resource. It is proposed to use `;`

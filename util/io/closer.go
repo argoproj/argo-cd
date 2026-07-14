@@ -2,11 +2,9 @@ package io
 
 import log "github.com/sirupsen/logrus"
 
-var (
-	NopCloser = NewCloser(func() error {
-		return nil
-	})
-)
+var NopCloser = NewCloser(func() error {
+	return nil
+})
 
 type Closer interface {
 	Close() error
@@ -20,8 +18,8 @@ func (c *inlineCloser) Close() error {
 	return c.close()
 }
 
-func NewCloser(close func() error) Closer {
-	return &inlineCloser{close: close}
+func NewCloser(closeFn func() error) Closer {
+	return &inlineCloser{close: closeFn}
 }
 
 // Close is a convenience function to close a object that has a Close() method, ignoring any errors

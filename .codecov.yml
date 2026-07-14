@@ -8,6 +8,12 @@ ignore:
 - "pkg/client/.*"
 - "vendor/.*"
 - "test/.*"
+- "**/mocks/*"
+flags:
+  unit-tests:
+    carryforward: true
+  e2e:
+    carryforward: true
 coverage:
   status:
     # we've found this not to be useful

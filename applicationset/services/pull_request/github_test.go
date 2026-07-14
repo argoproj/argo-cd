@@ -1,17 +1,17 @@
 package pull_request
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
-	"github.com/google/go-github/v35/github"
+	"github.com/google/go-github/v69/github"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func toPtr(s string) *string {
-	return &s
-}
-
 func TestContainLabels(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		Name       string
 		Labels     []string
@@ -22,9 +22,9 @@ func TestContainLabels(t *testing.T) {
 			Name:   "Match labels",
 			Labels: []string{"label1", "label2"},
 			PullLabels: []*github.Label{
-				{Name: toPtr("label1")},
-				{Name: toPtr("label2")},
-				{Name: toPtr("label3")},
+				{Name: new("label1")},
+				{Name: new("label2")},
+				{Name: new("label3")},
 			},
 			Expect: true,
 		},
@@ -32,9 +32,9 @@ func TestContainLabels(t *testing.T) {
 			Name:   "Not match labels",
 			Labels: []string{"label1", "label4"},
 			PullLabels: []*github.Label{
-				{Name: toPtr("label1")},
-				{Name: toPtr("label2")},
-				{Name: toPtr("label3")},
+				{Name: new("label1")},
+				{Name: new("label2")},
+				{Name: new("label3")},
 			},
 			Expect: false,
 		},
@@ -42,9 +42,9 @@ func TestContainLabels(t *testing.T) {
 			Name:   "No specify",
 			Labels: []string{},
 			PullLabels: []*github.Label{
-				{Name: toPtr("label1")},
-				{Name: toPtr("label2")},
-				{Name: toPtr("label3")},
+				{Name: new("label1")},
+				{Name: new("label2")},
+				{Name: new("label3")},
 			},
 			Expect: true,
 		},
@@ -52,14 +52,15 @@ func TestContainLabels(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
-			if got := containLabels(c.Labels, c.PullLabels); got != c.Expect {
-				t.Errorf("expect: %v, got: %v", c.Expect, got)
-			}
+			t.Parallel()
+			got := containLabels(c.Labels, c.PullLabels)
+			require.Equal(t, got, c.Expect)
 		})
 	}
 }
 
 func TestGetGitHubPRLabelNames(t *testing.T) {
+	t.Parallel()
 	Tests := []struct {
 		Name           string
 		PullLabels     []*github.Label
@@ -68,9 +69,9 @@ func TestGetGitHubPRLabelNames(t *testing.T) {
 		{
 			Name: "PR has labels",
 			PullLabels: []*github.Label{
-				{Name: toPtr("label1")},
-				{Name: toPtr("label2")},
-				{Name: toPtr("label3")},
+				{Name: new("label1")},
+				{Name: new("label2")},
+				{Name: new("label3")},
 			},
 			ExpectedResult: []string{"label1", "label2", "label3"},
 		},
@@ -82,8 +83,36 @@ func TestGetGitHubPRLabelNames(t *testing.T) {
 	}
 	for _, test := range Tests {
 		t.Run(test.Name, func(t *testing.T) {
+			t.Parallel()
 			labels := getGithubPRLabelNames(test.PullLabels)
-			assert.Equal(t, test.ExpectedResult, labels)
+			require.Equal(t, test.ExpectedResult, labels)
 		})
 	}
+}
+
+func TestGitHubListReturnsRepositoryNotFoundError(t *testing.T) {
+	t.Parallel()
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	path := "/api/v3/repos/nonexistent/nonexistent/pulls"
+
+	mux.HandleFunc(path, func(w http.ResponseWriter, _ *http.Request) {
+		// Return 404 status to simulate repository not found
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"message": "404 Project Not Found"}`))
+	})
+
+	svc, err := NewGithubService("", server.URL, "nonexistent", "nonexistent", []string{}, nil)
+	require.NoError(t, err)
+
+	prs, err := svc.List(t.Context())
+
+	// Should return empty pull requests list
+	assert.Empty(t, prs)
+
+	// Should return RepositoryNotFoundError
+	require.Error(t, err)
+	assert.True(t, IsRepositoryNotFoundError(err), "Expected RepositoryNotFoundError but got: %v", err)
 }

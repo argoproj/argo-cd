@@ -6,7 +6,7 @@ import {Context} from '../../context';
 
 require('./badge-panel.scss');
 
-export const BadgePanel = ({app, project}: {app?: string; project?: string}) => {
+export const BadgePanel = ({app, project, appNamespace, nsEnabled}: {app?: string; project?: string; appNamespace?: string; nsEnabled?: boolean}) => {
     const [badgeType, setBadgeType] = React.useState('URL');
     const context = React.useContext(Context);
     if (!app && !project) {
@@ -19,7 +19,10 @@ export const BadgePanel = ({app, project}: {app?: string; project?: string}) => 
         let entityURL = '';
         let alt = '';
         if (app) {
-            badgeURL = `${root}api/badge?name=${app}&revision=true`;
+            badgeURL = `${root}api/badge?name=${app}&revision=true&showAppName=true`;
+            if (nsEnabled) {
+                badgeURL += `&namespace=${appNamespace}`;
+            }
             entityURL = `${root}applications/${app}`;
             alt = 'App Status';
         } else if (project) {
@@ -51,14 +54,14 @@ export const BadgePanel = ({app, project}: {app?: string; project?: string}) => 
                                 badgeType === 'URL'
                                     ? badgeURL
                                     : badgeType === 'Markdown'
-                                    ? `[![${alt}](${badgeURL})](${entityURL})`
-                                    : badgeType === 'Textile'
-                                    ? `!${badgeURL}!:${entityURL}`
-                                    : badgeType === 'Rdoc'
-                                    ? `{<img src="${badgeURL}" alt="${alt}" />}[${entityURL}]`
-                                    : badgeType === 'AsciiDoc'
-                                    ? `image:${badgeURL}["${alt}", link="${entityURL}"]`
-                                    : ''
+                                      ? `[![${alt}](${badgeURL})](${entityURL})`
+                                      : badgeType === 'Textile'
+                                        ? `!${badgeURL}!:${entityURL}`
+                                        : badgeType === 'Rdoc'
+                                          ? `{<img src="${badgeURL}" alt="${alt}" />}[${entityURL}]`
+                                          : badgeType === 'AsciiDoc'
+                                            ? `image:${badgeURL}["${alt}", link="${entityURL}"]`
+                                            : ''
                             }
                         />
                     </div>

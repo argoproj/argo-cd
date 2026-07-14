@@ -21,7 +21,7 @@ metadata:
   ...
   name: argocd-cm
 data:
-  ui.cssurl: "https://www.myhost.com/my-styles.css"
+  ui.cssurl: "https://www.example.com/my-styles.css"
 ```
 
 ## Adding Styles Via Volume Mounts
@@ -100,7 +100,7 @@ experience, you may wish to build a separate project using the [Argo CD UI dev s
 
 ## Banners
 
-Argo CD can optionally display a banner that can be used to notify your users of upcoming maintenance and operational changes. This feature can be enabled by specifying the banner message using the `ui.bannercontent` field in the `argocd-cm` ConfigMap and Argo CD will display this message at the top of every UI page. You can optionally add a link to this message by setting `ui.bannerurl`. You can also make the banner sticky (permanent) by setting `ui.bannerpermanent` to `true` and change it's position to the bottom by using `ui.bannerposition: "bottom"` 
+Argo CD can optionally display a banner that can be used to notify your users of upcoming maintenance and operational changes. This feature can be enabled by specifying the banner message using the `ui.bannercontent` field in the `argocd-cm` ConfigMap and Argo CD will display this message at the top of every UI page. You can optionally add a link to this message by setting `ui.bannerurl`. You can also make the banner sticky (permanent) by setting `ui.bannerpermanent` to true and change its position to "both" or "bottom" by using `ui.bannerposition: "both"`, allowing the banner to display on both the top and bottom, or `ui.bannerposition: "bottom"` to display it exclusively at the bottom.
 
 ### argocd-cm
 ```yaml
@@ -118,3 +118,20 @@ data:
 ```
 
 ![banner with link](../assets/banner.png)
+
+## Login Button Text
+
+By default, the SSO login button label is derived from the OIDC provider or Dex connector name (e.g. "Log in via Azure"). You can override this text using the `ui.loginButtonText` field in the `argocd-cm` ConfigMap.
+
+### argocd-cm
+```yaml
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+data:
+  ui.loginButtonText: "SSO Login"
+```
+
+If `ui.loginButtonText` is set, it takes precedence over the provider-derived label. If not set, the default behavior is preserved.

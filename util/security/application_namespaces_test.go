@@ -7,6 +7,8 @@ import (
 )
 
 func Test_IsNamespaceEnabled(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name              string
 		namespace         string
@@ -48,6 +50,20 @@ func Test_IsNamespaceEnabled(t *testing.T) {
 			"argocd",
 			[]string{"allowed"},
 			false,
+		},
+		{
+			"match everything but specified word: fail",
+			"disallowed",
+			"argocd",
+			[]string{"/^((?!disallowed).)*$/"},
+			false,
+		},
+		{
+			"match everything but specified word: pass",
+			"allowed",
+			"argocd",
+			[]string{"/^((?!disallowed).)*$/"},
+			true,
 		},
 	}
 

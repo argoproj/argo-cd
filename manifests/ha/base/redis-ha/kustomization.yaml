@@ -20,7 +20,7 @@ patches:
     kind: ConfigMap
     name: argocd-redis-ha-configmap
     namespace: argocd
-  path: overlays/remove-namespace.yaml  
+  path: overlays/remove-namespace.yaml
 - target:
     version: v1
     group: ""
@@ -34,28 +34,28 @@ patches:
     kind: ServiceAccount
     name: argocd-redis-ha-haproxy
     namespace: argocd
-  path: overlays/remove-namespace.yaml 
+  path: overlays/remove-namespace.yaml
 - target:
     group: rbac.authorization.k8s.io
     version: v1
     kind: Role
     name: argocd-redis-ha
     namespace: argocd
-  path: overlays/remove-namespace.yaml 
+  path: overlays/remove-namespace.yaml
 - target:
     group: rbac.authorization.k8s.io
     version: v1
     kind: Role
     name: argocd-redis-ha-haproxy
     namespace: argocd
-  path: overlays/remove-namespace.yaml 
+  path: overlays/remove-namespace.yaml
 - target:
     group: rbac.authorization.k8s.io
     version: v1
     kind: RoleBinding
     name: argocd-redis-ha
     namespace: argocd
-  path: overlays/remove-namespace.yaml      
+  path: overlays/remove-namespace.yaml
 - target:
     group: rbac.authorization.k8s.io
     version: v1
@@ -294,3 +294,15 @@ patches:
     kind: StatefulSet
     name: argocd-redis-ha-server
   path: overlays/statefulset-containers-securityContext.yaml
+- target:
+      group: rbac.authorization.k8s.io
+      version: v1
+      kind: Role
+      name: argocd-redis-ha-haproxy
+  path: overlays/haproxy-role.yaml
+- target:
+    group: apps
+    version: v1
+    kind: Deployment
+    name: argocd-redis-ha-haproxy
+  path: overlays/deployment-initContainers.yaml

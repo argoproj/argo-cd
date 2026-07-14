@@ -1,4 +1,5 @@
 import {Autocomplete, Checkbox} from 'argo-ui/v2';
+import {Tooltip} from 'argo-ui';
 import * as React from 'react';
 
 import './filter.scss';
@@ -26,10 +27,23 @@ export interface CheckboxOption {
 
 export const CheckboxRow = (props: {value: boolean; onChange?: (value: boolean) => void; option: CheckboxOption}) => {
     const [value, setValue] = React.useState(props.value);
+    const [prevPropValue, setPrevPropValue] = React.useState(props.value);
 
-    React.useEffect(() => {
+    if (prevPropValue !== props.value) {
+        setPrevPropValue(props.value);
         setValue(props.value);
-    }, [props.value]);
+    }
+
+    const tooltipProps: Partial<React.ComponentProps<typeof Tooltip>> = {
+        placement: 'top',
+        popperOptions: {
+            modifiers: {
+                preventOverflow: {
+                    boundariesElement: 'window'
+                }
+            }
+        }
+    };
 
     return (
         <div className={`filter__item ${value ? 'filter__item--selected' : ''}`} onClick={() => setValue(!value)}>
@@ -46,16 +60,26 @@ export const CheckboxRow = (props: {value: boolean; onChange?: (value: boolean) 
                 }}
             />
             {props.option.icon && <div style={{marginRight: '5px'}}>{props.option.icon}</div>}
-            <div className='filter__item__label'>{props.option.label}</div>
+            <Tooltip content={<div className='filter__tooltip'>{props.option.label}</div>} {...tooltipProps}>
+                <div className='filter__item__label'>{props.option.label}</div>
+            </Tooltip>
             <div style={{marginLeft: 'auto'}}>{props.option.count}</div>
         </div>
     );
 };
 
-export const FiltersGroup = (props: {children?: React.ReactNode; content: React.ReactNode; appliedFilter?: string[]; onClearFilter?: () => void; collapsed?: boolean}) => {
+export const FiltersGroup = (props: {
+    children?: React.ReactNode;
+    content: React.ReactNode;
+    appliedFilter?: string[];
+    onClearFilter?: () => void;
+    collapsed?: boolean;
+    title?: string;
+}) => {
     return (
         !props.collapsed && (
             <div className='filters-group'>
+                {props.title && <div className='filters-group__title'>{props.title}</div>}
                 {props.appliedFilter?.length > 0 && props.onClearFilter && (
                     <div className='filters-group__header'>
                         <button onClick={() => props.onClearFilter()} className='argo-button argo-button--base argo-button--sm'>
@@ -63,7 +87,7 @@ export const FiltersGroup = (props: {children?: React.ReactNode; content: React.
                         </button>
                     </div>
                 )}
-                <>{props.children}</>
+                {props.children}
                 <div className='filters-group__content'>{props.content}</div>
             </div>
         )
@@ -75,45 +99,62 @@ export const Filter = (props: FilterProps) => {
     props.selected.forEach(s => (init[s] = true));
 
     const [values, setValues] = React.useState(init);
-    const [tags, setTags] = React.useState([]);
     const [input, setInput] = React.useState('');
     const [collapsed, setCollapsed] = React.useState(props.collapsed || false);
-    const [options, setOptions] = React.useState(props.options);
-
-    React.useEffect(() => {
-        setOptions(props.options);
-    }, [props.options]);
+    const options = props.options;
 
     const labels = props.labels || options.map(o => o.label);
 
+    const {cleanedValues, selectedKeys} = Object.entries(values).reduce(
+        (acc, [key, value]) => {
+            if (value !== undefined) {
+                acc.cleanedValues[key] = value;
+                if (value) {
+                    acc.selectedKeys.push(key);
+                }
+            }
+            return acc;
+        },
+        {cleanedValues: {} as {[label: string]: boolean}, selectedKeys: [] as string[]}
+    );
+
+    const valuesNeedCleaning = Object.keys(cleanedValues).length !== Object.keys(values).length;
+
+    // Drop undefined entries from values during render before deriving anything from them.
+    if (valuesNeedCleaning) {
+        setValues(cleanedValues);
+    }
+
+    const tags = props.field
+        ? Object.keys(cleanedValues).map(v => {
+              if (options?.find(x => x.label === v)) return {label: v, count: options?.find(x => x.label === v).count} as CheckboxOption;
+              else return {label: v} as CheckboxOption;
+          })
+        : [];
+
     React.useEffect(() => {
-        const map: string[] = Object.keys(values).filter(s => values[s]);
-        props.setSelected(map);
-        if (props.field) {
-            setTags(
-                Object.keys(values).map(v => {
-                    if (options?.find(x => x.label === v)) return {label: v, count: options?.find(x => x.label === v).count} as CheckboxOption;
-                    else return {label: v} as CheckboxOption;
-                })
-            );
+        // Sync the selected keys up to the parent. Skip while values still
+        // contain undefined entries (a setValues is already queued this render).
+        if (!valuesNeedCleaning) {
+            props.setSelected(selectedKeys);
         }
     }, [values]);
 
-    React.useEffect(() => {
+    const [prevSelectedLength, setPrevSelectedLength] = React.useState(props.selected.length);
+    if (prevSelectedLength !== props.selected.length) {
+        setPrevSelectedLength(props.selected.length);
         if (props.selected.length === 0) {
             setValues({} as {[label: string]: boolean});
             setInput('');
         }
-    }, [props.selected.length]);
-
-    const totalCount = options.reduce((countSum, option) => {
-        return countSum + option.count;
-    }, 0);
+    }
 
     return (
-        <div className='filter' key={totalCount + props.label}>
+        <div className='filter'>
             <div className='filter__header'>
-                {props.label || 'FILTER'}
+                <span className='filter__header__label' title={props.label || 'FILTER'}>
+                    {props.label || 'FILTER'}
+                </span>
                 {(props.selected || []).length > 0 || (props.field && Object.keys(values).length > 0) ? (
                     <button
                         className='argo-button argo-button--base argo-button--sm argo-button--right'
@@ -148,7 +189,7 @@ export const Filter = (props: FilterProps) => {
                                     setValues(update);
                                 }}
                                 style={{width: '100%'}}
-                                inputStyle={{marginBottom: '0.5em', backgroundColor: 'black', border: 'none'}}
+                                inputStyle={{marginBottom: '0.5em', backgroundColor: 'black', border: 'none', color: '#fff'}}
                             />
                         )}
                         {((props.field ? tags : options) || []).map((opt, i) => (

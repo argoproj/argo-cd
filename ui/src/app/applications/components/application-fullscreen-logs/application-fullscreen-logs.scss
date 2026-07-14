@@ -10,4 +10,9 @@
     height: 100%;
     padding: 20px 30px;
     background-color: $argo-color-gray-3;
+    
+    .theme-dark & {
+        background-color: #28292a;
+        color: #fff;
+    }
 }

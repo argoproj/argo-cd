@@ -22,8 +22,8 @@ As an example, imagine that we have two clusters:
 
 And our application YAMLs are defined in a Git repository:
 
-- Argo Workflows controller (examples/git-generator-directory/cluster-addons/argo-workflows)
-- Prometheus operator (/examples/git-generator-directory/cluster-addons/prometheus-operator)
+- [Argo Workflows controller](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/git-generator-directory/cluster-addons/argo-workflows)
+- [Prometheus operator](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/git-generator-directory/cluster-addons/prometheus-operator)
 
 Our goal is to deploy both applications onto both clusters, and, more generally, in the future to automatically deploy new applications in the Git repository, and to new clusters defined within Argo CD, as well.
 
@@ -35,6 +35,8 @@ kind: ApplicationSet
 metadata:
   name: cluster-git
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
     # matrix 'parent' generator
     - matrix:
@@ -52,16 +54,16 @@ spec:
                   argocd.argoproj.io/secret-type: cluster
   template:
     metadata:
-      name: '{{path.basename}}-{{name}}'
+      name: '{{.path.basename}}-{{.name}}'
     spec:
-      project: '{{metadata.labels.environment}}'
+      project: '{{index .metadata.labels "environment"}}'
       source:
         repoURL: https://github.com/argoproj/argo-cd.git
         targetRevision: HEAD
-        path: '{{path}}'
+        path: '{{.path.path}}'
       destination:
-        server: '{{server}}'
-        namespace: '{{path.basename}}'
+        server: '{{.server}}'
+        namespace: '{{.path.basename}}'
 ```
 
 First, the Git directory generator will scan the Git repository, discovering directories under the specified path. It discovers the argo-workflows and prometheus-operator applications, and produces two corresponding sets of parameters:
@@ -104,7 +106,7 @@ Finally, the Matrix generator will combine both sets of outputs, and produce:
   path: /examples/git-generator-directory/cluster-addons/prometheus-operator
   path.basename: prometheus-operator
 ```
-(*The full example can be found [here](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/matrix).*)
+(*The [full example](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/matrix).*)
 
 ## Using Parameters from one child generator in another child generator
 
@@ -117,6 +119,8 @@ kind: ApplicationSet
 metadata:
   name: cluster-git
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
     # matrix 'parent' generator
     - matrix:
@@ -132,10 +136,10 @@ spec:
               selector:
                 matchLabels:
                   argocd.argoproj.io/secret-type: cluster
-                  kubernetes.io/environment: '{{path.basename}}'
+                  kubernetes.io/environment: '{{.path.basename}}'
   template:
     metadata:
-      name: '{{name}}-guestbook'
+      name: '{{.name}}-guestbook'
     spec:
       project: default
       source:
@@ -143,7 +147,7 @@ spec:
         targetRevision: HEAD
         path: "examples/git-generator-files-discovery/apps/guestbook"
       destination:
-        server: '{{server}}'
+        server: '{{.server}}'
         namespace: guestbook
 ```
 Here is the corresponding folder structure for the git repository used by the git-files generator:
@@ -162,10 +166,10 @@ Here is the corresponding folder structure for the git repository used by the gi
 │           └── config.json
 └── git-generator-files.yaml
 ```
-In the above example, the `{{path.basename}}` parameters produced by the git-files generator will resolve to `dev` and `prod`.
-In the 2nd child generator, the label selector with label `kubernetes.io/environment: {{path.basename}}` will resolve with the values produced by the first child generator's parameters (`kubernetes.io/environment: prod` and `kubernetes.io/environment: dev`). 
+In the above example, the `{{.path.basename}}` parameters produced by the git-files generator will resolve to `dev` and `prod`.
+In the 2nd child generator, the label selector with label `kubernetes.io/environment: {{.path.basename}}` will resolve with the values produced by the first child generator's parameters (`kubernetes.io/environment: prod` and `kubernetes.io/environment: dev`). 
 
-So in the above example, clusters with the label `kubernetes.io/environment: prod` will have only prod-specific configuration (ie. `prod/config.json`) applied to it, wheres clusters
+So in the above example, clusters with the label `kubernetes.io/environment: prod` will have only prod-specific configuration (ie. `prod/config.json`) applied to it, whereas clusters
 with the label `kubernetes.io/environment: dev` will have only dev-specific configuration (ie. `dev/config.json`)
 
 ## Overriding parameters from one child generator in another child generator
@@ -262,6 +266,8 @@ kind: ApplicationSet
 metadata:
   name: two-gits-with-path-param-prefix
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
     - matrix:
         generators:
@@ -280,7 +286,7 @@ spec:
               repoURL: https://github.com/some-org/some-repo.git
               revision: HEAD
               files:
-                - path: "targets/{{appName}}/*.json"
+                - path: "targets/{{.appName}}/*.json"
               pathParamPrefix: target
   template: {} # ...
 ```
@@ -390,7 +396,7 @@ For example, the below example would be invalid (cluster-generator must come aft
                   selector:
                     matchLabels:
                       argocd.argoproj.io/secret-type: cluster
-                      kubernetes.io/environment: '{{path.basename}}' # {{path.basename}} is produced by git-files generator
+                      kubernetes.io/environment: '{{.path.basename}}' # {{.path.basename}} is produced by git-files generator
               # git generator, 'child' #2
               - git:
                   repoURL: https://github.com/argoproj/applicationset.git
@@ -398,7 +404,7 @@ For example, the below example would be invalid (cluster-generator must come aft
                   files:
                     - path: "examples/git-generator-files-discovery/cluster-config/**/config.json"
 
-1. You cannot have both child generators consuming parameters from each another. In the example below, the cluster generator is consuming the `{{path.basename}}` parameter produced by the git-files generator, whereas the git-files generator is consuming the `{{name}}` parameter produced by the cluster generator. This will result in a circular dependency, which is invalid.
+1. You cannot have both child generators consuming parameters from each another. In the example below, the cluster generator is consuming the `{{.path.basename}}` parameter produced by the git-files generator, whereas the git-files generator is consuming the `{{.name}}` parameter produced by the cluster generator. This will result in a circular dependency, which is invalid.
 
         - matrix:
             generators:
@@ -407,21 +413,10 @@ For example, the below example would be invalid (cluster-generator must come aft
                   selector:
                     matchLabels:
                       argocd.argoproj.io/secret-type: cluster
-                      kubernetes.io/environment: '{{path.basename}}' # {{path.basename}} is produced by git-files generator
+                      kubernetes.io/environment: '{{.path.basename}}' # {{.path.basename}} is produced by git-files generator
               # git generator, 'child' #2
               - git:
                   repoURL: https://github.com/argoproj/applicationset.git
                   revision: HEAD
                   files:
-                    - path: "examples/git-generator-files-discovery/cluster-config/engineering/{{name}}**/config.json" # {{name}} is produced by cluster generator
-
-1. When using a Matrix generator nested inside another Matrix or Merge generator, [Post Selectors](Generators-Post-Selector.md) for this nested generator's generators will only be applied when enabled via `spec.applyNestedSelectors`. You may also need to enable this even if your Post Selectors are not within the nested matrix or Merge generator, but are instead a sibling of a nested Matrix or Merge generator.
-
-        - matrix:
-            generators:
-              - matrix:
-                  generators:
-                    - list
-                        elements:
-                          - # (...)
-                      selector: { } # Only applied when applyNestedSelectors is true
+                    - path: "examples/git-generator-files-discovery/cluster-config/engineering/{{.name}}**/config.json" # {{.name}} is produced by cluster generator

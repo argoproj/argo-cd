@@ -20,21 +20,21 @@ spec: {}
 status:
   alertCount: 0
   brokersState:
-    "0":
+    "101":
       configurationState: ConfigInSync
       gracefulActionState:
         cruiseControlState: GracefulUpscaleSucceeded
         errorMessage: CruiseControl not yet ready
       rackAwarenessState: |
         broker.rack=us-east-1,us-east-1c
-    "1":
+    "102":
       configurationState: ConfigInSync
       gracefulActionState:
         cruiseControlState: GracefulUpscaleSucceeded
         errorMessage: CruiseControl not yet ready
       rackAwarenessState: |
         broker.rack=us-east-1,us-east-1b
-    "2":
+    "103":
       configurationState: ConfigInSync
       gracefulActionState:
         cruiseControlState: GracefulUpscaleSucceeded

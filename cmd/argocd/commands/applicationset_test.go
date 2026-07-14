@@ -1,14 +1,101 @@
 package commands
 
 import (
+	"errors"
 	"io"
 	"os"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/watch"
+
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
+
+// TestAppSetDeleteWaitFlow verifies that when --wait is used and the appset has
+// finalizers (still exists after Delete), the delete command watches for Deleted.
+func TestAppSetDeleteWaitFlow(t *testing.T) {
+	appSetEventsCh := make(chan *v1alpha1.ApplicationSetWatchEvent, 1)
+	go func() {
+		defer close(appSetEventsCh)
+		appSetEventsCh <- &v1alpha1.ApplicationSetWatchEvent{
+			Type:           watch.Added,
+			ApplicationSet: v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{Name: "test-appset"}},
+		}
+		appSetEventsCh <- &v1alpha1.ApplicationSetWatchEvent{Type: watch.Deleted}
+	}()
+
+	receivedDeleted := false
+	for appEvent := range appSetEventsCh {
+		if appEvent != nil && appEvent.Type == watch.Deleted {
+			receivedDeleted = true
+			break
+		}
+	}
+	assert.True(t, receivedDeleted, "wait loop should receive Deleted event from watch")
+}
+
+// TestAppSetCreateWaitFlow verifies that when --wait is used, the create command
+// waits for ResourcesUpToDate from the watch before completing.
+func TestAppSetCreateWaitFlow(t *testing.T) {
+	fakeClient := &fakeAcdClient{}
+	ctx := t.Context()
+
+	err := waitForApplicationSetResourcesUpToDate(ctx, fakeClient, "test-appset")
+	require.NoError(t, err)
+}
+
+func TestAppSetCreateWaitDeletedError(t *testing.T) {
+	appSetEventsCh := make(chan *v1alpha1.ApplicationSetWatchEvent, 1)
+	go func() {
+		defer close(appSetEventsCh)
+		appSetEventsCh <- &v1alpha1.ApplicationSetWatchEvent{Type: watch.Deleted}
+	}()
+
+	var err error
+	for appEvent := range appSetEventsCh {
+		if appEvent == nil {
+			continue
+		}
+		if appEvent.Type == watch.Deleted {
+			err = errors.New("ApplicationSet was deleted before reaching ResourcesUpToDate")
+			break
+		}
+	}
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "deleted before reaching ResourcesUpToDate")
+}
+
+func TestIsApplicationSetResourcesUpToDate(t *testing.T) {
+	t.Run("returns true when ResourcesUpToDate is True", func(t *testing.T) {
+		appSet := &v1alpha1.ApplicationSet{
+			Status: v1alpha1.ApplicationSetStatus{
+				Conditions: []v1alpha1.ApplicationSetCondition{
+					{Type: v1alpha1.ApplicationSetConditionResourcesUpToDate, Status: v1alpha1.ApplicationSetConditionStatusTrue},
+				},
+			},
+		}
+		assert.True(t, isApplicationSetResourcesUpToDate(appSet))
+	})
+
+	t.Run("returns false when ResourcesUpToDate is False", func(t *testing.T) {
+		appSet := &v1alpha1.ApplicationSet{
+			Status: v1alpha1.ApplicationSetStatus{
+				Conditions: []v1alpha1.ApplicationSetCondition{
+					{Type: v1alpha1.ApplicationSetConditionResourcesUpToDate, Status: v1alpha1.ApplicationSetConditionStatusFalse},
+				},
+			},
+		}
+		assert.False(t, isApplicationSetResourcesUpToDate(appSet))
+	})
+
+	t.Run("returns false when no conditions", func(t *testing.T) {
+		appSet := &v1alpha1.ApplicationSet{}
+		assert.False(t, isApplicationSetResourcesUpToDate(appSet))
+	})
+}
 
 func TestPrintApplicationSetNames(t *testing.T) {
 	output, _ := captureOutput(func() error {
@@ -27,9 +114,7 @@ func TestPrintApplicationSetNames(t *testing.T) {
 		return nil
 	})
 	expectation := "test\nteam-one/test\n"
-	if output != expectation {
-		t.Fatalf("Incorrect print params output %q, should be %q", output, expectation)
-	}
+	require.Equalf(t, output, expectation, "Incorrect print params output %q, should be %q", output, expectation)
 }
 
 func TestPrintApplicationSetTable(t *testing.T) {
@@ -106,8 +191,8 @@ func TestPrintApplicationSetTable(t *testing.T) {
 		printApplicationSetTable([]v1alpha1.ApplicationSet{*app, *app2}, &output)
 		return nil
 	})
-	assert.NoError(t, err)
-	expectation := "NAME               PROJECT  SYNCPOLICY  CONDITIONS\napp-name           default  nil         [{ResourcesUpToDate  <nil> True }]\nteam-two/app-name  default  nil         [{ResourcesUpToDate  <nil> True }]\n"
+	require.NoError(t, err)
+	expectation := "NAME               PROJECT  SYNCPOLICY  HEALTH  CONDITIONS\napp-name           default  nil                 [{ResourcesUpToDate  <nil> True }]\nteam-two/app-name  default  nil                 [{ResourcesUpToDate  <nil> True }]\n"
 	assert.Equal(t, expectation, output)
 }
 
@@ -145,6 +230,26 @@ func TestPrintAppSetSummaryTable(t *testing.T) {
 			},
 		},
 	}
+	appsetSpecSource := baseAppSet.DeepCopy()
+	appsetSpecSource.Spec.Template.Spec.Source = &v1alpha1.ApplicationSource{
+		RepoURL:        "test1",
+		TargetRevision: "master1",
+		Path:           "/test1",
+	}
+
+	appsetSpecSources := baseAppSet.DeepCopy()
+	appsetSpecSources.Spec.Template.Spec.Sources = v1alpha1.ApplicationSources{
+		{
+			RepoURL:        "test1",
+			TargetRevision: "master1",
+			Path:           "/test1",
+		},
+		{
+			RepoURL:        "test2",
+			TargetRevision: "master2",
+			Path:           "/test2",
+		},
+	}
 
 	appsetSpecSyncPolicy := baseAppSet.DeepCopy()
 	appsetSpecSyncPolicy.Spec.SyncPolicy = &v1alpha1.ApplicationSetSyncPolicy{
@@ -154,7 +259,7 @@ func TestPrintAppSetSummaryTable(t *testing.T) {
 	appSetTemplateSpecSyncPolicy := baseAppSet.DeepCopy()
 	appSetTemplateSpecSyncPolicy.Spec.Template.Spec.SyncPolicy = &v1alpha1.SyncPolicy{
 		Automated: &v1alpha1.SyncPolicyAutomated{
-			SelfHeal: true,
+			SelfHeal: new(true),
 		},
 	}
 
@@ -164,7 +269,7 @@ func TestPrintAppSetSummaryTable(t *testing.T) {
 	}
 	appSetBothSyncPolicies.Spec.Template.Spec.SyncPolicy = &v1alpha1.SyncPolicy{
 		Automated: &v1alpha1.SyncPolicyAutomated{
-			SelfHeal: true,
+			SelfHeal: new(true),
 		},
 	}
 
@@ -180,9 +285,10 @@ func TestPrintAppSetSummaryTable(t *testing.T) {
 Project:            default
 Server:             
 Namespace:          
-Repo:               
-Target:             
-Path:               
+Health Status:      
+Source:
+- Repo:             
+  Target:           
 SyncPolicy:         <none>
 `,
 		},
@@ -193,9 +299,10 @@ SyncPolicy:         <none>
 Project:            default
 Server:             
 Namespace:          
-Repo:               
-Target:             
-Path:               
+Health Status:      
+Source:
+- Repo:             
+  Target:           
 SyncPolicy:         Automated
 `,
 		},
@@ -206,10 +313,44 @@ SyncPolicy:         Automated
 Project:            default
 Server:             
 Namespace:          
-Repo:               
-Target:             
-Path:               
+Health Status:      
+Source:
+- Repo:             
+  Target:           
 SyncPolicy:         Automated
+`,
+		},
+		{
+			name:   "appset with a single source",
+			appSet: appsetSpecSource,
+			expectedOutput: `Name:               app-name
+Project:            default
+Server:             
+Namespace:          
+Health Status:      
+Source:
+- Repo:             test1
+  Target:           master1
+  Path:             /test1
+SyncPolicy:         <none>
+`,
+		},
+		{
+			name:   "appset with a multiple sources",
+			appSet: appsetSpecSources,
+			expectedOutput: `Name:               app-name
+Project:            default
+Server:             
+Namespace:          
+Health Status:      
+Sources:
+- Repo:             test1
+  Target:           master1
+  Path:             /test1
+- Repo:             test2
+  Target:           master2
+  Path:             /test2
+SyncPolicy:         <none>
 `,
 		},
 	} {
@@ -226,7 +367,7 @@ SyncPolicy:         Automated
 			w.Close()
 
 			out, err := io.ReadAll(r)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, tt.expectedOutput, string(out))
 		})
 	}

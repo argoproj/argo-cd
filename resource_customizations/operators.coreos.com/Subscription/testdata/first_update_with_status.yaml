@@ -1,0 +1,54 @@
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  creationTimestamp: "2024-10-14T08:37:15Z"
+  generation: 1
+  labels:
+    operators.coreos.com/cincinnati-operator.openshift-update-service: ""
+  name: update-service-subscription
+  namespace: openshift-update-service
+  resourceVersion: "1728269681"
+  uid: ce5194f6-b60e-4206-bcb9-019ed845797e
+spec:
+  channel: v1
+  installPlanApproval: Manual
+  name: cincinnati-operator
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+status:
+  catalogHealth:
+  - catalogSourceRef:
+      apiVersion: operators.coreos.com/v1alpha1
+      kind: CatalogSource
+      name: certified-operators
+      namespace: openshift-marketplace
+      resourceVersion: "1728260000"
+      uid: 5ccf7092-9df5-4898-b5c5-0368937614f1
+    healthy: true
+    lastUpdated: "2024-10-14T08:37:15Z"
+  - catalogSourceRef:
+      apiVersion: operators.coreos.com/v1alpha1
+      kind: CatalogSource
+      name: redhat-marketplace
+      namespace: openshift-marketplace
+      resourceVersion: "1728258210"
+      uid: 83648c37-b64e-440c-86c1-8c8146fc59f0
+    healthy: true
+    lastUpdated: "2024-10-14T08:37:15Z"
+  - catalogSourceRef:
+      apiVersion: operators.coreos.com/v1alpha1
+      kind: CatalogSource
+      name: redhat-operators
+      namespace: openshift-marketplace
+      resourceVersion: "1728263805"
+      uid: 99cc0db9-35c4-4f2a-87ab-7e37f0b05cc0
+    healthy: true
+    lastUpdated: "2024-10-14T08:37:15Z"
+  conditions:
+  - lastTransitionTime: "2024-10-14T08:37:15Z"
+    message: all available catalogsources are healthy
+    reason: CatalogSourcesAdded
+    status: "False"
+    type: CatalogSourcesUnhealthy
+  lastUpdated: "2024-10-14T08:37:15Z"

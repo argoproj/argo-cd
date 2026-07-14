@@ -1,24 +1,58 @@
 package controller
 
 import (
-	"context"
+	"os"
+	"strconv"
 	"testing"
 
-	"github.com/argoproj/gitops-engine/pkg/sync"
-	"github.com/argoproj/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	openapi_v2 "github.com/google/gnostic-models/openapiv2"
+	"k8s.io/kubectl/pkg/util/openapi"
+
+	"sigs.k8s.io/yaml"
+
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync"
+	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/argoproj/argo-cd/v2/controller/testdata"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v2/test"
-	"github.com/argoproj/argo-cd/v2/util/argo/diff"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/controller/testdata"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/test"
+	"github.com/argoproj/argo-cd/v3/util/argo/diff"
+	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
+
+type fakeDiscovery struct {
+	schema *openapi_v2.Document
+}
+
+func (f *fakeDiscovery) OpenAPISchema() (*openapi_v2.Document, error) {
+	return f.schema, nil
+}
+
+func loadCRDSchema(t *testing.T, path string) *openapi_v2.Document {
+	t.Helper()
+
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+
+	jsonData, err := yaml.YAMLToJSON(data)
+	require.NoError(t, err)
+
+	doc, err := openapi_v2.ParseDocument(jsonData)
+	require.NoError(t, err)
+
+	return doc
+}
 
 func TestPersistRevisionHistory(t *testing.T) {
 	app := newFakeApp()
@@ -26,7 +60,7 @@ func TestPersistRevisionHistory(t *testing.T) {
 	app.Status.History = nil
 
 	defaultProject := &v1alpha1.AppProject{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Namespace: test.FakeArgoCDNamespace,
 			Name:      "default",
 		},
@@ -41,19 +75,19 @@ func TestPersistRevisionHistory(t *testing.T) {
 		},
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 	}
-	ctrl := newFakeController(&data)
+	ctrl := newFakeController(t.Context(), &data, nil)
 
 	// Sync with source unspecified
 	opState := &v1alpha1.OperationState{Operation: v1alpha1.Operation{
 		Sync: &v1alpha1.SyncOperation{},
 	}}
-	ctrl.appStateManager.SyncAppState(app, opState)
+	ctrl.appStateManager.SyncAppState(t.Context(), app, defaultProject, opState)
 	// Ensure we record spec.source into sync result
 	assert.Equal(t, app.Spec.GetSource(), opState.SyncResult.Source)
 
-	updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(context.Background(), app.Name, v1.GetOptions{})
-	assert.Nil(t, err)
-	assert.Equal(t, 1, len(updatedApp.Status.History))
+	updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.Len(t, updatedApp.Status.History, 1)
 	assert.Equal(t, app.Spec.GetSource(), updatedApp.Status.History[0].Source)
 	assert.Equal(t, "abc123", updatedApp.Status.History[0].Revision)
 }
@@ -72,7 +106,7 @@ func TestPersistManagedNamespaceMetadataState(t *testing.T) {
 	}
 
 	defaultProject := &v1alpha1.AppProject{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Namespace: test.FakeArgoCDNamespace,
 			Name:      "default",
 		},
@@ -87,13 +121,13 @@ func TestPersistManagedNamespaceMetadataState(t *testing.T) {
 		},
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 	}
-	ctrl := newFakeController(&data)
+	ctrl := newFakeController(t.Context(), &data, nil)
 
 	// Sync with source unspecified
 	opState := &v1alpha1.OperationState{Operation: v1alpha1.Operation{
 		Sync: &v1alpha1.SyncOperation{},
 	}}
-	ctrl.appStateManager.SyncAppState(app, opState)
+	ctrl.appStateManager.SyncAppState(t.Context(), app, defaultProject, opState)
 	// Ensure we record spec.syncPolicy.managedNamespaceMetadata into sync result
 	assert.Equal(t, app.Spec.SyncPolicy.ManagedNamespaceMetadata, opState.SyncResult.ManagedNamespaceMetadata)
 }
@@ -103,7 +137,7 @@ func TestPersistRevisionHistoryRollback(t *testing.T) {
 	app.Status.OperationState = nil
 	app.Status.History = nil
 	defaultProject := &v1alpha1.AppProject{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Namespace: test.FakeArgoCDNamespace,
 			Name:      "default",
 		},
@@ -118,7 +152,7 @@ func TestPersistRevisionHistoryRollback(t *testing.T) {
 		},
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 	}
-	ctrl := newFakeController(&data)
+	ctrl := newFakeController(t.Context(), &data, nil)
 
 	// Sync with source specified
 	source := v1alpha1.ApplicationSource{
@@ -136,13 +170,13 @@ func TestPersistRevisionHistoryRollback(t *testing.T) {
 			Source: &source,
 		},
 	}}
-	ctrl.appStateManager.SyncAppState(app, opState)
+	ctrl.appStateManager.SyncAppState(t.Context(), app, defaultProject, opState)
 	// Ensure we record opState's source into sync result
 	assert.Equal(t, source, opState.SyncResult.Source)
 
-	updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(context.Background(), app.Name, v1.GetOptions{})
-	assert.Nil(t, err)
-	assert.Equal(t, 1, len(updatedApp.Status.History))
+	updatedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Len(t, updatedApp.Status.History, 1)
 	assert.Equal(t, source, updatedApp.Status.History[0].Source)
 	assert.Equal(t, "abc123", updatedApp.Status.History[0].Revision)
 }
@@ -153,33 +187,36 @@ func TestSyncComparisonError(t *testing.T) {
 	app.Status.History = nil
 
 	defaultProject := &v1alpha1.AppProject{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Namespace: test.FakeArgoCDNamespace,
 			Name:      "default",
 		},
 		Spec: v1alpha1.AppProjectSpec{
-			SignatureKeys: []v1alpha1.SignatureKey{{KeyID: "test"}},
+			SignatureKeys: []v1alpha1.SignatureKey{{KeyID: "test"}}, // nolint:staticcheck
 		},
 	}
 	data := fakeData{
 		apps: []runtime.Object{app, defaultProject},
 		manifestResponse: &apiclient.ManifestResponse{
-			Manifests:    []string{},
-			Namespace:    test.FakeDestNamespace,
-			Server:       test.FakeClusterURL,
-			Revision:     "abc123",
-			VerifyResult: "something went wrong",
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+			SourceIntegrityResult: &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
+				Name:     "GIT/GPG",
+				Problems: []string{"Unknown key 'XXX'"},
+			}}},
 		},
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 	}
-	ctrl := newFakeController(&data)
+	ctrl := newFakeController(t.Context(), &data, nil)
 
 	// Sync with source unspecified
 	opState := &v1alpha1.OperationState{Operation: v1alpha1.Operation{
 		Sync: &v1alpha1.SyncOperation{},
 	}}
 	t.Setenv("ARGOCD_GPG_ENABLED", "true")
-	ctrl.appStateManager.SyncAppState(app, opState)
+	ctrl.appStateManager.SyncAppState(t.Context(), app, defaultProject, opState)
 
 	conditions := app.Status.GetConditions(map[v1alpha1.ApplicationConditionType]bool{v1alpha1.ApplicationConditionComparisonError: true})
 	assert.NotEmpty(t, conditions)
@@ -187,9 +224,101 @@ func TestSyncComparisonError(t *testing.T) {
 }
 
 func TestAppStateManager_SyncAppState(t *testing.T) {
+	t.Parallel()
+
 	type fixture struct {
-		project     *v1alpha1.AppProject
 		application *v1alpha1.Application
+		project     *v1alpha1.AppProject
+		controller  *ApplicationController
+	}
+
+	setup := func(liveObjects map[kube.ResourceKey]*unstructured.Unstructured) *fixture {
+		app := newFakeApp()
+		app.Status.OperationState = nil
+		app.Status.History = nil
+
+		if liveObjects == nil {
+			liveObjects = make(map[kube.ResourceKey]*unstructured.Unstructured)
+		}
+
+		project := &v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: test.FakeArgoCDNamespace,
+				Name:      "default",
+			},
+			Spec: v1alpha1.AppProjectSpec{
+				SignatureKeys: []v1alpha1.SignatureKey{{KeyID: "test"}}, // nolint:staticcheck
+				Destinations: []v1alpha1.ApplicationDestination{
+					{
+						Namespace: "*",
+						Server:    "*",
+					},
+				},
+			},
+		}
+		data := fakeData{
+			apps: []runtime.Object{app, project},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+			},
+			managedLiveObjs: liveObjects,
+		}
+		ctrl := newFakeController(t.Context(), &data, nil)
+
+		return &fixture{
+			application: app,
+			project:     project,
+			controller:  ctrl,
+		}
+	}
+
+	t.Run("will fail the sync if finds shared resources", func(t *testing.T) {
+		// given
+		t.Parallel()
+
+		sharedObject := kube.MustToUnstructured(&corev1.ConfigMap{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "v1",
+				Kind:       "ConfigMap",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "configmap1",
+				Namespace: "default",
+				Annotations: map[string]string{
+					common.AnnotationKeyAppInstance: "guestbook:/ConfigMap:default/configmap1",
+				},
+			},
+		})
+		liveObjects := make(map[kube.ResourceKey]*unstructured.Unstructured)
+		liveObjects[kube.GetResourceKey(sharedObject)] = sharedObject
+		f := setup(liveObjects)
+
+		// Sync with source unspecified
+		opState := &v1alpha1.OperationState{Operation: v1alpha1.Operation{
+			Sync: &v1alpha1.SyncOperation{
+				Source:      &v1alpha1.ApplicationSource{},
+				SyncOptions: []string{"FailOnSharedResource=true"},
+			},
+		}}
+
+		// when
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
+
+		// then
+		assert.Equal(t, synccommon.OperationFailed, opState.Phase)
+		assert.Contains(t, opState.Message, "ConfigMap/configmap1 is part of applications fake-argocd-ns/my-app and guestbook")
+	})
+}
+
+func TestSyncWindowDeniesSync(t *testing.T) {
+	t.Parallel()
+
+	type fixture struct {
+		application *v1alpha1.Application
+		project     *v1alpha1.AppProject
 		controller  *ApplicationController
 	}
 
@@ -199,12 +328,19 @@ func TestAppStateManager_SyncAppState(t *testing.T) {
 		app.Status.History = nil
 
 		project := &v1alpha1.AppProject{
-			ObjectMeta: v1.ObjectMeta{
+			ObjectMeta: metav1.ObjectMeta{
 				Namespace: test.FakeArgoCDNamespace,
 				Name:      "default",
 			},
 			Spec: v1alpha1.AppProjectSpec{
-				SignatureKeys: []v1alpha1.SignatureKey{{KeyID: "test"}},
+				SyncWindows: v1alpha1.SyncWindows{{
+					Kind:         "deny",
+					Schedule:     "0 0 * * *",
+					Duration:     "24h",
+					Clusters:     []string{"*"},
+					Namespaces:   []string{"*"},
+					Applications: []string{"*"},
+				}},
 			},
 		}
 		data := fakeData{
@@ -217,40 +353,35 @@ func TestAppStateManager_SyncAppState(t *testing.T) {
 			},
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}
-		ctrl := newFakeController(&data)
+		ctrl := newFakeController(t.Context(), &data, nil)
 
 		return &fixture{
-			project:     project,
 			application: app,
+			project:     project,
 			controller:  ctrl,
 		}
 	}
 
-	t.Run("will fail the sync if finds shared resources", func(t *testing.T) {
-		// given
+	t.Run("will keep the sync progressing if a sync window prevents the sync", func(t *testing.T) {
+		// given a project with an active deny sync window and an operation in progress
 		t.Parallel()
 		f := setup()
-		syncErrorMsg := "deployment already applied by another application"
-		condition := v1alpha1.ApplicationCondition{
-			Type:    v1alpha1.ApplicationConditionSharedResourceWarning,
-			Message: syncErrorMsg,
-		}
-		f.application.Status.Conditions = append(f.application.Status.Conditions, condition)
+		opMessage := "Sync operation blocked by sync window"
 
-		// Sync with source unspecified
-		opState := &v1alpha1.OperationState{Operation: v1alpha1.Operation{
-			Sync: &v1alpha1.SyncOperation{
-				Source:      &v1alpha1.ApplicationSource{},
-				SyncOptions: []string{"FailOnSharedResource=true"},
+		opState := &v1alpha1.OperationState{
+			Operation: v1alpha1.Operation{
+				Sync: &v1alpha1.SyncOperation{
+					Source: &v1alpha1.ApplicationSource{},
+				},
 			},
-		}}
-
+			Phase: synccommon.OperationRunning,
+		}
 		// when
-		f.controller.appStateManager.SyncAppState(f.application, opState)
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
 
 		// then
-		assert.Equal(t, common.OperationFailed, opState.Phase)
-		assert.Contains(t, opState.Message, syncErrorMsg)
+		assert.Equal(t, synccommon.OperationRunning, opState.Phase)
+		assert.Contains(t, opState.Message, opMessage)
 	})
 }
 
@@ -261,7 +392,7 @@ func TestNormalizeTargetResources(t *testing.T) {
 	setup := func(t *testing.T, ignores []v1alpha1.ResourceIgnoreDifferences) *fixture {
 		t.Helper()
 		dc, err := diff.NewDiffConfigBuilder().
-			WithDiffSettings(ignores, nil, true).
+			WithDiffSettings(ignores, nil, true, normalizers.IgnoreNormalizerOpts{}).
 			WithNoCache().
 			Build()
 		require.NoError(t, err)
@@ -288,24 +419,49 @@ func TestNormalizeTargetResources(t *testing.T) {
 		f := setup(t, ignores)
 
 		// when
-		targets, err := normalizeTargetResources(f.comparisonResult)
+		targets, err := normalizeTargetResources(nil, f.comparisonResult)
 
 		// then
 		require.NoError(t, err)
-		require.Equal(t, 1, len(targets))
+		require.Len(t, targets, 1)
 		iksmVersion := targets[0].GetAnnotations()["iksm-version"]
 		assert.Equal(t, "2.0", iksmVersion)
+	})
+	t.Run("will not copy live status into the apply target", func(t *testing.T) {
+		// given: status is configured as an ignored field (equivalent to the
+		// default ignoreResourceStatusField=crd behavior) and the live resource
+		// has an in-flight operationState.
+		ignore := v1alpha1.ResourceIgnoreDifferences{
+			Group:        "*",
+			Kind:         "*",
+			JSONPointers: []string{"/status"},
+		}
+		f := setup(t, []v1alpha1.ResourceIgnoreDifferences{ignore})
+		live := f.comparisonResult.reconciliationResult.Live[0]
+		require.NoError(t, unstructured.SetNestedField(
+			live.Object, "Running", "status", "operationState", "phase"))
+
+		// when
+		targets, err := normalizeTargetResources(nil, f.comparisonResult)
+
+		// then: live status must not be merged into the target that gets applied,
+		// otherwise the SSA sync manager co-owns and freezes operationState.phase.
+		require.NoError(t, err)
+		require.Len(t, targets, 1)
+		_, found, err := unstructured.NestedMap(targets[0].Object, "status")
+		require.NoError(t, err)
+		assert.False(t, found, "live status must not be merged into the apply target")
 	})
 	t.Run("will not modify target resource if ignore difference is not configured", func(t *testing.T) {
 		// given
 		f := setup(t, []v1alpha1.ResourceIgnoreDifferences{})
 
 		// when
-		targets, err := normalizeTargetResources(f.comparisonResult)
+		targets, err := normalizeTargetResources(nil, f.comparisonResult)
 
 		// then
 		require.NoError(t, err)
-		require.Equal(t, 1, len(targets))
+		require.Len(t, targets, 1)
 		iksmVersion := targets[0].GetAnnotations()["iksm-version"]
 		assert.Equal(t, "1.0", iksmVersion)
 	})
@@ -321,11 +477,11 @@ func TestNormalizeTargetResources(t *testing.T) {
 		unstructured.RemoveNestedField(live.Object, "metadata", "annotations", "iksm-version")
 
 		// when
-		targets, err := normalizeTargetResources(f.comparisonResult)
+		targets, err := normalizeTargetResources(nil, f.comparisonResult)
 
 		// then
 		require.NoError(t, err)
-		require.Equal(t, 1, len(targets))
+		require.Len(t, targets, 1)
 		_, ok := targets[0].GetAnnotations()["iksm-version"]
 		assert.False(t, ok)
 	})
@@ -346,11 +502,11 @@ func TestNormalizeTargetResources(t *testing.T) {
 		f := setup(t, ignores)
 
 		// when
-		targets, err := normalizeTargetResources(f.comparisonResult)
+		targets, err := normalizeTargetResources(nil, f.comparisonResult)
 
 		// then
 		require.NoError(t, err)
-		require.Equal(t, 1, len(targets))
+		require.Len(t, targets, 1)
 		normalized := targets[0]
 		iksmVersion, ok := normalized.GetAnnotations()["iksm-version"]
 		require.True(t, ok)
@@ -361,7 +517,6 @@ func TestNormalizeTargetResources(t *testing.T) {
 		assert.Equal(t, int64(4), replicas)
 	})
 	t.Run("will keep new array entries not found in live state if not ignored", func(t *testing.T) {
-		t.Skip("limitation in the current implementation")
 		// given
 		ignores := []v1alpha1.ResourceIgnoreDifferences{
 			{
@@ -375,14 +530,1798 @@ func TestNormalizeTargetResources(t *testing.T) {
 		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
 
 		// when
-		targets, err := normalizeTargetResources(f.comparisonResult)
+		targets, err := normalizeTargetResources(nil, f.comparisonResult)
 
 		// then
 		require.NoError(t, err)
-		require.Equal(t, 1, len(targets))
+		require.Len(t, targets, 1)
 		containers, ok, err := unstructured.NestedSlice(targets[0].Object, "spec", "template", "spec", "containers")
 		require.NoError(t, err)
 		require.True(t, ok)
-		assert.Equal(t, 2, len(containers))
+		assert.Len(t, containers, 2)
+	})
+}
+
+func TestNormalizeTargetResourcesWithList(t *testing.T) {
+	type fixture struct {
+		comparisonResult *comparisonResult
+	}
+	setupHTTPProxy := func(t *testing.T, ignores []v1alpha1.ResourceIgnoreDifferences) *fixture {
+		t.Helper()
+		dc, err := diff.NewDiffConfigBuilder().
+			WithDiffSettings(ignores, nil, true, normalizers.IgnoreNormalizerOpts{}).
+			WithNoCache().
+			Build()
+		require.NoError(t, err)
+		live := test.YamlToUnstructured(testdata.LiveHTTPProxy)
+		target := test.YamlToUnstructured(testdata.TargetHTTPProxy)
+		return &fixture{
+			&comparisonResult{
+				reconciliationResult: sync.ReconciliationResult{
+					Live:   []*unstructured.Unstructured{live},
+					Target: []*unstructured.Unstructured{target},
+				},
+				diffConfig: dc,
+			},
+		}
+	}
+
+	t.Run("will properly ignore nested fields within arrays", func(t *testing.T) {
+		doc := loadCRDSchema(t, "testdata/schemas/httpproxy_openapi_v2.yaml")
+		disco := &fakeDiscovery{schema: doc}
+		oapiGetter := openapi.NewOpenAPIGetter(disco)
+		oapiResources, err := openapi.NewOpenAPIParser(oapiGetter).Parse()
+		require.NoError(t, err)
+		// given
+		ignores := []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:             "projectcontour.io",
+				Kind:              "HTTPProxy",
+				JQPathExpressions: []string{".spec.routes[]"},
+				// JSONPointers: []string{"/spec/routes"},
+			},
+		}
+		f := setupHTTPProxy(t, ignores)
+		target := test.YamlToUnstructured(testdata.TargetHTTPProxy)
+		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
+		// when
+		patchedTargets, err := normalizeTargetResources(oapiResources, f.comparisonResult)
+
+		// then
+		require.NoError(t, err)
+		require.Len(t, f.comparisonResult.reconciliationResult.Live, 1)
+		require.Len(t, f.comparisonResult.reconciliationResult.Target, 1)
+		require.Len(t, patchedTargets, 1)
+
+		// live should have 1 entry
+		require.Len(t, dig(f.comparisonResult.reconciliationResult.Live[0].Object, "spec", "routes", 0, "rateLimitPolicy", "global", "descriptors"), 1)
+		// assert some arbitrary field to show `entries[0]` is not an empty object
+		require.Equal(t, "sample-header", dig(f.comparisonResult.reconciliationResult.Live[0].Object, "spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0, "requestHeader", "headerName"))
+
+		// target has 2 entries
+		require.Len(t, dig(f.comparisonResult.reconciliationResult.Target[0].Object, "spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries"), 2)
+		// assert some arbitrary field to show `entries[0]` is not an empty object
+		require.Equal(t, "sample-header", dig(f.comparisonResult.reconciliationResult.Target[0].Object, "spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0, "requestHeaderValueMatch", "headers", 0, "name"))
+
+		// It should be *1* entries in the array
+		require.Len(t, dig(patchedTargets[0].Object, "spec", "routes", 0, "rateLimitPolicy", "global", "descriptors"), 1)
+		// and it should NOT equal an empty object
+		require.Len(t, dig(patchedTargets[0].Object, "spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0), 1)
+	})
+	t.Run("will correctly set array entries if new entries have been added", func(t *testing.T) {
+		// given
+		ignores := []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:             "apps",
+				Kind:              "Deployment",
+				JQPathExpressions: []string{".spec.template.spec.containers[].env[] | select(.name == \"SOME_ENV_VAR\")"},
+			},
+		}
+		f := setupHTTPProxy(t, ignores)
+		live := test.YamlToUnstructured(testdata.LiveDeploymentEnvVarsYaml)
+		target := test.YamlToUnstructured(testdata.TargetDeploymentEnvVarsYaml)
+		f.comparisonResult.reconciliationResult.Live = []*unstructured.Unstructured{live}
+		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
+
+		// when
+		targets, err := normalizeTargetResources(nil, f.comparisonResult)
+
+		// then
+		require.NoError(t, err)
+		require.Len(t, targets, 1)
+		containers, ok, err := unstructured.NestedSlice(targets[0].Object, "spec", "template", "spec", "containers")
+		require.NoError(t, err)
+		require.True(t, ok)
+		assert.Len(t, containers, 1)
+
+		ports := containers[0].(map[string]any)["ports"].([]any)
+		assert.Len(t, ports, 1)
+
+		env := containers[0].(map[string]any)["env"].([]any)
+		assert.Len(t, env, 3)
+
+		first := env[0]
+		second := env[1]
+		third := env[2]
+
+		// Currently the defined order at this time is the insertion order of the target manifest.
+		assert.Equal(t, "SOME_ENV_VAR", first.(map[string]any)["name"])
+		assert.Equal(t, "some_value", first.(map[string]any)["value"])
+
+		assert.Equal(t, "SOME_OTHER_ENV_VAR", second.(map[string]any)["name"])
+		assert.Equal(t, "some_other_value", second.(map[string]any)["value"])
+
+		assert.Equal(t, "YET_ANOTHER_ENV_VAR", third.(map[string]any)["name"])
+		assert.Equal(t, "yet_another_value", third.(map[string]any)["value"])
+	})
+
+	t.Run("ignore-deployment-image-replicas-changes-additive", func(t *testing.T) {
+		// given
+
+		ignores := []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:        "apps",
+				Kind:         "Deployment",
+				JSONPointers: []string{"/spec/replicas"},
+			}, {
+				Group:             "apps",
+				Kind:              "Deployment",
+				JQPathExpressions: []string{".spec.template.spec.containers[].image"},
+			},
+		}
+		f := setupHTTPProxy(t, ignores)
+		live := test.YamlToUnstructured(testdata.MinimalImageReplicaDeploymentYaml)
+		target := test.YamlToUnstructured(testdata.AdditionalImageReplicaDeploymentYaml)
+		f.comparisonResult.reconciliationResult.Live = []*unstructured.Unstructured{live}
+		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
+
+		// when
+		targets, err := normalizeTargetResources(nil, f.comparisonResult)
+
+		// then
+		require.NoError(t, err)
+		require.Len(t, targets, 1)
+		metadata, ok, err := unstructured.NestedMap(targets[0].Object, "metadata")
+		require.NoError(t, err)
+		require.True(t, ok)
+		labels, ok := metadata["labels"].(map[string]any)
+		require.True(t, ok)
+		assert.Len(t, labels, 2)
+		assert.Equal(t, "web", labels["appProcess"])
+
+		spec, ok, err := unstructured.NestedMap(targets[0].Object, "spec")
+		require.NoError(t, err)
+		require.True(t, ok)
+
+		assert.Equal(t, int64(1), spec["replicas"])
+
+		template, ok := spec["template"].(map[string]any)
+		require.True(t, ok)
+
+		tMetadata, ok := template["metadata"].(map[string]any)
+		require.True(t, ok)
+		tLabels, ok := tMetadata["labels"].(map[string]any)
+		require.True(t, ok)
+		assert.Len(t, tLabels, 2)
+		assert.Equal(t, "web", tLabels["appProcess"])
+
+		tSpec, ok := template["spec"].(map[string]any)
+		require.True(t, ok)
+		containers, ok, err := unstructured.NestedSlice(tSpec, "containers")
+		require.NoError(t, err)
+		require.True(t, ok)
+		assert.Len(t, containers, 1)
+
+		first := containers[0].(map[string]any)
+		assert.Equal(t, "alpine:3", first["image"])
+
+		resources, ok := first["resources"].(map[string]any)
+		require.True(t, ok)
+		requests, ok := resources["requests"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, "400m", requests["cpu"])
+
+		env, ok, err := unstructured.NestedSlice(first, "env")
+		require.NoError(t, err)
+		require.True(t, ok)
+		assert.Len(t, env, 1)
+
+		env0 := env[0].(map[string]any)
+		assert.Equal(t, "EV", env0["name"])
+		assert.Equal(t, "here", env0["value"])
+	})
+
+	t.Run("patches ignored differences in individual array elements of HTTPProxy CRD", func(t *testing.T) {
+		doc := loadCRDSchema(t, "testdata/schemas/httpproxy_openapi_v2.yaml")
+		disco := &fakeDiscovery{schema: doc}
+		oapiGetter := openapi.NewOpenAPIGetter(disco)
+		oapiResources, err := openapi.NewOpenAPIParser(oapiGetter).Parse()
+		require.NoError(t, err)
+
+		ignores := []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:             "projectcontour.io",
+				Kind:              "HTTPProxy",
+				JQPathExpressions: []string{".spec.routes[].rateLimitPolicy.global.descriptors[].entries[]"},
+			},
+		}
+
+		f := setupHTTPProxy(t, ignores)
+
+		target := test.YamlToUnstructured(testdata.TargetHTTPProxy)
+		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
+
+		live := test.YamlToUnstructured(testdata.LiveHTTPProxy)
+		f.comparisonResult.reconciliationResult.Live = []*unstructured.Unstructured{live}
+
+		patchedTargets, err := normalizeTargetResources(oapiResources, f.comparisonResult)
+		require.NoError(t, err)
+		require.Len(t, patchedTargets, 1)
+		patched := patchedTargets[0]
+
+		// verify descriptors array in patched target
+		descriptors := dig(patched.Object, "spec", "routes", 0, "rateLimitPolicy", "global", "descriptors").([]any)
+		require.Len(t, descriptors, 1) // Only the descriptors with ignored entries should remain
+
+		// verify individual entries array inside the descriptor
+		entriesArr := dig(patched.Object, "spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries").([]any)
+		require.Len(t, entriesArr, 1) // Only the ignored entry should be patched
+
+		// verify the content of the entry is preserved correctly
+		entry := entriesArr[0].(map[string]any)
+		requestHeader := entry["requestHeader"].(map[string]any)
+		assert.Equal(t, "sample-header", requestHeader["headerName"])
+		assert.Equal(t, "sample-key", requestHeader["descriptorKey"])
+	})
+}
+
+func TestNormalizeTargetResourcesCRDs(t *testing.T) {
+	type fixture struct {
+		comparisonResult *comparisonResult
+	}
+	setupHTTPProxy := func(t *testing.T, ignores []v1alpha1.ResourceIgnoreDifferences) *fixture {
+		t.Helper()
+		dc, err := diff.NewDiffConfigBuilder().
+			WithDiffSettings(ignores, nil, true, normalizers.IgnoreNormalizerOpts{}).
+			WithNoCache().
+			Build()
+		require.NoError(t, err)
+		live := test.YamlToUnstructured(testdata.SimpleAppLiveYaml)
+		target := test.YamlToUnstructured(testdata.SimpleAppTargetYaml)
+		return &fixture{
+			&comparisonResult{
+				reconciliationResult: sync.ReconciliationResult{
+					Live:   []*unstructured.Unstructured{live},
+					Target: []*unstructured.Unstructured{target},
+				},
+				diffConfig: dc,
+			},
+		}
+	}
+
+	t.Run("sample-app", func(t *testing.T) {
+		doc := loadCRDSchema(t, "testdata/schemas/simple-app.yaml")
+		disco := &fakeDiscovery{schema: doc}
+		oapiGetter := openapi.NewOpenAPIGetter(disco)
+		oapiResources, err := openapi.NewOpenAPIParser(oapiGetter).Parse()
+		require.NoError(t, err)
+
+		ignores := []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:             "example.com",
+				Kind:              "SimpleApp",
+				JQPathExpressions: []string{".spec.servers[1].enabled", ".spec.servers[0].port"},
+			},
+		}
+
+		f := setupHTTPProxy(t, ignores)
+
+		target := test.YamlToUnstructured(testdata.SimpleAppTargetYaml)
+		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
+
+		live := test.YamlToUnstructured(testdata.SimpleAppLiveYaml)
+		f.comparisonResult.reconciliationResult.Live = []*unstructured.Unstructured{live}
+
+		patchedTargets, err := normalizeTargetResources(oapiResources, f.comparisonResult)
+		require.NoError(t, err)
+		require.Len(t, patchedTargets, 1)
+
+		patched := patchedTargets[0]
+		require.NotNil(t, patched)
+
+		// 'spec.servers' array has length 2
+		servers := dig(patched.Object, "spec", "servers").([]any)
+		require.Len(t, servers, 2)
+
+		// first server's 'name' is 'server1'
+		name1 := dig(patched.Object, "spec", "servers", 0, "name").(string)
+		assert.Equal(t, "server1", name1)
+
+		assert.Equal(t, int64(8081), dig(patched.Object, "spec", "servers", 0, "port").(int64))
+		assert.Equal(t, int64(9090), dig(patched.Object, "spec", "servers", 1, "port").(int64))
+
+		// first server's 'enabled' should be true
+		enabled1 := dig(patched.Object, "spec", "servers", 0, "enabled").(bool)
+		assert.True(t, enabled1)
+
+		// second server's 'name' should be 'server2'
+		name2 := dig(patched.Object, "spec", "servers", 1, "name").(string)
+		assert.Equal(t, "server2", name2)
+
+		// second server's 'enabled' should be true (respected from live due to ignoreDifferences)
+		enabled2 := dig(patched.Object, "spec", "servers", 1, "enabled").(bool)
+		assert.True(t, enabled2)
+	})
+	t.Run("rollout-obj", func(t *testing.T) {
+		// Load Rollout CRD schema like SimpleApp
+		doc := loadCRDSchema(t, "testdata/schemas/rollout-schema.yaml")
+		disco := &fakeDiscovery{schema: doc}
+		oapiGetter := openapi.NewOpenAPIGetter(disco)
+		oapiResources, err := openapi.NewOpenAPIParser(oapiGetter).Parse()
+		require.NoError(t, err)
+
+		ignores := []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:             "argoproj.io",
+				Kind:              "Rollout",
+				JQPathExpressions: []string{`.spec.template.spec.containers[] | select(.name == "init") | .image`},
+			},
+		}
+
+		f := setupHTTPProxy(t, ignores)
+
+		live := test.YamlToUnstructured(testdata.LiveRolloutYaml)
+		target := test.YamlToUnstructured(testdata.TargetRolloutYaml)
+		f.comparisonResult.reconciliationResult.Live = []*unstructured.Unstructured{live}
+		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
+
+		targets, err := normalizeTargetResources(oapiResources, f.comparisonResult)
+		require.NoError(t, err)
+		require.Len(t, targets, 1)
+
+		patched := targets[0]
+		require.NotNil(t, patched)
+
+		containers := dig(patched.Object, "spec", "template", "spec", "containers").([]any)
+		require.Len(t, containers, 2)
+
+		initContainer := containers[0].(map[string]any)
+		mainContainer := containers[1].(map[string]any)
+
+		// Assert init container image is preserved (ignoreDifferences works)
+		initImage := dig(initContainer, "image").(string)
+		assert.Equal(t, "init-container:v1", initImage)
+
+		// Assert main container fields as expected
+		mainName := dig(mainContainer, "name").(string)
+		assert.Equal(t, "main", mainName)
+
+		mainImage := dig(mainContainer, "image").(string)
+		assert.Equal(t, "main-container:v1", mainImage)
+	})
+
+	t.Run("app-of-apps-child-application-chart-version-update-panic", func(t *testing.T) {
+		// This test reproduces the EXACT panic from https://github.com/blakepettersson/broken-app-of-apps
+		// Scenario:
+		// 1. Parent app-of-apps has RespectIgnoreDifferences=true
+		// 2. It manages a child Application (argo-workflows Helm chart)
+		// 3. Initial sync works fine (chart version 0.45.28)
+		// 4. Subsequent update (chart version 0.45.28 -> 0.45.29) causes panic
+		//
+		// The panic occurs when the OpenAPI schema from the Application CRD is used
+		// to perform strategic merge patch operations on array fields with incomplete merge directives
+
+		doc := loadCRDSchema(t, "testdata/schemas/application-openapi-v2.yaml")
+		disco := &fakeDiscovery{schema: doc}
+		oapiGetter := openapi.NewOpenAPIGetter(disco)
+		oapiResources, err := openapi.NewOpenAPIParser(oapiGetter).Parse()
+		require.NoError(t, err)
+
+		// Set up ignoreDifferences with RespectIgnoreDifferences enabled
+		// This is typical for app-of-apps to ignore certain fields
+		ignores := []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:             "argoproj.io",
+				Kind:              "Application",
+				JQPathExpressions: []string{".spec.syncPolicy.automated"},
+			},
+		}
+
+		dc, err := diff.NewDiffConfigBuilder().
+			WithDiffSettings(ignores, nil, true, normalizers.IgnoreNormalizerOpts{}).
+			WithNoCache().
+			Build()
+		require.NoError(t, err)
+
+		// Load live child Application (current state with chart version 0.45.28)
+		live := test.YamlToUnstructured(testdata.LiveChildApplicationYaml)
+
+		// Load target child Application (desired state with chart version 0.45.29)
+		target := test.YamlToUnstructured(testdata.TargetChildApplicationYaml)
+
+		comparisonResult := &comparisonResult{
+			reconciliationResult: sync.ReconciliationResult{
+				Live:   []*unstructured.Unstructured{live},
+				Target: []*unstructured.Unstructured{target},
+			},
+			diffConfig: dc,
+		}
+
+		// This should NOT panic - it should handle the case gracefully
+		// Without the fix, this panics with: "runtime error: invalid memory address or nil pointer dereference"
+		// at k8s.io/apimachinery/pkg/util/strategicpatch.handleSliceDiff:306
+		// when processing array fields in the Application spec (like syncOptions)
+		patchedTargets, err := normalizeTargetResources(oapiResources, comparisonResult)
+
+		// We expect either success or a graceful error, but NOT a panic
+		if err != nil {
+			// If there's an error, it should be a descriptive error, not a panic
+			t.Logf("Got error (non-panic): %v", err)
+		} else {
+			// If successful, verify we got a result
+			require.Len(t, patchedTargets, 1)
+			patched := patchedTargets[0]
+			require.NotNil(t, patched)
+
+			// Verify the chart version was updated
+			targetRevision, ok, err := unstructured.NestedString(patched.Object, "spec", "source", "targetRevision")
+			require.NoError(t, err)
+			require.True(t, ok)
+			assert.Equal(t, "0.45.28", targetRevision, "Should have the updated chart version from target")
+		}
+	})
+}
+
+// TestNormalizeTargetResourcesPDBSelector reproduces https://github.com/argoproj/argo-cd/issues/18232
+// When a PDB (policy/v1) has an ignoreDifferences rule for a matchLabels sub-field and
+// RespectIgnoreDifferences=true is set, normalizeTargetResources should only patch the
+// ignored field — not clobber the entire selector due to patchStrategy:"replace".
+func TestNormalizeTargetResourcesPDBSelector(t *testing.T) {
+	setupPDB := func(t *testing.T, ignores []v1alpha1.ResourceIgnoreDifferences) *comparisonResult {
+		t.Helper()
+		dc, err := diff.NewDiffConfigBuilder().
+			WithDiffSettings(ignores, nil, true, normalizers.IgnoreNormalizerOpts{}).
+			WithNoCache().
+			Build()
+		require.NoError(t, err)
+		live := test.YamlToUnstructured(testdata.LivePDBYaml)
+		target := test.YamlToUnstructured(testdata.TargetPDBYaml)
+		return &comparisonResult{
+			reconciliationResult: sync.ReconciliationResult{
+				Live:   []*unstructured.Unstructured{live},
+				Target: []*unstructured.Unstructured{target},
+			},
+			diffConfig: dc,
+		}
+	}
+
+	t.Run("ignoring one matchLabels key should not clobber other selector changes", func(t *testing.T) {
+		// User ignores /spec/selector/matchLabels/version but intentionally changes
+		// /spec/selector/matchLabels/app from "myapp" to "myapp-v2".
+		// With patchStrategy:"replace" on the selector field (policy/v1),
+		// normalizeTargetResources should preserve the app label change.
+		cr := setupPDB(t, []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:        "policy",
+				Kind:         "PodDisruptionBudget",
+				JSONPointers: []string{"/spec/selector/matchLabels/version"},
+			},
+		})
+
+		targets, err := normalizeTargetResources(nil, cr)
+		require.NoError(t, err)
+		require.Len(t, targets, 1)
+
+		matchLabels, ok, err := unstructured.NestedStringMap(targets[0].Object, "spec", "selector", "matchLabels")
+		require.NoError(t, err)
+		require.True(t, ok)
+
+		// The "version" label should take the live value (ignored field — respected).
+		assert.Equal(t, "v1", matchLabels["version"], "ignored field 'version' should use live value")
+
+		// The "app" label should keep the target value — it is NOT ignored.
+		assert.Equal(t, "myapp-v2", matchLabels["app"],
+			"non-ignored field 'app' was clobbered by live value; patchStrategy:replace on selector may cause normalizeTargetResources to overwrite the entire selector")
+	})
+
+	t.Run("ignoring one matchLabels key should not drop non-ignored sibling fields", func(t *testing.T) {
+		// Target has matchExpressions that live does not.
+		// Ignoring a matchLabels key should not cause matchExpressions to be
+		// dropped due to replace semantics pulling the entire live selector
+		// (which lacks matchExpressions) into the target.
+		cr := setupPDB(t, []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:        "policy",
+				Kind:         "PodDisruptionBudget",
+				JSONPointers: []string{"/spec/selector/matchLabels/version"},
+			},
+		})
+
+		// Add matchExpressions to the target only (not in live).
+		target := cr.reconciliationResult.Target[0]
+		matchExpr := []any{
+			map[string]any{
+				"key":      "tier",
+				"operator": "In",
+				"values":   []any{"frontend"},
+			},
+		}
+		require.NoError(t, unstructured.SetNestedSlice(target.Object, matchExpr, "spec", "selector", "matchExpressions"))
+
+		targets, err := normalizeTargetResources(nil, cr)
+		require.NoError(t, err)
+		require.Len(t, targets, 1)
+
+		// matchExpressions should be preserved — it was not ignored.
+		expr, ok, err := unstructured.NestedSlice(targets[0].Object, "spec", "selector", "matchExpressions")
+		require.NoError(t, err)
+		assert.True(t, ok, "matchExpressions was dropped from target by replace-strategy collateral")
+		assert.Len(t, expr, 1)
+
+		// app label should still reflect the target change.
+		matchLabels, ok, err := unstructured.NestedStringMap(targets[0].Object, "spec", "selector", "matchLabels")
+		require.NoError(t, err)
+		require.True(t, ok)
+		assert.Equal(t, "myapp-v2", matchLabels["app"])
+		assert.Equal(t, "v1", matchLabels["version"])
+	})
+
+	t.Run("ignoring one matchLabels key should not add live-only non-ignored selector keys", func(t *testing.T) {
+		// Live has an additional non-ignored label ("track") that target does not.
+		// Replace semantics should not copy it into the patched target.
+		cr := setupPDB(t, []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:        "policy",
+				Kind:         "PodDisruptionBudget",
+				JSONPointers: []string{"/spec/selector/matchLabels/version"},
+			},
+		})
+
+		live := cr.reconciliationResult.Live[0]
+		matchLabels, ok, err := unstructured.NestedStringMap(live.Object, "spec", "selector", "matchLabels")
+		require.NoError(t, err)
+		require.True(t, ok)
+		matchLabels["track"] = "stable"
+		require.NoError(t, unstructured.SetNestedStringMap(live.Object, matchLabels, "spec", "selector", "matchLabels"))
+
+		targets, err := normalizeTargetResources(nil, cr)
+		require.NoError(t, err)
+		require.Len(t, targets, 1)
+
+		patchedMatchLabels, ok, err := unstructured.NestedStringMap(targets[0].Object, "spec", "selector", "matchLabels")
+		require.NoError(t, err)
+		require.True(t, ok)
+
+		assert.Equal(t, "myapp-v2", patchedMatchLabels["app"])
+		assert.Equal(t, "v1", patchedMatchLabels["version"])
+		_, found := patchedMatchLabels["track"]
+		assert.False(t, found, "live-only non-ignored selector key was added to target by replace-strategy collateral")
+	})
+
+	t.Run("ignoring entire selector should replace target selector with live", func(t *testing.T) {
+		cr := setupPDB(t, []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:        "policy",
+				Kind:         "PodDisruptionBudget",
+				JSONPointers: []string{"/spec/selector"},
+			},
+		})
+
+		targets, err := normalizeTargetResources(nil, cr)
+		require.NoError(t, err)
+		require.Len(t, targets, 1)
+
+		matchLabels, ok, err := unstructured.NestedStringMap(targets[0].Object, "spec", "selector", "matchLabels")
+		require.NoError(t, err)
+		require.True(t, ok)
+
+		// When the entire selector is ignored, both labels should come from live.
+		assert.Equal(t, "myapp", matchLabels["app"])
+		assert.Equal(t, "v1", matchLabels["version"])
+	})
+}
+
+func TestDeriveServiceAccountMatchingNamespaces(t *testing.T) {
+	t.Parallel()
+
+	type fixture struct {
+		project     *v1alpha1.AppProject
+		application *v1alpha1.Application
+		cluster     *v1alpha1.Cluster
+	}
+
+	setup := func(destinationServiceAccounts []v1alpha1.ApplicationDestinationServiceAccount, destinationNamespace, destinationServerURL, applicationNamespace string) *fixture {
+		project := &v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "argocd-ns",
+				Name:      "testProj",
+			},
+			Spec: v1alpha1.AppProjectSpec{
+				DestinationServiceAccounts: destinationServiceAccounts,
+			},
+		}
+		app := &v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: applicationNamespace,
+				Name:      "testApp",
+			},
+			Spec: v1alpha1.ApplicationSpec{
+				Project: "testProj",
+				Destination: v1alpha1.ApplicationDestination{
+					Server:    destinationServerURL,
+					Namespace: destinationNamespace,
+				},
+			},
+		}
+		cluster := &v1alpha1.Cluster{
+			Server: "https://kubernetes.svc.local",
+			Name:   "test-cluster",
+		}
+		return &fixture{
+			project:     project,
+			application: app,
+			cluster:     cluster,
+		}
+	}
+
+	t.Run("empty destination service accounts", func(t *testing.T) {
+		// given an application referring a project with no destination service accounts
+		t.Parallel()
+		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{}
+		destinationNamespace := "testns"
+		destinationServerURL := "https://kubernetes.svc.local"
+		applicationNamespace := "argocd-ns"
+		expectedSA := ""
+
+		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
+		// when
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+		assert.Equal(t, expectedSA, sa)
+		assert.NoError(t, err)
+	})
+
+	t.Run("exact match of destination namespace", func(t *testing.T) {
+		// given an application referring a project with exactly one destination service account that matches the application destination,
+		t.Parallel()
+		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "testns",
+				DefaultServiceAccount: "test-sa",
+			},
+		}
+		destinationNamespace := "testns"
+		destinationServerURL := "https://kubernetes.svc.local"
+		applicationNamespace := "argocd-ns"
+		expectedSA := "system:serviceaccount:testns:test-sa"
+
+		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
+		// when
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+
+		// then, there should be no error and should use the right service account for impersonation
+		require.NoError(t, err)
+		assert.Equal(t, expectedSA, sa)
+	})
+
+	t.Run("exact one match with multiple destination service accounts", func(t *testing.T) {
+		// given an application referring a project with multiple destination service accounts having one exact match for application destination
+		t.Parallel()
+		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "guestbook",
+				DefaultServiceAccount: "guestbook-sa",
+			},
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "guestbook-test",
+				DefaultServiceAccount: "guestbook-test-sa",
+			},
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "default",
+				DefaultServiceAccount: "default-sa",
+			},
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "testns",
+				DefaultServiceAccount: "test-sa",
+			},
+		}
+		destinationNamespace := "testns"
+		destinationServerURL := "https://kubernetes.svc.local"
+		applicationNamespace := "argocd-ns"
+		expectedSA := "system:serviceaccount:testns:test-sa"
+
+		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
+		// when
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+
+		// then, there should be no error and should use the right service account for impersonation
+		require.NoError(t, err)
+		assert.Equal(t, expectedSA, sa)
+	})
+
+	t.Run("first match to be used when multiple matches are available", func(t *testing.T) {
+		// given an application referring a project with multiple destination service accounts having multiple match for application destination
+		t.Parallel()
+		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "testns",
+				DefaultServiceAccount: "test-sa",
+			},
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "testns",
+				DefaultServiceAccount: "test-sa-2",
+			},
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "testns",
+				DefaultServiceAccount: "test-sa-3",
+			},
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "guestbook",
+				DefaultServiceAccount: "guestbook-sa",
+			},
+		}
+		destinationNamespace := "testns"
+		destinationServerURL := "https://kubernetes.svc.local"
+		applicationNamespace := "argocd-ns"
+		expectedSA := "system:serviceaccount:testns:test-sa"
+
+		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
+		// when
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+
+		// then, there should be no error and it should use the first matching service account for impersonation
+		require.NoError(t, err)
+		assert.Equal(t, expectedSA, sa)
+	})
+
+	t.Run("first match to be used when glob pattern is used", func(t *testing.T) {
+		// given an application referring a project with multiple destination service accounts with glob patterns matching the application destination
+		t.Parallel()
+		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "test*",
+				DefaultServiceAccount: "test-sa",
+			},
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "testns",
+				DefaultServiceAccount: "test-sa-2",
+			},
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "default",
+				DefaultServiceAccount: "default-sa",
+			},
+		}
+		destinationNamespace := "testns"
+		destinationServerURL := "https://kubernetes.svc.local"
+		applicationNamespace := "argocd-ns"
+		expectedSA := "system:serviceaccount:testns:test-sa"
+
+		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
+		// when
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+
+		// then, there should not be any error and should use the first matching glob pattern service account for impersonation
+		require.NoError(t, err)
+		assert.Equal(t, expectedSA, sa)
+	})
+
+	t.Run("no match among a valid list", func(t *testing.T) {
+		// given an application referring a project with multiple destination service accounts with no matches for application destination
+		t.Parallel()
+		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "test1",
+				DefaultServiceAccount: "test-sa",
+			},
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "test2",
+				DefaultServiceAccount: "test-sa-2",
+			},
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "default",
+				DefaultServiceAccount: "default-sa",
+			},
+		}
+		destinationNamespace := "testns"
+		destinationServerURL := "https://kubernetes.svc.local"
+		applicationNamespace := "argocd-ns"
+		expectedSA := ""
+
+		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
+		// when
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+
+		require.NoError(t, err)
+		assert.Equal(t, expectedSA, sa)
+	})
+
+	t.Run("app destination namespace is empty", func(t *testing.T) {
+		// given an application referring a project with multiple destination service accounts with empty application destination namespace
+		t.Parallel()
+		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
+			{
+				Server:                "https://kubernetes.svc.local",
+				DefaultServiceAccount: "test-sa",
+			},
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "*",
+				DefaultServiceAccount: "test-sa-2",
+			},
+		}
+		destinationNamespace := ""
+		destinationServerURL := "https://kubernetes.svc.local"
+		applicationNamespace := "argocd-ns"
+		expectedSA := "system:serviceaccount:argocd-ns:test-sa"
+
+		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
+		// when
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+
+		// then, there should not be any error and the service account configured for with empty namespace should be used.
+		require.NoError(t, err)
+		assert.Equal(t, expectedSA, sa)
+	})
+
+	t.Run("match done via catch all glob pattern", func(t *testing.T) {
+		// given an application referring a project with multiple destination service accounts having a catch all glob pattern
+		t.Parallel()
+		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "testns1",
+				DefaultServiceAccount: "test-sa-2",
+			},
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "default",
+				DefaultServiceAccount: "default-sa",
+			},
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "*",
+				DefaultServiceAccount: "test-sa",
+			},
+		}
+		destinationNamespace := "testns"
+		destinationServerURL := "https://kubernetes.svc.local"
+		applicationNamespace := "argocd-ns"
+		expectedSA := "system:serviceaccount:testns:test-sa"
+
+		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
+		// when
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+
+		// then, there should not be any error and the catch all service account should be returned
+		require.NoError(t, err)
+		assert.Equal(t, expectedSA, sa)
+	})
+
+	t.Run("match done via invalid glob pattern", func(t *testing.T) {
+		// given an application referring a project with a destination service account having an invalid glob pattern for namespace
+		t.Parallel()
+		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "e[[a*",
+				DefaultServiceAccount: "test-sa",
+			},
+		}
+		destinationNamespace := "testns"
+		destinationServerURL := "https://kubernetes.svc.local"
+		applicationNamespace := "argocd-ns"
+		expectedSA := ""
+
+		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
+		// when
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+
+		// then, there must be an error as the glob pattern is invalid.
+		require.ErrorContains(t, err, "invalid glob pattern for destination namespace")
+		assert.Equal(t, expectedSA, sa)
+	})
+
+	t.Run("sa specified with a namespace", func(t *testing.T) {
+		// given an application referring a project with multiple destination service accounts having a matching service account specified with its namespace
+		t.Parallel()
+		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "testns",
+				DefaultServiceAccount: "myns:test-sa",
+			},
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "default",
+				DefaultServiceAccount: "default-sa",
+			},
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "*",
+				DefaultServiceAccount: "test-sa",
+			},
+		}
+		destinationNamespace := "testns"
+		destinationServerURL := "https://kubernetes.svc.local"
+		applicationNamespace := "argocd-ns"
+		expectedSA := "system:serviceaccount:myns:test-sa"
+
+		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
+		// when
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+		assert.Equal(t, expectedSA, sa)
+
+		// then, there should not be any error and the service account with its namespace should be returned.
+		require.NoError(t, err)
+	})
+
+	t.Run("app destination name instead of server URL", func(t *testing.T) {
+		t.Parallel()
+		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "*",
+				DefaultServiceAccount: "test-sa",
+			},
+		}
+		destinationNamespace := "testns"
+		destinationServerURL := "https://kubernetes.svc.local"
+		applicationNamespace := "argocd-ns"
+		expectedSA := "system:serviceaccount:testns:test-sa"
+
+		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
+
+		// Use destination name instead of server URL
+		f.application.Spec.Destination.Server = ""
+		f.application.Spec.Destination.Name = f.cluster.Name
+
+		// when
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+		assert.Equal(t, expectedSA, sa)
+
+		// then, there should not be any error and the service account with its namespace should be returned.
+		require.NoError(t, err)
+	})
+}
+
+func TestDeriveServiceAccountMatchingServers(t *testing.T) {
+	t.Parallel()
+
+	type fixture struct {
+		project     *v1alpha1.AppProject
+		application *v1alpha1.Application
+		cluster     *v1alpha1.Cluster
+	}
+
+	setup := func(destinationServiceAccounts []v1alpha1.ApplicationDestinationServiceAccount, destinationNamespace, destinationServerURL, applicationNamespace string) *fixture {
+		project := &v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: "argocd-ns",
+				Name:      "testProj",
+			},
+			Spec: v1alpha1.AppProjectSpec{
+				DestinationServiceAccounts: destinationServiceAccounts,
+			},
+		}
+		app := &v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: applicationNamespace,
+				Name:      "testApp",
+			},
+			Spec: v1alpha1.ApplicationSpec{
+				Project: "testProj",
+				Destination: v1alpha1.ApplicationDestination{
+					Server:    destinationServerURL,
+					Namespace: destinationNamespace,
+				},
+			},
+		}
+		cluster := &v1alpha1.Cluster{
+			Server: "https://kubernetes.svc.local",
+			Name:   "test-cluster",
+		}
+		return &fixture{
+			project:     project,
+			application: app,
+			cluster:     cluster,
+		}
+	}
+
+	t.Run("exact one match with multiple destination service accounts", func(t *testing.T) {
+		// given an application referring a project with multiple destination service accounts and one exact match for application destination
+		t.Parallel()
+		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "guestbook",
+				DefaultServiceAccount: "guestbook-sa",
+			},
+			{
+				Server:                "https://abc.svc.local",
+				Namespace:             "guestbook",
+				DefaultServiceAccount: "guestbook-test-sa",
+			},
+			{
+				Server:                "https://cde.svc.local",
+				Namespace:             "guestbook",
+				DefaultServiceAccount: "default-sa",
+			},
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "testns",
+				DefaultServiceAccount: "test-sa",
+			},
+		}
+		destinationNamespace := "testns"
+		destinationServerURL := "https://kubernetes.svc.local"
+		applicationNamespace := "argocd-ns"
+		expectedSA := "system:serviceaccount:testns:test-sa"
+
+		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
+		// when
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+
+		// then, there should not be any error and the right service account must be returned.
+		require.NoError(t, err)
+		assert.Equal(t, expectedSA, sa)
+	})
+
+	t.Run("first match to be used when multiple matches are available", func(t *testing.T) {
+		// given an application referring a project with multiple destination service accounts and multiple matches for application destination
+		t.Parallel()
+		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "testns",
+				DefaultServiceAccount: "test-sa",
+			},
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "testns",
+				DefaultServiceAccount: "test-sa-2",
+			},
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "default",
+				DefaultServiceAccount: "default-sa",
+			},
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "guestbook",
+				DefaultServiceAccount: "guestbook-sa",
+			},
+		}
+		destinationNamespace := "testns"
+		destinationServerURL := "https://kubernetes.svc.local"
+		applicationNamespace := "argocd-ns"
+		expectedSA := "system:serviceaccount:testns:test-sa"
+
+		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
+		// when
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+
+		// then, there should not be any error and first matching service account should be used
+		require.NoError(t, err)
+		assert.Equal(t, expectedSA, sa)
+	})
+
+	t.Run("first match to be used when glob pattern is used", func(t *testing.T) {
+		// given an application referring a project with multiple destination service accounts with a matching glob pattern and exact match
+		t.Parallel()
+		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "test*",
+				DefaultServiceAccount: "test-sa",
+			},
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "testns",
+				DefaultServiceAccount: "test-sa-2",
+			},
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "default",
+				DefaultServiceAccount: "default-sa",
+			},
+		}
+		destinationNamespace := "testns"
+		destinationServerURL := "https://kubernetes.svc.local"
+		applicationNamespace := "argocd-ns"
+		expectedSA := "system:serviceaccount:testns:test-sa"
+
+		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
+		// when
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+		assert.Equal(t, expectedSA, sa)
+
+		// then, there should not be any error and the service account of the glob pattern, being the first match should be returned.
+		require.NoError(t, err)
+	})
+
+	t.Run("no match among a valid list", func(t *testing.T) {
+		// given an application referring a project with multiple destination service accounts with no match
+		t.Parallel()
+		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "testns",
+				DefaultServiceAccount: "test-sa",
+			},
+			{
+				Server:                "https://abc.svc.local",
+				Namespace:             "testns",
+				DefaultServiceAccount: "test-sa-2",
+			},
+			{
+				Server:                "https://cde.svc.local",
+				Namespace:             "default",
+				DefaultServiceAccount: "default-sa",
+			},
+		}
+		destinationNamespace := "testns"
+		destinationServerURL := "https://xyz.svc.local"
+		applicationNamespace := "argocd-ns"
+		expectedSA := ""
+
+		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
+		// when
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, &v1alpha1.Cluster{Server: destinationServerURL})
+
+		// then, there an error with appropriate message must be returned
+		require.NoError(t, err)
+		assert.Equal(t, expectedSA, sa)
+	})
+
+	t.Run("match done via catch all glob pattern", func(t *testing.T) {
+		// given an application referring a project with multiple destination service accounts with matching catch all glob pattern
+		t.Parallel()
+		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "testns1",
+				DefaultServiceAccount: "test-sa-2",
+			},
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "default",
+				DefaultServiceAccount: "default-sa",
+			},
+			{
+				Server:                "*",
+				Namespace:             "*",
+				DefaultServiceAccount: "test-sa",
+			},
+		}
+		destinationNamespace := "testns"
+		destinationServerURL := "https://localhost:6443"
+		applicationNamespace := "argocd-ns"
+		expectedSA := "system:serviceaccount:testns:test-sa"
+
+		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
+		// when
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+
+		// then, there should not be any error and the service account of the glob pattern match must be returned.
+		require.NoError(t, err)
+		assert.Equal(t, expectedSA, sa)
+	})
+
+	t.Run("match done via invalid glob pattern", func(t *testing.T) {
+		// given an application referring a project with a destination service account having an invalid glob pattern for server
+		t.Parallel()
+		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
+			{
+				Server:                "e[[a*",
+				Namespace:             "test-ns",
+				DefaultServiceAccount: "test-sa",
+			},
+		}
+		destinationNamespace := "testns"
+		destinationServerURL := "https://kubernetes.svc.local"
+		applicationNamespace := "argocd-ns"
+		expectedSA := ""
+
+		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
+		// when
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+
+		// then, there must be an error as the glob pattern is invalid.
+		require.ErrorContains(t, err, "invalid glob pattern for destination server")
+		assert.Equal(t, expectedSA, sa)
+	})
+
+	t.Run("sa specified with a namespace", func(t *testing.T) {
+		// given app sync impersonation feature is enabled and matching service account is prefixed with a namespace
+		t.Parallel()
+		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
+			{
+				Server:                "https://abc.svc.local",
+				Namespace:             "testns",
+				DefaultServiceAccount: "myns:test-sa",
+			},
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "default",
+				DefaultServiceAccount: "default-sa",
+			},
+			{
+				Server:                "*",
+				Namespace:             "*",
+				DefaultServiceAccount: "test-sa",
+			},
+		}
+		destinationNamespace := "testns"
+		destinationServerURL := "https://abc.svc.local"
+		applicationNamespace := "argocd-ns"
+		expectedSA := "system:serviceaccount:myns:test-sa"
+
+		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
+		// when
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, &v1alpha1.Cluster{Server: destinationServerURL})
+
+		// then, there should not be any error and the service account with the given namespace prefix must be returned.
+		require.NoError(t, err)
+		assert.Equal(t, expectedSA, sa)
+	})
+
+	t.Run("app destination name instead of server URL", func(t *testing.T) {
+		t.Parallel()
+		destinationServiceAccounts := []v1alpha1.ApplicationDestinationServiceAccount{
+			{
+				Server:                "https://kubernetes.svc.local",
+				Namespace:             "*",
+				DefaultServiceAccount: "test-sa",
+			},
+		}
+		destinationNamespace := "testns"
+		destinationServerURL := "https://kubernetes.svc.local"
+		applicationNamespace := "argocd-ns"
+		expectedSA := "system:serviceaccount:testns:test-sa"
+
+		f := setup(destinationServiceAccounts, destinationNamespace, destinationServerURL, applicationNamespace)
+
+		// Use destination name instead of server URL
+		f.application.Spec.Destination.Server = ""
+		f.application.Spec.Destination.Name = f.cluster.Name
+
+		// when
+		sa, err := settings.DeriveServiceAccountToImpersonate(f.project, f.application, f.cluster)
+		assert.Equal(t, expectedSA, sa)
+
+		// then, there should not be any error and the service account with its namespace should be returned.
+		require.NoError(t, err)
+	})
+}
+
+func TestSyncWithImpersonate(t *testing.T) {
+	type fixture struct {
+		application *v1alpha1.Application
+		project     *v1alpha1.AppProject
+		controller  *ApplicationController
+	}
+
+	setup := func(impersonationEnabled bool, destinationNamespace, serviceAccountName string) *fixture {
+		app := newFakeApp()
+		app.Status.OperationState = nil
+		app.Status.History = nil
+		project := &v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: test.FakeArgoCDNamespace,
+				Name:      "default",
+			},
+			Spec: v1alpha1.AppProjectSpec{
+				DestinationServiceAccounts: []v1alpha1.ApplicationDestinationServiceAccount{
+					{
+						Server:                "https://localhost:6443",
+						Namespace:             destinationNamespace,
+						DefaultServiceAccount: serviceAccountName,
+					},
+				},
+			},
+		}
+		additionalObjs := []runtime.Object{}
+		if serviceAccountName != "" {
+			syncServiceAccount := &corev1.ServiceAccount{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      serviceAccountName,
+					Namespace: test.FakeDestNamespace,
+				},
+			}
+			additionalObjs = append(additionalObjs, syncServiceAccount)
+		}
+		data := fakeData{
+			apps: []runtime.Object{app, project},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    "https://localhost:6443",
+				Revision:  "abc123",
+			},
+			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{},
+			configMapData: map[string]string{
+				"application.sync.impersonation.enabled": strconv.FormatBool(impersonationEnabled),
+			},
+			additionalObjs: additionalObjs,
+		}
+		ctrl := newFakeController(t.Context(), &data, nil)
+		return &fixture{
+			application: app,
+			project:     project,
+			controller:  ctrl,
+		}
+	}
+
+	t.Run("sync with impersonation and no matching service account", func(t *testing.T) {
+		// given app sync impersonation feature is enabled with enforcement (default) and no matching service account
+		f := setup(true, test.FakeArgoCDNamespace, "")
+		opMessage := "no matching service account found for destination server https://localhost:6443 and namespace fake-dest-ns"
+
+		opState := &v1alpha1.OperationState{
+			Operation: v1alpha1.Operation{
+				Sync: &v1alpha1.SyncOperation{
+					Source: &v1alpha1.ApplicationSource{},
+				},
+			},
+			Phase: synccommon.OperationRunning,
+		}
+		// when
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
+
+		// then, app sync should fail with expected error message in operation state
+		assert.Equal(t, synccommon.OperationError, opState.Phase)
+		assert.Contains(t, opState.Message, opMessage)
+	})
+
+	t.Run("sync with impersonation and empty service account match", func(t *testing.T) {
+		// given app sync impersonation feature is enabled with enforcement (default) and a project with empty service account configured
+		f := setup(true, test.FakeDestNamespace, "")
+		opMessage := "default service account contains invalid chars"
+
+		opState := &v1alpha1.OperationState{
+			Operation: v1alpha1.Operation{
+				Sync: &v1alpha1.SyncOperation{
+					Source: &v1alpha1.ApplicationSource{},
+				},
+			},
+			Phase: synccommon.OperationRunning,
+		}
+		// when
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
+
+		// then app sync should fail with expected error message in operation state
+		assert.Equal(t, synccommon.OperationError, opState.Phase)
+		assert.Contains(t, opState.Message, opMessage)
+	})
+
+	t.Run("sync with impersonation and matching sa", func(t *testing.T) {
+		// given app sync impersonation feature is enabled with an application referring a project matching service account
+		f := setup(true, test.FakeDestNamespace, "test-sa")
+		opMessage := "successfully synced (no more tasks)"
+
+		opState := &v1alpha1.OperationState{
+			Operation: v1alpha1.Operation{
+				Sync: &v1alpha1.SyncOperation{
+					Source: &v1alpha1.ApplicationSource{},
+				},
+			},
+			Phase: synccommon.OperationRunning,
+		}
+		// when
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
+
+		// then app sync should not fail
+		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)
+		assert.Contains(t, opState.Message, opMessage)
+	})
+
+	t.Run("sync without impersonation", func(t *testing.T) {
+		// given app sync impersonation feature is disabled with an application referring a project matching service account
+		f := setup(false, test.FakeDestNamespace, "")
+		opMessage := "successfully synced (no more tasks)"
+
+		opState := &v1alpha1.OperationState{
+			Operation: v1alpha1.Operation{
+				Sync: &v1alpha1.SyncOperation{
+					Source: &v1alpha1.ApplicationSource{},
+				},
+			},
+			Phase: synccommon.OperationRunning,
+		}
+		// when
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
+
+		// then application sync should pass using the control plane service account
+		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)
+		assert.Contains(t, opState.Message, opMessage)
+	})
+
+	t.Run("sync with impersonation enabled, enforcement disabled, no matching SA", func(t *testing.T) {
+		// given app sync impersonation feature is enabled with enforcement disabled and no matching service account
+		app := newFakeApp()
+		app.Status.OperationState = nil
+		app.Status.History = nil
+		project := &v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: test.FakeArgoCDNamespace,
+				Name:      "default",
+			},
+			Spec: v1alpha1.AppProjectSpec{
+				DestinationServiceAccounts: []v1alpha1.ApplicationDestinationServiceAccount{
+					{
+						Server:                "https://localhost:6443",
+						Namespace:             test.FakeArgoCDNamespace,
+						DefaultServiceAccount: "",
+					},
+				},
+			},
+		}
+		data := fakeData{
+			apps: []runtime.Object{app, project},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    "https://localhost:6443",
+				Revision:  "abc123",
+			},
+			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{},
+			configMapData: map[string]string{
+				"application.sync.impersonation.enabled":  strconv.FormatBool(true),
+				"application.sync.impersonation.enforced": strconv.FormatBool(false),
+			},
+			additionalObjs: []runtime.Object{},
+		}
+		ctrl := newFakeController(t.Context(), &data, nil)
+		opMessage := "successfully synced (no more tasks)"
+
+		opState := &v1alpha1.OperationState{
+			Operation: v1alpha1.Operation{
+				Sync: &v1alpha1.SyncOperation{
+					Source: &v1alpha1.ApplicationSource{},
+				},
+			},
+			Phase: synccommon.OperationRunning,
+		}
+		// when
+		ctrl.appStateManager.SyncAppState(t.Context(), app, project, opState)
+
+		// then app sync should succeed with fallback to controller SA
+		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)
+		assert.Contains(t, opState.Message, opMessage)
+	})
+
+	t.Run("sync with impersonation enabled, enforcement disabled, matching SA", func(t *testing.T) {
+		// given app sync impersonation feature is enabled with enforcement disabled and matching service account
+		app := newFakeApp()
+		app.Status.OperationState = nil
+		app.Status.History = nil
+		project := &v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: test.FakeArgoCDNamespace,
+				Name:      "default",
+			},
+			Spec: v1alpha1.AppProjectSpec{
+				DestinationServiceAccounts: []v1alpha1.ApplicationDestinationServiceAccount{
+					{
+						Server:                "https://localhost:6443",
+						Namespace:             test.FakeDestNamespace,
+						DefaultServiceAccount: "test-sa",
+					},
+				},
+			},
+		}
+		syncServiceAccount := &corev1.ServiceAccount{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-sa",
+				Namespace: test.FakeDestNamespace,
+			},
+		}
+		data := fakeData{
+			apps: []runtime.Object{app, project},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    "https://localhost:6443",
+				Revision:  "abc123",
+			},
+			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{},
+			configMapData: map[string]string{
+				"application.sync.impersonation.enabled":  strconv.FormatBool(true),
+				"application.sync.impersonation.enforced": strconv.FormatBool(false),
+			},
+			additionalObjs: []runtime.Object{syncServiceAccount},
+		}
+		ctrl := newFakeController(t.Context(), &data, nil)
+		opMessage := "successfully synced (no more tasks)"
+
+		opState := &v1alpha1.OperationState{
+			Operation: v1alpha1.Operation{
+				Sync: &v1alpha1.SyncOperation{
+					Source: &v1alpha1.ApplicationSource{},
+				},
+			},
+			Phase: synccommon.OperationRunning,
+		}
+		// when
+		ctrl.appStateManager.SyncAppState(t.Context(), app, project, opState)
+
+		// then app sync should succeed using impersonation
+		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)
+		assert.Contains(t, opState.Message, opMessage)
+	})
+
+	t.Run("app destination name instead of server URL", func(t *testing.T) {
+		// given app sync impersonation feature is enabled with an application referring a project matching service account
+		f := setup(true, test.FakeDestNamespace, "test-sa")
+		opMessage := "successfully synced (no more tasks)"
+
+		opState := &v1alpha1.OperationState{
+			Operation: v1alpha1.Operation{
+				Sync: &v1alpha1.SyncOperation{
+					Source: &v1alpha1.ApplicationSource{},
+				},
+			},
+			Phase: synccommon.OperationRunning,
+		}
+
+		f.application.Spec.Destination.Server = ""
+		f.application.Spec.Destination.Name = "minikube"
+
+		// when
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
+
+		// then app sync should not fail
+		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)
+		assert.Contains(t, opState.Message, opMessage)
+	})
+}
+
+func TestClientSideApplyMigration(t *testing.T) {
+	t.Parallel()
+
+	type fixture struct {
+		application *v1alpha1.Application
+		project     *v1alpha1.AppProject
+		controller  *ApplicationController
+	}
+
+	setup := func(disableMigration bool, customManager string) *fixture {
+		app := newFakeApp()
+		app.Status.OperationState = nil
+		app.Status.History = nil
+
+		// Add sync options
+		if disableMigration {
+			app.Spec.SyncPolicy.SyncOptions = append(app.Spec.SyncPolicy.SyncOptions, "DisableClientSideApplyMigration=true")
+		}
+
+		// Add custom manager annotation if specified
+		if customManager != "" {
+			app.Annotations = map[string]string{
+				"argocd.argoproj.io/client-side-apply-migration-manager": customManager,
+			}
+		}
+
+		project := &v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: test.FakeArgoCDNamespace,
+				Name:      "default",
+			},
+		}
+		data := fakeData{
+			apps: []runtime.Object{app, project},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+			},
+			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+		}
+		ctrl := newFakeController(t.Context(), &data, nil)
+
+		return &fixture{
+			application: app,
+			project:     project,
+			controller:  ctrl,
+		}
+	}
+
+	t.Run("client-side apply migration enabled by default", func(t *testing.T) {
+		// given
+		t.Parallel()
+		f := setup(false, "")
+
+		// when
+		opState := &v1alpha1.OperationState{Operation: v1alpha1.Operation{
+			Sync: &v1alpha1.SyncOperation{
+				Source: &v1alpha1.ApplicationSource{},
+			},
+		}}
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
+
+		// then
+		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)
+		assert.Contains(t, opState.Message, "successfully synced")
+	})
+
+	t.Run("client-side apply migration disabled", func(t *testing.T) {
+		// given
+		t.Parallel()
+		f := setup(true, "")
+
+		// when
+		opState := &v1alpha1.OperationState{Operation: v1alpha1.Operation{
+			Sync: &v1alpha1.SyncOperation{
+				Source: &v1alpha1.ApplicationSource{},
+			},
+		}}
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
+
+		// then
+		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)
+		assert.Contains(t, opState.Message, "successfully synced")
+	})
+
+	t.Run("client-side apply migration with custom manager", func(t *testing.T) {
+		// given
+		t.Parallel()
+		f := setup(false, "my-custom-manager")
+
+		// when
+		opState := &v1alpha1.OperationState{Operation: v1alpha1.Operation{
+			Sync: &v1alpha1.SyncOperation{
+				Source: &v1alpha1.ApplicationSource{},
+			},
+		}}
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
+
+		// then
+		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)
+		assert.Contains(t, opState.Message, "successfully synced")
+	})
+}
+
+func dig(obj any, path ...any) any {
+	i := obj
+
+	for _, segment := range path {
+		switch segment := segment.(type) {
+		case int:
+			i = i.([]any)[segment]
+		case string:
+			i = i.(map[string]any)[segment]
+		default:
+			panic("invalid path for object")
+		}
+	}
+
+	return i
+}
+
+func TestValidateSyncPermissions(t *testing.T) {
+	t.Parallel()
+
+	newResource := func(group, kind, name, namespace string) *unstructured.Unstructured {
+		obj := &unstructured.Unstructured{}
+		obj.SetGroupVersionKind(schema.GroupVersionKind{Group: group, Version: "v1", Kind: kind})
+		obj.SetName(name)
+		obj.SetNamespace(namespace)
+		return obj
+	}
+
+	project := &v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-project",
+			Namespace: "argocd",
+		},
+		Spec: v1alpha1.AppProjectSpec{
+			Destinations: []v1alpha1.ApplicationDestination{
+				{Namespace: "default", Server: "*"},
+			},
+		},
+	}
+
+	destCluster := &v1alpha1.Cluster{
+		Server: "https://kubernetes.default.svc",
+	}
+
+	noopGetClusters := func(_ string) ([]*v1alpha1.Cluster, error) {
+		return nil, nil
+	}
+
+	t.Run("nil APIResource returns error", func(t *testing.T) {
+		t.Parallel()
+		un := newResource("apps", "Deployment", "my-deploy", "default")
+
+		err := validateSyncPermissions(project, destCluster, noopGetClusters, un, nil)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "failed to get API resource info for apps/Deployment")
+		assert.Contains(t, err.Error(), "unable to verify permissions")
+	})
+
+	t.Run("permitted namespaced resource returns no error", func(t *testing.T) {
+		t.Parallel()
+		un := newResource("", "ConfigMap", "my-cm", "default")
+		res := &metav1.APIResource{Name: "configmaps", Namespaced: true}
+
+		err := validateSyncPermissions(project, destCluster, noopGetClusters, un, res)
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("group kind not permitted returns error", func(t *testing.T) {
+		t.Parallel()
+		projectWithDenyList := &v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "restricted-project",
+				Namespace: "argocd",
+			},
+			Spec: v1alpha1.AppProjectSpec{
+				Destinations: []v1alpha1.ApplicationDestination{
+					{Namespace: "*", Server: "*"},
+				},
+				ClusterResourceBlacklist: []v1alpha1.ClusterResourceRestrictionItem{
+					{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"},
+				},
+			},
+		}
+		un := newResource("rbac.authorization.k8s.io", "ClusterRole", "my-role", "")
+		res := &metav1.APIResource{Name: "clusterroles", Namespaced: false}
+
+		err := validateSyncPermissions(projectWithDenyList, destCluster, noopGetClusters, un, res)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "is not permitted in project")
+	})
+
+	t.Run("namespace not permitted returns error", func(t *testing.T) {
+		t.Parallel()
+		un := newResource("", "ConfigMap", "my-cm", "kube-system")
+		res := &metav1.APIResource{Name: "configmaps", Namespaced: true}
+
+		err := validateSyncPermissions(project, destCluster, noopGetClusters, un, res)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "namespace kube-system is not permitted in project")
+	})
+
+	t.Run("cluster-scoped resource skips namespace check", func(t *testing.T) {
+		t.Parallel()
+		projectWithClusterResources := &v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "test-project",
+				Namespace: "argocd",
+			},
+			Spec: v1alpha1.AppProjectSpec{
+				Destinations: []v1alpha1.ApplicationDestination{
+					{Namespace: "default", Server: "*"},
+				},
+				ClusterResourceWhitelist: []v1alpha1.ClusterResourceRestrictionItem{
+					{Group: "*", Kind: "*"},
+				},
+			},
+		}
+		un := newResource("", "Namespace", "my-ns", "")
+		res := &metav1.APIResource{Name: "namespaces", Namespaced: false}
+
+		err := validateSyncPermissions(projectWithClusterResources, destCluster, noopGetClusters, un, res)
+
+		assert.NoError(t, err)
 	})
 }

@@ -3,13 +3,15 @@ package resource
 import (
 	"testing"
 
-	. "github.com/argoproj/gitops-engine/pkg/utils/testing"
+	. "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/testing"
+	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/argo-cd/v2/test"
+	"github.com/argoproj/argo-cd/v3/test"
 )
 
 func TestGetRevision(t *testing.T) {
+	t.Parallel()
 	type args struct {
 		obj *unstructured.Unstructured
 	}
@@ -28,9 +30,8 @@ func TestGetRevision(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := GetRevision(tt.args.obj); got != tt.want {
-				t.Errorf("GetRevision() = %v, want %v", got, tt.want)
-			}
+			t.Parallel()
+			assert.Equal(t, tt.want, GetRevision(tt.args.obj), "GetRevision()")
 		})
 	}
 }

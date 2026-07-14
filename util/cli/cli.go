@@ -5,15 +5,18 @@ package cli
 import (
 	"bufio"
 	"bytes"
+	"context"
+	stderrors "errors"
 	"flag"
 	"fmt"
+	"math"
 	"os"
 	"os/exec"
 	"path"
 	"strconv"
 	"strings"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/text"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/text"
 	"github.com/google/shlex"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -25,10 +28,10 @@ import (
 	"k8s.io/kubectl/pkg/util/term"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v2/common"
-	"github.com/argoproj/argo-cd/v2/util/errors"
-	"github.com/argoproj/argo-cd/v2/util/io"
-	utillog "github.com/argoproj/argo-cd/v2/util/log"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/util/errors"
+	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	utillog "github.com/argoproj/argo-cd/v3/util/log"
 )
 
 // NewVersionCmd returns a new `version` command to be used as a sub-command to root
@@ -37,7 +40,7 @@ func NewVersionCmd(cliName string) *cobra.Command {
 	versionCmd := cobra.Command{
 		Use:   "version",
 		Short: "Print version information",
-		Run: func(cmd *cobra.Command, args []string) {
+		Run: func(_ *cobra.Command, _ []string) {
 			version := common.GetVersion()
 			fmt.Printf("%s: %s\n", cliName, version)
 			if short {
@@ -101,12 +104,21 @@ func PromptMessage(message, value string) string {
 	return value
 }
 
-// PromptPassword prompts the user for a password, without local echo. (unless already supplied)
+// PromptPassword prompts the user for a password, without local echo (unless already supplied).
+// If terminal.ReadPassword fails — often due to stdin not being a terminal (e.g., when input is piped),
+// we fall back to reading from standard input using bufio.Reader.
 func PromptPassword(password string) string {
 	for password == "" {
 		fmt.Print("Password: ")
 		passwordRaw, err := terminal.ReadPassword(int(os.Stdin.Fd()))
-		errors.CheckError(err)
+		if err != nil {
+			// Fallback: handle cases where stdin is not a terminal (e.g., piped input)
+			reader := bufio.NewReader(os.Stdin)
+			input, err := reader.ReadString('\n')
+			errors.CheckError(err)
+			password = strings.TrimSpace(input)
+			return password
+		}
 		password = string(passwordRaw)
 		fmt.Print("\n")
 	}
@@ -164,7 +176,7 @@ func ReadAndConfirmPassword(username string) (string, error) {
 			return "", err
 		}
 		fmt.Print("\n")
-		if string(password) == string(confirmPassword) {
+		if bytes.Equal(password, confirmPassword) {
 			return string(password), nil
 		}
 		log.Error("Passwords do not match")
@@ -196,6 +208,9 @@ func SetLogLevel(logLevel string) {
 // SetGLogLevel set the glog level for the k8s go-client
 func SetGLogLevel(glogLevel int) {
 	klog.InitFlags(nil)
+	// Opt into fixed stderrthreshold behavior (kubernetes/klog#212).
+	_ = flag.Set("legacy_stderr_threshold_behavior", "false")
+	_ = flag.Set("stderrthreshold", "INFO")
 	_ = flag.Set("logtostderr", "true")
 	_ = flag.Set("v", strconv.Itoa(glogLevel))
 }
@@ -203,7 +218,7 @@ func SetGLogLevel(glogLevel int) {
 func writeToTempFile(pattern string, data []byte) string {
 	f, err := os.CreateTemp("", pattern)
 	errors.CheckError(err)
-	defer io.Close(f)
+	defer utilio.Close(f)
 	_, err = f.Write(data)
 	errors.CheckError(err)
 	return f.Name()
@@ -236,7 +251,7 @@ const (
 func setComments(input []byte, comments string) []byte {
 	input = stripComments(input)
 	var commentLines []string
-	for _, line := range strings.Split(comments, "\n") {
+	for line := range strings.SplitSeq(comments, "\n") {
 		if line != "" {
 			commentLines = append(commentLines, "# "+line)
 		}
@@ -265,7 +280,7 @@ func InteractiveEdit(filePattern string, data []byte, save func(input []byte) er
 	for {
 		data = setComments(data, errorComment)
 		tempFile := writeToTempFile(filePattern, data)
-		cmd := exec.Command(editor, append(editorArgs, tempFile)...)
+		cmd := exec.CommandContext(context.Background(), editor, append(editorArgs, tempFile)...)
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 		cmd.Stdin = os.Stdin
@@ -275,12 +290,11 @@ func InteractiveEdit(filePattern string, data []byte, save func(input []byte) er
 
 		updated, err := os.ReadFile(tempFile)
 		errors.CheckError(err)
-		if string(updated) == "" || string(updated) == string(data) {
-			errors.CheckError(fmt.Errorf("edit cancelled, no valid changes were saved"))
+		if len(updated) == 0 || bytes.Equal(updated, data) {
+			errors.CheckError(stderrors.New("edit cancelled, no valid changes were saved"))
 			break
-		} else {
-			data = stripComments(updated)
 		}
+		data = stripComments(updated)
 
 		err = save(data)
 		if err == nil {
@@ -305,11 +319,11 @@ func PrintDiff(name string, live *unstructured.Unstructured, target *unstructure
 			return err
 		}
 	}
-	err = os.WriteFile(targetFile, targetData, 0644)
+	err = os.WriteFile(targetFile, targetData, 0o644)
 	if err != nil {
 		return err
 	}
-	liveFile := path.Join(tempDir, fmt.Sprintf("%s-live.yaml", name))
+	liveFile := path.Join(tempDir, name+"-live.yaml")
 	liveData := []byte("")
 	if live != nil {
 		liveData, err = yaml.Marshal(live)
@@ -317,7 +331,7 @@ func PrintDiff(name string, live *unstructured.Unstructured, target *unstructure
 			return err
 		}
 	}
-	err = os.WriteFile(liveFile, liveData, 0644)
+	err = os.WriteFile(liveFile, liveData, 0o644)
 	if err != nil {
 		return err
 	}
@@ -331,8 +345,40 @@ func PrintDiff(name string, live *unstructured.Unstructured, target *unstructure
 		cmdBinary = parts[0]
 		args = parts[1:]
 	}
-	cmd := exec.Command(cmdBinary, append(args, liveFile, targetFile)...)
+	cmd := exec.CommandContext(context.Background(), cmdBinary, append(args, liveFile, targetFile)...)
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
 	return cmd.Run()
+}
+
+// boundedFloat64Value is a pflag.Value that accepts a float64 within [min, max].
+type boundedFloat64Value struct {
+	val      *float64
+	min, max float64
+}
+
+func (b *boundedFloat64Value) Set(s string) error {
+	v, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return err
+	}
+	// NaN must be rejected explicitly: NaN comparisons are always false, so it would
+	// otherwise slip past the range check below.
+	if math.IsNaN(v) || v < b.min || v > b.max {
+		return fmt.Errorf("%s is out of range [%g, %g]", s, b.min, b.max)
+	}
+	*b.val = v
+	return nil
+}
+
+func (*boundedFloat64Value) Type() string { return "float" }
+
+func (b *boundedFloat64Value) String() string { return strconv.FormatFloat(*b.val, 'g', -1, 64) }
+
+// BoundedFloat64Var defines a float64 flag constrained to [min, max], rejecting out-of-range
+// or NaN input at parse time. It mirrors the signature of pflag's Float64Var. The default
+// value is not validated, matching pflag's behavior (Set runs only for an explicit flag).
+func BoundedFloat64Var(fs *pflag.FlagSet, p *float64, name string, value, minimum, maximum float64, usage string) {
+	*p = value
+	fs.Var(&boundedFloat64Value{val: p, min: minimum, max: maximum}, name, usage)
 }

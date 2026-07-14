@@ -7,6 +7,9 @@
         label {
             padding-right: 2em;
             color: $argo-color-gray-8;
+            @include themify($themes){
+                color: themed('text-2');
+            }
         }
     }
     &__diff {
@@ -28,4 +31,8 @@
 
 .custom-diff-hunk {           
     color: $argo-color-gray-6;
+    border-bottom: 1px dashed;
+    @include themify($themes){
+        border-bottom: 1px dashed themed('text-2');
+    }
 }

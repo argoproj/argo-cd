@@ -12,11 +12,11 @@ import (
 	"github.com/google/uuid"
 )
 
-var RelativeOutOfBoundErr = errors.New("full path does not contain base path")
+var ErrRelativeOutOfBound = errors.New("full path does not contain base path")
 
 // RelativePath will remove the basePath string from the fullPath
 // including the path separator. Differently from filepath.Rel, this
-// function will return error (RelativeOutOfBoundErr) if basePath
+// function will return error (ErrRelativeOutOfBound) if basePath
 // does not match (example 2).
 //
 // Example 1:
@@ -39,7 +39,7 @@ var RelativeOutOfBoundErr = errors.New("full path does not contain base path")
 func RelativePath(fullPath, basePath string) (string, error) {
 	fp := filepath.Clean(fullPath)
 	if !strings.HasPrefix(fp, filepath.Clean(basePath)) {
-		return "", RelativeOutOfBoundErr
+		return "", ErrRelativeOutOfBound
 	}
 	return filepath.Rel(basePath, fp)
 }
@@ -57,11 +57,11 @@ func CreateTempDir(baseDir string) (string, error) {
 	}
 	newUUID, err := uuid.NewRandom()
 	if err != nil {
-		return "", fmt.Errorf("error creating directory name: %s", err)
+		return "", fmt.Errorf("error creating directory name: %w", err)
 	}
 	tempDir := path.Join(base, newUUID.String())
-	if err := os.MkdirAll(tempDir, 0755); err != nil {
-		return "", fmt.Errorf("error creating tempDir: %s", err)
+	if err := os.MkdirAll(tempDir, 0o755); err != nil {
+		return "", fmt.Errorf("error creating tempDir: %w", err)
 	}
 	return tempDir, nil
 }

@@ -27,7 +27,7 @@ In this use case, we may use either the List, Cluster, or Git generators of the 
 - *List generator*: Administrators maintain two `ApplicationSet` resources, one for each application (Workflows and Prometheus), and include the list of clusters they wish to target within the List generator elements of each.
     - With this generator, adding/removing clusters requires manually updating the `ApplicationSet` resource's list elements.
 - *Cluster generator*: Administrators maintain two  `ApplicationSet` resources, one for each application (Workflows and Prometheus), and ensure that all new cluster are defined within Argo CD.
-    - Since the Cluster generator automatically detects and targets the clusters defined within Argo CD, [adding/remove a cluster from Argo CD](../../declarative-setup/#clusters) will automatically cause Argo CD Application resources (for each application) to be created by the ApplicationSet controller.
+    - Since the Cluster generator automatically detects and targets the clusters defined within Argo CD, [adding/remove a cluster from Argo CD](../declarative-setup.md#clusters) will automatically cause Argo CD Application resources (for each application) to be created by the ApplicationSet controller.
 - *Git generator*: The Git generator is the most flexible/powerful of the generators, and thus there are a number of different ways to tackle this use case. Here are a couple:
     - Using the Git generator `files` field: A list of clusters is kept as a JSON file within a Git repository. Updates to the JSON file, through Git commits, cause new clusters to be added/removed.
     - Using the Git generator `directories` field: For each target cluster, a corresponding directory of that name exists in a Git repository. Adding/modifying a directory, through Git commits, would trigger an update for the cluster that has shares the directory name.
@@ -60,7 +60,7 @@ The *self-service use case* seeks to allow developers (as the end users of a mul
 - Deploy to multiple clusters, in an automated fashion, using Argo CD
 - But, in both cases, to empower those developers to be able to do so without needing to involve a cluster administrator (to create the necessarily Argo CD Applications/AppProject resources on their behalf)
 
-One potential solution to this use case is for development teams to define Argo CD `Application` resources within a Git repository (containing the manifests they wish to deploy), in an [app-of-apps pattern](../../cluster-bootstrapping/#app-of-apps-pattern), and for cluster administrators to then review/accept changes to this repository via merge requests.
+One potential solution to this use case is for development teams to define Argo CD `Application` resources within a Git repository (containing the manifests they wish to deploy), in an [app-of-apps pattern](../cluster-bootstrapping.md#app-of-apps-pattern-alternative), and for cluster administrators to then review/accept changes to this repository via merge requests.
 
 While this might sound like an effective solution, a major disadvantage is that a high degree of trust/scrutiny is needed to accept commits containing Argo CD `Application` spec changes. This is because there are many sensitive fields contained within the `Application` spec, including `project`, `cluster`, and `namespace`. An inadvertent merge might allow applications to access namespaces/clusters where they did not belong.
 
@@ -68,10 +68,26 @@ Thus in the self-service use case, administrators desire to only allow some fiel
 
 Fortunately, the ApplicationSet controller presents an alternative solution to this use case: cluster administrators may safely create an `ApplicationSet` resource containing a Git generator that restricts deployment of application resources to fixed values with the `template` field, while allowing customization of 'safe' fields by developers, at will.
 
+The `config.json` files contain information describing the app.
+
+```json
+{
+  (...)
+  "app": {
+    "source": "https://github.com/argoproj/argo-cd",
+    "revision": "HEAD",
+    "path": "applicationset/examples/git-generator-files-discovery/apps/guestbook"
+  }
+  (...)
+}
+```
+
 ```yaml
 kind: ApplicationSet
 # (...)
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - git:
       repoURL: https://github.com/argoproj/argo-cd.git
@@ -82,9 +98,9 @@ spec:
       project: dev-team-one # project is restricted
       source:
         # developers may customize app details using JSON files from above repo URL
-        repoURL: {{app.source}}
-        targetRevision: {{app.revision}}
-        path: {{app.path}}
+        repoURL: {{.app.source}}
+        targetRevision: {{.app.revision}}
+        path: {{.app.path}}
       destination:
         name: production-cluster # cluster is restricted
         namespace: dev-team-one # namespace is restricted

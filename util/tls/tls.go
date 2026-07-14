@@ -21,29 +21,42 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
-	"github.com/argoproj/argo-cd/v2/util/env"
+	"github.com/argoproj/argo-cd/v3/util/env"
 )
 
 const (
 	DefaultRSABits = 2048
 	// The default TLS cipher suites to provide to clients - see https://cipherlist.eu for updates
 	// Note that for TLS v1.3, cipher suites are not configurable and will be chosen automatically.
-	DefaultTLSCipherSuite = "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:TLS_RSA_WITH_AES_256_GCM_SHA384"
+	DefaultTLSCipherSuite = "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
 	// The default minimum TLS version to provide to clients
 	DefaultTLSMinVersion = "1.2"
 	// The default maximum TLS version to provide to clients
 	DefaultTLSMaxVersion = "1.3"
 )
 
-var (
-	tlsVersionByString = map[string]uint16{
-		"1.0": tls.VersionTLS10,
-		"1.1": tls.VersionTLS11,
-		"1.2": tls.VersionTLS12,
-		"1.3": tls.VersionTLS13,
-	}
-)
+var tlsVersionByString = map[string]uint16{
+	"1.0": tls.VersionTLS10,
+	"1.1": tls.VersionTLS11,
+	"1.2": tls.VersionTLS12,
+	"1.3": tls.VersionTLS13,
+}
 
+// Configuration describes parameters for TLS configuration to be used by a repo server API client
+type Configuration struct {
+	// Whether to disable TLS for connections
+	DisableTLS bool
+	// Whether to enforce strict validation of TLS certificates
+	StrictValidation bool
+	// List of certificates to validate the peer against (if StrictCerts is true)
+	Certificates *x509.CertPool
+	// ClientCertFile is the path to the client certificate file
+	ClientCertFile string
+	// ClientCertKeyFile is the path to the client certificate key file
+	ClientCertKeyFile string
+	// ClientCertificates are the client certificates to be used for TLS
+	ClientCertificates []tls.Certificate
+}
 type CertOptions struct {
 	// Hostnames and IPs to generate a certificate for
 	Hosts []string
@@ -59,6 +72,9 @@ type CertOptions struct {
 	RSABits int
 	// ECDSA curve to use to generate a key. Valid values are P224, P256 (recommended), P384, P521
 	ECDSACurve string
+	// ExtKeyUsage overrides the default ExtKeyUsage list on the generated certificate.
+	// If nil, defaults to []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}.
+	ExtKeyUsage []x509.ExtKeyUsage
 }
 
 type ConfigCustomizer = func(*tls.Config)
@@ -89,13 +105,12 @@ func getTLSCipherSuitesByString(cipherSuites string) ([]uint16, error) {
 		suiteMap[s.Name] = s.ID
 	}
 	allowedSuites := make([]uint16, 0)
-	for _, s := range strings.Split(cipherSuites, ":") {
+	for s := range strings.SplitSeq(cipherSuites, ":") {
 		id, ok := suiteMap[strings.TrimSpace(s)]
-		if ok {
-			allowedSuites = append(allowedSuites, id)
-		} else {
+		if !ok {
 			return nil, fmt.Errorf("invalid cipher suite specified: %s", s)
 		}
+		allowedSuites = append(allowedSuites, id)
 	}
 	return allowedSuites, nil
 }
@@ -130,7 +145,7 @@ func getTLSConfigCustomizer(minVersionStr, maxVersionStr, tlsCiphersStr string) 
 		return nil, fmt.Errorf("error retrieving TLS version by max version %q: %w", maxVersionStr, err)
 	}
 	if minVersion > maxVersion {
-		return nil, fmt.Errorf("Minimum TLS version %s must not be higher than maximum TLS version %s", minVersionStr, maxVersionStr)
+		return nil, fmt.Errorf("minimum TLS version %s must not be higher than maximum TLS version %s", minVersionStr, maxVersionStr)
 	}
 
 	// Cipher suites for TLSv1.3 are not configurable
@@ -142,7 +157,7 @@ func getTLSConfigCustomizer(minVersionStr, maxVersionStr, tlsCiphersStr string) 
 	}
 
 	if tlsCiphersStr == "list" {
-		fmt.Printf("Supported TLS ciphers:\n")
+		fmt.Print("Supported TLS ciphers:\n")
 		for _, s := range tls.CipherSuites() {
 			fmt.Printf("* %s (TLS versions: %s)\n", tls.CipherSuiteName(s.ID), strings.Join(tlsVersionsToStr(s.SupportedVersions), ", "))
 		}
@@ -164,25 +179,33 @@ func getTLSConfigCustomizer(minVersionStr, maxVersionStr, tlsCiphersStr string) 
 		config.MaxVersion = maxVersion
 		config.CipherSuites = cipherSuites
 	}, nil
-
 }
 
-// Adds TLS server related command line options to a command and returns a TLS
+// AddTLSFlagsToCmd adds TLS server-related command line options to a command and returns a TLS
 // config customizer object, set up to the options specified
 func AddTLSFlagsToCmd(cmd *cobra.Command) func() (ConfigCustomizer, error) {
+	return AddTLSFlagsToCmdWithPrefix(cmd, "")
+}
+
+func AddTLSFlagsToCmdWithPrefix(cmd *cobra.Command, prefix string) func() (ConfigCustomizer, error) {
 	minVersionStr := ""
 	maxVersionStr := ""
 	tlsCiphersStr := ""
-	cmd.Flags().StringVar(&minVersionStr, "tlsminversion", env.StringFromEnv("ARGOCD_TLS_MIN_VERSION", DefaultTLSMinVersion), "The minimum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3)")
-	cmd.Flags().StringVar(&maxVersionStr, "tlsmaxversion", env.StringFromEnv("ARGOCD_TLS_MAX_VERSION", DefaultTLSMaxVersion), "The maximum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3)")
-	cmd.Flags().StringVar(&tlsCiphersStr, "tlsciphers", env.StringFromEnv("ARGOCD_TLS_CIPHERS", DefaultTLSCipherSuite), "The list of acceptable ciphers to be used when establishing TLS connections. Use 'list' to list available ciphers.")
+	envPrefix := ""
+	if prefix != "" {
+		envPrefix = strings.ReplaceAll(strings.ToUpper(prefix), "-", "_") + "_"
+		prefix = prefix + "-"
+	}
+	cmd.Flags().StringVar(&minVersionStr, prefix+"tlsminversion", env.StringFromEnv("ARGOCD_"+envPrefix+"TLS_MIN_VERSION", DefaultTLSMinVersion), "The minimum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3)")
+	cmd.Flags().StringVar(&maxVersionStr, prefix+"tlsmaxversion", env.StringFromEnv("ARGOCD_"+envPrefix+"TLS_MAX_VERSION", DefaultTLSMaxVersion), "The maximum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3)")
+	cmd.Flags().StringVar(&tlsCiphersStr, prefix+"tlsciphers", env.StringFromEnv("ARGOCD_"+envPrefix+"TLS_CIPHERS", DefaultTLSCipherSuite), "The list of acceptable ciphers to be used when establishing TLS connections. Use 'list' to list available ciphers.")
 
 	return func() (ConfigCustomizer, error) {
 		return getTLSConfigCustomizer(minVersionStr, maxVersionStr, tlsCiphersStr)
 	}
 }
 
-func publicKey(priv interface{}) interface{} {
+func publicKey(priv any) any {
 	switch k := priv.(type) {
 	case *rsa.PrivateKey:
 		return &k.PublicKey
@@ -193,9 +216,14 @@ func publicKey(priv interface{}) interface{} {
 	}
 }
 
-func pemBlockForKey(priv interface{}) *pem.Block {
+func pemBlockForKey(priv any) *pem.Block {
 	switch k := priv.(type) {
 	case *rsa.PrivateKey:
+		// In Go 1.24+, MarshalPKCS1PrivateKey calls Precompute() which can panic
+		// if the key is invalid. Validate the key first.
+		if k == nil || k.Validate() != nil {
+			return nil
+		}
 		return &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(k)}
 	case *ecdsa.PrivateKey:
 		b, err := x509.MarshalECPrivateKey(k)
@@ -211,7 +239,7 @@ func pemBlockForKey(priv interface{}) *pem.Block {
 
 func generate(opts CertOptions) ([]byte, crypto.PrivateKey, error) {
 	if len(opts.Hosts) == 0 {
-		return nil, nil, fmt.Errorf("hosts not supplied")
+		return nil, nil, errors.New("hosts not supplied")
 	}
 
 	var privateKey crypto.PrivateKey
@@ -232,10 +260,10 @@ func generate(opts CertOptions) ([]byte, crypto.PrivateKey, error) {
 	case "P521":
 		privateKey, err = ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
 	default:
-		return nil, nil, fmt.Errorf("Unrecognized elliptic curve: %q", opts.ECDSACurve)
+		return nil, nil, fmt.Errorf("unrecognized elliptic curve: %q", opts.ECDSACurve)
 	}
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to generate private key: %s", err)
+		return nil, nil, fmt.Errorf("failed to generate private key: %w", err)
 	}
 
 	var notBefore time.Time
@@ -255,11 +283,16 @@ func generate(opts CertOptions) ([]byte, crypto.PrivateKey, error) {
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
 	serialNumber, err := rand.Int(rand.Reader, serialNumberLimit)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to generate serial number: %s", err)
+		return nil, nil, fmt.Errorf("failed to generate serial number: %w", err)
 	}
 
 	if opts.Organization == "" {
-		return nil, nil, fmt.Errorf("organization not supplied")
+		return nil, nil, errors.New("organization not supplied")
+	}
+
+	extKeyUsage := opts.ExtKeyUsage
+	if extKeyUsage == nil {
+		extKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}
 	}
 	template := x509.Certificate{
 		SerialNumber: serialNumber,
@@ -270,7 +303,7 @@ func generate(opts CertOptions) ([]byte, crypto.PrivateKey, error) {
 		NotAfter:  notAfter,
 
 		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		ExtKeyUsage:           extKeyUsage,
 		BasicConstraintsValid: true,
 	}
 
@@ -289,7 +322,7 @@ func generate(opts CertOptions) ([]byte, crypto.PrivateKey, error) {
 
 	certBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, publicKey(privateKey), privateKey)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Failed to create certificate: %s", err)
+		return nil, nil, fmt.Errorf("failed to create certificate: %w", err)
 	}
 	return certBytes, privateKey, nil
 }
@@ -301,7 +334,11 @@ func generatePEM(opts CertOptions) ([]byte, []byte, error) {
 		return nil, nil, err
 	}
 	certpem := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certBytes})
-	keypem := pem.EncodeToMemory(pemBlockForKey(privateKey))
+	keyBlock := pemBlockForKey(privateKey)
+	if keyBlock == nil {
+		return nil, nil, errors.New("failed to encode private key")
+	}
+	keypem := pem.EncodeToMemory(keyBlock)
 	return certpem, keypem, nil
 }
 
@@ -315,17 +352,27 @@ func GenerateX509KeyPair(opts CertOptions) (*tls.Certificate, error) {
 	if err != nil {
 		return nil, err
 	}
+	if len(cert.Certificate) > 0 {
+		leaf, err := x509.ParseCertificate(cert.Certificate[0])
+		if err != nil {
+			return nil, fmt.Errorf("error parsing generated certificate: %w", err)
+		}
+		cert.Leaf = leaf
+	}
 	return &cert, nil
 }
 
 // EncodeX509KeyPair encodes a TLS Certificate into its pem encoded format for storage
 func EncodeX509KeyPair(cert tls.Certificate) ([]byte, []byte) {
-
 	certpem := []byte{}
 	for _, certtmp := range cert.Certificate {
 		certpem = append(certpem, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certtmp})...)
 	}
-	keypem := pem.EncodeToMemory(pemBlockForKey(cert.PrivateKey))
+	keyBlock := pemBlockForKey(cert.PrivateKey)
+	if keyBlock == nil {
+		return certpem, []byte{}
+	}
+	keypem := pem.EncodeToMemory(keyBlock)
 	return certpem, keypem
 }
 
@@ -348,15 +395,14 @@ func LoadX509CertPool(paths ...string) (*x509.CertPool, error) {
 				continue
 			}
 			// ...but everything else is considered an error
-			return nil, fmt.Errorf("could not load TLS certificate: %v", err)
-		} else {
-			f, err := os.ReadFile(path)
-			if err != nil {
-				return nil, fmt.Errorf("failure to load TLS certificates from %s: %v", path, err)
-			}
-			if ok := pool.AppendCertsFromPEM(f); !ok {
-				return nil, fmt.Errorf("invalid cert data in %s", path)
-			}
+			return nil, fmt.Errorf("could not load TLS certificate: %w", err)
+		}
+		f, err := os.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("failure to load TLS certificates from %s: %w", path, err)
+		}
+		if ok := pool.AppendCertsFromPEM(f); !ok {
+			return nil, fmt.Errorf("invalid cert data in %s", path)
 		}
 	}
 	return pool, nil
@@ -366,15 +412,15 @@ func LoadX509CertPool(paths ...string) (*x509.CertPool, error) {
 func LoadX509Cert(path string) (*x509.Certificate, error) {
 	bytes, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("could not read certificate file: %v", err)
+		return nil, fmt.Errorf("could not read certificate file: %w", err)
 	}
 	block, _ := pem.Decode(bytes)
 	if block == nil {
-		return nil, fmt.Errorf("could not decode PEM")
+		return nil, errors.New("could not decode PEM")
 	}
 	cert, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {
-		return nil, fmt.Errorf("could not parse certificate: %v", err)
+		return nil, fmt.Errorf("could not parse certificate: %w", err)
 	}
 	return cert, nil
 }
@@ -384,7 +430,7 @@ func LoadX509Cert(path string) (*x509.Certificate, error) {
 // if these are not given, will generate a self-signed certificate valid for
 // the specified list of hosts. If hosts is nil or empty, self-signed cert
 // creation will be disabled.
-func CreateServerTLSConfig(tlsCertPath, tlsKeyPath string, hosts []string) (*tls.Config, error) {
+func CreateServerTLSConfig(tlsCertPath, tlsKeyPath string, hosts []string, clientCAPath string) (*tls.Config, error) {
 	var cert *tls.Certificate
 	var err error
 
@@ -427,11 +473,93 @@ func CreateServerTLSConfig(tlsCertPath, tlsKeyPath string, hosts []string) (*tls
 		log.Infof("Loading TLS configuration from cert=%s and key=%s", tlsCertPath, tlsKeyPath)
 		c, err := tls.LoadX509KeyPair(tlsCertPath, tlsKeyPath)
 		if err != nil {
-			return nil, fmt.Errorf("Unable to initalize TLS configuration with cert=%s and key=%s: %v", tlsCertPath, tlsKeyPath, err)
+			return nil, fmt.Errorf("unable to initialize TLS configuration with cert=%s and key=%s: %w", tlsCertPath, tlsKeyPath, err)
+		}
+		if len(c.Certificate) > 0 {
+			leaf, err := x509.ParseCertificate(c.Certificate[0])
+			if err != nil {
+				return nil, fmt.Errorf("error parsing loaded certificate: %w", err)
+			}
+			c.Leaf = leaf
 		}
 		cert = &c
 	}
 
-	return &tls.Config{Certificates: []tls.Certificate{*cert}}, nil
+	tlsConfig := &tls.Config{Certificates: []tls.Certificate{*cert}}
 
+	if clientCAPath != "" {
+		if _, statErr := os.Stat(clientCAPath); os.IsNotExist(statErr) {
+			// client CA file is not present = mTLS not enabled, continue without ClientAuth
+			return tlsConfig, nil
+		} else if statErr != nil {
+			return nil, fmt.Errorf("could not stat client CA file %s: %w", clientCAPath, statErr)
+		}
+		pool, err := LoadX509CertPool(clientCAPath)
+		if err != nil {
+			return nil, fmt.Errorf("error loading client CA: %w", err)
+		}
+		tlsConfig.ClientCAs = pool
+		tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
+		log.Infof("mTLS enabled for repo-server: requiring client certificates from CA=%s", clientCAPath)
+	}
+
+	return tlsConfig, nil
+}
+
+func AddClientTLSFlagsToCmd(cmd *cobra.Command) func() (Configuration, error) {
+	return AddClientTLSFlagsToCmdWithPrefix(cmd, "")
+}
+
+func AddClientTLSFlagsToCmdWithPrefix(cmd *cobra.Command, prefix string) func() (Configuration, error) {
+	var tlsConfig Configuration
+	var repoServerCACert string
+	envPrefix := ""
+
+	if prefix != "" {
+		envPrefix = strings.ReplaceAll(strings.ToUpper(prefix), "-", "_") + "_"
+	}
+
+	cmd.Flags().StringVar(&repoServerCACert, "repo-server-ca-cert-path", env.StringFromEnv("ARGOCD_"+envPrefix+"REPO_SERVER_CA_CERT_PATH", ""), "Path to the repo-server CA certificate file")
+	cmd.Flags().StringVar(&tlsConfig.ClientCertFile, "repo-server-client-cert-path", env.StringFromEnv("ARGOCD_"+envPrefix+"REPO_SERVER_CLIENT_CERT_PATH", "/app/config/reposerver/mtls/client.crt"), "Path to the client certificate file for mTLS. Defaults to the auto-mounted Secret path; mTLS client cert is skipped if the file does not exist.")
+	cmd.Flags().StringVar(&tlsConfig.ClientCertKeyFile, "repo-server-client-cert-key-path", env.StringFromEnv("ARGOCD_"+envPrefix+"REPO_SERVER_CLIENT_CERT_KEY_PATH", "/app/config/reposerver/mtls/client.key"), "Path to the client certificate key file for mTLS. Defaults to the auto-mounted Secret path; mTLS client cert is skipped if the file does not exist.")
+
+	return func() (Configuration, error) {
+		config := tlsConfig
+
+		if config.ClientCertFile != "" && config.ClientCertKeyFile == "" {
+			return config, errors.New("--repo-server-client-cert-key-path is required when --repo-server-client-cert-path is specified")
+		}
+		if config.ClientCertKeyFile != "" && config.ClientCertFile == "" {
+			return config, errors.New("--repo-server-client-cert-path is required when --repo-server-client-cert-key-path is specified")
+		}
+
+		config.StrictValidation = repoServerCACert != ""
+
+		if repoServerCACert != "" {
+			pool, err := LoadX509CertPool(repoServerCACert)
+			if err != nil {
+				return config, fmt.Errorf("error loading repo-server CA: %w", err)
+			}
+			config.Certificates = pool
+		} else {
+			config.Certificates = nil
+		}
+
+		return config, nil
+	}
+}
+
+// GenerateHealthCheckClientCert generates an ephemeral self-signed CA and a leaf certificate pair for use by the
+// repo-server liveness probe self-connection.
+func GenerateHealthCheckClientCert() (*tls.Certificate, error) {
+	return GenerateX509KeyPair(CertOptions{
+		Hosts:        []string{"argocd-repo-server-healthcheck"},
+		Organization: "Argo CD Health Check",
+		IsCA:         true, // self-signed CA so it can be added to ClientCAs pool directly
+		ECDSACurve:   "P256",
+		ValidFor:     10 * 365 * 24 * time.Hour,
+		ExtKeyUsage: []x509.ExtKeyUsage{
+			x509.ExtKeyUsageClientAuth,
+		},
+	})
 }

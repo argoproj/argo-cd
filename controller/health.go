@@ -2,41 +2,59 @@ package controller
 
 import (
 	"fmt"
+	"strings"
 
-	"github.com/argoproj/gitops-engine/pkg/health"
-	hookutil "github.com/argoproj/gitops-engine/pkg/sync/hook"
-	"github.com/argoproj/gitops-engine/pkg/sync/ignore"
-	kubeutil "github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	hookutil "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/hook"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/ignore"
+	kubeutil "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application"
-	appv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/lua"
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
+	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	applog "github.com/argoproj/argo-cd/v3/util/app/log"
+	"github.com/argoproj/argo-cd/v3/util/lua"
 )
 
-// setApplicationHealth updates the health statuses of all resources performed in the comparison
-func setApplicationHealth(resources []managedResource, statuses []appv1.ResourceStatus, resourceOverrides map[string]appv1.ResourceOverride, app *appv1.Application, persistResourceHealth bool) (*appv1.HealthStatus, error) {
+// maxHealthCausesShown bounds how many causes are rendered in events/logs to keep them readable.
+const maxHealthCausesShown = 3
+
+// setApplicationHealth updates the health statuses of all resources performed in the comparison.
+// It returns the aggregated application health status along with the resources that caused that status.
+func setApplicationHealth(resources []managedResource, statuses []appv1.ResourceStatus, resourceOverrides map[string]appv1.ResourceOverride, app *appv1.Application, persistResourceHealth bool) (health.HealthStatusCode, string, error) {
 	var savedErr error
 	var errCount uint
-	appHealth := appv1.HealthStatus{Status: health.HealthStatusHealthy}
+	var containsResources, containsLiveResources bool
+	var causes []managedResource
+
+	appHealthStatus := health.HealthStatusHealthy
 	for i, res := range resources {
 		if res.Target != nil && hookutil.Skip(res.Target) {
 			continue
 		}
-
 		if res.Live != nil && (hookutil.IsHook(res.Live) || ignore.Ignore(res.Live)) {
+			continue
+		}
+
+		// Contains actual resources that are not hooks
+		containsResources = true
+		if res.Live != nil {
+			containsLiveResources = true
+		}
+
+		// Do not aggregate the health of the resource if the annotation to ignore health check is set to true
+		if res.Live != nil && res.Live.GetAnnotations() != nil && res.Live.GetAnnotations()[common.AnnotationIgnoreHealthCheck] == "true" {
 			continue
 		}
 
 		var healthStatus *health.HealthStatus
 		var err error
 		healthOverrides := lua.ResourceHealthOverrides(resourceOverrides)
-		gvk := schema.GroupVersionKind{Group: res.Group, Version: res.Version, Kind: res.Kind}
 		if res.Live == nil {
 			healthStatus = &health.HealthStatus{Status: health.HealthStatusMissing}
 		} else {
-			// App the manages itself should not affect own health
+			// App that manages itself should not affect own health
 			if isSelfReferencedApp(app, kubeutil.GetObjectRef(res.Live)) {
 				continue
 			}
@@ -45,7 +63,7 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 				errCount++
 				savedErr = fmt.Errorf("failed to get resource health for %q with name %q in namespace %q: %w", res.Live.GetKind(), res.Live.GetName(), res.Live.GetNamespace(), err)
 				// also log so we don't lose the message
-				log.WithField("application", app.QualifiedName()).Warn(savedErr)
+				log.WithFields(applog.GetAppLogFields(app)).Warn(savedErr)
 			}
 		}
 
@@ -60,8 +78,8 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 			statuses[i].Health = nil
 		}
 
-		// Is health status is missing but resource has not built-in/custom health check then it should not affect parent app health
-		if _, hasOverride := healthOverrides[lua.GetConfigMapKey(gvk)]; healthStatus.Status == health.HealthStatusMissing && !hasOverride && health.GetHealthCheckFunc(gvk) == nil {
+		// Missing resources should not affect parent app health - the OutOfSync status already indicates resources are missing
+		if res.Live == nil && healthStatus.Status == health.HealthStatusMissing {
 			continue
 		}
 
@@ -70,17 +88,55 @@ func setApplicationHealth(resources []managedResource, statuses []appv1.Resource
 			continue
 		}
 
-		if health.IsWorse(appHealth.Status, healthStatus.Status) {
-			appHealth.Status = healthStatus.Status
+		if health.IsWorse(appHealthStatus, healthStatus.Status) {
+			appHealthStatus = healthStatus.Status
+			causes = []managedResource{res}
+		} else if appHealthStatus == healthStatus.Status && appHealthStatus != health.HealthStatusHealthy {
+			causes = append(causes, res)
 		}
 	}
+
+	// If the app is expected to have resources but does not contain any live resources, set the app health to missing
+	if containsResources && !containsLiveResources && health.IsWorse(appHealthStatus, health.HealthStatusMissing) {
+		appHealthStatus = health.HealthStatusMissing
+		causes = nil
+	}
+
 	if persistResourceHealth {
 		app.Status.ResourceHealthSource = appv1.ResourceHealthLocationInline
 	} else {
 		app.Status.ResourceHealthSource = appv1.ResourceHealthLocationAppTree
 	}
 	if savedErr != nil && errCount > 1 {
-		savedErr = fmt.Errorf("see applicaton-controller logs for %d other errors; most recent error was: %w", errCount-1, savedErr)
+		savedErr = fmt.Errorf("see application-controller logs for %d other errors; most recent error was: %w", errCount-1, savedErr)
 	}
-	return &appHealth, savedErr
+	return appHealthStatus, formatHealthCauses(causes), savedErr
+}
+
+// formatHealthCauses renders a human-readable, truncated summary of the resources that caused
+// the application's aggregated health status.
+func formatHealthCauses(causes []managedResource) string {
+	if len(causes) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, maxHealthCausesShown)
+	for i, c := range causes {
+		if i >= maxHealthCausesShown {
+			break
+		}
+		gk := c.Kind
+		if c.Group != "" {
+			gk = c.Group + "/" + c.Kind
+		}
+		name := c.Name
+		if c.Namespace != "" {
+			name = c.Namespace + "/" + c.Name
+		}
+		parts = append(parts, fmt.Sprintf("%s:%s", gk, name))
+	}
+	summary := strings.Join(parts, ", ")
+	if len(causes) > maxHealthCausesShown {
+		summary = fmt.Sprintf("%s and %d more", summary, len(causes)-maxHealthCausesShown)
+	}
+	return "Caused by " + summary
 }

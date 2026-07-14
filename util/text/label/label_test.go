@@ -4,21 +4,23 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestParseLabels(t *testing.T) {
+	t.Parallel()
 	validLabels := []string{"key=value", "foo=bar", "intuit=inc"}
 
 	result, err := Parse(validLabels)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, result, 3)
 
 	invalidLabels := []string{"key=value", "too=many=equals"}
 	_, err = Parse(invalidLabels)
-	assert.Error(t, err)
+	require.Error(t, err)
 
 	emptyLabels := []string{}
 	result, err = Parse(emptyLabels)
-	assert.NoError(t, err)
-	assert.Len(t, result, 0)
+	require.NoError(t, err)
+	assert.Empty(t, result)
 }

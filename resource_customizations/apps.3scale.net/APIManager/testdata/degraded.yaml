@@ -1,0 +1,7 @@
+apiVersion: apps.3scale.net/v1alpha1
+kind: APIManager
+status:
+  conditions:
+    - type: Available
+      status: "False"
+      reason: "MissingWatchedSecrets"

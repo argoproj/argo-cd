@@ -6,28 +6,38 @@ If you want to send message using incoming webhook, you can use [webhook](./webh
 
 The Slack notification service configuration includes following settings:
 
-* `token` - the app token
-* `apiURL` - optional, the server url, e.g. https://example.com/api
-* `username` - optional, the app username
-* `icon` - optional, the app icon, e.g. :robot_face: or https://example.com/image.png
-* `insecureSkipVerify` - optional bool, true or false
+| **Option**           | **Required** | **Type**       | **Description** | **Example** |
+| -------------------- | ------------ | -------------- | --------------- | ----------- |
+| `apiURL`             | False        | `string`       | The server URL. | `https://example.com/api` |
+| `channels`           | False        | `list[string]` |                 | `["my-channel-1", "my-channel-2"]` |
+| `icon`               | False        | `string`       | The app icon.   | `:robot_face:` or `https://example.com/image.png` |
+| `insecureSkipVerify` | False        | `bool`         |                 | `true` |
+| `signingSecret`       | False        | `string`       |                 | `8f742231b10e8888abcd99yyyzzz85a5` |
+| `token`              | **True**     | `string`       | The app's OAuth access token. | `xoxb-1234567890-1234567890123-5n38u5ed63fgzqlvuyxvxcx6` |
+| `username`           | False        | `string`       | The app username. | `argocd` |
+| `disableUnfurl`      | False        | `bool`         | Disable slack unfurling links in messages | `true` |
+| `maxIdleConns`        | False        | `int`          | Maximum number of idle (keep-alive) connections across all hosts.                               | —                      |
+| `maxIdleConnsPerHost` | False        | `int`          | Maximum number of idle (keep-alive) connections per host.                                       | —                      |
+| `maxConnsPerHost`     | False        | `int`          | Maximum total connections per host.                                                             | —                      |
+| `idleConnTimeout`     | False        | `string`       | Maximum amount of time an idle (keep-alive) connection will remain open before closing (e.g., `90s`). | —              |
+
 
 ## Configuration
 
 1. Create Slack Application using https://api.slack.com/apps?new_app=1
 ![1](https://user-images.githubusercontent.com/426437/73604308-4cb0c500-4543-11ea-9092-6ca6bae21cbb.png)
-1. Once application is created navigate to `Enter OAuth & Permissions`
+1. Once application is created navigate to `OAuth & Permissions`
 ![2](https://user-images.githubusercontent.com/426437/73604309-4d495b80-4543-11ea-9908-4dea403d3399.png)
-1. Click `Permissions` under `Add features and functionality` section and add `chat:write` scope. To use the optional username and icon overrides in the Slack notification service also add the `chat:write.customize` scope.
+1. Go to `Scopes` > `Bot Token Scopes` > `Add an OAuth Scope`. Add `chat:write` scope. To use the optional username and icon overrides in the Slack notification service also add the `chat:write.customize` scope.
 ![3](https://user-images.githubusercontent.com/426437/73604310-4d495b80-4543-11ea-8576-09cd91aea0e5.png)
-1. Scroll back to the top, click 'Install App to Workspace' button and confirm the installation.
+1. `OAuth & Permission` > `OAuth Tokens for Your Workspace` > `Install to Workspace`
 ![4](https://user-images.githubusercontent.com/426437/73604311-4d495b80-4543-11ea-9155-9d216b20ec86.png)
 1. Once installation is completed copy the OAuth token.
 ![5](https://user-images.githubusercontent.com/426437/73604312-4d495b80-4543-11ea-832b-a9d9d5e4bc29.png)
 
 1. Create a public or private channel, for this example `my_channel`
 1. Invite your slack bot to this channel **otherwise slack bot won't be able to deliver notifications to this channel**
-1. Store Oauth access token in `argocd-notifications-secret` secret
+1. Store OAuth access token in `argocd-notifications-secret` secret
 
     ```yaml
       apiVersion: v1
@@ -35,7 +45,7 @@ The Slack notification service configuration includes following settings:
       metadata:
           name: <secret-name>
       stringData:
-          slack-token: <Oauth-access-token>
+          slack-token: <OAuth-access-token>
     ```
 
 1. Define service type slack in data section of `argocd-notifications-cm` configmap:
@@ -44,7 +54,7 @@ The Slack notification service configuration includes following settings:
       apiVersion: v1
       kind: ConfigMap
       metadata:
-        name: <config-map-name>
+        name: argocd-notifications-cm
       data:
         service.slack: |
           token: $slack-token
@@ -95,6 +105,35 @@ template.app-sync-status: |
     Application {{.app.metadata.name}} sync is {{.app.status.sync.status}}.
     Application details: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}.
   slack:
+    attachments: |
+      [{
+        "title": "{{.app.metadata.name}}",
+        "title_link": "{{.context.argocdUrl}}/applications/{{.app.metadata.name}}",
+        "color": "#18be52",
+        "fields": [{
+          "title": "Sync Status",
+          "value": "{{.app.status.sync.status}}",
+          "short": true
+        }, {
+          "title": "Repository",
+          "value": "{{.app.spec.source.repoURL}}",
+          "short": true
+        }]
+      }]
+```
+
+If you want to specify an icon and username for each message, you can specify values for `username` and `icon` in the `slack` field.
+For icon you can specify emoji and image URL, just like in the service definition.
+If you set `username` and `icon` in template, the values set in template will be used even if values are specified in the service definition.
+
+```yaml
+template.app-sync-status: |
+  message: |
+    Application {{.app.metadata.name}} sync is {{.app.status.sync.status}}.
+    Application details: {{.context.argocdUrl}}/applications/{{.app.metadata.name}}.
+  slack:
+    username: "testbot"
+    icon: https://example.com/image.png
     attachments: |
       [{
         "title": "{{.app.metadata.name}}",

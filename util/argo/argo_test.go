@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube/kubetest"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube/kubetest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -21,35 +21,38 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/argoproj/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 
-	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
-	"github.com/argoproj/argo-cd/v2/pkg/client/informers/externalversions/application/v1alpha1"
-	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v2/reposerver/apiclient/mocks"
-	"github.com/argoproj/argo-cd/v2/test"
-	"github.com/argoproj/argo-cd/v2/util/db"
-	dbmocks "github.com/argoproj/argo-cd/v2/util/db/mocks"
-	"github.com/argoproj/argo-cd/v2/util/settings"
+	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
+	"github.com/argoproj/argo-cd/v3/pkg/client/informers/externalversions/application/v1alpha1"
+	applisters "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/reposerver/apiclient/mocks"
+	"github.com/argoproj/argo-cd/v3/test"
+	"github.com/argoproj/argo-cd/v3/util/db"
+	dbmocks "github.com/argoproj/argo-cd/v3/util/db/mocks"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 func TestRefreshApp(t *testing.T) {
+	t.Parallel()
 	var testApp argoappv1.Application
 	testApp.Name = "test-app"
 	testApp.Namespace = "default"
 	appClientset := appclientset.NewSimpleClientset(&testApp)
 	appIf := appClientset.ArgoprojV1alpha1().Applications("default")
-	_, err := RefreshApp(appIf, "test-app", argoappv1.RefreshTypeNormal)
-	assert.Nil(t, err)
+	ht := argoappv1.HydrateTypeNormal
+	_, err := RefreshApp(appIf, "test-app", argoappv1.RefreshTypeNormal, &ht)
+	require.NoError(t, err)
 	// For some reason, the fake Application interface doesn't reflect the patch status after Patch(),
 	// so can't verify it was set in unit tests.
-	//_, ok := newApp.Annotations[common.AnnotationKeyRefresh]
-	//assert.True(t, ok)
+	// _, ok := newApp.Annotations[common.AnnotationKeyRefresh]
+	// assert.True(t, ok)
 }
 
 func TestGetAppProjectWithNoProjDefined(t *testing.T) {
+	t.Parallel()
 	projName := "default"
 	namespace := "default"
 
@@ -71,23 +74,24 @@ func TestGetAppProjectWithNoProjDefined(t *testing.T) {
 	testApp.Name = "test-app"
 	testApp.Namespace = namespace
 	appClientset := appclientset.NewSimpleClientset(testProj)
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	indexers := cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}
 	informer := v1alpha1.NewAppProjectInformer(appClientset, namespace, 0, indexers)
 	go informer.Run(ctx.Done())
 	cache.WaitForCacheSync(ctx.Done(), informer.HasSynced)
 
-	kubeClient := fake.NewSimpleClientset(&cm)
-	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
+	kubeClient := fake.NewClientset(&cm)
+	settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, test.FakeArgoCDNamespace)
 	argoDB := db.NewDB("default", settingsMgr, kubeClient)
-	proj, err := GetAppProject(&testApp, applisters.NewAppProjectLister(informer.GetIndexer()), namespace, settingsMgr, argoDB, ctx)
-	assert.Nil(t, err)
+	proj, err := GetAppProject(ctx, &testApp, applisters.NewAppProjectLister(informer.GetIndexer()), namespace, settingsMgr, argoDB)
+	require.NoError(t, err)
 	assert.Equal(t, proj.Name, projName)
 }
 
 func TestIncludeResource(t *testing.T) {
-	//Resource filters format - GROUP:KIND:NAMESPACE/NAME or GROUP:KIND:NAME
+	t.Parallel()
+	// Resource filters format - GROUP:KIND:NAMESPACE/NAME or GROUP:KIND:NAME
 	var (
 		blankValues = argoappv1.SyncOperationResource{Group: "", Kind: "", Name: "", Namespace: "", Exclude: false}
 		// *:*:*
@@ -98,6 +102,8 @@ func TestIncludeResource(t *testing.T) {
 		includeAllServiceResources = argoappv1.SyncOperationResource{Group: "*", Kind: "Service", Name: "*", Namespace: "", Exclude: false}
 		// !*:Service:*
 		excludeAllServiceResources = argoappv1.SyncOperationResource{Group: "*", Kind: "Service", Name: "*", Namespace: "", Exclude: true}
+		// apps:ReplicaSet:backend
+		includeAllReplicaSetResource = argoappv1.SyncOperationResource{Group: "apps", Kind: "ReplicaSet", Name: "*", Namespace: "", Exclude: false}
 		// apps:ReplicaSet:backend
 		includeReplicaSetResource = argoappv1.SyncOperationResource{Group: "apps", Kind: "ReplicaSet", Name: "backend", Namespace: "", Exclude: false}
 		// !apps:ReplicaSet:backend
@@ -112,7 +118,8 @@ func TestIncludeResource(t *testing.T) {
 		expectedResult        bool
 	}{
 		//--resource apps:ReplicaSet:backend --resource *:Service:*
-		{testName: "Include ReplicaSet backend resouce and all service resources",
+		{
+			testName:              "Include ReplicaSet backend resource and all service resources",
 			name:                  "backend",
 			namespace:             "default",
 			gvk:                   schema.GroupVersionKind{Group: "apps", Kind: "ReplicaSet"},
@@ -120,7 +127,8 @@ func TestIncludeResource(t *testing.T) {
 			expectedResult:        true,
 		},
 		//--resource apps:ReplicaSet:backend --resource *:Service:*
-		{testName: "Include ReplicaSet backend resouce and all service resources",
+		{
+			testName:              "Include ReplicaSet backend resource and all service resources",
 			name:                  "main-page-down",
 			namespace:             "default",
 			gvk:                   schema.GroupVersionKind{Group: "batch", Kind: "Job"},
@@ -128,15 +136,17 @@ func TestIncludeResource(t *testing.T) {
 			expectedResult:        false,
 		},
 		//--resource apps:ReplicaSet:backend --resource !*:Service:*
-		{testName: "Include ReplicaSet backend resouce and exclude all service resources",
+		{
+			testName:              "Include ReplicaSet backend resource and exclude all service resources",
 			name:                  "main-page-down",
 			namespace:             "default",
 			gvk:                   schema.GroupVersionKind{Group: "batch", Kind: "Job"},
 			syncOperationResource: []*argoappv1.SyncOperationResource{&excludeAllServiceResources, &includeReplicaSetResource},
-			expectedResult:        true,
+			expectedResult:        false,
 		},
 		// --resource !apps:ReplicaSet:backend --resource !*:Service:*
-		{testName: "Exclude ReplicaSet backend resouce and all service resources",
+		{
+			testName:              "Exclude ReplicaSet backend resource and all service resources",
 			name:                  "main-page-down",
 			namespace:             "default",
 			gvk:                   schema.GroupVersionKind{Group: "batch", Kind: "Job"},
@@ -144,15 +154,26 @@ func TestIncludeResource(t *testing.T) {
 			expectedResult:        true,
 		},
 		// --resource !apps:ReplicaSet:backend
-		{testName: "Exclude ReplicaSet backend resouce",
+		{
+			testName:              "Exclude ReplicaSet backend resource",
 			name:                  "backend",
 			namespace:             "default",
 			gvk:                   schema.GroupVersionKind{Group: "apps", Kind: "ReplicaSet"},
 			syncOperationResource: []*argoappv1.SyncOperationResource{&excludeReplicaSetResource},
 			expectedResult:        false,
 		},
+		// --resource !apps:ReplicaSet:backend --resource !*:Service:*
+		{
+			testName:              "Exclude ReplicaSet backend resource and all service resources(dummy condition)",
+			name:                  "backend",
+			namespace:             "default",
+			gvk:                   schema.GroupVersionKind{Group: "apps", Kind: "ReplicaSet"},
+			syncOperationResource: []*argoappv1.SyncOperationResource{&excludeReplicaSetResource, &excludeAllServiceResources},
+			expectedResult:        false,
+		},
 		// --resource apps:ReplicaSet:backend
-		{testName: "Include ReplicaSet backend resouce",
+		{
+			testName:              "Include ReplicaSet backend resource",
 			name:                  "backend",
 			namespace:             "default",
 			gvk:                   schema.GroupVersionKind{Group: "apps", Kind: "ReplicaSet"},
@@ -160,7 +181,8 @@ func TestIncludeResource(t *testing.T) {
 			expectedResult:        true,
 		},
 		// --resource !*:Service:*
-		{testName: "Exclude Service resouces",
+		{
+			testName:              "Exclude Service resources",
 			name:                  "backend",
 			namespace:             "default",
 			gvk:                   schema.GroupVersionKind{Group: "", Kind: "Service"},
@@ -168,15 +190,26 @@ func TestIncludeResource(t *testing.T) {
 			expectedResult:        false,
 		},
 		// --resource *:Service:*
-		{testName: "Include Service resouces",
+		{
+			testName:              "Include Service resources",
 			name:                  "backend",
 			namespace:             "default",
 			gvk:                   schema.GroupVersionKind{Group: "", Kind: "Service"},
 			syncOperationResource: []*argoappv1.SyncOperationResource{&includeAllServiceResources},
 			expectedResult:        true,
 		},
+		// --resource apps:ReplicaSet:* --resource !apps:ReplicaSet:backend
+		{
+			testName:              "Include & Exclude ReplicaSet resources",
+			name:                  "backend",
+			namespace:             "default",
+			gvk:                   schema.GroupVersionKind{Group: "apps", Kind: "ReplicaSet"},
+			syncOperationResource: []*argoappv1.SyncOperationResource{&includeAllReplicaSetResource, &excludeReplicaSetResource},
+			expectedResult:        false,
+		},
 		// --resource !*:*:*
-		{testName: "Exclude all resouces",
+		{
+			testName:              "Exclude all resources",
 			name:                  "backend",
 			namespace:             "default",
 			gvk:                   schema.GroupVersionKind{Group: "", Kind: "Service"},
@@ -184,25 +217,31 @@ func TestIncludeResource(t *testing.T) {
 			expectedResult:        false,
 		},
 		// --resource *:*:*
-		{testName: "Include all resouces",
+		{
+			testName:              "Include all resources",
 			name:                  "backend",
 			namespace:             "default",
 			gvk:                   schema.GroupVersionKind{Group: "", Kind: "Service"},
 			syncOperationResource: []*argoappv1.SyncOperationResource{&includeAllResources},
 			expectedResult:        true,
 		},
-		{testName: "No Filters",
+		{
+			testName:              "No Filters",
 			name:                  "backend",
 			namespace:             "default",
 			gvk:                   schema.GroupVersionKind{Group: "", Kind: "Service"},
 			syncOperationResource: []*argoappv1.SyncOperationResource{&blankValues},
 			expectedResult:        false,
 		},
-		{testName: "Default values"},
+		{
+			testName:       "Default values",
+			expectedResult: true,
+		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.testName, func(t *testing.T) {
+			t.Parallel()
 			isResourceIncluded := IncludeResource(test.name, test.namespace, test.gvk, test.syncOperationResource)
 			assert.Equal(t, test.expectedResult, isResourceIncluded)
 		})
@@ -210,6 +249,7 @@ func TestIncludeResource(t *testing.T) {
 }
 
 func TestContainsSyncResource(t *testing.T) {
+	t.Parallel()
 	var (
 		blankUnstructured unstructured.Unstructured
 		blankResource     argoappv1.SyncOperationResource
@@ -226,45 +266,41 @@ func TestContainsSyncResource(t *testing.T) {
 	}
 
 	for _, table := range tables {
-		if out := ContainsSyncResource(table.u.GetName(), table.u.GetNamespace(), table.u.GroupVersionKind(), table.rr); out != table.expected {
-			t.Errorf("Expected %t for slice %+v contains resource %+v; instead got %t", table.expected, table.rr, table.u, out)
-		}
+		out := ContainsSyncResource(table.u.GetName(), table.u.GetNamespace(), table.u.GroupVersionKind(), table.rr)
+		assert.Equal(t, table.expected, out, "Expected %t for slice %+v contains resource %+v; instead got %t", table.expected, table.rr, table.u, out)
 	}
 }
 
 // TestNilOutZerValueAppSources verifies we will nil out app source specs when they are their zero-value
 func TestNilOutZerValueAppSources(t *testing.T) {
+	t.Parallel()
 	var spec *argoappv1.ApplicationSpec
-	{
-		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: &argoappv1.ApplicationSource{Kustomize: &argoappv1.ApplicationSourceKustomize{NamePrefix: "foo"}}})
-		assert.NotNil(t, spec.GetSource().Kustomize)
-		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: &argoappv1.ApplicationSource{Kustomize: &argoappv1.ApplicationSourceKustomize{NamePrefix: ""}}})
-		source := spec.GetSource()
-		assert.Nil(t, source.Kustomize)
-	}
-	{
-		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: &argoappv1.ApplicationSource{Kustomize: &argoappv1.ApplicationSourceKustomize{NameSuffix: "foo"}}})
-		assert.NotNil(t, spec.GetSource().Kustomize)
-		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: &argoappv1.ApplicationSource{Kustomize: &argoappv1.ApplicationSourceKustomize{NameSuffix: ""}}})
-		source := spec.GetSource()
-		assert.Nil(t, source.Kustomize)
-	}
-	{
-		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: &argoappv1.ApplicationSource{Helm: &argoappv1.ApplicationSourceHelm{ValueFiles: []string{"values.yaml"}}}})
-		assert.NotNil(t, spec.GetSource().Helm)
-		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: &argoappv1.ApplicationSource{Helm: &argoappv1.ApplicationSourceHelm{ValueFiles: []string{}}}})
-		assert.Nil(t, spec.GetSource().Helm)
-	}
-	{
-		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: &argoappv1.ApplicationSource{Directory: &argoappv1.ApplicationSourceDirectory{Recurse: true}}})
-		assert.NotNil(t, spec.GetSource().Directory)
-		spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: &argoappv1.ApplicationSource{Directory: &argoappv1.ApplicationSourceDirectory{Recurse: false}}})
-		assert.Nil(t, spec.GetSource().Directory)
-	}
+	spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: &argoappv1.ApplicationSource{Kustomize: &argoappv1.ApplicationSourceKustomize{NamePrefix: "foo"}}})
+	assert.NotNil(t, spec.GetSource().Kustomize)
+	spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: &argoappv1.ApplicationSource{Kustomize: &argoappv1.ApplicationSourceKustomize{NamePrefix: ""}}})
+	source := spec.GetSource()
+	assert.Nil(t, source.Kustomize)
+
+	spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: &argoappv1.ApplicationSource{Kustomize: &argoappv1.ApplicationSourceKustomize{NameSuffix: "foo"}}})
+	assert.NotNil(t, spec.GetSource().Kustomize)
+	spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: &argoappv1.ApplicationSource{Kustomize: &argoappv1.ApplicationSourceKustomize{NameSuffix: ""}}})
+	source = spec.GetSource()
+	assert.Nil(t, source.Kustomize)
+
+	spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: &argoappv1.ApplicationSource{Helm: &argoappv1.ApplicationSourceHelm{ValueFiles: []string{"values.yaml"}}}})
+	assert.NotNil(t, spec.GetSource().Helm)
+	spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: &argoappv1.ApplicationSource{Helm: &argoappv1.ApplicationSourceHelm{ValueFiles: []string{}}}})
+	assert.Nil(t, spec.GetSource().Helm)
+
+	spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: &argoappv1.ApplicationSource{Directory: &argoappv1.ApplicationSourceDirectory{Recurse: true}}})
+	assert.NotNil(t, spec.GetSource().Directory)
+	spec = NormalizeApplicationSpec(&argoappv1.ApplicationSpec{Source: &argoappv1.ApplicationSource{Directory: &argoappv1.ApplicationSourceDirectory{Recurse: false}}})
+	assert.Nil(t, spec.GetSource().Directory)
 }
 
 func TestValidatePermissionsEmptyDestination(t *testing.T) {
-	conditions, err := ValidatePermissions(context.Background(), &argoappv1.ApplicationSpec{
+	t.Parallel()
+	conditions, err := ValidatePermissions(t.Context(), &argoappv1.ApplicationSpec{
 		Source: &argoappv1.ApplicationSource{RepoURL: "https://github.com/argoproj/argo-cd", Path: "."},
 	}, &argoappv1.AppProject{
 		Spec: argoappv1.AppProjectSpec{
@@ -272,11 +308,12 @@ func TestValidatePermissionsEmptyDestination(t *testing.T) {
 			Destinations: []argoappv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 		},
 	}, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.ElementsMatch(t, conditions, []argoappv1.ApplicationCondition{{Type: argoappv1.ApplicationConditionInvalidSpecError, Message: "Destination server missing from app spec"}})
 }
 
 func TestValidateChartWithoutRevision(t *testing.T) {
+	t.Parallel()
 	appSpec := &argoappv1.ApplicationSpec{
 		Source: &argoappv1.ApplicationSource{RepoURL: "https://charts.helm.sh/incubator/", Chart: "myChart", TargetRevision: ""},
 		Destination: argoappv1.ApplicationDestination{
@@ -285,8 +322,8 @@ func TestValidateChartWithoutRevision(t *testing.T) {
 	}
 	cluster := &argoappv1.Cluster{Server: "https://kubernetes.default.svc"}
 	db := &dbmocks.ArgoDB{}
-	ctx := context.Background()
-	db.On("GetCluster", ctx, appSpec.Destination.Server).Return(cluster, nil)
+	ctx := t.Context()
+	db.EXPECT().GetCluster(ctx, appSpec.Destination.Server).Return(cluster, nil).Maybe()
 
 	conditions, err := ValidatePermissions(ctx, appSpec, &argoappv1.AppProject{
 		Spec: argoappv1.AppProjectSpec{
@@ -294,13 +331,14 @@ func TestValidateChartWithoutRevision(t *testing.T) {
 			Destinations: []argoappv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
 		},
 	}, db)
-	assert.NoError(t, err)
-	assert.Equal(t, 1, len(conditions))
+	require.NoError(t, err)
+	assert.Len(t, conditions, 1)
 	assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, conditions[0].Type)
 	assert.Equal(t, "spec.source.targetRevision is required if the manifest source is a helm chart", conditions[0].Message)
 }
 
 func TestAPIResourcesToStrings(t *testing.T) {
+	t.Parallel()
 	resources := []kube.APIResourceInfo{{
 		GroupVersionResource: schema.GroupVersionResource{Group: "apps", Version: "v1beta1"},
 		GroupKind:            schema.GroupKind{Kind: "Deployment"},
@@ -314,13 +352,15 @@ func TestAPIResourcesToStrings(t *testing.T) {
 
 	assert.ElementsMatch(t, []string{"apps/v1beta1", "apps/v1beta2", "extensions/v1beta1"}, APIResourcesToStrings(resources, false))
 	assert.ElementsMatch(t, []string{
-		"apps/v1beta1", "apps/v1beta1/Deployment", "apps/v1beta2", "apps/v1beta2/Deployment", "extensions/v1beta1", "extensions/v1beta1/Deployment"},
+		"apps/v1beta1", "apps/v1beta1/Deployment", "apps/v1beta2", "apps/v1beta2/Deployment", "extensions/v1beta1", "extensions/v1beta1/Deployment",
+	},
 		APIResourcesToStrings(resources, true))
 }
 
 func TestValidateRepo(t *testing.T) {
+	t.Parallel()
 	repoPath, err := filepath.Abs("./../..")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	apiResources := []kube.APIResourceInfo{{
 		GroupVersionResource: schema.GroupVersionResource{Group: "apps", Version: "v1beta1"},
@@ -331,7 +371,7 @@ func TestValidateRepo(t *testing.T) {
 	}}
 	kubeVersion := "v1.16"
 	kustomizeOptions := &argoappv1.KustomizeOptions{BuildOptions: ""}
-	repo := &argoappv1.Repository{Repo: fmt.Sprintf("file://%s", repoPath)}
+	repo := &argoappv1.Repository{Repo: "file://" + repoPath}
 	cluster := &argoappv1.Cluster{Server: "sample server"}
 	app := &argoappv1.Application{
 		Spec: argoappv1.ApplicationSpec{
@@ -355,37 +395,39 @@ func TestValidateRepo(t *testing.T) {
 
 	repoClient := &mocks.RepoServerServiceClient{}
 	source := app.Spec.GetSource()
-	repoClient.On("GetAppDetails", context.Background(), &apiclient.RepoServerAppDetailsQuery{
+	repoClient.EXPECT().GetAppDetails(mock.Anything, &apiclient.RepoServerAppDetailsQuery{
 		Repo:             repo,
 		Source:           &source,
 		Repos:            helmRepos,
 		KustomizeOptions: kustomizeOptions,
 		HelmOptions:      &argoappv1.HelmOptions{ValuesFileSchemes: []string{"https", "http"}},
 		NoRevisionCache:  true,
-	}).Return(&apiclient.RepoAppDetailsResponse{}, nil)
+	}).Return(&apiclient.RepoAppDetailsResponse{}, nil).Maybe()
 
 	repo.Type = "git"
-	repoClient.On("TestRepository", context.Background(), &apiclient.TestRepositoryRequest{
+	repoClient.EXPECT().TestRepository(mock.Anything, &apiclient.TestRepositoryRequest{
 		Repo: repo,
 	}).Return(&apiclient.TestRepositoryResponse{
 		VerifiedRepository: true,
-	}, nil)
+	}, nil).Maybe()
 
 	repoClientSet := &mocks.Clientset{RepoServerServiceClient: repoClient}
 
 	db := &dbmocks.ArgoDB{}
 
-	db.On("GetRepository", context.Background(), app.Spec.Source.RepoURL).Return(repo, nil)
-	db.On("ListHelmRepositories", context.Background()).Return(helmRepos, nil)
-	db.On("GetCluster", context.Background(), app.Spec.Destination.Server).Return(cluster, nil)
-	db.On("GetAllHelmRepositoryCredentials", context.Background()).Return(nil, nil)
+	db.EXPECT().GetRepository(mock.Anything, app.Spec.Source.RepoURL, "").Return(repo, nil).Maybe()
+	db.EXPECT().ListHelmRepositories(mock.Anything).Return(helmRepos, nil).Maybe()
+	db.EXPECT().ListOCIRepositories(mock.Anything).Return([]*argoappv1.Repository{}, nil).Maybe()
+	db.EXPECT().GetCluster(mock.Anything, app.Spec.Destination.Server).Return(cluster, nil).Maybe()
+	db.EXPECT().GetAllHelmRepositoryCredentials(mock.Anything).Return(nil, nil).Maybe()
+	db.EXPECT().GetAllOCIRepositoryCredentials(mock.Anything).Return([]*argoappv1.RepoCreds{}, nil).Maybe()
 
 	var receivedRequest *apiclient.ManifestRequest
 
-	repoClient.On("GenerateManifest", context.Background(), mock.MatchedBy(func(req *apiclient.ManifestRequest) bool {
+	repoClient.EXPECT().GenerateManifest(mock.Anything, mock.MatchedBy(func(req *apiclient.ManifestRequest) bool {
 		receivedRequest = req
 		return true
-	})).Return(nil, nil)
+	})).Return(nil, nil).Maybe()
 
 	cm := corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -411,12 +453,12 @@ func TestValidateRepo(t *testing.T) {
 		},
 	}
 
-	kubeClient := fake.NewSimpleClientset(&cm)
-	settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
+	kubeClient := fake.NewClientset(&cm)
+	settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, test.FakeArgoCDNamespace)
 
-	conditions, err := ValidateRepo(context.Background(), app, repoClientSet, db, &kubetest.MockKubectlCmd{Version: kubeVersion, APIResources: apiResources}, proj, settingsMgr)
+	conditions, err := ValidateRepo(t.Context(), app, repoClientSet, db, &kubetest.MockKubectlCmd{Version: kubeVersion, APIResources: apiResources}, proj, settingsMgr)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Empty(t, conditions)
 	assert.ElementsMatch(t, []string{"apps/v1beta1", "apps/v1beta1/Deployment", "apps/v1beta2", "apps/v1beta2/Deployment"}, receivedRequest.ApiVersions)
 	assert.Equal(t, kubeVersion, receivedRequest.KubeVersion)
@@ -425,7 +467,98 @@ func TestValidateRepo(t *testing.T) {
 	assert.Equal(t, kustomizeOptions, receivedRequest.KustomizeOptions)
 }
 
+func TestValidateRepo_SourceHydrator(t *testing.T) {
+	t.Parallel()
+	repoPath, err := filepath.Abs("./../..")
+	require.NoError(t, err)
+
+	apiResources := []kube.APIResourceInfo{{
+		GroupVersionResource: schema.GroupVersionResource{Group: "apps", Version: "v1beta1"},
+		GroupKind:            schema.GroupKind{Kind: "Deployment"},
+	}, {
+		GroupVersionResource: schema.GroupVersionResource{Group: "apps", Version: "v1beta2"},
+		GroupKind:            schema.GroupKind{Kind: "Deployment"},
+	}}
+	kubeVersion := "v1.16"
+
+	repoURL := "file://" + repoPath
+	repo := &argoappv1.Repository{Repo: repoURL, Type: "git"}
+	cluster := &argoappv1.Cluster{Server: "sample server"}
+
+	app := &argoappv1.Application{
+		Spec: argoappv1.ApplicationSpec{
+			Destination: argoappv1.ApplicationDestination{
+				Server:    cluster.Server,
+				Namespace: "default",
+			},
+			SourceHydrator: &argoappv1.SourceHydrator{
+				DrySource: argoappv1.DrySource{
+					RepoURL:        repoURL,
+					TargetRevision: "HEAD",
+					Path:           "guestbook",
+				},
+				SyncSource: argoappv1.SyncSource{
+					TargetBranch: "env/test",
+					Path:         "guestbook",
+				},
+			},
+		},
+	}
+
+	proj := &argoappv1.AppProject{
+		Spec: argoappv1.AppProjectSpec{
+			SourceRepos: []string{"*"},
+		},
+	}
+
+	repoClient := &mocks.RepoServerServiceClient{}
+
+	syncSource := app.Spec.GetSource()
+	repoClient.EXPECT().TestRepository(mock.Anything, mock.MatchedBy(func(req *apiclient.TestRepositoryRequest) bool {
+		return req.Repo.Repo == syncSource.RepoURL
+	})).Return(&apiclient.TestRepositoryResponse{VerifiedRepository: true}, nil)
+
+	var receivedRequest *apiclient.ManifestRequest
+	repoClient.EXPECT().GenerateManifest(mock.Anything, mock.MatchedBy(func(req *apiclient.ManifestRequest) bool {
+		receivedRequest = req
+		return true
+	})).Return(nil, nil)
+
+	repoClientSet := &mocks.Clientset{RepoServerServiceClient: repoClient}
+
+	db := &dbmocks.ArgoDB{}
+	db.EXPECT().GetRepository(mock.Anything, repoURL, "").Return(repo, nil).Maybe()
+	db.EXPECT().ListHelmRepositories(mock.Anything).Return(nil, nil)
+	db.EXPECT().ListOCIRepositories(mock.Anything).Return(nil, nil)
+	db.EXPECT().GetCluster(mock.Anything, cluster.Server).Return(cluster, nil)
+	db.EXPECT().GetAllHelmRepositoryCredentials(mock.Anything).Return(nil, nil)
+	db.EXPECT().GetAllOCIRepositoryCredentials(mock.Anything).Return(nil, nil)
+
+	cm := corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "argocd-cm",
+			Namespace: test.FakeArgoCDNamespace,
+			Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
+		},
+	}
+	kubeClient := fake.NewClientset(&cm)
+	settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, test.FakeArgoCDNamespace)
+
+	conditions, err := ValidateRepo(t.Context(), app, repoClientSet, db, &kubetest.MockKubectlCmd{Version: kubeVersion, APIResources: apiResources}, proj, settingsMgr)
+
+	require.NoError(t, err)
+	assert.Empty(t, conditions)
+	require.NotNil(t, receivedRequest)
+
+	drySource := app.Spec.SourceHydrator.GetDrySource()
+	assert.Equal(t, &drySource, receivedRequest.ApplicationSource)
+	assert.Equal(t, "HEAD", receivedRequest.Revision)
+	assert.Empty(t, receivedRequest.KubeVersion, "KubeVersion must be empty for dry sources to match hydrator cache keys")
+	assert.Nil(t, receivedRequest.ApiVersions, "ApiVersions must be nil for dry sources to match hydrator cache keys")
+}
+
 func TestFormatAppConditions(t *testing.T) {
+	t.Parallel()
 	conditions := []argoappv1.ApplicationCondition{
 		{
 			Type:    EventReasonOperationCompleted,
@@ -438,24 +571,28 @@ func TestFormatAppConditions(t *testing.T) {
 	}
 
 	t.Run("Single Condition", func(t *testing.T) {
+		t.Parallel()
 		res := FormatAppConditions(conditions[0:1])
 		assert.NotEmpty(t, res)
-		assert.Equal(t, fmt.Sprintf("%s: Foo", EventReasonOperationCompleted), res)
+		assert.Equal(t, EventReasonOperationCompleted+": Foo", res)
 	})
 
 	t.Run("Multiple Conditions", func(t *testing.T) {
+		t.Parallel()
 		res := FormatAppConditions(conditions)
 		assert.NotEmpty(t, res)
 		assert.Equal(t, fmt.Sprintf("%s: Foo;%s: Bar", EventReasonOperationCompleted, EventReasonResourceCreated), res)
 	})
 
 	t.Run("Empty Conditions", func(t *testing.T) {
+		t.Parallel()
 		res := FormatAppConditions([]argoappv1.ApplicationCondition{})
 		assert.Empty(t, res)
 	})
 }
 
 func TestFilterByProjects(t *testing.T) {
+	t.Parallel()
 	apps := []argoappv1.Application{
 		{
 			Spec: argoappv1.ApplicationSpec{
@@ -470,27 +607,32 @@ func TestFilterByProjects(t *testing.T) {
 	}
 
 	t.Run("No apps in single project", func(t *testing.T) {
+		t.Parallel()
 		res := FilterByProjects(apps, []string{"foobarproj"})
 		assert.Empty(t, res)
 	})
 
 	t.Run("Single app in single project", func(t *testing.T) {
+		t.Parallel()
 		res := FilterByProjects(apps, []string{"fooproj"})
 		assert.Len(t, res, 1)
 	})
 
 	t.Run("Single app in multiple project", func(t *testing.T) {
+		t.Parallel()
 		res := FilterByProjects(apps, []string{"fooproj", "foobarproj"})
 		assert.Len(t, res, 1)
 	})
 
 	t.Run("Multiple apps in multiple project", func(t *testing.T) {
+		t.Parallel()
 		res := FilterByProjects(apps, []string{"fooproj", "barproj"})
 		assert.Len(t, res, 2)
 	})
 }
 
 func TestFilterByProjectsP(t *testing.T) {
+	t.Parallel()
 	apps := []*argoappv1.Application{
 		{
 			Spec: argoappv1.ApplicationSpec{
@@ -505,27 +647,80 @@ func TestFilterByProjectsP(t *testing.T) {
 	}
 
 	t.Run("No apps in single project", func(t *testing.T) {
+		t.Parallel()
 		res := FilterByProjectsP(apps, []string{"foobarproj"})
 		assert.Empty(t, res)
 	})
 
 	t.Run("Single app in single project", func(t *testing.T) {
+		t.Parallel()
 		res := FilterByProjectsP(apps, []string{"fooproj"})
 		assert.Len(t, res, 1)
 	})
 
 	t.Run("Single app in multiple project", func(t *testing.T) {
+		t.Parallel()
 		res := FilterByProjectsP(apps, []string{"fooproj", "foobarproj"})
 		assert.Len(t, res, 1)
 	})
 
 	t.Run("Multiple apps in multiple project", func(t *testing.T) {
+		t.Parallel()
 		res := FilterByProjectsP(apps, []string{"fooproj", "barproj"})
 		assert.Len(t, res, 2)
 	})
 }
 
+func TestFilterAppSetsByProjects(t *testing.T) {
+	t.Parallel()
+	appsets := []argoappv1.ApplicationSet{
+		{
+			Spec: argoappv1.ApplicationSetSpec{
+				Template: argoappv1.ApplicationSetTemplate{
+					Spec: argoappv1.ApplicationSpec{
+						Project: "fooproj",
+					},
+				},
+			},
+		},
+		{
+			Spec: argoappv1.ApplicationSetSpec{
+				Template: argoappv1.ApplicationSetTemplate{
+					Spec: argoappv1.ApplicationSpec{
+						Project: "barproj",
+					},
+				},
+			},
+		},
+	}
+
+	t.Run("No apps in single project", func(t *testing.T) {
+		t.Parallel()
+		res := FilterAppSetsByProjects(appsets, []string{"foobarproj"})
+		assert.Empty(t, res)
+	})
+
+	t.Run("Single app in single project", func(t *testing.T) {
+		t.Parallel()
+		res := FilterAppSetsByProjects(appsets, []string{"fooproj"})
+		assert.Len(t, res, 1)
+	})
+
+	t.Run("Single app in multiple project", func(t *testing.T) {
+		t.Parallel()
+		res := FilterAppSetsByProjects(appsets, []string{"fooproj", "foobarproj"})
+		assert.Len(t, res, 1)
+	})
+
+	t.Run("Multiple apps in multiple project", func(t *testing.T) {
+		t.Parallel()
+		res := FilterAppSetsByProjects(appsets, []string{"fooproj", "barproj"})
+		assert.Len(t, res, 2)
+	})
+}
+
 func TestFilterByRepo(t *testing.T) {
+	t.Parallel()
 	apps := []argoappv1.Application{
 		{
 			Spec: argoappv1.ApplicationSpec{
@@ -544,22 +739,26 @@ func TestFilterByRepo(t *testing.T) {
 	}
 
 	t.Run("Empty filter", func(t *testing.T) {
+		t.Parallel()
 		res := FilterByRepo(apps, "")
 		assert.Len(t, res, 2)
 	})
 
 	t.Run("Match", func(t *testing.T) {
+		t.Parallel()
 		res := FilterByRepo(apps, "git@github.com:owner/repo.git")
 		assert.Len(t, res, 1)
 	})
 
 	t.Run("No match", func(t *testing.T) {
+		t.Parallel()
 		res := FilterByRepo(apps, "git@github.com:owner/willnotmatch.git")
-		assert.Len(t, res, 0)
+		assert.Empty(t, res)
 	})
 }
 
 func TestFilterByRepoP(t *testing.T) {
+	t.Parallel()
 	apps := []*argoappv1.Application{
 		{
 			Spec: argoappv1.ApplicationSpec{
@@ -578,23 +777,66 @@ func TestFilterByRepoP(t *testing.T) {
 	}
 
 	t.Run("Empty filter", func(t *testing.T) {
+		t.Parallel()
 		res := FilterByRepoP(apps, "")
 		assert.Len(t, res, 2)
 	})
 
 	t.Run("Match", func(t *testing.T) {
+		t.Parallel()
 		res := FilterByRepoP(apps, "git@github.com:owner/repo.git")
 		assert.Len(t, res, 1)
 	})
 
 	t.Run("No match", func(t *testing.T) {
+		t.Parallel()
 		res := FilterByRepoP(apps, "git@github.com:owner/willnotmatch.git")
-		assert.Len(t, res, 0)
+		assert.Empty(t, res)
+	})
+}
+
+func TestFilterByPath(t *testing.T) {
+	t.Parallel()
+	apps := []argoappv1.Application{
+		{
+			Spec: argoappv1.ApplicationSpec{
+				Source: &argoappv1.ApplicationSource{
+					Path: "example/app/foo",
+				},
+			},
+		},
+		{
+			Spec: argoappv1.ApplicationSpec{
+				Source: &argoappv1.ApplicationSource{
+					Path: "example/app/existent",
+				},
+			},
+		},
+	}
+
+	t.Run("Empty filter", func(t *testing.T) {
+		t.Parallel()
+		res := FilterByPath(apps, "")
+		assert.Len(t, res, 2)
+	})
+
+	t.Run("Found one match", func(t *testing.T) {
+		t.Parallel()
+		res := FilterByPath(apps, "example/app/foo")
+		assert.Len(t, res, 1)
+	})
+
+	t.Run("No match found", func(t *testing.T) {
+		t.Parallel()
+		res := FilterByPath(apps, "example/app/non-existent")
+		assert.Empty(t, res)
 	})
 }
 
 func TestValidatePermissions(t *testing.T) {
+	t.Parallel()
 	t.Run("Empty Repo URL result in condition", func(t *testing.T) {
+		t.Parallel()
 		spec := argoappv1.ApplicationSpec{
 			Source: &argoappv1.ApplicationSource{
 				RepoURL: "",
@@ -602,14 +844,15 @@ func TestValidatePermissions(t *testing.T) {
 		}
 		proj := argoappv1.AppProject{}
 		db := &dbmocks.ArgoDB{}
-		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
-		assert.NoError(t, err)
+		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
+		require.NoError(t, err)
 		assert.Len(t, conditions, 1)
 		assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, conditions[0].Type)
 		assert.Contains(t, conditions[0].Message, "are required")
 	})
 
 	t.Run("Incomplete Path/Chart combo result in condition", func(t *testing.T) {
+		t.Parallel()
 		spec := argoappv1.ApplicationSpec{
 			Source: &argoappv1.ApplicationSource{
 				RepoURL: "http://some/where",
@@ -619,14 +862,15 @@ func TestValidatePermissions(t *testing.T) {
 		}
 		proj := argoappv1.AppProject{}
 		db := &dbmocks.ArgoDB{}
-		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
-		assert.NoError(t, err)
+		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
+		require.NoError(t, err)
 		assert.Len(t, conditions, 1)
 		assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, conditions[0].Type)
 		assert.Contains(t, conditions[0].Message, "are required")
 	})
 
 	t.Run("Helm chart requires targetRevision", func(t *testing.T) {
+		t.Parallel()
 		spec := argoappv1.ApplicationSpec{
 			Source: &argoappv1.ApplicationSource{
 				RepoURL: "http://some/where",
@@ -636,14 +880,15 @@ func TestValidatePermissions(t *testing.T) {
 		}
 		proj := argoappv1.AppProject{}
 		db := &dbmocks.ArgoDB{}
-		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
-		assert.NoError(t, err)
+		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
+		require.NoError(t, err)
 		assert.Len(t, conditions, 1)
 		assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, conditions[0].Type)
 		assert.Contains(t, conditions[0].Message, "is required if the manifest source is a helm chart")
 	})
 
 	t.Run("Application source is not permitted in project", func(t *testing.T) {
+		t.Parallel()
 		spec := argoappv1.ApplicationSpec{
 			Source: &argoappv1.ApplicationSource{
 				RepoURL:        "http://some/where",
@@ -667,16 +912,17 @@ func TestValidatePermissions(t *testing.T) {
 				SourceRepos: []string{"http://some/where/else"},
 			},
 		}
-		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443"}
+		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443", Name: "test"}
 		db := &dbmocks.ArgoDB{}
-		db.On("GetCluster", context.Background(), spec.Destination.Server).Return(cluster, nil)
-		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
-		assert.NoError(t, err)
+		db.EXPECT().GetCluster(mock.Anything, spec.Destination.Server).Return(cluster, nil).Maybe()
+		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
+		require.NoError(t, err)
 		assert.Len(t, conditions, 1)
 		assert.Contains(t, conditions[0].Message, "application repo http://some/where is not permitted")
 	})
 
 	t.Run("Application destination is not permitted in project", func(t *testing.T) {
+		t.Parallel()
 		spec := argoappv1.ApplicationSpec{
 			Source: &argoappv1.ApplicationSource{
 				RepoURL:        "http://some/where",
@@ -700,16 +946,17 @@ func TestValidatePermissions(t *testing.T) {
 				SourceRepos: []string{"http://some/where"},
 			},
 		}
-		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443"}
+		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443", Name: "test"}
 		db := &dbmocks.ArgoDB{}
-		db.On("GetCluster", context.Background(), spec.Destination.Server).Return(cluster, nil)
-		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
-		assert.NoError(t, err)
+		db.EXPECT().GetCluster(mock.Anything, spec.Destination.Server).Return(cluster, nil).Maybe()
+		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
+		require.NoError(t, err)
 		assert.Len(t, conditions, 1)
 		assert.Contains(t, conditions[0].Message, "application destination")
 	})
 
 	t.Run("Destination cluster does not exist", func(t *testing.T) {
+		t.Parallel()
 		spec := argoappv1.ApplicationSpec{
 			Source: &argoappv1.ApplicationSource{
 				RepoURL:        "http://some/where",
@@ -734,14 +981,15 @@ func TestValidatePermissions(t *testing.T) {
 			},
 		}
 		db := &dbmocks.ArgoDB{}
-		db.On("GetCluster", context.Background(), spec.Destination.Server).Return(nil, status.Errorf(codes.NotFound, "Cluster does not exist"))
-		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
-		assert.NoError(t, err)
+		db.EXPECT().GetCluster(mock.Anything, spec.Destination.Server).Return(nil, status.Errorf(codes.NotFound, "Cluster does not exist")).Maybe()
+		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
+		require.NoError(t, err)
 		assert.Len(t, conditions, 1)
-		assert.Contains(t, conditions[0].Message, "has not been configured")
+		assert.Contains(t, conditions[0].Message, "Cluster does not exist")
 	})
 
 	t.Run("Destination cluster name does not exist", func(t *testing.T) {
+		t.Parallel()
 		spec := argoappv1.ApplicationSpec{
 			Source: &argoappv1.ApplicationSource{
 				RepoURL:        "http://some/where",
@@ -766,14 +1014,15 @@ func TestValidatePermissions(t *testing.T) {
 			},
 		}
 		db := &dbmocks.ArgoDB{}
-		db.On("GetClusterServersByName", context.Background(), "does-not-exist").Return(nil, nil)
-		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
-		assert.NoError(t, err)
+		db.EXPECT().GetClusterServersByName(mock.Anything, "does-not-exist").Return(nil, nil).Maybe()
+		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
+		require.NoError(t, err)
 		assert.Len(t, conditions, 1)
-		assert.Contains(t, conditions[0].Message, "unable to find destination server: there are no clusters with this name: does-not-exist")
+		assert.Contains(t, conditions[0].Message, "there are no clusters with this name: does-not-exist")
 	})
 
 	t.Run("Cannot get cluster info from DB", func(t *testing.T) {
+		t.Parallel()
 		spec := argoappv1.ApplicationSpec{
 			Source: &argoappv1.ApplicationSource{
 				RepoURL:        "http://some/where",
@@ -798,12 +1047,15 @@ func TestValidatePermissions(t *testing.T) {
 			},
 		}
 		db := &dbmocks.ArgoDB{}
-		db.On("GetCluster", context.Background(), spec.Destination.Server).Return(nil, fmt.Errorf("Unknown error occurred"))
-		_, err := ValidatePermissions(context.Background(), &spec, &proj, db)
-		assert.Error(t, err)
+		db.EXPECT().GetCluster(mock.Anything, spec.Destination.Server).Return(nil, errors.New("Unknown error occurred")).Maybe()
+		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
+		require.NoError(t, err)
+		assert.Len(t, conditions, 1)
+		assert.Contains(t, conditions[0].Message, "Unknown error occurred")
 	})
 
 	t.Run("Destination cluster name resolves to valid server", func(t *testing.T) {
+		t.Parallel()
 		spec := argoappv1.ApplicationSpec{
 			Source: &argoappv1.ApplicationSource{
 				RepoURL:        "http://some/where",
@@ -832,23 +1084,94 @@ func TestValidatePermissions(t *testing.T) {
 			Name:   "does-exist",
 			Server: "https://127.0.0.1:6443",
 		}
-		db.On("GetClusterServersByName", context.Background(), "does-exist").Return([]string{"https://127.0.0.1:6443"}, nil)
-		db.On("GetCluster", context.Background(), "https://127.0.0.1:6443").Return(&cluster, nil)
-		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
-		assert.NoError(t, err)
-		assert.Len(t, conditions, 0)
+		db.EXPECT().GetClusterServersByName(mock.Anything, "does-exist").Return([]string{"https://127.0.0.1:6443"}, nil).Maybe()
+		db.EXPECT().GetCluster(mock.Anything, "https://127.0.0.1:6443").Return(&cluster, nil).Maybe()
+		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
+		require.NoError(t, err)
+		assert.Empty(t, conditions)
+	})
+}
+
+func TestValidatePermissions_SourceHydratorSyncSourceRepo(t *testing.T) {
+	t.Parallel()
+	t.Run("Sync source repo not permitted in project", func(t *testing.T) {
+		t.Parallel()
+		spec := argoappv1.ApplicationSpec{
+			SourceHydrator: &argoappv1.SourceHydrator{
+				DrySource: argoappv1.DrySource{
+					RepoURL:        "https://example.com/dry-repo",
+					TargetRevision: "main",
+					Path:           "dry",
+				},
+				SyncSource: argoappv1.SyncSource{
+					RepoURL:      "https://example.com/sync-repo",
+					TargetBranch: "main",
+					Path:         "hydrated",
+				},
+			},
+			Destination: argoappv1.ApplicationDestination{
+				Server:    "https://127.0.0.1:6443",
+				Namespace: "default",
+			},
+		}
+		proj := argoappv1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "default"},
+			Spec: argoappv1.AppProjectSpec{
+				Destinations: []argoappv1.ApplicationDestination{{
+					Server:    "*",
+					Namespace: "*",
+				}},
+				SourceRepos: []string{"https://example.com/dry-repo"},
+			},
+		}
+		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443", Name: "test"}
+		db := &dbmocks.ArgoDB{}
+		db.EXPECT().GetCluster(mock.Anything, spec.Destination.Server).Return(cluster, nil).Maybe()
+
+		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
+		require.NoError(t, err)
+		require.Len(t, conditions, 1)
+		assert.Contains(t, conditions[0].Message, "sync source repo https://example.com/sync-repo is not permitted in project")
+	})
+
+	t.Run("HydrateTo requires targetBranch", func(t *testing.T) {
+		t.Parallel()
+		spec := argoappv1.ApplicationSpec{
+			SourceHydrator: &argoappv1.SourceHydrator{
+				DrySource: argoappv1.DrySource{
+					RepoURL:        "https://example.com/dry-repo",
+					TargetRevision: "main",
+					Path:           "dry",
+				},
+				SyncSource: argoappv1.SyncSource{
+					TargetBranch: "main",
+					Path:         "hydrated",
+				},
+				HydrateTo: &argoappv1.HydrateTo{},
+			},
+		}
+		proj := argoappv1.AppProject{}
+		db := &dbmocks.ArgoDB{}
+
+		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
+		require.NoError(t, err)
+		require.Len(t, conditions, 1)
+		assert.Contains(t, conditions[0].Message, "spec.sourceHydrator.hydrateTo.targetBranch is required")
 	})
 }
 
 func TestSetAppOperations(t *testing.T) {
+	t.Parallel()
 	t.Run("Application not existing", func(t *testing.T) {
+		t.Parallel()
 		appIf := appclientset.NewSimpleClientset().ArgoprojV1alpha1().Applications("default")
 		app, err := SetAppOperation(appIf, "someapp", &argoappv1.Operation{Sync: &argoappv1.SyncOperation{Revision: "aaa"}})
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, app)
 	})
 
 	t.Run("Operation already in progress", func(t *testing.T) {
+		t.Parallel()
 		a := argoappv1.Application{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "someapp",
@@ -858,12 +1181,12 @@ func TestSetAppOperations(t *testing.T) {
 		}
 		appIf := appclientset.NewSimpleClientset(&a).ArgoprojV1alpha1().Applications("default")
 		app, err := SetAppOperation(appIf, "someapp", &argoappv1.Operation{Sync: &argoappv1.SyncOperation{Revision: "aaa"}})
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "operation is already in progress")
+		require.ErrorContains(t, err, "operation is already in progress")
 		assert.Nil(t, app)
 	})
 
 	t.Run("Operation unspecified", func(t *testing.T) {
+		t.Parallel()
 		a := argoappv1.Application{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "someapp",
@@ -872,12 +1195,12 @@ func TestSetAppOperations(t *testing.T) {
 		}
 		appIf := appclientset.NewSimpleClientset(&a).ArgoprojV1alpha1().Applications("default")
 		app, err := SetAppOperation(appIf, "someapp", &argoappv1.Operation{Sync: nil})
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "Operation unspecified")
+		require.ErrorContains(t, err, "Operation unspecified")
 		assert.Nil(t, app)
 	})
 
 	t.Run("Success", func(t *testing.T) {
+		t.Parallel()
 		a := argoappv1.Application{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "someapp",
@@ -886,92 +1209,99 @@ func TestSetAppOperations(t *testing.T) {
 		}
 		appIf := appclientset.NewSimpleClientset(&a).ArgoprojV1alpha1().Applications("default")
 		app, err := SetAppOperation(appIf, "someapp", &argoappv1.Operation{Sync: &argoappv1.SyncOperation{Revision: "aaa"}})
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, app)
 	})
-
 }
 
-func TestValidateDestination(t *testing.T) {
+func TestGetDestinationCluster(t *testing.T) {
+	t.Parallel()
 	t.Run("Validate destination with server url", func(t *testing.T) {
+		t.Parallel()
 		dest := argoappv1.ApplicationDestination{
 			Server:    "https://127.0.0.1:6443",
 			Namespace: "default",
 		}
 
-		appCond := ValidateDestination(context.Background(), &dest, nil)
-		assert.Nil(t, appCond)
-		assert.False(t, dest.IsServerInferred())
+		expectedCluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443"}
+		db := &dbmocks.ArgoDB{}
+		db.EXPECT().GetCluster(mock.Anything, "https://127.0.0.1:6443").Return(expectedCluster, nil).Maybe()
+
+		destCluster, err := GetDestinationCluster(t.Context(), dest, db)
+		require.NoError(t, err)
+		require.NotNil(t, expectedCluster)
+		assert.Equal(t, expectedCluster, destCluster)
 	})
 
 	t.Run("Validate destination with server name", func(t *testing.T) {
+		t.Parallel()
 		dest := argoappv1.ApplicationDestination{
 			Name: "minikube",
 		}
 
 		db := &dbmocks.ArgoDB{}
-		db.On("GetClusterServersByName", context.Background(), "minikube").Return([]string{"https://127.0.0.1:6443"}, nil)
+		db.EXPECT().GetClusterServersByName(mock.Anything, "minikube").Return([]string{"https://127.0.0.1:6443"}, nil).Maybe()
+		db.EXPECT().GetCluster(mock.Anything, "https://127.0.0.1:6443").Return(&argoappv1.Cluster{Server: "https://127.0.0.1:6443", Name: "minikube"}, nil).Maybe()
 
-		appCond := ValidateDestination(context.Background(), &dest, db)
-		assert.Nil(t, appCond)
-		assert.Equal(t, "https://127.0.0.1:6443", dest.Server)
-		assert.True(t, dest.IsServerInferred())
+		destCluster, err := GetDestinationCluster(t.Context(), dest, db)
+		require.NoError(t, err)
+		assert.Equal(t, "https://127.0.0.1:6443", destCluster.Server)
 	})
 
 	t.Run("Error when having both server url and name", func(t *testing.T) {
+		t.Parallel()
 		dest := argoappv1.ApplicationDestination{
 			Server:    "https://127.0.0.1:6443",
 			Name:      "minikube",
 			Namespace: "default",
 		}
 
-		err := ValidateDestination(context.Background(), &dest, nil)
-		assert.Equal(t, "application destination can't have both name and server defined: minikube https://127.0.0.1:6443", err.Error())
-		assert.False(t, dest.IsServerInferred())
+		_, err := GetDestinationCluster(t.Context(), dest, nil)
+		assert.EqualError(t, err, "application destination can't have both name and server defined: minikube https://127.0.0.1:6443")
 	})
 
 	t.Run("GetClusterServersByName fails", func(t *testing.T) {
+		t.Parallel()
 		dest := argoappv1.ApplicationDestination{
 			Name: "minikube",
 		}
 
 		db := &dbmocks.ArgoDB{}
-		db.On("GetClusterServersByName", context.Background(), mock.Anything).Return(nil, fmt.Errorf("an error occurred"))
+		db.EXPECT().GetClusterServersByName(mock.Anything, "minikube").Return(nil, errors.New("an error occurred"))
 
-		err := ValidateDestination(context.Background(), &dest, db)
-		assert.Contains(t, err.Error(), "an error occurred")
-		assert.False(t, dest.IsServerInferred())
+		_, err := GetDestinationCluster(t.Context(), dest, db)
+		require.ErrorContains(t, err, "an error occurred")
 	})
 
 	t.Run("Destination cluster does not exist", func(t *testing.T) {
+		t.Parallel()
 		dest := argoappv1.ApplicationDestination{
 			Name: "minikube",
 		}
 
 		db := &dbmocks.ArgoDB{}
-		db.On("GetClusterServersByName", context.Background(), "minikube").Return(nil, nil)
+		db.EXPECT().GetClusterServersByName(mock.Anything, "minikube").Return(nil, nil)
 
-		err := ValidateDestination(context.Background(), &dest, db)
-		assert.Equal(t, "unable to find destination server: there are no clusters with this name: minikube", err.Error())
-		assert.False(t, dest.IsServerInferred())
+		_, err := GetDestinationCluster(t.Context(), dest, db)
+		assert.EqualError(t, err, "there are no clusters with this name: minikube")
 	})
 
 	t.Run("Validate too many clusters with the same name", func(t *testing.T) {
+		t.Parallel()
 		dest := argoappv1.ApplicationDestination{
 			Name: "dind",
 		}
 
 		db := &dbmocks.ArgoDB{}
-		db.On("GetClusterServersByName", context.Background(), "dind").Return([]string{"https://127.0.0.1:2443", "https://127.0.0.1:8443"}, nil)
+		db.EXPECT().GetClusterServersByName(mock.Anything, "dind").Return([]string{"https://127.0.0.1:2443", "https://127.0.0.1:8443"}, nil)
 
-		err := ValidateDestination(context.Background(), &dest, db)
-		assert.Equal(t, "unable to find destination server: there are 2 clusters with the same name: [https://127.0.0.1:2443 https://127.0.0.1:8443]", err.Error())
-		assert.False(t, dest.IsServerInferred())
+		_, err := GetDestinationCluster(t.Context(), dest, db)
+		assert.EqualError(t, err, "there are 2 clusters with the same name: [https://127.0.0.1:2443 https://127.0.0.1:8443]")
 	})
-
 }
 
 func TestFilterByName(t *testing.T) {
+	t.Parallel()
 	apps := []argoappv1.Application{
 		{
 			ObjectMeta: metav1.ObjectMeta{
@@ -992,25 +1322,29 @@ func TestFilterByName(t *testing.T) {
 	}
 
 	t.Run("Name is empty string", func(t *testing.T) {
+		t.Parallel()
 		res, err := FilterByName(apps, "")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Len(t, res, 2)
 	})
 
 	t.Run("Single app by name", func(t *testing.T) {
+		t.Parallel()
 		res, err := FilterByName(apps, "foo")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Len(t, res, 1)
 	})
 
 	t.Run("No such app", func(t *testing.T) {
+		t.Parallel()
 		res, err := FilterByName(apps, "foobar")
-		assert.Error(t, err)
-		assert.Len(t, res, 0)
+		require.Error(t, err)
+		assert.Empty(t, res)
 	})
 }
 
 func TestFilterByNameP(t *testing.T) {
+	t.Parallel()
 	apps := []*argoappv1.Application{
 		{
 			ObjectMeta: metav1.ObjectMeta{
@@ -1031,23 +1365,83 @@ func TestFilterByNameP(t *testing.T) {
 	}
 
 	t.Run("Name is empty string", func(t *testing.T) {
+		t.Parallel()
 		res := FilterByNameP(apps, "")
 		assert.Len(t, res, 2)
 	})
 
 	t.Run("Single app by name", func(t *testing.T) {
+		t.Parallel()
 		res := FilterByNameP(apps, "foo")
 		assert.Len(t, res, 1)
 	})
 
 	t.Run("No such app", func(t *testing.T) {
+		t.Parallel()
 		res := FilterByNameP(apps, "foobar")
-		assert.Len(t, res, 0)
+		assert.Empty(t, res)
 	})
 }
 
+func TestFilterByCluster(t *testing.T) {
+	t.Parallel()
+	apps := []argoappv1.Application{
+		{
+			Spec: argoappv1.ApplicationSpec{
+				Destination: argoappv1.ApplicationDestination{
+					Server: "https://cluster-1.example.com",
+				},
+			},
+		},
+		{
+			Spec: argoappv1.ApplicationSpec{
+				Destination: argoappv1.ApplicationDestination{
+					Name: "in-cluster",
+				},
+			},
+		},
+	}
+
+	tests := []struct {
+		name     string
+		cluster  string
+		expected int
+	}{
+		{
+			name:     "Empty filter returns all",
+			cluster:  "",
+			expected: 2,
+		},
+		{
+			name:     "Match by Server",
+			cluster:  "https://cluster-1.example.com",
+			expected: 1,
+		},
+		{
+			name:     "Match by Name",
+			cluster:  "in-cluster",
+			expected: 1,
+		},
+		{
+			name:     "No match found",
+			cluster:  "https://cluster-2.example.com",
+			expected: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			res := FilterByCluster(apps, tt.cluster)
+			assert.Len(t, res, tt.expected)
+		})
+	}
+}
+
 func TestGetGlobalProjects(t *testing.T) {
+	t.Parallel()
 	t.Run("Multiple global projects", func(t *testing.T) {
+		t.Parallel()
 		namespace := "default"
 
 		cm := corev1.ConfigMap{
@@ -1077,10 +1471,10 @@ func TestGetGlobalProjects(t *testing.T) {
 		defaultX := &argoappv1.AppProject{
 			ObjectMeta: metav1.ObjectMeta{Name: "default-x", Namespace: namespace},
 			Spec: argoappv1.AppProjectSpec{
-				ClusterResourceWhitelist: []metav1.GroupKind{
+				ClusterResourceWhitelist: []argoappv1.ClusterResourceRestrictionItem{
 					{Group: "*", Kind: "*"},
 				},
-				ClusterResourceBlacklist: []metav1.GroupKind{
+				ClusterResourceBlacklist: []argoappv1.ClusterResourceRestrictionItem{
 					{Kind: "Volume"},
 				},
 			},
@@ -1089,7 +1483,7 @@ func TestGetGlobalProjects(t *testing.T) {
 		defaultNonX := &argoappv1.AppProject{
 			ObjectMeta: metav1.ObjectMeta{Name: "default-non-x", Namespace: namespace},
 			Spec: argoappv1.AppProjectSpec{
-				ClusterResourceBlacklist: []metav1.GroupKind{
+				ClusterResourceBlacklist: []argoappv1.ClusterResourceRestrictionItem{
 					{Group: "*", Kind: "*"},
 				},
 			},
@@ -1110,7 +1504,7 @@ func TestGetGlobalProjects(t *testing.T) {
 		}
 
 		projClientset := appclientset.NewSimpleClientset(defaultX, defaultNonX, isX, isNoX)
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		defer cancel()
 		indexers := cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}
 		informer := v1alpha1.NewAppProjectInformer(projClientset, namespace, 0, indexers)
@@ -1118,55 +1512,151 @@ func TestGetGlobalProjects(t *testing.T) {
 		cache.WaitForCacheSync(ctx.Done(), informer.HasSynced)
 
 		kubeClient := fake.NewSimpleClientset(&cm)
-		settingsMgr := settings.NewSettingsManager(context.Background(), kubeClient, test.FakeArgoCDNamespace)
+		settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, test.FakeArgoCDNamespace)
 
 		projLister := applisters.NewAppProjectLister(informer.GetIndexer())
 
 		xGlobalProjects := GetGlobalProjects(isX, projLister, settingsMgr)
 		assert.Len(t, xGlobalProjects, 1)
-		assert.Equal(t, xGlobalProjects[0].Name, "default-x")
+		assert.Equal(t, "default-x", xGlobalProjects[0].Name)
 
 		nonXGlobalProjects := GetGlobalProjects(isNoX, projLister, settingsMgr)
 		assert.Len(t, nonXGlobalProjects, 1)
-		assert.Equal(t, nonXGlobalProjects[0].Name, "default-non-x")
+		assert.Equal(t, "default-non-x", nonXGlobalProjects[0].Name)
 	})
 }
 
-func Test_GetDifferentPathsBetweenStructs(t *testing.T) {
+func Test_mergeVirtualProject(t *testing.T) {
+	proj := &argoappv1.AppProject{
+		Spec: argoappv1.AppProjectSpec{
+			ClusterResourceBlacklist: []argoappv1.ClusterResourceRestrictionItem{{Group: "", Kind: "Namespace"}},
+			ClusterResourceWhitelist: []argoappv1.ClusterResourceRestrictionItem{{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"}},
+			DestinationServiceAccounts: []argoappv1.ApplicationDestinationServiceAccount{
+				{
+					Server:                "test",
+					Namespace:             "test",
+					DefaultServiceAccount: "custom-serviceaccount",
+				},
+			},
+			Destinations:               []argoappv1.ApplicationDestination{{Server: "test", Namespace: "test"}},
+			NamespaceResourceBlacklist: []metav1.GroupKind{{Group: "", Kind: "Service"}},
+			NamespaceResourceWhitelist: []metav1.GroupKind{{Group: "", Kind: "Pod"}},
+			SourceRepos:                []string{"http://some/where"},
+			SyncWindows: argoappv1.SyncWindows{
+				{
+					Kind:         "allow",
+					Schedule:     "* * * * *",
+					Duration:     "24h",
+					Clusters:     []string{"test"},
+					Namespaces:   []string{"test"},
+					Applications: []string{"test"},
+				},
+			},
+		},
+	}
 
+	globalProj := &argoappv1.AppProject{
+		Spec: argoappv1.AppProjectSpec{
+			ClusterResourceBlacklist: []argoappv1.ClusterResourceRestrictionItem{{Group: "*", Kind: "*"}},
+			ClusterResourceWhitelist: []argoappv1.ClusterResourceRestrictionItem{{Group: "*", Kind: "*"}},
+			DestinationServiceAccounts: []argoappv1.ApplicationDestinationServiceAccount{
+				{
+					Server:                "*",
+					Namespace:             "*",
+					DefaultServiceAccount: "default",
+				},
+			},
+			Destinations:               []argoappv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+			NamespaceResourceBlacklist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+			NamespaceResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+			SourceRepos:                []string{"http://some/where/else"},
+			SyncWindows: argoappv1.SyncWindows{
+				{
+					Kind:         "deny",
+					Schedule:     "0 0 * * *",
+					Duration:     "24h",
+					Clusters:     []string{"*"},
+					Namespaces:   []string{"*"},
+					Applications: []string{"*"},
+				},
+			},
+		},
+	}
+
+	expected := &argoappv1.AppProject{
+		Spec: argoappv1.AppProjectSpec{
+			ClusterResourceBlacklist: []argoappv1.ClusterResourceRestrictionItem{{Group: "", Kind: "Namespace"}, {Group: "*", Kind: "*"}},
+			ClusterResourceWhitelist: []argoappv1.ClusterResourceRestrictionItem{{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"}, {Group: "*", Kind: "*"}},
+			DestinationServiceAccounts: []argoappv1.ApplicationDestinationServiceAccount{
+				{
+					Server:                "test",
+					Namespace:             "test",
+					DefaultServiceAccount: "custom-serviceaccount",
+				},
+				{
+					Server:                "*",
+					Namespace:             "*",
+					DefaultServiceAccount: "default",
+				},
+			},
+			Destinations:               []argoappv1.ApplicationDestination{{Server: "test", Namespace: "test"}, {Server: "*", Namespace: "*"}},
+			NamespaceResourceBlacklist: []metav1.GroupKind{{Group: "", Kind: "Service"}, {Group: "*", Kind: "*"}},
+			NamespaceResourceWhitelist: []metav1.GroupKind{{Group: "", Kind: "Pod"}, {Group: "*", Kind: "*"}},
+			SourceRepos:                []string{"http://some/where", "http://some/where/else"},
+			SyncWindows: argoappv1.SyncWindows{
+				{
+					Kind:         "allow",
+					Schedule:     "* * * * *",
+					Duration:     "24h",
+					Clusters:     []string{"test"},
+					Namespaces:   []string{"test"},
+					Applications: []string{"test"},
+				},
+				{
+					Kind:         "deny",
+					Schedule:     "0 0 * * *",
+					Duration:     "24h",
+					Clusters:     []string{"*"},
+					Namespaces:   []string{"*"},
+					Applications: []string{"*"},
+				},
+			},
+		},
+	}
+	mergeVirtualProject(proj, globalProj)
+	assert.Equal(t, expected, proj)
+}
+
+func Test_GetDifferentPathsBetweenStructs(t *testing.T) {
 	r1 := argoappv1.Repository{}
 	r2 := argoappv1.Repository{
 		Name: "SomeName",
 	}
 
 	difference, _ := GetDifferentPathsBetweenStructs(r1, r2)
-	assert.Equal(t, difference, []string{"Name"})
-
+	assert.Equal(t, []string{"Name"}, difference)
 }
 
 func Test_GenerateSpecIsDifferentErrorMessageWithNoDiff(t *testing.T) {
-
 	r1 := argoappv1.Repository{}
 	r2 := argoappv1.Repository{}
 
 	msg := GenerateSpecIsDifferentErrorMessage("application", r1, r2)
-	assert.Equal(t, msg, "existing application spec is different; use upsert flag to force update")
-
+	assert.Equal(t, "existing application spec is different; use upsert flag to force update", msg)
 }
 
 func Test_GenerateSpecIsDifferentErrorMessageWithDiff(t *testing.T) {
-
 	r1 := argoappv1.Repository{}
 	r2 := argoappv1.Repository{
 		Name: "test",
 	}
 
 	msg := GenerateSpecIsDifferentErrorMessage("repo", r1, r2)
-	assert.Equal(t, msg, "existing repo spec is different; use upsert flag to force update; difference in keys \"Name\"")
-
+	assert.Equal(t, "existing repo spec is different; use upsert flag to force update; difference in keys \"Name\"", msg)
 }
 
 func Test_ParseAppQualifiedName(t *testing.T) {
+	t.Parallel()
 	testcases := []struct {
 		name       string
 		input      string
@@ -1183,6 +1673,7 @@ func Test_ParseAppQualifiedName(t *testing.T) {
 
 	for _, tt := range testcases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			appName, appNs := ParseFromQualifiedName(tt.input, tt.implicitNs)
 			assert.Equal(t, tt.appName, appName)
 			assert.Equal(t, tt.appNs, appNs)
@@ -1191,6 +1682,7 @@ func Test_ParseAppQualifiedName(t *testing.T) {
 }
 
 func Test_ParseAppInstanceName(t *testing.T) {
+	t.Parallel()
 	testcases := []struct {
 		name       string
 		input      string
@@ -1207,6 +1699,7 @@ func Test_ParseAppInstanceName(t *testing.T) {
 
 	for _, tt := range testcases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			appName, appNs := ParseInstanceName(tt.input, tt.implicitNs)
 			assert.Equal(t, tt.appName, appName)
 			assert.Equal(t, tt.appNs, appNs)
@@ -1215,6 +1708,7 @@ func Test_ParseAppInstanceName(t *testing.T) {
 }
 
 func Test_AppInstanceName(t *testing.T) {
+	t.Parallel()
 	testcases := []struct {
 		name         string
 		appName      string
@@ -1230,6 +1724,7 @@ func Test_AppInstanceName(t *testing.T) {
 
 	for _, tt := range testcases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := AppInstanceName(tt.appName, tt.appNamespace, tt.defaultNs)
 			assert.Equal(t, tt.result, result)
 		})
@@ -1237,6 +1732,7 @@ func Test_AppInstanceName(t *testing.T) {
 }
 
 func Test_AppInstanceNameFromQualified(t *testing.T) {
+	t.Parallel()
 	testcases := []struct {
 		name      string
 		appName   string
@@ -1251,6 +1747,7 @@ func Test_AppInstanceNameFromQualified(t *testing.T) {
 
 	for _, tt := range testcases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := InstanceNameFromQualified(tt.appName, tt.defaultNs)
 			assert.Equal(t, tt.result, result)
 		})
@@ -1258,8 +1755,9 @@ func Test_AppInstanceNameFromQualified(t *testing.T) {
 }
 
 func Test_GetRefSources(t *testing.T) {
+	t.Parallel()
 	repoPath, err := filepath.Abs("./../..")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	getMultiSourceAppSpec := func(sources argoappv1.ApplicationSources) *argoappv1.ApplicationSpec {
 		return &argoappv1.ApplicationSpec{
@@ -1267,70 +1765,99 @@ func Test_GetRefSources(t *testing.T) {
 		}
 	}
 
-	repo := &argoappv1.Repository{Repo: fmt.Sprintf("file://%s", repoPath)}
+	repo := &argoappv1.Repository{Repo: "file://" + repoPath}
 
 	t.Run("target ref exists", func(t *testing.T) {
-		repoDB := &dbmocks.ArgoDB{}
-		repoDB.On("GetRepository", context.Background(), repo.Repo).Return(repo, nil)
-
+		t.Parallel()
 		argoSpec := getMultiSourceAppSpec(argoappv1.ApplicationSources{
-			{RepoURL: fmt.Sprintf("file://%s", repoPath), Ref: "source-1_2"},
-			{RepoURL: fmt.Sprintf("file://%s", repoPath)},
+			{RepoURL: "file://" + repoPath, Ref: "source-1_2"},
+			{RepoURL: "file://" + repoPath},
 		})
 
-		refSources, err := GetRefSources(context.Background(), *argoSpec, repoDB)
+		refSources, err := GetRefSources(t.Context(), argoSpec.Sources, argoSpec.Project, func(_ context.Context, _ string, _ string) (*argoappv1.Repository, error) {
+			return repo, nil
+		}, []string{})
 
 		expectedRefSource := argoappv1.RefTargetRevisionMapping{
 			"$source-1_2": &argoappv1.RefTarget{
 				Repo: *repo,
 			},
 		}
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Len(t, refSources, 1)
 		assert.Equal(t, expectedRefSource, refSources)
 	})
 
 	t.Run("target ref does not exist", func(t *testing.T) {
-		repoDB := &dbmocks.ArgoDB{}
-		repoDB.On("GetRepository", context.Background(), "file://does-not-exist").Return(nil, errors.New("repo does not exist"))
-
+		t.Parallel()
 		argoSpec := getMultiSourceAppSpec(argoappv1.ApplicationSources{
 			{RepoURL: "file://does-not-exist", Ref: "source1"},
+			{RepoURL: "file://" + repoPath},
 		})
 
-		refSources, err := GetRefSources(context.Background(), *argoSpec, repoDB)
+		refSources, err := GetRefSources(t.Context(), argoSpec.Sources, argoSpec.Project, func(_ context.Context, _ string, _ string) (*argoappv1.Repository, error) {
+			return nil, errors.New("repo does not exist")
+		}, []string{})
 
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Empty(t, refSources)
 	})
 
 	t.Run("invalid ref", func(t *testing.T) {
+		t.Parallel()
 		argoSpec := getMultiSourceAppSpec(argoappv1.ApplicationSources{
 			{RepoURL: "file://does-not-exist", Ref: "%invalid-name%"},
+			{RepoURL: "file://" + repoPath},
 		})
 
-		refSources, err := GetRefSources(context.TODO(), *argoSpec, &dbmocks.ArgoDB{})
+		refSources, err := GetRefSources(t.Context(), argoSpec.Sources, argoSpec.Project, func(_ context.Context, _ string, _ string) (*argoappv1.Repository, error) {
+			return nil, err
+		}, []string{})
 
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Empty(t, refSources)
 	})
 
 	t.Run("duplicate ref keys", func(t *testing.T) {
+		t.Parallel()
 		argoSpec := getMultiSourceAppSpec(argoappv1.ApplicationSources{
 			{RepoURL: "file://does-not-exist", Ref: "source1"},
 			{RepoURL: "file://does-not-exist", Ref: "source1"},
 		})
 
-		refSources, err := GetRefSources(context.TODO(), *argoSpec, &dbmocks.ArgoDB{})
+		refSources, err := GetRefSources(t.Context(), argoSpec.Sources, argoSpec.Project, func(_ context.Context, _ string, _ string) (*argoappv1.Repository, error) {
+			return nil, err
+		}, []string{})
 
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Empty(t, refSources)
+	})
+
+	t.Run("single source with ref populates refSources", func(t *testing.T) {
+		t.Parallel()
+		argoSpec := getMultiSourceAppSpec(argoappv1.ApplicationSources{
+			{RepoURL: "file://" + repoPath, TargetRevision: "HEAD", Ref: "gitops"},
+		})
+
+		refSources, err := GetRefSources(t.Context(), argoSpec.Sources, argoSpec.Project, func(_ context.Context, _ string, _ string) (*argoappv1.Repository, error) {
+			return repo, nil
+		}, []string{})
+
+		require.NoError(t, err)
+		expected := argoappv1.RefTargetRevisionMapping{
+			"$gitops": &argoappv1.RefTarget{
+				Repo:           *repo,
+				TargetRevision: "HEAD",
+			},
+		}
+		assert.Equal(t, expected, refSources)
 	})
 }
 
 func TestValidatePermissionsMultipleSources(t *testing.T) {
-
+	t.Parallel()
 	t.Run("Empty Repo URL result in condition", func(t *testing.T) {
+		t.Parallel()
 		spec := argoappv1.ApplicationSpec{
 			Sources: argoappv1.ApplicationSources{
 				{RepoURL: ""},
@@ -1339,40 +1866,44 @@ func TestValidatePermissionsMultipleSources(t *testing.T) {
 
 		proj := argoappv1.AppProject{}
 		db := &dbmocks.ArgoDB{}
-		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
-		assert.NoError(t, err)
+		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
+		require.NoError(t, err)
 		assert.Len(t, conditions, 1)
 		assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, conditions[0].Type)
 		assert.Contains(t, conditions[0].Message, "are required")
 	})
 
 	t.Run("Incomplete Path/Chart/Ref combo result in condition", func(t *testing.T) {
+		t.Parallel()
 		spec := argoappv1.ApplicationSpec{
-			Sources: argoappv1.ApplicationSources{{
-				RepoURL: "http://some/where",
-				Path:    "",
-				Chart:   "",
-				Ref:     "",
-			},
+			Sources: argoappv1.ApplicationSources{
+				{
+					RepoURL: "http://some/where",
+					Path:    "",
+					Chart:   "",
+					Ref:     "",
+				},
 			},
 		}
 		proj := argoappv1.AppProject{}
 		db := &dbmocks.ArgoDB{}
-		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
-		assert.NoError(t, err)
+		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
+		require.NoError(t, err)
 		assert.Len(t, conditions, 1)
 		assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, conditions[0].Type)
 		assert.Contains(t, conditions[0].Message, "are required")
 	})
 
 	t.Run("One of the Application sources is not permitted in project", func(t *testing.T) {
+		t.Parallel()
 		spec := argoappv1.ApplicationSpec{
-			Sources: argoappv1.ApplicationSources{{
-				RepoURL:        "http://some/where",
-				Path:           "",
-				Chart:          "somechart",
-				TargetRevision: "1.4.1",
-			},
+			Sources: argoappv1.ApplicationSources{
+				{
+					RepoURL:        "http://some/where",
+					Path:           "",
+					Chart:          "somechart",
+					TargetRevision: "1.4.1",
+				},
 			},
 			Destination: argoappv1.ApplicationDestination{
 				Server:    "https://127.0.0.1:6443",
@@ -1390,23 +1921,25 @@ func TestValidatePermissionsMultipleSources(t *testing.T) {
 				SourceRepos: []string{"http://some/where/else"},
 			},
 		}
-		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443"}
+		cluster := &argoappv1.Cluster{Server: "https://127.0.0.1:6443", Name: "test"}
 		db := &dbmocks.ArgoDB{}
-		db.On("GetCluster", context.Background(), spec.Destination.Server).Return(cluster, nil)
-		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
-		assert.NoError(t, err)
+		db.EXPECT().GetCluster(mock.Anything, spec.Destination.Server).Return(cluster, nil)
+		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
+		require.NoError(t, err)
 		assert.Len(t, conditions, 1)
 		assert.Contains(t, conditions[0].Message, "application repo http://some/where is not permitted")
 	})
 
 	t.Run("Source with a Ref field and missing Path/Chart field", func(t *testing.T) {
+		t.Parallel()
 		spec := argoappv1.ApplicationSpec{
-			Sources: argoappv1.ApplicationSources{{
-				RepoURL: "http://some/where",
-				Path:    "",
-				Chart:   "",
-				Ref:     "somechart",
-			},
+			Sources: argoappv1.ApplicationSources{
+				{
+					RepoURL: "http://some/where",
+					Path:    "",
+					Chart:   "",
+					Ref:     "somechart",
+				},
 			},
 			Destination: argoappv1.ApplicationDestination{
 				Name:      "does-exist",
@@ -1429,15 +1962,16 @@ func TestValidatePermissionsMultipleSources(t *testing.T) {
 			Name:   "does-exist",
 			Server: "https://127.0.0.1:6443",
 		}
-		db.On("GetClusterServersByName", context.Background(), "does-exist").Return([]string{"https://127.0.0.1:6443"}, nil)
-		db.On("GetCluster", context.Background(), "https://127.0.0.1:6443").Return(&cluster, nil)
-		conditions, err := ValidatePermissions(context.Background(), &spec, &proj, db)
-		assert.NoError(t, err)
-		assert.Len(t, conditions, 0)
+		db.EXPECT().GetClusterServersByName(mock.Anything, "does-exist").Return([]string{"https://127.0.0.1:6443"}, nil).Maybe()
+		db.EXPECT().GetCluster(mock.Anything, "https://127.0.0.1:6443").Return(&cluster, nil).Maybe()
+		conditions, err := ValidatePermissions(t.Context(), &spec, &proj, db)
+		require.NoError(t, err)
+		assert.Empty(t, conditions)
 	})
 }
 
 func TestAugmentSyncMsg(t *testing.T) {
+	t.Parallel()
 	mockAPIResourcesFn := func() ([]kube.APIResourceInfo, error) {
 		return []kube.APIResourceInfo{
 			{
@@ -1553,15 +2087,438 @@ func TestAugmentSyncMsg(t *testing.T) {
 
 	for _, tt := range testcases {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			tt.res.Message = tt.msg
 			msg, err := AugmentSyncMsg(tt.res, tt.mockFn)
 			if tt.errMsg != "" {
-				require.Error(t, err)
-				assert.Equal(t, tt.errMsg, err.Error())
+				assert.EqualError(t, err, tt.errMsg)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, tt.expectedMessage, msg)
 			}
 		})
 	}
+}
+
+func TestGetAppEventLabels(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name                string
+		cmInEventLabelKeys  string
+		cmExEventLabelKeys  string
+		appLabels           map[string]string
+		projLabels          map[string]string
+		expectedEventLabels map[string]string
+	}{
+		{
+			name:                "no label keys in cm - no event labels",
+			cmInEventLabelKeys:  "",
+			appLabels:           map[string]string{"team": "A", "tier": "frontend"},
+			projLabels:          map[string]string{"environment": "dev"},
+			expectedEventLabels: nil,
+		},
+		{
+			name:                "label keys in cm, no labels on app & proj - no event labels",
+			cmInEventLabelKeys:  "team, environment",
+			appLabels:           nil,
+			projLabels:          nil,
+			expectedEventLabels: nil,
+		},
+		{
+			name:                "labels on app, no labels on proj - event labels matched on app only",
+			cmInEventLabelKeys:  "team, environment",
+			appLabels:           map[string]string{"team": "A", "tier": "frontend"},
+			projLabels:          nil,
+			expectedEventLabels: map[string]string{"team": "A"},
+		},
+		{
+			name:                "no labels on app, labels on proj - event labels matched on proj only",
+			cmInEventLabelKeys:  "team, environment",
+			appLabels:           nil,
+			projLabels:          map[string]string{"environment": "dev"},
+			expectedEventLabels: map[string]string{"environment": "dev"},
+		},
+		{
+			name:                "labels on app & proj with conflicts - event labels matched on both app & proj and app labels prioritized on conflict",
+			cmInEventLabelKeys:  "team, environment",
+			appLabels:           map[string]string{"team": "A", "environment": "stage", "tier": "frontend"},
+			projLabels:          map[string]string{"environment": "dev"},
+			expectedEventLabels: map[string]string{"team": "A", "environment": "stage"},
+		},
+		{
+			name:                "wildcard support - matched all labels",
+			cmInEventLabelKeys:  "*",
+			appLabels:           map[string]string{"team": "A", "tier": "frontend"},
+			projLabels:          map[string]string{"environment": "dev"},
+			expectedEventLabels: map[string]string{"team": "A", "tier": "frontend", "environment": "dev"},
+		},
+		{
+			name:                "exclude event labels",
+			cmInEventLabelKeys:  "example.com/team,tier,env*",
+			cmExEventLabelKeys:  "tie*",
+			appLabels:           map[string]string{"example.com/team": "A", "tier": "frontend"},
+			projLabels:          map[string]string{"environment": "dev"},
+			expectedEventLabels: map[string]string{"example.com/team": "A", "environment": "dev"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			cm := corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "argocd-cm",
+					Namespace: test.FakeArgoCDNamespace,
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+				Data: map[string]string{
+					"resource.includeEventLabelKeys": tt.cmInEventLabelKeys,
+					"resource.excludeEventLabelKeys": tt.cmExEventLabelKeys,
+				},
+			}
+
+			proj := &argoappv1.AppProject{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "default",
+					Namespace: test.FakeArgoCDNamespace,
+					Labels:    tt.projLabels,
+				},
+			}
+
+			var app argoappv1.Application
+			app.Name = "test-app"
+			app.Namespace = test.FakeArgoCDNamespace
+			app.Labels = tt.appLabels
+			appClientset := appclientset.NewSimpleClientset(proj)
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			indexers := cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}
+			informer := v1alpha1.NewAppProjectInformer(appClientset, test.FakeArgoCDNamespace, 0, indexers)
+			go informer.Run(ctx.Done())
+			cache.WaitForCacheSync(ctx.Done(), informer.HasSynced)
+
+			kubeClient := fake.NewSimpleClientset(&cm)
+			settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, test.FakeArgoCDNamespace)
+			argoDB := db.NewDB("default", settingsMgr, kubeClient)
+
+			eventLabels := GetAppEventLabels(ctx, &app, applisters.NewAppProjectLister(informer.GetIndexer()), test.FakeArgoCDNamespace, settingsMgr, argoDB)
+			assert.Len(t, eventLabels, len(tt.expectedEventLabels))
+			for ek, ev := range tt.expectedEventLabels {
+				v, found := eventLabels[ek]
+				assert.True(t, found)
+				assert.Equal(t, ev, v)
+			}
+		})
+	}
+}
+
+func TestValidateManagedByURL(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name       string
+		app        *argoappv1.Application
+		wantErr    bool
+		wantErrMsg string
+	}{
+		{
+			name: "Valid HTTPS URL",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						argoappv1.AnnotationKeyManagedByURL: "https://argocd.example.com",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Valid HTTP URL",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						argoappv1.AnnotationKeyManagedByURL: "http://argocd.example.com",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Valid localhost HTTPS URL",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						argoappv1.AnnotationKeyManagedByURL: "https://localhost:8081",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Valid localhost HTTP URL",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						argoappv1.AnnotationKeyManagedByURL: "http://localhost:8081",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Valid 127.0.0.1 URL",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						argoappv1.AnnotationKeyManagedByURL: "http://127.0.0.1:8081",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "No annotations",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Empty managed-by-url",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						argoappv1.AnnotationKeyManagedByURL: "",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Missing managed-by-url annotation",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"other.annotation": "value",
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Invalid protocol - javascript",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						argoappv1.AnnotationKeyManagedByURL: "javascript:alert('xss')",
+					},
+				},
+			},
+			wantErr:    true,
+			wantErrMsg: "invalid managed-by URL: URL must include http or https protocol",
+		},
+		{
+			name: "Invalid protocol - data",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						argoappv1.AnnotationKeyManagedByURL: "data:text/html,<script>alert('xss')</script>",
+					},
+				},
+			},
+			wantErr:    true,
+			wantErrMsg: "invalid managed-by URL: URL must include http or https protocol",
+		},
+		{
+			name: "Invalid protocol - file",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						argoappv1.AnnotationKeyManagedByURL: "file:///etc/passwd",
+					},
+				},
+			},
+			wantErr:    true,
+			wantErrMsg: "invalid managed-by URL: URL must include http or https protocol",
+		},
+		{
+			name: "Invalid URL format",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						argoappv1.AnnotationKeyManagedByURL: "not-a-url",
+					},
+				},
+			},
+			wantErr:    true,
+			wantErrMsg: "invalid managed-by URL: URL must include http or https protocol",
+		},
+		{
+			name: "URL with path and query",
+			app: &argoappv1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						argoappv1.AnnotationKeyManagedByURL: "https://argocd.example.com/applications?namespace=default",
+					},
+				},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			conditions := ValidateManagedByURL(tt.app)
+
+			if tt.wantErr {
+				require.Len(t, conditions, 1, "Expected exactly one validation condition")
+				assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, conditions[0].Type)
+				assert.Contains(t, conditions[0].Message, tt.wantErrMsg)
+			} else {
+				assert.Empty(t, conditions, "Expected no validation conditions for valid URL")
+			}
+		})
+	}
+}
+
+func Test_GetSyncedRefSources(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name            string
+		refSources      argoappv1.RefTargetRevisionMapping
+		sources         argoappv1.ApplicationSources
+		syncedRevisions []string
+		result          argoappv1.RefTargetRevisionMapping
+	}{
+		{
+			name: "multi ref sources",
+			refSources: argoappv1.RefTargetRevisionMapping{
+				"$values": &argoappv1.RefTarget{
+					Repo:           argoappv1.Repository{Repo: "https://github.com/argocd"},
+					TargetRevision: "main-1",
+					Chart:          "chart",
+				},
+				"$values_1": &argoappv1.RefTarget{
+					Repo:           argoappv1.Repository{Repo: "https://github.com/argocd-1"},
+					TargetRevision: "main-2",
+					Chart:          "chart",
+				},
+			},
+			sources: argoappv1.ApplicationSources{
+				{RepoURL: "https://helm.registry", TargetRevision: "0.0.1", Chart: "my-chart", Helm: &argoappv1.ApplicationSourceHelm{ValueFiles: []string{"$values/path"}}},
+				{RepoURL: "https://github.com/argocd", TargetRevision: "main-1", Ref: "values"},
+				{RepoURL: "https://github.com/argocd-1", TargetRevision: "main-2", Ref: "values_1"},
+			},
+			syncedRevisions: []string{"0.0.1", "resolved-main-1", "resolved-main-2"},
+			result: argoappv1.RefTargetRevisionMapping{
+				"$values": &argoappv1.RefTarget{
+					Repo:           argoappv1.Repository{Repo: "https://github.com/argocd"},
+					TargetRevision: "resolved-main-1",
+					Chart:          "chart",
+				},
+				"$values_1": &argoappv1.RefTarget{
+					Repo:           argoappv1.Repository{Repo: "https://github.com/argocd-1"},
+					TargetRevision: "resolved-main-2",
+					Chart:          "chart",
+				},
+			},
+		},
+		{
+			name: "ref source",
+			refSources: argoappv1.RefTargetRevisionMapping{
+				"$values": &argoappv1.RefTarget{
+					Repo:           argoappv1.Repository{Repo: "https://github.com/argocd"},
+					TargetRevision: "main-1",
+					Chart:          "chart",
+				},
+			},
+			sources: argoappv1.ApplicationSources{
+				{RepoURL: "https://helm.registry", TargetRevision: "0.0.1", Chart: "my-chart", Helm: &argoappv1.ApplicationSourceHelm{ValueFiles: []string{"$values/path"}}},
+				{RepoURL: "https://github.com/argocd", TargetRevision: "main-1", Ref: "values"},
+			},
+			syncedRevisions: []string{"0.0.1", "resolved-main-1"},
+			result: argoappv1.RefTargetRevisionMapping{
+				"$values": &argoappv1.RefTarget{
+					Repo:           argoappv1.Repository{Repo: "https://github.com/argocd"},
+					TargetRevision: "resolved-main-1",
+					Chart:          "chart",
+				},
+			},
+		},
+		{
+			name:       "empty ref source",
+			refSources: argoappv1.RefTargetRevisionMapping{},
+			sources: argoappv1.ApplicationSources{
+				{RepoURL: "https://helm.registry", TargetRevision: "0.0.1", Chart: "my-chart"},
+			},
+			syncedRevisions: []string{"0.0.1"},
+			result:          argoappv1.RefTargetRevisionMapping{},
+		},
+		{
+			name:            "empty sources",
+			refSources:      argoappv1.RefTargetRevisionMapping{},
+			sources:         argoappv1.ApplicationSources{},
+			syncedRevisions: []string{},
+			result:          argoappv1.RefTargetRevisionMapping{},
+		},
+		{
+			name: "no synced revisions",
+			refSources: argoappv1.RefTargetRevisionMapping{
+				"$values": &argoappv1.RefTarget{
+					Repo:           argoappv1.Repository{Repo: "https://github.com/argocd"},
+					TargetRevision: "main-1",
+					Chart:          "chart",
+				},
+			},
+			sources: argoappv1.ApplicationSources{
+				{RepoURL: "https://helm.registry", TargetRevision: "0.0.1", Chart: "my-chart", Helm: &argoappv1.ApplicationSourceHelm{ValueFiles: []string{"$values/path"}}},
+				{RepoURL: "https://github.com/argocd", TargetRevision: "main-1", Ref: "values"},
+			},
+			syncedRevisions: []string{},
+			result: argoappv1.RefTargetRevisionMapping{
+				"$values": &argoappv1.RefTarget{
+					Repo:           argoappv1.Repository{Repo: "https://github.com/argocd"},
+					TargetRevision: "",
+					Chart:          "chart",
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			syncedRefSources := GetSyncedRefSources(tt.refSources, tt.sources, tt.syncedRevisions)
+			assert.Equal(t, tt.result, syncedRefSources)
+		})
+	}
+}
+
+// Covers https://github.com/argoproj/argo-cd/issues/27759:
+// spec.sources with one element still sets HasMultipleSources(); GetRefSources must populate refSources so
+// GetSyncedRefSources does not dereference a missing map entry.
+func Test_GetRefSourcesAndSyncedRefSources_SingleSourceWithRef(t *testing.T) {
+	repoPath, err := filepath.Abs("./../..")
+	require.NoError(t, err)
+	repo := &argoappv1.Repository{Repo: "file://" + repoPath}
+	sources := argoappv1.ApplicationSources{
+		{RepoURL: "file://" + repoPath, TargetRevision: "HEAD", Ref: "gitops"},
+	}
+
+	refSources, err := GetRefSources(t.Context(), sources, "", func(_ context.Context, _ string, _ string) (*argoappv1.Repository, error) {
+		return repo, nil
+	}, []string{})
+	require.NoError(t, err)
+
+	syncedRevisions := []string{"rev"}
+	synced := GetSyncedRefSources(refSources, sources, syncedRevisions)
+
+	expected := argoappv1.RefTargetRevisionMapping{
+		"$gitops": &argoappv1.RefTarget{
+			Repo:           *repo,
+			TargetRevision: "rev",
+		},
+	}
+	assert.Equal(t, expected, synced)
 }

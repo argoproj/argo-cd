@@ -1,6 +1,6 @@
 import {FormField, FormSelect} from 'argo-ui';
 import * as React from 'react';
-import {Form, FormApi, Text} from 'react-form';
+import {Form, FormApi, Text} from 'argo-ui';
 
 import {CheckboxField} from '../../../shared/components';
 
@@ -30,12 +30,12 @@ interface ProjectSyncWindowsEditPanelProps {
 }
 
 export const ProjectSyncWindowsEditPanel = (props: ProjectSyncWindowsEditPanelProps) => {
-    if (props.defaultParams.window === undefined) {
-        const w = {
-            schedule: '* * * * *'
-        } as models.SyncWindow;
-        props.defaultParams.window = w;
-    }
+    const window =
+        props.defaultParams.window === undefined
+            ? ({
+                  schedule: '* * * * *'
+              } as models.SyncWindow)
+            : props.defaultParams.window;
     return (
         <div className='project-sync-windows-edit-panel'>
             <Form
@@ -43,7 +43,7 @@ export const ProjectSyncWindowsEditPanel = (props: ProjectSyncWindowsEditPanelPr
                 getApi={props.getApi}
                 defaultValues={{
                     projName: props.defaultParams.projName,
-                    window: props.defaultParams.window
+                    window
                 }}
                 validateError={(params: ProjectSyncWindowsParams) => ({
                     projName: !params.projName && 'Project name is required',
@@ -66,6 +66,20 @@ export const ProjectSyncWindowsEditPanel = (props: ProjectSyncWindowsEditPanelPr
                             </div>
                             <div className='argo-form-row'>
                                 <FormField formApi={api} label='Enable manual sync' field='window.manualSync' component={CheckboxField} />
+                            </div>
+                            <div className='argo-form-row'>
+                                <FormField formApi={api} label='Enable sync overrun' field='window.syncOverrun' component={CheckboxField} />
+                            </div>
+                            <div className='argo-form-row'>
+                                <FormField
+                                    formApi={api}
+                                    label='Use AND operator while selecting the apps that match the configured selectors(applications, namespaces and clusters)'
+                                    field='window.andOperator'
+                                    component={CheckboxField}
+                                />
+                            </div>
+                            <div className='argo-form-row'>
+                                <FormField formApi={api} label='Description' field='window.description' component={Text} />
                             </div>
                         </div>
                         <div className='white-box'>

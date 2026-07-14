@@ -47,7 +47,8 @@ metadata:
 * [Grafana](./grafana.md)
 * [Webhook](./webhook.md)
 * [Telegram](./telegram.md)
-* [Teams](./teams.md)
+* [Teams (Office 365 Connectors)](./teams.md) - Legacy service (deprecated, retires March 31, 2026)
+* [Teams Workflows](./teams-workflows.md) - Recommended replacement for Office 365 Connectors
 * [Google Chat](./googlechat.md)
 * [Rocket.Chat](./rocketchat.md)
 * [Pushover](./pushover.md)

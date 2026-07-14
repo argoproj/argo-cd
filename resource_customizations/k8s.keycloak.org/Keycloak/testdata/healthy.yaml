@@ -1,0 +1,77 @@
+apiVersion: k8s.keycloak.org/v2alpha1
+kind: Keycloak
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-wave: '2'
+    argocd.argoproj.io/tracking-id: foobar-keycloak:k8s.keycloak.org/Keycloak:foo/keycloak
+  creationTimestamp: '2024-10-07T09:06:33Z'
+  generation: 4
+  name: keycloak
+  namespace: foo
+  resourceVersion: '343382'
+  uid: 4e08e59c-1b6b-4b13-8a1a-bbce3f91bd68
+spec:
+  additionalOptions:
+    - name: proxy-headers
+      value: xforwarded
+  db:
+    host: keycloak-db
+    passwordSecret:
+      key: password
+      name: keycloak.keycloak-db.credentials.postgresql.acid.zalan.do
+    usernameSecret:
+      key: username
+      name: keycloak.keycloak-db.credentials.postgresql.acid.zalan.do
+    vendor: postgres
+  hostname:
+    admin: https://keycloak.apps-crc.testing
+    hostname: keycloak.apps-crc.testing
+  http:
+    httpEnabled: false
+    tlsSecret: keycloak-tls
+  ingress:
+    enabled: false
+  instances: 2
+  unsupported:
+    podTemplate:
+      spec:
+        containers:
+          - env:
+              - name: KC_HTTPS_TRUST_STORE_FILE
+                value: /truststore/openshiftca.jks
+              - name: KC_HTTPS_TRUST_STORE_PASSWORD
+                value: OpenshiftCA
+              - name: KC_HTTPS_TRUST_STORE_TYPE
+                value: JKS
+              - name: KC_LOG_LEVEL
+                value: INFO
+            volumeMounts:
+              - mountPath: /truststore
+                name: truststore-volume
+        volumes:
+          - name: truststore-volume
+            secret:
+              secretName: keycloak-truststore
+status:
+  conditions:
+    - lastTransitionTime: '2024-10-09T09:55:28.695748046Z'
+      message: ''
+      observedGeneration: 4
+      status: 'True'
+      type: Ready
+    - lastTransitionTime: '2024-10-08T11:11:08.814752530Z'
+      message: >-
+        warning: You need to specify these fields as the first-class citizen of
+        the CR: proxy-headers
+      observedGeneration: 4
+      status: 'False'
+      type: HasErrors
+    - lastTransitionTime: '2024-10-09T09:47:33.600863636Z'
+      message: ''
+      observedGeneration: 4
+      status: 'False'
+      type: RollingUpdate
+  instances: 2
+  observedGeneration: 4
+  selector: >-
+    app=keycloak,app.kubernetes.io/managed-by=keycloak-operator,app.kubernetes.io/instance=keycloak

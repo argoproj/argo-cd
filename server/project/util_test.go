@@ -3,9 +3,12 @@ package project
 import (
 	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestUnique(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name  string
 		slice []string
@@ -39,9 +42,9 @@ func TestUnique(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := unique(tt.slice); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("unique() = %v, want %v", got, tt.want)
-			}
+			t.Parallel()
+			got := unique(tt.slice)
+			assert.Truef(t, reflect.DeepEqual(got, tt.want), "unique() = %v, want %v", got, tt.want)
 		})
 	}
 }

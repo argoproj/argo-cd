@@ -7,13 +7,15 @@ import (
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/test"
-	"github.com/argoproj/argo-cd/v2/util/argo/diff"
-	"github.com/argoproj/argo-cd/v2/util/argo/testdata"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test"
+	"github.com/argoproj/argo-cd/v3/util/argo/diff"
+	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
+	"github.com/argoproj/argo-cd/v3/util/argo/testdata"
 )
 
 func TestNormalize(t *testing.T) {
+	t.Parallel()
 	type fixture struct {
 		diffConfig diff.DiffConfig
 		lives      []*unstructured.Unstructured
@@ -22,7 +24,7 @@ func TestNormalize(t *testing.T) {
 	setup := func(t *testing.T, ignores []v1alpha1.ResourceIgnoreDifferences) *fixture {
 		t.Helper()
 		dc, err := diff.NewDiffConfigBuilder().
-			WithDiffSettings(ignores, nil, true).
+			WithDiffSettings(ignores, nil, true, normalizers.IgnoreNormalizerOpts{}).
 			WithNoCache().
 			Build()
 		require.NoError(t, err)
@@ -36,6 +38,7 @@ func TestNormalize(t *testing.T) {
 	}
 	t.Run("will normalize resources removing the fields owned by managers", func(t *testing.T) {
 		// given
+		t.Parallel()
 		ignore := v1alpha1.ResourceIgnoreDifferences{
 			Group:                 "*",
 			Kind:                  "*",
@@ -49,7 +52,7 @@ func TestNormalize(t *testing.T) {
 
 		// then
 		require.NoError(t, err)
-		require.Equal(t, 1, len(result.Targets))
+		require.Len(t, result.Targets, 1)
 		_, ok, err := unstructured.NestedFloat64(result.Targets[0].Object, "spec", "revisionHistoryLimit")
 		require.NoError(t, err)
 		require.False(t, ok)
@@ -59,6 +62,7 @@ func TestNormalize(t *testing.T) {
 	})
 	t.Run("will correctly normalize with multiple ignore configurations", func(t *testing.T) {
 		// given
+		t.Parallel()
 		ignores := []v1alpha1.ResourceIgnoreDifferences{
 			{
 				Group:        "apps",
@@ -78,7 +82,7 @@ func TestNormalize(t *testing.T) {
 
 		// then
 		require.NoError(t, err)
-		require.Equal(t, 1, len(normalized.Targets))
+		require.Len(t, normalized.Targets, 1)
 		_, ok, err := unstructured.NestedFloat64(normalized.Targets[0].Object, "spec", "revisionHistoryLimit")
 		require.NoError(t, err)
 		require.False(t, ok)
@@ -94,6 +98,7 @@ func TestNormalize(t *testing.T) {
 	})
 	t.Run("will not modify resources if ignore difference is not configured", func(t *testing.T) {
 		// given
+		t.Parallel()
 		ignores := []v1alpha1.ResourceIgnoreDifferences{}
 		f := setup(t, ignores)
 
@@ -102,7 +107,7 @@ func TestNormalize(t *testing.T) {
 
 		// then
 		require.NoError(t, err)
-		require.Equal(t, 1, len(result.Targets))
+		require.Len(t, result.Targets, 1)
 		assert.Equal(t, f.lives[0], result.Lives[0])
 		assert.Equal(t, f.targets[0], result.Targets[0])
 	})

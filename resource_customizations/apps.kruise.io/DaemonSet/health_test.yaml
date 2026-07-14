@@ -1,0 +1,25 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: "All Daemonset workloads are ready and updated"
+    inputPath: testdata/healthy.yaml
+  - healthStatus:
+      status: Degraded
+      message: "Some pods are not ready or available"
+    inputPath: testdata/degraded.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Waiting for initialization"
+    inputPath: testdata/unknown.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Waiting for initialization"
+    inputPath: testdata/no-update-strategy-partition.yaml
+  - healthStatus:
+      status: Suspended
+      message: "Daemonset is paused"
+    inputPath: testdata/suspended.yaml
+  - healthStatus:
+      status: Suspended
+      message: "Daemonset needs manual intervention"
+    inputPath: testdata/partition_suspended.yaml

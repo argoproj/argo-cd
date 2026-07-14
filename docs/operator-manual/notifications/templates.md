@@ -19,8 +19,10 @@ data:
 Each template has access to the following fields:
 
 - `app` holds the application object.
+- `appProject` holds the AppProject object associated with the application. This provides access to project-level details like RBAC roles, policies, source repository restrictions, and destination cluster restrictions.
 - `context` is a user-defined string map and might include any string keys and values.
-- `serviceType` holds the notification service type name (such as "slack" or "email). The field can be used to conditionally
+- `secrets` provides access to sensitive data stored in `argocd-notifications-secret`
+- `serviceType` holds the notification service type name (such as "slack" or "email"). The field can be used to conditionally
 render service-specific fields.
 - `recipient` holds the recipient name.
 
@@ -43,42 +45,80 @@ data:
     message: "Something happened in {{ .context.environmentName }} in the {{ .context.region }} data center!"
 ```
 
+## Using AppProject information in templates
+
+Templates can access the AppProject associated with an Application using the `appProject` variable. This is useful for including project-level information such as RBAC policies, source repositories, and destination clusters in notifications.
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-notifications-cm
+data:
+  template.app-project-info: |
+    message: |
+      Application {{.app.metadata.name}} belongs to project {{.appProject.metadata.name}}.
+      Project description: {{.appProject.spec.description}}
+      Allowed source repositories: {{range .appProject.spec.sourceRepos}}{{.}} {{end}}
+  
+  template.app-rbac-policies: |
+    message: |
+      Application: {{.app.metadata.name}}
+      Project: {{.appProject.metadata.name}}
+      RBAC Roles:
+      {{range .appProject.spec.roles}}
+      - Role: {{.name}}
+        Policies: {{range .policies}}{{.}} {{end}}
+      {{end}}
+```
+
+## Defining and using secrets within notification templates
+
+Some notification service use cases will require the use of secrets within templates. This can be achieved with the use of
+the `secrets` data variable available within the templates.
+
+Given that we have the following `argocd-notifications-secret`:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-notifications-secret
+stringData:
+  sampleWebhookToken: secret-token
+type: Opaque
+```
+
+We can use the defined `sampleWebhookToken` in a template as such:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-notifications-cm
+data:
+  template.trigger-webhook: |
+      webhook:
+        sample-webhook:
+          method: POST
+          path: 'webhook/endpoint/with/auth'
+          body: 'token={{ .secrets.sampleWebhookToken }}&variables[APP_SOURCE_PATH]={{ .app.spec.source.path }}
+```
+
 ## Notification Service Specific Fields
 
 The `message` field of the template definition allows creating a basic notification for any notification service. You can leverage notification service-specific
-fields to create complex notifications. For example using service-specific you can add blocks and attachments for Slack, subject for Email or URL path, and body for Webhook.
+fields to create complex notifications. For example, using service-specific fields you can add blocks and attachments for Slack, subject for Email or URL path, and body for Webhook.
 See corresponding service [documentation](services/overview.md) for more information.
 
 ## Change the timezone
 
-You can change the timezone to show in notifications as follows.
-
-1. Call time functions.
-
-    ```
-    {{ (call .time.Parse .app.status.operationState.startedAt).Local.Format "2006-01-02T15:04:05Z07:00" }}
-    ```
-
-2. Set the `TZ` environment variable on the argocd-notifications-controller container.
-
-    ```yaml
-    apiVersion: apps/v1
-    kind: Deployment
-    metadata:
-      name: argocd-notifications-controller
-    spec:
-      template:
-        spec:
-          containers:
-          - name: argocd-notifications-controller
-            env:
-            - name: TZ
-              value: Asia/Tokyo
-    ```
+To change the timezone used when formatting time values in notifications, see
+[Configuring the local timezone](#configuring-the-local-timezone).
 
 ## Functions
 
-Templates have access to the set of built-in functions:
+Templates have access to the set of built-in functions such as the functions of the [Sprig](https://masterminds.github.io/sprig/) package
 
 ```yaml
 apiVersion: v1

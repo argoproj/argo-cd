@@ -42,8 +42,23 @@
         right: 1em;
     }
 
+    &__links-rows {
+        margin: 10px 0;
+    }
+    
+    &__links-row {
+        display: flex;
+        align-items: center;
+        height: 35px;
+    }
+
     .argo-field {
         line-height: 1.15;
+        button {
+            @include themify($themes) {
+                color: themed('text-1');
+            }
+        }
     }
 
     .white-box__details p {

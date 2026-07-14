@@ -1,0 +1,41 @@
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmChart
+metadata:
+  name: podinfo
+  namespace: default
+spec:
+  interval: 5m0s
+  chart: podinfo
+  reconcileStrategy: ChartVersion
+  sourceRef:
+    kind: HelmRepository
+    name: podinfo
+  version: '5.*'
+status:
+  conditions:
+    - lastTransitionTime: "2024-07-16T12:00:00Z"
+      message: 'processing object: new generation 1 -> 2'
+      observedGeneration: 2
+      reason: ProgressingWithRetry
+      status: "True"
+      type: Reconciling
+    - lastTransitionTime: "2024-07-16T12:00:00Z"
+      message: 'failed to get source: HelmRepository.source.toolkit.fluxcd.io "podinfo-faulty"
+        not found'
+      observedGeneration: 2
+      reason: SourceUnavailable
+      status: "False"
+      type: Ready
+    - lastTransitionTime: "2024-07-16T12:00:00Z"
+      message: 'failed to get source: HelmRepository.source.toolkit.fluxcd.io "podinfo-faulty"
+        not found'
+      observedGeneration: 2
+      reason: SourceUnavailable
+      status: "True"
+      type: FetchFailed
+    - lastTransitionTime: "2024-07-16T12:00:00Z"
+      message: pulled 'podinfo' chart with version '5.2.1'
+      observedGeneration: 1
+      reason: ChartPullSucceeded
+      status: "True"
+      type: ArtifactInStorage

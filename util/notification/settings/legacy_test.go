@@ -8,11 +8,13 @@ import (
 	"github.com/argoproj/notifications-engine/pkg/subscriptions"
 	"github.com/argoproj/notifications-engine/pkg/triggers"
 	"github.com/stretchr/testify/assert"
-	v1 "k8s.io/api/core/v1"
+	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 )
 
 func TestMergeLegacyConfig_DefaultTriggers(t *testing.T) {
+	t.Parallel()
 	cfg := api.Config{
 		Services: map[string]api.ServiceFactory{},
 		Triggers: map[string][]triggers.Condition{
@@ -35,14 +37,15 @@ triggers:
 `
 	err := ApplyLegacyConfig(&cfg,
 		context,
-		&v1.ConfigMap{Data: map[string]string{"config.yaml": configYAML}},
-		&v1.Secret{Data: map[string][]byte{}},
+		&corev1.ConfigMap{Data: map[string]string{"config.yaml": configYAML}},
+		&corev1.Secret{Data: map[string][]byte{}},
 	)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, []string{"my-trigger1"}, cfg.DefaultTriggers)
 }
 
 func TestMergeLegacyConfig(t *testing.T) {
+	t.Parallel()
 	cfg := api.Config{
 		Templates: map[string]services.Notification{"my-template1": {Message: "foo"}},
 		Triggers: map[string][]triggers.Condition{
@@ -81,11 +84,11 @@ slack:
   token: my-token
 `
 	err := ApplyLegacyConfig(&cfg, context,
-		&v1.ConfigMap{Data: map[string]string{"config.yaml": configYAML}},
-		&v1.Secret{Data: map[string][]byte{"notifiers.yaml": []byte(notifiersYAML)}},
+		&corev1.ConfigMap{Data: map[string]string{"config.yaml": configYAML}},
+		&corev1.Secret{Data: map[string][]byte{"notifiers.yaml": []byte(notifiersYAML)}},
 	)
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, map[string]services.Notification{
 		"my-template1": {Message: "bar"},
 		"my-template2": {Message: "foo"},
@@ -101,9 +104,7 @@ slack:
 	}}, cfg.Triggers["my-trigger2"])
 
 	label, err := labels.Parse("test=true")
-	if !assert.NoError(t, err) {
-		return
-	}
+	require.NoError(t, err)
 	assert.Equal(t, subscriptions.DefaultSubscriptions([]subscriptions.DefaultSubscription{
 		{Triggers: []string{"my-trigger2"}, Selector: label},
 	}), cfg.Subscriptions)
@@ -111,18 +112,22 @@ slack:
 }
 
 func TestGetDestinations(t *testing.T) {
+	t.Parallel()
 	res := GetLegacyDestinations(map[string]string{
 		"my-trigger.recipients.argocd-notifications.argoproj.io": "slack:my-channel",
 	}, []string{}, nil)
 	assert.Equal(t, services.Destinations{
-		"my-trigger": []services.Destination{{
-			Recipient: "my-channel",
-			Service:   "slack",
+		"my-trigger": []services.Destination{
+			{
+				Recipient: "my-channel",
+				Service:   "slack",
+			},
 		},
-		}}, res)
+	}, res)
 }
 
 func TestGetDestinations_DefaultTrigger(t *testing.T) {
+	t.Parallel()
 	res := GetLegacyDestinations(map[string]string{
 		annotationKey: "slack:my-channel",
 	}, []string{"my-trigger"}, nil)
@@ -135,6 +140,7 @@ func TestGetDestinations_DefaultTrigger(t *testing.T) {
 }
 
 func TestGetDestinations_ServiceDefaultTriggers(t *testing.T) {
+	t.Parallel()
 	res := GetLegacyDestinations(map[string]string{
 		annotationKey: "slack:my-channel",
 	}, []string{}, map[string][]string{

@@ -1,0 +1,37 @@
+tests:
+- healthStatus:
+    status: Degraded
+    message: "message that will describe all the reasons for warning"
+  inputPath: testdata/gloo-warning.yaml
+- healthStatus:
+    status: Suspended
+    message: "The resource has not yet been validated"
+  inputPath: testdata/gloo-pending.yaml
+- healthStatus:
+    status: Healthy
+    message: "The resource has been validated"
+  inputPath: testdata/gloo-accepted.yaml
+- healthStatus:
+    status: Degraded
+    message: "message that will describe all the reasons for rejection"
+  inputPath: testdata/gloo-rejected.yaml
+- healthStatus:
+    status: Degraded
+    message: "message that will describe all the reasons for warning"
+  inputPath: testdata/non-namespaced-gloo-warning.yaml
+- healthStatus:
+    status: Suspended
+    message: "The resource has not yet been validated"
+  inputPath: testdata/non-namespaced-gloo-pending.yaml
+- healthStatus:
+    status: Healthy
+    message: "The resource has been validated"
+  inputPath: testdata/non-namespaced-gloo-accepted.yaml
+- healthStatus:
+    status: Degraded
+    message: "message that will describe all the reasons for rejection"
+  inputPath: testdata/non-namespaced-gloo-rejected.yaml
+- healthStatus:
+    status: Progressing
+    message: "Update in progress"
+  inputPath: testdata/gloo-no-status.yaml

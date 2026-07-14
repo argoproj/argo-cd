@@ -1,0 +1,92 @@
+apiVersion: cloudfront.aws.crossplane.io/v1alpha1
+kind: Distribution
+metadata:
+  creationTimestamp: '2023-06-16T04:42:04Z'
+  generation: 37
+  name: crossplane.io
+  resourceVersion: '254326453'
+  uid: fd357670-b762-4285-ae83-00859c40dd6b
+spec:
+  deletionPolicy: Orphan
+  forProvider:
+    distributionConfig:
+      comment: 'crossplane'
+      customErrorResponses:
+        items: []
+      defaultCacheBehavior:
+        allowedMethods:
+          cachedMethods:
+            items:
+              - HEAD
+              - GET
+          items:
+            - GET
+            - HEAD
+        compress: false
+        defaultTTL: 600
+        fieldLevelEncryptionID: ""
+        forwardedValues:
+          cookies:
+            forward: none
+          headers:
+            items: []
+          queryString: false
+          queryStringCacheKeys: {}
+        functionAssociations: {}
+        lambdaFunctionAssociations: {}
+        maxTTL: 600
+        minTTL: 0
+        smoothStreaming: false
+        targetOriginID: crossplane.io
+        trustedKeyGroups:
+          enabled: false
+        trustedSigners:
+          enabled: false
+        viewerProtocolPolicy: allow-all
+      defaultRootObject: index.html
+      enabled: true
+      httpVersion: http2
+      isIPV6Enabled: true
+      logging:
+        bucket: ""
+        enabled: false
+        includeCookies: false
+        prefix: ""
+      originGroups: {}
+      origins:
+        items:
+          - connectionAttempts: 3
+            connectionTimeout: 10
+            customHeaders: {}
+            customOriginConfig:
+              httpPort: 8080
+              httpSPort: 443
+              originKeepaliveTimeout: 5
+              originProtocolPolicy: http-only
+              originReadTimeout: 10
+              originSSLProtocols:
+                items:
+                  - TLSv1
+                  - TLSv1.1
+                  - TLSv1.2
+            domainName: crossplane.io
+            id: crossplane.io
+            originShield:
+              enabled: false
+      priceClass: PriceClass_200
+      restrictions:
+        geoRestriction:
+          restrictionType: none
+    region: ap-northeast-2
+  providerConfigRef:
+    name: crossplane
+status:
+  conditions:
+    - lastTransitionTime: '2024-01-11T08:11:27Z'
+      reason: Unavailable
+      status: 'False'
+      type: Ready
+    - lastTransitionTime: '2024-01-11T08:11:02Z'
+      reason: ReconcileSuccess
+      status: 'True'
+      type: Synced

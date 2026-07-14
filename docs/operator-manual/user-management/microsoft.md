@@ -1,13 +1,220 @@
 # Microsoft
 
-* [Azure AD SAML Enterprise App Auth using Dex](#azure-ad-saml-enterprise-app-auth-using-dex)
-* [Azure AD App Registration Auth using OIDC](#azure-ad-app-registration-auth-using-oidc)
-* [Azure AD App Registration Auth using Dex](#azure-ad-app-registration-auth-using-dex)
+> [!NOTE]
+> Entra ID was formerly known as Azure AD.
 
-## Azure AD SAML Enterprise App Auth using Dex
-### Configure a new Azure AD Enterprise App
+* [Entra ID App Registration Auth using OIDC](#entra-id-app-registration-auth-using-oidc)
+* [Entra ID SAML Enterprise App Auth using Dex](#entra-id-saml-enterprise-app-auth-using-dex)
+* [Entra ID App Registration Auth using Dex](#entra-id-app-registration-auth-using-dex)
 
-1. From the `Azure Active Directory` > `Enterprise applications` menu, choose `+ New application`
+## Entra ID App Registration Auth using OIDC
+### Configure a new Entra ID App registration
+#### Add a new Entra ID App registration
+
+1. From the `Microsoft Entra ID` > `App registrations` menu, choose `+ New registration`
+2. Enter a `Name` for the application (e.g. `Argo CD`).
+3. Specify who can use the application (e.g. `Accounts in this organizational directory only`).
+4. Enter Redirect URI (optional) as follows (replacing `my-argo-cd-url` with your Argo URL), then choose `Add`.
+      - **Platform:** `Web`
+      - **Redirect URI:** https://`<my-argo-cd-url>`/auth/callback
+5. When registration finishes, the Azure portal displays the app registration's Overview pane. You see the Application (client) ID.
+      ![Azure App registration's Overview](../../assets/azure-app-registration-overview.png "Azure App registration's Overview")
+
+#### Configure additional platform settings for ArgoCD CLI
+
+1. In the Azure portal, in App registrations, select your application.
+2. Under Manage, select Authentication.
+3. Under Platform configurations, select Add a platform.
+4. Under Configure platforms, select the "Mobile and desktop applications" tile. Use the below value. You shouldn't change it.
+      - **Redirect URI:** `http://localhost:8085/auth/callback`
+      ![Azure App registration's Authentication](../../assets/azure-app-registration-authentication.png "Azure App registration's Authentication")
+
+#### Add credentials a new Entra ID App registration
+##### Using Workload Identity Federation (Recommended)
+1.  **Label the Pods:** Add the `azure.workload.identity/use: "true"` label to the `argocd-server` pods.
+2. **Add Annotation to Service Account:** Add `azure.workload.identity/client-id: "$CLIENT_ID"` annotation to the `argocd-server` service account using the details from application created in previous step.
+3. From the `Certificates & secrets` menu, navigate to `Federated credentials`, then choose `+ Add credential`
+4. Choose `Federated credential scenario` as `Kubernetes Accessing Azure resources`
+   - Enter Cluster Issuer URL, refer to [retrieve the OIDC issuer URL](https://learn.microsoft.com/en-us/azure/aks/workload-identity-deploy-cluster#retrieve-the-oidc-issuer-url) documentation
+   - Enter namespace as the namespace where the argocd is deployed
+   - Enter service account name as `argocd-server`
+   - Enter a unique name
+   - Click Add.
+
+##### Using Client Secret
+1. From the `Certificates & secrets` menu, choose `+ New client secret`
+2. Enter a `Name` for the secret (e.g. `ArgoCD-SSO`).
+      - Make sure to copy and save generated value. This is a value for the `client_secret`.
+      ![Azure App registration's Secret](../../assets/azure-app-registration-secret.png "Azure App registration's Secret")
+
+#### Setup permissions for Entra ID Application
+
+1. From the `API permissions` menu, choose `+ Add a permission`
+2. Find `User.Read` permission (under `Microsoft Graph`) and grant it to the created application:
+   ![Entra ID API permissions](../../assets/azure-api-permissions.png "Entra ID API permissions")
+3. From the `Token Configuration` menu, choose `+ Add groups claim`
+   ![Entra ID token configuration](../../assets/azure-token-configuration.png "Entra ID token configuration")
+
+### Associate an Entra ID group to your Entra ID App registration
+
+1. From the `Microsoft Entra ID` > `Enterprise applications` menu, search the App that you created (e.g. `Argo CD`).
+      - An Enterprise application with the same name of the Entra ID App registration is created when you add a new Entra ID App registration.
+2. From the `Users and groups` menu of the app, add any users or groups requiring access to the service.
+   ![Azure Enterprise SAML Users](../../assets/azure-enterprise-users.png "Azure Enterprise SAML Users")
+
+### Configure Argo to use the new Entra ID App registration
+
+1. Edit `argocd-cm` and configure the `data.oidc.config` and `data.url` section:
+
+            ConfigMap -> argocd-cm
+
+            data:
+               url: https://argocd.example.com/ # Replace with the external base URL of your Argo CD
+               oidc.config: |
+                     name: Azure
+                     issuer: https://login.microsoftonline.com/{directory_tenant_id}/v2.0
+                     clientID: {azure_ad_application_client_id}
+                     clientSecret: $oidc.azure.clientSecret // if using client secret for authentication
+                     azure:
+                       useWorkloadIdentity: true // if using azure workload identity for authentication
+                     requestedIDTokenClaims:
+                        groups:
+                           essential: true
+                           value: "ApplicationGroup"
+                     requestedScopes:
+                        - openid
+                        - profile
+                        - email
+
+2. Skip this step if using azure workload identity. Edit `argocd-secret` and configure the `data.oidc.azure.clientSecret` section:
+
+            Secret -> argocd-secret
+
+            data:
+               oidc.azure.clientSecret: {client_secret | base64_encoded}
+
+3. Edit `argocd-rbac-cm` to configure permissions. Use group ID from Azure for assigning roles
+      [RBAC Configurations](../rbac.md)
+
+            ConfigMap -> argocd-rbac-cm
+
+            policy.default: role:readonly
+            policy.csv: |
+               p, role:org-admin, applications, *, */*, allow
+               p, role:org-admin, clusters, get, *, allow
+               p, role:org-admin, repositories, get, *, allow
+               p, role:org-admin, repositories, create, *, allow
+               p, role:org-admin, repositories, update, *, allow
+               p, role:org-admin, repositories, delete, *, allow
+               g, "84ce98d1-e359-4f3b-85af-985b458de3c6", role:org-admin
+
+4. Mapping role from jwt token to argo.  
+   If you want to map the roles from the jwt token to match the default roles (readonly and admin) then you must change the scope variable in the rbac-configmap.
+
+            policy.default: role:readonly
+            policy.csv: |
+               p, role:org-admin, applications, *, */*, allow
+               p, role:org-admin, clusters, get, *, allow
+               p, role:org-admin, repositories, get, *, allow
+               p, role:org-admin, repositories, create, *, allow
+               p, role:org-admin, repositories, update, *, allow
+               p, role:org-admin, repositories, delete, *, allow
+               g, "84ce98d1-e359-4f3b-85af-985b458de3c6", role:org-admin
+            scopes: '[groups, email]'
+
+   Refer to [operator-manual/argocd-rbac-cm.yaml](https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/argocd-rbac-cm.yaml) for all of the available variables.
+
+## Azure AD Groups Overflow Resolution (200+ Groups)
+
+### Overview
+
+Azure AD / Entra ID access tokens can contain a maximum of 200 groups. When a user belongs to more
+than 200 groups, Azure AD sets overflow indicators (`_claim_names` and `_claim_sources`) in the ID
+token instead of including the `groups` claim. This causes users to have no group-based RBAC
+permissions in Argo CD.
+
+Argo CD can automatically detect this overflow and resolve it by calling the Microsoft Graph API to
+fetch the complete list of group memberships.
+
+### Prerequisites
+
+1. The Azure AD app registration must have the **User.Read** delegated permission. This is granted by
+   default when following the [Setup permissions](#setup-permissions-for-entra-id-application) steps
+   above. Azure AD automatically includes approved permissions in the access token's `scp` claim
+   without needing to explicitly request them in `requestedScopes`.
+
+### Configuration
+
+Add the following to your `argocd-cm` ConfigMap under `oidc.config`:
+
+```yaml
+oidc.config: |
+  name: Azure
+  issuer: https://login.microsoftonline.com/{tenant_id}/v2.0
+  clientID: {client_id}
+  clientSecret: $oidc.azure.clientSecret
+  requestedScopes:
+    - openid
+    - profile
+    - email
+  azure:
+    enableUserGroupOverageClaim: true
+```
+
+### Configuration Options
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `enableUserGroupOverageClaim` | `false` | Enable automatic overflow resolution via Graph API |
+| `graphApiEndpoint` | `https://graph.microsoft.com/v1.0` | Graph API base URL (override for sovereign clouds) |
+| `userGroupOverageClaimCacheExpiration` | Token expiry | Cache duration for resolved groups (e.g., `10m`) |
+
+#### Sovereign Clouds
+
+For Azure Government, Azure China, or other sovereign clouds, override the Graph API endpoint:
+
+```yaml
+azure:
+  enableUserGroupOverageClaim: true
+  graphApiEndpoint: https://graph.microsoft.us/v1.0  # Azure Government
+```
+
+### How It Works
+
+1. **Detection**: Argo CD checks the ID token for overflow indicators (`_claim_names` and
+   `_claim_sources`).
+2. **Scope Check**: Verifies the access token contains the `User.Read` scope.
+3. **Graph API Call**: Calls `POST /me/getMemberGroups` to fetch all group IDs (up to 2048).
+   Only security-enabled groups are returned (not distribution lists), which is appropriate
+   for RBAC evaluation.
+4. **Caching**: Encrypts and caches the resolved groups for the duration of the token or a
+   configured expiration.
+5. **RBAC Integration**: The resolved group IDs are added to the user's claims for RBAC evaluation.
+
+### Troubleshooting
+
+| Symptom | Cause | Solution |
+|---------|-------|----------|
+| User still has 0 groups despite 200+ memberships | Feature not enabled | Set `enableUserGroupOverageClaim: true` |
+| Logs show "access token missing User.Read scope" | Missing permission | Verify the **User.Read** delegated permission is granted on the app registration in Azure AD |
+| Logs show "insufficient permissions for Graph API" | App permission denied | Verify app permissions in Azure AD |
+| Logs show "no access token cached" | Token expired | User must re-authenticate |
+
+> [!WARNING]
+> This feature depends on the Microsoft Graph API being reachable at authentication time. If the
+> Graph API is unavailable (network issues, outage, etc.), users with 200+ group memberships will
+> be unable to authenticate until service is restored. Users with fewer than 200 groups are
+> unaffected since their groups are included directly in the ID token.
+>
+> Graph API failures (missing scope, permission denied, network errors) will cause authentication
+> to fail with a 401 Unauthorized response. This is consistent with how the UserInfo endpoint
+> behaves. Only enable this feature if you need group-based RBAC for users with 200+ groups, and
+> ensure the prerequisites above are met to avoid authentication issues.
+
+## Entra ID SAML Enterprise App Auth using Dex
+### Configure a new Entra ID Enterprise App
+
+1. From the `Microsoft Entra ID` > `Enterprise applications` menu, choose `+ New application`
 2. Select `Non-gallery application`
 3. Enter a `Name` for the application (e.g. `Argo CD`), then choose `Add`
 4. Once the application is created, open it from the `Enterprise applications` menu.
@@ -31,9 +238,9 @@
       - *Keep a copy of the encoded output to be used in the next section.*
 9. From the `Single sign-on` menu, copy the `Login URL` parameter, to be used in the next section.
 
-### Configure Argo to use the new Azure AD Enterprise App
+### Configure Argo to use the new Entra ID Enterprise App
 
-1. Edit `argocd-cm` and add the following `dex.config` to the data section, replacing the `caData`, `my-argo-cd-url` and `my-login-url` your values from the Azure AD App:
+1. Edit `argocd-cm` and add the following `dex.config` to the data section, replacing the `caData`, `my-argo-cd-url` and `my-login-url` your values from the Entra ID App:
 
             data:
               url: https://my-argo-cd-url
@@ -56,7 +263,7 @@
                     groupsAttr: Group
 
 2. Edit `argocd-rbac-cm` to configure permissions, similar to example below.
-      - Use Azure AD `Group IDs` for assigning roles.
+      - Use Entra ID `Group IDs` for assigning roles.
       - See [RBAC Configurations](../rbac.md) for more detailed scenarios.
 
             # example policy
@@ -70,110 +277,7 @@
                p, role:org-admin, repositories, delete, *, allow
                g, "84ce98d1-e359-4f3b-85af-985b458de3c6", role:org-admin # (azure group assigned to role)
 
-## Azure AD App Registration Auth using OIDC
-### Configure a new Azure AD App registration
-#### Add a new Azure AD App registration
-
-1. From the `Azure Active Directory` > `App registrations` menu, choose `+ New registration`
-2. Enter a `Name` for the application (e.g. `Argo CD`).
-3. Specify who can use the application (e.g. `Accounts in this organizational directory only`).
-4. Enter Redirect URI (optional) as follows (replacing `my-argo-cd-url` with your Argo URL), then choose `Add`.
-      - **Platform:** `Web`
-      - **Redirect URI:** https://`<my-argo-cd-url>`/auth/callback
-5. When registration finishes, the Azure portal displays the app registration's Overview pane. You see the Application (client) ID.
-      ![Azure App registration's Overview](../../assets/azure-app-registration-overview.png "Azure App registration's Overview")
-
-#### Configure additional platform settings for ArgoCD CLI
-
-1. In the Azure portal, in App registrations, select your application.
-2. Under Manage, select Authentication.
-3. Under Platform configurations, select Add a platform.
-4. Under Configure platforms, select the "Mobile and desktop applications" tile. Use the below value. You shouldn't change it.
-      - **Redirect URI:** `http://localhost:8085/auth/callback`
-      ![Azure App registration's Authentication](../../assets/azure-app-registration-authentication.png "Azure App registration's Authentication")
-
-#### Add credentials a new Azure AD App registration
-
-1. From the `Certificates & secrets` menu, choose `+ New client secret`
-2. Enter a `Name` for the secret (e.g. `ArgoCD-SSO`).
-      - Make sure to copy and save generated value. This is a value for the `client_secret`.
-      ![Azure App registration's Secret](../../assets/azure-app-registration-secret.png "Azure App registration's Secret")
-
-#### Setup permissions for Azure AD Application
-
-1. From the `API permissions` menu, choose `+ Add a permission`
-2. Find `User.Read` permission (under `Microsoft Graph`) and grant it to the created application:
-   ![Azure AD API permissions](../../assets/azure-api-permissions.png "Azure AD API permissions")
-3. From the `Token Configuration` menu, choose `+ Add groups claim`
-   ![Azure AD token configuration](../../assets/azure-token-configuration.png "Azure AD token configuration")
-
-### Associate an Azure AD group to your Azure AD App registration
-
-1. From the `Azure Active Directory` > `Enterprise applications` menu, search the App that you created (e.g. `Argo CD`).
-      - An Enterprise application with the same name of the Azure AD App registration is created when you add a new Azure AD App registration.
-2. From the `Users and groups` menu of the app, add any users or groups requiring access to the service.
-   ![Azure Enterprise SAML Users](../../assets/azure-enterprise-users.png "Azure Enterprise SAML Users")
-
-### Configure Argo to use the new Azure AD App registration
-
-1. Edit `argocd-cm` and configure the `data.oidc.config` and `data.url` section:
-
-            ConfigMap -> argocd-cm
-
-            data:
-               url: https://argocd.example.com/ # Replace with the external base URL of your Argo CD
-               oidc.config: |
-                     name: Azure
-                     issuer: https://login.microsoftonline.com/{directory_tenant_id}/v2.0
-                     clientID: {azure_ad_application_client_id}
-                     clientSecret: $oidc.azure.clientSecret
-                     requestedIDTokenClaims:
-                        groups:
-                           essential: true
-                     requestedScopes:
-                        - openid
-                        - profile
-                        - email
-
-2. Edit `argocd-secret` and configure the `data.oidc.azure.clientSecret` section:
-
-            Secret -> argocd-secret
-
-            data:
-               oidc.azure.clientSecret: {client_secret | base64_encoded}
-
-3. Edit `argocd-rbac-cm` to configure permissions. Use group ID from Azure for assigning roles
-      [RBAC Configurations](../rbac.md)
-
-            ConfigMap -> argocd-rbac-cm
-
-            policy.default: role:readonly
-            policy.csv: |
-               p, role:org-admin, applications, *, */*, allow
-               p, role:org-admin, clusters, get, *, allow
-               p, role:org-admin, repositories, get, *, allow
-               p, role:org-admin, repositories, create, *, allow
-               p, role:org-admin, repositories, update, *, allow
-               p, role:org-admin, repositories, delete, *, allow
-               g, "84ce98d1-e359-4f3b-85af-985b458de3c6", role:org-admin
-
-4. Mapping role from jwt token to argo
-   If you want to map the roles from the jwt token to match the default roles (readonly and admin) then you must change the scope variable in the rbac-configmap.
-
-            policy.default: role:readonly
-            policy.csv: |
-               p, role:org-admin, applications, *, */*, allow
-               p, role:org-admin, clusters, get, *, allow
-               p, role:org-admin, repositories, get, *, allow
-               p, role:org-admin, repositories, create, *, allow
-               p, role:org-admin, repositories, update, *, allow
-               p, role:org-admin, repositories, delete, *, allow
-               g, "84ce98d1-e359-4f3b-85af-985b458de3c6", role:org-admin
-            scopes: '[groups, email]'
-
-   Refer to [operator-manual/argocd-rbac-cm.yaml](https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/argocd-rbac-cm.yaml) for all of the available variables.
-
-## Azure AD App Registration Auth using Dex
+## Entra ID App Registration Auth using Dex
 
 Configure a new AD App Registration, as above.
 Then, add the `dex.config` to `argocd-cm`:
@@ -200,9 +304,9 @@ data:
 
 1. Open a new browser tab and enter your ArgoCD URI: https://`<my-argo-cd-url>`
    ![Azure SSO Web Log In](../../assets/azure-sso-web-log-in-via-azure.png "Azure SSO Web Log In")
-3. Click `LOGIN VIA AZURE` button to log in with your Azure Active Directory account. You’ll see the ArgoCD applications screen.
+3. Click `LOGIN VIA AZURE` button to log in with your Microsoft Entra ID account. You’ll see the ArgoCD applications screen.
    ![Azure SSO Web Application](../../assets/azure-sso-web-application.png "Azure SSO Web Application")
-4. Navigate to User Info and verify Group ID. Groups will have your group’s Object ID that you added in the `Setup permissions for Azure AD Application` step.
+4. Navigate to User Info and verify Group ID. Groups will have your group’s Object ID that you added in the `Setup permissions for Entra ID Application` step.
    ![Azure SSO Web User Info](../../assets/azure-sso-web-user-info.png "Azure SSO Web User Info")
 
 ### Log in to ArgoCD using CLI
@@ -224,3 +328,33 @@ data:
             Context 'my-argo-cd-url' updated
 
    You may get an warning if you are not using a correctly signed certs. Refer to [Why Am I Getting x509: certificate signed by unknown authority When Using The CLI?](https://argo-cd.readthedocs.io/en/stable/faq/#why-am-i-getting-x509-certificate-signed-by-unknown-authority-when-using-the-cli).
+
+## Domain hint (optional)
+
+For Microsoft identity platforms, you can set `domainHint` in `oidc.config` to provide a domain hint during sign-in.
+
+When configured, Argo CD adds `domain_hint=<value>` to the authorization request sent to Microsoft.  
+This can reduce account discovery prompts in multi-tenant or federated environments.
+
+- **Field:** `domainHint`
+- **Type:** `string`
+- **Required:** No
+- **Default:** empty (parameter is not sent)
+
+Example:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+data:
+  oidc.config: |
+    name: Microsoft
+    issuer: https://login.microsoftonline.com/<tenant-id>/v2.0
+    clientID: <client-id>
+    clientSecret: $oidc.microsoft.clientSecret
+    requestedScopes: ["openid", "profile", "email", "groups"]
+    domainHint: contoso.com
+```

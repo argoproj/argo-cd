@@ -10,16 +10,18 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/v2/util/argo/managedfields"
-	"github.com/argoproj/argo-cd/v2/util/argo/testdata"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube/scheme"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube/scheme"
+
+	"github.com/argoproj/argo-cd/v3/util/argo/managedfields"
+	"github.com/argoproj/argo-cd/v3/util/argo/testdata"
 )
 
 func TestNormalize(t *testing.T) {
-
+	t.Parallel()
 	parser := scheme.StaticParser()
 	t.Run("will remove conflicting fields if managed by trusted managers", func(t *testing.T) {
 		// given
+		t.Parallel()
 		desiredState := StrToUnstructured(testdata.DesiredDeploymentYaml)
 		liveState := StrToUnstructured(testdata.LiveDeploymentWithManagedReplicaYaml)
 		trustedManagers := []string{"kube-controller-manager", "revision-history-manager"}
@@ -34,22 +36,24 @@ func TestNormalize(t *testing.T) {
 		require.NotNil(t, desiredResult)
 		desiredReplicas, ok, err := unstructured.NestedFloat64(desiredResult.Object, "spec", "replicas")
 		assert.False(t, ok)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		liveReplicas, ok, err := unstructured.NestedFloat64(liveResult.Object, "spec", "replicas")
 		assert.False(t, ok)
-		assert.NoError(t, err)
-		assert.Equal(t, liveReplicas, desiredReplicas)
+		require.NoError(t, err)
+		assert.Zero(t, desiredReplicas)
+		assert.Zero(t, liveReplicas)
 		liveRevisionHistory, ok, err := unstructured.NestedFloat64(liveResult.Object, "spec", "revisionHistoryLimit")
 		assert.False(t, ok)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		desiredRevisionHistory, ok, err := unstructured.NestedFloat64(desiredResult.Object, "spec", "revisionHistoryLimit")
 		assert.False(t, ok)
-		assert.NoError(t, err)
-		assert.Equal(t, liveRevisionHistory, desiredRevisionHistory)
-
+		require.NoError(t, err)
+		assert.Zero(t, desiredRevisionHistory)
+		assert.Zero(t, liveRevisionHistory)
 	})
 	t.Run("will keep conflicting fields if not from trusted manager", func(t *testing.T) {
 		// given
+		t.Parallel()
 		desiredState := StrToUnstructured(testdata.DesiredDeploymentYaml)
 		liveState := StrToUnstructured(testdata.LiveDeploymentWithManagedReplicaYaml)
 		trustedManagers := []string{"another-manager"}
@@ -59,7 +63,7 @@ func TestNormalize(t *testing.T) {
 		liveResult, desiredResult, err := managedfields.Normalize(liveState, desiredState, trustedManagers, &pt)
 
 		// then
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		validateNestedFloat64(t, float64(3), desiredResult, "spec", "replicas")
 		validateNestedFloat64(t, float64(1), desiredResult, "spec", "revisionHistoryLimit")
 		validateNestedFloat64(t, float64(2), liveResult, "spec", "replicas")
@@ -67,6 +71,7 @@ func TestNormalize(t *testing.T) {
 	})
 	t.Run("no-op if live state is nil", func(t *testing.T) {
 		// given
+		t.Parallel()
 		desiredState := StrToUnstructured(testdata.DesiredDeploymentYaml)
 		trustedManagers := []string{"kube-controller-manager"}
 		pt := parser.Type("io.k8s.api.apps.v1.Deployment")
@@ -75,15 +80,15 @@ func TestNormalize(t *testing.T) {
 		liveResult, desiredResult, err := managedfields.Normalize(nil, desiredState, trustedManagers, &pt)
 
 		// then
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Nil(t, liveResult)
 		assert.Nil(t, desiredResult)
 		validateNestedFloat64(t, float64(3), desiredState, "spec", "replicas")
 		validateNestedFloat64(t, float64(1), desiredState, "spec", "revisionHistoryLimit")
-
 	})
 	t.Run("no-op if desired state is nil", func(t *testing.T) {
 		// given
+		t.Parallel()
 		liveState := StrToUnstructured(testdata.LiveDeploymentWithManagedReplicaYaml)
 		trustedManagers := []string{"kube-controller-manager"}
 		pt := parser.Type("io.k8s.api.apps.v1.Deployment")
@@ -92,7 +97,7 @@ func TestNormalize(t *testing.T) {
 		liveResult, desiredResult, err := managedfields.Normalize(liveState, nil, trustedManagers, &pt)
 
 		// then
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Nil(t, liveResult)
 		assert.Nil(t, desiredResult)
 		validateNestedFloat64(t, float64(2), liveState, "spec", "replicas")
@@ -100,6 +105,7 @@ func TestNormalize(t *testing.T) {
 	})
 	t.Run("no-op if trusted manager list is empty", func(t *testing.T) {
 		// given
+		t.Parallel()
 		desiredState := StrToUnstructured(testdata.DesiredDeploymentYaml)
 		liveState := StrToUnstructured(testdata.LiveDeploymentWithManagedReplicaYaml)
 		pt := parser.Type("io.k8s.api.apps.v1.Deployment")
@@ -108,7 +114,7 @@ func TestNormalize(t *testing.T) {
 		liveResult, desiredResult, err := managedfields.Normalize(liveState, desiredState, []string{}, &pt)
 
 		// then
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Nil(t, liveResult)
 		assert.Nil(t, desiredResult)
 		validateNestedFloat64(t, float64(3), desiredState, "spec", "replicas")
@@ -118,6 +124,7 @@ func TestNormalize(t *testing.T) {
 	})
 	t.Run("will normalize successfully inside a list", func(t *testing.T) {
 		// given
+		t.Parallel()
 		desiredState := StrToUnstructured(testdata.DesiredValidatingWebhookYaml)
 		liveState := StrToUnstructured(testdata.LiveValidatingWebhookYaml)
 		trustedManagers := []string{"external-secrets"}
@@ -134,33 +141,59 @@ func TestNormalize(t *testing.T) {
 		var vwcLive arv1.ValidatingWebhookConfiguration
 		err = runtime.DefaultUnstructuredConverter.FromUnstructured(liveResult.Object, &vwcLive)
 		require.NoError(t, err)
-		assert.Equal(t, 1, len(vwcLive.Webhooks))
-		assert.Equal(t, "", string(vwcLive.Webhooks[0].ClientConfig.CABundle))
+		assert.Len(t, vwcLive.Webhooks, 1)
+		assert.Empty(t, string(vwcLive.Webhooks[0].ClientConfig.CABundle))
 
 		var vwcConfig arv1.ValidatingWebhookConfiguration
 		err = runtime.DefaultUnstructuredConverter.FromUnstructured(desiredResult.Object, &vwcConfig)
 		require.NoError(t, err)
-		assert.Equal(t, 1, len(vwcConfig.Webhooks))
-		assert.Equal(t, "", string(vwcConfig.Webhooks[0].ClientConfig.CABundle))
+		assert.Len(t, vwcConfig.Webhooks, 1)
+		assert.Empty(t, string(vwcConfig.Webhooks[0].ClientConfig.CABundle))
+	})
+	t.Run("does not fail if object fails validation schema", func(t *testing.T) {
+		t.Parallel()
+		desiredState := StrToUnstructured(testdata.DesiredDeploymentYaml)
+		require.NoError(t, unstructured.SetNestedField(desiredState.Object, "spec", "hello", "world"))
+		liveState := StrToUnstructured(testdata.LiveDeploymentWithManagedReplicaYaml)
+
+		pt := parser.Type("io.k8s.api.apps.v1.Deployment")
+
+		_, _, err := managedfields.Normalize(liveState, desiredState, []string{}, &pt)
+		require.NoError(t, err)
+	})
+	t.Run("does not panic when pt is nil", func(t *testing.T) {
+		// ResolveParseableType can return nil when a CRD's GVK isn't in the
+		// cluster's openapi schema; Normalize must fall back to the deduced
+		// type rather than dereferencing nil.
+		t.Parallel()
+		desiredState := StrToUnstructured(testdata.DesiredDeploymentYaml)
+		liveState := StrToUnstructured(testdata.LiveDeploymentWithManagedReplicaYaml)
+		trustedManagers := []string{"kube-controller-manager"}
+
+		liveResult, desiredResult, err := managedfields.Normalize(liveState, desiredState, trustedManagers, nil)
+
+		require.NoError(t, err)
+		require.NotNil(t, liveResult)
+		require.NotNil(t, desiredResult)
 	})
 }
 
 func validateNestedFloat64(t *testing.T, expected float64, obj *unstructured.Unstructured, fields ...string) {
 	t.Helper()
 	current := getNestedFloat64(t, obj, fields...)
-	assert.Equal(t, expected, current)
+	assert.InEpsilon(t, expected, current, 0.0001)
 }
 
 func getNestedFloat64(t *testing.T, obj *unstructured.Unstructured, fields ...string) float64 {
 	t.Helper()
 	current, ok, err := unstructured.NestedFloat64(obj.Object, fields...)
 	assert.True(t, ok, "nested field not found")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	return current
 }
 
 func StrToUnstructured(jsonStr string) *unstructured.Unstructured {
-	obj := make(map[string]interface{})
+	obj := make(map[string]any)
 	err := yaml.Unmarshal([]byte(jsonStr), &obj)
 	if err != nil {
 		panic(err)
