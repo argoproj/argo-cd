@@ -26,7 +26,6 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/trace"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	securejoin "github.com/cyphar/filepath-securejoin"
