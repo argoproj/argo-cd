@@ -1046,9 +1046,13 @@ func (m *nativeGitClient) lsRemoteOptimized(revision string) (string, bool, erro
 		}
 	}
 
-	refs, err := m.getOptimizedLsRemoteRefs(m.optimizedLsRemoteCacheKey(cacheParts...), func() ([]*plumbing.Reference, error) {
-		return m.runOptimizedLsRemote(args)
-	})
+	cacheKey := m.optimizedLsRemoteCacheKey(cacheParts...)
+	fetchedBulkRefs := false
+	fetchBulkRefs := func() ([]*plumbing.Reference, error) {
+		fetchedBulkRefs = true
+		return m.runLsRemote(args...)
+	}
+	refs, err := m.getOptimizedLsRemoteRefs(cacheKey, fetchBulkRefs)
 	if err != nil {
 		if errors.Is(err, errOptimizedLsRemoteTimeout) {
 			return "", true, err
@@ -1056,6 +1060,34 @@ func (m *nativeGitClient) lsRemoteOptimized(revision string) (string, bool, erro
 		return "", false, err
 	}
 	res, err := m.resolveRevisionWithoutTruncatedSHAFallback(revision, refs)
+	if err != nil && revision == "HEAD" {
+		// --heads and --tags provide protocol v2 server-side narrowing, but exclude HEAD.
+		// Fetch HEAD only when requested; if the bulk listing came from cache, refresh it
+		// first so HEAD and its target branch cannot resolve to different commits.
+		if !fetchedBulkRefs {
+			refs, err = fetchBulkRefs()
+			if err != nil {
+				if errors.Is(err, errOptimizedLsRemoteTimeout) {
+					return "", true, err
+				}
+				return "", false, err
+			}
+		}
+		headRefs, headErr := m.runLsRemote("ls-remote", m.repoURL, "HEAD")
+		if headErr != nil {
+			if errors.Is(headErr, errOptimizedLsRemoteTimeout) {
+				return "", true, headErr
+			}
+			return "", false, headErr
+		}
+		refs = append(refs, headRefs...)
+		if m.gitRefCache != nil {
+			if cacheErr := m.gitRefCache.SetGitReferences(cacheKey, refs); cacheErr != nil {
+				log.Warnf("Failed to add HEAD to optimized git references cache: %v", cacheErr)
+			}
+		}
+		res, err = m.resolveRevisionWithoutTruncatedSHAFallback(revision, refs)
+	}
 	if err != nil {
 		if m.optimizedLsRemoteResolveMissNeedsFallback(revision, heads, tags) {
 			return "", false, nil
@@ -1083,18 +1115,6 @@ func (m *nativeGitClient) optimizedLsRemoteResolveMissNeedsFallback(revision str
 		}
 	}
 	return true
-}
-
-func (m *nativeGitClient) runOptimizedLsRemote(args []string) ([]*plumbing.Reference, error) {
-	refs, err := m.runLsRemote(args...)
-	if err != nil {
-		return nil, err
-	}
-	headRefs, err := m.runLsRemote("ls-remote", "--symref", m.repoURL, "HEAD")
-	if err != nil {
-		return nil, err
-	}
-	return append(refs, headRefs...), nil
 }
 
 func (m *nativeGitClient) runLsRemote(args ...string) ([]*plumbing.Reference, error) {
