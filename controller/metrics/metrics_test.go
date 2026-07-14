@@ -236,6 +236,35 @@ status:
     finishedAt: "2025-01-29T08:42:35Z"
 `
 
+const fakeAppOperationFailed = `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-app
+  namespace: argocd
+  labels:
+    team-name: my-team
+    team-bu: bu-id
+    argoproj.io/cluster: test-cluster
+spec:
+  destination:
+    namespace: dummy-namespace
+    name: cluster1
+  project: important-project
+  source:
+    path: some/path
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+status:
+  sync:
+    status: OutOfSync
+  health:
+    status: Degraded
+  operationState:
+    phase: Failed
+    startedAt: "2025-01-29T08:42:34Z"
+    finishedAt: "2025-01-29T08:42:35Z"
+`
+
 var noOpHealthCheck = func(_ *http.Request) error {
 	return nil
 }
@@ -356,9 +385,9 @@ func TestMetrics(t *testing.T) {
 			responseContains: `
 # HELP argocd_app_info Information about application.
 # TYPE argocd_app_info gauge
-argocd_app_info{autosync_enabled="true",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Degraded",name="my-app-3",namespace="argocd",operation="delete",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="OutOfSync"} 1
-argocd_app_info{autosync_enabled="false",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",name="my-app",namespace="argocd",operation="",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
-argocd_app_info{autosync_enabled="true",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",name="my-app-2",namespace="argocd",operation="sync",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
+argocd_app_info{autosync_enabled="true",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Degraded",name="my-app-3",namespace="argocd",operation="delete",operation_phase="",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="OutOfSync"} 1
+argocd_app_info{autosync_enabled="false",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",name="my-app",namespace="argocd",operation="",operation_phase="",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
+argocd_app_info{autosync_enabled="true",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",name="my-app-2",namespace="argocd",operation="sync",operation_phase="",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
 `,
 		},
 		{
@@ -366,7 +395,34 @@ argocd_app_info{autosync_enabled="true",dest_namespace="dummy-namespace",dest_se
 			responseContains: `
 # HELP argocd_app_info Information about application.
 # TYPE argocd_app_info gauge
-argocd_app_info{autosync_enabled="false",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",name="my-app",namespace="argocd",operation="",project="default",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
+argocd_app_info{autosync_enabled="false",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",name="my-app",namespace="argocd",operation="",operation_phase="",project="default",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
+`,
+		},
+	}
+
+	for _, combination := range combinations {
+		testApp(t, combination.applications, combination.responseContains)
+	}
+}
+
+func TestMetricsOperationPhase(t *testing.T) {
+	combinations := []testCombination{
+		{
+			applications: []string{fakeAppOperationRunning},
+			responseContains: `
+argocd_app_info{autosync_enabled="false",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Progressing",name="my-app",namespace="argocd",operation="",operation_phase="Running",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="OutOfSync"} 1
+`,
+		},
+		{
+			applications: []string{fakeAppOperationFinished},
+			responseContains: `
+argocd_app_info{autosync_enabled="false",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Healthy",name="my-app",namespace="argocd",operation="",operation_phase="Succeeded",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Synced"} 1
+`,
+		},
+		{
+			applications: []string{fakeAppOperationFailed},
+			responseContains: `
+argocd_app_info{autosync_enabled="false",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Degraded",name="my-app",namespace="argocd",operation="",operation_phase="Failed",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="OutOfSync"} 1
 `,
 		},
 	}
