@@ -309,3 +309,20 @@ In this case, you will need to:
 After this change, `argocd-server` will use a plain text connection to the sidecar 
 proxy, that will handle all aspects of TLS to the `argocd-dex-server`'s TLS sidecar proxy.
 
+### Dex TLS Configuration
+  
+  To configure TLS version and cipher suites for the bundled Dex server, update the `argocd-cm` ConfigMap:
+  
+```yaml
+  apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: argocd-cm
+  data:
+    dex.tls: |
+      dexTlsVersion: "1.3"
+      dexTlsCipherSuites:
+        - TLS_AES_128_GCM_SHA256
+        - TLS_AES_256_GCM_SHA384
+        - TLS_CHACHA20_POLY1305_SHA256
+```
