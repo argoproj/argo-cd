@@ -18,6 +18,7 @@ import (
 	k8sauth "github.com/argoproj/argo-cd/v3/cmd/argocd-k8s-auth/commands"
 	notification "github.com/argoproj/argo-cd/v3/cmd/argocd-notification/commands"
 	reposerver "github.com/argoproj/argo-cd/v3/cmd/argocd-repo-server/commands"
+	sandbox "github.com/argoproj/argo-cd/v3/cmd/argocd-sandbox/commands"
 	apiserver "github.com/argoproj/argo-cd/v3/cmd/argocd-server/commands"
 	cli "github.com/argoproj/argo-cd/v3/cmd/argocd/commands"
 	"github.com/argoproj/argo-cd/v3/common"
@@ -70,6 +71,8 @@ func main() {
 	case common.CommandK8sAuth:
 		command = k8sauth.NewCommand()
 		isArgocdCLI = true
+	case common.CommandSandbox:
+		command = sandbox.NewCommand()
 	default:
 		// "argocd-linux-amd64", "argocd-darwin-amd64", "argocd-windows-amd64.exe" are also valid binary names
 		command = cli.NewCommand()

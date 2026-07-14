@@ -303,6 +303,7 @@ cli: test-tools-image
 .PHONY: cli-local
 cli-local: clean-debug
 	CGO_ENABLED=${CGO_FLAG} GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -gcflags="all=-N -l" $(COVERAGE_FLAG) -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${CLI_NAME} ./cmd
+	ln -f -s ${DIST_DIR}/${CLI_NAME} ${DIST_DIR}/argocd-sandbox
 
 .PHONY: gen-resources-cli-local
 gen-resources-cli-local: clean-debug
@@ -369,6 +370,7 @@ image: build-ui
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-repo-server
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-cmp-server
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-dex
+	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-sandbox
 	cp Dockerfile.dev dist
 	DOCKER_BUILDKIT=1 $(DOCKER) build --platform=$(TARGET_ARCH) -t $(IMAGE_PREFIX)$(IMAGE_REPOSITORY):$(IMAGE_TAG) -f dist/Dockerfile.dev dist
 else

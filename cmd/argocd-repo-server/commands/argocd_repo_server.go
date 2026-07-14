@@ -30,6 +30,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v3/reposerver/metrics"
 	"github.com/argoproj/argo-cd/v3/reposerver/repository"
+	"github.com/argoproj/argo-cd/v3/sandbox"
 	"github.com/argoproj/argo-cd/v3/util/askpass"
 	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/env"
@@ -136,6 +137,9 @@ func NewCommand() *cobra.Command {
 			errors.CheckError(err)
 
 			helmRegistryMaxIndexSizeQuantity, err := resource.ParseQuantity(helmRegistryMaxIndexSize)
+			errors.CheckError(err)
+
+			err = sandbox.RunStartupTests()
 			errors.CheckError(err)
 
 			askPassServer := askpass.NewServer(askpass.SocketPath)
@@ -288,6 +292,7 @@ func NewCommand() *cobra.Command {
 			redisClient = client
 		},
 	})
+	sandbox.AddSandboxFlagsToRepoServerCmd(&command)
 	return &command
 }
 
