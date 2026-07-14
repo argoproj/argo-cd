@@ -790,3 +790,384 @@ func Test_DexReverseProxy(t *testing.T) {
 		require.NoError(t, req.Body.Close())
 	})
 }
+
+// TestGenerateDexConfigYAML_WebTLSMinVersion tests TLS version configuration in web interface
+func TestGenerateDexConfigYAML_WebTLSMinVersion(t *testing.T) {
+	tests := []struct {
+		name                   string
+		tlsVersion             string
+		expectedTLSMinVersion  string
+		expectTLSMinVersionSet bool
+		disableTLS             bool
+		description            string
+	}{
+		{
+			name:                   "TLS 1.3",
+			tlsVersion:             "1.3",
+			expectedTLSMinVersion:  "1.3",
+			expectTLSMinVersionSet: true,
+			disableTLS:             false,
+			description:            "Should set tlsMinVersion to 1.3 in web config",
+		},
+		{
+			name:                   "TLS 1.2",
+			tlsVersion:             "1.2",
+			expectedTLSMinVersion:  "1.2",
+			expectTLSMinVersionSet: true,
+			disableTLS:             false,
+			description:            "Should set tlsMinVersion to 1.2 in web config",
+		},
+		{
+			name:                   "Empty TLS version",
+			tlsVersion:             "",
+			expectedTLSMinVersion:  "",
+			expectTLSMinVersionSet: false,
+			disableTLS:             false,
+			description:            "Should not set tlsMinVersion when empty",
+		},
+		{
+			name:                   "TLS disabled with version configured",
+			tlsVersion:             "1.3",
+			expectedTLSMinVersion:  "",
+			expectTLSMinVersionSet: false,
+			disableTLS:             true,
+			description:            "Should not set tlsMinVersion when TLS is disabled (http mode)",
+		},
+		{
+			name:                   "TLS 1.1 (legacy)",
+			tlsVersion:             "1.1",
+			expectedTLSMinVersion:  "1.1",
+			expectTLSMinVersionSet: true,
+			disableTLS:             false,
+			description:            "Should set tlsMinVersion even for legacy versions",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Logf("Test: %s - %s", tt.name, tt.description)
+
+			// Arrange
+			argocdSettings := createArgoCDSettingsWithTLS(tt.tlsVersion, nil)
+
+			// Act
+			yamlBytes, err := GenerateDexConfigYAML(argocdSettings, tt.disableTLS)
+
+			// Assert
+			require.NoError(t, err, "GenerateDexConfigYAML should not error")
+			require.NotNil(t, yamlBytes, "Generated YAML should not be nil")
+
+			// Unmarshal to verify structure
+			var dexCfg map[string]interface{}
+			err = yaml.Unmarshal(yamlBytes, &dexCfg)
+			require.NoError(t, err, "Generated YAML should be valid")
+
+			// Verify web config exists
+			webCfg, ok := dexCfg["web"].(map[string]interface{})
+			require.True(t, ok, "web config must exist in dex configuration")
+
+			// Verify TLS mode (http vs https)
+			if tt.disableTLS {
+				_, hasHTTP := webCfg["http"]
+				assert.True(t, hasHTTP, "http should be present when TLS is disabled")
+				_, hasHTTPS := webCfg["https"]
+				assert.False(t, hasHTTPS, "https should not be present when TLS is disabled")
+			} else {
+				_, hasHTTPS := webCfg["https"]
+				assert.True(t, hasHTTPS, "https should be present when TLS is enabled")
+				_, hasHTTP := webCfg["http"]
+				assert.False(t, hasHTTP, "http should not be present when TLS is enabled")
+			}
+
+			// Verify tlsMinVersion
+			if tt.expectTLSMinVersionSet {
+				tlsMinVersion, ok := webCfg["tlsMinVersion"]
+				assert.True(t, ok, "tlsMinVersion should be present in web config")
+				assert.Equal(t, tt.expectedTLSMinVersion, tlsMinVersion, "tlsMinVersion value mismatch")
+			} else {
+				_, hasTLSMinVersion := webCfg["tlsMinVersion"]
+				assert.False(t, hasTLSMinVersion, "tlsMinVersion should not be present when not configured")
+			}
+		})
+	}
+}
+
+// TestGenerateDexConfigYAML_WebTLSCipherSuites tests cipher suites configuration in web interface
+func TestGenerateDexConfigYAML_WebTLSCipherSuites(t *testing.T) {
+	tests := []struct {
+		name                  string
+		cipherSuites          []string
+		expectedCipherSuites  []string
+		expectCipherSuitesSet bool
+		disableTLS            bool
+		description           string
+	}{
+		{
+			name:                  "TLS 1.3 cipher suites",
+			cipherSuites:          []string{"TLS_AES_128_GCM_SHA256", "TLS_AES_256_GCM_SHA384", "TLS_CHACHA20_POLY1305_SHA256"},
+			expectedCipherSuites:  []string{"TLS_AES_128_GCM_SHA256", "TLS_AES_256_GCM_SHA384", "TLS_CHACHA20_POLY1305_SHA256"},
+			expectCipherSuitesSet: true,
+			disableTLS:            false,
+			description:           "Should set all three TLS 1.3 cipher suites",
+		},
+		{
+			name:                  "TLS 1.2 cipher suites",
+			cipherSuites:          []string{"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256", "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"},
+			expectedCipherSuites:  []string{"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256", "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"},
+			expectCipherSuitesSet: true,
+			disableTLS:            false,
+			description:           "Should set TLS 1.2 ECDHE_RSA cipher suites",
+		},
+		{
+			name:                  "Single cipher suite",
+			cipherSuites:          []string{"TLS_AES_128_GCM_SHA256"},
+			expectedCipherSuites:  []string{"TLS_AES_128_GCM_SHA256"},
+			expectCipherSuitesSet: true,
+			disableTLS:            false,
+			description:           "Should set single cipher suite",
+		},
+		{
+			name:                  "Nil cipher suites",
+			cipherSuites:          nil,
+			expectedCipherSuites:  nil,
+			expectCipherSuitesSet: false,
+			disableTLS:            false,
+			description:           "Should not set allowedTLSCiphers when nil",
+		},
+		{
+			name:                  "Empty cipher suites slice",
+			cipherSuites:          []string{},
+			expectedCipherSuites:  []string{},
+			expectCipherSuitesSet: false,
+			disableTLS:            false,
+			description:           "Should not set allowedTLSCiphers when empty",
+		},
+		{
+			name:                  "TLS disabled with cipher suites configured",
+			cipherSuites:          []string{"TLS_AES_128_GCM_SHA256", "TLS_AES_256_GCM_SHA384"},
+			expectedCipherSuites:  []string{"TLS_AES_128_GCM_SHA256", "TLS_AES_256_GCM_SHA384"},
+			expectCipherSuitesSet: false,
+			disableTLS:            true,
+			description:           "Should not set allowedTLSCiphers when TLS is disabled",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Logf("Test: %s - %s", tt.name, tt.description)
+
+			// Arrange
+			argocdSettings := createArgoCDSettingsWithTLS("", tt.cipherSuites)
+
+			// Act
+			yamlBytes, err := GenerateDexConfigYAML(argocdSettings, tt.disableTLS)
+
+			// Assert
+			require.NoError(t, err, "GenerateDexConfigYAML should not error")
+			require.NotNil(t, yamlBytes, "Generated YAML should not be nil")
+
+			// Unmarshal to verify structure
+			var dexCfg map[string]interface{}
+			err = yaml.Unmarshal(yamlBytes, &dexCfg)
+			require.NoError(t, err, "Generated YAML should be valid")
+
+			// Verify web config exists
+			webCfg, ok := dexCfg["web"].(map[string]interface{})
+			require.True(t, ok, "web config must exist in dex configuration")
+
+			// Verify allowedTLSCiphers
+			if tt.disableTLS {
+				_, hasCipherSuites := webCfg["allowedTLSCiphers"]
+				assert.False(t, hasCipherSuites, "allowedTLSCiphers should not be set when TLS is disabled")
+			} else {
+				if tt.expectCipherSuitesSet && len(tt.cipherSuites) > 0 {
+					cipherSuitesIface, ok := webCfg["allowedTLSCiphers"]
+					assert.True(t, ok, "allowedTLSCiphers should be present in web config")
+
+					cipherSuitesSlice, ok := cipherSuitesIface.([]interface{})
+					require.True(t, ok, "allowedTLSCiphers should be a slice")
+					require.Equal(t, len(tt.expectedCipherSuites), len(cipherSuitesSlice), "cipher suites count mismatch")
+
+					// Verify each cipher suite
+					for i, expected := range tt.expectedCipherSuites {
+						assert.Equal(t, expected, cipherSuitesSlice[i], "cipher suite at index %d mismatch", i)
+					}
+				} else {
+					_, hasCipherSuites := webCfg["allowedTLSCiphers"]
+					assert.False(t, hasCipherSuites, "allowedTLSCiphers should not be present when empty or nil")
+				}
+			}
+		})
+	}
+}
+
+// TestGenerateDexConfigYAML_WebTLSMinVersionAndCipherSuites tests combined TLS version and cipher suites
+func TestGenerateDexConfigYAML_WebTLSMinVersionAndCipherSuites(t *testing.T) {
+	tests := []struct {
+		name                 string
+		tlsVersion           string
+		cipherSuites         []string
+		expectedTLSVersion   string
+		expectedCipherSuites []string
+		expectBothSet        bool
+		disableTLS           bool
+		description          string
+	}{
+		{
+			name:                 "TLS 1.3 with full cipher suite",
+			tlsVersion:           "1.3",
+			cipherSuites:         []string{"TLS_AES_128_GCM_SHA256", "TLS_AES_256_GCM_SHA384", "TLS_CHACHA20_POLY1305_SHA256"},
+			expectedTLSVersion:   "1.3",
+			expectedCipherSuites: []string{"TLS_AES_128_GCM_SHA256", "TLS_AES_256_GCM_SHA384", "TLS_CHACHA20_POLY1305_SHA256"},
+			expectBothSet:        true,
+			disableTLS:           false,
+			description:          "Should set both TLS 1.3 and cipher suites",
+		},
+		{
+			name:                 "TLS 1.2 with ECDHE cipher suite",
+			tlsVersion:           "1.2",
+			cipherSuites:         []string{"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256", "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"},
+			expectedTLSVersion:   "1.2",
+			expectedCipherSuites: []string{"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256", "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"},
+			expectBothSet:        true,
+			disableTLS:           false,
+			description:          "Should set both TLS 1.2 and ECDHE cipher suites",
+		},
+		{
+			name:                 "Only TLS version set",
+			tlsVersion:           "1.3",
+			cipherSuites:         nil,
+			expectedTLSVersion:   "1.3",
+			expectedCipherSuites: nil,
+			expectBothSet:        false,
+			disableTLS:           false,
+			description:          "Should set only TLS version, not cipher suites",
+		},
+		{
+			name:                 "Only cipher suites set",
+			tlsVersion:           "",
+			cipherSuites:         []string{"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"},
+			expectedTLSVersion:   "",
+			expectedCipherSuites: []string{"TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"},
+			expectBothSet:        false,
+			disableTLS:           false,
+			description:          "Should set only cipher suites, not TLS version",
+		},
+		{
+			name:                 "Neither TLS version nor cipher suites",
+			tlsVersion:           "",
+			cipherSuites:         nil,
+			expectedTLSVersion:   "",
+			expectedCipherSuites: nil,
+			expectBothSet:        false,
+			disableTLS:           false,
+			description:          "Should not set TLS version or cipher suites when empty",
+		},
+		{
+			name:                 "Both configured but TLS disabled",
+			tlsVersion:           "1.3",
+			cipherSuites:         []string{"TLS_AES_128_GCM_SHA256"},
+			expectedTLSVersion:   "",
+			expectedCipherSuites: []string{},
+			expectBothSet:        false,
+			disableTLS:           true,
+			description:          "Should not set TLS version or cipher suites when TLS is disabled",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Logf("Test: %s - %s", tt.name, tt.description)
+
+			// Arrange
+			argocdSettings := createArgoCDSettingsWithTLS(tt.tlsVersion, tt.cipherSuites)
+
+			// Act
+			yamlBytes, err := GenerateDexConfigYAML(argocdSettings, tt.disableTLS)
+
+			// Assert
+			require.NoError(t, err, "GenerateDexConfigYAML should not error")
+			require.NotNil(t, yamlBytes, "Generated YAML should not be nil")
+
+			// Unmarshal to verify structure
+			var dexCfg map[string]interface{}
+			err = yaml.Unmarshal(yamlBytes, &dexCfg)
+			require.NoError(t, err, "Generated YAML should be valid")
+
+			// Verify web config exists
+			webCfg, ok := dexCfg["web"].(map[string]interface{})
+			require.True(t, ok, "web config must exist in dex configuration")
+
+			if tt.disableTLS {
+				// When TLS is disabled, neither should be set
+				_, hasTLSMinVersion := webCfg["tlsMinVersion"]
+				_, hasCipherSuites := webCfg["allowedTLSCiphers"]
+				assert.False(t, hasTLSMinVersion, "tlsMinVersion should not be set when TLS is disabled")
+				assert.False(t, hasCipherSuites, "allowedTLSCiphers should not be set when TLS is disabled")
+			} else {
+				// Check TLS version
+				if tt.expectedTLSVersion != "" {
+					tlsMinVersion, ok := webCfg["tlsMinVersion"]
+					assert.True(t, ok, "tlsMinVersion should be present")
+					assert.Equal(t, tt.expectedTLSVersion, tlsMinVersion, "tlsMinVersion value mismatch")
+				} else {
+					_, hasTLSMinVersion := webCfg["tlsMinVersion"]
+					assert.False(t, hasTLSMinVersion, "tlsMinVersion should not be present when not configured")
+				}
+
+				// Check cipher suites
+				if len(tt.expectedCipherSuites) > 0 {
+					cipherSuitesIface, ok := webCfg["allowedTLSCiphers"]
+					assert.True(t, ok, "allowedTLSCiphers should be present")
+
+					cipherSuitesSlice, ok := cipherSuitesIface.([]interface{})
+					require.True(t, ok, "allowedTLSCiphers should be a slice")
+					assert.Equal(t, len(tt.expectedCipherSuites), len(cipherSuitesSlice), "cipher suites count mismatch")
+
+					for i, expected := range tt.expectedCipherSuites {
+						assert.Equal(t, expected, cipherSuitesSlice[i], "cipher suite at index %d mismatch", i)
+					}
+				} else {
+					_, hasCipherSuites := webCfg["allowedTLSCiphers"]
+					assert.False(t, hasCipherSuites, "allowedTLSCiphers should not be present when not configured")
+				}
+			}
+
+			// Verify basic Dex structure is intact
+			assert.NotNil(t, dexCfg["issuer"], "issuer should be set")
+			assert.NotNil(t, dexCfg["storage"], "storage should be set")
+			assert.NotNil(t, dexCfg["connectors"], "connectors should be set")
+			assert.NotNil(t, dexCfg["staticClients"], "staticClients should be set")
+		})
+	}
+}
+
+// ======================== Helper Functions ========================
+
+// createArgoCDSettingsWithTLS creates ArgoCDSettings with TLS configuration
+func createArgoCDSettingsWithTLS(tlsVersion string, cipherSuites []string) *settings.ArgoCDSettings {
+	var dexTLSConfig *settings.DexTLSVersionAndCipherSuites
+	if tlsVersion != "" || (cipherSuites != nil && len(cipherSuites) > 0) {
+		dexTLSConfig = &settings.DexTLSVersionAndCipherSuites{
+			DexTLSVersion:      tlsVersion,
+			DexTLSCipherSuites: cipherSuites,
+		}
+	}
+	return &settings.ArgoCDSettings{
+		URL:                          "https://argocd.example.com",
+		DexConfig:                    createMinimalValidDexConfig(),
+		DexTLSVersionAndCipherSuites: dexTLSConfig,
+		Secrets:                      make(map[string]string),
+	}
+}
+
+// createMinimalValidDexConfig creates a minimal valid Dex configuration YAML
+func createMinimalValidDexConfig() string {
+	return `
+issuer: https://dex.example.com:5556
+storage:
+  type: memory
+connectors: []
+staticClients: []
+`
+}
