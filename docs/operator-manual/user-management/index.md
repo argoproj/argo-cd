@@ -249,7 +249,6 @@ data:
           clientSecret: $dex.oidc.clientSecret
 ```
 
-
 ### Requesting additional ID token claims
 
 By default Dex only retrieves the profile and email scopes. In order to retrieve more claims you
