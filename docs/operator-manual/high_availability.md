@@ -42,7 +42,7 @@ the appropriate tool.
   ref-prefix narrowing for branch and tag resolution. The default optimized prefixes are `refs/heads/` and `refs/tags/`;
   override them with `--git-ls-remote-optimized-ref-prefixes` or
   `ARGOCD_GIT_LS_REMOTE_OPTIMIZED_REF_PREFIXES`. Unsupported refs, such as `refs/pull/`, continue to use the default
-  resolver.
+  resolver. Argo CD queries `HEAD` separately only when an application requests `HEAD` or leaves the revision empty.
 
 * `argocd-repo-server` Every 3m (by default) Argo CD checks for changes to the app manifests. Argo CD assumes by default
   that manifests only change when the repo changes, so it caches the generated manifests (for 24h by default). With
