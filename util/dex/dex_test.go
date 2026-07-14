@@ -858,12 +858,12 @@ func TestGenerateDexConfigYAML_WebTLSMinVersion(t *testing.T) {
 			require.NotNil(t, yamlBytes, "Generated YAML should not be nil")
 
 			// Unmarshal to verify structure
-			var dexCfg map[string]interface{}
+			var dexCfg map[string]any
 			err = yaml.Unmarshal(yamlBytes, &dexCfg)
 			require.NoError(t, err, "Generated YAML should be valid")
 
 			// Verify web config exists
-			webCfg, ok := dexCfg["web"].(map[string]interface{})
+			webCfg, ok := dexCfg["web"].(map[string]any)
 			require.True(t, ok, "web config must exist in dex configuration")
 
 			// Verify TLS mode (http vs https)
@@ -967,12 +967,12 @@ func TestGenerateDexConfigYAML_WebTLSCipherSuites(t *testing.T) {
 			require.NotNil(t, yamlBytes, "Generated YAML should not be nil")
 
 			// Unmarshal to verify structure
-			var dexCfg map[string]interface{}
+			var dexCfg map[string]any
 			err = yaml.Unmarshal(yamlBytes, &dexCfg)
 			require.NoError(t, err, "Generated YAML should be valid")
 
 			// Verify web config exists
-			webCfg, ok := dexCfg["web"].(map[string]interface{})
+			webCfg, ok := dexCfg["web"].(map[string]any)
 			require.True(t, ok, "web config must exist in dex configuration")
 
 			// Verify allowedTLSCiphers
@@ -984,9 +984,9 @@ func TestGenerateDexConfigYAML_WebTLSCipherSuites(t *testing.T) {
 					cipherSuitesIface, ok := webCfg["allowedTLSCiphers"]
 					assert.True(t, ok, "allowedTLSCiphers should be present in web config")
 
-					cipherSuitesSlice, ok := cipherSuitesIface.([]interface{})
+					cipherSuitesSlice, ok := cipherSuitesIface.([]any)
 					require.True(t, ok, "allowedTLSCiphers should be a slice")
-					require.Equal(t, len(tt.expectedCipherSuites), len(cipherSuitesSlice), "cipher suites count mismatch")
+					require.Len(t, cipherSuitesSlice, len(tt.expectedCipherSuites), "cipher suites length mismatch")
 
 					// Verify each cipher suite
 					for i, expected := range tt.expectedCipherSuites {
@@ -1090,7 +1090,7 @@ func TestGenerateDexConfigYAML_WebTLSMinVersionAndCipherSuites(t *testing.T) {
 			require.NotNil(t, yamlBytes, "Generated YAML should not be nil")
 
 			// Unmarshal to verify structure
-			var dexCfg map[string]interface{}
+			var dexCfg map[string]any
 			err = yaml.Unmarshal(yamlBytes, &dexCfg)
 			require.NoError(t, err, "Generated YAML should be valid")
 
@@ -1120,9 +1120,9 @@ func TestGenerateDexConfigYAML_WebTLSMinVersionAndCipherSuites(t *testing.T) {
 					cipherSuitesIface, ok := webCfg["allowedTLSCiphers"]
 					assert.True(t, ok, "allowedTLSCiphers should be present")
 
-					cipherSuitesSlice, ok := cipherSuitesIface.([]interface{})
+					cipherSuitesSlice, ok := cipherSuitesIface.([]any)
 					require.True(t, ok, "allowedTLSCiphers should be a slice")
-					assert.Equal(t, len(tt.expectedCipherSuites), len(cipherSuitesSlice), "cipher suites count mismatch")
+					assert.Len(t, cipherSuitesSlice, len(tt.expectedCipherSuites), "cipher suites length mismatch")
 
 					for i, expected := range tt.expectedCipherSuites {
 						assert.Equal(t, expected, cipherSuitesSlice[i], "cipher suite at index %d mismatch", i)
@@ -1147,7 +1147,7 @@ func TestGenerateDexConfigYAML_WebTLSMinVersionAndCipherSuites(t *testing.T) {
 // createArgoCDSettingsWithTLS creates ArgoCDSettings with TLS configuration
 func createArgoCDSettingsWithTLS(tlsVersion string, cipherSuites []string) *settings.ArgoCDSettings {
 	var dexTLSConfig *settings.DexTLSVersionAndCipherSuites
-	if tlsVersion != "" || (cipherSuites != nil && len(cipherSuites) > 0) {
+	if tlsVersion != "" || len(cipherSuites) > 0 {
 		dexTLSConfig = &settings.DexTLSVersionAndCipherSuites{
 			DexTLSVersion:      tlsVersion,
 			DexTLSCipherSuites: cipherSuites,
