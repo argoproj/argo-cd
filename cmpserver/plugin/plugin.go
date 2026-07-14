@@ -34,11 +34,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var tracer trace.Tracer
-
-func init() {
-	tracer = otel.Tracer("github.com/argoproj/argo-cd/v3/cmpserver/plugin")
-}
+var tracer = otel.Tracer("github.com/argoproj/argo-cd/v3/cmpserver/plugin")
 
 // cmpTimeoutBuffer is the amount of time before the request deadline to timeout server-side work. It makes sure there's
 // enough time before the client times out to send a meaningful error message.

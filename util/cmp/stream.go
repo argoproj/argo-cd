@@ -24,11 +24,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/tgzstream"
 )
 
-var tracer trace.Tracer
-
-func init() {
-	tracer = otel.Tracer("github.com/argoproj/argo-cd/v3/util/cmp")
-}
+var tracer = otel.Tracer("github.com/argoproj/argo-cd/v3/util/cmp)
 
 // StreamSender defines the contract to send App files over stream
 type StreamSender interface {
