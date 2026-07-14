@@ -40,6 +40,12 @@ func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTLS b
 			"tlsCert": "/tmp/tls.crt",
 			"tlsKey":  "/tmp/tls.key",
 		}
+		if argocdSettings.DexTLSVersionAndCipherSuites.DexTLSVersion != "" {
+			dexCfg["web"].(map[string]any)["tlsMinVersion"] = argocdSettings.DexTLSVersionAndCipherSuites.DexTLSVersion
+		}
+		if argocdSettings.DexTLSVersionAndCipherSuites.DexTLSCipherSuites != nil {
+			dexCfg["web"].(map[string]any)["allowedTLSCiphers"] = argocdSettings.DexTLSVersionAndCipherSuites.DexTLSCipherSuites
+		}
 	}
 
 	if loggerCfg, found := dexCfg["logger"].(map[string]any); found {
