@@ -29,4 +29,9 @@
     &__segment:not(:first-child) {
         border-left: 3px solid white;
     }
+
+    &__segment:nth-last-child(-n + 2) .tooltip {
+        left: auto;
+        right: 0;
+    }
 }
