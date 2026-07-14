@@ -2970,33 +2970,36 @@ func TestSettingsManager_GetWebhookRefreshJitter(t *testing.T) {
 
 func TestBuildDexStorage(t *testing.T) {
 	testCases := []struct {
-		name             string
-		dexStorageType   string
-		dexStorageConfig map[string]any
-		expected         map[string]any
+		name       string
+		dexStorage *DexStorage
+		expected   map[string]any
 	}{
 		{
-			name:           "default storage type when not set",
-			dexStorageType: "",
+			name:       "default storage type when not set",
+			dexStorage: nil,
 			expected: map[string]any{
 				"type": "memory",
 			},
 		},
 		{
-			name:           "memory storage type ignores config",
-			dexStorageType: "memory",
-			dexStorageConfig: map[string]any{
-				"inCluster": true,
+			name: "memory storage type ignores config",
+			dexStorage: &DexStorage{
+				Type: "memory",
+				Config: map[string]any{
+					"inCluster": true,
+				},
 			},
 			expected: map[string]any{
 				"type": "memory",
 			},
 		},
 		{
-			name:           "kubernetes storage type with config",
-			dexStorageType: "kubernetes",
-			dexStorageConfig: map[string]any{
-				"inCluster": true,
+			name: "kubernetes storage type with config",
+			dexStorage: &DexStorage{
+				Type: "kubernetes",
+				Config: map[string]any{
+					"inCluster": true,
+				},
 			},
 			expected: map[string]any{
 				"type": "kubernetes",
@@ -3006,12 +3009,14 @@ func TestBuildDexStorage(t *testing.T) {
 			},
 		},
 		{
-			name:           "postgres storage type with config",
-			dexStorageType: "postgres",
-			dexStorageConfig: map[string]any{
-				"host":     "pg.internal",
-				"port":     5432,
-				"database": "dex",
+			name: "postgres storage type with config",
+			dexStorage: &DexStorage{
+				Type: "postgres",
+				Config: map[string]any{
+					"host":     "pg.internal",
+					"port":     5432,
+					"database": "dex",
+				},
 			},
 			expected: map[string]any{
 				"type": "postgres",
@@ -3023,29 +3028,37 @@ func TestBuildDexStorage(t *testing.T) {
 			},
 		},
 		{
-			name:           "non-memory storage type with nil config",
-			dexStorageType: "sqlite3",
+			name: "non-memory storage type with nil config",
+			dexStorage: &DexStorage{
+				Type: "sqlite3",
+			},
 			expected: map[string]any{
 				"type": "sqlite3",
 			},
 		},
 		{
-			name:           "etcd storage type with nil config",
-			dexStorageType: "etcd",
+			name: "etcd storage type with nil config",
+			dexStorage: &DexStorage{
+				Type: "etcd",
+			},
 			expected: map[string]any{
 				"type": "etcd",
 			},
 		},
 		{
-			name:           "kubernetes storage type with nil config",
-			dexStorageType: "kubernetes",
+			name: "kubernetes storage type with nil config",
+			dexStorage: &DexStorage{
+				Type: "kubernetes",
+			},
 			expected: map[string]any{
 				"type": "kubernetes",
 			},
 		},
 		{
-			name:           "postgres storage type with nil config",
-			dexStorageType: "postgres",
+			name: "postgres storage type with nil config",
+			dexStorage: &DexStorage{
+				Type: "postgres",
+			},
 			expected: map[string]any{
 				"type": "postgres",
 			},
@@ -3055,12 +3068,9 @@ func TestBuildDexStorage(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			settings := &ArgoCDSettings{
-				DexStorageType:   tc.dexStorageType,
-				DexStorageConfig: tc.dexStorageConfig,
+				DexStorage: tc.dexStorage,
 			}
-
 			storage := settings.BuildDexStorage()
-
 			assert.Equal(t, tc.expected, storage)
 		})
 	}
@@ -3071,9 +3081,25 @@ func TestDexStorageTypeSetting(t *testing.T) {
 		settings := &ArgoCDSettings{}
 		assert.Equal(t, "memory", settings.DexStorageTypeSetting())
 	})
-
+	t.Run("defaults to memory when DexStorage is nil", func(t *testing.T) {
+		settings := &ArgoCDSettings{DexStorage: nil}
+		assert.Equal(t, "memory", settings.DexStorageTypeSetting())
+	})
 	t.Run("returns configured storage type", func(t *testing.T) {
-		settings := &ArgoCDSettings{DexStorageType: "kubernetes"}
+		settings := &ArgoCDSettings{
+			DexStorage: &DexStorage{Type: "kubernetes"},
+		}
 		assert.Equal(t, "kubernetes", settings.DexStorageTypeSetting())
+	})
+	t.Run("returns configured storage type with config", func(t *testing.T) {
+		settings := &ArgoCDSettings{
+			DexStorage: &DexStorage{
+				Type: "postgres",
+				Config: map[string]any{
+					"host": "pg.internal",
+				},
+			},
+		}
+		assert.Equal(t, "postgres", settings.DexStorageTypeSetting())
 	})
 }
