@@ -54,6 +54,12 @@ func (a *Actions) PatchFile(file string, jsonPatch string) *Actions {
 	return a
 }
 
+func (a *Actions) PatchDrySourceFile(file string, jsonPatch string) *Actions {
+	a.context.T().Helper()
+	fixture.Patch(a.context.T(), a.context.drySourcePath+"/"+file, jsonPatch)
+	return a
+}
+
 func (a *Actions) GitRevList(args ...string) *Actions {
 	a.context.T().Helper()
 	a.lastOutput = fixture.GitRevList(a.context.T(), args)

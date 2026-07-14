@@ -103,6 +103,13 @@ func SyncRevisionIs(expected string) Expectation {
 	}
 }
 
+func DryRevisionIs(expected string) Expectation {
+	return func(c *Consequences) (state, string) {
+		actual := c.app().Status.SourceHydrator.LastSuccessfulOperation.DrySHA
+		return simple(actual == expected, fmt.Sprintf("dry source revision to be %s, is %s", expected, actual))
+	}
+}
+
 func HelmTemplateRuns() Expectation {
 	return func(c *Consequences) (state, string) {
 		isRunning := false

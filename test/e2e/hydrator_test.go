@@ -629,3 +629,57 @@ func TestHydratorHydratesAutomatically_NewCommit_WithoutChanges(t *testing.T) {
 				app.Status.SourceHydrator.CurrentOperation.HydratedSHA)
 		})
 }
+
+func TestHydratorNestedRequest(t *testing.T) {
+	dir := "slow-manifest"
+	manifest := "templates/cm.yaml"
+	ctx := Given(t).Timeout(100)
+	//manifest := "templates/cm.yaml"
+	acts := ctx.DrySourcePath(dir).
+		DrySourceRevision("HEAD").
+		SyncSourcePath(dir).
+		SyncSourceBranch("env/test").
+		When().
+		CreateApp().Refresh(RefreshTypeNormal).
+		Wait("--hydrated").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		PatchDrySourceFile(manifest, `[{"op": "add", "path": "/metadata/labels/test-label", "value": "test-value"}]`)
+
+	// runs app get --refresh asynchroniously, so we do not wait for hydration to finish
+	go acts.Refresh(RefreshTypeNormal)
+	// wait until Hydration actually runs `helm template`.  We can
+	// catch it because the template is really nasty and
+	// `helm templates` rendering takes tens of seconds
+	acts.Then().Expect(HelmTemplateRuns())
+	// ps output line containing helm PID and command line
+	helmProcessData := acts.GetLastOutput()
+	// make another change
+	acts = acts.PatchDrySourceFile(manifest, `[{"op": "add", "path": "/metadata/labels/test-label", "value": "test-value2"}]`)
+	// get last revision after the change
+	revision := acts.GitRevList("HEAD", "-1").GetLastOutput()
+
+	// second (nested) refresh request
+	go acts.Refresh(RefreshTypeNormal)
+
+	// get process one more time and ensure the same helm process
+	// still running, so the second refresh was nested
+	acts.Then().Expect(HelmTemplateRuns()).Expect(Success(helmProcessData))
+
+	acts.Wait("--hydrated").Then().
+		Expect(HydrationPhaseIs(HydrateOperationPhaseHydrated)).
+		// synced to the last committed revision - the second refresh worked
+		Expect(DryRevisionIs(revision))
+
+	acts.Sync().Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		// synced to the last committed revision - the second refresh worked
+		And(func(app *Application) {
+			require.Equal(t, app.Status.SourceHydrator.LastSuccessfulOperation.HydratedSHA, app.Status.Sync.Revision)
+		})
+	//Expect(SyncRevisionIs(revision))
+}

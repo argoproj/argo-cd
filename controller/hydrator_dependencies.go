@@ -98,8 +98,10 @@ func (ctrl *ApplicationController) RequestAppRefresh(appName string, appNamespac
 	return nil
 }
 
-func (ctrl *ApplicationController) PersistHydrationStatus(orig *appv1.Application, newStatus *appv1.SourceHydratorStatus) {
+func (ctrl *ApplicationController) PersistHydrationStatus(orig *appv1.Application, newStatus *appv1.SourceHydratorStatus, removeHydrateAnnotations bool) {
+	//if removeHydrateAnnotations {
 	ctrl.handleRefreshAnnotation(orig, appv1.AnnotationKeyHydrate, appv1.AnnotationKeyHydrateTimestamp)
+	//}
 	status := orig.Status.DeepCopy()
 	status.SourceHydrator = *newStatus
 	ctrl.persistAppStatus(context.Background(), orig, status)
