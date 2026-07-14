@@ -2519,7 +2519,24 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 	settings := operationSettings{allowConcurrent: q.Source.AllowsConcurrentProcessing(), noCache: q.NoCache, noRevisionCache: q.NoCache || q.NoRevisionCache}
 	err := s.runRepoOperation(ctx, q.Source.TargetRevision, q.Repo, q.Source, nil, cacheFn, operation, settings, len(q.RefSources) > 0, q.RefSources)
 
-	return res, err
+	return res, toUserInputStatusError(err)
+}
+
+// toUserInputStatusError maps errors that are caused by invalid user input to a
+// gRPC InvalidArgument status, so they are not reported as codes.Unknown (which
+// implies a server fault and pollutes error-rate SLOs). Errors that already
+// carry a non-Unknown gRPC status code are returned unchanged.
+func toUserInputStatusError(err error) error {
+	if err == nil {
+		return nil
+	}
+	if _, ok := status.FromError(err); ok && status.Code(err) != codes.Unknown {
+		return err
+	}
+	if errors.Is(err, apppathutil.ErrAppPathDoesNotExist) {
+		return status.Error(codes.InvalidArgument, err.Error())
+	}
+	return err
 }
 
 func (s *Service) createGetAppDetailsCacheHandler(res *apiclient.RepoAppDetailsResponse, q *apiclient.RepoServerAppDetailsQuery) func(revision string, _ cache.ResolvedRevisions, _ bool) (bool, error) {
