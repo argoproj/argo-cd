@@ -7,6 +7,11 @@ metadata:
     app.kubernetes.io/name: argocd-cm
     app.kubernetes.io/part-of: argocd
 data:
+  # Dex storage configuration
+  dex.storage: |
+    type: kubernetes
+    config:
+      inCluster: true
   # Argo CD's externally facing base URL (optional). Required when configuring SSO
   url: https://argo-cd-demo.argoproj.io
 
