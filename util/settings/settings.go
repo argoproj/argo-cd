@@ -84,9 +84,9 @@ git checkout {{ .DrySHA }}
 {{ end -}}`
 
 type DexTLSVersionAndCipherSuites struct {
-	// DexTLSVersion designates the key for the TLS version used for web and grpc
+	// DexTLSVersion designates the key for the TLS version used for web
 	DexTLSVersion string `json:"dexTlsVersion,omitempty"`
-	// DexTLSCipherSuites designates the key for the TLS cipher suites used for web and grpc
+	// DexTLSCipherSuites designates the key for the TLS cipher suites used for web
 	DexTLSCipherSuites []string `json:"dexTlsCipherSuites,omitempty"`
 }
 
@@ -104,7 +104,7 @@ type ArgoCDSettings struct {
 	StatusBadgeRootUrl string `json:"statusBadgeRootUrl,omitempty"` //nolint:revive //FIXME(var-naming)
 	// DexConfig contains portions of a dex config yaml
 	DexConfig string `json:"dexConfig,omitempty"`
-	// DexTLSVersionAndCipherSuites holds the TLS version and cipher suites for dex web and grpc
+	// DexTLSVersionAndCipherSuites holds the TLS version and cipher suites for dex web
 	DexTLSVersionAndCipherSuites *DexTLSVersionAndCipherSuites `json:"dexTlsVersionAndCipherSuites,omitempty"`
 	// OIDCConfigRAW holds OIDC configuration as a raw string
 	OIDCConfigRAW string `json:"oidcConfig,omitempty"`
@@ -452,7 +452,7 @@ const (
 	settingAdditionalUrlsKey = "additionalUrls"
 	// settingDexConfigKey designates the key for the dex config
 	settingDexConfigKey = "dex.config"
-	// settingDexTLSVersionAndCipherSuites designates the key for the TLS version and cipher suites used for web and grpc
+	// settingDexTLSVersionAndCipherSuites designates the key for the TLS version and cipher suites used for web
 	settingDexTLSVersionAndCipherSuites = "dex.tls"
 	// settingsOIDCConfigKey designates the key for OIDC config
 	settingsOIDCConfigKey = "oidc.config"
