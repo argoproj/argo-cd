@@ -95,6 +95,10 @@ func CreateOrUpdate(ctx context.Context, logCtx *log.Entry, c client.Client, ign
 		},
 	)
 
+	// Note: if the informer cache holds a stale entry for an application that no longer exists on
+	// the API server, DeepEqual may match against that stale entry and we skip Patch here. The
+	// eviction in cacheSyncingClient only runs on NotFound from a write operation, so this edge
+	// case is not covered and relies on Kubernetes propagating the delete event to the informer.
 	if equality.DeepEqual(normalizedLive, obj) {
 		return controllerutil.OperationResultNone, nil
 	}
