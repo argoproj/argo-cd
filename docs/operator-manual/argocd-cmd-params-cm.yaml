@@ -202,6 +202,8 @@ data:
   server.dex.server.strict.tls: "false"
   # Disable client authentication
   server.disable.auth: "false"
+  # Disable the Swagger UI (/swagger-ui) endpoint
+  server.disable.swagger.ui: "false"
   # Toggle GZIP compression
   server.enable.gzip: "true"
   # Set X-Frame-Options header in HTTP responses to value. To disable, set to "". (default "sameorigin")
