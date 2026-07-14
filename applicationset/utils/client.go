@@ -87,18 +87,25 @@ func (c *cacheSyncingClient) retrieveStore(ctx context.Context, obj client.Objec
 }
 
 func (c *cacheSyncingClient) execAndSyncCache(ctx context.Context, op func() error, obj client.Object, deleteObj bool) error {
-	// execute the operation first and only sync cache if it succeeds
+	// Execute the operation first; on success sync the informer cache. If it returns NotFound, also attempt to evict any stale entry from the cache.
+	var opErr error
 	if err := op(); err != nil {
-		// A NotFound on Delete means the object is already gone from the API server. We still
-		// want to evict any stale entry from the informer cache below, otherwise a lingering
+		// A NotFound means the object is already gone from the API server. Fall through to
+		// evict any stale entry from the informer cache below, otherwise a lingering
 		// (already-deleted) object keeps being read back and callers can never converge.
-		if !deleteObj || !apierrors.IsNotFound(err) {
+		// Delete callers already expected deletion, so we swallow the error (idempotent).
+		// Update/Patch callers still need to know the object is gone, so we return NotFound.
+		if !apierrors.IsNotFound(err) {
 			return err
 		}
+		if !deleteObj {
+			opErr = err
+		}
+		deleteObj = true
 	}
 	// sync cache for applications only
 	if _, ok := obj.(*application.Application); !ok {
-		return nil
+		return opErr
 	}
 
 	logger := log.WithField("namespace", obj.GetNamespace()).WithField("name", obj.GetName())
@@ -115,7 +122,7 @@ func (c *cacheSyncingClient) execAndSyncCache(ctx context.Context, op func() err
 	if err != nil {
 		logger.Errorf("failed to sync cache for object: %v", err)
 	}
-	return nil
+	return opErr
 }
 
 func (c *cacheSyncingClient) Create(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
