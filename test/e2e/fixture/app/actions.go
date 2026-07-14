@@ -530,7 +530,7 @@ func (a *Actions) And(block func()) *Actions {
 
 func (a *Actions) Then() *Consequences {
 	a.context.T().Helper()
-	return &Consequences{a.context, a, 15}
+	return &Consequences{a.context, a, 25}
 }
 
 func (a *Actions) runCli(args ...string) {

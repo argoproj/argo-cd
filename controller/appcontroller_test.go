@@ -8,6 +8,7 @@ import (
 	"maps"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -41,6 +42,7 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/yaml"
 
 	dbmocks "github.com/argoproj/argo-cd/v3/util/db/mocks"
@@ -104,6 +106,26 @@ func (m *MockKubectl) CreateResource(ctx context.Context, config *rest.Config, g
 func (m *MockKubectl) DeleteResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, deleteOptions metav1.DeleteOptions) error {
 	m.DeletedResources = append(m.DeletedResources, kube.NewResourceKey(gvk.Group, gvk.Kind, namespace, name))
 	return m.Kubectl.DeleteResource(ctx, config, gvk, name, namespace, deleteOptions)
+}
+
+// recordingOperationQueue embeds a real rate-limiting queue but records every
+// AddAfter call so tests can assert the self-requeue (item and delay) without
+// having to wait for the delaying queue's timer to fire.
+type recordingOperationQueue struct {
+	workqueue.TypedRateLimitingInterface[string]
+	mu    sync.Mutex
+	calls []operationRequeue
+}
+
+type operationRequeue struct {
+	item  string
+	delay time.Duration
+}
+
+func (q *recordingOperationQueue) AddAfter(item string, d time.Duration) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	q.calls = append(q.calls, operationRequeue{item: item, delay: d})
 }
 
 func newFakeController(ctx context.Context, data *fakeData, repoErr error) *ApplicationController {
@@ -3198,6 +3220,139 @@ func TestProcessRequestedAppOperation_SyncTimeout(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, tc.expectedPhase, app.Status.OperationState.Phase)
 			assert.Equal(t, tc.expectedMessage, app.Status.OperationState.Message)
+		})
+	}
+}
+
+func TestProcessRequestedAppOperation_RequeuesOperation(t *testing.T) {
+	t.Run("requeues with the max requeue interval by default", func(t *testing.T) {
+		app := newFakeApp()
+		app.Spec.Project = "default"
+		app.Operation = &v1alpha1.Operation{
+			Sync: &v1alpha1.SyncOperation{},
+		}
+		ctrl := newFakeController(t.Context(), &fakeData{
+			apps: []runtime.Object{app, &defaultProj},
+			manifestResponses: []*apiclient.ManifestResponse{{
+				Manifests: []string{},
+			}},
+		}, nil)
+		rq := &recordingOperationQueue{TypedRateLimitingInterface: ctrl.appOperationQueue}
+		ctrl.appOperationQueue = rq
+
+		ctrl.processRequestedAppOperation(app)
+
+		require.Len(t, rq.calls, 1)
+		assert.Equal(t, ctrl.toAppKey(app.QualifiedName()), rq.calls[0].item)
+		assert.Equal(t, appOperationMaxRequeueInterval, rq.calls[0].delay)
+	})
+
+	t.Run("caps the requeue delay by the remaining sync timeout", func(t *testing.T) {
+		app := newFakeApp()
+		app.Spec.Project = "default"
+		app.Operation = &v1alpha1.Operation{
+			Sync: &v1alpha1.SyncOperation{Revision: "HEAD"},
+		}
+		ctrl := newFakeController(t.Context(), &fakeData{
+			apps: []runtime.Object{app, &defaultProj},
+			manifestResponses: []*apiclient.ManifestResponse{{
+				Manifests: []string{},
+			}},
+		}, nil)
+		ctrl.syncTimeout = 10 * time.Second
+		app.Status.OperationState = &v1alpha1.OperationState{
+			Operation: *app.Operation,
+			Phase:     synccommon.OperationRunning,
+			StartedAt: metav1.Now(),
+		}
+		rq := &recordingOperationQueue{TypedRateLimitingInterface: ctrl.appOperationQueue}
+		ctrl.appOperationQueue = rq
+
+		ctrl.processRequestedAppOperation(app)
+
+		require.Len(t, rq.calls, 1)
+		assert.Equal(t, ctrl.toAppKey(app.QualifiedName()), rq.calls[0].item)
+		assert.Positive(t, rq.calls[0].delay)
+		assert.LessOrEqual(t, rq.calls[0].delay, ctrl.syncTimeout)
+		assert.Less(t, rq.calls[0].delay, appOperationMaxRequeueInterval)
+	})
+
+	t.Run("requeues after the remaining retry backoff", func(t *testing.T) {
+		app := newFakeApp()
+		app.Spec.Project = "default"
+		app.Operation = &v1alpha1.Operation{
+			Sync: &v1alpha1.SyncOperation{},
+			Retry: v1alpha1.RetryStrategy{
+				Limit: 1,
+				Backoff: &v1alpha1.Backoff{
+					Duration:    "1h",
+					Factor:      new(int64(100)),
+					MaxDuration: "1h",
+				},
+			},
+		}
+		ctrl := newFakeController(t.Context(), &fakeData{
+			apps: []runtime.Object{app, &defaultProj},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+			},
+		}, nil)
+		app.Status.OperationState.Operation = *app.Operation
+		app.Status.OperationState.Phase = synccommon.OperationRunning
+		app.Status.OperationState.RetryCount = 1
+		app.Status.OperationState.FinishedAt = &metav1.Time{Time: time.Now().Add(-time.Second)}
+		rq := &recordingOperationQueue{TypedRateLimitingInterface: ctrl.appOperationQueue}
+		ctrl.appOperationQueue = rq
+
+		ctrl.processRequestedAppOperation(app)
+
+		require.Len(t, rq.calls, 1)
+		assert.Equal(t, ctrl.toAppKey(app.QualifiedName()), rq.calls[0].item)
+		// The retry backoff (~1h) governs the requeue, well beyond the default backstop.
+		assert.Greater(t, rq.calls[0].delay, appOperationMaxRequeueInterval)
+	})
+}
+
+func TestShouldProcessOperation(t *testing.T) {
+	now := metav1.Now()
+	testCases := []struct {
+		name              string
+		operation         *v1alpha1.Operation
+		deletionTimestamp *metav1.Time
+		expected          bool
+	}{
+		{
+			name:     "no operation and no deletion timestamp",
+			expected: false,
+		},
+		{
+			name:      "operation is set",
+			operation: &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}},
+			expected:  true,
+		},
+		{
+			name:              "deletion timestamp is set",
+			deletionTimestamp: &now,
+			expected:          true,
+		},
+		{
+			name:              "both operation and deletion timestamp are set",
+			operation:         &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}},
+			deletionTimestamp: &now,
+			expected:          true,
+		},
+	}
+
+	ctrl := &ApplicationController{}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			app := newFakeApp()
+			app.Operation = tc.operation
+			app.DeletionTimestamp = tc.deletionTimestamp
+			assert.Equal(t, tc.expected, ctrl.shouldProcessOperation(app))
 		})
 	}
 }
