@@ -90,6 +90,10 @@ data:
   # Keys are in the form: resource.customizations.ignoreDifferences.<group_kind>, resource.customizations.health.<group_kind>
   # resource.customizations.actions.<group_kind>, resource.customizations.knownTypeFields.<group_kind>
   # resource.customizations.ignoreResourceUpdates.<group_kind>
+  #
+  # Note: Argo CD ships built-in ignoreDifferences for some resources (e.g.
+  # postgresql.cnpg.io/Cluster). A ConfigMap entry for the same group/kind takes
+  # precedence and replaces the built-in. See the diffing guide for the full list.
   resource.customizations.ignoreDifferences.admissionregistration.k8s.io_MutatingWebhookConfiguration: |
     jsonPointers:
     - /webhooks/0/clientConfig/caBundle

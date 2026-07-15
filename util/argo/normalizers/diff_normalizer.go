@@ -138,6 +138,13 @@ func NewIgnoreNormalizer(ignore []v1alpha1.ResourceIgnoreDifferences, overrides 
 			ignore = append(ignore, resourceIgnoreDifference)
 		}
 	}
+	// Merge built-in ignoreDifferences shipped in the embedded resource_customizations
+	// filesystem. ConfigMap overrides take precedence (skip already-configured keys).
+	builtinIgnores, err := getBuiltinResourceIgnoreDifferences(overrides)
+	if err != nil {
+		return nil, fmt.Errorf("error loading built-in ignoreDifferences: %w", err)
+	}
+	ignore = append(ignore, builtinIgnores...)
 	patches := make([]normalizerPatch, 0)
 	for i := range ignore {
 		for _, path := range ignore[i].JSONPointers {

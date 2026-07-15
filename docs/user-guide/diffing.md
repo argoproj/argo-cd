@@ -114,6 +114,16 @@ data:
     - /spec/replicas
 ```
 
+### Built-in ignoreDifferences
+
+Argo CD ships built-in `ignoreDifferences` customizations for some resources, alongside the built-in health checks and resource actions. These are loaded from the [`resource_customizations`](https://github.com/argoproj/argo-cd/tree/master/resource_customizations) directory and apply automatically — no ConfigMap entry is required.
+
+A ConfigMap entry for the same group/kind takes precedence and replaces the built-in (consistent with how built-in health checks are overridden).
+
+| Group / Kind | Ignored fields | Reason |
+| --- | --- | --- |
+| `postgresql.cnpg.io/Cluster` | `spec.managed.roles[].connectionLimit` (when `-1`), `.inherit` (when `true`), `.ensure` (when `"present"`) | The CloudNativePG CRD declares these as [kubebuilder defaults](https://github.com/cloudnative-pg/cloudnative-pg/blob/main/api/v1/cluster_types.go), so the Kubernetes API server injects them at admission. Only the default values are stripped, so user-set values (e.g. `connectionLimit: 10`) still produce drift. |
+
 The `status` field of many resources is often stored in Git/Helm manifest and should be ignored during diffing. The `status` field is used by
 Kubernetes controller to persist the current state of the resource and therefore cannot be applied as a desired configuration.
 

@@ -243,9 +243,10 @@ func TestNormalizeExpectedErrorAreSilenced(t *testing.T) {
 	require.NoError(t, err)
 
 	ignoreNormalizer := normalizer.(*ignoreNormalizer)
-	assert.Len(t, ignoreNormalizer.patches, 2)
-	jsonPatch := ignoreNormalizer.patches[0]
-	jqPatch := ignoreNormalizer.patches[1]
+	starPatches := patchesForGroupKind(ignoreNormalizer.patches, "*", "*")
+	assert.Len(t, starPatches, 2)
+	jsonPatch := starPatches[0]
+	jqPatch := starPatches[1]
 
 	deployment := test.NewDeployment()
 	deploymentData, err := json.Marshal(deployment)
@@ -274,8 +275,9 @@ func TestJqPathExpressionFailWithTimeout(t *testing.T) {
 	require.NoError(t, err)
 
 	ignoreNormalizer := normalizer.(*ignoreNormalizer)
-	assert.Len(t, ignoreNormalizer.patches, 1)
-	jqPatch := ignoreNormalizer.patches[0]
+	starPatches := patchesForGroupKind(ignoreNormalizer.patches, "*", "*")
+	assert.Len(t, starPatches, 1)
+	jqPatch := starPatches[0]
 
 	deployment := test.NewDeployment()
 	deploymentData, err := json.Marshal(deployment)
@@ -326,4 +328,18 @@ func TestNormalizeFailureLogIncludesResourceContext(t *testing.T) {
 	assert.Contains(t, out, "Failed to apply normalization patch")
 	assert.Contains(t, out, "kind=ConfigMap")
 	assert.Contains(t, out, "name=my-configmap")
+}
+
+// patchesForGroupKind returns the normalizer patches targeting the given
+// group/kind. Built-in ignoreDifferences patches are loaded for every
+// normalizer, so tests that assert on ConfigMap-configured patches filter by
+// group/kind to remain robust against the addition of new built-ins.
+func patchesForGroupKind(patches []normalizerPatch, group, kind string) []normalizerPatch {
+	var matched []normalizerPatch
+	for _, p := range patches {
+		if p.GetGroupKind().Group == group && p.GetGroupKind().Kind == kind {
+			matched = append(matched, p)
+		}
+	}
+	return matched
 }

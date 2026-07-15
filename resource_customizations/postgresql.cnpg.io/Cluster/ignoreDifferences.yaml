@@ -1,0 +1,17 @@
+# Built-in ignoreDifferences for CloudNativePG (CNPG) Cluster.
+#
+# The CNPG CRD declares kubebuilder defaults for managed roles which the
+# Kubernetes API server injects at admission time. When users omit these
+# fields from their manifests, the live object contains the defaults while
+# the desired (Git) manifest does not, causing perpetual OutOfSync status.
+#
+# The jqPathExpressions below are wrapped in del(...) by Argo CD's diff
+# normalizer and only strip the fields when they equal the API server
+# default, so legitimate user-set values (e.g. connectionLimit: 10) still
+# produce drift.
+#
+# Reference: https://github.com/cloudnative-pg/cloudnative-pg/blob/main/api/v1/cluster_types.go
+jqPathExpressions:
+  - '.spec.managed.roles[]? | select(.connectionLimit == -1) | .connectionLimit'
+  - '.spec.managed.roles[]? | select(.inherit == true) | .inherit'
+  - '.spec.managed.roles[]? | select(.ensure == "present") | .ensure'
