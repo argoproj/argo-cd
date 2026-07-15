@@ -4,6 +4,8 @@ import (
 	"os"
 	"testing"
 
+	"github.com/sirupsen/logrus"
+	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -306,4 +308,64 @@ func TestNewRBACValidateCommand(t *testing.T) {
 	require.NotNil(t, command)
 	assert.Equal(t, "validate", command.Name())
 	assert.Equal(t, "Validate RBAC policy", command.Short)
+}
+
+func Test_isGroupSubject(t *testing.T) {
+	assert.True(t, isGroupSubject("my-org:team"))
+	assert.True(t, isGroupSubject("my-org:my:team"))
+	assert.False(t, isGroupSubject("role:admin"))
+	assert.False(t, isGroupSubject("proj:my-proj:my-role"))
+	assert.False(t, isGroupSubject("local-user"))
+	assert.False(t, isGroupSubject("user@example.com"))
+}
+
+func Test_hasGroupBinding(t *testing.T) {
+	policy := "p, my-org:team, logs, get, some-proj/some-app, allow\n" +
+		"g, my-org:bound-team, role:foo\n"
+	assert.True(t, hasGroupBinding("my-org:bound-team", policy))
+	assert.False(t, hasGroupBinding("my-org:team", policy))
+	assert.False(t, hasGroupBinding("my-org:missing", policy))
+	assert.False(t, hasGroupBinding("my-org:bound-team", ""))
+}
+
+func Test_warnIfUnenforcedGroupGrant(t *testing.T) {
+	hook := logtest.NewGlobal()
+	t.Cleanup(func() { logrus.StandardLogger().ReplaceHooks(logrus.LevelHooks{}) })
+
+	lastWarning := func() string {
+		for i := len(hook.Entries) - 1; i >= 0; i-- {
+			if hook.Entries[i].Level == logrus.WarnLevel {
+				return hook.Entries[i].Message
+			}
+		}
+		return ""
+	}
+
+	t.Run("warns for group with direct p, and no g, binding", func(t *testing.T) {
+		hook.Reset()
+		warnIfUnenforcedGroupGrant("my-org:team", "", "p, my-org:team, logs, get, some-proj/some-app, allow")
+		assert.Contains(t, lastWarning(), "my-org:team")
+	})
+	t.Run("does not warn when group is bound to a role", func(t *testing.T) {
+		hook.Reset()
+		warnIfUnenforcedGroupGrant("my-org:team", "",
+			"p, role:foo, logs, get, some-proj/some-app, allow\ng, my-org:team, role:foo")
+		assert.Empty(t, lastWarning())
+	})
+	t.Run("does not warn for roles", func(t *testing.T) {
+		hook.Reset()
+		warnIfUnenforcedGroupGrant("role:foo", "", "p, role:foo, logs, get, some-proj/some-app, allow")
+		assert.Empty(t, lastWarning())
+	})
+	t.Run("does not warn for local users", func(t *testing.T) {
+		hook.Reset()
+		warnIfUnenforcedGroupGrant("local-user", "", "p, local-user, logs, get, some-proj/some-app, allow")
+		assert.Empty(t, lastWarning())
+	})
+	t.Run("honors binding from the builtin policy", func(t *testing.T) {
+		hook.Reset()
+		warnIfUnenforcedGroupGrant("my-org:team", "g, my-org:team, role:foo",
+			"p, my-org:team, logs, get, some-proj/some-app, allow")
+		assert.Empty(t, lastWarning())
+	})
 }
