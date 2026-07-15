@@ -11,6 +11,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"k8s.io/apimachinery/pkg/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"net/netip"
 
 	"github.com/argoproj/pkg/v2/stats"
 	log "github.com/sirupsen/logrus"
@@ -102,7 +103,8 @@ func NewCommand() *cobra.Command {
 		enableGitHubAPIMetrics   bool
 
 		// argocd k8s event logging flag
-		enableK8sEvent []string
+		enableK8sEvent    []string
+		trustedProxyCIDRs []string
 
 		repoServerClientTLSConfigSrc func() (tls.Configuration, error)
 	)
@@ -224,6 +226,8 @@ func NewCommand() *cobra.Command {
 			if contentTypes != "" {
 				contentTypesList = strings.Split(contentTypes, ";")
 			}
+			trustedProxyPrefixes, err := parseTrustedProxyCIDRs(trustedProxyCIDRs)
+			errors.CheckError(err)
 
 			argoCDOpts := server.ArgoCDServerOpts{
 				Insecure:                insecure,
@@ -258,6 +262,7 @@ func NewCommand() *cobra.Command {
 				EnableK8sEvent:          enableK8sEvent,
 				HydratorEnabled:         hydratorEnabled,
 				SyncWithReplaceAllowed:  syncWithReplaceAllowed,
+				TrustedProxyCIDRs:       trustedProxyPrefixes,
 			}
 
 			appsetOpts := server.ApplicationSetOpts{
@@ -344,6 +349,9 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&hydratorEnabled, "hydrator-enabled", env.ParseBoolFromEnv("ARGOCD_HYDRATOR_ENABLED", false), "Feature flag to enable Hydrator. Default (\"false\")")
 	command.Flags().BoolVar(&syncWithReplaceAllowed, "sync-with-replace-allowed", env.ParseBoolFromEnv("ARGOCD_SYNC_WITH_REPLACE_ALLOWED", true), "Whether to allow users to select replace for syncs from UI/CLI")
 
+	// Trusted reverse proxies allowed to provide client IP information.
+	command.Flags().StringSliceVar(&trustedProxyCIDRs, "trusted-proxy-cidrs", env.StringsFromEnv("ARGOCD_SERVER_TRUSTED_PROXY_CIDRS", []string{}, ","), "List of trusted proxy CIDRs permitted to supply X-Forwarded-For. Empty disables forwarded client IP logging.")
+	
 	// Flags related to the applicationSet component.
 	command.Flags().StringVar(&scmRootCAPath, "appset-scm-root-ca-path", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH", ""), "Provide Root CA Path for self-signed TLS Certificates")
 	command.Flags().BoolVar(&enableScmProviders, "appset-enable-scm-providers", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_SCM_PROVIDERS", true), "Enable retrieving information from SCM providers, used by the SCM and PR generators (Default: true)")
@@ -360,4 +368,16 @@ func NewCommand() *cobra.Command {
 	})
 	repoServerCacheSrc = reposervercache.AddCacheFlagsToCmd(command, cacheutil.Options{FlagPrefix: "repo-server-"})
 	return command
+}
+
+func parseTrustedProxyCIDRs(values []string) ([]netip.Prefix, error) {
+	prefixes := make([]netip.Prefix, 0, len(values))
+	for _, value := range values {
+		prefix, err := netip.ParsePrefix(value)
+		if err != nil {
+			return nil, fmt.Errorf("invalid trusted proxy CIDR %q: %w", value, err)
+		}
+		prefixes = append(prefixes, prefix.Masked())
+	}
+	return prefixes, nil
 }
