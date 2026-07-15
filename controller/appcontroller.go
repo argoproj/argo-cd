@@ -81,6 +81,13 @@ const (
 	defaultDeploymentInformerResyncDuration = 10 * time.Second
 	// orphanedIndex contains application which monitor orphaned resources by namespace
 	orphanedIndex = "orphaned"
+	// appOperationRequeueDelay is the batching window used when a managed resource changes.
+	// The burst of resource change events during a sync is batched by the delaying queue into a
+	// single operation processing per window, batching status and operationState writes.
+	appOperationRequeueDelay = 5 * time.Second
+	// appOperationMaxRequeueInterval is the backstop interval at which an in-progress operation
+	// re-enqueues itself. It bounds how long the controller can go without polling an ongoing sync.
+	appOperationMaxRequeueInterval = 30 * time.Second
 )
 
 type CompareWith int
@@ -478,6 +485,11 @@ func (ctrl *ApplicationController) handleObjectUpdated(managedByApp map[string]b
 		}
 
 		ctrl.requestAppRefresh(app.QualifiedName(), &level, nil)
+
+		if isManagedResource && ctrl.shouldProcessOperation(app) {
+			// When a managed object is updated, we re-evaluate the ongoing sync operation for progress.
+			ctrl.appOperationQueue.AddAfter(ctrl.toAppKey(app.QualifiedName()), appOperationRequeueDelay)
+		}
 	}
 }
 
@@ -1043,6 +1055,13 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 		return processNext
 	}
 	app := origApp.DeepCopy()
+
+	if !ctrl.shouldProcessOperation(app) {
+		// Exit early if the app was added to the operation queue,
+		// but it does not need to process an operation.
+		return processNext
+	}
+
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 	ts := stats.NewTimingStats()
 	defer func() {
@@ -1089,6 +1108,12 @@ func (ctrl *ApplicationController) processAppOperationQueueItem() (processNext b
 		ts.AddCheckpoint("finalize_application_deletion_ms")
 	}
 	return processNext
+}
+
+// shouldProcessOperation reports whether an application needs to be handled by the operation queue.
+// It is used to avoid enqueuing and processing application operations unnecessarily.
+func (ctrl *ApplicationController) shouldProcessOperation(app *appv1.Application) bool {
+	return app.Operation != nil || app.DeletionTimestamp != nil
 }
 
 func (ctrl *ApplicationController) processAppComparisonTypeQueueItem() (processNext bool) {
@@ -1467,8 +1492,8 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		}
 		span.End()
 	}()
-	// Recover from any unexpected panics and automatically set the status to be failed
 	defer func() {
+		// Recover from any unexpected panics and automatically set the status to be failed
 		if r := recover(); r != nil {
 			logCtx.Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
 			span.SetStatus(otel_codes.Error, fmt.Sprintf("%v", r))
@@ -1490,6 +1515,19 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		logCtx = logCtx.WithField("time_ms", time.Since(ts.StartTime).Milliseconds())
 		logCtx.Debug("Finished processing requested app operation")
 	}()
+
+	requeueAfter := appOperationMaxRequeueInterval
+	defer func() {
+		// Re-enqueue the app onto the operation queue to keep polling the in-progress sync.
+		// Cap the delay by the remaining sync timeout so a timeout is enforced promptly.
+		if ctrl.syncTimeout > 0 && state != nil && state.Phase != synccommon.OperationTerminating {
+			if remaining := time.Until(state.StartedAt.Add(ctrl.syncTimeout)); remaining < requeueAfter {
+				requeueAfter = remaining
+			}
+		}
+		ctrl.appOperationQueue.AddAfter(ctrl.toAppKey(app.QualifiedName()), requeueAfter)
+	}()
+
 	terminatingCause := ""
 	if isOperationInProgress(app) {
 		state = app.Status.OperationState.DeepCopy()
@@ -1515,7 +1553,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 
 			if retryAfter > 0 {
 				logCtx.Infof("Skipping retrying in-progress operation. Attempting again at: %s", retryAt.Format(time.RFC3339))
-				ctrl.requestAppRefresh(app.QualifiedName(), CompareWithLatest.Pointer(), &retryAfter)
+				requeueAfter = retryAfter
 				return
 			}
 
@@ -1540,15 +1578,12 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	} else {
 		state = NewOperationState(*app.Operation)
 		ctrl.setOperationState(ctx, app, state)
-		if ctrl.syncTimeout != time.Duration(0) {
-			// Schedule a check during which the timeout would be checked.
-			ctrl.appOperationQueue.AddAfter(ctrl.toAppKey(app.QualifiedName()), ctrl.syncTimeout)
-		}
 		logCtx.Infof("Initialized new operation: %v", *app.Operation)
 	}
 	ts.AddCheckpoint("initial_operation_stage_ms")
 
 	terminating := state.Phase == synccommon.OperationTerminating
+
 	project, err := ctrl.getAppProj(app)
 	if err == nil {
 		// Start or resume the sync
@@ -1742,9 +1777,6 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		if r := recover(); r != nil {
 			log.WithField("appkey", appKey).Errorf("Recovered from panic: %+v\n%s", r, debug.Stack())
 		}
-		// We want to have app operation update happen after the sync, so there's no race condition
-		// and app updates not proceeding. See https://github.com/argoproj/argo-cd/issues/18500.
-		ctrl.appOperationQueue.AddRateLimited(appKey)
 		ctrl.appRefreshQueue.Done(appKey)
 	}()
 	obj, exists, err := ctrl.appInformer.GetIndexer().GetByKey(appKey)
@@ -2594,24 +2626,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 		&appv1.Application{},
 		refreshTimeout,
 		cache.Indexers{
-			cache.NamespaceIndex: func(obj any) ([]string, error) {
-				app, ok := obj.(*appv1.Application)
-				if ok && ctrl.projInformer.HasSynced() {
-					// We only generally work with applications that are in one
-					// the allowed namespaces.
-					if ctrl.isAppNamespaceAllowed(app) {
-						// If the application is not allowed to use the project,
-						// log an error.
-						if _, err := ctrl.getAppProj(app); err != nil {
-							ctrl.setAppCondition(app, ctrl.projectErrorToCondition(err, app))
-						} else if _, err = argo.GetDestinationCluster(context.Background(), app.Spec.Destination, ctrl.db); err != nil {
-							ctrl.setAppCondition(app, appv1.ApplicationCondition{Type: appv1.ApplicationConditionInvalidSpecError, Message: err.Error()})
-						}
-					}
-				}
-
-				return cache.MetaNamespaceIndexFunc(obj)
-			},
+			cache.NamespaceIndex: cache.MetaNamespaceIndexFunc,
 			orphanedIndex: func(obj any) (i []string, e error) {
 				app, ok := obj.(*appv1.Application)
 				if !ok {
@@ -2730,13 +2745,12 @@ func (ctrl *ApplicationController) applicationEventHandlerFuncs() cache.Resource
 					delay = &jitter
 				}
 			}
-
 			ctrl.requestAppRefresh(newApp.QualifiedName(), compareWith, delay)
-			if !newOK || (delay != nil && *delay != time.Duration(0)) {
-				ctrl.appOperationQueue.AddRateLimited(key)
-			}
-			if ctrl.hydrator != nil {
+			if ctrl.hydrator != nil && newOK {
 				ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
+			}
+			if newOK && ctrl.shouldProcessOperation(newApp) {
+				ctrl.appOperationQueue.AddRateLimited(key)
 			}
 			ctrl.clusterSharding.UpdateApp(newApp)
 		},
