@@ -33,6 +33,7 @@ import * as jsYaml from 'js-yaml';
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
 import classNames from 'classnames';
 import {ApplicationParametersSource} from './application-parameters-source';
+import {isRefOnlySource} from '../shared/app-source-edit';
 
 import './application-parameters.scss';
 import {AppContext} from '../../../shared/context';
@@ -323,12 +324,16 @@ export const ApplicationParameters = (props: {
                             />
                         </div>
                     )}
-                    <DataLoader
-                        key={'app_params_source_' + index}
-                        input={app.spec.sources[index]}
-                        load={src => getSourceFromAppSources(src, app.metadata.name, app.spec.project, index, 0)}>
-                        {(details: models.RepoAppDetails) => getEditablePanelForOneSource(details, index, app.spec.sources[index])}
-                    </DataLoader>
+                    {isRefOnlySource(app.spec.sources[index]) ? (
+                        getEditablePanelForOneSource(undefined, index, app.spec.sources[index])
+                    ) : (
+                        <DataLoader
+                            key={'app_params_source_' + index}
+                            input={app.spec.sources[index]}
+                            load={src => getSourceFromAppSources(src, app.metadata.name, app.spec.project, index, 0)}>
+                            {(details: models.RepoAppDetails) => getEditablePanelForOneSource(details, index, app.spec.sources[index])}
+                        </DataLoader>
+                    )}
                 </div>
             </div>
         );
@@ -428,26 +433,32 @@ export const ApplicationParameters = (props: {
         );
     }
 
-    function getEditablePanelForOneSource(repoAppDetails: models.RepoAppDetails, ind: number, src: models.ApplicationSource): any {
+    function getEditablePanelForOneSource(repoAppDetails: models.RepoAppDetails | undefined, ind: number, src: models.ApplicationSource): any {
         let floatingTitle: string;
         const lowerPanelAttributes: EditablePanelItem[] = [];
         const upperPanelAttributes: EditablePanelItem[] = [];
+        const refOnly = isRefOnlySource(src);
 
         const upperPanel = gatherCoreSourceDetails(ind, upperPanelAttributes, appSources[ind], app);
-        const lowerPanel = gatherDetails(
-            ind,
-            repoAppDetails,
-            lowerPanelAttributes,
-            appSources[ind],
-            app,
-            setRemovedOverrides,
-            removedOverrides,
-            appParamsDeletedState,
-            setAppParamsDeletedState,
-            true
-        );
+        const lowerPanel =
+            refOnly || !repoAppDetails
+                ? []
+                : gatherDetails(
+                      ind,
+                      repoAppDetails,
+                      lowerPanelAttributes,
+                      appSources[ind],
+                      app,
+                      setRemovedOverrides,
+                      removedOverrides,
+                      appParamsDeletedState,
+                      setAppParamsDeletedState,
+                      true
+                  );
 
-        if (repoAppDetails.type === 'Directory') {
+        if (refOnly) {
+            floatingTitle = 'Source ' + (ind + 1) + ': REF=' + src.ref + ', URL=' + src.repoURL + (src.targetRevision ? ', TARGET REVISION=' + src.targetRevision : '');
+        } else if (repoAppDetails?.type === 'Directory') {
             floatingTitle =
                 'Source ' +
                 (ind + 1) +
@@ -457,7 +468,7 @@ export const ApplicationParameters = (props: {
                 src.repoURL +
                 (repoAppDetails.path ? ', PATH=' + repoAppDetails.path : '') +
                 (src.targetRevision ? ', TARGET REVISION=' + src.targetRevision : '');
-        } else if (repoAppDetails.type === 'Helm') {
+        } else if (repoAppDetails?.type === 'Helm') {
             floatingTitle =
                 'Source ' +
                 (ind + 1) +
@@ -468,7 +479,7 @@ export const ApplicationParameters = (props: {
                 (src.chart ? ', CHART=' + src.chart + ':' + src.targetRevision : '') +
                 (src.path ? ', PATH=' + src.path : '') +
                 (src.targetRevision ? ', REVISION=' + src.targetRevision : '');
-        } else if (repoAppDetails.type === 'Kustomize') {
+        } else if (repoAppDetails?.type === 'Kustomize') {
             floatingTitle =
                 'Source ' +
                 (ind + 1) +
@@ -478,7 +489,7 @@ export const ApplicationParameters = (props: {
                 src.repoURL +
                 (repoAppDetails.path ? ', PATH=' + repoAppDetails.path : '') +
                 (src.targetRevision ? ', TARGET REVISION=' + src.targetRevision : '');
-        } else if (repoAppDetails.type === 'Plugin') {
+        } else if (repoAppDetails?.type === 'Plugin') {
             floatingTitle =
                 'Source ' +
                 (ind + 1) +
@@ -540,8 +551,8 @@ export const ApplicationParameters = (props: {
                         setRemovedOverrides(new Array<boolean>());
                     })
                 }
-                valuesTop={(app?.spec?.sources && (repoAppDetails.plugin || app?.spec?.sources[ind]?.plugin) && cloneDeep(app)) || app}
-                valuesBottom={(app?.spec?.sources && (repoAppDetails.plugin || app?.spec?.sources[ind]?.plugin) && cloneDeep(app)) || app}
+                valuesTop={(app?.spec?.sources && (repoAppDetails?.plugin || app?.spec?.sources[ind]?.plugin) && cloneDeep(app)) || app}
+                valuesBottom={(app?.spec?.sources && (repoAppDetails?.plugin || app?.spec?.sources[ind]?.plugin) && cloneDeep(app)) || app}
                 validateTop={updatedApp => {
                     const errors = [] as any;
                     const repoURL = updatedApp.spec.sources[ind].repoURL;
@@ -568,18 +579,19 @@ export const ApplicationParameters = (props: {
                     return errors;
                 }}
                 onModeSwitch={
-                    repoAppDetails.plugin &&
+                    repoAppDetails?.plugin &&
                     (() => {
                         setAppParamsDeletedState([]);
                     })
                 }
-                titleBottom={repoAppDetails.type.toLocaleUpperCase()}
+                titleBottom={repoAppDetails?.type?.toLocaleUpperCase()}
                 titleTop={'SOURCE ' + (ind + 1)}
                 floatingTitle={floatingTitle ? floatingTitle : null}
                 itemsBottom={lowerPanel as EditablePanelItem[]}
                 itemsTop={upperPanel as EditablePanelItem[]}
                 noReadonlyMode={props.noReadonlyMode}
                 collapsible={collapsible}
+                hideBottom={refOnly}
                 numberOfSources={app?.spec?.sources.length}
                 deleteSource={() => {
                     deleteSourceAction(app, app.spec.sources.at(ind), props.appContext);
