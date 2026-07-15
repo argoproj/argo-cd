@@ -55,6 +55,8 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/text/label"
 )
 
+var errGetTimedOut = stderrors.New("app get: --timeout reached")
+
 // NewApplicationCommand returns a new instance of an `argocd app` command
 func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command := &cobra.Command{
@@ -378,8 +380,8 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
   		`),
 
 		Run: func(c *cobra.Command, args []string) {
-			ctx, cancel := context.WithCancel(c.Context())
-			defer cancel()
+			ctx, cancel := context.WithCancelCause(c.Context())
+			defer cancel(nil)
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
@@ -396,7 +398,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 						fmt.Println("Timeout function: context already cancelled:", ctx.Err())
 					} else {
 						fmt.Println("Timeout function: cancelling context manually")
-						cancel()
+						cancel(errGetTimedOut)
 					}
 				})
 			}
@@ -421,10 +423,12 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				case result := <-ch:
 					return result.app, result.err
 				case <-ctx.Done():
-					// Timeout occurred, try again without refresh flag
-					// Create new context for retry request
-					ctx := context.Background()
-					app, err := appIf.Get(ctx, &application.ApplicationQuery{
+					if !stderrors.Is(context.Cause(ctx), errGetTimedOut) {
+						return nil, ctx.Err()
+					}
+					// --timeout fired: retry once without refresh, bounded by the
+					// command context so Ctrl-C still cancels it
+					app, err := appIf.Get(c.Context(), &application.ApplicationQuery{
 						Name:         &appName,
 						AppNamespace: &appNs,
 					})
@@ -436,7 +440,8 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 			errors.CheckError(err)
 
 			if ctx.Err() != nil {
-				ctx = context.Background() // Reset context for subsequent requests
+				// reset the timed-out context for subsequent requests
+				ctx = c.Context()
 			}
 			if sourceName != "" && sourcePosition != -1 {
 				errors.Fatal(errors.ErrorGeneric, "Only one of source-position and source-name can be specified.")
@@ -1805,7 +1810,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 			if len(args) == 1 && len(sourceNames) > 0 {
 				appName, _ := argo.ParseFromQualifiedName(args[0], appNamespace)
-				app, err := appIf.Get(context.Background(), &application.ApplicationQuery{Name: &appName})
+				app, err := appIf.Get(ctx, &application.ApplicationQuery{Name: &appName})
 				errors.CheckError(err)
 
 				sourceNameToPosition := getSourceNameToPositionMap(app)
@@ -2852,7 +2857,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 			conn, appIf := clientset.NewApplicationClientOrDie()
 			defer utilio.Close(conn)
 
-			app, err := appIf.Get(context.Background(), &application.ApplicationQuery{
+			app, err := appIf.Get(ctx, &application.ApplicationQuery{
 				Name:         &appName,
 				AppNamespace: &appNs,
 			})
@@ -2883,16 +2888,16 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 				case local != "":
 					settingsConn, settingsIf := clientset.NewSettingsClientOrDie()
 					defer utilio.Close(settingsConn)
-					argoSettings, err := settingsIf.Get(context.Background(), &settings.SettingsQuery{})
+					argoSettings, err := settingsIf.Get(ctx, &settings.SettingsQuery{})
 					errors.CheckError(err)
 
 					clusterConn, clusterIf := clientset.NewClusterClientOrDie()
 					defer utilio.Close(clusterConn)
-					cluster, err := clusterIf.Get(context.Background(), &clusterpkg.ClusterQuery{Name: app.Spec.Destination.Name, Server: app.Spec.Destination.Server})
+					cluster, err := clusterIf.Get(ctx, &clusterpkg.ClusterQuery{Name: app.Spec.Destination.Name, Server: app.Spec.Destination.Server})
 					errors.CheckError(err)
 
 					proj := getProject(ctx, c, clientOpts, app.Spec.Project)
-					unstructureds = getLocalObjects(context.Background(), app, proj.Project, local, localRepoRoot, argoSettings, &cluster.Info)
+					unstructureds = getLocalObjects(ctx, app, proj.Project, local, localRepoRoot, argoSettings, &cluster.Info)
 				case len(revisions) > 0 && len(sourcePositions) > 0:
 					q := application.ApplicationManifestQuery{
 						Name:            &appName,
