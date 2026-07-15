@@ -1,5 +1,6 @@
-import {Form, FormApi} from 'argo-ui';
-import {act, fireEvent, render, screen, waitFor} from '@testing-library/react';
+import {Form} from 'argo-ui';
+import {fireEvent, render, screen, waitFor} from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import * as React from 'react';
 import * as models from '../../../shared/models';
 import {Context} from '../../../shared/context';
@@ -36,7 +37,7 @@ describe('CreatePanelSourceTypeParameters', () => {
         appDetails.mockReset();
     });
 
-    test('stores an external Helm value file on the chart source', async () => {
+    test('stores a typed external Helm value file when Create is clicked without pressing Enter', async () => {
         const app = applicationWithSources([
             {repoURL: 'https://prometheus-community.github.io/helm-charts', chart: 'prometheus', targetRevision: '15.7.1'} as models.ApplicationSource,
             {repoURL: 'https://git.example.com/org/value-files.git', targetRevision: 'main', ref: 'values'} as models.ApplicationSource
@@ -46,37 +47,36 @@ describe('CreatePanelSourceTypeParameters', () => {
             path: '',
             helm: {name: 'prometheus', valueFiles: ['values.yaml'], parameters: [], fileParameters: []}
         } as models.RepoAppDetails);
-        let formApi: FormApi | undefined;
         const onSubmit = jest.fn();
+        const user = userEvent.setup();
 
         render(
             <Context.Provider value={{notifications: {show: jest.fn()}} as any}>
-                <Form defaultValues={app} getApi={api => (formApi = api)} onSubmit={onSubmit}>
-                    {api => <CreatePanelSourceTypeParameters formApi={api} sourceIndex={0} />}
+                <Form defaultValues={app} onSubmit={onSubmit}>
+                    {api => (
+                        <>
+                            <CreatePanelSourceTypeParameters formApi={api} sourceIndex={0} />
+                            <button type='button' onClick={api.submitForm}>
+                                Create
+                            </button>
+                        </>
+                    )}
                 </Form>
             </Context.Provider>
         );
 
         await screen.findByText('VALUES FILES');
         const valueFilesInput = document.querySelector('.tags-input input') as HTMLInputElement;
+        expect(valueFilesInput).toHaveAttribute('placeholder', '$<ref>/path/to/values.yaml');
         const valueFile = '$values/charts/prometheus/values.yaml';
         fireEvent.change(valueFilesInput, {target: {value: valueFile}});
-        fireEvent.keyUp(valueFilesInput, {key: 'Enter', keyCode: 13});
+        await user.click(screen.getByRole('button', {name: 'Create'}));
 
-        await waitFor(() => expect(formApi?.values.spec.sources[0].helm.valueFiles).toEqual([valueFile]));
-        expect(formApi?.values.spec.sources[1].helm).toBeUndefined();
-        expect(formApi?.values.spec.sources[1].ref).toBe('values');
-
-        act(() => formApi?.submitForm(null));
-        expect(onSubmit).toHaveBeenCalledWith(
-            expect.objectContaining({
-                spec: expect.objectContaining({
-                    sources: expect.arrayContaining([expect.objectContaining({helm: expect.objectContaining({valueFiles: [valueFile]})})])
-                })
-            }),
-            null,
-            expect.anything()
-        );
+        await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+        const submittedApp = onSubmit.mock.calls[0][0] as models.Application;
+        expect(submittedApp.spec.sources?.[0].helm?.valueFiles).toEqual([valueFile]);
+        expect(submittedApp.spec.sources?.[1].ref).toBe('values');
+        expect(submittedApp.spec.sources?.[1].helm).toBeUndefined();
     });
 
     test('does not show generator parameters or discover a ref-only source', () => {
