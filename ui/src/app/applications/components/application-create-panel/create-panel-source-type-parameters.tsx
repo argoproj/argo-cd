@@ -4,7 +4,7 @@ import {FormApi} from 'argo-ui';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationParameters} from '../application-parameters/application-parameters';
-import {APP_SOURCE_TYPES, normalizeTypeFieldsForSource} from '../shared/app-source-edit';
+import {APP_SOURCE_TYPES, isRefOnlySource, normalizeTypeFieldsForSource} from '../shared/app-source-edit';
 
 function pathKeyForSource(src: models.ApplicationSource | undefined): string {
     if (!src) {
@@ -18,6 +18,10 @@ export const CreatePanelSourceTypeParameters = (props: {formApi: FormApi; source
     const formApp = props.formApi.getFormState().values as models.Application;
     const src = formApp.spec.sources?.[props.sourceIndex];
     const qeN = props.sourceIndex + 1;
+
+    if (isRefOnlySource(src)) {
+        return null;
+    }
 
     return (
         <DataLoader
