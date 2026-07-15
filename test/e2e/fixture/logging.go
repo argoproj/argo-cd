@@ -34,10 +34,10 @@ func (f truncatingFormatter) Format(e *log.Entry) ([]byte, error) {
 	return b, err
 }
 
-func MakeTruncatingFormatter() log.Formatter {
+func MakeTruncatingFormatter(maxLineLen int) log.Formatter {
 	formatter := truncatingFormatter{
 		log.StandardLogger().Formatter,
-		60,
+		maxLineLen,
 	}
 	return formatter
 }
