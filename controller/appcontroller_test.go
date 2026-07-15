@@ -18,8 +18,10 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	jsonpatch "github.com/evanphx/json-patch"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/rest"
 
@@ -4147,4 +4149,113 @@ func TestPersistAppStatus_AnnotationManagement(t *testing.T) {
 		assert.True(t, hasOther, "other annotations should be preserved")
 		assert.Equal(t, "other-value", otherValue)
 	})
+}
+
+// TestJSONMergePatchPreservesOmittedSyncRevision documents the JSON Merge Patch
+// semantics behind https://github.com/argoproj/argo-cd/issues/26530:
+// omitting "revision" (as encoding/json does for omitempty empty strings) keeps
+// the previous value. Clearing it requires an explicit null.
+func TestJSONMergePatchPreservesOmittedSyncRevision(t *testing.T) {
+	original := []byte(`{
+		"status": {
+			"operationState": {
+				"operation": {
+					"sync": {
+						"revision": "old-sha"
+					}
+				},
+				"phase": "Succeeded"
+			}
+		}
+	}`)
+
+	// Mirrors setOperationState after NewOperationState with an empty Sync.Revision:
+	// the marshaled patch has sync:{} (or no revision field) because of omitempty.
+	omittingPatch := []byte(`{
+		"status": {
+			"operationState": {
+				"operation": {
+					"sync": {}
+				},
+				"phase": "Running"
+			}
+		}
+	}`)
+	merged, err := jsonpatch.MergePatch(original, omittingPatch)
+	require.NoError(t, err)
+
+	var preserved map[string]any
+	require.NoError(t, json.Unmarshal(merged, &preserved))
+	revision, ok, err := unstructured.NestedString(preserved, "status", "operationState", "operation", "sync", "revision")
+	require.NoError(t, err)
+	require.True(t, ok)
+	assert.Equal(t, "old-sha", revision, "omitted revision must be preserved by JSON Merge Patch")
+
+	nullingPatch := []byte(`{
+		"status": {
+			"operationState": {
+				"operation": {
+					"sync": {
+						"revision": null
+					}
+				},
+				"phase": "Running"
+			}
+		}
+	}`)
+	cleared, err := jsonpatch.MergePatch(original, nullingPatch)
+	require.NoError(t, err)
+
+	var afterNull map[string]any
+	require.NoError(t, json.Unmarshal(cleared, &afterNull))
+	_, ok, err = unstructured.NestedString(afterNull, "status", "operationState", "operation", "sync", "revision")
+	require.NoError(t, err)
+	assert.False(t, ok, "explicit null must delete revision from the merged object")
+}
+
+// TestSetOperationState_EmptySyncRevisionPreservesPreviousRevision documents the
+// current buggy behavior for https://github.com/argoproj/argo-cd/issues/26530.
+// setOperationState marshals OperationState with omitempty and applies
+// types.MergePatchType without nulling sync.revision, so a previous revision
+// survives. After the fix (emit "revision": null, same pattern as finishedAt),
+// change the final assertion to assert.Empty(...).
+func TestSetOperationState_EmptySyncRevisionPreservesPreviousRevision(t *testing.T) {
+	app := newFakeApp()
+	require.Equal(t, "HEAD", app.Status.OperationState.Operation.Sync.Revision)
+
+	originalAppJSON, err := json.Marshal(app)
+	require.NoError(t, err)
+
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app.DeepCopy()}}, nil)
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	fakeAppCs.ReactionChain = nil
+
+	var patchedApp *v1alpha1.Application
+	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (bool, runtime.Object, error) {
+		patchAction, ok := action.(kubetesting.PatchAction)
+		require.True(t, ok)
+		require.Equal(t, types.MergePatchType, patchAction.GetPatchType())
+
+		merged, err := jsonpatch.MergePatch(originalAppJSON, patchAction.GetPatch())
+		require.NoError(t, err)
+
+		patchedApp = &v1alpha1.Application{}
+		require.NoError(t, json.Unmarshal(merged, patchedApp))
+		return true, patchedApp, nil
+	})
+
+	ctrl.setOperationState(t.Context(), app, &v1alpha1.OperationState{
+		Phase:     synccommon.OperationRunning,
+		StartedAt: metav1.Now(),
+		Operation: v1alpha1.Operation{
+			Sync:  &v1alpha1.SyncOperation{},
+			Retry: v1alpha1.RetryStrategy{Limit: 5},
+		},
+	})
+
+	require.NotNil(t, patchedApp)
+	require.NotNil(t, patchedApp.Status.OperationState)
+	require.NotNil(t, patchedApp.Status.OperationState.Operation.Sync)
+	assert.Equal(t, "HEAD", patchedApp.Status.OperationState.Operation.Sync.Revision,
+		"bug #26530: empty Sync.Revision is omitempty'd away, so merge patch keeps the previous revision")
 }
