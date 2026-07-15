@@ -200,7 +200,7 @@ func init() {
 	// ensure we log all shell execs
 	log.SetLevel(log.DebugLevel)
 	// truncate eccessively long entries
-	log.SetFormatter(MakeTruncatingFormatter(env.ParseNumFromEnv(EnvLogLineMaxLen, 4096, 0, math.MaxInt32)))
+	log.SetFormatter(MakeTruncatingFormatter(env.ParseNumFromEnv(EnvLogLineMaxLen, defaultLogLineMaxLen, 0, math.MaxInt32)))
 	// set-up variables
 	config := getKubeConfig("", clientcmd.ConfigOverrides{})
 	AppClientset = appclientset.NewForConfigOrDie(config)
