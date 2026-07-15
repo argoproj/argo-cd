@@ -10,6 +10,14 @@ export const APP_SOURCE_TYPES = new Array<{field: string; type: models.AppSource
 );
 
 /**
+ * A ref-only source is checked out solely so another source can reference files from it.
+ * It does not generate manifests and therefore has no application source type to configure.
+ */
+export function isRefOnlySource(source: models.ApplicationSource | undefined): boolean {
+    return !!source?.ref && !source.path && !source.chart && !source.repoURL?.startsWith('oci://');
+}
+
+/**
  * Clears sibling source-type blocks (helm/kustomize/directory/plugin) when the user picks a type.
  * @param sourceIndex — when set, edits `spec.sources[index]`; otherwise `spec.source`.
  */
