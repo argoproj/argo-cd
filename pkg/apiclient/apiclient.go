@@ -299,7 +299,7 @@ func NewClient(opts *ClientOptions) (Client, error) {
 
 			_, err := versionIf.Version(context.Background(), &empty.Empty{})
 			if err == nil {
-				log.Warnf("Failed to invoke grpc call. Use flag --grpc-web in grpc calls and to suppress this warning message.")
+				log.Warnf("Failed to invoke grpc call. Use flag --grpc-web in grpc calls to suppress this warning message.")
 			} else {
 				c.GRPCWeb = false
 			}
