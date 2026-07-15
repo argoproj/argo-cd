@@ -34,6 +34,16 @@ export function TagsInput(props: TagsInputProps) {
         }
     };
 
+    const addTag = (tag: string, focused = state.focused) => {
+        if (state.tags.includes(tag)) {
+            setState({...state, input: '', focused});
+            return;
+        }
+        const newTags = state.tags.concat(tag);
+        setState({...state, input: '', focused, tags: newTags});
+        onTagsChange(newTags);
+    };
+
     return (
         <div className={classNames('tags-input argo-field', {'tags-input--focused': state.focused || !!state.input})} onClick={() => inputEl.current && inputEl.current.focus()}>
             {state.tags.map((tag, i) => (
@@ -57,33 +67,33 @@ export function TagsInput(props: TagsInputProps) {
                 items={props.autocomplete}
                 onChange={e => setState({...state, input: e.target.value})}
                 onSelect={value => {
-                    if (state.tags.indexOf(value) === -1) {
-                        const newTags = state.tags.concat(value);
-                        setState(prevState => ({...prevState, input: '', tags: newTags}));
-                        onTagsChange(newTags);
-                    }
+                    addTag(value);
                 }}
-                renderInput={props => (
+                renderInput={inputProps => (
                     <input
-                        {...props}
+                        {...inputProps}
                         placeholder={props.placeholder}
                         ref={el => {
                             inputEl.current = el;
-                            if (props.ref) {
-                                (props.ref as any)(el);
+                            if (inputProps.ref) {
+                                (inputProps.ref as any)(el);
                             }
                         }}
                         onFocus={e => {
-                            if (props.onFocus) {
-                                props.onFocus(e);
+                            if (inputProps.onFocus) {
+                                inputProps.onFocus(e);
                             }
                             setState({...state, focused: true});
                         }}
                         onBlur={e => {
-                            if (props.onBlur) {
-                                props.onBlur(e);
+                            if (inputProps.onBlur) {
+                                inputProps.onBlur(e);
                             }
-                            setState({...state, focused: false});
+                            if (state.input) {
+                                addTag(state.input, false);
+                            } else {
+                                setState({...state, focused: false});
+                            }
                         }}
                         onKeyDown={e => {
                             if (e.keyCode === 8 && state.tags.length > 0 && state.input === '') {
@@ -91,18 +101,16 @@ export function TagsInput(props: TagsInputProps) {
                                 setState(prevState => ({...prevState, tags: newTags}));
                                 onTagsChange(newTags);
                             }
-                            if (props.onKeyDown) {
-                                props.onKeyDown(e);
+                            if (inputProps.onKeyDown) {
+                                inputProps.onKeyDown(e);
                             }
                         }}
                         onKeyUp={e => {
-                            if (e.keyCode === 13 && state.input && state.tags.indexOf(state.input) === -1) {
-                                const newTags = state.tags.concat(state.input);
-                                setState(prevState => ({...prevState, input: '', tags: newTags}));
-                                onTagsChange(newTags);
+                            if (e.keyCode === 13 && state.input) {
+                                addTag(state.input);
                             }
-                            if (props.onKeyUp) {
-                                props.onKeyUp(e);
+                            if (inputProps.onKeyUp) {
+                                inputProps.onKeyUp(e);
                             }
                         }}
                     />
