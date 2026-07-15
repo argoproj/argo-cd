@@ -1095,7 +1095,7 @@ func TestGenerateDexConfigYAML_WebTLSMinVersionAndCipherSuites(t *testing.T) {
 			require.NoError(t, err, "Generated YAML should be valid")
 
 			// Verify web config exists
-			webCfg, ok := dexCfg["web"].(map[string]interface{})
+			webCfg, ok := dexCfg["web"].(map[string]any)
 			require.True(t, ok, "web config must exist in dex configuration")
 
 			if tt.disableTLS {
