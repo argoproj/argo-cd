@@ -18,6 +18,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/discovery"
@@ -36,6 +37,7 @@ import (
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/hook"
 	resourceutil "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/resource"
 	kubeutil "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube/scheme"
 )
 
 type reconciledResource struct {
@@ -229,6 +231,12 @@ func WithClientSideApplyMigration(enabled bool, manager string) SyncOpt {
 	}
 }
 
+func WithGVKParser(parser *managedfields.GvkParser) SyncOpt {
+	return func(ctx *syncContext) {
+		ctx.gvkParser = parser
+	}
+}
+
 // NewSyncContext creates new instance of a SyncContext
 func NewSyncContext(
 	revision string,
@@ -402,6 +410,7 @@ type syncContext struct {
 	defaultPruneOption              *string
 	clientSideApplyMigrationManager string
 	enableClientSideApplyMigration  bool
+	gvkParser                       *managedfields.GvkParser
 
 	syncRes   map[string]common.ResourceSyncResult
 	startedAt time.Time
@@ -1429,7 +1438,7 @@ func (sc *syncContext) seedManagedFieldsFromLastApplied(ctx context.Context, t *
 			return nil
 		}
 
-		entry, buildErr := buildManagedFieldsEntryFromLastApplied(freshObj)
+		entry, buildErr := sc.buildManagedFieldsEntryFromLastApplied(freshObj)
 		if buildErr != nil {
 			return buildErr
 		}
@@ -1454,8 +1463,6 @@ func (sc *syncContext) seedManagedFieldsFromLastApplied(ctx context.Context, t *
 			return fmt.Errorf("failed to marshal managed fields seed patch: %w", marshalErr)
 		}
 
-		// The FieldManager does not appear in managedFields (this patch owns no tracked
-		// fields), but it makes the write attributable in the audit log.
 		if _, patchErr := resIf.Patch(ctx, freshObj.GetName(), types.JSONPatchType, patchData, metav1.PatchOptions{FieldManager: common.SeededClientSideApplyManager}); patchErr != nil {
 			// Return the error unmodified so RetryOnConflict can identify conflicts correctly.
 			return patchErr
@@ -1476,7 +1483,7 @@ func (sc *syncContext) seedManagedFieldsFromLastApplied(ctx context.Context, t *
 // last-applied-configuration annotation field itself is included in the owned set so that the
 // in-apply CSA-to-SSA migration recognizes this entry as the client-side-apply manager and
 // unions it into the server-side apply manager. Returns (nil, nil) when there is no annotation.
-func buildManagedFieldsEntryFromLastApplied(liveObj *unstructured.Unstructured) (*metav1.ManagedFieldsEntry, error) {
+func (sc *syncContext) buildManagedFieldsEntryFromLastApplied(liveObj *unstructured.Unstructured) (*metav1.ManagedFieldsEntry, error) {
 	lastApplied, err := diff.GetLastAppliedConfigAnnotation(liveObj)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read last-applied-configuration: %w", err)
@@ -1485,13 +1492,9 @@ func buildManagedFieldsEntryFromLastApplied(liveObj *unstructured.Unstructured) 
 		return nil, nil
 	}
 
-	typedValue, err := typed.DeducedParseableType.FromUnstructured(lastApplied.UnstructuredContent())
+	set, err := sc.lastAppliedFieldSet(lastApplied)
 	if err != nil {
-		return nil, fmt.Errorf("failed to build typed value from last-applied-configuration: %w", err)
-	}
-	set, err := typedValue.ToFieldSet()
-	if err != nil {
-		return nil, fmt.Errorf("failed to build field set from last-applied-configuration: %w", err)
+		return nil, err
 	}
 	set.Insert(fieldpath.MakePathOrDie("metadata", "annotations", corev1.LastAppliedConfigAnnotation))
 
@@ -1508,6 +1511,24 @@ func buildManagedFieldsEntryFromLastApplied(liveObj *unstructured.Unstructured) 
 		FieldsType: "FieldsV1",
 		FieldsV1:   &metav1.FieldsV1{Raw: raw},
 	}, nil
+}
+
+func (sc *syncContext) lastAppliedFieldSet(obj *unstructured.Unstructured) (*fieldpath.Set, error) {
+	gvk := obj.GroupVersionKind()
+	typedValue, err := scheme.ResolveParseableType(gvk, sc.gvkParser).FromUnstructured(obj.UnstructuredContent())
+	if err != nil {
+		sc.log.V(1).Info("falling back to deduced parser for managed fields reconstruction",
+			"gvk", gvk.String(), "error", err.Error())
+		typedValue, err = typed.DeducedParseableType.FromUnstructured(obj.UnstructuredContent())
+		if err != nil {
+			return nil, fmt.Errorf("failed to build typed value from last-applied-configuration: %w", err)
+		}
+	}
+	set, err := typedValue.ToFieldSet()
+	if err != nil {
+		return nil, fmt.Errorf("failed to build field set from last-applied-configuration: %w", err)
+	}
+	return set, nil
 }
 
 func (sc *syncContext) applyObject(ctx context.Context, t *syncTask, dryRun, validate bool) (common.ResultCode, string) {

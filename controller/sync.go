@@ -263,6 +263,13 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 		reconciliationResult.Target = patchedTargets
 	}
 
+	gvkParser, err := m.getGVKParser(destCluster)
+	if err != nil {
+		state.Phase = common.OperationError
+		state.Message = fmt.Sprintf("failed to get GVK parser: %v", err)
+		return
+	}
+
 	installationID, err := m.settingsMgr.GetInstallationID()
 	if err != nil {
 		log.Errorf("Could not get installation ID: %v", err)
@@ -346,6 +353,7 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 			!syncOp.SyncOptions.HasOption(common.SyncOptionDisableClientSideApplyMigration),
 			clientSideApplyManager,
 		),
+		sync.WithGVKParser(gvkParser),
 		sync.WithPruneConfirmed(app.IsDeletionConfirmed(state.StartedAt.Time)),
 		sync.WithDefaultPruneOption(syncOp.SyncOptions.GetOptionValue(common.SyncOptionPrune)),
 		sync.WithSkipDryRunOnMissingResource(syncOp.SyncOptions.HasOption(common.SyncOptionSkipDryRunOnMissingResource)),
