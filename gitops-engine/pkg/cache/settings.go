@@ -183,3 +183,37 @@ func SetEventProcessingInterval(interval time.Duration) UpdateSettingsFunc {
 		cache.eventProcessingInterval = interval
 	}
 }
+
+// Mode selects the cluster cache implementation.
+type Mode int
+
+const (
+	// ModeLegacy uses the hand-rolled list/watch loop (current behavior).
+	ModeLegacy Mode = iota
+	// ModeInformer uses client-go's SharedIndexInformer per (GroupKind,
+	// namespace) with a TransformFunc that converts incoming objects to
+	// cachedResource at intake. Experimental — see
+	// https://github.com/argoproj/argo-cd/issues/19199.
+	ModeInformer
+)
+
+// SetMode selects which cluster cache implementation to use. Defaults to
+// ModeLegacy when unset.
+//
+// Construction-time only: pass it to NewClusterCache, before the cache has
+// started (first EnsureSynced). Swapping the engine on a started cache is
+// not supported — goroutines spawned by the replaced engine can still be
+// draining and would re-enter the old engine's lifecycle (handleCRDEvent /
+// handleAPIServiceEvent pass the engine they were born under), running its
+// watch machinery alongside the replacement's. Applying it after start
+// (e.g. via Invalidate(SetMode(...))) is therefore refused with an error
+// log, keeping the running engine.
+func SetMode(mode Mode) UpdateSettingsFunc {
+	return func(cache *clusterCache) {
+		if cache.started {
+			cache.log.Error(nil, "SetMode ignored: the engine mode cannot change after the cluster cache has started; construct a new cache instead", "mode", mode)
+			return
+		}
+		cache.engine = newSyncEngine(mode, cache.store)
+	}
+}

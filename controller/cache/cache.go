@@ -76,6 +76,11 @@ const (
 	// EnvClusterCacheEventsProcessingInterval is the env variable to control the interval between processing events when BatchEventsProcessing is enabled
 	EnvClusterCacheEventsProcessingInterval = "ARGOCD_CLUSTER_CACHE_EVENTS_PROCESSING_INTERVAL"
 
+	// EnvClusterCacheUseInformers opts the cluster cache into the experimental
+	// informer-based implementation. Defaults to false; setting true requires
+	// the informer impl to be available in gitops-engine (see issue #19199).
+	EnvClusterCacheUseInformers = "ARGOCD_CLUSTER_CACHE_USE_INFORMERS"
+
 	// AnnotationIgnoreResourceUpdates when set to true on an untracked resource,
 	// argo will apply `ignoreResourceUpdates` configuration on it.
 	AnnotationIgnoreResourceUpdates = "argocd.argoproj.io/ignore-resource-updates"
@@ -116,6 +121,9 @@ var (
 
 	// clusterCacheEventsProcessingInterval specifies the interval between processing events when BatchEventsProcessing is enabled
 	clusterCacheEventsProcessingInterval = 100 * time.Millisecond
+
+	// clusterCacheUseInformers selects the informer-based cluster cache when true.
+	clusterCacheUseInformers = false
 )
 
 func init() {
@@ -129,6 +137,7 @@ func init() {
 	clusterCacheRetryUseBackoff = env.ParseBoolFromEnv(EnvClusterCacheRetryUseBackoff, false)
 	clusterCacheBatchEventsProcessing = env.ParseBoolFromEnv(EnvClusterCacheBatchEventsProcessing, true)
 	clusterCacheEventsProcessingInterval = env.ParseDurationFromEnv(EnvClusterCacheEventsProcessingInterval, clusterCacheEventsProcessingInterval, 0, math.MaxInt64)
+	clusterCacheUseInformers = env.ParseBoolFromEnv(EnvClusterCacheUseInformers, false)
 }
 
 type LiveStateCache interface {
@@ -195,6 +204,10 @@ func NewLiveStateCache(
 	clusterSharding sharding.ClusterShardingCache,
 	resourceTracking argo.ResourceTracking,
 ) LiveStateCache {
+	// Report cache mode for rollout observability. Process-wide and known
+	// at startup, so set it once here.
+	metricsServer.SetClusterCacheInformerMode(clusterCacheUseInformers)
+
 	return &liveStateCache{
 		appInformer:      appInformer,
 		db:               db,
@@ -587,6 +600,13 @@ func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.Cluste
 		clustercache.SetBatchEventsProcessing(clusterCacheBatchEventsProcessing),
 		clustercache.SetEventProcessingInterval(clusterCacheEventsProcessingInterval),
 	}
+
+	cacheMode := clustercache.ModeLegacy
+	if clusterCacheUseInformers {
+		cacheMode = clustercache.ModeInformer
+		log.WithField("server", cluster.Server).Info("Using informer-based cluster cache (experimental)")
+	}
+	clusterCacheOpts = append(clusterCacheOpts, clustercache.SetMode(cacheMode))
 
 	clusterCache = clustercache.NewClusterCache(clusterCacheConfig, clusterCacheOpts...)
 

@@ -143,6 +143,14 @@ var (
 		descAppDefaultLabels,
 	)
 
+	// clusterCacheInformerModeGauge reports 1 when the controller is running
+	// the experimental informer-based cluster cache, 0 otherwise. Process-wide
+	// — all clusters in a single controller instance share the same mode.
+	clusterCacheInformerModeGauge = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "argocd_cluster_cache_informer_mode_enabled",
+		Help: "1 if the controller is using informer-based cluster cache (experimental, see issue #19199), 0 for the legacy implementation.",
+	})
+
 	resourceEventsProcessingHistogram = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Name:    "argocd_resource_events_processing",
@@ -202,6 +210,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 	registry.MustRegister(kubectlExecCounter)
 	registry.MustRegister(kubectlExecPendingGauge)
 	registry.MustRegister(orphanedResourcesGauge)
+	registry.MustRegister(clusterCacheInformerModeGauge)
 	registry.MustRegister(reconcileHistogram)
 	registry.MustRegister(clusterEventsCounter)
 	registry.MustRegister(redisRequestCounter)
@@ -281,6 +290,17 @@ func (m *MetricsServer) SetOrphanedResourcesMetric(app *argoappv1.Application, n
 // IncClusterEventsCount increments the number of cluster events
 func (m *MetricsServer) IncClusterEventsCount(server, group, kind string) {
 	m.clusterEventsCounter.WithLabelValues(server, group, kind).Inc()
+}
+
+// SetClusterCacheInformerMode records whether the controller is using the
+// experimental informer-based cluster cache (1) or the legacy implementation
+// (0). Process-wide; all clusters share the same mode within a controller.
+func (m *MetricsServer) SetClusterCacheInformerMode(enabled bool) {
+	if enabled {
+		clusterCacheInformerModeGauge.Set(1)
+	} else {
+		clusterCacheInformerModeGauge.Set(0)
+	}
 }
 
 // IncKubernetesRequest increments the kubernetes requests counter for an application
