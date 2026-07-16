@@ -10,9 +10,9 @@ import (
 
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync"
-	synccommon "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync"
+	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -1997,7 +1997,7 @@ func TestSyncWithImpersonate(t *testing.T) {
 			Phase: synccommon.OperationRunning,
 		}
 		// when
-		ctrl.appStateManager.SyncAppState(app, project, opState)
+		ctrl.appStateManager.SyncAppState(t.Context(), app, project, opState)
 
 		// then app sync should succeed with fallback to controller SA
 		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)
@@ -2057,7 +2057,7 @@ func TestSyncWithImpersonate(t *testing.T) {
 			Phase: synccommon.OperationRunning,
 		}
 		// when
-		ctrl.appStateManager.SyncAppState(app, project, opState)
+		ctrl.appStateManager.SyncAppState(t.Context(), app, project, opState)
 
 		// then app sync should succeed using impersonation
 		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)
