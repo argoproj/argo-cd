@@ -1001,7 +1001,7 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 		}
 		gvk := obj.GroupVersionKind()
 
-		isSelfReferencedObj := m.isSelfReferencedObj(liveObj, targetObj, app.GetName(), v1alpha1.TrackingMethod(trackingMethod), installationID)
+		isSelfReferencedObj := m.isSelfReferencedObj(liveObj, targetObj, app.InstanceName(m.namespace), v1alpha1.TrackingMethod(trackingMethod), installationID)
 
 		resState := v1alpha1.ResourceStatus{
 			Namespace:                    obj.GetNamespace(),

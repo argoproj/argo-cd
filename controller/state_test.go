@@ -405,6 +405,48 @@ func TestCompareAppStateSharedResourceNotPruned(t *testing.T) {
 	}
 }
 
+// TestCompareAppStateSharedResourceNotPrunedMultiNamespace verifies the same guarantee for
+// apps-in-any-namespace (multi-namespace ArgoCD). In that mode the tracking annotation stores
+// the instance name as "<namespace>_<appName>" rather than just "<appName>". The comparison
+// must use InstanceName, not GetName, to avoid a false-positive mismatch that would block
+// legitimate pruning of an app's own resources.
+func TestCompareAppStateSharedResourceNotPrunedMultiNamespace(t *testing.T) {
+	pod := NewPod()
+	pod.SetNamespace(test.FakeDestNamespace)
+
+	// Simulate a resource owned by "other-ns_other-app" (multi-namespace instance name).
+	pod.SetAnnotations(map[string]string{
+		common.AnnotationKeyAppInstance: "other-ns_other-app:/Pod:" + test.FakeDestNamespace + "/" + pod.GetName(),
+	})
+
+	app := newFakeApp()
+	key := kube.ResourceKey{Group: "", Kind: "Pod", Namespace: test.FakeDestNamespace, Name: pod.GetName()}
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+			key: pod,
+		},
+	}
+	ctrl := newFakeController(t.Context(), &data, nil)
+	sources := []v1alpha1.ApplicationSource{app.Spec.GetSource()}
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, []string{""}, sources, false, false, nil, false)
+	require.NoError(t, err)
+	assert.NotNil(t, compRes)
+
+	// Must NOT be shown as ⊖ — resource belongs to a different app even in multi-namespace mode
+	for _, res := range compRes.resources {
+		if res.Name == pod.GetName() {
+			assert.False(t, res.RequiresPruning,
+				"multi-namespace: resource owned by another app must not be shown as ⊖")
+		}
+	}
+}
+
 // TestCompareAppStateHook checks that hooks are detected during manifest generation, and not
 // considered as part of resources when assessing Synced status
 func TestCompareAppStateHook(t *testing.T) {
