@@ -286,11 +286,15 @@ resourceiconsgen:
 	hack/generate-icons-typescript.sh
 
 .PHONY: codegen-local
-codegen-local: mod-vendor-local gogen protogen clientgen openapigen clidocsgen mockgen actionsdocsgen resourceiconsgen manifests-local notification-docs notification-catalog
+codegen-local: mod-vendor-local gogen protogen clientgen openapigen clidocsgen mockgen actionsdocsgen resourceiconsgen manifests-local notification-docs notification-catalog gh-aw-compile
 	rm -rf vendor/
 
 .PHONY: codegen-local-fast
-codegen-local-fast: gogen protogen-fast clientgen openapigen clidocsgen mockgen manifests-local notification-docs notification-catalog
+codegen-local-fast: gogen protogen-fast clientgen openapigen clidocsgen mockgen manifests-local notification-docs notification-catalog gh-aw-compile
+
+.PHONY: gh-aw-compile
+gh-aw-compile:
+	gh aw compile
 
 .PHONY: codegen
 codegen: test-tools-image
@@ -636,7 +640,12 @@ show-go-version: test-tools-image
 
 # Installs all tools required to build and test ArgoCD locally
 .PHONY: install-tools-local
-install-tools-local: install-test-tools-local install-codegen-tools-local install-go-tools-local
+install-tools-local: install-test-tools-local install-codegen-tools-local install-go-tools-local install-gh-aw-local
+
+# Installs the gh aw CLI extension for managing GitHub Agentics workflows
+.PHONY: install-gh-aw-local
+install-gh-aw-local:
+	. hack/tool-versions.sh && gh extension install --pin v$${GH_AW_VERSION} --force github/gh-aw
 
 # Installs all tools required for running unit & end-to-end tests (Linux packages)
 .PHONY: install-test-tools-local

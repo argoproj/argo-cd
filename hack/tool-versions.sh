@@ -24,3 +24,5 @@ protoc_version=29.3
 oras_version=1.2.0
 # renovate: datasource=github-releases depName=git-lfs/git-lfs packageName=git-lfs/git-lfs
 GIT_LFS_VERSION=3.7.1
+# renovate: datasource=github-releases depName=github/gh-aw packageName=github/gh-aw
+GH_AW_VERSION=0.81.6
