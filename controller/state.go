@@ -851,7 +851,7 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 		}
 	}
 
-	for _, liveObj := range liveObjByKey {
+	for k, liveObj := range liveObjByKey {
 		if liveObj != nil {
 			appInstanceName := m.resourceTracking.GetAppName(liveObj, appLabelKey, v1alpha1.TrackingMethod(trackingMethod), installationID)
 			if appInstanceName != "" && appInstanceName != app.InstanceName(m.namespace) {
@@ -861,6 +861,11 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 					Message:            fmt.Sprintf("%s/%s is part of applications %s and %s", liveObj.GetKind(), liveObj.GetName(), app.QualifiedName(), fqInstanceName),
 					LastTransitionTime: &now,
 				})
+				// Remove from prune candidates: this resource is owned by a different application.
+				// Keeping it in liveObjByKey would cause it to be pruned by the current app,
+				// even though it was never created by it (shared-namespace app-of-apps pitfall).
+				delete(liveObjByKey, k)
+				continue
 			}
 
 			// For the case when a namespace is managed with `managedNamespaceMetadata` AND it has resource tracking
@@ -1378,6 +1383,15 @@ func (m *appStateManager) isSelfReferencedObj(live, config *unstructured.Unstruc
 	// but are unique in GVK + name combination.
 	appInstance := m.resourceTracking.GetAppInstance(live, trackingMethod, installationID)
 	if appInstance != nil {
+		// Verify the ApplicationName in the tracking annotation matches the
+		// current application. When multiple app-of-apps share the same
+		// destination namespace (e.g. argocd-system), a resource owned by
+		// app-A must not be shown as ⊖ (RequiresPruning) by app-B, even if
+		// app-B has no desired state for it. Without this check, any app-of-apps
+		// with prune enabled can accidentally delete resources it never created.
+		if appInstance.ApplicationName != appName {
+			return false
+		}
 		return isSelfReferencedObj(live, *appInstance)
 	}
 	return true

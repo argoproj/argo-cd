@@ -352,6 +352,59 @@ func TestCompareAppStateExtra(t *testing.T) {
 	assert.Empty(t, app.Status.Conditions)
 }
 
+// TestCompareAppStateSharedResourceNotPruned verifies that a live resource tracked by a different
+// application does not show as ⊖ (RequiresPruning) and is not added to the prune list.
+// This guards against the shared-namespace app-of-apps pitfall: when multiple app-of-apps
+// target argocd-system, a resource owned by app-A must never appear pruneable to app-B,
+// even if app-B has no desired state for it and was never synced.
+func TestCompareAppStateSharedResourceNotPruned(t *testing.T) {
+	pod := NewPod()
+	pod.SetNamespace(test.FakeDestNamespace)
+	// Set tracking annotation owned by "other-app", NOT the current app ("my-app").
+	// Format: <appName>:<group>/<kind>:<namespace>/<name>
+	pod.SetAnnotations(map[string]string{
+		common.AnnotationKeyAppInstance: "other-app:/Pod:" + test.FakeDestNamespace + "/" + pod.GetName(),
+	})
+	app := newFakeApp()
+	key := kube.ResourceKey{Group: "", Kind: "Pod", Namespace: test.FakeDestNamespace, Name: pod.GetName()}
+	data := fakeData{
+		// No manifests in git for current app — resource is "extra" in live state
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+			key: pod,
+		},
+	}
+	ctrl := newFakeController(t.Context(), &data, nil)
+	sources := make([]v1alpha1.ApplicationSource, 0)
+	sources = append(sources, app.Spec.GetSource())
+	revisions := make([]string, 0)
+	revisions = append(revisions, "")
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
+	require.NoError(t, err)
+	assert.NotNil(t, compRes)
+
+	// The resource must NOT appear as RequiresPruning (⊖) — it belongs to another app
+	for _, res := range compRes.resources {
+		if res.Name == pod.GetName() {
+			assert.False(t, res.RequiresPruning,
+				"resource owned by another app must not be shown as ⊖ (RequiresPruning)")
+		}
+	}
+
+	// The resource must NOT appear as a prune candidate in reconciliation (Live non-nil, Target nil)
+	for i, live := range compRes.reconciliationResult.Live {
+		if live != nil && live.GetName() == pod.GetName() {
+			assert.NotNil(t, compRes.reconciliationResult.Target[i],
+				"resource owned by another app must not be a prune candidate in reconciliation")
+		}
+	}
+}
+
 // TestCompareAppStateHook checks that hooks are detected during manifest generation, and not
 // considered as part of resources when assessing Synced status
 func TestCompareAppStateHook(t *testing.T) {
