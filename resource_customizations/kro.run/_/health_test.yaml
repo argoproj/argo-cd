@@ -1,0 +1,33 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: "Instance is active and running"
+    inputPath: testdata/active.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Waiting for instance to become ready"
+    inputPath: testdata/in_progress.yaml
+  - healthStatus:
+      status: Progressing
+      message: "instance is being reconciled"
+    inputPath: testdata/in_progress_condition_false.yaml
+  - healthStatus:
+      status: Degraded
+      message: "instance reconciliation failed"
+    inputPath: testdata/failed.yaml
+  - healthStatus:
+      status: Degraded
+      message: "an error occurred during processing"
+    inputPath: testdata/error.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Waiting for KRO to report status"
+    inputPath: testdata/no_status.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Waiting for instance to become ready"
+    inputPath: testdata/stale_generation.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Waiting for instance to become ready"
+    inputPath: testdata/missing_generation.yaml

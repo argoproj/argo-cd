@@ -1,0 +1,36 @@
+apiVersion: kro.run/v1alpha1
+kind: WebApplication
+metadata:
+  name: my-app
+  namespace: default
+  generation: 1
+spec:
+  name: web-app
+  image: nginx:latest
+status:
+  state: IN_PROGRESS
+  conditions:
+    - type: Ready
+      status: "False"
+      reason: Pending
+      message: "instance is being reconciled"
+      lastTransitionTime: "2025-08-08T00:03:46Z"
+      observedGeneration: 1
+    - type: InstanceManaged
+      status: "True"
+      reason: Managed
+      message: "instance is properly managed with finalizers and labels"
+      lastTransitionTime: "2025-08-08T00:03:46Z"
+      observedGeneration: 1
+    - type: GraphResolved
+      status: "True"
+      reason: Resolved
+      message: "runtime graph created and all resources resolved"
+      lastTransitionTime: "2025-08-08T00:03:46Z"
+      observedGeneration: 1
+    - type: ResourcesReady
+      status: "False"
+      reason: Pending
+      message: "waiting for resources to be created"
+      lastTransitionTime: "2025-08-08T00:03:46Z"
+      observedGeneration: 1
