@@ -3465,7 +3465,7 @@ func TestApplicationController_PersistAppStatus_FallbackMessageContainsUserGuida
 		{Name: "bloat-1", Kind: "ConfigMap", Status: v1alpha1.SyncStatusCodeOutOfSync},
 	}
 
-	ctrl.persistAppStatus(t.Context(), app, newStatus /*, app.GetAnnotations()*/)
+	ctrl.persistAppStatus(t.Context(), app, newStatus)
 
 	require.Equal(t, 2, patchCalls, "expected initial patch + fallback patch")
 
@@ -4077,8 +4077,7 @@ func TestPersistReconciliationStatus_AnnotationManagement(t *testing.T) {
 			v1alpha1.AnnotationKeyHydrate:          string(v1alpha1.HydrateTypeNormal),
 			v1alpha1.AnnotationKeyRefreshTimestamp: timestamp,
 			v1alpha1.AnnotationKeyHydrateTimestamp: timestamp,
-
-			"other-annotation": "other-value",
+			"other-annotation":                     "other-value",
 		}
 		app.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
 		app.Status.Health.Status = health.HealthStatusHealthy

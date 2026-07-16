@@ -2262,22 +2262,22 @@ func (ctrl *ApplicationController) persistReconciliationStatus(ctx context.Conte
 func (ctrl *ApplicationController) handleRefreshAnnotation(orig *appv1.Application, annotation, timestampAnnotation string) (patchDuration time.Duration) {
 	logCtx := log.WithFields(applog.GetAppLogFields(orig))
 	origAnnotations := orig.GetAnnotations()
-	patchDuration, err := ctrl.patchAnnotations(orig, annotation, timestampAnnotation)
+	patchDuration, err := ctrl.removeRefreshAnnotationCombo(orig, annotation, timestampAnnotation)
 	if err != nil {
 		var status apierrors.APIStatus
-		// ensure that the error comes from the timestamp annotation
-		// that was modified  during refresh.
+		// ensure that the error comes from the timestamp annotation that was modified during
+		// refresh.
 		origTimestamp, hasTimestamp := origAnnotations[timestampAnnotation]
 		if hasTimestamp && stderrors.As(err, &status) &&
 			status.Status().Code == http.StatusUnprocessableEntity {
-			// If JSONPatch test operation fails the API server returns status code 422
-			// - Unprocessable entity, but there is no way to be 100% from the error
-			// that it happened because of the timestamp value mismatch in test, so we
-			// get the value and compare. We get the application directly, because
-			// Informer might still have the old version
+			// If the JSONPatch test operation fails the API server returns status code 422 -
+			// Unprocessable entity, but there is no way to be 100% sure from the error only
+			// that it happened because of the timestamp value mismatch in test, so we get the
+			// value from the Application manifest and compare.
+			// We fetch from k8s directly, because Informer might still have the old version
 			newApp, getErr := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(orig.GetNamespace()).Get(context.Background(), orig.GetName(), metav1.GetOptions{})
 			if getErr != nil {
-				logCtx.Errorf("Unexpected error getting application %s/%s: %v", orig.GetNamespace(), orig.GetName(), getErr)
+				logCtx.Errorf("Unexpected error getting application: %v", getErr)
 				return
 			}
 			newAnnotations := newApp.GetAnnotations()
@@ -2291,9 +2291,9 @@ func (ctrl *ApplicationController) handleRefreshAnnotation(orig *appv1.Applicati
 				} else {
 					// there was some other change (like deleted refresh annotation)
 					// retry the operation with the updated annotations
-					retryDuration, retryErr := ctrl.patchAnnotations(newApp, annotation, timestampAnnotation)
+					retryDuration, retryErr := ctrl.removeRefreshAnnotationCombo(newApp, annotation, timestampAnnotation)
 					if retryErr != nil {
-						logCtx.Errorf("Unexpected error retrying annotations update: %v", retryErr)
+						logCtx.Errorf("Unexpected error retrying update of annotations %s, %s, %v", annotation, timestampAnnotation, err)
 					}
 					patchDuration += retryDuration
 				}
@@ -2307,7 +2307,7 @@ func (ctrl *ApplicationController) handleRefreshAnnotation(orig *appv1.Applicati
 
 var rfc6901Encoder = strings.NewReplacer("/", "~1", "~", "~0")
 
-func (ctrl *ApplicationController) patchAnnotations(app *appv1.Application, annotation, timestampAnnotation string) (patchDuration time.Duration, err error) {
+func (ctrl *ApplicationController) removeRefreshAnnotationCombo(app *appv1.Application, annotation, timestampAnnotation string) (patchDuration time.Duration, err error) {
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 	annotations := app.GetAnnotations()
 	jsonPatch := []map[string]any{}
@@ -2337,28 +2337,29 @@ func (ctrl *ApplicationController) patchAnnotations(app *appv1.Application, anno
 		var patch []byte
 		patch, err = json.Marshal(jsonPatch)
 		if err != nil {
+			logCtx.Errorf("Unexpected error marshaling JSON patch: %v", err)
 			return
 		}
 		start := time.Now()
 		defer func() {
 			patchDuration = time.Since(start)
 		}()
-		logCtx.Infof("Patching annotations: %s", string(patch))
+		logCtx.Debugf("Patching annotations: %s", string(patch))
 		_, err = ctrl.PatchAppWithWriteBack(context.Background(), app.GetName(), app.GetNamespace(), types.JSONPatchType, patch, metav1.PatchOptions{})
 		if err == nil {
-			logCtx.Infof("Successfully patched annotations")
+			logCtx.Debugf("Successfully patched annotations")
 		} else {
-			logCtx.Infof("Got error patching annotations: %v", err)
+			logCtx.Debugf("Got error patching annotations: %v", err)
 		}
 	} else {
-		logCtx.Infof("No changes required for %s, %s annotations. Skipping patching annotations", annotation, timestampAnnotation)
+		logCtx.Debugf("No changes required for %s, %s annotations. Skipping patching annotations", annotation, timestampAnnotation)
 	}
 	return
 }
 
 // persistAppStatus persists updates to application status
 // If no changes were made, it is a no-op
-func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *appv1.Application, newStatus *appv1.ApplicationStatus /*, newAnnotations map[string]string */) (patchDuration time.Duration) {
+func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *appv1.Application, newStatus *appv1.ApplicationStatus) (patchDuration time.Duration) {
 	// NB: leaf span only — the status patch below deliberately stays on context.Background() so a
 	// canceled reconcile ctx never aborts a durable status write. The span just measures it.
 	_, span := tracer.Start(ctx, "controller.persistAppStatus")
@@ -2395,8 +2396,8 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 		}
 	}
 	patch, modified, err := createMergePatch(
-		&appv1.Application{ /*ObjectMeta: metav1.ObjectMeta{Annotations: orig.GetAnnotations()},*/ Status: orig.Status},
-		&appv1.Application{ /*ObjectMeta: metav1.ObjectMeta{Annotations: newAnnotations},*/ Status: *newStatus})
+		&appv1.Application{Status: orig.Status},
+		&appv1.Application{Status: *newStatus})
 	if err != nil {
 		spanErr = err
 		logCtx.WithError(err).Error("Error constructing app status patch")
@@ -2435,9 +2436,6 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 					Status: orig.Status,
 				},
 				&appv1.Application{
-					/*ObjectMeta: metav1.ObjectMeta{
-						Annotations: newAnnotations,
-					},*/
 					Status: *fallbackStatus,
 				},
 			)
