@@ -675,7 +675,7 @@ func (_c *Dependencies_GetWriteCredentials_Call) RunAndReturn(run func(ctx conte
 }
 
 // PersistHydrationStatus provides a mock function for the type Dependencies
-func (_mock *Dependencies) PersistHydrationStatus(orig *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus) {
+func (_mock *Dependencies) PersistHydrationStatus(orig *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus, removeHydrateAnnotations bool) {
 	_mock.Called(orig, newStatus)
 	return
 }
