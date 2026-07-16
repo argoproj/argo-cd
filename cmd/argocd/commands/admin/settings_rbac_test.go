@@ -2,6 +2,7 @@ package admin
 
 import (
 	"os"
+	"slices"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -333,9 +334,9 @@ func Test_warnIfUnenforcedGroupGrant(t *testing.T) {
 	t.Cleanup(func() { logrus.StandardLogger().ReplaceHooks(logrus.LevelHooks{}) })
 
 	lastWarning := func() string {
-		for i := len(hook.Entries) - 1; i >= 0; i-- {
-			if hook.Entries[i].Level == logrus.WarnLevel {
-				return hook.Entries[i].Message
+		for _, entry := range slices.Backward(hook.Entries) {
+			if entry.Level == logrus.WarnLevel {
+				return entry.Message
 			}
 		}
 		return ""
