@@ -8,12 +8,13 @@ import (
 	"maps"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
-	clustercache "github.com/argoproj/argo-cd/gitops-engine/pkg/cache"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube/kubetest"
+	clustercache "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube/kubetest"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -24,12 +25,11 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/common"
 	statecache "github.com/argoproj/argo-cd/v3/controller/cache"
-	"github.com/argoproj/argo-cd/v3/controller/hydrator"
 	"github.com/argoproj/argo-cd/v3/controller/sharding"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/cache/mocks"
-	synccommon "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache/mocks"
+	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	appsv1 "k8s.io/api/apps/v1"
@@ -42,6 +42,7 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/yaml"
 
 	dbmocks "github.com/argoproj/argo-cd/v3/util/db/mocks"
@@ -85,6 +86,9 @@ type fakeData struct {
 	// time GenerateManifest is called. Useful for asserting fields that the
 	// controller derives, like SourceIntegrity.
 	onGenerateManifest func(req *apiclient.ManifestRequest)
+	// persistResourceHealth controls whether managed resource health is stored
+	// inline on the Application. When nil it defaults to true.
+	persistResourceHealth *bool
 }
 
 type MockKubectl struct {
@@ -102,6 +106,26 @@ func (m *MockKubectl) CreateResource(ctx context.Context, config *rest.Config, g
 func (m *MockKubectl) DeleteResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, deleteOptions metav1.DeleteOptions) error {
 	m.DeletedResources = append(m.DeletedResources, kube.NewResourceKey(gvk.Group, gvk.Kind, namespace, name))
 	return m.Kubectl.DeleteResource(ctx, config, gvk, name, namespace, deleteOptions)
+}
+
+// recordingOperationQueue embeds a real rate-limiting queue but records every
+// AddAfter call so tests can assert the self-requeue (item and delay) without
+// having to wait for the delaying queue's timer to fire.
+type recordingOperationQueue struct {
+	workqueue.TypedRateLimitingInterface[string]
+	mu    sync.Mutex
+	calls []operationRequeue
+}
+
+type operationRequeue struct {
+	item  string
+	delay time.Duration
+}
+
+func (q *recordingOperationQueue) AddAfter(item string, d time.Duration) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	q.calls = append(q.calls, operationRequeue{item: item, delay: d})
 }
 
 func newFakeController(ctx context.Context, data *fakeData, repoErr error) *ApplicationController {
@@ -197,6 +221,10 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 	// Initialize the settings manager to ensure cluster cache is ready
 	_ = settingsMgr.ResyncInformers()
 	kubectl := &MockKubectl{Kubectl: &kubetest.MockKubectlCmd{}}
+	persistResourceHealth := true
+	if data.persistResourceHealth != nil {
+		persistResourceHealth = *data.persistResourceHealth
+	}
 	ctrl, err := NewApplicationController(
 		test.FakeArgoCDNamespace,
 		settingsMgr,
@@ -222,7 +250,7 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 		[]string{},
 		[]string{},
 		0,
-		true,
+		persistResourceHealth,
 		nil,
 		data.applicationNamespaces,
 		nil,
@@ -675,7 +703,7 @@ func TestAutoSync(t *testing.T) {
 		Status:   v1alpha1.SyncStatusCodeOutOfSync,
 		Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 	}
-	cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
+	cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
 	assert.Nil(t, cond)
 	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
 	require.NoError(t, err)
@@ -692,7 +720,7 @@ func TestAutoSyncEnabledSetToTrue(t *testing.T) {
 		Status:   v1alpha1.SyncStatusCodeOutOfSync,
 		Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 	}
-	cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
+	cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
 	assert.Nil(t, cond)
 	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
 	require.NoError(t, err)
@@ -713,7 +741,7 @@ func TestAutoSyncMultiSourceWithoutSelfHeal(t *testing.T) {
 			Status:    v1alpha1.SyncStatusCodeOutOfSync,
 			Revisions: []string{"z", "x", "v"},
 		}
-		cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook-1", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
+		cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook-1", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
 		assert.Nil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
 		require.NoError(t, err)
@@ -728,7 +756,7 @@ func TestAutoSyncMultiSourceWithoutSelfHeal(t *testing.T) {
 			Status:    v1alpha1.SyncStatusCodeOutOfSync,
 			Revisions: []string{"a", "b", "c"},
 		}
-		cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook-1", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
+		cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook-1", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
 		assert.Nil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
 		require.NoError(t, err)
@@ -753,7 +781,7 @@ func TestAutoSyncManifestGeneratePathsNewCommit(t *testing.T) {
 			Status:   v1alpha1.SyncStatusCodeOutOfSync,
 			Revision: revB,
 		}
-		cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, syncStatus.Status == v1alpha1.SyncStatusCodeOutOfSync)
+		cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, syncStatus.Status == v1alpha1.SyncStatusCodeOutOfSync)
 		assert.Nil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
 		require.NoError(t, err)
@@ -773,7 +801,7 @@ func TestAutoSyncManifestGeneratePathsNewCommit(t *testing.T) {
 			Status:   v1alpha1.SyncStatusCodeOutOfSync,
 			Revision: revB,
 		}
-		cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, syncStatus.Status == v1alpha1.SyncStatusCodeOutOfSync)
+		cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, syncStatus.Status == v1alpha1.SyncStatusCodeOutOfSync)
 		assert.Nil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
 		require.NoError(t, err)
@@ -789,7 +817,7 @@ func TestAutoSyncNotAllowEmpty(t *testing.T) {
 		Status:   v1alpha1.SyncStatusCodeOutOfSync,
 		Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 	}
-	cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{}, true)
+	cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{}, true)
 	assert.NotNil(t, cond)
 }
 
@@ -802,7 +830,7 @@ func TestAutoSyncAllowEmpty(t *testing.T) {
 		Status:   v1alpha1.SyncStatusCodeOutOfSync,
 		Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 	}
-	cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{}, true)
+	cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{}, true)
 	assert.Nil(t, cond)
 }
 
@@ -816,7 +844,7 @@ func TestSkipAutoSync(t *testing.T) {
 			Status:   v1alpha1.SyncStatusCodeOutOfSync,
 			Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 		}
-		cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{}, true)
+		cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{}, true)
 		assert.Nil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
 		require.NoError(t, err)
@@ -831,7 +859,7 @@ func TestSkipAutoSync(t *testing.T) {
 			Status:   v1alpha1.SyncStatusCodeSynced,
 			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 		}
-		cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{}, true)
+		cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{}, true)
 		assert.Nil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
 		require.NoError(t, err)
@@ -847,7 +875,7 @@ func TestSkipAutoSync(t *testing.T) {
 			Status:   v1alpha1.SyncStatusCodeOutOfSync,
 			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 		}
-		cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{}, true)
+		cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{}, true)
 		assert.Nil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
 		require.NoError(t, err)
@@ -863,7 +891,7 @@ func TestSkipAutoSync(t *testing.T) {
 			Status:   v1alpha1.SyncStatusCodeOutOfSync,
 			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 		}
-		cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{}, true)
+		cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{}, true)
 		assert.Nil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
 		require.NoError(t, err)
@@ -880,7 +908,7 @@ func TestSkipAutoSync(t *testing.T) {
 			Status:   v1alpha1.SyncStatusCodeOutOfSync,
 			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 		}
-		cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{}, true)
+		cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{}, true)
 		assert.Nil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
 		require.NoError(t, err)
@@ -906,7 +934,7 @@ func TestSkipAutoSync(t *testing.T) {
 			Status:   v1alpha1.SyncStatusCodeOutOfSync,
 			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 		}
-		cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
+		cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
 		assert.NotNil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
 		require.NoError(t, err)
@@ -930,7 +958,7 @@ func TestSkipAutoSync(t *testing.T) {
 			Status:   v1alpha1.SyncStatusCodeOutOfSync,
 			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 		}
-		cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
+		cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
 		assert.NotNil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
 		require.NoError(t, err)
@@ -944,7 +972,7 @@ func TestSkipAutoSync(t *testing.T) {
 			Status:   v1alpha1.SyncStatusCodeOutOfSync,
 			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 		}
-		cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{
+		cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{
 			{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync, RequiresPruning: true},
 		}, true)
 		assert.Nil(t, cond)
@@ -982,7 +1010,7 @@ func TestAutoSyncIndicateError(t *testing.T) {
 			Source:   *app.Spec.Source.DeepCopy(),
 		},
 	}
-	cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
+	cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
 	assert.NotNil(t, cond)
 	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
 	require.NoError(t, err)
@@ -1026,7 +1054,7 @@ func TestAutoSyncParameterOverrides(t *testing.T) {
 			Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 		}
 		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
-		cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
+		cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
 		assert.Nil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
 		require.NoError(t, err)
@@ -1057,7 +1085,7 @@ func TestAutoSyncParameterOverrides(t *testing.T) {
 			Status:    v1alpha1.SyncStatusCodeOutOfSync,
 			Revisions: []string{"z", "x", "v"},
 		}
-		cond, _ := ctrl.autoSync(app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
+		cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
 		assert.Nil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
 		require.NoError(t, err)
@@ -2162,120 +2190,6 @@ func TestUnchangedManagedNamespaceMetadata(t *testing.T) {
 	assert.Equal(t, CompareWithLatest, compareWith)
 }
 
-func clearTestRefreshSignals(ctrl *ApplicationController) {
-	ctrl.refreshRequestedAppsMutex.Lock()
-	ctrl.refreshRequestedApps = make(map[string]CompareWith)
-	ctrl.refreshRequestedAppsMutex.Unlock()
-	for ctrl.appRefreshQueue.Len() > 0 {
-		item, shutdown := ctrl.appRefreshQueue.Get()
-		if shutdown {
-			break
-		}
-		ctrl.appRefreshQueue.Forget(item)
-		ctrl.appRefreshQueue.Done(item)
-	}
-}
-
-func clearTestInformerQueues(ctrl *ApplicationController) {
-	clearTestRefreshSignals(ctrl)
-	for ctrl.appOperationQueue.Len() > 0 {
-		item, shutdown := ctrl.appOperationQueue.Get()
-		if shutdown {
-			break
-		}
-		ctrl.appOperationQueue.Forget(item)
-		ctrl.appOperationQueue.Done(item)
-	}
-	for ctrl.appHydrateQueue.Len() > 0 {
-		item, shutdown := ctrl.appHydrateQueue.Get()
-		if shutdown {
-			break
-		}
-		ctrl.appHydrateQueue.Forget(item)
-		ctrl.appHydrateQueue.Done(item)
-	}
-}
-
-func assertInformerWorkqueueSignal(t *testing.T, queueLen func() int, want bool, msg string) {
-	t.Helper()
-	if want {
-		require.Eventually(t, func() bool { return queueLen() > 0 }, time.Second, 5*time.Millisecond, "%s", msg)
-		return
-	}
-	require.Never(t, func() bool { return queueLen() > 0 }, 100*time.Millisecond, 5*time.Millisecond, "%s (queue should remain empty)", msg)
-}
-
-func assertInformerOperationQueueSignal(t *testing.T, ctrl *ApplicationController, want bool, msg string) {
-	t.Helper()
-	assertInformerWorkqueueSignal(t, ctrl.appOperationQueue.Len, want, msg)
-}
-
-func assertInformerHydrateQueueSignal(t *testing.T, ctrl *ApplicationController, want bool, msg string) {
-	t.Helper()
-	assertInformerWorkqueueSignal(t, ctrl.appHydrateQueue.Len, want, msg)
-}
-
-func assertInformerUpdateSideEffects(t *testing.T, ctrl *ApplicationController, qualifiedName string, wantRefresh, wantOperation, wantHydrate bool, msg string) {
-	t.Helper()
-	assertInformerRefreshSignal(t, ctrl, qualifiedName, wantRefresh, msg)
-	assertInformerOperationQueueSignal(t, ctrl, wantOperation, msg+": operation queue")
-	assertInformerHydrateQueueSignal(t, ctrl, wantHydrate, msg+": hydrate queue")
-}
-
-// invokeApplicationInformerUpdateFromHandler invokes applicationEventHandlerFuncs().UpdateFunc.
-// Returns false when canProcessApp rejects the update (e.g. skip-reconcile=true).
-func invokeApplicationInformerUpdateFromHandler(t *testing.T, ctrl *ApplicationController, oldApp, newApp *v1alpha1.Application) bool {
-	t.Helper()
-	if !ctrl.canProcessApp(newApp) {
-		return false
-	}
-	ctrl.applicationEventHandlerFuncs().OnUpdate(oldApp, newApp)
-	return true
-}
-
-// invokeApplicationInformerAdd invokes applicationEventHandlerFuncs().AddFunc.
-func invokeApplicationInformerAdd(t *testing.T, ctrl *ApplicationController, newApp *v1alpha1.Application) {
-	t.Helper()
-	require.True(t, ctrl.canProcessApp(newApp))
-	ctrl.applicationEventHandlerFuncs().OnAdd(newApp, false)
-}
-
-// invokeApplicationInformerDelete invokes applicationEventHandlerFuncs().DeleteFunc.
-func invokeApplicationInformerDelete(t *testing.T, ctrl *ApplicationController, delApp *v1alpha1.Application) {
-	t.Helper()
-	require.True(t, ctrl.canProcessApp(delApp))
-	ctrl.applicationEventHandlerFuncs().OnDelete(delApp)
-}
-
-func assertInformerRefreshSignal(t *testing.T, ctrl *ApplicationController, qualifiedName string, want bool, msg string) {
-	t.Helper()
-	key := ctrl.toAppKey(qualifiedName)
-	// The workqueue does not expose queued keys, only its length.
-	// We first check refreshRequestedApps[key], but some enqueue paths
-	// (e.g. AddRateLimited/AddAfter) may not update that map.
-	// As a fallback, we treat Len()>0 as a signal that a refresh was enqueued.
-	// This is only reliable in tests where:
-	//   - clearTestInformerQueues() was called, and
-	//   - the controller enqueues refreshes for a single app.
-	// Otherwise, Len()>0 may reflect a different app.
-	refreshPresent := func() bool {
-		ctrl.refreshRequestedAppsMutex.Lock()
-		_, inMap := ctrl.refreshRequestedApps[key]
-		ctrl.refreshRequestedAppsMutex.Unlock()
-		if inMap {
-			return true
-		}
-		return ctrl.appRefreshQueue.Len() > 0
-	}
-	if want {
-		require.Eventually(t, refreshPresent, time.Second, 5*time.Millisecond, "%s (key=%s)", msg, key)
-		return
-	}
-	// requestAppRefresh may enqueue with a delay (e.g. AddRateLimited/AddAfter),
-	// so poll briefly to ensure no refresh was scheduled.
-	require.Never(t, refreshPresent, 100*time.Millisecond, 5*time.Millisecond, "%s (key=%s inMap/queue should remain empty)", msg, key)
-}
-
 func TestComparisonExpiry(t *testing.T) {
 	t.Run("soft expired", func(t *testing.T) {
 		app := newFakeApp()
@@ -2328,510 +2242,6 @@ func TestNeedRefreshAppStatusZeroTimeout(t *testing.T) {
 	assert.False(t, needRefresh, "timeout 0 should disable automatic expiry-based refresh")
 }
 
-func TestResyncRefreshAfter(t *testing.T) {
-	t.Run("disabled", func(t *testing.T) {
-		ctrl := &ApplicationController{}
-		assert.Nil(t, ctrl.resyncRefreshAfter())
-		ctrl.statusRefreshJitter = time.Second * -5
-		assert.Nil(t, ctrl.resyncRefreshAfter())
-	})
-	t.Run("bounded uniform", func(t *testing.T) {
-		ctrl := &ApplicationController{statusRefreshJitter: time.Millisecond * 500}
-		for range 400 {
-			d := ctrl.resyncRefreshAfter()
-			require.NotNil(t, d)
-			require.GreaterOrEqual(t, *d, time.Duration(0))
-			require.LessOrEqual(t, *d, time.Millisecond*500)
-		}
-	})
-}
-
-func TestTimeUntilComparisonExpiry(t *testing.T) {
-	t.Run("timeouts disabled", func(t *testing.T) {
-		ctrl := &ApplicationController{}
-		past := metav1.NewTime(time.Now().UTC().Add(-time.Hour))
-		assert.Nil(t, ctrl.timeUntilComparisonExpiry(v1alpha1.ApplicationStatus{ReconciledAt: &past}))
-	})
-	t.Run("never reconciled", func(t *testing.T) {
-		ctrl := &ApplicationController{statusRefreshTimeout: time.Minute}
-		assert.Nil(t, ctrl.timeUntilComparisonExpiry(v1alpha1.ApplicationStatus{}))
-	})
-	t.Run("remaining soft timeout", func(t *testing.T) {
-		ctrl := &ApplicationController{statusRefreshTimeout: time.Minute}
-		reconciledAt := metav1.NewTime(time.Now().UTC().Add(-20 * time.Second))
-		d := ctrl.timeUntilComparisonExpiry(v1alpha1.ApplicationStatus{ReconciledAt: &reconciledAt})
-		require.NotNil(t, d)
-		assert.Greater(t, *d, 30*time.Second)
-		assert.LessOrEqual(t, *d, time.Minute)
-	})
-}
-
-func TestSameRVRefreshDelay(t *testing.T) {
-	t.Run("expired uses jitter only", func(t *testing.T) {
-		ctrl := &ApplicationController{statusRefreshTimeout: time.Minute, statusRefreshJitter: 0}
-		delay, shouldRefresh := ctrl.sameRVRefreshDelay(v1alpha1.ApplicationStatus{}, true)
-		assert.True(t, shouldRefresh)
-		assert.Nil(t, delay) // nil after → immediate enqueue
-	})
-	t.Run("not expired schedules remaining time", func(t *testing.T) {
-		ctrl := &ApplicationController{statusRefreshTimeout: time.Minute, statusRefreshJitter: 0}
-		reconciledAt := metav1.NewTime(time.Now().UTC().Add(-20 * time.Second))
-		delay, shouldRefresh := ctrl.sameRVRefreshDelay(v1alpha1.ApplicationStatus{ReconciledAt: &reconciledAt}, false)
-		assert.True(t, shouldRefresh)
-		require.NotNil(t, delay)
-		assert.Greater(t, *delay, 30*time.Second)
-		assert.LessOrEqual(t, *delay, time.Minute)
-	})
-	t.Run("timeouts disabled skips", func(t *testing.T) {
-		ctrl := &ApplicationController{}
-		reconciledAt := metav1.NewTime(time.Now().UTC())
-		delay, shouldRefresh := ctrl.sameRVRefreshDelay(v1alpha1.ApplicationStatus{ReconciledAt: &reconciledAt}, false)
-		assert.False(t, shouldRefresh)
-		assert.Nil(t, delay)
-	})
-}
-
-func TestApplicationInformerUpdateFunc(t *testing.T) {
-	// Test that UpdateFunc correctly handles status-only vs meaningful changes,
-	// plus termination, finalizers, annotations, and operation updates.
-
-	app := newFakeApp()
-	app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
-	proj := defaultProj.DeepCopy()
-	proj.Spec.SourceNamespaces = []string{test.FakeArgoCDNamespace}
-
-	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app, proj}}, nil)
-	require.True(t, ctrl.canProcessApp(app), "fixture must allow UpdateFunc to run (destination must match registered cluster)")
-
-	invokeApplicationInformerUpdate := func(t *testing.T, oldApp, newApp *v1alpha1.Application) {
-		t.Helper()
-		require.True(t, invokeApplicationInformerUpdateFromHandler(t, ctrl, oldApp, newApp), "expected UpdateFunc to process app")
-	}
-
-	invokeApplicationInformerUpdateSkipped := func(t *testing.T, oldApp, newApp *v1alpha1.Application) {
-		t.Helper()
-		require.False(t, invokeApplicationInformerUpdateFromHandler(t, ctrl, oldApp, newApp), "expected UpdateFunc to skip app")
-	}
-
-	t.Run("Status-only update without annotation should NOT trigger refresh", func(t *testing.T) {
-		clearTestInformerQueues(ctrl)
-
-		oldApp := app.DeepCopy()
-		oldApp.ResourceVersion = "1"
-		oldApp.Status.ReconciledAt = &metav1.Time{Time: time.Now().Add(-1 * time.Hour)}
-
-		newApp := oldApp.DeepCopy()
-		newApp.ResourceVersion = "2"
-		newApp.Status.ReconciledAt = &metav1.Time{Time: time.Now()}
-
-		invokeApplicationInformerUpdate(t, oldApp, newApp)
-		assertInformerUpdateSideEffects(t, ctrl, app.QualifiedName(), false, false, false, "Status-only update without annotation")
-	})
-
-	t.Run("Status-only update WITH refresh annotation SHOULD trigger refresh", func(t *testing.T) {
-		clearTestInformerQueues(ctrl)
-
-		oldApp := app.DeepCopy()
-		oldApp.ResourceVersion = "3"
-		oldApp.Status.ReconciledAt = &metav1.Time{Time: time.Now().Add(-1 * time.Hour)}
-
-		newApp := oldApp.DeepCopy()
-		newApp.ResourceVersion = "4"
-		newApp.Status.ReconciledAt = &metav1.Time{Time: time.Now()}
-		if newApp.Annotations == nil {
-			newApp.Annotations = make(map[string]string)
-		}
-		newApp.Annotations[v1alpha1.AnnotationKeyRefresh] = string(v1alpha1.RefreshTypeNormal)
-
-		invokeApplicationInformerUpdate(t, oldApp, newApp)
-		assertInformerUpdateSideEffects(t, ctrl, app.QualifiedName(), true, false, false, "Status-only update WITH refresh annotation")
-	})
-
-	t.Run("Status-only update WITH hydrate annotation SHOULD trigger refresh", func(t *testing.T) {
-		clearTestInformerQueues(ctrl)
-
-		oldApp := app.DeepCopy()
-		oldApp.ResourceVersion = "5"
-		oldApp.Status.ReconciledAt = &metav1.Time{Time: time.Now().Add(-1 * time.Hour)}
-
-		newApp := oldApp.DeepCopy()
-		newApp.ResourceVersion = "6"
-		newApp.Status.ReconciledAt = &metav1.Time{Time: time.Now()}
-		if newApp.Annotations == nil {
-			newApp.Annotations = make(map[string]string)
-		}
-		newApp.Annotations[v1alpha1.AnnotationKeyHydrate] = "true"
-
-		invokeApplicationInformerUpdate(t, oldApp, newApp)
-		assertInformerUpdateSideEffects(t, ctrl, app.QualifiedName(), true, false, false, "Status-only update WITH hydrate annotation")
-	})
-
-	t.Run("Status-only update WITH both refresh and hydrate annotations SHOULD trigger refresh", func(t *testing.T) {
-		clearTestInformerQueues(ctrl)
-
-		oldApp := app.DeepCopy()
-		oldApp.ResourceVersion = "7"
-		oldApp.Status.ReconciledAt = &metav1.Time{Time: time.Now().Add(-1 * time.Hour)}
-
-		newApp := oldApp.DeepCopy()
-		newApp.ResourceVersion = "8"
-		newApp.Status.ReconciledAt = &metav1.Time{Time: time.Now()}
-		if newApp.Annotations == nil {
-			newApp.Annotations = make(map[string]string)
-		}
-		newApp.Annotations[v1alpha1.AnnotationKeyRefresh] = string(v1alpha1.RefreshTypeNormal)
-		newApp.Annotations[v1alpha1.AnnotationKeyHydrate] = "true"
-
-		invokeApplicationInformerUpdate(t, oldApp, newApp)
-		assertInformerUpdateSideEffects(t, ctrl, app.QualifiedName(), true, false, false, "Status-only update WITH both refresh and hydrate annotations")
-	})
-
-	t.Run("Status-only update with annotation REMOVAL SHOULD trigger refresh", func(t *testing.T) {
-		clearTestInformerQueues(ctrl)
-
-		oldApp := app.DeepCopy()
-		oldApp.ResourceVersion = "9"
-		oldApp.Status.ReconciledAt = &metav1.Time{Time: time.Now().Add(-1 * time.Hour)}
-		if oldApp.Annotations == nil {
-			oldApp.Annotations = make(map[string]string)
-		}
-		oldApp.Annotations[v1alpha1.AnnotationKeyRefresh] = string(v1alpha1.RefreshTypeNormal)
-
-		newApp := oldApp.DeepCopy()
-		newApp.ResourceVersion = "10"
-		newApp.Status.ReconciledAt = &metav1.Time{Time: time.Now()}
-		delete(newApp.Annotations, v1alpha1.AnnotationKeyRefresh)
-
-		invokeApplicationInformerUpdate(t, oldApp, newApp)
-		assertInformerUpdateSideEffects(t, ctrl, app.QualifiedName(), true, false, false, "annotation removal is a metadata change")
-	})
-
-	t.Run("Status-only update with refresh annotation value change SHOULD trigger refresh", func(t *testing.T) {
-		clearTestInformerQueues(ctrl)
-
-		oldApp := app.DeepCopy()
-		oldApp.ResourceVersion = "10a"
-		oldApp.Status.ReconciledAt = &metav1.Time{Time: time.Now().Add(-30 * time.Second)}
-		if oldApp.Annotations == nil {
-			oldApp.Annotations = make(map[string]string)
-		}
-		oldApp.Annotations[v1alpha1.AnnotationKeyRefresh] = string(v1alpha1.RefreshTypeNormal)
-
-		newApp := oldApp.DeepCopy()
-		newApp.ResourceVersion = "10b"
-		newApp.Status.ReconciledAt = &metav1.Time{Time: time.Now()}
-		newApp.Annotations[v1alpha1.AnnotationKeyRefresh] = string(v1alpha1.RefreshTypeHard)
-
-		invokeApplicationInformerUpdate(t, oldApp, newApp)
-		assertInformerUpdateSideEffects(t, ctrl, app.QualifiedName(), true, false, false, "Status-only update with refresh annotation value change")
-	})
-
-	t.Run("Status-only update with unchanged refresh annotation SHOULD trigger refresh", func(t *testing.T) {
-		clearTestInformerQueues(ctrl)
-
-		oldApp := app.DeepCopy()
-		oldApp.ResourceVersion = "10c"
-		oldApp.Status.ReconciledAt = &metav1.Time{Time: time.Now().Add(-30 * time.Second)}
-		if oldApp.Annotations == nil {
-			oldApp.Annotations = make(map[string]string)
-		}
-		oldApp.Annotations[v1alpha1.AnnotationKeyRefresh] = string(v1alpha1.RefreshTypeNormal)
-
-		newApp := oldApp.DeepCopy()
-		newApp.ResourceVersion = "10d"
-		newApp.Status.ReconciledAt = &metav1.Time{Time: time.Now()}
-
-		invokeApplicationInformerUpdate(t, oldApp, newApp)
-		assertInformerUpdateSideEffects(t, ctrl, app.QualifiedName(), true, false, false, "Status-only update with unchanged refresh annotation")
-	})
-
-	t.Run("Spec change SHOULD trigger refresh", func(t *testing.T) {
-		clearTestInformerQueues(ctrl)
-
-		oldApp := app.DeepCopy()
-		oldApp.ResourceVersion = "11"
-
-		newApp := oldApp.DeepCopy()
-		newApp.ResourceVersion = "12"
-		newApp.Spec.Destination.Namespace = "different-namespace"
-
-		invokeApplicationInformerUpdate(t, oldApp, newApp)
-		assertInformerUpdateSideEffects(t, ctrl, app.QualifiedName(), true, false, false, "Spec change")
-	})
-
-	t.Run("Informer resync (same ResourceVersion) not yet expired does not enqueue immediately", func(t *testing.T) {
-		clearTestInformerQueues(ctrl)
-
-		oldApp := app.DeepCopy()
-		oldApp.ResourceVersion = "13"
-
-		newApp := oldApp.DeepCopy()
-		newApp.ResourceVersion = "13"
-		newApp.Status.ReconciledAt = &metav1.Time{Time: time.Now()}
-
-		invokeApplicationInformerUpdate(t, oldApp, newApp)
-		// Delayed AddAfter until soft expiry is scheduled; workqueue Len() only
-		// counts ready items, so this stays empty until that delay elapses.
-		assertInformerUpdateSideEffects(t, ctrl, app.QualifiedName(), false, false, false, "Informer resync not yet expired")
-	})
-
-	t.Run("Informer resync same RV when soft-expired SHOULD trigger refresh", func(t *testing.T) {
-		clearTestInformerQueues(ctrl)
-
-		oldReconciled := metav1.Time{Time: time.Now().Add(-2 * time.Hour)}
-		oldApp := app.DeepCopy()
-		oldApp.ResourceVersion = "16"
-		oldApp.Status.ReconciledAt = &oldReconciled
-
-		newApp := oldApp.DeepCopy()
-		newApp.ResourceVersion = "16"
-		newApp.Status.Health = v1alpha1.AppHealthStatus{Status: health.HealthStatusDegraded}
-
-		invokeApplicationInformerUpdate(t, oldApp, newApp)
-		assertInformerUpdateSideEffects(t, ctrl, app.QualifiedName(), true, false, false, "same-RV resync soft-expired")
-	})
-
-	t.Run("Informer resync same RV while deleting SHOULD enqueue operation queue", func(t *testing.T) {
-		clearTestInformerQueues(ctrl)
-
-		now := metav1.Now()
-		oldApp := app.DeepCopy()
-		oldApp.ResourceVersion = "16a"
-		oldApp.DeletionTimestamp = &now
-		oldApp.Finalizers = []string{v1alpha1.ResourcesFinalizerName}
-		oldApp.Status.ReconciledAt = &metav1.Time{Time: time.Now()}
-
-		newApp := oldApp.DeepCopy()
-		newApp.ResourceVersion = "16a"
-
-		invokeApplicationInformerUpdate(t, oldApp, newApp)
-		assertInformerUpdateSideEffects(t, ctrl, app.QualifiedName(), false, true, false, "same-RV resync while deleting")
-	})
-
-	t.Run("Status-only update without annotation when soft-expired SHOULD trigger refresh", func(t *testing.T) {
-		clearTestInformerQueues(ctrl)
-
-		oldReconciled := metav1.Time{Time: time.Now().Add(-2 * time.Hour)}
-		oldApp := app.DeepCopy()
-		oldApp.ResourceVersion = "17"
-		oldApp.Status.ReconciledAt = &oldReconciled
-
-		newApp := oldApp.DeepCopy()
-		newApp.ResourceVersion = "18"
-		newApp.Status.ReconciledAt = &oldReconciled
-		newApp.Status.Health = v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy}
-
-		invokeApplicationInformerUpdate(t, oldApp, newApp)
-		assertInformerUpdateSideEffects(t, ctrl, app.QualifiedName(), true, false, false, "status-only soft-expired")
-	})
-
-	t.Run("DeletionTimestamp added SHOULD trigger refresh", func(t *testing.T) {
-		clearTestInformerQueues(ctrl)
-
-		oldApp := app.DeepCopy()
-		oldApp.ResourceVersion = "14"
-		oldApp.DeletionTimestamp = nil
-
-		newApp := oldApp.DeepCopy()
-		newApp.ResourceVersion = "15"
-		newApp.DeletionTimestamp = &metav1.Time{Time: time.Now()}
-		newApp.Status.ReconciledAt = &metav1.Time{Time: time.Now()}
-
-		invokeApplicationInformerUpdate(t, oldApp, newApp)
-		assertInformerUpdateSideEffects(t, ctrl, app.QualifiedName(), true, false, false, "DeletionTimestamp added")
-	})
-
-	t.Run("Status-only update with hydrator enabled SHOULD enqueue hydration but NOT refresh", func(t *testing.T) {
-		clearTestInformerQueues(ctrl)
-		prevHydrator := ctrl.hydrator
-		ctrl.hydrator = &hydrator.Hydrator{}
-		t.Cleanup(func() { ctrl.hydrator = prevHydrator })
-
-		oldApp := app.DeepCopy()
-		oldApp.ResourceVersion = "19"
-		oldApp.Status.ReconciledAt = &metav1.Time{Time: time.Now().Add(-1 * time.Hour)}
-
-		newApp := oldApp.DeepCopy()
-		newApp.ResourceVersion = "20"
-		newApp.Status.ReconciledAt = &metav1.Time{Time: time.Now()}
-
-		invokeApplicationInformerUpdate(t, oldApp, newApp)
-		assertInformerUpdateSideEffects(t, ctrl, app.QualifiedName(), false, false, true, "status-only with hydrator")
-	})
-
-	t.Run("Update with pending Operation SHOULD trigger refresh", func(t *testing.T) {
-		clearTestInformerQueues(ctrl)
-
-		oldApp := app.DeepCopy()
-		oldApp.ResourceVersion = "21"
-		oldApp.Status.ReconciledAt = &metav1.Time{Time: time.Now().Add(-1 * time.Hour)}
-
-		newApp := oldApp.DeepCopy()
-		newApp.ResourceVersion = "22"
-		newApp.Status.ReconciledAt = &metav1.Time{Time: time.Now()}
-		newApp.Operation = &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}}
-
-		invokeApplicationInformerUpdate(t, oldApp, newApp)
-		// Operation field changed (nil → set), so this is not status-only.
-		assertInformerUpdateSideEffects(t, ctrl, app.QualifiedName(), true, false, false, "pending operation")
-	})
-
-	t.Run("Status-only update during in-progress Operation should NOT trigger refresh", func(t *testing.T) {
-		clearTestInformerQueues(ctrl)
-
-		oldApp := app.DeepCopy()
-		oldApp.ResourceVersion = "21b"
-		oldApp.Operation = &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}}
-		oldApp.Status.ReconciledAt = &metav1.Time{Time: time.Now().Add(-30 * time.Second)}
-		oldApp.Status.OperationState = &v1alpha1.OperationState{
-			Operation: *oldApp.Operation,
-			Phase:     synccommon.OperationRunning,
-		}
-
-		newApp := oldApp.DeepCopy()
-		newApp.ResourceVersion = "21c"
-		newApp.Status.ReconciledAt = &metav1.Time{Time: time.Now()}
-
-		invokeApplicationInformerUpdate(t, oldApp, newApp)
-		assertInformerUpdateSideEffects(t, ctrl, app.QualifiedName(), false, false, false, "status-only during sync")
-	})
-
-	t.Run("App terminating with status-only update SHOULD trigger refresh", func(t *testing.T) {
-		clearTestInformerQueues(ctrl)
-
-		now := metav1.Now()
-		oldApp := app.DeepCopy()
-		oldApp.ResourceVersion = "23"
-		oldApp.DeletionTimestamp = &now
-		oldApp.Finalizers = []string{v1alpha1.ResourcesFinalizerName}
-		oldApp.Status.Health = v1alpha1.AppHealthStatus{Status: health.HealthStatusProgressing}
-
-		newApp := oldApp.DeepCopy()
-		newApp.ResourceVersion = "24"
-		newApp.Status.Health = v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy}
-
-		invokeApplicationInformerUpdate(t, oldApp, newApp)
-		assertInformerUpdateSideEffects(t, ctrl, app.QualifiedName(), true, false, false, "terminating app status-only update")
-	})
-
-	t.Run("Finalizers changed SHOULD trigger refresh", func(t *testing.T) {
-		clearTestInformerQueues(ctrl)
-
-		oldApp := app.DeepCopy()
-		oldApp.ResourceVersion = "25"
-		oldApp.Finalizers = nil
-
-		newApp := oldApp.DeepCopy()
-		newApp.ResourceVersion = "26"
-		newApp.Finalizers = []string{v1alpha1.ResourcesFinalizerName}
-
-		invokeApplicationInformerUpdate(t, oldApp, newApp)
-		assertInformerUpdateSideEffects(t, ctrl, app.QualifiedName(), true, false, false, "finalizers changed")
-	})
-
-	t.Run("skip-reconcile annotation set to true SHOULD skip UpdateFunc", func(t *testing.T) {
-		clearTestInformerQueues(ctrl)
-
-		oldApp := app.DeepCopy()
-		oldApp.ResourceVersion = "27"
-
-		newApp := oldApp.DeepCopy()
-		newApp.ResourceVersion = "28"
-		if newApp.Annotations == nil {
-			newApp.Annotations = make(map[string]string)
-		}
-		newApp.Annotations[common.AnnotationKeyAppSkipReconcile] = "true"
-
-		invokeApplicationInformerUpdateSkipped(t, oldApp, newApp)
-		assertInformerUpdateSideEffects(t, ctrl, app.QualifiedName(), false, false, false, "skip-reconcile blocks UpdateFunc")
-	})
-
-	t.Run("skip-reconcile annotation removed SHOULD trigger refresh", func(t *testing.T) {
-		clearTestInformerQueues(ctrl)
-
-		oldApp := app.DeepCopy()
-		oldApp.ResourceVersion = "27a"
-		if oldApp.Annotations == nil {
-			oldApp.Annotations = make(map[string]string)
-		}
-		oldApp.Annotations[common.AnnotationKeyAppSkipReconcile] = "true"
-
-		newApp := oldApp.DeepCopy()
-		newApp.ResourceVersion = "28a"
-		delete(newApp.Annotations, common.AnnotationKeyAppSkipReconcile)
-
-		invokeApplicationInformerUpdate(t, oldApp, newApp)
-		assertInformerUpdateSideEffects(t, ctrl, app.QualifiedName(), true, false, false, "skip-reconcile removed")
-	})
-
-	t.Run("Operation modified SHOULD trigger refresh", func(t *testing.T) {
-		clearTestInformerQueues(ctrl)
-
-		oldApp := app.DeepCopy()
-		oldApp.ResourceVersion = "29"
-		oldApp.Operation = &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}
-
-		newApp := oldApp.DeepCopy()
-		newApp.ResourceVersion = "30"
-		newApp.Operation = &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}}
-
-		invokeApplicationInformerUpdate(t, oldApp, newApp)
-		// Operation queue is enqueued by processAppRefreshQueueItem's defer, not here.
-		assertInformerUpdateSideEffects(t, ctrl, app.QualifiedName(), true, false, false, "operation modified")
-	})
-
-	t.Run("Operation removed SHOULD trigger refresh but NOT operation queue", func(t *testing.T) {
-		clearTestInformerQueues(ctrl)
-
-		oldApp := app.DeepCopy()
-		oldApp.ResourceVersion = "31"
-		oldApp.Operation = &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}}
-
-		newApp := oldApp.DeepCopy()
-		newApp.ResourceVersion = "32"
-		newApp.Operation = nil
-
-		invokeApplicationInformerUpdate(t, oldApp, newApp)
-		assertInformerUpdateSideEffects(t, ctrl, app.QualifiedName(), true, false, false, "operation removed")
-	})
-}
-
-func TestApplicationInformerAddFunc(t *testing.T) {
-	app := newFakeApp()
-	app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
-	proj := defaultProj.DeepCopy()
-	proj.Spec.SourceNamespaces = []string{test.FakeArgoCDNamespace}
-
-	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app, proj}}, nil)
-	require.True(t, ctrl.canProcessApp(app))
-
-	t.Run("New app added SHOULD trigger refresh", func(t *testing.T) {
-		clearTestInformerQueues(ctrl)
-
-		newApp := app.DeepCopy()
-		invokeApplicationInformerAdd(t, ctrl, newApp)
-		assertInformerUpdateSideEffects(t, ctrl, app.QualifiedName(), true, false, false, "new app added")
-	})
-}
-
-func TestApplicationInformerDeleteFunc(t *testing.T) {
-	app := newFakeApp()
-	app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
-	proj := defaultProj.DeepCopy()
-	proj.Spec.SourceNamespaces = []string{test.FakeArgoCDNamespace}
-
-	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app, proj}}, nil)
-	require.True(t, ctrl.canProcessApp(app))
-
-	t.Run("App deleted SHOULD trigger refresh", func(t *testing.T) {
-		clearTestInformerQueues(ctrl)
-
-		delApp := app.DeepCopy()
-		invokeApplicationInformerDelete(t, ctrl, delApp)
-		assertInformerUpdateSideEffects(t, ctrl, app.QualifiedName(), true, false, false, "app deleted")
-	})
-}
-
 func TestRefreshAppConditions(t *testing.T) {
 	defaultProj := v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{
@@ -2882,6 +2292,19 @@ func TestRefreshAppConditions(t *testing.T) {
 		assert.Len(t, app.Status.Conditions, 1)
 		assert.Equal(t, v1alpha1.ApplicationConditionInvalidSpecError, app.Status.Conditions[0].Type)
 		assert.Equal(t, "Application referencing project wrong project which does not exist", app.Status.Conditions[0].Message)
+	})
+
+	t.Run("InvalidDestinationCluster", func(t *testing.T) {
+		app := newFakeApp()
+		app.Spec.Destination.Server = "https://does-not-exist:6443"
+
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app, &defaultProj}}, nil)
+
+		_, hasErrors := ctrl.refreshAppConditions(t.Context(), app)
+		assert.True(t, hasErrors)
+		require.Len(t, app.Status.Conditions, 1)
+		assert.Equal(t, v1alpha1.ApplicationConditionInvalidSpecError, app.Status.Conditions[0].Type)
+		assert.Contains(t, app.Status.Conditions[0].Message, "does-not-exist")
 	})
 }
 
@@ -2944,7 +2367,7 @@ func TestUpdateReconciledAt(t *testing.T) {
 	})
 }
 
-func TestUpdateHealthStatusTransitionTime(t *testing.T) {
+func TestUpdateHealthStatus(t *testing.T) {
 	deployment := kube.MustToUnstructured(&appsv1.Deployment{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "apps/v1",
@@ -2955,11 +2378,16 @@ func TestUpdateHealthStatusTransitionTime(t *testing.T) {
 			Namespace: "default",
 		},
 	})
+	// The single managed Deployment is the cause of any non-Healthy aggregated app health.
+	deploymentCause := "Caused by apps/Deployment:default/demo"
 	testCases := []struct {
-		name           string
-		app            *v1alpha1.Application
-		configMapData  map[string]string
-		expectedStatus health.HealthStatusCode
+		name                  string
+		app                   *v1alpha1.Application
+		persistResourceHealth bool
+		initialMessage        string
+		configMapData         map[string]string
+		expectedStatus        health.HealthStatusCode
+		expectedMessage       string
 	}{
 		{
 			name: "Degraded to Missing",
@@ -2973,7 +2401,8 @@ apps/Deployment:
     hs.message = ""
     return hs`,
 			},
-			expectedStatus: health.HealthStatusMissing,
+			expectedStatus:  health.HealthStatusMissing,
+			expectedMessage: deploymentCause,
 		},
 		{
 			name: "Missing to Progressing",
@@ -2987,7 +2416,8 @@ apps/Deployment:
     hs.message = ""
     return hs`,
 			},
-			expectedStatus: health.HealthStatusProgressing,
+			expectedStatus:  health.HealthStatusProgressing,
+			expectedMessage: deploymentCause,
 		},
 		{
 			name: "Progressing to Healthy",
@@ -3002,6 +2432,8 @@ apps/Deployment:
     return hs`,
 			},
 			expectedStatus: health.HealthStatusHealthy,
+			// A Healthy app has no contributing causes.
+			expectedMessage: "",
 		},
 		{
 			name: "Healthy  to Degraded",
@@ -3015,12 +2447,53 @@ apps/Deployment:
     hs.message = ""
     return hs`,
 			},
-			expectedStatus: health.HealthStatusDegraded,
+			expectedStatus:  health.HealthStatusDegraded,
+			expectedMessage: deploymentCause,
+		},
+		{
+			// No health transition with non-inline resource health: the status stays Degraded,
+			// and both the last transition time and the previous health message are preserved.
+			name:           "Degraded stays Degraded (non-inline preserves message)",
+			app:            newFakeAppWithHealthAndTime(health.HealthStatusDegraded, testTimestamp),
+			initialMessage: "Caused by apps/Deployment:default/previous",
+			configMapData: map[string]string{
+				"resource.customizations": `
+apps/Deployment:
+  health.lua: |
+    hs = {}
+    hs.status = "Degraded"
+    hs.message = ""
+    return hs`,
+			},
+			expectedStatus:  health.HealthStatusDegraded,
+			expectedMessage: "Caused by apps/Deployment:default/previous",
+		},
+		{
+			// No health transition with inline resource health: the status stays Degraded, but
+			// the freshly computed message replaces the previous one.
+			name:                  "Degraded stays Degraded (inline updates message)",
+			app:                   newFakeAppWithHealthAndTime(health.HealthStatusDegraded, testTimestamp),
+			persistResourceHealth: true,
+			initialMessage:        "Caused by apps/Deployment:default/previous",
+			configMapData: map[string]string{
+				"resource.customizations": `
+apps/Deployment:
+  health.lua: |
+    hs = {}
+    hs.status = "Degraded"
+    hs.message = ""
+    return hs`,
+			},
+			expectedStatus:  health.HealthStatusDegraded,
+			expectedMessage: deploymentCause,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			// A health transition happens when the resulting status differs from the initial one.
+			expectTransition := tc.app.Status.Health.Status != tc.expectedStatus
+			tc.app.Status.Health.Message = tc.initialMessage
 			ctrl := newFakeController(t.Context(), &fakeData{
 				apps: []runtime.Object{tc.app, &defaultProj},
 				manifestResponse: &apiclient.ManifestResponse{
@@ -3032,7 +2505,8 @@ apps/Deployment:
 				managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
 					kube.GetResourceKey(deployment): deployment,
 				},
-				configMapData: tc.configMapData,
+				configMapData:         tc.configMapData,
+				persistResourceHealth: &tc.persistResourceHealth,
 			}, nil)
 
 			ctrl.processAppRefreshQueueItem()
@@ -3040,7 +2514,17 @@ apps/Deployment:
 			require.NoError(t, err)
 			assert.NotEmpty(t, apps)
 			assert.Equal(t, tc.expectedStatus, apps[0].Status.Health.Status)
-			assert.NotEqual(t, testTimestamp, *apps[0].Status.Health.LastTransitionTime)
+			// The health message reports the resource(s) that caused the aggregated app health.
+			assert.Equal(t, tc.expectedMessage, apps[0].Status.Health.Message)
+			if expectTransition {
+				// A health transition bumps the last transition time.
+				assert.NotEqual(t, testTimestamp, *apps[0].Status.Health.LastTransitionTime)
+			} else {
+				// Without a transition, the last transition time is preserved (compare the
+				// instant, since round-tripping through the client normalizes the location).
+				assert.True(t, testTimestamp.Time.Equal(apps[0].Status.Health.LastTransitionTime.Time),
+					"last transition time should be preserved when health does not change")
+			}
 		})
 	}
 }
@@ -3175,230 +2659,6 @@ func TestProjectErrorToCondition(t *testing.T) {
 	assert.Equal(t, v1alpha1.ApplicationConditionInvalidSpecError, updatedApp.Status.Conditions[0].Type)
 	assert.Equal(t, "Application referencing project wrong project which does not exist", updatedApp.Status.Conditions[0].Message)
 	assert.Equal(t, v1alpha1.ApplicationConditionInvalidSpecError, updatedApp.Status.Conditions[0].Type)
-}
-
-// Regression test: the NamespaceIndex indexer must not call setAppCondition
-// when the project informer has not synced yet. Before the fix, both
-// appInformer and projInformer started concurrently in Run(). During the
-// app informer's initial List the indexer called getAppProj(), found the
-// proj cache empty, and PATCHed an InvalidSpecError that permanently
-// blocked auto-sync.
-func TestNamespaceIndexerDoesNotSetConditions(t *testing.T) {
-	var clust corev1.Secret
-	err := yaml.Unmarshal([]byte(fakeCluster), &clust)
-	require.NoError(t, err)
-
-	mockRepoClient := &mockrepoclient.RepoServerServiceClient{}
-	mockRepoClient.EXPECT().GenerateManifest(mock.Anything, mock.Anything).
-		Return(&apiclient.ManifestResponse{}, nil).Maybe()
-	mockRepoClient.EXPECT().UpdateRevisionForPaths(mock.Anything, mock.Anything).
-		Return(nil, nil).Maybe()
-	mockRepoClientset := &mockrepoclient.Clientset{RepoServerServiceClient: mockRepoClient}
-	mockCommitClientset := &mockcommitclient.Clientset{}
-
-	secret := corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: "argocd-secret", Namespace: test.FakeArgoCDNamespace},
-		Data:       map[string][]byte{"admin.password": []byte("test"), "server.secretkey": []byte("test")},
-	}
-	cm := corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "argocd-cm", Namespace: test.FakeArgoCDNamespace,
-			Labels: map[string]string{"app.kubernetes.io/part-of": "argocd"},
-		},
-	}
-	kubeClient := fake.NewClientset(&clust, &secret, &cm)
-	settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, test.FakeArgoCDNamespace)
-	_ = settingsMgr.ResyncInformers()
-
-	app := newFakeApp()
-	ctrl, err := NewApplicationController(
-		test.FakeArgoCDNamespace, settingsMgr, kubeClient,
-		appclientset.NewSimpleClientset(app),
-		mockRepoClientset, mockCommitClientset,
-		appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute),
-		&MockKubectl{Kubectl: &kubetest.MockKubectlCmd{}},
-		time.Minute, time.Hour, time.Second, time.Minute, nil, 0, 10*time.Second,
-		common.DefaultPortArgoCDMetrics, 0,
-		[]string{}, []string{}, []string{},
-		0, true, nil, nil, nil, false, false,
-		normalizers.IgnoreNormalizerOpts{}, testEnableEventList, false,
-	)
-	require.NoError(t, err)
-
-	db := &dbmocks.ArgoDB{}
-	db.EXPECT().GetApplicationControllerReplicas().Return(1).Maybe()
-	ctrl.clusterSharding = sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm)
-
-	// projInformer is NOT started — simulates the startup race where
-	// appInformer fires its indexer before projInformer has synced.
-	require.False(t, ctrl.projInformer.HasSynced())
-
-	// Adding the app to the indexer store triggers the NamespaceIndex function.
-	require.NoError(t, ctrl.appInformer.GetIndexer().Add(app))
-
-	for _, c := range app.Status.Conditions {
-		assert.NotEqual(t, v1alpha1.ApplicationConditionInvalidSpecError, c.Type,
-			"indexer must not set InvalidSpecError when projInformer has not synced")
-	}
-}
-
-func TestNamespaceIndexerSetsConditionOnInvalidDestination(t *testing.T) {
-	var clust corev1.Secret
-	err := yaml.Unmarshal([]byte(fakeCluster), &clust)
-	require.NoError(t, err)
-
-	mockRepoClient := &mockrepoclient.RepoServerServiceClient{}
-	mockRepoClient.EXPECT().GenerateManifest(mock.Anything, mock.Anything).
-		Return(&apiclient.ManifestResponse{}, nil).Maybe()
-	mockRepoClient.EXPECT().UpdateRevisionForPaths(mock.Anything, mock.Anything).
-		Return(nil, nil).Maybe()
-	mockRepoClientset := &mockrepoclient.Clientset{RepoServerServiceClient: mockRepoClient}
-	mockCommitClientset := &mockcommitclient.Clientset{}
-
-	secret := corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: "argocd-secret", Namespace: test.FakeArgoCDNamespace},
-		Data:       map[string][]byte{"admin.password": []byte("test"), "server.secretkey": []byte("test")},
-	}
-	cm := corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "argocd-cm", Namespace: test.FakeArgoCDNamespace,
-			Labels: map[string]string{"app.kubernetes.io/part-of": "argocd"},
-		},
-	}
-	kubeClient := fake.NewClientset(&clust, &secret, &cm)
-	settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, test.FakeArgoCDNamespace)
-	_ = settingsMgr.ResyncInformers()
-
-	proj := &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: test.FakeArgoCDNamespace},
-		Spec: v1alpha1.AppProjectSpec{
-			SourceRepos:  []string{"*"},
-			Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
-		},
-	}
-
-	app := newFakeApp()
-	app.Spec.Destination.Server = "https://does-not-exist:6443"
-
-	ctrl, err := NewApplicationController(
-		test.FakeArgoCDNamespace, settingsMgr, kubeClient,
-		appclientset.NewSimpleClientset(app, proj),
-		mockRepoClientset, mockCommitClientset,
-		appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute),
-		&MockKubectl{Kubectl: &kubetest.MockKubectlCmd{}},
-		time.Minute, time.Hour, time.Second, time.Minute, nil, 0, 10*time.Second,
-		common.DefaultPortArgoCDMetrics, 0,
-		[]string{}, []string{}, []string{},
-		0, true, nil, nil, nil, false, false,
-		normalizers.IgnoreNormalizerOpts{}, testEnableEventList, false,
-	)
-	require.NoError(t, err)
-
-	db := &dbmocks.ArgoDB{}
-	db.EXPECT().GetApplicationControllerReplicas().Return(1).Maybe()
-	ctrl.clusterSharding = sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm)
-
-	// Start projInformer so the project is in the cache and HasSynced() is true.
-	cancelProj := test.StartInformer(ctrl.projInformer)
-	defer cancelProj()
-
-	require.True(t, ctrl.projInformer.HasSynced())
-
-	// Adding the app triggers the NamespaceIndex indexer.
-	// getAppProj succeeds (project exists), but GetDestinationCluster fails
-	// because the destination server does not match any known cluster.
-	require.NoError(t, ctrl.appInformer.GetIndexer().Add(app))
-
-	var found bool
-	for _, c := range app.Status.Conditions {
-		if c.Type == v1alpha1.ApplicationConditionInvalidSpecError {
-			found = true
-			assert.Contains(t, c.Message, "does-not-exist")
-		}
-	}
-	assert.True(t, found, "indexer must set InvalidSpecError when destination cluster is not found")
-}
-
-// verify that running the real informer loop
-// during the startup race doesn't cause InvalidSpecError patches
-func TestNamespaceIndexerDoesNotPatchDuringStartupRace(t *testing.T) {
-	var clust corev1.Secret
-	err := yaml.Unmarshal([]byte(fakeCluster), &clust)
-	require.NoError(t, err)
-
-	mockRepoClient := &mockrepoclient.RepoServerServiceClient{}
-	mockRepoClient.EXPECT().GenerateManifest(mock.Anything, mock.Anything).
-		Return(&apiclient.ManifestResponse{}, nil).Maybe()
-	mockRepoClient.EXPECT().UpdateRevisionForPaths(mock.Anything, mock.Anything).
-		Return(nil, nil).Maybe()
-	mockRepoClientset := &mockrepoclient.Clientset{RepoServerServiceClient: mockRepoClient}
-	mockCommitClientset := &mockcommitclient.Clientset{}
-
-	secret := corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: "argocd-secret", Namespace: test.FakeArgoCDNamespace},
-		Data:       map[string][]byte{"admin.password": []byte("test"), "server.secretkey": []byte("test")},
-	}
-	cm := corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "argocd-cm", Namespace: test.FakeArgoCDNamespace,
-			Labels: map[string]string{"app.kubernetes.io/part-of": "argocd"},
-		},
-	}
-	kubeClient := fake.NewClientset(&clust, &secret, &cm)
-	settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, test.FakeArgoCDNamespace)
-	_ = settingsMgr.ResyncInformers()
-
-	app := newFakeApp()
-	proj := &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: test.FakeArgoCDNamespace},
-		Spec: v1alpha1.AppProjectSpec{
-			SourceRepos:  []string{"*"},
-			Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
-		},
-	}
-	appCs := appclientset.NewSimpleClientset(app, proj)
-	ctrl, err := NewApplicationController(
-		test.FakeArgoCDNamespace, settingsMgr, kubeClient,
-		appCs,
-		mockRepoClientset, mockCommitClientset,
-		appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute),
-		&MockKubectl{Kubectl: &kubetest.MockKubectlCmd{}},
-		time.Minute, time.Hour, time.Second, time.Minute, nil, 0, 10*time.Second,
-		common.DefaultPortArgoCDMetrics, 0,
-		[]string{}, []string{}, []string{},
-		0, true, nil, nil, nil, false, false,
-		normalizers.IgnoreNormalizerOpts{}, testEnableEventList, false,
-	)
-	require.NoError(t, err)
-
-	db := &dbmocks.ArgoDB{}
-	db.EXPECT().GetApplicationControllerReplicas().Return(1).Maybe()
-	ctrl.clusterSharding = sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm)
-
-	// Drive the real informer Run() loop. projInformer stays unstarted so
-	// HasSynced() is false during the appInformer's initial List, exactly
-	// as in the production race.
-	cancelApp := test.StartInformer(ctrl.appInformer)
-	defer cancelApp()
-
-	require.False(t, ctrl.projInformer.HasSynced())
-
-	for _, action := range appCs.Actions() {
-		if action.GetVerb() != "patch" || action.GetResource().Resource != "applications" {
-			continue
-		}
-		pa, ok := action.(kubetesting.PatchAction)
-		require.True(t, ok)
-		assert.NotContains(t, string(pa.GetPatch()), string(v1alpha1.ApplicationConditionInvalidSpecError),
-			"indexer must not PATCH InvalidSpecError when projInformer has not synced")
-	}
-
-	got, err := appCs.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
-	require.NoError(t, err)
-	for _, c := range got.Status.Conditions {
-		assert.NotEqual(t, v1alpha1.ApplicationConditionInvalidSpecError, c.Type,
-			"persisted app must not carry InvalidSpecError after startup race")
-	}
 }
 
 func TestOrphanedIndexDoesNotQueryProjectDuringStartupRace(t *testing.T) {
@@ -3658,55 +2918,6 @@ func TestFinalizeProjectDeletion_IgnoresAppsNotPermittedByProject(t *testing.T) 
 			"finalizers": nil,
 		},
 	}, receivedPatch)
-}
-
-func TestProcessAppOperationQueueItem_FinalizesDeletionWhenStaleOperationCleared(t *testing.T) {
-	now := metav1.Now()
-
-	// Informer still shows a pending operation (stale).
-	staleApp := newFakeApp()
-	staleApp.Spec.Destination.Namespace = test.FakeArgoCDNamespace
-	staleApp.Operation = &v1alpha1.Operation{
-		Sync: &v1alpha1.SyncOperation{},
-	}
-
-	// API server has already cleared the operation and started deletion.
-	freshApp := staleApp.DeepCopy()
-	freshApp.Operation = nil
-	freshApp.ResourceVersion = "999"
-	freshApp.DeletionTimestamp = &now
-	freshApp.SetCascadedDeletion(v1alpha1.ResourcesFinalizerName)
-
-	ctrl := newFakeController(t.Context(), &fakeData{
-		apps:            []runtime.Object{staleApp, &defaultProj},
-		managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{},
-	}, nil)
-
-	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-	defaultReactor := fakeAppCs.ReactionChain[0]
-	fakeAppCs.ReactionChain = nil
-	fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		if getAction, ok := action.(kubetesting.GetAction); ok &&
-			getAction.GetNamespace() == freshApp.Namespace &&
-			getAction.GetName() == freshApp.Name {
-			return true, freshApp.DeepCopy(), nil
-		}
-		return defaultReactor.React(action)
-	})
-
-	finalizePatchCalled := false
-	fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		finalizePatchCalled = true
-		return true, &v1alpha1.Application{}, nil
-	})
-
-	key, err := cache.MetaNamespaceKeyFunc(staleApp)
-	require.NoError(t, err)
-	ctrl.appOperationQueue.Add(key)
-
-	assert.True(t, ctrl.processAppOperationQueueItem())
-	assert.True(t, finalizePatchCalled,
-		"expected deletion finalization when fresh app has no operation but has deletion timestamp")
 }
 
 func TestProcessRequestedAppOperation_FailedNoRetries(t *testing.T) {
@@ -4065,6 +3276,139 @@ func TestProcessRequestedAppOperation_SyncTimeout(t *testing.T) {
 	}
 }
 
+func TestProcessRequestedAppOperation_RequeuesOperation(t *testing.T) {
+	t.Run("requeues with the max requeue interval by default", func(t *testing.T) {
+		app := newFakeApp()
+		app.Spec.Project = "default"
+		app.Operation = &v1alpha1.Operation{
+			Sync: &v1alpha1.SyncOperation{},
+		}
+		ctrl := newFakeController(t.Context(), &fakeData{
+			apps: []runtime.Object{app, &defaultProj},
+			manifestResponses: []*apiclient.ManifestResponse{{
+				Manifests: []string{},
+			}},
+		}, nil)
+		rq := &recordingOperationQueue{TypedRateLimitingInterface: ctrl.appOperationQueue}
+		ctrl.appOperationQueue = rq
+
+		ctrl.processRequestedAppOperation(app)
+
+		require.Len(t, rq.calls, 1)
+		assert.Equal(t, ctrl.toAppKey(app.QualifiedName()), rq.calls[0].item)
+		assert.Equal(t, appOperationMaxRequeueInterval, rq.calls[0].delay)
+	})
+
+	t.Run("caps the requeue delay by the remaining sync timeout", func(t *testing.T) {
+		app := newFakeApp()
+		app.Spec.Project = "default"
+		app.Operation = &v1alpha1.Operation{
+			Sync: &v1alpha1.SyncOperation{Revision: "HEAD"},
+		}
+		ctrl := newFakeController(t.Context(), &fakeData{
+			apps: []runtime.Object{app, &defaultProj},
+			manifestResponses: []*apiclient.ManifestResponse{{
+				Manifests: []string{},
+			}},
+		}, nil)
+		ctrl.syncTimeout = 10 * time.Second
+		app.Status.OperationState = &v1alpha1.OperationState{
+			Operation: *app.Operation,
+			Phase:     synccommon.OperationRunning,
+			StartedAt: metav1.Now(),
+		}
+		rq := &recordingOperationQueue{TypedRateLimitingInterface: ctrl.appOperationQueue}
+		ctrl.appOperationQueue = rq
+
+		ctrl.processRequestedAppOperation(app)
+
+		require.Len(t, rq.calls, 1)
+		assert.Equal(t, ctrl.toAppKey(app.QualifiedName()), rq.calls[0].item)
+		assert.Positive(t, rq.calls[0].delay)
+		assert.LessOrEqual(t, rq.calls[0].delay, ctrl.syncTimeout)
+		assert.Less(t, rq.calls[0].delay, appOperationMaxRequeueInterval)
+	})
+
+	t.Run("requeues after the remaining retry backoff", func(t *testing.T) {
+		app := newFakeApp()
+		app.Spec.Project = "default"
+		app.Operation = &v1alpha1.Operation{
+			Sync: &v1alpha1.SyncOperation{},
+			Retry: v1alpha1.RetryStrategy{
+				Limit: 1,
+				Backoff: &v1alpha1.Backoff{
+					Duration:    "1h",
+					Factor:      new(int64(100)),
+					MaxDuration: "1h",
+				},
+			},
+		}
+		ctrl := newFakeController(t.Context(), &fakeData{
+			apps: []runtime.Object{app, &defaultProj},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+			},
+		}, nil)
+		app.Status.OperationState.Operation = *app.Operation
+		app.Status.OperationState.Phase = synccommon.OperationRunning
+		app.Status.OperationState.RetryCount = 1
+		app.Status.OperationState.FinishedAt = &metav1.Time{Time: time.Now().Add(-time.Second)}
+		rq := &recordingOperationQueue{TypedRateLimitingInterface: ctrl.appOperationQueue}
+		ctrl.appOperationQueue = rq
+
+		ctrl.processRequestedAppOperation(app)
+
+		require.Len(t, rq.calls, 1)
+		assert.Equal(t, ctrl.toAppKey(app.QualifiedName()), rq.calls[0].item)
+		// The retry backoff (~1h) governs the requeue, well beyond the default backstop.
+		assert.Greater(t, rq.calls[0].delay, appOperationMaxRequeueInterval)
+	})
+}
+
+func TestShouldProcessOperation(t *testing.T) {
+	now := metav1.Now()
+	testCases := []struct {
+		name              string
+		operation         *v1alpha1.Operation
+		deletionTimestamp *metav1.Time
+		expected          bool
+	}{
+		{
+			name:     "no operation and no deletion timestamp",
+			expected: false,
+		},
+		{
+			name:      "operation is set",
+			operation: &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}},
+			expected:  true,
+		},
+		{
+			name:              "deletion timestamp is set",
+			deletionTimestamp: &now,
+			expected:          true,
+		},
+		{
+			name:              "both operation and deletion timestamp are set",
+			operation:         &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}},
+			deletionTimestamp: &now,
+			expected:          true,
+		},
+	}
+
+	ctrl := &ApplicationController{}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			app := newFakeApp()
+			app.Operation = tc.operation
+			app.DeletionTimestamp = tc.deletionTimestamp
+			assert.Equal(t, tc.expected, ctrl.shouldProcessOperation(app))
+		})
+	}
+}
+
 func TestApplicationController_PersistAppStatus_FallbackOnSizeLimit(t *testing.T) {
 	app := newFakeApp()
 	app.Status.Health.Status = health.HealthStatusHealthy
@@ -4096,7 +3440,7 @@ func TestApplicationController_PersistAppStatus_FallbackOnSizeLimit(t *testing.T
 		{Name: "bloat-1", Kind: "ConfigMap", Status: v1alpha1.SyncStatusCodeOutOfSync},
 	}
 
-	ctrl.persistAppStatus(app, newStatus, app.GetAnnotations())
+	ctrl.persistAppStatus(t.Context(), app, newStatus, app.GetAnnotations())
 
 	require.Equal(t, 2, patchCalls, "expected initial patch + fallback patch")
 
@@ -4139,7 +3483,7 @@ func TestApplicationController_PersistAppStatus_NonSizeLimitErrorNoFallback(t *t
 	newStatus := app.Status.DeepCopy()
 	newStatus.Sync.Status = v1alpha1.SyncStatusCodeOutOfSync
 
-	ctrl.persistAppStatus(app, newStatus, app.GetAnnotations())
+	ctrl.persistAppStatus(t.Context(), app, newStatus, app.GetAnnotations())
 
 	assert.Equal(t, 1, patchCalls, "non-size-limit errors should NOT trigger fallback patch")
 }
@@ -4175,7 +3519,7 @@ func TestApplicationController_PersistAppStatus_FallbackMessageContainsUserGuida
 		{Name: "bloat-1", Kind: "ConfigMap", Status: v1alpha1.SyncStatusCodeOutOfSync},
 	}
 
-	ctrl.persistAppStatus(app, newStatus, app.GetAnnotations())
+	ctrl.persistAppStatus(t.Context(), app, newStatus, app.GetAnnotations())
 
 	require.Equal(t, 2, patchCalls, "expected initial patch + fallback patch")
 
@@ -4232,7 +3576,7 @@ func TestApplicationController_PersistAppStatus_FallbackPatchAlsoFails(t *testin
 	// Must not panic or block when the fallback patch also fails — the error
 	// should be logged and persistAppStatus should return normally.
 	assert.NotPanics(t, func() {
-		ctrl.persistAppStatus(app, newStatus, app.GetAnnotations())
+		ctrl.persistAppStatus(t.Context(), app, newStatus, app.GetAnnotations())
 	})
 
 	assert.Equal(t, 2, patchCalls, "fallback patch should be attempted exactly once after initial size-limit failure")
@@ -4794,7 +4138,7 @@ func TestPersistAppStatus_AnnotationManagement(t *testing.T) {
 		origApp := app.DeepCopy()
 		newStatus := app.Status.DeepCopy()
 
-		ctrl.persistReconciliationStatus(origApp, newStatus)
+		ctrl.persistReconciliationStatus(t.Context(), origApp, newStatus)
 
 		// Verify the patch was created correctly
 		patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
@@ -4835,7 +4179,7 @@ func TestPersistAppStatus_AnnotationManagement(t *testing.T) {
 		maps.Copy(newAnnotations, origApp.Annotations)
 		delete(newAnnotations, v1alpha1.AnnotationKeyHydrate)
 
-		ctrl.persistAppStatus(origApp, newStatus, newAnnotations)
+		ctrl.persistAppStatus(t.Context(), origApp, newStatus, newAnnotations)
 
 		// Verify the patch was created correctly
 		patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})

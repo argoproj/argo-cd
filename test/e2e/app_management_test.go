@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
-	. "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	. "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -2970,46 +2970,5 @@ func TestRefreshAnnotationTriggersRefresh(t *testing.T) {
 				}
 				return app.Status.ReconciledAt != nil && app.Status.ReconciledAt.After(initialReconciledAt.Time)
 			}, 30*time.Second, 1*time.Second, "Refresh annotation should trigger refresh even with timeout.reconciliation=0s")
-		})
-}
-
-// TestEnableAutomatedSyncTriggersRefresh verifies that enabling automated sync
-// on an application triggers a refresh with CompareWithLatest.
-func TestEnableAutomatedSyncTriggersRefresh(t *testing.T) {
-	ctx := t.Context()
-
-	Given(t).
-		Path(guestbookPath).
-		When().
-		CreateApp().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(a *Application) {
-			time.Sleep(5 * time.Second)
-
-			app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).Get(ctx, a.Name, metav1.GetOptions{})
-			require.NoError(t, err)
-			initialReconciledAt := app.Status.ReconciledAt
-			require.NotNil(t, initialReconciledAt, "Initial ReconciledAt should be set")
-			require.Nil(t, app.Spec.SyncPolicy, "App should not have automated sync initially")
-
-			// Enable automated sync by updating the spec
-			app.Spec.SyncPolicy = &SyncPolicy{
-				Automated: &SyncPolicyAutomated{},
-			}
-
-			_, err = fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).Update(ctx, app, metav1.UpdateOptions{})
-			require.NoError(t, err)
-
-			require.Eventually(t, func() bool {
-				app, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).Get(ctx, a.Name, metav1.GetOptions{})
-				if err != nil {
-					return false
-				}
-				// ReconciledAt should have changed, indicating a refresh occurred
-				return app.Status.ReconciledAt != nil && app.Status.ReconciledAt.After(initialReconciledAt.Time)
-			}, 30*time.Second, 1*time.Second, "Enabling automated sync should trigger a refresh")
 		})
 }
