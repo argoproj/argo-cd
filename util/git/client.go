@@ -1791,12 +1791,13 @@ const gitTerminalPromptDisabledMsg = "terminal prompts disabled"
 // humanizeAuthPromptError rewrites Git's misleading "terminal prompts disabled"
 // failure into an authentication error, since the raw message reads as a tty
 // problem when the real cause is that no credentials matched the repository URL.
-// Any other error is returned unchanged.
+// The original Git output is intentionally not wrapped, to avoid disclosing
+// details that could aid an attacker. Any other error is returned unchanged.
 func humanizeAuthPromptError(repoURL string, err error) error {
 	if err == nil || !strings.Contains(err.Error(), gitTerminalPromptDisabledMsg) {
 		return err
 	}
-	return fmt.Errorf("failed to authenticate to git repository %q: no credentials matched this URL: %w", SanitizeRepoURL(repoURL), err)
+	return fmt.Errorf("failed to authenticate to git repository %q: no credentials matched this URL", SanitizeRepoURL(repoURL))
 }
 
 func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, error) {
