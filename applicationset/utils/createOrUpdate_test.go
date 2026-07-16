@@ -1,16 +1,66 @@
 package utils
 
 import (
+	"context"
 	"testing"
+	"time"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.yaml.in/yaml/v3"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 )
+
+func TestCreateOrUpdate_SkipsAppWithDeletionTimestamp(t *testing.T) {
+	t.Parallel()
+	scheme := runtime.NewScheme()
+	require.NoError(t, v1alpha1.AddToScheme(scheme))
+
+	deletionTime := metav1.NewTime(time.Now())
+	existingApp := &v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              "app-being-deleted",
+			Namespace:         "argocd",
+			DeletionTimestamp: &deletionTime,
+			// Finalizers required for fake client to allow DeletionTimestamp to be set
+			Finalizers: []string{"resources-finalizer.argocd.argoproj.io"},
+		},
+	}
+
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(existingApp).Build()
+	logCtx := log.NewEntry(log.StandardLogger())
+
+	obj := &v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "app-being-deleted",
+			Namespace: "argocd",
+		},
+	}
+
+	result, err := CreateOrUpdate(context.Background(), logCtx, fakeClient, nil, obj, func() error {
+		// This mutate would set an Operation, triggering a sync — should never be applied.
+		obj.Operation = &v1alpha1.Operation{
+			Sync: &v1alpha1.SyncOperation{},
+		}
+		return nil
+	})
+
+	require.NoError(t, err)
+	assert.Equal(t, controllerutil.OperationResultNone, result, "expected no-op for app with DeletionTimestamp")
+
+	// Verify the app was not patched (Operation should remain nil in cluster).
+	updated := &v1alpha1.Application{}
+	require.NoError(t, fakeClient.Get(context.Background(), client.ObjectKeyFromObject(existingApp), updated))
+	assert.Nil(t, updated.Operation, "Operation must not be set on a deleting app")
+}
 
 func Test_applyIgnoreDifferences(t *testing.T) {
 	t.Parallel()
