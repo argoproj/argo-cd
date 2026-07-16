@@ -583,18 +583,6 @@ checked and hydrated (if necessary) outside of the normal commit-detection flow.
 consumes and removes the annotation as soon as it has processed it, so it will not normally persist on the
 Application.
 
-Whenever Argo CD sets this annotation itself (see the triggers below), it also sets the companion
-`argocd.argoproj.io/hydrate-timestamp` annotation to a unique timestamp identifying that specific
-hydration request. When the controller finishes hydrating, it removes both annotations together, but only
-if `hydrate-timestamp` still has the value it had when hydration started. If a new hydration request
-arrived while the previous one was being processed, `hydrate-timestamp` will have a newer value, removal is
-skipped, and the request is processed instead of being silently dropped.
-
-> [!NOTE]
-> `hydrate-timestamp` is managed by the application controller and isn't meant to be set manually. If you
-> set the `hydrate` annotation by hand without `hydrate-timestamp` (as in the example below), the controller
-> simply removes `hydrate` once it's consumed, the same as before this mechanism was introduced.
-
 The annotation takes one of two values:
 
 | Value    | Effect                                                                                                                    |
@@ -605,7 +593,14 @@ The annotation takes one of two values:
 > [!NOTE]
 > Only the exact value `hard` is special-cased. Any other value is treated as `normal`.
 
-Argo CD sets this annotation automatically in a few situations:
+Whenever Argo CD sets this annotation itself (see the triggers below), it also sets the companion
+`argocd.argoproj.io/hydrate-timestamp` annotation to a unique timestamp identifying that specific
+hydration request. When the controller finishes hydrating, it removes both annotations together, but only
+if `hydrate-timestamp` still has the value it had when hydration started. If a new hydration request
+arrived while the previous one was being processed, `hydrate-timestamp` will have a newer value, removal is
+skipped, and the request is processed instead of being silently dropped.
+
+Argo CD sets these annotation automatically in a few situations:
 
 * **Manual or API refresh.** `argocd app get <app> --refresh` (and the equivalent API call) sets it to `normal`;
   `argocd app get <app> --hard-refresh` sets it to `hard`.
