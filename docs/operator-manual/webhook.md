@@ -211,7 +211,7 @@ For example, these `repoURL` values all match a webhook event for `ghcr.io/myorg
 - `oci://GHCR.IO/MyOrg/MyImage`
 - `oci://ghcr.io/myorg/myimage/`
 
-### Avoiding Dropped Refresh Requests
+## Application Annotations Used by Webhooks
 
 A webhook event triggers a refresh by setting the `argocd.argoproj.io/refresh` annotation on each matching
 Application (and, for Applications using the [source hydrator](../user-guide/source-hydrator.md), the
