@@ -54,8 +54,6 @@ var (
 	ErrRevisionNotFound = errors.New("revision not found")
 )
 
-var errOptimizedLsRemoteTimeout = errors.New("optimized git ls-remote timed out")
-
 // builtinGitConfig configuration contains statements that are needed
 // for correct ArgoCD operation. These settings will override any
 // user-provided configuration of same options.
@@ -206,13 +204,12 @@ type nativeGitClient struct {
 	tagPrefix string
 	// optimizedLsRemoteEnabled uses native git ls-remote with server-side ref narrowing when possible.
 	optimizedLsRemoteEnabled bool
-	// optimizedLsRemoteRefPrefixes controls which ref namespaces are eligible for optimized ls-remote.
-	optimizedLsRemoteRefPrefixes []string
 }
 
 type runOpts struct {
 	SkipErrorLogging bool
 	CaptureStderr    bool
+	Dir              string
 }
 
 var (
@@ -279,11 +276,10 @@ func WithTagPrefix(prefix string) ClientOpts {
 	}
 }
 
-// WithOptimizedLsRemote enables native git ls-remote calls for configured ref prefixes.
-func WithOptimizedLsRemote(enabled bool, refPrefixes []string) ClientOpts {
+// WithOptimizedLsRemote enables native git ls-remote calls for branches and tags.
+func WithOptimizedLsRemote(enabled bool) ClientOpts {
 	return func(c *nativeGitClient) {
 		c.optimizedLsRemoteEnabled = enabled
-		c.optimizedLsRemoteRefPrefixes = normalizeOptimizedLsRemoteRefPrefixes(refPrefixes)
 	}
 }
 
@@ -956,64 +952,8 @@ func getGitTags(refs []*plumbing.Reference) []string {
 	return tags
 }
 
-func normalizeOptimizedLsRemoteRefPrefixes(refPrefixes []string) []string {
-	normalized := make([]string, 0, len(refPrefixes))
-	seen := map[string]bool{}
-	for _, prefix := range refPrefixes {
-		prefix = strings.TrimSpace(prefix)
-		switch prefix {
-		case "refs/heads":
-			prefix = "refs/heads/"
-		case "refs/tags":
-			prefix = "refs/tags/"
-		}
-		if prefix == "" || seen[prefix] {
-			continue
-		}
-		seen[prefix] = true
-		normalized = append(normalized, prefix)
-	}
-	return normalized
-}
-
-func (m *nativeGitClient) optimizedLsRemoteCapabilities() (heads bool, tags bool) {
-	for _, prefix := range m.optimizedLsRemoteRefPrefixes {
-		switch prefix {
-		case "refs/heads/":
-			heads = true
-		case "refs/tags/":
-			tags = true
-		}
-	}
-	return heads, tags
-}
-
-func (m *nativeGitClient) optimizedLsRemoteRefPrefixPlan() ([]string, []string, bool) {
-	heads, tags := m.optimizedLsRemoteCapabilities()
-	if !heads && !tags {
-		return nil, nil, false
-	}
-
-	args := []string{"ls-remote"}
-	cacheParts := []string{"HEAD"}
-	if heads {
-		args = append(args, "--heads")
-		cacheParts = append(cacheParts, "heads")
-	}
-	if tags {
-		args = append(args, "--tags")
-		cacheParts = append(cacheParts, "tags")
-	}
-	args = append(args, m.repoURL)
-	return args, cacheParts, true
-}
-
-func (m *nativeGitClient) optimizedLsRemoteCacheKey(parts ...string) string {
-	return fmt.Sprintf("ls-remote-optimized|%s|%s", m.repoURL, strings.Join(parts, ","))
-}
-
-func (m *nativeGitClient) getOptimizedLsRemoteRefs(cacheKey string, fetch func() ([]*plumbing.Reference, error)) ([]*plumbing.Reference, error) {
-	return m.getRefsFromCacheOrFetch(cacheKey, "optimized", fetch)
+func (m *nativeGitClient) optimizedLsRemoteCacheKey() string {
+	return fmt.Sprintf("ls-remote-optimized|%s|HEAD,heads,tags", m.repoURL)
 }
 
 func (m *nativeGitClient) lsRemoteOptimized(revision string) (string, bool, error) {
@@ -1025,39 +965,22 @@ func (m *nativeGitClient) lsRemoteOptimized(revision string) (string, bool, erro
 		revision = "HEAD"
 	}
 
-	args, cacheParts, ok := m.optimizedLsRemoteRefPrefixPlan()
-	if !ok {
-		return "", false, nil
-	}
-	heads, tags := m.optimizedLsRemoteCapabilities()
-
 	if strings.HasPrefix(revision, "refs/") {
-		switch {
-		case strings.HasPrefix(revision, "refs/heads/"):
-			if !heads {
-				return "", false, nil
-			}
-		case strings.HasPrefix(revision, "refs/tags/"):
-			if !tags {
-				return "", false, nil
-			}
-		default:
+		refName := plumbing.ReferenceName(revision)
+		if !refName.IsBranch() && !refName.IsTag() {
 			return "", false, nil
 		}
 	}
 
-	cacheKey := m.optimizedLsRemoteCacheKey(cacheParts...)
+	cacheKey := m.optimizedLsRemoteCacheKey()
 	fetchedBulkRefs := false
 	fetchBulkRefs := func() ([]*plumbing.Reference, error) {
 		fetchedBulkRefs = true
-		return m.runLsRemote(args...)
+		return m.runLsRemote("ls-remote", "--heads", "--tags", m.repoURL)
 	}
-	refs, err := m.getOptimizedLsRemoteRefs(cacheKey, fetchBulkRefs)
+	refs, err := m.getRefsFromCacheOrFetch(cacheKey, "optimized", fetchBulkRefs)
 	if err != nil {
-		if errors.Is(err, errOptimizedLsRemoteTimeout) {
-			return "", true, err
-		}
-		return "", false, err
+		return "", errors.Is(err, context.DeadlineExceeded), err
 	}
 	res, err := m.resolveRevisionWithoutTruncatedSHAFallback(revision, refs)
 	if err != nil && revision == "HEAD" {
@@ -1067,18 +990,12 @@ func (m *nativeGitClient) lsRemoteOptimized(revision string) (string, bool, erro
 		if !fetchedBulkRefs {
 			refs, err = fetchBulkRefs()
 			if err != nil {
-				if errors.Is(err, errOptimizedLsRemoteTimeout) {
-					return "", true, err
-				}
-				return "", false, err
+				return "", errors.Is(err, context.DeadlineExceeded), err
 			}
 		}
 		headRefs, headErr := m.runLsRemote("ls-remote", m.repoURL, "HEAD")
 		if headErr != nil {
-			if errors.Is(headErr, errOptimizedLsRemoteTimeout) {
-				return "", true, headErr
-			}
-			return "", false, headErr
+			return "", errors.Is(headErr, context.DeadlineExceeded), headErr
 		}
 		refs = append(refs, headRefs...)
 		if m.gitRefCache != nil {
@@ -1089,32 +1006,14 @@ func (m *nativeGitClient) lsRemoteOptimized(revision string) (string, bool, erro
 		res, err = m.resolveRevisionWithoutTruncatedSHAFallback(revision, refs)
 	}
 	if err != nil {
-		if m.optimizedLsRemoteResolveMissNeedsFallback(revision, heads, tags) {
+		// Short names can refer to custom namespaces, and hexadecimal names can be
+		// truncated commit SHAs. Preserve the full resolver for either case.
+		if revision != "HEAD" && !strings.HasPrefix(revision, "refs/") {
 			return "", false, nil
 		}
 		return "", true, err
 	}
 	return res, true, nil
-}
-
-func (m *nativeGitClient) optimizedLsRemoteResolveMissNeedsFallback(revision string, heads bool, tags bool) bool {
-	if IsTruncatedCommitSHA(revision) {
-		return true
-	}
-	if revision == "HEAD" || revision == "" {
-		return false
-	}
-	if strings.HasPrefix(revision, "refs/") {
-		switch {
-		case strings.HasPrefix(revision, "refs/heads/"):
-			return !heads
-		case strings.HasPrefix(revision, "refs/tags/"):
-			return !tags
-		default:
-			return true
-		}
-	}
-	return true
 }
 
 func (m *nativeGitClient) runLsRemote(args ...string) ([]*plumbing.Reference, error) {
@@ -1126,10 +1025,11 @@ func (m *nativeGitClient) runLsRemote(args ...string) ([]*plumbing.Reference, er
 	ctx, cancel := context.WithTimeout(context.Background(), gitClientTimeout)
 	defer cancel()
 
-	out, err := m.runCredentialedCmdOutput(ctx, append([]string{"-c", "protocol.version=2"}, args...)...)
+	args = append([]string{"-c", "protocol.version=2"}, args...)
+	out, err := m.runCredentialedCmdOutput(ctx, runOpts{Dir: os.TempDir()}, args...)
 	if err != nil {
-		if ctx.Err() != nil {
-			return nil, fmt.Errorf("%w after %s: %w", errOptimizedLsRemoteTimeout, gitClientTimeout, err)
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, fmt.Errorf("git ls-remote timed out after %s: %w", gitClientTimeout, ctxErr)
 		}
 		return nil, err
 	}
@@ -1186,7 +1086,7 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 		return revision, nil
 	}
 
-	if res, ok, err := m.lsRemoteOptimized(revision); ok {
+	if res, handled, err := m.lsRemoteOptimized(revision); handled {
 		return res, err
 	} else if err != nil {
 		log.Debugf("optimized ls-remote failed for revision '%s', falling back to default resolver: %v", revision, err)
@@ -2035,17 +1935,7 @@ func credentialedGitArgs(args []string, environ []string) []string {
 
 // runCredentialedCmd is a convenience function to run a git command with username/password credentials
 func (m *nativeGitClient) runCredentialedCmd(ctx context.Context, args ...string) error {
-	closer, environ, err := m.creds.Environ()
-	if err != nil {
-		return err
-	}
-	defer func() { _ = closer.Close() }()
-
-	args = credentialedGitArgs(args, environ)
-
-	cmd := exec.CommandContext(ctx, "git", args...)
-	cmd.Env = append(cmd.Env, environ...)
-	_, err = m.runCmdOutput(cmd, runOpts{})
+	_, err := m.runCredentialedCmdOutput(ctx, runOpts{}, args...)
 	return humanizeAuthPromptError(m.repoURL, err)
 }
 
@@ -2067,7 +1957,7 @@ func humanizeAuthPromptError(repoURL string, err error) error {
 }
 
 // runCredentialedCmdOutput is a convenience function to run a git command with credentials and return its output.
-func (m *nativeGitClient) runCredentialedCmdOutput(ctx context.Context, args ...string) (string, error) {
+func (m *nativeGitClient) runCredentialedCmdOutput(ctx context.Context, ropts runOpts, args ...string) (string, error) {
 	closer, environ, err := m.creds.Environ()
 	if err != nil {
 		return "", err
@@ -2078,14 +1968,14 @@ func (m *nativeGitClient) runCredentialedCmdOutput(ctx context.Context, args ...
 
 	cmd := exec.CommandContext(ctx, "git", args...)
 	cmd.Env = append(cmd.Env, environ...)
-	// ls-remote does not need the checkout, which may be protected with mode 000 between operations.
-	cmd.Dir = os.TempDir()
-	return m.runCmdOutput(cmd, runOpts{})
+	return m.runCmdOutput(cmd, ropts)
 }
 
 func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, error) {
-	if cmd.Dir == "" {
+	if ropts.Dir == "" {
 		cmd.Dir = m.root
+	} else {
+		cmd.Dir = ropts.Dir
 	}
 	cmd.Env = append(os.Environ(), cmd.Env...)
 	// Set $HOME to nowhere, so we can execute Git regardless of any external
