@@ -348,7 +348,8 @@ export const ApplicationSetsList = (props: RouteComponentProps<any>) => {
             {
                 health: newPref.healthFilter.join(','),
                 labels: newPref.labelsFilter.map(encodeURIComponent).join(','),
-                showFavorites: newPref.showFavorites ? 'true' : null
+                showFavorites: newPref.showFavorites ? 'true' : null,
+                view: newPref.view
             },
             {replace: true}
         );
@@ -429,7 +430,17 @@ export const ApplicationSetsList = (props: RouteComponentProps<any>) => {
                                                             )}
 
                                                             {pref.view === Summary ? (
-                                                                <ApplicationSetsSummary appSets={filteredApps} />
+                                                                <ApplicationSetsSummary
+                                                                    appSets={filteredApps}
+                                                                    onFilterClick={(type, value) => {
+                                                                        const newPref = {...appSetPref};
+                                                                        if (type === 'Health') {
+                                                                            newPref.healthFilter = [value];
+                                                                        }
+                                                                        newPref.view = AppsListViewKey.Tiles;
+                                                                        onAppSetFilterPrefChanged(ctx, newPref);
+                                                                    }}
+                                                                />
                                                             ) : (
                                                                 <Paginate
                                                                     header={filteredApps.length > 1 && <AppSetsStatusBar appSets={filteredApps} />}

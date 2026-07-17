@@ -12,7 +12,16 @@ appSetHealthColors.set('Healthy', COLORS.health.healthy);
 appSetHealthColors.set('Degraded', COLORS.health.degraded);
 appSetHealthColors.set('Progressing', COLORS.health.progressing);
 
-export const ApplicationSetsSummary = ({appSets}: {appSets: models.ApplicationSet[]}) => {
+const handleKeyDown = (e: React.KeyboardEvent, action: () => void) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        action();
+    }
+};
+
+export const ApplicationSetsSummary = ({appSets, onFilterClick}: {appSets: models.ApplicationSet[]; onFilterClick?: (type: 'Health', value: string) => void}) => {
+    const [hoveredSector, setHoveredSector] = React.useState<{chartTitle: string; title: string} | null>(null);
+
     const health = new Map<string, number>();
 
     appSets.forEach(appSet => {
@@ -62,14 +71,52 @@ export const ApplicationSetsSummary = ({appSets}: {appSets: models.ApplicationSe
                                         <div className='row chart'>
                                             <div className='large-8 small-6'>
                                                 <h4 style={{textAlign: 'center'}}>{chart.title}</h4>
-                                                <PieChart data={chart.data} />
+                                                <div
+                                                    onClick={() => {
+                                                        if (onFilterClick && hoveredSector && hoveredSector.chartTitle === chart.title) {
+                                                            onFilterClick(chart.title as 'Health', hoveredSector.title);
+                                                        }
+                                                    }}
+                                                    onKeyDown={e => {
+                                                        if (onFilterClick && hoveredSector && hoveredSector.chartTitle === chart.title) {
+                                                            handleKeyDown(e, () => onFilterClick(chart.title as 'Health', hoveredSector.title));
+                                                        }
+                                                    }}
+                                                    style={{cursor: 'pointer'}}
+                                                    title='Click to filter application sets'
+                                                    role='button'
+                                                    tabIndex={0}>
+                                                    <PieChart
+                                                        data={chart.data}
+                                                        onSectorHover={(d: any) => setHoveredSector(d ? {chartTitle: chart.title, title: d.title} : null)}
+                                                        expandOnHover={true}
+                                                    />
+                                                </div>
                                             </div>
                                             <div className='large-3 small-1'>
                                                 <ul>
                                                     {Array.from(chart.legend.keys()).map(key => (
                                                         <li style={{listStyle: 'none', whiteSpace: 'nowrap'}} key={key}>
-                                                            <HealthStatusIcon state={{status: key as HealthStatusCode, message: ''}} noSpin={true} />
-                                                            {` ${key} (${getLegendValue(key)})`}
+                                                            <button
+                                                                type='button'
+                                                                onClick={() => {
+                                                                    if (onFilterClick) {
+                                                                        onFilterClick(chart.title as 'Health', key);
+                                                                    }
+                                                                }}
+                                                                title={`Filter by ${key}`}
+                                                                style={{
+                                                                    background: 'none',
+                                                                    border: 'none',
+                                                                    padding: 0,
+                                                                    cursor: 'pointer',
+                                                                    textAlign: 'left',
+                                                                    font: 'inherit',
+                                                                    color: 'inherit'
+                                                                }}>
+                                                                <HealthStatusIcon state={{status: key as HealthStatusCode, message: ''}} noSpin={true} />
+                                                                {` ${key} (${getLegendValue(key)})`}
+                                                            </button>
                                                         </li>
                                                     ))}
                                                 </ul>
