@@ -83,11 +83,9 @@ git checkout {{ .DrySHA }}
 {{ end -}}
 {{ end -}}`
 
-type DexTLSVersionAndCipherSuites struct {
+type DexTLSVersion struct {
 	// DexTLSVersion designates the key for the TLS version used for web
 	DexTLSVersion string `json:"dexTlsVersion,omitempty"`
-	// DexTLSCipherSuites designates the key for the TLS cipher suites used for web
-	DexTLSCipherSuites []string `json:"dexTlsCipherSuites,omitempty"`
 }
 
 // ArgoCDSettings holds in-memory runtime configuration options.
@@ -104,8 +102,8 @@ type ArgoCDSettings struct {
 	StatusBadgeRootUrl string `json:"statusBadgeRootUrl,omitempty"` //nolint:revive //FIXME(var-naming)
 	// DexConfig contains portions of a dex config yaml
 	DexConfig string `json:"dexConfig,omitempty"`
-	// DexTLSVersionAndCipherSuites holds the TLS version and cipher suites for dex web
-	DexTLSVersionAndCipherSuites *DexTLSVersionAndCipherSuites `json:"dexTlsVersionAndCipherSuites,omitempty"`
+	// DexTLSVersion holds the TLS version for dex web
+	DexTLSVersion *DexTLSVersion `json:"dexTlsVersion,omitempty"`
 	// OIDCConfigRAW holds OIDC configuration as a raw string
 	OIDCConfigRAW string `json:"oidcConfig,omitempty"`
 	// ServerSignature holds the key used to generate JWT tokens.
@@ -452,8 +450,8 @@ const (
 	settingAdditionalUrlsKey = "additionalUrls"
 	// settingDexConfigKey designates the key for the dex config
 	settingDexConfigKey = "dex.config"
-	// settingDexTLSVersionAndCipherSuites designates the key for the TLS version and cipher suites used for web
-	settingDexTLSVersionAndCipherSuites = "dex.tls"
+	// settingDexTLSVersion designates the key for the TLS version used for web
+	settingDexTLSVersion = "dex.tls"
 	// settingsOIDCConfigKey designates the key for OIDC config
 	settingsOIDCConfigKey = "oidc.config"
 	// statusBadgeEnabledKey holds the key which enables of disables status badge feature
@@ -1680,12 +1678,12 @@ func getDownloadBinaryUrlsFromConfigMap(argoCDCM *corev1.ConfigMap) map[string]s
 // updateSettingsFromConfigMap transfers settings from a Kubernetes configmap into an ArgoCDSettings struct.
 func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.ConfigMap) {
 	settings.DexConfig = argoCDCM.Data[settingDexConfigKey]
-	if raw, ok := argoCDCM.Data[settingDexTLSVersionAndCipherSuites]; ok && raw != "" {
-		var dexTLSConfig DexTLSVersionAndCipherSuites
+	if raw, ok := argoCDCM.Data[settingDexTLSVersion]; ok && raw != "" {
+		var dexTLSConfig DexTLSVersion
 		if err := yaml.Unmarshal([]byte(raw), &dexTLSConfig); err != nil {
-			log.Warnf("Failed to unmarshal %s: %v", settingDexTLSVersionAndCipherSuites, err)
+			log.Warnf("Failed to unmarshal %s: %v", settingDexTLSVersion, err)
 		} else {
-			settings.DexTLSVersionAndCipherSuites = &dexTLSConfig
+			settings.DexTLSVersion = &dexTLSConfig
 		}
 	}
 	settings.OIDCConfigRAW = argoCDCM.Data[settingsOIDCConfigKey]

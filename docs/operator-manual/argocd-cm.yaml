@@ -8,25 +8,11 @@ metadata:
     app.kubernetes.io/part-of: argocd
 data:
   # Dex TLS configuration
-  # Specifies the minimum TLS version and allowed cipher suites for Dex server (web and grpc interfaces)
-  # If not specified, Dex will use default TLS settings
+  # Specifies the minimum TLS version for Dex server
   dex.tls: |
-    # dexTlsVersion: TLS version for Dex web and grpc interfaces
+    # dexTlsVersion: TLS version for Dex web
     # Supported values: "1.2" (default), "1.3"
     dexTlsVersion: "1.3"
-    # dexTlsCipherSuites: List of allowed TLS cipher suites (IANA names)
-    # For TLS 1.2 and 1.3 compatibility:
-    dexTlsCipherSuites:
-      - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
-      - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
-      - TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
-      - TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
-      - TLS_CHACHA20_POLY1305_SHA256
-    # For TLS 1.3 only (recommended for improved security):
-    # dexTlsCipherSuites:
-    #   - TLS_AES_128_GCM_SHA256
-    #   - TLS_AES_256_GCM_SHA384
-    #   - TLS_CHACHA20_POLY1305_SHA256
   # Argo CD's externally facing base URL (optional). Required when configuring SSO
   url: https://argo-cd-demo.argoproj.io
 
