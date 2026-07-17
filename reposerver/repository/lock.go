@@ -20,6 +20,8 @@ type repositoryLock struct {
 // Lock acquires lock unless lock is already acquired with the same commit and allowConcurrent is set to true
 // The init callback receives `clean` parameter which indicates if repo state must be cleaned after running non-concurrent operation.
 // The first init always runs with `clean` set to true because we cannot be sure about initial repo state.
+// clean is also set to true when revision being checked out differs from the last completed revision so that 
+// untracked files left by the previous run are removed before the new revision is processed.
 func (r *repositoryLock) Lock(path string, revision string, allowConcurrent bool, init func(clean bool) (io.Closer, error)) (io.Closer, error) {
 	r.lock.Lock()
 	state, ok := r.stateByKey[path]
@@ -36,6 +38,7 @@ func (r *repositoryLock) Lock(path string, revision string, allowConcurrent bool
 		var err error
 		if state.processCount == 0 {
 			notify = true
+            state.lastRevision = state.revision
 			state.revision = ""
 			err = state.initCloser.Close()
 		}
@@ -54,7 +57,13 @@ func (r *repositoryLock) Lock(path string, revision string, allowConcurrent bool
 		state.cond.L.Lock()
 		if state.revision == "" {
 			// no in progress operation for that repo. Go ahead.
-			initCloser, err := init(!state.allowConcurrent)
+            // clean is required when:
+            //   - the previous operation was non-concurrent (it may have left exclusive state), OR
+            //   - the revision has changed since the last operation (untracked files from the previous
+            //     revision, e.g. vendored Helm charts and the .argocd-helm-dep-up marker, must be removed).
+            revisionChanged := state.lastRevision != "" && state.lastRevision != revision
+            needsClean := !state.allowConcurrent || revisionChanged
+            initCloser, err := init(needsClean)
 			if err != nil {
 				state.cond.L.Unlock()
 				return nil, fmt.Errorf("failed to initialize repository resources: %w", err)
@@ -80,6 +89,7 @@ func (r *repositoryLock) Lock(path string, revision string, allowConcurrent bool
 type repositoryState struct {
 	cond            *sync.Cond
 	revision        string
+    lastRevision    string
 	initCloser      io.Closer
 	processCount    int
 	allowConcurrent bool

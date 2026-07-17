@@ -199,3 +199,39 @@ func TestLock_CleanForNonConcurrent(t *testing.T) {
 	assert.False(t, initClean)
 	utilio.Close(closer)
 }
+
+func TestLock_CleanOnRevisionChange(t *testing.T) {
+    t.Parallel()
+    lock := NewRepositoryLock()
+    var cleanValues []bool
+    init := func(clean bool) (io.Closer, error) {
+        cleanValues = append(cleanValues, clean)
+        return utilio.NopCloser, nil
+    }
+
+    // First op: revision "1", concurrent allowed.
+    closer, done := lockQuickly(func() (io.Closer, error) {
+        return lock.Lock("myRepo", "1", true, init)
+    })
+    assert.True(t, done)
+    // First init is always clean (unknown initial state).
+    assert.True(t, cleanValues[0])
+    utilio.Close(closer)
+
+    // Second op: revision "2" (different!), concurrent allowed.
+    closer, done = lockQuickly(func() (io.Closer, error) {
+        return lock.Lock("myRepo", "2", true, init)
+    })
+    assert.True(t, done)
+    // Revision changed → must clean to remove untracked files from revision "1".
+    assert.True(t, cleanValues[1])
+    utilio.Close(closer)
+
+    // Third op: same revision "2" again, concurrent allowed - no clean needed.
+    closer, done = lockQuickly(func() (io.Closer, error) {
+        return lock.Lock("myRepo", "2", true, init)
+    })
+    assert.True(t, done)
+    assert.False(t, cleanValues[2])
+    utilio.Close(closer)
+}
