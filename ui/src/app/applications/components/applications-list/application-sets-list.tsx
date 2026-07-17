@@ -360,7 +360,7 @@ const ApplicationSetTable = ({
 export const ApplicationSetsList = (props: RouteComponentProps<any>) => {
     const {List, Summary, Tiles} = AppsListViewKey;
     const sidebarTarget = useSidebarTarget();
-    const loaderRef = React.useRef<DataLoader>();
+    const loaderRef = React.useRef<DataLoader | null>(null);
 
     function refreshAppSet(appSetName: string, appSetNamespace: string) {
         if (loaderRef.current) {
