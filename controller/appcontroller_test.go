@@ -2196,7 +2196,8 @@ func TestComparisonExpiry(t *testing.T) {
 		past := metav1.NewTime(time.Now().UTC().Add(-2 * time.Hour))
 		app.Status.ReconciledAt = &past
 		softExpired, hardExpired := comparisonExpiry(app.Status, time.Hour, 0)
-		assert.True(t, softExpired || hardExpired)
+		assert.True(t, softExpired)
+		assert.False(t, hardExpired)
 	})
 
 	t.Run("hard expired when hard timeout configured and shorter than soft window", func(t *testing.T) {
@@ -2204,7 +2205,8 @@ func TestComparisonExpiry(t *testing.T) {
 		past := metav1.NewTime(time.Now().UTC().Add(-10 * time.Minute))
 		app.Status.ReconciledAt = &past
 		softExpired, hardExpired := comparisonExpiry(app.Status, 2*time.Hour, time.Minute)
-		assert.True(t, softExpired || hardExpired)
+		assert.False(t, softExpired)
+		assert.True(t, hardExpired)
 	})
 
 	t.Run("neither soft nor hard expired", func(t *testing.T) {
@@ -2212,7 +2214,8 @@ func TestComparisonExpiry(t *testing.T) {
 		recent := metav1.NewTime(time.Now().UTC().Add(-30 * time.Second))
 		app.Status.ReconciledAt = &recent
 		softExpired, hardExpired := comparisonExpiry(app.Status, 2*time.Hour, time.Minute)
-		assert.False(t, softExpired || hardExpired)
+		assert.False(t, softExpired)
+		assert.False(t, hardExpired)
 	})
 
 	t.Run("soft timeout zero disables expiry check", func(t *testing.T) {
@@ -2220,7 +2223,8 @@ func TestComparisonExpiry(t *testing.T) {
 		past := metav1.NewTime(time.Now().UTC().Add(-2 * time.Hour))
 		app.Status.ReconciledAt = &past
 		softExpired, hardExpired := comparisonExpiry(app.Status, 0, 0)
-		assert.False(t, softExpired || hardExpired)
+		assert.False(t, softExpired)
+		assert.False(t, hardExpired)
 	})
 }
 

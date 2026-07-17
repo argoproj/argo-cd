@@ -1321,47 +1321,6 @@ func RestartRepoServer(t *testing.T) {
 	}
 }
 
-const (
-	ReconciliationTimeoutConfigKey       = "timeout.reconciliation"
-	ReconciliationTimeoutJitterConfigKey = "timeout.reconciliation.jitter"
-	DefaultReconciliationTimeout         = "120s"
-	DefaultReconciliationTimeoutJitter   = "60s"
-)
-
-// RegisterReconciliationSettingsCleanup restores default reconciliation timeout settings in
-// argocd-cm and restarts the application controller when the test finishes. Required because
-// configMapKeyRef values are fixed at pod start; EnsureCleanState resets argocd-cm but only
-// restarts the controller in local e2e runs.
-func RegisterReconciliationSettingsCleanup(t *testing.T) {
-	t.Helper()
-	t.Cleanup(func() {
-		t.Helper()
-		if err := SetParamInSettingConfigMap(ReconciliationTimeoutConfigKey, DefaultReconciliationTimeout); err != nil {
-			t.Errorf("failed to restore %s: %v", ReconciliationTimeoutConfigKey, err)
-			return
-		}
-		if err := SetParamInSettingConfigMap(ReconciliationTimeoutJitterConfigKey, DefaultReconciliationTimeoutJitter); err != nil {
-			t.Errorf("failed to restore %s: %v", ReconciliationTimeoutJitterConfigKey, err)
-			return
-		}
-		RestartApplicationController(t)
-	})
-}
-
-// RestartApplicationController restarts the controller to pick up argocd-cm env var changes (timeout/jitter).
-// Required because configMapKeyRef does not update running Pods. Skipped in local tests.
-func RestartApplicationController(t *testing.T) {
-	t.Helper()
-	if IsRemote() {
-		log.Infof("Waiting for application-controller to restart after argocd-cm reconciliation settings changed")
-		ns := TestNamespace()
-		errors.NewHandler(t).FailOnErr(Run("", "kubectl", "rollout", "-n", ns, "restart", "statefulset", argoCDAppControllerName))
-		errors.NewHandler(t).FailOnErr(Run("", "kubectl", "rollout", "-n", ns, "status", "statefulset", argoCDAppControllerName))
-		// Brief settle after rollout status returns (parity with RestartRepoServer)
-		time.Sleep(5 * time.Second)
-	}
-}
-
 // RestartAPIServer performs a restart of the API server deployemt and waits
 // until the rollout has completed.
 func RestartAPIServer(t *testing.T) {
