@@ -115,34 +115,33 @@ func Test_nativeHelmChart_ExtractChart_insecure(t *testing.T) {
 	assert.True(t, info.IsDir())
 }
 
-func Test_normalizeChartName(t *testing.T) {
-	t.Run("Test non-slashed name", func(t *testing.T) {
-		n := normalizeChartName("mychart")
-		assert.Equal(t, "mychart", n)
+func Test_extractedChartDir(t *testing.T) {
+	t.Run("returns the extracted directory regardless of its name", func(t *testing.T) {
+		// Simulates an OCI chart whose Chart.yaml name ("foo") differs from the
+		// repository-path basename used as the chart reference ("bar"): the
+		// extracted directory is named after the chart, not the reference.
+		tempDir := t.TempDir()
+		require.NoError(t, os.Mkdir(filepath.Join(tempDir, "foo"), 0o755))
+		dir, err := extractedChartDir(tempDir)
+		require.NoError(t, err)
+		assert.Equal(t, filepath.Join(tempDir, "foo"), dir)
 	})
-	t.Run("Test single-slashed name", func(t *testing.T) {
-		n := normalizeChartName("myorg/mychart")
-		assert.Equal(t, "mychart", n)
+	t.Run("errors when no directory was extracted", func(t *testing.T) {
+		_, err := extractedChartDir(t.TempDir())
+		require.Error(t, err)
 	})
-	t.Run("Test chart name with suborg", func(t *testing.T) {
-		n := normalizeChartName("myorg/mysuborg/mychart")
-		assert.Equal(t, "mychart", n)
+	t.Run("errors when the top-level entry is a file", func(t *testing.T) {
+		tempDir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(tempDir, "Chart.yaml"), []byte("name: x\n"), 0o644))
+		_, err := extractedChartDir(tempDir)
+		require.Error(t, err)
 	})
-	t.Run("Test double-slashed name", func(t *testing.T) {
-		n := normalizeChartName("myorg//mychart")
-		assert.Equal(t, "mychart", n)
-	})
-	t.Run("Test invalid chart name - ends with slash", func(t *testing.T) {
-		n := normalizeChartName("myorg/")
-		assert.Equal(t, "myorg/", n)
-	})
-	t.Run("Test invalid chart name - is dot", func(t *testing.T) {
-		n := normalizeChartName("myorg/.")
-		assert.Equal(t, "myorg/.", n)
-	})
-	t.Run("Test invalid chart name - is two dots", func(t *testing.T) {
-		n := normalizeChartName("myorg/..")
-		assert.Equal(t, "myorg/..", n)
+	t.Run("errors when multiple top-level entries were extracted", func(t *testing.T) {
+		tempDir := t.TempDir()
+		require.NoError(t, os.Mkdir(filepath.Join(tempDir, "a"), 0o755))
+		require.NoError(t, os.Mkdir(filepath.Join(tempDir, "b"), 0o755))
+		_, err := extractedChartDir(tempDir)
+		require.Error(t, err)
 	})
 }
 

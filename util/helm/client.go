@@ -302,7 +302,18 @@ func (c *nativeHelmChart) ExtractChart(ctx context.Context, chart string, versio
 		_ = os.RemoveAll(tempDir)
 		return "", nil, fmt.Errorf("error untarring chart: %w", err)
 	}
-	return path.Join(tempDir, normalizeChartName(chart)), utilio.NewCloser(func() error {
+	// A well-formed Helm chart archive extracts into a single top-level directory named after
+	// the chart's Chart.yaml `name`. That name is authoritative and is not guaranteed to equal
+	// the last path segment of the chart reference: an OCI chart may be published to a repository
+	// path whose basename differs from the chart name (Helm itself resolves the chart from the
+	// packaged contents, not from the reference path). Locate the extracted directory by reading
+	// it back rather than deriving it from the reference.
+	chartDir, err := extractedChartDir(tempDir)
+	if err != nil {
+		_ = os.RemoveAll(tempDir)
+		return "", nil, err
+	}
+	return chartDir, utilio.NewCloser(func() error {
 		return os.RemoveAll(tempDir)
 	}), nil
 }
@@ -452,16 +463,20 @@ func newTLSConfig(creds Creds) (*tls.Config, error) {
 	return tlsConfig, nil
 }
 
-// Normalize a chart name for file system use, that is, if chart name is foo/bar/baz, returns the last component as chart name.
-func normalizeChartName(chart string) string {
-	strings.Join(strings.Split(chart, "/"), "_")
-	_, nc := path.Split(chart)
-	// We do not want to return the empty string or something else related to filesystem access
-	// Instead, return original string
-	if nc == "" || nc == "." || nc == ".." {
-		return chart
+// extractedChartDir returns the path to the chart directory extracted into dir. A Helm chart
+// archive produced by `helm package` always contains exactly one top-level directory, named
+// after the chart's Chart.yaml `name`. We read that directory back rather than deriving it from
+// the chart reference, because an OCI chart may be published to a repository path whose basename
+// differs from the chart name; Helm resolves the chart from its packaged contents, not the path.
+func extractedChartDir(dir string) (string, error) {
+	infos, err := os.ReadDir(dir)
+	if err != nil {
+		return "", fmt.Errorf("error reading extracted chart directory %s: %w", dir, err)
 	}
-	return nc
+	if len(infos) != 1 || !infos[0].IsDir() {
+		return "", fmt.Errorf("expected a single chart directory after extraction, found %d entries in %s", len(infos), dir)
+	}
+	return filepath.Join(dir, infos[0].Name()), nil
 }
 
 func (c *nativeHelmChart) getCachedChartPath(chart string, version string) (string, error) {
