@@ -34019,12 +34019,6 @@ spec:
               key: reposerver.git.lsremote.optimized.enabled
               name: argocd-cmd-params-cm
               optional: true
-        - name: ARGOCD_GIT_LS_REMOTE_OPTIMIZED_REF_PREFIXES
-          valueFrom:
-            configMapKeyRef:
-              key: reposerver.git.lsremote.optimized.ref.prefixes
-              name: argocd-cmd-params-cm
-              optional: true
         - name: ARGOCD_REPO_SERVER_ENABLE_BUILTIN_GIT_CONFIG
           valueFrom:
             configMapKeyRef:

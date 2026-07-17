@@ -131,7 +131,6 @@ type RepoServerInitConstants struct {
 	CMPUseManifestGeneratePaths                  bool
 	EnableBuiltinGitConfig                       bool
 	GitLsRemoteOptimizedEnabled                  bool
-	GitLsRemoteOptimizedRefPrefixes              []string
 	HelmUserAgent                                string
 	HelmChartCacheExpiration                     time.Duration // Cache expiration for repo
 }
@@ -2901,7 +2900,7 @@ func (s *Service) newClient(repo *v1alpha1.Repository, opts ...git.ClientOpts) (
 	opts = append(opts,
 		git.WithEventHandlers(metrics.NewGitClientEventHandlers(s.metricsServer)),
 		git.WithBuiltinGitConfig(s.initConstants.EnableBuiltinGitConfig),
-		git.WithOptimizedLsRemote(s.initConstants.GitLsRemoteOptimizedEnabled, s.initConstants.GitLsRemoteOptimizedRefPrefixes))
+		git.WithOptimizedLsRemote(s.initConstants.GitLsRemoteOptimizedEnabled))
 	return s.newGitClient(repo.Repo, repoPath, repo.GetGitCreds(s.gitCredsStore), repo.IsInsecure(), repo.EnableLFS, repo.Proxy, repo.NoProxy, opts...)
 }
 
