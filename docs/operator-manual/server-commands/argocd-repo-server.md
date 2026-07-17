@@ -23,8 +23,7 @@ argocd-repo-server [flags]
       --disable-oci-manifest-max-extracted-size        Disable maximum size of oci manifest archives when extracted
       --disable-tls                                    Disable TLS for the repo-server gRPC endpoint
       --enable-builtin-git-config                      Enable builtin git configuration options that are required for correct argocd-repo-server operation. (default true)
-      --git-ls-remote-optimized                        Enable optimized git ls-remote calls using native Git and server-side ref narrowing where supported.
-      --git-ls-remote-optimized-ref-prefixes strings   Comma separated list of ref prefixes eligible for optimized git ls-remote resolution. (default [refs/heads/,refs/tags/])
+      --git-ls-remote-optimized                        Enable native Git protocol v2 ls-remote with server-side branch and tag narrowing.
       --helm-manifest-max-extracted-size string        Maximum size of helm manifest archives when extracted (default "1G")
       --helm-registry-max-index-size string            Maximum size of registry index file (default "1G")
   -h, --help                                           help for argocd-repo-server
