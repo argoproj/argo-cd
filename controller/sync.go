@@ -14,12 +14,13 @@ import (
 
 	cdcommon "github.com/argoproj/argo-cd/v3/common"
 
-	gitopsDiff "github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	gitopsDiff "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
+	otel_codes "go.opentelemetry.io/otel/codes"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -110,6 +111,16 @@ func newSyncOperationResult(app *v1alpha1.Application, op v1alpha1.SyncOperation
 }
 
 func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Application, project *v1alpha1.AppProject, state *v1alpha1.OperationState) {
+	ctx, span := tracer.Start(ctx, "controller.SyncAppState")
+	setAppTraceAttrs(span, app)
+	// SyncAppState is void; it signals failure through state.Phase rather than a return value, so
+	// map a terminal failed phase onto the span status at exit (mirroring traceutil.EndSpan).
+	defer func() {
+		if state.Phase.Failed() {
+			span.SetStatus(otel_codes.Error, state.Message)
+		}
+		span.End()
+	}()
 	syncId, err := syncid.Generate()
 	if err != nil {
 		state.Phase = common.OperationError

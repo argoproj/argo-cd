@@ -672,7 +672,7 @@ func TestSync_ApplyOutOfSyncOnly_ClusterResources(t *testing.T) {
 	// spec.destination.namespace is set for all resources that does not have a namespace set, irrespective of whether
 	// the resource is cluster scoped or namespace scoped.
 	//
-	// Refer to https://github.com/argoproj/argo-cd/gitops-engine/blob/8007df5f6c5dd78a1a8cef73569468ce4d83682c/pkg/sync/sync_context.go#L827-L833
+	// Refer to https://github.com/argoproj/argo-cd/blob/8007df5f6c5dd78a1a8cef73569468ce4d83682c/gitops-engine/pkg/sync/sync_context.go#L827-L833
 	ns2Target.SetNamespace("ns-2")
 
 	syncCtx := newTestSyncCtx(nil, WithResourceModificationChecker(true, diffResultListClusterResource()))
