@@ -98,10 +98,7 @@ func (ctrl *ApplicationController) RequestAppRefresh(appName string, appNamespac
 	return nil
 }
 
-func (ctrl *ApplicationController) PersistHydrationStatus(orig *appv1.Application, newStatus *appv1.SourceHydratorStatus, removeHydrateAnnotations bool) {
-	//if removeHydrateAnnotations {
-	ctrl.handleRefreshAnnotation(orig, appv1.AnnotationKeyHydrate, appv1.AnnotationKeyHydrateTimestamp)
-	//}
+func (ctrl *ApplicationController) PersistHydrationStatus(orig *appv1.Application, newStatus *appv1.SourceHydratorStatus) {
 	status := orig.Status.DeepCopy()
 	status.SourceHydrator = *newStatus
 	ctrl.persistAppStatus(context.Background(), orig, status)
@@ -143,4 +140,8 @@ func (ctrl *ApplicationController) GetCommitAuthorEmail() (string, error) {
 		return "", fmt.Errorf("failed to get commit author email: %w", err)
 	}
 	return authorEmail, nil
+}
+
+func (ctrl *ApplicationController) RemoveHydrationAnnotations(app *appv1.Application) {
+	ctrl.handleRefreshAnnotation(app, appv1.AnnotationKeyHydrate, appv1.AnnotationKeyHydrateTimestamp)
 }

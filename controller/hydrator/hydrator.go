@@ -65,8 +65,11 @@ type Dependencies interface {
 	// trigger a refresh after the application has been hydrated and a new commit has been pushed.
 	RequestAppRefresh(appName string, appNamespace string) error
 
-	// PersistHydrationStatus persists the application status for the source hydrator.
-	PersistHydrationStatus(orig *appv1.Application, newStatus *appv1.SourceHydratorStatus, deleteHydrateAnnotations bool)
+	// PersistHydrationStatus persists the application status for the source hydrator
+	PersistHydrationStatus(orig *appv1.Application, newStatus *appv1.SourceHydratorStatus)
+
+	// remove the hydrate and hydrate-timestamp annotations
+	RemoveHydrationAnnotations(orig *appv1.Application)
 
 	// AddHydrationQueueItem adds a hydration queue item to the queue. This is used to trigger the hydration process for
 	// a group of applications which are hydrating to the same repo and target branch.
@@ -126,7 +129,6 @@ func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 	if app.Spec.SourceHydrator == nil {
 		return
 	}
-
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 	logCtx.Debug("Processing app hydrate queue item")
 
@@ -138,10 +140,8 @@ func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 		// If the app is currently hydrating, we should not have a resolvedDryRevision
 		app.Status.SourceHydrator.LastComparedDryRevision = resolvedDryRevision
 		logCtx.WithField("lastComparedDryRevision", resolvedDryRevision).Debug("Updated last compared dry revision")
+		h.dependencies.PersistHydrationStatus(origApp, &app.Status.SourceHydrator)
 	}
-
-	// Always persist to consume the hydrate annotation, even if hydration is not needed.
-	h.dependencies.PersistHydrationStatus(origApp, &app.Status.SourceHydrator, false)
 
 	// needsRefresh re-enqueues the hydration key for an app that was marked Hydrating on an earlier
 	// pass but whose StartedAt has aged past statusRefreshTimeout (typically because the hydration
@@ -155,6 +155,8 @@ func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 		h.dependencies.AddHydrationQueueItem(getHydrationQueueKey(app))
 	} else {
 		logCtx.WithField("reason", reason).Debug("Skipping hydration")
+		// consume the hydrate annotation when hydration is not needed.
+		h.dependencies.RemoveHydrationAnnotations(origApp)
 	}
 
 	logCtx.Debug("Successfully processed app hydrate queue item")
@@ -223,6 +225,7 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKe
 			} else {
 				h.setAppHydratorError(app, genericError)
 			}
+			h.dependencies.RemoveHydrationAnnotations(app)
 		}
 		return
 	}
@@ -257,6 +260,7 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKe
 			} else {
 				h.setAppHydratorError(app, genericError)
 			}
+			h.dependencies.RemoveHydrationAnnotations(app)
 		}
 		return
 	}
@@ -281,7 +285,8 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKe
 			HydratedSHA:    hydratedSHA,
 			SourceHydrator: app.Status.SourceHydrator.CurrentOperation.SourceHydrator,
 		}
-		h.dependencies.PersistHydrationStatus(origApp, &app.Status.SourceHydrator, true)
+		h.dependencies.PersistHydrationStatus(origApp, &app.Status.SourceHydrator)
+		h.dependencies.RemoveHydrationAnnotations(origApp)
 
 		// Request a refresh since we pushed a new commit.
 		err := h.dependencies.RequestAppRefresh(app.Name, app.Namespace)
@@ -316,7 +321,7 @@ func (h *Hydrator) markAppsHydrating(apps []*appv1.Application) {
 			Phase:          appv1.HydrateOperationPhaseHydrating,
 			SourceHydrator: *app.Spec.SourceHydrator,
 		}
-		h.dependencies.PersistHydrationStatus(origApp, &app.Status.SourceHydrator, false)
+		h.dependencies.PersistHydrationStatus(origApp, &app.Status.SourceHydrator)
 	}
 }
 
@@ -329,7 +334,7 @@ func (h *Hydrator) setAppHydratorError(app *appv1.Application, err error) {
 	failedAt := metav1.Now()
 	app.Status.SourceHydrator.CurrentOperation.FinishedAt = &failedAt
 	app.Status.SourceHydrator.CurrentOperation.Message = fmt.Sprintf("Failed to hydrate: %v", err.Error())
-	h.dependencies.PersistHydrationStatus(origApp, &app.Status.SourceHydrator, true)
+	h.dependencies.PersistHydrationStatus(origApp, &app.Status.SourceHydrator)
 }
 
 // getAppsForHydrationKey returns the applications matching the hydration key.

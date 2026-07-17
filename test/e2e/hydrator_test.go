@@ -634,7 +634,6 @@ func TestHydratorNestedRequest(t *testing.T) {
 	dir := "slow-manifest"
 	manifest := "templates/cm.yaml"
 	ctx := Given(t).Timeout(100)
-	//manifest := "templates/cm.yaml"
 	acts := ctx.DrySourcePath(dir).
 		DrySourceRevision("HEAD").
 		SyncSourcePath(dir).
@@ -681,5 +680,5 @@ func TestHydratorNestedRequest(t *testing.T) {
 		And(func(app *Application) {
 			require.Equal(t, app.Status.SourceHydrator.LastSuccessfulOperation.HydratedSHA, app.Status.Sync.Revision)
 		})
-	//Expect(SyncRevisionIs(revision))
+	// Expect(SyncRevisionIs(revision))
 }
