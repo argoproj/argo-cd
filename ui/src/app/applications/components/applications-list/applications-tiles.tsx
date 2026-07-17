@@ -40,6 +40,7 @@ const useItemsPerContainer = (itemRef: any, containerRef: any): number => {
         return () => {
             window.removeEventListener('resize', handleResize);
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     return itemsPer || 1;
