@@ -45,13 +45,15 @@ func (storage *userStateStorage) Init(ctx context.Context) {
 	ticker := time.NewTicker(storage.resyncDuration)
 	go func() {
 		storage.loadRevokedTokensSafe()
-		for range ticker.C {
-			storage.loadRevokedTokensSafe()
+		for {
+			select {
+			case <-ctx.Done():
+				ticker.Stop()
+				return
+			case <-ticker.C:
+				storage.loadRevokedTokensSafe()
+			}
 		}
-	}()
-	go func() {
-		<-ctx.Done()
-		ticker.Stop()
 	}()
 }
 
