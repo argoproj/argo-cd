@@ -938,7 +938,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                               action: () => {
                                                                   if (!AppUtils.isAppSetRefreshing(application as appModels.ApplicationSet)) {
                                                                       AppUtils.setAppSetRefreshing(application as appModels.ApplicationSet);
-                                                                      appChanged.current.next(application);
+                                                                      appChanged.next(application);
                                                                       services.applications.refreshApplicationSet(application.metadata.name, application.metadata.namespace);
                                                                   }
                                                               }
@@ -1233,7 +1233,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                         onRefresh={() => {
                                                             if (!AppUtils.isAppSetRefreshing(application as appModels.ApplicationSet)) {
                                                                 AppUtils.setAppSetRefreshing(application as appModels.ApplicationSet);
-                                                                appChanged.current.next(application);
+                                                                appChanged.next(application);
                                                                 services.applications.refreshApplicationSet(application.metadata.name, application.metadata.namespace);
                                                             }
                                                         }}
