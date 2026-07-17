@@ -1,0 +1,10 @@
+overrides:
+  '@types/react': ^19.0.0
+  '@types/react-dom': ^19.0.0
+  normalize-url: 4.5.1
+  rxjs: 6.6.7
+  formidable: 2.1.3
+  dompurify: 3.4.0
+
+patchedDependencies:
+  argo-ui@1.0.0: patches/argo-ui@1.0.0.patch

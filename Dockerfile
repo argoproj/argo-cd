@@ -102,7 +102,8 @@ WORKDIR /home/argocd
 FROM --platform=$BUILDPLATFORM docker.io/library/node:24.17.0@sha256:032e78d7e54e352129831743737e3a83171d9cc5b5896f411649c597ce0b11ea AS argocd-ui
 
 WORKDIR /src
-COPY ["ui/package.json", "ui/pnpm-lock.yaml", "./"]
+COPY ["ui/package.json", "ui/pnpm-lock.yaml", "ui/pnpm-workspace.yaml", "./"]
+COPY ui/patches/ ./patches/
 
 RUN npm install -g corepack@0.34.6 && corepack enable && pnpm install --frozen-lockfile
 

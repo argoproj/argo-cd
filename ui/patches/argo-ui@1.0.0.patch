@@ -1,0 +1,92 @@
+diff --git a/src/components/dropdown/dropdown.tsx b/src/components/dropdown/dropdown.tsx
+index d99da792155d4f02d30604b4be3bba6e77ebe91d..94466d223d2086f627277f60ab69bad39975f631 100644
+--- a/src/components/dropdown/dropdown.tsx
++++ b/src/components/dropdown/dropdown.tsx
+@@ -26,7 +26,7 @@ export class DropDown extends React.Component<DropDownProps, DropDownState> {
+     private el: HTMLDivElement;
+     private content: HTMLDivElement;
+     private subscriptions: Subscription[];
+-    private isFirstOpen = true;
++    private resizeObserver: ResizeObserver | null = null;
+ 
+     constructor(props: DropDownProps) {
+         super(props);
+@@ -52,7 +52,26 @@ export class DropDown extends React.Component<DropDownProps, DropDownState> {
+                 {ReactDOM.createPortal((
+                     <div className={classNames('argo-dropdown__content', { 'opened': this.state.opened, 'is-menu': this.props.isMenu })}
+                         style={{top: this.state.top, left: this.state.left}}
+-                        ref={(el) => { this.content = el; }}>
++                        ref={(el) => {
++                            this.content = el;
++                            // Re-attach ResizeObserver whenever the content element changes.
++                            if (this.resizeObserver) {
++                                this.resizeObserver.disconnect();
++                                this.resizeObserver = null;
++                            }
++                            if (el && typeof ResizeObserver !== 'undefined') {
++                                this.resizeObserver = new ResizeObserver(() => {
++                                    // Reposition when content grows (e.g. async DataLoader items).
++                                    if (this.state.opened && this.content && this.el) {
++                                        const newState = this.refreshState();
++                                        if (newState.left !== this.state.left || newState.top !== this.state.top) {
++                                            this.setState(newState);
++                                        }
++                                    }
++                                });
++                                this.resizeObserver.observe(el);
++                            }
++                        }}>
+                         {children}
+                     </div>
+                 ), document.body)}
+@@ -81,6 +100,10 @@ export class DropDown extends React.Component<DropDownProps, DropDownState> {
+     public componentWillUnmount() {
+         (this.subscriptions || []).forEach((s) => s.unsubscribe());
+         this.subscriptions = [];
++        if (this.resizeObserver) {
++            this.resizeObserver.disconnect();
++            this.resizeObserver = null;
++        }
+     }
+ 
+     public close() {
+@@ -128,28 +151,11 @@ export class DropDown extends React.Component<DropDownProps, DropDownState> {
+     }
+ 
+     public componentDidUpdate(_prevProps: DropDownProps, prevState: DropDownState) {
+-        // When menu changes from closed to open state
++        // When menu changes from closed to open state, recalculate position once
++        // children have been rendered (offsetHeight was 0 before open).
+         if (!prevState.opened && this.state.opened) {
+-            // Mark as first open
+-            this.isFirstOpen = true;
+-            // Use setTimeout to ensure content has been rendered
+             setTimeout(() => {
+                 if (this.state.opened && this.content && this.el) {
+-                    const newState = this.refreshState();
+-                    // Only update state if calculated position differs from current position
+-                    if (newState.left !== this.state.left || newState.top !== this.state.top) {
+-                        this.setState(newState);
+-                    }
+-                    this.isFirstOpen = false;
+-                }
+-            }, 0);
+-        }
+-        
+-        // If content changes and it's not the first open, recalculate position
+-        if (this.state.opened && !this.isFirstOpen && this.content && this.el) {
+-            // Use setTimeout to ensure calculation happens after DOM updates
+-            setTimeout(() => {
+-                if (this.state.opened) {
+                     const newState = this.refreshState();
+                     if (newState.left !== this.state.left || newState.top !== this.state.top) {
+                         this.setState(newState);
+@@ -157,6 +163,8 @@ export class DropDown extends React.Component<DropDownProps, DropDownState> {
+                 }
+             }, 0);
+         }
++        // Note: subsequent repositioning (e.g. async DataLoader content) is handled
++        // by the ResizeObserver attached to the content element.
+     }
+ 
+     private open() {
