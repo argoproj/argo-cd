@@ -7,9 +7,10 @@ import {AppsListPreferences, AppsListViewKey, services} from '../../../shared/se
 interface ViewTypeSwitcherProps {
     pref: AppsListPreferences & {page: number; search: string};
     ctx: ContextApis;
+    onGroupByProjectChange?: (val: boolean) => void;
 }
 
-export const ViewTypeSwitcher: React.FC<ViewTypeSwitcherProps> = ({pref, ctx}) => {
+export const ViewTypeSwitcher: React.FC<ViewTypeSwitcherProps> = ({pref, ctx, onGroupByProjectChange}) => {
     const {List, Summary, Tiles} = AppsListViewKey;
 
     // 1. Add local state to ensure the checkbox updates visually the millisecond it is clicked
@@ -27,28 +28,36 @@ export const ViewTypeSwitcher: React.FC<ViewTypeSwitcherProps> = ({pref, ctx}) =
     const {page, search, ...cleanPrefWithoutGroup} = pref;
     const cleanPref: AppsListPreferences = {...cleanPrefWithoutGroup, groupByProject: isGrouped};
 
+    const isAppsetsView = window.location.pathname.includes('/applicationsets');
+    const showCheckbox = (cleanPref.view === Tiles || cleanPref.view === List) && !isAppsetsView;
+
     return (
         <div className='applications-list__view-type' style={{display: 'flex', alignItems: 'center'}}>
-            <div style={{marginRight: '15px', display: 'flex', alignItems: 'center'}}>
-                <Checkbox
-                    id='group-by-project-checkbox'
-                    checked={isGrouped}
-                    onChange={val => {
-                        // 4. Update the local checkbox instantly
-                        setIsGrouped(val);
-                        // 5. Update the persistent backend preferences in the background
-                        services.viewPreferences.updatePreferences({
-                            appList: {
-                                ...cleanPref,
-                                groupByProject: val
+            {showCheckbox && (
+                <div style={{marginRight: '15px', display: 'flex', alignItems: 'center'}}>
+                    <Checkbox
+                        id='group-by-project-checkbox'
+                        checked={isGrouped}
+                        onChange={val => {
+                            // 4. Update the local checkbox instantly
+                            setIsGrouped(val);
+                            // 5. Update the persistent backend preferences in the background
+                            services.viewPreferences.updatePreferences({
+                                appList: {
+                                    ...cleanPref,
+                                    groupByProject: val
+                                }
+                            });
+                            if (onGroupByProjectChange) {
+                                onGroupByProjectChange(val);
                             }
-                        });
-                    }}
-                />
-                <label htmlFor='group-by-project-checkbox' style={{marginLeft: '6px', cursor: 'pointer', marginBottom: 0}}>
-                    Group by Project
-                </label>
-            </div>
+                        }}
+                    />
+                    <label htmlFor='group-by-project-checkbox' style={{marginLeft: '6px', cursor: 'pointer', marginBottom: 0}}>
+                        Group by Project
+                    </label>
+                </div>
+            )}
             <i
                 className={classNames('fa fa-th', {selected: cleanPref.view === Tiles}, 'menu_icon')}
                 title='Tiles'
