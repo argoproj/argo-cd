@@ -2447,6 +2447,91 @@ func TestSwitchTrackingMethod(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy))
 }
 
+// TestTrackingMethodAnnotationMovedResource verifies that a resource previously
+// tracked by another application surfaces as OutOfSync and that syncing updates
+// its tracking annotation. The manifest deliberately carries a chart-rendered
+// app.kubernetes.io/instance label, which used to hide the stale tracking
+// annotation from the diff (issue #17965).
+func TestTrackingMethodAnnotationMovedResource(t *testing.T) {
+	ctx := Given(t)
+
+	ctx.
+		SetTrackingMethod(string(TrackingMethodAnnotation)).
+		Path("tracking-instance-label").
+		When().
+		CreateApp().
+		Sync().
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		And(func() {
+			// Rewrite the tracking annotation to the value a previous application
+			// (e.g. one replaced by an ApplicationSet-generated app) left behind.
+			patch := fmt.Sprintf(`{"metadata":{"annotations":{%q:%q}}}`,
+				common.AnnotationKeyAppInstance,
+				fmt.Sprintf("old-app:/ConfigMap:%s/my-map", ctx.DeploymentNamespace()))
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Patch(
+				t.Context(), "my-map", types.MergePatchType, []byte(patch), metav1.PatchOptions{}))
+		}).
+		Refresh(RefreshTypeNormal).
+		Then().
+		// The stale tracking annotation is a real difference and must show up.
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		When().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			// Syncing must repair the tracking annotation.
+			cm, err := fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Get(t.Context(), "my-map", metav1.GetOptions{})
+			require.NoError(t, err)
+			assert.Equal(t, fmt.Sprintf("%s:/ConfigMap:%s/my-map", app.Name, ctx.DeploymentNamespace()), cm.Annotations[common.AnnotationKeyAppInstance])
+			// The chart-rendered instance label is not owned by tracking and stays.
+			assert.Equal(t, "my-release", cm.Labels["app.kubernetes.io/instance"])
+		})
+}
+
+// TestTrackingMethodAnnotationMovedResourceSSA is the server-side apply variant
+// of TestTrackingMethodAnnotationMovedResource.
+func TestTrackingMethodAnnotationMovedResourceSSA(t *testing.T) {
+	ctx := Given(t)
+
+	ctx.
+		SetTrackingMethod(string(TrackingMethodAnnotation)).
+		Path("tracking-instance-label").
+		When().
+		CreateApp("--sync-option", "ServerSideApply=true").
+		Sync().
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		And(func() {
+			patch := fmt.Sprintf(`{"metadata":{"annotations":{%q:%q}}}`,
+				common.AnnotationKeyAppInstance,
+				fmt.Sprintf("old-app:/ConfigMap:%s/my-map", ctx.DeploymentNamespace()))
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Patch(
+				t.Context(), "my-map", types.MergePatchType, []byte(patch), metav1.PatchOptions{}))
+		}).
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		When().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			cm, err := fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Get(t.Context(), "my-map", metav1.GetOptions{})
+			require.NoError(t, err)
+			assert.Equal(t, fmt.Sprintf("%s:/ConfigMap:%s/my-map", app.Name, ctx.DeploymentNamespace()), cm.Annotations[common.AnnotationKeyAppInstance])
+		})
+}
+
 func TestSwitchTrackingLabel(t *testing.T) {
 	ctx := Given(t)
 
