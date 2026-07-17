@@ -185,6 +185,7 @@ func untarChart(ctx context.Context, tempDir string, cachedChartPath string, man
 	if err != nil {
 		return fmt.Errorf("error opening cached chart path %s: %w", cachedChartPath, err)
 	}
+	defer reader.Close()
 	return files.Untgz(tempDir, reader, manifestMaxExtractedSize, false)
 }
 
