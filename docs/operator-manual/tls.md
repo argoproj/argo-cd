@@ -321,3 +321,4 @@ In this case, you will need to:
 
 After this change, `argocd-server` will use a plain text connection to the sidecar 
 proxy, that will handle all aspects of TLS to the `argocd-dex-server`'s TLS sidecar proxy.
+
