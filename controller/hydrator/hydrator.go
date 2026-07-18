@@ -65,10 +65,10 @@ type Dependencies interface {
 	// trigger a refresh after the application has been hydrated and a new commit has been pushed.
 	RequestAppRefresh(appName string, appNamespace string) error
 
-	// PersistHydrationStatus persists the application status for the source hydrator
+	// PersistHydrationStatus persists the application status for the source hydrator.
 	PersistHydrationStatus(orig *appv1.Application, newStatus *appv1.SourceHydratorStatus)
 
-	// remove the hydrate and hydrate-timestamp annotations
+	// Remove the hydrate and hydrate-timestamp annotations
 	RemoveHydrationAnnotations(orig *appv1.Application)
 
 	// AddHydrationQueueItem adds a hydration queue item to the queue. This is used to trigger the hydration process for
@@ -129,6 +129,7 @@ func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 	if app.Spec.SourceHydrator == nil {
 		return
 	}
+
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 	logCtx.Debug("Processing app hydrate queue item")
 
@@ -140,6 +141,7 @@ func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 		// If the app is currently hydrating, we should not have a resolvedDryRevision
 		app.Status.SourceHydrator.LastComparedDryRevision = resolvedDryRevision
 		logCtx.WithField("lastComparedDryRevision", resolvedDryRevision).Debug("Updated last compared dry revision")
+		// Persist the only status change we might do here
 		h.dependencies.PersistHydrationStatus(origApp, &app.Status.SourceHydrator)
 	}
 
@@ -155,7 +157,7 @@ func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 		h.dependencies.AddHydrationQueueItem(getHydrationQueueKey(app))
 	} else {
 		logCtx.WithField("reason", reason).Debug("Skipping hydration")
-		// consume the hydrate annotation when hydration is not needed.
+		// Consume the hydrate annotation when hydration is not needed.
 		h.dependencies.RemoveHydrationAnnotations(origApp)
 	}
 
