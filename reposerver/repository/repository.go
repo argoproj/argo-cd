@@ -2482,7 +2482,7 @@ func toUserInputStatusError(err error) error {
 	if _, ok := status.FromError(err); ok && status.Code(err) != codes.Unknown {
 		return err
 	}
-	if errors.Is(err, apppathutil.ErrAppPathDoesNotExist) {
+	if errors.Is(err, apppathutil.ErrAppPathDoesNotExist) || errors.Is(err, git.ErrRevisionNotFound) {
 		return status.Error(codes.InvalidArgument, err.Error())
 	}
 	return err
