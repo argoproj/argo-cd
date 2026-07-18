@@ -149,11 +149,14 @@ func (a *HTTPTemplateAuthenticator) Authenticate(ctx context.Context, token *Tok
 		}
 	}
 
+	// Log the template rather than the rendered URL: template variables (e.g.
+	// {{ .token }}) may expand to secrets that must not end up in logs.
 	log.WithFields(log.Fields{
-		"url":      fullURL,
-		"method":   method,
-		"authType": config.AuthType,
-	}).Info("HTTPTemplate: making token exchange request")
+		"host":         host,
+		"pathTemplate": config.PathTemplate,
+		"method":       method,
+		"authType":     config.AuthType,
+	}).Debug("HTTPTemplate: making token exchange request")
 
 	// Create request
 	req, err := http.NewRequestWithContext(ctx, method, fullURL, bodyReader)

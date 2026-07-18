@@ -54,6 +54,9 @@ func NewResolver(clientset kubernetes.Interface, namespace string) *Resolver {
 // identity and injects a session tag from the repository's project field) do not require
 // `argocd-project-<project>` to exist in the cluster.
 func NewIdentityProvider(repository *v1alpha1.Repository, clientset kubernetes.Interface, ns string) (identity.Provider, error) {
+	if repository == nil {
+		return nil, errors.New("repository is required")
+	}
 	saName, err := getServiceAccountName(repository.Project)
 	if err != nil {
 		return nil, err

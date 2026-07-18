@@ -117,15 +117,17 @@ func (p *GCPProvider) GetToken(ctx context.Context, audience string, tokenURL st
 		return nil, err
 	}
 
-	log.Infof("resolveGCP: SA=%s/%s, annotations=%v, config.Audience=%q", sa.Namespace, sa.Name, sa.Annotations, audience)
-
 	// Get GCP service account from standard GKE annotation
 	gcpSA := sa.Annotations[AnnotationGCPSA]
 	if gcpSA == "" {
 		return nil, fmt.Errorf("service account %s missing %s annotation", sa.Name, AnnotationGCPSA)
 	}
 
-	log.Infof("resolveGCP: target gcpSA=%q", gcpSA)
+	log.WithFields(log.Fields{
+		"serviceAccount": fmt.Sprintf("%s/%s", sa.Namespace, sa.Name),
+		"gcpSA":          gcpSA,
+		"audience":       audience,
+	}).Debug("resolveGCP: resolving GCP credentials")
 
 	// Try GKE metadata server first (works for GKE Workload Identity)
 	accessToken, expiresAt, err := p.resolveGCPViaMetadata(ctx, gcpSA)

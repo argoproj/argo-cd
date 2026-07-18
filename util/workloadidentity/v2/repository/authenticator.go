@@ -21,8 +21,9 @@ type Credentials struct {
 
 // Config holds registry-specific configuration
 type Config struct {
-	// Username for credentials (e.g., "oauth2accesstoken" for GCR, "$oauthtoken" for Quay)
-	// Default: "$oauthtoken"
+	// Username for credentials (e.g., "oauth2accesstoken" for GCR, "$oauthtoken" for Quay).
+	// No default is applied: when neither this nor ResponseUsernameField
+	// yields a username, the credentials are returned with an empty one.
 	Username string
 
 	// Insecure skips TLS certificate verification

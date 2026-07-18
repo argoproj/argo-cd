@@ -197,6 +197,12 @@ func TestNewIdentityProvider(t *testing.T) {
 			wantError: true,
 		},
 		{
+			name:      "nil repository - returns error",
+			repo:      nil,
+			createSA:  false,
+			wantError: true,
+		},
+		{
 			name:      "empty provider - returns error",
 			repo:      &v1alpha1.Repository{Project: "default"},
 			saName:    "argocd-project-default",
