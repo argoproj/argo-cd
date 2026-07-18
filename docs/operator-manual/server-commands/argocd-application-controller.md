@@ -89,6 +89,8 @@ argocd-application-controller [flags]
       --token string                                              Bearer token for authentication to the API server
       --user string                                               The name of the kubeconfig user to use
       --username string                                           Username for basic authentication to the API server
+      --workload-identity-token-cache-max-ttl duration            Upper bound on how long any workload identity repository credential is served from cache (default 1h0m0s)
+      --workload-identity-token-cache-ttl duration                TTL for cached workload identity repository credentials whose expiry is not reported by the token endpoint (0 disables caching those) (default 40m0s)
       --wq-backoff-factor float                                   Set Workqueue Per Item Rate Limiter Backoff Factor, default is 1.5 (default 1.5)
       --wq-basedelay-ns duration                                  Set Workqueue Per Item Rate Limiter Base Delay duration in nanoseconds, default 1000000 (1ms) (default 1ms)
       --wq-bucket-qps float                                       Set Workqueue Rate Limiter Bucket QPS, default set to MaxFloat64 which disables the bucket limiter (default 1.7976931348623157e+308)
