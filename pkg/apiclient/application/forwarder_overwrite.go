@@ -85,22 +85,39 @@ var appFields = map[string]func(app *v1alpha1.Application) any{
 	},
 }
 
-// processAppFields extracts the requested fields from a single application into a map.
-func processAppFields(app *v1alpha1.Application, fields map[string]any, exclude bool) (map[string]any, error) {
-	converted := make(map[string]any)
+// appFieldSpec is a precomputed appFields entry: the dotted field name, its
+// pre-split path, and the value extractor.
+type appFieldSpec struct {
+	field string
+	parts []string
+	fn    func(app *v1alpha1.Application) any
+}
+
+// selectAppFields resolves the fields/exclude selection against appFields once
+// per request, so the per-application loop doesn't repeat the map lookups and
+// path splitting for every item.
+func selectAppFields(fields map[string]any, exclude bool) []appFieldSpec {
+	specs := make([]appFieldSpec, 0, len(appFields))
 	for field, fn := range appFields {
 		if _, ok := fields["items."+field]; ok == exclude {
 			continue
 		}
-		value := fn(app)
+		specs = append(specs, appFieldSpec{field: field, parts: strings.Split(field, "."), fn: fn})
+	}
+	return specs
+}
+
+// processAppFields extracts the selected fields from a single application into a map.
+func processAppFields(app *v1alpha1.Application, specs []appFieldSpec) (map[string]any, error) {
+	converted := make(map[string]any)
+	for _, spec := range specs {
+		value := spec.fn(app)
 		if value == nil {
 			continue
 		}
-		parts := strings.Split(field, ".")
 		item := converted
-		for i := range parts {
-			subField := parts[i]
-			if i == len(parts)-1 {
+		for i, subField := range spec.parts {
+			if i == len(spec.parts)-1 {
 				item[subField] = value
 			} else {
 				if _, ok := item[subField]; !ok {
@@ -108,7 +125,7 @@ func processAppFields(app *v1alpha1.Application, fields map[string]any, exclude 
 				}
 				nestedMap, ok := item[subField].(map[string]any)
 				if !ok {
-					return nil, fmt.Errorf("field %s is not a map", field)
+					return nil, fmt.Errorf("field %s is not a map", spec.field)
 				}
 				item = nestedMap
 			}
@@ -121,6 +138,10 @@ func processAppFields(app *v1alpha1.Application, fields map[string]any, exclude 
 // streaming one application at a time to avoid buffering the entire response.
 func streamApplicationListJSON(w io.Writer, appList *v1alpha1.ApplicationList, fields map[string]any, exclude bool) error {
 	useFieldFilter := len(fields) > 0
+	var specs []appFieldSpec
+	if useFieldFilter {
+		specs = selectAppFields(fields, exclude)
+	}
 	enc := json.NewEncoder(w)
 
 	if _, err := w.Write([]byte("{")); err != nil {
@@ -158,7 +179,7 @@ func streamApplicationListJSON(w io.Writer, appList *v1alpha1.ApplicationList, f
 			}
 		}
 		if useFieldFilter {
-			converted, err := processAppFields(&appList.Items[i], fields, exclude)
+			converted, err := processAppFields(&appList.Items[i], specs)
 			if err != nil {
 				return err
 			}
@@ -195,6 +216,9 @@ func writeInlineTypeMeta(w io.Writer, tm *metav1.TypeMeta) error {
 }
 
 // parseFieldSelection parses the "fields" query parameter into a field map and exclude flag.
+// Keep the semantics in sync with newMarshaler in github.com/argoproj/pkg/v2/grpc/http
+// (used via UnaryForwarderWithFieldProcessor on the Accept: text/event-stream branch),
+// so both branches of the List endpoint filter identically.
 func parseFieldSelection(req *gohttp.Request) (fields map[string]any, exclude bool) {
 	fieldsQuery := req.URL.Query().Get("fields")
 	if fieldsQuery == "" {
@@ -213,9 +237,10 @@ func parseFieldSelection(req *gohttp.Request) (fields map[string]any, exclude bo
 
 func processApplicationListField(v any, fields map[string]any, exclude bool) (any, error) {
 	if appList, ok := v.(*v1alpha1.ApplicationList); ok {
+		specs := selectAppFields(fields, exclude)
 		var items []map[string]any
 		for i := range appList.Items {
-			converted, err := processAppFields(&appList.Items[i], fields, exclude)
+			converted, err := processAppFields(&appList.Items[i], specs)
 			if err != nil {
 				return nil, err
 			}
@@ -284,8 +309,8 @@ func init() {
 		}
 
 		// Replicate grpc-gateway ForwardResponseMessage header handling.
-		md, ok := runtime.ServerMetadataFromContext(ctx)
-		if ok {
+		md, hasMD := runtime.ServerMetadataFromContext(ctx)
+		if hasMD {
 			for k, vs := range md.HeaderMD {
 				for _, v := range vs {
 					w.Header().Add(fmt.Sprintf("%s%s", runtime.MetadataHeaderPrefix, k), v)
@@ -309,11 +334,17 @@ func init() {
 		fields, exclude := parseFieldSelection(req)
 
 		if err := streamApplicationListJSON(w, appList, fields, exclude); err != nil {
-			log.Errorf("Failed to stream application list response: %v", err)
+			if req.Context().Err() != nil {
+				// The client went away mid-stream (tab closed, CLI interrupted);
+				// this is routine, not a server error.
+				log.Debugf("Client disconnected while streaming application list response: %v", err)
+			} else {
+				log.Errorf("Failed to stream application list response: %v", err)
+			}
 			panic(gohttp.ErrAbortHandler)
 		}
 
-		if ok {
+		if hasMD {
 			for k, vs := range md.TrailerMD {
 				tKey := fmt.Sprintf("%s%s", runtime.MetadataTrailerPrefix, k)
 				for _, v := range vs {
