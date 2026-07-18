@@ -145,6 +145,45 @@ func Test_extractedChartDir(t *testing.T) {
 	})
 }
 
+// legacyNormalizeChartName reproduces the chart-directory derivation ExtractChart
+// used before this change (the removed normalizeChartName): the reference's last
+// path segment, falling back to the whole reference for a degenerate segment.
+func legacyNormalizeChartName(chart string) string {
+	nc := chart
+	if i := strings.LastIndex(chart, "/"); i >= 0 {
+		nc = chart[i+1:]
+	}
+	if nc == "" || nc == "." || nc == ".." {
+		return chart
+	}
+	return nc
+}
+
+// Test_extractedChartDir_matchesLegacyDerivationForExistingCharts is a regression
+// guard: any chart reference that resolved before this change extracted into a
+// directory named legacyNormalizeChartName(chart) — otherwise ExtractChart could not
+// have located Chart.yaml under path.Join(tempDir, normalizeChartName(chart)). So for
+// every previously working reference the archive-driven lookup must return that exact
+// same path; only references whose extracted directory differed (the bug) change from
+// failing to succeeding.
+func Test_extractedChartDir_matchesLegacyDerivationForExistingCharts(t *testing.T) {
+	for _, chartRef := range []string{
+		"grafana",
+		"myrepo/grafana",
+		"registry.example.com/team/charts/grafana",
+	} {
+		t.Run(chartRef, func(t *testing.T) {
+			legacyName := legacyNormalizeChartName(chartRef)
+			tempDir := t.TempDir()
+			require.NoError(t, os.Mkdir(filepath.Join(tempDir, legacyName), 0o755))
+
+			dir, err := extractedChartDir(tempDir)
+			require.NoError(t, err)
+			assert.Equal(t, filepath.Join(tempDir, legacyName), dir)
+		})
+	}
+}
+
 func TestIsHelmOciRepo(t *testing.T) {
 	assert.True(t, IsHelmOciRepo("demo.goharbor.io"))
 	assert.True(t, IsHelmOciRepo("demo.goharbor.io:8080"))

@@ -302,12 +302,9 @@ func (c *nativeHelmChart) ExtractChart(ctx context.Context, chart string, versio
 		_ = os.RemoveAll(tempDir)
 		return "", nil, fmt.Errorf("error untarring chart: %w", err)
 	}
-	// A well-formed Helm chart archive extracts into a single top-level directory named after
-	// the chart's Chart.yaml `name`. That name is authoritative and is not guaranteed to equal
-	// the last path segment of the chart reference: an OCI chart may be published to a repository
-	// path whose basename differs from the chart name (Helm itself resolves the chart from the
-	// packaged contents, not from the reference path). Locate the extracted directory by reading
-	// it back rather than deriving it from the reference.
+	// The extracted directory is named after the chart's Chart.yaml name, which an OCI chart
+	// may publish under a repository path with a different basename; read it back rather than
+	// deriving the name from the reference.
 	chartDir, err := extractedChartDir(tempDir)
 	if err != nil {
 		_ = os.RemoveAll(tempDir)
@@ -463,11 +460,9 @@ func newTLSConfig(creds Creds) (*tls.Config, error) {
 	return tlsConfig, nil
 }
 
-// extractedChartDir returns the path to the chart directory extracted into dir. A Helm chart
-// archive produced by `helm package` always contains exactly one top-level directory, named
-// after the chart's Chart.yaml `name`. We read that directory back rather than deriving it from
-// the chart reference, because an OCI chart may be published to a repository path whose basename
-// differs from the chart name; Helm resolves the chart from its packaged contents, not the path.
+// extractedChartDir returns the single chart directory extracted into dir. A packaged Helm chart
+// has exactly one top-level directory, named after its Chart.yaml name — which need not match the
+// reference's last path segment (e.g. an OCI chart under a differently-named repository path).
 func extractedChartDir(dir string) (string, error) {
 	infos, err := os.ReadDir(dir)
 	if err != nil {
