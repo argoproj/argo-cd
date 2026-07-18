@@ -240,7 +240,6 @@ func TestApplicationEventHandlerFuncs(t *testing.T) {
 		assert.False(t, existsAfter, "deleted app must be removed from the sharding cache even when canProcessApp is false")
 	})
 
-
 	t.Run("unexpected object types are ignored without panicking", func(t *testing.T) {
 		ctrl := newFakeController(t.Context(), &fakeData{}, nil)
 		h := ctrl.applicationEventHandlerFuncs()
