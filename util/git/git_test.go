@@ -347,7 +347,8 @@ func TestLsRemote(t *testing.T) {
 
 		for _, revision := range xfail {
 			_, err := clnt.LsRemote(revision)
-			assert.ErrorContains(t, err, "unable to resolve")
+			require.ErrorContains(t, err, "unable to resolve")
+			require.ErrorIs(t, err, ErrRevisionNotFound)
 		}
 	})
 }
