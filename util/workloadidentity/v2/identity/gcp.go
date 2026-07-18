@@ -74,6 +74,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
@@ -127,48 +128,49 @@ func (p *GCPProvider) GetToken(ctx context.Context, audience string, tokenURL st
 	log.Infof("resolveGCP: target gcpSA=%q", gcpSA)
 
 	// Try GKE metadata server first (works for GKE Workload Identity)
-	accessToken, err := p.resolveGCPViaMetadata(ctx, gcpSA)
+	accessToken, expiresAt, err := p.resolveGCPViaMetadata(ctx, gcpSA)
 	if err != nil {
 		log.Infof("resolveGCP: metadata server approach failed: %v, trying STS", err)
 		// Fall back to STS token exchange (for Workload Identity Federation)
-		accessToken, err = p.resolveGCPViaSTS(ctx, sa, gcpSA, audience, tokenURL)
+		accessToken, expiresAt, err = p.resolveGCPViaSTS(ctx, sa, gcpSA, audience, tokenURL)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	return &repository.Token{
-		Type:     repository.TokenTypeBearer,
-		Token:    accessToken,
-		Username: "oauth2accesstoken", // GCR/GAR require this specific username
+		Type:      repository.TokenTypeBearer,
+		Token:     accessToken,
+		Username:  "oauth2accesstoken", // GCR/GAR require this specific username
+		ExpiresAt: expiresAt,
 	}, nil
 }
 
 // resolveGCPViaMetadata uses the GKE metadata server to get a token, then impersonates the target SA
-func (p *GCPProvider) resolveGCPViaMetadata(ctx context.Context, targetSA string) (string, error) {
+func (p *GCPProvider) resolveGCPViaMetadata(ctx context.Context, targetSA string) (string, *time.Time, error) {
 	// Get token from metadata server (this is the pod's own GCP identity)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, GCPMetadataTokenURL, http.NoBody)
 	if err != nil {
-		return "", fmt.Errorf("failed to create metadata request: %w", err)
+		return "", nil, fmt.Errorf("failed to create metadata request: %w", err)
 	}
 	req.Header.Set("Metadata-Flavor", "Google")
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("metadata request failed: %w", err)
+		return "", nil, fmt.Errorf("metadata request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("metadata server returned status %d: %s", resp.StatusCode, string(body))
+		return "", nil, fmt.Errorf("metadata server returned status %d: %s", resp.StatusCode, string(body))
 	}
 
 	var tokenResp struct {
 		AccessToken string `json:"access_token"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
-		return "", fmt.Errorf("failed to decode metadata response: %w", err)
+		return "", nil, fmt.Errorf("failed to decode metadata response: %w", err)
 	}
 
 	log.Infof("resolveGCPViaMetadata: got token from metadata server, impersonating %s", targetSA)
@@ -178,13 +180,13 @@ func (p *GCPProvider) resolveGCPViaMetadata(ctx context.Context, targetSA string
 }
 
 // resolveGCPViaSTS uses STS token exchange for Workload Identity Federation
-func (p *GCPProvider) resolveGCPViaSTS(ctx context.Context, sa *corev1.ServiceAccount, gcpSA string, audience string, tokenURL string) (string, error) {
+func (p *GCPProvider) resolveGCPViaSTS(ctx context.Context, sa *corev1.ServiceAccount, gcpSA string, audience string, tokenURL string) (string, *time.Time, error) {
 	// Get the workload identity provider audience
 	if audience == "" {
 		audience = sa.Annotations[AnnotationGCPWorkloadIdentity]
 	}
 	if audience == "" {
-		return "", fmt.Errorf("workload identity provider audience not specified: set workloadIdentityAudience in repository config or add %s annotation to service account %s", AnnotationGCPWorkloadIdentity, sa.Name)
+		return "", nil, fmt.Errorf("workload identity provider audience not specified: set workloadIdentityAudience in repository config or add %s annotation to service account %s", AnnotationGCPWorkloadIdentity, sa.Name)
 	}
 
 	log.Infof("resolveGCPViaSTS: using audience=%q", audience)
@@ -192,13 +194,13 @@ func (p *GCPProvider) resolveGCPViaSTS(ctx context.Context, sa *corev1.ServiceAc
 	// Step 1: Request K8s token with the GCP audience
 	k8sToken, err := p.k8s.GetToken(ctx, audience, "")
 	if err != nil {
-		return "", fmt.Errorf("failed to request K8s token: %w", err)
+		return "", nil, fmt.Errorf("failed to request K8s token: %w", err)
 	}
 
 	// Step 2: Exchange K8s token with GCP STS for a federated token
 	federatedToken, err := p.exchangeTokenWithSTS(ctx, k8sToken.Token, audience, tokenURL)
 	if err != nil {
-		return "", fmt.Errorf("STS token exchange failed: %w", err)
+		return "", nil, fmt.Errorf("STS token exchange failed: %w", err)
 	}
 
 	// Step 3: Use federated token to impersonate the GCP service account
@@ -248,8 +250,9 @@ func (p *GCPProvider) exchangeTokenWithSTS(ctx context.Context, k8sToken, audien
 	return tokenResp.AccessToken, nil
 }
 
-// impersonateServiceAccount uses a federated token to get an access token for a GCP service account
-func (p *GCPProvider) impersonateServiceAccount(ctx context.Context, federatedToken, serviceAccountEmail string) (string, error) {
+// impersonateServiceAccount uses a federated token to get an access token for a GCP service account.
+// It also returns the token expiry from the response's expireTime, or nil when absent/unparseable.
+func (p *GCPProvider) impersonateServiceAccount(ctx context.Context, federatedToken, serviceAccountEmail string) (string, *time.Time, error) {
 	impersonateURL := fmt.Sprintf(DefaultGCPIAMCredentialsURL, serviceAccountEmail)
 
 	requestBody := map[string]any{
@@ -257,35 +260,40 @@ func (p *GCPProvider) impersonateServiceAccount(ctx context.Context, federatedTo
 	}
 	bodyBytes, err := json.Marshal(requestBody)
 	if err != nil {
-		return "", fmt.Errorf("failed to marshal request: %w", err)
+		return "", nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, impersonateURL, bytes.NewReader(bodyBytes))
 	if err != nil {
-		return "", fmt.Errorf("failed to create request: %w", err)
+		return "", nil, fmt.Errorf("failed to create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+federatedToken)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("request failed: %w", err)
+		return "", nil, fmt.Errorf("request failed: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("status %d: %s", resp.StatusCode, string(body))
+		return "", nil, fmt.Errorf("status %d: %s", resp.StatusCode, string(body))
 	}
 
 	var tokenResp struct {
 		AccessToken string `json:"accessToken"`
+		ExpireTime  string `json:"expireTime"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
-		return "", fmt.Errorf("failed to decode response: %w", err)
+		return "", nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	return tokenResp.AccessToken, nil
+	var expiresAt *time.Time
+	if expiry, err := time.Parse(time.RFC3339, tokenResp.ExpireTime); err == nil {
+		expiresAt = &expiry
+	}
+	return tokenResp.AccessToken, expiresAt, nil
 }
 
 // Ensure GCPProvider implements Provider

@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -163,4 +164,28 @@ func TestPassthroughAuthenticator_Authenticate_EmptyToken(t *testing.T) {
 	require.Error(t, err)
 	assert.Nil(t, creds)
 	assert.Contains(t, err.Error(), "empty bearer token")
+}
+
+func TestPassthroughAuthenticator_PropagatesTokenExpiry(t *testing.T) {
+	expiry := time.Now().Add(time.Hour)
+	a := NewPassthroughAuthenticator()
+
+	creds, err := a.Authenticate(t.Context(), &Token{
+		Type:      TokenTypeBearer,
+		Token:     "access-token",
+		Username:  "oauth2accesstoken",
+		ExpiresAt: &expiry,
+	}, "repo", nil)
+	require.NoError(t, err)
+	require.NotNil(t, creds.ExpiresAt)
+	assert.Equal(t, expiry, *creds.ExpiresAt)
+
+	// No expiry on the token means no expiry on the credentials.
+	creds, err = a.Authenticate(t.Context(), &Token{
+		Type:     TokenTypeBearer,
+		Token:    "access-token",
+		Username: "oauth2accesstoken",
+	}, "repo", nil)
+	require.NoError(t, err)
+	assert.Nil(t, creds.ExpiresAt)
 }

@@ -4,31 +4,45 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"strings"
+	"sync/atomic"
 
+	jwtgo "github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
 
 	"k8s.io/client-go/kubernetes"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/jwt"
 	"github.com/argoproj/argo-cd/v3/util/workloadidentity/v2/identity"
 	"github.com/argoproj/argo-cd/v3/util/workloadidentity/v2/repository"
 )
 
-// Standard cloud provider annotation fields (on service accounts)
-const (
-	AnnotationAWSRoleARN = "eks.amazonaws.com/role-arn"
-)
+// serviceAccountTokenPath is the standard in-cluster location of the pod's
+// projected service account token. Variable so tests can point it at a fixture.
+var serviceAccountTokenPath = "/var/run/secrets/kubernetes.io/serviceaccount/token"
+
+// cachedPodSAName holds the pod service account name after the first
+// successful read — the pod's service account cannot change during the
+// process lifetime. Failures are not cached, so a transient read error is
+// retried on the next call.
+var cachedPodSAName atomic.Pointer[string]
 
 // Resolver resolves workload identity credentials from Kubernetes service accounts
 type Resolver struct {
 	serviceAccounts corev1.ServiceAccountInterface
+	credCache       *CredentialCache
 }
 
-// NewResolver creates a new workload identity resolver
+// NewResolver creates a new workload identity resolver. Resolvers share a
+// process-wide credential cache, so resolved repository tokens are reused
+// across Resolver instances until they expire.
 func NewResolver(clientset kubernetes.Interface, namespace string) *Resolver {
 	return &Resolver{
 		serviceAccounts: clientset.CoreV1().ServiceAccounts(namespace),
+		credCache:       sharedCredentialCache,
 	}
 }
 
@@ -40,7 +54,10 @@ func NewResolver(clientset kubernetes.Interface, namespace string) *Resolver {
 // identity and injects a session tag from the repository's project field) do not require
 // `argocd-project-<project>` to exist in the cluster.
 func NewIdentityProvider(repository *v1alpha1.Repository, clientset kubernetes.Interface, ns string) (identity.Provider, error) {
-	saName := getServiceAccountName(repository.Project)
+	saName, err := getServiceAccountName(repository.Project)
+	if err != nil {
+		return nil, err
+	}
 	k8sProvider := identity.NewK8sProvider(clientset, ns, saName)
 	switch repository.WorkloadIdentityProvider {
 	case "k8s":
@@ -81,10 +98,11 @@ func NewAuthenticator(authenticator string) repository.Authenticator {
 //   - repo: The repository containing workload identity configuration
 //
 // The process is:
-// 1. Get K8s service account token via TokenRequest API
-// 2. Exchange token using the provided identity provider
-// 3. Authenticate to the repository using the provided authenticator
-// 4. Return username/password for repo-server to use
+// 1. Return still-valid credentials from the cache, if present
+// 2. Get K8s service account token via TokenRequest API
+// 3. Exchange token using the provided identity provider
+// 4. Authenticate to the repository using the provided authenticator
+// 5. Cache and return username/password for repo-server to use
 func (r *Resolver) ResolveCredentials(ctx context.Context, idProvider identity.Provider, repoAuth repository.Authenticator, repo *v1alpha1.Repository) (*repository.Credentials, error) {
 	if idProvider == nil {
 		return nil, errors.New("identity provider is required")
@@ -96,14 +114,19 @@ func (r *Resolver) ResolveCredentials(ctx context.Context, idProvider identity.P
 		return nil, errors.New("repository is required")
 	}
 
+	cacheKey := credentialCacheKey(repo)
+	if creds, ok := r.credCache.Get(cacheKey); ok {
+		log.WithFields(log.Fields{
+			"project": repo.Project,
+			"repoURL": repo.Repo,
+		}).Debug("using cached workload identity credentials")
+		return creds, nil
+	}
+
 	log.WithFields(log.Fields{
 		"project": repo.Project,
 		"repoURL": repo.Repo,
 	}).Info("resolving workload identity credentials")
-
-	// Determine service account name from project
-	saName := getServiceAccountName(repo.Project)
-	log.WithField("serviceAccount", saName).Debug("using service account for workload identity")
 
 	log.Info("exchanging credentials with identity provider")
 	idToken, err := idProvider.GetToken(ctx, repo.WorkloadIdentityAudience, repo.WorkloadIdentityTokenURL)
@@ -129,6 +152,8 @@ func (r *Resolver) ResolveCredentials(ctx context.Context, idProvider identity.P
 		return nil, err
 	}
 
+	r.credCache.Set(cacheKey, creds)
+
 	log.WithFields(log.Fields{
 		"project": repo.Project,
 		"repoURL": repo.Repo,
@@ -136,11 +161,44 @@ func (r *Resolver) ResolveCredentials(ctx context.Context, idProvider identity.P
 	return creds, nil
 }
 
-// getServiceAccountName returns the service account name for a given project
-// If projectName is empty, it returns the global service account name
-func getServiceAccountName(projectName string) string {
-	if projectName == "" {
-		return "argocd-global"
+// getServiceAccountName returns the service account name for a given project.
+// If projectName is empty, the pod's own service account is used.
+func getServiceAccountName(projectName string) (string, error) {
+	if projectName != "" {
+		return "argocd-project-" + projectName, nil
 	}
-	return "argocd-project-" + projectName
+	return podServiceAccountName()
+}
+
+// podServiceAccountName returns the name of the service account the pod runs
+// as, taken from the subject claim of the mounted service account token
+// (system:serviceaccount:<namespace>:<name>). The signature is not verified:
+// the token was issued to this pod by the kubelet and the subject is only
+// used to name the SA for subsequent TokenRequest calls.
+func podServiceAccountName() (string, error) {
+	if name := cachedPodSAName.Load(); name != nil {
+		return *name, nil
+	}
+
+	data, err := os.ReadFile(serviceAccountTokenPath)
+	if err != nil {
+		return "", fmt.Errorf("no project specified and the pod service account token could not be read: %w", err)
+	}
+	claims := jwtgo.MapClaims{}
+	if _, _, err := jwtgo.NewParser().ParseUnverified(strings.TrimSpace(string(data)), claims); err != nil {
+		return "", fmt.Errorf("failed to parse pod service account token: %w", err)
+	}
+	sub := jwt.StringField(claims, "sub")
+
+	const prefix = "system:serviceaccount:"
+	name, ok := strings.CutPrefix(sub, prefix)
+	if ok {
+		_, name, ok = strings.Cut(name, ":")
+	}
+	if !ok || name == "" {
+		return "", fmt.Errorf("unexpected subject %q in pod service account token, want %s<namespace>:<name>", sub, prefix)
+	}
+
+	cachedPodSAName.Store(&name)
+	return name, nil
 }

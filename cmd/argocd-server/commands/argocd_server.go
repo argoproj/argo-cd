@@ -39,6 +39,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/templates"
 	"github.com/argoproj/argo-cd/v3/util/tls"
 	traceutil "github.com/argoproj/argo-cd/v3/util/trace"
+	workloadidentity "github.com/argoproj/argo-cd/v3/util/workloadidentity/v2"
 )
 
 const (
@@ -93,6 +94,8 @@ func NewCommand() *cobra.Command {
 		webhookRefreshWorkers    int
 		hydratorEnabled          bool
 		syncWithReplaceAllowed   bool
+		wiTokenCacheTTL          time.Duration
+		wiTokenCacheMaxTTL       time.Duration
 
 		// ApplicationSet
 		enableNewGitFileGlobbing bool
@@ -129,6 +132,7 @@ func NewCommand() *cobra.Command {
 			cli.SetLogLevel(cmdutil.LogLevel)
 			cli.SetGLogLevel(glogLevel)
 			utilglob.SetCacheSize(globCacheSize)
+			workloadidentity.SetTokenCacheTTLs(wiTokenCacheTTL, wiTokenCacheMaxTTL)
 
 			// Recover from panic and log the error using the configured logger instead of the default.
 			defer func() {
@@ -343,6 +347,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringSliceVar(&enableK8sEvent, "enable-k8s-event", env.StringsFromEnv("ARGOCD_ENABLE_K8S_EVENT", argo.DefaultEnableEventList(), ","), "Enable ArgoCD to use k8s event. For disabling all events, set the value as `none`. (e.g --enable-k8s-event=none), For enabling specific events, set the value as `event reason`. (e.g --enable-k8s-event=StatusRefreshed,ResourceCreated)")
 	command.Flags().BoolVar(&hydratorEnabled, "hydrator-enabled", env.ParseBoolFromEnv("ARGOCD_HYDRATOR_ENABLED", false), "Feature flag to enable Hydrator. Default (\"false\")")
 	command.Flags().BoolVar(&syncWithReplaceAllowed, "sync-with-replace-allowed", env.ParseBoolFromEnv("ARGOCD_SYNC_WITH_REPLACE_ALLOWED", true), "Whether to allow users to select replace for syncs from UI/CLI")
+	command.Flags().DurationVar(&wiTokenCacheTTL, "workload-identity-token-cache-ttl", env.ParseDurationFromEnv(workloadidentity.EnvTokenCacheTTL, workloadidentity.DefaultTokenCacheTTL, 0, math.MaxInt64), "TTL for cached workload identity repository credentials whose expiry is not reported by the token endpoint (0 disables caching those)")
+	command.Flags().DurationVar(&wiTokenCacheMaxTTL, "workload-identity-token-cache-max-ttl", env.ParseDurationFromEnv(workloadidentity.EnvTokenCacheMaxTTL, workloadidentity.DefaultTokenCacheMaxTTL, 0, math.MaxInt64), "Upper bound on how long any workload identity repository credential is served from cache")
 
 	// Flags related to the applicationSet component.
 	command.Flags().StringVar(&scmRootCAPath, "appset-scm-root-ca-path", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH", ""), "Provide Root CA Path for self-signed TLS Certificates")

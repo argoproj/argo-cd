@@ -74,6 +74,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 
@@ -153,7 +154,7 @@ func (p *AzureProvider) GetToken(ctx context.Context, audience string, tokenURL 
 
 	// Exchange K8s JWT for Azure access token using client credentials flow
 	log.Debug("Azure Workload Identity: requesting access token from Azure AD")
-	azureToken, err := p.getAzureAccessToken(ctx, tokenURL, clientID, k8sToken.Token)
+	azureToken, expiresAt, err := p.getAzureAccessToken(ctx, tokenURL, clientID, k8sToken.Token)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"clientID": clientID,
@@ -169,8 +170,9 @@ func (p *AzureProvider) GetToken(ctx context.Context, audience string, tokenURL 
 	}).Info("Azure Workload Identity: successfully obtained access token")
 
 	token := &repository.Token{
-		Type:  repository.TokenTypeBearer,
-		Token: azureToken,
+		Type:      repository.TokenTypeBearer,
+		Token:     azureToken,
+		ExpiresAt: expiresAt,
 	}
 
 	// For git repos (Azure DevOps), set the username for passthrough auth
@@ -181,8 +183,9 @@ func (p *AzureProvider) GetToken(ctx context.Context, audience string, tokenURL 
 	return token, nil
 }
 
-// getAzureAccessToken exchanges a K8s JWT for an Azure access token
-func (p *AzureProvider) getAzureAccessToken(ctx context.Context, tokenURL, clientID, k8sToken string) (string, error) {
+// getAzureAccessToken exchanges a K8s JWT for an Azure access token and its
+// expiry (derived from the response's expires_in, nil when absent).
+func (p *AzureProvider) getAzureAccessToken(ctx context.Context, tokenURL, clientID, k8sToken string) (string, *time.Time, error) {
 	// Prepare OAuth 2.0 client credentials request with JWT bearer assertion
 	data := url.Values{}
 	data.Set("client_id", clientID)
@@ -194,21 +197,21 @@ func (p *AzureProvider) getAzureAccessToken(ctx context.Context, tokenURL, clien
 	// Create HTTP request
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, tokenURL, strings.NewReader(data.Encode()))
 	if err != nil {
-		return "", fmt.Errorf("failed to create request: %w", err)
+		return "", nil, fmt.Errorf("failed to create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	// Execute request
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return "", fmt.Errorf("failed to execute request: %w", err)
+		return "", nil, fmt.Errorf("failed to execute request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	// Check response status
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("token request failed with status %d: %s", resp.StatusCode, string(body))
+		return "", nil, fmt.Errorf("token request failed with status %d: %s", resp.StatusCode, string(body))
 	}
 
 	// Parse response
@@ -219,10 +222,15 @@ func (p *AzureProvider) getAzureAccessToken(ctx context.Context, tokenURL, clien
 	}
 
 	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
-		return "", fmt.Errorf("failed to decode response: %w", err)
+		return "", nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	return tokenResp.AccessToken, nil
+	var expiresAt *time.Time
+	if tokenResp.ExpiresIn > 0 {
+		expiry := time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second)
+		expiresAt = &expiry
+	}
+	return tokenResp.AccessToken, expiresAt, nil
 }
 
 // Ensure GCPProvider implements Provider

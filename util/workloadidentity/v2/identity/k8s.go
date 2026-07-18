@@ -111,10 +111,14 @@ func (p *K8sProvider) GetToken(ctx context.Context, audience, _ string) (*reposi
 		return nil, fmt.Errorf("failed to create token for service account %s: %w", p.saName, err)
 	}
 
-	return &repository.Token{
+	token := &repository.Token{
 		Type:  repository.TokenTypeBearer,
 		Token: resp.Status.Token,
-	}, nil
+	}
+	if !resp.Status.ExpirationTimestamp.IsZero() {
+		token.ExpiresAt = &resp.Status.ExpirationTimestamp.Time
+	}
+	return token, nil
 }
 
 // boundPodRef returns a BoundObjectReference for the pod we're running in,

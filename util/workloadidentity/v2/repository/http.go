@@ -11,8 +11,10 @@ import (
 	"maps"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"text/template"
+	"time"
 
 	"github.com/Masterminds/sprig/v3"
 	log "github.com/sirupsen/logrus"
@@ -201,8 +203,14 @@ func (a *HTTPTemplateAuthenticator) Authenticate(ctx context.Context, token *Tok
 		return nil, fmt.Errorf("request failed with status %d: %s", resp.StatusCode, truncateString(string(respBody), 200))
 	}
 
-	// Parse response to extract token
-	accessToken, err := extractTokenFromResponse(respBody, config.ResponseTokenField)
+	// Parse the response once; token, username and expiry extraction all read
+	// from the same document.
+	var respData map[string]any
+	if err := json.Unmarshal(respBody, &respData); err != nil {
+		return nil, fmt.Errorf("failed to parse JSON response: %w", err)
+	}
+
+	accessToken, err := extractTokenFromResponse(respData, config.ResponseTokenField)
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract token from response: %w", err)
 	}
@@ -212,7 +220,7 @@ func (a *HTTPTemplateAuthenticator) Authenticate(ctx context.Context, token *Tok
 	// statically configured username.
 	username := config.Username
 	if config.ResponseUsernameField != "" {
-		username, err = extractStringField(respBody, config.ResponseUsernameField)
+		username, err = extractStringField(respData, config.ResponseUsernameField)
 		if err != nil {
 			return nil, fmt.Errorf("failed to extract username from response: %w", err)
 		}
@@ -224,9 +232,35 @@ func (a *HTTPTemplateAuthenticator) Authenticate(ctx context.Context, token *Tok
 	}).Info("HTTPTemplate: successfully obtained credentials")
 
 	return &Credentials{
-		Username: username,
-		Password: accessToken,
+		Username:  username,
+		Password:  accessToken,
+		ExpiresAt: extractExpiry(respData),
 	}, nil
+}
+
+// extractExpiry returns the credential expiry derived from an OAuth-style
+// "expires_in" field (seconds from now) in the response, or nil when the
+// response does not carry one. Both numeric and string-encoded values are
+// accepted since token endpoints are inconsistent about the type.
+func extractExpiry(data map[string]any) *time.Time {
+	var seconds float64
+	switch v := data["expires_in"].(type) {
+	case float64:
+		seconds = v
+	case string:
+		parsed, err := strconv.ParseFloat(v, 64)
+		if err != nil {
+			return nil
+		}
+		seconds = parsed
+	default:
+		return nil
+	}
+	if seconds <= 0 {
+		return nil
+	}
+	expiry := time.Now().Add(time.Duration(seconds * float64(time.Second)))
+	return &expiry
 }
 
 // substituteTemplate executes a Go template with the provided variables.
@@ -252,18 +286,14 @@ func substituteTemplate(tmplStr string, vars map[string]string) (string, error) 
 	return buf.String(), nil
 }
 
-// extractTokenFromResponse extracts the token from a JSON response
-func extractTokenFromResponse(body []byte, fieldName string) (string, error) {
+// extractTokenFromResponse extracts the token from the parsed response
+func extractTokenFromResponse(data map[string]any, fieldName string) (string, error) {
 	// If a specific field is requested, use only that field.
 	if fieldName != "" {
-		return extractStringField(body, fieldName)
+		return extractStringField(data, fieldName)
 	}
 
 	// Otherwise fall back to the standard token fields, in order of preference.
-	var data map[string]any
-	if err := json.Unmarshal(body, &data); err != nil {
-		return "", fmt.Errorf("failed to parse JSON response: %w", err)
-	}
 	for _, field := range []string{"access_token", "token", "refresh_token"} {
 		if strVal, ok := data[field].(string); ok && strVal != "" {
 			return strVal, nil
@@ -273,14 +303,9 @@ func extractTokenFromResponse(body []byte, fieldName string) (string, error) {
 	return "", errors.New("no token field found in response (tried access_token, token, refresh_token)")
 }
 
-// extractStringField parses a JSON object body and returns the named string
-// field. It errors if the body is not valid JSON, or the field is absent,
-// non-string, or empty.
-func extractStringField(body []byte, fieldName string) (string, error) {
-	var data map[string]any
-	if err := json.Unmarshal(body, &data); err != nil {
-		return "", fmt.Errorf("failed to parse JSON response: %w", err)
-	}
+// extractStringField returns the named string field from the parsed response.
+// It errors if the field is absent, non-string, or empty.
+func extractStringField(data map[string]any, fieldName string) (string, error) {
 	if strVal, ok := data[fieldName].(string); ok && strVal != "" {
 		return strVal, nil
 	}

@@ -2,12 +2,21 @@ package repository
 
 import (
 	"context"
+	"time"
 )
 
 // Credentials holds resolved username and password for repository access
 type Credentials struct {
 	Username string
 	Password string
+
+	// ExpiresAt is the time at which the credentials stop being valid, when
+	// known. Authenticators that receive an expiry from the token endpoint
+	// (e.g. ECR's GetAuthorizationToken, OAuth-style expires_in responses)
+	// set it so callers can cache the credentials until shortly before then.
+	// Nil means the expiry is unknown and callers must assume a conservative
+	// lifetime.
+	ExpiresAt *time.Time
 }
 
 // Config holds registry-specific configuration

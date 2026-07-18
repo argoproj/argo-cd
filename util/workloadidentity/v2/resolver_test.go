@@ -3,8 +3,11 @@ package v2
 import (
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -24,11 +27,6 @@ func TestGetServiceAccountName(t *testing.T) {
 		projectName string
 		expected    string
 	}{
-		{
-			name:        "empty project returns global SA",
-			projectName: "",
-			expected:    "argocd-global",
-		},
 		{
 			name:        "default project",
 			projectName: "default",
@@ -53,10 +51,74 @@ func TestGetServiceAccountName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := getServiceAccountName(tt.projectName)
+			result, err := getServiceAccountName(tt.projectName)
+			require.NoError(t, err)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+// withPodToken points the pod service account token path at a file containing
+// a JWT with the given subject for the duration of the test, resetting the
+// cached name so the fixture is actually read.
+func withPodToken(t *testing.T, subject string) {
+	t.Helper()
+	token, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"sub": subject,
+	}).SignedString([]byte("test-secret"))
+	require.NoError(t, err)
+
+	path := filepath.Join(t.TempDir(), "token")
+	require.NoError(t, os.WriteFile(path, []byte(token+"\n"), 0o600))
+
+	orig := serviceAccountTokenPath
+	serviceAccountTokenPath = path
+	cachedPodSAName.Store(nil)
+	t.Cleanup(func() {
+		serviceAccountTokenPath = orig
+		cachedPodSAName.Store(nil)
+	})
+}
+
+func TestGetServiceAccountName_EmptyProjectUsesPodSA(t *testing.T) {
+	withPodToken(t, "system:serviceaccount:argocd:argocd-repo-server")
+
+	result, err := getServiceAccountName("")
+	require.NoError(t, err)
+	assert.Equal(t, "argocd-repo-server", result)
+
+	// The name is cached after the first successful read: making the token
+	// unreadable must not affect subsequent lookups.
+	serviceAccountTokenPath = filepath.Join(t.TempDir(), "missing")
+	result, err = getServiceAccountName("")
+	require.NoError(t, err)
+	assert.Equal(t, "argocd-repo-server", result)
+}
+
+func TestGetServiceAccountName_EmptyProjectErrors(t *testing.T) {
+	t.Run("token not readable", func(t *testing.T) {
+		orig := serviceAccountTokenPath
+		serviceAccountTokenPath = filepath.Join(t.TempDir(), "missing")
+		cachedPodSAName.Store(nil)
+		t.Cleanup(func() { serviceAccountTokenPath = orig })
+
+		_, err := getServiceAccountName("")
+		require.ErrorContains(t, err, "pod service account token could not be read")
+	})
+
+	t.Run("non-serviceaccount subject", func(t *testing.T) {
+		withPodToken(t, "some-user")
+
+		_, err := getServiceAccountName("")
+		require.ErrorContains(t, err, "unexpected subject")
+	})
+
+	t.Run("subject missing name", func(t *testing.T) {
+		withPodToken(t, "system:serviceaccount:argocd:")
+
+		_, err := getServiceAccountName("")
+		require.ErrorContains(t, err, "unexpected subject")
+	})
 }
 
 func TestNewResolver(t *testing.T) {
@@ -201,7 +263,7 @@ func TestNewAuthenticator(t *testing.T) {
 
 func TestResolveCredentials_NilProvider(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
-	resolver := NewResolver(clientset, "argocd")
+	resolver := newTestResolver(clientset, "argocd")
 
 	repo := &v1alpha1.Repository{
 		Repo:                     "https://example.com",
@@ -216,7 +278,7 @@ func TestResolveCredentials_NilProvider(t *testing.T) {
 
 func TestResolveCredentials_NilAuthenticator(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
-	resolver := NewResolver(clientset, "argocd")
+	resolver := newTestResolver(clientset, "argocd")
 
 	provider := mocks.NewProvider(t)
 	repo := &v1alpha1.Repository{
@@ -231,7 +293,7 @@ func TestResolveCredentials_NilAuthenticator(t *testing.T) {
 
 func TestResolveCredentials_NilRepo(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
-	resolver := NewResolver(clientset, "argocd")
+	resolver := newTestResolver(clientset, "argocd")
 
 	provider := mocks.NewProvider(t)
 	repoAuth := repository.NewHTTPTemplateAuthenticator()
@@ -242,7 +304,7 @@ func TestResolveCredentials_NilRepo(t *testing.T) {
 
 func TestResolveCredentials_ProviderTokenError(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
-	resolver := NewResolver(clientset, "argocd")
+	resolver := newTestResolver(clientset, "argocd")
 
 	provider := mocks.NewProvider(t)
 	provider.EXPECT().GetToken(mock.Anything, mock.Anything, mock.Anything).
@@ -263,7 +325,7 @@ func TestResolveCredentials_ProviderTokenError(t *testing.T) {
 
 func TestResolveCredentials_AuthenticatorError(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
-	resolver := NewResolver(clientset, "argocd")
+	resolver := newTestResolver(clientset, "argocd")
 
 	provider := mocks.NewProvider(t)
 	provider.EXPECT().GetToken(mock.Anything, mock.Anything, mock.Anything).
@@ -289,7 +351,7 @@ func TestResolveCredentials_AuthenticatorError(t *testing.T) {
 
 func TestResolveCredentials_Success(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
-	resolver := NewResolver(clientset, "argocd")
+	resolver := newTestResolver(clientset, "argocd")
 
 	provider := mocks.NewProvider(t)
 	provider.EXPECT().GetToken(mock.Anything, mock.Anything, mock.Anything).
@@ -319,7 +381,7 @@ func TestResolveCredentials_Success(t *testing.T) {
 
 func TestResolveCredentials_PassesConfigToAuthenticator(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
-	resolver := NewResolver(clientset, "argocd")
+	resolver := newTestResolver(clientset, "argocd")
 
 	provider := mocks.NewProvider(t)
 	provider.EXPECT().GetToken(mock.Anything, mock.Anything, mock.Anything).
@@ -368,7 +430,7 @@ func TestResolveCredentials_PassesConfigToAuthenticator(t *testing.T) {
 
 func TestResolveCredentials_PassesAudienceAndTokenURL(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
-	resolver := NewResolver(clientset, "argocd")
+	resolver := newTestResolver(clientset, "argocd")
 
 	var capturedAudience, capturedTokenURL string
 	provider := mocks.NewProvider(t)

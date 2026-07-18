@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -600,13 +601,80 @@ func TestExtractTokenFromResponse(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := extractTokenFromResponse([]byte(tt.body), tt.field)
+			var data map[string]any
+			require.NoError(t, json.Unmarshal([]byte(tt.body), &data))
+			result, err := extractTokenFromResponse(data, tt.field)
 			if tt.expectErr {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
 				assert.Equal(t, tt.expected, result)
 			}
+		})
+	}
+}
+
+func TestHTTPTemplateAuthenticator_ExpiresIn(t *testing.T) {
+	tests := []struct {
+		name     string
+		response map[string]any
+		// wantTTL is the expected time until expiry; 0 means ExpiresAt must be nil
+		wantTTL time.Duration
+	}{
+		{
+			name:     "numeric expires_in",
+			response: map[string]any{"access_token": "tok", "expires_in": 3600},
+			wantTTL:  time.Hour,
+		},
+		{
+			name:     "string expires_in",
+			response: map[string]any{"access_token": "tok", "expires_in": "1800"},
+			wantTTL:  30 * time.Minute,
+		},
+		{
+			name:     "absent expires_in",
+			response: map[string]any{"access_token": "tok"},
+		},
+		{
+			name:     "zero expires_in",
+			response: map[string]any{"access_token": "tok", "expires_in": 0},
+		},
+		{
+			name:     "negative expires_in",
+			response: map[string]any{"access_token": "tok", "expires_in": -60},
+		},
+		{
+			name:     "malformed string expires_in",
+			response: map[string]any{"access_token": "tok", "expires_in": "soon"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				require.NoError(t, json.NewEncoder(w).Encode(tt.response))
+			}))
+			defer server.Close()
+			host := server.URL[7:] // strip "http://"
+
+			a := NewHTTPTemplateAuthenticator()
+			config := &Config{
+				PathTemplate: "/token",
+				Username:     "user",
+				Insecure:     true,
+			}
+
+			before := time.Now()
+			creds, err := a.Authenticate(t.Context(), &Token{Type: TokenTypeBearer, Token: "id-token"}, "oci://"+host+"/repo", config)
+			require.NoError(t, err)
+
+			if tt.wantTTL == 0 {
+				assert.Nil(t, creds.ExpiresAt)
+				return
+			}
+			require.NotNil(t, creds.ExpiresAt)
+			assert.WithinDuration(t, before.Add(tt.wantTTL), *creds.ExpiresAt, 10*time.Second)
 		})
 	}
 }

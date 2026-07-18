@@ -9,18 +9,27 @@ import (
 
 	log "github.com/sirupsen/logrus"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/ecr"
 )
 
+// ecrTokenAPI is the subset of the ECR client used by the authenticator.
+type ecrTokenAPI interface {
+	GetAuthorizationToken(ctx context.Context, params *ecr.GetAuthorizationTokenInput, optFns ...func(*ecr.Options)) (*ecr.GetAuthorizationTokenOutput, error)
+}
+
 // ECRAuthenticator exchanges AWS credentials for ECR authorization tokens
-// This is a stub - full implementation would use AWS ECR SDK
-type ECRAuthenticator struct{}
+type ECRAuthenticator struct {
+	newClient func(cfg aws.Config) ecrTokenAPI
+}
 
 // NewECRAuthenticator creates a new ECR authenticator
 func NewECRAuthenticator() *ECRAuthenticator {
-	return &ECRAuthenticator{}
+	return &ECRAuthenticator{
+		newClient: func(cfg aws.Config) ecrTokenAPI { return ecr.NewFromConfig(cfg) },
+	}
 }
 
 // Authenticate exchanges AWS credentials for ECR credentials
@@ -47,7 +56,7 @@ func (a *ECRAuthenticator) Authenticate(ctx context.Context, token *Token, _ str
 	if err != nil {
 		return nil, fmt.Errorf("failed to create ECR config: %w", err)
 	}
-	ecrClient := ecr.NewFromConfig(ecrCfg)
+	ecrClient := a.newClient(ecrCfg)
 
 	// Get ECR authorization token
 	log.Debug("ECR: calling GetAuthorizationToken API")
@@ -76,8 +85,9 @@ func (a *ECRAuthenticator) Authenticate(ctx context.Context, token *Token, _ str
 	log.WithField("region", token.AWSCredentials.Region).Info("ECR: successfully obtained authorization token")
 
 	return &Credentials{
-		Username: parts[0],
-		Password: parts[1],
+		Username:  parts[0],
+		Password:  parts[1],
+		ExpiresAt: authResult.AuthorizationData[0].ExpiresAt,
 	}, nil
 }
 

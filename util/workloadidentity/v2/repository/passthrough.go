@@ -45,8 +45,9 @@ func (a *PassthroughAuthenticator) Authenticate(_ context.Context, token *Token,
 	log.WithField("username", username).Info("Passthrough: using bearer token as password")
 
 	return &Credentials{
-		Username: username,
-		Password: token.Token,
+		Username:  username,
+		Password:  token.Token,
+		ExpiresAt: token.ExpiresAt,
 	}, nil
 }
 

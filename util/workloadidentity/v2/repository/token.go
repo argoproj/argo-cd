@@ -25,6 +25,14 @@ type Token struct {
 	// May be empty if the authenticator should use its own default
 	Username string
 
+	// ExpiresAt is the time at which the token stops being valid, when the
+	// identity provider knows it (TokenRequest expiration, OAuth expires_in,
+	// GCP impersonation expireTime). Authenticators that use the token
+	// directly as the credential (passthrough) propagate it to
+	// Credentials.ExpiresAt; exchange-based authenticators ignore it since
+	// the exchanged token has its own lifetime.
+	ExpiresAt *time.Time
+
 	// AWSCredentials holds AWS credentials (for TokenTypeAWS)
 	AWSCredentials *AWSCredentials
 }
