@@ -4,6 +4,7 @@ declare const expect: any;
 declare const describe: any;
 import {concatMaps} from './utils';
 import {isValidManagedByURL, isValidURL} from './utils';
+import {stripAnsiEscapeCodes} from './utils';
 
 test('map concatenation', () => {
     const map1 = {
@@ -56,5 +57,30 @@ describe('isValidManagedByURL', () => {
     test('rejects invalid URL strings', () => {
         expect(isValidManagedByURL('not-a-url')).toBe(false);
         expect(isValidManagedByURL('')).toBe(false);
+    });
+});
+
+describe('stripAnsiEscapeCodes', () => {
+    test('strips ANSI color codes', () => {
+        expect(stripAnsiEscapeCodes('\x1b[1;31mError\x1b[0m')).toBe('Error');
+        expect(stripAnsiEscapeCodes('\x1b[32mSuccess\x1b[0m')).toBe('Success');
+    });
+
+    test('strips multiple ANSI codes', () => {
+        expect(stripAnsiEscapeCodes('\x1b[1;31mError\x1b[0m: \x1b[33mWarning\x1b[0m')).toBe('Error: Warning');
+    });
+
+    test('leaves plain text unchanged', () => {
+        expect(stripAnsiEscapeCodes('No escape codes here')).toBe('No escape codes here');
+    });
+
+    test('handles empty string', () => {
+        expect(stripAnsiEscapeCodes('')).toBe('');
+    });
+
+    test('strips the example from the issue', () => {
+        expect(stripAnsiEscapeCodes('./missing-file.dhall \x1b[1;31mError\x1b[0m: Missing file ./missing-file.dhall')).toBe(
+            './missing-file.dhall Error: Missing file ./missing-file.dhall'
+        );
     });
 });

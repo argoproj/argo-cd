@@ -2,6 +2,7 @@ import * as React from 'react';
 
 import {Timestamp} from '../../../shared/components';
 import * as models from '../../../shared/models';
+import {stripAnsiEscapeCodes} from '../../../shared/utils';
 import {getAppSetConditionCategory, getConditionCategory} from '../utils';
 
 import './application-conditions.scss';
@@ -27,7 +28,7 @@ export const ApplicationConditions = ({conditions, title = 'Application conditio
                             <div className='row'>
                                 <div className='columns small-2'>{condition.type}</div>
                                 <div className='columns small-7' style={{whiteSpace: 'normal', lineHeight: 'normal'}}>
-                                    {condition.message}
+                                    {stripAnsiEscapeCodes(condition.message)}
                                 </div>
                                 <div className='columns small-3'>
                                     <Timestamp date={condition.lastTransitionTime} />
@@ -57,7 +58,7 @@ export const ApplicationSetConditions = ({conditions, title = 'ApplicationSet co
                                     {condition.status && <span className='application-conditions__status'> ({condition.status})</span>}
                                 </div>
                                 <div className='columns small-7' style={{whiteSpace: 'normal', lineHeight: 'normal'}}>
-                                    {condition.message}
+                                    {stripAnsiEscapeCodes(condition.message)}
                                 </div>
                                 <div className='columns small-3'>
                                     <Timestamp date={condition.lastTransitionTime} />

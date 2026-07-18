@@ -142,6 +142,13 @@ export const formatClusterQueryParam = (cluster: Cluster) => {
     return `${cluster.name} (${cluster.server})`;
 };
 
+// ANSI escape code regex pattern
+const ANSI_ESCAPE_REGEX = /\x1b\[[0-9;]*[a-zA-Z]/g;
+
+export function stripAnsiEscapeCodes(str: string): string {
+    return str.replace(ANSI_ESCAPE_REGEX, '');
+}
+
 /**
  * Checks if SSO is configured for authentication usage.
  * @param userInfo - User information from the session
