@@ -8,6 +8,7 @@ import (
 	"io"
 	gohttp "net/http"
 	"net/textproto"
+	"sort"
 	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -96,14 +97,36 @@ type appFieldSpec struct {
 // selectAppFields resolves the fields/exclude selection against appFields once
 // per request, so the per-application loop doesn't repeat the map lookups and
 // path splitting for every item.
+//
+// appFields may contain both a field and its descendants (e.g. "spec" and
+// "spec.destination"). When an ancestor is selected its value already covers
+// every descendant, so descendant specs are dropped; otherwise the write order
+// of the shared "spec" key would depend on map iteration order and could fail
+// with "field ... is not a map". The result is sorted to keep output
+// deterministic across requests.
 func selectAppFields(fields map[string]any, exclude bool) []appFieldSpec {
-	specs := make([]appFieldSpec, 0, len(appFields))
-	for field, fn := range appFields {
-		if _, ok := fields["items."+field]; ok == exclude {
+	selected := make(map[string]bool, len(appFields))
+	for field := range appFields {
+		if _, ok := fields["items."+field]; ok != exclude {
+			selected[field] = true
+		}
+	}
+	specs := make([]appFieldSpec, 0, len(selected))
+	for field := range selected {
+		parts := strings.Split(field, ".")
+		coveredByAncestor := false
+		for i := 1; i < len(parts); i++ {
+			if selected[strings.Join(parts[:i], ".")] {
+				coveredByAncestor = true
+				break
+			}
+		}
+		if coveredByAncestor {
 			continue
 		}
-		specs = append(specs, appFieldSpec{field: field, parts: strings.Split(field, "."), fn: fn})
+		specs = append(specs, appFieldSpec{field: field, parts: parts, fn: appFields[field]})
 	}
+	sort.Slice(specs, func(i, j int) bool { return specs[i].field < specs[j].field })
 	return specs
 }
 

@@ -374,6 +374,69 @@ func TestStreamApplicationListJSON_MatchesFieldFilter_AllFields(t *testing.T) {
 	assert.Equal(t, batchParsed, streamParsed)
 }
 
+// TestSelectAppFields_OverlappingFields ensures that selecting both a field and
+// its descendants (e.g. "spec" and "spec.destination", as appFields contains on
+// master) keeps only the ancestor, so processAppFields neither fails with
+// "field ... is not a map" nor depends on map iteration order.
+func TestSelectAppFields_OverlappingFields(t *testing.T) {
+	// Inject descendant entries unless already present (master defines them).
+	overlapping := map[string]func(app *v1alpha1.Application) any{
+		"spec.destination": func(app *v1alpha1.Application) any { return app.Spec.Destination },
+		"spec.project":     func(app *v1alpha1.Application) any { return app.Spec.Project },
+	}
+	var injected []string
+	for field, fn := range overlapping {
+		if _, exists := appFields[field]; !exists {
+			appFields[field] = fn
+			injected = append(injected, field)
+		}
+	}
+	t.Cleanup(func() {
+		for _, field := range injected {
+			delete(appFields, field)
+		}
+	})
+
+	fields := make(map[string]any)
+	for field := range appFields {
+		fields["items."+field] = true
+	}
+
+	app := &v1alpha1.Application{
+		Spec: v1alpha1.ApplicationSpec{
+			Project:     "default",
+			Destination: v1alpha1.ApplicationDestination{Namespace: "prod"},
+		},
+	}
+
+	// Map iteration order is randomized per range loop, so repeat to cover
+	// both "spec"-first and descendant-first orderings.
+	var firstJSON []byte
+	for range 50 {
+		specs := selectAppFields(fields, false)
+		for _, spec := range specs {
+			assert.NotEqual(t, "spec.destination", spec.field)
+			assert.NotEqual(t, "spec.project", spec.field)
+		}
+		converted, err := processAppFields(app, specs)
+		require.NoError(t, err)
+		convertedJSON, err := json.Marshal(converted)
+		require.NoError(t, err)
+		if firstJSON == nil {
+			firstJSON = convertedJSON
+		} else {
+			assert.JSONEq(t, string(firstJSON), string(convertedJSON))
+		}
+	}
+
+	// The full spec must be present, covering the dropped descendants.
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal(firstJSON, &parsed))
+	spec, ok := parsed["spec"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "default", spec["project"])
+}
+
 // TestStreamApplicationListJSON_MatchesFieldFilter_Exclude tests the exclude (negative) field selector.
 func TestStreamApplicationListJSON_MatchesFieldFilter_Exclude(t *testing.T) {
 	list := &v1alpha1.ApplicationList{
