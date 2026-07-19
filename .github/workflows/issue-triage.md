@@ -17,6 +17,7 @@ permissions:
    # *****
   issues: read
   contents: read
+  actions: read
 
 network: defaults
 
