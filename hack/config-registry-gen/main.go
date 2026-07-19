@@ -43,8 +43,8 @@ func main() {
 	}
 
 	keys := map[string]string{} // cmKey -> envVar
-	must(collectDocKeys(filepath.Join(repoRoot, "docs/operator-manual/argocd-cmd-params-cm.yaml"), keys))
-	must(collectManifestEnvMaps(filepath.Join(repoRoot, "manifests/base"), keys))
+	must(collectDocKeys(filepath.Join(repoRoot, "docs", "operator-manual", "argocd-cmd-params-cm.yaml"), keys))
+	must(collectManifestEnvMaps(filepath.Join(repoRoot, "manifests", "base"), keys))
 
 	var entries []cmdParamEntry
 	for cmKey, env := range keys {
@@ -84,7 +84,7 @@ func main() {
 	}
 	buf.WriteString("}\n")
 
-	out := filepath.Join(repoRoot, "util/configbus/cmd_params_generated.go")
+	out := filepath.Join(repoRoot, "util", "configbus", "cmd_params_generated.go")
 	must(os.WriteFile(out, buf.Bytes(), 0o644))
 	fmt.Fprintf(os.Stderr, "wrote %s (%d descriptors)\n", out, len(entries))
 }

@@ -1,6 +1,7 @@
 package configbus
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -105,9 +106,11 @@ func (d settingDesc[T]) FlagName() string        { return d.s.FlagName }
 func (d settingDesc[T]) CoversCMKey(key string) bool {
 	return d.s.CMKeyExact != "" && d.s.CMKeyExact == key
 }
+
 func (d settingDesc[T]) CoversEnv(env string) bool {
 	return d.s.EnvVar != "" && d.s.EnvVar == env
 }
+
 func (d settingDesc[T]) resolveAny(ctx *ResolveContext) (any, error) {
 	if d.s.Get != nil {
 		v, err := d.s.Get(ctx)
@@ -143,9 +146,11 @@ func (d dynamicDesc[T]) CoversCMKey(key string) bool {
 	_, _, ok := d.s.KeyFunc(key)
 	return ok
 }
+
 func (d dynamicDesc[T]) CoversEnv(env string) bool {
 	return d.s.EnvVar != "" && d.s.EnvVar == env
 }
+
 func (d dynamicDesc[T]) resolveAny(ctx *ResolveContext) (any, error) {
 	if d.s.Get != nil {
 		v, err := d.s.Get(ctx)
@@ -169,7 +174,7 @@ var (
 // Register adds a flat setting descriptor to the process-global registry.
 func Register[T any](s Setting[T]) error {
 	if s.Name == "" {
-		return fmt.Errorf("config: setting name is required")
+		return errors.New("config: setting name is required")
 	}
 	if s.Parse != nil && s.Get != nil {
 		return fmt.Errorf("config: setting %q must not set both Parse and Get", s.Name)
@@ -191,7 +196,7 @@ func Register[T any](s Setting[T]) error {
 // RegisterDynamic adds a dynamic setting descriptor to the process-global registry.
 func RegisterDynamic[T any](s DynamicSetting[T]) error {
 	if s.Name == "" {
-		return fmt.Errorf("config: dynamic setting name is required")
+		return errors.New("config: dynamic setting name is required")
 	}
 	if s.CMKeyPrefix == "" {
 		return fmt.Errorf("config: dynamic setting %q requires CMKeyPrefix", s.Name)
@@ -232,9 +237,7 @@ func MustRegisterDynamic[T any](s DynamicSetting[T]) {
 // resolved through the provider.
 func panicGet[T any](name string) func(*ResolveContext) (T, error) {
 	return func(*ResolveContext) (T, error) {
-		var zero T
 		panic(fmt.Sprintf("config: %q not yet resolved via provider", name))
-		return zero, nil // unreachable
 	}
 }
 

@@ -1,7 +1,7 @@
 package configbus
 
 import (
-	"fmt"
+	"errors"
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -42,7 +42,7 @@ type ControllerLegacy interface {
 
 func requireControllerLegacy(ctx *ResolveContext) (ControllerLegacy, error) {
 	if ctx == nil || ctx.Legacy == nil || ctx.Legacy.Controller == nil {
-		return nil, fmt.Errorf("config: ControllerLegacy not supplied by component")
+		return nil, errors.New("config: ControllerLegacy not supplied by component")
 	}
 	return ctx.Legacy.Controller, nil
 }
@@ -144,33 +144,41 @@ func registerControllerLegacySettings() {
 func (p *Provider) MetricsClusterLabels() ([]string, error) {
 	return Resolve[[]string](p, NameControllerMetricsClusterLabels)
 }
+
 func (p *Provider) SelfHealTimeout() (time.Duration, error) {
 	return Resolve[time.Duration](p, NameControllerSelfHealTimeoutSeconds)
 }
+
 func (p *Provider) SyncTimeout() (time.Duration, error) {
 	return Resolve[time.Duration](p, NameControllerSyncTimeoutSeconds)
 }
+
 func (p *Provider) RepoErrorGracePeriod() (time.Duration, error) {
 	return Resolve[time.Duration](p, NameControllerRepoErrorGracePeriodSeconds)
 }
+
 func (p *Provider) PersistResourceHealth() (bool, error) {
 	return Resolve[bool](p, NameControllerResourceHealthPersist)
 }
+
 func (p *Provider) ServerSideDiff() (bool, error) {
 	return Resolve[bool](p, NameControllerDiffServerSide)
 }
+
 func (p *Provider) IgnoreNormalizerJQTimeout() (time.Duration, error) {
 	return Resolve[time.Duration](p, NameControllerIgnoreNormalizerJQTimeout)
 }
+
 func (p *Provider) IgnoreNormalizerOpts() (normalizers.IgnoreNormalizerOpts, error) {
 	if p.legacy != nil && p.legacy.Controller != nil {
 		return p.legacy.Controller.LegacyIgnoreNormalizerOpts(), nil
 	}
-	return normalizers.IgnoreNormalizerOpts{}, fmt.Errorf("config: ControllerLegacy not supplied by component")
+	return normalizers.IgnoreNormalizerOpts{}, errors.New("config: ControllerLegacy not supplied by component")
 }
+
 func (p *Provider) SelfHealBackoff() (*wait.Backoff, error) {
 	if p.legacy != nil && p.legacy.Controller != nil {
 		return p.legacy.Controller.LegacySelfHealBackoff(), nil
 	}
-	return nil, fmt.Errorf("config: ControllerLegacy not supplied by component")
+	return nil, errors.New("config: ControllerLegacy not supplied by component")
 }
