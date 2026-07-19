@@ -298,11 +298,7 @@ resourceiconsgen:
 	hack/generate-icons-typescript.sh
 
 .PHONY: codegen-local
-<<<<<<< HEAD
-codegen-local: mod-vendor-local gogen protogen clientgen openapigen clidocsgen mockgen actionsdocsgen resourceiconsgen manifests-local notification-docs notification-catalog
-=======
-codegen-local: mod-vendor-local gogen protogen clientgen openapigen clidocsgen mockgen actionsdocsgen resourceiconsgen manifests-local notification-docs notification-catalog config-registry-gen config-registry-docs gh-aw-compile
->>>>>>> f46168a99 (feat: add configbus registry foundation and inventory tooling)
+codegen-local: mod-vendor-local gogen protogen clientgen openapigen clidocsgen mockgen actionsdocsgen resourceiconsgen manifests-local notification-docs notification-catalog config-registry-gen config-registry-docs
 	rm -rf vendor/
 
 .PHONY: codegen-local-fast
