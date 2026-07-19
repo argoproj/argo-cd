@@ -12,7 +12,11 @@ on:
   reaction: eyes
   roles: all # ***** argo-cd specific: make sure the workflow will be executed for issue of any author, as by default it gets executed only for issue authors who are maintainers of the repo *****
 
-permissions: read-all
+permissions:
+   # ***** argo-cd specific: instead of the default read-all, giving explicit permissions to placate Zizmor
+   # *****
+  issues: read
+  contents: read
 
 network: defaults
 
