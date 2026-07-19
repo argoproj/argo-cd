@@ -423,7 +423,6 @@ func Success(message string, matchers ...func(string, string) bool) Expectation 
 		matchers = append(matchers, strings.Contains)
 	}
 	match := func(actual, expected string) bool {
-		fmt.Printf("*** ACTUAL=%q\n*** EXPECT=%q\n", actual, expected)
 		for i := range matchers {
 			if !matchers[i](actual, expected) {
 				return false

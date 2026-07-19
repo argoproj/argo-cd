@@ -670,15 +670,15 @@ func TestHydratorNestedRequest(t *testing.T) {
 
 	acts.Wait("--hydrated").Then().
 		Expect(HydrationPhaseIs(HydrateOperationPhaseHydrated)).
-		// synced to the last committed revision - the second refresh worked
+		// hydrated the last committed revision - the second refresh worked
 		Expect(DryRevisionIs(revision))
 
 	acts.Sync().Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		// synced to the last committed revision - the second refresh worked
 		And(func(app *Application) {
+			// synced to the last hydrated revision
 			require.Equal(t, app.Status.SourceHydrator.LastSuccessfulOperation.HydratedSHA, app.Status.Sync.Revision)
 		})
-	// Expect(SyncRevisionIs(revision))
+
 }
