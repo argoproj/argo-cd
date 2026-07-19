@@ -44,7 +44,8 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                 qe-id='application-sync-panel-button-synchronize'
                                 className='argo-button argo-button--base'
                                 disabled={isPending}
-                                onClick={() => form.submitForm(null)}>
+                                onClick={() => form.submitForm(null)}
+                            >
                                 <Spinner show={isPending} style={{marginRight: '5px'}} />
                                 Synchronize
                             </button>{' '}
@@ -52,7 +53,8 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                 Cancel
                             </button>
                         </div>
-                    }>
+                    }
+                >
                     {isVisible && (
                         <Form
                             defaultValues={{
@@ -245,7 +247,8 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                     setPending(false);
                                 }
                             }}
-                            getApi={setForm}>
+                            getApi={setForm}
+                        >
                             {formApi => (
                                 <form role='form' className='width-control' onSubmit={formApi.submitForm}>
                                     <h6>
@@ -285,7 +288,8 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                                         'resources',
                                                         formApi.values.resources.map(() => true)
                                                     )
-                                                }>
+                                                }
+                                            >
                                                 all
                                             </a>{' '}
                                             /{' '}
@@ -297,7 +301,8 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                                             .filter(item => !item.hook)
                                                             .map((resource: models.ResourceStatus) => resource.status === models.SyncStatuses.OutOfSync)
                                                     )
-                                                }>
+                                                }
+                                            >
                                                 out of sync
                                             </a>{' '}
                                             /{' '}
@@ -307,7 +312,8 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                                                         'resources',
                                                         formApi.values.resources.map(() => false)
                                                     )
-                                                }>
+                                                }
+                                            >
                                                 none
                                             </a>
                                         </div>

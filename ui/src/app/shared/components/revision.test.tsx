@@ -7,7 +7,7 @@ test('Revision.SHA1.Children', () => {
         .create(
             <Revision repoUrl='http://github.com/my-org/my-repo' revision='24eb0b24099b2e9afff72558724e88125eaa0176'>
                 foo
-            </Revision>,
+            </Revision>
         )
         .toJSON();
 
@@ -25,7 +25,7 @@ test('Revision.Branch.Children', () => {
         .create(
             <Revision repoUrl='http://github.com/my-org/my-repo' revision='long-branch-name'>
                 foo
-            </Revision>,
+            </Revision>
         )
         .toJSON();
 

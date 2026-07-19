@@ -50,7 +50,8 @@ export const ApplicationSetConditions = ({conditions, title = 'ApplicationSet co
                     {conditions.map((condition, index) => (
                         <div
                             className={`argo-table-list__row application-conditions__condition application-conditions__condition--${getAppSetConditionCategory(condition)}`}
-                            key={index}>
+                            key={index}
+                        >
                             <div className='row'>
                                 <div className='columns small-2'>
                                     {condition.type}

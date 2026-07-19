@@ -34,7 +34,8 @@ export const ToggleButton = ({
             // these are the argo-button color swapped
             backgroundColor: toggled && ARGO_WARNING_COLOR,
             color: toggled && 'black'
-        }}>
+        }}
+    >
         {children}
     </Button>
 );

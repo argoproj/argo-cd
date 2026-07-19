@@ -1,26 +1,8 @@
 import * as React from 'react';
 import * as renderer from 'react-test-renderer';
-import {
-    Application,
-    HealthStatus,
-    HealthStatuses,
-    OperationPhases,
-    ResourceResult,
-    ResultCodes,
-    State,
-    SyncStatuses
-} from '../../shared/models';
+import {Application, HealthStatus, HealthStatuses, OperationPhases, ResourceResult, ResultCodes, State, SyncStatuses} from '../../shared/models';
 import * as jsYaml from 'js-yaml';
-import {
-    appRBACName,
-    ComparisonStatusIcon,
-    getAppOperationState,
-    getOperationType,
-    getPodStateReason,
-    HealthStatusIcon,
-    OperationState,
-    ResourceResultIcon
-} from './utils';
+import {appRBACName, ComparisonStatusIcon, getAppOperationState, getOperationType, getPodStateReason, HealthStatusIcon, OperationState, ResourceResultIcon} from './utils';
 
 const zero = new Date(0).toISOString();
 
@@ -41,7 +23,7 @@ test('getAppOperationState.Operation', () => {
 test('getAppOperationState.Status', () => {
     const state = getAppOperationState({
         metadata: {},
-        status: {operationState: {phase: OperationPhases.Error, startedAt: zero}},
+        status: {operationState: {phase: OperationPhases.Error, startedAt: zero}}
     } as Application);
 
     expect(state.phase).toBe(OperationPhases.Error);
@@ -207,10 +189,10 @@ test('ResourceResultIcon.Hook.Running', () => {
                     {
                         hookType: 'Sync',
                         hookPhase: OperationPhases.Running,
-                        message: 'my-message',
+                        message: 'my-message'
                     } as ResourceResult
                 }
-            />,
+            />
         )
         .toJSON();
 
@@ -244,7 +226,7 @@ test('ResourceResultIcon.Hook.Terminating', () => {
 // These tests are equivalent to those in controller/cache/info_test.go. If you change a test here, update the corresponding test there.
 describe('getPodStateReason', () => {
     it('TestGetPodInfo', () => {
-      const podYaml = `
+        const podYaml = `
   apiVersion: v1
   kind: Pod
   metadata:
@@ -264,7 +246,7 @@ describe('getPodStateReason', () => {
       resources:
         requests:
           memory: 128Mi
-      `
+      `;
 
         const pod = jsYaml.load(podYaml);
 
@@ -321,11 +303,11 @@ describe('getPodStateReason', () => {
         const pod = jsYaml.load(podYaml);
 
         const {reason} = getPodStateReason(pod as State);
-            expect(reason).toBe('Running');
+        expect(reason).toBe('Running');
     });
 
     it('TestGetPodWithInitialContainerInfoWithResources', () => {
-      const podYaml = `
+        const podYaml = `
         apiVersion: "v1"
         kind: "Pod"
         metadata:
@@ -387,7 +369,7 @@ describe('getPodStateReason', () => {
         const pod = jsYaml.load(podYaml);
 
         const {reason} = getPodStateReason(pod as State);
-            expect(reason).toBe('Running');
+        expect(reason).toBe('Running');
     });
 
     it('TestGetPodInfoWithSidecar', () => {
@@ -438,7 +420,7 @@ describe('getPodStateReason', () => {
         const pod = jsYaml.load(podYaml);
 
         const {reason} = getPodStateReason(pod as State);
-            expect(reason).toBe('Running');
+        expect(reason).toBe('Running');
     });
 
     it('TestGetPodInfoWithInitialContainer', () => {
@@ -490,7 +472,7 @@ describe('getPodStateReason', () => {
         const pod = jsYaml.load(podYaml);
 
         const {reason} = getPodStateReason(pod as State);
-            expect(reason).toBe('Init:0/1');
+        expect(reason).toBe('Init:0/1');
     });
 
     it('TestGetPodInfoWithRestartableInitContainer', () => {
@@ -537,7 +519,7 @@ describe('getPodStateReason', () => {
         const pod = jsYaml.load(podYaml);
 
         const {reason} = getPodStateReason(pod as State);
-            expect(reason).toBe('Init:0/2');
+        expect(reason).toBe('Init:0/2');
     });
 
     it('TestGetPodInfoWithPartiallyStartedInitContainers', () => {
@@ -634,7 +616,7 @@ describe('getPodStateReason', () => {
         const pod = jsYaml.load(podYaml);
 
         const {reason} = getPodStateReason(pod as State);
-            expect(reason).toBe('Running');
+        expect(reason).toBe('Running');
     });
 
     it('TestGetPodInfoWithNormalInitContainer', () => {
@@ -668,7 +650,7 @@ describe('getPodStateReason', () => {
         const pod = jsYaml.load(podYaml);
 
         const {reason} = getPodStateReason(pod as State);
-            expect(reason).toBe('Init:0/1');
+        expect(reason).toBe('Init:0/1');
     });
 
     it('TestPodConditionSucceeded', () => {
@@ -695,7 +677,7 @@ status:
 
         const {reason} = getPodStateReason(pod as State);
 
-            expect(reason).toBe('Completed');
+        expect(reason).toBe('Completed');
     });
 
     it('TestPodConditionSucceededWithResources', () => {
@@ -729,7 +711,7 @@ status:
 
         const {reason} = getPodStateReason(pod as State);
 
-            expect(reason).toBe('Completed');
+        expect(reason).toBe('Completed');
     });
 
     it('TestPodConditionFailed', () => {
@@ -756,11 +738,11 @@ status:
 
         const {reason} = getPodStateReason(pod as State);
 
-            expect(reason).toBe('Error');
+        expect(reason).toBe('Error');
     });
 
     it('TestPodConditionFailedWithResources', () => {
-      const podYaml = `
+        const podYaml = `
 apiVersion: v1
 kind: Pod
 metadata:
@@ -786,12 +768,12 @@ status:
           reason: Error
           exitCode: 1
 `;
-      const pod = jsYaml.load(podYaml);
+        const pod = jsYaml.load(podYaml);
 
-      const {reason} = getPodStateReason(pod as State);
+        const {reason} = getPodStateReason(pod as State);
 
-          expect(reason).toBe('Error');
-  });
+        expect(reason).toBe('Error');
+    });
 
     it('TestPodConditionSucceededWithDeletion', () => {
         const podYaml = `
@@ -818,7 +800,7 @@ status:
 
         const {reason} = getPodStateReason(pod as State);
 
-            expect(reason).toBe('Completed');
+        expect(reason).toBe('Completed');
     });
 
     it('TestPodConditionRunningWithDeletion', () => {
@@ -844,7 +826,7 @@ status:
 
         const {reason} = getPodStateReason(pod as State);
 
-            expect(reason).toBe('Terminating');
+        expect(reason).toBe('Terminating');
     });
 
     it('TestPodConditionPendingWithDeletion', () => {
@@ -860,12 +842,12 @@ status:
       - name: container
   status:
     phase: Pending
-        `
+        `;
         const pod = jsYaml.load(podYaml);
 
         const {reason} = getPodStateReason(pod as State);
 
-            expect(reason).toBe('Terminating');
+        expect(reason).toBe('Terminating');
     });
 
     it('TestPodScheduledWithSchedulingGated', () => {
@@ -885,7 +867,7 @@ status:
       - type: PodScheduled
         status: "False"
         reason: SchedulingGated
-          `
+          `;
 
         const pod = jsYaml.load(podYaml);
 

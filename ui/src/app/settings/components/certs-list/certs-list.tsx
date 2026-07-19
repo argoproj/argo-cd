@@ -141,7 +141,8 @@ export const CertsList = ({match, location}: RouteComponentProps) => {
                         }
                     ]
                 }
-            }}>
+            }}
+        >
             <div className='certs-list'>
                 <div className='argo-container'>
                     <DataLoader load={() => services.certs.list()} ref={ref => (loader.current = ref)}>
@@ -212,7 +213,8 @@ export const CertsList = ({match, location}: RouteComponentProps) => {
                             Cancel
                         </button>
                     </div>
-                }>
+                }
+            >
                 <Form
                     onSubmit={params => addTLSCertificate(params as NewTLSCertParams)}
                     getApi={api => (formApiTLS.current = api)}
@@ -223,7 +225,8 @@ export const CertsList = ({match, location}: RouteComponentProps) => {
                     validateError={(params: NewTLSCertParams) => ({
                         serverName: !params.serverName && 'Repository Server Name is required',
                         certData: !params.certData && 'TLS Certificate is required'
-                    })}>
+                    })}
+                >
                     {formApiTLS => (
                         <form onSubmit={formApiTLS.submitForm} role='form' className='certs-list width-control' encType='multipart/form-data'>
                             <div className='white-box'>
@@ -251,7 +254,8 @@ export const CertsList = ({match, location}: RouteComponentProps) => {
                             Cancel
                         </button>
                     </div>
-                }>
+                }
+            >
                 <Form
                     onSubmit={params => addSSHKnownHosts(params as NewSSHKnownHostParams)}
                     getApi={api => (formApiSSH.current = api)}
@@ -260,7 +264,8 @@ export const CertsList = ({match, location}: RouteComponentProps) => {
                     })}
                     validateError={(params: NewSSHKnownHostParams) => ({
                         certData: !params.certData && 'SSH known hosts data is required'
-                    })}>
+                    })}
+                >
                     {formApiSSH => (
                         <form onSubmit={formApiSSH.submitForm} role='form' className='certs-list width-control' encType='multipart/form-data'>
                             <div className='white-box'>

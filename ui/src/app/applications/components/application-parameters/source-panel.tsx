@@ -137,7 +137,8 @@ export const SourcePanel = (props: {
                             onSubmit={values => {
                                 props.updateApp(values as models.Application);
                             }}
-                            getApi={props.getFormApi}>
+                            getApi={props.getFormApi}
+                        >
                             {api => {
                                 const repoType = api.getFormState().values.spec?.source?.repoURL.startsWith('oci://')
                                     ? 'oci'
@@ -211,7 +212,8 @@ export const SourcePanel = (props: {
                                                             src.repoURL &&
                                                             // TODO: for autocomplete we need to fetch paths that are used by other apps within the same project making use of the same OCI repo
                                                             new Array<string>()
-                                                        }>
+                                                        }
+                                                    >
                                                         {(paths: string[]) => (
                                                             <FormField
                                                                 formApi={api}
@@ -252,7 +254,8 @@ export const SourcePanel = (props: {
                                                                         .then(apps => Array.from(new Set(apps.map(item => item.path))).sort())
                                                                         .catch(() => new Array<string>()))) ||
                                                                 new Array<string>()
-                                                            }>
+                                                            }
+                                                        >
                                                             {(apps: string[]) => (
                                                                 <FormField
                                                                     formApi={api}
@@ -277,7 +280,8 @@ export const SourcePanel = (props: {
                                                     load={async src =>
                                                         (src.repoURL && services.repos.charts(src.repoURL).catch(() => new Array<models.HelmChart>())) ||
                                                         new Array<models.HelmChart>()
-                                                    }>
+                                                    }
+                                                >
                                                     {(charts: models.HelmChart[]) => {
                                                         const selectedChart = charts.find(chart => chart.name === api.getFormState().values.spec?.source?.chart);
                                                         return (
@@ -334,7 +338,8 @@ export const SourcePanel = (props: {
                                                     details: {}
                                                 };
                                             }
-                                        }}>
+                                        }}
+                                    >
                                         {(details: models.RepoAppDetails) => {
                                             const type = (explicitPathType && explicitPathType.path === appInEdit.spec?.source?.path && explicitPathType.type) || details.type;
                                             if (details.type !== type) {

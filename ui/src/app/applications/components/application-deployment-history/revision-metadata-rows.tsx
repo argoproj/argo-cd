@@ -9,7 +9,8 @@ export const RevisionMetadataRows = (props: {applicationName: string; applicatio
         return (
             <DataLoader
                 input={props}
-                load={input => services.applications.ociMetadata(input.applicationName, input.applicationNamespace, input.source.targetRevision, input.index, input.versionId)}>
+                load={input => services.applications.ociMetadata(input.applicationName, input.applicationNamespace, input.source.targetRevision, input.index, input.versionId)}
+            >
                 {(m: OCIMetadata) => (
                     <div>
                         {m.description && (
@@ -35,7 +36,8 @@ export const RevisionMetadataRows = (props: {applicationName: string; applicatio
                 input={props}
                 load={input =>
                     services.applications.revisionChartDetails(input.applicationName, input.applicationNamespace, input.source.targetRevision, input.index, input.versionId)
-                }>
+                }
+            >
                 {(m: ChartDetails) => (
                     <div>
                         <div className='row'>
@@ -48,7 +50,8 @@ export const RevisionMetadataRows = (props: {applicationName: string; applicatio
                                         onClick={e => {
                                             e.stopPropagation();
                                             window.open(m.home);
-                                        }}>
+                                        }}
+                                    >
                                         <i className='fa fa-external-link-alt' />
                                     </a>
                                 )}
@@ -74,7 +77,8 @@ export const RevisionMetadataRows = (props: {applicationName: string; applicatio
     return (
         <DataLoader
             input={props}
-            load={input => services.applications.revisionMetadata(input.applicationName, input.applicationNamespace, input.source.targetRevision, input.index, input.versionId)}>
+            load={input => services.applications.revisionMetadata(input.applicationName, input.applicationNamespace, input.source.targetRevision, input.index, input.versionId)}
+        >
             {(m: RevisionMetadata) => (
                 <div>
                     <div className='row'>

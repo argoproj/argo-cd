@@ -358,7 +358,8 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                       edit: (formApi: FormApi) => (
                           <DataLoader
                               input={{repoURL: getAppSpecDefaultSource(formApi.getFormState().values.spec).repoURL}}
-                              load={src => services.repos.charts(src.repoURL).catch(() => new Array<models.HelmChart>())}>
+                              load={src => services.repos.charts(src.repoURL).catch(() => new Array<models.HelmChart>())}
+                          >
                               {(charts: models.HelmChart[]) => (
                                   <div className='row'>
                                       <div className='columns small-8'>
@@ -374,7 +375,8 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                           load={async data => {
                                               const chartInfo = data.charts.find(chart => chart.name === data.chart);
                                               return (chartInfo && chartInfo.versions) || new Array<string>();
-                                          }}>
+                                          }}
+                                      >
                                           {(versions: string[]) => (
                                               <div className='columns small-4'>
                                                   <FormField
@@ -442,7 +444,8 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                     repoUrl={app.spec.sourceHydrator?.drySource?.repoURL}
                     revision={app.spec.sourceHydrator?.drySource?.targetRevision || 'HEAD'}
                     path={app.spec.sourceHydrator?.drySource?.path}
-                    isForPath={true}>
+                    isForPath={true}
+                >
                     {processPath(app.spec.sourceHydrator?.drySource?.path)}
                 </Revision>
             ),
@@ -475,7 +478,8 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                     repoUrl={app.spec.sourceHydrator?.drySource?.repoURL}
                     revision={app.spec.sourceHydrator?.syncSource?.targetBranch || 'HEAD'}
                     path={app.spec.sourceHydrator?.syncSource?.path}
-                    isForPath={true}>
+                    isForPath={true}
+                >
                     {processPath(app.spec.sourceHydrator?.syncSource?.path)}
                 </Revision>
             ),
@@ -616,7 +620,8 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                     className='argo-button argo-button--base'
                     onClick={() => {
                         setAdjustedCount(adjustedCount + 1);
-                    }}>
+                    }}
+                >
                     ADD NEW ITEM
                 </button>
             ),

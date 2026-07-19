@@ -22,7 +22,8 @@ export function ProjectsList() {
                     className: 'fa fa-plus',
                     items: [{title: 'New Project', iconClassName: 'fa fa-plus', action: () => ctx.navigation.goto('.', {add: true}, {replace: true})}]
                 }
-            }}>
+            }}
+        >
             <div className='projects argo-container'>
                 <DataLoader load={() => services.projects.list()}>
                     {projects =>
@@ -70,7 +71,8 @@ export function ProjectsList() {
                             Cancel
                         </button>
                     </div>
-                }>
+                }
+            >
                 <Form
                     defaultValues={{metadata: {}, spec: {}}}
                     getApi={api => (formApiRef.current = api)}
@@ -87,7 +89,8 @@ export function ProjectsList() {
                                 type: NotificationType.Error
                             });
                         }
-                    }}>
+                    }}
+                >
                     {api => (
                         <form onSubmit={api.submitForm} role='form' className='width-control'>
                             <div className='white-box'>

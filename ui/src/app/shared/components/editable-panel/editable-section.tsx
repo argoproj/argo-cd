@@ -96,7 +96,8 @@ function EditableSection<T extends {} = {}>({
                     style={{
                         top: isTopSection ? '25px' : '',
                         right: isTopSection ? (collapsible ? '4.5em' : '3.5em') : collapsible ? '1.0em' : '0em'
-                    }}>
+                    }}
+                >
                     {!isEditing ? (
                         <div className='editable-panel__buttons-relative-button'>
                             <button
@@ -107,7 +108,8 @@ function EditableSection<T extends {} = {}>({
                                     onModeSwitch?.();
                                 }}
                                 disabled={disabledState}
-                                className='argo-button argo-button--base'>
+                                className='argo-button argo-button--base'
+                            >
                                 Edit
                             </button>{' '}
                             {isTopSection && deleteSource && (
@@ -117,7 +119,8 @@ function EditableSection<T extends {} = {}>({
                                         deleteSource();
                                     }}
                                     disabled={disabledDelete}
-                                    className='argo-button argo-button--base'>
+                                    className='argo-button argo-button--base'
+                                >
                                     {helpTip('Delete the source from the sources field')}
                                     <span style={{marginRight: '8px'}} />
                                     Delete
@@ -131,7 +134,8 @@ function EditableSection<T extends {} = {}>({
                                     key={'save_button_' + uniqueId}
                                     disabled={isSaving}
                                     onClick={() => !isSaving && formApiRef.current?.submitForm(null)}
-                                    className='argo-button argo-button--base'>
+                                    className='argo-button argo-button--base'
+                                >
                                     <Spinner show={isSaving} style={{marginRight: '5px'}} />
                                     Save
                                 </button>{' '}
@@ -142,7 +146,8 @@ function EditableSection<T extends {} = {}>({
                                         updateButtons?.(false);
                                         onModeSwitch?.();
                                     }}
-                                    className='argo-button argo-button--base-o'>
+                                    className='argo-button argo-button--base-o'
+                                >
                                     Cancel
                                 </button>
                             </Fragment>

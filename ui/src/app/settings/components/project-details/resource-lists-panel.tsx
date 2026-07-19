@@ -252,7 +252,8 @@ function editList(type: field, formApi: FormApi) {
                 className='argo-button argo-button--short'
                 onClick={() =>
                     formApi.setValue(`spec.${type}`, (formApi.values.spec[type] || []).concat(isClusterResourceList ? {group: '*', kind: '*', name: ''} : {group: '*', kind: '*'}))
-                }>
+                }
+            >
                 ADD RESOURCE
             </button>
         </React.Fragment>

@@ -51,7 +51,8 @@ export const ClusterDetails = (props: RouteComponentProps<{server: string}> & {o
                                 }
                             ]
                         }
-                    }}>
+                    }}
+                >
                     <p />
 
                     <div className='argo-container'>

@@ -70,7 +70,8 @@ export const ApplicationURLs = ({urls}: {urls: string[]}) => {
                     onClick={e => {
                         e.stopPropagation();
                         window.open(externalLinks[0].ref);
-                    }}>
+                    }}
+                >
                     <i className='fa fa-external-link-alt' />{' '}
                     {externalLinks.length > 1 && (
                         <DropDownMenu

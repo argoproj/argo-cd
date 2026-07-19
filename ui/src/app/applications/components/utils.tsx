@@ -858,7 +858,8 @@ export function renderResourceMenu(
                                         document.body.click();
                                     });
                                 }
-                            }}>
+                            }}
+                        >
                             {item.tooltip ? (
                                 <Tooltip content={item.tooltip || ''}>
                                     <div>
@@ -891,7 +892,8 @@ export function renderResourceActionMenu(menuItems: ActionMenuItem[]): React.Rea
                             item.action();
                             document.body.click();
                         }
-                    }}>
+                    }}
+                >
                     {item.iconClassName && <i className={item.iconClassName} />} {item.title}
                 </li>
             ))}

@@ -95,7 +95,8 @@ export const UserInfoComponent = ({userInfo}: {userInfo: UserInfo}) => {
                           ]
                       }
                     : {items: []}
-            }}>
+            }}
+        >
             <div>
                 <div className='user-info'>
                     <div className='argo-container'>
@@ -135,12 +136,14 @@ export const UserInfoComponent = ({userInfo}: {userInfo: UserInfo}) => {
                                     Cancel
                                 </button>
                             </div>
-                        }>
+                        }
+                    >
                         <h4>Update account password</h4>
                         <Form
                             onSubmit={(params: PasswordFormData) => changePassword(userInfo.username, params.currentPassword, params.newPassword)}
                             getApi={api => (formApiPassword.current = api)}
-                            validateError={validatePasswordForm}>
+                            validateError={validatePasswordForm}
+                        >
                             {formApi => (
                                 <form onSubmit={formApi.submitForm} role='form' className='change-password width-control'>
                                     <div className='argo-form-row'>

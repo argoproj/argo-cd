@@ -46,7 +46,8 @@ export const ApplicationDeploymentHistoryDetails = ({app, info, index}: props) =
                 onClick={() => {
                     setShowParameterDetails(!showParameterDetails);
                     updateMap(i);
-                }}>
+                }}
+            >
                 <div className='editable-panel__collapsible-button'>
                     <i className={`fa fa-angle-down filter__collapse editable-panel__collapsible-button__override`} />
                 </div>
@@ -109,7 +110,8 @@ export const ApplicationDeploymentHistoryDetails = ({app, info, index}: props) =
                                     return getErrorSection(err);
                                 }}
                                 input={{...recentDeployments[index].source, targetRevision: recentDeployments[index].revision, appName: app.metadata.name}}
-                                load={src => services.repos.appDetails(src, src.appName, app.spec.project, 0, recentDeployments[index].id)}>
+                                load={src => services.repos.appDetails(src, src.appName, app.spec.project, 0, recentDeployments[index].id)}
+                            >
                                 {(details: models.RepoAppDetails) => (
                                     <div>
                                         <ApplicationParameters
@@ -168,7 +170,8 @@ export const ApplicationDeploymentHistoryDetails = ({app, info, index}: props) =
                                             versionId: recentDeployments[index].id,
                                             appName: app.metadata.name
                                         }}
-                                        load={src => services.repos.appDetails(src, src.appName, app.spec.project, i, recentDeployments[index].id)}>
+                                        load={src => services.repos.appDetails(src, src.appName, app.spec.project, i, recentDeployments[index].id)}
+                                    >
                                         {(details: models.RepoAppDetails) => (
                                             <React.Fragment>
                                                 <div id={'floating_title_' + i} className='editable-panel__sticky-title'>

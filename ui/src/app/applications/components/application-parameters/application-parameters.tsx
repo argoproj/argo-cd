@@ -120,7 +120,8 @@ function getParamsEditableItems(
                                     removedOverrides[i] = true;
                                     setRemovedOverrides(removedOverrides);
                                 }}
-                                style={labelStyle}>
+                                style={labelStyle}
+                            >
                                 Remove override
                             </a>
                         )}
@@ -131,7 +132,8 @@ function getParamsEditableItems(
                                     removedOverrides[i] = false;
                                     setRemovedOverrides(removedOverrides);
                                 }}
-                                style={labelStyle}>
+                                style={labelStyle}
+                            >
                                 Keep override
                             </a>
                         )}
@@ -184,7 +186,8 @@ export const ApplicationParameters = (props: {
                     preferencesKey={'5'}
                     onPageChange={page => {
                         props.setPageNumber(page);
-                    }}>
+                    }}
+                >
                     {data => {
                         const listOfPanels: JSX.Element[] = [];
                         data.forEach(appSource => {
@@ -203,7 +206,8 @@ export const ApplicationParameters = (props: {
                                 key={'source_panel_save_button'}
                                 className='argo-button argo-button--base'
                                 disabled={isSavingSource}
-                                onClick={() => createApi && createApi.submitForm(null)}>
+                                onClick={() => createApi && createApi.submitForm(null)}
+                            >
                                 <Spinner show={isSavingSource} style={{marginRight: '5px'}} />
                                 Save
                             </button>{' '}
@@ -213,11 +217,13 @@ export const ApplicationParameters = (props: {
                                     setIsAddingSource(false);
                                     setIsSavingSource(false);
                                 }}
-                                className='argo-button argo-button--base-o'>
+                                className='argo-button argo-button--base-o'
+                            >
                                 Cancel
                             </button>
                         </div>
-                    }>
+                    }
+                >
                     <SourcePanel
                         appCurrent={props.application}
                         getFormApi={api => {
@@ -312,7 +318,8 @@ export const ApplicationParameters = (props: {
                 onClick={() => {
                     const currentState = props.collapsedSources[index] !== undefined ? props.collapsedSources[index] : true;
                     props.handleCollapse(index, !currentState);
-                }}>
+                }}
+            >
                 <div className='editable-panel__collapsible-button'>
                     <i className={`fa fa-angle-down filter__collapse editable-panel__collapsible-button__override`} />
                 </div>
@@ -339,7 +346,8 @@ export const ApplicationParameters = (props: {
                     <DataLoader
                         key={'app_params_source_' + index}
                         input={app.spec.sources[index]}
-                        load={src => getSourceFromAppSources(src, app.metadata.name, app.spec.project, index, 0)}>
+                        load={src => getSourceFromAppSources(src, app.metadata.name, app.spec.project, index, 0)}
+                    >
                         {(details: models.RepoAppDetails) => getEditablePanelForOneSource(details, index, app.spec.sources[index])}
                     </DataLoader>
                 </div>
@@ -652,7 +660,8 @@ function gatherCoreSourceDetails(i: number, attributes: EditablePanelItem[], sou
                                     load={async data => {
                                         const chartInfo = data.charts.find(chart => chart.name === data.chart);
                                         return (chartInfo && chartInfo.versions) || new Array<string>();
-                                    }}>
+                                    }}
+                                >
                                     {(versions: string[]) => (
                                         <div className='columns small-4'>
                                             <FormField
@@ -1025,7 +1034,8 @@ function gatherDetails(
                             style={{
                                 marginTop: 15,
                                 marginBottom: 5
-                            }}>
+                            }}
+                        >
                             {ValueEditor(liveParamString ?? announcement?.string, null)}
                         </div>
                     ),

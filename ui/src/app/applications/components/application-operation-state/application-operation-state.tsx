@@ -29,7 +29,8 @@ const Filter = (props: {filters: string[]; setFilters: (f: string[]) => void; op
                         {title} <i className='argo-icon-filter' aria-hidden='true' />
                     </button>
                 </div>
-            )}>
+            )}
+        >
             {options.map(f => (
                 <div key={f} style={{minWidth: '150px', lineHeight: '2em', padding: '5px'}}>
                     <Checkbox
@@ -69,7 +70,8 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                                   wordBreak: 'break-word',
                                   margin: 0,
                                   fontFamily: 'inherit'
-                              }}>
+                              }}
+                          >
                               {utils.formatOperationMessage(operationState.message)}
                           </pre>
                       )
@@ -109,7 +111,8 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                                 });
                             }
                         }
-                    }}>
+                    }}
+                >
                     Terminate
                 </button>
             )
@@ -312,7 +315,8 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                                                                 ))}
                                                             </ul>
                                                         </div>
-                                                    }>
+                                                    }
+                                                >
                                                     <span className='application-operation-state__images-count'>
                                                         {resource.images.length} image{resource.images.length !== 1 ? 's' : ''}
                                                     </span>

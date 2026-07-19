@@ -196,7 +196,8 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
                         return {...viewPref, page: parseInt(params.get('page') || '0', 10), search: params.get('search') || ''};
                     })
                 )
-            }>
+            }
+        >
             {pref => children(pref)}
         </DataLoader>
     );
@@ -368,7 +369,8 @@ const ApplicationsToolbar: React.FC<ApplicationsToolbarProps> = ({applications, 
                                 }
                             }
                         });
-                    }}>
+                    }}
+                >
                     <i className={`fas fa-ruler-horizontal`} />
                 </button>
             </Tooltip>
@@ -422,7 +424,8 @@ const FlexTopBar = (props: {toolbar: Toolbar | Observable<Toolbar>}) => {
                                                     className='argo-button argo-button--base'
                                                     onClick={() => item.action()}
                                                     style={{marginRight: 2}}
-                                                    key={i}>
+                                                    key={i}
+                                                >
                                                     {item.iconClassName && <i className={item.iconClassName} style={{marginLeft: '-5px', marginRight: '5px'}} />}
                                                     <span className='show-for-large'>{item.title}</span>
                                                 </button>
@@ -541,7 +544,8 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                                             }
                                         ]
                                     }}
-                                    hideAuth={true}>
+                                    hideAuth={true}
+                                >
                                     <DataLoader
                                         input={pref.projectsFilter?.join(',')}
                                         ref={loaderRef}
@@ -550,7 +554,8 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                                             <div className='argo-container'>
                                                 <MockupList height={100} marginTop={30} />
                                             </div>
-                                        )}>
+                                        )}
+                                    >
                                         {(applications: models.AbstractApplication[]) => {
                                             const healthBarPrefs = pref.statusBarView || ({} as HealthStatusBarPreferences);
                                             const handleCreatePanelClose = async () => {
@@ -616,7 +621,8 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                                                                     <button
                                                                         qe-id='applications-list-button-create-application'
                                                                         className='argo-button argo-button--base'
-                                                                        onClick={() => ctx.navigation.goto('.', {new: JSON.stringify({})}, {replace: true})}>
+                                                                        onClick={() => ctx.navigation.goto('.', {new: JSON.stringify({})}, {replace: true})}
+                                                                    >
                                                                         Create application
                                                                     </button>
                                                                 </EmptyState>
@@ -651,7 +657,8 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                                                                                             onClick={() => {
                                                                                                 AppsListPreferences.clearFilters(pref);
                                                                                                 onAppFilterPrefChanged(ctx, pref);
-                                                                                            }}>
+                                                                                            }}
+                                                                                        >
                                                                                             clear filters
                                                                                         </a>
                                                                                     </h5>
@@ -673,7 +680,8 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                                                                                 }
                                                                             ]}
                                                                             data={filteredApps}
-                                                                            onPageChange={page => ctx.navigation.goto('.', {page})}>
+                                                                            onPageChange={page => ctx.navigation.goto('.', {page})}
+                                                                        >
                                                                             {data =>
                                                                                 (pref.view === 'tiles' && (
                                                                                     <ApplicationTiles
@@ -725,7 +733,8 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                                                                         return (syncApp && from(services.applications.get(syncApp, appNamespace, objectListKind))) || from([null]);
                                                                     })
                                                                 )
-                                                            }>
+                                                            }
+                                                        >
                                                             {app => (
                                                                 <ApplicationSyncPanel
                                                                     key='syncPanel'
@@ -744,18 +753,21 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                                                                         qe-id='applications-list-button-create'
                                                                         className='argo-button argo-button--base'
                                                                         disabled={isAppCreatePending}
-                                                                        onClick={() => createApi && createApi.submitForm(null)}>
+                                                                        onClick={() => createApi && createApi.submitForm(null)}
+                                                                    >
                                                                         <Spinner show={isAppCreatePending} style={{marginRight: '5px'}} />
                                                                         Create
                                                                     </button>{' '}
                                                                     <button
                                                                         qe-id='applications-list-button-cancel'
                                                                         onClick={() => ctx.navigation.goto('.', {new: null}, {replace: true})}
-                                                                        className='argo-button argo-button--base-o'>
+                                                                        className='argo-button argo-button--base-o'
+                                                                    >
                                                                         Cancel
                                                                     </button>
                                                                 </div>
-                                                            }>
+                                                            }
+                                                        >
                                                             {appInput && (
                                                                 <ApplicationCreatePanel
                                                                     getFormApi={api => {
@@ -851,7 +863,8 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                                                                                         onClick={() => {
                                                                                             AppSetsListPreferences.clearFilters(appSetPref);
                                                                                             onAppSetFilterPrefChanged(ctx, appSetPref);
-                                                                                        }}>
+                                                                                        }}
+                                                                                    >
                                                                                         clear filters
                                                                                     </a>
                                                                                 </h5>
@@ -868,7 +881,8 @@ export const ApplicationsList = (props: RouteComponentProps<any> & {objectListKi
                                                                             }
                                                                         ]}
                                                                         data={filteredApps}
-                                                                        onPageChange={page => ctx.navigation.goto('.', {page})}>
+                                                                        onPageChange={page => ctx.navigation.goto('.', {page})}
+                                                                    >
                                                                         {data =>
                                                                             (pref.view === 'tiles' && (
                                                                                 <ApplicationTiles

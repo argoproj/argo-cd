@@ -41,7 +41,8 @@ export const CreatePanelSourceTypeParameters = (props: {formApi: FormApi; source
                     type: 'Directory' as const,
                     details: {}
                 };
-            }}>
+            }}
+        >
             {(details: models.RepoAppDetails) => {
                 const key = pathKeyForSource(src);
                 const type = (explicitPathType && explicitPathType.path === key && explicitPathType.type) || details.type;

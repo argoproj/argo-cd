@@ -223,7 +223,8 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                         input={proj.spec.syncWindows}
                         load={async () => {
                             return await services.projects.getSyncWindows(proj.metadata.name);
-                        }}>
+                        }}
+                    >
                         {data => (
                             <div className='argo-table-list argo-table-list--clickable'>
                                 <div className='argo-table-list__head'>
@@ -400,7 +401,8 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                                     ))}
                                     <button
                                         className='argo-button argo-button--short'
-                                        onClick={() => formApi.setValue('spec.sourceRepos', (formApi.values.spec.sourceRepos || []).concat('*'))}>
+                                        onClick={() => formApi.setValue('spec.sourceRepos', (formApi.values.spec.sourceRepos || []).concat('*'))}
+                                    >
                                         ADD SOURCE
                                     </button>
                                 </React.Fragment>
@@ -461,7 +463,8 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                                         ))}
                                         <button
                                             className='argo-button argo-button--short'
-                                            onClick={() => formApi.setValue('spec.sourceNamespaces', (formApi.values.spec.sourceNamespaces || []).concat('*'))}>
+                                            onClick={() => formApi.setValue('spec.sourceNamespaces', (formApi.values.spec.sourceNamespaces || []).concat('*'))}
+                                        >
                                             ADD SOURCE
                                         </button>
                                     </React.Fragment>
@@ -541,7 +544,8 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                                                     name: '*'
                                                 })
                                             )
-                                        }>
+                                        }
+                                    >
                                         ADD DESTINATION
                                     </button>
                                 </React.Fragment>
@@ -649,7 +653,8 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                                                     defaultServiceAccount: '*'
                                                 })
                                             )
-                                        }>
+                                        }
+                                    >
                                         ADD DESTINATION SERVICE ACCOUNTS
                                     </button>
                                 </React.Fragment>
@@ -708,7 +713,8 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                                                     keyID: ''
                                                 })
                                             )
-                                        }>
+                                        }
+                                    >
                                         ADD KEY
                                     </button>
                                 </React.Fragment>
@@ -826,7 +832,8 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                                                 keyID: ''
                                             })
                                         )
-                                    }>
+                                    }
+                                >
                                     ADD RESOURCE
                                 </button>
                             </React.Fragment>
@@ -873,12 +880,14 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                         }
                     ]
                 }
-            }}>
+            }}
+        >
             <DataLoader
                 load={() => {
                     return services.projects.getDetailed(props.match.params.name);
                 }}
-                ref={loader}>
+                ref={loader}
+            >
                 {scopedProj => (
                     <Query>
                         {params => {
@@ -929,7 +938,8 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                                                         setToken('');
                                                         ctx.navigation.goto('.', {editRole: null, newRole: null}, {replace: true});
                                                     }}
-                                                    className='argo-button argo-button--base-o'>
+                                                    className='argo-button argo-button--base-o'
+                                                >
                                                     Cancel
                                                 </button>{' '}
                                                 {params.get('newRole') === null ? (
@@ -949,12 +959,14 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                                                                 }
                                                             }
                                                         }}
-                                                        className='argo-button argo-button--base'>
+                                                        className='argo-button argo-button--base'
+                                                    >
                                                         Delete
                                                     </button>
                                                 ) : null}
                                             </div>
-                                        }>
+                                        }
+                                    >
                                         {(params.get('editRole') !== null || params.get('newRole') === 'true') && (
                                             <ProjectRoleEditPanel
                                                 nameReadonly={params.get('newRole') === null ? true : false}
@@ -1010,7 +1022,8 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                                                         }
                                                         projectSyncWindowsFormApi.current.submitForm(null);
                                                     }}
-                                                    className='argo-button argo-button--base'>
+                                                    className='argo-button argo-button--base'
+                                                >
                                                     {params.get('newWindow') != null ? 'Create' : 'Update'}
                                                 </button>{' '}
                                                 <button
@@ -1018,7 +1031,8 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                                                         setToken('');
                                                         ctx.navigation.goto('.', {editWindow: null, newWindow: null}, {replace: true});
                                                     }}
-                                                    className='argo-button argo-button--base-o'>
+                                                    className='argo-button argo-button--base-o'
+                                                >
                                                     Cancel
                                                 </button>{' '}
                                                 {params.get('newWindow') === null ? (
@@ -1039,12 +1053,14 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                                                                 }
                                                             }
                                                         }}
-                                                        className='argo-button argo-button--base'>
+                                                        className='argo-button argo-button--base'
+                                                    >
                                                         Delete
                                                     </button>
                                                 ) : null}
                                             </div>
-                                        }>
+                                        }
+                                    >
                                         {(params.get('editWindow') !== null || params.get('newWindow') === 'true') && (
                                             <ProjectSyncWindowsEditPanel
                                                 defaultParams={{

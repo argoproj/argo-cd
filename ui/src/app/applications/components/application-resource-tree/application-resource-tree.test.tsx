@@ -5,8 +5,8 @@ test('describeNode.NoImages', () => {
         describeNode({
             kind: 'my-kind',
             name: 'my-name',
-            namespace: 'my-ns',
-        } as ResourceTreeNode),
+            namespace: 'my-ns'
+        } as ResourceTreeNode)
     ).toBe(`Kind: my-kind
 Namespace: my-ns
 Name: my-name`);
@@ -18,8 +18,8 @@ test('describeNode.Images', () => {
             kind: 'my-kind',
             name: 'my-name',
             namespace: 'my-ns',
-            images: ['my-image:v1'],
-        } as ResourceTreeNode),
+            images: ['my-image:v1']
+        } as ResourceTreeNode)
     ).toBe(`Kind: my-kind
 Namespace: my-ns
 Name: my-name
@@ -35,9 +35,9 @@ test('compareNodes', () => {
             info: [
                 {
                     name: 'Revision',
-                    value: 'Rev:1',
-                },
-            ],
+                    value: 'Rev:1'
+                }
+            ]
         } as ResourceTreeNode,
         {
             orphaned: false,
@@ -46,9 +46,9 @@ test('compareNodes', () => {
             info: [
                 {
                     name: 'Revision',
-                    value: 'Rev:1',
-                },
-            ],
+                    value: 'Rev:1'
+                }
+            ]
         } as ResourceTreeNode,
         {
             orphaned: false,
@@ -57,9 +57,9 @@ test('compareNodes', () => {
             info: [
                 {
                     name: 'Revision',
-                    value: 'Rev:1',
-                },
-            ],
+                    value: 'Rev:1'
+                }
+            ]
         } as ResourceTreeNode,
         {
             orphaned: false,
@@ -68,9 +68,9 @@ test('compareNodes', () => {
             info: [
                 {
                     name: 'Revision',
-                    value: 'Rev:2',
-                },
-            ],
+                    value: 'Rev:2'
+                }
+            ]
         } as ResourceTreeNode,
         {
             orphaned: false,
@@ -79,9 +79,9 @@ test('compareNodes', () => {
             info: [
                 {
                     name: 'Revision',
-                    value: 'Rev:2',
-                },
-            ],
+                    value: 'Rev:2'
+                }
+            ]
         } as ResourceTreeNode,
         {
             orphaned: true,
@@ -90,10 +90,10 @@ test('compareNodes', () => {
             info: [
                 {
                     name: 'Revision',
-                    value: 'Rev:1',
-                },
-            ],
-        } as ResourceTreeNode,
+                    value: 'Rev:1'
+                }
+            ]
+        } as ResourceTreeNode
     ];
     expect(compareNodes(nodes[0], nodes[1])).toBe(0);
     expect(compareNodes(nodes[2], nodes[1])).toBe(1);

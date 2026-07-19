@@ -95,7 +95,8 @@ export const GpgKeysList = ({match, location}: RouteComponentProps) => {
                         }
                     ]
                 }
-            }}>
+            }}
+        >
             <div className='gpgkeys-list'>
                 <div className='argo-container'>
                     <DataLoader load={() => services.gpgkeys.list()} ref={ref => (loader.current = ref)}>
@@ -161,7 +162,8 @@ export const GpgKeysList = ({match, location}: RouteComponentProps) => {
                             Cancel
                         </button>
                     </div>
-                }>
+                }
+            >
                 <Form
                     onSubmit={params => addGnuPGPublicKey({keyData: params.keyData})}
                     getApi={api => (formApi.current = api)}
@@ -170,7 +172,8 @@ export const GpgKeysList = ({match, location}: RouteComponentProps) => {
                     })}
                     validateError={(params: NewGnuPGPublicKeyParams) => ({
                         keyData: !params.keyData && 'GnuPG public key data is required'
-                    })}>
+                    })}
+                >
                     {formApi => (
                         <form onSubmit={formApi.submitForm} role='form' className='gpgkeys-list width-control' encType='multipart/form-data'>
                             <div className='white-box'>

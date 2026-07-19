@@ -107,7 +107,8 @@ export const AppSetResourceDetails = (props: AppSetResourceDetailsProps) => {
                     <div className='application-resource-events'>
                         <DataLoader
                             load={() => services.applications.appSetEvents(appSet.metadata.name, appSet.metadata.namespace)}
-                            loadingRenderer={() => <MockupList height={50} marginTop={10} />}>
+                            loadingRenderer={() => <MockupList height={50} marginTop={10} />}
+                        >
                             {events => <EventsList events={events} />}
                         </DataLoader>
                     </div>

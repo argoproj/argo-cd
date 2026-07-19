@@ -157,7 +157,8 @@ export const Filter = (props: FilterProps) => {
                         onClick={() => {
                             setValues({} as {[label: string]: boolean});
                             setInput('');
-                        }}>
+                        }}
+                    >
                         <i className='fa fa-times-circle' /> CLEAR
                     </button>
                 ) : (

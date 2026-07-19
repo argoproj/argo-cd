@@ -37,7 +37,8 @@ const CustomBanner = (props: {
                     </button>
                     <button
                         className='ui-banner-button argo-button argo-button--base'
-                        onClick={() => services.viewPreferences.updatePreferences({...props.prefs, hideBannerContent: props.content})}>
+                        onClick={() => services.viewPreferences.updatePreferences({...props.prefs, hideBannerContent: props.content})}
+                    >
                         Don't show again
                     </button>
                 </>
@@ -64,7 +65,8 @@ export const Banner = (props: React.Props<any>) => {
                         };
                     })
                 )
-            }>
+            }
+        >
             {({
                 content,
                 url,

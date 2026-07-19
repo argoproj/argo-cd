@@ -41,7 +41,8 @@ export const PodHighlightButton = ({
                                 onClick={() => {
                                     setSelectedPod(pod);
                                     setIsOpen(false);
-                                }}>
+                                }}
+                            >
                                 {pod}
                             </div>
                         ))}
@@ -51,7 +52,8 @@ export const PodHighlightButton = ({
                         onClick={() => {
                             setSelectedPod(null);
                             setIsOpen(false);
-                        }}>
+                        }}
+                    >
                         Clear highlight
                     </div>
                 </div>

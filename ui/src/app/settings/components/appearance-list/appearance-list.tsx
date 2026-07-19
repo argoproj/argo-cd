@@ -11,7 +11,8 @@ export const AppearanceList = () => {
             title={'Appearance'}
             toolbar={{
                 breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Appearance'}]
-            }}>
+            }}
+        >
             <DataLoader load={() => services.viewPreferences.getPreferences()}>
                 {pref => (
                     <div className='appearance-list'>
@@ -26,7 +27,8 @@ export const AppearanceList = () => {
                                             {value: 'auto', title: 'Auto'},
                                             {value: 'light', title: 'Light'},
                                             {value: 'dark', title: 'Dark'}
-                                        ]}></Select>
+                                        ]}
+                                    ></Select>
                                 </div>
                             </div>
                         </div>
