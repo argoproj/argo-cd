@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net/url"
 	"os"
 	"os/exec"
@@ -63,9 +64,14 @@ var redactor = func(text string) string {
 }
 
 func (c Cmd) run(ctx context.Context, args ...string) (string, string, error) {
+	return c.runWithStdin(ctx, nil, args...)
+}
+
+func (c Cmd) runWithStdin(ctx context.Context, stdin io.Reader, args ...string) (string, string, error) {
 	cmd := exec.CommandContext(ctx, "helm", args...)
 	cmd.Dir = c.WorkDir
 	cmd.Env = os.Environ()
+	cmd.Stdin = stdin
 	if !c.IsLocal {
 		cmd.Env = append(cmd.Env,
 			fmt.Sprintf("XDG_CACHE_HOME=%s/cache", c.helmHome),
@@ -104,7 +110,7 @@ func (c *Cmd) RegistryLogin(repo string, creds Creds, plainHTTP bool) (string, e
 		return "", fmt.Errorf("failed to get password for helm registry: %w", err)
 	}
 	if helmPassword != "" {
-		args = append(args, "--password", helmPassword)
+		args = append(args, "--password-stdin")
 	}
 
 	if creds.GetCAPath() != "" {
@@ -132,7 +138,11 @@ func (c *Cmd) RegistryLogin(repo string, creds Creds, plainHTTP bool) (string, e
 	if creds.GetInsecureSkipVerify() {
 		args = append(args, "--insecure")
 	}
-	out, _, err := c.run(context.Background(), args...)
+	var stdin io.Reader
+	if helmPassword != "" {
+		stdin = strings.NewReader(helmPassword)
+	}
+	out, _, err := c.runWithStdin(context.Background(), stdin, args...)
 	if err != nil {
 		return "", fmt.Errorf("failed to login to registry: %w", err)
 	}

@@ -2,6 +2,7 @@ package helm
 
 import (
 	"errors"
+	"io"
 	"log"
 	"os/exec"
 	"strings"
@@ -59,25 +60,28 @@ func TestNewCmd_withProxy(t *testing.T) {
 func TestRegistryLogin(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
-		name        string
-		repo        string
-		creds       *HelmCreds
-		plainHTTP   bool
-		execErr     error
-		expectedErr error
-		expectedOut string
+		name          string
+		repo          string
+		creds         *HelmCreds
+		plainHTTP     bool
+		execErr       error
+		expectedErr   error
+		expectedOut   string
+		expectedStdin string
 	}{
 		{
-			name:        "username and password",
-			repo:        "my.registry.com/repo",
-			creds:       &HelmCreds{Username: "user", Password: "pass"},
-			expectedOut: "helm registry login my.registry.com --username user --password pass",
+			name:          "username and password",
+			repo:          "my.registry.com/repo",
+			creds:         &HelmCreds{Username: "user", Password: "pass"},
+			expectedOut:   "helm registry login my.registry.com --username user --password-stdin",
+			expectedStdin: "pass",
 		},
 		{
-			name:        "username and password with just the hostname",
-			repo:        "my.registry.com",
-			creds:       &HelmCreds{Username: "user", Password: "pass"},
-			expectedOut: "helm registry login my.registry.com --username user --password pass",
+			name:          "username and password with just the hostname",
+			repo:          "my.registry.com",
+			creds:         &HelmCreds{Username: "user", Password: "pass"},
+			expectedOut:   "helm registry login my.registry.com --username user --password-stdin",
+			expectedStdin: "pass",
 		},
 		{
 			name:        "ca file path",
@@ -104,10 +108,11 @@ func TestRegistryLogin(t *testing.T) {
 			expectedErr: errors.New("failed to parse registry URL: parse \":///bad-url\": missing protocol scheme"),
 		},
 		{
-			name:        "username & password",
-			repo:        "my.registry.com/repo",
-			creds:       &HelmCreds{Username: "user", Password: "pass"},
-			expectedOut: "helm registry login my.registry.com --username user --password pass",
+			name:          "username & password",
+			repo:          "my.registry.com/repo",
+			creds:         &HelmCreds{Username: "user", Password: "pass"},
+			expectedOut:   "helm registry login my.registry.com --username user --password-stdin",
+			expectedStdin: "pass",
 		},
 		{
 			name: "combined flags",
@@ -118,14 +123,16 @@ func TestRegistryLogin(t *testing.T) {
 				CAPath:             "/ca",
 				InsecureSkipVerify: true,
 			},
-			expectedOut: "helm registry login my.registry.com:5000 --username u --password p --ca-file /ca --insecure",
+			expectedOut:   "helm registry login my.registry.com:5000 --username u --password-stdin --ca-file /ca --insecure",
+			expectedStdin: "p",
 		},
 		{
-			name:        "plain-http",
-			repo:        "my.registry.com/repo",
-			creds:       &HelmCreds{Username: "user", Password: "pass"},
-			plainHTTP:   true,
-			expectedOut: "helm registry login my.registry.com --plain-http --username user --password pass",
+			name:          "plain-http",
+			repo:          "my.registry.com/repo",
+			creds:         &HelmCreds{Username: "user", Password: "pass"},
+			plainHTTP:     true,
+			expectedOut:   "helm registry login my.registry.com --plain-http --username user --password-stdin",
+			expectedStdin: "pass",
 		},
 		{
 			name:        "insecure and plain-http both set",
@@ -139,6 +146,16 @@ func TestRegistryLogin(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			c, err := newCmdWithVersion(".", false, "", "", func(cmd *exec.Cmd, _ func(_ string) string) (string, error) {
+				var stdin []byte
+				if cmd.Stdin != nil {
+					var readErr error
+					stdin, readErr = io.ReadAll(cmd.Stdin)
+					require.NoError(t, readErr)
+				}
+				assert.Equal(t, tc.expectedStdin, string(stdin))
+				if tc.expectedStdin != "" {
+					assert.NotContains(t, cmd.Args, tc.expectedStdin)
+				}
 				if tc.execErr != nil {
 					return "", tc.execErr
 				}
