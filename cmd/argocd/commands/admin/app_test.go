@@ -25,6 +25,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient/mocks"
 	"github.com/argoproj/argo-cd/v3/test"
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
@@ -123,7 +124,7 @@ func TestGetReconcileResults_Refresh(t *testing.T) {
 	liveStateCache.EXPECT().IsNamespaced(mock.Anything, mock.Anything).Return(true, nil)
 
 	result, err := reconcileApplications(ctx, kubeClientset, appClientset, "default", repoServerClientset, "",
-		func(_ db.ArgoDB, _ cache.SharedIndexInformer, _ *settings.SettingsManager, _ *metrics.MetricsServer) statecache.LiveStateCache {
+		func(_ db.ArgoDB, _ cache.SharedIndexInformer, _ *settings.SettingsManager, _ *configbus.Provider, _ *metrics.MetricsServer) statecache.LiveStateCache {
 			return liveStateCache
 		},
 		false,

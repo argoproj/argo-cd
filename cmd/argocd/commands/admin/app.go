@@ -41,6 +41,7 @@ import (
 	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/config"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
@@ -365,11 +366,12 @@ func reconcileApplications(
 	namespace string,
 	repoServerClient reposerverclient.Clientset,
 	selector string,
-	createLiveStateCache func(argoDB db.ArgoDB, appInformer kubecache.SharedIndexInformer, settingsMgr *settings.SettingsManager, server *metrics.MetricsServer) cache.LiveStateCache,
+	createLiveStateCache func(argoDB db.ArgoDB, appInformer kubecache.SharedIndexInformer, settingsMgr *settings.SettingsManager, configProvider *configbus.Provider, server *metrics.MetricsServer) cache.LiveStateCache,
 	serverSideDiff bool,
 	ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts,
 ) ([]appReconcileResult, error) {
 	settingsMgr := settings.NewSettingsManager(ctx, kubeClientset, namespace)
+	configProvider := configbus.NewProvider(settingsMgr, nil, nil)
 	argoDB := db.NewDB(namespace, settingsMgr, kubeClientset)
 	appInformerFactory := appinformers.NewSharedInformerFactoryWithOptions(
 		appClientset,
@@ -396,7 +398,7 @@ func reconcileApplications(
 	if err != nil {
 		return nil, fmt.Errorf("error starting new metrics server: %w", err)
 	}
-	stateCache := createLiveStateCache(argoDB, appInformer, settingsMgr, server)
+	stateCache := createLiveStateCache(argoDB, appInformer, settingsMgr, configProvider, server)
 	if err := stateCache.Init(); err != nil {
 		return nil, fmt.Errorf("error initializing state cache: %w", err)
 	}
@@ -416,6 +418,7 @@ func reconcileApplications(
 			return func() {}, nil
 		},
 		settingsMgr,
+		configProvider,
 		stateCache,
 		server,
 		cache,
@@ -479,6 +482,6 @@ func reconcileApplications(
 	return items, nil
 }
 
-func newLiveStateCache(argoDB db.ArgoDB, appInformer kubecache.SharedIndexInformer, settingsMgr *settings.SettingsManager, server *metrics.MetricsServer) cache.LiveStateCache {
-	return cache.NewLiveStateCache(argoDB, appInformer, settingsMgr, server, func(_ map[string]bool, _ corev1.ObjectReference) {}, &sharding.ClusterSharding{}, argo.NewResourceTracking())
+func newLiveStateCache(argoDB db.ArgoDB, appInformer kubecache.SharedIndexInformer, settingsMgr *settings.SettingsManager, configProvider *configbus.Provider, server *metrics.MetricsServer) cache.LiveStateCache {
+	return cache.NewLiveStateCache(argoDB, appInformer, settingsMgr, configProvider, server, func(_ map[string]bool, _ corev1.ObjectReference) {}, &sharding.ClusterSharding{}, argo.NewResourceTracking())
 }

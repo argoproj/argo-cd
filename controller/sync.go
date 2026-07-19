@@ -213,7 +213,7 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 	}
 	restConfig := metrics.AddMetricsTransportWrapper(m.metricsServer, app, clusterRESTConfig)
 
-	resourceOverrides, err := m.settingsMgr.GetResourceOverrides()
+	resourceOverrides, err := m.configProvider.ResourceOverrides()
 	if err != nil {
 		state.Phase = common.OperationError
 		state.Message = fmt.Sprintf("Failed to load resource overrides: %v", err)
@@ -274,18 +274,18 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 		reconciliationResult.Target = patchedTargets
 	}
 
-	installationID, err := m.settingsMgr.GetInstallationID()
+	installationID, err := m.configProvider.InstallationID()
 	if err != nil {
 		log.Errorf("Could not get installation ID: %v", err)
 		return
 	}
-	trackingMethod, err := m.settingsMgr.GetTrackingMethod()
+	trackingMethod, err := m.configProvider.TrackingMethod()
 	if err != nil {
 		log.Errorf("Could not get trackingMethod: %v", err)
 		return
 	}
 
-	impersonationEnabled, err := m.settingsMgr.IsImpersonationEnabled()
+	impersonationEnabled, err := m.configProvider.IsImpersonationEnabled()
 	if err != nil {
 		log.Errorf("could not get impersonation feature flag: %v", err)
 		return
@@ -300,7 +300,7 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 
 		if serviceAccountToImpersonate == "" {
 			// No matching service account found - check enforcement
-			impersonationEnforced, enforcedErr := m.settingsMgr.IsImpersonationEnforced()
+			impersonationEnforced, enforcedErr := m.configProvider.IsImpersonationEnforced()
 			if enforcedErr != nil {
 				log.Errorf("could not get impersonation enforcement flag: %v", enforcedErr)
 				state.Phase = common.OperationError

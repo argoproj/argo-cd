@@ -62,6 +62,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	argodiff "github.com/argoproj/argo-cd/v3/util/argo/diff"
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/stats"
 
@@ -136,23 +137,32 @@ type ApplicationController struct {
 	projInformer                  cache.SharedIndexInformer
 	appStateManager               AppStateManager
 	stateCache                    statecache.LiveStateCache
-	statusRefreshTimeout          time.Duration
-	statusHardRefreshTimeout      time.Duration
-	statusRefreshJitter           time.Duration
-	selfHealTimeout               time.Duration
-	selfHealBackoff               *wait.Backoff
-	syncTimeout                   time.Duration
-	db                            db.ArgoDB
-	settingsMgr                   *settings_util.SettingsManager
-	refreshRequestedApps          map[string]CompareWith
-	refreshRequestedAppsMutex     *sync.Mutex
-	metricsServer                 *metrics.MetricsServer
-	metricsClusterLabels          []string
-	kubectlSemaphore              *semaphore.Weighted
-	clusterSharding               sharding.ClusterShardingCache
-	projByNameCache               sync.Map
-	applicationNamespaces         []string
-	ignoreNormalizerOpts          normalizers.IgnoreNormalizerOpts
+	// Deprecated: use LegacyStatusRefreshTimeout / configProvider.ReconciliationTimeout.
+	statusRefreshTimeout time.Duration
+	// Deprecated: use LegacyStatusHardRefreshTimeout / configProvider.HardReconciliationTimeout.
+	statusHardRefreshTimeout time.Duration
+	// Deprecated: use LegacyStatusRefreshJitter / configProvider.ReconciliationJitter.
+	statusRefreshJitter time.Duration
+	// Deprecated: use LegacySelfHealTimeout / configProvider.SelfHealTimeout.
+	selfHealTimeout time.Duration
+	// Deprecated: use LegacySelfHealBackoff / configProvider.SelfHealBackoff.
+	selfHealBackoff *wait.Backoff
+	// Deprecated: use LegacySyncTimeout / configProvider.SyncTimeout.
+	syncTimeout               time.Duration
+	db                        db.ArgoDB
+	settingsMgr               *settings_util.SettingsManager
+	configProvider            *configbus.Provider
+	refreshRequestedApps      map[string]CompareWith
+	refreshRequestedAppsMutex *sync.Mutex
+	metricsServer             *metrics.MetricsServer
+	// Deprecated: use LegacyMetricsClusterLabels / configProvider.MetricsClusterLabels.
+	metricsClusterLabels  []string
+	kubectlSemaphore      *semaphore.Weighted
+	clusterSharding       sharding.ClusterShardingCache
+	projByNameCache       sync.Map
+	applicationNamespaces []string
+	// Deprecated: use LegacyIgnoreNormalizerOpts / configProvider.IgnoreNormalizerOpts.
+	ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts
 
 	// dynamicClusterDistributionEnabled if disabled deploymentInformer is never initialized
 	dynamicClusterDistributionEnabled bool
@@ -162,9 +172,12 @@ type ApplicationController struct {
 }
 
 // NewApplicationController creates new instance of ApplicationController.
+// crd may be nil (Phase 0 empty slot). The config provider is wired from the
+// controller itself as the legacy source.
 func NewApplicationController(
 	namespace string,
 	settingsMgr *settings_util.SettingsManager,
+	crd configbus.CRDSource,
 	kubeClientset kubernetes.Interface,
 	applicationClientset appclientset.Interface,
 	repoClientset apiclient.Clientset,
@@ -230,6 +243,7 @@ func NewApplicationController(
 		ignoreNormalizerOpts:              ignoreNormalizerOpts,
 		metricsClusterLabels:              metricsClusterLabels,
 	}
+	ctrl.configProvider = configbus.NewProvider(settingsMgr, &configbus.LegacyValues{Controller: &ctrl}, crd)
 	if hydratorEnabled {
 		ctrl.hydrator = hydrator.NewHydrator(&ctrl, appResyncPeriod, commitClientset, repoClientset, db)
 	}
@@ -313,8 +327,8 @@ func NewApplicationController(
 			return nil, err
 		}
 	}
-	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, ctrl.metricsServer, ctrl.handleObjectUpdated, clusterSharding, argo.NewResourceTracking())
-	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.onKubectlRun, ctrl.settingsMgr, stateCache, ctrl.metricsServer, argoCache, ctrl.statusRefreshTimeout, argo.NewResourceTracking(), persistResourceHealth, repoErrorGracePeriod, serverSideDiff, ignoreNormalizerOpts)
+	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, ctrl.configProvider, ctrl.metricsServer, ctrl.handleObjectUpdated, clusterSharding, argo.NewResourceTracking())
+	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.onKubectlRun, ctrl.settingsMgr, ctrl.configProvider, stateCache, ctrl.metricsServer, argoCache, ctrl.LegacyStatusRefreshTimeout(), argo.NewResourceTracking(), persistResourceHealth, repoErrorGracePeriod, serverSideDiff, ctrl.LegacyIgnoreNormalizerOpts())
 	ctrl.appInformer = appInformer
 	ctrl.appLister = appLister
 	ctrl.projInformer = projInformer
@@ -782,7 +796,7 @@ func (ctrl *ApplicationController) getAppHosts(destCluster *appv1.Cluster, a *ap
 			return resourcesInfo[i].ResourceName < resourcesInfo[j].ResourceName
 		})
 
-		allowedNodeLabels := ctrl.settingsMgr.GetAllowedNodeLabels()
+		allowedNodeLabels := ctrl.configProvider.AllowedNodeLabels()
 		nodeLabels := make(map[string]string)
 		for _, label := range allowedNodeLabels {
 			if val, ok := node.Labels[label]; ok {
@@ -814,23 +828,27 @@ func (ctrl *ApplicationController) hideSecretData(ctx context.Context, destClust
 		resDiff := res.Diff
 		if res.Kind == kube.SecretKind && res.Group == "" {
 			var err error
-			target, live, err = diff.HideSecretData(res.Target, res.Live, ctrl.settingsMgr.GetSensitiveAnnotations())
+			sensitiveAnnotations, err := ctrl.configProvider.SensitiveAnnotations()
+			if err != nil {
+				return nil, fmt.Errorf("error getting sensitive annotations: %w", err)
+			}
+			target, live, err = diff.HideSecretData(res.Target, res.Live, sensitiveAnnotations)
 			if err != nil {
 				return nil, fmt.Errorf("error hiding secret data: %w", err)
 			}
-			compareOptions, err := ctrl.settingsMgr.GetResourceCompareOptions()
+			compareOptions, err := ctrl.configProvider.ResourceCompareOptions()
 			if err != nil {
 				return nil, fmt.Errorf("error getting resource compare options: %w", err)
 			}
-			resourceOverrides, err := ctrl.settingsMgr.GetResourceOverrides()
+			resourceOverrides, err := ctrl.configProvider.ResourceOverrides()
 			if err != nil {
 				return nil, fmt.Errorf("error getting resource overrides: %w", err)
 			}
-			appLabelKey, err := ctrl.settingsMgr.GetAppInstanceLabelKey()
+			appLabelKey, err := ctrl.configProvider.AppInstanceLabelKey()
 			if err != nil {
 				return nil, fmt.Errorf("error getting app instance label key: %w", err)
 			}
-			trackingMethod, err := ctrl.settingsMgr.GetTrackingMethod()
+			trackingMethod, err := ctrl.configProvider.TrackingMethod()
 			if err != nil {
 				return nil, fmt.Errorf("error getting tracking method: %w", err)
 			}
@@ -840,7 +858,7 @@ func (ctrl *ApplicationController) hideSecretData(ctx context.Context, destClust
 				return nil, fmt.Errorf("error getting cluster cache: %w", err)
 			}
 			diffConfig, err := argodiff.NewDiffConfigBuilder().
-				WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles, ctrl.ignoreNormalizerOpts).
+				WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles, ctrl.LegacyIgnoreNormalizerOpts()).
 				WithTracking(appLabelKey, trackingMethod).
 				WithNoCache().
 				WithLogger(logutils.NewLogrusLogger(logutils.NewWithCurrentConfig())).
@@ -909,7 +927,7 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 	defer ctrl.hydrationQueue.ShutDown()
 
 	ctrl.RegisterClusterSecretUpdater(ctx)
-	ctrl.metricsServer.RegisterClustersInfoSource(ctx, ctrl.stateCache, ctrl.db, ctrl.metricsClusterLabels)
+	ctrl.metricsServer.RegisterClustersInfoSource(ctx, ctrl.stateCache, ctrl.db, ctrl.LegacyMetricsClusterLabels())
 
 	if ctrl.dynamicClusterDistributionEnabled {
 		// only start deployment informer if dynamic distribution is enabled
@@ -1483,9 +1501,6 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	ctx, span := tracer.Start(ctx, "controller.Operation")
 	setAppTraceAttrs(span, app)
 	var state *appv1.OperationState
-	// requeuedForRetry marks the retry-backoff early return, where no sync work is
-	// performed this cycle and the app is only rescheduled for a future retry.
-	requeuedForRetry := false
 	// Registered first so it runs last: after the panic-recovery and timing defers below have
 	// finalized state. The operation reports failure via state.Phase (not a return value), so map
 	// a terminal failed phase onto the span status; panics are handled by the recovery defer.
@@ -1516,37 +1531,15 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 			logCtx = logCtx.WithField(k, v.Milliseconds())
 		}
 		logCtx = logCtx.WithField("time_ms", time.Since(ts.StartTime).Milliseconds())
-		if state != nil {
-			logCtx = logCtx.WithField("phase", state.Phase)
-			logCtx = logCtx.WithField("retryCount", state.RetryCount)
-			logCtx = logCtx.WithField("startedAt", state.StartedAt.Unix())
-			if state.FinishedAt != nil {
-				logCtx = logCtx.WithField("finishedAt", state.FinishedAt.Unix())
-			}
-			// Always publish `revisions` as an array so the field type is stable.
-			revisions := []string{}
-			if state.SyncResult != nil {
-				if len(state.SyncResult.Revisions) > 0 {
-					revisions = state.SyncResult.Revisions
-				} else if state.SyncResult.Revision != "" {
-					revisions = []string{state.SyncResult.Revision}
-				}
-			}
-			logCtx = logCtx.WithField("revisions", revisions)
-		}
-		if requeuedForRetry {
-			logCtx.Debug("Finished processing requested app operation")
-		} else {
-			logCtx.Info("Finished processing requested app operation")
-		}
+		logCtx.Debug("Finished processing requested app operation")
 	}()
 
 	requeueAfter := appOperationMaxRequeueInterval
 	defer func() {
 		// Re-enqueue the app onto the operation queue to keep polling the in-progress sync.
 		// Cap the delay by the remaining sync timeout so a timeout is enforced promptly.
-		if ctrl.syncTimeout > 0 && state != nil && state.Phase != synccommon.OperationTerminating {
-			if remaining := time.Until(state.StartedAt.Add(ctrl.syncTimeout)); remaining < requeueAfter {
+		if ctrl.LegacySyncTimeout() > 0 && state != nil && state.Phase != synccommon.OperationTerminating {
+			if remaining := time.Until(state.StartedAt.Add(ctrl.LegacySyncTimeout())); remaining < requeueAfter {
 				requeueAfter = remaining
 			}
 		}
@@ -1559,12 +1552,12 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		switch {
 		case state.Phase == synccommon.OperationTerminating:
 			logCtx.Infof("Resuming in-progress operation. phase: %s, message: %s", state.Phase, state.Message)
-		case ctrl.syncTimeout != time.Duration(0) && time.Now().After(state.StartedAt.Add(ctrl.syncTimeout)):
+		case ctrl.LegacySyncTimeout() != time.Duration(0) && time.Now().After(state.StartedAt.Add(ctrl.LegacySyncTimeout())):
 			state.Phase = synccommon.OperationTerminating
 			state.Message = "operation is terminating due to timeout"
 			terminatingCause = "controller sync timeout"
 			ctrl.setOperationState(ctx, app, state)
-			logCtx.Infof("Terminating in-progress operation due to timeout. Started at: %v, timeout: %v", state.StartedAt, ctrl.syncTimeout)
+			logCtx.Infof("Terminating in-progress operation due to timeout. Started at: %v, timeout: %v", state.StartedAt, ctrl.LegacySyncTimeout())
 		case state.Phase == synccommon.OperationRunning && state.FinishedAt != nil:
 			// Failed operation with retry strategy might be in-progress and has completion time
 			retryAt, err := app.Status.OperationState.Operation.Retry.NextRetryAt(state.FinishedAt.Time, state.RetryCount)
@@ -1579,7 +1572,6 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 			if retryAfter > 0 {
 				logCtx.Infof("Skipping retrying in-progress operation. Attempting again at: %s", retryAt.Format(time.RFC3339))
 				requeueAfter = retryAfter
-				requeuedForRetry = true
 				return
 			}
 
@@ -1659,7 +1651,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	}
 
 	ctrl.setOperationState(ctx, app, state)
-	ts.AddCheckpoint("final_set_operation_state_ms")
+	ts.AddCheckpoint("final_set_operation_state")
 	if state.Phase.Completed() && (app.Operation.Sync != nil && !app.Operation.Sync.DryRun) {
 		// if we just completed an operation, force a refresh so that UI will report up-to-date
 		// sync/health information
@@ -1820,7 +1812,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		return processNext
 	}
 	origApp = origApp.DeepCopy()
-	needRefresh, refreshType, comparisonLevel := ctrl.needRefreshAppStatus(origApp, ctrl.statusRefreshTimeout, ctrl.statusHardRefreshTimeout)
+	needRefresh, refreshType, comparisonLevel := ctrl.needRefreshAppStatus(origApp, ctrl.LegacyStatusRefreshTimeout(), ctrl.LegacyStatusHardRefreshTimeout())
 
 	if !needRefresh {
 		return processNext
@@ -2445,7 +2437,7 @@ func (ctrl *ApplicationController) autoSync(ctx context.Context, app *appv1.Appl
 		}
 
 		if remainingTime := ctrl.selfHealRemainingBackoff(app, int(op.Sync.SelfHealAttemptsCount)); remainingTime > 0 {
-			logCtx.Infof("Skipping auto-sync: already attempted sync to %s with timeout %v (retrying in %v)", lastAttemptedRevisions, ctrl.selfHealTimeout, remainingTime)
+			logCtx.Infof("Skipping auto-sync: already attempted sync to %s with timeout %v (retrying in %v)", lastAttemptedRevisions, ctrl.LegacySelfHealTimeout(), remainingTime)
 			ctrl.requestAppRefresh(app.QualifiedName(), CompareWithLatest.Pointer(), &remainingTime)
 			return nil, 0
 		}
@@ -2554,14 +2546,14 @@ func (ctrl *ApplicationController) selfHealRemainingBackoff(app *appv1.Applicati
 	}
 
 	var retryAfter time.Duration
-	if ctrl.selfHealBackoff == nil {
+	if ctrl.LegacySelfHealBackoff() == nil {
 		if timeSinceOperation == nil {
-			retryAfter = ctrl.selfHealTimeout
+			retryAfter = ctrl.LegacySelfHealTimeout()
 		} else {
-			retryAfter = ctrl.selfHealTimeout - *timeSinceOperation
+			retryAfter = ctrl.LegacySelfHealTimeout() - *timeSinceOperation
 		}
 	} else {
-		backOff := *ctrl.selfHealBackoff
+		backOff := *ctrl.LegacySelfHealBackoff()
 		backOff.Steps = selfHealAttemptsCount
 		var delay time.Duration
 		steps := backOff.Steps
@@ -2623,9 +2615,9 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 	if len(ctrl.applicationNamespaces) > 0 {
 		watchNamespace = ""
 	}
-	refreshTimeout := ctrl.statusRefreshTimeout
-	if ctrl.statusHardRefreshTimeout.Seconds() != 0 && (ctrl.statusHardRefreshTimeout < ctrl.statusRefreshTimeout) {
-		refreshTimeout = ctrl.statusHardRefreshTimeout
+	refreshTimeout := ctrl.LegacyStatusRefreshTimeout()
+	if ctrl.LegacyStatusHardRefreshTimeout().Seconds() != 0 && (ctrl.LegacyStatusHardRefreshTimeout() < ctrl.LegacyStatusRefreshTimeout()) {
+		refreshTimeout = ctrl.LegacyStatusHardRefreshTimeout()
 	}
 	informer := cache.NewSharedIndexInformer(
 		&cache.ListWatch{
@@ -2765,9 +2757,9 @@ func (ctrl *ApplicationController) applicationEventHandlerFuncs() cache.Resource
 					log.WithFields(applog.GetAppLogFields(newApp)).Info("Enabled automated sync")
 					compareWith = CompareWithLatest.Pointer()
 				}
-				if ctrl.statusRefreshJitter != 0 && oldApp.ResourceVersion == newApp.ResourceVersion {
+				if ctrl.LegacyStatusRefreshJitter() != 0 && oldApp.ResourceVersion == newApp.ResourceVersion {
 					// Handler is refreshing the apps, add a random jitter to spread the load and avoid spikes
-					jitter := time.Duration(float64(ctrl.statusRefreshJitter) * rand.Float64())
+					jitter := time.Duration(float64(ctrl.LegacyStatusRefreshJitter()) * rand.Float64())
 					delay = &jitter
 				}
 			}
@@ -2896,7 +2888,7 @@ func (ctrl *ApplicationController) logAppEvent(ctx context.Context, a *appv1.App
 }
 
 func (ctrl *ApplicationController) applyImpersonationConfig(config *rest.Config, proj *appv1.AppProject, app *appv1.Application, destCluster *appv1.Cluster) error {
-	impersonationEnabled, err := ctrl.settingsMgr.IsImpersonationEnabled()
+	impersonationEnabled, err := ctrl.configProvider.IsImpersonationEnabled()
 	if err != nil {
 		return fmt.Errorf("error getting impersonation setting: %w", err)
 	}

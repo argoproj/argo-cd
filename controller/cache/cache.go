@@ -36,6 +36,7 @@ import (
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	logutils "github.com/argoproj/argo-cd/v3/util/log"
@@ -190,6 +191,7 @@ func NewLiveStateCache(
 	db db.ArgoDB,
 	appInformer cache.SharedIndexInformer,
 	settingsMgr *settings.SettingsManager,
+	configProvider *configbus.Provider,
 	metricsServer *metrics.MetricsServer,
 	onObjectUpdated ObjectUpdatedHandler,
 	clusterSharding sharding.ClusterShardingCache,
@@ -201,6 +203,7 @@ func NewLiveStateCache(
 		clusters:         make(map[string]clustercache.ClusterCache),
 		onObjectUpdated:  onObjectUpdated,
 		settingsMgr:      settingsMgr,
+		configProvider:   configProvider,
 		metricsServer:    metricsServer,
 		clusterSharding:  clusterSharding,
 		resourceTracking: resourceTracking,
@@ -224,6 +227,7 @@ type liveStateCache struct {
 	appInformer          cache.SharedIndexInformer
 	onObjectUpdated      ObjectUpdatedHandler
 	settingsMgr          *settings.SettingsManager
+	configProvider       *configbus.Provider
 	metricsServer        *metrics.MetricsServer
 	clusterSharding      sharding.ClusterShardingCache
 	resourceTracking     argo.ResourceTracking
@@ -235,31 +239,31 @@ type liveStateCache struct {
 }
 
 func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
-	appInstanceLabelKey, err := c.settingsMgr.GetAppInstanceLabelKey()
+	appInstanceLabelKey, err := c.configProvider.AppInstanceLabelKey()
 	if err != nil {
 		return nil, err
 	}
-	trackingMethod, err := c.settingsMgr.GetTrackingMethod()
+	trackingMethod, err := c.configProvider.TrackingMethod()
 	if err != nil {
 		return nil, err
 	}
-	installationID, err := c.settingsMgr.GetInstallationID()
+	installationID, err := c.configProvider.InstallationID()
 	if err != nil {
 		return nil, err
 	}
-	resourceUpdatesOverrides, err := c.settingsMgr.GetIgnoreResourceUpdatesOverrides()
+	resourceUpdatesOverrides, err := c.configProvider.IgnoreResourceUpdatesOverrides()
 	if err != nil {
 		return nil, err
 	}
-	ignoreResourceUpdatesEnabled, err := c.settingsMgr.GetIsIgnoreResourceUpdatesEnabled()
+	ignoreResourceUpdatesEnabled, err := c.configProvider.IsIgnoreResourceUpdatesEnabled()
 	if err != nil {
 		return nil, err
 	}
-	resourcesFilter, err := c.settingsMgr.GetResourcesFilter()
+	resourcesFilter, err := c.configProvider.ResourcesFilter()
 	if err != nil {
 		return nil, err
 	}
-	resourceOverrides, err := c.settingsMgr.GetResourceOverrides()
+	resourceOverrides, err := c.configProvider.ResourceOverrides()
 	if err != nil {
 		return nil, err
 	}
@@ -515,12 +519,12 @@ func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.Cluste
 		return nil, fmt.Errorf("controller is configured to ignore cluster %s", cluster.Server)
 	}
 
-	resourceCustomLabels, err := c.settingsMgr.GetResourceCustomLabels()
+	resourceCustomLabels, err := c.configProvider.ResourceCustomLabels()
 	if err != nil {
 		return nil, fmt.Errorf("error getting custom label: %w", err)
 	}
 
-	respectRBAC, err := c.settingsMgr.RespectRBAC()
+	respectRBAC, err := c.configProvider.RespectRBAC()
 	if err != nil {
 		return nil, fmt.Errorf("error getting value for %v: %w", settings.RespectRBAC, err)
 	}
