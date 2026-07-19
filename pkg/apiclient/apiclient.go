@@ -226,6 +226,9 @@ func NewClient(opts *ClientOptions) (Client, error) {
 		//nolint:staticcheck // First letter of error is intentionally capitalized.
 		return nil, errors.New("Argo CD server address unspecified")
 	}
+	if err := ValidateServerAddress(c.ServerAddr); err != nil {
+		return nil, err
+	}
 	// Override auth-token if specified in env variable or CLI flag
 	c.AuthToken = env.StringFromEnv(EnvArgoCDAuthToken, c.AuthToken)
 	if opts.AuthToken != "" {

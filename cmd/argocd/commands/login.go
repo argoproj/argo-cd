@@ -59,6 +59,12 @@ argocd login cd.argoproj.io --sso
 
 # Configure direct access using Kubernetes API server
 argocd login cd.argoproj.io --core`,
+		PreRunE: func(_ *cobra.Command, args []string) error {
+			if len(args) == 1 && !clientOpts.PortForward && !clientOpts.Core {
+				return argocdclient.ValidateServerAddress(args[0])
+			}
+			return nil
+		},
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 

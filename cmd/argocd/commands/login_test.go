@@ -5,10 +5,12 @@ import (
 	"os"
 	"testing"
 
+	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func captureStdout(callback func()) (string, error) {
@@ -39,6 +41,18 @@ func Test_userDisplayName_email(t *testing.T) {
 	actualName := userDisplayName(claims)
 	expectedName := "firstname.lastname@example.com"
 	assert.Equal(t, expectedName, actualName)
+}
+
+func TestNewLoginCommandRejectsURLServerAddressBeforeConnecting(t *testing.T) {
+	clientOpts := argocdclient.ClientOptions{}
+	command := NewLoginCommand(&clientOpts)
+	command.SilenceErrors = true
+	command.SilenceUsage = true
+	command.SetArgs([]string{"https://localhost:8080"})
+
+	err := command.Execute()
+
+	require.EqualError(t, err, `server address "https://localhost:8080" must not include a URL scheme; use "localhost:8080" instead`)
 }
 
 func Test_userDisplayName_name(t *testing.T) {
