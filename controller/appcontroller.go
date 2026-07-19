@@ -2239,7 +2239,7 @@ func createMergePatch(orig, newV any) ([]byte, bool, error) {
 
 // persistReconciliationStatus persists updates to application status and consumes the refresh and refresh-timestamp annotations.
 func (ctrl *ApplicationController) persistReconciliationStatus(ctx context.Context, orig *appv1.Application, newStatus *appv1.ApplicationStatus) time.Duration {
-	duration := ctrl.handleRefreshAnnotation(orig, appv1.AnnotationKeyRefresh, appv1.AnnotationKeyRefreshTimestamp)
+	duration := ctrl.handleRefreshAnnotation(ctx, orig, appv1.AnnotationKeyRefresh, appv1.AnnotationKeyRefreshTimestamp)
 	return duration + ctrl.persistAppStatus(ctx, orig, newStatus)
 }
 
@@ -2259,7 +2259,20 @@ func (ctrl *ApplicationController) persistReconciliationStatus(ctx context.Conte
 // according to the updated manifest (in case one of the annotations was deleted externally).
 //
 // It returns duration of all external patch request that were performed.
-func (ctrl *ApplicationController) handleRefreshAnnotation(orig *appv1.Application, annotation, timestampAnnotation string) (patchDuration time.Duration) {
+func (ctrl *ApplicationController) handleRefreshAnnotation(ctx context.Context, orig *appv1.Application, annotation, timestampAnnotation string) (patchDuration time.Duration) {
+	// spanErr records a failed patch operation on the span so a trace doesn't look successful when
+	// the patch below failed. These are Kubernetes API errors, not repo URLs, so
+	// recording the message via EndSpan does not risk leaking credentials.
+	var spanErr error
+	// FIXME: remove check when hydrator gets tracing added
+	if ctx != nil {
+		// NB: leaf span only — the annotations patch below deliberately stays on context.Background() so a
+		// canceled reconcile ctx never aborts a durable status write. The span just measures it.
+		_, span := tracer.Start(ctx, "controller.handleRefreshAnnotations")
+		setAppTraceAttrs(span, orig)
+		defer func() { traceutil.EndSpan(span, spanErr) }()
+	}
+
 	logCtx := log.WithFields(applog.GetAppLogFields(orig))
 	origAnnotations := orig.GetAnnotations()
 	patchDuration, err := ctrl.removeRefreshAnnotationCombo(orig, annotation, timestampAnnotation)
@@ -2277,6 +2290,7 @@ func (ctrl *ApplicationController) handleRefreshAnnotation(orig *appv1.Applicati
 			// We fetch from k8s directly, because Informer might still have the old version
 			newApp, getErr := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(orig.GetNamespace()).Get(context.Background(), orig.GetName(), metav1.GetOptions{})
 			if getErr != nil {
+				spanErr = getErr
 				logCtx.Errorf("Unexpected error getting application: %v", getErr)
 				return
 			}
@@ -2293,12 +2307,14 @@ func (ctrl *ApplicationController) handleRefreshAnnotation(orig *appv1.Applicati
 					// retry the operation with the updated annotations
 					retryDuration, retryErr := ctrl.removeRefreshAnnotationCombo(newApp, annotation, timestampAnnotation)
 					if retryErr != nil {
+						spanErr = retryErr
 						logCtx.Errorf("Unexpected error retrying removal of annotations %s, %s, %v", annotation, timestampAnnotation, err)
 					}
 					patchDuration += retryDuration
 				}
 			}
 		} else {
+			spanErr = err
 			logCtx.Errorf("Unexpected error removing annotations %s, %s, %v", annotation, timestampAnnotation, err)
 		}
 	}
