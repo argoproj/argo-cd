@@ -179,6 +179,7 @@ func NewCommand() *cobra.Command {
 			settingsMgr := settings.NewSettingsManager(ctx, kubeClient, namespace, settings.WithRepoOrClusterChangedHandler(func() {
 				appController.InvalidateProjectsCache()
 			}))
+
 			kubectl := kubeutil.NewKubectl()
 			clusterSharding, err := sharding.GetClusterSharding(kubeClient, settingsMgr, shardingAlgorithm, enableDynamicClusterDistribution)
 			errors.CheckError(err)
@@ -193,6 +194,7 @@ func NewCommand() *cobra.Command {
 			appController, err = controller.NewApplicationController(
 				namespace,
 				settingsMgr,
+				nil, // Phase 0: CRD slot empty; provider is wired from the controller
 				kubeClient,
 				appClient,
 				repoClientset,

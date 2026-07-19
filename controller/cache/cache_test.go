@@ -30,6 +30,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/controller/sharding"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	dbmocks "github.com/argoproj/argo-cd/v3/util/db/mocks"
 	argosettings "github.com/argoproj/argo-cd/v3/util/settings"
 )
@@ -814,7 +815,8 @@ func TestLoadCacheSettings(t *testing.T) {
 		"installationID":                     "123456789",
 	})
 	ch := liveStateCache{
-		settingsMgr: settingsManager,
+		settingsMgr:    settingsManager,
+		configProvider: configbus.NewProvider(settingsManager, nil, nil),
 	}
 	label, err := settingsManager.GetAppInstanceLabelKey()
 	require.NoError(t, err)

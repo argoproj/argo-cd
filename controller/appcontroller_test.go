@@ -227,6 +227,7 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 	ctrl, err := NewApplicationController(
 		test.FakeArgoCDNamespace,
 		settingsMgr,
+		nil,
 		kubeClient,
 		appclientset.NewSimpleClientset(data.apps...),
 		mockRepoClientset,
@@ -2680,7 +2681,9 @@ func TestOrphanedIndexDoesNotQueryProjectDuringStartupRace(t *testing.T) {
 		},
 	}
 	ctrl, err := NewApplicationController(
-		test.FakeArgoCDNamespace, settingsMgr, kubeClient,
+		test.FakeArgoCDNamespace, settingsMgr,
+		nil,
+		kubeClient,
 		appclientset.NewSimpleClientset(app, proj),
 		mockRepoClientset, mockCommitClientset,
 		appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute),
@@ -2745,7 +2748,9 @@ func TestOrphanedIndexReturnsNamespaceWhenProjectHasOrphanedResources(t *testing
 		},
 	}
 	ctrl, err := NewApplicationController(
-		test.FakeArgoCDNamespace, settingsMgr, kubeClient,
+		test.FakeArgoCDNamespace, settingsMgr,
+		nil,
+		kubeClient,
 		appclientset.NewSimpleClientset(app, proj),
 		mockRepoClientset, mockCommitClientset,
 		appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute),
@@ -3204,7 +3209,7 @@ func TestProcessRequestedAppOperation_SyncTimeout(t *testing.T) {
 				}},
 			}, nil)
 
-			ctrl.syncTimeout = tc.syncTimeout
+			ctrl.setLegacySyncTimeout(tc.syncTimeout)
 			app.Status.OperationState = &v1alpha1.OperationState{
 				Operation: *app.Operation,
 				Phase:     tc.currentPhase,
@@ -3260,7 +3265,7 @@ func TestProcessRequestedAppOperation_RequeuesOperation(t *testing.T) {
 				Manifests: []string{},
 			}},
 		}, nil)
-		ctrl.syncTimeout = 10 * time.Second
+		ctrl.setLegacySyncTimeout(10 * time.Second)
 		app.Status.OperationState = &v1alpha1.OperationState{
 			Operation: *app.Operation,
 			Phase:     synccommon.OperationRunning,
@@ -3274,7 +3279,7 @@ func TestProcessRequestedAppOperation_RequeuesOperation(t *testing.T) {
 		require.Len(t, rq.calls, 1)
 		assert.Equal(t, ctrl.toAppKey(app.QualifiedName()), rq.calls[0].item)
 		assert.Positive(t, rq.calls[0].delay)
-		assert.LessOrEqual(t, rq.calls[0].delay, ctrl.syncTimeout)
+		assert.LessOrEqual(t, rq.calls[0].delay, ctrl.LegacySyncTimeout())
 		assert.Less(t, rq.calls[0].delay, appOperationMaxRequeueInterval)
 	})
 
@@ -4004,11 +4009,11 @@ func assertDurationAround(t *testing.T, expected time.Duration, actual time.Dura
 
 func TestSelfHealRemainingBackoff(t *testing.T) {
 	ctrl := newFakeController(t.Context(), &fakeData{}, nil)
-	ctrl.selfHealBackoff = &wait.Backoff{
+	ctrl.setLegacySelfHealBackoff(&wait.Backoff{
 		Factor:   3,
 		Duration: 2 * time.Second,
 		Cap:      2 * time.Minute,
-	}
+	})
 	app := &v1alpha1.Application{
 		Status: v1alpha1.ApplicationStatus{
 			OperationState: &v1alpha1.OperationState{

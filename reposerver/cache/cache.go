@@ -19,6 +19,7 @@ import (
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/hash"
@@ -82,6 +83,11 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...cacheutil.Options) func() (*
 		if err != nil {
 			return nil, fmt.Errorf("error adding cache flags to cmd: %w", err)
 		}
+		// Phase 0: route shared ARGOCD_RECONCILIATION_TIMEOUT through config bus
+		// (empty CRD slot → already-resolved flag/env value).
+		legacy := revisionCacheExpiration
+		p := configbus.NewProvider(nil, &configbus.LegacyValues{ReconciliationTimeout: &legacy}, nil)
+		revisionCacheExpiration = p.ReconciliationTimeout()
 		return NewCache(cache, repoCacheExpiration, revisionCacheExpiration, revisionCacheLockTimeout), nil
 	}
 }
