@@ -346,7 +346,7 @@ func GetCertBundlePathForRepository(serverName string) (string, error) {
 	certPath := filepath.Join(GetTLSCertificateDataPath(), ServerNameWithoutPort(serverName))
 	certs, err := GetCertificateForConnect(serverName)
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 	if len(certs) == 0 {
 		return "", nil
