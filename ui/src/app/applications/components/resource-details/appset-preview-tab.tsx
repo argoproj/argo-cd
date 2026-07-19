@@ -101,6 +101,7 @@ export const AppSetPreviewTab = (props: AppSetPreviewTabProps) => {
                     <div style={{marginTop: '10px'}}>
                         <MonacoEditor
                             key={editorKey}
+                            minHeight={800}
                             vScrollBar={false}
                             editor={{
                                 input: {text: initialYaml, language: 'yaml'},
