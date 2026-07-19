@@ -267,19 +267,6 @@ notification-docs:
 	go run ./hack/gen-docs
 	go run ./hack/gen-catalog docs
 
-.PHONY: config-registry-docs
-config-registry-docs:
-	go run ./hack/config-registry-docs > docs/operator-manual/config-registry.md
-
-.PHONY: config-registry-gen
-config-registry-gen:
-	go run ./hack/config-registry-gen -repo-root .
-
-.PHONY: config-inventory
-config-inventory:
-	go run ./hack/config-inventory -repo-root . -out util/configbus/testdata/inventory.json -allowlist-out util/configbus/testdata/unregistered_allowlist.txt -flag-allowlist-out util/configbus/testdata/unregistered_flag_allowlist.txt
-
-
 .PHONY: clientgen
 clientgen:
 	export GO111MODULE=off
@@ -298,7 +285,7 @@ resourceiconsgen:
 	hack/generate-icons-typescript.sh
 
 .PHONY: codegen-local
-codegen-local: mod-vendor-local gogen protogen clientgen openapigen clidocsgen mockgen actionsdocsgen resourceiconsgen manifests-local notification-docs notification-catalog config-registry-gen config-registry-docs
+codegen-local: mod-vendor-local gogen protogen clientgen openapigen clidocsgen mockgen actionsdocsgen resourceiconsgen manifests-local notification-docs notification-catalog
 	rm -rf vendor/
 
 .PHONY: codegen-local-fast
@@ -605,7 +592,6 @@ start-local: mod-vendor-local dep-ui-local cli-local
 .PHONY: run
 run:
 	bash ./hack/goreman-start.sh
-
 
 # Runs pre-commit validation with the virtualized toolchain
 .PHONY: pre-commit
