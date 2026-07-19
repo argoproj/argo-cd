@@ -3175,6 +3175,28 @@ func TestTestRepoHelmOCI(t *testing.T) {
 	assert.ErrorContains(t, err, "OCI Helm repository URL should include hostname and port only")
 }
 
+func TestTestRepoHelmOCIContextCancellation(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "helm"), []byte("#!/bin/sh\nexit 97\n"), 0o700))
+	t.Setenv("PATH", dir)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	service := newService(t, ".")
+	response, err := service.TestRepository(ctx, &apiclient.TestRepositoryRequest{
+		Repo: &v1alpha1.Repository{
+			Repo:      "registry.example.com/repo",
+			Type:      "helm",
+			EnableOCI: true,
+			Username:  "user",
+			Password:  "password",
+		},
+	})
+
+	require.ErrorIs(t, err, context.Canceled)
+	assert.False(t, response.VerifiedRepository)
+}
+
 func TestTestRepositoryUnsupportedType(t *testing.T) {
 	service := newService(t, ".")
 	_, err := service.TestRepository(t.Context(), &apiclient.TestRepositoryRequest{
@@ -3184,6 +3206,24 @@ func TestTestRepositoryUnsupportedType(t *testing.T) {
 		},
 	})
 	assert.ErrorContains(t, err, `unsupported repository type "bogus"`)
+}
+
+type dependencyBuildContextHelm struct {
+	helm.Helm
+	ctx context.Context
+}
+
+func (h *dependencyBuildContextHelm) DependencyBuild(ctx context.Context) error {
+	h.ctx = ctx
+	return nil
+}
+
+func TestRunHelmBuildContext(t *testing.T) {
+	ctx := context.WithValue(t.Context(), struct{}{}, "context value")
+	h := &dependencyBuildContextHelm{}
+
+	require.NoError(t, runHelmBuild(ctx, t.TempDir(), h))
+	require.Equal(t, ctx, h.ctx)
 }
 
 func Test_getHelmDependencyRepos(t *testing.T) {

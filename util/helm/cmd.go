@@ -90,7 +90,7 @@ func (c Cmd) runWithStdin(ctx context.Context, stdin io.Reader, args ...string) 
 	return out, fullCommand, nil
 }
 
-func (c *Cmd) RegistryLogin(repo string, creds Creds, plainHTTP bool) (string, error) {
+func (c *Cmd) RegistryLogin(ctx context.Context, repo string, creds Creds, plainHTTP bool) (string, error) {
 	args := []string{"registry", "login"}
 	registry, err := c.getHelmRegistry(repo)
 	if err != nil {
@@ -142,7 +142,7 @@ func (c *Cmd) RegistryLogin(repo string, creds Creds, plainHTTP bool) (string, e
 	if helmPassword != "" {
 		stdin = strings.NewReader(helmPassword)
 	}
-	out, _, err := c.runWithStdin(context.Background(), stdin, args...)
+	out, _, err := c.runWithStdin(ctx, stdin, args...)
 	if err != nil {
 		return "", fmt.Errorf("failed to login to registry: %w", err)
 	}

@@ -1,6 +1,7 @@
 package helm
 
 import (
+	"context"
 	"os/exec"
 	"path/filepath"
 	"slices"
@@ -345,10 +346,39 @@ func TestDependencyBuild_PlainHTTPFromDependencyRepo(t *testing.T) {
 				repos: repos,
 			}
 
-			err = h.DependencyBuild()
+			err = h.DependencyBuild(t.Context())
 			require.NoError(t, err)
 
 			require.Equal(t, tc.expectPlainHTTP, slices.Contains(capturedArgs, "--plain-http"))
 		})
 	}
+}
+
+func TestDependencyBuildContextCancellation(t *testing.T) {
+	installFakeHelm(t)
+	var calls [][]string
+	c, err := newCmdWithVersion(".", false, "", "", func(cmd *exec.Cmd, _ func(string) string) (string, error) {
+		calls = append(calls, slices.Clone(cmd.Args[1:]))
+		return "", cmd.Run()
+	})
+	require.NoError(t, err)
+	t.Cleanup(c.Close)
+
+	h := &helm{
+		cmd: *c,
+		repos: []HelmRepository{{
+			Repo:      "oci://registry.example.com/repo",
+			EnableOci: true,
+			Creds:     HelmCreds{Username: "user", Password: "password"},
+		}},
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	err = h.DependencyBuild(ctx)
+	require.ErrorIs(t, err, context.Canceled)
+	require.Equal(t, [][]string{
+		{"registry", "login", "registry.example.com", "--username", "user", "--password-stdin"},
+		{"registry", "logout", "registry.example.com"},
+	}, calls)
 }
