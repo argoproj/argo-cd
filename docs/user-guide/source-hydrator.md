@@ -600,7 +600,7 @@ if `hydrate-timestamp` still has the value it had when hydration started. If a n
 arrived while the previous one was being processed, `hydrate-timestamp` will have a newer value, removal is
 skipped, and the request is processed instead of being silently dropped.
 
-Argo CD sets these annotation automatically in a few situations:
+Argo CD sets these annotations automatically in a few situations:
 
 * **Manual or API refresh.** `argocd app get <app> --refresh` (and the equivalent API call) sets it to `normal`;
   `argocd app get <app> --hard-refresh` sets it to `hard`.

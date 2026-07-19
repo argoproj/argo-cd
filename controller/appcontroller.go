@@ -2293,13 +2293,13 @@ func (ctrl *ApplicationController) handleRefreshAnnotation(orig *appv1.Applicati
 					// retry the operation with the updated annotations
 					retryDuration, retryErr := ctrl.removeRefreshAnnotationCombo(newApp, annotation, timestampAnnotation)
 					if retryErr != nil {
-						logCtx.Errorf("Unexpected error retrying update of annotations %s, %s, %v", annotation, timestampAnnotation, err)
+						logCtx.Errorf("Unexpected error retrying removal of annotations %s, %s, %v", annotation, timestampAnnotation, err)
 					}
 					patchDuration += retryDuration
 				}
 			}
 		} else {
-			logCtx.Errorf("Unexpected error updating annotations %s, %s, %v", annotation, timestampAnnotation, err)
+			logCtx.Errorf("Unexpected error removing annotations %s, %s, %v", annotation, timestampAnnotation, err)
 		}
 	}
 	return

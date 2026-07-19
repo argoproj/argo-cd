@@ -3431,6 +3431,7 @@ func TestApplicationController_PersistAppStatus_NonSizeLimitErrorNoFallback(t *t
 	newStatus.Sync.Status = v1alpha1.SyncStatusCodeOutOfSync
 
 	ctrl.persistAppStatus(t.Context(), app, newStatus)
+
 	assert.Equal(t, 1, patchCalls, "non-size-limit errors should NOT trigger fallback patch")
 }
 

@@ -114,6 +114,9 @@ func NewHydrator(dependencies Dependencies, statusRefreshTimeout time.Duration, 
 // ProcessAppHydrateQueueItem processes an application hydrate queue item. It checks whether the
 // application needs hydration and, if so, enqueues the deduped hydration key.
 //
+// The hydrate and hydrate-timestamp annotations are removed here only if hydration is not needed,
+// otherwise the annotations are removed after hydration process has finished.
+//
 // The per-app status update that marks the application as Hydrating is deliberately NOT done here.
 // It is performed by ProcessHydrationQueueItem, which gathers every application sharing the
 // hydration key and updates them together. Because the hydration workqueue dedups by key and never
