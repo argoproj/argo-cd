@@ -754,7 +754,11 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 			msg := "Failed to load target state: " + err.Error()
 			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
 			if firstSeen, ok := m.repoErrorCache.Load(app.Name); ok {
-				if time.Since(firstSeen.(time.Time)) <= m.LegacyRepoErrorGracePeriod() && !noRevisionCache {
+				repoErrorGracePeriod, graceErr := m.configProvider.RepoErrorGracePeriod()
+				if graceErr != nil {
+					logCtx.WithError(graceErr).Error("failed to resolve repo error grace period")
+				}
+				if time.Since(firstSeen.(time.Time)) <= repoErrorGracePeriod && !noRevisionCache {
 					// if first seen is less than grace period and it's not a Level 3 comparison,
 					// ignore error and short circuit
 					logCtx.Debugf("Ignoring repo error %v, already encountered error in grace period", err.Error())
@@ -917,7 +921,11 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 		manifestRevisions = append(manifestRevisions, manifestInfo.Revision)
 	}
 
-	serverSideDiff := m.LegacyServerSideDiff() ||
+	serverSideDiffCfg, err := m.configProvider.ServerSideDiff()
+	if err != nil {
+		logCtx.WithError(err).Error("failed to resolve server-side diff setting")
+	}
+	serverSideDiff := serverSideDiffCfg ||
 		resourceutil.HasAnnotationOption(app, common.AnnotationCompareOptions, "ServerSideDiff=true")
 
 	// This allows turning SSD off for a given app if it is enabled at the
@@ -926,10 +934,14 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 		serverSideDiff = false
 	}
 
-	useDiffCache := useDiffCache(noCache, manifestInfos, sources, app, manifestRevisions, m.LegacyStatusRefreshTimeout(), serverSideDiff, logCtx)
+	useDiffCache := useDiffCache(noCache, manifestInfos, sources, app, manifestRevisions, m.configProvider.ReconciliationTimeout(), serverSideDiff, logCtx)
 
+	ignoreNormalizerOpts, err := m.configProvider.IgnoreNormalizerOpts()
+	if err != nil {
+		logCtx.WithError(err).Error("failed to resolve ignore normalizer opts")
+	}
 	diffConfigBuilder := argodiff.NewDiffConfigBuilder().
-		WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles, m.LegacyIgnoreNormalizerOpts()).
+		WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles, ignoreNormalizerOpts).
 		WithTracking(appLabelKey, string(trackingMethod))
 
 	if useDiffCache {
@@ -1112,7 +1124,11 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 
 	ts.AddCheckpoint("sync_ms")
 
-	healthStatus, healthMessage, err := setApplicationHealth(managedResources, resourceSummaries, resourceOverrides, app, m.LegacyPersistResourceHealth())
+	persistResourceHealth, err := m.configProvider.PersistResourceHealth()
+	if err != nil {
+		logCtx.WithError(err).Error("failed to resolve persist resource health")
+	}
+	healthStatus, healthMessage, err := setApplicationHealth(managedResources, resourceSummaries, resourceOverrides, app, persistResourceHealth)
 	if err != nil {
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: "error setting app health: " + err.Error(), LastTransitionTime: &now})
 	}

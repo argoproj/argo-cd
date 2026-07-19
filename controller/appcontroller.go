@@ -328,7 +328,11 @@ func NewApplicationController(
 		}
 	}
 	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, ctrl.configProvider, ctrl.metricsServer, ctrl.handleObjectUpdated, clusterSharding, argo.NewResourceTracking())
-	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.onKubectlRun, ctrl.configProvider, stateCache, ctrl.metricsServer, argoCache, ctrl.LegacyStatusRefreshTimeout(), argo.NewResourceTracking(), persistResourceHealth, repoErrorGracePeriod, serverSideDiff, ctrl.LegacyIgnoreNormalizerOpts())
+	ignoreNormalizerOpts, err = ctrl.configProvider.IgnoreNormalizerOpts()
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve ignore normalizer opts: %w", err)
+	}
+	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.onKubectlRun, ctrl.configProvider, stateCache, ctrl.metricsServer, argoCache, ctrl.configProvider.ReconciliationTimeout(), argo.NewResourceTracking(), persistResourceHealth, repoErrorGracePeriod, serverSideDiff, ignoreNormalizerOpts)
 	ctrl.appInformer = appInformer
 	ctrl.appLister = appLister
 	ctrl.projInformer = projInformer
@@ -857,8 +861,12 @@ func (ctrl *ApplicationController) hideSecretData(ctx context.Context, destClust
 			if err != nil {
 				return nil, fmt.Errorf("error getting cluster cache: %w", err)
 			}
+			ignoreNormalizerOpts, err := ctrl.configProvider.IgnoreNormalizerOpts()
+			if err != nil {
+				return nil, fmt.Errorf("failed to resolve ignore normalizer opts: %w", err)
+			}
 			diffConfig, err := argodiff.NewDiffConfigBuilder().
-				WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles, ctrl.LegacyIgnoreNormalizerOpts()).
+				WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles, ignoreNormalizerOpts).
 				WithTracking(appLabelKey, trackingMethod).
 				WithNoCache().
 				WithLogger(logutils.NewLogrusLogger(logutils.NewWithCurrentConfig())).
@@ -927,7 +935,11 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 	defer ctrl.hydrationQueue.ShutDown()
 
 	ctrl.RegisterClusterSecretUpdater(ctx)
-	ctrl.metricsServer.RegisterClustersInfoSource(ctx, ctrl.stateCache, ctrl.db, ctrl.LegacyMetricsClusterLabels())
+	metricsClusterLabels, err := ctrl.configProvider.MetricsClusterLabels()
+	if err != nil {
+		log.WithError(err).Error("failed to resolve metrics cluster labels")
+	}
+	ctrl.metricsServer.RegisterClustersInfoSource(ctx, ctrl.stateCache, ctrl.db, metricsClusterLabels)
 
 	if ctrl.dynamicClusterDistributionEnabled {
 		// only start deployment informer if dynamic distribution is enabled
@@ -1534,12 +1546,16 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		logCtx.Debug("Finished processing requested app operation")
 	}()
 
+	syncTimeout, err := ctrl.configProvider.SyncTimeout()
+	if err != nil {
+		logCtx.WithError(err).Error("failed to resolve sync timeout")
+	}
 	requeueAfter := appOperationMaxRequeueInterval
 	defer func() {
 		// Re-enqueue the app onto the operation queue to keep polling the in-progress sync.
 		// Cap the delay by the remaining sync timeout so a timeout is enforced promptly.
-		if ctrl.LegacySyncTimeout() > 0 && state != nil && state.Phase != synccommon.OperationTerminating {
-			if remaining := time.Until(state.StartedAt.Add(ctrl.LegacySyncTimeout())); remaining < requeueAfter {
+		if syncTimeout > 0 && state != nil && state.Phase != synccommon.OperationTerminating {
+			if remaining := time.Until(state.StartedAt.Add(syncTimeout)); remaining < requeueAfter {
 				requeueAfter = remaining
 			}
 		}
@@ -1552,12 +1568,12 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		switch {
 		case state.Phase == synccommon.OperationTerminating:
 			logCtx.Infof("Resuming in-progress operation. phase: %s, message: %s", state.Phase, state.Message)
-		case ctrl.LegacySyncTimeout() != time.Duration(0) && time.Now().After(state.StartedAt.Add(ctrl.LegacySyncTimeout())):
+		case syncTimeout != time.Duration(0) && time.Now().After(state.StartedAt.Add(syncTimeout)):
 			state.Phase = synccommon.OperationTerminating
 			state.Message = "operation is terminating due to timeout"
 			terminatingCause = "controller sync timeout"
 			ctrl.setOperationState(ctx, app, state)
-			logCtx.Infof("Terminating in-progress operation due to timeout. Started at: %v, timeout: %v", state.StartedAt, ctrl.LegacySyncTimeout())
+			logCtx.Infof("Terminating in-progress operation due to timeout. Started at: %v, timeout: %v", state.StartedAt, syncTimeout)
 		case state.Phase == synccommon.OperationRunning && state.FinishedAt != nil:
 			// Failed operation with retry strategy might be in-progress and has completion time
 			retryAt, err := app.Status.OperationState.Operation.Retry.NextRetryAt(state.FinishedAt.Time, state.RetryCount)
@@ -1812,7 +1828,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		return processNext
 	}
 	origApp = origApp.DeepCopy()
-	needRefresh, refreshType, comparisonLevel := ctrl.needRefreshAppStatus(origApp, ctrl.LegacyStatusRefreshTimeout(), ctrl.LegacyStatusHardRefreshTimeout())
+	needRefresh, refreshType, comparisonLevel := ctrl.needRefreshAppStatus(origApp, ctrl.configProvider.ReconciliationTimeout(), ctrl.configProvider.HardReconciliationTimeout())
 
 	if !needRefresh {
 		return processNext
@@ -2437,7 +2453,11 @@ func (ctrl *ApplicationController) autoSync(ctx context.Context, app *appv1.Appl
 		}
 
 		if remainingTime := ctrl.selfHealRemainingBackoff(app, int(op.Sync.SelfHealAttemptsCount)); remainingTime > 0 {
-			logCtx.Infof("Skipping auto-sync: already attempted sync to %s with timeout %v (retrying in %v)", lastAttemptedRevisions, ctrl.LegacySelfHealTimeout(), remainingTime)
+			selfHealTimeout, err := ctrl.configProvider.SelfHealTimeout()
+			if err != nil {
+				logCtx.WithError(err).Error("failed to resolve self heal timeout")
+			}
+			logCtx.Infof("Skipping auto-sync: already attempted sync to %s with timeout %v (retrying in %v)", lastAttemptedRevisions, selfHealTimeout, remainingTime)
 			ctrl.requestAppRefresh(app.QualifiedName(), CompareWithLatest.Pointer(), &remainingTime)
 			return nil, 0
 		}
@@ -2545,15 +2565,23 @@ func (ctrl *ApplicationController) selfHealRemainingBackoff(app *appv1.Applicati
 		timeSinceOperation = new(time.Since(app.Status.OperationState.FinishedAt.Time))
 	}
 
+	selfHealTimeout, err := ctrl.configProvider.SelfHealTimeout()
+	if err != nil {
+		log.WithError(err).Error("failed to resolve self heal timeout")
+	}
+	selfHealBackoff, err := ctrl.configProvider.SelfHealBackoff()
+	if err != nil {
+		log.WithError(err).Error("failed to resolve self heal backoff")
+	}
 	var retryAfter time.Duration
-	if ctrl.LegacySelfHealBackoff() == nil {
+	if selfHealBackoff == nil {
 		if timeSinceOperation == nil {
-			retryAfter = ctrl.LegacySelfHealTimeout()
+			retryAfter = selfHealTimeout
 		} else {
-			retryAfter = ctrl.LegacySelfHealTimeout() - *timeSinceOperation
+			retryAfter = selfHealTimeout - *timeSinceOperation
 		}
 	} else {
-		backOff := *ctrl.LegacySelfHealBackoff()
+		backOff := *selfHealBackoff
 		backOff.Steps = selfHealAttemptsCount
 		var delay time.Duration
 		steps := backOff.Steps
@@ -2615,9 +2643,10 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 	if len(ctrl.applicationNamespaces) > 0 {
 		watchNamespace = ""
 	}
-	refreshTimeout := ctrl.LegacyStatusRefreshTimeout()
-	if ctrl.LegacyStatusHardRefreshTimeout().Seconds() != 0 && (ctrl.LegacyStatusHardRefreshTimeout() < ctrl.LegacyStatusRefreshTimeout()) {
-		refreshTimeout = ctrl.LegacyStatusHardRefreshTimeout()
+	refreshTimeout := ctrl.configProvider.ReconciliationTimeout()
+	hardRefreshTimeout := ctrl.configProvider.HardReconciliationTimeout()
+	if hardRefreshTimeout.Seconds() != 0 && (hardRefreshTimeout < refreshTimeout) {
+		refreshTimeout = hardRefreshTimeout
 	}
 	informer := cache.NewSharedIndexInformer(
 		&cache.ListWatch{
@@ -2757,9 +2786,10 @@ func (ctrl *ApplicationController) applicationEventHandlerFuncs() cache.Resource
 					log.WithFields(applog.GetAppLogFields(newApp)).Info("Enabled automated sync")
 					compareWith = CompareWithLatest.Pointer()
 				}
-				if ctrl.LegacyStatusRefreshJitter() != 0 && oldApp.ResourceVersion == newApp.ResourceVersion {
+				statusRefreshJitter := ctrl.configProvider.ReconciliationJitter()
+				if statusRefreshJitter != 0 && oldApp.ResourceVersion == newApp.ResourceVersion {
 					// Handler is refreshing the apps, add a random jitter to spread the load and avoid spikes
-					jitter := time.Duration(float64(ctrl.LegacyStatusRefreshJitter()) * rand.Float64())
+					jitter := time.Duration(float64(statusRefreshJitter) * rand.Float64())
 					delay = &jitter
 				}
 			}
