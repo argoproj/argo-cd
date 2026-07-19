@@ -612,7 +612,9 @@ func resolveReferencedSources(ctx context.Context, hasMultipleSources bool, sour
 			return nil, errors.New("source has a 'chart' field defined, but Helm charts are not yet supported for Git 'ref' sources")
 		}
 
-		normalizedRepoURL := git.NormalizeGitURL(refSourceMapping.Repo.Repo)
+		// Key must match runManifestGenAsync, which keys refSourceCommitSHAs the same way;
+		// both feed the manifest cache key.
+		normalizedRepoURL := refSourceMapping.Repo.NormalizeRepoURL()
 
 		_, ok = repoRefs[normalizedRepoURL]
 		if !ok {
@@ -873,6 +875,12 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 	// key. Overrides will break the cache anyway, because changes to overrides will change the revision.
 	appSourceCopy := q.ApplicationSource.DeepCopy()
 	repoRefs := make(map[string]repoRef)
+	// OCI ref sources are extracted to a directory unique to this generation and removed
+	// when it completes, so the repo URL -> extracted dir mapping must be request-scoped:
+	// registering it in the service-wide s.ociPaths would let concurrent generations
+	// referencing the same repo read each other's (possibly different-revision, possibly
+	// already-deleted) directories.
+	ociRefPaths := utilio.NewRandomizedTempPaths(os.TempDir())
 
 	var manifestGenResult *apiclient.ManifestResponse
 	opContext, err := opContextSrc()
@@ -968,8 +976,8 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 								}
 							}
 
-							// Add to ociPaths for later access
-							s.ociPaths.Add(normalizedRepoURL, ociPath)
+							// Register the extracted path for value file resolution during this generation
+							ociRefPaths.Add(normalizedRepoURL, ociPath)
 							repoRefs[normalizedRepoURL] = repoRef{revision: refSourceMapping.TargetRevision, commitSHA: referencedDigest, key: refVar}
 						} else {
 							gitClient, referencedCommitSHA, err := s.newClientResolveRevision(&refSourceMapping.Repo, refSourceMapping.TargetRevision, git.WithCache(s.cache, !q.NoRevisionCache && !q.NoCache))
@@ -1029,7 +1037,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 			}
 		}
 
-		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs), WithCMPUseManifestGeneratePaths(s.initConstants.CMPUseManifestGeneratePaths), WithOCIPaths(s.ociPaths))
+		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs), WithCMPUseManifestGeneratePaths(s.initConstants.CMPUseManifestGeneratePaths), WithOCIPaths(ociRefPaths))
 	}
 	refSourceCommitSHAs := make(map[string]string)
 	if len(repoRefs) > 0 {

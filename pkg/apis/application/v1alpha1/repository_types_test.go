@@ -236,3 +236,35 @@ func TestGetGitCreds_GitHubApp_OrgExtractionFails(t *testing.T) {
 	assert.Contains(t, err.Error(), "failed to extract organization")
 	assert.Contains(t, err.Error(), "invalid-url-format")
 }
+
+func TestNormalizeOCIURL(t *testing.T) {
+	tests := []struct {
+		name     string
+		url      string
+		expected string
+	}{
+		{name: "already normalized", url: "oci://registry-1.docker.io/envoyproxy/gateway", expected: "oci://registry-1.docker.io/envoyproxy/gateway"},
+		{name: "uppercase host is lowercased", url: "oci://REGISTRY-1.DOCKER.IO/envoyproxy/gateway", expected: "oci://registry-1.docker.io/envoyproxy/gateway"},
+		{name: "uppercase scheme is lowercased", url: "OCI://registry-1.docker.io/envoyproxy/gateway", expected: "oci://registry-1.docker.io/envoyproxy/gateway"},
+		{name: "path case is preserved", url: "oci://registry.example.com/EnvoyProxy/Gateway", expected: "oci://registry.example.com/EnvoyProxy/Gateway"},
+		{name: "host with port", url: "oci://Registry.Example.com:5000/chart", expected: "oci://registry.example.com:5000/chart"},
+		{name: "surrounding whitespace is trimmed", url: " oci://registry.example.com/chart ", expected: "oci://registry.example.com/chart"},
+		{name: "host only", url: "oci://Registry.Example.com", expected: "oci://registry.example.com"},
+		{name: "non-OCI URL is unchanged", url: "https://github.com/argoproj/argo-cd.git", expected: "https://github.com/argoproj/argo-cd.git"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, NormalizeOCIURL(tt.url))
+		})
+	}
+}
+
+func TestNormalizeRepoURL(t *testing.T) {
+	ociRepo := Repository{Repo: "oci://REGISTRY.EXAMPLE.COM/My-Chart.git"}
+	// Host is lowercased, but the path is preserved as-is: OCI repository names are
+	// case-sensitive and a trailing ".git" is a valid part of an OCI repository name.
+	assert.Equal(t, "oci://registry.example.com/My-Chart.git", ociRepo.NormalizeRepoURL())
+
+	gitRepo := Repository{Repo: "https://github.com/argoproj/argo-cd.git"}
+	assert.Equal(t, git.NormalizeGitURL(gitRepo.Repo), gitRepo.NormalizeRepoURL())
+}

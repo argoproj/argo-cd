@@ -347,7 +347,7 @@ func (repo *Repository) IsOCI() bool {
 // NormalizeRepoURL returns the normalized repository URL
 func (repo *Repository) NormalizeRepoURL() string {
 	if repo.IsOCI() {
-		return repo.Repo
+		return NormalizeOCIURL(repo.Repo)
 	}
 	return git.NormalizeGitURL(repo.Repo)
 }

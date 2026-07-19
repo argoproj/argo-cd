@@ -175,3 +175,25 @@ func TestValueFileResolver_resolveRawPath_referenced(t *testing.T) {
 	_, err = resolver.resolveRawPath("$oci/values.yaml")
 	require.Error(t, err)
 }
+
+func TestGetResolvedOCIRefValueFile_NormalizedLookup(t *testing.T) {
+	// Extracted OCI paths are registered under the normalized repo URL
+	// (Repository.NormalizeRepoURL), so a ref source whose URL differs only in
+	// scheme/host case must still resolve to the registered path.
+	extractedDir := t.TempDir()
+	valuesPath := filepath.Join(extractedDir, "values.yaml")
+	require.NoError(t, os.WriteFile(valuesPath, []byte("foo: bar"), 0o644))
+
+	ociPaths := utilio.NewRandomizedTempPaths(t.TempDir())
+	ociPaths.Add(v1alpha1.NormalizeOCIURL("oci://Registry.Example.com/chart"), extractedDir)
+
+	resolved, err := getResolvedOCIRefValueFile(
+		"$oci/values.yaml",
+		&v1alpha1.Env{},
+		[]string{"https"},
+		"oci://REGISTRY.EXAMPLE.COM/chart",
+		ociPaths,
+	)
+	require.NoError(t, err)
+	assert.Equal(t, pathutil.ResolvedFilePath(valuesPath), resolved)
+}

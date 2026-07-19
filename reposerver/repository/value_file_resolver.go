@@ -230,8 +230,9 @@ func getResolvedOCIRefValueFile(
 	refSourceRepo string,
 	ociPaths utilio.TempPaths,
 ) (pathutil.ResolvedFilePath, error) {
-	// Get the OCI path from the ociPaths
-	ociPath := ociPaths.GetPathIfExists(refSourceRepo)
+	// Get the OCI path from the ociPaths. Paths are keyed by the normalized repo URL,
+	// matching the key used when the extracted content was registered.
+	ociPath := ociPaths.GetPathIfExists(v1alpha1.NormalizeOCIURL(refSourceRepo))
 	if ociPath == "" {
 		log.Errorf("OCI repo %q not found in extracted paths. Available paths: %v", refSourceRepo, ociPaths.GetPaths())
 		return "", fmt.Errorf("OCI ref source %q was not successfully extracted. Ensure the repository is accessible and properly configured", refSourceRepo)
