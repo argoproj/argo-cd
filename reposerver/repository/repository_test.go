@@ -3219,11 +3219,13 @@ func (h *dependencyBuildContextHelm) DependencyBuild(ctx context.Context) error 
 }
 
 func TestRunHelmBuildContext(t *testing.T) {
-	ctx := context.WithValue(t.Context(), struct{}{}, "context value")
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
 	h := &dependencyBuildContextHelm{}
 
 	require.NoError(t, runHelmBuild(ctx, t.TempDir(), h))
-	require.Equal(t, ctx, h.ctx)
+	cancel()
+	require.ErrorIs(t, h.ctx.Err(), context.Canceled)
 }
 
 func Test_getHelmDependencyRepos(t *testing.T) {
