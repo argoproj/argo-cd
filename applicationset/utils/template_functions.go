@@ -7,13 +7,14 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+var invalidDNSNameChars = regexp.MustCompile(`[^-a-z0-9.]`)
+
 // SanitizeName sanitizes the name in accordance with the below rules
 // 1. contain no more than 253 characters
 // 2. contain only lowercase alphanumeric characters, '-' or '.'
 // 3. start and end with an alphanumeric character
 func SanitizeName(name string) string {
-	invalidDNSNameChars := regexp.MustCompile("[^-a-z0-9.]")
-	maxDNSNameLength := 253
+	const maxDNSNameLength = 253
 
 	name = strings.ToLower(name)
 	name = invalidDNSNameChars.ReplaceAllString(name, "-")
