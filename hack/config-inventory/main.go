@@ -80,7 +80,7 @@ var envHelperCall = regexp.MustCompile(`env\.(StringFromEnv|ParseDurationFromEnv
 // flagVarSel matches pflag/cobra binding methods whose default argument may be an
 // env read, e.g. StringVar, IntVar, DurationVar, StringSliceVar, StringVarP, and
 // helpers like cli.BoundedFloat64Var.
-var flagVarSel = regexp.MustCompile(`Var[P]?$`)
+var flagVarSel = regexp.MustCompile(`VarP?$`)
 
 func main() {
 	repoRoot := flag.String("repo-root", ".", "path to argo-cd repository root")
@@ -90,13 +90,13 @@ func main() {
 	flag.Parse()
 
 	inv := &Inventory{}
-	must(collectSettingsCMKeys(filepath.Join(*repoRoot, "util/settings/settings.go"), inv))
+	must(collectSettingsCMKeys(filepath.Join(*repoRoot, "util", "settings", "settings.go"), inv))
 	must(collectEnvVars(*repoRoot, inv))
 	must(collectFlags(*repoRoot, inv))
-	must(collectCmdParamRefs(filepath.Join(*repoRoot, "manifests/base"), inv))
-	must(collectDocCMKeys(filepath.Join(*repoRoot, "docs/operator-manual/argocd-cm.yaml"), inv))
-	must(collectDocCMKeys(filepath.Join(*repoRoot, "docs/operator-manual/argocd-cmd-params-cm.yaml"), inv))
-	must(collectDocCMKeys(filepath.Join(*repoRoot, "docs/operator-manual/argocd-rbac-cm.yaml"), inv))
+	must(collectCmdParamRefs(filepath.Join(*repoRoot, "manifests", "base"), inv))
+	must(collectDocCMKeys(filepath.Join(*repoRoot, "docs", "operator-manual", "argocd-cm.yaml"), inv))
+	must(collectDocCMKeys(filepath.Join(*repoRoot, "docs", "operator-manual", "argocd-cmd-params-cm.yaml"), inv))
+	must(collectDocCMKeys(filepath.Join(*repoRoot, "docs", "operator-manual", "argocd-rbac-cm.yaml"), inv))
 
 	sort.Strings(inv.CMKeys)
 	inv.CMKeys = unique(inv.CMKeys)

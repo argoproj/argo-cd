@@ -1,6 +1,7 @@
 package configbus
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -171,7 +172,7 @@ func (p *Provider) ResourceOverrides() (map[string]v1alpha1.ResourceOverride, er
 		return p.crd.ResourceOverrides()
 	}
 	if p.settingsMgr == nil {
-		return nil, fmt.Errorf("config: SettingsManager is nil")
+		return nil, errors.New("config: SettingsManager is nil")
 	}
 	return p.settingsMgr.GetResourceOverrides()
 }

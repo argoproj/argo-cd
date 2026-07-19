@@ -158,13 +158,16 @@ type stubControllerLegacy struct {
 func (s *stubControllerLegacy) LegacyStatusRefreshTimeout() time.Duration {
 	return s.statusRefresh
 }
+
 func (s *stubControllerLegacy) LegacyStatusHardRefreshTimeout() time.Duration {
 	return s.statusHard
 }
 func (s *stubControllerLegacy) LegacyStatusRefreshJitter() time.Duration { return s.statusJitter }
 func (s *stubControllerLegacy) LegacySyncTimeout() time.Duration         { return s.syncTimeout }
 func (s *stubControllerLegacy) LegacySelfHealTimeout() time.Duration     { return s.selfHealTimeout }
-func (s *stubControllerLegacy) LegacySelfHealBackoff() *wait.Backoff     { return s.selfHealBackoff }
+
+func (s *stubControllerLegacy) LegacySelfHealBackoff() *wait.Backoff { return s.selfHealBackoff }
+
 func (s *stubControllerLegacy) LegacyIgnoreNormalizerOpts() normalizers.IgnoreNormalizerOpts {
 	return s.ignoreNormalizer
 }

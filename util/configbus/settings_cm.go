@@ -1,6 +1,7 @@
 package configbus
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -26,7 +27,7 @@ func registerCMSetting[T any](name, cmKey string, hotReload bool, get func(*Reso
 
 func requireSettingsMgr(ctx *ResolveContext) (*settings.SettingsManager, error) {
 	if ctx == nil || ctx.SettingsMgr == nil {
-		return nil, fmt.Errorf("config: SettingsManager is required")
+		return nil, errors.New("config: SettingsManager is required")
 	}
 	return ctx.SettingsMgr, nil
 }

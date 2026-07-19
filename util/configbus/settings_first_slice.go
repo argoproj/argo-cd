@@ -1,7 +1,7 @@
 package configbus
 
 import (
-	"fmt"
+	"errors"
 	"strings"
 	"time"
 
@@ -40,7 +40,7 @@ func registerFirstSlice() {
 			if ctx != nil && ctx.Legacy != nil && ctx.Legacy.ReconciliationTimeout != nil {
 				return *ctx.Legacy.ReconciliationTimeout, nil
 			}
-			return 0, fmt.Errorf("config: reconciliation timeout not supplied by component")
+			return 0, errors.New("config: reconciliation timeout not supplied by component")
 		},
 	})
 	MustRegister(Setting[time.Duration]{
@@ -58,7 +58,7 @@ func registerFirstSlice() {
 			if ctx != nil && ctx.Legacy != nil && ctx.Legacy.HardReconciliationTimeout != nil {
 				return *ctx.Legacy.HardReconciliationTimeout, nil
 			}
-			return 0, fmt.Errorf("config: hard reconciliation timeout not supplied by component")
+			return 0, errors.New("config: hard reconciliation timeout not supplied by component")
 		},
 	})
 	MustRegister(Setting[time.Duration]{
@@ -76,7 +76,7 @@ func registerFirstSlice() {
 			if ctx != nil && ctx.Legacy != nil && ctx.Legacy.ReconciliationJitter != nil {
 				return *ctx.Legacy.ReconciliationJitter, nil
 			}
-			return 0, fmt.Errorf("config: reconciliation jitter not supplied by component")
+			return 0, errors.New("config: reconciliation jitter not supplied by component")
 		},
 	})
 
@@ -88,7 +88,7 @@ func registerFirstSlice() {
 		KeyFunc:         resourceCustomizationsKeyFunc,
 		Get: func(ctx *ResolveContext) (map[string]v1alpha1.ResourceOverride, error) {
 			if ctx == nil || ctx.SettingsMgr == nil {
-				return nil, fmt.Errorf("config: SettingsManager required for resource customizations")
+				return nil, errors.New("config: SettingsManager required for resource customizations")
 			}
 			return ctx.SettingsMgr.GetResourceOverrides()
 		},
