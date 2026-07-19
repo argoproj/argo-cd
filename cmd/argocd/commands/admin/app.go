@@ -417,7 +417,6 @@ func reconcileApplications(
 		func(_ string) (kube.CleanupFunc, error) {
 			return func() {}, nil
 		},
-		settingsMgr,
 		configProvider,
 		stateCache,
 		server,

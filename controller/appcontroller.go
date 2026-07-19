@@ -328,7 +328,7 @@ func NewApplicationController(
 		}
 	}
 	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, ctrl.configProvider, ctrl.metricsServer, ctrl.handleObjectUpdated, clusterSharding, argo.NewResourceTracking())
-	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.onKubectlRun, ctrl.settingsMgr, ctrl.configProvider, stateCache, ctrl.metricsServer, argoCache, ctrl.LegacyStatusRefreshTimeout(), argo.NewResourceTracking(), persistResourceHealth, repoErrorGracePeriod, serverSideDiff, ctrl.LegacyIgnoreNormalizerOpts())
+	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.onKubectlRun, ctrl.configProvider, stateCache, ctrl.metricsServer, argoCache, ctrl.LegacyStatusRefreshTimeout(), argo.NewResourceTracking(), persistResourceHealth, repoErrorGracePeriod, serverSideDiff, ctrl.LegacyIgnoreNormalizerOpts())
 	ctrl.appInformer = appInformer
 	ctrl.appLister = appLister
 	ctrl.projInformer = projInformer
