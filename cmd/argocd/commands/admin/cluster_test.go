@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -9,6 +10,8 @@ import (
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 	"github.com/argoproj/argo-cd/v3/util/cache/appstate"
 
+	log "github.com/sirupsen/logrus"
+	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -16,7 +19,7 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 )
 
-func Test_loadClusters(t *testing.T) {
+func Test_loadClustersSkipsApplicationWithRemovedCluster(t *testing.T) {
 	argoCDCM := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "argocd-cm",
@@ -49,14 +52,30 @@ func Test_loadClusters(t *testing.T) {
 			},
 		},
 	}
+	// Applications can outlive their destination cluster and must not prevent stats for healthy clusters from loading.
+	staleApp := app.DeepCopy()
+	staleApp.Name = "stale"
+	staleApp.Spec.Destination.Server = "https://removed-cluster.example.com"
+	staleApp.Spec.Destination.Namespace = "stale"
 	ctx := t.Context()
 	kubeClient := fake.NewClientset(argoCDCM, argoCDSecret)
-	appClient := fakeapps.NewSimpleClientset(app)
+	appClient := fakeapps.NewSimpleClientset(app, staleApp)
+	oldHooks := log.StandardLogger().ReplaceHooks(log.LevelHooks{})
+	t.Cleanup(func() { log.StandardLogger().ReplaceHooks(oldHooks) })
+	logHook := logtest.NewGlobal()
 	cacheSrc := func() (*appstate.Cache, error) {
 		return appstate.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute), nil
 	}
 	clusters, err := loadClusters(ctx, kubeClient, appClient, 3, "", "argocd", false, cacheSrc, 0, "", "", "")
 	require.NoError(t, err)
+	foundWarning := false
+	for _, entry := range logHook.AllEntries() {
+		if strings.Contains(entry.Message, `Skipping application "argocd/stale"`) {
+			foundWarning = true
+			break
+		}
+	}
+	assert.True(t, foundWarning, "expected a warning about the application with a removed destination cluster")
 	for i := range clusters {
 		// This changes, nil it to avoid testing it.
 		clusters[i].Info.ConnectionState.ModifiedAt = nil

@@ -122,7 +122,18 @@ func loadClusters(ctx context.Context, kubeClient kubernetes.Interface, appClien
 		}
 	}
 
-	apps := appItems.Items
+	namespacesByServer := map[string]map[string]bool{}
+	for _, app := range appItems.Items {
+		destCluster, resolveErr := argo.GetDestinationCluster(ctx, app.Spec.Destination, argoDB)
+		if resolveErr != nil {
+			log.Warnf("Skipping application %q because its destination cluster could not be resolved: %v", app.QualifiedName(), resolveErr)
+			continue
+		}
+		if namespacesByServer[destCluster.Server] == nil {
+			namespacesByServer[destCluster.Server] = map[string]bool{}
+		}
+		namespacesByServer[destCluster.Server][app.Spec.Destination.Namespace] = true
+	}
 	clusters := make([]ClusterWithInfo, len(clustersList.Items))
 
 	batchSize := 10
@@ -142,18 +153,8 @@ func loadClusters(ctx context.Context, kubeClient kubernetes.Interface, appClien
 			if shard != -1 && clusterShard != shard {
 				return nil
 			}
-			nsSet := map[string]bool{}
-			for _, app := range apps {
-				destCluster, err := argo.GetDestinationCluster(ctx, app.Spec.Destination, argoDB)
-				if err != nil {
-					return fmt.Errorf("error validating application destination: %w", err)
-				}
-				if destCluster.Server == cluster.Server {
-					nsSet[app.Spec.Destination.Namespace] = true
-				}
-			}
 			var namespaces []string
-			for ns := range nsSet {
+			for ns := range namespacesByServer[cluster.Server] {
 				namespaces = append(namespaces, ns)
 			}
 			_ = cache.GetClusterInfo(cluster.Server, &cluster.Info)
