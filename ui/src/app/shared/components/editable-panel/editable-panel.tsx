@@ -187,8 +187,7 @@ function EditablePanel<T extends {} = {}>({
                                             onModeSwitch();
                                         }}
                                         disabled={hasMultipleSources}
-                                        className='argo-button argo-button--base'
-                                    >
+                                        className='argo-button argo-button--base'>
                                         {hasMultipleSources && helpTip('Sources are not editable for applications with multiple sources. You can edit them in the "Manifest" tab.')}{' '}
                                         Edit
                                     </button>
@@ -234,8 +233,7 @@ function EditablePanel<T extends {} = {}>({
                                 }}
                                 onSubmit={handleSubmit}
                                 defaultValues={values}
-                                validateError={validate}
-                            >
+                                validateError={validate}>
                                 {api => (
                                     <>
                                         {editProp && editProp(api)}

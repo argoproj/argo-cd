@@ -350,8 +350,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                 <DataLoader
                     key={indx}
                     input={application}
-                    load={input => services.applications.ociMetadata(input.metadata.name, input.metadata.namespace, aRevision, aSourceIndex, aVersionId)}
-                >
+                    load={input => services.applications.ociMetadata(input.metadata.name, input.metadata.namespace, aRevision, aSourceIndex, aVersionId)}>
                     {(m: OCIMetadata) => {
                         return m ? (
                             <div className='white-box' style={{marginTop: '1.5em'}}>
@@ -387,8 +386,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                     onClick={e => {
                                                         e.stopPropagation();
                                                         window.open(aSource.repoURL);
-                                                    }}
-                                                >
+                                                    }}>
                                                     <i className='fa fa-external-link-alt' />
                                                 </a>
                                             }
@@ -428,8 +426,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                 <DataLoader
                     key={indx}
                     input={application}
-                    load={input => services.applications.revisionChartDetails(input.metadata.name, input.metadata.namespace, aRevision, aSourceIndex, aVersionId)}
-                >
+                    load={input => services.applications.revisionChartDetails(input.metadata.name, input.metadata.namespace, aRevision, aSourceIndex, aVersionId)}>
                     {(m: ChartDetails) => {
                         return m ? (
                             <div className='white-box' style={{marginTop: '1.5em'}}>
@@ -446,8 +443,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                     onClick={e => {
                                                         e.stopPropagation();
                                                         window.open(m.home);
-                                                    }}
-                                                >
+                                                    }}>
                                                     <i className='fa fa-external-link-alt' />
                                                 </a>
                                             )}
@@ -482,8 +478,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                     onClick={e => {
                                                         e.stopPropagation();
                                                         window.open(aSource.repoURL);
-                                                    }}
-                                                >
+                                                    }}>
                                                     <i className='fa fa-external-link-alt' />
                                                 </a>
                                             }
@@ -528,8 +523,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
             return (
                 <DataLoader
                     key={indx}
-                    load={() => services.applications.revisionMetadata(application.metadata.name, application.metadata.namespace, aRevision, aSourceIndex, aVersionId)}
-                >
+                    load={() => services.applications.revisionMetadata(application.metadata.name, application.metadata.namespace, aRevision, aSourceIndex, aVersionId)}>
                     {metadata =>
                         metadata ? (
                             <div key={indx} className='white-box' style={{marginTop: '1.5em'}}>
@@ -655,8 +649,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                     return {...items[0], pref};
                                 })
                             )
-                        }
-                    >
+                        }>
                         {({application, tree, pref}: {application: appModels.AbstractApplication; tree: appModels.ApplicationTree; pref: AppDetailsPreferences}) => {
                             tree.nodes = tree.nodes || [];
                             const isApplication = isApp(application);
@@ -962,8 +955,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                     </div>
                                                 </React.Fragment>
                                             )
-                                        }}
-                                    >
+                                        }}>
                                         <div className='application-details__wrapper'>
                                             <div className='application-details__status-panel'>
                                                 {isApplication ? (
@@ -1005,8 +997,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                                 onClick={() => {
                                                                     toggleNameDirection();
                                                                 }}
-                                                                title={state.truncateNameOnRight ? 'Truncate resource name right' : 'Truncate resource name left'}
-                                                            >
+                                                                title={state.truncateNameOnRight ? 'Truncate resource name right' : 'Truncate resource name left'}>
                                                                 <i
                                                                     className={classNames({
                                                                         'fa fa-align-right': state.truncateNameOnRight,
@@ -1019,8 +1010,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                                 onClick={() => {
                                                                     toggleNodeName();
                                                                 }}
-                                                                title={state.showFullNodeName ? 'Show wrapped resource name' : 'Show full resource name'}
-                                                            >
+                                                                title={state.showFullNodeName ? 'Show wrapped resource name' : 'Show full resource name'}>
                                                                 <i
                                                                     className={classNames({
                                                                         'fa fa-expand': state.showFullNodeName,
@@ -1033,13 +1023,11 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                                     content={AppUtils.userMsgsList[showToolTip?.msgKey] || 'Group Nodes'}
                                                                     visible={pref.groupNodes && showToolTip !== undefined && !showToolTip?.display}
                                                                     duration={showToolTip?.duration}
-                                                                    zIndex={1}
-                                                                >
+                                                                    zIndex={1}>
                                                                     <a
                                                                         className={`group-nodes-button group-nodes-button${!pref.groupNodes ? '' : '-on'}`}
                                                                         title={pref.view === 'tree' ? 'Group Nodes' : 'Collapse Pods'}
-                                                                        onClick={() => toggleCompactView(application.metadata.name, pref)}
-                                                                    >
+                                                                        onClick={() => toggleCompactView(application.metadata.name, pref)}>
                                                                         <i className={classNames('fa fa-object-group fa-fw')} />
                                                                     </a>
                                                                 </Tooltip>
@@ -1101,8 +1089,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                                     page={state.page}
                                                                     data={filteredRes}
                                                                     onPageChange={page => setState(prevState => ({...prevState, page}))}
-                                                                    preferencesKey='application-details'
-                                                                >
+                                                                    preferencesKey='application-details'>
                                                                     {data => (
                                                                         <ApplicationResourceList
                                                                             pref={pref}
@@ -1142,8 +1129,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                         page={state.slidingPanelPage}
                                                         data={state.groupedResources}
                                                         onPageChange={page => setState(prevState => ({...prevState, slidingPanelPage: page}))}
-                                                        preferencesKey='grouped-nodes-details'
-                                                    >
+                                                        preferencesKey='grouped-nodes-details'>
                                                         {data => (
                                                             <ApplicationResourceList
                                                                 pref={pref}
@@ -1223,8 +1209,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                             <SlidingPanel
                                                 isShown={state.revision === 'SYNC_STATUS_REVISION' || state.revision === 'OPERATION_STATE_REVISION'}
                                                 isMiddle={true}
-                                                onClose={() => setState(prevState => ({...prevState, revision: null}))}
-                                            >
+                                                onClose={() => setState(prevState => ({...prevState, revision: null}))}>
                                                 {state.revision === 'SYNC_STATUS_REVISION' &&
                                                     ((application as appModels.Application).status.sync.revisions || (application as appModels.Application).status.sync.revision) &&
                                                     getContent(
@@ -1247,8 +1232,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                         {isApplication && (
                                             <SlidingPanel
                                                 isShown={selectedExtension !== '' && activeStatusExt != null && activeStatusExt.flyout != null}
-                                                onClose={() => setExtensionPanelVisible('')}
-                                            >
+                                                onClose={() => setExtensionPanelVisible('')}>
                                                 {selectedExtension !== '' && activeStatusExt?.flyout && (
                                                     <activeStatusExt.flyout application={application as appModels.Application} tree={tree} />
                                                 )}
@@ -1258,8 +1242,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                             <SlidingPanel
                                                 isMiddle={activeTopBarActionMenuExt?.isMiddle ?? true}
                                                 isShown={selectedExtension !== '' && activeTopBarActionMenuExt != null && activeTopBarActionMenuExt.flyout != null}
-                                                onClose={() => setExtensionPanelVisible('')}
-                                            >
+                                                onClose={() => setExtensionPanelVisible('')}>
                                                 {selectedExtension !== '' && activeTopBarActionMenuExt?.flyout && (
                                                     <activeTopBarActionMenuExt.flyout application={application as appModels.Application} tree={tree} />
                                                 )}

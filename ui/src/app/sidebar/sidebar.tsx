@@ -74,8 +74,7 @@ export const Sidebar = (props: SidebarProps) => {
                         <div
                             key={item.title}
                             className={`sidebar__nav-item ${locationPath === item.path || locationPath.startsWith(`${item.path}/`) ? 'sidebar__nav-item--active' : ''}`}
-                            onClick={() => context.history.push(item.path)}
-                        >
+                            onClick={() => context.history.push(item.path)}>
                             <div>
                                 <i className={item?.iconClassName || ''} />
                                 {!props.pref.hideSidebar && item.title}
@@ -88,8 +87,7 @@ export const Sidebar = (props: SidebarProps) => {
                     <Tooltip content='Show Filters' {...tooltipProps}>
                         <div
                             onClick={() => services.viewPreferences.updatePreferences({...props.pref, hideSidebar: !props.pref.hideSidebar})}
-                            className='sidebar__nav-item sidebar__filter-button'
-                        >
+                            className='sidebar__nav-item sidebar__filter-button'>
                             <div>
                                 <i className={`fas fa-filter`} />
                             </div>

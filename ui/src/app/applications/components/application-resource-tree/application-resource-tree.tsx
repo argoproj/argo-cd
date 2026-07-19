@@ -297,8 +297,7 @@ function renderGroupedNodes(props: ApplicationResourceTreeProps, node: {count: n
                 <div
                     className='application-resource-tree__node-title application-resource-tree__direction-center-left'
                     onClick={() => props.onGroupdNodeClick && props.onGroupdNodeClick(node.groupedNodeIds)}
-                    title={`Click to see details of ${node.count} collapsed ${node.kind} and doesn't contains any active pods`}
-                >
+                    title={`Click to see details of ${node.count} collapsed ${node.kind} and doesn't contains any active pods`}>
                     {node.count} {node.kind.endsWith('s') ? node.kind : `${node.kind}s`}
                     <span style={{paddingLeft: '.5em', fontSize: 'small'}}>
                         {node.kind === 'ReplicaSet' ? (
@@ -343,8 +342,7 @@ function renderLoadBalancerNode(node: dagre.Node & {label: string; color: string
                 top: node.y,
                 width: node.width,
                 height: node.height
-            }}
-        >
+            }}>
             <div className='application-resource-tree__node-kind-icon'>
                 <i title={node.kind} className={`icon fa fa-network-wired`} style={{color: node.color}} />
             </div>
@@ -468,15 +466,13 @@ function renderPodGroup(
                 top: node.y - topExtra,
                 width: node.width,
                 height: showPodGroupByStatus ? POD_NODE_HEIGHT + 20 * numberOfRows : node.height
-            }}
-        >
+            }}>
             <NodeUpdateAnimation resourceVersion={node.resourceVersion} />
             <div onClick={() => props.onNodeClick && props.onNodeClick(fullName)} className={`application-resource-tree__node__top-part`}>
                 <div
                     className={classNames('application-resource-tree__node-kind-icon', {
                         'application-resource-tree__node-kind-icon--big': rootNode
-                    })}
-                >
+                    })}>
                     <ResourceIcon group={node.group} kind={node.kind || 'Unknown'} />
                     <br />
                     {!rootNode && <div className='application-resource-tree__node-kind'>{ResourceLabel({kind: node.kind})}</div>}
@@ -485,22 +481,19 @@ function renderPodGroup(
                     className={classNames('application-resource-tree__node-content', {
                         'application-resource-tree__fullname': props.nameWrap,
                         'application-resource-tree__wrappedname': !props.nameWrap
-                    })}
-                >
+                    })}>
                     <span
                         className={classNames('application-resource-tree__node-title', {
                             'application-resource-tree__direction-right': props.nameDirection,
                             'application-resource-tree__direction-left': !props.nameDirection
                         })}
-                        onClick={() => props.onGroupdNodeClick && props.onGroupdNodeClick(node.groupedNodeIds)}
-                    >
+                        onClick={() => props.onGroupdNodeClick && props.onGroupdNodeClick(node.groupedNodeIds)}>
                         {node.name}
                     </span>
                     <span
                         className={classNames('application-resource-tree__node-status-icon', {
                             'application-resource-tree__node-status-icon--offset': rootNode
-                        })}
-                    >
+                        })}>
                         {node.hook && <i title='Resource lifecycle hook' className='fa fa-anchor' />}
                         {healthState != null && <HealthStatusIcon state={healthState} />}
                         {comparisonStatus != null && <ComparisonStatusIcon status={comparisonStatus} resource={!rootNode && node} />}
@@ -518,8 +511,7 @@ function renderPodGroup(
                                                 aria-disabled={true}
                                                 style={{cursor: 'not-allowed', display: 'inline-flex', alignItems: 'center'}}
                                                 onClick={e => e.stopPropagation()}
-                                                title={`Open application\n${MANAGED_BY_URL_INVALID_TEXT}`}
-                                            >
+                                                title={`Open application\n${MANAGED_BY_URL_INVALID_TEXT}`}>
                                                 <i className='fa fa-external-link-alt' style={{color: MANAGED_BY_URL_INVALID_COLOR}} />
                                             </span>
                                         );
@@ -532,8 +524,7 @@ function renderPodGroup(
                                             onClick={e => {
                                                 e.stopPropagation();
                                             }}
-                                            title={managedByURL ? `Open application\nmanaged-by-url: ${managedByURL}` : 'Open application'}
-                                        >
+                                            title={managedByURL ? `Open application\nmanaged-by-url: ${managedByURL}` : 'Open application'}>
                                             <i className='fa fa-external-link-alt' />
                                         </a>
                                     );
@@ -551,8 +542,7 @@ function renderPodGroup(
                                 onClick={event => {
                                     expandCollapse(node, props);
                                     event.stopPropagation();
-                                }}
-                            >
+                                }}>
                                 {props.getNodeExpansion(node.uid) ? <div className='fa fa-minus' /> : <div className='fa fa-plus' />}
                             </div>
                         </>
@@ -591,8 +581,7 @@ function renderPodGroup(
                                     })}
                                 </>
                             }
-                            key={node.uid}
-                        >
+                            key={node.uid}>
                             <span className='application-resource-tree__node-label' title='More'>
                                 More
                             </span>
@@ -608,8 +597,7 @@ function renderPodGroup(
                                 <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
                                     <i className='fa fa-ellipsis-v' />
                                 </button>
-                            )}
-                        >
+                            )}>
                             {() => props.nodeMenu(node)}
                         </DropDown>
                     </div>
@@ -644,8 +632,7 @@ function renderPodGroupByStatus(props: ApplicationResourceTreeProps, node: any, 
                             className='application-resource-tree__node-title'
                             onClick={() =>
                                 props.onGroupdNodeClick && props.onGroupdNodeClick(node.groupdedNodeIds === 'undefined' ? node.groupdedNodeIds : pods.map(pod => pod.uid))
-                            }
-                        >
+                            }>
                             &nbsp;
                             <span title={`Click to view the ${pods[0].health.toLowerCase()} pods list`}>
                                 {pods[0].health} {pods.length} pods
@@ -690,21 +677,18 @@ function renderPodGroupByStatus(props: ApplicationResourceTreeProps, node: any, 
                                                 }
                                             }
                                         }}
-                                        key={pod.metadata.name}
-                                    >
+                                        key={pod.metadata.name}>
                                         <div style={{position: 'relative'}}>
                                             {isYoungerThanXMinutes(pod, 30) && (
                                                 <i className='fas fa-star application-resource-tree__node--lower-section__pod-group__pod application-resource-tree__node--lower-section__pod-group__pod__star-icon' />
                                             )}
                                             <div
-                                                className={`application-resource-tree__node--lower-section__pod-group__pod application-resource-tree__node--lower-section__pod-group__pod--${pod.health.toLowerCase()}`}
-                                            >
+                                                className={`application-resource-tree__node--lower-section__pod-group__pod application-resource-tree__node--lower-section__pod-group__pod--${pod.health.toLowerCase()}`}>
                                                 <PodHealthIcon state={{status: pod.health, message: ''}} />
                                             </div>
                                         </div>
                                     </Tooltip>
-                                )}
-                            >
+                                )}>
                                 {() => props.nodeMenu(pod)}
                             </DropDown>
                         )
@@ -734,8 +718,7 @@ function NodeInfoDetails({tag: tag, kind: kind}: {tag: models.InfoItem; kind: st
                 return (
                     <span
                         className='application-resource-tree__node-label'
-                        title='One of the containers may have the incorrect image name/tag, or you may be fetching from the incorrect repository, or the repository requires authentication.'
-                    >
+                        title='One of the containers may have the incorrect image name/tag, or you may be fetching from the incorrect repository, or the repository requires authentication.'>
                         {tag.value}
                     </span>
                 );
@@ -809,14 +792,12 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                 top: node.y,
                 width: node.width,
                 height: node.height
-            }}
-        >
+            }}>
             {!appNode && <NodeUpdateAnimation resourceVersion={node.resourceVersion} />}
             <div
                 className={classNames('application-resource-tree__node-kind-icon', {
                     'application-resource-tree__node-kind-icon--big': rootNode
-                })}
-            >
+                })}>
                 <ResourceIcon group={node.group} kind={node.kind} />
                 <br />
                 {!rootNode && <div className='application-resource-tree__node-kind'>{ResourceLabel({kind: node.kind})}</div>}
@@ -825,21 +806,18 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                 className={classNames('application-resource-tree__node-content', {
                     'application-resource-tree__fullname': props.nameWrap,
                     'application-resource-tree__wrappedname': !props.nameWrap
-                })}
-            >
+                })}>
                 <div
                     className={classNames('application-resource-tree__node-title', {
                         'application-resource-tree__direction-right': props.nameDirection,
                         'application-resource-tree__direction-left': !props.nameDirection
-                    })}
-                >
+                    })}>
                     {node.name}
                 </div>
                 <div
                     className={classNames('application-resource-tree__node-status-icon', {
                         'application-resource-tree__node-status-icon--offset': rootNode
-                    })}
-                >
+                    })}>
                     {node.hook && <i title='Resource lifecycle hook' className='fa fa-anchor' />}
                     {healthState != null && <HealthStatusIcon state={healthState} />}
                     {comparisonStatus != null && <ComparisonStatusIcon status={comparisonStatus} resource={!rootNode && node} />}
@@ -857,8 +835,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                                             aria-disabled={true}
                                             style={{cursor: 'not-allowed', display: 'inline-flex', alignItems: 'center'}}
                                             onClick={e => e.stopPropagation()}
-                                            title={`Open application\n${MANAGED_BY_URL_INVALID_TEXT}`}
-                                        >
+                                            title={`Open application\n${MANAGED_BY_URL_INVALID_TEXT}`}>
                                             <i className='fa fa-external-link-alt' style={{color: MANAGED_BY_URL_INVALID_COLOR}} />
                                         </span>
                                     );
@@ -871,8 +848,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                                         onClick={e => {
                                             e.stopPropagation();
                                         }}
-                                        title={managedByURL ? `Open application\nmanaged-by-url: ${managedByURL}` : 'Open application'}
-                                    >
+                                        title={managedByURL ? `Open application\nmanaged-by-url: ${managedByURL}` : 'Open application'}>
                                         <i className='fa fa-external-link-alt' />
                                     </a>
                                 );
@@ -887,8 +863,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                         onClick={event => {
                             expandCollapse(node, props);
                             event.stopPropagation();
-                        }}
-                    >
+                        }}>
                         {props.getNodeExpansion(node.uid) ? <div className='fa fa-minus' /> : <div className='fa fa-plus' />}
                     </div>
                 )}
@@ -926,8 +901,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                                 })}
                             </>
                         }
-                        key={node.uid}
-                    >
+                        key={node.uid}>
                         <span className='application-resource-tree__node-label' title='More'>
                             More
                         </span>
@@ -942,8 +916,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, id: string, nod
                             <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
                                 <i className='fa fa-ellipsis-v' />
                             </button>
-                        )}
-                    >
+                        )}>
                         {() => props.nodeMenu(node)}
                     </DropDown>
                 </div>
@@ -1421,8 +1394,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                 onPointerUp={onGraphDragEnd}
                 onPointerLeave={onGraphDragEnd}
                 className={classNames('application-resource-tree', {'application-resource-tree--network': props.useNetworkingHierarchy})}
-                style={{width: size.width + 150, height: size.height + 250, transformOrigin: '0% 4%', transform: `scale(${props.zoom})`}}
-            >
+                style={{width: size.width + 150, height: size.height + 250, transformOrigin: '0% 4%', transform: `scale(${props.zoom})`}}>
                 {graphNodes.map(key => {
                     const node = graph.node(key);
                     const nodeType = node.type;
@@ -1470,8 +1442,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                                         top: yMid,
                                         backgroundImage: edge.backgroundImage,
                                         transform: props.useNetworkingHierarchy ? `translate(140px, 35px) rotate(${angle}deg)` : `translate(150px, 35px) rotate(${angle}deg)`
-                                    }}
-                                >
+                                    }}>
                                     {lastLine && props.useNetworkingHierarchy && <ArrowConnector color={arrowColor} left={xMid + distance / 2} top={yMid} angle={angle} />}
                                 </div>
                             );

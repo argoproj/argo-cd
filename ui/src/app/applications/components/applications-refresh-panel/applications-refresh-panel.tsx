@@ -36,8 +36,7 @@ export const ApplicationsRefreshPanel = ({show, apps, hide}: {show: boolean; app
                                 Cancel
                             </button>
                         </div>
-                    }
-                >
+                    }>
                     <Form
                         defaultValues={{refreshType: 'normal'}}
                         onSubmit={async (params: any) => {
@@ -75,8 +74,7 @@ export const ApplicationsRefreshPanel = ({show, apps, hide}: {show: boolean; app
                             await Promise.all(refreshActions);
                             setProgress({percentage: 100, title: 'Complete'});
                         }}
-                        getApi={setForm}
-                    >
+                        getApi={setForm}>
                         {formApi => (
                             <div className='argo-form-row' style={{marginTop: 0}}>
                                 <h4>Refresh app(s)</h4>

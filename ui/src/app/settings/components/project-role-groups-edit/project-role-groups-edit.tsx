@@ -50,8 +50,7 @@ export const ProjectRoleGroupsEdit = (props: ProjectRoleGroupsProps) => (
                                             props.formApi.setValue('groups', (props.formApi.values.groups || []).concat(api.values.groupName));
                                             api.values.groupName = '';
                                         }
-                                    }}
-                                >
+                                    }}>
                                     Add group
                                 </a>
                             </div>

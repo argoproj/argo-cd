@@ -19,8 +19,7 @@ export const Help = () => {
                         };
                     })
                 )
-            }
-        >
+            }>
             {({binaryUrls}: {binaryUrls: Record<string, string>}) => {
                 return (
                     <Consumer>

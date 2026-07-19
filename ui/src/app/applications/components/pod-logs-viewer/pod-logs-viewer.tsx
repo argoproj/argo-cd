@@ -221,14 +221,12 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                 height,
                 overflow: 'scroll',
                 minWidth: isWrapped ? 'fit-content' : '100%'
-            }}
-        >
+            }}>
             <div
                 style={{
                     width: '100%',
                     minWidth: isWrapped ? 'fit-content' : '100%'
-                }}
-            >
+                }}>
                 {logs.map((log, lineNum) => {
                     const {podNameContent, timestampContent, logContent} = renderLog(log, lineNum, prefs.appDetails.darkMode);
                     return (
@@ -243,8 +241,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                                 marginLeft: '-8px',
                                 marginRight: '-8px'
                             }}
-                            className='noscroll'
-                        >
+                            className='noscroll'>
                             {viewPodNames && (lineNum === 0 || logs[lineNum - 1].podName !== log.podName) && (
                                 <span onClick={() => setSelectedPod(selectedPod === log.podName ? null : log.podName)} style={{cursor: 'pointer'}} className='pod-name-link'>
                                     <Ansi>{podNameContent}</Ansi>

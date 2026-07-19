@@ -157,8 +157,7 @@ export const ResetOrDeleteButton = (props: {
             disabled={disabled}
             title={tooltip}
             style={{fontSize: '12px', display: 'flex', marginLeft: 'auto', marginTop: '8px'}}
-            onClick={props.isPluginPar ? handleResetChange : handleDeleteChange}
-        >
+            onClick={props.isPluginPar ? handleResetChange : handleDeleteChange}>
             {content}
         </button>
     );

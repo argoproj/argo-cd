@@ -65,8 +65,7 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
                                 Cancel
                             </button>
                         </div>
-                    }
-                >
+                    }>
                     <Form
                         defaultValues={{syncFlags: []}}
                         onSubmit={async (params: any) => {
@@ -125,8 +124,7 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
                             }
                             setProgress({percentage: 100, title: 'Complete'});
                         }}
-                        getApi={setForm}
-                    >
+                        getApi={setForm}>
                         {formApi => (
                             <div className='argo-form-row' style={{marginTop: 0}}>
                                 <h4>Sync app(s)</h4>

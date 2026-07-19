@@ -23,5 +23,5 @@ export const resourceIconGroups = {
     'projectcontour.io': true,
     'promoter.argoproj.io': true,
     'work.karmada.io': true,
-    'zookeeper.pravega.io': true
+    'zookeeper.pravega.io': true,
 };

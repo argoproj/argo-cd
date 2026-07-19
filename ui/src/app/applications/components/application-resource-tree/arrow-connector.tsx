@@ -17,8 +17,7 @@ export const ArrowConnector = (props: ArrowConnectorProps) => {
             width='11'
             height='11'
             viewBox='0 0 11 11'
-            style={{left, top, transform: `translate(-10px, -10px) rotate(${angle}deg)`}}
-        >
+            style={{left, top, transform: `translate(-10px, -10px) rotate(${angle}deg)`}}>
             <polygon points='11,5.5 0,11 0,0' />
         </svg>
     );

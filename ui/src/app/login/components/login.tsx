@@ -91,8 +91,7 @@ export function Login(props: RouteComponentProps<{}>) {
                         validateError={(params: LoginForm) => ({
                             username: !params.username && 'Username is required',
                             password: !params.password && 'Password is required'
-                        })}
-                    >
+                        })}>
                         {formApi => (
                             <form role='form' className='width-control' onSubmit={formApi.submitForm}>
                                 <div className='argo-form-row'>

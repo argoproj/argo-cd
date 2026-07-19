@@ -42,8 +42,7 @@ export const ProjectSyncWindowApplicationsEdit = (props: ProjectSyncWindowProps)
                         onClick={() => {
                             const newA = '';
                             props.formApi.setValue('window.applications', (props.formApi.values.window.applications || []).concat(newA));
-                        }}
-                    >
+                        }}>
                         Add Application
                     </a>
                 </div>
@@ -73,8 +72,7 @@ export const ProjectSyncWindowNamespaceEdit = (props: ProjectSyncWindowProps) =>
                         onClick={() => {
                             const newN = '';
                             props.formApi.setValue('window.namespaces', (props.formApi.values.window.namespaces || []).concat(newN));
-                        }}
-                    >
+                        }}>
                         Add Namespace
                     </a>
                 </div>
@@ -104,8 +102,7 @@ export const ProjectSyncWindowClusterEdit = (props: ProjectSyncWindowProps) => (
                         onClick={() => {
                             const newC = '';
                             props.formApi.setValue('window.clusters', (props.formApi.values.window.clusters || []).concat(newC));
-                        }}
-                    >
+                        }}>
                         Add Cluster
                     </a>
                 </div>
@@ -289,8 +286,7 @@ function ScheduleWrapper({fieldApi}: ScheduleProps) {
                             }
                         }
                         setValues(minuteValues, 0);
-                    }}
-                >
+                    }}>
                     <option key='wildcard' value='*' className='project-sync-windows-panel__text-wrapper'>
                         Every Minute
                     </option>
@@ -315,8 +311,7 @@ function ScheduleWrapper({fieldApi}: ScheduleProps) {
                             }
                         }
                         setValues(hourValues, 1);
-                    }}
-                >
+                    }}>
                     <option key='wildcard' value='*' className='project-sync-windows-panel__text-wrapper'>
                         Every Hour
                     </option>
@@ -341,8 +336,7 @@ function ScheduleWrapper({fieldApi}: ScheduleProps) {
                             }
                         }
                         setValues(domValues, 2);
-                    }}
-                >
+                    }}>
                     <option key='wildcard' value='*' className='project-sync-windows-panel__text-wrapper'>
                         Every Day
                     </option>
@@ -367,8 +361,7 @@ function ScheduleWrapper({fieldApi}: ScheduleProps) {
                             }
                         }
                         setValues(monthValues, 3);
-                    }}
-                >
+                    }}>
                     <option key='wildcard' value='*' className='project-sync-windows-panel__text-wrapper'>
                         Every Month
                     </option>
@@ -426,8 +419,7 @@ function ScheduleWrapper({fieldApi}: ScheduleProps) {
                             }
                         }
                         setValues(dowValues, 4);
-                    }}
-                >
+                    }}>
                     <option key='wildcard' value='*' className='project-sync-windows-panel__text-wrapper'>
                         Every Day
                     </option>

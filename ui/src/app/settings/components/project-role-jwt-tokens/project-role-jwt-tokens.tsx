@@ -45,8 +45,7 @@ export const ProjectRoleJWTTokens = (props: ProjectRoleJWTTokensProps) => {
                                     return;
                                 }
                                 await deleteJWTTokens(props, ctx, expiredTokens, setProgress);
-                            }}
-                        >
+                            }}>
                             Delete Expired
                         </Button>
                     </h4>
@@ -68,8 +67,7 @@ export const ProjectRoleJWTTokens = (props: ProjectRoleJWTTokensProps) => {
                         defaultValues={{expiresIn: ''}}
                         validateError={(params: any) => ({
                             expiresIn: !validExpiresIn(params.expiresIn) && 'Must be in the "[0-9]+[smhd]" format. For example, "12h", "7d".'
-                        })}
-                    >
+                        })}>
                         {api => (
                             <form onSubmit={api.submitForm} role='form' className='width-control'>
                                 <div className='white-box'>

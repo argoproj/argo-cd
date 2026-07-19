@@ -66,8 +66,7 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
         <div className={`argo-table-list__row applications-list__entry applications-list__entry--health-${healthStatus} ${selected ? 'applications-tiles__selected' : ''}`}>
             <div
                 className={`row applications-list__table-row ${app.status.sourceHydrator?.currentOperation ? 'applications-table-row--with-hydrator' : ''}`}
-                onClick={e => ctx.navigation.goto(`/${AppUtils.getAppUrl(app)}`, {}, {event: e})}
-            >
+                onClick={e => ctx.navigation.goto(`/${AppUtils.getAppUrl(app)}`, {}, {event: e})}>
                 {/* First column: Favorite, URLs, Project, Name */}
                 <div className='columns small-4'>
                     <div className='row'>
@@ -104,8 +103,7 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                                             {app.metadata.creationTimestamp}
                                         </Moment>
                                     </>
-                                }
-                            >
+                                }>
                                 <span>{app.metadata.name}</span>
                             </Tooltip>
                             <button
@@ -113,8 +111,7 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                                 className={managedByURLInvalid ? 'managed-by-url-invalid' : undefined}
                                 onClick={handleExternalLinkClick}
                                 style={{marginLeft: '0.5em', cursor: managedByURLInvalid ? 'not-allowed' : undefined}}
-                                title={managedByURLInvalid ? MANAGED_BY_URL_INVALID_TEXT : `Link: ${linkInfo.url}\nmanaged-by-url: ${managedByURL || 'none'}`}
-                            >
+                                title={managedByURLInvalid ? MANAGED_BY_URL_INVALID_TEXT : `Link: ${linkInfo.url}\nmanaged-by-url: ${managedByURL || 'none'}`}>
                                 <i className='fa fa-external-link-alt' />
                             </button>
                         </div>

@@ -183,8 +183,7 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                                 className={classNames('argo-table-list__row', {
                                     'application-resource-tree__node--orphaned': res.orphaned
                                 })}
-                                onClick={() => props.onNodeClick && props.onNodeClick(nodeKey(res))}
-                            >
+                                onClick={() => props.onNodeClick && props.onNodeClick(nodeKey(res))}>
                                 <div className='row'>
                                     <div className='columns small-1 xxxlarge-1'>
                                         <div className='application-details__resource-icon'>
@@ -214,8 +213,7 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                                                                     onClick={e => {
                                                                         e.stopPropagation();
                                                                     }}
-                                                                    title={`Open application\n${MANAGED_BY_URL_INVALID_TEXT}`}
-                                                                >
+                                                                    title={`Open application\n${MANAGED_BY_URL_INVALID_TEXT}`}>
                                                                     <i className='fa fa-external-link-alt' style={{color: MANAGED_BY_URL_INVALID_COLOR}} />
                                                                 </span>
                                                             );
@@ -227,8 +225,7 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                                                                     target={linkInfo.isExternal ? '_blank' : undefined}
                                                                     rel={linkInfo.isExternal ? 'noopener noreferrer' : undefined}
                                                                     onClick={e => e.stopPropagation()}
-                                                                    title={managedByURL ? `Open application\nmanaged-by-url: ${managedByURL}` : 'Open application'}
-                                                                >
+                                                                    title={managedByURL ? `Open application\nmanaged-by-url: ${managedByURL}` : 'Open application'}>
                                                                     <i className='fa fa-external-link-alt' />
                                                                 </a>
                                                             </span>
@@ -287,8 +284,7 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                                                         <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
                                                             <i className='fa fa-ellipsis-v' />
                                                         </button>
-                                                    )}
-                                                >
+                                                    )}>
                                                     {() => {
                                                         const node = nodeByKey.get(nodeKey(res));
                                                         if (node) {

@@ -55,8 +55,7 @@ export function RevisionFormField(props: RevisionFormFieldProps) {
                                 .catch((): string[] => []);
                         }
                         return [];
-                    }}
-                >
+                    }}>
                     {(revisions: string[]) => (
                         <FormField
                             formApi={props.formApi}

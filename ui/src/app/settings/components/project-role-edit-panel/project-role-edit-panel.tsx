@@ -44,8 +44,7 @@ export const ProjectRoleEditPanel = (props: ProjectRoleEditPanelProps) => {
                 validateError={(params: ProjectRoleParams) => ({
                     projName: !params.projName && 'Project Name is required',
                     roleName: !params.roleName && 'Role Name is required'
-                })}
-            >
+                })}>
                 {api => (
                     <form onSubmit={api.submitForm} role='form' className='width-control'>
                         <div className='white-box'>

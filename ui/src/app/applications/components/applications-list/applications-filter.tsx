@@ -400,8 +400,7 @@ const FavoriteFilter = (props: {value: boolean; onChange: (showFavorites: boolea
         <div
             className={`filter filter__item ${props.value ? 'filter__item--selected' : ''}`}
             style={{margin: '0.5em 0', marginTop: '0.5em'}}
-            onClick={() => onChange(!props.value)}
-        >
+            onClick={() => onChange(!props.value)}>
             <Checkbox
                 value={!!props.value}
                 onChange={onChange}

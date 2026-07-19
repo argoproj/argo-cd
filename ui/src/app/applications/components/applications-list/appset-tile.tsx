@@ -60,8 +60,7 @@ export const AppSetTile = ({appSet, selected, pref, ctx, tileRef}: AppSetTilePro
     return (
         <div
             ref={tileRef}
-            className={`argo-table-list__row applications-list__entry applications-list__entry--health-${healthStatus} ${selected ? 'applications-tiles__selected' : ''}`}
-        >
+            className={`argo-table-list__row applications-list__entry applications-list__entry--health-${healthStatus} ${selected ? 'applications-tiles__selected' : ''}`}>
             <div className='row applications-tiles__wrapper' onClick={e => ctx.navigation.goto(`/${AppUtils.getAppUrl(appSet)}`, {view: pref.appDetails.view}, {event: e})}>
                 <div className={`columns small-12 applications-list__info qe-applications-list-${AppUtils.appInstanceName(appSet)} applications-tiles__item`}>
                     {/* Header row with icon, title, and action buttons */}
@@ -80,8 +79,7 @@ export const AppSetTile = ({appSet, selected, pref, ctx, tileRef}: AppSetTilePro
                                         className='managed-by-url-invalid'
                                         onClick={handleExternalLinkClick}
                                         style={{cursor: 'not-allowed'}}
-                                        title={MANAGED_BY_URL_INVALID_TEXT}
-                                    >
+                                        title={MANAGED_BY_URL_INVALID_TEXT}>
                                         <i className='fa fa-external-link-alt' />
                                     </button>
                                 ) : (
@@ -92,8 +90,7 @@ export const AppSetTile = ({appSet, selected, pref, ctx, tileRef}: AppSetTilePro
                                 <button
                                     title={favList?.includes(appSet.metadata.name) ? 'Remove Favorite' : 'Add Favorite'}
                                     className='large-text-height'
-                                    onClick={handleFavoriteToggle}
-                                >
+                                    onClick={handleFavoriteToggle}>
                                     <i
                                         className={favList?.includes(appSet.metadata.name) ? 'fas fa-star fa-lg' : 'far fa-star fa-lg'}
                                         style={{
@@ -125,8 +122,7 @@ export const AppSetTile = ({appSet, selected, pref, ctx, tileRef}: AppSetTilePro
                                                 </div>
                                             ))}
                                     </div>
-                                }
-                            >
+                                }>
                                 <span>
                                     {Object.keys(appSet.metadata.labels || {})
                                         .map(label => `${label}=${appSet.metadata.labels[label]}`)

@@ -21,8 +21,7 @@ export const AccountDetails = (props: RouteComponentProps<{name: string}>) => {
             title={props.match.params.name}
             toolbar={{
                 breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Accounts', path: '/settings/accounts'}, {title: props.match.params.name}]
-            }}
-        >
+            }}>
             <p />
             <div className='argo-container account-details'>
                 <DataLoader input={props.match.params.name} load={(name: string) => services.accounts.get(name)}>
@@ -68,8 +67,7 @@ export const AccountDetails = (props: RouteComponentProps<{name: string}>) => {
                                 }}
                                 validateError={params => ({
                                     expiresIn: !validExpiresIn(params.expiresIn) && 'Must be in the "[0-9]+[smhd]" format'
-                                })}
-                            >
+                                })}>
                                 {api => (
                                     <form onSubmit={api.submitForm}>
                                         <div className='row argo-table-list__row'>

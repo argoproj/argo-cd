@@ -64,8 +64,7 @@ export const ApplicationRetryForm = ({initValues, field = 'retryStrategy'}: {ini
 
                         'backoff.factor': backoff.hasOwnProperty('factor') && !backoff.factor && 'Factor is required'
                     };
-                }}
-            >
+                }}>
                 {nestedFormApi => {
                     return (
                         <div className='row application-retry-options-list'>

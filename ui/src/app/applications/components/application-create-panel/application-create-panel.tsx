@@ -232,8 +232,7 @@ export const ApplicationCreatePanel = (props: {
                     services.clusters.list().then(clusters => clusters.sort()),
                     services.repos.list()
                 ]).then(([projects, clusters, reposInfo]) => ({projects, clusters, reposInfo}))
-            }
-        >
+            }>
             {({projects, clusters, reposInfo}) => {
                 const repos = reposInfo.map(info => info.repo).sort();
                 const repoInfo = reposInfo.find(info => info.repo === app.spec.source?.repoURL);
@@ -304,8 +303,7 @@ export const ApplicationCreatePanel = (props: {
                                 defaultValues={app}
                                 formDidUpdate={state => debouncedOnAppChanged(state.values as any)}
                                 onSubmit={onCreateApp}
-                                getApi={props.getFormApi}
-                            >
+                                getApi={props.getFormApi}>
                                 {api => {
                                     const formApp = api.getFormState().values as models.Application;
 
@@ -324,8 +322,7 @@ export const ApplicationCreatePanel = (props: {
                                                 <button
                                                     type='button'
                                                     className='argo-button argo-button--base application-create-panel__yaml-button'
-                                                    onClick={() => setYamlMode(true)}
-                                                >
+                                                    onClick={() => setYamlMode(true)}>
                                                     Edit as YAML
                                                 </button>
                                             )}
@@ -551,8 +548,7 @@ export const ApplicationCreatePanel = (props: {
                                                         type: 'Directory',
                                                         details: {}
                                                     };
-                                                }}
-                                            >
+                                                }}>
                                                 {(details: models.RepoAppDetails) => {
                                                     const pathKey = (liveSrc?.chart || liveSrc?.path || '') as string;
                                                     const type = (explicitPathType && explicitPathType.path === pathKey && explicitPathType.type) || details.type;

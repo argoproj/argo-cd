@@ -1,5 +1,5 @@
-import {getAutoSyncStatus} from './applications-filter';
-import {SyncPolicy} from '../../../shared/models';
+import { getAutoSyncStatus } from './applications-filter';
+import { SyncPolicy } from '../../../shared/models';
 
 const AUTO_SYNC_ENABLED = 'Enabled';
 const AUTO_SYNC_DISABLED = 'Disabled';

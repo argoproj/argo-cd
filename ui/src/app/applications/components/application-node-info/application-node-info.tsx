@@ -49,8 +49,7 @@ const RenderContainerState = (props: {container: any}) => {
                         <span
                             className={classNames('application-node-info__container--highlight', {
                                 'application-node-info__container--hint': !!msg
-                            })}
-                        >
+                            })}>
                             {status}
                         </span>
                     )}
@@ -82,8 +81,7 @@ const RenderContainerState = (props: {container: any}) => {
                                 <span
                                     className={classNames('application-node-info__container--highlight', {
                                         'application-node-info__container--hint': !!props.container.lastState?.message
-                                    })}
-                                >
+                                    })}>
                                     {lastState?.reason}
                                 </span>
                             )}

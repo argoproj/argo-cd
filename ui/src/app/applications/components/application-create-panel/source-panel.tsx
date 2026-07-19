@@ -144,8 +144,7 @@ export const SourcePanel = (props: SourcePanelProps) => {
                                 src.repoURL &&
                                 // TODO: for autocomplete we need to fetch paths that are used by other apps within the same project making use of the same OCI repo
                                 new Array<string>()
-                            }
-                        >
+                            }>
                             {(paths: string[]) => (
                                 <FormField
                                     formApi={props.formApi}
@@ -182,8 +181,7 @@ export const SourcePanel = (props: SourcePanelProps) => {
                                             .then(apps => Array.from(new Set(apps.map(item => item.path))).sort((a, b) => a.localeCompare(b)))
                                             .catch(() => new Array<string>())) ||
                                     new Array<string>()
-                                }
-                            >
+                                }>
                                 {(apps: string[]) => (
                                     <FormField
                                         formApi={props.formApi}
@@ -203,8 +201,7 @@ export const SourcePanel = (props: SourcePanelProps) => {
                 )) || (
                     <DataLoader
                         input={{repoURL: specSourceForRevision?.repoURL}}
-                        load={async src => (src.repoURL && services.repos.charts(src.repoURL).catch(() => new Array<models.HelmChart>())) || new Array<models.HelmChart>()}
-                    >
+                        load={async src => (src.repoURL && services.repos.charts(src.repoURL).catch(() => new Array<models.HelmChart>())) || new Array<models.HelmChart>()}>
                         {(charts: models.HelmChart[]) => {
                             const spec = props.formApi.getFormState().values.spec;
                             const chartName = isMulti ? spec.sources?.[props.sourceIndex as number]?.chart : spec.source?.chart;

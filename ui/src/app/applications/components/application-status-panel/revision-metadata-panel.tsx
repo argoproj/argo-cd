@@ -36,8 +36,7 @@ export const RevisionMetadataPanel = (props: {appName: string; appNamespace: str
                             </span>
                         }
                         placement='bottom'
-                        allowHTML={true}
-                    >
+                        allowHTML={true}>
                         <div className='application-status-panel__item-name'>
                             {m.authors && (
                                 <div className='application-status-panel__item__row'>
@@ -55,8 +54,7 @@ export const RevisionMetadataPanel = (props: {appName: string; appNamespace: str
         <DataLoader
             key={props.revision}
             load={() => services.applications.revisionMetadata(props.appName, props.appNamespace, props.revision, 0, props.versionId)}
-            errorRenderer={() => <div />}
-        >
+            errorRenderer={() => <div />}>
             {m => (
                 <Tooltip
                     popperOptions={{
@@ -90,8 +88,7 @@ export const RevisionMetadataPanel = (props: {appName: string; appNamespace: str
                         </span>
                     }
                     placement='bottom'
-                    allowHTML={true}
-                >
+                    allowHTML={true}>
                     <div className='application-status-panel__item-name'>
                         {m.author && (
                             <div className='application-status-panel__item__row'>

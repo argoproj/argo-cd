@@ -32,11 +32,11 @@ test('allows relative URLs', () => {
 test('URLs format', () => {
     expect(new ExternalLink('https://localhost:8080/applications')).toEqual({
         ref: 'https://localhost:8080/applications',
-        title: 'https://localhost:8080/applications'
+        title: 'https://localhost:8080/applications',
     });
     expect(new ExternalLink('title|https://localhost:8080/applications')).toEqual({
         ref: 'https://localhost:8080/applications',
-        title: 'title'
+        title: 'title',
     });
 });
 
@@ -47,7 +47,7 @@ test('malicious URLs from list to be removed', () => {
     expect(links).toHaveLength(1);
     expect(links).toContainEqual({
         ref: 'https://localhost:8080/applications',
-        title: 'https://localhost:8080/applications'
+        title: 'https://localhost:8080/applications',
     });
 });
 

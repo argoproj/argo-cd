@@ -46,8 +46,7 @@ export function CollapsibleMultiSourceSection(props: {
                             onClick={e => {
                                 e.stopPropagation();
                                 props.onRemove?.();
-                            }}
-                        >
+                            }}>
                             <i className='fa fa-minus' style={{marginLeft: '-5px', marginRight: '5px'}} />
                             Remove source
                         </button>
@@ -57,8 +56,7 @@ export function CollapsibleMultiSourceSection(props: {
                         className='application-create-panel__multi-source-collapse-btn'
                         title='Collapse source'
                         aria-label='Collapse source section'
-                        onClick={() => setExpanded(false)}
-                    >
+                        onClick={() => setExpanded(false)}>
                         <i className='fa fa-angle-up' />
                     </button>
                 </div>

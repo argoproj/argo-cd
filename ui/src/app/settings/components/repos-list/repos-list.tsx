@@ -204,7 +204,11 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                     items={[ConnectionMethod.SSH, ConnectionMethod.HTTPS, ConnectionMethod.GITHUBAPP, ConnectionMethod.GOOGLECLOUD, ConnectionMethod.AZURESERVICEPRINCIPAL].map(
                         (
                             connectMethod:
-                                ConnectionMethod.SSH | ConnectionMethod.HTTPS | ConnectionMethod.GITHUBAPP | ConnectionMethod.GOOGLECLOUD | ConnectionMethod.AZURESERVICEPRINCIPAL
+                                | ConnectionMethod.SSH
+                                | ConnectionMethod.HTTPS
+                                | ConnectionMethod.GITHUBAPP
+                                | ConnectionMethod.GOOGLECLOUD
+                                | ConnectionMethod.AZURESERVICEPRINCIPAL
                         ) => ({
                             title: connectMethod.toUpperCase(),
                             action: () => {
@@ -288,8 +292,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                             onClick={() => {
                                 credsTemplate.current = false;
                                 formApi.current.submitForm(null);
-                            }}
-                        >
+                            }}>
                             <Spinner show={connecting} style={{marginRight: '5px'}} />
                             Connect
                         </button>{' '}
@@ -298,8 +301,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                             onClick={() => {
                                 credsTemplate.current = true;
                                 formApi.current.submitForm(null);
-                            }}
-                        >
+                            }}>
                             Save as credentials template
                         </button>{' '}
                         <button onClick={() => setConnectRepo(false)} className='argo-button argo-button--base-o'>
@@ -787,8 +789,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                         }
                     ]
                 }
-            }}
-        >
+            }}>
             <div className='repos-list'>
                 <div className='argo-container'>
                     <div style={{display: 'flex', margin: '20px 0', justifyContent: 'space-between'}}>
@@ -905,8 +906,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                             <div
                                                 className={`argo-table-list__row ${isRepoUpdatable(repo) ? 'item-clickable' : ''}`}
                                                 key={repo.repo}
-                                                onClick={() => (isRepoUpdatable(repo) ? displayEditSliding(repo) : null)}
-                                            >
+                                                onClick={() => (isRepoUpdatable(repo) ? displayEditSliding(repo) : null)}>
                                                 <div className='row'>
                                                     <div className='columns small-1'>
                                                         <i className={'icon argo-icon-' + (repo.type || 'git')} />
@@ -1039,8 +1039,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                             <div
                                                 className={`argo-table-list__row ${isRepoUpdatable(repo) ? 'item-clickable' : ''}`}
                                                 key={repo.repo}
-                                                onClick={() => (isRepoUpdatable(repo) ? displayEditSliding(repo) : null)}
-                                            >
+                                                onClick={() => (isRepoUpdatable(repo) ? displayEditSliding(repo) : null)}>
                                                 <div className='row'>
                                                     <div className='columns small-1'>
                                                         <i className='icon argo-icon-git' />
@@ -1147,8 +1146,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                         setDisplayEditPanel(false);
                     }
                 }}
-                header={<SlidingPanelHeader />}
-            >
+                header={<SlidingPanelHeader />}>
                 {showConnectRepo() && <ConnectRepoFormButton method={method} onSelection={setMethod} />}
                 {displayEditPanel && <RepoDetails repo={currentRepo} save={(params: NewHTTPSRepoParams) => updateHTTPSRepo(params)} />}
                 {!displayEditPanel && (
@@ -1158,8 +1156,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                 onSubmit={onSubmitForm}
                                 getApi={api => (formApi.current = api)}
                                 defaultValues={onChooseDefaultValues()}
-                                validateError={(values: FormValues) => onValidateErrors(values)}
-                            >
+                                validateError={(values: FormValues) => onValidateErrors(values)}>
                                 {formApi => (
                                     <form onSubmit={formApi.submitForm} role='form' className='repos-list width-control'>
                                         {authSettings?.hydratorEnabled && (

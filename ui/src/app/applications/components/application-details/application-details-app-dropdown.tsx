@@ -17,8 +17,7 @@ export const ApplicationsDetailsAppDropdown = (props: {appName: string; objectLi
                 <>
                     <i className='fa fa-search' /> <span>{props.appName}</span>
                 </>
-            )}
-        >
+            )}>
             {opened && (
                 <ul>
                     <li>

@@ -68,8 +68,7 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
     return (
         <div
             ref={tileRef}
-            className={`argo-table-list__row applications-list__entry applications-list__entry--health-${healthStatus} ${selected ? 'applications-tiles__selected' : ''}`}
-        >
+            className={`argo-table-list__row applications-list__entry applications-list__entry--health-${healthStatus} ${selected ? 'applications-tiles__selected' : ''}`}>
             <div className='row applications-tiles__wrapper' onClick={e => ctx.navigation.goto(`/${AppUtils.getAppUrl(app)}`, {view: pref.appDetails.view}, {event: e})}>
                 <div className={`columns small-12 applications-list__info qe-applications-list-${AppUtils.appInstanceName(app)} applications-tiles__item`}>
                     {/* Header row with icon, title, and action buttons */}
@@ -89,8 +88,7 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
                                         className='managed-by-url-invalid'
                                         onClick={handleExternalLinkClick}
                                         style={{cursor: 'not-allowed'}}
-                                        title={MANAGED_BY_URL_INVALID_TEXT}
-                                    >
+                                        title={MANAGED_BY_URL_INVALID_TEXT}>
                                         <i className='fa fa-external-link-alt' />
                                     </button>
                                 ) : (
@@ -101,8 +99,7 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
                                 <button
                                     title={favList?.includes(app.metadata.name) ? 'Remove Favorite' : 'Add Favorite'}
                                     className='large-text-height'
-                                    onClick={handleFavoriteToggle}
-                                >
+                                    onClick={handleFavoriteToggle}>
                                     <i
                                         className={favList?.includes(app.metadata.name) ? 'fas fa-star fa-lg' : 'far fa-star fa-lg'}
                                         style={{
@@ -142,8 +139,7 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
                                                 </div>
                                             ))}
                                     </div>
-                                }
-                            >
+                                }>
                                 <span>
                                     {Object.keys(app.metadata.labels || {})
                                         .map(label => `${label}=${app.metadata.labels[label]}`)
@@ -259,8 +255,7 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
                                 onClick={e => {
                                     e.stopPropagation();
                                     syncApplication(app.metadata.name, app.metadata.namespace);
-                                }}
-                            >
+                                }}>
                                 <i className='fa fa-sync' /> Sync
                             </a>
                             &nbsp;
@@ -272,8 +267,7 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
                                     onClick={e => {
                                         e.stopPropagation();
                                         refreshApplication(app.metadata.name, app.metadata.namespace);
-                                    }}
-                                >
+                                    }}>
                                     <i className={classNames('fa fa-redo', {'status-icon--spin': AppUtils.isAppRefreshing(app)})} />{' '}
                                     <span className='show-for-xxlarge'>Refresh</span>
                                 </a>
@@ -286,8 +280,7 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
                                     onClick={e => {
                                         e.stopPropagation();
                                         deleteApplication(app.metadata.name, app.metadata.namespace);
-                                    }}
-                                >
+                                    }}>
                                     <i className='fa fa-times-circle' /> <span className='show-for-xxlarge'>Delete</span>
                                 </a>
                             </Tooltip>

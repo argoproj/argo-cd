@@ -105,8 +105,7 @@ export function PodView(props: PodViewProps) {
                                             services.viewPreferences.updatePreferences({
                                                 appDetails: {...prefs.appDetails, podView: {...podPrefs, hideUnschedulable: !podPrefs.hideUnschedulable}}
                                             })
-                                        }
-                                    >
+                                        }>
                                         <i className={`fa fa-${podPrefs.hideUnschedulable ? 'eye-slash' : 'eye'}`} style={{width: '15px', marginRight: '5px'}} />
                                         UNSCHEDULABLE
                                     </button>
@@ -124,8 +123,7 @@ export function PodView(props: PodViewProps) {
                                             <div
                                                 className='pod-view__node__container--header'
                                                 onClick={() => props.onItemClick(group.fullName)}
-                                                style={group.kind === 'node' ? {} : {cursor: 'pointer'}}
-                                            >
+                                                style={group.kind === 'node' ? {} : {cursor: 'pointer'}}>
                                                 <div style={{display: 'flex', alignItems: 'center'}}>
                                                     <div style={{marginRight: '10px'}}>
                                                         <ResourceIcon group={group.group} kind={group.kind || 'Unknown'} />
@@ -152,8 +150,7 @@ export function PodView(props: PodViewProps) {
                                                                     <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
                                                                         <i className='fa fa-ellipsis-v' />
                                                                     </button>
-                                                                )}
-                                                            >
+                                                                )}>
                                                                 {() => group.renderMenu()}
                                                             </DropDown>
                                                         )}
@@ -229,8 +226,7 @@ export function PodView(props: PodViewProps) {
                                                                                         }
                                                                                     }
                                                                                 }}
-                                                                                key={pod.metadata.name}
-                                                                            >
+                                                                                key={pod.metadata.name}>
                                                                                 <div style={{position: 'relative'}}>
                                                                                     {isYoungerThanXMinutes(pod, 30) && (
                                                                                         <i className='fas fa-circle pod-view__node__pod pod-view__node__pod__new-pod-icon' />
@@ -240,8 +236,7 @@ export function PodView(props: PodViewProps) {
                                                                                     </div>
                                                                                 </div>
                                                                             </Tooltip>
-                                                                        )}
-                                                                    >
+                                                                        )}>
                                                                         {() => props.nodeMenu(pod)}
                                                                     </DropDown>
                                                                 )
@@ -490,8 +485,7 @@ function renderStats(info: HostResourceInfo) {
                             <div>Capacity: {formatMetric(info.resourceName, info.capacity)}</div>
                         </div>
                     </>
-                }
-            >
+                }>
                 <div className='pod-view__node__pod__stat__bar'>
                     <div className='pod-view__node__pod__stat__bar--fill pod-view__node__pod__stat__bar--neighbors' style={{height: `${neighborsHeight}%`}} />
                     <div className='pod-view__node__pod__stat__bar--fill' style={{bottom: `${neighborsHeight}%`, height: `${appHeight}%`}} />

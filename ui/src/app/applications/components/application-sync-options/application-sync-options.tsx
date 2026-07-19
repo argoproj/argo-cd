@@ -137,8 +137,7 @@ export const ApplicationSyncOptions = (props: ApplicationSyncOptionProps) => (
                 style={optionStyle}
                 className={classNames('small-12', {
                     'large-6': i < syncOptions.length - 1
-                })}
-            >
+                })}>
                 {render(props)}
             </div>
         ))}
@@ -146,8 +145,7 @@ export const ApplicationSyncOptions = (props: ApplicationSyncOptionProps) => (
             load={async () => {
                 const settings = await services.authService.settings();
                 return settings.syncWithReplaceAllowed;
-            }}
-        >
+            }}>
             {syncWithReplaceAllowed =>
                 (syncWithReplaceAllowed && (
                     <div className='small-12' style={optionStyle}>

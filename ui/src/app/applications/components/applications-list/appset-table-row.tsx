@@ -92,8 +92,7 @@ export const AppSetTableRow = ({appSet, selected, pref, ctx}: AppSetTableRowProp
                                             {appSet.metadata.creationTimestamp}
                                         </Moment>
                                     </>
-                                }
-                            >
+                                }>
                                 <span>{appSet.metadata.name}</span>
                             </Tooltip>
                             <button
@@ -101,8 +100,7 @@ export const AppSetTableRow = ({appSet, selected, pref, ctx}: AppSetTableRowProp
                                 className={managedByURLInvalid ? 'managed-by-url-invalid' : undefined}
                                 onClick={handleExternalLinkClick}
                                 style={{marginLeft: '0.5em', cursor: managedByURLInvalid ? 'not-allowed' : undefined}}
-                                title={managedByURLInvalid ? MANAGED_BY_URL_INVALID_TEXT : `Link: ${linkInfo.url}\nmanaged-by-url: ${managedByURL || 'none'}`}
-                            >
+                                title={managedByURLInvalid ? MANAGED_BY_URL_INVALID_TEXT : `Link: ${linkInfo.url}\nmanaged-by-url: ${managedByURL || 'none'}`}>
                                 <i className='fa fa-external-link-alt' />
                             </button>
                         </div>
