@@ -39,7 +39,18 @@ func IsTruncatedCommitSHA(sha string) bool {
 	return truncatedCommitSHARegex.MatchString(sha)
 }
 
-// SameURL returns whether or not the two repository URLs are equivalent in location
+// SanitizeRepoURL strips any embedded userinfo (e.g. https://token@host/org/repo) from a
+// repository URL so credentials are not leaked when the URL is logged or exported (e.g. as a
+// tracing span attribute). If the URL cannot be parsed it is returned unchanged.
+func SanitizeRepoURL(repoURL string) string {
+	u, err := url.Parse(repoURL)
+	if err != nil || u.User == nil {
+		return repoURL
+	}
+	u.User = nil
+	return u.String()
+}
+
 func SameURL(leftRepo, rightRepo string) bool {
 	normalLeft := NormalizeGitURLAllowInvalid(leftRepo)
 	normalRight := NormalizeGitURLAllowInvalid(rightRepo)

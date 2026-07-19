@@ -4,13 +4,14 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
-	. "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	. "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -386,39 +387,60 @@ func TestImmutableChange(t *testing.T) {
 }
 
 func TestMultiSyncCRDClientSideSame(t *testing.T) {
-	testMultiSync(t, false, false, "multi-sync/crd", "crd.yaml")
+	testMultiSync(t, false, false, "multi-sync/crd", "crd.yaml", false)
 }
 
 func TestMultiSyncCRDClientSideChanged(t *testing.T) {
-	testMultiSync(t, false, true, "multi-sync/crd", "crd.yaml")
+	testMultiSync(t, false, true, "multi-sync/crd", "crd.yaml", false)
 }
 
 func TestMultiSyncCRDServerSideSame(t *testing.T) {
-	testMultiSync(t, true, false, "multi-sync/crd", "crd.yaml")
+	testMultiSync(t, true, false, "multi-sync/crd", "crd.yaml", false)
+}
+
+func TestMultiSyncCRDServerSideSameBig(t *testing.T) {
+	testMultiSync(t, true, false, "multi-sync/crd", "crd.yaml", true)
 }
 
 func TestMultiSyncCRDServerSideChanged(t *testing.T) {
-	testMultiSync(t, true, true, "multi-sync/crd", "crd.yaml")
+	testMultiSync(t, true, true, "multi-sync/crd", "crd.yaml", false)
+}
+
+func TestMultiSyncCRDServerSideChangedBig(t *testing.T) {
+	testMultiSync(t, true, true, "multi-sync/crd", "crd.yaml", true)
 }
 
 func TestMultiSyncBuiltinClientSideSame(t *testing.T) {
-	testMultiSync(t, false, false, "multi-sync/builtin", "cm.yaml")
+	testMultiSync(t, false, false, "multi-sync/builtin", "cm.yaml", false)
 }
 
 func TestMultiSyncBuiltinClientSideChanged(t *testing.T) {
-	testMultiSync(t, false, true, "multi-sync/builtin", "cm.yaml")
+	testMultiSync(t, false, true, "multi-sync/builtin", "cm.yaml", false)
 }
 
 func TestMultiSyncBuiltinServerSideSame(t *testing.T) {
-	testMultiSync(t, true, false, "multi-sync/builtin", "cm.yaml")
+	testMultiSync(t, true, false, "multi-sync/builtin", "cm.yaml", false)
+}
+
+func TestMultiSyncBuiltinServerSideSameBig(t *testing.T) {
+	testMultiSync(t, true, false, "multi-sync/builtin", "cm.yaml", true)
 }
 
 func TestMultiSyncBuiltinServerSideChanged(t *testing.T) {
-	testMultiSync(t, true, true, "multi-sync/builtin", "cm.yaml")
+	testMultiSync(t, true, true, "multi-sync/builtin", "cm.yaml", false)
 }
 
-// demostrate that Sync still works after initial Sync (create vs patch code paths)
-func testMultiSync(t *testing.T, serverSide, doChange bool, dir, manifest string) {
+func TestMultiSyncBuiltinServerSideChangedBig(t *testing.T) {
+	testMultiSync(t, true, true, "multi-sync/builtin", "cm.yaml", true)
+}
+
+// demostrate that Sync still works after initial Sync
+// several code paths are checked:
+// 1. serverSide vs Client side,
+// 2. second sync w/o change vs with change
+// 3. CRD vs builtin
+// 4  Small size vs Large size: manifests bigger than 256KiB won't fit into the last-applied-configuration annotation
+func testMultiSync(t *testing.T, serverSide, doChange bool, dir, manifest string, isBig bool) {
 	t.Helper()
 	args := []string{}
 	if serverSide {
@@ -427,8 +449,24 @@ func testMultiSync(t *testing.T, serverSide, doChange bool, dir, manifest string
 	ctx := Given(t)
 	acts := ctx.Path(dir).
 		When().
-		CreateApp().
-		Sync(args...).
+		CreateApp()
+	if isBig {
+		for i := range 16 {
+			// add some long fields so manifest size will be more that 256KiB: that would make it fail on a
+			// client-side kubectl operation because the entite manifest won't fit into the
+			// last-applied-configuration annotation
+			descr := strings.Repeat("A", 16*1024)
+			var patch string
+			if manifest == "cm.yaml" {
+				patch = fmt.Sprintf(`[{"op": "add", "path": "/data/field%d", "value": %q }]`, i, descr)
+			} else {
+				// crd
+				patch = fmt.Sprintf(`[{"op": "add", "path": "/spec/versions/0/schema/openAPIV3Schema/properties/spec/properties/field%d", "value": { "type" : "string", "description" : %q }}]`, i, descr)
+			}
+			acts = acts.PatchFile(manifest, patch)
+		}
+	}
+	acts.Sync(args...).
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
@@ -2407,6 +2445,91 @@ func TestSwitchTrackingMethod(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy))
+}
+
+// TestTrackingMethodAnnotationMovedResource verifies that a resource previously
+// tracked by another application surfaces as OutOfSync and that syncing updates
+// its tracking annotation. The manifest deliberately carries a chart-rendered
+// app.kubernetes.io/instance label, which used to hide the stale tracking
+// annotation from the diff (issue #17965).
+func TestTrackingMethodAnnotationMovedResource(t *testing.T) {
+	ctx := Given(t)
+
+	ctx.
+		SetTrackingMethod(string(TrackingMethodAnnotation)).
+		Path("tracking-instance-label").
+		When().
+		CreateApp().
+		Sync().
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		And(func() {
+			// Rewrite the tracking annotation to the value a previous application
+			// (e.g. one replaced by an ApplicationSet-generated app) left behind.
+			patch := fmt.Sprintf(`{"metadata":{"annotations":{%q:%q}}}`,
+				common.AnnotationKeyAppInstance,
+				fmt.Sprintf("old-app:/ConfigMap:%s/my-map", ctx.DeploymentNamespace()))
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Patch(
+				t.Context(), "my-map", types.MergePatchType, []byte(patch), metav1.PatchOptions{}))
+		}).
+		Refresh(RefreshTypeNormal).
+		Then().
+		// The stale tracking annotation is a real difference and must show up.
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		When().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			// Syncing must repair the tracking annotation.
+			cm, err := fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Get(t.Context(), "my-map", metav1.GetOptions{})
+			require.NoError(t, err)
+			assert.Equal(t, fmt.Sprintf("%s:/ConfigMap:%s/my-map", app.Name, ctx.DeploymentNamespace()), cm.Annotations[common.AnnotationKeyAppInstance])
+			// The chart-rendered instance label is not owned by tracking and stays.
+			assert.Equal(t, "my-release", cm.Labels["app.kubernetes.io/instance"])
+		})
+}
+
+// TestTrackingMethodAnnotationMovedResourceSSA is the server-side apply variant
+// of TestTrackingMethodAnnotationMovedResource.
+func TestTrackingMethodAnnotationMovedResourceSSA(t *testing.T) {
+	ctx := Given(t)
+
+	ctx.
+		SetTrackingMethod(string(TrackingMethodAnnotation)).
+		Path("tracking-instance-label").
+		When().
+		CreateApp("--sync-option", "ServerSideApply=true").
+		Sync().
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		And(func() {
+			patch := fmt.Sprintf(`{"metadata":{"annotations":{%q:%q}}}`,
+				common.AnnotationKeyAppInstance,
+				fmt.Sprintf("old-app:/ConfigMap:%s/my-map", ctx.DeploymentNamespace()))
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Patch(
+				t.Context(), "my-map", types.MergePatchType, []byte(patch), metav1.PatchOptions{}))
+		}).
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		When().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			cm, err := fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Get(t.Context(), "my-map", metav1.GetOptions{})
+			require.NoError(t, err)
+			assert.Equal(t, fmt.Sprintf("%s:/ConfigMap:%s/my-map", app.Name, ctx.DeploymentNamespace()), cm.Annotations[common.AnnotationKeyAppInstance])
+		})
 }
 
 func TestSwitchTrackingLabel(t *testing.T) {

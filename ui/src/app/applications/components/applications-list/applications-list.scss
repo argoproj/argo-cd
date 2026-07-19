@@ -21,7 +21,7 @@
 
     &__info {
         line-height: 24px;
-        margin: 1em 0;
+        padding: 1em 0;
     }
 
     &__icons {
@@ -120,7 +120,19 @@
 
     &__external-links-icon-container {
         position: relative;
-        display: inline-block;
+        display: inline-flex;
+        align-items: center;
+        line-height: 1;
+
+        a {
+            display: inline-flex;
+            align-items: center;
+        }
+
+        i {
+            font-size: 14px;
+            line-height: 1;
+        }
     }
 
     .filters-group__panel {
