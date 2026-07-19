@@ -1,0 +1,3 @@
+# Auto-generated uncovered keys allowlist (shrink as registry grows)
+# Format: cm:<key> or env:<NAME>
+# Only UNcovered sources are listed; keys claimed by a registry descriptor are omitted.

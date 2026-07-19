@@ -1,0 +1,5293 @@
+{
+  "cmKeys": [
+    "accounts.alice",
+    "accounts.alice.enabled",
+    "additionalUrls",
+    "admin.enabled",
+    "application.allowedNodeLabels",
+    "application.instanceLabelKey",
+    "application.links",
+    "application.namespaces",
+    "application.resourceTrackingMethod",
+    "application.sync.impersonation.enabled",
+    "application.sync.impersonation.enforced",
+    "application.sync.requireOverridePrivilegeForRevisionSync",
+    "applicationsetcontroller.allowed.scm.providers",
+    "applicationsetcontroller.concurrent.reconciliations.max",
+    "applicationsetcontroller.debug",
+    "applicationsetcontroller.dryrun",
+    "applicationsetcontroller.enable.git.submodule",
+    "applicationsetcontroller.enable.github.api.metrics",
+    "applicationsetcontroller.enable.leader.election",
+    "applicationsetcontroller.enable.new.git.file.globbing",
+    "applicationsetcontroller.enable.policy.override",
+    "applicationsetcontroller.enable.progressive.syncs",
+    "applicationsetcontroller.enable.scm.providers",
+    "applicationsetcontroller.enable.tokenref.strict.mode",
+    "applicationsetcontroller.global.preserved.annotations",
+    "applicationsetcontroller.global.preserved.labels",
+    "applicationsetcontroller.grpc.enable.txt.service.config",
+    "applicationsetcontroller.k8s.client.burst",
+    "applicationsetcontroller.k8s.client.max.idle.connections",
+    "applicationsetcontroller.k8s.client.qps",
+    "applicationsetcontroller.k8s.tcp.idle.timeout",
+    "applicationsetcontroller.k8s.tcp.keepalive",
+    "applicationsetcontroller.k8s.tcp.timeout",
+    "applicationsetcontroller.k8s.tls.handshake.timeout",
+    "applicationsetcontroller.log.format",
+    "applicationsetcontroller.log.level",
+    "applicationsetcontroller.namespaces",
+    "applicationsetcontroller.policy",
+    "applicationsetcontroller.profile.enabled",
+    "applicationsetcontroller.repo.server.ca.cert.path",
+    "applicationsetcontroller.repo.server.client.cert.key.path",
+    "applicationsetcontroller.repo.server.client.cert.path",
+    "applicationsetcontroller.repo.server.plaintext",
+    "applicationsetcontroller.repo.server.strict.tls",
+    "applicationsetcontroller.repo.server.timeout.seconds",
+    "applicationsetcontroller.requeue.after",
+    "applicationsetcontroller.scm.root.ca.path",
+    "applicationsetcontroller.status.max.resources.count",
+    "applicationsetcontroller.webhook.parallelism.limit",
+    "cluster.inClusterEnabled",
+    "commit.author.email",
+    "commit.author.name",
+    "commit.server",
+    "commitserver.grpc.enable.txt.service.config",
+    "commitserver.listen.address",
+    "commitserver.log.format",
+    "commitserver.log.level",
+    "commitserver.metrics.listen.address",
+    "controller.app.state.cache.expiration",
+    "controller.cluster.cache.batch.events.processing",
+    "controller.cluster.cache.events.processing.interval",
+    "controller.default.cache.expiration",
+    "controller.diff.server.side",
+    "controller.grpc.enable.txt.service.config",
+    "controller.hydration.processors",
+    "controller.ignore.normalizer.jq.timeout",
+    "controller.k8s.client.burst",
+    "controller.k8s.client.max.idle.connections",
+    "controller.k8s.client.qps",
+    "controller.k8s.tcp.idle.timeout",
+    "controller.k8s.tcp.keepalive",
+    "controller.k8s.tcp.timeout",
+    "controller.k8s.tls.handshake.timeout",
+    "controller.k8sclient.retry.base.backoff",
+    "controller.k8sclient.retry.max",
+    "controller.kubectl.parallelism.limit",
+    "controller.log.format",
+    "controller.log.level",
+    "controller.metrics.application.conditions",
+    "controller.metrics.application.labels",
+    "controller.metrics.cache.expiration",
+    "controller.metrics.cluster.labels",
+    "controller.operation.processors",
+    "controller.profile.enabled",
+    "controller.repo.error.grace.period.seconds",
+    "controller.repo.server.ca.cert.path",
+    "controller.repo.server.client.cert.key.path",
+    "controller.repo.server.client.cert.path",
+    "controller.repo.server.plaintext",
+    "controller.repo.server.strict.tls",
+    "controller.repo.server.timeout.seconds",
+    "controller.resource.health.persist",
+    "controller.self.heal.backoff.cap.seconds",
+    "controller.self.heal.backoff.cooldown.seconds",
+    "controller.self.heal.backoff.factor",
+    "controller.self.heal.backoff.timeout.seconds",
+    "controller.self.heal.timeout.seconds",
+    "controller.sharding.algorithm",
+    "controller.status.processors",
+    "controller.sync.timeout.seconds",
+    "controller.sync.wave.delay.seconds",
+    "dex.config",
+    "dexserver.connector.failure.continue",
+    "dexserver.disable.tls",
+    "dexserver.log.format",
+    "dexserver.log.level",
+    "exec.enabled",
+    "exec.shells",
+    "extension.config",
+    "ga.anonymizeusers",
+    "ga.trackingid",
+    "globalProjects",
+    "helm.enable",
+    "helm.valuesFileSchemes",
+    "help.chatText",
+    "help.chatUrl",
+    "help.download",
+    "help.download.darwin-amd64",
+    "help.download.darwin-arm64",
+    "help.download.linux-amd64",
+    "help.download.linux-arm64",
+    "help.download.linux-ppc64le",
+    "help.download.linux-s390x",
+    "help.download.windows-amd64",
+    "hydrator.enabled",
+    "installationID",
+    "jsonnet.enable",
+    "kustomize.buildOptions",
+    "kustomize.buildOptions.v3.9.1",
+    "kustomize.enable",
+    "kustomize.path",
+    "kustomize.path.v3.9.1",
+    "kustomize.version",
+    "kustomize.version.v3.5.1",
+    "kustomize.version.v3.5.4",
+    "log.format.timestamp",
+    "notificationscontroller.log.format",
+    "notificationscontroller.log.level",
+    "notificationscontroller.processors.count",
+    "notificationscontroller.repo.server.ca.cert.path",
+    "notificationscontroller.repo.server.client.cert.key.path",
+    "notificationscontroller.repo.server.client.cert.path",
+    "notificationscontroller.repo.server.plaintext",
+    "notificationscontroller.selfservice.enabled",
+    "oidc.config",
+    "oidc.tls.insecure.skip.verify",
+    "otlp.address",
+    "otlp.attrs",
+    "otlp.headers",
+    "otlp.insecure",
+    "otlp.sample.ratio",
+    "passwordPattern",
+    "policy.csv",
+    "policy.default",
+    "policy.matchMode",
+    "policy.overlay.csv",
+    "project.links",
+    "redis.compression",
+    "redis.db",
+    "redis.key.prefix",
+    "redis.sentinel.hosts",
+    "redis.sentinel.master",
+    "redis.server",
+    "repo.server",
+    "reposerver.allow.oob.symlinks",
+    "reposerver.client.ca.path",
+    "reposerver.default.cache.expiration",
+    "reposerver.disable.helm.manifest.max.extracted.size",
+    "reposerver.disable.oci.manifest.max.extracted.size",
+    "reposerver.disable.tls",
+    "reposerver.enable.builtin.git.config",
+    "reposerver.enable.git.submodule",
+    "reposerver.git.lsremote.parallelism.limit",
+    "reposerver.git.request.timeout",
+    "reposerver.grpc.enable.txt.service.config",
+    "reposerver.grpc.max.size",
+    "reposerver.helm.manifest.max.extracted.size",
+    "reposerver.helm.user.agent",
+    "reposerver.include.hidden.directories",
+    "reposerver.listen.address",
+    "reposerver.log.format",
+    "reposerver.log.level",
+    "reposerver.max.combined.directory.manifests.size",
+    "reposerver.metrics.listen.address",
+    "reposerver.oci.layer.media.types",
+    "reposerver.oci.manifest.max.extracted.size",
+    "reposerver.parallelism.limit",
+    "reposerver.plugin.tar.exclusions",
+    "reposerver.plugin.use.manifest.generate.paths",
+    "reposerver.profile.enabled",
+    "reposerver.repo.cache.expiration",
+    "reposerver.revision.cache.lock.timeout",
+    "reposerver.streamed.manifest.max.extracted.size",
+    "reposerver.streamed.manifest.max.tar.size",
+    "reposerver.tls.ciphers",
+    "reposerver.tls.maxversion",
+    "reposerver.tls.minversion",
+    "resource.compareoptions",
+    "resource.customLabels",
+    "resource.customizations",
+    "resource.customizations.actions.apps_Deployment",
+    "resource.customizations.health.cert-manager.io_Certificate",
+    "resource.customizations.health.certmanager.k8s.io_Certificate",
+    "resource.customizations.ignoreDifferences.admissionregistration.k8s.io_MutatingWebhookConfiguration",
+    "resource.customizations.ignoreDifferences.all",
+    "resource.customizations.ignoreResourceUpdates.all",
+    "resource.customizations.ignoreResourceUpdates.argoproj.io_Application",
+    "resource.customizations.ignoreResourceUpdates.autoscaling_HorizontalPodAutoscaler",
+    "resource.excludeEventLabelKeys",
+    "resource.exclusions",
+    "resource.ignoreResourceUpdatesEnabled",
+    "resource.includeEventLabelKeys",
+    "resource.inclusions",
+    "resource.links",
+    "resource.respectRBAC",
+    "resource.sensitive.mask.annotations",
+    "scopes",
+    "server.api.content.types",
+    "server.app.state.cache.expiration",
+    "server.basehref",
+    "server.connection.status.cache.expiration",
+    "server.content.security.policy",
+    "server.default.cache.expiration",
+    "server.dex.server",
+    "server.dex.server.plaintext",
+    "server.dex.server.strict.tls",
+    "server.disable.auth",
+    "server.enable.gzip",
+    "server.enable.proxy.extension",
+    "server.glob.cache.size",
+    "server.grpc.enable.txt.service.config",
+    "server.http.cookie.maxnumber",
+    "server.insecure",
+    "server.k8s.client.burst",
+    "server.k8s.client.max.idle.connections",
+    "server.k8s.client.qps",
+    "server.k8s.tcp.idle.timeout",
+    "server.k8s.tcp.keepalive",
+    "server.k8s.tcp.timeout",
+    "server.k8s.tls.handshake.timeout",
+    "server.k8sclient.retry.base.backoff",
+    "server.k8sclient.retry.max",
+    "server.listen.address",
+    "server.log.format",
+    "server.log.level",
+    "server.maxPodLogsToRender",
+    "server.metrics.listen.address",
+    "server.oidc.cache.expiration",
+    "server.profile.enabled",
+    "server.rbac.disableApplicationFineGrainedRBACInheritance",
+    "server.repo.server.ca.cert.path",
+    "server.repo.server.client.cert.key.path",
+    "server.repo.server.client.cert.path",
+    "server.repo.server.plaintext",
+    "server.repo.server.strict.tls",
+    "server.repo.server.timeout.seconds",
+    "server.rootpath",
+    "server.secretkey",
+    "server.staticassets",
+    "server.sync.replace.allowed",
+    "server.tls.ciphers",
+    "server.tls.maxversion",
+    "server.tls.minversion",
+    "server.webhook.parallelism.limit",
+    "server.webhook.refresh.workers",
+    "server.x.frame.options",
+    "sourceHydrator.commitMessageTemplate",
+    "sourceHydrator.readmeMessageTemplate",
+    "statusbadge.enabled",
+    "statusbadge.url",
+    "timeout.hard.reconciliation",
+    "timeout.reconciliation",
+    "timeout.reconciliation.jitter",
+    "tls.crt",
+    "tls.key",
+    "ui.bannercontent",
+    "ui.bannerpermanent",
+    "ui.bannerposition",
+    "ui.bannerurl",
+    "ui.cssurl",
+    "ui.loginButtonText",
+    "url",
+    "users.anonymous.enabled",
+    "users.session.duration",
+    "webhook.azuredevops.password",
+    "webhook.azuredevops.username",
+    "webhook.bitbucket.uuid",
+    "webhook.bitbucketserver.secret",
+    "webhook.github.secret",
+    "webhook.gitlab.secret",
+    "webhook.gogs.secret",
+    "webhook.maxPayloadSizeMB",
+    "webhook.refresh.jitter",
+    "webhook.refresh.jitter.threshold"
+  ],
+  "envVars": [
+    {
+      "name": "ARGOCD_API_CONTENT_TYPES",
+      "default": "application/json",
+      "helper": "StringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS",
+      "helper": "StringsFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS",
+      "helper": "StringsFromEnv",
+      "package": "command",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATIONSET_CONTROLLER_CACHE_SYNC_PERIOD",
+      "helper": "ParseDurationFromEnv",
+      "package": "command",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATIONSET_CONTROLLER_CONCURRENT_APPLICATION_UPDATES",
+      "helper": "ParseNumFromEnv",
+      "package": "command",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATIONSET_CONTROLLER_CONCURRENT_RECONCILIATIONS",
+      "helper": "ParseNumFromEnv",
+      "package": "command",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATIONSET_CONTROLLER_DEBUG",
+      "helper": "ParseBoolFromEnv",
+      "package": "command",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATIONSET_CONTROLLER_DRY_RUN",
+      "helper": "ParseBoolFromEnv",
+      "package": "command",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_GITHUB_API_METRICS",
+      "helper": "ParseBoolFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_GITHUB_API_METRICS",
+      "helper": "ParseBoolFromEnv",
+      "package": "command",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_LEADER_ELECTION",
+      "helper": "ParseBoolFromEnv",
+      "package": "command",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_GIT_FILE_GLOBBING",
+      "helper": "ParseBoolFromEnv",
+      "package": "command",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_GIT_FILE_GLOBBING",
+      "helper": "ParseBoolFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_POLICY_OVERRIDE",
+      "helper": "ParseBoolFromEnv",
+      "package": "command",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS",
+      "helper": "ParseBoolFromEnv",
+      "package": "command",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_SCM_PROVIDERS",
+      "helper": "ParseBoolFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_SCM_PROVIDERS",
+      "helper": "ParseBoolFromEnv",
+      "package": "command",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_ANNOTATIONS",
+      "helper": "StringsFromEnv",
+      "package": "command",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_LABELS",
+      "helper": "StringsFromEnv",
+      "package": "command",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATIONSET_CONTROLLER_LOGFORMAT",
+      "default": "json",
+      "helper": "StringFromEnv",
+      "package": "command",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATIONSET_CONTROLLER_LOGLEVEL",
+      "default": "info",
+      "helper": "StringFromEnv",
+      "package": "command",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATIONSET_CONTROLLER_MAX_RESOURCES_STATUS_COUNT",
+      "helper": "ParseNumFromEnv",
+      "package": "command",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATIONSET_CONTROLLER_NAMESPACES",
+      "helper": "StringsFromEnv",
+      "package": "command",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATIONSET_CONTROLLER_POLICY",
+      "helper": "StringFromEnv",
+      "package": "command",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER",
+      "helper": "StringFromEnv",
+      "package": "command",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_PLAINTEXT",
+      "helper": "ParseBoolFromEnv",
+      "package": "command",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_STRICT_TLS",
+      "helper": "ParseBoolFromEnv",
+      "package": "command",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS",
+      "helper": "ParseNumFromEnv",
+      "package": "command",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATIONSET_CONTROLLER_REQUEUE_AFTER",
+      "helper": "ParseDurationFromEnv",
+      "package": "configbus",
+      "file": "util/configbus/rbac_and_env.go",
+      "flagBound": false
+    },
+    {
+      "name": "ARGOCD_APPLICATIONSET_CONTROLLER_REQUEUE_AFTER",
+      "helper": "ParseDurationFromEnv",
+      "package": "generators",
+      "file": "applicationset/generators/interface.go",
+      "flagBound": false
+    },
+    {
+      "name": "ARGOCD_APPLICATIONSET_CONTROLLER_SCM_NO_PROXY",
+      "helper": "StringFromEnv",
+      "package": "command",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATIONSET_CONTROLLER_SCM_PROXY_URL",
+      "helper": "StringFromEnv",
+      "package": "command",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH",
+      "helper": "StringFromEnv",
+      "package": "command",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH",
+      "helper": "StringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATIONSET_CONTROLLER_TOKENREF_STRICT_MODE",
+      "helper": "ParseBoolFromEnv",
+      "package": "command",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATIONSET_CONTROLLER_WEBHOOK_PARALLELISM_LIMIT",
+      "helper": "ParseNumFromEnv",
+      "package": "command",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATION_CONTROLLER_COMMIT_SERVER",
+      "helper": "StringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATION_CONTROLLER_HYDRATION_PROCESSORS",
+      "helper": "ParseNumFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATION_CONTROLLER_KUBECTL_PARALLELISM_LIMIT",
+      "helper": "ParseInt64FromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATION_CONTROLLER_LOGFORMAT",
+      "default": "json",
+      "helper": "StringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATION_CONTROLLER_LOGLEVEL",
+      "default": "info",
+      "helper": "StringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATION_CONTROLLER_METRICS_APPLICATION_CONDITIONS",
+      "helper": "StringsFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATION_CONTROLLER_METRICS_APPLICATION_LABELS",
+      "helper": "StringsFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATION_CONTROLLER_METRICS_CACHE_EXPIRATION",
+      "helper": "ParseDurationFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATION_CONTROLLER_METRICS_CLUSTER_LABELS",
+      "helper": "StringsFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATION_CONTROLLER_OPERATION_PROCESSORS",
+      "helper": "ParseNumFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATION_CONTROLLER_OTLP_ADDRESS",
+      "helper": "StringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATION_CONTROLLER_OTLP_ATTRS",
+      "helper": "StringsFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATION_CONTROLLER_OTLP_HEADERS",
+      "helper": "ParseStringToStringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATION_CONTROLLER_OTLP_INSECURE",
+      "helper": "ParseBoolFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATION_CONTROLLER_OTLP_SAMPLE_RATIO",
+      "helper": "ParseFloat64FromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATION_CONTROLLER_PERSIST_RESOURCE_HEALTH",
+      "helper": "ParseBoolFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER",
+      "helper": "StringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_PLAINTEXT",
+      "helper": "ParseBoolFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_STRICT_TLS",
+      "helper": "ParseBoolFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS",
+      "helper": "ParseNumFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_BACKOFF_CAP_SECONDS",
+      "helper": "ParseNumFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_BACKOFF_COOLDOWN_SECONDS",
+      "helper": "ParseNumFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_BACKOFF_FACTOR",
+      "helper": "ParseNumFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_BACKOFF_TIMEOUT_SECONDS",
+      "helper": "ParseNumFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_TIMEOUT_SECONDS",
+      "helper": "ParseNumFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATION_CONTROLLER_STATUS_PROCESSORS",
+      "helper": "ParseNumFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATION_CONTROLLER_SYNC_TIMEOUT",
+      "helper": "ParseNumFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATION_NAMESPACES",
+      "helper": "StringsFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-notification/commands/argocd_notification.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATION_NAMESPACES",
+      "helper": "StringsFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATION_NAMESPACES",
+      "helper": "StringsFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_APPLICATION_TREE_SHARD_SIZE",
+      "helper": "ParseInt64FromEnv",
+      "package": "configbus",
+      "file": "util/configbus/rbac_and_env.go",
+      "flagBound": false
+    },
+    {
+      "name": "ARGOCD_APPLICATION_TREE_SHARD_SIZE",
+      "helper": "ParseInt64FromEnv",
+      "package": "appstate",
+      "file": "util/cache/appstate/cache.go",
+      "flagBound": false
+    },
+    {
+      "name": "ARGOCD_APP_STATE_CACHE_EXPIRATION",
+      "helper": "ParseDurationFromEnv",
+      "package": "appstate",
+      "file": "util/cache/appstate/cache.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_CMP_SERVER_LOGFORMAT",
+      "default": "json",
+      "helper": "StringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-cmp-server/commands/argocd_cmp_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_CMP_SERVER_LOGLEVEL",
+      "default": "info",
+      "helper": "StringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-cmp-server/commands/argocd_cmp_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_CMP_SERVER_OTLP_ADDRESS",
+      "helper": "StringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-cmp-server/commands/argocd_cmp_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_CMP_SERVER_OTLP_ATTRS",
+      "helper": "StringsFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-cmp-server/commands/argocd_cmp_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_CMP_SERVER_OTLP_HEADERS",
+      "helper": "ParseStringToStringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-cmp-server/commands/argocd_cmp_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_CMP_SERVER_OTLP_INSECURE",
+      "helper": "ParseBoolFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-cmp-server/commands/argocd_cmp_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_CMP_SERVER_OTLP_SAMPLE_RATIO",
+      "helper": "ParseFloat64FromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-cmp-server/commands/argocd_cmp_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_COMMIT_SERVER_LISTEN_ADDRESS",
+      "helper": "StringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-commit-server/commands/argocd_commit_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_COMMIT_SERVER_LOGFORMAT",
+      "default": "json",
+      "helper": "StringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-commit-server/commands/argocd_commit_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_COMMIT_SERVER_LOGLEVEL",
+      "default": "info",
+      "helper": "StringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-commit-server/commands/argocd_commit_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_COMMIT_SERVER_METRICS_LISTEN_ADDRESS",
+      "helper": "StringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-commit-server/commands/argocd_commit_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_DEFAULT_CACHE_EXPIRATION",
+      "helper": "ParseDurationFromEnv",
+      "package": "cache",
+      "file": "util/cache/cache.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_DEX_SERVER_DISABLE_TLS",
+      "helper": "ParseBoolFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-dex/commands/argocd_dex.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_DEX_SERVER_DISABLE_TLS",
+      "helper": "ParseBoolFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-dex/commands/argocd_dex.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_DEX_SERVER_LOGFORMAT",
+      "default": "json",
+      "helper": "StringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-dex/commands/argocd_dex.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_DEX_SERVER_LOGFORMAT",
+      "default": "json",
+      "helper": "StringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-dex/commands/argocd_dex.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_DEX_SERVER_LOGLEVEL",
+      "default": "info",
+      "helper": "StringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-dex/commands/argocd_dex.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_DEX_SERVER_LOGLEVEL",
+      "default": "info",
+      "helper": "StringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-dex/commands/argocd_dex.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_ENABLE_K8S_EVENT",
+      "helper": "StringsFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_ENABLE_K8S_EVENT",
+      "helper": "StringsFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_ENABLE_PROFILER_FILE_PATH",
+      "default": "/home/argocd/params/profiler.enabled",
+      "helper": "StringFromEnv",
+      "package": "configbus",
+      "file": "util/configbus/rbac_and_env.go",
+      "flagBound": false
+    },
+    {
+      "name": "ARGOCD_ENABLE_PROFILER_FILE_PATH",
+      "default": "/home/argocd/params/profiler.enabled",
+      "helper": "StringFromEnv",
+      "package": "profile",
+      "file": "util/profile/profile.go",
+      "flagBound": false
+    },
+    {
+      "name": "ARGOCD_EXEC_TIMEOUT",
+      "helper": "ParseDurationFromEnv",
+      "package": "git",
+      "file": "util/git/client.go",
+      "flagBound": false
+    },
+    {
+      "name": "ARGOCD_GIT_LS_REMOTE_PARALLELISM_LIMIT",
+      "helper": "ParseInt64FromEnv",
+      "package": "metrics",
+      "file": "reposerver/metrics/githandlers.go",
+      "flagBound": false
+    },
+    {
+      "name": "ARGOCD_GIT_LS_REMOTE_PARALLELISM_LIMIT",
+      "helper": "ParseInt64FromEnv",
+      "package": "configbus",
+      "file": "util/configbus/rbac_and_env.go",
+      "flagBound": false
+    },
+    {
+      "name": "ARGOCD_GIT_REQUEST_TIMEOUT",
+      "helper": "ParseDurationFromEnv",
+      "package": "git",
+      "file": "util/git/client.go",
+      "flagBound": false
+    },
+    {
+      "name": "ARGOCD_GIT_REQUEST_TIMEOUT",
+      "helper": "ParseDurationFromEnv",
+      "package": "configbus",
+      "file": "util/configbus/rbac_and_env.go",
+      "flagBound": false
+    },
+    {
+      "name": "ARGOCD_HARD_RECONCILIATION_TIMEOUT",
+      "helper": "ParseDurationFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_HYDRATOR_ENABLED",
+      "helper": "ParseBoolFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_HYDRATOR_ENABLED",
+      "helper": "ParseBoolFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_IGNORE_NORMALIZER_JQ_TIMEOUT",
+      "helper": "ParseDurationFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_NOTIFICATIONS_CONTROLLER_LOGFORMAT",
+      "default": "json",
+      "helper": "StringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-notification/commands/argocd_notification.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_NOTIFICATIONS_CONTROLLER_LOGLEVEL",
+      "default": "info",
+      "helper": "StringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-notification/commands/argocd_notification.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_NOTIFICATION_CONTROLLER_PROCESSORS_COUNT",
+      "helper": "ParseNumFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-notification/commands/argocd_notification.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_NOTIFICATION_CONTROLLER_REPO_SERVER_PLAINTEXT",
+      "helper": "ParseBoolFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-notification/commands/argocd_notification.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_NOTIFICATION_CONTROLLER_SELF_SERVICE_NOTIFICATION_ENABLED",
+      "helper": "ParseBoolFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-notification/commands/argocd_notification.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_RECONCILIATION_JITTER",
+      "helper": "ParseDurationFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_RECONCILIATION_TIMEOUT",
+      "helper": "ParseDurationFromEnv",
+      "package": "cache",
+      "file": "reposerver/cache/cache.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_RECONCILIATION_TIMEOUT",
+      "helper": "ParseDurationFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_REPO_CACHE_EXPIRATION",
+      "helper": "ParseDurationFromEnv",
+      "package": "cache",
+      "file": "reposerver/cache/cache.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_REPO_ERROR_GRACE_PERIOD_SECONDS",
+      "helper": "ParseDurationFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_REPO_SERVER_ALLOW_OUT_OF_BOUNDS_SYMLINKS",
+      "helper": "ParseBoolFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_REPO_SERVER_CLIENT_CA_PATH",
+      "default": "/app/config/reposerver/mtls/client-ca.crt",
+      "helper": "StringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_REPO_SERVER_DISABLE_HELM_MANIFEST_MAX_EXTRACTED_SIZE",
+      "helper": "ParseBoolFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_REPO_SERVER_DISABLE_OCI_MANIFEST_MAX_EXTRACTED_SIZE",
+      "helper": "ParseBoolFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_REPO_SERVER_DISABLE_TLS",
+      "helper": "ParseBoolFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_REPO_SERVER_ENABLE_BUILTIN_GIT_CONFIG",
+      "helper": "ParseBoolFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_REPO_SERVER_HELM_MANIFEST_MAX_EXTRACTED_SIZE",
+      "default": "1G",
+      "helper": "StringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_REPO_SERVER_HELM_MANIFEST_MAX_INDEX_SIZE",
+      "default": "1G",
+      "helper": "StringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_REPO_SERVER_INCLUDE_HIDDEN_DIRECTORIES",
+      "helper": "ParseBoolFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_REPO_SERVER_LISTEN_ADDRESS",
+      "helper": "StringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_REPO_SERVER_LOGFORMAT",
+      "default": "json",
+      "helper": "StringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_REPO_SERVER_LOGLEVEL",
+      "default": "info",
+      "helper": "StringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE",
+      "default": "10M",
+      "helper": "StringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_REPO_SERVER_METRICS_LISTEN_ADDRESS",
+      "helper": "StringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_REPO_SERVER_OCI_LAYER_MEDIA_TYPES",
+      "helper": "StringsFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_REPO_SERVER_OCI_MANIFEST_MAX_EXTRACTED_SIZE",
+      "default": "1G",
+      "helper": "StringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_REPO_SERVER_OTLP_ADDRESS",
+      "helper": "StringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_REPO_SERVER_OTLP_ATTRS",
+      "helper": "StringsFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_REPO_SERVER_OTLP_HEADERS",
+      "helper": "ParseStringToStringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_REPO_SERVER_OTLP_INSECURE",
+      "helper": "ParseBoolFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_REPO_SERVER_OTLP_SAMPLE_RATIO",
+      "helper": "ParseFloat64FromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_REPO_SERVER_PARALLELISM_LIMIT",
+      "helper": "ParseNumFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_REPO_SERVER_PLUGIN_TAR_EXCLUSIONS",
+      "helper": "StringsFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_REPO_SERVER_PLUGIN_USE_MANIFEST_GENERATE_PATHS",
+      "helper": "ParseBoolFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_REPO_SERVER_STREAMED_MANIFEST_MAX_EXTRACTED_SIZE",
+      "default": "1G",
+      "helper": "StringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_REPO_SERVER_STREAMED_MANIFEST_MAX_TAR_SIZE",
+      "default": "100M",
+      "helper": "StringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_REVISION_CACHE_LOCK_TIMEOUT",
+      "helper": "ParseDurationFromEnv",
+      "package": "cache",
+      "file": "reposerver/cache/cache.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_SERVER_BASEHREF",
+      "default": "/",
+      "helper": "StringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_SERVER_CONNECTION_STATUS_CACHE_EXPIRATION",
+      "helper": "ParseDurationFromEnv",
+      "package": "cache",
+      "file": "server/cache/cache.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_SERVER_CONTENT_SECURITY_POLICY",
+      "default": "frame-ancestors 'self';",
+      "helper": "StringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_SERVER_DEX_SERVER",
+      "helper": "StringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_SERVER_DEX_SERVER_PLAINTEXT",
+      "helper": "ParseBoolFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_SERVER_DEX_SERVER_STRICT_TLS",
+      "helper": "ParseBoolFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_SERVER_DISABLE_AUTH",
+      "helper": "ParseBoolFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_SERVER_ENABLE_GZIP",
+      "helper": "ParseBoolFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_SERVER_ENABLE_PROXY_EXTENSION",
+      "helper": "ParseBoolFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_SERVER_GLOB_CACHE_SIZE",
+      "helper": "ParseNumFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_SERVER_INSECURE",
+      "helper": "ParseBoolFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_SERVER_LISTEN_ADDRESS",
+      "helper": "StringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_SERVER_LOGFORMAT",
+      "default": "json",
+      "helper": "StringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_SERVER_LOGIN_ATTEMPTS_EXPIRATION",
+      "helper": "ParseDurationFromEnv",
+      "package": "cache",
+      "file": "server/cache/cache.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_SERVER_LOG_LEVEL",
+      "default": "info",
+      "helper": "StringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_SERVER_METRICS_LISTEN_ADDRESS",
+      "default": "metrics-address",
+      "helper": "StringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_SERVER_OIDC_CACHE_EXPIRATION",
+      "helper": "ParseDurationFromEnv",
+      "package": "cache",
+      "file": "server/cache/cache.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_SERVER_OTLP_ADDRESS",
+      "helper": "StringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_SERVER_OTLP_ATTRS",
+      "helper": "StringsFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_SERVER_OTLP_HEADERS",
+      "helper": "ParseStringToStringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_SERVER_OTLP_INSECURE",
+      "helper": "ParseBoolFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_SERVER_OTLP_SAMPLE_RATIO",
+      "helper": "ParseFloat64FromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_SERVER_REPO_SERVER",
+      "helper": "StringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_SERVER_REPO_SERVER_PLAINTEXT",
+      "helper": "ParseBoolFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_SERVER_REPO_SERVER_STRICT_TLS",
+      "helper": "ParseBoolFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_SERVER_REPO_SERVER_TIMEOUT_SECONDS",
+      "helper": "ParseNumFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_SERVER_ROOTPATH",
+      "helper": "StringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_SERVER_STATIC_ASSETS",
+      "default": "/shared/app",
+      "helper": "StringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_SERVER_WEBHOOK_PARALLELISM_LIMIT",
+      "helper": "ParseNumFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_SERVER_WEBHOOK_REFRESH_WORKERS",
+      "helper": "ParseNumFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_SERVER_X_FRAME_OPTIONS",
+      "default": "sameorigin",
+      "helper": "StringFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "ARGOCD_SYNC_WITH_REPLACE_ALLOWED",
+      "helper": "ParseBoolFromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "flagBound": true
+    },
+    {
+      "name": "AZURE_ARM_TOKEN_RESOURCE",
+      "default": "https://management.core.windows.net",
+      "helper": "StringFromEnv",
+      "package": "helm",
+      "file": "util/helm/creds.go",
+      "flagBound": false
+    },
+    {
+      "name": "AZURE_ARM_TOKEN_RESOURCE",
+      "default": "https://management.core.windows.net",
+      "helper": "StringFromEnv",
+      "package": "configbus",
+      "file": "util/configbus/rbac_and_env.go",
+      "flagBound": false
+    },
+    {
+      "name": "WORKQUEUE_BACKOFF_FACTOR",
+      "helper": "ParseFloat64FromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "WORKQUEUE_BASE_DELAY_NS",
+      "helper": "ParseInt64FromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "WORKQUEUE_BUCKET_QPS",
+      "helper": "ParseFloat64FromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "WORKQUEUE_BUCKET_SIZE",
+      "helper": "ParseInt64FromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "WORKQUEUE_FAILURE_COOLDOWN_NS",
+      "helper": "ParseInt64FromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "flagBound": true
+    },
+    {
+      "name": "WORKQUEUE_MAX_DELAY_NS",
+      "helper": "ParseInt64FromEnv",
+      "package": "commands",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "flagBound": true
+    }
+  ],
+  "cmdParams": [
+    {
+      "cmKey": "application.namespaces",
+      "envVar": "ARGOCD_APPLICATION_NAMESPACES",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "application.namespaces",
+      "envVar": "ARGOCD_APPLICATION_NAMESPACES",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "application.namespaces",
+      "envVar": "ARGOCD_APPLICATION_NAMESPACES",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "application.namespaces",
+      "envVar": "ARGOCD_APPLICATION_NAMESPACES",
+      "file": "manifests/base/notification/argocd-notifications-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "applicationsetcontroller.allowed.scm.providers",
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS",
+      "file": "manifests/base/applicationset-controller/argocd-applicationset-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "applicationsetcontroller.allowed.scm.providers",
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "applicationsetcontroller.concurrent.reconciliations.max",
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_CONCURRENT_RECONCILIATIONS",
+      "file": "manifests/base/applicationset-controller/argocd-applicationset-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "applicationsetcontroller.debug",
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_DEBUG",
+      "file": "manifests/base/applicationset-controller/argocd-applicationset-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "applicationsetcontroller.dryrun",
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_DRY_RUN",
+      "file": "manifests/base/applicationset-controller/argocd-applicationset-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "applicationsetcontroller.enable.git.submodule",
+      "envVar": "ARGOCD_GIT_MODULES_ENABLED",
+      "file": "manifests/base/applicationset-controller/argocd-applicationset-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "applicationsetcontroller.enable.github.api.metrics",
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_GITHUB_API_METRICS",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "applicationsetcontroller.enable.github.api.metrics",
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_GITHUB_API_METRICS",
+      "file": "manifests/base/applicationset-controller/argocd-applicationset-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "applicationsetcontroller.enable.leader.election",
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_LEADER_ELECTION",
+      "file": "manifests/base/applicationset-controller/argocd-applicationset-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "applicationsetcontroller.enable.new.git.file.globbing",
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_GIT_FILE_GLOBBING",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "applicationsetcontroller.enable.new.git.file.globbing",
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_GIT_FILE_GLOBBING",
+      "file": "manifests/base/applicationset-controller/argocd-applicationset-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "applicationsetcontroller.enable.policy.override",
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_POLICY_OVERRIDE",
+      "file": "manifests/base/applicationset-controller/argocd-applicationset-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "applicationsetcontroller.enable.progressive.syncs",
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS",
+      "file": "manifests/base/applicationset-controller/argocd-applicationset-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "applicationsetcontroller.enable.scm.providers",
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_SCM_PROVIDERS",
+      "file": "manifests/base/applicationset-controller/argocd-applicationset-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "applicationsetcontroller.enable.scm.providers",
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_SCM_PROVIDERS",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "applicationsetcontroller.enable.tokenref.strict.mode",
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_TOKENREF_STRICT_MODE",
+      "file": "manifests/base/applicationset-controller/argocd-applicationset-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "applicationsetcontroller.global.preserved.annotations",
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_ANNOTATIONS",
+      "file": "manifests/base/applicationset-controller/argocd-applicationset-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "applicationsetcontroller.global.preserved.labels",
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_LABELS",
+      "file": "manifests/base/applicationset-controller/argocd-applicationset-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "applicationsetcontroller.grpc.enable.txt.service.config",
+      "envVar": "GRPC_ENABLE_TXT_SERVICE_CONFIG",
+      "file": "manifests/base/applicationset-controller/argocd-applicationset-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "applicationsetcontroller.k8s.client.burst",
+      "envVar": "ARGOCD_K8S_CLIENT_BURST",
+      "file": "manifests/base/applicationset-controller/argocd-applicationset-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "applicationsetcontroller.k8s.client.max.idle.connections",
+      "envVar": "ARGOCD_K8S_CLIENT_MAX_IDLE_CONNECTIONS",
+      "file": "manifests/base/applicationset-controller/argocd-applicationset-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "applicationsetcontroller.k8s.client.qps",
+      "envVar": "ARGOCD_K8S_CLIENT_QPS",
+      "file": "manifests/base/applicationset-controller/argocd-applicationset-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "applicationsetcontroller.k8s.tcp.idle.timeout",
+      "envVar": "ARGOCD_K8S_TCP_IDLE_TIMEOUT",
+      "file": "manifests/base/applicationset-controller/argocd-applicationset-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "applicationsetcontroller.k8s.tcp.keepalive",
+      "envVar": "ARGOCD_K8S_TCP_KEEPALIVE",
+      "file": "manifests/base/applicationset-controller/argocd-applicationset-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "applicationsetcontroller.k8s.tcp.timeout",
+      "envVar": "ARGOCD_K8S_TCP_TIMEOUT",
+      "file": "manifests/base/applicationset-controller/argocd-applicationset-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "applicationsetcontroller.k8s.tls.handshake.timeout",
+      "envVar": "ARGOCD_K8S_TLS_HANDSHAKE_TIMEOUT",
+      "file": "manifests/base/applicationset-controller/argocd-applicationset-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "applicationsetcontroller.log.format",
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_LOGFORMAT",
+      "file": "manifests/base/applicationset-controller/argocd-applicationset-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "applicationsetcontroller.log.level",
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_LOGLEVEL",
+      "file": "manifests/base/applicationset-controller/argocd-applicationset-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "applicationsetcontroller.namespaces",
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_NAMESPACES",
+      "file": "manifests/base/applicationset-controller/argocd-applicationset-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "applicationsetcontroller.policy",
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_POLICY",
+      "file": "manifests/base/applicationset-controller/argocd-applicationset-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "applicationsetcontroller.repo.server.ca.cert.path",
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_CA_CERT_PATH",
+      "file": "manifests/base/applicationset-controller/argocd-applicationset-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "applicationsetcontroller.repo.server.client.cert.key.path",
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_CLIENT_CERT_KEY_PATH",
+      "file": "manifests/base/applicationset-controller/argocd-applicationset-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "applicationsetcontroller.repo.server.client.cert.path",
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_CLIENT_CERT_PATH",
+      "file": "manifests/base/applicationset-controller/argocd-applicationset-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "applicationsetcontroller.repo.server.plaintext",
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_PLAINTEXT",
+      "file": "manifests/base/applicationset-controller/argocd-applicationset-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "applicationsetcontroller.repo.server.strict.tls",
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_STRICT_TLS",
+      "file": "manifests/base/applicationset-controller/argocd-applicationset-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "applicationsetcontroller.repo.server.timeout.seconds",
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS",
+      "file": "manifests/base/applicationset-controller/argocd-applicationset-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "applicationsetcontroller.requeue.after",
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_REQUEUE_AFTER",
+      "file": "manifests/base/applicationset-controller/argocd-applicationset-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "applicationsetcontroller.scm.root.ca.path",
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH",
+      "file": "manifests/base/applicationset-controller/argocd-applicationset-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "applicationsetcontroller.scm.root.ca.path",
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "applicationsetcontroller.status.max.resources.count",
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_MAX_RESOURCES_STATUS_COUNT",
+      "file": "manifests/base/applicationset-controller/argocd-applicationset-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "applicationsetcontroller.webhook.parallelism.limit",
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_WEBHOOK_PARALLELISM_LIMIT",
+      "file": "manifests/base/applicationset-controller/argocd-applicationset-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "commit.server",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_COMMIT_SERVER",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "commit.server",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_COMMIT_SERVER",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "commitserver.grpc.enable.txt.service.config",
+      "envVar": "GRPC_ENABLE_TXT_SERVICE_CONFIG",
+      "file": "manifests/base/commit-server/argocd-commit-server-deployment.yaml"
+    },
+    {
+      "cmKey": "commitserver.listen.address",
+      "envVar": "ARGOCD_COMMIT_SERVER_LISTEN_ADDRESS",
+      "file": "manifests/base/commit-server/argocd-commit-server-deployment.yaml"
+    },
+    {
+      "cmKey": "commitserver.log.format",
+      "envVar": "ARGOCD_COMMIT_SERVER_LOGFORMAT",
+      "file": "manifests/base/commit-server/argocd-commit-server-deployment.yaml"
+    },
+    {
+      "cmKey": "commitserver.log.level",
+      "envVar": "ARGOCD_COMMIT_SERVER_LOGLEVEL",
+      "file": "manifests/base/commit-server/argocd-commit-server-deployment.yaml"
+    },
+    {
+      "cmKey": "commitserver.metrics.listen.address",
+      "envVar": "ARGOCD_COMMIT_SERVER_METRICS_LISTEN_ADDRESS",
+      "file": "manifests/base/commit-server/argocd-commit-server-deployment.yaml"
+    },
+    {
+      "cmKey": "controller.app.state.cache.expiration",
+      "envVar": "ARGOCD_APP_STATE_CACHE_EXPIRATION",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "controller.app.state.cache.expiration",
+      "envVar": "ARGOCD_APP_STATE_CACHE_EXPIRATION",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "controller.cluster.cache.batch.events.processing",
+      "envVar": "ARGOCD_CLUSTER_CACHE_BATCH_EVENTS_PROCESSING",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "controller.cluster.cache.batch.events.processing",
+      "envVar": "ARGOCD_CLUSTER_CACHE_BATCH_EVENTS_PROCESSING",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "controller.cluster.cache.events.processing.interval",
+      "envVar": "ARGOCD_CLUSTER_CACHE_EVENTS_PROCESSING_INTERVAL",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "controller.cluster.cache.events.processing.interval",
+      "envVar": "ARGOCD_CLUSTER_CACHE_EVENTS_PROCESSING_INTERVAL",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "controller.default.cache.expiration",
+      "envVar": "ARGOCD_DEFAULT_CACHE_EXPIRATION",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "controller.default.cache.expiration",
+      "envVar": "ARGOCD_DEFAULT_CACHE_EXPIRATION",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "controller.diff.server.side",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_SERVER_SIDE_DIFF",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "controller.diff.server.side",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_SERVER_SIDE_DIFF",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "controller.grpc.enable.txt.service.config",
+      "envVar": "GRPC_ENABLE_TXT_SERVICE_CONFIG",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "controller.grpc.enable.txt.service.config",
+      "envVar": "GRPC_ENABLE_TXT_SERVICE_CONFIG",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "controller.hydration.processors",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_HYDRATION_PROCESSORS",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "controller.hydration.processors",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_HYDRATION_PROCESSORS",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "controller.ignore.normalizer.jq.timeout",
+      "envVar": "ARGOCD_IGNORE_NORMALIZER_JQ_TIMEOUT",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "controller.k8s.client.burst",
+      "envVar": "ARGOCD_K8S_CLIENT_BURST",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "controller.k8s.client.burst",
+      "envVar": "ARGOCD_K8S_CLIENT_BURST",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "controller.k8s.client.max.idle.connections",
+      "envVar": "ARGOCD_K8S_CLIENT_MAX_IDLE_CONNECTIONS",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "controller.k8s.client.max.idle.connections",
+      "envVar": "ARGOCD_K8S_CLIENT_MAX_IDLE_CONNECTIONS",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "controller.k8s.client.qps",
+      "envVar": "ARGOCD_K8S_CLIENT_QPS",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "controller.k8s.client.qps",
+      "envVar": "ARGOCD_K8S_CLIENT_QPS",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "controller.k8s.tcp.idle.timeout",
+      "envVar": "ARGOCD_K8S_TCP_IDLE_TIMEOUT",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "controller.k8s.tcp.idle.timeout",
+      "envVar": "ARGOCD_K8S_TCP_IDLE_TIMEOUT",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "controller.k8s.tcp.keepalive",
+      "envVar": "ARGOCD_K8S_TCP_KEEPALIVE",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "controller.k8s.tcp.keepalive",
+      "envVar": "ARGOCD_K8S_TCP_KEEPALIVE",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "controller.k8s.tcp.timeout",
+      "envVar": "ARGOCD_K8S_TCP_TIMEOUT",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "controller.k8s.tcp.timeout",
+      "envVar": "ARGOCD_K8S_TCP_TIMEOUT",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "controller.k8s.tls.handshake.timeout",
+      "envVar": "ARGOCD_K8S_TLS_HANDSHAKE_TIMEOUT",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "controller.k8s.tls.handshake.timeout",
+      "envVar": "ARGOCD_K8S_TLS_HANDSHAKE_TIMEOUT",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "controller.k8sclient.retry.base.backoff",
+      "envVar": "ARGOCD_K8SCLIENT_RETRY_BASE_BACKOFF",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "controller.k8sclient.retry.base.backoff",
+      "envVar": "ARGOCD_K8SCLIENT_RETRY_BASE_BACKOFF",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "controller.k8sclient.retry.max",
+      "envVar": "ARGOCD_K8SCLIENT_RETRY_MAX",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "controller.k8sclient.retry.max",
+      "envVar": "ARGOCD_K8SCLIENT_RETRY_MAX",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "controller.kubectl.parallelism.limit",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_KUBECTL_PARALLELISM_LIMIT",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "controller.kubectl.parallelism.limit",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_KUBECTL_PARALLELISM_LIMIT",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "controller.log.format",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_LOGFORMAT",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "controller.log.format",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_LOGFORMAT",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "controller.log.level",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_LOGLEVEL",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "controller.log.level",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_LOGLEVEL",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "controller.metrics.application.conditions",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_METRICS_APPLICATION_CONDITIONS",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "controller.metrics.application.labels",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_METRICS_APPLICATION_LABELS",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "controller.metrics.cache.expiration",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_METRICS_CACHE_EXPIRATION",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "controller.metrics.cache.expiration",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_METRICS_CACHE_EXPIRATION",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "controller.metrics.cluster.labels",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_METRICS_CLUSTER_LABELS",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "controller.operation.processors",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_OPERATION_PROCESSORS",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "controller.operation.processors",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_OPERATION_PROCESSORS",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "controller.repo.error.grace.period.seconds",
+      "envVar": "ARGOCD_REPO_ERROR_GRACE_PERIOD_SECONDS",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "controller.repo.error.grace.period.seconds",
+      "envVar": "ARGOCD_REPO_ERROR_GRACE_PERIOD_SECONDS",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "controller.repo.server.ca.cert.path",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_CA_CERT_PATH",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "controller.repo.server.client.cert.key.path",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_CLIENT_CERT_KEY_PATH",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "controller.repo.server.client.cert.path",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_CLIENT_CERT_PATH",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "controller.repo.server.plaintext",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_PLAINTEXT",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "controller.repo.server.plaintext",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_PLAINTEXT",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "controller.repo.server.strict.tls",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_STRICT_TLS",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "controller.repo.server.strict.tls",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_STRICT_TLS",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "controller.repo.server.timeout.seconds",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "controller.repo.server.timeout.seconds",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "controller.resource.health.persist",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_PERSIST_RESOURCE_HEALTH",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "controller.resource.health.persist",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_PERSIST_RESOURCE_HEALTH",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "controller.self.heal.backoff.cap.seconds",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_BACKOFF_CAP_SECONDS",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "controller.self.heal.backoff.cap.seconds",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_BACKOFF_CAP_SECONDS",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "controller.self.heal.backoff.cooldown.seconds",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_BACKOFF_COOLDOWN_SECONDS",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "controller.self.heal.backoff.cooldown.seconds",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_BACKOFF_COOLDOWN_SECONDS",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "controller.self.heal.backoff.factor",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_BACKOFF_FACTOR",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "controller.self.heal.backoff.factor",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_BACKOFF_FACTOR",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "controller.self.heal.backoff.timeout.seconds",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_BACKOFF_TIMEOUT_SECONDS",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "controller.self.heal.backoff.timeout.seconds",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_BACKOFF_TIMEOUT_SECONDS",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "controller.self.heal.timeout.seconds",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_TIMEOUT_SECONDS",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "controller.self.heal.timeout.seconds",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_TIMEOUT_SECONDS",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "controller.sharding.algorithm",
+      "envVar": "ARGOCD_CONTROLLER_SHARDING_ALGORITHM",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "controller.sharding.algorithm",
+      "envVar": "ARGOCD_CONTROLLER_SHARDING_ALGORITHM",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "controller.status.processors",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_STATUS_PROCESSORS",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "controller.status.processors",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_STATUS_PROCESSORS",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "controller.sync.timeout.seconds",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_SYNC_TIMEOUT",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "controller.sync.timeout.seconds",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_SYNC_TIMEOUT",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "controller.sync.wave.delay.seconds",
+      "envVar": "ARGOCD_SYNC_WAVE_DELAY",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "controller.sync.wave.delay.seconds",
+      "envVar": "ARGOCD_SYNC_WAVE_DELAY",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "dexserver.connector.failure.continue",
+      "envVar": "DEX_CONTINUE_ON_CONNECTOR_FAILURE",
+      "file": "manifests/base/dex/argocd-dex-server-deployment.yaml"
+    },
+    {
+      "cmKey": "dexserver.disable.tls",
+      "envVar": "ARGOCD_DEX_SERVER_DISABLE_TLS",
+      "file": "manifests/base/dex/argocd-dex-server-deployment.yaml"
+    },
+    {
+      "cmKey": "dexserver.log.format",
+      "envVar": "ARGOCD_DEX_SERVER_LOGFORMAT",
+      "file": "manifests/base/dex/argocd-dex-server-deployment.yaml"
+    },
+    {
+      "cmKey": "dexserver.log.level",
+      "envVar": "ARGOCD_DEX_SERVER_LOGLEVEL",
+      "file": "manifests/base/dex/argocd-dex-server-deployment.yaml"
+    },
+    {
+      "cmKey": "hydrator.enabled",
+      "envVar": "ARGOCD_HYDRATOR_ENABLED",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "hydrator.enabled",
+      "envVar": "ARGOCD_HYDRATOR_ENABLED",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "hydrator.enabled",
+      "envVar": "ARGOCD_HYDRATOR_ENABLED",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "log.format.timestamp",
+      "envVar": "ARGOCD_LOG_FORMAT_TIMESTAMP",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "log.format.timestamp",
+      "envVar": "ARGOCD_LOG_FORMAT_TIMESTAMP",
+      "file": "manifests/base/repo-server/argocd-repo-server-deployment.yaml"
+    },
+    {
+      "cmKey": "log.format.timestamp",
+      "envVar": "ARGOCD_LOG_FORMAT_TIMESTAMP",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "log.format.timestamp",
+      "envVar": "ARGOCD_LOG_FORMAT_TIMESTAMP",
+      "file": "manifests/base/notification/argocd-notifications-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "log.format.timestamp",
+      "envVar": "ARGOCD_LOG_FORMAT_TIMESTAMP",
+      "file": "manifests/base/applicationset-controller/argocd-applicationset-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "log.format.timestamp",
+      "envVar": "ARGOCD_LOG_FORMAT_TIMESTAMP",
+      "file": "manifests/base/dex/argocd-dex-server-deployment.yaml"
+    },
+    {
+      "cmKey": "log.format.timestamp",
+      "envVar": "ARGOCD_LOG_FORMAT_TIMESTAMP",
+      "file": "manifests/base/commit-server/argocd-commit-server-deployment.yaml"
+    },
+    {
+      "cmKey": "notificationscontroller.log.format",
+      "envVar": "ARGOCD_NOTIFICATIONS_CONTROLLER_LOGFORMAT",
+      "file": "manifests/base/notification/argocd-notifications-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "notificationscontroller.log.level",
+      "envVar": "ARGOCD_NOTIFICATIONS_CONTROLLER_LOGLEVEL",
+      "file": "manifests/base/notification/argocd-notifications-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "notificationscontroller.processors.count",
+      "envVar": "ARGOCD_NOTIFICATION_CONTROLLER_PROCESSORS_COUNT",
+      "file": "manifests/base/notification/argocd-notifications-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "notificationscontroller.repo.server.ca.cert.path",
+      "envVar": "ARGOCD_NOTIFICATION_CONTROLLER_REPO_SERVER_CA_CERT_PATH",
+      "file": "manifests/base/notification/argocd-notifications-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "notificationscontroller.repo.server.client.cert.key.path",
+      "envVar": "ARGOCD_NOTIFICATION_CONTROLLER_REPO_SERVER_CLIENT_CERT_KEY_PATH",
+      "file": "manifests/base/notification/argocd-notifications-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "notificationscontroller.repo.server.client.cert.path",
+      "envVar": "ARGOCD_NOTIFICATION_CONTROLLER_REPO_SERVER_CLIENT_CERT_PATH",
+      "file": "manifests/base/notification/argocd-notifications-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "notificationscontroller.repo.server.plaintext",
+      "envVar": "ARGOCD_NOTIFICATION_CONTROLLER_REPO_SERVER_PLAINTEXT",
+      "file": "manifests/base/notification/argocd-notifications-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "notificationscontroller.selfservice.enabled",
+      "envVar": "ARGOCD_NOTIFICATION_CONTROLLER_SELF_SERVICE_NOTIFICATION_ENABLED",
+      "file": "manifests/base/notification/argocd-notifications-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "otlp.address",
+      "envVar": "ARGOCD_REPO_SERVER_OTLP_ADDRESS",
+      "file": "manifests/base/repo-server/argocd-repo-server-deployment.yaml"
+    },
+    {
+      "cmKey": "otlp.address",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_OTLP_ADDRESS",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "otlp.address",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_OTLP_ADDRESS",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "otlp.address",
+      "envVar": "ARGOCD_SERVER_OTLP_ADDRESS",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "otlp.attrs",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_OTLP_ATTRS",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "otlp.attrs",
+      "envVar": "ARGOCD_SERVER_OTLP_ATTRS",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "otlp.attrs",
+      "envVar": "ARGOCD_REPO_SERVER_OTLP_ATTRS",
+      "file": "manifests/base/repo-server/argocd-repo-server-deployment.yaml"
+    },
+    {
+      "cmKey": "otlp.headers",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_OTLP_HEADERS",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "otlp.headers",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_OTLP_HEADERS",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "otlp.headers",
+      "envVar": "ARGOCD_REPO_SERVER_OTLP_HEADERS",
+      "file": "manifests/base/repo-server/argocd-repo-server-deployment.yaml"
+    },
+    {
+      "cmKey": "otlp.headers",
+      "envVar": "ARGOCD_SERVER_OTLP_HEADERS",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "otlp.insecure",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_OTLP_INSECURE",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "otlp.insecure",
+      "envVar": "ARGOCD_SERVER_OTLP_INSECURE",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "otlp.insecure",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_OTLP_INSECURE",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "otlp.insecure",
+      "envVar": "ARGOCD_REPO_SERVER_OTLP_INSECURE",
+      "file": "manifests/base/repo-server/argocd-repo-server-deployment.yaml"
+    },
+    {
+      "cmKey": "otlp.sample.ratio",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_OTLP_SAMPLE_RATIO",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "otlp.sample.ratio",
+      "envVar": "ARGOCD_REPO_SERVER_OTLP_SAMPLE_RATIO",
+      "file": "manifests/base/repo-server/argocd-repo-server-deployment.yaml"
+    },
+    {
+      "cmKey": "otlp.sample.ratio",
+      "envVar": "ARGOCD_SERVER_OTLP_SAMPLE_RATIO",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "otlp.sample.ratio",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_OTLP_SAMPLE_RATIO",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "redis.compression",
+      "envVar": "REDIS_COMPRESSION",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "redis.compression",
+      "envVar": "REDIS_COMPRESSION",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "redis.compression",
+      "envVar": "REDIS_COMPRESSION",
+      "file": "manifests/base/repo-server/argocd-repo-server-deployment.yaml"
+    },
+    {
+      "cmKey": "redis.compression",
+      "envVar": "REDIS_COMPRESSION",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "redis.db",
+      "envVar": "REDISDB",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "redis.db",
+      "envVar": "REDISDB",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "redis.db",
+      "envVar": "REDISDB",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "redis.db",
+      "envVar": "REDISDB",
+      "file": "manifests/base/repo-server/argocd-repo-server-deployment.yaml"
+    },
+    {
+      "cmKey": "redis.key.prefix",
+      "envVar": "ARGOCD_REDIS_KEY_PREFIX",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "redis.key.prefix",
+      "envVar": "ARGOCD_REDIS_KEY_PREFIX",
+      "file": "manifests/base/repo-server/argocd-repo-server-deployment.yaml"
+    },
+    {
+      "cmKey": "redis.key.prefix",
+      "envVar": "ARGOCD_REDIS_KEY_PREFIX",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "redis.key.prefix",
+      "envVar": "ARGOCD_REDIS_KEY_PREFIX",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "redis.sentinel.hosts",
+      "envVar": "REDIS_SENTINEL_HOSTS",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "redis.sentinel.hosts",
+      "envVar": "REDIS_SENTINEL_HOSTS",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "redis.sentinel.hosts",
+      "envVar": "REDIS_SENTINEL_HOSTS",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "redis.sentinel.hosts",
+      "envVar": "REDIS_SENTINEL_HOSTS",
+      "file": "manifests/base/repo-server/argocd-repo-server-deployment.yaml"
+    },
+    {
+      "cmKey": "redis.sentinel.master",
+      "envVar": "REDIS_SENTINEL_MASTER",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "redis.sentinel.master",
+      "envVar": "REDIS_SENTINEL_MASTER",
+      "file": "manifests/base/repo-server/argocd-repo-server-deployment.yaml"
+    },
+    {
+      "cmKey": "redis.sentinel.master",
+      "envVar": "REDIS_SENTINEL_MASTER",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "redis.sentinel.master",
+      "envVar": "REDIS_SENTINEL_MASTER",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "redis.server",
+      "envVar": "REDIS_SERVER",
+      "file": "manifests/base/repo-server/argocd-repo-server-deployment.yaml"
+    },
+    {
+      "cmKey": "redis.server",
+      "envVar": "REDIS_SERVER",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "redis.server",
+      "envVar": "REDIS_SERVER",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "redis.server",
+      "envVar": "REDIS_SERVER",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "repo.server",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "repo.server",
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER",
+      "file": "manifests/base/applicationset-controller/argocd-applicationset-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "repo.server",
+      "envVar": "ARGOCD_SERVER_REPO_SERVER",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "repo.server",
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "reposerver.allow.oob.symlinks",
+      "envVar": "ARGOCD_REPO_SERVER_ALLOW_OUT_OF_BOUNDS_SYMLINKS",
+      "file": "manifests/base/repo-server/argocd-repo-server-deployment.yaml"
+    },
+    {
+      "cmKey": "reposerver.client.ca.path",
+      "envVar": "ARGOCD_REPO_SERVER_CLIENT_CA_PATH",
+      "file": "manifests/base/repo-server/argocd-repo-server-deployment.yaml"
+    },
+    {
+      "cmKey": "reposerver.default.cache.expiration",
+      "envVar": "ARGOCD_DEFAULT_CACHE_EXPIRATION",
+      "file": "manifests/base/repo-server/argocd-repo-server-deployment.yaml"
+    },
+    {
+      "cmKey": "reposerver.disable.helm.manifest.max.extracted.size",
+      "envVar": "ARGOCD_REPO_SERVER_DISABLE_HELM_MANIFEST_MAX_EXTRACTED_SIZE",
+      "file": "manifests/base/repo-server/argocd-repo-server-deployment.yaml"
+    },
+    {
+      "cmKey": "reposerver.disable.oci.manifest.max.extracted.size",
+      "envVar": "ARGOCD_REPO_SERVER_DISABLE_OCI_MANIFEST_MAX_EXTRACTED_SIZE",
+      "file": "manifests/base/repo-server/argocd-repo-server-deployment.yaml"
+    },
+    {
+      "cmKey": "reposerver.disable.tls",
+      "envVar": "ARGOCD_REPO_SERVER_DISABLE_TLS",
+      "file": "manifests/base/repo-server/argocd-repo-server-deployment.yaml"
+    },
+    {
+      "cmKey": "reposerver.enable.builtin.git.config",
+      "envVar": "ARGOCD_REPO_SERVER_ENABLE_BUILTIN_GIT_CONFIG",
+      "file": "manifests/base/repo-server/argocd-repo-server-deployment.yaml"
+    },
+    {
+      "cmKey": "reposerver.enable.git.submodule",
+      "envVar": "ARGOCD_GIT_MODULES_ENABLED",
+      "file": "manifests/base/repo-server/argocd-repo-server-deployment.yaml"
+    },
+    {
+      "cmKey": "reposerver.git.lsremote.parallelism.limit",
+      "envVar": "ARGOCD_GIT_LS_REMOTE_PARALLELISM_LIMIT",
+      "file": "manifests/base/repo-server/argocd-repo-server-deployment.yaml"
+    },
+    {
+      "cmKey": "reposerver.git.request.timeout",
+      "envVar": "ARGOCD_GIT_REQUEST_TIMEOUT",
+      "file": "manifests/base/repo-server/argocd-repo-server-deployment.yaml"
+    },
+    {
+      "cmKey": "reposerver.grpc.enable.txt.service.config",
+      "envVar": "GRPC_ENABLE_TXT_SERVICE_CONFIG",
+      "file": "manifests/base/repo-server/argocd-repo-server-deployment.yaml"
+    },
+    {
+      "cmKey": "reposerver.grpc.max.size",
+      "envVar": "ARGOCD_GRPC_MAX_SIZE_MB",
+      "file": "manifests/base/repo-server/argocd-repo-server-deployment.yaml"
+    },
+    {
+      "cmKey": "reposerver.helm.manifest.max.extracted.size",
+      "envVar": "ARGOCD_REPO_SERVER_HELM_MANIFEST_MAX_EXTRACTED_SIZE",
+      "file": "manifests/base/repo-server/argocd-repo-server-deployment.yaml"
+    },
+    {
+      "cmKey": "reposerver.helm.user.agent",
+      "envVar": "ARGOCD_HELM_USER_AGENT",
+      "file": "manifests/base/repo-server/argocd-repo-server-deployment.yaml"
+    },
+    {
+      "cmKey": "reposerver.include.hidden.directories",
+      "envVar": "ARGOCD_REPO_SERVER_INCLUDE_HIDDEN_DIRECTORIES",
+      "file": "manifests/base/repo-server/argocd-repo-server-deployment.yaml"
+    },
+    {
+      "cmKey": "reposerver.listen.address",
+      "envVar": "ARGOCD_REPO_SERVER_LISTEN_ADDRESS",
+      "file": "manifests/base/repo-server/argocd-repo-server-deployment.yaml"
+    },
+    {
+      "cmKey": "reposerver.log.format",
+      "envVar": "ARGOCD_REPO_SERVER_LOGFORMAT",
+      "file": "manifests/base/repo-server/argocd-repo-server-deployment.yaml"
+    },
+    {
+      "cmKey": "reposerver.log.level",
+      "envVar": "ARGOCD_REPO_SERVER_LOGLEVEL",
+      "file": "manifests/base/repo-server/argocd-repo-server-deployment.yaml"
+    },
+    {
+      "cmKey": "reposerver.max.combined.directory.manifests.size",
+      "envVar": "ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE",
+      "file": "manifests/base/repo-server/argocd-repo-server-deployment.yaml"
+    },
+    {
+      "cmKey": "reposerver.metrics.listen.address",
+      "envVar": "ARGOCD_REPO_SERVER_LISTEN_METRICS_ADDRESS",
+      "file": "manifests/base/repo-server/argocd-repo-server-deployment.yaml"
+    },
+    {
+      "cmKey": "reposerver.oci.layer.media.types",
+      "envVar": "ARGOCD_REPO_SERVER_OCI_LAYER_MEDIA_TYPES",
+      "file": "manifests/base/repo-server/argocd-repo-server-deployment.yaml"
+    },
+    {
+      "cmKey": "reposerver.oci.manifest.max.extracted.size",
+      "envVar": "ARGOCD_REPO_SERVER_OCI_MANIFEST_MAX_EXTRACTED_SIZE",
+      "file": "manifests/base/repo-server/argocd-repo-server-deployment.yaml"
+    },
+    {
+      "cmKey": "reposerver.parallelism.limit",
+      "envVar": "ARGOCD_REPO_SERVER_PARALLELISM_LIMIT",
+      "file": "manifests/base/repo-server/argocd-repo-server-deployment.yaml"
+    },
+    {
+      "cmKey": "reposerver.plugin.tar.exclusions",
+      "envVar": "ARGOCD_REPO_SERVER_PLUGIN_TAR_EXCLUSIONS",
+      "file": "manifests/base/repo-server/argocd-repo-server-deployment.yaml"
+    },
+    {
+      "cmKey": "reposerver.plugin.use.manifest.generate.paths",
+      "envVar": "ARGOCD_REPO_SERVER_PLUGIN_USE_MANIFEST_GENERATE_PATHS",
+      "file": "manifests/base/repo-server/argocd-repo-server-deployment.yaml"
+    },
+    {
+      "cmKey": "reposerver.repo.cache.expiration",
+      "envVar": "ARGOCD_REPO_CACHE_EXPIRATION",
+      "file": "manifests/base/repo-server/argocd-repo-server-deployment.yaml"
+    },
+    {
+      "cmKey": "reposerver.revision.cache.lock.timeout",
+      "envVar": "ARGOCD_REVISION_CACHE_LOCK_TIMEOUT",
+      "file": "manifests/base/repo-server/argocd-repo-server-deployment.yaml"
+    },
+    {
+      "cmKey": "reposerver.streamed.manifest.max.extracted.size",
+      "envVar": "ARGOCD_REPO_SERVER_STREAMED_MANIFEST_MAX_EXTRACTED_SIZE",
+      "file": "manifests/base/repo-server/argocd-repo-server-deployment.yaml"
+    },
+    {
+      "cmKey": "reposerver.streamed.manifest.max.tar.size",
+      "envVar": "ARGOCD_REPO_SERVER_STREAMED_MANIFEST_MAX_TAR_SIZE",
+      "file": "manifests/base/repo-server/argocd-repo-server-deployment.yaml"
+    },
+    {
+      "cmKey": "reposerver.tls.ciphers",
+      "envVar": "ARGOCD_TLS_CIPHERS",
+      "file": "manifests/base/repo-server/argocd-repo-server-deployment.yaml"
+    },
+    {
+      "cmKey": "reposerver.tls.maxversion",
+      "envVar": "ARGOCD_TLS_MAX_VERSION",
+      "file": "manifests/base/repo-server/argocd-repo-server-deployment.yaml"
+    },
+    {
+      "cmKey": "reposerver.tls.minversion",
+      "envVar": "ARGOCD_TLS_MIN_VERSION",
+      "file": "manifests/base/repo-server/argocd-repo-server-deployment.yaml"
+    },
+    {
+      "cmKey": "server.api.content.types",
+      "envVar": "ARGOCD_API_CONTENT_TYPES",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "server.app.state.cache.expiration",
+      "envVar": "ARGOCD_APP_STATE_CACHE_EXPIRATION",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "server.basehref",
+      "envVar": "ARGOCD_SERVER_BASEHREF",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "server.connection.status.cache.expiration",
+      "envVar": "ARGOCD_SERVER_CONNECTION_STATUS_CACHE_EXPIRATION",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "server.content.security.policy",
+      "envVar": "ARGOCD_SERVER_CONTENT_SECURITY_POLICY",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "server.default.cache.expiration",
+      "envVar": "ARGOCD_DEFAULT_CACHE_EXPIRATION",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "server.dex.server",
+      "envVar": "ARGOCD_SERVER_DEX_SERVER",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "server.dex.server.plaintext",
+      "envVar": "ARGOCD_SERVER_DEX_SERVER_PLAINTEXT",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "server.dex.server.strict.tls",
+      "envVar": "ARGOCD_SERVER_DEX_SERVER_STRICT_TLS",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "server.disable.auth",
+      "envVar": "ARGOCD_SERVER_DISABLE_AUTH",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "server.enable.gzip",
+      "envVar": "ARGOCD_SERVER_ENABLE_GZIP",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "server.enable.proxy.extension",
+      "envVar": "ARGOCD_SERVER_ENABLE_PROXY_EXTENSION",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "server.glob.cache.size",
+      "envVar": "ARGOCD_SERVER_GLOB_CACHE_SIZE",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "server.grpc.enable.txt.service.config",
+      "envVar": "GRPC_ENABLE_TXT_SERVICE_CONFIG",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "server.http.cookie.maxnumber",
+      "envVar": "ARGOCD_MAX_COOKIE_NUMBER",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "server.insecure",
+      "envVar": "ARGOCD_SERVER_INSECURE",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "server.k8s.client.burst",
+      "envVar": "ARGOCD_K8S_CLIENT_BURST",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "server.k8s.client.max.idle.connections",
+      "envVar": "ARGOCD_K8S_CLIENT_MAX_IDLE_CONNECTIONS",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "server.k8s.client.qps",
+      "envVar": "ARGOCD_K8S_CLIENT_QPS",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "server.k8s.tcp.idle.timeout",
+      "envVar": "ARGOCD_K8S_TCP_IDLE_TIMEOUT",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "server.k8s.tcp.keepalive",
+      "envVar": "ARGOCD_K8S_TCP_KEEPALIVE",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "server.k8s.tcp.timeout",
+      "envVar": "ARGOCD_K8S_TCP_TIMEOUT",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "server.k8s.tls.handshake.timeout",
+      "envVar": "ARGOCD_K8S_TLS_HANDSHAKE_TIMEOUT",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "server.k8sclient.retry.base.backoff",
+      "envVar": "ARGOCD_K8SCLIENT_RETRY_BASE_BACKOFF",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "server.k8sclient.retry.max",
+      "envVar": "ARGOCD_K8SCLIENT_RETRY_MAX",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "server.listen.address",
+      "envVar": "ARGOCD_SERVER_LISTEN_ADDRESS",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "server.log.format",
+      "envVar": "ARGOCD_SERVER_LOGFORMAT",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "server.log.level",
+      "envVar": "ARGOCD_SERVER_LOG_LEVEL",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "server.metrics.listen.address",
+      "envVar": "ARGOCD_SERVER_METRICS_LISTEN_ADDRESS",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "server.oidc.cache.expiration",
+      "envVar": "ARGOCD_SERVER_OIDC_CACHE_EXPIRATION",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "server.repo.server.ca.cert.path",
+      "envVar": "ARGOCD_SERVER_REPO_SERVER_CA_CERT_PATH",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "server.repo.server.client.cert.key.path",
+      "envVar": "ARGOCD_SERVER_REPO_SERVER_CLIENT_CERT_KEY_PATH",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "server.repo.server.client.cert.path",
+      "envVar": "ARGOCD_SERVER_REPO_SERVER_CLIENT_CERT_PATH",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "server.repo.server.plaintext",
+      "envVar": "ARGOCD_SERVER_REPO_SERVER_PLAINTEXT",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "server.repo.server.strict.tls",
+      "envVar": "ARGOCD_SERVER_REPO_SERVER_STRICT_TLS",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "server.repo.server.timeout.seconds",
+      "envVar": "ARGOCD_SERVER_REPO_SERVER_TIMEOUT_SECONDS",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "server.rootpath",
+      "envVar": "ARGOCD_SERVER_ROOTPATH",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "server.staticassets",
+      "envVar": "ARGOCD_SERVER_STATIC_ASSETS",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "server.sync.replace.allowed",
+      "envVar": "ARGOCD_SYNC_WITH_REPLACE_ALLOWED",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "server.tls.ciphers",
+      "envVar": "ARGOCD_TLS_CIPHERS",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "server.tls.maxversion",
+      "envVar": "ARGOCD_TLS_MAX_VERSION",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "server.tls.minversion",
+      "envVar": "ARGOCD_TLS_MIN_VERSION",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "server.webhook.parallelism.limit",
+      "envVar": "ARGOCD_SERVER_WEBHOOK_PARALLELISM_LIMIT",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "server.webhook.refresh.workers",
+      "envVar": "ARGOCD_SERVER_WEBHOOK_REFRESH_WORKERS",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "server.x.frame.options",
+      "envVar": "ARGOCD_SERVER_X_FRAME_OPTIONS",
+      "file": "manifests/base/server/argocd-server-deployment.yaml"
+    },
+    {
+      "cmKey": "timeout.hard.reconciliation",
+      "envVar": "ARGOCD_HARD_RECONCILIATION_TIMEOUT",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "timeout.hard.reconciliation",
+      "envVar": "ARGOCD_HARD_RECONCILIATION_TIMEOUT",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "timeout.reconciliation",
+      "envVar": "ARGOCD_RECONCILIATION_TIMEOUT",
+      "file": "manifests/base/repo-server/argocd-repo-server-deployment.yaml"
+    },
+    {
+      "cmKey": "timeout.reconciliation",
+      "envVar": "ARGOCD_RECONCILIATION_TIMEOUT",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    },
+    {
+      "cmKey": "timeout.reconciliation",
+      "envVar": "ARGOCD_RECONCILIATION_TIMEOUT",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "timeout.reconciliation.jitter",
+      "envVar": "ARGOCD_RECONCILIATION_JITTER",
+      "file": "manifests/base/application-controller/argocd-application-controller-statefulset.yaml"
+    },
+    {
+      "cmKey": "timeout.reconciliation.jitter",
+      "envVar": "ARGOCD_RECONCILIATION_JITTER",
+      "file": "manifests/base/application-controller-deployment/argocd-application-controller-deployment.yaml"
+    }
+  ],
+  "flags": [
+    {
+      "name": "allowed-scm-providers",
+      "component": "applicationset",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS",
+      "pureFlag": false
+    },
+    {
+      "name": "applicationset-namespaces",
+      "component": "applicationset",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_NAMESPACES",
+      "pureFlag": false
+    },
+    {
+      "name": "argocd-repo-server",
+      "component": "applicationset",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER",
+      "pureFlag": false
+    },
+    {
+      "name": "cache-sync-period",
+      "component": "applicationset",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_CACHE_SYNC_PERIOD",
+      "pureFlag": false
+    },
+    {
+      "name": "concurrent-application-updates",
+      "component": "applicationset",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_CONCURRENT_APPLICATION_UPDATES",
+      "pureFlag": false
+    },
+    {
+      "name": "concurrent-reconciliations",
+      "component": "applicationset",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_CONCURRENT_RECONCILIATIONS",
+      "pureFlag": false
+    },
+    {
+      "name": "debug",
+      "component": "applicationset",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_DEBUG",
+      "pureFlag": false
+    },
+    {
+      "name": "dry-run",
+      "component": "applicationset",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_DRY_RUN",
+      "pureFlag": false
+    },
+    {
+      "name": "enable-github-api-metrics",
+      "component": "applicationset",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_GITHUB_API_METRICS",
+      "pureFlag": false
+    },
+    {
+      "name": "enable-leader-election",
+      "component": "applicationset",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_LEADER_ELECTION",
+      "pureFlag": false
+    },
+    {
+      "name": "enable-new-git-file-globbing",
+      "component": "applicationset",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_GIT_FILE_GLOBBING",
+      "pureFlag": false
+    },
+    {
+      "name": "enable-policy-override",
+      "component": "applicationset",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_POLICY_OVERRIDE",
+      "pureFlag": false
+    },
+    {
+      "name": "enable-progressive-syncs",
+      "component": "applicationset",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS",
+      "pureFlag": false
+    },
+    {
+      "name": "enable-scm-providers",
+      "component": "applicationset",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_SCM_PROVIDERS",
+      "pureFlag": false
+    },
+    {
+      "name": "logformat",
+      "component": "applicationset",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_LOGFORMAT",
+      "pureFlag": false
+    },
+    {
+      "name": "loglevel",
+      "component": "applicationset",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_LOGLEVEL",
+      "pureFlag": false
+    },
+    {
+      "name": "max-resources-status-count",
+      "component": "applicationset",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_MAX_RESOURCES_STATUS_COUNT",
+      "pureFlag": false
+    },
+    {
+      "name": "metrics-addr",
+      "component": "applicationset",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "metrics-applicationset-labels",
+      "component": "applicationset",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "policy",
+      "component": "applicationset",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_POLICY",
+      "pureFlag": false
+    },
+    {
+      "name": "preserved-annotations",
+      "component": "applicationset",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_ANNOTATIONS",
+      "pureFlag": false
+    },
+    {
+      "name": "preserved-labels",
+      "component": "applicationset",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_LABELS",
+      "pureFlag": false
+    },
+    {
+      "name": "probe-addr",
+      "component": "applicationset",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "repo-server-plaintext",
+      "component": "applicationset",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_PLAINTEXT",
+      "pureFlag": false
+    },
+    {
+      "name": "repo-server-strict-tls",
+      "component": "applicationset",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_STRICT_TLS",
+      "pureFlag": false
+    },
+    {
+      "name": "repo-server-timeout-seconds",
+      "component": "applicationset",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS",
+      "pureFlag": false
+    },
+    {
+      "name": "scm-no-proxy",
+      "component": "applicationset",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_SCM_NO_PROXY",
+      "pureFlag": false
+    },
+    {
+      "name": "scm-proxy-url",
+      "component": "applicationset",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_SCM_PROXY_URL",
+      "pureFlag": false
+    },
+    {
+      "name": "scm-root-ca-path",
+      "component": "applicationset",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH",
+      "pureFlag": false
+    },
+    {
+      "name": "token-ref-strict-mode",
+      "component": "applicationset",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_TOKENREF_STRICT_MODE",
+      "pureFlag": false
+    },
+    {
+      "name": "webhook-addr",
+      "component": "applicationset",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "webhook-parallelism-limit",
+      "component": "applicationset",
+      "file": "cmd/argocd-applicationset-controller/commands/applicationset_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_WEBHOOK_PARALLELISM_LIMIT",
+      "pureFlag": false
+    },
+    {
+      "name": "address",
+      "component": "commitserver",
+      "file": "cmd/argocd-commit-server/commands/argocd_commit_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_COMMIT_SERVER_LISTEN_ADDRESS",
+      "pureFlag": false
+    },
+    {
+      "name": "logformat",
+      "component": "commitserver",
+      "file": "cmd/argocd-commit-server/commands/argocd_commit_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_COMMIT_SERVER_LOGFORMAT",
+      "pureFlag": false
+    },
+    {
+      "name": "loglevel",
+      "component": "commitserver",
+      "file": "cmd/argocd-commit-server/commands/argocd_commit_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_COMMIT_SERVER_LOGLEVEL",
+      "pureFlag": false
+    },
+    {
+      "name": "metrics-address",
+      "component": "commitserver",
+      "file": "cmd/argocd-commit-server/commands/argocd_commit_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_COMMIT_SERVER_METRICS_LISTEN_ADDRESS",
+      "pureFlag": false
+    },
+    {
+      "name": "metrics-port",
+      "component": "commitserver",
+      "file": "cmd/argocd-commit-server/commands/argocd_commit_server.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "port",
+      "component": "commitserver",
+      "file": "cmd/argocd-commit-server/commands/argocd_commit_server.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "app-hard-resync",
+      "component": "controller",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_HARD_RECONCILIATION_TIMEOUT",
+      "pureFlag": false
+    },
+    {
+      "name": "app-resync",
+      "component": "controller",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_RECONCILIATION_TIMEOUT",
+      "pureFlag": false
+    },
+    {
+      "name": "app-resync-jitter",
+      "component": "controller",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_RECONCILIATION_JITTER",
+      "pureFlag": false
+    },
+    {
+      "name": "application-namespaces",
+      "component": "controller",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATION_NAMESPACES",
+      "pureFlag": false
+    },
+    {
+      "name": "commit-server",
+      "component": "controller",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_COMMIT_SERVER",
+      "pureFlag": false
+    },
+    {
+      "name": "dynamic-cluster-distribution-enabled",
+      "component": "controller",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "hasEnv": true,
+      "pureFlag": false
+    },
+    {
+      "name": "enable-k8s-event",
+      "component": "controller",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_ENABLE_K8S_EVENT",
+      "pureFlag": false
+    },
+    {
+      "name": "gloglevel",
+      "component": "controller",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "hydration-processors",
+      "component": "controller",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_HYDRATION_PROCESSORS",
+      "pureFlag": false
+    },
+    {
+      "name": "hydrator-enabled",
+      "component": "controller",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_HYDRATOR_ENABLED",
+      "pureFlag": false
+    },
+    {
+      "name": "ignore-normalizer-jq-execution-timeout-seconds",
+      "component": "controller",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_IGNORE_NORMALIZER_JQ_TIMEOUT",
+      "pureFlag": false
+    },
+    {
+      "name": "kubectl-parallelism-limit",
+      "component": "controller",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_KUBECTL_PARALLELISM_LIMIT",
+      "pureFlag": false
+    },
+    {
+      "name": "logformat",
+      "component": "controller",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_LOGFORMAT",
+      "pureFlag": false
+    },
+    {
+      "name": "loglevel",
+      "component": "controller",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_LOGLEVEL",
+      "pureFlag": false
+    },
+    {
+      "name": "metrics-application-conditions",
+      "component": "controller",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_METRICS_APPLICATION_CONDITIONS",
+      "pureFlag": false
+    },
+    {
+      "name": "metrics-application-labels",
+      "component": "controller",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_METRICS_APPLICATION_LABELS",
+      "pureFlag": false
+    },
+    {
+      "name": "metrics-cache-expiration",
+      "component": "controller",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_METRICS_CACHE_EXPIRATION",
+      "pureFlag": false
+    },
+    {
+      "name": "metrics-cluster-labels",
+      "component": "controller",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_METRICS_CLUSTER_LABELS",
+      "pureFlag": false
+    },
+    {
+      "name": "metrics-port",
+      "component": "controller",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "operation-processors",
+      "component": "controller",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_OPERATION_PROCESSORS",
+      "pureFlag": false
+    },
+    {
+      "name": "otlp-address",
+      "component": "controller",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_OTLP_ADDRESS",
+      "pureFlag": false
+    },
+    {
+      "name": "otlp-attrs",
+      "component": "controller",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_OTLP_ATTRS",
+      "pureFlag": false
+    },
+    {
+      "name": "otlp-headers",
+      "component": "controller",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_OTLP_HEADERS",
+      "pureFlag": false
+    },
+    {
+      "name": "otlp-insecure",
+      "component": "controller",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_OTLP_INSECURE",
+      "pureFlag": false
+    },
+    {
+      "name": "otlp-sample-ratio",
+      "component": "controller",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_OTLP_SAMPLE_RATIO",
+      "pureFlag": false
+    },
+    {
+      "name": "persist-resource-health",
+      "component": "controller",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_PERSIST_RESOURCE_HEALTH",
+      "pureFlag": false
+    },
+    {
+      "name": "repo-error-grace-period-seconds",
+      "component": "controller",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_REPO_ERROR_GRACE_PERIOD_SECONDS",
+      "pureFlag": false
+    },
+    {
+      "name": "repo-server",
+      "component": "controller",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER",
+      "pureFlag": false
+    },
+    {
+      "name": "repo-server-plaintext",
+      "component": "controller",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_PLAINTEXT",
+      "pureFlag": false
+    },
+    {
+      "name": "repo-server-strict-tls",
+      "component": "controller",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_STRICT_TLS",
+      "pureFlag": false
+    },
+    {
+      "name": "repo-server-timeout-seconds",
+      "component": "controller",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS",
+      "pureFlag": false
+    },
+    {
+      "name": "self-heal-backoff-cap-seconds",
+      "component": "controller",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_BACKOFF_CAP_SECONDS",
+      "pureFlag": false
+    },
+    {
+      "name": "self-heal-backoff-cooldown-seconds",
+      "component": "controller",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_BACKOFF_COOLDOWN_SECONDS",
+      "pureFlag": false
+    },
+    {
+      "name": "self-heal-backoff-factor",
+      "component": "controller",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_BACKOFF_FACTOR",
+      "pureFlag": false
+    },
+    {
+      "name": "self-heal-backoff-timeout-seconds",
+      "component": "controller",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_BACKOFF_TIMEOUT_SECONDS",
+      "pureFlag": false
+    },
+    {
+      "name": "self-heal-timeout-seconds",
+      "component": "controller",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_TIMEOUT_SECONDS",
+      "pureFlag": false
+    },
+    {
+      "name": "server-side-diff-enabled",
+      "component": "controller",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "hasEnv": true,
+      "pureFlag": false
+    },
+    {
+      "name": "sharding-method",
+      "component": "controller",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "hasEnv": true,
+      "pureFlag": false
+    },
+    {
+      "name": "status-processors",
+      "component": "controller",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_STATUS_PROCESSORS",
+      "pureFlag": false
+    },
+    {
+      "name": "sync-timeout",
+      "component": "controller",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATION_CONTROLLER_SYNC_TIMEOUT",
+      "pureFlag": false
+    },
+    {
+      "name": "wq-backoff-factor",
+      "component": "controller",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "hasEnv": true,
+      "envVar": "WORKQUEUE_BACKOFF_FACTOR",
+      "pureFlag": false
+    },
+    {
+      "name": "wq-basedelay-ns",
+      "component": "controller",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "hasEnv": true,
+      "envVar": "WORKQUEUE_BASE_DELAY_NS",
+      "pureFlag": false
+    },
+    {
+      "name": "wq-bucket-qps",
+      "component": "controller",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "hasEnv": true,
+      "envVar": "WORKQUEUE_BUCKET_QPS",
+      "pureFlag": false
+    },
+    {
+      "name": "wq-bucket-size",
+      "component": "controller",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "hasEnv": true,
+      "envVar": "WORKQUEUE_BUCKET_SIZE",
+      "pureFlag": false
+    },
+    {
+      "name": "wq-cooldown-ns",
+      "component": "controller",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "hasEnv": true,
+      "envVar": "WORKQUEUE_FAILURE_COOLDOWN_NS",
+      "pureFlag": false
+    },
+    {
+      "name": "wq-maxdelay-ns",
+      "component": "controller",
+      "file": "cmd/argocd-application-controller/commands/argocd_application_controller.go",
+      "hasEnv": true,
+      "envVar": "WORKQUEUE_MAX_DELAY_NS",
+      "pureFlag": false
+    },
+    {
+      "name": "disable-tls",
+      "component": "dex",
+      "file": "cmd/argocd-dex/commands/argocd_dex.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_DEX_SERVER_DISABLE_TLS",
+      "pureFlag": false
+    },
+    {
+      "name": "logformat",
+      "component": "dex",
+      "file": "cmd/argocd-dex/commands/argocd_dex.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_DEX_SERVER_LOGFORMAT",
+      "pureFlag": false
+    },
+    {
+      "name": "loglevel",
+      "component": "dex",
+      "file": "cmd/argocd-dex/commands/argocd_dex.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_DEX_SERVER_LOGLEVEL",
+      "pureFlag": false
+    },
+    {
+      "name": "out",
+      "component": "dex",
+      "file": "cmd/argocd-dex/commands/argocd_dex.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "app-label-selector",
+      "component": "notifications",
+      "file": "cmd/argocd-notification/commands/argocd_notification.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "application-namespaces",
+      "component": "notifications",
+      "file": "cmd/argocd-notification/commands/argocd_notification.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATION_NAMESPACES",
+      "pureFlag": false
+    },
+    {
+      "name": "argocd-repo-server",
+      "component": "notifications",
+      "file": "cmd/argocd-notification/commands/argocd_notification.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "argocd-repo-server-plaintext",
+      "component": "notifications",
+      "file": "cmd/argocd-notification/commands/argocd_notification.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_NOTIFICATION_CONTROLLER_REPO_SERVER_PLAINTEXT",
+      "pureFlag": false
+    },
+    {
+      "name": "argocd-repo-server-strict-tls",
+      "component": "notifications",
+      "file": "cmd/argocd-notification/commands/argocd_notification.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "config-map-name",
+      "component": "notifications",
+      "file": "cmd/argocd-notification/commands/argocd_notification.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "logformat",
+      "component": "notifications",
+      "file": "cmd/argocd-notification/commands/argocd_notification.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_NOTIFICATIONS_CONTROLLER_LOGFORMAT",
+      "pureFlag": false
+    },
+    {
+      "name": "loglevel",
+      "component": "notifications",
+      "file": "cmd/argocd-notification/commands/argocd_notification.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_NOTIFICATIONS_CONTROLLER_LOGLEVEL",
+      "pureFlag": false
+    },
+    {
+      "name": "metrics-port",
+      "component": "notifications",
+      "file": "cmd/argocd-notification/commands/argocd_notification.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "processors-count",
+      "component": "notifications",
+      "file": "cmd/argocd-notification/commands/argocd_notification.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_NOTIFICATION_CONTROLLER_PROCESSORS_COUNT",
+      "pureFlag": false
+    },
+    {
+      "name": "secret-name",
+      "component": "notifications",
+      "file": "cmd/argocd-notification/commands/argocd_notification.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "self-service-notification-enabled",
+      "component": "notifications",
+      "file": "cmd/argocd-notification/commands/argocd_notification.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_NOTIFICATION_CONTROLLER_SELF_SERVICE_NOTIFICATION_ENABLED",
+      "pureFlag": false
+    },
+    {
+      "name": "address",
+      "component": "reposerver",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_REPO_SERVER_LISTEN_ADDRESS",
+      "pureFlag": false
+    },
+    {
+      "name": "allow-oob-symlinks",
+      "component": "reposerver",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_REPO_SERVER_ALLOW_OUT_OF_BOUNDS_SYMLINKS",
+      "pureFlag": false
+    },
+    {
+      "name": "client-ca-path",
+      "component": "reposerver",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_REPO_SERVER_CLIENT_CA_PATH",
+      "pureFlag": false
+    },
+    {
+      "name": "disable-helm-manifest-max-extracted-size",
+      "component": "reposerver",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_REPO_SERVER_DISABLE_HELM_MANIFEST_MAX_EXTRACTED_SIZE",
+      "pureFlag": false
+    },
+    {
+      "name": "disable-oci-manifest-max-extracted-size",
+      "component": "reposerver",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_REPO_SERVER_DISABLE_OCI_MANIFEST_MAX_EXTRACTED_SIZE",
+      "pureFlag": false
+    },
+    {
+      "name": "disable-tls",
+      "component": "reposerver",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_REPO_SERVER_DISABLE_TLS",
+      "pureFlag": false
+    },
+    {
+      "name": "enable-builtin-git-config",
+      "component": "reposerver",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_REPO_SERVER_ENABLE_BUILTIN_GIT_CONFIG",
+      "pureFlag": false
+    },
+    {
+      "name": "helm-manifest-max-extracted-size",
+      "component": "reposerver",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_REPO_SERVER_HELM_MANIFEST_MAX_EXTRACTED_SIZE",
+      "pureFlag": false
+    },
+    {
+      "name": "helm-registry-max-index-size",
+      "component": "reposerver",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_REPO_SERVER_HELM_MANIFEST_MAX_INDEX_SIZE",
+      "pureFlag": false
+    },
+    {
+      "name": "include-hidden-directories",
+      "component": "reposerver",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_REPO_SERVER_INCLUDE_HIDDEN_DIRECTORIES",
+      "pureFlag": false
+    },
+    {
+      "name": "logformat",
+      "component": "reposerver",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_REPO_SERVER_LOGFORMAT",
+      "pureFlag": false
+    },
+    {
+      "name": "loglevel",
+      "component": "reposerver",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_REPO_SERVER_LOGLEVEL",
+      "pureFlag": false
+    },
+    {
+      "name": "max-combined-directory-manifests-size",
+      "component": "reposerver",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE",
+      "pureFlag": false
+    },
+    {
+      "name": "metrics-address",
+      "component": "reposerver",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_REPO_SERVER_METRICS_LISTEN_ADDRESS",
+      "pureFlag": false
+    },
+    {
+      "name": "metrics-port",
+      "component": "reposerver",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "oci-layer-media-types",
+      "component": "reposerver",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_REPO_SERVER_OCI_LAYER_MEDIA_TYPES",
+      "pureFlag": false
+    },
+    {
+      "name": "oci-manifest-max-extracted-size",
+      "component": "reposerver",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_REPO_SERVER_OCI_MANIFEST_MAX_EXTRACTED_SIZE",
+      "pureFlag": false
+    },
+    {
+      "name": "otlp-address",
+      "component": "reposerver",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_REPO_SERVER_OTLP_ADDRESS",
+      "pureFlag": false
+    },
+    {
+      "name": "otlp-attrs",
+      "component": "reposerver",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_REPO_SERVER_OTLP_ATTRS",
+      "pureFlag": false
+    },
+    {
+      "name": "otlp-headers",
+      "component": "reposerver",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_REPO_SERVER_OTLP_HEADERS",
+      "pureFlag": false
+    },
+    {
+      "name": "otlp-insecure",
+      "component": "reposerver",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_REPO_SERVER_OTLP_INSECURE",
+      "pureFlag": false
+    },
+    {
+      "name": "otlp-sample-ratio",
+      "component": "reposerver",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_REPO_SERVER_OTLP_SAMPLE_RATIO",
+      "pureFlag": false
+    },
+    {
+      "name": "parallelismlimit",
+      "component": "reposerver",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_REPO_SERVER_PARALLELISM_LIMIT",
+      "pureFlag": false
+    },
+    {
+      "name": "plugin-tar-exclude",
+      "component": "reposerver",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_REPO_SERVER_PLUGIN_TAR_EXCLUSIONS",
+      "pureFlag": false
+    },
+    {
+      "name": "plugin-use-manifest-generate-paths",
+      "component": "reposerver",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_REPO_SERVER_PLUGIN_USE_MANIFEST_GENERATE_PATHS",
+      "pureFlag": false
+    },
+    {
+      "name": "port",
+      "component": "reposerver",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "streamed-manifest-max-extracted-size",
+      "component": "reposerver",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_REPO_SERVER_STREAMED_MANIFEST_MAX_EXTRACTED_SIZE",
+      "pureFlag": false
+    },
+    {
+      "name": "streamed-manifest-max-tar-size",
+      "component": "reposerver",
+      "file": "cmd/argocd-repo-server/commands/argocd_repo_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_REPO_SERVER_STREAMED_MANIFEST_MAX_TAR_SIZE",
+      "pureFlag": false
+    },
+    {
+      "name": "address",
+      "component": "server",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_SERVER_LISTEN_ADDRESS",
+      "pureFlag": false
+    },
+    {
+      "name": "api-content-types",
+      "component": "server",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_API_CONTENT_TYPES",
+      "pureFlag": false
+    },
+    {
+      "name": "application-namespaces",
+      "component": "server",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATION_NAMESPACES",
+      "pureFlag": false
+    },
+    {
+      "name": "appset-allowed-scm-providers",
+      "component": "server",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_ALLOWED_SCM_PROVIDERS",
+      "pureFlag": false
+    },
+    {
+      "name": "appset-enable-github-api-metrics",
+      "component": "server",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_GITHUB_API_METRICS",
+      "pureFlag": false
+    },
+    {
+      "name": "appset-enable-new-git-file-globbing",
+      "component": "server",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_GIT_FILE_GLOBBING",
+      "pureFlag": false
+    },
+    {
+      "name": "appset-enable-scm-providers",
+      "component": "server",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_SCM_PROVIDERS",
+      "pureFlag": false
+    },
+    {
+      "name": "appset-scm-root-ca-path",
+      "component": "server",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH",
+      "pureFlag": false
+    },
+    {
+      "name": "basehref",
+      "component": "server",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_SERVER_BASEHREF",
+      "pureFlag": false
+    },
+    {
+      "name": "content-security-policy",
+      "component": "server",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_SERVER_CONTENT_SECURITY_POLICY",
+      "pureFlag": false
+    },
+    {
+      "name": "dex-server",
+      "component": "server",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_SERVER_DEX_SERVER",
+      "pureFlag": false
+    },
+    {
+      "name": "dex-server-plaintext",
+      "component": "server",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_SERVER_DEX_SERVER_PLAINTEXT",
+      "pureFlag": false
+    },
+    {
+      "name": "dex-server-strict-tls",
+      "component": "server",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_SERVER_DEX_SERVER_STRICT_TLS",
+      "pureFlag": false
+    },
+    {
+      "name": "disable-auth",
+      "component": "server",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_SERVER_DISABLE_AUTH",
+      "pureFlag": false
+    },
+    {
+      "name": "enable-gzip",
+      "component": "server",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_SERVER_ENABLE_GZIP",
+      "pureFlag": false
+    },
+    {
+      "name": "enable-k8s-event",
+      "component": "server",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_ENABLE_K8S_EVENT",
+      "pureFlag": false
+    },
+    {
+      "name": "enable-proxy-extension",
+      "component": "server",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_SERVER_ENABLE_PROXY_EXTENSION",
+      "pureFlag": false
+    },
+    {
+      "name": "glob-cache-size",
+      "component": "server",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_SERVER_GLOB_CACHE_SIZE",
+      "pureFlag": false
+    },
+    {
+      "name": "gloglevel",
+      "component": "server",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "hydrator-enabled",
+      "component": "server",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_HYDRATOR_ENABLED",
+      "pureFlag": false
+    },
+    {
+      "name": "insecure",
+      "component": "server",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_SERVER_INSECURE",
+      "pureFlag": false
+    },
+    {
+      "name": "logformat",
+      "component": "server",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_SERVER_LOGFORMAT",
+      "pureFlag": false
+    },
+    {
+      "name": "loglevel",
+      "component": "server",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_SERVER_LOG_LEVEL",
+      "pureFlag": false
+    },
+    {
+      "name": "metrics-port",
+      "component": "server",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "otlp-address",
+      "component": "server",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_SERVER_OTLP_ADDRESS",
+      "pureFlag": false
+    },
+    {
+      "name": "otlp-attrs",
+      "component": "server",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_SERVER_OTLP_ATTRS",
+      "pureFlag": false
+    },
+    {
+      "name": "otlp-headers",
+      "component": "server",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_SERVER_OTLP_HEADERS",
+      "pureFlag": false
+    },
+    {
+      "name": "otlp-insecure",
+      "component": "server",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_SERVER_OTLP_INSECURE",
+      "pureFlag": false
+    },
+    {
+      "name": "otlp-sample-ratio",
+      "component": "server",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_SERVER_OTLP_SAMPLE_RATIO",
+      "pureFlag": false
+    },
+    {
+      "name": "port",
+      "component": "server",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "repo-server",
+      "component": "server",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_SERVER_REPO_SERVER",
+      "pureFlag": false
+    },
+    {
+      "name": "repo-server-plaintext",
+      "component": "server",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_SERVER_REPO_SERVER_PLAINTEXT",
+      "pureFlag": false
+    },
+    {
+      "name": "repo-server-strict-tls",
+      "component": "server",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_SERVER_REPO_SERVER_STRICT_TLS",
+      "pureFlag": false
+    },
+    {
+      "name": "repo-server-timeout-seconds",
+      "component": "server",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_SERVER_REPO_SERVER_TIMEOUT_SECONDS",
+      "pureFlag": false
+    },
+    {
+      "name": "rootpath",
+      "component": "server",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_SERVER_ROOTPATH",
+      "pureFlag": false
+    },
+    {
+      "name": "staticassets",
+      "component": "server",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_SERVER_STATIC_ASSETS",
+      "pureFlag": false
+    },
+    {
+      "name": "sync-with-replace-allowed",
+      "component": "server",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_SYNC_WITH_REPLACE_ALLOWED",
+      "pureFlag": false
+    },
+    {
+      "name": "webhook-parallelism-limit",
+      "component": "server",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_SERVER_WEBHOOK_PARALLELISM_LIMIT",
+      "pureFlag": false
+    },
+    {
+      "name": "webhook-refresh-workers",
+      "component": "server",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_SERVER_WEBHOOK_REFRESH_WORKERS",
+      "pureFlag": false
+    },
+    {
+      "name": "x-frame-options",
+      "component": "server",
+      "file": "cmd/argocd-server/commands/argocd_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_SERVER_X_FRAME_OPTIONS",
+      "pureFlag": false
+    },
+    {
+      "name": "allow-cluster-resource",
+      "component": "shared",
+      "file": "cmd/util/project.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "allow-empty",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "allow-namespaced-resource",
+      "component": "shared",
+      "file": "cmd/util/project.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "auto-prune",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "aws-cluster-name",
+      "component": "shared",
+      "file": "cmd/util/cluster.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "aws-profile",
+      "component": "shared",
+      "file": "cmd/util/cluster.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "aws-role-arn",
+      "component": "shared",
+      "file": "cmd/util/cluster.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "azure-active-directory-endpoint",
+      "component": "shared",
+      "file": "cmd/util/repo.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "azure-service-principal-client-id",
+      "component": "shared",
+      "file": "cmd/util/repo.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "azure-service-principal-client-secret",
+      "component": "shared",
+      "file": "cmd/util/repo.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "azure-service-principal-tenant-id",
+      "component": "shared",
+      "file": "cmd/util/repo.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "bearer-token",
+      "component": "shared",
+      "file": "cmd/util/repo.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "cluster-endpoint",
+      "component": "shared",
+      "file": "cmd/util/cluster.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "cluster-name",
+      "component": "shared",
+      "file": "cmd/argocd-k8s-auth/commands/aws.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "cluster-resources",
+      "component": "shared",
+      "file": "cmd/util/cluster.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "config-dir-path",
+      "component": "shared",
+      "file": "cmd/argocd-cmp-server/commands/argocd_cmp_server.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "config-management-plugin",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "deny-cluster-resource",
+      "component": "shared",
+      "file": "cmd/util/project.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "deny-namespaced-resource",
+      "component": "shared",
+      "file": "cmd/util/project.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "depth",
+      "component": "shared",
+      "file": "cmd/util/repo.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "description",
+      "component": "shared",
+      "file": "cmd/util/project.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "dest",
+      "component": "shared",
+      "file": "cmd/util/project.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "dest-name",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "dest-namespace",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "dest-server",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "dest-service-accounts",
+      "component": "shared",
+      "file": "cmd/util/project.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "directory-exclude",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "directory-include",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "directory-recurse",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "disable-compression",
+      "component": "shared",
+      "file": "cmd/util/cluster.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "dry-source-path",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "dry-source-repo",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "dry-source-revision",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "enable-lfs",
+      "component": "shared",
+      "file": "cmd/util/repo.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "enable-oci",
+      "component": "shared",
+      "file": "cmd/util/repo.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "env",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "exec-command",
+      "component": "shared",
+      "file": "cmd/util/cluster.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "exec-command-api-version",
+      "component": "shared",
+      "file": "cmd/util/cluster.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "exec-command-args",
+      "component": "shared",
+      "file": "cmd/util/cluster.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "exec-command-env",
+      "component": "shared",
+      "file": "cmd/util/cluster.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "exec-command-install-hint",
+      "component": "shared",
+      "file": "cmd/util/cluster.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "force-http-basic-auth",
+      "component": "shared",
+      "file": "cmd/util/repo.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "gcp-service-account-key-path",
+      "component": "shared",
+      "file": "cmd/util/repo.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "github-app-enterprise-base-url",
+      "component": "shared",
+      "file": "cmd/util/repo.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "github-app-id",
+      "component": "shared",
+      "file": "cmd/util/repo.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "github-app-installation-id",
+      "component": "shared",
+      "file": "cmd/util/repo.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "github-app-private-key-path",
+      "component": "shared",
+      "file": "cmd/util/repo.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "helm-api-versions",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "helm-chart",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "helm-kube-version",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "helm-namespace",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "helm-pass-credentials",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "helm-set",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "helm-set-file",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "helm-set-string",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "helm-skip-crds",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "helm-skip-schema-validation",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "helm-skip-tests",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "helm-version",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "hydrate-to-branch",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "ignore-missing-components",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "ignore-missing-value-files",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "in-cluster",
+      "component": "shared",
+      "file": "cmd/util/cluster.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "insecure-ignore-host-key",
+      "component": "shared",
+      "file": "cmd/util/repo.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "insecure-oci-force-http",
+      "component": "shared",
+      "file": "cmd/util/repo.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "insecure-skip-server-verification",
+      "component": "shared",
+      "file": "cmd/util/repo.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "jsonnet-ext-var-code",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "jsonnet-ext-var-str",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "jsonnet-libs",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "jsonnet-tla-code",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "jsonnet-tla-str",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "kustomize-api-versions",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "kustomize-common-annotation",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "kustomize-common-label",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "kustomize-force-common-annotation",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "kustomize-force-common-label",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "kustomize-image",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "kustomize-kube-version",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "kustomize-label-include-templates",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "kustomize-label-without-selector",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "kustomize-namespace",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "kustomize-replica",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "kustomize-version",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "logformat",
+      "component": "shared",
+      "file": "cmd/argocd-cmp-server/commands/argocd_cmp_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_CMP_SERVER_LOGFORMAT",
+      "pureFlag": false
+    },
+    {
+      "name": "loglevel",
+      "component": "shared",
+      "file": "cmd/argocd-cmp-server/commands/argocd_cmp_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_CMP_SERVER_LOGLEVEL",
+      "pureFlag": false
+    },
+    {
+      "name": "name",
+      "component": "shared",
+      "file": "cmd/util/repo.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "name",
+      "component": "shared",
+      "file": "cmd/util/cluster.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "nameprefix",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "namespace",
+      "component": "shared",
+      "file": "cmd/util/cluster.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "namesuffix",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "no-proxy",
+      "component": "shared",
+      "file": "cmd/util/repo.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "orphaned-resources",
+      "component": "shared",
+      "file": "cmd/util/project.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "orphaned-resources-warn",
+      "component": "shared",
+      "file": "cmd/util/project.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "otlp-address",
+      "component": "shared",
+      "file": "cmd/argocd-cmp-server/commands/argocd_cmp_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_CMP_SERVER_OTLP_ADDRESS",
+      "pureFlag": false
+    },
+    {
+      "name": "otlp-attrs",
+      "component": "shared",
+      "file": "cmd/argocd-cmp-server/commands/argocd_cmp_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_CMP_SERVER_OTLP_ATTRS",
+      "pureFlag": false
+    },
+    {
+      "name": "otlp-headers",
+      "component": "shared",
+      "file": "cmd/argocd-cmp-server/commands/argocd_cmp_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_CMP_SERVER_OTLP_HEADERS",
+      "pureFlag": false
+    },
+    {
+      "name": "otlp-insecure",
+      "component": "shared",
+      "file": "cmd/argocd-cmp-server/commands/argocd_cmp_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_CMP_SERVER_OTLP_INSECURE",
+      "pureFlag": false
+    },
+    {
+      "name": "otlp-sample-ratio",
+      "component": "shared",
+      "file": "cmd/argocd-cmp-server/commands/argocd_cmp_server.go",
+      "hasEnv": true,
+      "envVar": "ARGOCD_CMP_SERVER_OTLP_SAMPLE_RATIO",
+      "pureFlag": false
+    },
+    {
+      "name": "parameter",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "password",
+      "component": "shared",
+      "file": "cmd/util/repo.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "path",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "plugin-env",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "profile",
+      "component": "shared",
+      "file": "cmd/argocd-k8s-auth/commands/aws.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "project",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "project",
+      "component": "shared",
+      "file": "cmd/util/cluster.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "project",
+      "component": "shared",
+      "file": "cmd/util/repo.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "proxy",
+      "component": "shared",
+      "file": "cmd/util/repo.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "ref",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "release-name",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "repo",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "revision",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "revision-history-limit",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "role-arn",
+      "component": "shared",
+      "file": "cmd/argocd-k8s-auth/commands/aws.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "self-heal",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "shard",
+      "component": "shared",
+      "file": "cmd/util/cluster.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "signature-keys",
+      "component": "shared",
+      "file": "cmd/util/project.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "source-name",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "source-namespaces",
+      "component": "shared",
+      "file": "cmd/util/project.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "src",
+      "component": "shared",
+      "file": "cmd/util/project.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "ssh-private-key-path",
+      "component": "shared",
+      "file": "cmd/util/repo.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "sync-option",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "sync-policy",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "sync-retry-backoff-duration",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "sync-retry-backoff-factor",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "sync-retry-backoff-max-duration",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "sync-retry-limit",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "sync-retry-refresh",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "sync-source-branch",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "sync-source-path",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "tag-prefix",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "tls-client-cert-key-path",
+      "component": "shared",
+      "file": "cmd/util/repo.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "tls-client-cert-path",
+      "component": "shared",
+      "file": "cmd/util/repo.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "type",
+      "component": "shared",
+      "file": "cmd/util/repo.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "use-azure-workload-identity",
+      "component": "shared",
+      "file": "cmd/util/repo.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "username",
+      "component": "shared",
+      "file": "cmd/util/repo.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "validate",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "values",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "values-literal-file",
+      "component": "shared",
+      "file": "cmd/util/app.go",
+      "hasEnv": false,
+      "pureFlag": true
+    },
+    {
+      "name": "webhook-manifest-cache-warm-disabled",
+      "component": "shared",
+      "file": "cmd/util/repo.go",
+      "hasEnv": false,
+      "pureFlag": true
+    }
+  ],
+  "uncovered": {
+    "cmKeys": null,
+    "envVars": null
+  }
+}
