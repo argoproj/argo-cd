@@ -16,9 +16,9 @@ const (
 	SourceFlagOnly    = "flag"
 )
 
-// Descriptor is the type-erased view of a registry entry used by the drift guard,
-// inventory tooling, and documentation generator. Phase 0 descriptors describe
-// CURRENT config sources only — no CRDPath or Default.
+// Descriptor is the type-erased view of a registry entry used for introspection
+// and typed Resolve. Descriptors describe CURRENT config sources only — no CRDPath
+// or Default.
 type Descriptor interface {
 	// Name is a stable registry identifier (e.g. "reconciliationTimeout").
 	Name() string
@@ -229,15 +229,6 @@ func MustRegister[T any](s Setting[T]) {
 func MustRegisterDynamic[T any](s DynamicSetting[T]) {
 	if err := RegisterDynamic(s); err != nil {
 		panic(err)
-	}
-}
-
-// panicGet returns a Get callback that panics when invoked. Used for coverage-only
-// descriptors that are registered for drift-guard completeness but not yet
-// resolved through the provider.
-func panicGet[T any](name string) func(*ResolveContext) (T, error) {
-	return func(*ResolveContext) (T, error) {
-		panic(fmt.Sprintf("config: %q not yet resolved via provider", name))
 	}
 }
 
