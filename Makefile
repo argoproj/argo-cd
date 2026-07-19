@@ -645,7 +645,11 @@ install-tools-local: install-test-tools-local install-codegen-tools-local instal
 # Installs the gh aw CLI extension for managing GitHub Agentics workflows
 .PHONY: install-gh-aw-local
 install-gh-aw-local:
-	. hack/tool-versions.sh && gh extension install --pin v$${GH_AW_VERSION} --force github/gh-aw
+	@if command -v gh >/dev/null 2>&1; then \
+		. hack/tool-versions.sh && gh extension install --pin v$${GH_AW_VERSION} --force github/gh-aw; \
+	else \
+		echo "WARNING: gh CLI not found — skipping gh-aw extension install (not required for building Argo CD)"; \
+	fi
 
 # Installs all tools required for running unit & end-to-end tests (Linux packages)
 .PHONY: install-test-tools-local
