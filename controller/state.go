@@ -133,7 +133,6 @@ func (res *comparisonResult) GetHealthStatus() health.HealthStatusCode {
 type appStateManager struct {
 	metricsServer  *metrics.MetricsServer
 	db             db.ArgoDB
-	settingsMgr    *settings.SettingsManager
 	configProvider *configbus.Provider
 	appclientset   appclientset.Interface
 	kubectl        kubeutil.Kubectl
@@ -1315,7 +1314,6 @@ func NewAppStateManager(
 	namespace string,
 	kubectl kubeutil.Kubectl,
 	onKubectlRun kubeutil.OnKubectlRunFunc,
-	settingsMgr *settings.SettingsManager,
 	configProvider *configbus.Provider,
 	liveStateCache statecache.LiveStateCache,
 	metricsServer *metrics.MetricsServer,
@@ -1336,7 +1334,6 @@ func NewAppStateManager(
 		onKubectlRun:          onKubectlRun,
 		repoClientset:         repoClientset,
 		namespace:             namespace,
-		settingsMgr:           settingsMgr,
 		configProvider:        configProvider,
 		metricsServer:         metricsServer,
 		statusRefreshTimeout:  statusRefreshTimeout,
