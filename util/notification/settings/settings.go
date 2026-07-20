@@ -132,15 +132,13 @@ func getAppProjectForTemplate(argocdService service.Service, obj map[string]any)
 	}
 
 	appName, _ := metadata["name"].(string)
-	namespace, _ := metadata["namespace"].(string)
 
 	// Fetch the AppProject
 	appProjectObj, err := argocdService.GetAppProject(ctx, projectName)
 	if err != nil {
 		log.WithFields(log.Fields{
-			"app":       appName,
-			"project":   projectName,
-			"namespace": namespace,
+			"app":     appName,
+			"project": projectName,
 		}).Warnf("Failed to get AppProject for notification template: %v", err)
 		return nil
 	}
