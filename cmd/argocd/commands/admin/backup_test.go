@@ -49,7 +49,6 @@ func newConfigmapObject() *unstructured.Unstructured {
 			},
 		},
 	}
-
 	return kube.MustToUnstructured(&cm)
 }
 
@@ -67,7 +66,6 @@ func newSecretsObject() *unstructured.Unstructured {
 			"server.secretkey": nil,
 		},
 	}
-
 	return kube.MustToUnstructured(&secret)
 }
 
@@ -93,7 +91,6 @@ func newAppProject() *unstructured.Unstructured {
 			SourceRepos: []string{"*"},
 		},
 	}
-
 	return kube.MustToUnstructured(&appProject)
 }
 
@@ -115,7 +112,6 @@ func newApplication(namespace string) *unstructured.Unstructured {
 			},
 		},
 	}
-
 	return kube.MustToUnstructured(&app)
 }
 
@@ -138,7 +134,6 @@ func newApplicationSet(namespace string) *unstructured.Unstructured {
 			},
 		},
 	}
-
 	return kube.MustToUnstructured(&appSet)
 }
 
@@ -484,6 +479,65 @@ func TestIsSkipLabelMatches(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := isSkipLabelMatches(tt.obj, tt.skipLabels)
 			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+// Test_updateLive tests the updateLive function used during import
+func Test_updateLive(t *testing.T) {
+	tests := []struct {
+		name          string
+		bak           *unstructured.Unstructured
+		live          *unstructured.Unstructured
+		stopOperation bool
+	}{
+		{
+			name: "ConfigMap data should be updated from backup",
+			bak: kube.MustToUnstructured(&corev1.ConfigMap{
+				TypeMeta:   metav1.TypeMeta{Kind: "ConfigMap"},
+				ObjectMeta: metav1.ObjectMeta{Name: "my-cm", Namespace: "argocd"},
+				Data:       map[string]string{"key": "from-backup"},
+			}),
+			live: kube.MustToUnstructured(&corev1.ConfigMap{
+				TypeMeta:   metav1.TypeMeta{Kind: "ConfigMap"},
+				ObjectMeta: metav1.ObjectMeta{Name: "my-cm", Namespace: "argocd"},
+				Data:       map[string]string{"key": "from-live"},
+			}),
+			stopOperation: false,
+		},
+		{
+			name: "Application operation should be removed when stopOperation is true",
+			bak:  newApplication("argocd"),
+			live: func() *unstructured.Unstructured {
+				app := newApplication("argocd")
+				app.Object["operation"] = map[string]any{"sync": map[string]any{}}
+				return app
+			}(),
+			stopOperation: true,
+		},
+		{
+			name: "Application operation should be kept when stopOperation is false",
+			bak:  newApplication("argocd"),
+			live: func() *unstructured.Unstructured {
+				app := newApplication("argocd")
+				app.Object["operation"] = map[string]any{"sync": map[string]any{}}
+				return app
+			}(),
+			stopOperation: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := updateLive(tt.bak, tt.live, tt.stopOperation)
+			assert.NotNil(t, result)
+			switch {
+			case tt.live.GetKind() == "ConfigMap":
+				assert.Equal(t, tt.bak.Object["data"], result.Object["data"])
+			case tt.stopOperation:
+				assert.Nil(t, result.Object["operation"])
+			default:
+				assert.NotNil(t, result.Object["operation"])
+			}
 		})
 	}
 }
