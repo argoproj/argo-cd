@@ -268,8 +268,9 @@ To configure TLS version for the bundled Dex server, update the `argocd-cm` Conf
   metadata:
     name: argocd-cm
   data:
-    dex.tls: |
-      dexTlsVersion: "1.3"
+    dex.config: |
+      web:
+        tlsMinVersion: "1.2"
 ```
 
 ### Disabling TLS to argocd-repo-server

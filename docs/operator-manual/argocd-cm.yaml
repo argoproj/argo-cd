@@ -7,12 +7,6 @@ metadata:
     app.kubernetes.io/name: argocd-cm
     app.kubernetes.io/part-of: argocd
 data:
-  # Dex TLS configuration
-  # Specifies the minimum TLS version for Dex server
-  dex.tls: |
-    # dexTlsVersion: TLS version for Dex web
-    # Supported values: "1.2" (default), "1.3"
-    dexTlsVersion: "1.3"
   # Argo CD's externally facing base URL (optional). Required when configuring SSO
   url: https://argo-cd-demo.argoproj.io
 
@@ -60,6 +54,8 @@ data:
   # https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/user-management/index.md#sso
   # https://dexidp.io/docs/connectors/
   dex.config: |
+    web:
+      tlsMinVersion: "1.2"
     connectors:
       # GitHub example
       - type: github
