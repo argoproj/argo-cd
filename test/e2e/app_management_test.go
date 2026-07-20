@@ -2066,6 +2066,71 @@ func TestFailedSyncWithRetry(t *testing.T) {
 		Expect(OperationMessageContains("retried 1 times"))
 }
 
+// TestStaleOperationRevisionNotUsedNewSync validates new operations resolve the revision
+// and do not use the existing completed operation state.
+func TestStaleOperationRevisionNotUsedNewSync(t *testing.T) {
+	var revisionX string
+	var revisionY string
+
+	ctx := Given(t)
+	ctx.
+		Path("hook").
+		When().
+		CreateApp().
+		And(func() {
+			sha, err := fixture.Run(fixture.TmpDir()+"/testdata.git", "git", "rev-parse", "HEAD")
+			require.NoError(t, err)
+			revisionX = strings.TrimSpace(sha)
+		}).
+		// 1. Create and sync the app on revision X.
+		Sync("--revision", revisionX).
+		Then().
+		// 2. The app must be synced and healthy on X.
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		And(func(app *Application) {
+			require.NotNil(t, app.Status.OperationState)
+			require.NotNil(t, app.Status.OperationState.SyncResult)
+			require.Equal(t, revisionX, app.Status.OperationState.SyncResult.Revision)
+		}).
+		When().
+		// 3. Push an invalid commit Y (an apply-time failure only present on HEAD).
+		AddFile("failure-during-sync.yaml", `apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: failure-during-sync
+  labels:
+    my-label: has-inva/id-character!
+`).
+		And(func() {
+			sha, err := fixture.Run(fixture.TmpDir()+"/testdata.git", "git", "rev-parse", "HEAD")
+			require.NoError(t, err)
+			revisionY = strings.TrimSpace(sha)
+			require.NotEqual(t, revisionX, revisionY)
+			// 4. Add a sync Operation on HEAD (without any resolved revisions)
+			patch := fmt.Sprintf(`{
+				"operation": {
+					"initiatedBy": {"username": "e2e", "automated": true},
+					"info": [{"name": "Reason", "value": "Syncing latest without resolved revision"}],
+					"sync": {},
+					"retry": {"limit": %d, "backoff": {"duration": %q}}
+				}
+			}`, 1, "1s")
+			_, err = fixture.Run("", "kubectl", "-n", fixture.TestNamespace(), "patch", "application", ctx.AppName(), "--type", "merge", "-p", patch)
+			require.NoError(t, err)
+		}).
+		Then().
+		// 5. The sync resolves the new revision Y and fails on it
+		Expect(OperationRetriedMinimumTimes(1)).
+		Expect(OperationPhaseIs(OperationFailed)).
+		And(func(app *Application) {
+			require.NotNil(t, app.Status.OperationState.SyncResult)
+			// syncResult must record revision Y, the current broken HEAD that failed.
+			assert.Equal(t, revisionY, app.Status.OperationState.SyncResult.Revision)
+		})
+}
+
 func TestCreateDisableValidation(t *testing.T) {
 	ctx := Given(t)
 	ctx.Path("baddir").
