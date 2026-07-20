@@ -11,27 +11,17 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 )
 
-func TestProviderReconciliationTimeoutLegacy(t *testing.T) {
-	d := 120 * time.Second
-	p := NewProvider(nil, &LegacyValues{ReconciliationTimeout: &d})
-	assert.Equal(t, d, p.ReconciliationTimeout())
-}
-
 func TestProviderResourceOverridesRequiresSettingsMgr(t *testing.T) {
 	p := NewProvider(nil, nil)
 	_, err := p.ResourceOverrides()
 	require.Error(t, err)
 }
 
-func TestProviderHardTimeoutAndJitterLegacy(t *testing.T) {
-	hard := 300 * time.Second
-	jitter := 60 * time.Second
-	p := NewProvider(nil, &LegacyValues{
-		HardReconciliationTimeout: &hard,
-		ReconciliationJitter:      &jitter,
-	})
-	assert.Equal(t, hard, p.HardReconciliationTimeout())
-	assert.Equal(t, jitter, p.ReconciliationJitter())
+func TestProviderTimeoutsWithoutControllerAreZero(t *testing.T) {
+	p := NewProvider(nil, nil)
+	assert.Equal(t, time.Duration(0), p.ReconciliationTimeout())
+	assert.Equal(t, time.Duration(0), p.HardReconciliationTimeout())
+	assert.Equal(t, time.Duration(0), p.ReconciliationJitter())
 }
 
 func TestStandaloneEnvGitRequestTimeoutDefault(t *testing.T) {
