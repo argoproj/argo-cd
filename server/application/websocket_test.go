@@ -220,7 +220,9 @@ func TestTerminalSession_Write(t *testing.T) {
 
 func TestGetToken(t *testing.T) {
 	t.Parallel()
-	const tokenValue = "sample-jwt-token"
+	// jwtutil.IsValid only checks JWT shape (three dot-separated segments).
+	const tokenValue = "header.payload.signature"
+	const cookieToken = "cookie.payload.signature"
 
 	t.Run("bearer token in Authorization header", func(t *testing.T) {
 		t.Parallel()
@@ -244,9 +246,35 @@ func TestGetToken(t *testing.T) {
 		t.Parallel()
 		r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/terminal", http.NoBody)
 		r.Header.Set("Authorization", "Bearer "+tokenValue)
-		r.AddCookie(&http.Cookie{Name: common.AuthCookieName, Value: "cookie-token"})
+		r.AddCookie(&http.Cookie{Name: common.AuthCookieName, Value: cookieToken})
 		token, err := getToken(r)
 		require.NoError(t, err)
 		assert.Equal(t, tokenValue, token)
+	})
+
+	t.Run("invalid bearer falls back to valid cookie", func(t *testing.T) {
+		t.Parallel()
+		r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/terminal", http.NoBody)
+		r.Header.Set("Authorization", "Bearer not-a-jwt")
+		r.AddCookie(&http.Cookie{Name: common.AuthCookieName, Value: cookieToken})
+		token, err := getToken(r)
+		require.NoError(t, err)
+		assert.Equal(t, cookieToken, token)
+	})
+
+	t.Run("rejects invalid bearer without cookie", func(t *testing.T) {
+		t.Parallel()
+		r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/terminal", http.NoBody)
+		r.Header.Set("Authorization", "Bearer not-a-jwt")
+		_, err := getToken(r)
+		require.Error(t, err)
+	})
+
+	t.Run("rejects invalid cookie token", func(t *testing.T) {
+		t.Parallel()
+		r := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/terminal", http.NoBody)
+		r.AddCookie(&http.Cookie{Name: common.AuthCookieName, Value: "not-a-jwt"})
+		_, err := getToken(r)
+		require.Error(t, err)
 	})
 }
