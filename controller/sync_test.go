@@ -2094,7 +2094,6 @@ func TestSyncWithImpersonate(t *testing.T) {
 // TestApplyDiffImpersonationConfig verifies that the server-side diff dry-run runs
 // as the same identity as sync: it honors the AppProject's destinationServiceAccounts
 // when impersonation is enabled, and falls back to the controller credential otherwise.
-// Regression test for https://github.com/argoproj/argo-cd/issues/28695.
 func TestApplyDiffImpersonationConfig(t *testing.T) {
 	t.Parallel()
 
