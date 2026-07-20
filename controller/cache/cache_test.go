@@ -816,7 +816,7 @@ func TestLoadCacheSettings(t *testing.T) {
 	})
 	ch := liveStateCache{
 		settingsMgr:    settingsManager,
-		configProvider: configbus.NewProvider(settingsManager, nil),
+		configProvider: configbus.NewLegacyProvider(settingsManager, nil),
 	}
 	label, err := settingsManager.GetAppInstanceLabelKey()
 	require.NoError(t, err)

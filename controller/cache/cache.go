@@ -190,7 +190,7 @@ func NewLiveStateCache(
 	db db.ArgoDB,
 	appInformer cache.SharedIndexInformer,
 	settingsMgr *settings.SettingsManager,
-	configProvider *configbus.Provider,
+	configProvider configbus.Provider,
 	metricsServer *metrics.MetricsServer,
 	onObjectUpdated ObjectUpdatedHandler,
 	clusterSharding sharding.ClusterShardingCache,
@@ -226,7 +226,7 @@ type liveStateCache struct {
 	appInformer          cache.SharedIndexInformer
 	onObjectUpdated      ObjectUpdatedHandler
 	settingsMgr          *settings.SettingsManager
-	configProvider       *configbus.Provider
+	configProvider       configbus.Provider
 	metricsServer        *metrics.MetricsServer
 	clusterSharding      sharding.ClusterShardingCache
 	resourceTracking     argo.ResourceTracking
