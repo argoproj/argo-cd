@@ -5,13 +5,22 @@ if obj.status == nil then
   return health_status
 end
 
-if obj.spec.clusters == nil or #obj.spec.clusters == 0 then
+-- spec.clusters is nil for dependency-propagated ResourceBindings (propagateDeps=true).
+-- In that case, fall through and evaluate aggregatedStatus directly.
+if obj.spec.clusters ~= nil and #obj.spec.clusters == 0 then
   health_status.status = "Progressing"
   health_status.message = "Current resource status is insufficient"
   return health_status
 end
 
-if obj.status.aggregatedStatus == nil or #obj.spec.clusters ~= #obj.status.aggregatedStatus then
+if obj.status.aggregatedStatus == nil or #obj.status.aggregatedStatus == 0 then
+  health_status.status = "Progressing"
+  health_status.message = "Current resource status is insufficient"
+  return health_status
+end
+
+-- When spec.clusters is set, all clusters must have reported back before we evaluate.
+if obj.spec.clusters ~= nil and #obj.spec.clusters ~= #obj.status.aggregatedStatus then
   health_status.status = "Progressing"
   health_status.message = "Current resource status is insufficient"
   return health_status
