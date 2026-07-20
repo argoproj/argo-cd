@@ -288,7 +288,7 @@ func NewReconcileCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 					overrides := clientcmd.ConfigOverrides{}
 					repoServerName := clientOpts.RepoServerName
 					repoServerServiceLabelSelector := common.LabelKeyComponentRepoServer + "=" + common.LabelValueComponentRepoServer
-					repoServerServices, err := kubeClientset.CoreV1().Services(namespace).List(ctx, metav1.ListOptions{LabelSelector: repoServerServiceLabelSelector})
+					repoServerServices, err := kubeClientset.CoreV1().Services(namespace).List(context.Background(), metav1.ListOptions{LabelSelector: repoServerServiceLabelSelector})
 					errors.CheckError(err)
 					if len(repoServerServices.Items) > 0 {
 						if repoServerServicelabel, ok := repoServerServices.Items[0].Labels[common.LabelKeyAppName]; ok && repoServerServicelabel != "" {

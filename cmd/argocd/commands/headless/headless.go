@@ -120,7 +120,6 @@ type forwardRepoClientset struct {
 	err            error
 	repoServerName string
 	kubeClientset  kubernetes.Interface
-	ctx            context.Context
 }
 
 func (c *forwardRepoClientset) NewRepoServerClient() (utilio.Closer, repoapiclient.RepoServerServiceClient, error) {
@@ -130,11 +129,7 @@ func (c *forwardRepoClientset) NewRepoServerClient() (utilio.Closer, repoapiclie
 		}
 		repoServerName := c.repoServerName
 		repoServererviceLabelSelector := common.LabelKeyComponentRepoServer + "=" + common.LabelValueComponentRepoServer
-		ctx := c.ctx
-		if ctx == nil {
-			ctx = context.Background()
-		}
-		repoServerServices, err := c.kubeClientset.CoreV1().Services(c.namespace).List(ctx, metav1.ListOptions{LabelSelector: repoServererviceLabelSelector})
+		repoServerServices, err := c.kubeClientset.CoreV1().Services(c.namespace).List(context.Background(), metav1.ListOptions{LabelSelector: repoServererviceLabelSelector})
 		if err != nil {
 			c.err = err
 			return
@@ -289,7 +284,7 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 		KubeControllerClientset: controllerClientset,
 		Insecure:                true,
 		ListenHost:              *address,
-		RepoClientset:           &forwardRepoClientset{namespace: namespace, context: ctxStr, repoServerName: clientOpts.RepoServerName, kubeClientset: kubeClientset, ctx: ctx},
+		RepoClientset:           &forwardRepoClientset{namespace: namespace, context: ctxStr, repoServerName: clientOpts.RepoServerName, kubeClientset: kubeClientset},
 		EnableProxyExtension:    false,
 		SyncWithReplaceAllowed:  true,
 	}, server.ApplicationSetOpts{})
