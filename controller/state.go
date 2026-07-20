@@ -141,17 +141,17 @@ type appStateManager struct {
 	liveStateCache statecache.LiveStateCache
 	cache          *appstatecache.Cache
 	namespace      string
-	// Deprecated: use LegacyStatusRefreshTimeout.
+	// Deprecated: use configProvider.ReconciliationTimeout.
 	statusRefreshTimeout time.Duration
 	resourceTracking     argo.ResourceTracking
-	// Deprecated: use LegacyPersistResourceHealth.
+	// Deprecated: use configProvider.PersistResourceHealth.
 	persistResourceHealth bool
 	repoErrorCache        goSync.Map
-	// Deprecated: use LegacyRepoErrorGracePeriod.
+	// Deprecated: use configProvider.RepoErrorGracePeriod.
 	repoErrorGracePeriod time.Duration
-	// Deprecated: use LegacyServerSideDiff.
+	// Deprecated: use configProvider.ServerSideDiff.
 	serverSideDiff bool
-	// Deprecated: use LegacyIgnoreNormalizerOpts.
+	// Deprecated: use configProvider.IgnoreNormalizerOpts.
 	ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts
 }
 

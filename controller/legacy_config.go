@@ -12,8 +12,9 @@ import (
 // Ensure ApplicationController satisfies configbus.ControllerLegacy.
 var _ configbus.ControllerLegacy = (*ApplicationController)(nil)
 
-// Legacy accessors are the sole allowed readers of deprecated config fields on
-// ApplicationController / appStateManager. They implement configbus.ControllerLegacy.
+// Legacy* accessors implement configbus.ControllerLegacy for the configbus
+// Provider only. Product code and tests must read via configProvider.*; these
+// methods are the sole allowed readers of the deprecated struct fields.
 
 //nolint:staticcheck // SA1019: sole allowed reader of deprecated statusRefreshTimeout
 func (ctrl *ApplicationController) LegacyStatusRefreshTimeout() time.Duration {
