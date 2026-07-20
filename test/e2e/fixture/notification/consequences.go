@@ -39,17 +39,17 @@ func (c *Consequences) Templates(block func(services *notification.TemplateList,
 }
 
 func (c *Consequences) listServices() (*notification.ServiceList, error) {
-	_, notifClient, _ := fixture.ArgoCDClientset.NewNotificationClient()
+	_, notifClient, _ := fixture.ArgoCDClientset.NewNotificationClient(c.context.T().Context())
 	return notifClient.ListServices(context.Background(), &notification.ServicesListRequest{})
 }
 
 func (c *Consequences) listTriggers() (*notification.TriggerList, error) {
-	_, notifClient, _ := fixture.ArgoCDClientset.NewNotificationClient()
+	_, notifClient, _ := fixture.ArgoCDClientset.NewNotificationClient(c.context.T().Context())
 	return notifClient.ListTriggers(context.Background(), &notification.TriggersListRequest{})
 }
 
 func (c *Consequences) listTemplates() (*notification.TemplateList, error) {
-	_, notifClient, _ := fixture.ArgoCDClientset.NewNotificationClient()
+	_, notifClient, _ := fixture.ArgoCDClientset.NewNotificationClient(c.context.T().Context())
 	return notifClient.ListTemplates(context.Background(), &notification.TemplatesListRequest{})
 }
 

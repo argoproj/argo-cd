@@ -42,7 +42,7 @@ func (a *Actions) DoNotIgnoreErrors() *Actions {
 }
 
 func (a *Actions) Create() *Actions {
-	_, clusterClient, _ := fixture.ArgoCDClientset.NewClusterClient()
+	_, clusterClient, _ := fixture.ArgoCDClientset.NewClusterClient(a.context.T().Context())
 
 	_, err := clusterClient.Create(context.Background(), &clusterpkg.ClusterCreateRequest{
 		Cluster: &v1alpha1.Cluster{

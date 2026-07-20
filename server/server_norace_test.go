@@ -73,9 +73,9 @@ func TestUserAgent(t *testing.T) {
 			PlainText:  true,
 			UserAgent:  test.userAgent,
 		}
-		clnt, err := apiclient.NewClient(&opts)
+		clnt, err := apiclient.NewClient(ctx, &opts)
 		require.NoError(t, err)
-		conn, appClnt := clnt.NewApplicationClientOrDie()
+		conn, appClnt := clnt.NewApplicationClientOrDie(ctx)
 		_, err = appClnt.List(ctx, &applicationpkg.ApplicationQuery{})
 		if test.errorMsg != "" {
 			require.Error(t, err)

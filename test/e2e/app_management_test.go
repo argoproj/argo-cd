@@ -703,7 +703,7 @@ func TestManipulateApplicationResources(t *testing.T) {
 
 			deployment := resources[index]
 
-			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
+			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient(t.Context())
 			require.NoError(t, err)
 			defer utilio.Close(closer)
 
@@ -736,7 +736,7 @@ func TestOldStyleResourceAction(t *testing.T) {
 		Sync().
 		Then().
 		And(func(app *Application) {
-			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
+			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient(t.Context())
 			require.NoError(t, err)
 			defer utilio.Close(closer)
 
@@ -843,7 +843,7 @@ func TestNewStyleResourceActionPermitted(t *testing.T) {
 		Wait().
 		Then().
 		And(func(app *Application) {
-			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
+			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient(t.Context())
 			require.NoError(t, err)
 			defer utilio.Close(closer)
 
@@ -956,7 +956,7 @@ func TestNewStyleResourceActionMixedOk(t *testing.T) {
 		Wait().
 		Then().
 		And(func(app *Application) {
-			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
+			closer, client, err := fixture.ArgoCDClientset.NewApplicationClient(t.Context())
 			require.NoError(t, err)
 			defer utilio.Close(closer)
 
@@ -1134,7 +1134,7 @@ func assertResourceActions(t *testing.T, appName string, successful bool, deploy
 		}
 	}
 
-	closer, cdClient := fixture.ArgoCDClientset.NewApplicationClientOrDie()
+	closer, cdClient := fixture.ArgoCDClientset.NewApplicationClientOrDie(t.Context())
 	defer utilio.Close(closer)
 
 	deploymentResource, err := fixture.KubeClientset.AppsV1().Deployments(deploymentNamespace).Get(t.Context(), "guestbook-ui", metav1.GetOptions{})
@@ -1244,7 +1244,7 @@ func TestPermissions(t *testing.T) {
 		Expect(Condition(ApplicationConditionInvalidSpecError, destinationError)).
 		Expect(Condition(ApplicationConditionInvalidSpecError, sourceError)).
 		And(func(app *Application) {
-			closer, cdClient := fixture.ArgoCDClientset.NewApplicationClientOrDie()
+			closer, cdClient := fixture.ArgoCDClientset.NewApplicationClientOrDie(t.Context())
 			defer utilio.Close(closer)
 			appName, appNs := argo.ParseFromQualifiedName(app.Name, "")
 			fmt.Printf("APP NAME: %s\n", appName)

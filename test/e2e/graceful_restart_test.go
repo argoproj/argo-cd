@@ -44,7 +44,7 @@ func TestAPIServerGracefulRestart(t *testing.T) {
 	}
 	// One final time, should be healthy, or restart is considered too slow for tests
 	checkHealth(t, true)
-	closer, settingsClient, err := fixture.ArgoCDClientset.NewSettingsClient()
+	closer, settingsClient, err := fixture.ArgoCDClientset.NewSettingsClient(t.Context())
 	if closer != nil {
 		defer closer.Close()
 	}
