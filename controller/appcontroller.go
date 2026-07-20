@@ -2264,8 +2264,8 @@ func (ctrl *ApplicationController) handleRefreshAnnotation(ctx context.Context, 
 	// the patch below failed. These are Kubernetes API errors, not repo URLs, so
 	// recording the message via EndSpan does not risk leaking credentials.
 	var spanErr error
-	// FIXME: remove check when hydrator gets tracing added
-	if ctx != nil {
+	// FIXME: remove check when caller function in hydrator gets tracing added
+	if ctx != context.TODO() {
 		// NB: leaf span only — the annotations patch below deliberately stays on context.Background() so a
 		// canceled reconcile ctx never aborts a durable status write. The span just measures it.
 		_, span := tracer.Start(ctx, "controller.handleRefreshAnnotations")
