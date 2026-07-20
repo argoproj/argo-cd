@@ -1,20 +1,26 @@
 # Config bus
 
-The **config bus** (`util/configbus`) is Argo CD’s typed configuration layer for
-**durable product settings**. Those settings historically lived in `argocd-cm`,
-`argocd-cmd-params-cm`, and related ConfigMaps / CLI flags, with each binary
-parsing sources independently.
-
-The bus introduces a shared `configbus.Provider` API so call sites read typed
-getters instead of reaching into flags, env vars, or ConfigMaps directly.
+The **config bus** (`util/configbus`) exists to migrate Argo CD’s **durable
+product settings** from ConfigMaps (`argocd-cm`, `argocd-cmd-params-cm`, and
+related sources) to a **singleton configuration CRD**. The bus’s
+`configbus.Provider` is the stable API that component code calls during that
+migration: call sites read typed getters instead of reaching into flags, env
+vars, or ConfigMaps directly. Backing sources change behind the Provider; the
+call sites do not.
 
 > [!NOTE]
 > This page is for **contributors** changing how Argo CD reads configuration.
-> It describes the bus as of the first consumer cutover (application-controller).
-> Later work extends the same pattern to other components and to a declarative
-> configuration CRD; this document will grow with those changes.
+> It describes the bus as of the first consumer cutover (application-controller),
+> when the Provider still resolves from Legacy (flags/env) and `SettingsManager`
+> (ConfigMaps). Later work wires the same Provider to the singleton CRD; this
+> document will grow with those changes.
 
 ## Why it exists
+
+The end state is one declarative config object per install. Getting there
+requires a single typed read path first—otherwise every binary keeps its own
+ConfigMap / flag / env parsing, and a CRD cutover would mean rewriting call
+sites again.
 
 Without a shared bus:
 
@@ -23,8 +29,10 @@ Without a shared bus:
 - Resolve failures were easy to log-and-ignore, leaving zero/default values in
   effect.
 
-The Provider gives one place to add settings, one place to document sources, and
-a clear error path when a required value cannot be resolved.
+The Provider gives one place to add settings, one place to swap ConfigMap-backed
+resolution for CRD-backed resolution later, and a clear error path when a
+required value cannot be resolved.
+
 
 ## Architecture (current)
 
