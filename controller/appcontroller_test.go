@@ -4068,7 +4068,8 @@ func TestSelfHealRemainingBackoff(t *testing.T) {
 		tc := testCases[i]
 		t.Run(fmt.Sprintf("test case %d", i), func(t *testing.T) {
 			app.Status.OperationState.FinishedAt = tc.finishedAt
-			duration := ctrl.selfHealRemainingBackoff(app, tc.attempts)
+			duration, err := ctrl.selfHealRemainingBackoff(app, tc.attempts)
+			require.NoError(t, err)
 			shouldSelfHeal := duration <= 0
 			require.Equal(t, tc.shouldSelfHeal, shouldSelfHeal)
 			assertDurationAround(t, tc.expectedDuration, duration)

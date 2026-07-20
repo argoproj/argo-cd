@@ -756,7 +756,7 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 			if firstSeen, ok := m.repoErrorCache.Load(app.Name); ok {
 				repoErrorGracePeriod, graceErr := m.configProvider.RepoErrorGracePeriod()
 				if graceErr != nil {
-					logCtx.WithError(graceErr).Error("failed to resolve repo error grace period")
+					return nil, fmt.Errorf("failed to resolve repo error grace period: %w", graceErr)
 				}
 				if time.Since(firstSeen.(time.Time)) <= repoErrorGracePeriod && !noRevisionCache {
 					// if first seen is less than grace period and it's not a Level 3 comparison,
@@ -912,8 +912,7 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 
 	compareOptions, err := m.configProvider.ResourceCompareOptions()
 	if err != nil {
-		log.Warnf("Could not get compare options from ConfigMap (assuming defaults): %v", err)
-		compareOptions = settings.GetDefaultDiffOptions()
+		return nil, err
 	}
 	manifestRevisions := make([]string, 0)
 
@@ -923,7 +922,7 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 
 	serverSideDiffCfg, err := m.configProvider.ServerSideDiff()
 	if err != nil {
-		logCtx.WithError(err).Error("failed to resolve server-side diff setting")
+		return nil, err
 	}
 	serverSideDiff := serverSideDiffCfg ||
 		resourceutil.HasAnnotationOption(app, common.AnnotationCompareOptions, "ServerSideDiff=true")
@@ -938,7 +937,7 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 
 	ignoreNormalizerOpts, err := m.configProvider.IgnoreNormalizerOpts()
 	if err != nil {
-		logCtx.WithError(err).Error("failed to resolve ignore normalizer opts")
+		return nil, err
 	}
 	diffConfigBuilder := argodiff.NewDiffConfigBuilder().
 		WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles, ignoreNormalizerOpts).
@@ -1126,7 +1125,7 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 
 	persistResourceHealth, err := m.configProvider.PersistResourceHealth()
 	if err != nil {
-		logCtx.WithError(err).Error("failed to resolve persist resource health")
+		return nil, err
 	}
 	healthStatus, healthMessage, err := setApplicationHealth(managedResources, resourceSummaries, resourceOverrides, app, persistResourceHealth)
 	if err != nil {
