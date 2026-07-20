@@ -2647,7 +2647,6 @@ func TestOrphanedIndexDoesNotQueryProjectDuringStartupRace(t *testing.T) {
 	}
 	ctrl, err := NewApplicationController(
 		test.FakeArgoCDNamespace, settingsMgr,
-		nil,
 		kubeClient,
 		appclientset.NewSimpleClientset(app, proj),
 		mockRepoClientset, mockCommitClientset,
@@ -2714,7 +2713,6 @@ func TestOrphanedIndexReturnsNamespaceWhenProjectHasOrphanedResources(t *testing
 	}
 	ctrl, err := NewApplicationController(
 		test.FakeArgoCDNamespace, settingsMgr,
-		nil,
 		kubeClient,
 		appclientset.NewSimpleClientset(app, proj),
 		mockRepoClientset, mockCommitClientset,

@@ -17,6 +17,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	kubecache "k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
@@ -371,7 +372,14 @@ func reconcileApplications(
 	ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts,
 ) ([]appReconcileResult, error) {
 	settingsMgr := settings.NewSettingsManager(ctx, kubeClientset, namespace)
-	configProvider := configbus.NewProvider(settingsMgr, nil)
+	// Admin reconcile has no live ApplicationController; supply a Legacy adapter
+	// that mirrors the CLI flags already passed into this helper.
+	configProvider := configbus.NewProvider(settingsMgr, &configbus.LegacyValues{
+		Controller: &adminControllerLegacy{
+			serverSideDiff:       serverSideDiff,
+			ignoreNormalizerOpts: ignoreNormalizerOpts,
+		},
+	})
 	argoDB := db.NewDB(namespace, settingsMgr, kubeClientset)
 	appInformerFactory := appinformers.NewSharedInformerFactoryWithOptions(
 		appClientset,
@@ -483,4 +491,27 @@ func reconcileApplications(
 
 func newLiveStateCache(argoDB db.ArgoDB, appInformer kubecache.SharedIndexInformer, settingsMgr *settings.SettingsManager, configProvider *configbus.Provider, server *metrics.MetricsServer) cache.LiveStateCache {
 	return cache.NewLiveStateCache(argoDB, appInformer, settingsMgr, configProvider, server, func(_ map[string]bool, _ corev1.ObjectReference) {}, &sharding.ClusterSharding{}, argo.NewResourceTracking())
+}
+
+// adminControllerLegacy adapts admin-reconcile CLI flags into ControllerLegacy for
+// configbus.Provider. The admin CLI has no live ApplicationController.
+type adminControllerLegacy struct {
+	serverSideDiff       bool
+	ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts
+}
+
+func (a *adminControllerLegacy) LegacyStatusRefreshTimeout() time.Duration     { return 0 }
+func (a *adminControllerLegacy) LegacyStatusHardRefreshTimeout() time.Duration { return 0 }
+func (a *adminControllerLegacy) LegacyStatusRefreshJitter() time.Duration      { return 0 }
+func (a *adminControllerLegacy) LegacySyncTimeout() time.Duration              { return 0 }
+func (a *adminControllerLegacy) LegacySelfHealTimeout() time.Duration          { return 0 }
+func (a *adminControllerLegacy) LegacySelfHealBackoff() *wait.Backoff          { return nil }
+func (a *adminControllerLegacy) LegacyIgnoreNormalizerOpts() normalizers.IgnoreNormalizerOpts {
+	return a.ignoreNormalizerOpts
+}
+func (a *adminControllerLegacy) LegacyMetricsClusterLabels() []string { return nil }
+func (a *adminControllerLegacy) LegacyServerSideDiff() bool           { return a.serverSideDiff }
+func (a *adminControllerLegacy) LegacyPersistResourceHealth() bool    { return true }
+func (a *adminControllerLegacy) LegacyRepoErrorGracePeriod() time.Duration {
+	return 0
 }
