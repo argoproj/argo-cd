@@ -172,12 +172,10 @@ type ApplicationController struct {
 }
 
 // NewApplicationController creates new instance of ApplicationController.
-// crd may be nil (Phase 0 empty slot). The config provider is wired from the
-// controller itself as the legacy source.
+// The config provider is wired from the controller itself as the legacy source.
 func NewApplicationController(
 	namespace string,
 	settingsMgr *settings_util.SettingsManager,
-	crd configbus.CRDSource,
 	kubeClientset kubernetes.Interface,
 	applicationClientset appclientset.Interface,
 	repoClientset apiclient.Clientset,
@@ -243,7 +241,7 @@ func NewApplicationController(
 		ignoreNormalizerOpts:              ignoreNormalizerOpts,
 		metricsClusterLabels:              metricsClusterLabels,
 	}
-	ctrl.configProvider = configbus.NewProvider(settingsMgr, &configbus.LegacyValues{Controller: &ctrl}, crd)
+	ctrl.configProvider = configbus.NewProvider(settingsMgr, &configbus.LegacyValues{Controller: &ctrl})
 	if hydratorEnabled {
 		ctrl.hydrator = hydrator.NewHydrator(&ctrl, appResyncPeriod, commitClientset, repoClientset, db)
 	}

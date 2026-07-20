@@ -194,7 +194,6 @@ func NewCommand() *cobra.Command {
 			appController, err = controller.NewApplicationController(
 				namespace,
 				settingsMgr,
-				nil, // Phase 0: CRD slot empty; provider is wired from the controller
 				kubeClient,
 				appClient,
 				repoClientset,

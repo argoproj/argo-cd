@@ -86,7 +86,7 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...cacheutil.Options) func() (*
 		// Phase 0: route shared ARGOCD_RECONCILIATION_TIMEOUT through config bus
 		// (empty CRD slot → already-resolved flag/env value).
 		legacy := revisionCacheExpiration
-		p := configbus.NewProvider(nil, &configbus.LegacyValues{ReconciliationTimeout: &legacy}, nil)
+		p := configbus.NewProvider(nil, &configbus.LegacyValues{ReconciliationTimeout: &legacy})
 		revisionCacheExpiration = p.ReconciliationTimeout()
 		return NewCache(cache, repoCacheExpiration, revisionCacheExpiration, revisionCacheLockTimeout), nil
 	}
