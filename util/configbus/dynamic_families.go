@@ -13,11 +13,9 @@ func init() {
 
 func registerDynamicFamilies() {
 	MustRegisterDynamic(DynamicSetting[*v1alpha1.KustomizeOptions]{
-		Name:            "kustomizeVersions",
-		CMKeyPrefix:     "kustomize.version.",
-		HotReload:       true,
-		SourceConfigMap: SourceArgoCDCM,
-		KeyFunc:         suffixAfterPrefixKeyFunc("kustomize.version."),
+		Name:        "kustomizeVersions",
+		CMKeyPrefix: "kustomize.version.",
+		KeyFunc:     suffixAfterPrefixKeyFunc("kustomize.version."),
 		Get: func(ctx *ResolveContext) (*v1alpha1.KustomizeOptions, error) {
 			mgr, err := requireSettingsMgr(ctx)
 			if err != nil {
@@ -27,11 +25,9 @@ func registerDynamicFamilies() {
 		},
 	})
 	MustRegisterDynamic(DynamicSetting[*v1alpha1.KustomizeOptions]{
-		Name:            "kustomizePaths",
-		CMKeyPrefix:     "kustomize.path.",
-		HotReload:       true,
-		SourceConfigMap: SourceArgoCDCM,
-		KeyFunc:         suffixAfterPrefixKeyFunc("kustomize.path."),
+		Name:        "kustomizePaths",
+		CMKeyPrefix: "kustomize.path.",
+		KeyFunc:     suffixAfterPrefixKeyFunc("kustomize.path."),
 		Get: func(ctx *ResolveContext) (*v1alpha1.KustomizeOptions, error) {
 			mgr, err := requireSettingsMgr(ctx)
 			if err != nil {
@@ -41,11 +37,9 @@ func registerDynamicFamilies() {
 		},
 	})
 	MustRegisterDynamic(DynamicSetting[*v1alpha1.KustomizeOptions]{
-		Name:            "kustomizeBuildOptionsVersions",
-		CMKeyPrefix:     "kustomize.buildOptions.",
-		HotReload:       true,
-		SourceConfigMap: SourceArgoCDCM,
-		KeyFunc:         suffixAfterPrefixKeyFunc("kustomize.buildOptions."),
+		Name:        "kustomizeBuildOptionsVersions",
+		CMKeyPrefix: "kustomize.buildOptions.",
+		KeyFunc:     suffixAfterPrefixKeyFunc("kustomize.buildOptions."),
 		Get: func(ctx *ResolveContext) (*v1alpha1.KustomizeOptions, error) {
 			mgr, err := requireSettingsMgr(ctx)
 			if err != nil {
@@ -55,11 +49,9 @@ func registerDynamicFamilies() {
 		},
 	})
 	MustRegisterDynamic(DynamicSetting[*settings.Help]{
-		Name:            "helpDownload",
-		CMKeyPrefix:     "help.download.",
-		HotReload:       true,
-		SourceConfigMap: SourceArgoCDCM,
-		KeyFunc:         suffixAfterPrefixKeyFunc("help.download."),
+		Name:        "helpDownload",
+		CMKeyPrefix: "help.download.",
+		KeyFunc:     suffixAfterPrefixKeyFunc("help.download."),
 		Get: func(ctx *ResolveContext) (*settings.Help, error) {
 			mgr, err := requireSettingsMgr(ctx)
 			if err != nil {
@@ -69,11 +61,9 @@ func registerDynamicFamilies() {
 		},
 	})
 	MustRegisterDynamic(DynamicSetting[map[string]string]{
-		Name:            "extensionConfig",
-		CMKeyPrefix:     "extension.config",
-		HotReload:       true,
-		SourceConfigMap: SourceArgoCDCM,
-		KeyFunc:         extensionConfigKeyFunc,
+		Name:        "extensionConfig",
+		CMKeyPrefix: "extension.config",
+		KeyFunc:     extensionConfigKeyFunc,
 		Get: func(ctx *ResolveContext) (map[string]string, error) {
 			mgr, err := requireSettingsMgr(ctx)
 			if err != nil {
@@ -87,11 +77,9 @@ func registerDynamicFamilies() {
 		},
 	})
 	MustRegisterDynamic(DynamicSetting[map[string]settings.Account]{
-		Name:            "accounts",
-		CMKeyPrefix:     "accounts.",
-		HotReload:       true,
-		SourceConfigMap: SourceArgoCDCM,
-		KeyFunc:         accountsKeyFunc,
+		Name:        "accounts",
+		CMKeyPrefix: "accounts.",
+		KeyFunc:     accountsKeyFunc,
 		Get: func(ctx *ResolveContext) (map[string]settings.Account, error) {
 			mgr, err := requireSettingsMgr(ctx)
 			if err != nil {

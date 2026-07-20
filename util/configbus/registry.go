@@ -7,47 +7,25 @@ import (
 	"sync"
 )
 
-// Known SourceConfigMap values.
-const (
-	SourceArgoCDCM    = "argocd-cm"
-	SourceCmdParamsCM = "argocd-cmd-params-cm"
-	SourceRBACCM      = "argocd-rbac-cm"
-	SourceEnvOnly     = "env"
-	SourceFlagOnly    = "flag"
-)
-
-// Descriptor is the type-erased view of a registry entry used for introspection
-// and typed Resolve. Descriptors describe CURRENT config sources only — no CRDPath
-// or Default.
+// Descriptor is the type-erased view of a registered setting. Provider.Resolve
+// looks up descriptors by Name and calls resolveAny.
 type Descriptor interface {
-	// Name is a stable registry identifier (e.g. "reconciliationTimeout").
+	// Name is the stable registry key (e.g. "reconciliationTimeout").
 	Name() string
-	// CMKeyExact is an exact argocd-cm / argocd-cmd-params-cm data key, if any.
+	// CMKeyExact is the former ConfigMap data key this setting corresponds to, if any.
+	// Used for identity/introspection (DescriptorCoversCMKey); Gets do not read it.
 	CMKeyExact() string
-	// CMKeyPrefix is a dynamic key prefix (e.g. "resource.customizations."), if any.
+	// CMKeyPrefix is the key prefix for a dynamic (multi-key) family, if any.
 	CMKeyPrefix() string
-	// EnvVar is the environment variable name used as metadata (and by components
-	// via env helpers). The provider does not read env itself for flag-bound vars.
+	// EnvVar is the process environment variable this setting corresponds to, if any.
+	// Used for identity/introspection (DescriptorCoversEnv). Some Gets also read this
+	// env var directly; the field itself is not consulted by resolveAny.
 	EnvVar() string
-	// HotReload is true when changes are expected to take effect without restart.
-	HotReload() bool
-	// Separator is the list-value separator for this setting ("," by default;
-	// e.g. ";" for reposerver.plugin.tar.exclusions). Empty means ",".
-	Separator() string
-	// Secret is true when values are resolved against argocd-secret.
-	Secret() bool
-	// Component is the owning Argo CD component (e.g. "controller", "server"), if any.
-	Component() string
-	// SourceConfigMap is the ConfigMap that owns this key (argocd-cm, argocd-cmd-params-cm,
-	// argocd-rbac-cm) or "env" for standalone env vars.
-	SourceConfigMap() string
-	// FlagName is the cobra flag name when this setting is flag-bound, if any.
-	FlagName() string
 	// CoversCMKey reports whether this entry claims the given ConfigMap data key.
 	CoversCMKey(key string) bool
 	// CoversEnv reports whether this entry claims the given environment variable.
 	CoversEnv(env string) bool
-	// resolveAny resolves the setting through its Get/Parse callback.
+	// resolveAny resolves the setting via its Get callback.
 	resolveAny(ctx *ResolveContext) (any, error)
 }
 
@@ -56,53 +34,46 @@ type Descriptor interface {
 // → element "apps_Deployment", sub-field "health").
 type KeyFunc func(key string) (elementID, subField string, ok bool)
 
-// Setting describes a flat (non-dynamic) configuration value of type T.
-// Supply either Parse (simple string conversion) or Get (custom resolution), not both.
+// Setting is a flat (single-value) registry entry of type T.
+//
+// Get is the sole resolution path. It may read Legacy values, SettingsManager,
+// environment, and (on later layers) ArgoCDConfiguration — whatever sources that
+// setting still supports. There is no separate metadata flag for "which source";
+// the Get implementation encodes that.
 type Setting[T any] struct {
-	Name            string
-	CMKeyExact      string
-	EnvVar          string
-	HotReload       bool
-	Separator       string
-	Secret          bool
-	Component       string
-	SourceConfigMap string
-	FlagName        string
-	Parse           func(string) (T, error)
-	Get             func(*ResolveContext) (T, error)
-	Validate        func(T) error
+	// Name is required and must be unique across the registry.
+	Name string
+	// CMKeyExact optionally records the historical ConfigMap data key.
+	CMKeyExact string
+	// EnvVar optionally records the historical / transport environment variable.
+	EnvVar string
+	// Get resolves the live value. Required.
+	Get func(*ResolveContext) (T, error)
 }
 
-// DynamicSetting describes a multi-key / keyed-list family of type T.
+// DynamicSetting is a multi-key family (prefix + KeyFunc) of type T.
+// Get resolves the whole family (e.g. all resource overrides).
 type DynamicSetting[T any] struct {
-	Name            string
-	CMKeyPrefix     string
-	EnvVar          string
-	HotReload       bool
-	Separator       string
-	Secret          bool
-	Component       string
-	SourceConfigMap string
-	FlagName        string
-	KeyFunc         KeyFunc
-	Get             func(*ResolveContext) (T, error)
-	Validate        func(T) error
+	// Name is required and must be unique across the registry.
+	Name string
+	// CMKeyPrefix is the ConfigMap key prefix for this family (required).
+	CMKeyPrefix string
+	// EnvVar optionally records a related environment variable.
+	EnvVar string
+	// KeyFunc maps a concrete CM key under the prefix to an element id (required).
+	KeyFunc KeyFunc
+	// Get resolves the live family value. Required.
+	Get func(*ResolveContext) (T, error)
 }
 
 type settingDesc[T any] struct {
 	s Setting[T]
 }
 
-func (d settingDesc[T]) Name() string            { return d.s.Name }
-func (d settingDesc[T]) CMKeyExact() string      { return d.s.CMKeyExact }
-func (d settingDesc[T]) CMKeyPrefix() string     { return "" }
-func (d settingDesc[T]) EnvVar() string          { return d.s.EnvVar }
-func (d settingDesc[T]) HotReload() bool         { return d.s.HotReload }
-func (d settingDesc[T]) Separator() string       { return effectiveSeparator(d.s.Separator) }
-func (d settingDesc[T]) Secret() bool            { return d.s.Secret }
-func (d settingDesc[T]) Component() string       { return d.s.Component }
-func (d settingDesc[T]) SourceConfigMap() string { return d.s.SourceConfigMap }
-func (d settingDesc[T]) FlagName() string        { return d.s.FlagName }
+func (d settingDesc[T]) Name() string        { return d.s.Name }
+func (d settingDesc[T]) CMKeyExact() string  { return d.s.CMKeyExact }
+func (d settingDesc[T]) CMKeyPrefix() string { return "" }
+func (d settingDesc[T]) EnvVar() string      { return d.s.EnvVar }
 func (d settingDesc[T]) CoversCMKey(key string) bool {
 	return d.s.CMKeyExact != "" && d.s.CMKeyExact == key
 }
@@ -112,27 +83,21 @@ func (d settingDesc[T]) CoversEnv(env string) bool {
 }
 
 func (d settingDesc[T]) resolveAny(ctx *ResolveContext) (any, error) {
-	if d.s.Get != nil {
-		v, err := d.s.Get(ctx)
-		return v, err
+	if d.s.Get == nil {
+		return nil, fmt.Errorf("config: setting %q has no Get", d.s.Name)
 	}
-	return nil, fmt.Errorf("config: setting %q has no Get (Parse-only; use component wiring)", d.s.Name)
+	v, err := d.s.Get(ctx)
+	return v, err
 }
 
 type dynamicDesc[T any] struct {
 	s DynamicSetting[T]
 }
 
-func (d dynamicDesc[T]) Name() string            { return d.s.Name }
-func (d dynamicDesc[T]) CMKeyExact() string      { return "" }
-func (d dynamicDesc[T]) CMKeyPrefix() string     { return d.s.CMKeyPrefix }
-func (d dynamicDesc[T]) EnvVar() string          { return d.s.EnvVar }
-func (d dynamicDesc[T]) HotReload() bool         { return d.s.HotReload }
-func (d dynamicDesc[T]) Separator() string       { return effectiveSeparator(d.s.Separator) }
-func (d dynamicDesc[T]) Secret() bool            { return d.s.Secret }
-func (d dynamicDesc[T]) Component() string       { return d.s.Component }
-func (d dynamicDesc[T]) SourceConfigMap() string { return d.s.SourceConfigMap }
-func (d dynamicDesc[T]) FlagName() string        { return d.s.FlagName }
+func (d dynamicDesc[T]) Name() string        { return d.s.Name }
+func (d dynamicDesc[T]) CMKeyExact() string  { return "" }
+func (d dynamicDesc[T]) CMKeyPrefix() string { return d.s.CMKeyPrefix }
+func (d dynamicDesc[T]) EnvVar() string      { return d.s.EnvVar }
 func (d dynamicDesc[T]) CoversCMKey(key string) bool {
 	if d.s.CMKeyPrefix == "" {
 		return false
@@ -152,18 +117,11 @@ func (d dynamicDesc[T]) CoversEnv(env string) bool {
 }
 
 func (d dynamicDesc[T]) resolveAny(ctx *ResolveContext) (any, error) {
-	if d.s.Get != nil {
-		v, err := d.s.Get(ctx)
-		return v, err
+	if d.s.Get == nil {
+		return nil, fmt.Errorf("config: dynamic setting %q has no Get", d.s.Name)
 	}
-	return nil, fmt.Errorf("config: dynamic setting %q has no Get", d.s.Name)
-}
-
-func effectiveSeparator(s string) string {
-	if s == "" {
-		return ","
-	}
-	return s
+	v, err := d.s.Get(ctx)
+	return v, err
 }
 
 var (
@@ -171,16 +129,13 @@ var (
 	registry   []Descriptor
 )
 
-// Register adds a flat setting descriptor to the process-global registry.
+// Register adds a flat setting to the process-global registry.
 func Register[T any](s Setting[T]) error {
 	if s.Name == "" {
 		return errors.New("config: setting name is required")
 	}
-	if s.Parse != nil && s.Get != nil {
-		return fmt.Errorf("config: setting %q must not set both Parse and Get", s.Name)
-	}
-	if s.Parse == nil && s.Get == nil {
-		return fmt.Errorf("config: setting %q requires Parse or Get", s.Name)
+	if s.Get == nil {
+		return fmt.Errorf("config: setting %q requires Get", s.Name)
 	}
 	registryMu.Lock()
 	defer registryMu.Unlock()
@@ -193,7 +148,7 @@ func Register[T any](s Setting[T]) error {
 	return nil
 }
 
-// RegisterDynamic adds a dynamic setting descriptor to the process-global registry.
+// RegisterDynamic adds a dynamic setting family to the process-global registry.
 func RegisterDynamic[T any](s DynamicSetting[T]) error {
 	if s.Name == "" {
 		return errors.New("config: dynamic setting name is required")
@@ -272,20 +227,6 @@ func DescriptorCoversCMKey(key string) bool {
 func DescriptorCoversEnv(env string) bool {
 	for _, d := range AllDescriptors() {
 		if d.CoversEnv(env) {
-			return true
-		}
-	}
-	return false
-}
-
-// DescriptorCoversFlag reports whether any registered descriptor claims the
-// given cobra/pflag name via FlagName metadata.
-func DescriptorCoversFlag(flagName string) bool {
-	if flagName == "" {
-		return false
-	}
-	for _, d := range AllDescriptors() {
-		if d.FlagName() == flagName {
 			return true
 		}
 	}

@@ -19,45 +19,30 @@ func init() {
 
 func registerRBACCM() {
 	MustRegister(Setting[string]{
-		Name:            "rbacPolicyCSV",
-		CMKeyExact:      "policy.csv",
-		HotReload:       true,
-		SourceConfigMap: SourceRBACCM,
-		Component:       "server",
-		Get:             rbacCMStringGet("policy.csv"),
+		Name:       "rbacPolicyCSV",
+		CMKeyExact: "policy.csv",
+		Get:        rbacCMStringGet("policy.csv"),
 	})
 	MustRegister(Setting[string]{
-		Name:            "rbacPolicyDefault",
-		CMKeyExact:      "policy.default",
-		HotReload:       true,
-		SourceConfigMap: SourceRBACCM,
-		Component:       "server",
-		Get:             rbacCMStringGet("policy.default"),
+		Name:       "rbacPolicyDefault",
+		CMKeyExact: "policy.default",
+		Get:        rbacCMStringGet("policy.default"),
 	})
 	MustRegister(Setting[string]{
-		Name:            "rbacPolicyMatchMode",
-		CMKeyExact:      "policy.matchMode",
-		HotReload:       true,
-		SourceConfigMap: SourceRBACCM,
-		Component:       "server",
-		Get:             rbacCMStringGet("policy.matchMode"),
+		Name:       "rbacPolicyMatchMode",
+		CMKeyExact: "policy.matchMode",
+		Get:        rbacCMStringGet("policy.matchMode"),
 	})
 	MustRegister(Setting[string]{
-		Name:            "rbacScopes",
-		CMKeyExact:      "scopes",
-		HotReload:       true,
-		SourceConfigMap: SourceRBACCM,
-		Component:       "server",
-		Get:             rbacCMStringGet("scopes"),
+		Name:       "rbacScopes",
+		CMKeyExact: "scopes",
+		Get:        rbacCMStringGet("scopes"),
 	})
 	// Overlay merge semantics match util/rbac.PolicyCSV (excluding the primary policy.csv key).
 	MustRegisterDynamic(DynamicSetting[string]{
-		Name:            "rbacPolicyOverlayCSV",
-		CMKeyPrefix:     "policy.",
-		HotReload:       true,
-		SourceConfigMap: SourceRBACCM,
-		Component:       "server",
-		KeyFunc:         policyOverlayCSVKeyFunc,
+		Name:        "rbacPolicyOverlayCSV",
+		CMKeyPrefix: "policy.",
+		KeyFunc:     policyOverlayCSVKeyFunc,
 		Get: func(ctx *ResolveContext) (string, error) {
 			cm, err := requireRBACCM(ctx)
 			if err != nil {
@@ -122,20 +107,16 @@ func policyOverlayCSVKeyFunc(key string) (elementID, subField string, ok bool) {
 // routed through the provider.
 func registerStandaloneEnv() {
 	MustRegister(Setting[time.Duration]{
-		Name:            "gitRequestTimeout",
-		EnvVar:          "ARGOCD_GIT_REQUEST_TIMEOUT",
-		HotReload:       false,
-		SourceConfigMap: SourceEnvOnly,
+		Name:   "gitRequestTimeout",
+		EnvVar: "ARGOCD_GIT_REQUEST_TIMEOUT",
 		Get: func(*ResolveContext) (time.Duration, error) {
 			// Canonical: util/git/client.go
 			return env.ParseDurationFromEnv("ARGOCD_GIT_REQUEST_TIMEOUT", 15*time.Second, 0, math.MaxInt64), nil
 		},
 	})
 	MustRegister(Setting[time.Duration]{
-		Name:            "execTimeout",
-		EnvVar:          "ARGOCD_EXEC_TIMEOUT",
-		HotReload:       false,
-		SourceConfigMap: SourceEnvOnly,
+		Name:   "execTimeout",
+		EnvVar: "ARGOCD_EXEC_TIMEOUT",
 		Get: func(*ResolveContext) (time.Duration, error) {
 			// Canonical: util/exec/exec.go initTimeout (os.Getenv + ParseDuration, fallback 90s)
 			d, err := time.ParseDuration(os.Getenv("ARGOCD_EXEC_TIMEOUT"))
@@ -146,50 +127,40 @@ func registerStandaloneEnv() {
 		},
 	})
 	MustRegister(Setting[int64]{
-		Name:            "gitLsRemoteParallelismLimit",
-		EnvVar:          "ARGOCD_GIT_LS_REMOTE_PARALLELISM_LIMIT",
-		HotReload:       false,
-		SourceConfigMap: SourceEnvOnly,
+		Name:   "gitLsRemoteParallelismLimit",
+		EnvVar: "ARGOCD_GIT_LS_REMOTE_PARALLELISM_LIMIT",
 		Get: func(*ResolveContext) (int64, error) {
 			// Canonical: reposerver/metrics/githandlers.go
 			return env.ParseInt64FromEnv("ARGOCD_GIT_LS_REMOTE_PARALLELISM_LIMIT", 0, 0, math.MaxInt64), nil
 		},
 	})
 	MustRegister(Setting[string]{
-		Name:            "enableProfilerFilePath",
-		EnvVar:          "ARGOCD_ENABLE_PROFILER_FILE_PATH",
-		HotReload:       false,
-		SourceConfigMap: SourceEnvOnly,
+		Name:   "enableProfilerFilePath",
+		EnvVar: "ARGOCD_ENABLE_PROFILER_FILE_PATH",
 		Get: func(*ResolveContext) (string, error) {
 			// Canonical: util/profile/profile.go
 			return env.StringFromEnv("ARGOCD_ENABLE_PROFILER_FILE_PATH", "/home/argocd/params/profiler.enabled"), nil
 		},
 	})
 	MustRegister(Setting[time.Duration]{
-		Name:            "applicationsetRequeueAfter",
-		EnvVar:          "ARGOCD_APPLICATIONSET_CONTROLLER_REQUEUE_AFTER",
-		HotReload:       false,
-		SourceConfigMap: SourceEnvOnly,
+		Name:   "applicationsetRequeueAfter",
+		EnvVar: "ARGOCD_APPLICATIONSET_CONTROLLER_REQUEUE_AFTER",
 		Get: func(*ResolveContext) (time.Duration, error) {
 			// Canonical: applicationset/generators/interface.go (DefaultRequeueAfter = 3m)
 			return env.ParseDurationFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_REQUEUE_AFTER", 3*time.Minute, 1*time.Second, 8760*time.Hour), nil
 		},
 	})
 	MustRegister(Setting[int64]{
-		Name:            "applicationTreeShardSize",
-		EnvVar:          "ARGOCD_APPLICATION_TREE_SHARD_SIZE",
-		HotReload:       false,
-		SourceConfigMap: SourceEnvOnly,
+		Name:   "applicationTreeShardSize",
+		EnvVar: "ARGOCD_APPLICATION_TREE_SHARD_SIZE",
 		Get: func(*ResolveContext) (int64, error) {
 			// Canonical: util/cache/appstate/cache.go
 			return env.ParseInt64FromEnv("ARGOCD_APPLICATION_TREE_SHARD_SIZE", 0, 0, 1000), nil
 		},
 	})
 	MustRegister(Setting[string]{
-		Name:            "azureArmTokenResource",
-		EnvVar:          "AZURE_ARM_TOKEN_RESOURCE",
-		HotReload:       false,
-		SourceConfigMap: SourceEnvOnly,
+		Name:   "azureArmTokenResource",
+		EnvVar: "AZURE_ARM_TOKEN_RESOURCE",
 		Get: func(*ResolveContext) (string, error) {
 			// Canonical: util/helm/creds.go
 			return env.StringFromEnv("AZURE_ARM_TOKEN_RESOURCE", "https://management.core.windows.net"), nil

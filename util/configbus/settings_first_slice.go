@@ -26,13 +26,9 @@ func init() {
 
 func registerFirstSlice() {
 	MustRegister(Setting[time.Duration]{
-		Name:            NameReconciliationTimeout,
-		CMKeyExact:      CMKeyTimeoutReconciliation,
-		EnvVar:          EnvReconciliationTimeout,
-		HotReload:       false,          // cmd-params / env; cold until Phase 2
-		SourceConfigMap: SourceArgoCDCM, // manifests still mount from argocd-cm
-		Component:       "controller",
-		FlagName:        "app-resync",
+		Name:       NameReconciliationTimeout,
+		CMKeyExact: CMKeyTimeoutReconciliation,
+		EnvVar:     EnvReconciliationTimeout,
 		Get: func(ctx *ResolveContext) (time.Duration, error) {
 			if ctx != nil && ctx.Legacy != nil && ctx.Legacy.Controller != nil {
 				return ctx.Legacy.Controller.LegacyStatusRefreshTimeout(), nil
@@ -44,13 +40,9 @@ func registerFirstSlice() {
 		},
 	})
 	MustRegister(Setting[time.Duration]{
-		Name:            "hardReconciliationTimeout",
-		CMKeyExact:      "timeout.hard.reconciliation",
-		EnvVar:          "ARGOCD_HARD_RECONCILIATION_TIMEOUT",
-		HotReload:       false,
-		SourceConfigMap: SourceArgoCDCM,
-		Component:       "controller",
-		FlagName:        "app-hard-resync",
+		Name:       "hardReconciliationTimeout",
+		CMKeyExact: "timeout.hard.reconciliation",
+		EnvVar:     "ARGOCD_HARD_RECONCILIATION_TIMEOUT",
 		Get: func(ctx *ResolveContext) (time.Duration, error) {
 			if ctx != nil && ctx.Legacy != nil && ctx.Legacy.Controller != nil {
 				return ctx.Legacy.Controller.LegacyStatusHardRefreshTimeout(), nil
@@ -62,13 +54,9 @@ func registerFirstSlice() {
 		},
 	})
 	MustRegister(Setting[time.Duration]{
-		Name:            "reconciliationJitter",
-		CMKeyExact:      "timeout.reconciliation.jitter",
-		EnvVar:          "ARGOCD_RECONCILIATION_JITTER",
-		HotReload:       false,
-		SourceConfigMap: SourceArgoCDCM,
-		Component:       "controller",
-		FlagName:        "app-resync-jitter",
+		Name:       "reconciliationJitter",
+		CMKeyExact: "timeout.reconciliation.jitter",
+		EnvVar:     "ARGOCD_RECONCILIATION_JITTER",
 		Get: func(ctx *ResolveContext) (time.Duration, error) {
 			if ctx != nil && ctx.Legacy != nil && ctx.Legacy.Controller != nil {
 				return ctx.Legacy.Controller.LegacyStatusRefreshJitter(), nil
@@ -81,11 +69,9 @@ func registerFirstSlice() {
 	})
 
 	MustRegisterDynamic(DynamicSetting[map[string]v1alpha1.ResourceOverride]{
-		Name:            NameResourceCustomizations,
-		CMKeyPrefix:     CMPrefixResourceCustomizations,
-		HotReload:       true,
-		SourceConfigMap: SourceArgoCDCM,
-		KeyFunc:         resourceCustomizationsKeyFunc,
+		Name:        NameResourceCustomizations,
+		CMKeyPrefix: CMPrefixResourceCustomizations,
+		KeyFunc:     resourceCustomizationsKeyFunc,
 		Get: func(ctx *ResolveContext) (map[string]v1alpha1.ResourceOverride, error) {
 			if ctx == nil || ctx.SettingsMgr == nil {
 				return nil, errors.New("config: SettingsManager required for resource customizations")

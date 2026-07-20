@@ -8,14 +8,11 @@ import "os"
 //
 // Caveat: CLI flag overrides that do not also update the process environment are
 // invisible here.
-func registerCmdParam(name, cmKey, envVar, component string) {
+func registerCmdParam(name, cmKey, envVar string) {
 	MustRegister(Setting[string]{
-		Name:            name,
-		CMKeyExact:      cmKey,
-		EnvVar:          envVar,
-		Component:       component,
-		SourceConfigMap: SourceCmdParamsCM,
-		HotReload:       false,
+		Name:       name,
+		CMKeyExact: cmKey,
+		EnvVar:     envVar,
 		Get: func(*ResolveContext) (string, error) {
 			if envVar == "" {
 				return "", nil
