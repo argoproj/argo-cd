@@ -2792,10 +2792,13 @@ func (ctrl *ApplicationController) applicationEventHandlerFuncs() cache.Resource
 					log.WithFields(applog.GetAppLogFields(newApp)).Info("Enabled automated sync")
 					compareWith = CompareWithLatest.Pointer()
 				}
-				if ctrl.statusRefreshJitter != 0 && oldApp.ResourceVersion == newApp.ResourceVersion {
+				if oldApp.ResourceVersion == newApp.ResourceVersion {
 					// Handler is refreshing the apps, add a random jitter to spread the load and avoid spikes
-					jitter := time.Duration(float64(ctrl.statusRefreshJitter) * rand.Float64())
-					delay = &jitter
+					statusRefreshJitter := ctrl.configProvider.ReconciliationJitter()
+					if statusRefreshJitter != 0 {
+						jitter := time.Duration(float64(statusRefreshJitter) * rand.Float64())
+						delay = &jitter
+					}
 				}
 			}
 			ctrl.requestAppRefresh(newApp.QualifiedName(), compareWith, delay)

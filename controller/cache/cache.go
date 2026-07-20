@@ -35,7 +35,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/argo"
-	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/env"
@@ -231,7 +230,6 @@ type liveStateCache struct {
 	metricsServer        *metrics.MetricsServer
 	clusterSharding      sharding.ClusterShardingCache
 	resourceTracking     argo.ResourceTracking
-	ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts
 
 	clusters      map[string]clustercache.ClusterCache
 	cacheSettings cacheSettings
@@ -573,11 +571,16 @@ func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.Cluste
 			gvk := un.GroupVersionKind()
 
 			if cacheSettings.ignoreResourceUpdatesEnabled && shouldHashManifest(appName, gvk, un) {
-				hash, err := generateManifestHash(un, nil, cacheSettings.resourceOverrides, c.ignoreNormalizerOpts)
+				ignoreNormalizerOpts, err := c.configProvider.IgnoreNormalizerOpts()
 				if err != nil {
-					log.Errorf("Failed to generate manifest hash: %v", err)
+					log.Errorf("Failed to resolve ignore normalizer opts: %v", err)
 				} else {
-					res.manifestHash = hash
+					hash, err := generateManifestHash(un, nil, cacheSettings.resourceOverrides, ignoreNormalizerOpts)
+					if err != nil {
+						log.Errorf("Failed to generate manifest hash: %v", err)
+					} else {
+						res.manifestHash = hash
+					}
 				}
 			}
 
