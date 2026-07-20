@@ -7,114 +7,181 @@ import (
 
 // AppInstanceLabelKey returns application.instanceLabelKey.
 func (p *Provider) AppInstanceLabelKey() (string, error) {
-	return Resolve[string](p, "appInstanceLabelKey")
+	mgr, err := p.requireSettingsMgr()
+	if err != nil {
+		return "", err
+	}
+	return mgr.GetAppInstanceLabelKey()
 }
 
 // TrackingMethod returns application.resourceTrackingMethod.
 func (p *Provider) TrackingMethod() (string, error) {
-	return Resolve[string](p, "resourceTrackingMethod")
+	mgr, err := p.requireSettingsMgr()
+	if err != nil {
+		return "", err
+	}
+	return mgr.GetTrackingMethod()
 }
 
 // InstallationID returns installationID.
 func (p *Provider) InstallationID() (string, error) {
-	return Resolve[string](p, "installationID")
+	mgr, err := p.requireSettingsMgr()
+	if err != nil {
+		return "", err
+	}
+	return mgr.GetInstallationID()
 }
 
 // ResourcesFilter returns resource.inclusions / resource.exclusions.
 func (p *Provider) ResourcesFilter() (*settings.ResourcesFilter, error) {
-	return Resolve[*settings.ResourcesFilter](p, "resourcesFilter")
+	mgr, err := p.requireSettingsMgr()
+	if err != nil {
+		return nil, err
+	}
+	return mgr.GetResourcesFilter()
 }
 
 // ResourceCompareOptions returns resource.compareoptions.
 func (p *Provider) ResourceCompareOptions() (settings.ArgoCDDiffOptions, error) {
-	return Resolve[settings.ArgoCDDiffOptions](p, "resourceCompareOptions")
+	mgr, err := p.requireSettingsMgr()
+	if err != nil {
+		return settings.ArgoCDDiffOptions{}, err
+	}
+	return mgr.GetResourceCompareOptions()
 }
 
 // IsIgnoreResourceUpdatesEnabled returns resource.ignoreResourceUpdatesEnabled.
 func (p *Provider) IsIgnoreResourceUpdatesEnabled() (bool, error) {
-	return Resolve[bool](p, "ignoreResourceUpdatesEnabled")
+	mgr, err := p.requireSettingsMgr()
+	if err != nil {
+		return false, err
+	}
+	return mgr.GetIsIgnoreResourceUpdatesEnabled()
 }
 
 // IgnoreResourceUpdatesOverrides combines compare options with resource overrides
 // for ignore-resource-updates behavior (delegates to SettingsManager).
 func (p *Provider) IgnoreResourceUpdatesOverrides() (map[string]v1alpha1.ResourceOverride, error) {
-	if p.settingsMgr == nil {
-		return nil, errSettingsMgrNil
+	mgr, err := p.requireSettingsMgr()
+	if err != nil {
+		return nil, err
 	}
-	return p.settingsMgr.GetIgnoreResourceUpdatesOverrides()
+	return mgr.GetIgnoreResourceUpdatesOverrides()
 }
 
 // ResourceCustomLabels returns resource.customLabels.
 func (p *Provider) ResourceCustomLabels() ([]string, error) {
-	return Resolve[[]string](p, "resourceCustomLabels")
+	mgr, err := p.requireSettingsMgr()
+	if err != nil {
+		return nil, err
+	}
+	return mgr.GetResourceCustomLabels()
 }
 
 // SensitiveAnnotations returns resource.sensitive.mask.annotations.
 func (p *Provider) SensitiveAnnotations() (map[string]bool, error) {
-	return Resolve[map[string]bool](p, "sensitiveMaskAnnotations")
+	mgr, err := p.requireSettingsMgr()
+	if err != nil {
+		return nil, err
+	}
+	return mgr.GetSensitiveAnnotations(), nil
 }
 
 // RespectRBAC returns resource.respectRBAC.
 func (p *Provider) RespectRBAC() (int, error) {
-	return Resolve[int](p, "respectRBAC")
+	mgr, err := p.requireSettingsMgr()
+	if err != nil {
+		return 0, err
+	}
+	return mgr.RespectRBAC()
 }
 
 // AllowedNodeLabels returns application.allowedNodeLabels.
 func (p *Provider) AllowedNodeLabels() []string {
-	v, err := Resolve[[]string](p, "allowedNodeLabels")
+	mgr, err := p.requireSettingsMgr()
 	if err != nil {
 		return nil
 	}
-	return v
+	return mgr.GetAllowedNodeLabels()
 }
 
 // IsImpersonationEnabled returns application.sync.impersonation.enabled.
 func (p *Provider) IsImpersonationEnabled() (bool, error) {
-	return Resolve[bool](p, "impersonationEnabled")
+	mgr, err := p.requireSettingsMgr()
+	if err != nil {
+		return false, err
+	}
+	return mgr.IsImpersonationEnabled()
 }
 
 // IsImpersonationEnforced returns application.sync.impersonation.enforced.
 func (p *Provider) IsImpersonationEnforced() (bool, error) {
-	return Resolve[bool](p, "impersonationEnforced")
+	mgr, err := p.requireSettingsMgr()
+	if err != nil {
+		return false, err
+	}
+	return mgr.IsImpersonationEnforced()
 }
 
 // EnabledSourceTypes returns kustomize/helm/jsonnet.enable map.
 func (p *Provider) EnabledSourceTypes() (map[string]bool, error) {
-	return Resolve[map[string]bool](p, "kustomizeEnable")
+	mgr, err := p.requireSettingsMgr()
+	if err != nil {
+		return nil, err
+	}
+	return mgr.GetEnabledSourceTypes()
 }
 
 // KustomizeSettings returns kustomize settings (build options + versions).
 func (p *Provider) KustomizeSettings() (*v1alpha1.KustomizeOptions, error) {
-	return Resolve[*v1alpha1.KustomizeOptions](p, "kustomizeBuildOptions")
+	mgr, err := p.requireSettingsMgr()
+	if err != nil {
+		return nil, err
+	}
+	return mgr.GetKustomizeSettings()
 }
 
 // HelmSettings returns helm.valuesFileSchemes settings.
 func (p *Provider) HelmSettings() (*v1alpha1.HelmOptions, error) {
-	return Resolve[*v1alpha1.HelmOptions](p, "helmSettings")
+	mgr, err := p.requireSettingsMgr()
+	if err != nil {
+		return nil, err
+	}
+	return mgr.GetHelmSettings()
 }
 
 // SourceHydratorCommitMessageTemplate returns sourceHydrator.commitMessageTemplate.
 func (p *Provider) SourceHydratorCommitMessageTemplate() (string, error) {
-	return Resolve[string](p, "sourceHydratorCommitMessageTemplate")
+	mgr, err := p.requireSettingsMgr()
+	if err != nil {
+		return "", err
+	}
+	return mgr.GetSourceHydratorCommitMessageTemplate()
 }
 
 // HydratorReadmeTemplate returns sourceHydrator.readmeMessageTemplate.
 func (p *Provider) HydratorReadmeTemplate() (string, error) {
-	return Resolve[string](p, "sourceHydratorReadmeMessageTemplate")
+	mgr, err := p.requireSettingsMgr()
+	if err != nil {
+		return "", err
+	}
+	return mgr.GetHydratorReadmeTemplate()
 }
 
 // CommitAuthorName returns commit.author.name.
 func (p *Provider) CommitAuthorName() (string, error) {
-	return Resolve[string](p, "commitAuthorName")
+	mgr, err := p.requireSettingsMgr()
+	if err != nil {
+		return "", err
+	}
+	return mgr.GetCommitAuthorName()
 }
 
 // CommitAuthorEmail returns commit.author.email.
 func (p *Provider) CommitAuthorEmail() (string, error) {
-	return Resolve[string](p, "commitAuthorEmail")
+	mgr, err := p.requireSettingsMgr()
+	if err != nil {
+		return "", err
+	}
+	return mgr.GetCommitAuthorEmail()
 }
-
-var errSettingsMgrNil = errString("config: SettingsManager is nil")
-
-type errString string
-
-func (e errString) Error() string { return string(e) }

@@ -12,43 +12,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 )
 
-func TestFirstSliceRegistered(t *testing.T) {
-	descs := AllDescriptors()
-	names := map[string]bool{}
-	for _, d := range descs {
-		names[d.Name()] = true
-	}
-	assert.True(t, names[NameReconciliationTimeout], "reconciliationTimeout registered")
-	assert.True(t, names[NameResourceCustomizations], "resourceCustomizations registered")
-	assert.True(t, DescriptorCoversCMKey(CMKeyTimeoutReconciliation))
-	assert.True(t, DescriptorCoversEnv(EnvReconciliationTimeout))
-	assert.True(t, DescriptorCoversCMKey(CMKeyResourceCustomizations))
-	assert.True(t, DescriptorCoversCMKey(CMPrefixResourceCustomizations+"health.apps_Deployment"))
-}
-
-func TestResourceCustomizationsKeyFunc(t *testing.T) {
-	cases := []struct {
-		key     string
-		wantOK  bool
-		element string
-		sub     string
-	}{
-		{CMKeyResourceCustomizations, true, "*", ""},
-		{CMPrefixResourceCustomizations + "apps_Deployment", true, "apps_Deployment", ""},
-		{CMPrefixResourceCustomizations + "health.apps_Deployment", true, "apps_Deployment", "health"},
-		{CMPrefixResourceCustomizations + "actions.apps_Deployment", true, "apps_Deployment", "actions"},
-		{"unrelated.key", false, "", ""},
-	}
-	for _, tc := range cases {
-		el, sub, ok := resourceCustomizationsKeyFunc(tc.key)
-		assert.Equal(t, tc.wantOK, ok, tc.key)
-		if tc.wantOK {
-			assert.Equal(t, tc.element, el, tc.key)
-			assert.Equal(t, tc.sub, sub, tc.key)
-		}
-	}
-}
-
 func TestProviderReconciliationTimeoutLegacy(t *testing.T) {
 	d := 120 * time.Second
 	p := NewProvider(nil, &LegacyValues{ReconciliationTimeout: &d}, nil)
@@ -91,26 +54,15 @@ func TestProviderHardTimeoutAndJitterLegacy(t *testing.T) {
 	}, nil)
 	assert.Equal(t, hard, p.HardReconciliationTimeout())
 	assert.Equal(t, jitter, p.ReconciliationJitter())
-
-	gotHard, err := Resolve[time.Duration](p, "hardReconciliationTimeout")
-	require.NoError(t, err)
-	assert.Equal(t, hard, gotHard)
-	gotJitter, err := Resolve[time.Duration](p, "reconciliationJitter")
-	require.NoError(t, err)
-	assert.Equal(t, jitter, gotJitter)
 }
 
 func TestStandaloneEnvGitRequestTimeoutDefault(t *testing.T) {
 	t.Setenv("ARGOCD_GIT_REQUEST_TIMEOUT", "")
 	p := NewProvider(nil, nil, nil)
-	d, err := Resolve[time.Duration](p, "gitRequestTimeout")
-	require.NoError(t, err)
-	assert.Equal(t, 15*time.Second, d)
+	assert.Equal(t, 15*time.Second, p.GitRequestTimeout())
 
 	t.Setenv("ARGOCD_GIT_REQUEST_TIMEOUT", "30s")
-	d, err = Resolve[time.Duration](p, "gitRequestTimeout")
-	require.NoError(t, err)
-	assert.Equal(t, 30*time.Second, d)
+	assert.Equal(t, 30*time.Second, p.GitRequestTimeout())
 }
 
 func TestControllerLegacyRoundTrip(t *testing.T) {
@@ -140,9 +92,9 @@ func TestControllerLegacyRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []string{"team"}, labels)
 
-	n, err := Resolve[time.Duration](p, NameControllerSyncTimeoutSeconds)
+	jq, err := p.IgnoreNormalizerJQTimeout()
 	require.NoError(t, err)
-	assert.Equal(t, 5*time.Minute, n)
+	assert.Equal(t, 2*time.Second, jq)
 }
 
 type stubControllerLegacy struct {
@@ -176,16 +128,4 @@ func (s *stubControllerLegacy) LegacyServerSideDiff() bool           { return s.
 func (s *stubControllerLegacy) LegacyPersistResourceHealth() bool    { return s.persistHealth }
 func (s *stubControllerLegacy) LegacyRepoErrorGracePeriod() time.Duration {
 	return s.repoErrorGrace
-}
-
-func TestPolicyOverlayCSVKeyFunc(t *testing.T) {
-	el, sub, ok := policyOverlayCSVKeyFunc("policy.overlay.csv")
-	assert.True(t, ok)
-	assert.Equal(t, "overlay", el)
-	assert.Equal(t, "csv", sub)
-
-	_, _, ok = policyOverlayCSVKeyFunc("policy.csv")
-	assert.False(t, ok)
-	_, _, ok = policyOverlayCSVKeyFunc("policy.default")
-	assert.False(t, ok)
 }
