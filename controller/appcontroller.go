@@ -1715,8 +1715,8 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 	// concurrency alone is not enough, however: a stale writer that refetches would still
 	// overwrite a completed operation with a current resourceVersion. So we also refuse,
 	// semantically, to move a completed operation back to a non-terminal phase. Once an
-	// operation completes, spec.operation is cleared; a non-terminal write for an operation
-	// whose spec.operation is already gone is therefore out of order and is discarded.
+	// operation completes, the top-level operation field is cleared; a non-terminal write for
+	// an operation whose operation field is already gone is therefore out of order and is discarded.
 	written := false
 	kube.RetryUntilSucceed(ctx, updateOperationStateTimeout, "Update application operation state", logutils.NewLogrusLogger(logutils.NewWithCurrentConfig()), func() error {
 		live, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(ctx, app.Name, metav1.GetOptions{})

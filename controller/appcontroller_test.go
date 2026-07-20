@@ -1953,7 +1953,7 @@ func TestSetOperationStateLogRetries(t *testing.T) {
 func TestSetOperationStateDoesNotRegressCompletedOperation(t *testing.T) {
 	t.Run("discards non-terminal update to a completed operation", func(t *testing.T) {
 		app := newFakeApp()
-		app.Operation = nil // spec.operation is cleared once an operation completes
+		app.Operation = nil // the operation field is cleared once an operation completes
 		finishedAt := metav1.Now()
 		startedAt := metav1.NewTime(finishedAt.Add(-time.Minute))
 		app.Status.OperationState = &v1alpha1.OperationState{
@@ -1981,7 +1981,7 @@ func TestSetOperationStateDoesNotRegressCompletedOperation(t *testing.T) {
 		assert.NotNil(t, got.Status.OperationState.FinishedAt, "finishedAt must be preserved")
 	})
 
-	t.Run("persists a terminal update and clears spec.operation", func(t *testing.T) {
+	t.Run("persists a terminal update and clears the operation field", func(t *testing.T) {
 		app := newFakeApp()
 		app.Operation = &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{Revision: "abc123"}}
 		app.Status.OperationState = &v1alpha1.OperationState{
@@ -2005,7 +2005,7 @@ func TestSetOperationStateDoesNotRegressCompletedOperation(t *testing.T) {
 		require.NotNil(t, got.Status.OperationState)
 		assert.Equal(t, synccommon.OperationSucceeded, got.Status.OperationState.Phase)
 		assert.NotNil(t, got.Status.OperationState.FinishedAt, "finishedAt must be stamped on completion")
-		assert.Nil(t, got.Operation, "spec.operation must be cleared on completion")
+		assert.Nil(t, got.Operation, "the operation field must be cleared on completion")
 	})
 }
 
@@ -2031,12 +2031,14 @@ func TestSetOperationStateRetriesOnConflict(t *testing.T) {
 		fakeAppCs.ReactionChain = nil
 
 		gets, patches := 0, 0
+		var patchRVs []string
 		fakeAppCs.AddReactor("get", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			gets++
 			return true, app.DeepCopy(), nil
 		})
-		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			patches++
+			patchRVs = append(patchRVs, patchResourceVersion(t, action))
 			if patches == 1 {
 				return true, &v1alpha1.Application{}, apierrors.NewConflict(appConflict, app.Name, errors.New("the object has been modified"))
 			}
@@ -2053,13 +2055,16 @@ func TestSetOperationStateRetriesOnConflict(t *testing.T) {
 
 		assert.Equal(t, 2, patches, "the conflicting patch must be retried exactly once")
 		assert.GreaterOrEqual(t, gets, 2, "each patch attempt must be preceded by a fresh Get")
+		// Every patch must carry the resourceVersion of the Get that preceded it as an
+		// optimistic-concurrency precondition; the fake app's Get always returns "1".
+		assert.Equal(t, []string{"1", "1"}, patchRVs, "each patch must embed the live resourceVersion precondition")
 	})
 
 	t.Run("re-evaluates the stale-update guard against the refetched object", func(t *testing.T) {
 		// A non-terminal progress update races a terminal write. The first Get sees the
 		// operation still in progress, so the guard admits the update and the controller
 		// patches — but that patch conflicts because the terminal write landed first. On
-		// refetch the live operation has completed and spec.operation is cleared, so the
+		// refetch the live operation has completed and the operation field is cleared, so the
 		// guard must now discard the stale progress update instead of resurrecting "Running".
 		running := newFakeApp()
 		running.Operation = &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{Revision: "abc123"}}
@@ -2069,7 +2074,7 @@ func TestSetOperationStateRetriesOnConflict(t *testing.T) {
 			Operation: *running.Operation,
 		}
 		completed := running.DeepCopy()
-		completed.Operation = nil // spec.operation is cleared once an operation completes
+		completed.Operation = nil // the operation field is cleared once an operation completes
 		finishedAt := metav1.Now()
 		completed.Status.OperationState = &v1alpha1.OperationState{
 			Phase:      synccommon.OperationSucceeded,
@@ -2083,6 +2088,7 @@ func TestSetOperationStateRetriesOnConflict(t *testing.T) {
 		fakeAppCs.ReactionChain = nil
 
 		gets, patches := 0, 0
+		var patchRVs []string
 		fakeAppCs.AddReactor("get", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			gets++
 			if gets == 1 {
@@ -2090,8 +2096,9 @@ func TestSetOperationStateRetriesOnConflict(t *testing.T) {
 			}
 			return true, completed.DeepCopy(), nil // terminal write won the race
 		})
-		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			patches++
+			patchRVs = append(patchRVs, patchResourceVersion(t, action))
 			return true, &v1alpha1.Application{}, apierrors.NewConflict(appConflict, running.Name, errors.New("the object has been modified"))
 		})
 
@@ -2104,7 +2111,25 @@ func TestSetOperationStateRetriesOnConflict(t *testing.T) {
 
 		assert.Equal(t, 1, patches, "once the refetch shows the operation completed, the stale update must not be re-patched")
 		assert.GreaterOrEqual(t, gets, 2, "the conflict must trigger a refetch and guard re-evaluation")
+		// The single patch that was attempted must have carried the first Get's resourceVersion
+		// precondition; the fake app's Get always returns "1".
+		assert.Equal(t, []string{"1"}, patchRVs, "the patch must embed the live resourceVersion precondition")
 	})
+}
+
+// patchResourceVersion extracts metadata.resourceVersion from a merge-patch PatchAction payload,
+// so tests can assert that setOperationState embeds the optimistic-concurrency precondition.
+func patchResourceVersion(t *testing.T, action kubetesting.Action) string {
+	t.Helper()
+	patchAction, ok := action.(kubetesting.PatchAction)
+	require.True(t, ok, "expected a PatchAction, got %T", action)
+	var patch struct {
+		Metadata struct {
+			ResourceVersion string `json:"resourceVersion"`
+		} `json:"metadata"`
+	}
+	require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &patch))
+	return patch.Metadata.ResourceVersion
 }
 
 func TestNeedRefreshAppStatus(t *testing.T) {
