@@ -133,7 +133,7 @@ func (res *comparisonResult) GetHealthStatus() health.HealthStatusCode {
 type appStateManager struct {
 	metricsServer  *metrics.MetricsServer
 	db             db.ArgoDB
-	configProvider *configbus.Provider
+	configProvider configbus.Provider
 	appclientset   appclientset.Interface
 	kubectl        kubeutil.Kubectl
 	onKubectlRun   kubeutil.OnKubectlRunFunc
@@ -933,7 +933,11 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 		serverSideDiff = false
 	}
 
-	useDiffCache := useDiffCache(noCache, manifestInfos, sources, app, manifestRevisions, m.configProvider.ReconciliationTimeout(), serverSideDiff, logCtx)
+	reconciliationTimeout, err := m.configProvider.ReconciliationTimeout()
+	if err != nil {
+		return nil, err
+	}
+	useDiffCache := useDiffCache(noCache, manifestInfos, sources, app, manifestRevisions, reconciliationTimeout, serverSideDiff, logCtx)
 
 	ignoreNormalizerOpts, err := m.configProvider.IgnoreNormalizerOpts()
 	if err != nil {
@@ -1327,7 +1331,7 @@ func NewAppStateManager(
 	namespace string,
 	kubectl kubeutil.Kubectl,
 	onKubectlRun kubeutil.OnKubectlRunFunc,
-	configProvider *configbus.Provider,
+	configProvider configbus.Provider,
 	liveStateCache statecache.LiveStateCache,
 	metricsServer *metrics.MetricsServer,
 	cache *appstatecache.Cache,

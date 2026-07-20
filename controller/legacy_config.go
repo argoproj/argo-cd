@@ -101,16 +101,3 @@ func (m *appStateManager) LegacyStatusRefreshTimeout() time.Duration {
 func (m *appStateManager) LegacyIgnoreNormalizerOpts() normalizers.IgnoreNormalizerOpts {
 	return m.ignoreNormalizerOpts
 }
-
-// Test/constructor writers for deprecated fields (SA1019). Prefer constructing via
-// NewApplicationController; these exist for tests that mutate config after init.
-
-//nolint:staticcheck // SA1019: sole allowed writer of deprecated syncTimeout
-func (ctrl *ApplicationController) setLegacySyncTimeout(d time.Duration) {
-	ctrl.syncTimeout = d
-}
-
-//nolint:staticcheck // SA1019: sole allowed writer of deprecated selfHealBackoff
-func (ctrl *ApplicationController) setLegacySelfHealBackoff(b *wait.Backoff) {
-	ctrl.selfHealBackoff = b
-}

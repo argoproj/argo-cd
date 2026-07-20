@@ -151,7 +151,7 @@ type ApplicationController struct {
 	syncTimeout               time.Duration
 	db                        db.ArgoDB
 	settingsMgr               *settings_util.SettingsManager
-	configProvider            *configbus.Provider
+	configProvider            configbus.Provider
 	refreshRequestedApps      map[string]CompareWith
 	refreshRequestedAppsMutex *sync.Mutex
 	metricsServer             *metrics.MetricsServer
@@ -241,7 +241,10 @@ func NewApplicationController(
 		ignoreNormalizerOpts:              ignoreNormalizerOpts,
 		metricsClusterLabels:              metricsClusterLabels,
 	}
-	ctrl.configProvider = configbus.NewProvider(settingsMgr, &configbus.LegacyValues{Controller: &ctrl})
+	ctrl.configProvider = configbus.NewHybridProvider(
+		configbus.NewCRDProvider(nil),
+		configbus.NewLegacyProvider(settingsMgr, &configbus.LegacyValues{Controller: &ctrl}),
+	)
 	if hydratorEnabled {
 		ctrl.hydrator = hydrator.NewHydrator(&ctrl, appResyncPeriod, commitClientset, repoClientset, db)
 	}
@@ -249,10 +252,12 @@ func NewApplicationController(
 		ctrl.kubectlSemaphore = semaphore.NewWeighted(kubectlParallelismLimit)
 	}
 	kubectl.SetOnKubectlRun(ctrl.onKubectlRun)
-	appInformer, appLister := ctrl.newApplicationInformerAndLister()
+	appInformer, appLister, err := ctrl.newApplicationInformerAndLister()
+	if err != nil {
+		return nil, err
+	}
 	indexers := cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}
 	projInformer := v1alpha1.NewAppProjectInformer(applicationClientset, namespace, appResyncPeriod, indexers)
-	var err error
 	_, err = projInformer.AddEventHandler(ctrl.appProjectEventHandlerFuncs())
 	if err != nil {
 		return nil, err
@@ -330,7 +335,11 @@ func NewApplicationController(
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve ignore normalizer opts: %w", err)
 	}
-	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.onKubectlRun, ctrl.configProvider, stateCache, ctrl.metricsServer, argoCache, ctrl.configProvider.ReconciliationTimeout(), argo.NewResourceTracking(), persistResourceHealth, repoErrorGracePeriod, serverSideDiff, ignoreNormalizerOpts)
+	reconciliationTimeout, err := ctrl.configProvider.ReconciliationTimeout()
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve reconciliation timeout: %w", err)
+	}
+	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.onKubectlRun, ctrl.configProvider, stateCache, ctrl.metricsServer, argoCache, reconciliationTimeout, argo.NewResourceTracking(), persistResourceHealth, repoErrorGracePeriod, serverSideDiff, ignoreNormalizerOpts)
 	ctrl.appInformer = appInformer
 	ctrl.appLister = appLister
 	ctrl.projInformer = projInformer
@@ -798,7 +807,10 @@ func (ctrl *ApplicationController) getAppHosts(destCluster *appv1.Cluster, a *ap
 			return resourcesInfo[i].ResourceName < resourcesInfo[j].ResourceName
 		})
 
-		allowedNodeLabels := ctrl.configProvider.AllowedNodeLabels()
+		allowedNodeLabels, err := ctrl.configProvider.AllowedNodeLabels()
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve allowed node labels: %w", err)
+		}
 		nodeLabels := make(map[string]string)
 		for _, label := range allowedNodeLabels {
 			if val, ok := node.Labels[label]; ok {
@@ -1830,7 +1842,17 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		return processNext
 	}
 	origApp = origApp.DeepCopy()
-	needRefresh, refreshType, comparisonLevel := ctrl.needRefreshAppStatus(origApp, ctrl.configProvider.ReconciliationTimeout(), ctrl.configProvider.HardReconciliationTimeout())
+	refreshTimeout, err := ctrl.configProvider.ReconciliationTimeout()
+	if err != nil {
+		log.WithField("appkey", appKey).WithError(err).Error("Failed to resolve reconciliation timeout")
+		return processNext
+	}
+	hardRefreshTimeout, err := ctrl.configProvider.HardReconciliationTimeout()
+	if err != nil {
+		log.WithField("appkey", appKey).WithError(err).Error("Failed to resolve hard reconciliation timeout")
+		return processNext
+	}
+	needRefresh, refreshType, comparisonLevel := ctrl.needRefreshAppStatus(origApp, refreshTimeout, hardRefreshTimeout)
 
 	if !needRefresh {
 		return processNext
@@ -2642,15 +2664,21 @@ func (ctrl *ApplicationController) canProcessApp(obj any) bool {
 	return ctrl.clusterSharding.IsManagedCluster(destCluster)
 }
 
-func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.SharedIndexInformer, applisters.ApplicationLister) {
+func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.SharedIndexInformer, applisters.ApplicationLister, error) {
 	watchNamespace := ctrl.namespace
 	// If we have at least one additional namespace configured, we need to
 	// watch on them all.
 	if len(ctrl.applicationNamespaces) > 0 {
 		watchNamespace = ""
 	}
-	refreshTimeout := ctrl.configProvider.ReconciliationTimeout()
-	hardRefreshTimeout := ctrl.configProvider.HardReconciliationTimeout()
+	refreshTimeout, err := ctrl.configProvider.ReconciliationTimeout()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to resolve reconciliation timeout: %w", err)
+	}
+	hardRefreshTimeout, err := ctrl.configProvider.HardReconciliationTimeout()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to resolve hard reconciliation timeout: %w", err)
+	}
 	if hardRefreshTimeout.Seconds() != 0 && (hardRefreshTimeout < refreshTimeout) {
 		refreshTimeout = hardRefreshTimeout
 	}
@@ -2706,11 +2734,11 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 		},
 	)
 	lister := applisters.NewApplicationLister(informer.GetIndexer())
-	_, err := informer.AddEventHandler(ctrl.applicationEventHandlerFuncs())
+	_, err = informer.AddEventHandler(ctrl.applicationEventHandlerFuncs())
 	if err != nil {
-		return nil, nil
+		return nil, nil, err
 	}
-	return informer, lister
+	return informer, lister, nil
 }
 
 // appProjectEventHandlerFuncs returns the informer event handlers for AppProject
@@ -2794,7 +2822,11 @@ func (ctrl *ApplicationController) applicationEventHandlerFuncs() cache.Resource
 				}
 				if oldApp.ResourceVersion == newApp.ResourceVersion {
 					// Handler is refreshing the apps, add a random jitter to spread the load and avoid spikes
-					statusRefreshJitter := ctrl.configProvider.ReconciliationJitter()
+					statusRefreshJitter, err := ctrl.configProvider.ReconciliationJitter()
+					if err != nil {
+						log.WithFields(applog.GetAppLogFields(newApp)).WithError(err).Error("Failed to resolve reconciliation jitter")
+						return
+					}
 					if statusRefreshJitter != 0 {
 						jitter := time.Duration(float64(statusRefreshJitter) * rand.Float64())
 						delay = &jitter

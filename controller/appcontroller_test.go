@@ -3205,7 +3205,8 @@ func TestProcessRequestedAppOperation_SyncTimeout(t *testing.T) {
 				}},
 			}, nil)
 
-			ctrl.setLegacySyncTimeout(tc.syncTimeout)
+			//nolint:staticcheck // SA1019: test writes deprecated syncTimeout; LegacySyncTimeout / Provider read it
+			ctrl.syncTimeout = tc.syncTimeout
 			app.Status.OperationState = &v1alpha1.OperationState{
 				Operation: *app.Operation,
 				Phase:     tc.currentPhase,
@@ -3261,7 +3262,8 @@ func TestProcessRequestedAppOperation_RequeuesOperation(t *testing.T) {
 				Manifests: []string{},
 			}},
 		}, nil)
-		ctrl.setLegacySyncTimeout(10 * time.Second)
+		//nolint:staticcheck // SA1019: test writes deprecated syncTimeout; LegacySyncTimeout / Provider read it
+		ctrl.syncTimeout = 10 * time.Second
 		app.Status.OperationState = &v1alpha1.OperationState{
 			Operation: *app.Operation,
 			Phase:     synccommon.OperationRunning,
@@ -3995,11 +3997,12 @@ func assertDurationAround(t *testing.T, expected time.Duration, actual time.Dura
 
 func TestSelfHealRemainingBackoff(t *testing.T) {
 	ctrl := newFakeController(t.Context(), &fakeData{}, nil)
-	ctrl.setLegacySelfHealBackoff(&wait.Backoff{
+	//nolint:staticcheck // SA1019: test writes deprecated selfHealBackoff; LegacySelfHealBackoff / Provider read it
+	ctrl.selfHealBackoff = &wait.Backoff{
 		Factor:   3,
 		Duration: 2 * time.Second,
 		Cap:      2 * time.Minute,
-	})
+	}
 	app := &v1alpha1.Application{
 		Status: v1alpha1.ApplicationStatus{
 			OperationState: &v1alpha1.OperationState{

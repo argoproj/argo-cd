@@ -367,19 +367,22 @@ func reconcileApplications(
 	namespace string,
 	repoServerClient reposerverclient.Clientset,
 	selector string,
-	createLiveStateCache func(argoDB db.ArgoDB, appInformer kubecache.SharedIndexInformer, settingsMgr *settings.SettingsManager, configProvider *configbus.Provider, server *metrics.MetricsServer) cache.LiveStateCache,
+	createLiveStateCache func(argoDB db.ArgoDB, appInformer kubecache.SharedIndexInformer, settingsMgr *settings.SettingsManager, configProvider configbus.Provider, server *metrics.MetricsServer) cache.LiveStateCache,
 	serverSideDiff bool,
 	ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts,
 ) ([]appReconcileResult, error) {
 	settingsMgr := settings.NewSettingsManager(ctx, kubeClientset, namespace)
 	// Admin reconcile has no live ApplicationController; supply a Legacy adapter
 	// that mirrors the CLI flags already passed into this helper.
-	configProvider := configbus.NewProvider(settingsMgr, &configbus.LegacyValues{
-		Controller: &adminControllerLegacy{
-			serverSideDiff:       serverSideDiff,
-			ignoreNormalizerOpts: ignoreNormalizerOpts,
-		},
-	})
+	configProvider := configbus.NewHybridProvider(
+		configbus.NewCRDProvider(nil),
+		configbus.NewLegacyProvider(settingsMgr, &configbus.LegacyValues{
+			Controller: &adminControllerLegacy{
+				serverSideDiff:       serverSideDiff,
+				ignoreNormalizerOpts: ignoreNormalizerOpts,
+			},
+		}),
+	)
 	argoDB := db.NewDB(namespace, settingsMgr, kubeClientset)
 	appInformerFactory := appinformers.NewSharedInformerFactoryWithOptions(
 		appClientset,
@@ -489,7 +492,7 @@ func reconcileApplications(
 	return items, nil
 }
 
-func newLiveStateCache(argoDB db.ArgoDB, appInformer kubecache.SharedIndexInformer, settingsMgr *settings.SettingsManager, configProvider *configbus.Provider, server *metrics.MetricsServer) cache.LiveStateCache {
+func newLiveStateCache(argoDB db.ArgoDB, appInformer kubecache.SharedIndexInformer, settingsMgr *settings.SettingsManager, configProvider configbus.Provider, server *metrics.MetricsServer) cache.LiveStateCache {
 	return cache.NewLiveStateCache(argoDB, appInformer, settingsMgr, configProvider, server, func(_ map[string]bool, _ corev1.ObjectReference) {}, &sharding.ClusterSharding{}, argo.NewResourceTracking())
 }
 
