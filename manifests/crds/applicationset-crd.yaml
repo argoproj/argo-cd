@@ -151,6 +151,8 @@ spec:
                                       type: string
                                     directory:
                                       properties:
+                                        disableExtensionFilter:
+                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -191,8 +193,6 @@ spec:
                                               type: array
                                           type: object
                                         recurse:
-                                          type: boolean
-                                        requireJsonOrYamlExtension:
                                           type: boolean
                                       type: object
                                     helm:
@@ -394,6 +394,8 @@ spec:
                                       properties:
                                         directory:
                                           properties:
+                                            disableExtensionFilter:
+                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -434,8 +436,6 @@ spec:
                                                   type: array
                                               type: object
                                             recurse:
-                                              type: boolean
-                                            requireJsonOrYamlExtension:
                                               type: boolean
                                           type: object
                                         helm:
@@ -659,6 +659,8 @@ spec:
                                         type: string
                                       directory:
                                         properties:
+                                          disableExtensionFilter:
+                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -699,8 +701,6 @@ spec:
                                                 type: array
                                             type: object
                                           recurse:
-                                            type: boolean
-                                          requireJsonOrYamlExtension:
                                             type: boolean
                                         type: object
                                       helm:
@@ -1071,6 +1071,8 @@ spec:
                                       type: string
                                     directory:
                                       properties:
+                                        disableExtensionFilter:
+                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -1111,8 +1113,6 @@ spec:
                                               type: array
                                           type: object
                                         recurse:
-                                          type: boolean
-                                        requireJsonOrYamlExtension:
                                           type: boolean
                                       type: object
                                     helm:
@@ -1314,6 +1314,8 @@ spec:
                                       properties:
                                         directory:
                                           properties:
+                                            disableExtensionFilter:
+                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -1354,8 +1356,6 @@ spec:
                                                   type: array
                                               type: object
                                             recurse:
-                                              type: boolean
-                                            requireJsonOrYamlExtension:
                                               type: boolean
                                           type: object
                                         helm:
@@ -1579,6 +1579,8 @@ spec:
                                         type: string
                                       directory:
                                         properties:
+                                          disableExtensionFilter:
+                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -1619,8 +1621,6 @@ spec:
                                                 type: array
                                             type: object
                                           recurse:
-                                            type: boolean
-                                          requireJsonOrYamlExtension:
                                             type: boolean
                                         type: object
                                       helm:
@@ -1992,6 +1992,8 @@ spec:
                                       type: string
                                     directory:
                                       properties:
+                                        disableExtensionFilter:
+                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -2032,8 +2034,6 @@ spec:
                                               type: array
                                           type: object
                                         recurse:
-                                          type: boolean
-                                        requireJsonOrYamlExtension:
                                           type: boolean
                                       type: object
                                     helm:
@@ -2235,6 +2235,8 @@ spec:
                                       properties:
                                         directory:
                                           properties:
+                                            disableExtensionFilter:
+                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -2275,8 +2277,6 @@ spec:
                                                   type: array
                                               type: object
                                             recurse:
-                                              type: boolean
-                                            requireJsonOrYamlExtension:
                                               type: boolean
                                           type: object
                                         helm:
@@ -2500,6 +2500,8 @@ spec:
                                         type: string
                                       directory:
                                         properties:
+                                          disableExtensionFilter:
+                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -2540,8 +2542,6 @@ spec:
                                                 type: array
                                             type: object
                                           recurse:
-                                            type: boolean
-                                          requireJsonOrYamlExtension:
                                             type: boolean
                                         type: object
                                       helm:
@@ -2891,6 +2891,8 @@ spec:
                                       type: string
                                     directory:
                                       properties:
+                                        disableExtensionFilter:
+                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -2931,8 +2933,6 @@ spec:
                                               type: array
                                           type: object
                                         recurse:
-                                          type: boolean
-                                        requireJsonOrYamlExtension:
                                           type: boolean
                                       type: object
                                     helm:
@@ -3134,6 +3134,8 @@ spec:
                                       properties:
                                         directory:
                                           properties:
+                                            disableExtensionFilter:
+                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -3174,8 +3176,6 @@ spec:
                                                   type: array
                                               type: object
                                             recurse:
-                                              type: boolean
-                                            requireJsonOrYamlExtension:
                                               type: boolean
                                           type: object
                                         helm:
@@ -3399,6 +3399,8 @@ spec:
                                         type: string
                                       directory:
                                         properties:
+                                          disableExtensionFilter:
+                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -3439,8 +3441,6 @@ spec:
                                                 type: array
                                             type: object
                                           recurse:
-                                            type: boolean
-                                          requireJsonOrYamlExtension:
                                             type: boolean
                                         type: object
                                       helm:
@@ -3815,6 +3815,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -3855,8 +3857,6 @@ spec:
                                                         type: array
                                                     type: object
                                                   recurse:
-                                                    type: boolean
-                                                  requireJsonOrYamlExtension:
                                                     type: boolean
                                                 type: object
                                               helm:
@@ -4058,6 +4058,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -4098,8 +4100,6 @@ spec:
                                                             type: array
                                                         type: object
                                                       recurse:
-                                                        type: boolean
-                                                      requireJsonOrYamlExtension:
                                                         type: boolean
                                                     type: object
                                                   helm:
@@ -4323,6 +4323,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -4363,8 +4365,6 @@ spec:
                                                           type: array
                                                       type: object
                                                     recurse:
-                                                      type: boolean
-                                                    requireJsonOrYamlExtension:
                                                       type: boolean
                                                   type: object
                                                 helm:
@@ -4735,6 +4735,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -4775,8 +4777,6 @@ spec:
                                                         type: array
                                                     type: object
                                                   recurse:
-                                                    type: boolean
-                                                  requireJsonOrYamlExtension:
                                                     type: boolean
                                                 type: object
                                               helm:
@@ -4978,6 +4978,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -5018,8 +5020,6 @@ spec:
                                                             type: array
                                                         type: object
                                                       recurse:
-                                                        type: boolean
-                                                      requireJsonOrYamlExtension:
                                                         type: boolean
                                                     type: object
                                                   helm:
@@ -5243,6 +5243,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -5283,8 +5285,6 @@ spec:
                                                           type: array
                                                       type: object
                                                     recurse:
-                                                      type: boolean
-                                                    requireJsonOrYamlExtension:
                                                       type: boolean
                                                   type: object
                                                 helm:
@@ -5656,6 +5656,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -5696,8 +5698,6 @@ spec:
                                                         type: array
                                                     type: object
                                                   recurse:
-                                                    type: boolean
-                                                  requireJsonOrYamlExtension:
                                                     type: boolean
                                                 type: object
                                               helm:
@@ -5899,6 +5899,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -5939,8 +5941,6 @@ spec:
                                                             type: array
                                                         type: object
                                                       recurse:
-                                                        type: boolean
-                                                      requireJsonOrYamlExtension:
                                                         type: boolean
                                                     type: object
                                                   helm:
@@ -6164,6 +6164,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -6204,8 +6206,6 @@ spec:
                                                           type: array
                                                       type: object
                                                     recurse:
-                                                      type: boolean
-                                                    requireJsonOrYamlExtension:
                                                       type: boolean
                                                   type: object
                                                 helm:
@@ -6555,6 +6555,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -6595,8 +6597,6 @@ spec:
                                                         type: array
                                                     type: object
                                                   recurse:
-                                                    type: boolean
-                                                  requireJsonOrYamlExtension:
                                                     type: boolean
                                                 type: object
                                               helm:
@@ -6798,6 +6798,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -6838,8 +6840,6 @@ spec:
                                                             type: array
                                                         type: object
                                                       recurse:
-                                                        type: boolean
-                                                      requireJsonOrYamlExtension:
                                                         type: boolean
                                                     type: object
                                                   helm:
@@ -7063,6 +7063,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -7103,8 +7105,6 @@ spec:
                                                           type: array
                                                       type: object
                                                     recurse:
-                                                      type: boolean
-                                                    requireJsonOrYamlExtension:
                                                       type: boolean
                                                   type: object
                                                 helm:
@@ -7462,6 +7462,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -7502,8 +7504,6 @@ spec:
                                                         type: array
                                                     type: object
                                                   recurse:
-                                                    type: boolean
-                                                  requireJsonOrYamlExtension:
                                                     type: boolean
                                                 type: object
                                               helm:
@@ -7705,6 +7705,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -7745,8 +7747,6 @@ spec:
                                                             type: array
                                                         type: object
                                                       recurse:
-                                                        type: boolean
-                                                      requireJsonOrYamlExtension:
                                                         type: boolean
                                                     type: object
                                                   helm:
@@ -7970,6 +7970,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -8010,8 +8012,6 @@ spec:
                                                           type: array
                                                       type: object
                                                     recurse:
-                                                      type: boolean
-                                                    requireJsonOrYamlExtension:
                                                       type: boolean
                                                   type: object
                                                 helm:
@@ -8596,6 +8596,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -8636,8 +8638,6 @@ spec:
                                                         type: array
                                                     type: object
                                                   recurse:
-                                                    type: boolean
-                                                  requireJsonOrYamlExtension:
                                                     type: boolean
                                                 type: object
                                               helm:
@@ -8839,6 +8839,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -8879,8 +8881,6 @@ spec:
                                                             type: array
                                                         type: object
                                                       recurse:
-                                                        type: boolean
-                                                      requireJsonOrYamlExtension:
                                                         type: boolean
                                                     type: object
                                                   helm:
@@ -9104,6 +9104,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -9144,8 +9146,6 @@ spec:
                                                           type: array
                                                       type: object
                                                     recurse:
-                                                      type: boolean
-                                                    requireJsonOrYamlExtension:
                                                       type: boolean
                                                   type: object
                                                 helm:
@@ -9727,6 +9727,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -9767,8 +9769,6 @@ spec:
                                                         type: array
                                                     type: object
                                                   recurse:
-                                                    type: boolean
-                                                  requireJsonOrYamlExtension:
                                                     type: boolean
                                                 type: object
                                               helm:
@@ -9970,6 +9970,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -10010,8 +10012,6 @@ spec:
                                                             type: array
                                                         type: object
                                                       recurse:
-                                                        type: boolean
-                                                      requireJsonOrYamlExtension:
                                                         type: boolean
                                                     type: object
                                                   helm:
@@ -10235,6 +10235,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -10275,8 +10277,6 @@ spec:
                                                           type: array
                                                       type: object
                                                     recurse:
-                                                      type: boolean
-                                                    requireJsonOrYamlExtension:
                                                       type: boolean
                                                   type: object
                                                 helm:
@@ -10643,6 +10643,8 @@ spec:
                                       type: string
                                     directory:
                                       properties:
+                                        disableExtensionFilter:
+                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -10683,8 +10685,6 @@ spec:
                                               type: array
                                           type: object
                                         recurse:
-                                          type: boolean
-                                        requireJsonOrYamlExtension:
                                           type: boolean
                                       type: object
                                     helm:
@@ -10886,6 +10886,8 @@ spec:
                                       properties:
                                         directory:
                                           properties:
+                                            disableExtensionFilter:
+                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -10926,8 +10928,6 @@ spec:
                                                   type: array
                                               type: object
                                             recurse:
-                                              type: boolean
-                                            requireJsonOrYamlExtension:
                                               type: boolean
                                           type: object
                                         helm:
@@ -11151,6 +11151,8 @@ spec:
                                         type: string
                                       directory:
                                         properties:
+                                          disableExtensionFilter:
+                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -11191,8 +11193,6 @@ spec:
                                                 type: array
                                             type: object
                                           recurse:
-                                            type: boolean
-                                          requireJsonOrYamlExtension:
                                             type: boolean
                                         type: object
                                       helm:
@@ -11569,6 +11569,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -11609,8 +11611,6 @@ spec:
                                                         type: array
                                                     type: object
                                                   recurse:
-                                                    type: boolean
-                                                  requireJsonOrYamlExtension:
                                                     type: boolean
                                                 type: object
                                               helm:
@@ -11812,6 +11812,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -11852,8 +11854,6 @@ spec:
                                                             type: array
                                                         type: object
                                                       recurse:
-                                                        type: boolean
-                                                      requireJsonOrYamlExtension:
                                                         type: boolean
                                                     type: object
                                                   helm:
@@ -12077,6 +12077,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -12117,8 +12119,6 @@ spec:
                                                           type: array
                                                       type: object
                                                     recurse:
-                                                      type: boolean
-                                                    requireJsonOrYamlExtension:
                                                       type: boolean
                                                   type: object
                                                 helm:
@@ -12489,6 +12489,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -12529,8 +12531,6 @@ spec:
                                                         type: array
                                                     type: object
                                                   recurse:
-                                                    type: boolean
-                                                  requireJsonOrYamlExtension:
                                                     type: boolean
                                                 type: object
                                               helm:
@@ -12732,6 +12732,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -12772,8 +12774,6 @@ spec:
                                                             type: array
                                                         type: object
                                                       recurse:
-                                                        type: boolean
-                                                      requireJsonOrYamlExtension:
                                                         type: boolean
                                                     type: object
                                                   helm:
@@ -12997,6 +12997,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -13037,8 +13039,6 @@ spec:
                                                           type: array
                                                       type: object
                                                     recurse:
-                                                      type: boolean
-                                                    requireJsonOrYamlExtension:
                                                       type: boolean
                                                   type: object
                                                 helm:
@@ -13410,6 +13410,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -13450,8 +13452,6 @@ spec:
                                                         type: array
                                                     type: object
                                                   recurse:
-                                                    type: boolean
-                                                  requireJsonOrYamlExtension:
                                                     type: boolean
                                                 type: object
                                               helm:
@@ -13653,6 +13653,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -13693,8 +13695,6 @@ spec:
                                                             type: array
                                                         type: object
                                                       recurse:
-                                                        type: boolean
-                                                      requireJsonOrYamlExtension:
                                                         type: boolean
                                                     type: object
                                                   helm:
@@ -13918,6 +13918,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -13958,8 +13960,6 @@ spec:
                                                           type: array
                                                       type: object
                                                     recurse:
-                                                      type: boolean
-                                                    requireJsonOrYamlExtension:
                                                       type: boolean
                                                   type: object
                                                 helm:
@@ -14309,6 +14309,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -14349,8 +14351,6 @@ spec:
                                                         type: array
                                                     type: object
                                                   recurse:
-                                                    type: boolean
-                                                  requireJsonOrYamlExtension:
                                                     type: boolean
                                                 type: object
                                               helm:
@@ -14552,6 +14552,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -14592,8 +14594,6 @@ spec:
                                                             type: array
                                                         type: object
                                                       recurse:
-                                                        type: boolean
-                                                      requireJsonOrYamlExtension:
                                                         type: boolean
                                                     type: object
                                                   helm:
@@ -14817,6 +14817,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -14857,8 +14859,6 @@ spec:
                                                           type: array
                                                       type: object
                                                     recurse:
-                                                      type: boolean
-                                                    requireJsonOrYamlExtension:
                                                       type: boolean
                                                   type: object
                                                 helm:
@@ -15216,6 +15216,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -15256,8 +15258,6 @@ spec:
                                                         type: array
                                                     type: object
                                                   recurse:
-                                                    type: boolean
-                                                  requireJsonOrYamlExtension:
                                                     type: boolean
                                                 type: object
                                               helm:
@@ -15459,6 +15459,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -15499,8 +15501,6 @@ spec:
                                                             type: array
                                                         type: object
                                                       recurse:
-                                                        type: boolean
-                                                      requireJsonOrYamlExtension:
                                                         type: boolean
                                                     type: object
                                                   helm:
@@ -15724,6 +15724,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -15764,8 +15766,6 @@ spec:
                                                           type: array
                                                       type: object
                                                     recurse:
-                                                      type: boolean
-                                                    requireJsonOrYamlExtension:
                                                       type: boolean
                                                   type: object
                                                 helm:
@@ -16350,6 +16350,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -16390,8 +16392,6 @@ spec:
                                                         type: array
                                                     type: object
                                                   recurse:
-                                                    type: boolean
-                                                  requireJsonOrYamlExtension:
                                                     type: boolean
                                                 type: object
                                               helm:
@@ -16593,6 +16593,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -16633,8 +16635,6 @@ spec:
                                                             type: array
                                                         type: object
                                                       recurse:
-                                                        type: boolean
-                                                      requireJsonOrYamlExtension:
                                                         type: boolean
                                                     type: object
                                                   helm:
@@ -16858,6 +16858,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -16898,8 +16900,6 @@ spec:
                                                           type: array
                                                       type: object
                                                     recurse:
-                                                      type: boolean
-                                                    requireJsonOrYamlExtension:
                                                       type: boolean
                                                   type: object
                                                 helm:
@@ -17481,6 +17481,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -17521,8 +17523,6 @@ spec:
                                                         type: array
                                                     type: object
                                                   recurse:
-                                                    type: boolean
-                                                  requireJsonOrYamlExtension:
                                                     type: boolean
                                                 type: object
                                               helm:
@@ -17724,6 +17724,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -17764,8 +17766,6 @@ spec:
                                                             type: array
                                                         type: object
                                                       recurse:
-                                                        type: boolean
-                                                      requireJsonOrYamlExtension:
                                                         type: boolean
                                                     type: object
                                                   helm:
@@ -17989,6 +17989,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -18029,8 +18031,6 @@ spec:
                                                           type: array
                                                       type: object
                                                     recurse:
-                                                      type: boolean
-                                                    requireJsonOrYamlExtension:
                                                       type: boolean
                                                   type: object
                                                 helm:
@@ -18401,6 +18401,8 @@ spec:
                                       type: string
                                     directory:
                                       properties:
+                                        disableExtensionFilter:
+                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -18441,8 +18443,6 @@ spec:
                                               type: array
                                           type: object
                                         recurse:
-                                          type: boolean
-                                        requireJsonOrYamlExtension:
                                           type: boolean
                                       type: object
                                     helm:
@@ -18644,6 +18644,8 @@ spec:
                                       properties:
                                         directory:
                                           properties:
+                                            disableExtensionFilter:
+                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -18684,8 +18686,6 @@ spec:
                                                   type: array
                                               type: object
                                             recurse:
-                                              type: boolean
-                                            requireJsonOrYamlExtension:
                                               type: boolean
                                           type: object
                                         helm:
@@ -18909,6 +18909,8 @@ spec:
                                         type: string
                                       directory:
                                         properties:
+                                          disableExtensionFilter:
+                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -18949,8 +18951,6 @@ spec:
                                                 type: array
                                             type: object
                                           recurse:
-                                            type: boolean
-                                          requireJsonOrYamlExtension:
                                             type: boolean
                                         type: object
                                       helm:
@@ -19307,6 +19307,8 @@ spec:
                                       type: string
                                     directory:
                                       properties:
+                                        disableExtensionFilter:
+                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -19347,8 +19349,6 @@ spec:
                                               type: array
                                           type: object
                                         recurse:
-                                          type: boolean
-                                        requireJsonOrYamlExtension:
                                           type: boolean
                                       type: object
                                     helm:
@@ -19550,6 +19550,8 @@ spec:
                                       properties:
                                         directory:
                                           properties:
+                                            disableExtensionFilter:
+                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -19590,8 +19592,6 @@ spec:
                                                   type: array
                                               type: object
                                             recurse:
-                                              type: boolean
-                                            requireJsonOrYamlExtension:
                                               type: boolean
                                           type: object
                                         helm:
@@ -19815,6 +19815,8 @@ spec:
                                         type: string
                                       directory:
                                         properties:
+                                          disableExtensionFilter:
+                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -19855,8 +19857,6 @@ spec:
                                                 type: array
                                             type: object
                                           recurse:
-                                            type: boolean
-                                          requireJsonOrYamlExtension:
                                             type: boolean
                                         type: object
                                       helm:
@@ -20441,6 +20441,8 @@ spec:
                                       type: string
                                     directory:
                                       properties:
+                                        disableExtensionFilter:
+                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -20481,8 +20483,6 @@ spec:
                                               type: array
                                           type: object
                                         recurse:
-                                          type: boolean
-                                        requireJsonOrYamlExtension:
                                           type: boolean
                                       type: object
                                     helm:
@@ -20684,6 +20684,8 @@ spec:
                                       properties:
                                         directory:
                                           properties:
+                                            disableExtensionFilter:
+                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -20724,8 +20726,6 @@ spec:
                                                   type: array
                                               type: object
                                             recurse:
-                                              type: boolean
-                                            requireJsonOrYamlExtension:
                                               type: boolean
                                           type: object
                                         helm:
@@ -20949,6 +20949,8 @@ spec:
                                         type: string
                                       directory:
                                         properties:
+                                          disableExtensionFilter:
+                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -20989,8 +20991,6 @@ spec:
                                                 type: array
                                             type: object
                                           recurse:
-                                            type: boolean
-                                          requireJsonOrYamlExtension:
                                             type: boolean
                                         type: object
                                       helm:
@@ -21572,6 +21572,8 @@ spec:
                                       type: string
                                     directory:
                                       properties:
+                                        disableExtensionFilter:
+                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -21612,8 +21614,6 @@ spec:
                                               type: array
                                           type: object
                                         recurse:
-                                          type: boolean
-                                        requireJsonOrYamlExtension:
                                           type: boolean
                                       type: object
                                     helm:
@@ -21815,6 +21815,8 @@ spec:
                                       properties:
                                         directory:
                                           properties:
+                                            disableExtensionFilter:
+                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -21855,8 +21857,6 @@ spec:
                                                   type: array
                                               type: object
                                             recurse:
-                                              type: boolean
-                                            requireJsonOrYamlExtension:
                                               type: boolean
                                           type: object
                                         helm:
@@ -22080,6 +22080,8 @@ spec:
                                         type: string
                                       directory:
                                         properties:
+                                          disableExtensionFilter:
+                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -22120,8 +22122,6 @@ spec:
                                                 type: array
                                             type: object
                                           recurse:
-                                            type: boolean
-                                          requireJsonOrYamlExtension:
                                             type: boolean
                                         type: object
                                       helm:
@@ -22565,6 +22565,8 @@ spec:
                             type: string
                           directory:
                             properties:
+                              disableExtensionFilter:
+                                type: boolean
                               exclude:
                                 type: string
                               include:
@@ -22605,8 +22607,6 @@ spec:
                                     type: array
                                 type: object
                               recurse:
-                                type: boolean
-                              requireJsonOrYamlExtension:
                                 type: boolean
                             type: object
                           helm:
@@ -22808,6 +22808,8 @@ spec:
                             properties:
                               directory:
                                 properties:
+                                  disableExtensionFilter:
+                                    type: boolean
                                   exclude:
                                     type: string
                                   include:
@@ -22848,8 +22850,6 @@ spec:
                                         type: array
                                     type: object
                                   recurse:
-                                    type: boolean
-                                  requireJsonOrYamlExtension:
                                     type: boolean
                                 type: object
                               helm:
@@ -23073,6 +23073,8 @@ spec:
                               type: string
                             directory:
                               properties:
+                                disableExtensionFilter:
+                                  type: boolean
                                 exclude:
                                   type: string
                                 include:
@@ -23113,8 +23115,6 @@ spec:
                                       type: array
                                   type: object
                                 recurse:
-                                  type: boolean
-                                requireJsonOrYamlExtension:
                                   type: boolean
                               type: object
                             helm:

@@ -267,17 +267,16 @@ func Test_setAppSpecOptions(t *testing.T) {
 		require.NoError(t, f.SetFlag("sync-option", "!a=1"))
 		assert.Nil(t, f.spec.SyncPolicy)
 	})
-	t.Run("DirectoryRequireJsonOrYamlExtension", func(t *testing.T) {
+	t.Run("DirectoryDisableExtensionFilter", func(t *testing.T) {
 		f := newAppOptionsFixture()
 
-		require.NoError(t, f.SetFlag("directory-require-json-or-yaml-extension", "false"))
+		require.NoError(t, f.SetFlag("directory-disable-extension-filter", "true"))
 		require.NotNil(t, f.spec.Source.Directory)
-		require.NotNil(t, f.spec.Source.Directory.RequireJsonOrYamlExtension)
-		assert.False(t, *f.spec.Source.Directory.RequireJsonOrYamlExtension)
+		assert.True(t, f.spec.Source.Directory.DisableExtensionFilter)
 
-		require.NoError(t, f.SetFlag("directory-require-json-or-yaml-extension", "true"))
-		require.NotNil(t, f.spec.Source.Directory.RequireJsonOrYamlExtension)
-		assert.True(t, *f.spec.Source.Directory.RequireJsonOrYamlExtension)
+		require.NoError(t, f.SetFlag("directory-disable-extension-filter", "false"))
+		require.NotNil(t, f.spec.Source.Directory)
+		assert.False(t, f.spec.Source.Directory.DisableExtensionFilter)
 	})
 	t.Run("AutoPruneFlag", func(t *testing.T) {
 		f := newAppOptionsFixture()

@@ -137,14 +137,14 @@ By default, a directory-type application only considers files with the built-in 
 `.yaml`, `.yml`, `.json`, and `.jsonnet`. Any other file is skipped *before* the `include`/`exclude`
 patterns are evaluated, so an `include` pattern like `*.yaml.sealed` has no effect on its own.
 
-To render files stored under a non-standard extension — for example the `*.yaml.sealed` files used by
-[Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets) — set `requireJsonOrYamlExtension: false`.
+To render files stored under a non-standard extension, for example the `*.yaml.sealed` files used by
+[Sealed Secrets](https://github.com/bitnami-labs/sealed-secrets), set `disableExtensionFilter: true`.
 This disables the built-in extension filter, so the `include`/`exclude` patterns become the only mechanism
-deciding which files are rendered. The field defaults to `true`, so existing applications are unaffected
-unless they opt out explicitly.
+deciding which files are rendered. The field defaults to `false`, so existing applications are unaffected
+unless they opt in explicitly.
 
 ```shell
-argocd app set guestbook --directory-require-json-or-yaml-extension=false --directory-include "{*.yaml.sealed,*.yaml,*.yml,*.json}"
+argocd app set guestbook --directory-disable-extension-filter=true --directory-include "{*.yaml.sealed,*.yaml,*.yml,*.json}"
 ```
 
 ```yaml
@@ -153,14 +153,14 @@ kind: Application
 spec:
   source:
     directory:
-      requireJsonOrYamlExtension: false
+      disableExtensionFilter: true
       include: '{*.yaml.sealed,*.yaml,*.yml,*.json}'
 ```
 
 > [!IMPORTANT]
 > When the filter is disabled, **you are responsible for all filtering via `include`/`exclude`.** The
 > standard extensions are no longer matched automatically, so you must list every extension you want to
-> render, including the standard ones — `include: '*.yaml.sealed'` alone would silently ignore your regular
+> render, including the standard ones like `include: '*.yaml.sealed'` alone would silently ignore your regular
 > `.yaml` and `.json` manifests. Any selected file is always parsed as YAML (JSON is valid YAML, so `.json`
 > content is still handled correctly).
 
@@ -182,7 +182,7 @@ kind: Application
 spec:
   source:
     directory:
-      requireJsonOrYamlExtension: false
+      disableExtensionFilter: true
       exclude: '{*.md,LICENSE,*.png}'
 ```
 

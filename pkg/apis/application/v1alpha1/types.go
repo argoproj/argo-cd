@@ -937,17 +937,17 @@ type ApplicationSourceDirectory struct {
 	Exclude string `json:"exclude,omitempty" protobuf:"bytes,3,opt,name=exclude"`
 	// Include contains a glob pattern to match paths against that should be explicitly included during manifest generation
 	Include string `json:"include,omitempty" protobuf:"bytes,4,opt,name=include"`
-	// RequireJsonOrYamlExtension controls whether the built-in file-extension filter is applied during
-	// manifest generation. When true (the default when unset), only files with a .yaml, .yml, .json, or
-	// .jsonnet extension are considered as potential manifests. Set it to false to disable the filter so
-	// that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude glob
-	// patterns instead. A nil value is treated as true to preserve backwards-compatible behavior.
-	RequireJsonOrYamlExtension *bool `json:"requireJsonOrYamlExtension,omitempty" protobuf:"bytes,5,opt,name=requireJsonOrYamlExtension"`
+	// DisableExtensionFilter controls whether the built-in file-extension filter is skipped during
+	// manifest generation. When false (the default), only files with a .yaml, .yml, .json, or
+	// .jsonnet extension are considered as potential manifests. Set it to true to disable the filter
+	// so that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude
+	// glob patterns instead.
+	DisableExtensionFilter bool `json:"disableExtensionFilter,omitempty" protobuf:"bytes,5,opt,name=disableExtensionFilter"`
 }
 
 // IsZero returns true if the ApplicationSourceDirectory is considered empty
 func (d *ApplicationSourceDirectory) IsZero() bool {
-	return d == nil || !d.Recurse && d.Jsonnet.IsZero()
+	return d == nil || !d.Recurse && d.Jsonnet.IsZero() && !d.DisableExtensionFilter
 }
 
 type OptionalMap struct {

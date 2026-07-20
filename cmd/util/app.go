@@ -64,7 +64,7 @@ type AppOptions struct {
 	namePrefix                          string
 	nameSuffix                          string
 	directoryRecurse                    bool
-	directoryRequireJsonOrYamlExtension bool
+	directoryDisableExtensionFilter     bool
 	configManagementPlugin              string
 	jsonnetTlaStr                       []string
 	jsonnetTlaCode                      []string
@@ -146,7 +146,7 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringVar(&opts.nameSuffix, "namesuffix", "", "Kustomize namesuffix")
 	command.Flags().StringVar(&opts.kustomizeVersion, "kustomize-version", "", "Kustomize version")
 	command.Flags().BoolVar(&opts.directoryRecurse, "directory-recurse", false, "Recurse directory")
-	command.Flags().BoolVar(&opts.directoryRequireJsonOrYamlExtension, "directory-require-json-or-yaml-extension", true, "Require files to have a .yaml, .yml, .json, or .jsonnet extension to be considered manifests (default true). Set to false to disable the built-in extension filter so that include/exclude patterns can match files with custom extensions (e.g. *.yaml.sealed)")
+	command.Flags().BoolVar(&opts.directoryDisableExtensionFilter, "directory-disable-extension-filter", false, "Disable the built-in file-extension filter so that include/exclude patterns can match files with custom extensions (e.g. *.yaml.sealed). By default (false), only files with a .yaml, .yml, .json, or .jsonnet extension are considered manifests")
 	command.Flags().StringVar(&opts.configManagementPlugin, "config-management-plugin", "", "Config management plugin name")
 	command.Flags().StringArrayVar(&opts.jsonnetTlaStr, "jsonnet-tla-str", []string{}, "Jsonnet top level string arguments")
 	command.Flags().StringArrayVar(&opts.jsonnetTlaCode, "jsonnet-tla-code", []string{}, "Jsonnet top level code arguments")
@@ -737,12 +737,11 @@ func ConstructSource(source *argoappv1.ApplicationSource, appOpts AppOptions, fl
 			} else {
 				source.Directory = &argoappv1.ApplicationSourceDirectory{Recurse: appOpts.directoryRecurse}
 			}
-		case "directory-require-json-or-yaml-extension":
-			requireJsonOrYamlExtension := appOpts.directoryRequireJsonOrYamlExtension
+		case "directory-disable-extension-filter":
 			if source.Directory != nil {
-				source.Directory.RequireJsonOrYamlExtension = &requireJsonOrYamlExtension
+				source.Directory.DisableExtensionFilter = appOpts.directoryDisableExtensionFilter
 			} else {
-				source.Directory = &argoappv1.ApplicationSourceDirectory{RequireJsonOrYamlExtension: &requireJsonOrYamlExtension}
+				source.Directory = &argoappv1.ApplicationSourceDirectory{DisableExtensionFilter: appOpts.directoryDisableExtensionFilter}
 			}
 		case "directory-exclude":
 			if source.Directory != nil {

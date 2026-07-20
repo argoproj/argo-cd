@@ -1982,9 +1982,7 @@ var manifestFile = regexp.MustCompile(`^.*\.(yaml|yml|json|jsonnet)$`)
 // findManifests looks at all yaml files in a directory and unmarshals them into a list of unstructured objects
 func findManifests(logCtx *log.Entry, appPath string, repoRoot string, env *v1alpha1.Env, directory v1alpha1.ApplicationSourceDirectory, enabledManifestGeneration map[string]bool, maxCombinedManifestQuantity resource.Quantity) ([]*unstructured.Unstructured, error) {
 	// Validate the directory before loading any manifests to save memory.
-	// A nil RequireJsonOrYamlExtension is treated as true to preserve backwards-compatible behavior.
-	requireJsonOrYamlExtension := directory.RequireJsonOrYamlExtension == nil || *directory.RequireJsonOrYamlExtension
-	potentiallyValidManifests, err := getPotentiallyValidManifests(logCtx, appPath, repoRoot, directory.Recurse, requireJsonOrYamlExtension, directory.Include, directory.Exclude, maxCombinedManifestQuantity)
+	potentiallyValidManifests, err := getPotentiallyValidManifests(logCtx, appPath, repoRoot, directory.Recurse, directory.DisableExtensionFilter, directory.Include, directory.Exclude, maxCombinedManifestQuantity)
 	if err != nil {
 		logCtx.Errorf("failed to get potentially valid manifests: %s", err)
 		return nil, fmt.Errorf("failed to get potentially valid manifests: %w", err)
@@ -2126,16 +2124,16 @@ func splitYAMLOrJSON(reader goio.Reader) ([]*unstructured.Unstructured, error) {
 // be a valid Kubernetes resource. This function tests everything possible without actually reading the file.
 //
 // repoPath must be absolute.
-func getPotentiallyValidManifestFile(path string, f os.FileInfo, appPath, repoRoot, include, exclude string, requireJsonOrYamlExtension bool) (realFileInfo os.FileInfo, warning string, err error) {
+func getPotentiallyValidManifestFile(path string, f os.FileInfo, appPath, repoRoot, include, exclude string, disableExtensionFilter bool) (realFileInfo os.FileInfo, warning string, err error) {
 	relPath, err := filepath.Rel(appPath, path)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to get relative path of %q: %w", path, err)
 	}
 
-	// When requireJsonOrYamlExtension is true (the default), only files with a standard manifest
-	// extension like yaml/yml/json/jsonnet are considered. When false, the built-in extension check
+	// When disableExtensionFilter is false (the default), only files with a standard manifest
+	// extension like yaml/yml/json/jsonnet are considered. When true, the built-in extension check
 	// is skipped and the user takes responsibility for filtering via include/exclude.
-	if requireJsonOrYamlExtension && !manifestFile.MatchString(f.Name()) {
+	if !disableExtensionFilter && !manifestFile.MatchString(f.Name()) {
 		return nil, "", nil
 	}
 
@@ -2202,14 +2200,14 @@ type potentiallyValidManifest struct {
 
 // getPotentiallyValidManifests ensures that 1) there are no errors while checking for potential manifest files in the given dir
 // and 2) the combined file size of the potentially-valid manifest files does not exceed the limit.
-func getPotentiallyValidManifests(logCtx *log.Entry, appPath string, repoRoot string, recurse, requireJsonOrYamlExtension bool, include string, exclude string, maxCombinedManifestQuantity resource.Quantity) ([]potentiallyValidManifest, error) {
-	// When the built-in extension filter is disabled (requireJsonOrYamlExtension is false),
+func getPotentiallyValidManifests(logCtx *log.Entry, appPath string, repoRoot string, recurse, disableExtensionFilter bool, include string, exclude string, maxCombinedManifestQuantity resource.Quantity) ([]potentiallyValidManifest, error) {
+	// When the built-in extension filter is disabled (disableExtensionFilter is true),
 	// include/exclude become the only filters. If both are empty, every file in the
 	// directory is read and treated as a candidate manifest, which can trip the
 	// combined-size limit or cause false-positive matches. That's a valid choice for
 	// repos where every file is a manifest, so we warn rather than fail.
-	if !requireJsonOrYamlExtension && include == "" && exclude == "" {
-		logCtx.Warn("requireJsonOrYamlExtension is disabled without include or exclude; all files in the directory will be read and considered as manifests")
+	if disableExtensionFilter && include == "" && exclude == "" {
+		logCtx.Warn("disableExtensionFilter is enabled without include or exclude; all files in the directory will be read and considered as manifests")
 	}
 
 	maxCombinedManifestFileSize := maxCombinedManifestQuantity.Value()
@@ -2228,7 +2226,7 @@ func getPotentiallyValidManifests(logCtx *log.Entry, appPath string, repoRoot st
 			return nil
 		}
 
-		realFileInfo, warning, err := getPotentiallyValidManifestFile(path, f, appPath, repoRoot, include, exclude, requireJsonOrYamlExtension)
+		realFileInfo, warning, err := getPotentiallyValidManifestFile(path, f, appPath, repoRoot, include, exclude, disableExtensionFilter)
 		if err != nil {
 			return fmt.Errorf("invalid manifest file %q: %w", path, err)
 		}

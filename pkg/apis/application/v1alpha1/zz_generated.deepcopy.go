@@ -1106,11 +1106,6 @@ func (in *ApplicationSource) DeepCopy() *ApplicationSource {
 func (in *ApplicationSourceDirectory) DeepCopyInto(out *ApplicationSourceDirectory) {
 	*out = *in
 	in.Jsonnet.DeepCopyInto(&out.Jsonnet)
-	if in.RequireJsonOrYamlExtension != nil {
-		in, out := &in.RequireJsonOrYamlExtension, &out.RequireJsonOrYamlExtension
-		*out = new(bool)
-		**out = **in
-	}
 	return
 }
 

@@ -2964,59 +2964,62 @@ func Test_getPotentiallyValidManifests(t *testing.T) {
 	})
 }
 
-// Test_getPotentiallyValidManifestFile_requireJsonOrYamlExtension verifies how the file-level
-// extension gate behaves as requireJsonOrYamlExtension is toggled. When true (the default), only
-// standard manifest extensions are considered (unchanged behavior). When false, the built-in
+// Test_getPotentiallyValidManifestFile_disableExtensionFilter verifies how the file-level
+// extension gate behaves as disableExtensionFilter is toggled. When false (the default), only
+// standard manifest extensions are considered (unchanged behavior). When true, the built-in
 // extension check is bypassed and include/exclude become the only filters.
-func Test_getPotentiallyValidManifestFile_requireJsonOrYamlExtension(t *testing.T) {
+func Test_getPotentiallyValidManifestFile_disableExtensionFilter(t *testing.T) {
 	testCases := []struct {
-		name                       string
-		fileName                   string
-		include                    string
-		exclude                    string
-		requireJsonOrYamlExtension bool
-		expectValid                bool
+		name                   string
+		fileName               string
+		include                string
+		exclude                string
+		disableExtensionFilter bool
+		expectValid            bool
 	}{
 		{
-			name:                       "filter on: custom extension is skipped (default behavior)",
-			fileName:                   "secret.yaml.sealed",
-			requireJsonOrYamlExtension: true,
-			expectValid:                false,
-		},
-		{
-			name:                       "filter on: standard extension is still valid",
-			fileName:                   "deployment.yaml",
-			requireJsonOrYamlExtension: true,
-			expectValid:                true,
-		},
-		{
-			name:        "filter off: custom extension matched by include is valid",
+			name:        "filter on: custom extension is skipped (default behavior)",
 			fileName:    "secret.yaml.sealed",
-			include:     "{*.yaml.sealed,*.yaml}",
+			expectValid: false,
+		},
+		{
+			name:        "filter on: standard extension is still valid",
+			fileName:    "deployment.yaml",
 			expectValid: true,
 		},
 		{
-			name:        "filter off: custom extension not matched by include is skipped",
-			fileName:    "secret.yaml.sealed",
-			include:     "*.yaml",
-			expectValid: false,
+			name:                   "filter off: custom extension matched by include is valid",
+			fileName:               "secret.yaml.sealed",
+			include:                "{*.yaml.sealed,*.yaml}",
+			disableExtensionFilter: true,
+			expectValid:            true,
 		},
 		{
-			name:        "filter off: file not matched by include is skipped",
-			fileName:    "README.md",
-			include:     "{*.yaml.sealed,*.yaml}",
-			expectValid: false,
+			name:                   "filter off: custom extension not matched by include is skipped",
+			fileName:               "secret.yaml.sealed",
+			include:                "*.yaml",
+			disableExtensionFilter: true,
+			expectValid:            false,
 		},
 		{
-			name:        "filter off: exclude still filters when include is empty",
-			fileName:    "secret.yaml.sealed",
-			exclude:     "*.sealed",
-			expectValid: false,
+			name:                   "filter off: file not matched by include is skipped",
+			fileName:               "README.md",
+			include:                "{*.yaml.sealed,*.yaml}",
+			disableExtensionFilter: true,
+			expectValid:            false,
 		},
 		{
-			name:        "filter off: empty include and exclude considers any file",
-			fileName:    "config.txt",
-			expectValid: true,
+			name:                   "filter off: exclude still filters when include is empty",
+			fileName:               "secret.yaml.sealed",
+			exclude:                "*.sealed",
+			disableExtensionFilter: true,
+			expectValid:            false,
+		},
+		{
+			name:                   "filter off: empty include and exclude considers any file",
+			fileName:               "config.txt",
+			disableExtensionFilter: true,
+			expectValid:            true,
 		},
 	}
 
@@ -3029,7 +3032,7 @@ func Test_getPotentiallyValidManifestFile_requireJsonOrYamlExtension(t *testing.
 			require.NoError(t, file.Close())
 
 			walkFor(t, appDir, filePath, func(info fs.FileInfo) {
-				realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(filePath, info, appDir, appDir, tc.include, tc.exclude, tc.requireJsonOrYamlExtension)
+				realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(filePath, info, appDir, appDir, tc.include, tc.exclude, tc.disableExtensionFilter)
 				require.NoError(t, err)
 				assert.Empty(t, ignoreMessage)
 				if tc.expectValid {
@@ -3042,10 +3045,10 @@ func Test_getPotentiallyValidManifestFile_requireJsonOrYamlExtension(t *testing.
 	}
 }
 
-// Test_getPotentiallyValidManifests_requireJsonOrYamlExtension verifies directory-level behavior:
+// Test_getPotentiallyValidManifests_disableExtensionFilter verifies directory-level behavior:
 // the safe default when the filter is on, the "consider everything" behavior (plus warning) when
 // the filter is disabled with no include/exclude, and that exclude alone still narrows the set.
-func Test_getPotentiallyValidManifests_requireJsonOrYamlExtension(t *testing.T) {
+func Test_getPotentiallyValidManifests_disableExtensionFilter(t *testing.T) {
 	manifestBody := []byte("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: x\n")
 	writeFiles := func(t *testing.T, names ...string) string {
 		t.Helper()
@@ -3058,21 +3061,21 @@ func Test_getPotentiallyValidManifests_requireJsonOrYamlExtension(t *testing.T) 
 
 	t.Run("filter on: custom extensions are excluded, standard ones kept", func(t *testing.T) {
 		appDir := writeFiles(t, "secret.yaml.sealed", "deployment.yaml")
-		manifests, err := getPotentiallyValidManifests(log.WithField("test", "test"), appDir, appDir, false, true, "", "", resource.MustParse("0"))
+		manifests, err := getPotentiallyValidManifests(log.WithField("test", "test"), appDir, appDir, false, false, "", "", resource.MustParse("0"))
 		require.NoError(t, err)
 		assert.Len(t, manifests, 1) // only deployment.yaml; the .sealed file is filtered by the extension regex
 	})
 
 	t.Run("filter off with include picks up custom extensions", func(t *testing.T) {
 		appDir := writeFiles(t, "secret.yaml.sealed", "deployment.yaml", "README.md")
-		manifests, err := getPotentiallyValidManifests(log.WithField("test", "test"), appDir, appDir, false, false, "{*.yaml.sealed,*.yaml}", "", resource.MustParse("0"))
+		manifests, err := getPotentiallyValidManifests(log.WithField("test", "test"), appDir, appDir, false, true, "{*.yaml.sealed,*.yaml}", "", resource.MustParse("0"))
 		require.NoError(t, err)
 		assert.Len(t, manifests, 2) // secret.yaml.sealed + deployment.yaml; README.md is not in include
 	})
 
 	t.Run("filter off with exclude only still narrows the set", func(t *testing.T) {
 		appDir := writeFiles(t, "secret.yaml.sealed", "notes.md")
-		manifests, err := getPotentiallyValidManifests(log.WithField("test", "test"), appDir, appDir, false, false, "", "*.md", resource.MustParse("0"))
+		manifests, err := getPotentiallyValidManifests(log.WithField("test", "test"), appDir, appDir, false, true, "", "*.md", resource.MustParse("0"))
 		require.NoError(t, err)
 		assert.Len(t, manifests, 1) // notes.md excluded, secret.yaml.sealed kept
 	})
@@ -3080,7 +3083,7 @@ func Test_getPotentiallyValidManifests_requireJsonOrYamlExtension(t *testing.T) 
 	t.Run("filter off with both include and exclude: exclude subtracts from include", func(t *testing.T) {
 		appDir := writeFiles(t, "secret.yaml.sealed", "config.yaml.sealed", "app.yaml", "README.md")
 		// include matches both *.yaml.sealed and *.yaml; exclude then removes anything matching secret.*
-		manifests, err := getPotentiallyValidManifests(log.WithField("test", "test"), appDir, appDir, false, false, "{*.yaml.sealed,*.yaml}", "secret.*", resource.MustParse("0"))
+		manifests, err := getPotentiallyValidManifests(log.WithField("test", "test"), appDir, appDir, false, true, "{*.yaml.sealed,*.yaml}", "secret.*", resource.MustParse("0"))
 		require.NoError(t, err)
 		// kept: config.yaml.sealed, app.yaml. dropped: secret.yaml.sealed (excluded), README.md (not in include)
 		assert.Len(t, manifests, 2)
@@ -3090,7 +3093,7 @@ func Test_getPotentiallyValidManifests_requireJsonOrYamlExtension(t *testing.T) 
 		logger, hook := logtest.NewNullLogger()
 		appDir := writeFiles(t, "secret.yaml.sealed", "notes.txt", "deployment.yaml")
 
-		manifests, err := getPotentiallyValidManifests(logger.WithField("test", "test"), appDir, appDir, false, false, "", "", resource.MustParse("0"))
+		manifests, err := getPotentiallyValidManifests(logger.WithField("test", "test"), appDir, appDir, false, true, "", "", resource.MustParse("0"))
 		require.NoError(t, err)
 		assert.Len(t, manifests, 3) // every file is a candidate
 
@@ -3100,19 +3103,18 @@ func Test_getPotentiallyValidManifests_requireJsonOrYamlExtension(t *testing.T) 
 	})
 }
 
-// Test_findManifests_requireJsonOrYamlExtension is an end-to-end check that a file with a custom
+// Test_findManifests_disableExtensionFilter is an end-to-end check that a file with a custom
 // extension is not just selected as a candidate but actually parsed into a manifest object.
-func Test_findManifests_requireJsonOrYamlExtension(t *testing.T) {
+func Test_findManifests_disableExtensionFilter(t *testing.T) {
 	sealedSecret := []byte("apiVersion: bitnami.com/v1alpha1\nkind: SealedSecret\nmetadata:\n  name: my-secret\n")
 
 	t.Run("custom extension is rendered when the extension filter is disabled and include matches", func(t *testing.T) {
 		appDir := t.TempDir()
 		require.NoError(t, os.WriteFile(filepath.Join(appDir, "my-secret.yaml.sealed"), sealedSecret, 0o644))
 
-		requireJsonOrYamlExtension := false
 		objs, err := findManifests(log.WithField("test", "test"), appDir, appDir, nil, v1alpha1.ApplicationSourceDirectory{
-			RequireJsonOrYamlExtension: &requireJsonOrYamlExtension,
-			Include:                    "{*.yaml.sealed,*.yaml}",
+			DisableExtensionFilter: true,
+			Include:                "{*.yaml.sealed,*.yaml}",
 		}, map[string]bool{}, resource.MustParse("0"))
 		require.NoError(t, err)
 		require.Len(t, objs, 1)

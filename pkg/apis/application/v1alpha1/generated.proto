@@ -535,12 +535,12 @@ message ApplicationSourceDirectory {
   // Include contains a glob pattern to match paths against that should be explicitly included during manifest generation
   optional string include = 4;
 
-  // RequireJsonOrYamlExtension controls whether the built-in file-extension filter is applied during
-  // manifest generation. When true (the default when unset), only files with a .yaml, .yml, .json, or
-  // .jsonnet extension are considered as potential manifests. Set it to false to disable the filter so
-  // that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude glob
-  // patterns instead. A nil value is treated as true to preserve backwards-compatible behavior.
-  optional bool requireJsonOrYamlExtension = 5;
+  // DisableExtensionFilter controls whether the built-in file-extension filter is skipped during
+  // manifest generation. When false (the default), only files with a .yaml, .yml, .json, or
+  // .jsonnet extension are considered as potential manifests. Set it to true to disable the filter
+  // so that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude
+  // glob patterns instead.
+  optional bool disableExtensionFilter = 5;
 }
 
 // ApplicationSourceHelm holds helm specific options
