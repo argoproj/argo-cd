@@ -31,6 +31,7 @@ const MonacoEditorLazy = React.lazy(() =>
             const [height, setHeight] = React.useState(0);
             const [theme, setTheme] = React.useState('dark');
             const editorApiRef = React.useRef<monacoEditor.editor.IEditor | null>(null);
+            const containerRef = React.useRef<HTMLElement | null>(null);
 
             React.useEffect(() => {
                 const destroySystemThemeListener = createSystemThemeListener(systemTheme => {
@@ -66,6 +67,20 @@ const MonacoEditorLazy = React.lazy(() =>
                 };
             }, []);
 
+            // Re-layout on container resize so the editor isn't left collapsed until a later re-render.
+            React.useEffect(() => {
+                if (typeof ResizeObserver === 'undefined' || !containerRef.current) {
+                    return undefined;
+                }
+                const observer = new ResizeObserver(() => {
+                    editorApiRef.current?.layout();
+                });
+                observer.observe(containerRef.current);
+                return () => {
+                    observer.disconnect();
+                };
+            }, []);
+
             return (
                 <div
                     style={{
@@ -74,6 +89,7 @@ const MonacoEditorLazy = React.lazy(() =>
                     }}
                     ref={el => {
                         if (el) {
+                            containerRef.current = el;
                             const container = el as {
                                 editorApi?: monacoEditor.editor.IEditor;
                                 prevEditorInput?: EditorInput;
