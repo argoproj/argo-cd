@@ -1226,6 +1226,7 @@ func TestPermissions(t *testing.T) {
 		CreateApp().
 		Sync().
 		Then().
+		Expect(HealthIs(health.HealthStatusHealthy)).
 		// make sure application resource actions are successful
 		And(func(app *Application) {
 			assertResourceActions(t, app.Name, true, appCtx.DeploymentNamespace())
