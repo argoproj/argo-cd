@@ -4,8 +4,7 @@ const (
 	// AnnotationKeyRefresh is the annotation key which indicates that app needs to be refreshed. Removed by application controller after app is refreshed.
 	// Might take values 'normal'/'hard'. Value 'hard' means manifest cache and target cluster state cache should be invalidated before refresh.
 	AnnotationKeyRefresh string = "argocd.argoproj.io/refresh"
-	// AnnotationKeyRefreshTimestamp is set to a unique timestamp identifying a specific refresh request. Removed by application controller after app
-	// is hydrated.
+	// AnnotationKeyRefreshTimestamp is set to a unique timestamp identifying a specific refresh request. Removed by application controller after app is refreshed..
 	AnnotationKeyRefreshTimestamp string = "argocd.argoproj.io/refresh-timestamp"
 
 	// AnnotationKeyHydrate is the annotation key which indicates that app needs to be hydrated. Removed by application controller after app is hydrated.

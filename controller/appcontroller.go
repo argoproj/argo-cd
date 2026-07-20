@@ -2239,8 +2239,8 @@ func createMergePatch(orig, newV any) ([]byte, bool, error) {
 
 // persistReconciliationStatus persists updates to application status and consumes the refresh and refresh-timestamp annotations.
 func (ctrl *ApplicationController) persistReconciliationStatus(ctx context.Context, orig *appv1.Application, newStatus *appv1.ApplicationStatus) time.Duration {
-	duration := ctrl.handleRefreshAnnotation(ctx, orig, appv1.AnnotationKeyRefresh, appv1.AnnotationKeyRefreshTimestamp)
-	return duration + ctrl.persistAppStatus(ctx, orig, newStatus)
+	duration := ctrl.persistAppStatus(ctx, orig, newStatus)
+	return duration + ctrl.handleRefreshAnnotation(ctx, orig, appv1.AnnotationKeyRefresh, appv1.AnnotationKeyRefreshTimestamp)
 }
 
 // Conditionally removes given refresh annotation (for application refresh or hydration)
@@ -2308,7 +2308,7 @@ func (ctrl *ApplicationController) handleRefreshAnnotation(ctx context.Context, 
 					retryDuration, retryErr := ctrl.removeRefreshAnnotationCombo(newApp, annotation, timestampAnnotation)
 					if retryErr != nil {
 						spanErr = retryErr
-						logCtx.Errorf("Unexpected error retrying removal of annotations %s, %s, %v", annotation, timestampAnnotation, err)
+						logCtx.Errorf("Unexpected error retrying removal of annotations %s, %s, %v", annotation, timestampAnnotation, retryErr)
 					}
 					patchDuration += retryDuration
 				}
