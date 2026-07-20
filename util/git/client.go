@@ -49,8 +49,9 @@ import (
 )
 
 var (
-	ErrInvalidRepoURL = errors.New("repo URL is invalid")
-	ErrNoNoteFound    = errors.New("no note found")
+	ErrInvalidRepoURL   = errors.New("repo URL is invalid")
+	ErrNoNoteFound      = errors.New("no note found")
+	ErrRevisionNotFound = errors.New("revision not found")
 )
 
 // builtinGitConfig configuration contains statements that are needed
@@ -1000,7 +1001,7 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 
 	// If we get here, revision string had non hexadecimal characters (indicating its a branch, tag,
 	// or symbolic ref) and we were unable to resolve it to a commit SHA.
-	return "", fmt.Errorf("unable to resolve '%s' to a commit SHA", revision)
+	return "", fmt.Errorf("unable to resolve '%s' to a commit SHA: %w", revision, ErrRevisionNotFound)
 }
 
 // CommitSHA returns current commit sha from `git rev-parse HEAD`
