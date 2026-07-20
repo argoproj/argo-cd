@@ -161,11 +161,11 @@ func (c *forwardRepoClientset) NewRepoServerClient() (utilio.Closer, repoapiclie
 }
 
 func testAPI(ctx context.Context, clientOpts *apiclient.ClientOptions) error {
-	apiClient, err := apiclient.NewClient(clientOpts)
+	apiClient, err := apiclient.NewClient(ctx, clientOpts)
 	if err != nil {
 		return fmt.Errorf("failed to create API client: %w", err)
 	}
-	closer, versionClient, err := apiClient.NewVersionClient()
+	closer, versionClient, err := apiClient.NewVersionClient(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to create version client: %w", err)
 	}
@@ -331,10 +331,7 @@ func NewClientOrDie(opts *apiclient.ClientOptions, c *cobra.Command) apiclient.C
 	if err != nil {
 		log.Fatal(err)
 	}
-	if opts.ConnContext == nil {
-		opts.ConnContext = ctx
-	}
-	client, err := apiclient.NewClient(opts)
+	client, err := apiclient.NewClient(ctx, opts)
 	if err != nil {
 		log.Fatal(err)
 	}

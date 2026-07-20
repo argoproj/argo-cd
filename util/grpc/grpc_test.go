@@ -2,14 +2,11 @@ package grpc
 
 import (
 	"context"
-	"errors"
-	"net"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"golang.org/x/net/proxy"
 )
 
 var proxyEnvKeys = []string{"ALL_PROXY", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY"}
@@ -109,45 +106,9 @@ func TestBlockingDial_ProxyEnvironmentHandling(t *testing.T) {
 	}
 }
 
-type dialRecorder struct {
-	dialCalled        bool
-	dialContextCalled bool
-}
-
-func (d *dialRecorder) Dial(_, _ string) (net.Conn, error) {
-	d.dialCalled = true
-	return nil, errors.New("dial")
-}
-
-type contextDialRecorder struct {
-	dialRecorder
-}
-
-func (d *contextDialRecorder) DialContext(_ context.Context, _, _ string) (net.Conn, error) {
-	d.dialContextCalled = true
-	return nil, errors.New("dial context")
-}
-
-func TestDialWithContext(t *testing.T) {
-	t.Run("prefers DialContext when implemented", func(t *testing.T) {
-		dialer := &contextDialRecorder{}
-		_, err := dialWithContext(t.Context(), dialer, "tcp", "example.com:443")
-		require.EqualError(t, err, "dial context")
-		assert.True(t, dialer.dialContextCalled)
-		assert.False(t, dialer.dialCalled)
-	})
-
-	t.Run("falls back to Dial", func(t *testing.T) {
-		dialer := &dialRecorder{}
-		_, err := dialWithContext(t.Context(), dialer, "tcp", "example.com:443")
-		require.EqualError(t, err, "dial")
-		assert.True(t, dialer.dialCalled)
-	})
-
-	t.Run("cancelled context aborts direct dial", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(t.Context())
-		cancel()
-		_, err := dialWithContext(ctx, proxy.FromEnvironment(), "tcp", "10.255.255.1:443")
-		require.ErrorIs(t, err, context.Canceled)
-	})
+func TestBlockingNewClient_CancelledContextAbortsDial(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	_, err := BlockingNewClient(ctx, "tcp", "10.255.255.1:443", nil)
+	require.ErrorIs(t, err, context.Canceled)
 }

@@ -161,7 +161,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 			annotationsMap, err := label.Parse(annotations)
 			errors.CheckError(err)
 
-			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie()
+			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie(ctx)
 			defer utilio.Close(conn)
 			if clusterOpts.Name != "" {
 				contextName = clusterOpts.Name
@@ -275,7 +275,7 @@ func NewClusterSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 			}
 			// name of the cluster whose fields have to be updated.
 			clusterName = args[0]
-			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie()
+			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie(ctx)
 			defer utilio.Close(conn)
 			// checks the fields that needs to be updated
 			updatedFields := checkFieldsToUpdate(clusterOptions, labels, annotations)
@@ -357,7 +357,7 @@ argocd cluster get in-cluster`,
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie()
+			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie(ctx)
 			defer utilio.Close(conn)
 			clusters := make([]argoappv1.Cluster, 0)
 			for _, clusterSelector := range args {
@@ -432,7 +432,7 @@ argocd cluster rm cluster-name`,
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie()
+			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie(ctx)
 			defer utilio.Close(conn)
 			numOfClusters := len(args)
 			var isConfirmAll bool
@@ -529,7 +529,7 @@ func NewClusterListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 		Run: func(c *cobra.Command, _ []string) {
 			ctx := c.Context()
 
-			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie()
+			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie(ctx)
 			defer utilio.Close(conn)
 			clusters, err := clusterIf.List(ctx, &clusterpkg.ClusterQuery{})
 			errors.CheckError(err)
@@ -581,7 +581,7 @@ argocd cluster rotate-auth cluster-name`,
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie()
+			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDie(ctx)
 			defer utilio.Close(conn)
 
 			cluster := args[0]

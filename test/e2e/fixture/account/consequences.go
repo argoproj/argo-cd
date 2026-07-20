@@ -39,7 +39,7 @@ func (c *Consequences) CurrentUser(block func(user *session.GetUserInfoResponse,
 }
 
 func (c *Consequences) get() (*account.Account, error) {
-	_, accountClient, _ := fixture.ArgoCDClientset.NewAccountClient()
+	_, accountClient, _ := fixture.ArgoCDClientset.NewAccountClient(c.context.T().Context())
 	accList, err := accountClient.ListAccounts(context.Background(), &account.ListAccountRequest{})
 	if err != nil {
 		return nil, err
@@ -54,7 +54,7 @@ func (c *Consequences) get() (*account.Account, error) {
 
 func (c *Consequences) getCurrentUser() (*session.GetUserInfoResponse, error) {
 	c.context.T().Helper()
-	closer, client, err := fixture.ArgoCDClientset.NewSessionClient()
+	closer, client, err := fixture.ArgoCDClientset.NewSessionClient(c.context.T().Context())
 	require.NoError(c.context.T(), err)
 	defer utilio.Close(closer)
 	return client.GetUserInfo(context.Background(), &session.GetUserInfoRequest{})

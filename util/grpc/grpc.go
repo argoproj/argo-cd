@@ -36,8 +36,7 @@ func LoggerRecoveryHandler(log *logrus.Entry) recovery.RecoveryHandlerFunc {
 // connection will be insecure (plain-text).
 // Lifted from: https://github.com/fullstorydev/grpcurl/blob/master/grpcurl.go
 func BlockingNewClient(ctx context.Context, network, address string, creds credentials.TransportCredentials, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
-	proxyDialer := proxy.FromEnvironment()
-	rawConn, err := dialWithContext(ctx, proxyDialer, network, address)
+	rawConn, err := proxy.Dial(ctx, network, address)
 	if err != nil {
 		return nil, fmt.Errorf("error dial proxy: %w", err)
 	}
@@ -69,15 +68,6 @@ func BlockingNewClient(ctx context.Context, network, address string, creds crede
 	}
 
 	return conn, nil
-}
-
-// dialWithContext prefers DialContext so cancelling ctx aborts an in-flight
-// TCP connect instead of hanging until the OS connect timeout.
-func dialWithContext(ctx context.Context, dialer proxy.Dialer, network, address string) (net.Conn, error) {
-	if contextDialer, ok := dialer.(proxy.ContextDialer); ok {
-		return contextDialer.DialContext(ctx, network, address)
-	}
-	return dialer.Dial(network, address)
 }
 
 func waitForReady(ctx context.Context, conn *grpc.ClientConn) error {

@@ -93,7 +93,7 @@ rules:
 
 			// Invalidate the cluster cache to force rebuild of orphaned children index
 			t.Log("Invalidating cluster cache to rebuild orphaned children index...")
-			closer, clusterClient, err := ArgoCDClientset.NewClusterClient()
+			closer, clusterClient, err := ArgoCDClientset.NewClusterClient(t.Context())
 			require.NoError(t, err)
 			defer io.Close(closer)
 
@@ -114,7 +114,7 @@ rules:
 		Then().
 		And(func(app *v1alpha1.Application) {
 			// Now check the resource tree to verify both Roles show up as children of the ClusterRole
-			closer, cdClient := ArgoCDClientset.NewApplicationClientOrDie()
+			closer, cdClient := ArgoCDClientset.NewApplicationClientOrDie(t.Context())
 			defer io.Close(closer)
 
 			tree, err := cdClient.ResourceTree(t.Context(), &applicationpkg.ResourcesQuery{
@@ -228,7 +228,7 @@ rules:
 		Then().
 		And(func(app *v1alpha1.Application) {
 			// Verify the relationship is still tracked after refresh
-			closer, cdClient := ArgoCDClientset.NewApplicationClientOrDie()
+			closer, cdClient := ArgoCDClientset.NewApplicationClientOrDie(t.Context())
 			defer io.Close(closer)
 
 			tree, err := cdClient.ResourceTree(t.Context(), &applicationpkg.ResourcesQuery{

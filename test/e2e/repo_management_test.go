@@ -21,7 +21,7 @@ func TestAddRemovePublicRepo(t *testing.T) {
 		_, err := fixture.RunCli("repo", "add", repoURL)
 		require.NoError(t, err)
 
-		conn, repoClient, err := fixture.ArgoCDClientset.NewRepoClient()
+		conn, repoClient, err := fixture.ArgoCDClientset.NewRepoClient(t.Context())
 		require.NoError(t, err)
 		defer utilio.Close(conn)
 
@@ -64,7 +64,7 @@ func TestGetRepoWithInheritedCreds(t *testing.T) {
 		errors.NewHandler(t).FailOnErr(fixture.RunCli("repo", "add", repoURL, "--username", fixture.GitUsername, "--password", fixture.GitPassword, "--insecure-skip-server-verification"))
 
 		// Then, we remove username/password so that the repo inherits the credentials from our repocreds
-		conn, repoClient, err := fixture.ArgoCDClientset.NewRepoClient()
+		conn, repoClient, err := fixture.ArgoCDClientset.NewRepoClient(t.Context())
 		require.NoError(t, err)
 		defer utilio.Close(conn)
 
@@ -110,7 +110,7 @@ func TestAddRemoveHelmRepo(t *testing.T) {
 			"--tls-client-cert-key-path", repos.CertKeyPath(t))
 		require.NoError(t, err)
 
-		conn, repoClient, err := fixture.ArgoCDClientset.NewRepoClient()
+		conn, repoClient, err := fixture.ArgoCDClientset.NewRepoClient(t.Context())
 		require.NoError(t, err)
 		defer utilio.Close(conn)
 
@@ -155,7 +155,7 @@ func TestAddHelmRepoInsecureSkipVerify(t *testing.T) {
 
 		require.NoError(t, err)
 
-		conn, repoClient, err := fixture.ArgoCDClientset.NewRepoClient()
+		conn, repoClient, err := fixture.ArgoCDClientset.NewRepoClient(t.Context())
 		require.NoError(t, err)
 
 		defer utilio.Close(conn)
