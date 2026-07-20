@@ -13,6 +13,7 @@ import (
 	"runtime/debug"
 	"sort"
 	"strconv"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -635,6 +636,9 @@ func (ctrl *ApplicationController) getResourceTree(destCluster *appv1.Cluster, a
 	orphanedNodesKeys := make([]kube.ResourceKey, 0)
 	for k := range orphanedNodesMap {
 		if k.Namespace != "" && proj.IsGroupKindNamePermitted(k.GroupKind(), k.Name, true) && !isKnownOrphanedResourceExclusion(k, proj) {
+			if ctrl.isOrphanedResourceIgnored(k) {
+				continue
+			}
 			orphanedNodesKeys = append(orphanedNodesKeys, k)
 		}
 	}
@@ -2914,3 +2918,19 @@ func (ctrl *ApplicationController) applyImpersonationConfig(config *rest.Config,
 }
 
 type ClusterFilterFunction func(c *appv1.Cluster, distributionFunction sharding.DistributionFunction) bool
+
+// isOrphanedResourceIgnored returns true if the given resource key matches
+// any name pattern defined in resource.orphaned.ignore.namePatterns in argocd-cm
+func (ctrl *ApplicationController) isOrphanedResourceIgnored(key kube.ResourceKey) bool {
+	config, err := ctrl.settingsMgr.GetOrphanedIgnoreConfig()
+	if err != nil || config == nil {
+		return false
+	}
+	for _, pattern := range config.NamePatterns {
+		matched, err := filepath.Match(pattern, key.Name)
+		if err == nil && matched {
+			return true
+		}
+	}
+	return false
+}

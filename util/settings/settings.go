@@ -485,7 +485,10 @@ const (
 	resourceInclusionsKey = "resource.inclusions"
 	// resourceIgnoreResourceUpdatesEnabledKey is the key to a boolean determining whether the resourceIgnoreUpdates feature is enabled
 	resourceIgnoreResourceUpdatesEnabledKey = "resource.ignoreResourceUpdatesEnabled"
+	// resourceOrphanedIgnorePatternsKey is the key to a list of name patterns for orphaned resources to ignore
+	resourceOrphanedIgnorePatternsKey = "resource.orphaned.ignore.namePatterns"
 	// resourceSensitiveAnnotationsKey is the key to list of annotations to mask in secret resource
+	// resourceSensitiveAnnotationsKey is the key to list of annotations to mask
 	resourceSensitiveAnnotationsKey = "resource.sensitive.mask.annotations"
 	// resourceCustomLabelKey is the key to a custom label to show in node info, if present
 	resourceCustomLabelsKey = "resource.customLabels"
@@ -2852,7 +2855,6 @@ func (m myFeatureGates) Enabled(f clientgofeatures.Feature) bool {
 	return m.parent.Enabled(f)
 }
 
-// FIXME: remove when we have proper WatchListClient and InOrderInformers support
 func ConfigureGoClientFeatures() {
 	gates := clientgofeatures.FeatureGates()
 	isWatchListEnabled := gates.Enabled(clientgofeatures.WatchListClient)
@@ -2862,4 +2864,29 @@ func ConfigureGoClientFeatures() {
 		wrapper := myFeatureGates{parent: gates}
 		clientgofeatures.ReplaceFeatureGates(wrapper)
 	}
+}
+// OrphanedResourceIgnoreConfig holds name patterns for orphaned resources
+// that should be ignored during reconciliation
+
+type OrphanedResourceIgnoreConfig struct {
+	NamePatterns []string `json:"namePatterns,omitempty"`
+}
+
+// GetOrphanedIgnoreConfig returns the config for ignoring orphaned
+// resources by name pattern, read from argocd-cm
+func (mgr *SettingsManager) GetOrphanedIgnoreConfig() (*OrphanedResourceIgnoreConfig, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return nil, err
+	}
+	val, ok := argoCDCM.Data[resourceOrphanedIgnorePatternsKey]
+	if !ok || val == "" {
+		return &OrphanedResourceIgnoreConfig{}, nil
+	}
+	config := &OrphanedResourceIgnoreConfig{}
+	err = yaml.Unmarshal([]byte(val), config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse %s: %w", resourceOrphanedIgnorePatternsKey, err)
+	}
+	return config, nil
 }
