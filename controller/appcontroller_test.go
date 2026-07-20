@@ -227,7 +227,6 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 	ctrl, err := NewApplicationController(
 		test.FakeArgoCDNamespace,
 		settingsMgr,
-		nil,
 		kubeClient,
 		appclientset.NewSimpleClientset(data.apps...),
 		mockRepoClientset,
