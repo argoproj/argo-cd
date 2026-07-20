@@ -270,7 +270,6 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 
 		// Bitbucket does not include a list of changed files anywhere in it's payload
 		// so we cannot update changedFiles for this type of payload
-
 	}
 	return webURLs, revision, change, touchedHead, changedFiles
 }
