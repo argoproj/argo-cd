@@ -137,17 +137,17 @@ type ApplicationController struct {
 	projInformer                  cache.SharedIndexInformer
 	appStateManager               AppStateManager
 	stateCache                    statecache.LiveStateCache
-	// Deprecated: use LegacyStatusRefreshTimeout / configProvider.ReconciliationTimeout.
+	// Deprecated: use configProvider.ReconciliationTimeout.
 	statusRefreshTimeout time.Duration
-	// Deprecated: use LegacyStatusHardRefreshTimeout / configProvider.HardReconciliationTimeout.
+	// Deprecated: use configProvider.HardReconciliationTimeout.
 	statusHardRefreshTimeout time.Duration
-	// Deprecated: use LegacyStatusRefreshJitter / configProvider.ReconciliationJitter.
+	// Deprecated: use configProvider.ReconciliationJitter.
 	statusRefreshJitter time.Duration
-	// Deprecated: use LegacySelfHealTimeout / configProvider.SelfHealTimeout.
+	// Deprecated: use configProvider.SelfHealTimeout.
 	selfHealTimeout time.Duration
-	// Deprecated: use LegacySelfHealBackoff / configProvider.SelfHealBackoff.
+	// Deprecated: use configProvider.SelfHealBackoff.
 	selfHealBackoff *wait.Backoff
-	// Deprecated: use LegacySyncTimeout / configProvider.SyncTimeout.
+	// Deprecated: use configProvider.SyncTimeout.
 	syncTimeout               time.Duration
 	db                        db.ArgoDB
 	settingsMgr               *settings_util.SettingsManager
@@ -155,13 +155,13 @@ type ApplicationController struct {
 	refreshRequestedApps      map[string]CompareWith
 	refreshRequestedAppsMutex *sync.Mutex
 	metricsServer             *metrics.MetricsServer
-	// Deprecated: use LegacyMetricsClusterLabels / configProvider.MetricsClusterLabels.
+	// Deprecated: use configProvider.MetricsClusterLabels.
 	metricsClusterLabels  []string
 	kubectlSemaphore      *semaphore.Weighted
 	clusterSharding       sharding.ClusterShardingCache
 	projByNameCache       sync.Map
 	applicationNamespaces []string
-	// Deprecated: use LegacyIgnoreNormalizerOpts / configProvider.IgnoreNormalizerOpts.
+	// Deprecated: use configProvider.IgnoreNormalizerOpts.
 	ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts
 
 	// dynamicClusterDistributionEnabled if disabled deploymentInformer is never initialized

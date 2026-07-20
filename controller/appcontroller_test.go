@@ -3278,7 +3278,9 @@ func TestProcessRequestedAppOperation_RequeuesOperation(t *testing.T) {
 		require.Len(t, rq.calls, 1)
 		assert.Equal(t, ctrl.toAppKey(app.QualifiedName()), rq.calls[0].item)
 		assert.Positive(t, rq.calls[0].delay)
-		assert.LessOrEqual(t, rq.calls[0].delay, ctrl.LegacySyncTimeout())
+		syncTimeout, err := ctrl.configProvider.SyncTimeout()
+		require.NoError(t, err)
+		assert.LessOrEqual(t, rq.calls[0].delay, syncTimeout)
 		assert.Less(t, rq.calls[0].delay, appOperationMaxRequeueInterval)
 	})
 
