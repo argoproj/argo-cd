@@ -668,7 +668,6 @@ func TestProcessAppHydrateQueueItem_HydrationNotNeeded_AlreadyHydrating(t *testi
 		},
 	}
 
-	d.EXPECT().RemoveHydrationAnnotations(mock.Anything).Return().Once()
 	h := &Hydrator{
 		dependencies:         d,
 		statusRefreshTimeout: time.Minute,
@@ -677,7 +676,7 @@ func TestProcessAppHydrateQueueItem_HydrationNotNeeded_AlreadyHydrating(t *testi
 
 	d.AssertNotCalled(t, "PersistHydrationStatus", mock.Anything, mock.Anything)
 	d.AssertNotCalled(t, "AddHydrationQueueItem", mock.Anything)
-	d.AssertCalled(t, "RemoveHydrationAnnotations", mock.Anything)
+	d.AssertNotCalled(t, "RemoveHydrationAnnotations", mock.Anything)
 }
 
 func TestProcessAppHydrateQueueItem_HydrationNeeded_RevisionChanges(t *testing.T) {

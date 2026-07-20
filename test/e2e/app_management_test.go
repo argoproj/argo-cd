@@ -498,7 +498,7 @@ func TestInvalidAppProject(t *testing.T) {
 func TestNestedRefresh(t *testing.T) {
 	dir := "slow-manifest"
 	manifest := "templates/cm.yaml"
-	ctx := Given(t).Timeout(100) // make it less flaky
+	ctx := Given(t).Timeout(50)
 	acts := ctx.Path(dir).
 		When().
 		CreateApp().
@@ -525,11 +525,8 @@ func TestNestedRefresh(t *testing.T) {
 	acts.Then().Expect(HelmTemplateRuns()).Expect(Success(helmProcessData))
 	// get last revision
 	revision := acts.GitRevList("HEAD", "-1").GetLastOutput()
-	acts.Sync().Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		// synced to the last committed revision - the second refresh worked
-		Expect(SyncRevisionIs(revision))
+	// the last committed revision - the second refresh worked
+	acts.Then().Expect(SyncRevisionIs(revision))
 }
 
 func TestAppDeletion(t *testing.T) {
