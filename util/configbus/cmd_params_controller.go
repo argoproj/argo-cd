@@ -54,8 +54,7 @@ func init() {
 func registerControllerLegacySettings() {
 	MustRegister(Setting[[]string]{
 		Name: NameControllerMetricsClusterLabels, CMKeyExact: "controller.metrics.cluster.labels",
-		EnvVar: "ARGOCD_APPLICATION_CONTROLLER_METRICS_CLUSTER_LABELS", FlagName: "metrics-cluster-labels",
-		Component: "controller", SourceConfigMap: SourceCmdParamsCM, HotReload: false,
+		EnvVar: "ARGOCD_APPLICATION_CONTROLLER_METRICS_CLUSTER_LABELS",
 		Get: func(ctx *ResolveContext) ([]string, error) {
 			c, err := requireControllerLegacy(ctx)
 			if err != nil {
@@ -66,8 +65,7 @@ func registerControllerLegacySettings() {
 	})
 	MustRegister(Setting[time.Duration]{
 		Name: NameControllerSelfHealTimeoutSeconds, CMKeyExact: "controller.self.heal.timeout.seconds",
-		EnvVar: "ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_TIMEOUT_SECONDS", FlagName: "self-heal-timeout-seconds",
-		Component: "controller", SourceConfigMap: SourceCmdParamsCM, HotReload: false,
+		EnvVar: "ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_TIMEOUT_SECONDS",
 		Get: func(ctx *ResolveContext) (time.Duration, error) {
 			c, err := requireControllerLegacy(ctx)
 			if err != nil {
@@ -78,8 +76,7 @@ func registerControllerLegacySettings() {
 	})
 	MustRegister(Setting[time.Duration]{
 		Name: NameControllerSyncTimeoutSeconds, CMKeyExact: "controller.sync.timeout.seconds",
-		EnvVar: "ARGOCD_APPLICATION_CONTROLLER_SYNC_TIMEOUT", FlagName: "sync-timeout",
-		Component: "controller", SourceConfigMap: SourceCmdParamsCM, HotReload: false,
+		EnvVar: "ARGOCD_APPLICATION_CONTROLLER_SYNC_TIMEOUT",
 		Get: func(ctx *ResolveContext) (time.Duration, error) {
 			c, err := requireControllerLegacy(ctx)
 			if err != nil {
@@ -90,8 +87,7 @@ func registerControllerLegacySettings() {
 	})
 	MustRegister(Setting[time.Duration]{
 		Name: NameControllerRepoErrorGracePeriodSeconds, CMKeyExact: "controller.repo.error.grace.period.seconds",
-		EnvVar: "ARGOCD_REPO_ERROR_GRACE_PERIOD_SECONDS", FlagName: "repo-error-grace-period-seconds",
-		Component: "controller", SourceConfigMap: SourceCmdParamsCM, HotReload: false,
+		EnvVar: "ARGOCD_REPO_ERROR_GRACE_PERIOD_SECONDS",
 		Get: func(ctx *ResolveContext) (time.Duration, error) {
 			c, err := requireControllerLegacy(ctx)
 			if err != nil {
@@ -102,8 +98,7 @@ func registerControllerLegacySettings() {
 	})
 	MustRegister(Setting[bool]{
 		Name: NameControllerResourceHealthPersist, CMKeyExact: "controller.resource.health.persist",
-		EnvVar: "ARGOCD_APPLICATION_CONTROLLER_PERSIST_RESOURCE_HEALTH", FlagName: "persist-resource-health",
-		Component: "controller", SourceConfigMap: SourceCmdParamsCM, HotReload: false,
+		EnvVar: "ARGOCD_APPLICATION_CONTROLLER_PERSIST_RESOURCE_HEALTH",
 		Get: func(ctx *ResolveContext) (bool, error) {
 			c, err := requireControllerLegacy(ctx)
 			if err != nil {
@@ -114,8 +109,7 @@ func registerControllerLegacySettings() {
 	})
 	MustRegister(Setting[bool]{
 		Name: NameControllerDiffServerSide, CMKeyExact: "controller.diff.server.side",
-		EnvVar: "ARGOCD_APPLICATION_CONTROLLER_SERVER_SIDE_DIFF", FlagName: "server-side-diff-enabled",
-		Component: "controller", SourceConfigMap: SourceCmdParamsCM, HotReload: false,
+		EnvVar: "ARGOCD_APPLICATION_CONTROLLER_SERVER_SIDE_DIFF",
 		Get: func(ctx *ResolveContext) (bool, error) {
 			c, err := requireControllerLegacy(ctx)
 			if err != nil {
@@ -126,8 +120,7 @@ func registerControllerLegacySettings() {
 	})
 	MustRegister(Setting[time.Duration]{
 		Name: NameControllerIgnoreNormalizerJQTimeout, CMKeyExact: "controller.ignore.normalizer.jq.timeout",
-		EnvVar: "ARGOCD_IGNORE_NORMALIZER_JQ_TIMEOUT", FlagName: "ignore-normalizer-jq-execution-timeout-seconds",
-		Component: "controller", SourceConfigMap: SourceCmdParamsCM, HotReload: false,
+		EnvVar: "ARGOCD_IGNORE_NORMALIZER_JQ_TIMEOUT",
 		Get: func(ctx *ResolveContext) (time.Duration, error) {
 			c, err := requireControllerLegacy(ctx)
 			if err != nil {
