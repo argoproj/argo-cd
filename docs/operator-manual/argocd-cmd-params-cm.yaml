@@ -32,6 +32,8 @@ data:
   otlp.headers: ""
   # Open-Telemetry collector attrs: (e.g. "key1:value1,key2:value2")
   otlp.attrs: ""
+  # Open-Telemetry trace sampling ratio between 0.0 and 1.0: (e.g. "0.1")
+  otlp.sample.ratio: "1.0"
 
   # List of additional namespaces where applications may be created in and
   # reconciled from. The namespace where Argo CD is installed to will always
@@ -98,7 +100,7 @@ data:
   controller.default.cache.expiration: "24h0m0s"
   # Sharding algorithm used to balance clusters across application controller shards (default "legacy")
   controller.sharding.algorithm: legacy
-  # Number of allowed concurrent kubectl fork/execs. Any value less than 1 means no limit.
+  # Maximum number of concurrent cluster operations during sync. Any value less than 1 means no limit.
   controller.kubectl.parallelism.limit: "20"
   # The maximum number of retries for each request
   controller.k8sclient.retry.max: "0"
