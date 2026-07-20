@@ -161,7 +161,10 @@ func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 	} else {
 		logCtx.WithField("reason", reason).Debug("Skipping hydration")
 		// Consume the hydrate annotation when hydration is not needed.
-		h.dependencies.RemoveHydrationAnnotations(origApp)
+		if reason != reasonHydrationOperationAlreadyInProgress {
+			// annotations are removed at the end of the running hydration
+			h.dependencies.RemoveHydrationAnnotations(origApp)
+		}
 	}
 
 	logCtx.Debug("Successfully processed app hydrate queue item")
@@ -648,6 +651,8 @@ func (h *Hydrator) newRevisionHasChanges(ctx context.Context, app *appv1.Applica
 	return hasChanges, resolvedRev, nil
 }
 
+const reasonHydrationOperationAlreadyInProgress = "hydration operation already in progress"
+
 // appNeedsHydration answers if application needs manifests hydrated. The third return value is the resolved dry
 // source revision from revision evaluation (empty if evaluation was skipped or failed).
 func (h *Hydrator) appNeedsHydration(ctx context.Context, app *appv1.Application) (needsHydration bool, reason string, resolvedDryRevision string) {
@@ -660,7 +665,7 @@ func (h *Hydrator) appNeedsHydration(ctx context.Context, app *appv1.Application
 	case app.Status.SourceHydrator.CurrentOperation == nil:
 		return true, "no previous hydrate operation", ""
 	case app.Status.SourceHydrator.CurrentOperation.Phase == appv1.HydrateOperationPhaseHydrating:
-		return false, "hydration operation already in progress", ""
+		return false, reasonHydrationOperationAlreadyInProgress, ""
 	case requested && hydrateType == appv1.HydrateTypeHard:
 		return true, "hard hydrate requested", ""
 	case !app.Spec.SourceHydrator.DeepEquals(app.Status.SourceHydrator.CurrentOperation.SourceHydrator):

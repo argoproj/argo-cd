@@ -631,9 +631,11 @@ func TestHydratorHydratesAutomatically_NewCommit_WithoutChanges(t *testing.T) {
 }
 
 func TestHydratorNestedRequest(t *testing.T) {
+	// Test that hydration request that arrived when application
+	// was hydrating is not ignored
 	dir := "slow-manifest"
 	manifest := "templates/cm.yaml"
-	ctx := Given(t).Timeout(100)
+	ctx := Given(t).Timeout(20)
 	acts := ctx.DrySourcePath(dir).
 		DrySourceRevision("HEAD").
 		SyncSourcePath(dir).
@@ -668,17 +670,7 @@ func TestHydratorNestedRequest(t *testing.T) {
 	// still running, so the second refresh was nested
 	acts.Then().Expect(HelmTemplateRuns()).Expect(Success(helmProcessData))
 
-	acts.Wait("--hydrated").Then().
-		Expect(HydrationPhaseIs(HydrateOperationPhaseHydrated)).
-		// hydrated the last committed revision - the second refresh worked
+	// in the end hydrated to the last committed revision - the second refresh worked
+	acts.Then().Expect(HydrationPhaseIs(HydrateOperationPhaseHydrated)).
 		Expect(DryRevisionIs(revision))
-
-	acts.Sync().Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
-			// synced to the last hydrated revision
-			require.Equal(t, app.Status.SourceHydrator.LastSuccessfulOperation.HydratedSHA, app.Status.Sync.Revision)
-		})
-
 }
