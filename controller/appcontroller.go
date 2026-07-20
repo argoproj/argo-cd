@@ -974,7 +974,7 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 	ctrl.RegisterClusterSecretUpdater(ctx)
 	metricsClusterLabels, err := ctrl.configProvider.MetricsClusterLabels()
 	if err != nil {
-		log.WithError(err).Error("failed to resolve metrics cluster labels")
+		log.WithError(err).Fatal("failed to resolve metrics cluster labels")
 	}
 	ctrl.metricsServer.RegisterClustersInfoSource(ctx, ctrl.stateCache, ctrl.db, metricsClusterLabels)
 
@@ -1583,10 +1583,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		logCtx.Debug("Finished processing requested app operation")
 	}()
 
-	syncTimeout, err := ctrl.configProvider.SyncTimeout()
-	if err != nil {
-		logCtx.WithError(err).Error("failed to resolve sync timeout")
-	}
+	syncTimeout, syncTimeoutErr := ctrl.configProvider.SyncTimeout()
 	requeueAfter := appOperationMaxRequeueInterval
 	defer func() {
 		// Re-enqueue the app onto the operation queue to keep polling the in-progress sync.
@@ -1605,7 +1602,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		switch {
 		case state.Phase == synccommon.OperationTerminating:
 			logCtx.Infof("Resuming in-progress operation. phase: %s, message: %s", state.Phase, state.Message)
-		case syncTimeout != time.Duration(0) && time.Now().After(state.StartedAt.Add(syncTimeout)):
+		case syncTimeoutErr == nil && syncTimeout != time.Duration(0) && time.Now().After(state.StartedAt.Add(syncTimeout)):
 			state.Phase = synccommon.OperationTerminating
 			state.Message = "operation is terminating due to timeout"
 			terminatingCause = "controller sync timeout"
@@ -1652,6 +1649,13 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		logCtx.Infof("Initialized new operation: %v", *app.Operation)
 	}
 	ts.AddCheckpoint("initial_operation_stage_ms")
+
+	if syncTimeoutErr != nil {
+		state.Phase = synccommon.OperationError
+		state.Message = syncTimeoutErr.Error()
+		ctrl.setOperationState(ctx, app, state)
+		return
+	}
 
 	terminating := state.Phase == synccommon.OperationTerminating
 
@@ -2614,10 +2618,14 @@ func (ctrl *ApplicationController) autoSync(ctx context.Context, app *appv1.Appl
 			op.Sync.SelfHealAttemptsCount = app.Status.OperationState.Operation.Sync.SelfHealAttemptsCount
 		}
 
-		if remainingTime := ctrl.selfHealRemainingBackoff(app, int(op.Sync.SelfHealAttemptsCount)); remainingTime > 0 {
+		remainingTime, err := ctrl.selfHealRemainingBackoff(app, int(op.Sync.SelfHealAttemptsCount))
+		if err != nil {
+			return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: err.Error()}, 0
+		}
+		if remainingTime > 0 {
 			selfHealTimeout, err := ctrl.configProvider.SelfHealTimeout()
 			if err != nil {
-				logCtx.WithError(err).Error("failed to resolve self heal timeout")
+				return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: err.Error()}, 0
 			}
 			logCtx.Infof("Skipping auto-sync: already attempted sync to %s with timeout %v (retrying in %v)", lastAttemptedRevisions, selfHealTimeout, remainingTime)
 			ctrl.requestAppRefresh(app.QualifiedName(), CompareWithLatest.Pointer(), &remainingTime)
@@ -2717,9 +2725,9 @@ func alreadyAttemptedSync(app *appv1.Application, desiredRevisions []string, new
 	return reflect.DeepEqual(app.Spec.GetSource(), app.Status.OperationState.SyncResult.Source), []string{app.Status.OperationState.SyncResult.Revision}, app.Status.OperationState.Phase
 }
 
-func (ctrl *ApplicationController) selfHealRemainingBackoff(app *appv1.Application, selfHealAttemptsCount int) time.Duration {
+func (ctrl *ApplicationController) selfHealRemainingBackoff(app *appv1.Application, selfHealAttemptsCount int) (time.Duration, error) {
 	if app.Status.OperationState == nil {
-		return time.Duration(0)
+		return time.Duration(0), nil
 	}
 
 	var timeSinceOperation *time.Duration
@@ -2729,11 +2737,11 @@ func (ctrl *ApplicationController) selfHealRemainingBackoff(app *appv1.Applicati
 
 	selfHealTimeout, err := ctrl.configProvider.SelfHealTimeout()
 	if err != nil {
-		log.WithError(err).Error("failed to resolve self heal timeout")
+		return 0, fmt.Errorf("failed to resolve self heal timeout: %w", err)
 	}
 	selfHealBackoff, err := ctrl.configProvider.SelfHealBackoff()
 	if err != nil {
-		log.WithError(err).Error("failed to resolve self heal backoff")
+		return 0, fmt.Errorf("failed to resolve self heal backoff: %w", err)
 	}
 	var retryAfter time.Duration
 	if selfHealBackoff == nil {
@@ -2756,7 +2764,7 @@ func (ctrl *ApplicationController) selfHealRemainingBackoff(app *appv1.Applicati
 			retryAfter = delay - *timeSinceOperation
 		}
 	}
-	return retryAfter
+	return retryAfter, nil
 }
 
 // isAppNamespaceAllowed returns whether the application is allowed in the
@@ -2948,10 +2956,9 @@ func (ctrl *ApplicationController) applicationEventHandlerFuncs() cache.Resource
 					log.WithFields(applog.GetAppLogFields(newApp)).Info("Enabled automated sync")
 					compareWith = CompareWithLatest.Pointer()
 				}
-				statusRefreshJitter := ctrl.configProvider.ReconciliationJitter()
-				if statusRefreshJitter != 0 && oldApp.ResourceVersion == newApp.ResourceVersion {
+				if ctrl.statusRefreshJitter != 0 && oldApp.ResourceVersion == newApp.ResourceVersion {
 					// Handler is refreshing the apps, add a random jitter to spread the load and avoid spikes
-					jitter := time.Duration(float64(statusRefreshJitter) * rand.Float64())
+					jitter := time.Duration(float64(ctrl.statusRefreshJitter) * rand.Float64())
 					delay = &jitter
 				}
 			}
