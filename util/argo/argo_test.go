@@ -755,6 +755,22 @@ func TestFilterByRepo(t *testing.T) {
 		res := FilterByRepo(apps, "git@github.com:owner/willnotmatch.git")
 		assert.Empty(t, res)
 	})
+
+	t.Run("Multi-source match on second source", func(t *testing.T) {
+		t.Parallel()
+		multiSourceApp := []argoappv1.Application{
+			{
+				Spec: argoappv1.ApplicationSpec{
+					Sources: argoappv1.ApplicationSources{
+						{RepoURL: "git@github.com:owner/first.git"},
+						{RepoURL: "git@github.com:owner/second.git"},
+					},
+				},
+			},
+		}
+		res := FilterByRepo(multiSourceApp, "git@github.com:owner/second.git")
+		assert.Len(t, res, 1)
+	})
 }
 
 func TestFilterByRepoP(t *testing.T) {
@@ -793,6 +809,22 @@ func TestFilterByRepoP(t *testing.T) {
 		res := FilterByRepoP(apps, "git@github.com:owner/willnotmatch.git")
 		assert.Empty(t, res)
 	})
+
+	t.Run("Multi-source match on second source", func(t *testing.T) {
+		t.Parallel()
+		multiSourceApp := []*argoappv1.Application{
+			{
+				Spec: argoappv1.ApplicationSpec{
+					Sources: argoappv1.ApplicationSources{
+						{RepoURL: "git@github.com:owner/first.git"},
+						{RepoURL: "git@github.com:owner/second.git"},
+					},
+				},
+			},
+		}
+		res := FilterByRepoP(multiSourceApp, "git@github.com:owner/second.git")
+		assert.Len(t, res, 1)
+	})
 }
 
 func TestFilterByPath(t *testing.T) {
@@ -830,6 +862,166 @@ func TestFilterByPath(t *testing.T) {
 		t.Parallel()
 		res := FilterByPath(apps, "example/app/non-existent")
 		assert.Empty(t, res)
+	})
+
+	t.Run("Multi-source match on second source", func(t *testing.T) {
+		t.Parallel()
+		multiSourceApp := []argoappv1.Application{
+			{
+				Spec: argoappv1.ApplicationSpec{
+					Sources: argoappv1.ApplicationSources{
+						{Path: "example/app/first"},
+						{Path: "example/app/second"},
+					},
+				},
+			},
+		}
+		res := FilterByPath(multiSourceApp, "example/app/second")
+		assert.Len(t, res, 1)
+	})
+}
+
+func TestFilterByFiles(t *testing.T) {
+	// app1: path=example/apps/foo/chart, annotation=".;.."  → resolves to [example/apps/foo/chart, example/apps/foo]
+	app1 := argoappv1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations: map[string]string{
+				argoappv1.AnnotationKeyManifestGeneratePaths: ".;..",
+			},
+		},
+		Spec: argoappv1.ApplicationSpec{
+			Source: &argoappv1.ApplicationSource{Path: "example/apps/foo/chart"},
+		},
+	}
+	// app2: path=example/apps/foo, annotation="."  → resolves to [example/apps/foo]
+	app2 := argoappv1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations: map[string]string{
+				argoappv1.AnnotationKeyManifestGeneratePaths: ".",
+			},
+		},
+		Spec: argoappv1.ApplicationSpec{
+			Source: &argoappv1.ApplicationSource{Path: "example/apps/foo"},
+		},
+	}
+	// app3: path=example/other, no annotation → falls back to source path
+	app3 := argoappv1.Application{
+		Spec: argoappv1.ApplicationSpec{
+			Source: &argoappv1.ApplicationSource{Path: "example/other"},
+		},
+	}
+	// app4: path=example/other, annotation="."  → resolves to [example/other]
+	app4 := argoappv1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations: map[string]string{
+				argoappv1.AnnotationKeyManifestGeneratePaths: ".",
+			},
+		},
+		Spec: argoappv1.ApplicationSpec{
+			Source: &argoappv1.ApplicationSource{Path: "example/other"},
+		},
+	}
+	apps := []argoappv1.Application{app1, app2, app3, app4}
+
+	t.Run("Empty file list returns all apps", func(t *testing.T) {
+		res := FilterByFiles(apps, []string{})
+		assert.Len(t, res, 4)
+	})
+
+	t.Run("File under annotated parent path matches app1 and app2", func(t *testing.T) {
+		// example/apps/foo/base.yaml is under example/apps/foo/chart/.. (app1) and example/apps/foo (app2)
+		res := FilterByFiles(apps, []string{"example/apps/foo/base.yaml"})
+		names := make([]string, 0)
+		for _, a := range res {
+			names = append(names, a.Spec.GetSource().Path)
+		}
+		assert.Contains(t, names, "example/apps/foo/chart")
+		assert.Contains(t, names, "example/apps/foo")
+	})
+
+	t.Run("File under other path matches app3 and app4", func(t *testing.T) {
+		res := FilterByFiles(apps, []string{"example/other/manifest.yaml"})
+		names := make([]string, 0)
+		for _, a := range res {
+			names = append(names, a.Spec.GetSource().Path)
+		}
+		assert.Contains(t, names, "example/other")
+		assert.Len(t, res, 2) // app3 and app4
+	})
+
+	t.Run("Unrelated file matches nothing", func(t *testing.T) {
+		res := FilterByFiles(apps, []string{"totally/unrelated/file.yaml"})
+		assert.Empty(t, res)
+	})
+
+	t.Run("Multi-source app matches if any source path matches", func(t *testing.T) {
+		multiSourceApp := argoappv1.Application{
+			Spec: argoappv1.ApplicationSpec{
+				Sources: argoappv1.ApplicationSources{
+					{Path: "services/backend"},
+					{Path: "services/frontend"},
+				},
+			},
+		}
+		res := FilterByFiles([]argoappv1.Application{multiSourceApp}, []string{"services/frontend/index.js"})
+		assert.Len(t, res, 1)
+
+		res = FilterByFiles([]argoappv1.Application{multiSourceApp}, []string{"totally/unrelated/file.yaml"})
+		assert.Empty(t, res)
+	})
+
+	t.Run("Helm chart source with no path is skipped and does not match every file", func(t *testing.T) {
+		helmApp := argoappv1.Application{
+			Spec: argoappv1.ApplicationSpec{
+				Source: &argoappv1.ApplicationSource{
+					RepoURL: "https://charts.example.com",
+					Chart:   "my-chart",
+					// Path is intentionally empty — Helm chart source
+				},
+			},
+		}
+		res := FilterByFiles([]argoappv1.Application{helmApp}, []string{"any/file.yaml"})
+		assert.Empty(t, res)
+	})
+}
+
+func TestFilterByPathAndFiles(t *testing.T) {
+	app1 := argoappv1.Application{
+		Spec: argoappv1.ApplicationSpec{
+			Source: &argoappv1.ApplicationSource{Path: "services/backend"},
+		},
+	}
+	app2 := argoappv1.Application{
+		Spec: argoappv1.ApplicationSpec{
+			Source: &argoappv1.ApplicationSource{Path: "services/frontend"},
+		},
+	}
+	app3 := argoappv1.Application{
+		Spec: argoappv1.ApplicationSpec{
+			Source: &argoappv1.ApplicationSource{Path: "infra/terraform"},
+		},
+	}
+	apps := []argoappv1.Application{app1, app2, app3}
+
+	t.Run("--path and --file combined narrow results to intersection", func(t *testing.T) {
+		// --path services/backend keeps app1; --file services/backend/main.go also matches app1
+		res := FilterByPath(apps, "services/backend")
+		res = FilterByFiles(res, []string{"services/backend/main.go"})
+		assert.Len(t, res, 1)
+		assert.Equal(t, "services/backend", res[0].Spec.GetSource().Path)
+	})
+
+	t.Run("--path and --file with no intersection returns empty", func(t *testing.T) {
+		// --path services/frontend keeps app2; --file services/backend/main.go does not match app2
+		res := FilterByPath(apps, "services/frontend")
+		res = FilterByFiles(res, []string{"services/backend/main.go"})
+		assert.Empty(t, res)
+	})
+
+	t.Run("--file only without --path returns all matching apps", func(t *testing.T) {
+		res := FilterByFiles(apps, []string{"services/frontend/index.js"})
+		assert.Len(t, res, 1)
+		assert.Equal(t, "services/frontend", res[0].Spec.GetSource().Path)
 	})
 }
 
