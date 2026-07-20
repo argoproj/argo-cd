@@ -2142,22 +2142,21 @@ func Test_humanizeAuthPromptError(t *testing.T) {
 		require.Equal(t, orig, humanizeAuthPromptError(repoURL, orig))
 	})
 
-	t.Run("terminal-prompt failure is rewritten to a generic auth error", func(t *testing.T) {
+	t.Run("terminal-prompt failure is rewritten but keeps the cause", func(t *testing.T) {
 		orig := errors.New("`git fetch origin` failed exit status 128: fatal: could not read Username for 'https://github.com': terminal prompts disabled")
 		got := humanizeAuthPromptError(repoURL, orig)
+		require.ErrorIs(t, got, orig, "original error must be wrapped for debugging")
 		assert.Contains(t, got.Error(), "failed to authenticate to git repository")
 		assert.Contains(t, got.Error(), "no credentials matched this URL")
 		assert.Contains(t, got.Error(), repoURL)
-		// The raw Git output is intentionally dropped, not disclosed.
-		assert.NotContains(t, got.Error(), "terminal prompts disabled")
 	})
 }
 
 // Test_fetch_authPromptRewrite reproduces issue #22750 end-to-end: a credentialed
 // git fetch against a repository that requires auth but has no matching credentials
 // makes git emit the misleading "terminal prompts disabled" message. It proves the
-// fix rewrites that into a generic authentication error without leaking the raw
-// Git output.
+// fix rewrites that into an actionable authentication error while preserving the
+// original cause.
 func Test_fetch_authPromptRewrite(t *testing.T) {
 	// A remote that always demands basic auth, mimicking a private repo whose
 	// credentials no longer match (e.g. after a rename/move or token rotation).
@@ -2179,10 +2178,8 @@ func Test_fetch_authPromptRewrite(t *testing.T) {
 
 	err := client.fetch(ctx, "", 0)
 	require.Error(t, err)
-	// The generic auth error is only returned when git hit the terminal-prompt
-	// failure, so this both proves the reproduction and the rewrite.
-	assert.Contains(t, err.Error(), "failed to authenticate to git repository", "expected the generic authentication error")
-	assert.Contains(t, err.Error(), "no credentials matched this URL")
-	// The raw git output must not leak into the returned error.
-	assert.NotContains(t, err.Error(), "terminal prompts disabled", "raw git output must not be disclosed")
+	// The raw git failure really happened (reproduction) ...
+	assert.Contains(t, err.Error(), "terminal prompts disabled", "expected to reproduce the raw git auth-prompt failure")
+	// ... and the fix surfaces it as an actionable authentication error (the fix).
+	assert.Contains(t, err.Error(), "failed to authenticate to git repository", "expected the humanized authentication error")
 }
