@@ -92,6 +92,12 @@ func NewController(
 	}
 	secretInformer := k8s.NewSecretInformer(k8sClient, notificationConfigNamespace, secretName)
 	configMapInformer := k8s.NewConfigMapInformer(k8sClient, notificationConfigNamespace, configMapName)
+	// Let the service serve the `appProject` template var from this AppProject
+	// informer cache (keyed on the controller namespace) instead of a per-evaluation
+	// API GET.
+	if argocdService != nil {
+		argocdService.SetAppProjectInformer(appProjInformer)
+	}
 	apiFactory := api.NewFactory(settings.GetFactorySettings(argocdService, secretName, configMapName, selfServiceNotificationEnabled), namespace, secretInformer, configMapInformer)
 
 	res := &notificationController{
