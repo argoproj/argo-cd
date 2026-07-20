@@ -67,17 +67,14 @@ func (m *appStateManager) getGVKParser(server *v1alpha1.Cluster) (*managedfields
 // interface that provides functionality to dry run apply kubernetes resources. Returns a
 // cleanup function that must be called to remove the generated kube config for this
 // server.
-//
-// When impersonation is enabled, the dry-run apply is executed as the ServiceAccount
-// derived from the AppProject's destinationServiceAccounts, matching the identity used
-// by the sync operation. This avoids requiring the standing cluster credential to hold
-// patch authority for every resource kind, since a server-side apply dry-run is
-// authorized by the API server as a patch (Kubernetes RBAC has no dry-run verb).
 func (m *appStateManager) getServerSideDiffDryRunApplier(cluster *v1alpha1.Cluster, project *v1alpha1.AppProject, app *v1alpha1.Application) (gitopsDiff.KubeApplier, func(), error) {
 	rawConfig, err := cluster.RawRestConfig()
 	if err != nil {
 		return nil, nil, fmt.Errorf("error getting cluster REST config: %w", err)
 	}
+	// When impersonation is enabled, the dry-run apply is executed as the ServiceAccount
+	// derived from the AppProject's destinationServiceAccounts, matching the identity used
+	// by the sync operation.
 	if err := m.applyDiffImpersonationConfig(rawConfig, project, app, cluster); err != nil {
 		return nil, nil, err
 	}
@@ -90,10 +87,6 @@ func (m *appStateManager) getServerSideDiffDryRunApplier(cluster *v1alpha1.Clust
 
 // applyDiffImpersonationConfig sets the impersonation headers on the given REST config
 // so that the server-side diff dry-run runs as the same ServiceAccount used by sync.
-// It mirrors the sync path's behaviour: when impersonation is enabled and a matching
-// destinationServiceAccount is found, the config impersonates that SA; when no match is
-// found (and impersonation is not enforced) it leaves the config untouched so the dry-run
-// falls back to the controller's cluster credential, exactly as sync does.
 func (m *appStateManager) applyDiffImpersonationConfig(config *rest.Config, project *v1alpha1.AppProject, app *v1alpha1.Application, destCluster *v1alpha1.Cluster) error {
 	impersonationEnabled, err := m.settingsMgr.IsImpersonationEnabled()
 	if err != nil {
