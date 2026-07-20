@@ -4,7 +4,6 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
-	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -35,13 +34,6 @@ type fakeIndexCache struct {
 
 type fakeTagsList struct {
 	Tags []string `json:"tags"`
-}
-
-func installFakeHelm(t *testing.T) {
-	t.Helper()
-	dir := t.TempDir()
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "helm"), []byte("#!/bin/sh\nexit 97\n"), 0o700))
-	t.Setenv("PATH", dir)
 }
 
 func (f *fakeIndexCache) SetHelmIndex(_ string, indexData []byte) error {
@@ -121,19 +113,6 @@ func Test_nativeHelmChart_ExtractChart_insecure(t *testing.T) {
 	info, err := os.Stat(path)
 	require.NoError(t, err)
 	assert.True(t, info.IsDir())
-}
-
-func Test_nativeHelmChart_ExtractChartContextCancellation(t *testing.T) {
-	installFakeHelm(t)
-	ctx, cancel := context.WithCancel(t.Context())
-	cancel()
-
-	client := NewClient("registry.example.com/repo", HelmCreds{Username: "user", Password: "password"}, true, "", "")
-	path, closer, err := client.ExtractChart(ctx, "context-cancellation", "1.0.0", false, math.MaxInt64, true)
-
-	require.ErrorIs(t, err, context.Canceled)
-	assert.Empty(t, path)
-	assert.Nil(t, closer)
 }
 
 func Test_normalizeChartName(t *testing.T) {

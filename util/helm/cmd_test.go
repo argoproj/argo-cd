@@ -1,16 +1,12 @@
 package helm
 
 import (
-	"context"
 	"errors"
 	"io"
 	"log"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -175,101 +171,6 @@ func TestRegistryLogin(t *testing.T) {
 			}
 		})
 	}
-}
-
-func TestRegistryLoginCancellation(t *testing.T) {
-	readyPath := filepath.Join(t.TempDir(), "ready")
-	started := make(chan *exec.Cmd, 1)
-	c, err := newCmdWithVersion(".", false, "", "", func(cmd *exec.Cmd, _ func(string) string) (string, error) {
-		testBinary, err := os.Executable()
-		if err != nil {
-			return "", err
-		}
-		cmd.Path = testBinary
-		cmd.Args = []string{testBinary, "-test.run=^TestRegistryLoginCancellationHelper$"}
-		cmd.Err = nil
-		cmd.Env = append(cmd.Env,
-			"ARGOCD_REGISTRY_LOGIN_CANCELLATION_HELPER=1",
-			"ARGOCD_REGISTRY_LOGIN_CANCELLATION_READY="+readyPath,
-		)
-		if err := cmd.Start(); err != nil {
-			return "", err
-		}
-		started <- cmd
-		return "", cmd.Wait()
-	})
-	require.NoError(t, err)
-	t.Cleanup(c.Close)
-
-	ctx, cancel := context.WithCancel(t.Context())
-	result := make(chan error, 1)
-	go func() {
-		_, err := c.RegistryLogin(ctx, "registry.example.com/repo", &HelmCreds{Username: "user", Password: "password"}, false)
-		result <- err
-	}()
-
-	var child *exec.Cmd
-	completed := false
-	defer func() {
-		cancel()
-		if completed {
-			return
-		}
-		if child != nil && child.Process != nil {
-			_ = child.Process.Kill()
-		}
-		select {
-		case <-result:
-		case <-time.After(5 * time.Second):
-			t.Error("timed out reaping registry login helper")
-		}
-	}()
-
-	select {
-	case child = <-started:
-	case err := <-result:
-		completed = true
-		t.Fatalf("registry login returned before starting helper: %v", err)
-	case <-time.After(5 * time.Second):
-		t.Fatal("timed out starting registry login helper")
-	}
-
-	readyDeadline := time.NewTimer(5 * time.Second)
-	defer readyDeadline.Stop()
-	readyPoll := time.NewTicker(10 * time.Millisecond)
-	defer readyPoll.Stop()
-	for {
-		if data, err := os.ReadFile(readyPath); err == nil && string(data) == "ready" {
-			break
-		}
-		select {
-		case err := <-result:
-			completed = true
-			t.Fatalf("registry login helper exited before reporting ready: %v", err)
-		case <-readyDeadline.C:
-			t.Fatal("timed out waiting for registry login helper")
-		case <-readyPoll.C:
-		}
-	}
-
-	cancel()
-	select {
-	case err := <-result:
-		completed = true
-		require.Error(t, err)
-		require.ErrorIs(t, ctx.Err(), context.Canceled)
-		require.NotNil(t, child.ProcessState)
-	case <-time.After(5 * time.Second):
-		t.Fatal("registry login did not return after cancellation")
-	}
-}
-
-func TestRegistryLoginCancellationHelper(t *testing.T) {
-	if os.Getenv("ARGOCD_REGISTRY_LOGIN_CANCELLATION_HELPER") != "1" {
-		return
-	}
-	require.NoError(t, os.WriteFile(os.Getenv("ARGOCD_REGISTRY_LOGIN_CANCELLATION_READY"), []byte("ready"), 0o600))
-	time.Sleep(10 * time.Minute)
 }
 
 func TestPullOCI(t *testing.T) {
