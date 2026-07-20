@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/klog/v2/textlogger"
 	openapiproto "k8s.io/kube-openapi/pkg/util/proto"
+	"sigs.k8s.io/structured-merge-diff/v6/fieldpath"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff/mocks"
@@ -1483,6 +1484,46 @@ var (
 	replacement2 = strings.Repeat("+", 12)
 	replacement3 = strings.Repeat("+", 16)
 )
+
+// TestExcludeManagerOwnedAncestors covers the scenario from
+// https://github.com/argoproj/argo-cd/issues/28818: a CRD field with
+// x-kubernetes-preserve-unknown-fields can produce a predicted field set
+// where a manager-owned leaf (e.g. .spec.configuration.value) is a distinct
+// member from its ancestor containers (.spec, .spec.configuration), because
+// Kubernetes only records the leaf path in managedFields. Removing those
+// ancestors wholesale would also remove the manager-owned leaf.
+func TestExcludeManagerOwnedAncestors(t *testing.T) {
+	t.Run("excludes ancestors of a manager-owned descendant", func(t *testing.T) {
+		toRemove := fieldpath.NewSet(
+			fieldpath.MakePathOrDie("spec"),
+			fieldpath.MakePathOrDie("spec", "configuration"),
+		)
+		managerFieldsSet := fieldpath.NewSet(
+			fieldpath.MakePathOrDie("spec", "configuration", "value"),
+		)
+
+		result := excludeManagerOwnedAncestors(toRemove, managerFieldsSet)
+
+		assert.True(t, result.Empty(), "expected ancestors of a manager-owned field to be excluded from removal, got: %s", result.String())
+	})
+
+	t.Run("keeps paths with no manager-owned descendants", func(t *testing.T) {
+		toRemove := fieldpath.NewSet(
+			fieldpath.MakePathOrDie("spec"),
+			fieldpath.MakePathOrDie("spec", "configuration"),
+			fieldpath.MakePathOrDie("spec", "configuration", "other"),
+		)
+		managerFieldsSet := fieldpath.NewSet(
+			fieldpath.MakePathOrDie("spec", "configuration", "value"),
+		)
+
+		result := excludeManagerOwnedAncestors(toRemove, managerFieldsSet)
+
+		assert.False(t, result.Has(fieldpath.MakePathOrDie("spec")))
+		assert.False(t, result.Has(fieldpath.MakePathOrDie("spec", "configuration")))
+		assert.True(t, result.Has(fieldpath.MakePathOrDie("spec", "configuration", "other")))
+	})
+}
 
 func TestHideSecretDataSameKeysDifferentValues(t *testing.T) {
 	target, live, err := HideSecretData(
