@@ -22,22 +22,11 @@ type SCMProviderService interface {
 	GetBranches(context.Context, *Repository) ([]*Repository, error)
 }
 
-// A compiled version of SCMProviderGeneratorFilter for performance.
+// Filter is a compiled version of SCMProviderGeneratorFilter for performance.
 type Filter struct {
 	RepositoryMatch *regexp.Regexp
 	PathsExist      []string
 	PathsDoNotExist []string
 	LabelMatch      *regexp.Regexp
 	BranchMatch     *regexp.Regexp
-	FilterType      FilterType
 }
-
-// A convenience type for indicating where to apply a filter
-type FilterType int64
-
-// The enum of filter types
-const (
-	FilterTypeUndefined FilterType = iota
-	FilterTypeBranch
-	FilterTypeRepo
-)
