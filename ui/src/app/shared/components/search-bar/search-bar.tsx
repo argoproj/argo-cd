@@ -3,6 +3,7 @@ import {Autocomplete} from 'argo-ui';
 import classNames from 'classnames';
 import {Key, KeybindingContext} from 'argo-ui/v2';
 
+import {isInvalidRegex} from '../../utils';
 import './search-bar.scss';
 
 interface SearchBarProps {
@@ -40,17 +41,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({value, onChange, placeholde
         onChange(newValue);
     };
 
-    const regexInvalid = React.useMemo(() => {
-        if (!regexEnabled || !value) {
-            return false;
-        }
-        try {
-            new RegExp(value);
-            return false;
-        } catch {
-            return true;
-        }
-    }, [regexEnabled, value]);
+    const regexInvalid = regexEnabled && isInvalidRegex(value);
 
     const inputClassName = classNames('search-bar__input', {
         'search-bar__input--regex': regexEnabled && !regexInvalid,
@@ -103,9 +94,25 @@ export const SearchBar: React.FC<SearchBarProps> = ({value, onChange, placeholde
         // Normalize items to {value, label} format
         const normalizedItems = autocomplete.items.map(item => (typeof item === 'string' ? {value: item, label: item} : item));
 
+        // In regex mode, Autocomplete's built-in substring filter would hide valid regex matches,
+        // so we pre-filter with the pattern ourselves and disable its filter.
+        let effectiveItems = normalizedItems;
+        let effectiveFilter = autocomplete.filterSuggestions ?? true;
+        if (regexEnabled) {
+            effectiveFilter = false;
+            if (value) {
+                if (regexInvalid) {
+                    effectiveItems = [];
+                } else {
+                    const re = new RegExp(value);
+                    effectiveItems = normalizedItems.filter(item => re.test(item.value));
+                }
+            }
+        }
+
         return (
             <Autocomplete
-                filterSuggestions={autocomplete.filterSuggestions ?? true}
+                filterSuggestions={effectiveFilter}
                 renderInput={inputProps => (
                     <div className={inputClassName} ref={searchBarRef}>
                         <i className='fa fa-search' style={{marginRight: '9px', cursor: 'pointer'}} onClick={focusInput} />
@@ -137,7 +144,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({value, onChange, placeholde
                 onSelect={val => autocomplete.onSelect(val)}
                 onChange={e => handleChange(e.target.value)}
                 value={value}
-                items={normalizedItems}
+                items={effectiveItems}
             />
         );
     }

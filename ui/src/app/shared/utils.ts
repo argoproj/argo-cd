@@ -146,6 +146,18 @@ export const formatClusterQueryParam = (cluster: Cluster) => {
     return `${cluster.name} (${cluster.server})`;
 };
 
+export const isInvalidRegex = (pattern: string): boolean => {
+    if (!pattern) {
+        return false;
+    }
+    try {
+        new RegExp(pattern);
+        return false;
+    } catch {
+        return true;
+    }
+};
+
 /**
  * Checks if SSO is configured for authentication usage.
  * @param userInfo - User information from the session

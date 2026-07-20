@@ -90,6 +90,22 @@
         }
     }
 
+    // Groups the SearchBar with adjacent toggle buttons so they shrink together
+    // instead of the search bar taking a full row and orphaning the buttons.
+    &__toolbar-controls {
+        display: flex;
+        align-items: center;
+        flex-grow: 1;
+        min-width: 0;
+        .search-bar__wrapper {
+            flex-shrink: 1;
+            min-width: 0;
+            @include breakpoint(medium down) {
+                flex-basis: auto;
+            }
+        }
+    }
+
     &__view-type {
         white-space: nowrap;
         i {

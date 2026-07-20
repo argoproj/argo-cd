@@ -11,6 +11,7 @@ import * as models from '../../../shared/models';
 import {AppsListPreferences, AppsListViewKey, AppsListViewType, AppSetsListPreferences, HealthStatusBarPreferences, services, ViewPreferences} from '../../../shared/services';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 import {useObservableQuery} from '../../../shared/hooks/query';
+import {isInvalidRegex} from '../../../shared/utils';
 import * as AppUtils from '../utils';
 import {AppSetsFilter, ApplicationSetFilteredApp, getAppSetFilterResults} from './applications-filter';
 import {createMatcher} from './applications-list-search';
@@ -180,24 +181,14 @@ const ApplicationSetsToolbar = (props: {
     ctx: ContextApis;
     healthBarPrefs: HealthStatusBarPreferences;
 }) => {
-    const regexInvalid = React.useMemo(() => {
-        if (!props.pref.searchRegex || !props.pref.search) {
-            return false;
-        }
-        try {
-            new RegExp(props.pref.search);
-            return false;
-        } catch {
-            return true;
-        }
-    }, [props.pref.searchRegex, props.pref.search]);
+    const regexInvalid = props.pref.searchRegex && isInvalidRegex(props.pref.search);
 
     const regexToggleClass = `applications-list__regex-toggle argo-button argo-button--base${props.pref.searchRegex ? '' : '-o'}${
         regexInvalid ? ' applications-list__regex-toggle--invalid' : ''
     }`;
 
     return (
-        <React.Fragment key='appset-list-tools'>
+        <div className='applications-list__toolbar-controls' key='appset-list-tools'>
             <ApplicationSetsSearchBar content={props.pref.search} searchRegex={props.pref.searchRegex} appSets={props.appSets} ctx={props.ctx} />
             <Tooltip
                 content={
@@ -231,7 +222,7 @@ const ApplicationSetsToolbar = (props: {
                     <i className='fas fa-ruler-horizontal' />
                 </button>
             </Tooltip>
-        </React.Fragment>
+        </div>
     );
 };
 

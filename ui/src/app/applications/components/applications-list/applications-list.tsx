@@ -24,6 +24,7 @@ import {FlexTopBar} from '../../../shared/components';
 import {ViewTypeSwitcher} from './view-type-switcher';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 import {useQuery, useObservableQuery} from '../../../shared/hooks/query';
+import {isInvalidRegex} from '../../../shared/utils';
 
 import './applications-list.scss';
 
@@ -272,24 +273,14 @@ interface ApplicationsToolbarProps {
 }
 
 const ApplicationsToolbar: React.FC<ApplicationsToolbarProps> = ({applications, pref, ctx, healthBarPrefs}) => {
-    const regexInvalid = React.useMemo(() => {
-        if (!pref.searchRegex || !pref.search) {
-            return false;
-        }
-        try {
-            new RegExp(pref.search);
-            return false;
-        } catch {
-            return true;
-        }
-    }, [pref.searchRegex, pref.search]);
+    const regexInvalid = pref.searchRegex && isInvalidRegex(pref.search);
 
     const regexToggleClass = `applications-list__regex-toggle argo-button argo-button--base${pref.searchRegex ? '' : '-o'}${
         regexInvalid ? ' applications-list__regex-toggle--invalid' : ''
     }`;
 
     return (
-        <React.Fragment key='app-list-tools'>
+        <div className='applications-list__toolbar-controls' key='app-list-tools'>
             <ApplicationsListSearchBar content={pref.search} searchRegex={pref.searchRegex} apps={applications} ctx={ctx} />
             <Tooltip content={pref.searchRegex ? (regexInvalid ? 'Invalid regex pattern' : 'Regex search enabled, click to switch to plain text') : 'Click to enable regex search'}>
                 <button
@@ -324,7 +315,7 @@ const ApplicationsToolbar: React.FC<ApplicationsToolbarProps> = ({applications, 
                     <i className='fas fa-ruler-horizontal' />
                 </button>
             </Tooltip>
-        </React.Fragment>
+        </div>
     );
 };
 
