@@ -95,6 +95,14 @@ type ApplicationSetStrategy struct {
 	DeletionOrder string `json:"deletionOrder,omitempty" protobuf:"bytes,3,opt,name=deletionOrder"`
 }
 type ApplicationSetRolloutStrategy struct {
+	Steps          []ApplicationSetRolloutStep  `json:"steps,omitempty" protobuf:"bytes,1,opt,name=steps"`
+	ParallelGroups []ApplicationSetRolloutGroup `json:"parallelGroups,omitempty" protobuf:"bytes,2,opt,name=parallelGroups"`
+}
+
+// ApplicationSetRolloutGroup contains steps that may progress concurrently.
+// Groups themselves are evaluated in order; all applications selected by a
+// group must be healthy before the next group can progress.
+type ApplicationSetRolloutGroup struct {
 	Steps []ApplicationSetRolloutStep `json:"steps,omitempty" protobuf:"bytes,1,opt,name=steps"`
 }
 

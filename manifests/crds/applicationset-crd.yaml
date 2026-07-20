@@ -22306,6 +22306,34 @@ spec:
                     type: string
                   rollingSync:
                     properties:
+                      parallelGroups:
+                        items:
+                          properties:
+                            steps:
+                              items:
+                                properties:
+                                  matchExpressions:
+                                    items:
+                                      properties:
+                                        key:
+                                          type: string
+                                        operator:
+                                          type: string
+                                        values:
+                                          items:
+                                            type: string
+                                          type: array
+                                      type: object
+                                    type: array
+                                  maxUpdate:
+                                    anyOf:
+                                    - type: integer
+                                    - type: string
+                                    x-kubernetes-int-or-string: true
+                                type: object
+                              type: array
+                          type: object
+                        type: array
                       steps:
                         items:
                           properties:

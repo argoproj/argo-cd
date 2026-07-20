@@ -79,6 +79,7 @@ func (m *Manager) PerformProgressiveSyncs(ctx context.Context, logCtx *log.Entry
 	m.validationIssues = &ValidationIssues{}
 
 	appDependencyList, appStepMap, buildIssues := buildAppDependencyList(logCtx, appset, desiredApplications)
+	_, rolloutGroups := rolloutStepsAndGroups(&appset)
 
 	// Merge validation issues from build phase
 	if buildIssues.HasIssues() {
@@ -95,7 +96,7 @@ func (m *Manager) PerformProgressiveSyncs(ctx context.Context, logCtx *log.Entry
 		logCtx.Infof("step %v: %+v", stepIndex+1, applicationNames)
 	}
 
-	appsToSync := getAppsToSync(appset, appDependencyList, applications)
+	appsToSync := getAppsToSyncWithGroups(appset, appDependencyList, rolloutGroups, applications)
 	logCtx.Infof("Application allowed to sync before maxUpdate?: %+v", appsToSync)
 
 	_, err = m.UpdateApplicationSetApplicationStatusProgress(ctx, logCtx, &appset, appsToSync, appStepMap)
@@ -113,7 +114,7 @@ func (m *Manager) PerformProgressiveSyncs(ctx context.Context, logCtx *log.Entry
 
 func (m *Manager) PerformReverseDeletion(ctx context.Context, logCtx *log.Entry, appset argov1alpha1.ApplicationSet, currentApps []argov1alpha1.Application) (time.Duration, error) {
 	requeueTime := 10 * time.Second
-	stepLength := len(appset.Spec.Strategy.RollingSync.Steps)
+	_, rolloutGroups := rolloutStepsAndGroups(&appset)
 
 	// map applications by name using current applications
 	appMap := make(map[string]*argov1alpha1.Application)
@@ -125,8 +126,14 @@ func (m *Manager) PerformReverseDeletion(ctx context.Context, logCtx *log.Entry,
 	_, appStepMap, _ := buildAppDependencyList(logCtx, appset, currentApps)
 	// reverse the AppStepMap to perform deletion
 	var reverseDeleteAppSteps []deleteInOrder
+	stepToGroup := make(map[int]int)
+	for groupIndex, group := range rolloutGroups {
+		for _, stepIndex := range group {
+			stepToGroup[stepIndex] = groupIndex
+		}
+	}
 	for appName, appStep := range appStepMap {
-		reverseDeleteAppSteps = append(reverseDeleteAppSteps, deleteInOrder{appName, stepLength - appStep - 1})
+		reverseDeleteAppSteps = append(reverseDeleteAppSteps, deleteInOrder{appName, len(rolloutGroups) - stepToGroup[appStep] - 1})
 	}
 
 	sort.Slice(reverseDeleteAppSteps, func(i, j int) bool {
@@ -177,10 +184,7 @@ func buildAppDependencyList(logCtx *log.Entry, applicationSet argov1alpha1.Appli
 		return [][]string{}, map[string]int{}, issues
 	}
 
-	steps := []argov1alpha1.ApplicationSetRolloutStep{}
-	if RollingSyncStrategyEnabled(&applicationSet) {
-		steps = applicationSet.Spec.Strategy.RollingSync.Steps
-	}
+	steps, _ := rolloutStepsAndGroups(&applicationSet)
 
 	appDependencyList := make([][]string, 0)
 	for range steps {
@@ -243,6 +247,35 @@ func buildAppDependencyList(logCtx *log.Entry, applicationSet argov1alpha1.Appli
 	}
 
 	return appDependencyList, appStepMap, issues
+}
+
+// rolloutStepsAndGroups returns the flattened step list used by the existing
+// status bookkeeping and the step ranges that form each parallel barrier.
+func rolloutStepsAndGroups(appset *argov1alpha1.ApplicationSet) ([]argov1alpha1.ApplicationSetRolloutStep, [][]int) {
+	if !IsRollingSyncStrategy(appset) {
+		return nil, nil
+	}
+
+	strategy := appset.Spec.Strategy.RollingSync
+	if len(strategy.ParallelGroups) == 0 {
+		groups := make([][]int, len(strategy.Steps))
+		for i := range strategy.Steps {
+			groups[i] = []int{i}
+		}
+		return strategy.Steps, groups
+	}
+
+	steps := make([]argov1alpha1.ApplicationSetRolloutStep, 0)
+	groups := make([][]int, 0, len(strategy.ParallelGroups))
+	for _, group := range strategy.ParallelGroups {
+		indices := make([]int, 0, len(group.Steps))
+		for _, step := range group.Steps {
+			indices = append(indices, len(steps))
+			steps = append(steps, step)
+		}
+		groups = append(groups, indices)
+	}
+	return steps, groups
 }
 
 func labelMatchedExpression(val string, matchExpression argov1alpha1.ApplicationMatchExpression) (bool, error) {
@@ -420,6 +453,14 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 
 // getAppsToSync returns a Map of Applications that should be synced in this progressive sync wave
 func getAppsToSync(applicationSet argov1alpha1.ApplicationSet, appDependencyList [][]string, currentApplications []argov1alpha1.Application) map[string]bool {
+	groups := make([][]int, len(appDependencyList))
+	for i := range appDependencyList {
+		groups[i] = []int{i}
+	}
+	return getAppsToSyncWithGroups(applicationSet, appDependencyList, groups, currentApplications)
+}
+
+func getAppsToSyncWithGroups(applicationSet argov1alpha1.ApplicationSet, appDependencyList [][]string, groups [][]int, currentApplications []argov1alpha1.Application) map[string]bool {
 	appSyncMap := map[string]bool{}
 	currentAppsMap := map[string]bool{}
 
@@ -427,33 +468,31 @@ func getAppsToSync(applicationSet argov1alpha1.ApplicationSet, appDependencyList
 		currentAppsMap[app.Name] = true
 	}
 
-	for stepIndex := range appDependencyList {
-		// set the syncEnabled boolean for every Application in the current step
-		for _, appName := range appDependencyList[stepIndex] {
-			appSyncMap[appName] = true
+	for _, group := range groups {
+		// A parallel group is enabled as a unit. Every step in the group may
+		// start, but the following group waits for all of them to become healthy.
+		for _, stepIndex := range group {
+			for _, appName := range appDependencyList[stepIndex] {
+				appSyncMap[appName] = true
+			}
 		}
 
-		// evaluate if we need to sync next waves
 		syncNextWave := true
-		for _, appName := range appDependencyList[stepIndex] {
-			// Check if application is created and managed by this AppSet, if it is not created yet, we cannot progress
-			if _, ok := currentAppsMap[appName]; !ok {
-				syncNextWave = false
-				break
-			}
+		for _, stepIndex := range group {
+			for _, appName := range appDependencyList[stepIndex] {
+				// Check if application is created and managed by this AppSet, if it is not created yet, we cannot progress.
+				if _, ok := currentAppsMap[appName]; !ok {
+					syncNextWave = false
+					break
+				}
 
-			idx := utils.FindApplicationStatusIndex(applicationSet.Status.ApplicationStatus, appName)
-			if idx == -1 {
-				// No Application status found, likely because the Application is being newly created
-				// This mean this wave is not yet completed
-				syncNextWave = false
-				break
+				idx := utils.FindApplicationStatusIndex(applicationSet.Status.ApplicationStatus, appName)
+				if idx == -1 || applicationSet.Status.ApplicationStatus[idx].Status != argov1alpha1.ProgressiveSyncHealthy {
+					syncNextWave = false
+					break
+				}
 			}
-
-			appStatus := applicationSet.Status.ApplicationStatus[idx]
-			if appStatus.Status != argov1alpha1.ProgressiveSyncHealthy {
-				// At least one application in this wave is not yet healthy. We cannot proceed to the next wave
-				syncNextWave = false
+			if !syncNextWave {
 				break
 			}
 		}
@@ -471,12 +510,14 @@ func IsRollingSyncStrategy(appset *argov1alpha1.ApplicationSet) bool {
 }
 
 func IsStepsEmpty(appset *argov1alpha1.ApplicationSet) bool {
-	return len(appset.Spec.Strategy.RollingSync.Steps) == 0
+	steps, _ := rolloutStepsAndGroups(appset)
+	return len(steps) == 0
 }
 
 func RollingSyncStrategyEnabled(appset *argov1alpha1.ApplicationSet) bool {
 	// ProgressiveSync is enabled if the strategy is set to `RollingSync` + steps slice is not empty
-	return IsRollingSyncStrategy(appset) && len(appset.Spec.Strategy.RollingSync.Steps) > 0
+	steps, _ := rolloutStepsAndGroups(appset)
+	return IsRollingSyncStrategy(appset) && len(steps) > 0
 }
 
 func IsDeletionOrderReversed(appset *argov1alpha1.ApplicationSet) bool {
@@ -504,7 +545,8 @@ func (m *Manager) UpdateApplicationSetApplicationStatusProgress(ctx context.Cont
 
 	// if we have no RollingUpdate steps, clear out the existing ApplicationStatus entries
 	if RollingSyncStrategyEnabled(applicationSet) {
-		length := len(applicationSet.Spec.Strategy.RollingSync.Steps)
+		steps, _ := rolloutStepsAndGroups(applicationSet)
+		length := len(steps)
 
 		updateCountMap := make([]int, length)
 		totalCountMap := make([]int, length)
@@ -530,7 +572,7 @@ func (m *Manager) UpdateApplicationSetApplicationStatusProgress(ctx context.Cont
 			maxUpdateAllowed := true
 			maxUpdate := &intstr.IntOrString{}
 			if RollingSyncStrategyEnabled(applicationSet) {
-				maxUpdate = applicationSet.Spec.Strategy.RollingSync.Steps[appStepMap[appStatus.Application]].MaxUpdate
+				maxUpdate = steps[appStepMap[appStatus.Application]].MaxUpdate
 			}
 
 			// by default allow all applications to update if maxUpdate is unset
@@ -612,16 +654,18 @@ func (m *Manager) getProgressingCondition(applicationSet *argov1alpha1.Applicati
 
 	isProgressing := false
 	progressingStep := ""
-	for i := range applicationSet.Spec.Strategy.RollingSync.Steps {
-		step := strconv.Itoa(i + 1)
-		isCompleted, ok := completedWaves[step]
-		if !ok {
-			// Step has no applications, so it is completed
-			continue
+	_, groups := rolloutStepsAndGroups(applicationSet)
+	for groupIndex, group := range groups {
+		groupCompleted := true
+		for _, stepIndex := range group {
+			step := strconv.Itoa(stepIndex + 1)
+			if isCompleted, ok := completedWaves[step]; ok && !isCompleted {
+				groupCompleted = false
+			}
 		}
-		if !isCompleted {
+		if !groupCompleted {
 			isProgressing = true
-			progressingStep = step
+			progressingStep = strconv.Itoa(groupIndex + 1)
 			break
 		}
 	}
