@@ -2144,7 +2144,7 @@ func TestApplicationSetAPIListResourceEvents(t *testing.T) {
 	}).Then().
 		And(func() {
 			// Test the ListResourceEvents API
-			closer, appSetClient := fixture.ArgoCDClientset.NewApplicationSetClientOrDie()
+			closer, appSetClient := fixture.ArgoCDClientset.NewApplicationSetClientOrDie(t.Context())
 			defer utilio.Close(closer)
 
 			events, err := appSetClient.ListResourceEvents(t.Context(), &applicationset.ApplicationSetGetQuery{

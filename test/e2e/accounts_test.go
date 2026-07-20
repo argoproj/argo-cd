@@ -110,7 +110,7 @@ test   true     login, apiKey`, output)
 	clientOpts.AuthToken = token
 	testAccountClientset := headless.NewClientOrDie(&clientOpts, &cobra.Command{})
 
-	closer, client := testAccountClientset.NewSessionClientOrDie()
+	closer, client := testAccountClientset.NewSessionClientOrDie(t.Context())
 	defer utilio.Close(closer)
 
 	info, err := client.GetUserInfo(t.Context(), &session.GetUserInfoRequest{})
@@ -122,7 +122,7 @@ test   true     login, apiKey`, output)
 func TestLoginBadCredentials(t *testing.T) {
 	EnsureCleanState(t)
 
-	closer, sessionClient := ArgoCDClientset.NewSessionClientOrDie()
+	closer, sessionClient := ArgoCDClientset.NewSessionClientOrDie(t.Context())
 	defer utilio.Close(closer)
 
 	requests := []session.SessionCreateRequest{{
@@ -170,7 +170,7 @@ func TestAccountSessionToken(t *testing.T) {
 			clientOpts.AuthToken = token
 			testAccountClientset := headless.NewClientOrDie(&clientOpts, &cobra.Command{})
 
-			closer, client := testAccountClientset.NewSessionClientOrDie()
+			closer, client := testAccountClientset.NewSessionClientOrDie(t.Context())
 			defer utilio.Close(closer)
 
 			info, err := client.GetUserInfo(t.Context(), &session.GetUserInfoRequest{})

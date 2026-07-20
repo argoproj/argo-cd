@@ -424,7 +424,7 @@ func assetSecretDataHidden(t *testing.T, manifest string) {
 }
 
 func TestAppWithSecrets(t *testing.T) {
-	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
+	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient(t.Context())
 	require.NoError(t, err)
 	defer utilio.Close(closer)
 
