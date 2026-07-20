@@ -83,11 +83,6 @@ git checkout {{ .DrySHA }}
 {{ end -}}
 {{ end -}}`
 
-type DexTLSVersion struct {
-	// DexTLSVersion designates the key for the TLS version used for web
-	DexTLSVersion string `json:"dexTlsVersion,omitempty"`
-}
-
 // ArgoCDSettings holds in-memory runtime configuration options.
 type ArgoCDSettings struct {
 	// URL is the externally facing URL users will visit to reach Argo CD.
@@ -102,8 +97,6 @@ type ArgoCDSettings struct {
 	StatusBadgeRootUrl string `json:"statusBadgeRootUrl,omitempty"` //nolint:revive //FIXME(var-naming)
 	// DexConfig contains portions of a dex config yaml
 	DexConfig string `json:"dexConfig,omitempty"`
-	// DexTLSVersion holds the TLS version for dex web
-	DexTLSVersion *DexTLSVersion `json:"dexTlsVersion,omitempty"`
 	// OIDCConfigRAW holds OIDC configuration as a raw string
 	OIDCConfigRAW string `json:"oidcConfig,omitempty"`
 	// ServerSignature holds the key used to generate JWT tokens.
@@ -450,8 +443,6 @@ const (
 	settingAdditionalUrlsKey = "additionalUrls"
 	// settingDexConfigKey designates the key for the dex config
 	settingDexConfigKey = "dex.config"
-	// settingDexTLSVersion designates the key for the TLS version used for web
-	settingDexTLSVersion = "dex.tls"
 	// settingsOIDCConfigKey designates the key for OIDC config
 	settingsOIDCConfigKey = "oidc.config"
 	// statusBadgeEnabledKey holds the key which enables of disables status badge feature
@@ -1678,14 +1669,6 @@ func getDownloadBinaryUrlsFromConfigMap(argoCDCM *corev1.ConfigMap) map[string]s
 // updateSettingsFromConfigMap transfers settings from a Kubernetes configmap into an ArgoCDSettings struct.
 func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.ConfigMap) {
 	settings.DexConfig = argoCDCM.Data[settingDexConfigKey]
-	if raw, ok := argoCDCM.Data[settingDexTLSVersion]; ok && raw != "" {
-		var dexTLSConfig DexTLSVersion
-		if err := yaml.Unmarshal([]byte(raw), &dexTLSConfig); err != nil {
-			log.Warnf("Failed to unmarshal %s: %v", settingDexTLSVersion, err)
-		} else {
-			settings.DexTLSVersion = &dexTLSConfig
-		}
-	}
 	settings.OIDCConfigRAW = argoCDCM.Data[settingsOIDCConfigKey]
 	if err := ValidateOIDCConfig(settings.OIDCConfigRAW); err != nil {
 		log.Warnf("Failed to validate OIDC config: %v", err)
