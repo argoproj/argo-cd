@@ -194,31 +194,18 @@ func (h *WebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 }
 
 func getGitGeneratorInfo(payload any) *gitGeneratorInfo {
-	var (
-		webURL      string
-		revision    string
-		touchedHead bool
-	)
-	switch payload := payload.(type) {
-	case github.PushPayload:
-		webURL = payload.Repository.HTMLURL
-		revision = webhook.ParseRevision(payload.Ref)
-		touchedHead = payload.Repository.DefaultBranch == revision
-	case gitlab.PushEventPayload:
-		webURL = payload.Project.WebURL
-		revision = webhook.ParseRevision(payload.Ref)
-		touchedHead = payload.Project.DefaultBranch == revision
-	case azuredevops.GitPushEvent:
-		// See: https://learn.microsoft.com/en-us/azure/devops/service-hooks/events?view=azure-devops#git.push
-		webURL = payload.Resource.Repository.RemoteURL
-		revision = webhook.ParseRevision(payload.Resource.RefUpdates[0].Name)
-		touchedHead = payload.Resource.RefUpdates[0].Name == payload.Resource.Repository.DefaultBranch
-		// unfortunately, Azure DevOps doesn't provide a list of changed files
+	switch payload.(type) {
+	case github.PushPayload, gitlab.PushEventPayload, azuredevops.GitPushEvent:
 	default:
 		return nil
 	}
+	pushInfo := webhook.GetPushEventInfo(payload)
+	if pushInfo == nil || len(pushInfo.RepositoryURLs) == 0 {
+		return nil
+	}
+	webURL := pushInfo.RepositoryURLs[0]
 
-	log.Infof("Received push event repo: %s, revision: %s, touchedHead: %v", webURL, revision, touchedHead)
+	log.Infof("Received push event repo: %s, revision: %s, touchedHead: %v", webURL, pushInfo.Revision, pushInfo.TouchedHead)
 	repoRegexp, err := webhook.GetWebURLRegex(webURL)
 	if err != nil {
 		log.Errorf("Failed to compile regexp for repoURL '%s'", webURL)
@@ -227,8 +214,8 @@ func getGitGeneratorInfo(payload any) *gitGeneratorInfo {
 
 	return &gitGeneratorInfo{
 		RepoRegexp:  repoRegexp,
-		TouchedHead: touchedHead,
-		Revision:    revision,
+		TouchedHead: pushInfo.TouchedHead,
+		Revision:    pushInfo.Revision,
 	}
 }
 

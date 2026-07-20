@@ -149,57 +149,83 @@ func ParseRevision(ref string) string {
 	return refParts[len(refParts)-1]
 }
 
+// PushEventInfo contains provider-independent repository change details shared
+// by webhook consumers.
+type PushEventInfo struct {
+	RepositoryURLs []string
+	Revision       string
+	TouchedHead    bool
+	BeforeSHA      string
+	AfterSHA       string
+	ChangedFiles   []string
+}
+
+// GetPushEventInfo extracts details from push events that do not require
+// provider-specific API calls. It returns nil for unsupported events.
+func GetPushEventInfo(payloadIf any) *PushEventInfo {
+	info := &PushEventInfo{}
+
+	switch payload := payloadIf.(type) {
+	case azuredevops.GitPushEvent:
+		info.RepositoryURLs = append(info.RepositoryURLs, payload.Resource.Repository.RemoteURL)
+		if len(payload.Resource.RefUpdates) > 0 {
+			info.Revision = ParseRevision(payload.Resource.RefUpdates[0].Name)
+			info.AfterSHA = ParseRevision(payload.Resource.RefUpdates[0].NewObjectID)
+			info.BeforeSHA = ParseRevision(payload.Resource.RefUpdates[0].OldObjectID)
+			info.TouchedHead = payload.Resource.RefUpdates[0].Name == payload.Resource.Repository.DefaultBranch
+		}
+	case github.PushPayload:
+		info.RepositoryURLs = append(info.RepositoryURLs, payload.Repository.HTMLURL)
+		info.Revision, info.AfterSHA, info.BeforeSHA = ParseRevision(payload.Ref), ParseRevision(payload.After), ParseRevision(payload.Before)
+		info.TouchedHead = payload.Repository.DefaultBranch == info.Revision
+		for _, commit := range payload.Commits {
+			info.ChangedFiles = append(info.ChangedFiles, commit.Added...)
+			info.ChangedFiles = append(info.ChangedFiles, commit.Modified...)
+			info.ChangedFiles = append(info.ChangedFiles, commit.Removed...)
+		}
+	case gitlab.PushEventPayload:
+		info.RepositoryURLs = append(info.RepositoryURLs, payload.Project.WebURL)
+		info.Revision, info.AfterSHA, info.BeforeSHA = ParseRevision(payload.Ref), ParseRevision(payload.After), ParseRevision(payload.Before)
+		info.TouchedHead = payload.Project.DefaultBranch == info.Revision
+		for _, commit := range payload.Commits {
+			info.ChangedFiles = append(info.ChangedFiles, commit.Added...)
+			info.ChangedFiles = append(info.ChangedFiles, commit.Modified...)
+			info.ChangedFiles = append(info.ChangedFiles, commit.Removed...)
+		}
+	case gitlab.TagEventPayload:
+		info.RepositoryURLs = append(info.RepositoryURLs, payload.Project.WebURL)
+		info.Revision, info.AfterSHA, info.BeforeSHA = ParseRevision(payload.Ref), ParseRevision(payload.After), ParseRevision(payload.Before)
+		info.TouchedHead = payload.Project.DefaultBranch == info.Revision
+		for _, commit := range payload.Commits {
+			info.ChangedFiles = append(info.ChangedFiles, commit.Added...)
+			info.ChangedFiles = append(info.ChangedFiles, commit.Modified...)
+			info.ChangedFiles = append(info.ChangedFiles, commit.Removed...)
+		}
+	case gogsclient.PushPayload:
+		info.Revision, info.AfterSHA, info.BeforeSHA = ParseRevision(payload.Ref), ParseRevision(payload.After), ParseRevision(payload.Before)
+		if payload.Repo != nil {
+			info.RepositoryURLs = append(info.RepositoryURLs, payload.Repo.HTMLURL)
+			info.TouchedHead = payload.Repo.DefaultBranch == info.Revision
+		}
+		for _, commit := range payload.Commits {
+			info.ChangedFiles = append(info.ChangedFiles, commit.Added...)
+			info.ChangedFiles = append(info.ChangedFiles, commit.Modified...)
+			info.ChangedFiles = append(info.ChangedFiles, commit.Removed...)
+		}
+	default:
+		return nil
+	}
+	return info
+}
+
 // affectedRevisionInfo examines a payload from a webhook event, and extracts the repo web URL,
 // the revision, and whether, or not this affected origin/HEAD (the default branch of the repository)
 func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []string, revision string, change changeInfo, touchedHead bool, changedFiles []string) {
+	if info := GetPushEventInfo(payloadIf); info != nil {
+		return info.RepositoryURLs, info.Revision, changeInfo{shaBefore: info.BeforeSHA, shaAfter: info.AfterSHA}, info.TouchedHead, info.ChangedFiles
+	}
+
 	switch payload := payloadIf.(type) {
-	case azuredevops.GitPushEvent:
-		// See: https://learn.microsoft.com/en-us/azure/devops/service-hooks/events?view=azure-devops#git.push
-		webURLs = append(webURLs, payload.Resource.Repository.RemoteURL)
-		if len(payload.Resource.RefUpdates) > 0 {
-			revision = ParseRevision(payload.Resource.RefUpdates[0].Name)
-			change.shaAfter = ParseRevision(payload.Resource.RefUpdates[0].NewObjectID)
-			change.shaBefore = ParseRevision(payload.Resource.RefUpdates[0].OldObjectID)
-			touchedHead = payload.Resource.RefUpdates[0].Name == payload.Resource.Repository.DefaultBranch
-		}
-		// unfortunately, Azure DevOps doesn't provide a list of changed files
-	case github.PushPayload:
-		// See: https://developer.github.com/v3/activity/events/types/#pushevent
-		webURLs = append(webURLs, payload.Repository.HTMLURL)
-		revision = ParseRevision(payload.Ref)
-		change.shaAfter = ParseRevision(payload.After)
-		change.shaBefore = ParseRevision(payload.Before)
-		touchedHead = bool(payload.Repository.DefaultBranch == revision)
-		for _, commit := range payload.Commits {
-			changedFiles = append(changedFiles, commit.Added...)
-			changedFiles = append(changedFiles, commit.Modified...)
-			changedFiles = append(changedFiles, commit.Removed...)
-		}
-	case gitlab.PushEventPayload:
-		// See: https://docs.gitlab.com/ee/user/project/integrations/webhooks.html
-		webURLs = append(webURLs, payload.Project.WebURL)
-		revision = ParseRevision(payload.Ref)
-		change.shaAfter = ParseRevision(payload.After)
-		change.shaBefore = ParseRevision(payload.Before)
-		touchedHead = bool(payload.Project.DefaultBranch == revision)
-		for _, commit := range payload.Commits {
-			changedFiles = append(changedFiles, commit.Added...)
-			changedFiles = append(changedFiles, commit.Modified...)
-			changedFiles = append(changedFiles, commit.Removed...)
-		}
-	case gitlab.TagEventPayload:
-		// See: https://docs.gitlab.com/ee/user/project/integrations/webhooks.html
-		// NOTE: this is untested
-		webURLs = append(webURLs, payload.Project.WebURL)
-		revision = ParseRevision(payload.Ref)
-		change.shaAfter = ParseRevision(payload.After)
-		change.shaBefore = ParseRevision(payload.Before)
-		touchedHead = bool(payload.Project.DefaultBranch == revision)
-		for _, commit := range payload.Commits {
-			changedFiles = append(changedFiles, commit.Added...)
-			changedFiles = append(changedFiles, commit.Modified...)
-			changedFiles = append(changedFiles, commit.Removed...)
-		}
 	case bitbucket.RepoPushPayload:
 		// See: https://confluence.atlassian.com/bitbucket/event-payloads-740262817.html#EventPayloads-Push
 		// NOTE: this is untested
@@ -289,19 +315,6 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 		// Bitbucket does not include a list of changed files anywhere in it's payload
 		// so we cannot update changedFiles for this type of payload
 
-	case gogsclient.PushPayload:
-		revision = ParseRevision(payload.Ref)
-		change.shaAfter = ParseRevision(payload.After)
-		change.shaBefore = ParseRevision(payload.Before)
-		if payload.Repo != nil {
-			webURLs = append(webURLs, payload.Repo.HTMLURL)
-			touchedHead = payload.Repo.DefaultBranch == revision
-		}
-		for _, commit := range payload.Commits {
-			changedFiles = append(changedFiles, commit.Added...)
-			changedFiles = append(changedFiles, commit.Modified...)
-			changedFiles = append(changedFiles, commit.Removed...)
-		}
 	}
 	return webURLs, revision, change, touchedHead, changedFiles
 }
