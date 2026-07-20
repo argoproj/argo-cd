@@ -639,6 +639,11 @@ func createFakeApp(testApp string) *v1alpha1.Application {
 	if err != nil {
 		panic(err)
 	}
+	// A real apiserver always returns a resourceVersion on Get; model that so optimistic
+	// concurrency paths (e.g. setOperationState) behave as they do in production.
+	if app.ResourceVersion == "" {
+		app.ResourceVersion = "1"
+	}
 	return &app
 }
 
@@ -1903,13 +1908,13 @@ func TestSetOperationStateOnDeletedApp(t *testing.T) {
 	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{}}, nil)
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 	fakeAppCs.ReactionChain = nil
-	patched := false
-	fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		patched = true
+	fetched := false
+	fakeAppCs.AddReactor("get", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		fetched = true
 		return true, &v1alpha1.Application{}, apierrors.NewNotFound(schema.GroupResource{}, "my-app")
 	})
 	ctrl.setOperationState(t.Context(), newFakeApp(), &v1alpha1.OperationState{Phase: synccommon.OperationSucceeded})
-	assert.True(t, patched)
+	assert.True(t, fetched)
 }
 
 func TestSetOperationStateLogRetries(t *testing.T) {
@@ -1917,16 +1922,20 @@ func TestSetOperationStateLogRetries(t *testing.T) {
 	logrus.AddHook(&hook)
 	t.Cleanup(hook.CleanupHook)
 
+	app := newFakeApp()
 	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{}}, nil)
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 	fakeAppCs.ReactionChain = nil
+	fakeAppCs.AddReactor("get", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, app.DeepCopy(), nil
+	})
 	patched := false
 	fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		if !patched {
 			patched = true
 			return true, &v1alpha1.Application{}, errors.New("fake error")
 		}
-		return true, &v1alpha1.Application{}, nil
+		return true, app.DeepCopy(), nil
 	})
 	ctrl.setOperationState(t.Context(), newFakeApp(), &v1alpha1.OperationState{Phase: synccommon.OperationSucceeded})
 	assert.True(t, patched)
@@ -1936,6 +1945,166 @@ func TestSetOperationStateLogRetries(t *testing.T) {
 	errorVal, ok := entry.Data["error"].(error)
 	require.True(t, ok, "error field should be of type error")
 	assert.Contains(t, errorVal.Error(), "fake error")
+}
+
+// TestSetOperationStateDoesNotRegressCompletedOperation is a regression test for
+// argoproj/argo-cd#18613 and #23765: a stale, out-of-order non-terminal operation-state
+// update must never resurrect the running phase on an operation that has already completed.
+func TestSetOperationStateDoesNotRegressCompletedOperation(t *testing.T) {
+	t.Run("discards non-terminal update to a completed operation", func(t *testing.T) {
+		app := newFakeApp()
+		app.Operation = nil // spec.operation is cleared once an operation completes
+		finishedAt := metav1.Now()
+		startedAt := metav1.NewTime(finishedAt.Add(-time.Minute))
+		app.Status.OperationState = &v1alpha1.OperationState{
+			Phase:      synccommon.OperationSucceeded,
+			Message:    "successfully synced (all tasks run)",
+			StartedAt:  startedAt,
+			FinishedAt: &finishedAt,
+			SyncResult: &v1alpha1.SyncOperationResult{Revision: "abc123"},
+		}
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+
+		// A late "waiting for healthy state" progress update belonging to the finished
+		// operation, e.g. delivered out of order by a flaky control-plane connection.
+		stale := &v1alpha1.OperationState{
+			Phase:     synccommon.OperationRunning,
+			Message:   "waiting for healthy state of /ServiceAccount/foo",
+			StartedAt: startedAt,
+		}
+		ctrl.setOperationState(t.Context(), app, stale)
+
+		got, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+		require.NoError(t, err)
+		require.NotNil(t, got.Status.OperationState)
+		assert.Equal(t, synccommon.OperationSucceeded, got.Status.OperationState.Phase, "completed phase must be preserved")
+		assert.NotNil(t, got.Status.OperationState.FinishedAt, "finishedAt must be preserved")
+	})
+
+	t.Run("persists a terminal update and clears spec.operation", func(t *testing.T) {
+		app := newFakeApp()
+		app.Operation = &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{Revision: "abc123"}}
+		app.Status.OperationState = &v1alpha1.OperationState{
+			Phase:     synccommon.OperationRunning,
+			Message:   "waiting for healthy state of /ServiceAccount/foo",
+			StartedAt: metav1.Now(),
+			Operation: *app.Operation,
+		}
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+
+		done := &v1alpha1.OperationState{
+			Phase:     synccommon.OperationSucceeded,
+			Message:   "successfully synced (all tasks run)",
+			StartedAt: app.Status.OperationState.StartedAt,
+			Operation: *app.Operation,
+		}
+		ctrl.setOperationState(t.Context(), app, done)
+
+		got, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+		require.NoError(t, err)
+		require.NotNil(t, got.Status.OperationState)
+		assert.Equal(t, synccommon.OperationSucceeded, got.Status.OperationState.Phase)
+		assert.NotNil(t, got.Status.OperationState.FinishedAt, "finishedAt must be stamped on completion")
+		assert.Nil(t, got.Operation, "spec.operation must be cleared on completion")
+	})
+}
+
+// TestSetOperationStateRetriesOnConflict pins down the optimistic-concurrency contract of
+// setOperationState: when the scoped patch is rejected with a Conflict (the live object changed
+// under us), the controller must refetch the live application and re-evaluate the stale-update
+// guard before writing again, rather than blindly overwriting. This is the core safety
+// mechanism behind argoproj/argo-cd#18613 and #23765, and the fake clientset does not enforce
+// resourceVersion preconditions on its own, so we drive the Conflict explicitly.
+func TestSetOperationStateRetriesOnConflict(t *testing.T) {
+	appConflict := schema.GroupResource{Group: "argoproj.io", Resource: "applications"}
+
+	t.Run("refetches and retries until the patch succeeds", func(t *testing.T) {
+		app := newFakeApp()
+		app.Operation = &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{Revision: "abc123"}}
+		app.Status.OperationState = &v1alpha1.OperationState{
+			Phase:     synccommon.OperationRunning,
+			StartedAt: metav1.Now(),
+			Operation: *app.Operation,
+		}
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{}}, nil)
+		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+		fakeAppCs.ReactionChain = nil
+
+		gets, patches := 0, 0
+		fakeAppCs.AddReactor("get", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			gets++
+			return true, app.DeepCopy(), nil
+		})
+		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			patches++
+			if patches == 1 {
+				return true, &v1alpha1.Application{}, apierrors.NewConflict(appConflict, app.Name, errors.New("the object has been modified"))
+			}
+			return true, app.DeepCopy(), nil
+		})
+
+		done := &v1alpha1.OperationState{
+			Phase:     synccommon.OperationSucceeded,
+			Message:   "successfully synced (all tasks run)",
+			StartedAt: app.Status.OperationState.StartedAt,
+			Operation: *app.Operation,
+		}
+		ctrl.setOperationState(t.Context(), app, done)
+
+		assert.Equal(t, 2, patches, "the conflicting patch must be retried exactly once")
+		assert.GreaterOrEqual(t, gets, 2, "each patch attempt must be preceded by a fresh Get")
+	})
+
+	t.Run("re-evaluates the stale-update guard against the refetched object", func(t *testing.T) {
+		// A non-terminal progress update races a terminal write. The first Get sees the
+		// operation still in progress, so the guard admits the update and the controller
+		// patches — but that patch conflicts because the terminal write landed first. On
+		// refetch the live operation has completed and spec.operation is cleared, so the
+		// guard must now discard the stale progress update instead of resurrecting "Running".
+		running := newFakeApp()
+		running.Operation = &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{Revision: "abc123"}}
+		running.Status.OperationState = &v1alpha1.OperationState{
+			Phase:     synccommon.OperationRunning,
+			StartedAt: metav1.Now(),
+			Operation: *running.Operation,
+		}
+		completed := running.DeepCopy()
+		completed.Operation = nil // spec.operation is cleared once an operation completes
+		finishedAt := metav1.Now()
+		completed.Status.OperationState = &v1alpha1.OperationState{
+			Phase:      synccommon.OperationSucceeded,
+			Message:    "successfully synced (all tasks run)",
+			StartedAt:  running.Status.OperationState.StartedAt,
+			FinishedAt: &finishedAt,
+		}
+
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{}}, nil)
+		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+		fakeAppCs.ReactionChain = nil
+
+		gets, patches := 0, 0
+		fakeAppCs.AddReactor("get", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			gets++
+			if gets == 1 {
+				return true, running.DeepCopy(), nil // operation still in progress
+			}
+			return true, completed.DeepCopy(), nil // terminal write won the race
+		})
+		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			patches++
+			return true, &v1alpha1.Application{}, apierrors.NewConflict(appConflict, running.Name, errors.New("the object has been modified"))
+		})
+
+		stale := &v1alpha1.OperationState{
+			Phase:     synccommon.OperationRunning,
+			Message:   "waiting for healthy state of /ServiceAccount/foo",
+			StartedAt: running.Status.OperationState.StartedAt,
+		}
+		ctrl.setOperationState(t.Context(), running, stale)
+
+		assert.Equal(t, 1, patches, "once the refetch shows the operation completed, the stale update must not be re-patched")
+		assert.GreaterOrEqual(t, gets, 2, "the conflict must trigger a refetch and guard re-evaluation")
+	})
 }
 
 func TestNeedRefreshAppStatus(t *testing.T) {
@@ -3086,6 +3255,9 @@ func TestProcessRequestedAppOperation_Successful(t *testing.T) {
 	app.Operation = &v1alpha1.Operation{
 		Sync: &v1alpha1.SyncOperation{},
 	}
+	// Start from a fresh operation (SetAppOperation clears operationState when a new
+	// operation begins) so the scoped patch carries the Running -> Succeeded transition.
+	app.Status.OperationState = nil
 	ctrl := newFakeController(t.Context(), &fakeData{
 		apps: []runtime.Object{app, &defaultProj},
 		manifestResponses: []*apiclient.ManifestResponse{{
@@ -3121,6 +3293,9 @@ func TestProcessRequestedAppAutomatedOperation_Successful(t *testing.T) {
 			Automated: true,
 		},
 	}
+	// Start from a fresh operation (SetAppOperation clears operationState when a new
+	// operation begins) so the scoped patch carries the Running -> Succeeded transition.
+	app.Status.OperationState = nil
 	ctrl := newFakeController(t.Context(), &fakeData{
 		apps: []runtime.Object{app, &defaultProj},
 		manifestResponses: []*apiclient.ManifestResponse{{
