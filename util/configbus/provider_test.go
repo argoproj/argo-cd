@@ -8,39 +8,17 @@ import (
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/util/wait"
 
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 )
 
 func TestProviderReconciliationTimeoutLegacy(t *testing.T) {
 	d := 120 * time.Second
-	p := NewProvider(nil, &LegacyValues{ReconciliationTimeout: &d}, nil)
+	p := NewProvider(nil, &LegacyValues{ReconciliationTimeout: &d})
 	assert.Equal(t, d, p.ReconciliationTimeout())
 }
 
-type stubCRD struct {
-	timeout time.Duration
-	hasTO   bool
-	ovr     map[string]v1alpha1.ResourceOverride
-	hasOvr  bool
-}
-
-func (s stubCRD) HasReconciliationTimeout() bool       { return s.hasTO }
-func (s stubCRD) ReconciliationTimeout() time.Duration { return s.timeout }
-func (s stubCRD) HasResourceOverrides() bool           { return s.hasOvr }
-func (s stubCRD) ResourceOverrides() (map[string]v1alpha1.ResourceOverride, error) {
-	return s.ovr, nil
-}
-
-func TestProviderCRDSlotWinsWhenPresent(t *testing.T) {
-	legacy := 120 * time.Second
-	crd := stubCRD{timeout: 60 * time.Second, hasTO: true}
-	p := NewProvider(nil, &LegacyValues{ReconciliationTimeout: &legacy}, crd)
-	assert.Equal(t, 60*time.Second, p.ReconciliationTimeout())
-}
-
 func TestProviderResourceOverridesRequiresSettingsMgr(t *testing.T) {
-	p := NewProvider(nil, nil, nil)
+	p := NewProvider(nil, nil)
 	_, err := p.ResourceOverrides()
 	require.Error(t, err)
 }
@@ -51,14 +29,14 @@ func TestProviderHardTimeoutAndJitterLegacy(t *testing.T) {
 	p := NewProvider(nil, &LegacyValues{
 		HardReconciliationTimeout: &hard,
 		ReconciliationJitter:      &jitter,
-	}, nil)
+	})
 	assert.Equal(t, hard, p.HardReconciliationTimeout())
 	assert.Equal(t, jitter, p.ReconciliationJitter())
 }
 
 func TestStandaloneEnvGitRequestTimeoutDefault(t *testing.T) {
 	t.Setenv("ARGOCD_GIT_REQUEST_TIMEOUT", "")
-	p := NewProvider(nil, nil, nil)
+	p := NewProvider(nil, nil)
 	assert.Equal(t, 15*time.Second, p.GitRequestTimeout())
 
 	t.Setenv("ARGOCD_GIT_REQUEST_TIMEOUT", "30s")
@@ -76,7 +54,7 @@ func TestControllerLegacyRoundTrip(t *testing.T) {
 		repoErrorGrace:   90 * time.Second,
 		ignoreNormalizer: normalizers.IgnoreNormalizerOpts{JQExecutionTimeout: 2 * time.Second},
 	}
-	p := NewProvider(nil, &LegacyValues{Controller: stub}, nil)
+	p := NewProvider(nil, &LegacyValues{Controller: stub})
 
 	assert.Equal(t, 120*time.Second, p.ReconciliationTimeout())
 

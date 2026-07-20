@@ -8,27 +8,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
-// CRDSource is the Phase 1 extension slot for reading config from an
-// ArgoCDConfiguration (or successor) CR. In Phase 0 every method returns
-// "not present" so legacy sources alone determine values.
-type CRDSource interface {
-	HasReconciliationTimeout() bool
-	ReconciliationTimeout() time.Duration
-	HasResourceOverrides() bool
-	ResourceOverrides() (map[string]v1alpha1.ResourceOverride, error)
-}
-
-type noopCRDSource struct{}
-
-func (noopCRDSource) HasReconciliationTimeout() bool { return false }
-func (noopCRDSource) ReconciliationTimeout() time.Duration {
-	return 0
-}
-func (noopCRDSource) HasResourceOverrides() bool { return false }
-func (noopCRDSource) ResourceOverrides() (map[string]v1alpha1.ResourceOverride, error) {
-	return nil, nil
-}
-
 // LegacyValues holds component-resolved flag/env/default values that the
 // provider must not re-derive. Nil fields mean "not supplied by this component".
 type LegacyValues struct {
@@ -40,26 +19,20 @@ type LegacyValues struct {
 }
 
 // Provider is the typed config API for one component process. Methods read
-// SettingsManager, LegacyValues, and (later) CRDSource directly — there is no
-// global setting registry.
+// SettingsManager and LegacyValues directly — there is no global setting registry.
 type Provider struct {
 	settingsMgr *settings.SettingsManager
 	legacy      *LegacyValues
-	crd         CRDSource
 }
 
-// NewProvider constructs a Provider. crd may be nil (Phase 0 empty slot).
-func NewProvider(settingsMgr *settings.SettingsManager, legacy *LegacyValues, crd CRDSource) *Provider {
-	if crd == nil {
-		crd = noopCRDSource{}
-	}
+// NewProvider constructs a Provider.
+func NewProvider(settingsMgr *settings.SettingsManager, legacy *LegacyValues) *Provider {
 	if legacy == nil {
 		legacy = &LegacyValues{}
 	}
 	return &Provider{
 		settingsMgr: settingsMgr,
 		legacy:      legacy,
-		crd:         crd,
 	}
 }
 
@@ -102,11 +75,7 @@ func (p *Provider) requireControllerLegacy() (ControllerLegacy, error) {
 }
 
 // ReconciliationTimeout returns the reconciliation / app-resync period.
-// Phase 0: CRD slot empty → ControllerLegacy, else pointer fallback (or zero).
 func (p *Provider) ReconciliationTimeout() time.Duration {
-	if p.crd.HasReconciliationTimeout() {
-		return p.crd.ReconciliationTimeout()
-	}
 	if p.legacy != nil && p.legacy.Controller != nil {
 		return p.legacy.Controller.LegacyStatusRefreshTimeout()
 	}
@@ -140,9 +109,6 @@ func (p *Provider) ReconciliationJitter() time.Duration {
 
 // ResourceOverrides returns resource customization overrides.
 func (p *Provider) ResourceOverrides() (map[string]v1alpha1.ResourceOverride, error) {
-	if p.crd.HasResourceOverrides() {
-		return p.crd.ResourceOverrides()
-	}
 	mgr, err := p.requireSettingsMgr()
 	if err != nil {
 		return nil, err
