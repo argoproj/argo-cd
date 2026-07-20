@@ -37,7 +37,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/glob"
-	"github.com/argoproj/argo-cd/v3/util/guard"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
@@ -50,8 +49,6 @@ type settingsSource interface {
 // https://www.rfc-editor.org/rfc/rfc3986#section-3.2.1
 // https://github.com/shadow-maint/shadow/blob/master/libmisc/chkname.c#L36
 const usernameRegex = `[\w\.][\w\.-]{0,30}[\w\.\$-]?`
-
-const payloadQueueSize = 50000
 
 const panicMsgServer = "panic while processing api-server webhook event"
 
@@ -66,12 +63,7 @@ type ArgoCDWebhookHandler struct {
 	appNs                  []string
 	appClientset           appclientset.Interface
 	appsLister             alpha1.ApplicationLister
-	github                 *github.Webhook
-	gitlab                 *gitlab.Webhook
-	bitbucket              *bitbucket.Webhook
-	bitbucketserver        *bitbucketserver.Webhook
-	azuredevops            *azuredevops.Webhook
-	gogs                   *gogs.Webhook
+	parser                 *PayloadParser
 	settings               *settings.ArgoCDSettings
 	settingsSrc            settingsSource
 	queue                  chan any
@@ -79,47 +71,22 @@ type ArgoCDWebhookHandler struct {
 }
 
 func NewHandler(namespace string, applicationNamespaces []string, webhookParallelism int, appClientset appclientset.Interface, appsLister alpha1.ApplicationLister, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB, maxWebhookPayloadSizeB int64) *ArgoCDWebhookHandler {
-	githubWebhook, err := github.New(github.Options.Secret(set.GetWebhookGitHubSecret()))
+	parser, err := NewPayloadParser(set)
 	if err != nil {
-		log.Warnf("Unable to init the GitHub webhook")
-	}
-	gitlabWebhook, err := gitlab.New(gitlab.Options.Secret(set.GetWebhookGitLabSecret()))
-	if err != nil {
-		log.Warnf("Unable to init the GitLab webhook")
-	}
-	bitbucketWebhook, err := bitbucket.New(bitbucket.Options.UUID(set.GetWebhookBitbucketUUID()))
-	if err != nil {
-		log.Warnf("Unable to init the Bitbucket webhook")
-	}
-	bitbucketserverWebhook, err := bitbucketserver.New(bitbucketserver.Options.Secret(set.GetWebhookBitbucketServerSecret()))
-	if err != nil {
-		log.Warnf("Unable to init the Bitbucket Server webhook")
-	}
-	gogsWebhook, err := gogs.New(gogs.Options.Secret(set.GetWebhookGogsSecret()))
-	if err != nil {
-		log.Warnf("Unable to init the Gogs webhook")
-	}
-	azuredevopsWebhook, err := azuredevops.New(azuredevops.Options.BasicAuth(set.GetWebhookAzureDevOpsUsername(), set.GetWebhookAzureDevOpsPassword()))
-	if err != nil {
-		log.Warnf("Unable to init the Azure DevOps webhook")
+		log.Warnf("Unable to initialize webhook payload parser: %v", err)
 	}
 
 	acdWebhook := ArgoCDWebhookHandler{
 		ns:                     namespace,
 		appNs:                  applicationNamespaces,
 		appClientset:           appClientset,
-		github:                 githubWebhook,
-		gitlab:                 gitlabWebhook,
-		bitbucket:              bitbucketWebhook,
-		bitbucketserver:        bitbucketserverWebhook,
-		azuredevops:            azuredevopsWebhook,
-		gogs:                   gogsWebhook,
+		parser:                 parser,
 		settingsSrc:            settingsSrc,
 		repoCache:              repoCache,
 		serverCache:            serverCache,
 		settings:               set,
 		db:                     argoDB,
-		queue:                  make(chan any, payloadQueueSize),
+		queue:                  make(chan any, DefaultPayloadQueueSize),
 		maxWebhookPayloadSizeB: maxWebhookPayloadSizeB,
 		appsLister:             appsLister,
 	}
@@ -130,18 +97,7 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 }
 
 func (a *ArgoCDWebhookHandler) startWorkerPool(webhookParallelism int) {
-	compLog := log.WithField("component", "api-server-webhook")
-	for range webhookParallelism {
-		a.Go(func() {
-			for {
-				payload, ok := <-a.queue
-				if !ok {
-					return
-				}
-				guard.RecoverAndLog(func() { a.HandleEvent(payload) }, compLog, panicMsgServer)
-			}
-		})
-	}
+	StartWorkerPool(&a.WaitGroup, a.queue, webhookParallelism, "api-server-webhook", panicMsgServer, a.HandleEvent)
 }
 
 func ParseRevision(ref string) string {
@@ -648,48 +604,14 @@ func isHeadTouched(ctx context.Context, bbClient *bb.Client, owner, repoSlug, re
 }
 
 func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
-	var payload any
-	var err error
-
 	r.Body = http.MaxBytesReader(w, r.Body, a.maxWebhookPayloadSizeB)
-
-	switch {
-	case r.Header.Get("X-Vss-Activityid") != "":
-		payload, err = a.azuredevops.Parse(r, azuredevops.GitPushEventType)
-		if errors.Is(err, azuredevops.ErrBasicAuthVerificationFailed) {
-			log.WithField(common.SecurityField, common.SecurityHigh).Infof("Azure DevOps webhook basic auth verification failed")
-		}
-	// Gogs needs to be checked before GitHub since it carries both Gogs and (incompatible) GitHub headers
-	case r.Header.Get("X-Gogs-Event") != "":
-		payload, err = a.gogs.Parse(r, gogs.PushEvent)
-		if errors.Is(err, gogs.ErrHMACVerificationFailed) {
-			log.WithField(common.SecurityField, common.SecurityHigh).Infof("Gogs webhook HMAC verification failed")
-		}
-	case r.Header.Get("X-GitHub-Event") != "":
-		payload, err = a.github.Parse(r, github.PushEvent, github.PingEvent)
-		if errors.Is(err, github.ErrHMACVerificationFailed) {
-			log.WithField(common.SecurityField, common.SecurityHigh).Infof("GitHub webhook HMAC verification failed")
-		}
-	case r.Header.Get("X-Gitlab-Event") != "":
-		payload, err = a.gitlab.Parse(r, gitlab.PushEvents, gitlab.TagEvents, gitlab.SystemHookEvents)
-		if errors.Is(err, gitlab.ErrGitLabTokenVerificationFailed) {
-			log.WithField(common.SecurityField, common.SecurityHigh).Infof("GitLab webhook token verification failed")
-		}
-	case r.Header.Get("X-Hook-UUID") != "":
-		payload, err = a.bitbucket.Parse(r, bitbucket.RepoPushEvent)
-		if errors.Is(err, bitbucket.ErrUUIDVerificationFailed) {
-			log.WithField(common.SecurityField, common.SecurityHigh).Infof("BitBucket webhook UUID verification failed")
-		}
-	case r.Header.Get("X-Event-Key") != "":
-		payload, err = a.bitbucketserver.Parse(r, bitbucketserver.RepositoryReferenceChangedEvent, bitbucketserver.DiagnosticsPingEvent)
-		if errors.Is(err, bitbucketserver.ErrHMACVerificationFailed) {
-			log.WithField(common.SecurityField, common.SecurityHigh).Infof("BitBucket webhook HMAC verification failed")
-		}
-	default:
+	payload, provider, err := a.parser.Parse(r, WebhookConsumerApplication)
+	if provider == "" {
 		log.Debug("Ignoring unknown webhook event")
 		http.Error(w, "Unknown webhook event", http.StatusBadRequest)
 		return
 	}
+	a.logWebhookVerificationFailure(provider, err)
 
 	if err != nil {
 		// If the error is due to a large payload, return a more user-friendly error message
@@ -714,5 +636,34 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	default:
 		log.Info("Queue is full, discarding webhook payload")
 		http.Error(w, "Queue is full, discarding webhook payload", http.StatusServiceUnavailable)
+	}
+}
+
+func (a *ArgoCDWebhookHandler) logWebhookVerificationFailure(provider WebhookProvider, err error) {
+	switch provider {
+	case WebhookProviderAzureDevOps:
+		if errors.Is(err, azuredevops.ErrBasicAuthVerificationFailed) {
+			log.WithField(common.SecurityField, common.SecurityHigh).Infof("Azure DevOps webhook basic auth verification failed")
+		}
+	case WebhookProviderGogs:
+		if errors.Is(err, gogs.ErrHMACVerificationFailed) {
+			log.WithField(common.SecurityField, common.SecurityHigh).Infof("Gogs webhook HMAC verification failed")
+		}
+	case WebhookProviderGitHub:
+		if errors.Is(err, github.ErrHMACVerificationFailed) {
+			log.WithField(common.SecurityField, common.SecurityHigh).Infof("GitHub webhook HMAC verification failed")
+		}
+	case WebhookProviderGitLab:
+		if errors.Is(err, gitlab.ErrGitLabTokenVerificationFailed) {
+			log.WithField(common.SecurityField, common.SecurityHigh).Infof("GitLab webhook token verification failed")
+		}
+	case WebhookProviderBitbucket:
+		if errors.Is(err, bitbucket.ErrUUIDVerificationFailed) {
+			log.WithField(common.SecurityField, common.SecurityHigh).Infof("BitBucket webhook UUID verification failed")
+		}
+	case WebhookProviderBitbucketServer:
+		if errors.Is(err, bitbucketserver.ErrHMACVerificationFailed) {
+			log.WithField(common.SecurityField, common.SecurityHigh).Infof("BitBucket Server webhook HMAC verification failed")
+		}
 	}
 }
