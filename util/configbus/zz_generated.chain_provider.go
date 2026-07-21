@@ -266,6 +266,48 @@ func (c *ChainProvider) CommitAuthorName(ctx context.Context) (string, error) {
 	}, c.links)
 }
 
+func (c *ChainProvider) CommitserverGrpcEnableTxtServiceConfig(ctx context.Context) (bool, error) {
+	return firstConfigured(func(p Provider) (bool, error) {
+		return p.CommitserverGrpcEnableTxtServiceConfig(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) CommitserverListenAddress(ctx context.Context) (string, error) {
+	return firstConfigured(func(p Provider) (string, error) {
+		return p.CommitserverListenAddress(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) CommitserverListenPort(ctx context.Context) (int, error) {
+	return firstConfigured(func(p Provider) (int, error) {
+		return p.CommitserverListenPort(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) CommitserverLogFormat(ctx context.Context) (string, error) {
+	return firstConfigured(func(p Provider) (string, error) {
+		return p.CommitserverLogFormat(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) CommitserverLogLevel(ctx context.Context) (string, error) {
+	return firstConfigured(func(p Provider) (string, error) {
+		return p.CommitserverLogLevel(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) CommitserverMetricsListenAddress(ctx context.Context) (string, error) {
+	return firstConfigured(func(p Provider) (string, error) {
+		return p.CommitserverMetricsListenAddress(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) CommitserverMetricsPort(ctx context.Context) (int, error) {
+	return firstConfigured(func(p Provider) (int, error) {
+		return p.CommitserverMetricsPort(ctx)
+	}, c.links)
+}
+
 func (c *ChainProvider) ContentSecurityPolicy(ctx context.Context) (string, error) {
 	return firstConfigured(func(p Provider) (string, error) {
 		return p.ContentSecurityPolicy(ctx)

@@ -2286,6 +2286,426 @@ func (_c *Provider_CommitAuthorName_Call) RunAndReturn(run func(ctx context.Cont
 	return _c
 }
 
+// CommitserverGrpcEnableTxtServiceConfig provides a mock function for the type Provider
+func (_mock *Provider) CommitserverGrpcEnableTxtServiceConfig(ctx context.Context) (bool, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CommitserverGrpcEnableTxtServiceConfig")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (bool, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) bool); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_CommitserverGrpcEnableTxtServiceConfig_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CommitserverGrpcEnableTxtServiceConfig'
+type Provider_CommitserverGrpcEnableTxtServiceConfig_Call struct {
+	*mock.Call
+}
+
+// CommitserverGrpcEnableTxtServiceConfig is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) CommitserverGrpcEnableTxtServiceConfig(ctx interface{}) *Provider_CommitserverGrpcEnableTxtServiceConfig_Call {
+	return &Provider_CommitserverGrpcEnableTxtServiceConfig_Call{Call: _e.mock.On("CommitserverGrpcEnableTxtServiceConfig", ctx)}
+}
+
+func (_c *Provider_CommitserverGrpcEnableTxtServiceConfig_Call) Run(run func(ctx context.Context)) *Provider_CommitserverGrpcEnableTxtServiceConfig_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_CommitserverGrpcEnableTxtServiceConfig_Call) Return(b bool, err error) *Provider_CommitserverGrpcEnableTxtServiceConfig_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *Provider_CommitserverGrpcEnableTxtServiceConfig_Call) RunAndReturn(run func(ctx context.Context) (bool, error)) *Provider_CommitserverGrpcEnableTxtServiceConfig_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CommitserverListenAddress provides a mock function for the type Provider
+func (_mock *Provider) CommitserverListenAddress(ctx context.Context) (string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CommitserverListenAddress")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_CommitserverListenAddress_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CommitserverListenAddress'
+type Provider_CommitserverListenAddress_Call struct {
+	*mock.Call
+}
+
+// CommitserverListenAddress is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) CommitserverListenAddress(ctx interface{}) *Provider_CommitserverListenAddress_Call {
+	return &Provider_CommitserverListenAddress_Call{Call: _e.mock.On("CommitserverListenAddress", ctx)}
+}
+
+func (_c *Provider_CommitserverListenAddress_Call) Run(run func(ctx context.Context)) *Provider_CommitserverListenAddress_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_CommitserverListenAddress_Call) Return(s string, err error) *Provider_CommitserverListenAddress_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *Provider_CommitserverListenAddress_Call) RunAndReturn(run func(ctx context.Context) (string, error)) *Provider_CommitserverListenAddress_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CommitserverListenPort provides a mock function for the type Provider
+func (_mock *Provider) CommitserverListenPort(ctx context.Context) (int, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CommitserverListenPort")
+	}
+
+	var r0 int
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (int, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) int); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_CommitserverListenPort_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CommitserverListenPort'
+type Provider_CommitserverListenPort_Call struct {
+	*mock.Call
+}
+
+// CommitserverListenPort is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) CommitserverListenPort(ctx interface{}) *Provider_CommitserverListenPort_Call {
+	return &Provider_CommitserverListenPort_Call{Call: _e.mock.On("CommitserverListenPort", ctx)}
+}
+
+func (_c *Provider_CommitserverListenPort_Call) Run(run func(ctx context.Context)) *Provider_CommitserverListenPort_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_CommitserverListenPort_Call) Return(n int, err error) *Provider_CommitserverListenPort_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *Provider_CommitserverListenPort_Call) RunAndReturn(run func(ctx context.Context) (int, error)) *Provider_CommitserverListenPort_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CommitserverLogFormat provides a mock function for the type Provider
+func (_mock *Provider) CommitserverLogFormat(ctx context.Context) (string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CommitserverLogFormat")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_CommitserverLogFormat_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CommitserverLogFormat'
+type Provider_CommitserverLogFormat_Call struct {
+	*mock.Call
+}
+
+// CommitserverLogFormat is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) CommitserverLogFormat(ctx interface{}) *Provider_CommitserverLogFormat_Call {
+	return &Provider_CommitserverLogFormat_Call{Call: _e.mock.On("CommitserverLogFormat", ctx)}
+}
+
+func (_c *Provider_CommitserverLogFormat_Call) Run(run func(ctx context.Context)) *Provider_CommitserverLogFormat_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_CommitserverLogFormat_Call) Return(s string, err error) *Provider_CommitserverLogFormat_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *Provider_CommitserverLogFormat_Call) RunAndReturn(run func(ctx context.Context) (string, error)) *Provider_CommitserverLogFormat_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CommitserverLogLevel provides a mock function for the type Provider
+func (_mock *Provider) CommitserverLogLevel(ctx context.Context) (string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CommitserverLogLevel")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_CommitserverLogLevel_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CommitserverLogLevel'
+type Provider_CommitserverLogLevel_Call struct {
+	*mock.Call
+}
+
+// CommitserverLogLevel is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) CommitserverLogLevel(ctx interface{}) *Provider_CommitserverLogLevel_Call {
+	return &Provider_CommitserverLogLevel_Call{Call: _e.mock.On("CommitserverLogLevel", ctx)}
+}
+
+func (_c *Provider_CommitserverLogLevel_Call) Run(run func(ctx context.Context)) *Provider_CommitserverLogLevel_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_CommitserverLogLevel_Call) Return(s string, err error) *Provider_CommitserverLogLevel_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *Provider_CommitserverLogLevel_Call) RunAndReturn(run func(ctx context.Context) (string, error)) *Provider_CommitserverLogLevel_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CommitserverMetricsListenAddress provides a mock function for the type Provider
+func (_mock *Provider) CommitserverMetricsListenAddress(ctx context.Context) (string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CommitserverMetricsListenAddress")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_CommitserverMetricsListenAddress_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CommitserverMetricsListenAddress'
+type Provider_CommitserverMetricsListenAddress_Call struct {
+	*mock.Call
+}
+
+// CommitserverMetricsListenAddress is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) CommitserverMetricsListenAddress(ctx interface{}) *Provider_CommitserverMetricsListenAddress_Call {
+	return &Provider_CommitserverMetricsListenAddress_Call{Call: _e.mock.On("CommitserverMetricsListenAddress", ctx)}
+}
+
+func (_c *Provider_CommitserverMetricsListenAddress_Call) Run(run func(ctx context.Context)) *Provider_CommitserverMetricsListenAddress_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_CommitserverMetricsListenAddress_Call) Return(s string, err error) *Provider_CommitserverMetricsListenAddress_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *Provider_CommitserverMetricsListenAddress_Call) RunAndReturn(run func(ctx context.Context) (string, error)) *Provider_CommitserverMetricsListenAddress_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CommitserverMetricsPort provides a mock function for the type Provider
+func (_mock *Provider) CommitserverMetricsPort(ctx context.Context) (int, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CommitserverMetricsPort")
+	}
+
+	var r0 int
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (int, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) int); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_CommitserverMetricsPort_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CommitserverMetricsPort'
+type Provider_CommitserverMetricsPort_Call struct {
+	*mock.Call
+}
+
+// CommitserverMetricsPort is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) CommitserverMetricsPort(ctx interface{}) *Provider_CommitserverMetricsPort_Call {
+	return &Provider_CommitserverMetricsPort_Call{Call: _e.mock.On("CommitserverMetricsPort", ctx)}
+}
+
+func (_c *Provider_CommitserverMetricsPort_Call) Run(run func(ctx context.Context)) *Provider_CommitserverMetricsPort_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_CommitserverMetricsPort_Call) Return(n int, err error) *Provider_CommitserverMetricsPort_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *Provider_CommitserverMetricsPort_Call) RunAndReturn(run func(ctx context.Context) (int, error)) *Provider_CommitserverMetricsPort_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ContentSecurityPolicy provides a mock function for the type Provider
 func (_mock *Provider) ContentSecurityPolicy(ctx context.Context) (string, error) {
 	ret := _mock.Called(ctx)

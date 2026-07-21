@@ -60,6 +60,13 @@ type StaticFields struct {
 	CMPUseManifestGeneratePaths                   *bool
 	CommitAuthorEmail                             *string
 	CommitAuthorName                              *string
+	CommitserverGrpcEnableTxtServiceConfig        *bool
+	CommitserverListenAddress                     *string
+	CommitserverListenPort                        *int
+	CommitserverLogFormat                         *string
+	CommitserverLogLevel                          *string
+	CommitserverMetricsListenAddress              *string
+	CommitserverMetricsPort                       *int
 	ContentSecurityPolicy                         *string
 	ContentTypes                                  *[]string
 	DexServerAddr                                 *string
@@ -434,6 +441,55 @@ func (p *StaticProvider) CommitAuthorName(_ context.Context) (string, error) {
 		return "", ErrNotConfigured
 	}
 	return *p.Fields.CommitAuthorName, nil
+}
+
+func (p *StaticProvider) CommitserverGrpcEnableTxtServiceConfig(_ context.Context) (bool, error) {
+	if p == nil || p.Fields.CommitserverGrpcEnableTxtServiceConfig == nil {
+		return false, ErrNotConfigured
+	}
+	return *p.Fields.CommitserverGrpcEnableTxtServiceConfig, nil
+}
+
+func (p *StaticProvider) CommitserverListenAddress(_ context.Context) (string, error) {
+	if p == nil || p.Fields.CommitserverListenAddress == nil {
+		return "", ErrNotConfigured
+	}
+	return *p.Fields.CommitserverListenAddress, nil
+}
+
+func (p *StaticProvider) CommitserverListenPort(_ context.Context) (int, error) {
+	if p == nil || p.Fields.CommitserverListenPort == nil {
+		return 0, ErrNotConfigured
+	}
+	return *p.Fields.CommitserverListenPort, nil
+}
+
+func (p *StaticProvider) CommitserverLogFormat(_ context.Context) (string, error) {
+	if p == nil || p.Fields.CommitserverLogFormat == nil {
+		return "", ErrNotConfigured
+	}
+	return *p.Fields.CommitserverLogFormat, nil
+}
+
+func (p *StaticProvider) CommitserverLogLevel(_ context.Context) (string, error) {
+	if p == nil || p.Fields.CommitserverLogLevel == nil {
+		return "", ErrNotConfigured
+	}
+	return *p.Fields.CommitserverLogLevel, nil
+}
+
+func (p *StaticProvider) CommitserverMetricsListenAddress(_ context.Context) (string, error) {
+	if p == nil || p.Fields.CommitserverMetricsListenAddress == nil {
+		return "", ErrNotConfigured
+	}
+	return *p.Fields.CommitserverMetricsListenAddress, nil
+}
+
+func (p *StaticProvider) CommitserverMetricsPort(_ context.Context) (int, error) {
+	if p == nil || p.Fields.CommitserverMetricsPort == nil {
+		return 0, ErrNotConfigured
+	}
+	return *p.Fields.CommitserverMetricsPort, nil
 }
 
 func (p *StaticProvider) ContentSecurityPolicy(_ context.Context) (string, error) {
