@@ -11,8 +11,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"sigs.k8s.io/yaml"
-
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
@@ -135,72 +133,71 @@ func TestSettingsServer(t *testing.T) {
 	})
 }
 
-func TestGetFilteredDexConfig(t *testing.T) {
+func TestGetDexConfig(t *testing.T) {
+	t.Parallel()
+	newServer := func(data map[string]string) *Server {
+		_, settingsMgr := fixtures(t.Context(), data)
+		return NewServer(settingsMgr, nil, nil, false, false, false, false)
+	}
+
+	const dexConfig = `connectors:
+- type: oidc
+  id: okta
+  name: Okta
+  config:
+    issuer: https://example.okta.com
+    clientID: aaaa
+    clientSecret: bbbb
+- type: oidc
+  id: github-actions
+  name: GitHub Actions
+  config:
+    issuer: https://token.actions.githubusercontent.com
+`
+
 	tests := []struct {
-		name               string
-		dexConfig          string
-		dexAuthConnectorID string
-		expectedConnectors []string // expected connector IDs in output YAML
+		name                       string
+		dexAuthConnectorID         string
+		expectedDexAuthConnectorID string
 	}{
 		{
-			name:               "No connector ID configured, returns fallback",
-			dexConfig:          "connectors: [{id: github},{id: gitlab}]",
-			dexAuthConnectorID: "",
-			expectedConnectors: []string{"github", "gitlab"},
+			name:                       "no connector ID configured returns empty DexAuthConnectorID",
+			dexAuthConnectorID:         "",
+			expectedDexAuthConnectorID: "",
 		},
 		{
-			name:               "Connector ID matches one connector",
-			dexConfig:          "connectors: [{id: github},{id: gitlab}]",
-			dexAuthConnectorID: "gitlab",
-			expectedConnectors: []string{"gitlab"},
+			name:                       "valid connector ID is returned",
+			dexAuthConnectorID:         "okta",
+			expectedDexAuthConnectorID: "okta",
 		},
 		{
-			name:               "Connector ID does not match any connector, returns fallback",
-			dexConfig:          "connectors: [{id: github}]",
-			dexAuthConnectorID: "gitlab",
-			expectedConnectors: []string{"github"},
-		},
-		{
-			name:               "Empty DexConfig, returns fallback",
-			dexConfig:          "",
-			dexAuthConnectorID: "github",
-			expectedConnectors: []string{},
-		},
-		{
-			name:               "Invalid YAML, returns fallback",
-			dexConfig:          "invalid: [",
-			dexAuthConnectorID: "github",
-			expectedConnectors: []string{},
+			name:                       "unknown connector ID is dropped",
+			dexAuthConnectorID:         "does-not-exist",
+			expectedDexAuthConnectorID: "",
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			settings := &settings.ArgoCDSettings{
-				DexConfig:          tc.dexConfig,
-				DexAuthConnectorID: tc.dexAuthConnectorID,
-				URL:                "http://localhost", // to pass IsDexConfigured
+			t.Parallel()
+			data := map[string]string{
+				"url":        "http://localhost", // required for IsDexConfigured
+				"dex.config": dexConfig,
 			}
-			result := GetFilteredDexConfig(settings)
-			// If expectedConnectors is empty, expect fallback (original DexConfig)
-			if len(tc.expectedConnectors) == 0 {
-				assert.Equal(t, []byte(tc.dexConfig), result)
-				return
+			if tc.dexAuthConnectorID != "" {
+				data["dex.auth.connectorId"] = tc.dexAuthConnectorID
 			}
-			// Otherwise, unmarshal and check connectors
-			type PartialDexConfig struct {
-				Connectors []struct {
-					ID string `yaml:"id"`
-				} `yaml:"connectors"`
-			}
-			var filtered PartialDexConfig
-			err := yaml.Unmarshal(result, &filtered)
+			resp, err := newServer(data).Get(t.Context(), nil)
 			require.NoError(t, err)
+			require.NotNil(t, resp.DexConfig)
+
+			// All connectors are always returned; only the forced connector ID varies.
 			var ids []string
-			for _, c := range filtered.Connectors {
+			for _, c := range resp.DexConfig.Connectors {
 				ids = append(ids, c.ID)
 			}
-			assert.ElementsMatch(t, tc.expectedConnectors, ids)
+			assert.ElementsMatch(t, []string{"okta", "github-actions"}, ids)
+			assert.Equal(t, tc.expectedDexAuthConnectorID, resp.DexConfig.DexAuthConnectorID)
 		})
 	}
 }
