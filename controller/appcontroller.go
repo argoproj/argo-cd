@@ -1672,8 +1672,7 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 		logCtx.Infof("No operation updates necessary to '%s'. Skipping patch", app.QualifiedName())
 		return
 	}
-	// The application controller is the only writer of status.operationState, so we authoritatively
-	// replace the whole subtree with the state we just computed.
+	// Replace the whole operationState since we re-evaluated the whole object
 	patchOps := []map[string]any{
 		{"op": "add", "path": "/status/operationState", "value": state},
 	}
