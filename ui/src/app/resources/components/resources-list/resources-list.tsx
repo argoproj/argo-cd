@@ -314,7 +314,7 @@ export const ResourcesList = (props: RouteComponentProps<{}>) => {
                                                         toolbar={{
                                                             tools: <ResourcesToolbar pref={pref} ctx={ctx} healthBarPrefs={healthBarPrefs} />,
                                                             options: <ResourcesViewTypeSwitcher pref={pref} ctx={ctx} />,
-                                                            addAuth: false
+                                                            addAuth: true
                                                         }}
                                                     />
                                                     <div className='resources-list'>
