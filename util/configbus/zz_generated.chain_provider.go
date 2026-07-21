@@ -3,6 +3,7 @@
 package configbus
 
 import (
+	"context"
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -31,9 +32,9 @@ func NewChainProvider(links ...Provider) *ChainProvider {
 // Ensure ChainProvider implements Provider.
 var _ Provider = (*ChainProvider)(nil)
 
-func (c *ChainProvider) SettingsManager() (*settings.SettingsManager, error) {
+func (c *ChainProvider) SettingsManager(ctx context.Context) (*settings.SettingsManager, error) {
 	return firstConfigured(func(p Provider) (*settings.SettingsManager, error) {
-		return p.SettingsManager()
+		return p.SettingsManager(ctx)
 	}, c.links)
 }
 
@@ -49,200 +50,200 @@ func (c *ChainProvider) Unsubscribe(subCh chan<- *settings.ArgoCDSettings) {
 	}
 }
 
-func (c *ChainProvider) AllowedNodeLabels() ([]string, error) {
+func (c *ChainProvider) AllowedNodeLabels(ctx context.Context) ([]string, error) {
 	return firstConfigured(func(p Provider) ([]string, error) {
-		return p.AllowedNodeLabels()
+		return p.AllowedNodeLabels(ctx)
 	}, c.links)
 }
 
-func (c *ChainProvider) AppInstanceLabelKey() (string, error) {
+func (c *ChainProvider) AppInstanceLabelKey(ctx context.Context) (string, error) {
 	return firstConfigured(func(p Provider) (string, error) {
-		return p.AppInstanceLabelKey()
+		return p.AppInstanceLabelKey(ctx)
 	}, c.links)
 }
 
-func (c *ChainProvider) CommitAuthorEmail() (string, error) {
+func (c *ChainProvider) CommitAuthorEmail(ctx context.Context) (string, error) {
 	return firstConfigured(func(p Provider) (string, error) {
-		return p.CommitAuthorEmail()
+		return p.CommitAuthorEmail(ctx)
 	}, c.links)
 }
 
-func (c *ChainProvider) CommitAuthorName() (string, error) {
+func (c *ChainProvider) CommitAuthorName(ctx context.Context) (string, error) {
 	return firstConfigured(func(p Provider) (string, error) {
-		return p.CommitAuthorName()
+		return p.CommitAuthorName(ctx)
 	}, c.links)
 }
 
-func (c *ChainProvider) EnabledSourceTypes() (map[string]bool, error) {
+func (c *ChainProvider) EnabledSourceTypes(ctx context.Context) (map[string]bool, error) {
 	return firstConfigured(func(p Provider) (map[string]bool, error) {
-		return p.EnabledSourceTypes()
+		return p.EnabledSourceTypes(ctx)
 	}, c.links)
 }
 
-func (c *ChainProvider) GitRequestTimeout() (time.Duration, error) {
+func (c *ChainProvider) GitRequestTimeout(ctx context.Context) (time.Duration, error) {
 	return firstConfigured(func(p Provider) (time.Duration, error) {
-		return p.GitRequestTimeout()
+		return p.GitRequestTimeout(ctx)
 	}, c.links)
 }
 
-func (c *ChainProvider) HardReconciliationTimeout() (time.Duration, error) {
+func (c *ChainProvider) HardReconciliationTimeout(ctx context.Context) (time.Duration, error) {
 	return firstConfigured(func(p Provider) (time.Duration, error) {
-		return p.HardReconciliationTimeout()
+		return p.HardReconciliationTimeout(ctx)
 	}, c.links)
 }
 
-func (c *ChainProvider) HelmSettings() (*v1alpha1.HelmOptions, error) {
+func (c *ChainProvider) HelmSettings(ctx context.Context) (*v1alpha1.HelmOptions, error) {
 	return firstConfigured(func(p Provider) (*v1alpha1.HelmOptions, error) {
-		return p.HelmSettings()
+		return p.HelmSettings(ctx)
 	}, c.links)
 }
 
-func (c *ChainProvider) HydratorReadmeTemplate() (string, error) {
+func (c *ChainProvider) HydratorReadmeTemplate(ctx context.Context) (string, error) {
 	return firstConfigured(func(p Provider) (string, error) {
-		return p.HydratorReadmeTemplate()
+		return p.HydratorReadmeTemplate(ctx)
 	}, c.links)
 }
 
-func (c *ChainProvider) IgnoreNormalizerJQTimeout() (time.Duration, error) {
+func (c *ChainProvider) IgnoreNormalizerJQTimeout(ctx context.Context) (time.Duration, error) {
 	return firstConfigured(func(p Provider) (time.Duration, error) {
-		return p.IgnoreNormalizerJQTimeout()
+		return p.IgnoreNormalizerJQTimeout(ctx)
 	}, c.links)
 }
 
-func (c *ChainProvider) IgnoreResourceUpdatesOverrides() (map[string]v1alpha1.ResourceOverride, error) {
+func (c *ChainProvider) IgnoreResourceUpdatesOverrides(ctx context.Context) (map[string]v1alpha1.ResourceOverride, error) {
 	return firstConfigured(func(p Provider) (map[string]v1alpha1.ResourceOverride, error) {
-		return p.IgnoreResourceUpdatesOverrides()
+		return p.IgnoreResourceUpdatesOverrides(ctx)
 	}, c.links)
 }
 
-func (c *ChainProvider) InstallationID() (string, error) {
+func (c *ChainProvider) InstallationID(ctx context.Context) (string, error) {
 	return firstConfigured(func(p Provider) (string, error) {
-		return p.InstallationID()
+		return p.InstallationID(ctx)
 	}, c.links)
 }
 
-func (c *ChainProvider) IsIgnoreResourceUpdatesEnabled() (bool, error) {
+func (c *ChainProvider) IsIgnoreResourceUpdatesEnabled(ctx context.Context) (bool, error) {
 	return firstConfigured(func(p Provider) (bool, error) {
-		return p.IsIgnoreResourceUpdatesEnabled()
+		return p.IsIgnoreResourceUpdatesEnabled(ctx)
 	}, c.links)
 }
 
-func (c *ChainProvider) IsImpersonationEnabled() (bool, error) {
+func (c *ChainProvider) IsImpersonationEnabled(ctx context.Context) (bool, error) {
 	return firstConfigured(func(p Provider) (bool, error) {
-		return p.IsImpersonationEnabled()
+		return p.IsImpersonationEnabled(ctx)
 	}, c.links)
 }
 
-func (c *ChainProvider) IsImpersonationEnforced() (bool, error) {
+func (c *ChainProvider) IsImpersonationEnforced(ctx context.Context) (bool, error) {
 	return firstConfigured(func(p Provider) (bool, error) {
-		return p.IsImpersonationEnforced()
+		return p.IsImpersonationEnforced(ctx)
 	}, c.links)
 }
 
-func (c *ChainProvider) KustomizeSettings() (*v1alpha1.KustomizeOptions, error) {
+func (c *ChainProvider) KustomizeSettings(ctx context.Context) (*v1alpha1.KustomizeOptions, error) {
 	return firstConfigured(func(p Provider) (*v1alpha1.KustomizeOptions, error) {
-		return p.KustomizeSettings()
+		return p.KustomizeSettings(ctx)
 	}, c.links)
 }
 
-func (c *ChainProvider) MetricsClusterLabels() ([]string, error) {
+func (c *ChainProvider) MetricsClusterLabels(ctx context.Context) ([]string, error) {
 	return firstConfigured(func(p Provider) ([]string, error) {
-		return p.MetricsClusterLabels()
+		return p.MetricsClusterLabels(ctx)
 	}, c.links)
 }
 
-func (c *ChainProvider) PersistResourceHealth() (bool, error) {
+func (c *ChainProvider) PersistResourceHealth(ctx context.Context) (bool, error) {
 	return firstConfigured(func(p Provider) (bool, error) {
-		return p.PersistResourceHealth()
+		return p.PersistResourceHealth(ctx)
 	}, c.links)
 }
 
-func (c *ChainProvider) ReconciliationJitter() (time.Duration, error) {
+func (c *ChainProvider) ReconciliationJitter(ctx context.Context) (time.Duration, error) {
 	return firstConfigured(func(p Provider) (time.Duration, error) {
-		return p.ReconciliationJitter()
+		return p.ReconciliationJitter(ctx)
 	}, c.links)
 }
 
-func (c *ChainProvider) ReconciliationTimeout() (time.Duration, error) {
+func (c *ChainProvider) ReconciliationTimeout(ctx context.Context) (time.Duration, error) {
 	return firstConfigured(func(p Provider) (time.Duration, error) {
-		return p.ReconciliationTimeout()
+		return p.ReconciliationTimeout(ctx)
 	}, c.links)
 }
 
-func (c *ChainProvider) RepoErrorGracePeriod() (time.Duration, error) {
+func (c *ChainProvider) RepoErrorGracePeriod(ctx context.Context) (time.Duration, error) {
 	return firstConfigured(func(p Provider) (time.Duration, error) {
-		return p.RepoErrorGracePeriod()
+		return p.RepoErrorGracePeriod(ctx)
 	}, c.links)
 }
 
-func (c *ChainProvider) ResourceCompareOptions() (settings.ArgoCDDiffOptions, error) {
+func (c *ChainProvider) ResourceCompareOptions(ctx context.Context) (settings.ArgoCDDiffOptions, error) {
 	return firstConfigured(func(p Provider) (settings.ArgoCDDiffOptions, error) {
-		return p.ResourceCompareOptions()
+		return p.ResourceCompareOptions(ctx)
 	}, c.links)
 }
 
-func (c *ChainProvider) ResourceCustomLabels() ([]string, error) {
+func (c *ChainProvider) ResourceCustomLabels(ctx context.Context) ([]string, error) {
 	return firstConfigured(func(p Provider) ([]string, error) {
-		return p.ResourceCustomLabels()
+		return p.ResourceCustomLabels(ctx)
 	}, c.links)
 }
 
-func (c *ChainProvider) ResourceOverrides() (map[string]v1alpha1.ResourceOverride, error) {
+func (c *ChainProvider) ResourceOverrides(ctx context.Context) (map[string]v1alpha1.ResourceOverride, error) {
 	return firstConfigured(func(p Provider) (map[string]v1alpha1.ResourceOverride, error) {
-		return p.ResourceOverrides()
+		return p.ResourceOverrides(ctx)
 	}, c.links)
 }
 
-func (c *ChainProvider) ResourcesFilter() (*settings.ResourcesFilter, error) {
+func (c *ChainProvider) ResourcesFilter(ctx context.Context) (*settings.ResourcesFilter, error) {
 	return firstConfigured(func(p Provider) (*settings.ResourcesFilter, error) {
-		return p.ResourcesFilter()
+		return p.ResourcesFilter(ctx)
 	}, c.links)
 }
 
-func (c *ChainProvider) RespectRBAC() (int, error) {
+func (c *ChainProvider) RespectRBAC(ctx context.Context) (int, error) {
 	return firstConfigured(func(p Provider) (int, error) {
-		return p.RespectRBAC()
+		return p.RespectRBAC(ctx)
 	}, c.links)
 }
 
-func (c *ChainProvider) SelfHealBackoff() (*wait.Backoff, error) {
+func (c *ChainProvider) SelfHealBackoff(ctx context.Context) (*wait.Backoff, error) {
 	return firstConfigured(func(p Provider) (*wait.Backoff, error) {
-		return p.SelfHealBackoff()
+		return p.SelfHealBackoff(ctx)
 	}, c.links)
 }
 
-func (c *ChainProvider) SelfHealTimeout() (time.Duration, error) {
+func (c *ChainProvider) SelfHealTimeout(ctx context.Context) (time.Duration, error) {
 	return firstConfigured(func(p Provider) (time.Duration, error) {
-		return p.SelfHealTimeout()
+		return p.SelfHealTimeout(ctx)
 	}, c.links)
 }
 
-func (c *ChainProvider) SensitiveAnnotations() (map[string]bool, error) {
+func (c *ChainProvider) SensitiveAnnotations(ctx context.Context) (map[string]bool, error) {
 	return firstConfigured(func(p Provider) (map[string]bool, error) {
-		return p.SensitiveAnnotations()
+		return p.SensitiveAnnotations(ctx)
 	}, c.links)
 }
 
-func (c *ChainProvider) ServerSideDiff() (bool, error) {
+func (c *ChainProvider) ServerSideDiff(ctx context.Context) (bool, error) {
 	return firstConfigured(func(p Provider) (bool, error) {
-		return p.ServerSideDiff()
+		return p.ServerSideDiff(ctx)
 	}, c.links)
 }
 
-func (c *ChainProvider) SourceHydratorCommitMessageTemplate() (string, error) {
+func (c *ChainProvider) SourceHydratorCommitMessageTemplate(ctx context.Context) (string, error) {
 	return firstConfigured(func(p Provider) (string, error) {
-		return p.SourceHydratorCommitMessageTemplate()
+		return p.SourceHydratorCommitMessageTemplate(ctx)
 	}, c.links)
 }
 
-func (c *ChainProvider) SyncTimeout() (time.Duration, error) {
+func (c *ChainProvider) SyncTimeout(ctx context.Context) (time.Duration, error) {
 	return firstConfigured(func(p Provider) (time.Duration, error) {
-		return p.SyncTimeout()
+		return p.SyncTimeout(ctx)
 	}, c.links)
 }
 
-func (c *ChainProvider) TrackingMethod() (string, error) {
+func (c *ChainProvider) TrackingMethod(ctx context.Context) (string, error) {
 	return firstConfigured(func(p Provider) (string, error) {
-		return p.TrackingMethod()
+		return p.TrackingMethod(ctx)
 	}, c.links)
 }

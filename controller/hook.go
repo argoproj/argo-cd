@@ -100,15 +100,15 @@ func (ctrl *ApplicationController) executeHooks(ctx context.Context, hookType Ho
 	ctx, span := tracer.Start(ctx, "controller.executeHooks")
 	setAppTraceAttrs(span, app, attribute.String("argocd.hook.type", string(hookType)))
 	defer func() { traceutil.EndSpan(span, retErr) }()
-	appLabelKey, err := ctrl.configProvider.AppInstanceLabelKey()
+	appLabelKey, err := ctrl.configProvider.AppInstanceLabelKey(ctx)
 	if err != nil {
 		return false, err
 	}
-	trackingMethodStr, err := ctrl.configProvider.TrackingMethod()
+	trackingMethodStr, err := ctrl.configProvider.TrackingMethod(ctx)
 	if err != nil {
 		return false, err
 	}
-	installationID, err := ctrl.configProvider.InstallationID()
+	installationID, err := ctrl.configProvider.InstallationID(ctx)
 	if err != nil {
 		return false, err
 	}
@@ -179,7 +179,7 @@ func (ctrl *ApplicationController) executeHooks(ctx context.Context, hookType Ho
 	}
 
 	// Check health of running hooks
-	resourceOverrides, err := ctrl.configProvider.ResourceOverrides()
+	resourceOverrides, err := ctrl.configProvider.ResourceOverrides(ctx)
 	if err != nil {
 		return false, err
 	}
@@ -245,7 +245,7 @@ func (ctrl *ApplicationController) cleanupHooks(ctx context.Context, hookType Ho
 	ctx, span := tracer.Start(ctx, "controller.cleanupHooks")
 	span.SetAttributes(attribute.String("argocd.hook.type", string(hookType)))
 	defer func() { traceutil.EndSpan(span, retErr) }()
-	resourceOverrides, err := ctrl.configProvider.ResourceOverrides()
+	resourceOverrides, err := ctrl.configProvider.ResourceOverrides(ctx)
 	if err != nil {
 		return false, err
 	}

@@ -1,6 +1,7 @@
 package configbus
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -23,9 +24,9 @@ var ErrNotConfigured = errors.New("config: not configured")
 //     is set, every nested value under that field is considered migrated.
 //   - Method names are alphabetical so each component layer can insert receivers
 //     in a predictable place and PRs stay skimmable.
-//   - Every config getter returns (T, error). Even legacy-guaranteed values use
-//     this shape because CRD-backed reads can fail via a Kubernetes client or
-//     informer. Implementations must never omit the error return.
+//   - Every config getter returns (T, error) and accepts context.Context for
+//     future Kubernetes/informer-backed reads and logging. Implementations must
+//     never omit the error return.
 //
 // Production processes compose leaf providers with ChainProvider (Static /
 // SettingsManager / Env; CRD is inserted once wired). Tests typically inject
@@ -33,46 +34,46 @@ var ErrNotConfigured = errors.New("config: not configured")
 type Provider interface {
 	// SettingsManager is a temporary escape hatch for call sites still needing
 	// the raw manager during migration. Prefer typed getters when possible.
-	SettingsManager() (*settings.SettingsManager, error)
+	SettingsManager(ctx context.Context) (*settings.SettingsManager, error)
 	// Subscribe registers for argocd-cm/secret change notifications when the
 	// backing implementation supports it (SettingsManagerProvider / ChainProvider).
 	Subscribe(subCh chan<- *settings.ArgoCDSettings)
 	// Unsubscribe unregisters a settings change subscriber.
 	Unsubscribe(subCh chan<- *settings.ArgoCDSettings)
 
-	AllowedNodeLabels() ([]string, error)
-	AppInstanceLabelKey() (string, error)
-	CommitAuthorEmail() (string, error)
-	CommitAuthorName() (string, error)
-	EnabledSourceTypes() (map[string]bool, error)
-	GitRequestTimeout() (time.Duration, error)
-	HardReconciliationTimeout() (time.Duration, error)
-	HelmSettings() (*v1alpha1.HelmOptions, error)
-	HydratorReadmeTemplate() (string, error)
-	IgnoreNormalizerJQTimeout() (time.Duration, error)
-	IgnoreResourceUpdatesOverrides() (map[string]v1alpha1.ResourceOverride, error)
-	InstallationID() (string, error)
-	IsIgnoreResourceUpdatesEnabled() (bool, error)
-	IsImpersonationEnabled() (bool, error)
-	IsImpersonationEnforced() (bool, error)
-	KustomizeSettings() (*v1alpha1.KustomizeOptions, error)
-	MetricsClusterLabels() ([]string, error)
-	PersistResourceHealth() (bool, error)
-	ReconciliationJitter() (time.Duration, error)
-	ReconciliationTimeout() (time.Duration, error)
-	RepoErrorGracePeriod() (time.Duration, error)
-	ResourceCompareOptions() (settings.ArgoCDDiffOptions, error)
-	ResourceCustomLabels() ([]string, error)
-	ResourceOverrides() (map[string]v1alpha1.ResourceOverride, error)
-	ResourcesFilter() (*settings.ResourcesFilter, error)
-	RespectRBAC() (int, error)
-	SelfHealBackoff() (*wait.Backoff, error)
-	SelfHealTimeout() (time.Duration, error)
-	SensitiveAnnotations() (map[string]bool, error)
-	ServerSideDiff() (bool, error)
-	SourceHydratorCommitMessageTemplate() (string, error)
-	SyncTimeout() (time.Duration, error)
-	TrackingMethod() (string, error)
+	AllowedNodeLabels(ctx context.Context) ([]string, error)
+	AppInstanceLabelKey(ctx context.Context) (string, error)
+	CommitAuthorEmail(ctx context.Context) (string, error)
+	CommitAuthorName(ctx context.Context) (string, error)
+	EnabledSourceTypes(ctx context.Context) (map[string]bool, error)
+	GitRequestTimeout(ctx context.Context) (time.Duration, error)
+	HardReconciliationTimeout(ctx context.Context) (time.Duration, error)
+	HelmSettings(ctx context.Context) (*v1alpha1.HelmOptions, error)
+	HydratorReadmeTemplate(ctx context.Context) (string, error)
+	IgnoreNormalizerJQTimeout(ctx context.Context) (time.Duration, error)
+	IgnoreResourceUpdatesOverrides(ctx context.Context) (map[string]v1alpha1.ResourceOverride, error)
+	InstallationID(ctx context.Context) (string, error)
+	IsIgnoreResourceUpdatesEnabled(ctx context.Context) (bool, error)
+	IsImpersonationEnabled(ctx context.Context) (bool, error)
+	IsImpersonationEnforced(ctx context.Context) (bool, error)
+	KustomizeSettings(ctx context.Context) (*v1alpha1.KustomizeOptions, error)
+	MetricsClusterLabels(ctx context.Context) ([]string, error)
+	PersistResourceHealth(ctx context.Context) (bool, error)
+	ReconciliationJitter(ctx context.Context) (time.Duration, error)
+	ReconciliationTimeout(ctx context.Context) (time.Duration, error)
+	RepoErrorGracePeriod(ctx context.Context) (time.Duration, error)
+	ResourceCompareOptions(ctx context.Context) (settings.ArgoCDDiffOptions, error)
+	ResourceCustomLabels(ctx context.Context) ([]string, error)
+	ResourceOverrides(ctx context.Context) (map[string]v1alpha1.ResourceOverride, error)
+	ResourcesFilter(ctx context.Context) (*settings.ResourcesFilter, error)
+	RespectRBAC(ctx context.Context) (int, error)
+	SelfHealBackoff(ctx context.Context) (*wait.Backoff, error)
+	SelfHealTimeout(ctx context.Context) (time.Duration, error)
+	SensitiveAnnotations(ctx context.Context) (map[string]bool, error)
+	ServerSideDiff(ctx context.Context) (bool, error)
+	SourceHydratorCommitMessageTemplate(ctx context.Context) (string, error)
+	SyncTimeout(ctx context.Context) (time.Duration, error)
+	TrackingMethod(ctx context.Context) (string, error)
 }
 
 // firstConfigured tries each link in order and returns the first result that is

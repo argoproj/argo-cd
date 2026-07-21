@@ -151,17 +151,17 @@ type appStateManager struct {
 func (m *appStateManager) EvaluateAppRevisionsChanges(ctx context.Context, app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, revisions []string, proj *v1alpha1.AppProject, sendRuntimeState bool, noRevisionCache bool) (bool, []string, error) {
 	hasChanges := false
 
-	appLabelKey, err := m.configProvider.AppInstanceLabelKey()
+	appLabelKey, err := m.configProvider.AppInstanceLabelKey(ctx)
 	if err != nil {
 		return false, nil, fmt.Errorf("failed to get app instance label key: %w", err)
 	}
 
-	trackingMethod, err := m.configProvider.TrackingMethod()
+	trackingMethod, err := m.configProvider.TrackingMethod(ctx)
 	if err != nil {
 		return false, nil, fmt.Errorf("failed to get trackingMethod: %w", err)
 	}
 
-	installationID, err := m.configProvider.InstallationID()
+	installationID, err := m.configProvider.InstallationID(ctx)
 	if err != nil {
 		return false, nil, fmt.Errorf("failed to get installation ID: %w", err)
 	}
@@ -265,28 +265,28 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 		return nil, nil, false, fmt.Errorf("failed to get permitted OCI credentials for project %q: %w", proj.Name, err)
 	}
 
-	enabledSourceTypes, err := m.configProvider.EnabledSourceTypes()
+	enabledSourceTypes, err := m.configProvider.EnabledSourceTypes(ctx)
 	if err != nil {
 		return nil, nil, false, fmt.Errorf("failed to get enabled source types: %w", err)
 	}
 	ts.AddCheckpoint("plugins_ms")
 
-	kustomizeSettings, err := m.configProvider.KustomizeSettings()
+	kustomizeSettings, err := m.configProvider.KustomizeSettings(ctx)
 	if err != nil {
 		return nil, nil, false, fmt.Errorf("failed to get Kustomize settings: %w", err)
 	}
 
-	helmOptions, err := m.configProvider.HelmSettings()
+	helmOptions, err := m.configProvider.HelmSettings(ctx)
 	if err != nil {
 		return nil, nil, false, fmt.Errorf("failed to get Helm settings: %w", err)
 	}
 
-	trackingMethod, err := m.configProvider.TrackingMethod()
+	trackingMethod, err := m.configProvider.TrackingMethod(ctx)
 	if err != nil {
 		return nil, nil, false, fmt.Errorf("failed to get trackingMethod: %w", err)
 	}
 
-	installationID, err := m.configProvider.InstallationID()
+	installationID, err := m.configProvider.InstallationID(ctx)
 	if err != nil {
 		return nil, nil, false, fmt.Errorf("failed to get installation ID: %w", err)
 	}
@@ -621,23 +621,23 @@ func NormalizeTargetObjects(namespace string, objs []*unstructured.Unstructured,
 // getComparisonSettings will return the system level settings related to the
 // diff/normalization process.
 func (m *appStateManager) getComparisonSettings() (string, map[string]v1alpha1.ResourceOverride, *settings.ResourcesFilter, string, string, error) {
-	resourceOverrides, err := m.configProvider.ResourceOverrides()
+	resourceOverrides, err := m.configProvider.ResourceOverrides(context.Background())
 	if err != nil {
 		return "", nil, nil, "", "", err
 	}
-	appLabelKey, err := m.configProvider.AppInstanceLabelKey()
+	appLabelKey, err := m.configProvider.AppInstanceLabelKey(context.Background())
 	if err != nil {
 		return "", nil, nil, "", "", err
 	}
-	resFilter, err := m.configProvider.ResourcesFilter()
+	resFilter, err := m.configProvider.ResourcesFilter(context.Background())
 	if err != nil {
 		return "", nil, nil, "", "", err
 	}
-	installationID, err := m.configProvider.InstallationID()
+	installationID, err := m.configProvider.InstallationID(context.Background())
 	if err != nil {
 		return "", nil, nil, "", "", err
 	}
-	trackingMethod, err := m.configProvider.TrackingMethod()
+	trackingMethod, err := m.configProvider.TrackingMethod(context.Background())
 	if err != nil {
 		return "", nil, nil, "", "", err
 	}
@@ -744,7 +744,7 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 			msg := "Failed to load target state: " + err.Error()
 			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
 			if firstSeen, ok := m.repoErrorCache.Load(app.Name); ok {
-				repoErrorGracePeriod, graceErr := m.configProvider.RepoErrorGracePeriod()
+				repoErrorGracePeriod, graceErr := m.configProvider.RepoErrorGracePeriod(ctx)
 				if graceErr != nil {
 					return nil, fmt.Errorf("failed to resolve repo error grace period: %w", graceErr)
 				}
@@ -900,7 +900,7 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 	reconciliation := sync.Reconcile(targetObjsForSync, liveObjByKey, app.Spec.Destination.Namespace, infoProvider)
 	ts.AddCheckpoint("live_ms")
 
-	compareOptions, err := m.configProvider.ResourceCompareOptions()
+	compareOptions, err := m.configProvider.ResourceCompareOptions(ctx)
 	if err != nil {
 		log.Warnf("Could not get compare options from config provider (assuming defaults): %v", err)
 		compareOptions = settings.GetDefaultDiffOptions()
@@ -911,7 +911,7 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 		manifestRevisions = append(manifestRevisions, manifestInfo.Revision)
 	}
 
-	serverSideDiffCfg, err := m.configProvider.ServerSideDiff()
+	serverSideDiffCfg, err := m.configProvider.ServerSideDiff(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve server-side diff setting: %w", err)
 	}
@@ -924,13 +924,13 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 		serverSideDiff = false
 	}
 
-	reconciliationTimeout, err := m.configProvider.ReconciliationTimeout()
+	reconciliationTimeout, err := m.configProvider.ReconciliationTimeout(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve reconciliation timeout: %w", err)
 	}
 	useDiffCache := useDiffCache(noCache, manifestInfos, sources, app, manifestRevisions, reconciliationTimeout, serverSideDiff, logCtx)
 
-	ignoreNormalizerJQTimeout, err := m.configProvider.IgnoreNormalizerJQTimeout()
+	ignoreNormalizerJQTimeout, err := m.configProvider.IgnoreNormalizerJQTimeout(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve ignore normalizer JQ timeout: %w", err)
 	}
@@ -1118,7 +1118,7 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 
 	ts.AddCheckpoint("sync_ms")
 
-	persistResourceHealth, err := m.configProvider.PersistResourceHealth()
+	persistResourceHealth, err := m.configProvider.PersistResourceHealth(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve persist resource health setting: %w", err)
 	}

@@ -3,6 +3,7 @@
 package configbus
 
 import (
+	"context"
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -65,231 +66,231 @@ type StaticProvider struct {
 // Ensure StaticProvider implements Provider.
 var _ Provider = (*StaticProvider)(nil)
 
-func (p *StaticProvider) AllowedNodeLabels() ([]string, error) {
+func (p *StaticProvider) AllowedNodeLabels(_ context.Context) ([]string, error) {
 	if p == nil || p.Fields.AllowedNodeLabels == nil {
 		return nil, ErrNotConfigured
 	}
 	return *p.Fields.AllowedNodeLabels, nil
 }
 
-func (p *StaticProvider) AppInstanceLabelKey() (string, error) {
+func (p *StaticProvider) AppInstanceLabelKey(_ context.Context) (string, error) {
 	if p == nil || p.Fields.AppInstanceLabelKey == nil {
 		return "", ErrNotConfigured
 	}
 	return *p.Fields.AppInstanceLabelKey, nil
 }
 
-func (p *StaticProvider) CommitAuthorEmail() (string, error) {
+func (p *StaticProvider) CommitAuthorEmail(_ context.Context) (string, error) {
 	if p == nil || p.Fields.CommitAuthorEmail == nil {
 		return "", ErrNotConfigured
 	}
 	return *p.Fields.CommitAuthorEmail, nil
 }
 
-func (p *StaticProvider) CommitAuthorName() (string, error) {
+func (p *StaticProvider) CommitAuthorName(_ context.Context) (string, error) {
 	if p == nil || p.Fields.CommitAuthorName == nil {
 		return "", ErrNotConfigured
 	}
 	return *p.Fields.CommitAuthorName, nil
 }
 
-func (p *StaticProvider) EnabledSourceTypes() (map[string]bool, error) {
+func (p *StaticProvider) EnabledSourceTypes(_ context.Context) (map[string]bool, error) {
 	if p == nil || p.Fields.EnabledSourceTypes == nil {
 		return nil, ErrNotConfigured
 	}
 	return *p.Fields.EnabledSourceTypes, nil
 }
 
-func (p *StaticProvider) GitRequestTimeout() (time.Duration, error) {
+func (p *StaticProvider) GitRequestTimeout(_ context.Context) (time.Duration, error) {
 	if p == nil || p.Fields.GitRequestTimeout == nil {
 		return 0, ErrNotConfigured
 	}
 	return *p.Fields.GitRequestTimeout, nil
 }
 
-func (p *StaticProvider) HardReconciliationTimeout() (time.Duration, error) {
+func (p *StaticProvider) HardReconciliationTimeout(_ context.Context) (time.Duration, error) {
 	if p == nil || p.Fields.HardReconciliationTimeout == nil {
 		return 0, ErrNotConfigured
 	}
 	return *p.Fields.HardReconciliationTimeout, nil
 }
 
-func (p *StaticProvider) HelmSettings() (*v1alpha1.HelmOptions, error) {
+func (p *StaticProvider) HelmSettings(_ context.Context) (*v1alpha1.HelmOptions, error) {
 	if p == nil || p.Fields.HelmSettings == nil {
 		return nil, ErrNotConfigured
 	}
 	return *p.Fields.HelmSettings, nil
 }
 
-func (p *StaticProvider) HydratorReadmeTemplate() (string, error) {
+func (p *StaticProvider) HydratorReadmeTemplate(_ context.Context) (string, error) {
 	if p == nil || p.Fields.HydratorReadmeTemplate == nil {
 		return "", ErrNotConfigured
 	}
 	return *p.Fields.HydratorReadmeTemplate, nil
 }
 
-func (p *StaticProvider) IgnoreNormalizerJQTimeout() (time.Duration, error) {
+func (p *StaticProvider) IgnoreNormalizerJQTimeout(_ context.Context) (time.Duration, error) {
 	if p == nil || p.Fields.IgnoreNormalizerJQTimeout == nil {
 		return 0, ErrNotConfigured
 	}
 	return *p.Fields.IgnoreNormalizerJQTimeout, nil
 }
 
-func (p *StaticProvider) IgnoreResourceUpdatesOverrides() (map[string]v1alpha1.ResourceOverride, error) {
+func (p *StaticProvider) IgnoreResourceUpdatesOverrides(_ context.Context) (map[string]v1alpha1.ResourceOverride, error) {
 	if p == nil || p.Fields.IgnoreResourceUpdatesOverrides == nil {
 		return nil, ErrNotConfigured
 	}
 	return *p.Fields.IgnoreResourceUpdatesOverrides, nil
 }
 
-func (p *StaticProvider) InstallationID() (string, error) {
+func (p *StaticProvider) InstallationID(_ context.Context) (string, error) {
 	if p == nil || p.Fields.InstallationID == nil {
 		return "", ErrNotConfigured
 	}
 	return *p.Fields.InstallationID, nil
 }
 
-func (p *StaticProvider) IsIgnoreResourceUpdatesEnabled() (bool, error) {
+func (p *StaticProvider) IsIgnoreResourceUpdatesEnabled(_ context.Context) (bool, error) {
 	if p == nil || p.Fields.IsIgnoreResourceUpdatesEnabled == nil {
 		return false, ErrNotConfigured
 	}
 	return *p.Fields.IsIgnoreResourceUpdatesEnabled, nil
 }
 
-func (p *StaticProvider) IsImpersonationEnabled() (bool, error) {
+func (p *StaticProvider) IsImpersonationEnabled(_ context.Context) (bool, error) {
 	if p == nil || p.Fields.IsImpersonationEnabled == nil {
 		return false, ErrNotConfigured
 	}
 	return *p.Fields.IsImpersonationEnabled, nil
 }
 
-func (p *StaticProvider) IsImpersonationEnforced() (bool, error) {
+func (p *StaticProvider) IsImpersonationEnforced(_ context.Context) (bool, error) {
 	if p == nil || p.Fields.IsImpersonationEnforced == nil {
 		return false, ErrNotConfigured
 	}
 	return *p.Fields.IsImpersonationEnforced, nil
 }
 
-func (p *StaticProvider) KustomizeSettings() (*v1alpha1.KustomizeOptions, error) {
+func (p *StaticProvider) KustomizeSettings(_ context.Context) (*v1alpha1.KustomizeOptions, error) {
 	if p == nil || p.Fields.KustomizeSettings == nil {
 		return nil, ErrNotConfigured
 	}
 	return *p.Fields.KustomizeSettings, nil
 }
 
-func (p *StaticProvider) MetricsClusterLabels() ([]string, error) {
+func (p *StaticProvider) MetricsClusterLabels(_ context.Context) ([]string, error) {
 	if p == nil || p.Fields.MetricsClusterLabels == nil {
 		return nil, ErrNotConfigured
 	}
 	return *p.Fields.MetricsClusterLabels, nil
 }
 
-func (p *StaticProvider) PersistResourceHealth() (bool, error) {
+func (p *StaticProvider) PersistResourceHealth(_ context.Context) (bool, error) {
 	if p == nil || p.Fields.PersistResourceHealth == nil {
 		return false, ErrNotConfigured
 	}
 	return *p.Fields.PersistResourceHealth, nil
 }
 
-func (p *StaticProvider) ReconciliationJitter() (time.Duration, error) {
+func (p *StaticProvider) ReconciliationJitter(_ context.Context) (time.Duration, error) {
 	if p == nil || p.Fields.ReconciliationJitter == nil {
 		return 0, ErrNotConfigured
 	}
 	return *p.Fields.ReconciliationJitter, nil
 }
 
-func (p *StaticProvider) ReconciliationTimeout() (time.Duration, error) {
+func (p *StaticProvider) ReconciliationTimeout(_ context.Context) (time.Duration, error) {
 	if p == nil || p.Fields.ReconciliationTimeout == nil {
 		return 0, ErrNotConfigured
 	}
 	return *p.Fields.ReconciliationTimeout, nil
 }
 
-func (p *StaticProvider) RepoErrorGracePeriod() (time.Duration, error) {
+func (p *StaticProvider) RepoErrorGracePeriod(_ context.Context) (time.Duration, error) {
 	if p == nil || p.Fields.RepoErrorGracePeriod == nil {
 		return 0, ErrNotConfigured
 	}
 	return *p.Fields.RepoErrorGracePeriod, nil
 }
 
-func (p *StaticProvider) ResourceCompareOptions() (settings.ArgoCDDiffOptions, error) {
+func (p *StaticProvider) ResourceCompareOptions(_ context.Context) (settings.ArgoCDDiffOptions, error) {
 	if p == nil || p.Fields.ResourceCompareOptions == nil {
 		return settings.ArgoCDDiffOptions{}, ErrNotConfigured
 	}
 	return *p.Fields.ResourceCompareOptions, nil
 }
 
-func (p *StaticProvider) ResourceCustomLabels() ([]string, error) {
+func (p *StaticProvider) ResourceCustomLabels(_ context.Context) ([]string, error) {
 	if p == nil || p.Fields.ResourceCustomLabels == nil {
 		return nil, ErrNotConfigured
 	}
 	return *p.Fields.ResourceCustomLabels, nil
 }
 
-func (p *StaticProvider) ResourceOverrides() (map[string]v1alpha1.ResourceOverride, error) {
+func (p *StaticProvider) ResourceOverrides(_ context.Context) (map[string]v1alpha1.ResourceOverride, error) {
 	if p == nil || p.Fields.ResourceOverrides == nil {
 		return nil, ErrNotConfigured
 	}
 	return *p.Fields.ResourceOverrides, nil
 }
 
-func (p *StaticProvider) ResourcesFilter() (*settings.ResourcesFilter, error) {
+func (p *StaticProvider) ResourcesFilter(_ context.Context) (*settings.ResourcesFilter, error) {
 	if p == nil || p.Fields.ResourcesFilter == nil {
 		return nil, ErrNotConfigured
 	}
 	return *p.Fields.ResourcesFilter, nil
 }
 
-func (p *StaticProvider) RespectRBAC() (int, error) {
+func (p *StaticProvider) RespectRBAC(_ context.Context) (int, error) {
 	if p == nil || p.Fields.RespectRBAC == nil {
 		return 0, ErrNotConfigured
 	}
 	return *p.Fields.RespectRBAC, nil
 }
 
-func (p *StaticProvider) SelfHealBackoff() (*wait.Backoff, error) {
+func (p *StaticProvider) SelfHealBackoff(_ context.Context) (*wait.Backoff, error) {
 	if p == nil || p.Fields.SelfHealBackoff == nil {
 		return nil, ErrNotConfigured
 	}
 	return *p.Fields.SelfHealBackoff, nil
 }
 
-func (p *StaticProvider) SelfHealTimeout() (time.Duration, error) {
+func (p *StaticProvider) SelfHealTimeout(_ context.Context) (time.Duration, error) {
 	if p == nil || p.Fields.SelfHealTimeout == nil {
 		return 0, ErrNotConfigured
 	}
 	return *p.Fields.SelfHealTimeout, nil
 }
 
-func (p *StaticProvider) SensitiveAnnotations() (map[string]bool, error) {
+func (p *StaticProvider) SensitiveAnnotations(_ context.Context) (map[string]bool, error) {
 	if p == nil || p.Fields.SensitiveAnnotations == nil {
 		return nil, ErrNotConfigured
 	}
 	return *p.Fields.SensitiveAnnotations, nil
 }
 
-func (p *StaticProvider) ServerSideDiff() (bool, error) {
+func (p *StaticProvider) ServerSideDiff(_ context.Context) (bool, error) {
 	if p == nil || p.Fields.ServerSideDiff == nil {
 		return false, ErrNotConfigured
 	}
 	return *p.Fields.ServerSideDiff, nil
 }
 
-func (p *StaticProvider) SourceHydratorCommitMessageTemplate() (string, error) {
+func (p *StaticProvider) SourceHydratorCommitMessageTemplate(_ context.Context) (string, error) {
 	if p == nil || p.Fields.SourceHydratorCommitMessageTemplate == nil {
 		return "", ErrNotConfigured
 	}
 	return *p.Fields.SourceHydratorCommitMessageTemplate, nil
 }
 
-func (p *StaticProvider) SyncTimeout() (time.Duration, error) {
+func (p *StaticProvider) SyncTimeout(_ context.Context) (time.Duration, error) {
 	if p == nil || p.Fields.SyncTimeout == nil {
 		return 0, ErrNotConfigured
 	}
 	return *p.Fields.SyncTimeout, nil
 }
 
-func (p *StaticProvider) TrackingMethod() (string, error) {
+func (p *StaticProvider) TrackingMethod(_ context.Context) (string, error) {
 	if p == nil || p.Fields.TrackingMethod == nil {
 		return "", ErrNotConfigured
 	}

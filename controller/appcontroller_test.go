@@ -59,6 +59,7 @@ import (
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v3/util/configbus"
+	configbusmocks "github.com/argoproj/argo-cd/v3/util/configbus/mocks"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 	utilTest "github.com/argoproj/argo-cd/v3/util/test"
 )
@@ -3204,12 +3205,9 @@ func TestProcessRequestedAppOperation_SyncTimeout(t *testing.T) {
 				}},
 			}, nil)
 
-			ctrl.configProvider = configbus.NewChainProvider(
-				&configbus.StaticProvider{Fields: configbus.StaticFields{
-					SyncTimeout: configbus.Ptr(tc.syncTimeout),
-				}},
-				ctrl.configProvider,
-			)
+			override := configbusmocks.NewProvider(t)
+			override.EXPECT().SyncTimeout(mock.Anything).Return(tc.syncTimeout, nil)
+			ctrl.configProvider = configbus.NewChainProvider(override, ctrl.configProvider)
 			app.Status.OperationState = &v1alpha1.OperationState{
 				Operation: *app.Operation,
 				Phase:     tc.currentPhase,
@@ -3266,12 +3264,9 @@ func TestProcessRequestedAppOperation_RequeuesOperation(t *testing.T) {
 			}},
 		}, nil)
 		syncTimeout := 10 * time.Second
-		ctrl.configProvider = configbus.NewChainProvider(
-			&configbus.StaticProvider{Fields: configbus.StaticFields{
-				SyncTimeout: configbus.Ptr(syncTimeout),
-			}},
-			ctrl.configProvider,
-		)
+		override := configbusmocks.NewProvider(t)
+		override.EXPECT().SyncTimeout(mock.Anything).Return(syncTimeout, nil)
+		ctrl.configProvider = configbus.NewChainProvider(override, ctrl.configProvider)
 		app.Status.OperationState = &v1alpha1.OperationState{
 			Operation: *app.Operation,
 			Phase:     synccommon.OperationRunning,
@@ -3285,7 +3280,7 @@ func TestProcessRequestedAppOperation_RequeuesOperation(t *testing.T) {
 		require.Len(t, rq.calls, 1)
 		assert.Equal(t, ctrl.toAppKey(app.QualifiedName()), rq.calls[0].item)
 		assert.Positive(t, rq.calls[0].delay)
-		syncTimeout, err := ctrl.configProvider.SyncTimeout()
+		syncTimeout, err := ctrl.configProvider.SyncTimeout(context.Background())
 		require.NoError(t, err)
 		assert.LessOrEqual(t, rq.calls[0].delay, syncTimeout)
 		assert.Less(t, rq.calls[0].delay, appOperationMaxRequeueInterval)
@@ -4010,12 +4005,12 @@ func TestSelfHealRemainingBackoff(t *testing.T) {
 		Duration: 2 * time.Second,
 		Cap:      2 * time.Minute,
 	}
-	ctrl.configProvider = configbus.NewChainProvider(
-		&configbus.StaticProvider{Fields: configbus.StaticFields{
-			SelfHealBackoff: configbus.PtrPtr(backoff),
-		}},
-		ctrl.configProvider,
-	)
+	override := configbusmocks.NewProvider(t)
+	// Unstubbed mock methods panic; return ErrNotConfigured so Chain falls through
+	// to the real provider for getters this test does not override.
+	override.EXPECT().SelfHealTimeout(mock.Anything).Return(time.Duration(0), configbus.ErrNotConfigured)
+	override.EXPECT().SelfHealBackoff(mock.Anything).Return(backoff, nil)
+	ctrl.configProvider = configbus.NewChainProvider(override, ctrl.configProvider)
 	app := &v1alpha1.Application{
 		Status: v1alpha1.ApplicationStatus{
 			OperationState: &v1alpha1.OperationState{

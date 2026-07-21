@@ -238,31 +238,31 @@ type liveStateCache struct {
 }
 
 func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
-	appInstanceLabelKey, err := c.configProvider.AppInstanceLabelKey()
+	appInstanceLabelKey, err := c.configProvider.AppInstanceLabelKey(context.Background())
 	if err != nil {
 		return nil, err
 	}
-	trackingMethod, err := c.configProvider.TrackingMethod()
+	trackingMethod, err := c.configProvider.TrackingMethod(context.Background())
 	if err != nil {
 		return nil, err
 	}
-	installationID, err := c.configProvider.InstallationID()
+	installationID, err := c.configProvider.InstallationID(context.Background())
 	if err != nil {
 		return nil, err
 	}
-	resourceUpdatesOverrides, err := c.configProvider.IgnoreResourceUpdatesOverrides()
+	resourceUpdatesOverrides, err := c.configProvider.IgnoreResourceUpdatesOverrides(context.Background())
 	if err != nil {
 		return nil, err
 	}
-	ignoreResourceUpdatesEnabled, err := c.configProvider.IsIgnoreResourceUpdatesEnabled()
+	ignoreResourceUpdatesEnabled, err := c.configProvider.IsIgnoreResourceUpdatesEnabled(context.Background())
 	if err != nil {
 		return nil, err
 	}
-	resourcesFilter, err := c.configProvider.ResourcesFilter()
+	resourcesFilter, err := c.configProvider.ResourcesFilter(context.Background())
 	if err != nil {
 		return nil, err
 	}
-	resourceOverrides, err := c.configProvider.ResourceOverrides()
+	resourceOverrides, err := c.configProvider.ResourceOverrides(context.Background())
 	if err != nil {
 		return nil, err
 	}
@@ -518,12 +518,12 @@ func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.Cluste
 		return nil, fmt.Errorf("controller is configured to ignore cluster %s", cluster.Server)
 	}
 
-	resourceCustomLabels, err := c.configProvider.ResourceCustomLabels()
+	resourceCustomLabels, err := c.configProvider.ResourceCustomLabels(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("error getting custom label: %w", err)
 	}
 
-	respectRBAC, err := c.configProvider.RespectRBAC()
+	respectRBAC, err := c.configProvider.RespectRBAC(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("error getting value for %v: %w", settings.RespectRBAC, err)
 	}
@@ -572,7 +572,7 @@ func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.Cluste
 			gvk := un.GroupVersionKind()
 
 			if cacheSettings.ignoreResourceUpdatesEnabled && shouldHashManifest(appName, gvk, un) {
-				ignoreNormalizerJQTimeout, err := c.configProvider.IgnoreNormalizerJQTimeout()
+				ignoreNormalizerJQTimeout, err := c.configProvider.IgnoreNormalizerJQTimeout(context.Background())
 				if err != nil {
 					log.Errorf("Failed to resolve ignore normalizer JQ timeout: %v", err)
 				} else {

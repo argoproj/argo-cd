@@ -1,6 +1,7 @@
 package configbus
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -12,30 +13,26 @@ import (
 func TestEnvProviderGitRequestTimeoutDefault(t *testing.T) {
 	t.Setenv("ARGOCD_GIT_REQUEST_TIMEOUT", "")
 	p := NewEnvProvider()
-	d, err := p.GitRequestTimeout()
+	d, err := p.GitRequestTimeout(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, 15*time.Second, d)
 
 	t.Setenv("ARGOCD_GIT_REQUEST_TIMEOUT", "30s")
-	d, err = p.GitRequestTimeout()
+	d, err = p.GitRequestTimeout(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, 30*time.Second, d)
 }
 
 func TestEnvProviderUnownedReturnsErrNotConfigured(t *testing.T) {
 	p := NewEnvProvider()
-	_, err := p.SyncTimeout()
-	assert.ErrorIs(t, err, ErrNotConfigured)
+	_, err := p.SyncTimeout(context.Background())
+	require.ErrorIs(t, err, ErrNotConfigured)
 }
 
 func TestSettingsManagerProviderRequiresMgr(t *testing.T) {
-	p := NewSettingsManagerProvider(nil)
-	_, err := p.ResourceOverrides()
-	require.Error(t, err)
-	assert.NotErrorIs(t, err, ErrNotConfigured)
-
-	_, err = p.SyncTimeout()
-	assert.ErrorIs(t, err, ErrNotConfigured)
+	assert.Panics(t, func() {
+		NewSettingsManagerProvider(nil)
+	})
 }
 
 func TestStaticProviderRoundTrip(t *testing.T) {
@@ -50,34 +47,34 @@ func TestStaticProviderRoundTrip(t *testing.T) {
 		SelfHealBackoff:           PtrPtr(backoff),
 	}}
 
-	d, err := p.SyncTimeout()
+	d, err := p.SyncTimeout(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, 5*time.Minute, d)
 
-	gotLabels, err := p.MetricsClusterLabels()
+	gotLabels, err := p.MetricsClusterLabels(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, []string{"team"}, gotLabels)
 
-	jqTimeout, err := p.IgnoreNormalizerJQTimeout()
+	jqTimeout, err := p.IgnoreNormalizerJQTimeout(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, 2*time.Second, jqTimeout)
 
-	b, err := p.ServerSideDiff()
+	b, err := p.ServerSideDiff(context.Background())
 	require.NoError(t, err)
 	assert.True(t, b)
 
-	gotBackoff, err := p.SelfHealBackoff()
+	gotBackoff, err := p.SelfHealBackoff(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, backoff, gotBackoff)
 
-	_, err = p.AppInstanceLabelKey()
-	assert.ErrorIs(t, err, ErrNotConfigured)
+	_, err = p.AppInstanceLabelKey(context.Background())
+	require.ErrorIs(t, err, ErrNotConfigured)
 }
 
 func TestStaticProviderConfiguredNilPointer(t *testing.T) {
 	var nilBackoff *wait.Backoff
 	p := &StaticProvider{Fields: StaticFields{SelfHealBackoff: PtrPtr(nilBackoff)}}
-	got, err := p.SelfHealBackoff()
+	got, err := p.SelfHealBackoff(context.Background())
 	require.NoError(t, err)
 	assert.Nil(t, got)
 }
@@ -85,14 +82,14 @@ func TestStaticProviderConfiguredNilPointer(t *testing.T) {
 func TestCRDProviderReturnsErrNotConfigured(t *testing.T) {
 	p := NewCRDProvider(nil)
 
-	_, err := p.ReconciliationTimeout()
-	assert.ErrorIs(t, err, ErrNotConfigured)
+	_, err := p.ReconciliationTimeout(context.Background())
+	require.ErrorIs(t, err, ErrNotConfigured)
 
-	_, err = p.ResourceOverrides()
-	assert.ErrorIs(t, err, ErrNotConfigured)
+	_, err = p.ResourceOverrides(context.Background())
+	require.ErrorIs(t, err, ErrNotConfigured)
 
-	_, err = p.GitRequestTimeout()
-	assert.ErrorIs(t, err, ErrNotConfigured)
+	_, err = p.GitRequestTimeout(context.Background())
+	require.ErrorIs(t, err, ErrNotConfigured)
 }
 
 func TestChainProviderPrecedence(t *testing.T) {
@@ -102,22 +99,22 @@ func TestChainProviderPrecedence(t *testing.T) {
 	fallback := &StaticProvider{Fields: StaticFields{SyncTimeout: &fallbackTimeout, SelfHealTimeout: Ptr(30 * time.Second)}}
 	chain := NewChainProvider(override, NewCRDProvider(nil), fallback, NewEnvProvider())
 
-	d, err := chain.SyncTimeout()
+	d, err := chain.SyncTimeout(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, 10*time.Second, d, "override Static must beat fallback")
 
-	d, err = chain.SelfHealTimeout()
+	d, err = chain.SelfHealTimeout(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, 30*time.Second, d, "fallback Static supplies unset override fields")
 
-	d, err = chain.GitRequestTimeout()
+	d, err = chain.GitRequestTimeout(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, 15*time.Second, d, "EnvProvider supplies env-only fields")
 }
 
 func TestChainProviderSkipsErrNotConfigured(t *testing.T) {
 	chain := NewChainProvider(NewCRDProvider(nil), &StaticProvider{Fields: StaticFields{ReconciliationTimeout: Ptr(120 * time.Second)}})
-	d, err := chain.ReconciliationTimeout()
+	d, err := chain.ReconciliationTimeout(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, 120*time.Second, d)
 }

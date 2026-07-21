@@ -788,7 +788,7 @@ func (ctrl *ApplicationController) getAppHosts(destCluster *appv1.Cluster, a *ap
 			return resourcesInfo[i].ResourceName < resourcesInfo[j].ResourceName
 		})
 
-		allowedNodeLabels, err := ctrl.configProvider.AllowedNodeLabels()
+		allowedNodeLabels, err := ctrl.configProvider.AllowedNodeLabels(context.Background())
 		if err != nil {
 			return nil, fmt.Errorf("failed to resolve allowed node labels: %w", err)
 		}
@@ -823,7 +823,7 @@ func (ctrl *ApplicationController) hideSecretData(ctx context.Context, destClust
 		resDiff := res.Diff
 		if res.Kind == kube.SecretKind && res.Group == "" {
 			var err error
-			sensitiveAnnotations, err := ctrl.configProvider.SensitiveAnnotations()
+			sensitiveAnnotations, err := ctrl.configProvider.SensitiveAnnotations(ctx)
 			if err != nil {
 				return nil, fmt.Errorf("error getting sensitive annotations: %w", err)
 			}
@@ -831,19 +831,19 @@ func (ctrl *ApplicationController) hideSecretData(ctx context.Context, destClust
 			if err != nil {
 				return nil, fmt.Errorf("error hiding secret data: %w", err)
 			}
-			compareOptions, err := ctrl.configProvider.ResourceCompareOptions()
+			compareOptions, err := ctrl.configProvider.ResourceCompareOptions(ctx)
 			if err != nil {
 				return nil, fmt.Errorf("error getting resource compare options: %w", err)
 			}
-			resourceOverrides, err := ctrl.configProvider.ResourceOverrides()
+			resourceOverrides, err := ctrl.configProvider.ResourceOverrides(ctx)
 			if err != nil {
 				return nil, fmt.Errorf("error getting resource overrides: %w", err)
 			}
-			appLabelKey, err := ctrl.configProvider.AppInstanceLabelKey()
+			appLabelKey, err := ctrl.configProvider.AppInstanceLabelKey(ctx)
 			if err != nil {
 				return nil, fmt.Errorf("error getting app instance label key: %w", err)
 			}
-			trackingMethod, err := ctrl.configProvider.TrackingMethod()
+			trackingMethod, err := ctrl.configProvider.TrackingMethod(ctx)
 			if err != nil {
 				return nil, fmt.Errorf("error getting tracking method: %w", err)
 			}
@@ -852,7 +852,7 @@ func (ctrl *ApplicationController) hideSecretData(ctx context.Context, destClust
 			if err != nil {
 				return nil, fmt.Errorf("error getting cluster cache: %w", err)
 			}
-			ignoreNormalizerJQTimeout, err := ctrl.configProvider.IgnoreNormalizerJQTimeout()
+			ignoreNormalizerJQTimeout, err := ctrl.configProvider.IgnoreNormalizerJQTimeout(ctx)
 			if err != nil {
 				return nil, fmt.Errorf("failed to resolve ignore normalizer JQ timeout: %w", err)
 			}
@@ -926,7 +926,7 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 	defer ctrl.hydrationQueue.ShutDown()
 
 	ctrl.RegisterClusterSecretUpdater(ctx)
-	metricsClusterLabels, err := ctrl.configProvider.MetricsClusterLabels()
+	metricsClusterLabels, err := ctrl.configProvider.MetricsClusterLabels(ctx)
 	if err != nil {
 		log.WithError(err).Fatal("failed to resolve metrics cluster labels")
 	}
@@ -1537,7 +1537,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		logCtx.Debug("Finished processing requested app operation")
 	}()
 
-	syncTimeout, syncTimeoutErr := ctrl.configProvider.SyncTimeout()
+	syncTimeout, syncTimeoutErr := ctrl.configProvider.SyncTimeout(context.Background())
 	requeueAfter := appOperationMaxRequeueInterval
 	defer func() {
 		// Re-enqueue the app onto the operation queue to keep polling the in-progress sync.
@@ -1823,12 +1823,12 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		return processNext
 	}
 	origApp = origApp.DeepCopy()
-	refreshTimeout, err := ctrl.configProvider.ReconciliationTimeout()
+	refreshTimeout, err := ctrl.configProvider.ReconciliationTimeout(context.Background())
 	if err != nil {
 		log.WithField("appkey", appKey).WithError(err).Error("Failed to resolve reconciliation timeout")
 		return processNext
 	}
-	hardRefreshTimeout, err := ctrl.configProvider.HardReconciliationTimeout()
+	hardRefreshTimeout, err := ctrl.configProvider.HardReconciliationTimeout(context.Background())
 	if err != nil {
 		log.WithField("appkey", appKey).WithError(err).Error("Failed to resolve hard reconciliation timeout")
 		return processNext
@@ -2462,7 +2462,7 @@ func (ctrl *ApplicationController) autoSync(ctx context.Context, app *appv1.Appl
 			return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: err.Error()}, 0
 		}
 		if remainingTime > 0 {
-			selfHealTimeout, err := ctrl.configProvider.SelfHealTimeout()
+			selfHealTimeout, err := ctrl.configProvider.SelfHealTimeout(ctx)
 			if err != nil {
 				return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: err.Error()}, 0
 			}
@@ -2574,11 +2574,11 @@ func (ctrl *ApplicationController) selfHealRemainingBackoff(app *appv1.Applicati
 		timeSinceOperation = new(time.Since(app.Status.OperationState.FinishedAt.Time))
 	}
 
-	selfHealTimeout, err := ctrl.configProvider.SelfHealTimeout()
+	selfHealTimeout, err := ctrl.configProvider.SelfHealTimeout(context.Background())
 	if err != nil {
 		return 0, fmt.Errorf("failed to resolve self heal timeout: %w", err)
 	}
-	selfHealBackoff, err := ctrl.configProvider.SelfHealBackoff()
+	selfHealBackoff, err := ctrl.configProvider.SelfHealBackoff(context.Background())
 	if err != nil {
 		return 0, fmt.Errorf("failed to resolve self heal backoff: %w", err)
 	}
@@ -2652,11 +2652,11 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 	if len(ctrl.applicationNamespaces) > 0 {
 		watchNamespace = ""
 	}
-	refreshTimeout, err := ctrl.configProvider.ReconciliationTimeout()
+	refreshTimeout, err := ctrl.configProvider.ReconciliationTimeout(context.Background())
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to resolve reconciliation timeout: %w", err)
 	}
-	hardRefreshTimeout, err := ctrl.configProvider.HardReconciliationTimeout()
+	hardRefreshTimeout, err := ctrl.configProvider.HardReconciliationTimeout(context.Background())
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to resolve hard reconciliation timeout: %w", err)
 	}
@@ -2803,7 +2803,7 @@ func (ctrl *ApplicationController) applicationEventHandlerFuncs() cache.Resource
 				}
 				if oldApp.ResourceVersion == newApp.ResourceVersion {
 					// Handler is refreshing the apps, add a random jitter to spread the load and avoid spikes
-					statusRefreshJitter, err := ctrl.configProvider.ReconciliationJitter()
+					statusRefreshJitter, err := ctrl.configProvider.ReconciliationJitter(context.Background())
 					if err != nil {
 						log.WithFields(applog.GetAppLogFields(newApp)).WithError(err).Error("Failed to resolve reconciliation jitter")
 						return
@@ -2939,7 +2939,7 @@ func (ctrl *ApplicationController) logAppEvent(ctx context.Context, a *appv1.App
 }
 
 func (ctrl *ApplicationController) applyImpersonationConfig(config *rest.Config, proj *appv1.AppProject, app *appv1.Application, destCluster *appv1.Cluster) error {
-	impersonationEnabled, err := ctrl.configProvider.IsImpersonationEnabled()
+	impersonationEnabled, err := ctrl.configProvider.IsImpersonationEnabled(context.Background())
 	if err != nil {
 		return fmt.Errorf("error getting impersonation setting: %w", err)
 	}

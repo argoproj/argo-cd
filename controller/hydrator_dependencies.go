@@ -54,7 +54,7 @@ func (ctrl *ApplicationController) GetRepoObjs(ctx context.Context, app *appv1.A
 	drySources := []appv1.ApplicationSource{drySource}
 	dryRevisions := []string{revision}
 
-	appLabelKey, err := ctrl.configProvider.AppInstanceLabelKey()
+	appLabelKey, err := ctrl.configProvider.AppInstanceLabelKey(ctx)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get app instance label key: %w", err)
 	}
@@ -65,7 +65,7 @@ func (ctrl *ApplicationController) GetRepoObjs(ctx context.Context, app *appv1.A
 		return nil, nil, fmt.Errorf("failed to get repo objects: %w", err)
 	}
 
-	trackingMethod, err := ctrl.configProvider.TrackingMethod()
+	trackingMethod, err := ctrl.configProvider.TrackingMethod(ctx)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get tracking method: %w", err)
 	}
@@ -114,7 +114,7 @@ func (ctrl *ApplicationController) AddHydrationQueueItem(key types.HydrationQueu
 }
 
 func (ctrl *ApplicationController) GetHydratorCommitMessageTemplate() (string, error) {
-	sourceHydratorCommitMessageKey, err := ctrl.configProvider.SourceHydratorCommitMessageTemplate()
+	sourceHydratorCommitMessageKey, err := ctrl.configProvider.SourceHydratorCommitMessageTemplate(context.Background())
 	if err != nil {
 		return "", fmt.Errorf("failed to get sourceHydrator commit message template key: %w", err)
 	}
@@ -123,7 +123,7 @@ func (ctrl *ApplicationController) GetHydratorCommitMessageTemplate() (string, e
 }
 
 func (ctrl *ApplicationController) GetHydratorReadmeMessageTemplate() (string, error) {
-	readmeTemplate, err := ctrl.configProvider.HydratorReadmeTemplate()
+	readmeTemplate, err := ctrl.configProvider.HydratorReadmeTemplate(context.Background())
 	if err != nil {
 		return "", fmt.Errorf("failed to get sourceHydrator README message template: %w", err)
 	}
@@ -132,7 +132,7 @@ func (ctrl *ApplicationController) GetHydratorReadmeMessageTemplate() (string, e
 }
 
 func (ctrl *ApplicationController) GetCommitAuthorName() (string, error) {
-	authorName, err := ctrl.configProvider.CommitAuthorName()
+	authorName, err := ctrl.configProvider.CommitAuthorName(context.Background())
 	if err != nil {
 		return "", fmt.Errorf("failed to get commit author name: %w", err)
 	}
@@ -140,7 +140,7 @@ func (ctrl *ApplicationController) GetCommitAuthorName() (string, error) {
 }
 
 func (ctrl *ApplicationController) GetCommitAuthorEmail() (string, error) {
-	authorEmail, err := ctrl.configProvider.CommitAuthorEmail()
+	authorEmail, err := ctrl.configProvider.CommitAuthorEmail(context.Background())
 	if err != nil {
 		return "", fmt.Errorf("failed to get commit author email: %w", err)
 	}

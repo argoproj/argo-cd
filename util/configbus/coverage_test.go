@@ -1,6 +1,7 @@
 package configbus_test
 
 import (
+	"context"
 	"reflect"
 	"testing"
 	"time"
@@ -73,6 +74,7 @@ func assertProviderFullyResolved(t *testing.T, p configbus.Provider) {
 	t.Helper()
 	pt := reflect.TypeOf((*configbus.Provider)(nil)).Elem()
 	pv := reflect.ValueOf(p)
+	ctx := context.Background()
 	for i := 0; i < pt.NumMethod(); i++ {
 		m := pt.Method(i)
 		switch m.Name {
@@ -81,9 +83,15 @@ func assertProviderFullyResolved(t *testing.T, p configbus.Provider) {
 		}
 		method := pv.MethodByName(m.Name)
 		require.True(t, method.IsValid(), m.Name)
-		// Build zero args for parameters (none of the field getters take args;
-		// SettingsManager takes none either).
 		in := make([]reflect.Value, method.Type().NumIn())
+		for j := 0; j < method.Type().NumIn(); j++ {
+			argType := method.Type().In(j)
+			if argType.String() == "context.Context" {
+				in[j] = reflect.ValueOf(ctx)
+				continue
+			}
+			in[j] = reflect.Zero(argType)
+		}
 		out := method.Call(in)
 		require.NotEmpty(t, out, m.Name)
 		errVal := out[len(out)-1]
