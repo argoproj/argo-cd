@@ -103,6 +103,68 @@ func (_c *Provider_AllowedNodeLabels_Call) RunAndReturn(run func(ctx context.Con
 	return _c
 }
 
+// AllowedScmProviders provides a mock function for the type Provider
+func (_mock *Provider) AllowedScmProviders(ctx context.Context) ([]string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AllowedScmProviders")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_AllowedScmProviders_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AllowedScmProviders'
+type Provider_AllowedScmProviders_Call struct {
+	*mock.Call
+}
+
+// AllowedScmProviders is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) AllowedScmProviders(ctx any) *Provider_AllowedScmProviders_Call {
+	return &Provider_AllowedScmProviders_Call{Call: _e.mock.On("AllowedScmProviders", ctx)}
+}
+
+func (_c *Provider_AllowedScmProviders_Call) Run(run func(ctx context.Context)) *Provider_AllowedScmProviders_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_AllowedScmProviders_Call) Return(strings []string, err error) *Provider_AllowedScmProviders_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *Provider_AllowedScmProviders_Call) RunAndReturn(run func(ctx context.Context) ([]string, error)) *Provider_AllowedScmProviders_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // AppInstanceLabelKey provides a mock function for the type Provider
 func (_mock *Provider) AppInstanceLabelKey(ctx context.Context) (string, error) {
 	ret := _mock.Called(ctx)
@@ -159,6 +221,128 @@ func (_c *Provider_AppInstanceLabelKey_Call) Return(s string, err error) *Provid
 }
 
 func (_c *Provider_AppInstanceLabelKey_Call) RunAndReturn(run func(ctx context.Context) (string, error)) *Provider_AppInstanceLabelKey_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ApplicationNamespaces provides a mock function for the type Provider
+func (_mock *Provider) ApplicationNamespaces(ctx context.Context) ([]string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ApplicationNamespaces")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_ApplicationNamespaces_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ApplicationNamespaces'
+type Provider_ApplicationNamespaces_Call struct {
+	*mock.Call
+}
+
+// ApplicationNamespaces is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) ApplicationNamespaces(ctx any) *Provider_ApplicationNamespaces_Call {
+	return &Provider_ApplicationNamespaces_Call{Call: _e.mock.On("ApplicationNamespaces", ctx)}
+}
+
+func (_c *Provider_ApplicationNamespaces_Call) Run(run func(ctx context.Context)) *Provider_ApplicationNamespaces_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_ApplicationNamespaces_Call) Return(strings []string, err error) *Provider_ApplicationNamespaces_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *Provider_ApplicationNamespaces_Call) RunAndReturn(run func(ctx context.Context) ([]string, error)) *Provider_ApplicationNamespaces_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// BaseHRef provides a mock function for the type Provider
+func (_mock *Provider) BaseHRef(ctx context.Context) (string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for BaseHRef")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_BaseHRef_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'BaseHRef'
+type Provider_BaseHRef_Call struct {
+	*mock.Call
+}
+
+// BaseHRef is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) BaseHRef(ctx any) *Provider_BaseHRef_Call {
+	return &Provider_BaseHRef_Call{Call: _e.mock.On("BaseHRef", ctx)}
+}
+
+func (_c *Provider_BaseHRef_Call) Run(run func(ctx context.Context)) *Provider_BaseHRef_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_BaseHRef_Call) Return(s string, err error) *Provider_BaseHRef_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *Provider_BaseHRef_Call) RunAndReturn(run func(ctx context.Context) (string, error)) *Provider_BaseHRef_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -279,6 +463,730 @@ func (_c *Provider_CommitAuthorName_Call) Return(s string, err error) *Provider_
 }
 
 func (_c *Provider_CommitAuthorName_Call) RunAndReturn(run func(ctx context.Context) (string, error)) *Provider_CommitAuthorName_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ContentSecurityPolicy provides a mock function for the type Provider
+func (_mock *Provider) ContentSecurityPolicy(ctx context.Context) (string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ContentSecurityPolicy")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_ContentSecurityPolicy_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ContentSecurityPolicy'
+type Provider_ContentSecurityPolicy_Call struct {
+	*mock.Call
+}
+
+// ContentSecurityPolicy is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) ContentSecurityPolicy(ctx any) *Provider_ContentSecurityPolicy_Call {
+	return &Provider_ContentSecurityPolicy_Call{Call: _e.mock.On("ContentSecurityPolicy", ctx)}
+}
+
+func (_c *Provider_ContentSecurityPolicy_Call) Run(run func(ctx context.Context)) *Provider_ContentSecurityPolicy_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_ContentSecurityPolicy_Call) Return(s string, err error) *Provider_ContentSecurityPolicy_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *Provider_ContentSecurityPolicy_Call) RunAndReturn(run func(ctx context.Context) (string, error)) *Provider_ContentSecurityPolicy_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ContentTypes provides a mock function for the type Provider
+func (_mock *Provider) ContentTypes(ctx context.Context) ([]string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ContentTypes")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_ContentTypes_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ContentTypes'
+type Provider_ContentTypes_Call struct {
+	*mock.Call
+}
+
+// ContentTypes is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) ContentTypes(ctx any) *Provider_ContentTypes_Call {
+	return &Provider_ContentTypes_Call{Call: _e.mock.On("ContentTypes", ctx)}
+}
+
+func (_c *Provider_ContentTypes_Call) Run(run func(ctx context.Context)) *Provider_ContentTypes_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_ContentTypes_Call) Return(strings []string, err error) *Provider_ContentTypes_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *Provider_ContentTypes_Call) RunAndReturn(run func(ctx context.Context) ([]string, error)) *Provider_ContentTypes_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DexServerAddr provides a mock function for the type Provider
+func (_mock *Provider) DexServerAddr(ctx context.Context) (string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DexServerAddr")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_DexServerAddr_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DexServerAddr'
+type Provider_DexServerAddr_Call struct {
+	*mock.Call
+}
+
+// DexServerAddr is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) DexServerAddr(ctx any) *Provider_DexServerAddr_Call {
+	return &Provider_DexServerAddr_Call{Call: _e.mock.On("DexServerAddr", ctx)}
+}
+
+func (_c *Provider_DexServerAddr_Call) Run(run func(ctx context.Context)) *Provider_DexServerAddr_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_DexServerAddr_Call) Return(s string, err error) *Provider_DexServerAddr_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *Provider_DexServerAddr_Call) RunAndReturn(run func(ctx context.Context) (string, error)) *Provider_DexServerAddr_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DexServerPlaintext provides a mock function for the type Provider
+func (_mock *Provider) DexServerPlaintext(ctx context.Context) (bool, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DexServerPlaintext")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (bool, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) bool); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_DexServerPlaintext_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DexServerPlaintext'
+type Provider_DexServerPlaintext_Call struct {
+	*mock.Call
+}
+
+// DexServerPlaintext is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) DexServerPlaintext(ctx any) *Provider_DexServerPlaintext_Call {
+	return &Provider_DexServerPlaintext_Call{Call: _e.mock.On("DexServerPlaintext", ctx)}
+}
+
+func (_c *Provider_DexServerPlaintext_Call) Run(run func(ctx context.Context)) *Provider_DexServerPlaintext_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_DexServerPlaintext_Call) Return(b bool, err error) *Provider_DexServerPlaintext_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *Provider_DexServerPlaintext_Call) RunAndReturn(run func(ctx context.Context) (bool, error)) *Provider_DexServerPlaintext_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DexServerStrictTLS provides a mock function for the type Provider
+func (_mock *Provider) DexServerStrictTLS(ctx context.Context) (bool, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DexServerStrictTLS")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (bool, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) bool); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_DexServerStrictTLS_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DexServerStrictTLS'
+type Provider_DexServerStrictTLS_Call struct {
+	*mock.Call
+}
+
+// DexServerStrictTLS is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) DexServerStrictTLS(ctx any) *Provider_DexServerStrictTLS_Call {
+	return &Provider_DexServerStrictTLS_Call{Call: _e.mock.On("DexServerStrictTLS", ctx)}
+}
+
+func (_c *Provider_DexServerStrictTLS_Call) Run(run func(ctx context.Context)) *Provider_DexServerStrictTLS_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_DexServerStrictTLS_Call) Return(b bool, err error) *Provider_DexServerStrictTLS_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *Provider_DexServerStrictTLS_Call) RunAndReturn(run func(ctx context.Context) (bool, error)) *Provider_DexServerStrictTLS_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// DisableAuth provides a mock function for the type Provider
+func (_mock *Provider) DisableAuth(ctx context.Context) (bool, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for DisableAuth")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (bool, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) bool); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_DisableAuth_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'DisableAuth'
+type Provider_DisableAuth_Call struct {
+	*mock.Call
+}
+
+// DisableAuth is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) DisableAuth(ctx any) *Provider_DisableAuth_Call {
+	return &Provider_DisableAuth_Call{Call: _e.mock.On("DisableAuth", ctx)}
+}
+
+func (_c *Provider_DisableAuth_Call) Run(run func(ctx context.Context)) *Provider_DisableAuth_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_DisableAuth_Call) Return(b bool, err error) *Provider_DisableAuth_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *Provider_DisableAuth_Call) RunAndReturn(run func(ctx context.Context) (bool, error)) *Provider_DisableAuth_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// EnableGZip provides a mock function for the type Provider
+func (_mock *Provider) EnableGZip(ctx context.Context) (bool, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for EnableGZip")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (bool, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) bool); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_EnableGZip_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'EnableGZip'
+type Provider_EnableGZip_Call struct {
+	*mock.Call
+}
+
+// EnableGZip is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) EnableGZip(ctx any) *Provider_EnableGZip_Call {
+	return &Provider_EnableGZip_Call{Call: _e.mock.On("EnableGZip", ctx)}
+}
+
+func (_c *Provider_EnableGZip_Call) Run(run func(ctx context.Context)) *Provider_EnableGZip_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_EnableGZip_Call) Return(b bool, err error) *Provider_EnableGZip_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *Provider_EnableGZip_Call) RunAndReturn(run func(ctx context.Context) (bool, error)) *Provider_EnableGZip_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// EnableGitHubAPIMetrics provides a mock function for the type Provider
+func (_mock *Provider) EnableGitHubAPIMetrics(ctx context.Context) (bool, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for EnableGitHubAPIMetrics")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (bool, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) bool); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_EnableGitHubAPIMetrics_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'EnableGitHubAPIMetrics'
+type Provider_EnableGitHubAPIMetrics_Call struct {
+	*mock.Call
+}
+
+// EnableGitHubAPIMetrics is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) EnableGitHubAPIMetrics(ctx any) *Provider_EnableGitHubAPIMetrics_Call {
+	return &Provider_EnableGitHubAPIMetrics_Call{Call: _e.mock.On("EnableGitHubAPIMetrics", ctx)}
+}
+
+func (_c *Provider_EnableGitHubAPIMetrics_Call) Run(run func(ctx context.Context)) *Provider_EnableGitHubAPIMetrics_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_EnableGitHubAPIMetrics_Call) Return(b bool, err error) *Provider_EnableGitHubAPIMetrics_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *Provider_EnableGitHubAPIMetrics_Call) RunAndReturn(run func(ctx context.Context) (bool, error)) *Provider_EnableGitHubAPIMetrics_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// EnableK8sEvent provides a mock function for the type Provider
+func (_mock *Provider) EnableK8sEvent(ctx context.Context) ([]string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for EnableK8sEvent")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_EnableK8sEvent_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'EnableK8sEvent'
+type Provider_EnableK8sEvent_Call struct {
+	*mock.Call
+}
+
+// EnableK8sEvent is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) EnableK8sEvent(ctx any) *Provider_EnableK8sEvent_Call {
+	return &Provider_EnableK8sEvent_Call{Call: _e.mock.On("EnableK8sEvent", ctx)}
+}
+
+func (_c *Provider_EnableK8sEvent_Call) Run(run func(ctx context.Context)) *Provider_EnableK8sEvent_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_EnableK8sEvent_Call) Return(strings []string, err error) *Provider_EnableK8sEvent_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *Provider_EnableK8sEvent_Call) RunAndReturn(run func(ctx context.Context) ([]string, error)) *Provider_EnableK8sEvent_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// EnableNewGitFileGlobbing provides a mock function for the type Provider
+func (_mock *Provider) EnableNewGitFileGlobbing(ctx context.Context) (bool, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for EnableNewGitFileGlobbing")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (bool, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) bool); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_EnableNewGitFileGlobbing_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'EnableNewGitFileGlobbing'
+type Provider_EnableNewGitFileGlobbing_Call struct {
+	*mock.Call
+}
+
+// EnableNewGitFileGlobbing is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) EnableNewGitFileGlobbing(ctx any) *Provider_EnableNewGitFileGlobbing_Call {
+	return &Provider_EnableNewGitFileGlobbing_Call{Call: _e.mock.On("EnableNewGitFileGlobbing", ctx)}
+}
+
+func (_c *Provider_EnableNewGitFileGlobbing_Call) Run(run func(ctx context.Context)) *Provider_EnableNewGitFileGlobbing_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_EnableNewGitFileGlobbing_Call) Return(b bool, err error) *Provider_EnableNewGitFileGlobbing_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *Provider_EnableNewGitFileGlobbing_Call) RunAndReturn(run func(ctx context.Context) (bool, error)) *Provider_EnableNewGitFileGlobbing_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// EnableProxyExtension provides a mock function for the type Provider
+func (_mock *Provider) EnableProxyExtension(ctx context.Context) (bool, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for EnableProxyExtension")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (bool, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) bool); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_EnableProxyExtension_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'EnableProxyExtension'
+type Provider_EnableProxyExtension_Call struct {
+	*mock.Call
+}
+
+// EnableProxyExtension is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) EnableProxyExtension(ctx any) *Provider_EnableProxyExtension_Call {
+	return &Provider_EnableProxyExtension_Call{Call: _e.mock.On("EnableProxyExtension", ctx)}
+}
+
+func (_c *Provider_EnableProxyExtension_Call) Run(run func(ctx context.Context)) *Provider_EnableProxyExtension_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_EnableProxyExtension_Call) Return(b bool, err error) *Provider_EnableProxyExtension_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *Provider_EnableProxyExtension_Call) RunAndReturn(run func(ctx context.Context) (bool, error)) *Provider_EnableProxyExtension_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// EnableScmProviders provides a mock function for the type Provider
+func (_mock *Provider) EnableScmProviders(ctx context.Context) (bool, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for EnableScmProviders")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (bool, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) bool); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_EnableScmProviders_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'EnableScmProviders'
+type Provider_EnableScmProviders_Call struct {
+	*mock.Call
+}
+
+// EnableScmProviders is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) EnableScmProviders(ctx any) *Provider_EnableScmProviders_Call {
+	return &Provider_EnableScmProviders_Call{Call: _e.mock.On("EnableScmProviders", ctx)}
+}
+
+func (_c *Provider_EnableScmProviders_Call) Run(run func(ctx context.Context)) *Provider_EnableScmProviders_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_EnableScmProviders_Call) Return(b bool, err error) *Provider_EnableScmProviders_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *Provider_EnableScmProviders_Call) RunAndReturn(run func(ctx context.Context) (bool, error)) *Provider_EnableScmProviders_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -467,6 +1375,66 @@ func (_c *Provider_GitRequestTimeout_Call) RunAndReturn(run func(ctx context.Con
 	return _c
 }
 
+// GitSubmoduleEnabled provides a mock function for the type Provider
+func (_mock *Provider) GitSubmoduleEnabled(ctx context.Context) (bool, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GitSubmoduleEnabled")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (bool, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) bool); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_GitSubmoduleEnabled_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GitSubmoduleEnabled'
+type Provider_GitSubmoduleEnabled_Call struct {
+	*mock.Call
+}
+
+// GitSubmoduleEnabled is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) GitSubmoduleEnabled(ctx any) *Provider_GitSubmoduleEnabled_Call {
+	return &Provider_GitSubmoduleEnabled_Call{Call: _e.mock.On("GitSubmoduleEnabled", ctx)}
+}
+
+func (_c *Provider_GitSubmoduleEnabled_Call) Run(run func(ctx context.Context)) *Provider_GitSubmoduleEnabled_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_GitSubmoduleEnabled_Call) Return(b bool, err error) *Provider_GitSubmoduleEnabled_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *Provider_GitSubmoduleEnabled_Call) RunAndReturn(run func(ctx context.Context) (bool, error)) *Provider_GitSubmoduleEnabled_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GlobalProjectsSettings provides a mock function for the type Provider
 func (_mock *Provider) GlobalProjectsSettings(ctx context.Context) ([]settings.GlobalProjectSettings, error) {
 	ret := _mock.Called(ctx)
@@ -645,6 +1613,66 @@ func (_c *Provider_HelmSettings_Call) Return(helmOptions v1alpha1.HelmOptions, e
 }
 
 func (_c *Provider_HelmSettings_Call) RunAndReturn(run func(ctx context.Context) (v1alpha1.HelmOptions, error)) *Provider_HelmSettings_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// HydratorEnabled provides a mock function for the type Provider
+func (_mock *Provider) HydratorEnabled(ctx context.Context) (bool, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for HydratorEnabled")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (bool, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) bool); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_HydratorEnabled_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'HydratorEnabled'
+type Provider_HydratorEnabled_Call struct {
+	*mock.Call
+}
+
+// HydratorEnabled is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) HydratorEnabled(ctx any) *Provider_HydratorEnabled_Call {
+	return &Provider_HydratorEnabled_Call{Call: _e.mock.On("HydratorEnabled", ctx)}
+}
+
+func (_c *Provider_HydratorEnabled_Call) Run(run func(ctx context.Context)) *Provider_HydratorEnabled_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_HydratorEnabled_Call) Return(b bool, err error) *Provider_HydratorEnabled_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *Provider_HydratorEnabled_Call) RunAndReturn(run func(ctx context.Context) (bool, error)) *Provider_HydratorEnabled_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -889,6 +1917,66 @@ func (_c *Provider_IncludeEventLabelKeys_Call) Return(strings []string, err erro
 }
 
 func (_c *Provider_IncludeEventLabelKeys_Call) RunAndReturn(run func(ctx context.Context) ([]string, error)) *Provider_IncludeEventLabelKeys_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Insecure provides a mock function for the type Provider
+func (_mock *Provider) Insecure(ctx context.Context) (bool, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Insecure")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (bool, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) bool); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_Insecure_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Insecure'
+type Provider_Insecure_Call struct {
+	*mock.Call
+}
+
+// Insecure is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) Insecure(ctx any) *Provider_Insecure_Call {
+	return &Provider_Insecure_Call{Call: _e.mock.On("Insecure", ctx)}
+}
+
+func (_c *Provider_Insecure_Call) Run(run func(ctx context.Context)) *Provider_Insecure_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_Insecure_Call) Return(b bool, err error) *Provider_Insecure_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *Provider_Insecure_Call) RunAndReturn(run func(ctx context.Context) (bool, error)) *Provider_Insecure_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1193,6 +2281,126 @@ func (_c *Provider_KustomizeSettings_Call) RunAndReturn(run func(ctx context.Con
 	return _c
 }
 
+// ListenHost provides a mock function for the type Provider
+func (_mock *Provider) ListenHost(ctx context.Context) (string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListenHost")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_ListenHost_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListenHost'
+type Provider_ListenHost_Call struct {
+	*mock.Call
+}
+
+// ListenHost is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) ListenHost(ctx any) *Provider_ListenHost_Call {
+	return &Provider_ListenHost_Call{Call: _e.mock.On("ListenHost", ctx)}
+}
+
+func (_c *Provider_ListenHost_Call) Run(run func(ctx context.Context)) *Provider_ListenHost_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_ListenHost_Call) Return(s string, err error) *Provider_ListenHost_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *Provider_ListenHost_Call) RunAndReturn(run func(ctx context.Context) (string, error)) *Provider_ListenHost_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ListenPort provides a mock function for the type Provider
+func (_mock *Provider) ListenPort(ctx context.Context) (int, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ListenPort")
+	}
+
+	var r0 int
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (int, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) int); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_ListenPort_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ListenPort'
+type Provider_ListenPort_Call struct {
+	*mock.Call
+}
+
+// ListenPort is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) ListenPort(ctx any) *Provider_ListenPort_Call {
+	return &Provider_ListenPort_Call{Call: _e.mock.On("ListenPort", ctx)}
+}
+
+func (_c *Provider_ListenPort_Call) Run(run func(ctx context.Context)) *Provider_ListenPort_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_ListenPort_Call) Return(n int, err error) *Provider_ListenPort_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *Provider_ListenPort_Call) RunAndReturn(run func(ctx context.Context) (int, error)) *Provider_ListenPort_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // MetricsClusterLabels provides a mock function for the type Provider
 func (_mock *Provider) MetricsClusterLabels(ctx context.Context) ([]string, error) {
 	ret := _mock.Called(ctx)
@@ -1251,6 +2459,126 @@ func (_c *Provider_MetricsClusterLabels_Call) Return(strings []string, err error
 }
 
 func (_c *Provider_MetricsClusterLabels_Call) RunAndReturn(run func(ctx context.Context) ([]string, error)) *Provider_MetricsClusterLabels_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// MetricsHost provides a mock function for the type Provider
+func (_mock *Provider) MetricsHost(ctx context.Context) (string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for MetricsHost")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_MetricsHost_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MetricsHost'
+type Provider_MetricsHost_Call struct {
+	*mock.Call
+}
+
+// MetricsHost is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) MetricsHost(ctx any) *Provider_MetricsHost_Call {
+	return &Provider_MetricsHost_Call{Call: _e.mock.On("MetricsHost", ctx)}
+}
+
+func (_c *Provider_MetricsHost_Call) Run(run func(ctx context.Context)) *Provider_MetricsHost_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_MetricsHost_Call) Return(s string, err error) *Provider_MetricsHost_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *Provider_MetricsHost_Call) RunAndReturn(run func(ctx context.Context) (string, error)) *Provider_MetricsHost_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// MetricsPort provides a mock function for the type Provider
+func (_mock *Provider) MetricsPort(ctx context.Context) (int, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for MetricsPort")
+	}
+
+	var r0 int
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (int, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) int); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_MetricsPort_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MetricsPort'
+type Provider_MetricsPort_Call struct {
+	*mock.Call
+}
+
+// MetricsPort is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) MetricsPort(ctx any) *Provider_MetricsPort_Call {
+	return &Provider_MetricsPort_Call{Call: _e.mock.On("MetricsPort", ctx)}
+}
+
+func (_c *Provider_MetricsPort_Call) Run(run func(ctx context.Context)) *Provider_MetricsPort_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_MetricsPort_Call) Return(n int, err error) *Provider_MetricsPort_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *Provider_MetricsPort_Call) RunAndReturn(run func(ctx context.Context) (int, error)) *Provider_MetricsPort_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1799,6 +3127,126 @@ func (_c *Provider_RespectRBAC_Call) RunAndReturn(run func(ctx context.Context) 
 	return _c
 }
 
+// RootPath provides a mock function for the type Provider
+func (_mock *Provider) RootPath(ctx context.Context) (string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RootPath")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_RootPath_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RootPath'
+type Provider_RootPath_Call struct {
+	*mock.Call
+}
+
+// RootPath is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) RootPath(ctx any) *Provider_RootPath_Call {
+	return &Provider_RootPath_Call{Call: _e.mock.On("RootPath", ctx)}
+}
+
+func (_c *Provider_RootPath_Call) Run(run func(ctx context.Context)) *Provider_RootPath_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_RootPath_Call) Return(s string, err error) *Provider_RootPath_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *Provider_RootPath_Call) RunAndReturn(run func(ctx context.Context) (string, error)) *Provider_RootPath_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ScmRootCAPath provides a mock function for the type Provider
+func (_mock *Provider) ScmRootCAPath(ctx context.Context) (string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ScmRootCAPath")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_ScmRootCAPath_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ScmRootCAPath'
+type Provider_ScmRootCAPath_Call struct {
+	*mock.Call
+}
+
+// ScmRootCAPath is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) ScmRootCAPath(ctx any) *Provider_ScmRootCAPath_Call {
+	return &Provider_ScmRootCAPath_Call{Call: _e.mock.On("ScmRootCAPath", ctx)}
+}
+
+func (_c *Provider_ScmRootCAPath_Call) Run(run func(ctx context.Context)) *Provider_ScmRootCAPath_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_ScmRootCAPath_Call) Return(s string, err error) *Provider_ScmRootCAPath_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *Provider_ScmRootCAPath_Call) RunAndReturn(run func(ctx context.Context) (string, error)) *Provider_ScmRootCAPath_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SelfHealRetry provides a mock function for the type Provider
 func (_mock *Provider) SelfHealRetry(ctx context.Context) (configbus.SelfHealRetry, error) {
 	ret := _mock.Called(ctx)
@@ -2101,6 +3549,66 @@ func (_c *Provider_SourceHydratorCommitMessageTemplate_Call) RunAndReturn(run fu
 	return _c
 }
 
+// StaticAssetsDir provides a mock function for the type Provider
+func (_mock *Provider) StaticAssetsDir(ctx context.Context) (string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for StaticAssetsDir")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_StaticAssetsDir_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'StaticAssetsDir'
+type Provider_StaticAssetsDir_Call struct {
+	*mock.Call
+}
+
+// StaticAssetsDir is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) StaticAssetsDir(ctx any) *Provider_StaticAssetsDir_Call {
+	return &Provider_StaticAssetsDir_Call{Call: _e.mock.On("StaticAssetsDir", ctx)}
+}
+
+func (_c *Provider_StaticAssetsDir_Call) Run(run func(ctx context.Context)) *Provider_StaticAssetsDir_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_StaticAssetsDir_Call) Return(s string, err error) *Provider_StaticAssetsDir_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *Provider_StaticAssetsDir_Call) RunAndReturn(run func(ctx context.Context) (string, error)) *Provider_StaticAssetsDir_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Subscribe provides a mock function for the type Provider
 func (_mock *Provider) Subscribe(subCh chan<- *settings.ArgoCDSettings) {
 	_mock.Called(subCh)
@@ -2197,6 +3705,66 @@ func (_c *Provider_SyncTimeout_Call) Return(duration time.Duration, err error) *
 }
 
 func (_c *Provider_SyncTimeout_Call) RunAndReturn(run func(ctx context.Context) (time.Duration, error)) *Provider_SyncTimeout_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// SyncWithReplaceAllowed provides a mock function for the type Provider
+func (_mock *Provider) SyncWithReplaceAllowed(ctx context.Context) (bool, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for SyncWithReplaceAllowed")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (bool, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) bool); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_SyncWithReplaceAllowed_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SyncWithReplaceAllowed'
+type Provider_SyncWithReplaceAllowed_Call struct {
+	*mock.Call
+}
+
+// SyncWithReplaceAllowed is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) SyncWithReplaceAllowed(ctx any) *Provider_SyncWithReplaceAllowed_Call {
+	return &Provider_SyncWithReplaceAllowed_Call{Call: _e.mock.On("SyncWithReplaceAllowed", ctx)}
+}
+
+func (_c *Provider_SyncWithReplaceAllowed_Call) Run(run func(ctx context.Context)) *Provider_SyncWithReplaceAllowed_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_SyncWithReplaceAllowed_Call) Return(b bool, err error) *Provider_SyncWithReplaceAllowed_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *Provider_SyncWithReplaceAllowed_Call) RunAndReturn(run func(ctx context.Context) (bool, error)) *Provider_SyncWithReplaceAllowed_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2298,5 +3866,185 @@ func (_c *Provider_Unsubscribe_Call) Return() *Provider_Unsubscribe_Call {
 
 func (_c *Provider_Unsubscribe_Call) RunAndReturn(run func(subCh chan<- *settings.ArgoCDSettings)) *Provider_Unsubscribe_Call {
 	_c.Run(run)
+	return _c
+}
+
+// WebhookParallelism provides a mock function for the type Provider
+func (_mock *Provider) WebhookParallelism(ctx context.Context) (int, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for WebhookParallelism")
+	}
+
+	var r0 int
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (int, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) int); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_WebhookParallelism_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'WebhookParallelism'
+type Provider_WebhookParallelism_Call struct {
+	*mock.Call
+}
+
+// WebhookParallelism is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) WebhookParallelism(ctx any) *Provider_WebhookParallelism_Call {
+	return &Provider_WebhookParallelism_Call{Call: _e.mock.On("WebhookParallelism", ctx)}
+}
+
+func (_c *Provider_WebhookParallelism_Call) Run(run func(ctx context.Context)) *Provider_WebhookParallelism_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_WebhookParallelism_Call) Return(n int, err error) *Provider_WebhookParallelism_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *Provider_WebhookParallelism_Call) RunAndReturn(run func(ctx context.Context) (int, error)) *Provider_WebhookParallelism_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// WebhookRefreshWorkers provides a mock function for the type Provider
+func (_mock *Provider) WebhookRefreshWorkers(ctx context.Context) (int, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for WebhookRefreshWorkers")
+	}
+
+	var r0 int
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (int, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) int); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_WebhookRefreshWorkers_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'WebhookRefreshWorkers'
+type Provider_WebhookRefreshWorkers_Call struct {
+	*mock.Call
+}
+
+// WebhookRefreshWorkers is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) WebhookRefreshWorkers(ctx any) *Provider_WebhookRefreshWorkers_Call {
+	return &Provider_WebhookRefreshWorkers_Call{Call: _e.mock.On("WebhookRefreshWorkers", ctx)}
+}
+
+func (_c *Provider_WebhookRefreshWorkers_Call) Run(run func(ctx context.Context)) *Provider_WebhookRefreshWorkers_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_WebhookRefreshWorkers_Call) Return(n int, err error) *Provider_WebhookRefreshWorkers_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *Provider_WebhookRefreshWorkers_Call) RunAndReturn(run func(ctx context.Context) (int, error)) *Provider_WebhookRefreshWorkers_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// XFrameOptions provides a mock function for the type Provider
+func (_mock *Provider) XFrameOptions(ctx context.Context) (string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for XFrameOptions")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_XFrameOptions_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'XFrameOptions'
+type Provider_XFrameOptions_Call struct {
+	*mock.Call
+}
+
+// XFrameOptions is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) XFrameOptions(ctx any) *Provider_XFrameOptions_Call {
+	return &Provider_XFrameOptions_Call{Call: _e.mock.On("XFrameOptions", ctx)}
+}
+
+func (_c *Provider_XFrameOptions_Call) Run(run func(ctx context.Context)) *Provider_XFrameOptions_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_XFrameOptions_Call) Return(s string, err error) *Provider_XFrameOptions_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *Provider_XFrameOptions_Call) RunAndReturn(run func(ctx context.Context) (string, error)) *Provider_XFrameOptions_Call {
+	_c.Call.Return(run)
 	return _c
 }

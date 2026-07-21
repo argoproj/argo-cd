@@ -18,6 +18,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient"
 	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v3/test"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 )
 
 func TestUserAgent(t *testing.T) {
@@ -69,7 +70,7 @@ func TestUserAgent(t *testing.T) {
 
 	for _, test := range tests {
 		opts := apiclient.ClientOptions{
-			ServerAddr: fmt.Sprintf("localhost:%d", s.ListenPort),
+			ServerAddr: fmt.Sprintf("localhost:%d", mustListenPort(t, s)),
 			PlainText:  true,
 			UserAgent:  test.userAgent,
 		}
@@ -108,7 +109,7 @@ func Test_StaticHeaders(t *testing.T) {
 		// Allow server startup
 		time.Sleep(1 * time.Second)
 
-		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", s.ListenPort)
+		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", mustListenPort(t, s))
 		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, url, http.NoBody)
 		require.NoError(t, err)
 		resp, err := http.DefaultClient.Do(req)
@@ -123,8 +124,7 @@ func Test_StaticHeaders(t *testing.T) {
 	{
 		s, closer := fakeServer(t)
 		defer closer()
-		s.XFrameOptions = "deny"
-		s.ContentSecurityPolicy = "frame-ancestors 'none';"
+		withStaticHeaderOverrides(t, s, "deny", "frame-ancestors 'none';")
 		cancelInformer := test.StartInformer(s.projInformer)
 		defer cancelInformer()
 		lns, err := s.Listen()
@@ -138,7 +138,7 @@ func Test_StaticHeaders(t *testing.T) {
 		// Allow server startup
 		time.Sleep(1 * time.Second)
 
-		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", s.ListenPort)
+		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", mustListenPort(t, s))
 		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, url, http.NoBody)
 		require.NoError(t, err)
 		resp, err := http.DefaultClient.Do(req)
@@ -152,8 +152,7 @@ func Test_StaticHeaders(t *testing.T) {
 	{
 		s, closer := fakeServer(t)
 		defer closer()
-		s.XFrameOptions = ""
-		s.ContentSecurityPolicy = ""
+		withStaticHeaderOverrides(t, s, "", "")
 		cancelInformer := test.StartInformer(s.projInformer)
 		defer cancelInformer()
 		lns, err := s.Listen()
@@ -164,13 +163,13 @@ func Test_StaticHeaders(t *testing.T) {
 		go s.Run(ctx, lns)
 		defer time.Sleep(3 * time.Second)
 
-		err = test.WaitForPortListen(fmt.Sprintf("127.0.0.1:%d", s.ListenPort), 10*time.Second)
+		err = test.WaitForPortListen(fmt.Sprintf("127.0.0.1:%d", mustListenPort(t, s)), 10*time.Second)
 		require.NoError(t, err)
 
 		// Allow server startup
 		time.Sleep(1 * time.Second)
 
-		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", s.ListenPort)
+		url := fmt.Sprintf("http://127.0.0.1:%d/test.html", mustListenPort(t, s))
 		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, url, http.NoBody)
 		require.NoError(t, err)
 		resp, err := http.DefaultClient.Do(req)
@@ -179,4 +178,24 @@ func Test_StaticHeaders(t *testing.T) {
 		assert.Empty(t, resp.Header.Get("Content-Security-Policy"))
 		require.NoError(t, resp.Body.Close())
 	}
+}
+
+// withStaticHeaderOverrides prepends a Static leaf so header tests can mutate
+// values after NewServer snapshots opts into configProvider.
+func withStaticHeaderOverrides(t *testing.T, s *FakeArgoCDServer, xFrameOptions, contentSecurityPolicy string) {
+	t.Helper()
+	s.configProvider = configbus.NewChainProvider(
+		&configbus.StaticProvider{Fields: configbus.StaticFields{
+			ContentSecurityPolicy: configbus.Ptr(contentSecurityPolicy),
+			XFrameOptions:         configbus.Ptr(xFrameOptions),
+		}},
+		s.configProvider,
+	)
+}
+
+func mustListenPort(t *testing.T, s *FakeArgoCDServer) int {
+	t.Helper()
+	port, err := s.ConfigProvider().ListenPort(context.Background())
+	require.NoError(t, err)
+	return port
 }

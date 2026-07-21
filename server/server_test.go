@@ -417,7 +417,9 @@ func TestRevokedToken(t *testing.T) {
 func TestCertsAreNotGeneratedInInsecureMode(t *testing.T) {
 	s, closer := fakeServer(t)
 	defer closer()
-	assert.True(t, s.Insecure)
+	insecure, err := s.ConfigProvider().Insecure(context.Background())
+	require.NoError(t, err)
+	assert.True(t, insecure)
 	assert.Nil(t, s.settings.Certificate)
 }
 
@@ -778,7 +780,11 @@ connectors:
 	}
 	argocd = NewServer(t.Context(), argoCDOpts, ApplicationSetOpts{})
 	var err error
-	argocd.ssoClientApp, err = oidc.NewClientApp(argocd.settings, argocd.DexServerAddr, argocd.DexTLSConfig, argocd.BaseHRef, cache.NewInMemoryCache(24*time.Hour))
+	dexServerAddr, err := argocd.ConfigProvider().DexServerAddr(context.Background())
+	require.NoError(t, err)
+	baseHRef, err := argocd.ConfigProvider().BaseHRef(context.Background())
+	require.NoError(t, err)
+	argocd.ssoClientApp, err = oidc.NewClientApp(argocd.settings, dexServerAddr, argocd.DexTLSConfig, baseHRef, cache.NewInMemoryCache(24*time.Hour))
 	require.NoError(t, err)
 	return argocd, oidcServer.URL
 }
@@ -1668,7 +1674,8 @@ func TestCacheControlHeaders(t *testing.T) {
 			argocd, closer := fakeServer(t)
 			defer closer()
 
-			handler := argocd.newStaticAssetsHandler()
+			handler, err := argocd.newStaticAssetsHandler()
+			require.NoError(t, err)
 
 			rr := httptest.NewRecorder()
 			req := httptest.NewRequestWithContext(t.Context(), "", "/"+testCase.filename, http.NoBody)
@@ -1936,24 +1943,30 @@ func Test_StaticAssetsDir_no_symlink_traversal(t *testing.T) {
 	defer closer()
 
 	// Create a symlink to the file
-	symlinkPath := filepath.Join(argocd.StaticAssetsDir, "link.txt")
+	staticAssetsDir, err := argocd.ConfigProvider().StaticAssetsDir(context.Background())
+	require.NoError(t, err)
+	symlinkPath := filepath.Join(staticAssetsDir, "link.txt")
 	err = os.Symlink(filePath, symlinkPath)
 	require.NoError(t, err)
 
 	// Make a request to get the file from the /assets endpoint
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/link.txt", http.NoBody)
 	w := httptest.NewRecorder()
-	argocd.newStaticAssetsHandler()(w, req)
+	handler, err := argocd.newStaticAssetsHandler()
+	require.NoError(t, err)
+	handler(w, req)
 	resp := w.Result()
 	assert.Equal(t, http.StatusInternalServerError, resp.StatusCode, "should not have been able to access the symlinked file")
 
 	// Make sure a normal file works
-	normalFilePath := filepath.Join(argocd.StaticAssetsDir, "normal.txt")
+	normalFilePath := filepath.Join(staticAssetsDir, "normal.txt")
 	err = os.WriteFile(normalFilePath, []byte("normal"), 0o644)
 	require.NoError(t, err)
 	req = httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/normal.txt", http.NoBody)
 	w = httptest.NewRecorder()
-	argocd.newStaticAssetsHandler()(w, req)
+	handler, err = argocd.newStaticAssetsHandler()
+	require.NoError(t, err)
+	handler(w, req)
 	resp = w.Result()
 	assert.Equal(t, http.StatusOK, resp.StatusCode, "should have been able to access the normal file")
 }

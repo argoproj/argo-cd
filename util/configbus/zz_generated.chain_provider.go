@@ -48,9 +48,27 @@ func (c *ChainProvider) AllowedNodeLabels(ctx context.Context) ([]string, error)
 	}, c.links)
 }
 
+func (c *ChainProvider) AllowedScmProviders(ctx context.Context) ([]string, error) {
+	return firstConfigured(func(p Provider) ([]string, error) {
+		return p.AllowedScmProviders(ctx)
+	}, c.links)
+}
+
 func (c *ChainProvider) AppInstanceLabelKey(ctx context.Context) (string, error) {
 	return firstConfigured(func(p Provider) (string, error) {
 		return p.AppInstanceLabelKey(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) ApplicationNamespaces(ctx context.Context) ([]string, error) {
+	return firstConfigured(func(p Provider) ([]string, error) {
+		return p.ApplicationNamespaces(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) BaseHRef(ctx context.Context) (string, error) {
+	return firstConfigured(func(p Provider) (string, error) {
+		return p.BaseHRef(ctx)
 	}, c.links)
 }
 
@@ -63,6 +81,78 @@ func (c *ChainProvider) CommitAuthorEmail(ctx context.Context) (string, error) {
 func (c *ChainProvider) CommitAuthorName(ctx context.Context) (string, error) {
 	return firstConfigured(func(p Provider) (string, error) {
 		return p.CommitAuthorName(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) ContentSecurityPolicy(ctx context.Context) (string, error) {
+	return firstConfigured(func(p Provider) (string, error) {
+		return p.ContentSecurityPolicy(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) ContentTypes(ctx context.Context) ([]string, error) {
+	return firstConfigured(func(p Provider) ([]string, error) {
+		return p.ContentTypes(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) DexServerAddr(ctx context.Context) (string, error) {
+	return firstConfigured(func(p Provider) (string, error) {
+		return p.DexServerAddr(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) DexServerPlaintext(ctx context.Context) (bool, error) {
+	return firstConfigured(func(p Provider) (bool, error) {
+		return p.DexServerPlaintext(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) DexServerStrictTLS(ctx context.Context) (bool, error) {
+	return firstConfigured(func(p Provider) (bool, error) {
+		return p.DexServerStrictTLS(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) DisableAuth(ctx context.Context) (bool, error) {
+	return firstConfigured(func(p Provider) (bool, error) {
+		return p.DisableAuth(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) EnableGZip(ctx context.Context) (bool, error) {
+	return firstConfigured(func(p Provider) (bool, error) {
+		return p.EnableGZip(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) EnableGitHubAPIMetrics(ctx context.Context) (bool, error) {
+	return firstConfigured(func(p Provider) (bool, error) {
+		return p.EnableGitHubAPIMetrics(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) EnableK8sEvent(ctx context.Context) ([]string, error) {
+	return firstConfigured(func(p Provider) ([]string, error) {
+		return p.EnableK8sEvent(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) EnableNewGitFileGlobbing(ctx context.Context) (bool, error) {
+	return firstConfigured(func(p Provider) (bool, error) {
+		return p.EnableNewGitFileGlobbing(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) EnableProxyExtension(ctx context.Context) (bool, error) {
+	return firstConfigured(func(p Provider) (bool, error) {
+		return p.EnableProxyExtension(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) EnableScmProviders(ctx context.Context) (bool, error) {
+	return firstConfigured(func(p Provider) (bool, error) {
+		return p.EnableScmProviders(ctx)
 	}, c.links)
 }
 
@@ -84,6 +174,12 @@ func (c *ChainProvider) GitRequestTimeout(ctx context.Context) (time.Duration, e
 	}, c.links)
 }
 
+func (c *ChainProvider) GitSubmoduleEnabled(ctx context.Context) (bool, error) {
+	return firstConfigured(func(p Provider) (bool, error) {
+		return p.GitSubmoduleEnabled(ctx)
+	}, c.links)
+}
+
 func (c *ChainProvider) GlobalProjectsSettings(ctx context.Context) ([]settings.GlobalProjectSettings, error) {
 	return firstConfigured(func(p Provider) ([]settings.GlobalProjectSettings, error) {
 		return p.GlobalProjectsSettings(ctx)
@@ -99,6 +195,12 @@ func (c *ChainProvider) HardReconciliationTimeout(ctx context.Context) (time.Dur
 func (c *ChainProvider) HelmSettings(ctx context.Context) (v1alpha1.HelmOptions, error) {
 	return firstConfigured(func(p Provider) (v1alpha1.HelmOptions, error) {
 		return p.HelmSettings(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) HydratorEnabled(ctx context.Context) (bool, error) {
+	return firstConfigured(func(p Provider) (bool, error) {
+		return p.HydratorEnabled(ctx)
 	}, c.links)
 }
 
@@ -123,6 +225,12 @@ func (c *ChainProvider) IgnoreResourceUpdatesOverrides(ctx context.Context) (map
 func (c *ChainProvider) IncludeEventLabelKeys(ctx context.Context) ([]string, error) {
 	return firstConfigured(func(p Provider) ([]string, error) {
 		return p.IncludeEventLabelKeys(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) Insecure(ctx context.Context) (bool, error) {
+	return firstConfigured(func(p Provider) (bool, error) {
+		return p.Insecure(ctx)
 	}, c.links)
 }
 
@@ -156,9 +264,33 @@ func (c *ChainProvider) KustomizeSettings(ctx context.Context) (v1alpha1.Kustomi
 	}, c.links)
 }
 
+func (c *ChainProvider) ListenHost(ctx context.Context) (string, error) {
+	return firstConfigured(func(p Provider) (string, error) {
+		return p.ListenHost(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) ListenPort(ctx context.Context) (int, error) {
+	return firstConfigured(func(p Provider) (int, error) {
+		return p.ListenPort(ctx)
+	}, c.links)
+}
+
 func (c *ChainProvider) MetricsClusterLabels(ctx context.Context) ([]string, error) {
 	return firstConfigured(func(p Provider) ([]string, error) {
 		return p.MetricsClusterLabels(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) MetricsHost(ctx context.Context) (string, error) {
+	return firstConfigured(func(p Provider) (string, error) {
+		return p.MetricsHost(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) MetricsPort(ctx context.Context) (int, error) {
+	return firstConfigured(func(p Provider) (int, error) {
+		return p.MetricsPort(ctx)
 	}, c.links)
 }
 
@@ -216,6 +348,18 @@ func (c *ChainProvider) RespectRBAC(ctx context.Context) (int, error) {
 	}, c.links)
 }
 
+func (c *ChainProvider) RootPath(ctx context.Context) (string, error) {
+	return firstConfigured(func(p Provider) (string, error) {
+		return p.RootPath(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) ScmRootCAPath(ctx context.Context) (string, error) {
+	return firstConfigured(func(p Provider) (string, error) {
+		return p.ScmRootCAPath(ctx)
+	}, c.links)
+}
+
 func (c *ChainProvider) SelfHealRetry(ctx context.Context) (SelfHealRetry, error) {
 	return firstConfigured(func(p Provider) (SelfHealRetry, error) {
 		return p.SelfHealRetry(ctx)
@@ -246,14 +390,44 @@ func (c *ChainProvider) SourceHydratorCommitMessageTemplate(ctx context.Context)
 	}, c.links)
 }
 
+func (c *ChainProvider) StaticAssetsDir(ctx context.Context) (string, error) {
+	return firstConfigured(func(p Provider) (string, error) {
+		return p.StaticAssetsDir(ctx)
+	}, c.links)
+}
+
 func (c *ChainProvider) SyncTimeout(ctx context.Context) (time.Duration, error) {
 	return firstConfigured(func(p Provider) (time.Duration, error) {
 		return p.SyncTimeout(ctx)
 	}, c.links)
 }
 
+func (c *ChainProvider) SyncWithReplaceAllowed(ctx context.Context) (bool, error) {
+	return firstConfigured(func(p Provider) (bool, error) {
+		return p.SyncWithReplaceAllowed(ctx)
+	}, c.links)
+}
+
 func (c *ChainProvider) TrackingMethod(ctx context.Context) (string, error) {
 	return firstConfigured(func(p Provider) (string, error) {
 		return p.TrackingMethod(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) WebhookParallelism(ctx context.Context) (int, error) {
+	return firstConfigured(func(p Provider) (int, error) {
+		return p.WebhookParallelism(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) WebhookRefreshWorkers(ctx context.Context) (int, error) {
+	return firstConfigured(func(p Provider) (int, error) {
+		return p.WebhookRefreshWorkers(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) XFrameOptions(ctx context.Context) (string, error) {
+	return firstConfigured(func(p Provider) (string, error) {
+		return p.XFrameOptions(ctx)
 	}, c.links)
 }

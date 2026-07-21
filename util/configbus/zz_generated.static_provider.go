@@ -22,25 +22,47 @@ import (
 //   - Method returning ([]T, error) or (map[K]V, error) → field *[]T / *map[K]V
 type StaticFields struct {
 	AllowedNodeLabels                   *[]string
+	AllowedScmProviders                 *[]string
 	AppInstanceLabelKey                 *string
+	ApplicationNamespaces               *[]string
+	BaseHRef                            *string
 	CommitAuthorEmail                   *string
 	CommitAuthorName                    *string
+	ContentSecurityPolicy               *string
+	ContentTypes                        *[]string
+	DexServerAddr                       *string
+	DexServerPlaintext                  *bool
+	DexServerStrictTLS                  *bool
+	DisableAuth                         *bool
+	EnableGZip                          *bool
+	EnableGitHubAPIMetrics              *bool
+	EnableK8sEvent                      *[]string
+	EnableNewGitFileGlobbing            *bool
+	EnableProxyExtension                *bool
+	EnableScmProviders                  *bool
 	EnabledSourceTypes                  *map[string]bool
 	ExcludeEventLabelKeys               *[]string
 	GitRequestTimeout                   *time.Duration
+	GitSubmoduleEnabled                 *bool
 	GlobalProjectsSettings              *[]settings.GlobalProjectSettings
 	HardReconciliationTimeout           *time.Duration
 	HelmSettings                        *v1alpha1.HelmOptions
+	HydratorEnabled                     *bool
 	HydratorReadmeTemplate              *string
 	IgnoreNormalizerJQTimeout           *time.Duration
 	IgnoreResourceUpdatesOverrides      *map[string]v1alpha1.ResourceOverride
 	IncludeEventLabelKeys               *[]string
+	Insecure                            *bool
 	InstallationID                      *string
 	IsIgnoreResourceUpdatesEnabled      *bool
 	IsImpersonationEnabled              *bool
 	IsImpersonationEnforced             *bool
 	KustomizeSettings                   *v1alpha1.KustomizeOptions
+	ListenHost                          *string
+	ListenPort                          *int
 	MetricsClusterLabels                *[]string
+	MetricsHost                         *string
+	MetricsPort                         *int
 	PersistResourceHealth               *bool
 	ReconciliationJitter                *time.Duration
 	ReconciliationTimeout               *time.Duration
@@ -50,13 +72,20 @@ type StaticFields struct {
 	ResourceOverrides                   *map[string]v1alpha1.ResourceOverride
 	ResourcesFilter                     *settings.ResourcesFilter
 	RespectRBAC                         *int
+	RootPath                            *string
+	ScmRootCAPath                       *string
 	SelfHealRetry                       *SelfHealRetry
 	SelfHealTimeout                     *time.Duration
 	SensitiveAnnotations                *map[string]bool
 	ServerSideDiff                      *bool
 	SourceHydratorCommitMessageTemplate *string
+	StaticAssetsDir                     *string
 	SyncTimeout                         *time.Duration
+	SyncWithReplaceAllowed              *bool
 	TrackingMethod                      *string
+	WebhookParallelism                  *int
+	WebhookRefreshWorkers               *int
+	XFrameOptions                       *string
 }
 
 // StaticProvider is a leaf Provider backed by StaticFields.
@@ -79,11 +108,32 @@ func (p *StaticProvider) AllowedNodeLabels(_ context.Context) ([]string, error) 
 	return *p.Fields.AllowedNodeLabels, nil
 }
 
+func (p *StaticProvider) AllowedScmProviders(_ context.Context) ([]string, error) {
+	if p == nil || p.Fields.AllowedScmProviders == nil {
+		return nil, ErrNotConfigured
+	}
+	return *p.Fields.AllowedScmProviders, nil
+}
+
 func (p *StaticProvider) AppInstanceLabelKey(_ context.Context) (string, error) {
 	if p == nil || p.Fields.AppInstanceLabelKey == nil {
 		return "", ErrNotConfigured
 	}
 	return *p.Fields.AppInstanceLabelKey, nil
+}
+
+func (p *StaticProvider) ApplicationNamespaces(_ context.Context) ([]string, error) {
+	if p == nil || p.Fields.ApplicationNamespaces == nil {
+		return nil, ErrNotConfigured
+	}
+	return *p.Fields.ApplicationNamespaces, nil
+}
+
+func (p *StaticProvider) BaseHRef(_ context.Context) (string, error) {
+	if p == nil || p.Fields.BaseHRef == nil {
+		return "", ErrNotConfigured
+	}
+	return *p.Fields.BaseHRef, nil
 }
 
 func (p *StaticProvider) CommitAuthorEmail(_ context.Context) (string, error) {
@@ -98,6 +148,90 @@ func (p *StaticProvider) CommitAuthorName(_ context.Context) (string, error) {
 		return "", ErrNotConfigured
 	}
 	return *p.Fields.CommitAuthorName, nil
+}
+
+func (p *StaticProvider) ContentSecurityPolicy(_ context.Context) (string, error) {
+	if p == nil || p.Fields.ContentSecurityPolicy == nil {
+		return "", ErrNotConfigured
+	}
+	return *p.Fields.ContentSecurityPolicy, nil
+}
+
+func (p *StaticProvider) ContentTypes(_ context.Context) ([]string, error) {
+	if p == nil || p.Fields.ContentTypes == nil {
+		return nil, ErrNotConfigured
+	}
+	return *p.Fields.ContentTypes, nil
+}
+
+func (p *StaticProvider) DexServerAddr(_ context.Context) (string, error) {
+	if p == nil || p.Fields.DexServerAddr == nil {
+		return "", ErrNotConfigured
+	}
+	return *p.Fields.DexServerAddr, nil
+}
+
+func (p *StaticProvider) DexServerPlaintext(_ context.Context) (bool, error) {
+	if p == nil || p.Fields.DexServerPlaintext == nil {
+		return false, ErrNotConfigured
+	}
+	return *p.Fields.DexServerPlaintext, nil
+}
+
+func (p *StaticProvider) DexServerStrictTLS(_ context.Context) (bool, error) {
+	if p == nil || p.Fields.DexServerStrictTLS == nil {
+		return false, ErrNotConfigured
+	}
+	return *p.Fields.DexServerStrictTLS, nil
+}
+
+func (p *StaticProvider) DisableAuth(_ context.Context) (bool, error) {
+	if p == nil || p.Fields.DisableAuth == nil {
+		return false, ErrNotConfigured
+	}
+	return *p.Fields.DisableAuth, nil
+}
+
+func (p *StaticProvider) EnableGZip(_ context.Context) (bool, error) {
+	if p == nil || p.Fields.EnableGZip == nil {
+		return false, ErrNotConfigured
+	}
+	return *p.Fields.EnableGZip, nil
+}
+
+func (p *StaticProvider) EnableGitHubAPIMetrics(_ context.Context) (bool, error) {
+	if p == nil || p.Fields.EnableGitHubAPIMetrics == nil {
+		return false, ErrNotConfigured
+	}
+	return *p.Fields.EnableGitHubAPIMetrics, nil
+}
+
+func (p *StaticProvider) EnableK8sEvent(_ context.Context) ([]string, error) {
+	if p == nil || p.Fields.EnableK8sEvent == nil {
+		return nil, ErrNotConfigured
+	}
+	return *p.Fields.EnableK8sEvent, nil
+}
+
+func (p *StaticProvider) EnableNewGitFileGlobbing(_ context.Context) (bool, error) {
+	if p == nil || p.Fields.EnableNewGitFileGlobbing == nil {
+		return false, ErrNotConfigured
+	}
+	return *p.Fields.EnableNewGitFileGlobbing, nil
+}
+
+func (p *StaticProvider) EnableProxyExtension(_ context.Context) (bool, error) {
+	if p == nil || p.Fields.EnableProxyExtension == nil {
+		return false, ErrNotConfigured
+	}
+	return *p.Fields.EnableProxyExtension, nil
+}
+
+func (p *StaticProvider) EnableScmProviders(_ context.Context) (bool, error) {
+	if p == nil || p.Fields.EnableScmProviders == nil {
+		return false, ErrNotConfigured
+	}
+	return *p.Fields.EnableScmProviders, nil
 }
 
 func (p *StaticProvider) EnabledSourceTypes(_ context.Context) (map[string]bool, error) {
@@ -121,6 +255,13 @@ func (p *StaticProvider) GitRequestTimeout(_ context.Context) (time.Duration, er
 	return *p.Fields.GitRequestTimeout, nil
 }
 
+func (p *StaticProvider) GitSubmoduleEnabled(_ context.Context) (bool, error) {
+	if p == nil || p.Fields.GitSubmoduleEnabled == nil {
+		return false, ErrNotConfigured
+	}
+	return *p.Fields.GitSubmoduleEnabled, nil
+}
+
 func (p *StaticProvider) GlobalProjectsSettings(_ context.Context) ([]settings.GlobalProjectSettings, error) {
 	if p == nil || p.Fields.GlobalProjectsSettings == nil {
 		return nil, ErrNotConfigured
@@ -140,6 +281,13 @@ func (p *StaticProvider) HelmSettings(_ context.Context) (v1alpha1.HelmOptions, 
 		return v1alpha1.HelmOptions{}, ErrNotConfigured
 	}
 	return *p.Fields.HelmSettings, nil
+}
+
+func (p *StaticProvider) HydratorEnabled(_ context.Context) (bool, error) {
+	if p == nil || p.Fields.HydratorEnabled == nil {
+		return false, ErrNotConfigured
+	}
+	return *p.Fields.HydratorEnabled, nil
 }
 
 func (p *StaticProvider) HydratorReadmeTemplate(_ context.Context) (string, error) {
@@ -168,6 +316,13 @@ func (p *StaticProvider) IncludeEventLabelKeys(_ context.Context) ([]string, err
 		return nil, ErrNotConfigured
 	}
 	return *p.Fields.IncludeEventLabelKeys, nil
+}
+
+func (p *StaticProvider) Insecure(_ context.Context) (bool, error) {
+	if p == nil || p.Fields.Insecure == nil {
+		return false, ErrNotConfigured
+	}
+	return *p.Fields.Insecure, nil
 }
 
 func (p *StaticProvider) InstallationID(_ context.Context) (string, error) {
@@ -205,11 +360,39 @@ func (p *StaticProvider) KustomizeSettings(_ context.Context) (v1alpha1.Kustomiz
 	return *p.Fields.KustomizeSettings, nil
 }
 
+func (p *StaticProvider) ListenHost(_ context.Context) (string, error) {
+	if p == nil || p.Fields.ListenHost == nil {
+		return "", ErrNotConfigured
+	}
+	return *p.Fields.ListenHost, nil
+}
+
+func (p *StaticProvider) ListenPort(_ context.Context) (int, error) {
+	if p == nil || p.Fields.ListenPort == nil {
+		return 0, ErrNotConfigured
+	}
+	return *p.Fields.ListenPort, nil
+}
+
 func (p *StaticProvider) MetricsClusterLabels(_ context.Context) ([]string, error) {
 	if p == nil || p.Fields.MetricsClusterLabels == nil {
 		return nil, ErrNotConfigured
 	}
 	return *p.Fields.MetricsClusterLabels, nil
+}
+
+func (p *StaticProvider) MetricsHost(_ context.Context) (string, error) {
+	if p == nil || p.Fields.MetricsHost == nil {
+		return "", ErrNotConfigured
+	}
+	return *p.Fields.MetricsHost, nil
+}
+
+func (p *StaticProvider) MetricsPort(_ context.Context) (int, error) {
+	if p == nil || p.Fields.MetricsPort == nil {
+		return 0, ErrNotConfigured
+	}
+	return *p.Fields.MetricsPort, nil
 }
 
 func (p *StaticProvider) PersistResourceHealth(_ context.Context) (bool, error) {
@@ -275,6 +458,20 @@ func (p *StaticProvider) RespectRBAC(_ context.Context) (int, error) {
 	return *p.Fields.RespectRBAC, nil
 }
 
+func (p *StaticProvider) RootPath(_ context.Context) (string, error) {
+	if p == nil || p.Fields.RootPath == nil {
+		return "", ErrNotConfigured
+	}
+	return *p.Fields.RootPath, nil
+}
+
+func (p *StaticProvider) ScmRootCAPath(_ context.Context) (string, error) {
+	if p == nil || p.Fields.ScmRootCAPath == nil {
+		return "", ErrNotConfigured
+	}
+	return *p.Fields.ScmRootCAPath, nil
+}
+
 func (p *StaticProvider) SelfHealRetry(_ context.Context) (SelfHealRetry, error) {
 	if p == nil || p.Fields.SelfHealRetry == nil {
 		return SelfHealRetry{}, ErrNotConfigured
@@ -310,6 +507,13 @@ func (p *StaticProvider) SourceHydratorCommitMessageTemplate(_ context.Context) 
 	return *p.Fields.SourceHydratorCommitMessageTemplate, nil
 }
 
+func (p *StaticProvider) StaticAssetsDir(_ context.Context) (string, error) {
+	if p == nil || p.Fields.StaticAssetsDir == nil {
+		return "", ErrNotConfigured
+	}
+	return *p.Fields.StaticAssetsDir, nil
+}
+
 func (p *StaticProvider) SyncTimeout(_ context.Context) (time.Duration, error) {
 	if p == nil || p.Fields.SyncTimeout == nil {
 		return 0, ErrNotConfigured
@@ -317,9 +521,37 @@ func (p *StaticProvider) SyncTimeout(_ context.Context) (time.Duration, error) {
 	return *p.Fields.SyncTimeout, nil
 }
 
+func (p *StaticProvider) SyncWithReplaceAllowed(_ context.Context) (bool, error) {
+	if p == nil || p.Fields.SyncWithReplaceAllowed == nil {
+		return false, ErrNotConfigured
+	}
+	return *p.Fields.SyncWithReplaceAllowed, nil
+}
+
 func (p *StaticProvider) TrackingMethod(_ context.Context) (string, error) {
 	if p == nil || p.Fields.TrackingMethod == nil {
 		return "", ErrNotConfigured
 	}
 	return *p.Fields.TrackingMethod, nil
+}
+
+func (p *StaticProvider) WebhookParallelism(_ context.Context) (int, error) {
+	if p == nil || p.Fields.WebhookParallelism == nil {
+		return 0, ErrNotConfigured
+	}
+	return *p.Fields.WebhookParallelism, nil
+}
+
+func (p *StaticProvider) WebhookRefreshWorkers(_ context.Context) (int, error) {
+	if p == nil || p.Fields.WebhookRefreshWorkers == nil {
+		return 0, ErrNotConfigured
+	}
+	return *p.Fields.WebhookRefreshWorkers, nil
+}
+
+func (p *StaticProvider) XFrameOptions(_ context.Context) (string, error) {
+	if p == nil || p.Fields.XFrameOptions == nil {
+		return "", ErrNotConfigured
+	}
+	return *p.Fields.XFrameOptions, nil
 }
