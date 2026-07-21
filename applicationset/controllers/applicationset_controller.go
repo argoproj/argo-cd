@@ -597,6 +597,10 @@ func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Con
 	namesSet := map[string]bool{}
 	for i := range desiredApplications {
 		app := &desiredApplications[i]
+		if app.Name == "" && app.GenerateName == "" {
+			errorsByApp[app.QualifiedName()] = fmt.Errorf("ApplicationSet %s contains an application with no name; a name must be set in the template's metadata.name or via a templatePatch", applicationSetInfo.Name)
+			continue
+		}
 		if namesSet[app.Name] {
 			errorsByApp[app.QualifiedName()] = fmt.Errorf("ApplicationSet %s contains applications with duplicate name: %s", applicationSetInfo.Name, app.Name)
 			continue
