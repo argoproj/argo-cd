@@ -193,14 +193,63 @@ func callArgs(params string) string {
 	return strings.Join(names, ", ")
 }
 
-const generatedImports = `import (
-	"context"
-	"time"
-
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/settings"
-)
-`
+func genImportBlock(methods []method) string {
+	need := map[string]bool{
+		"time":        false,
+		"wait":        false,
+		"resource":    false,
+		"v1alpha1":    false,
+		"normalizers": false,
+		"settings":    false,
+	}
+	for _, m := range methods {
+		blob := m.Params + " " + m.Results + " " + m.ResultType
+		if strings.Contains(blob, "time.") {
+			need["time"] = true
+		}
+		if strings.Contains(blob, "wait.") {
+			need["wait"] = true
+		}
+		if strings.Contains(blob, "resource.") {
+			need["resource"] = true
+		}
+		if strings.Contains(blob, "v1alpha1.") {
+			need["v1alpha1"] = true
+		}
+		if strings.Contains(blob, "normalizers.") {
+			need["normalizers"] = true
+		}
+		if strings.Contains(blob, "settings.") {
+			need["settings"] = true
+		}
+	}
+	var b strings.Builder
+	b.WriteString("import (\n")
+	b.WriteString("\t\"context\"\n")
+	if need["time"] {
+		b.WriteString("\t\"time\"\n\n")
+	}
+	if need["resource"] {
+		b.WriteString("\t\"k8s.io/apimachinery/pkg/api/resource\"\n")
+	}
+	if need["wait"] {
+		b.WriteString("\t\"k8s.io/apimachinery/pkg/util/wait\"\n")
+	}
+	if need["resource"] || need["wait"] {
+		b.WriteString("\n")
+	}
+	if need["v1alpha1"] {
+		b.WriteString("\t\"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1\"\n")
+	}
+	if need["normalizers"] {
+		b.WriteString("\t\"github.com/argoproj/argo-cd/v3/util/argo/normalizers\"\n")
+	}
+	if need["settings"] {
+		b.WriteString("\t\"github.com/argoproj/argo-cd/v3/util/settings\"\n")
+	}
+	b.WriteString(")\n\n")
+	return b.String()
+}
 
 func genChain(methods []method) string {
 	var b strings.Builder
@@ -209,7 +258,7 @@ func genChain(methods []method) string {
 package configbus
 
 `)
-	b.WriteString(generatedImports)
+	b.WriteString(genImportBlock(methods))
 	b.WriteString(`
 // ChainProvider tries each link in order. The first result that is not
 // ErrNotConfigured wins. Non-field methods are routed explicitly.
@@ -277,7 +326,7 @@ func genStatic(methods []method) string {
 package configbus
 
 `)
-	b.WriteString(generatedImports)
+	b.WriteString(genImportBlock(methods))
 	b.WriteString(`
 // StaticFields holds in-memory nilable config values for StaticProvider.
 // Construct a literal with only the fields this call site owns; unset fields

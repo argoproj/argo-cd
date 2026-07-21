@@ -6,6 +6,8 @@ import (
 	"context"
 	"time"
 
+	"k8s.io/apimachinery/pkg/api/resource"
+
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
@@ -51,6 +53,12 @@ func (c *ChainProvider) Accounts(ctx context.Context) (map[string]settings.Accou
 func (c *ChainProvider) AdditionalURLs(ctx context.Context) ([]string, error) {
 	return firstConfigured(func(p Provider) ([]string, error) {
 		return p.AdditionalURLs(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) AllowOutOfBoundsSymlinks(ctx context.Context) (bool, error) {
+	return firstConfigured(func(p Provider) (bool, error) {
+		return p.AllowOutOfBoundsSymlinks(ctx)
 	}, c.links)
 }
 
@@ -102,6 +110,18 @@ func (c *ChainProvider) BaseHRef(ctx context.Context) (string, error) {
 	}, c.links)
 }
 
+func (c *ChainProvider) CMPTarExcludedGlobs(ctx context.Context) ([]string, error) {
+	return firstConfigured(func(p Provider) ([]string, error) {
+		return p.CMPTarExcludedGlobs(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) CMPUseManifestGeneratePaths(ctx context.Context) (bool, error) {
+	return firstConfigured(func(p Provider) (bool, error) {
+		return p.CMPUseManifestGeneratePaths(ctx)
+	}, c.links)
+}
+
 func (c *ChainProvider) CommitAuthorEmail(ctx context.Context) (string, error) {
 	return firstConfigured(func(p Provider) (string, error) {
 		return p.CommitAuthorEmail(ctx)
@@ -147,6 +167,24 @@ func (c *ChainProvider) DexServerStrictTLS(ctx context.Context) (bool, error) {
 func (c *ChainProvider) DisableAuth(ctx context.Context) (bool, error) {
 	return firstConfigured(func(p Provider) (bool, error) {
 		return p.DisableAuth(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) DisableHelmManifestMaxExtractedSize(ctx context.Context) (bool, error) {
+	return firstConfigured(func(p Provider) (bool, error) {
+		return p.DisableHelmManifestMaxExtractedSize(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) DisableOCIManifestMaxExtractedSize(ctx context.Context) (bool, error) {
+	return firstConfigured(func(p Provider) (bool, error) {
+		return p.DisableOCIManifestMaxExtractedSize(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) EnableBuiltinGitConfig(ctx context.Context) (bool, error) {
+	return firstConfigured(func(p Provider) (bool, error) {
+		return p.EnableBuiltinGitConfig(ctx)
 	}, c.links)
 }
 
@@ -246,9 +284,33 @@ func (c *ChainProvider) HardReconciliationTimeout(ctx context.Context) (time.Dur
 	}, c.links)
 }
 
+func (c *ChainProvider) HelmChartCacheExpiration(ctx context.Context) (time.Duration, error) {
+	return firstConfigured(func(p Provider) (time.Duration, error) {
+		return p.HelmChartCacheExpiration(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) HelmManifestMaxExtractedSize(ctx context.Context) (int64, error) {
+	return firstConfigured(func(p Provider) (int64, error) {
+		return p.HelmManifestMaxExtractedSize(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) HelmRegistryMaxIndexSize(ctx context.Context) (int64, error) {
+	return firstConfigured(func(p Provider) (int64, error) {
+		return p.HelmRegistryMaxIndexSize(ctx)
+	}, c.links)
+}
+
 func (c *ChainProvider) HelmSettings(ctx context.Context) (v1alpha1.HelmOptions, error) {
 	return firstConfigured(func(p Provider) (v1alpha1.HelmOptions, error) {
 		return p.HelmSettings(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) HelmUserAgent(ctx context.Context) (string, error) {
+	return firstConfigured(func(p Provider) (string, error) {
+		return p.HelmUserAgent(ctx)
 	}, c.links)
 }
 
@@ -291,6 +353,12 @@ func (c *ChainProvider) InClusterEnabled(ctx context.Context) (bool, error) {
 func (c *ChainProvider) IncludeEventLabelKeys(ctx context.Context) ([]string, error) {
 	return firstConfigured(func(p Provider) ([]string, error) {
 		return p.IncludeEventLabelKeys(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) IncludeHiddenDirectories(ctx context.Context) (bool, error) {
+	return firstConfigured(func(p Provider) (bool, error) {
+		return p.IncludeHiddenDirectories(ctx)
 	}, c.links)
 }
 
@@ -342,6 +410,12 @@ func (c *ChainProvider) ListenPort(ctx context.Context) (int, error) {
 	}, c.links)
 }
 
+func (c *ChainProvider) MaxCombinedDirectoryManifestsSize(ctx context.Context) (resource.Quantity, error) {
+	return firstConfigured(func(p Provider) (resource.Quantity, error) {
+		return p.MaxCombinedDirectoryManifestsSize(ctx)
+	}, c.links)
+}
+
 func (c *ChainProvider) MaxPodLogsToRender(ctx context.Context) (int64, error) {
 	return firstConfigured(func(p Provider) (int64, error) {
 		return p.MaxPodLogsToRender(ctx)
@@ -372,15 +446,51 @@ func (c *ChainProvider) MetricsPort(ctx context.Context) (int, error) {
 	}, c.links)
 }
 
+func (c *ChainProvider) OCIManifestMaxExtractedSize(ctx context.Context) (int64, error) {
+	return firstConfigured(func(p Provider) (int64, error) {
+		return p.OCIManifestMaxExtractedSize(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) OCIMediaTypes(ctx context.Context) ([]string, error) {
+	return firstConfigured(func(p Provider) ([]string, error) {
+		return p.OCIMediaTypes(ctx)
+	}, c.links)
+}
+
 func (c *ChainProvider) OIDCLogoutURL(ctx context.Context) (string, error) {
 	return firstConfigured(func(p Provider) (string, error) {
 		return p.OIDCLogoutURL(ctx)
 	}, c.links)
 }
 
+func (c *ChainProvider) ParallelismLimit(ctx context.Context) (int64, error) {
+	return firstConfigured(func(p Provider) (int64, error) {
+		return p.ParallelismLimit(ctx)
+	}, c.links)
+}
+
 func (c *ChainProvider) PasswordPattern(ctx context.Context) (string, error) {
 	return firstConfigured(func(p Provider) (string, error) {
 		return p.PasswordPattern(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) PauseGenerationAfterFailedGenerationAttempts(ctx context.Context) (int, error) {
+	return firstConfigured(func(p Provider) (int, error) {
+		return p.PauseGenerationAfterFailedGenerationAttempts(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) PauseGenerationOnFailureForMinutes(ctx context.Context) (int, error) {
+	return firstConfigured(func(p Provider) (int, error) {
+		return p.PauseGenerationOnFailureForMinutes(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) PauseGenerationOnFailureForRequests(ctx context.Context) (int, error) {
+	return firstConfigured(func(p Provider) (int, error) {
+		return p.PauseGenerationOnFailureForRequests(ctx)
 	}, c.links)
 }
 
@@ -405,6 +515,12 @@ func (c *ChainProvider) ReconciliationJitter(ctx context.Context) (time.Duration
 func (c *ChainProvider) ReconciliationTimeout(ctx context.Context) (time.Duration, error) {
 	return firstConfigured(func(p Provider) (time.Duration, error) {
 		return p.ReconciliationTimeout(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) RepoCacheExpiration(ctx context.Context) (time.Duration, error) {
+	return firstConfigured(func(p Provider) (time.Duration, error) {
+		return p.RepoCacheExpiration(ctx)
 	}, c.links)
 }
 
@@ -453,6 +569,18 @@ func (c *ChainProvider) ResourcesFilter(ctx context.Context) (settings.Resources
 func (c *ChainProvider) RespectRBAC(ctx context.Context) (int, error) {
 	return firstConfigured(func(p Provider) (int, error) {
 		return p.RespectRBAC(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) RevisionCacheExpiration(ctx context.Context) (time.Duration, error) {
+	return firstConfigured(func(p Provider) (time.Duration, error) {
+		return p.RevisionCacheExpiration(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) RevisionCacheLockTimeout(ctx context.Context) (time.Duration, error) {
+	return firstConfigured(func(p Provider) (time.Duration, error) {
+		return p.RevisionCacheLockTimeout(ctx)
 	}, c.links)
 }
 
@@ -513,6 +641,24 @@ func (c *ChainProvider) StaticAssetsDir(ctx context.Context) (string, error) {
 func (c *ChainProvider) StatusBadgeEnabled(ctx context.Context) (bool, error) {
 	return firstConfigured(func(p Provider) (bool, error) {
 		return p.StatusBadgeEnabled(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) StreamedManifestMaxExtractedSize(ctx context.Context) (int64, error) {
+	return firstConfigured(func(p Provider) (int64, error) {
+		return p.StreamedManifestMaxExtractedSize(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) StreamedManifestMaxTarSize(ctx context.Context) (int64, error) {
+	return firstConfigured(func(p Provider) (int64, error) {
+		return p.StreamedManifestMaxTarSize(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) SubmoduleEnabled(ctx context.Context) (bool, error) {
+	return firstConfigured(func(p Provider) (bool, error) {
+		return p.SubmoduleEnabled(ctx)
 	}, c.links)
 }
 
