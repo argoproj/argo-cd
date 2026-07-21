@@ -24,4 +24,13 @@ const (
 	ApplicationSetShortName string = "appset"
 	ApplicationSetPlural    string = "applicationsets"
 	ApplicationSetFullName  string = ApplicationSetPlural + "." + Group
+
+	// ArgoCDConfiguration constants
+	ArgoCDConfigurationKind      string = "ArgoCDConfiguration"
+	ArgoCDConfigurationSingular  string = "argocdconfiguration"
+	ArgoCDConfigurationPlural    string = "argocdconfigurations"
+	ArgoCDConfigurationShortName string = "argocdconfig"
+	ArgoCDConfigurationFullName  string = ArgoCDConfigurationPlural + "." + Group
+	// ArgoCDConfigurationName is the required singleton object name.
+	ArgoCDConfigurationName string = "argocd-config"
 )

@@ -120,7 +120,6 @@ type StaticFields struct {
 	MetricsHost                                   *string
 	MetricsPort                                   *int
 	NotificationsAppLabelSelector                 *string
-	NotificationsApplicationNamespaces            *[]string
 	NotificationsConfigMapName                    *string
 	NotificationsSecretName                       *string
 	NotificationsSelfserviceEnabled               *bool
@@ -863,13 +862,6 @@ func (p *StaticProvider) NotificationsAppLabelSelector(_ context.Context) (strin
 	return *p.Fields.NotificationsAppLabelSelector, nil
 }
 
-func (p *StaticProvider) NotificationsApplicationNamespaces(_ context.Context) ([]string, error) {
-	if p == nil || p.Fields.NotificationsApplicationNamespaces == nil {
-		return nil, ErrNotConfigured
-	}
-	return *p.Fields.NotificationsApplicationNamespaces, nil
-}
-
 func (p *StaticProvider) NotificationsConfigMapName(_ context.Context) (string, error) {
 	if p == nil || p.Fields.NotificationsConfigMapName == nil {
 		return "", ErrNotConfigured
@@ -1204,4 +1196,9 @@ func (p *StaticProvider) XFrameOptions(_ context.Context) (string, error) {
 		return "", ErrNotConfigured
 	}
 	return *p.Fields.XFrameOptions, nil
+}
+
+// NotificationsApplicationNamespaces is an alias for ApplicationNamespaces for call sites that predate the shared getter.
+func (p *StaticProvider) NotificationsApplicationNamespaces(ctx context.Context) ([]string, error) {
+	return p.ApplicationNamespaces(ctx)
 }

@@ -205,6 +205,7 @@ func TestInit(t *testing.T) {
 			"my-secret",
 			"my-configmap",
 			selfServiceNotificationEnabled,
+			nil,
 		)
 		require.NoError(t, err)
 
@@ -238,6 +239,7 @@ func TestInitTimeout(t *testing.T) {
 		"my-secret",
 		"my-configmap",
 		false,
+		nil,
 	)
 	require.NoError(t, err)
 

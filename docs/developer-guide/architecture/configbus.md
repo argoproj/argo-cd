@@ -150,6 +150,11 @@ precedence, and a total-resolution coverage test for the controller chain.
 
 ### What is wired today
 
+Layer 08 inserts `CRDProvider` ahead of Static/Settings/Env in each binary's
+chain. `SubscribeCRD` / `UnsubscribeCRD` / `Configuration()` are routed by
+`ChainProvider` to the CRD link.
+
+
 | Binary | Status |
 | --- | --- |
 | Application controller | Wired: `NewChainProvider(Static, SettingsManager, Env)` in `controller/appcontroller.go` |

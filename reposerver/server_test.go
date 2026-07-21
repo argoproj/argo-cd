@@ -170,6 +170,7 @@ func newTestServer(t *testing.T, clientCAPath string, disableTLS bool) (*reposer
 		askPassServer,
 		clientCAPath,
 		disableTLS,
+		nil,
 	)
 }
 

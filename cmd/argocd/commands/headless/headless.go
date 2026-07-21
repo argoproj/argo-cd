@@ -287,7 +287,7 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 		RepoClientset:           &forwardRepoClientset{namespace: namespace, context: ctxStr, repoServerName: clientOpts.RepoServerName, kubeClientset: kubeClientset},
 		EnableProxyExtension:    false,
 		SyncWithReplaceAllowed:  true,
-	}, server.ApplicationSetOpts{})
+	}, server.ApplicationSetOpts{}, nil)
 	srv.Init(ctx)
 
 	lns, err := srv.Listen()

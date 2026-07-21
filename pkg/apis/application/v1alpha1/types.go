@@ -3543,11 +3543,11 @@ type HelmOptions struct {
 // KustomizeVersion holds information about additional Kustomize versions
 type KustomizeVersion struct {
 	// Name holds Kustomize version name
-	Name string `protobuf:"bytes,1,opt,name=name"`
+	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
 	// Path holds the corresponding binary path
-	Path string `protobuf:"bytes,2,opt,name=path"`
+	Path string `json:"path,omitempty" protobuf:"bytes,2,opt,name=path"`
 	// BuildOptions that are specific to a Kustomize version
-	BuildOptions string `protobuf:"bytes,3,opt,name=buildOptions"`
+	BuildOptions string `json:"buildOptions,omitempty" protobuf:"bytes,3,opt,name=buildOptions"`
 }
 
 // KustomizeOptions are options for kustomize to use when building manifests

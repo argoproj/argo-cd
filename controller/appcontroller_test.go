@@ -232,6 +232,7 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 	ctrl, err := NewApplicationController(
 		test.FakeArgoCDNamespace,
 		settingsMgr,
+		nil,
 		kubeClient,
 		appclientset.NewSimpleClientset(data.apps...),
 		mockRepoClientset,
@@ -2688,7 +2689,9 @@ func TestOrphanedIndexDoesNotQueryProjectDuringStartupRace(t *testing.T) {
 		},
 	}
 	ctrl, err := NewApplicationController(
-		test.FakeArgoCDNamespace, settingsMgr, kubeClient,
+		test.FakeArgoCDNamespace, settingsMgr,
+		nil,
+		kubeClient,
 		appclientset.NewSimpleClientset(app, proj),
 		mockRepoClientset, mockCommitClientset,
 		appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute),
@@ -2753,7 +2756,9 @@ func TestOrphanedIndexReturnsNamespaceWhenProjectHasOrphanedResources(t *testing
 		},
 	}
 	ctrl, err := NewApplicationController(
-		test.FakeArgoCDNamespace, settingsMgr, kubeClient,
+		test.FakeArgoCDNamespace, settingsMgr,
+		nil,
+		kubeClient,
 		appclientset.NewSimpleClientset(app, proj),
 		mockRepoClientset, mockCommitClientset,
 		appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute),

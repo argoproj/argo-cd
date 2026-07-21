@@ -158,6 +158,7 @@ type ApplicationController struct {
 func NewApplicationController(
 	namespace string,
 	settingsMgr *settings_util.SettingsManager,
+	crd configbus.CRDSource,
 	kubeClientset kubernetes.Interface,
 	applicationClientset appclientset.Interface,
 	repoClientset apiclient.Clientset,
@@ -215,6 +216,7 @@ func NewApplicationController(
 		dynamicClusterDistributionEnabled: dynamicClusterDistributionEnabled,
 	}
 	ctrl.configProvider = configbus.NewChainProvider(
+		configbus.NewCRDProvider(crd),
 		&configbus.StaticProvider{Fields: configbus.StaticFields{
 			HardReconciliationTimeout: configbus.Ptr(appHardResyncPeriod),
 			IgnoreNormalizerJQTimeout: configbus.Ptr(ignoreNormalizerOpts.JQExecutionTimeout),

@@ -35,12 +35,12 @@ type ArgoCDCommitServer struct {
 }
 
 // NewServer returns a new instance of the commit server.
-func NewServer(cfg Config, gitCredsStore git.CredsStore, metricsServer *metrics.Server) *ArgoCDCommitServer {
+func NewServer(cfg Config, gitCredsStore git.CredsStore, metricsServer *metrics.Server, crd configbus.CRDSource) *ArgoCDCommitServer {
 	a := &ArgoCDCommitServer{
 		commitService: commit.NewService(gitCredsStore, metricsServer),
 		Config:        cfg,
 	}
-	a.InitConfigProvider()
+	a.InitConfigProvider(crd)
 	return a
 }
 

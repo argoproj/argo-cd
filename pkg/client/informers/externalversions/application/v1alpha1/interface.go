@@ -14,6 +14,8 @@ type Interface interface {
 	Applications() ApplicationInformer
 	// ApplicationSets returns a ApplicationSetInformer.
 	ApplicationSets() ApplicationSetInformer
+	// ArgoCDConfigurations returns a ArgoCDConfigurationInformer.
+	ArgoCDConfigurations() ArgoCDConfigurationInformer
 }
 
 type version struct {
@@ -40,4 +42,9 @@ func (v *version) Applications() ApplicationInformer {
 // ApplicationSets returns a ApplicationSetInformer.
 func (v *version) ApplicationSets() ApplicationSetInformer {
 	return &applicationSetInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// ArgoCDConfigurations returns a ArgoCDConfigurationInformer.
+func (v *version) ArgoCDConfigurations() ArgoCDConfigurationInformer {
+	return &argoCDConfigurationInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
