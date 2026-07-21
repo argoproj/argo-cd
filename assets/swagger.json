@@ -7077,6 +7077,13 @@
             "type": "string"
           }
         },
+        "syncWindowRefs": {
+          "description": "SyncWindowRefs references external SyncWindowResource CRDs that define sync windows for this project.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1SyncWindowProjectRef"
+          }
+        },
         "syncWindows": {
           "type": "array",
           "title": "SyncWindows controls when syncs can be run for apps in this project",
@@ -7968,6 +7975,13 @@
         },
         "syncPolicy": {
           "$ref": "#/definitions/v1alpha1SyncPolicy"
+        },
+        "syncWindowRefs": {
+          "description": "SyncWindowRefs references external SyncWindowResource CRDs that apply directly to this application.\nWhen specified, the referenced sync windows apply to this application regardless of the\napplications/namespaces/clusters filters defined in the SyncWindowResource.",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1SyncWindowRef"
+          }
         }
       }
     },
@@ -11079,6 +11093,49 @@
         "timeZone": {
           "type": "string",
           "title": "TimeZone of the sync that will be applied to the schedule"
+        }
+      }
+    },
+    "v1alpha1SyncWindowProjectRef": {
+      "description": "SyncWindowProjectRef is a reference to a SyncWindowResource from an AppProject.\nIt allows specifying additional filters that restrict which apps the referenced\nsync windows apply to.",
+      "type": "object",
+      "properties": {
+        "applications": {
+          "description": "Applications restricts which applications the referenced sync windows apply to (glob patterns supported).",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "clusters": {
+          "description": "Clusters restricts which clusters the referenced sync windows apply to (glob patterns supported).",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "namespaces": {
+          "description": "Namespaces restricts which namespaces the referenced sync windows apply to (glob patterns supported).",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "ref": {
+          "$ref": "#/definitions/v1alpha1SyncWindowRef"
+        }
+      }
+    },
+    "v1alpha1SyncWindowRef": {
+      "description": "SyncWindowRef is a reference to a SyncWindowResource CRD.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Name is the metadata.name of the SyncWindowResource to reference.",
+          "type": "string"
+        },
+        "selector": {
+          "$ref": "#/definitions/v1LabelSelector"
         }
       }
     },

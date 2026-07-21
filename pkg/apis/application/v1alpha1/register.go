@@ -14,6 +14,7 @@ var (
 	ApplicationSchemaGroupVersionKind    = schema.GroupVersionKind{Group: application.Group, Version: "v1alpha1", Kind: application.ApplicationKind}
 	AppProjectSchemaGroupVersionKind     = schema.GroupVersionKind{Group: application.Group, Version: "v1alpha1", Kind: application.AppProjectKind}
 	ApplicationSetSchemaGroupVersionKind = schema.GroupVersionKind{Group: application.Group, Version: "v1alpha1", Kind: application.ApplicationSetKind}
+	SyncWindowSchemaGroupVersionKind     = schema.GroupVersionKind{Group: application.Group, Version: "v1alpha1", Kind: application.SyncWindowKind}
 )
 
 // Resource takes an unqualified resource and returns a Group-qualified GroupResource.
@@ -35,7 +36,11 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&AppProjectList{},
 		&ApplicationSet{},
 		&ApplicationSetList{},
+		&SyncWindowResource{},
+		&SyncWindowResourceList{},
 	)
+	scheme.AddKnownTypeWithName(SchemeGroupVersion.WithKind("SyncWindow"), &SyncWindowResource{})
+	scheme.AddKnownTypeWithName(SchemeGroupVersion.WithKind("SyncWindowList"), &SyncWindowResourceList{})
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil
 }

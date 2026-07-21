@@ -69,6 +69,7 @@ import (
 	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/syncwindow"
 	"github.com/argoproj/argo-cd/v3/util/glob"
 	"github.com/argoproj/argo-cd/v3/util/helm"
 	logutils "github.com/argoproj/argo-cd/v3/util/log"
@@ -157,6 +158,9 @@ type ApplicationController struct {
 	// dynamicClusterDistributionEnabled if disabled deploymentInformer is never initialized
 	dynamicClusterDistributionEnabled bool
 	deploymentInformer                informerv1.DeploymentInformer
+
+	syncWindowInformer cache.SharedIndexInformer
+	syncWindowLister   applisters.SyncWindowResourceLister
 
 	hydrator *hydrator.Hydrator
 }
@@ -314,7 +318,13 @@ func NewApplicationController(
 		}
 	}
 	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, ctrl.metricsServer, ctrl.handleObjectUpdated, clusterSharding, argo.NewResourceTracking())
-	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.onKubectlRun, ctrl.settingsMgr, stateCache, ctrl.metricsServer, argoCache, ctrl.statusRefreshTimeout, argo.NewResourceTracking(), persistResourceHealth, repoErrorGracePeriod, serverSideDiff, ignoreNormalizerOpts)
+
+	syncWindowInformer := v1alpha1.NewSyncWindowResourceInformer(applicationClientset, namespace, appResyncPeriod, indexers)
+	syncWindowLister := applisters.NewSyncWindowResourceLister(syncWindowInformer.GetIndexer())
+	ctrl.syncWindowInformer = syncWindowInformer
+	ctrl.syncWindowLister = syncWindowLister
+
+	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.onKubectlRun, ctrl.settingsMgr, stateCache, ctrl.metricsServer, argoCache, ctrl.statusRefreshTimeout, argo.NewResourceTracking(), persistResourceHealth, repoErrorGracePeriod, serverSideDiff, ignoreNormalizerOpts, syncWindowLister, syncWindowInformer.HasSynced)
 	ctrl.appInformer = appInformer
 	ctrl.appLister = appLister
 	ctrl.projInformer = projInformer
@@ -931,6 +941,7 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 
 	go ctrl.appInformer.Run(ctx.Done())
 	go ctrl.projInformer.Run(ctx.Done())
+	go ctrl.syncWindowInformer.Run(ctx.Done())
 
 	errors.CheckError(ctrl.stateCache.Init())
 
@@ -1967,8 +1978,8 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		app.Status.Summary = tree.GetSummary(app)
 	}
 
-	canSync, _ := project.Spec.SyncWindows.Matches(app).CanSync(false, nil)
-	if canSync {
+	isSyncBlocked, _ := ctrl.syncWindowPreventsAutoSync(app, project)
+	if !isSyncBlocked {
 		// The manifest-generate-paths optimization can report no changes for a newer commit that
 		// arrives while the app is still syncing, which would skip auto-sync and leave the app
 		// stuck OutOfSync. Only use it to avoid regenerating manifests, never to gate the sync
@@ -2348,6 +2359,31 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 		logCtx.Infof("Update successful")
 	}
 	return patchDuration
+}
+
+// syncWindowPreventsAutoSync checks if sync windows (both inline and CRD-based) prevent auto-sync.
+func (ctrl *ApplicationController) syncWindowPreventsAutoSync(app *appv1.Application, project *appv1.AppProject) (bool, error) {
+	var filteredWindows, directWindows appv1.SyncWindows
+	if ctrl.syncWindowLister != nil && ctrl.syncWindowInformer.HasSynced() {
+		resolver := syncwindow.NewResolver(ctrl.syncWindowLister, ctrl.namespace)
+
+		if len(project.Spec.SyncWindowRefs) > 0 {
+			if windows, err := resolver.ResolveProjectRefs(project.Spec.SyncWindowRefs); err != nil {
+				log.WithError(err).Warn("Failed to resolve project sync window refs")
+			} else {
+				filteredWindows = append(filteredWindows, windows...)
+			}
+		}
+
+		if len(app.Spec.SyncWindowRefs) > 0 {
+			if windows, err := resolver.ResolveAppRefs(app.Spec.SyncWindowRefs); err != nil {
+				log.WithError(err).Warn("Failed to resolve app sync window refs")
+			} else {
+				directWindows = append(directWindows, windows...)
+			}
+		}
+	}
+	return syncWindowPreventsSync(app, project, filteredWindows, directWindows)
 }
 
 // autoSync will initiate a sync operation for an application configured with automated sync
