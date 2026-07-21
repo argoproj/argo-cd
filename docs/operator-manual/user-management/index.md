@@ -635,4 +635,106 @@ Supported values for type in dex.storage:
 | `sqlite3`    | Yes                      | No         | File-based; not suitable for multiple replicas.                                                |
 | `etcd`       | Yes                      | Yes        | Requires a reachable etcd cluster.                                                             |
 
-See [Dex storage documentation](https://dexidp.io/docs/configuration/storage/) for more information on configuring each storage backend.
+#### Kubernetes storage RBAC
+
+
+```yaml
+# RBAC for Dex Kubernetes Storage Backend
+#
+# Apply this manifest only when using:
+#
+#   dex.config:
+#     storage:
+#       type: kubernetes
+#
+# This grants the Dex ServiceAccount permission to:
+#   - Access ConfigMaps and Secrets used by Dex
+#   - Manage Dex custom resources (AuthCodes, RefreshTokens, SigningKeys, etc.)
+#
+# Replace the namespace below if Argo CD is installed in a different namespace.
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: argocd-dex-server
+  namespace: argocd
+rules:
+- apiGroups:
+    - dex.coreos.com
+  resources:
+    - authcodes
+    - authrequests
+    - oauth2clients
+    - signingkeys
+    - refreshtokens
+    - passwords
+    - offlinesessionses
+    - connectors
+    - devicerequests
+    - devicetokens
+  verbs:
+    - get
+    - list
+    - watch
+    - create
+    - update
+    - patch
+    - delete
+- apiGroups:
+    - ""
+  resources:
+    - configmaps
+    - secrets
+  verbs:
+    - get
+    - list
+    - watch
+    - create
+    - update
+    - patch
+    - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: argocd-dex-server
+  namespace: argocd
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argocd-dex-server
+subjects:
+- kind: ServiceAccount
+  name: argocd-dex-server
+  namespace: argocd
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: argocd-dex-server-crd-manager
+rules:
+- apiGroups:
+    - apiextensions.k8s.io
+  resources:
+    - customresourcedefinitions
+  verbs:
+    - get
+    - list
+    - watch
+    - create
+    - update
+    - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: argocd-dex-server-crd-manager
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: argocd-dex-server-crd-manager
+subjects:
+- kind: ServiceAccount
+  name: argocd-dex-server
+  namespace: argocd
+```

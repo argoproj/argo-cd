@@ -15,8 +15,6 @@ data:
     # The "kubernetes" backend additionally requires RBAC for the argocd-dex-server
     # ServiceAccount (see the same doc section).
     type: memory
-    config:
-      inCluster: true
   # Argo CD's externally facing base URL (optional). Required when configuring SSO
   url: https://argo-cd-demo.argoproj.io
 
