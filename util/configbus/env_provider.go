@@ -1,6 +1,7 @@
 package configbus
 
 import (
+	"context"
 	"math"
 	"time"
 
@@ -21,6 +22,6 @@ func NewEnvProvider() *EnvProvider {
 // Ensure EnvProvider implements Provider.
 var _ Provider = (*EnvProvider)(nil)
 
-func (p *EnvProvider) GitRequestTimeout() (time.Duration, error) {
+func (p *EnvProvider) GitRequestTimeout(_ context.Context) (time.Duration, error) {
 	return env.ParseDurationFromEnv("ARGOCD_GIT_REQUEST_TIMEOUT", 15*time.Second, 0, math.MaxInt64), nil
 }

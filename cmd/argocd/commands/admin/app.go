@@ -373,8 +373,9 @@ func reconcileApplications(
 	settingsMgr := settings.NewSettingsManager(ctx, kubeClientset, namespace)
 	// CLI flags override Diff-related settings via a leading StaticProvider.
 	// Temporary: once config is fully CRD-backed these admin flags go away.
-	// Trailing Static supplies defaults for controller knobs that Settings/Env
-	// do not own so compare/reconcile remains total.
+	// Trailing Static mirrors the former admin NewAppStateManager literals
+	// (persistResourceHealth=false, statusRefreshTimeout=1s, repoErrorGracePeriod=0)
+	// so reconcile behavior matches pre-configbus admin.
 	configProvider := configbus.NewChainProvider(
 		&configbus.StaticProvider{Fields: configbus.StaticFields{
 			IgnoreNormalizerJQTimeout: configbus.Ptr(ignoreNormalizerOpts.JQExecutionTimeout),
@@ -383,8 +384,8 @@ func reconcileApplications(
 		configbus.NewSettingsManagerProvider(settingsMgr),
 		configbus.NewEnvProvider(),
 		&configbus.StaticProvider{Fields: configbus.StaticFields{
-			PersistResourceHealth: configbus.Ptr(true),
-			ReconciliationTimeout: configbus.Ptr(time.Duration(0)),
+			PersistResourceHealth: configbus.Ptr(false),
+			ReconciliationTimeout: configbus.Ptr(time.Second),
 			RepoErrorGracePeriod:  configbus.Ptr(time.Duration(0)),
 		}},
 	)

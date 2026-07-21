@@ -3,6 +3,7 @@
 package configbus
 
 import (
+	"context"
 	"time"
 
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -15,7 +16,7 @@ import (
 // no-ops lifecycle methods. Leaf providers embed it and override owned methods.
 type notConfiguredProvider struct{}
 
-func (notConfiguredProvider) SettingsManager() (*settings.SettingsManager, error) {
+func (notConfiguredProvider) SettingsManager(_ context.Context) (*settings.SettingsManager, error) {
 	return nil, ErrNotConfigured
 }
 
@@ -23,134 +24,134 @@ func (notConfiguredProvider) Subscribe(subCh chan<- *settings.ArgoCDSettings) {}
 
 func (notConfiguredProvider) Unsubscribe(subCh chan<- *settings.ArgoCDSettings) {}
 
-func (notConfiguredProvider) AllowedNodeLabels() ([]string, error) {
+func (notConfiguredProvider) AllowedNodeLabels(_ context.Context) ([]string, error) {
 	return nil, ErrNotConfigured
 }
 
-func (notConfiguredProvider) AppInstanceLabelKey() (string, error) {
+func (notConfiguredProvider) AppInstanceLabelKey(_ context.Context) (string, error) {
 	return "", ErrNotConfigured
 }
 
-func (notConfiguredProvider) CommitAuthorEmail() (string, error) {
+func (notConfiguredProvider) CommitAuthorEmail(_ context.Context) (string, error) {
 	return "", ErrNotConfigured
 }
 
-func (notConfiguredProvider) CommitAuthorName() (string, error) {
+func (notConfiguredProvider) CommitAuthorName(_ context.Context) (string, error) {
 	return "", ErrNotConfigured
 }
 
-func (notConfiguredProvider) EnabledSourceTypes() (map[string]bool, error) {
+func (notConfiguredProvider) EnabledSourceTypes(_ context.Context) (map[string]bool, error) {
 	return nil, ErrNotConfigured
 }
 
-func (notConfiguredProvider) GitRequestTimeout() (time.Duration, error) {
+func (notConfiguredProvider) GitRequestTimeout(_ context.Context) (time.Duration, error) {
 	return 0, ErrNotConfigured
 }
 
-func (notConfiguredProvider) HardReconciliationTimeout() (time.Duration, error) {
+func (notConfiguredProvider) HardReconciliationTimeout(_ context.Context) (time.Duration, error) {
 	return 0, ErrNotConfigured
 }
 
-func (notConfiguredProvider) HelmSettings() (*v1alpha1.HelmOptions, error) {
+func (notConfiguredProvider) HelmSettings(_ context.Context) (*v1alpha1.HelmOptions, error) {
 	return nil, ErrNotConfigured
 }
 
-func (notConfiguredProvider) HydratorReadmeTemplate() (string, error) {
+func (notConfiguredProvider) HydratorReadmeTemplate(_ context.Context) (string, error) {
 	return "", ErrNotConfigured
 }
 
-func (notConfiguredProvider) IgnoreNormalizerJQTimeout() (time.Duration, error) {
+func (notConfiguredProvider) IgnoreNormalizerJQTimeout(_ context.Context) (time.Duration, error) {
 	return 0, ErrNotConfigured
 }
 
-func (notConfiguredProvider) IgnoreResourceUpdatesOverrides() (map[string]v1alpha1.ResourceOverride, error) {
+func (notConfiguredProvider) IgnoreResourceUpdatesOverrides(_ context.Context) (map[string]v1alpha1.ResourceOverride, error) {
 	return nil, ErrNotConfigured
 }
 
-func (notConfiguredProvider) InstallationID() (string, error) {
+func (notConfiguredProvider) InstallationID(_ context.Context) (string, error) {
 	return "", ErrNotConfigured
 }
 
-func (notConfiguredProvider) IsIgnoreResourceUpdatesEnabled() (bool, error) {
+func (notConfiguredProvider) IsIgnoreResourceUpdatesEnabled(_ context.Context) (bool, error) {
 	return false, ErrNotConfigured
 }
 
-func (notConfiguredProvider) IsImpersonationEnabled() (bool, error) {
+func (notConfiguredProvider) IsImpersonationEnabled(_ context.Context) (bool, error) {
 	return false, ErrNotConfigured
 }
 
-func (notConfiguredProvider) IsImpersonationEnforced() (bool, error) {
+func (notConfiguredProvider) IsImpersonationEnforced(_ context.Context) (bool, error) {
 	return false, ErrNotConfigured
 }
 
-func (notConfiguredProvider) KustomizeSettings() (*v1alpha1.KustomizeOptions, error) {
+func (notConfiguredProvider) KustomizeSettings(_ context.Context) (*v1alpha1.KustomizeOptions, error) {
 	return nil, ErrNotConfigured
 }
 
-func (notConfiguredProvider) MetricsClusterLabels() ([]string, error) {
+func (notConfiguredProvider) MetricsClusterLabels(_ context.Context) ([]string, error) {
 	return nil, ErrNotConfigured
 }
 
-func (notConfiguredProvider) PersistResourceHealth() (bool, error) {
+func (notConfiguredProvider) PersistResourceHealth(_ context.Context) (bool, error) {
 	return false, ErrNotConfigured
 }
 
-func (notConfiguredProvider) ReconciliationJitter() (time.Duration, error) {
+func (notConfiguredProvider) ReconciliationJitter(_ context.Context) (time.Duration, error) {
 	return 0, ErrNotConfigured
 }
 
-func (notConfiguredProvider) ReconciliationTimeout() (time.Duration, error) {
+func (notConfiguredProvider) ReconciliationTimeout(_ context.Context) (time.Duration, error) {
 	return 0, ErrNotConfigured
 }
 
-func (notConfiguredProvider) RepoErrorGracePeriod() (time.Duration, error) {
+func (notConfiguredProvider) RepoErrorGracePeriod(_ context.Context) (time.Duration, error) {
 	return 0, ErrNotConfigured
 }
 
-func (notConfiguredProvider) ResourceCompareOptions() (settings.ArgoCDDiffOptions, error) {
+func (notConfiguredProvider) ResourceCompareOptions(_ context.Context) (settings.ArgoCDDiffOptions, error) {
 	return settings.ArgoCDDiffOptions{}, ErrNotConfigured
 }
 
-func (notConfiguredProvider) ResourceCustomLabels() ([]string, error) {
+func (notConfiguredProvider) ResourceCustomLabels(_ context.Context) ([]string, error) {
 	return nil, ErrNotConfigured
 }
 
-func (notConfiguredProvider) ResourceOverrides() (map[string]v1alpha1.ResourceOverride, error) {
+func (notConfiguredProvider) ResourceOverrides(_ context.Context) (map[string]v1alpha1.ResourceOverride, error) {
 	return nil, ErrNotConfigured
 }
 
-func (notConfiguredProvider) ResourcesFilter() (*settings.ResourcesFilter, error) {
+func (notConfiguredProvider) ResourcesFilter(_ context.Context) (*settings.ResourcesFilter, error) {
 	return nil, ErrNotConfigured
 }
 
-func (notConfiguredProvider) RespectRBAC() (int, error) {
+func (notConfiguredProvider) RespectRBAC(_ context.Context) (int, error) {
 	return 0, ErrNotConfigured
 }
 
-func (notConfiguredProvider) SelfHealBackoff() (*wait.Backoff, error) {
+func (notConfiguredProvider) SelfHealBackoff(_ context.Context) (*wait.Backoff, error) {
 	return nil, ErrNotConfigured
 }
 
-func (notConfiguredProvider) SelfHealTimeout() (time.Duration, error) {
+func (notConfiguredProvider) SelfHealTimeout(_ context.Context) (time.Duration, error) {
 	return 0, ErrNotConfigured
 }
 
-func (notConfiguredProvider) SensitiveAnnotations() (map[string]bool, error) {
+func (notConfiguredProvider) SensitiveAnnotations(_ context.Context) (map[string]bool, error) {
 	return nil, ErrNotConfigured
 }
 
-func (notConfiguredProvider) ServerSideDiff() (bool, error) {
+func (notConfiguredProvider) ServerSideDiff(_ context.Context) (bool, error) {
 	return false, ErrNotConfigured
 }
 
-func (notConfiguredProvider) SourceHydratorCommitMessageTemplate() (string, error) {
+func (notConfiguredProvider) SourceHydratorCommitMessageTemplate(_ context.Context) (string, error) {
 	return "", ErrNotConfigured
 }
 
-func (notConfiguredProvider) SyncTimeout() (time.Duration, error) {
+func (notConfiguredProvider) SyncTimeout(_ context.Context) (time.Duration, error) {
 	return 0, ErrNotConfigured
 }
 
-func (notConfiguredProvider) TrackingMethod() (string, error) {
+func (notConfiguredProvider) TrackingMethod(_ context.Context) (string, error) {
 	return "", ErrNotConfigured
 }

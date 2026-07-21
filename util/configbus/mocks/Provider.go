@@ -5,6 +5,7 @@
 package mocks
 
 import (
+	"context"
 	"time"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -41,8 +42,8 @@ func (_m *Provider) EXPECT() *Provider_Expecter {
 }
 
 // AllowedNodeLabels provides a mock function for the type Provider
-func (_mock *Provider) AllowedNodeLabels() ([]string, error) {
-	ret := _mock.Called()
+func (_mock *Provider) AllowedNodeLabels(ctx context.Context) ([]string, error) {
+	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for AllowedNodeLabels")
@@ -50,18 +51,18 @@ func (_mock *Provider) AllowedNodeLabels() ([]string, error) {
 
 	var r0 []string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() ([]string, error)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]string, error)); ok {
+		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func() []string); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []string); ok {
+		r0 = returnFunc(ctx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]string)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -74,13 +75,20 @@ type Provider_AllowedNodeLabels_Call struct {
 }
 
 // AllowedNodeLabels is a helper method to define mock.On call
-func (_e *Provider_Expecter) AllowedNodeLabels() *Provider_AllowedNodeLabels_Call {
-	return &Provider_AllowedNodeLabels_Call{Call: _e.mock.On("AllowedNodeLabels")}
+//   - ctx context.Context
+func (_e *Provider_Expecter) AllowedNodeLabels(ctx any) *Provider_AllowedNodeLabels_Call {
+	return &Provider_AllowedNodeLabels_Call{Call: _e.mock.On("AllowedNodeLabels", ctx)}
 }
 
-func (_c *Provider_AllowedNodeLabels_Call) Run(run func()) *Provider_AllowedNodeLabels_Call {
+func (_c *Provider_AllowedNodeLabels_Call) Run(run func(ctx context.Context)) *Provider_AllowedNodeLabels_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -90,14 +98,14 @@ func (_c *Provider_AllowedNodeLabels_Call) Return(strings []string, err error) *
 	return _c
 }
 
-func (_c *Provider_AllowedNodeLabels_Call) RunAndReturn(run func() ([]string, error)) *Provider_AllowedNodeLabels_Call {
+func (_c *Provider_AllowedNodeLabels_Call) RunAndReturn(run func(ctx context.Context) ([]string, error)) *Provider_AllowedNodeLabels_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // AppInstanceLabelKey provides a mock function for the type Provider
-func (_mock *Provider) AppInstanceLabelKey() (string, error) {
-	ret := _mock.Called()
+func (_mock *Provider) AppInstanceLabelKey(ctx context.Context) (string, error) {
+	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for AppInstanceLabelKey")
@@ -105,16 +113,16 @@ func (_mock *Provider) AppInstanceLabelKey() (string, error) {
 
 	var r0 string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() (string, error)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (string, error)); ok {
+		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func() string); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) string); ok {
+		r0 = returnFunc(ctx)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -127,13 +135,20 @@ type Provider_AppInstanceLabelKey_Call struct {
 }
 
 // AppInstanceLabelKey is a helper method to define mock.On call
-func (_e *Provider_Expecter) AppInstanceLabelKey() *Provider_AppInstanceLabelKey_Call {
-	return &Provider_AppInstanceLabelKey_Call{Call: _e.mock.On("AppInstanceLabelKey")}
+//   - ctx context.Context
+func (_e *Provider_Expecter) AppInstanceLabelKey(ctx any) *Provider_AppInstanceLabelKey_Call {
+	return &Provider_AppInstanceLabelKey_Call{Call: _e.mock.On("AppInstanceLabelKey", ctx)}
 }
 
-func (_c *Provider_AppInstanceLabelKey_Call) Run(run func()) *Provider_AppInstanceLabelKey_Call {
+func (_c *Provider_AppInstanceLabelKey_Call) Run(run func(ctx context.Context)) *Provider_AppInstanceLabelKey_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -143,14 +158,14 @@ func (_c *Provider_AppInstanceLabelKey_Call) Return(s string, err error) *Provid
 	return _c
 }
 
-func (_c *Provider_AppInstanceLabelKey_Call) RunAndReturn(run func() (string, error)) *Provider_AppInstanceLabelKey_Call {
+func (_c *Provider_AppInstanceLabelKey_Call) RunAndReturn(run func(ctx context.Context) (string, error)) *Provider_AppInstanceLabelKey_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // CommitAuthorEmail provides a mock function for the type Provider
-func (_mock *Provider) CommitAuthorEmail() (string, error) {
-	ret := _mock.Called()
+func (_mock *Provider) CommitAuthorEmail(ctx context.Context) (string, error) {
+	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CommitAuthorEmail")
@@ -158,16 +173,16 @@ func (_mock *Provider) CommitAuthorEmail() (string, error) {
 
 	var r0 string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() (string, error)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (string, error)); ok {
+		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func() string); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) string); ok {
+		r0 = returnFunc(ctx)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -180,13 +195,20 @@ type Provider_CommitAuthorEmail_Call struct {
 }
 
 // CommitAuthorEmail is a helper method to define mock.On call
-func (_e *Provider_Expecter) CommitAuthorEmail() *Provider_CommitAuthorEmail_Call {
-	return &Provider_CommitAuthorEmail_Call{Call: _e.mock.On("CommitAuthorEmail")}
+//   - ctx context.Context
+func (_e *Provider_Expecter) CommitAuthorEmail(ctx any) *Provider_CommitAuthorEmail_Call {
+	return &Provider_CommitAuthorEmail_Call{Call: _e.mock.On("CommitAuthorEmail", ctx)}
 }
 
-func (_c *Provider_CommitAuthorEmail_Call) Run(run func()) *Provider_CommitAuthorEmail_Call {
+func (_c *Provider_CommitAuthorEmail_Call) Run(run func(ctx context.Context)) *Provider_CommitAuthorEmail_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -196,14 +218,14 @@ func (_c *Provider_CommitAuthorEmail_Call) Return(s string, err error) *Provider
 	return _c
 }
 
-func (_c *Provider_CommitAuthorEmail_Call) RunAndReturn(run func() (string, error)) *Provider_CommitAuthorEmail_Call {
+func (_c *Provider_CommitAuthorEmail_Call) RunAndReturn(run func(ctx context.Context) (string, error)) *Provider_CommitAuthorEmail_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // CommitAuthorName provides a mock function for the type Provider
-func (_mock *Provider) CommitAuthorName() (string, error) {
-	ret := _mock.Called()
+func (_mock *Provider) CommitAuthorName(ctx context.Context) (string, error) {
+	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CommitAuthorName")
@@ -211,16 +233,16 @@ func (_mock *Provider) CommitAuthorName() (string, error) {
 
 	var r0 string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() (string, error)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (string, error)); ok {
+		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func() string); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) string); ok {
+		r0 = returnFunc(ctx)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -233,13 +255,20 @@ type Provider_CommitAuthorName_Call struct {
 }
 
 // CommitAuthorName is a helper method to define mock.On call
-func (_e *Provider_Expecter) CommitAuthorName() *Provider_CommitAuthorName_Call {
-	return &Provider_CommitAuthorName_Call{Call: _e.mock.On("CommitAuthorName")}
+//   - ctx context.Context
+func (_e *Provider_Expecter) CommitAuthorName(ctx any) *Provider_CommitAuthorName_Call {
+	return &Provider_CommitAuthorName_Call{Call: _e.mock.On("CommitAuthorName", ctx)}
 }
 
-func (_c *Provider_CommitAuthorName_Call) Run(run func()) *Provider_CommitAuthorName_Call {
+func (_c *Provider_CommitAuthorName_Call) Run(run func(ctx context.Context)) *Provider_CommitAuthorName_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -249,14 +278,14 @@ func (_c *Provider_CommitAuthorName_Call) Return(s string, err error) *Provider_
 	return _c
 }
 
-func (_c *Provider_CommitAuthorName_Call) RunAndReturn(run func() (string, error)) *Provider_CommitAuthorName_Call {
+func (_c *Provider_CommitAuthorName_Call) RunAndReturn(run func(ctx context.Context) (string, error)) *Provider_CommitAuthorName_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // EnabledSourceTypes provides a mock function for the type Provider
-func (_mock *Provider) EnabledSourceTypes() (map[string]bool, error) {
-	ret := _mock.Called()
+func (_mock *Provider) EnabledSourceTypes(ctx context.Context) (map[string]bool, error) {
+	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for EnabledSourceTypes")
@@ -264,18 +293,18 @@ func (_mock *Provider) EnabledSourceTypes() (map[string]bool, error) {
 
 	var r0 map[string]bool
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() (map[string]bool, error)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (map[string]bool, error)); ok {
+		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func() map[string]bool); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) map[string]bool); ok {
+		r0 = returnFunc(ctx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(map[string]bool)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -288,13 +317,20 @@ type Provider_EnabledSourceTypes_Call struct {
 }
 
 // EnabledSourceTypes is a helper method to define mock.On call
-func (_e *Provider_Expecter) EnabledSourceTypes() *Provider_EnabledSourceTypes_Call {
-	return &Provider_EnabledSourceTypes_Call{Call: _e.mock.On("EnabledSourceTypes")}
+//   - ctx context.Context
+func (_e *Provider_Expecter) EnabledSourceTypes(ctx any) *Provider_EnabledSourceTypes_Call {
+	return &Provider_EnabledSourceTypes_Call{Call: _e.mock.On("EnabledSourceTypes", ctx)}
 }
 
-func (_c *Provider_EnabledSourceTypes_Call) Run(run func()) *Provider_EnabledSourceTypes_Call {
+func (_c *Provider_EnabledSourceTypes_Call) Run(run func(ctx context.Context)) *Provider_EnabledSourceTypes_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -304,14 +340,14 @@ func (_c *Provider_EnabledSourceTypes_Call) Return(stringToBool map[string]bool,
 	return _c
 }
 
-func (_c *Provider_EnabledSourceTypes_Call) RunAndReturn(run func() (map[string]bool, error)) *Provider_EnabledSourceTypes_Call {
+func (_c *Provider_EnabledSourceTypes_Call) RunAndReturn(run func(ctx context.Context) (map[string]bool, error)) *Provider_EnabledSourceTypes_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GitRequestTimeout provides a mock function for the type Provider
-func (_mock *Provider) GitRequestTimeout() (time.Duration, error) {
-	ret := _mock.Called()
+func (_mock *Provider) GitRequestTimeout(ctx context.Context) (time.Duration, error) {
+	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GitRequestTimeout")
@@ -319,16 +355,16 @@ func (_mock *Provider) GitRequestTimeout() (time.Duration, error) {
 
 	var r0 time.Duration
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() (time.Duration, error)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (time.Duration, error)); ok {
+		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func() time.Duration); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) time.Duration); ok {
+		r0 = returnFunc(ctx)
 	} else {
 		r0 = ret.Get(0).(time.Duration)
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -341,13 +377,20 @@ type Provider_GitRequestTimeout_Call struct {
 }
 
 // GitRequestTimeout is a helper method to define mock.On call
-func (_e *Provider_Expecter) GitRequestTimeout() *Provider_GitRequestTimeout_Call {
-	return &Provider_GitRequestTimeout_Call{Call: _e.mock.On("GitRequestTimeout")}
+//   - ctx context.Context
+func (_e *Provider_Expecter) GitRequestTimeout(ctx any) *Provider_GitRequestTimeout_Call {
+	return &Provider_GitRequestTimeout_Call{Call: _e.mock.On("GitRequestTimeout", ctx)}
 }
 
-func (_c *Provider_GitRequestTimeout_Call) Run(run func()) *Provider_GitRequestTimeout_Call {
+func (_c *Provider_GitRequestTimeout_Call) Run(run func(ctx context.Context)) *Provider_GitRequestTimeout_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -357,14 +400,14 @@ func (_c *Provider_GitRequestTimeout_Call) Return(duration time.Duration, err er
 	return _c
 }
 
-func (_c *Provider_GitRequestTimeout_Call) RunAndReturn(run func() (time.Duration, error)) *Provider_GitRequestTimeout_Call {
+func (_c *Provider_GitRequestTimeout_Call) RunAndReturn(run func(ctx context.Context) (time.Duration, error)) *Provider_GitRequestTimeout_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // HardReconciliationTimeout provides a mock function for the type Provider
-func (_mock *Provider) HardReconciliationTimeout() (time.Duration, error) {
-	ret := _mock.Called()
+func (_mock *Provider) HardReconciliationTimeout(ctx context.Context) (time.Duration, error) {
+	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for HardReconciliationTimeout")
@@ -372,16 +415,16 @@ func (_mock *Provider) HardReconciliationTimeout() (time.Duration, error) {
 
 	var r0 time.Duration
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() (time.Duration, error)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (time.Duration, error)); ok {
+		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func() time.Duration); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) time.Duration); ok {
+		r0 = returnFunc(ctx)
 	} else {
 		r0 = ret.Get(0).(time.Duration)
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -394,13 +437,20 @@ type Provider_HardReconciliationTimeout_Call struct {
 }
 
 // HardReconciliationTimeout is a helper method to define mock.On call
-func (_e *Provider_Expecter) HardReconciliationTimeout() *Provider_HardReconciliationTimeout_Call {
-	return &Provider_HardReconciliationTimeout_Call{Call: _e.mock.On("HardReconciliationTimeout")}
+//   - ctx context.Context
+func (_e *Provider_Expecter) HardReconciliationTimeout(ctx any) *Provider_HardReconciliationTimeout_Call {
+	return &Provider_HardReconciliationTimeout_Call{Call: _e.mock.On("HardReconciliationTimeout", ctx)}
 }
 
-func (_c *Provider_HardReconciliationTimeout_Call) Run(run func()) *Provider_HardReconciliationTimeout_Call {
+func (_c *Provider_HardReconciliationTimeout_Call) Run(run func(ctx context.Context)) *Provider_HardReconciliationTimeout_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -410,14 +460,14 @@ func (_c *Provider_HardReconciliationTimeout_Call) Return(duration time.Duration
 	return _c
 }
 
-func (_c *Provider_HardReconciliationTimeout_Call) RunAndReturn(run func() (time.Duration, error)) *Provider_HardReconciliationTimeout_Call {
+func (_c *Provider_HardReconciliationTimeout_Call) RunAndReturn(run func(ctx context.Context) (time.Duration, error)) *Provider_HardReconciliationTimeout_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // HelmSettings provides a mock function for the type Provider
-func (_mock *Provider) HelmSettings() (*v1alpha1.HelmOptions, error) {
-	ret := _mock.Called()
+func (_mock *Provider) HelmSettings(ctx context.Context) (*v1alpha1.HelmOptions, error) {
+	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for HelmSettings")
@@ -425,18 +475,18 @@ func (_mock *Provider) HelmSettings() (*v1alpha1.HelmOptions, error) {
 
 	var r0 *v1alpha1.HelmOptions
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() (*v1alpha1.HelmOptions, error)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (*v1alpha1.HelmOptions, error)); ok {
+		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func() *v1alpha1.HelmOptions); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) *v1alpha1.HelmOptions); ok {
+		r0 = returnFunc(ctx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*v1alpha1.HelmOptions)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -449,13 +499,20 @@ type Provider_HelmSettings_Call struct {
 }
 
 // HelmSettings is a helper method to define mock.On call
-func (_e *Provider_Expecter) HelmSettings() *Provider_HelmSettings_Call {
-	return &Provider_HelmSettings_Call{Call: _e.mock.On("HelmSettings")}
+//   - ctx context.Context
+func (_e *Provider_Expecter) HelmSettings(ctx any) *Provider_HelmSettings_Call {
+	return &Provider_HelmSettings_Call{Call: _e.mock.On("HelmSettings", ctx)}
 }
 
-func (_c *Provider_HelmSettings_Call) Run(run func()) *Provider_HelmSettings_Call {
+func (_c *Provider_HelmSettings_Call) Run(run func(ctx context.Context)) *Provider_HelmSettings_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -465,14 +522,14 @@ func (_c *Provider_HelmSettings_Call) Return(helmOptions *v1alpha1.HelmOptions, 
 	return _c
 }
 
-func (_c *Provider_HelmSettings_Call) RunAndReturn(run func() (*v1alpha1.HelmOptions, error)) *Provider_HelmSettings_Call {
+func (_c *Provider_HelmSettings_Call) RunAndReturn(run func(ctx context.Context) (*v1alpha1.HelmOptions, error)) *Provider_HelmSettings_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // HydratorReadmeTemplate provides a mock function for the type Provider
-func (_mock *Provider) HydratorReadmeTemplate() (string, error) {
-	ret := _mock.Called()
+func (_mock *Provider) HydratorReadmeTemplate(ctx context.Context) (string, error) {
+	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for HydratorReadmeTemplate")
@@ -480,16 +537,16 @@ func (_mock *Provider) HydratorReadmeTemplate() (string, error) {
 
 	var r0 string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() (string, error)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (string, error)); ok {
+		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func() string); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) string); ok {
+		r0 = returnFunc(ctx)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -502,13 +559,20 @@ type Provider_HydratorReadmeTemplate_Call struct {
 }
 
 // HydratorReadmeTemplate is a helper method to define mock.On call
-func (_e *Provider_Expecter) HydratorReadmeTemplate() *Provider_HydratorReadmeTemplate_Call {
-	return &Provider_HydratorReadmeTemplate_Call{Call: _e.mock.On("HydratorReadmeTemplate")}
+//   - ctx context.Context
+func (_e *Provider_Expecter) HydratorReadmeTemplate(ctx any) *Provider_HydratorReadmeTemplate_Call {
+	return &Provider_HydratorReadmeTemplate_Call{Call: _e.mock.On("HydratorReadmeTemplate", ctx)}
 }
 
-func (_c *Provider_HydratorReadmeTemplate_Call) Run(run func()) *Provider_HydratorReadmeTemplate_Call {
+func (_c *Provider_HydratorReadmeTemplate_Call) Run(run func(ctx context.Context)) *Provider_HydratorReadmeTemplate_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -518,14 +582,14 @@ func (_c *Provider_HydratorReadmeTemplate_Call) Return(s string, err error) *Pro
 	return _c
 }
 
-func (_c *Provider_HydratorReadmeTemplate_Call) RunAndReturn(run func() (string, error)) *Provider_HydratorReadmeTemplate_Call {
+func (_c *Provider_HydratorReadmeTemplate_Call) RunAndReturn(run func(ctx context.Context) (string, error)) *Provider_HydratorReadmeTemplate_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // IgnoreNormalizerJQTimeout provides a mock function for the type Provider
-func (_mock *Provider) IgnoreNormalizerJQTimeout() (time.Duration, error) {
-	ret := _mock.Called()
+func (_mock *Provider) IgnoreNormalizerJQTimeout(ctx context.Context) (time.Duration, error) {
+	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for IgnoreNormalizerJQTimeout")
@@ -533,16 +597,16 @@ func (_mock *Provider) IgnoreNormalizerJQTimeout() (time.Duration, error) {
 
 	var r0 time.Duration
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() (time.Duration, error)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (time.Duration, error)); ok {
+		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func() time.Duration); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) time.Duration); ok {
+		r0 = returnFunc(ctx)
 	} else {
 		r0 = ret.Get(0).(time.Duration)
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -555,13 +619,20 @@ type Provider_IgnoreNormalizerJQTimeout_Call struct {
 }
 
 // IgnoreNormalizerJQTimeout is a helper method to define mock.On call
-func (_e *Provider_Expecter) IgnoreNormalizerJQTimeout() *Provider_IgnoreNormalizerJQTimeout_Call {
-	return &Provider_IgnoreNormalizerJQTimeout_Call{Call: _e.mock.On("IgnoreNormalizerJQTimeout")}
+//   - ctx context.Context
+func (_e *Provider_Expecter) IgnoreNormalizerJQTimeout(ctx any) *Provider_IgnoreNormalizerJQTimeout_Call {
+	return &Provider_IgnoreNormalizerJQTimeout_Call{Call: _e.mock.On("IgnoreNormalizerJQTimeout", ctx)}
 }
 
-func (_c *Provider_IgnoreNormalizerJQTimeout_Call) Run(run func()) *Provider_IgnoreNormalizerJQTimeout_Call {
+func (_c *Provider_IgnoreNormalizerJQTimeout_Call) Run(run func(ctx context.Context)) *Provider_IgnoreNormalizerJQTimeout_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -571,14 +642,14 @@ func (_c *Provider_IgnoreNormalizerJQTimeout_Call) Return(duration time.Duration
 	return _c
 }
 
-func (_c *Provider_IgnoreNormalizerJQTimeout_Call) RunAndReturn(run func() (time.Duration, error)) *Provider_IgnoreNormalizerJQTimeout_Call {
+func (_c *Provider_IgnoreNormalizerJQTimeout_Call) RunAndReturn(run func(ctx context.Context) (time.Duration, error)) *Provider_IgnoreNormalizerJQTimeout_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // IgnoreResourceUpdatesOverrides provides a mock function for the type Provider
-func (_mock *Provider) IgnoreResourceUpdatesOverrides() (map[string]v1alpha1.ResourceOverride, error) {
-	ret := _mock.Called()
+func (_mock *Provider) IgnoreResourceUpdatesOverrides(ctx context.Context) (map[string]v1alpha1.ResourceOverride, error) {
+	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for IgnoreResourceUpdatesOverrides")
@@ -586,18 +657,18 @@ func (_mock *Provider) IgnoreResourceUpdatesOverrides() (map[string]v1alpha1.Res
 
 	var r0 map[string]v1alpha1.ResourceOverride
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() (map[string]v1alpha1.ResourceOverride, error)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (map[string]v1alpha1.ResourceOverride, error)); ok {
+		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func() map[string]v1alpha1.ResourceOverride); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) map[string]v1alpha1.ResourceOverride); ok {
+		r0 = returnFunc(ctx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(map[string]v1alpha1.ResourceOverride)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -610,13 +681,20 @@ type Provider_IgnoreResourceUpdatesOverrides_Call struct {
 }
 
 // IgnoreResourceUpdatesOverrides is a helper method to define mock.On call
-func (_e *Provider_Expecter) IgnoreResourceUpdatesOverrides() *Provider_IgnoreResourceUpdatesOverrides_Call {
-	return &Provider_IgnoreResourceUpdatesOverrides_Call{Call: _e.mock.On("IgnoreResourceUpdatesOverrides")}
+//   - ctx context.Context
+func (_e *Provider_Expecter) IgnoreResourceUpdatesOverrides(ctx any) *Provider_IgnoreResourceUpdatesOverrides_Call {
+	return &Provider_IgnoreResourceUpdatesOverrides_Call{Call: _e.mock.On("IgnoreResourceUpdatesOverrides", ctx)}
 }
 
-func (_c *Provider_IgnoreResourceUpdatesOverrides_Call) Run(run func()) *Provider_IgnoreResourceUpdatesOverrides_Call {
+func (_c *Provider_IgnoreResourceUpdatesOverrides_Call) Run(run func(ctx context.Context)) *Provider_IgnoreResourceUpdatesOverrides_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -626,14 +704,14 @@ func (_c *Provider_IgnoreResourceUpdatesOverrides_Call) Return(stringToResourceO
 	return _c
 }
 
-func (_c *Provider_IgnoreResourceUpdatesOverrides_Call) RunAndReturn(run func() (map[string]v1alpha1.ResourceOverride, error)) *Provider_IgnoreResourceUpdatesOverrides_Call {
+func (_c *Provider_IgnoreResourceUpdatesOverrides_Call) RunAndReturn(run func(ctx context.Context) (map[string]v1alpha1.ResourceOverride, error)) *Provider_IgnoreResourceUpdatesOverrides_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // InstallationID provides a mock function for the type Provider
-func (_mock *Provider) InstallationID() (string, error) {
-	ret := _mock.Called()
+func (_mock *Provider) InstallationID(ctx context.Context) (string, error) {
+	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for InstallationID")
@@ -641,16 +719,16 @@ func (_mock *Provider) InstallationID() (string, error) {
 
 	var r0 string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() (string, error)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (string, error)); ok {
+		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func() string); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) string); ok {
+		r0 = returnFunc(ctx)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -663,13 +741,20 @@ type Provider_InstallationID_Call struct {
 }
 
 // InstallationID is a helper method to define mock.On call
-func (_e *Provider_Expecter) InstallationID() *Provider_InstallationID_Call {
-	return &Provider_InstallationID_Call{Call: _e.mock.On("InstallationID")}
+//   - ctx context.Context
+func (_e *Provider_Expecter) InstallationID(ctx any) *Provider_InstallationID_Call {
+	return &Provider_InstallationID_Call{Call: _e.mock.On("InstallationID", ctx)}
 }
 
-func (_c *Provider_InstallationID_Call) Run(run func()) *Provider_InstallationID_Call {
+func (_c *Provider_InstallationID_Call) Run(run func(ctx context.Context)) *Provider_InstallationID_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -679,14 +764,14 @@ func (_c *Provider_InstallationID_Call) Return(s string, err error) *Provider_In
 	return _c
 }
 
-func (_c *Provider_InstallationID_Call) RunAndReturn(run func() (string, error)) *Provider_InstallationID_Call {
+func (_c *Provider_InstallationID_Call) RunAndReturn(run func(ctx context.Context) (string, error)) *Provider_InstallationID_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // IsIgnoreResourceUpdatesEnabled provides a mock function for the type Provider
-func (_mock *Provider) IsIgnoreResourceUpdatesEnabled() (bool, error) {
-	ret := _mock.Called()
+func (_mock *Provider) IsIgnoreResourceUpdatesEnabled(ctx context.Context) (bool, error) {
+	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for IsIgnoreResourceUpdatesEnabled")
@@ -694,16 +779,16 @@ func (_mock *Provider) IsIgnoreResourceUpdatesEnabled() (bool, error) {
 
 	var r0 bool
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() (bool, error)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (bool, error)); ok {
+		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func() bool); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) bool); ok {
+		r0 = returnFunc(ctx)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -716,13 +801,20 @@ type Provider_IsIgnoreResourceUpdatesEnabled_Call struct {
 }
 
 // IsIgnoreResourceUpdatesEnabled is a helper method to define mock.On call
-func (_e *Provider_Expecter) IsIgnoreResourceUpdatesEnabled() *Provider_IsIgnoreResourceUpdatesEnabled_Call {
-	return &Provider_IsIgnoreResourceUpdatesEnabled_Call{Call: _e.mock.On("IsIgnoreResourceUpdatesEnabled")}
+//   - ctx context.Context
+func (_e *Provider_Expecter) IsIgnoreResourceUpdatesEnabled(ctx any) *Provider_IsIgnoreResourceUpdatesEnabled_Call {
+	return &Provider_IsIgnoreResourceUpdatesEnabled_Call{Call: _e.mock.On("IsIgnoreResourceUpdatesEnabled", ctx)}
 }
 
-func (_c *Provider_IsIgnoreResourceUpdatesEnabled_Call) Run(run func()) *Provider_IsIgnoreResourceUpdatesEnabled_Call {
+func (_c *Provider_IsIgnoreResourceUpdatesEnabled_Call) Run(run func(ctx context.Context)) *Provider_IsIgnoreResourceUpdatesEnabled_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -732,14 +824,14 @@ func (_c *Provider_IsIgnoreResourceUpdatesEnabled_Call) Return(b bool, err error
 	return _c
 }
 
-func (_c *Provider_IsIgnoreResourceUpdatesEnabled_Call) RunAndReturn(run func() (bool, error)) *Provider_IsIgnoreResourceUpdatesEnabled_Call {
+func (_c *Provider_IsIgnoreResourceUpdatesEnabled_Call) RunAndReturn(run func(ctx context.Context) (bool, error)) *Provider_IsIgnoreResourceUpdatesEnabled_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // IsImpersonationEnabled provides a mock function for the type Provider
-func (_mock *Provider) IsImpersonationEnabled() (bool, error) {
-	ret := _mock.Called()
+func (_mock *Provider) IsImpersonationEnabled(ctx context.Context) (bool, error) {
+	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for IsImpersonationEnabled")
@@ -747,16 +839,16 @@ func (_mock *Provider) IsImpersonationEnabled() (bool, error) {
 
 	var r0 bool
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() (bool, error)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (bool, error)); ok {
+		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func() bool); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) bool); ok {
+		r0 = returnFunc(ctx)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -769,13 +861,20 @@ type Provider_IsImpersonationEnabled_Call struct {
 }
 
 // IsImpersonationEnabled is a helper method to define mock.On call
-func (_e *Provider_Expecter) IsImpersonationEnabled() *Provider_IsImpersonationEnabled_Call {
-	return &Provider_IsImpersonationEnabled_Call{Call: _e.mock.On("IsImpersonationEnabled")}
+//   - ctx context.Context
+func (_e *Provider_Expecter) IsImpersonationEnabled(ctx any) *Provider_IsImpersonationEnabled_Call {
+	return &Provider_IsImpersonationEnabled_Call{Call: _e.mock.On("IsImpersonationEnabled", ctx)}
 }
 
-func (_c *Provider_IsImpersonationEnabled_Call) Run(run func()) *Provider_IsImpersonationEnabled_Call {
+func (_c *Provider_IsImpersonationEnabled_Call) Run(run func(ctx context.Context)) *Provider_IsImpersonationEnabled_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -785,14 +884,14 @@ func (_c *Provider_IsImpersonationEnabled_Call) Return(b bool, err error) *Provi
 	return _c
 }
 
-func (_c *Provider_IsImpersonationEnabled_Call) RunAndReturn(run func() (bool, error)) *Provider_IsImpersonationEnabled_Call {
+func (_c *Provider_IsImpersonationEnabled_Call) RunAndReturn(run func(ctx context.Context) (bool, error)) *Provider_IsImpersonationEnabled_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // IsImpersonationEnforced provides a mock function for the type Provider
-func (_mock *Provider) IsImpersonationEnforced() (bool, error) {
-	ret := _mock.Called()
+func (_mock *Provider) IsImpersonationEnforced(ctx context.Context) (bool, error) {
+	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for IsImpersonationEnforced")
@@ -800,16 +899,16 @@ func (_mock *Provider) IsImpersonationEnforced() (bool, error) {
 
 	var r0 bool
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() (bool, error)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (bool, error)); ok {
+		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func() bool); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) bool); ok {
+		r0 = returnFunc(ctx)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -822,13 +921,20 @@ type Provider_IsImpersonationEnforced_Call struct {
 }
 
 // IsImpersonationEnforced is a helper method to define mock.On call
-func (_e *Provider_Expecter) IsImpersonationEnforced() *Provider_IsImpersonationEnforced_Call {
-	return &Provider_IsImpersonationEnforced_Call{Call: _e.mock.On("IsImpersonationEnforced")}
+//   - ctx context.Context
+func (_e *Provider_Expecter) IsImpersonationEnforced(ctx any) *Provider_IsImpersonationEnforced_Call {
+	return &Provider_IsImpersonationEnforced_Call{Call: _e.mock.On("IsImpersonationEnforced", ctx)}
 }
 
-func (_c *Provider_IsImpersonationEnforced_Call) Run(run func()) *Provider_IsImpersonationEnforced_Call {
+func (_c *Provider_IsImpersonationEnforced_Call) Run(run func(ctx context.Context)) *Provider_IsImpersonationEnforced_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -838,14 +944,14 @@ func (_c *Provider_IsImpersonationEnforced_Call) Return(b bool, err error) *Prov
 	return _c
 }
 
-func (_c *Provider_IsImpersonationEnforced_Call) RunAndReturn(run func() (bool, error)) *Provider_IsImpersonationEnforced_Call {
+func (_c *Provider_IsImpersonationEnforced_Call) RunAndReturn(run func(ctx context.Context) (bool, error)) *Provider_IsImpersonationEnforced_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // KustomizeSettings provides a mock function for the type Provider
-func (_mock *Provider) KustomizeSettings() (*v1alpha1.KustomizeOptions, error) {
-	ret := _mock.Called()
+func (_mock *Provider) KustomizeSettings(ctx context.Context) (*v1alpha1.KustomizeOptions, error) {
+	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for KustomizeSettings")
@@ -853,18 +959,18 @@ func (_mock *Provider) KustomizeSettings() (*v1alpha1.KustomizeOptions, error) {
 
 	var r0 *v1alpha1.KustomizeOptions
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() (*v1alpha1.KustomizeOptions, error)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (*v1alpha1.KustomizeOptions, error)); ok {
+		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func() *v1alpha1.KustomizeOptions); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) *v1alpha1.KustomizeOptions); ok {
+		r0 = returnFunc(ctx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*v1alpha1.KustomizeOptions)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -877,13 +983,20 @@ type Provider_KustomizeSettings_Call struct {
 }
 
 // KustomizeSettings is a helper method to define mock.On call
-func (_e *Provider_Expecter) KustomizeSettings() *Provider_KustomizeSettings_Call {
-	return &Provider_KustomizeSettings_Call{Call: _e.mock.On("KustomizeSettings")}
+//   - ctx context.Context
+func (_e *Provider_Expecter) KustomizeSettings(ctx any) *Provider_KustomizeSettings_Call {
+	return &Provider_KustomizeSettings_Call{Call: _e.mock.On("KustomizeSettings", ctx)}
 }
 
-func (_c *Provider_KustomizeSettings_Call) Run(run func()) *Provider_KustomizeSettings_Call {
+func (_c *Provider_KustomizeSettings_Call) Run(run func(ctx context.Context)) *Provider_KustomizeSettings_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -893,14 +1006,14 @@ func (_c *Provider_KustomizeSettings_Call) Return(kustomizeOptions *v1alpha1.Kus
 	return _c
 }
 
-func (_c *Provider_KustomizeSettings_Call) RunAndReturn(run func() (*v1alpha1.KustomizeOptions, error)) *Provider_KustomizeSettings_Call {
+func (_c *Provider_KustomizeSettings_Call) RunAndReturn(run func(ctx context.Context) (*v1alpha1.KustomizeOptions, error)) *Provider_KustomizeSettings_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // MetricsClusterLabels provides a mock function for the type Provider
-func (_mock *Provider) MetricsClusterLabels() ([]string, error) {
-	ret := _mock.Called()
+func (_mock *Provider) MetricsClusterLabels(ctx context.Context) ([]string, error) {
+	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for MetricsClusterLabels")
@@ -908,18 +1021,18 @@ func (_mock *Provider) MetricsClusterLabels() ([]string, error) {
 
 	var r0 []string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() ([]string, error)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]string, error)); ok {
+		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func() []string); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []string); ok {
+		r0 = returnFunc(ctx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]string)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -932,13 +1045,20 @@ type Provider_MetricsClusterLabels_Call struct {
 }
 
 // MetricsClusterLabels is a helper method to define mock.On call
-func (_e *Provider_Expecter) MetricsClusterLabels() *Provider_MetricsClusterLabels_Call {
-	return &Provider_MetricsClusterLabels_Call{Call: _e.mock.On("MetricsClusterLabels")}
+//   - ctx context.Context
+func (_e *Provider_Expecter) MetricsClusterLabels(ctx any) *Provider_MetricsClusterLabels_Call {
+	return &Provider_MetricsClusterLabels_Call{Call: _e.mock.On("MetricsClusterLabels", ctx)}
 }
 
-func (_c *Provider_MetricsClusterLabels_Call) Run(run func()) *Provider_MetricsClusterLabels_Call {
+func (_c *Provider_MetricsClusterLabels_Call) Run(run func(ctx context.Context)) *Provider_MetricsClusterLabels_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -948,14 +1068,14 @@ func (_c *Provider_MetricsClusterLabels_Call) Return(strings []string, err error
 	return _c
 }
 
-func (_c *Provider_MetricsClusterLabels_Call) RunAndReturn(run func() ([]string, error)) *Provider_MetricsClusterLabels_Call {
+func (_c *Provider_MetricsClusterLabels_Call) RunAndReturn(run func(ctx context.Context) ([]string, error)) *Provider_MetricsClusterLabels_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // PersistResourceHealth provides a mock function for the type Provider
-func (_mock *Provider) PersistResourceHealth() (bool, error) {
-	ret := _mock.Called()
+func (_mock *Provider) PersistResourceHealth(ctx context.Context) (bool, error) {
+	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for PersistResourceHealth")
@@ -963,16 +1083,16 @@ func (_mock *Provider) PersistResourceHealth() (bool, error) {
 
 	var r0 bool
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() (bool, error)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (bool, error)); ok {
+		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func() bool); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) bool); ok {
+		r0 = returnFunc(ctx)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -985,13 +1105,20 @@ type Provider_PersistResourceHealth_Call struct {
 }
 
 // PersistResourceHealth is a helper method to define mock.On call
-func (_e *Provider_Expecter) PersistResourceHealth() *Provider_PersistResourceHealth_Call {
-	return &Provider_PersistResourceHealth_Call{Call: _e.mock.On("PersistResourceHealth")}
+//   - ctx context.Context
+func (_e *Provider_Expecter) PersistResourceHealth(ctx any) *Provider_PersistResourceHealth_Call {
+	return &Provider_PersistResourceHealth_Call{Call: _e.mock.On("PersistResourceHealth", ctx)}
 }
 
-func (_c *Provider_PersistResourceHealth_Call) Run(run func()) *Provider_PersistResourceHealth_Call {
+func (_c *Provider_PersistResourceHealth_Call) Run(run func(ctx context.Context)) *Provider_PersistResourceHealth_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -1001,14 +1128,14 @@ func (_c *Provider_PersistResourceHealth_Call) Return(b bool, err error) *Provid
 	return _c
 }
 
-func (_c *Provider_PersistResourceHealth_Call) RunAndReturn(run func() (bool, error)) *Provider_PersistResourceHealth_Call {
+func (_c *Provider_PersistResourceHealth_Call) RunAndReturn(run func(ctx context.Context) (bool, error)) *Provider_PersistResourceHealth_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ReconciliationJitter provides a mock function for the type Provider
-func (_mock *Provider) ReconciliationJitter() (time.Duration, error) {
-	ret := _mock.Called()
+func (_mock *Provider) ReconciliationJitter(ctx context.Context) (time.Duration, error) {
+	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ReconciliationJitter")
@@ -1016,16 +1143,16 @@ func (_mock *Provider) ReconciliationJitter() (time.Duration, error) {
 
 	var r0 time.Duration
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() (time.Duration, error)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (time.Duration, error)); ok {
+		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func() time.Duration); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) time.Duration); ok {
+		r0 = returnFunc(ctx)
 	} else {
 		r0 = ret.Get(0).(time.Duration)
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1038,13 +1165,20 @@ type Provider_ReconciliationJitter_Call struct {
 }
 
 // ReconciliationJitter is a helper method to define mock.On call
-func (_e *Provider_Expecter) ReconciliationJitter() *Provider_ReconciliationJitter_Call {
-	return &Provider_ReconciliationJitter_Call{Call: _e.mock.On("ReconciliationJitter")}
+//   - ctx context.Context
+func (_e *Provider_Expecter) ReconciliationJitter(ctx any) *Provider_ReconciliationJitter_Call {
+	return &Provider_ReconciliationJitter_Call{Call: _e.mock.On("ReconciliationJitter", ctx)}
 }
 
-func (_c *Provider_ReconciliationJitter_Call) Run(run func()) *Provider_ReconciliationJitter_Call {
+func (_c *Provider_ReconciliationJitter_Call) Run(run func(ctx context.Context)) *Provider_ReconciliationJitter_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -1054,14 +1188,14 @@ func (_c *Provider_ReconciliationJitter_Call) Return(duration time.Duration, err
 	return _c
 }
 
-func (_c *Provider_ReconciliationJitter_Call) RunAndReturn(run func() (time.Duration, error)) *Provider_ReconciliationJitter_Call {
+func (_c *Provider_ReconciliationJitter_Call) RunAndReturn(run func(ctx context.Context) (time.Duration, error)) *Provider_ReconciliationJitter_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ReconciliationTimeout provides a mock function for the type Provider
-func (_mock *Provider) ReconciliationTimeout() (time.Duration, error) {
-	ret := _mock.Called()
+func (_mock *Provider) ReconciliationTimeout(ctx context.Context) (time.Duration, error) {
+	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ReconciliationTimeout")
@@ -1069,16 +1203,16 @@ func (_mock *Provider) ReconciliationTimeout() (time.Duration, error) {
 
 	var r0 time.Duration
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() (time.Duration, error)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (time.Duration, error)); ok {
+		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func() time.Duration); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) time.Duration); ok {
+		r0 = returnFunc(ctx)
 	} else {
 		r0 = ret.Get(0).(time.Duration)
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1091,13 +1225,20 @@ type Provider_ReconciliationTimeout_Call struct {
 }
 
 // ReconciliationTimeout is a helper method to define mock.On call
-func (_e *Provider_Expecter) ReconciliationTimeout() *Provider_ReconciliationTimeout_Call {
-	return &Provider_ReconciliationTimeout_Call{Call: _e.mock.On("ReconciliationTimeout")}
+//   - ctx context.Context
+func (_e *Provider_Expecter) ReconciliationTimeout(ctx any) *Provider_ReconciliationTimeout_Call {
+	return &Provider_ReconciliationTimeout_Call{Call: _e.mock.On("ReconciliationTimeout", ctx)}
 }
 
-func (_c *Provider_ReconciliationTimeout_Call) Run(run func()) *Provider_ReconciliationTimeout_Call {
+func (_c *Provider_ReconciliationTimeout_Call) Run(run func(ctx context.Context)) *Provider_ReconciliationTimeout_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -1107,14 +1248,14 @@ func (_c *Provider_ReconciliationTimeout_Call) Return(duration time.Duration, er
 	return _c
 }
 
-func (_c *Provider_ReconciliationTimeout_Call) RunAndReturn(run func() (time.Duration, error)) *Provider_ReconciliationTimeout_Call {
+func (_c *Provider_ReconciliationTimeout_Call) RunAndReturn(run func(ctx context.Context) (time.Duration, error)) *Provider_ReconciliationTimeout_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // RepoErrorGracePeriod provides a mock function for the type Provider
-func (_mock *Provider) RepoErrorGracePeriod() (time.Duration, error) {
-	ret := _mock.Called()
+func (_mock *Provider) RepoErrorGracePeriod(ctx context.Context) (time.Duration, error) {
+	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for RepoErrorGracePeriod")
@@ -1122,16 +1263,16 @@ func (_mock *Provider) RepoErrorGracePeriod() (time.Duration, error) {
 
 	var r0 time.Duration
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() (time.Duration, error)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (time.Duration, error)); ok {
+		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func() time.Duration); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) time.Duration); ok {
+		r0 = returnFunc(ctx)
 	} else {
 		r0 = ret.Get(0).(time.Duration)
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1144,13 +1285,20 @@ type Provider_RepoErrorGracePeriod_Call struct {
 }
 
 // RepoErrorGracePeriod is a helper method to define mock.On call
-func (_e *Provider_Expecter) RepoErrorGracePeriod() *Provider_RepoErrorGracePeriod_Call {
-	return &Provider_RepoErrorGracePeriod_Call{Call: _e.mock.On("RepoErrorGracePeriod")}
+//   - ctx context.Context
+func (_e *Provider_Expecter) RepoErrorGracePeriod(ctx any) *Provider_RepoErrorGracePeriod_Call {
+	return &Provider_RepoErrorGracePeriod_Call{Call: _e.mock.On("RepoErrorGracePeriod", ctx)}
 }
 
-func (_c *Provider_RepoErrorGracePeriod_Call) Run(run func()) *Provider_RepoErrorGracePeriod_Call {
+func (_c *Provider_RepoErrorGracePeriod_Call) Run(run func(ctx context.Context)) *Provider_RepoErrorGracePeriod_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -1160,14 +1308,14 @@ func (_c *Provider_RepoErrorGracePeriod_Call) Return(duration time.Duration, err
 	return _c
 }
 
-func (_c *Provider_RepoErrorGracePeriod_Call) RunAndReturn(run func() (time.Duration, error)) *Provider_RepoErrorGracePeriod_Call {
+func (_c *Provider_RepoErrorGracePeriod_Call) RunAndReturn(run func(ctx context.Context) (time.Duration, error)) *Provider_RepoErrorGracePeriod_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ResourceCompareOptions provides a mock function for the type Provider
-func (_mock *Provider) ResourceCompareOptions() (settings.ArgoCDDiffOptions, error) {
-	ret := _mock.Called()
+func (_mock *Provider) ResourceCompareOptions(ctx context.Context) (settings.ArgoCDDiffOptions, error) {
+	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ResourceCompareOptions")
@@ -1175,16 +1323,16 @@ func (_mock *Provider) ResourceCompareOptions() (settings.ArgoCDDiffOptions, err
 
 	var r0 settings.ArgoCDDiffOptions
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() (settings.ArgoCDDiffOptions, error)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (settings.ArgoCDDiffOptions, error)); ok {
+		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func() settings.ArgoCDDiffOptions); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) settings.ArgoCDDiffOptions); ok {
+		r0 = returnFunc(ctx)
 	} else {
 		r0 = ret.Get(0).(settings.ArgoCDDiffOptions)
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1197,13 +1345,20 @@ type Provider_ResourceCompareOptions_Call struct {
 }
 
 // ResourceCompareOptions is a helper method to define mock.On call
-func (_e *Provider_Expecter) ResourceCompareOptions() *Provider_ResourceCompareOptions_Call {
-	return &Provider_ResourceCompareOptions_Call{Call: _e.mock.On("ResourceCompareOptions")}
+//   - ctx context.Context
+func (_e *Provider_Expecter) ResourceCompareOptions(ctx any) *Provider_ResourceCompareOptions_Call {
+	return &Provider_ResourceCompareOptions_Call{Call: _e.mock.On("ResourceCompareOptions", ctx)}
 }
 
-func (_c *Provider_ResourceCompareOptions_Call) Run(run func()) *Provider_ResourceCompareOptions_Call {
+func (_c *Provider_ResourceCompareOptions_Call) Run(run func(ctx context.Context)) *Provider_ResourceCompareOptions_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -1213,14 +1368,14 @@ func (_c *Provider_ResourceCompareOptions_Call) Return(argoCDDiffOptions setting
 	return _c
 }
 
-func (_c *Provider_ResourceCompareOptions_Call) RunAndReturn(run func() (settings.ArgoCDDiffOptions, error)) *Provider_ResourceCompareOptions_Call {
+func (_c *Provider_ResourceCompareOptions_Call) RunAndReturn(run func(ctx context.Context) (settings.ArgoCDDiffOptions, error)) *Provider_ResourceCompareOptions_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ResourceCustomLabels provides a mock function for the type Provider
-func (_mock *Provider) ResourceCustomLabels() ([]string, error) {
-	ret := _mock.Called()
+func (_mock *Provider) ResourceCustomLabels(ctx context.Context) ([]string, error) {
+	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ResourceCustomLabels")
@@ -1228,18 +1383,18 @@ func (_mock *Provider) ResourceCustomLabels() ([]string, error) {
 
 	var r0 []string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() ([]string, error)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]string, error)); ok {
+		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func() []string); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []string); ok {
+		r0 = returnFunc(ctx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]string)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1252,13 +1407,20 @@ type Provider_ResourceCustomLabels_Call struct {
 }
 
 // ResourceCustomLabels is a helper method to define mock.On call
-func (_e *Provider_Expecter) ResourceCustomLabels() *Provider_ResourceCustomLabels_Call {
-	return &Provider_ResourceCustomLabels_Call{Call: _e.mock.On("ResourceCustomLabels")}
+//   - ctx context.Context
+func (_e *Provider_Expecter) ResourceCustomLabels(ctx any) *Provider_ResourceCustomLabels_Call {
+	return &Provider_ResourceCustomLabels_Call{Call: _e.mock.On("ResourceCustomLabels", ctx)}
 }
 
-func (_c *Provider_ResourceCustomLabels_Call) Run(run func()) *Provider_ResourceCustomLabels_Call {
+func (_c *Provider_ResourceCustomLabels_Call) Run(run func(ctx context.Context)) *Provider_ResourceCustomLabels_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -1268,14 +1430,14 @@ func (_c *Provider_ResourceCustomLabels_Call) Return(strings []string, err error
 	return _c
 }
 
-func (_c *Provider_ResourceCustomLabels_Call) RunAndReturn(run func() ([]string, error)) *Provider_ResourceCustomLabels_Call {
+func (_c *Provider_ResourceCustomLabels_Call) RunAndReturn(run func(ctx context.Context) ([]string, error)) *Provider_ResourceCustomLabels_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ResourceOverrides provides a mock function for the type Provider
-func (_mock *Provider) ResourceOverrides() (map[string]v1alpha1.ResourceOverride, error) {
-	ret := _mock.Called()
+func (_mock *Provider) ResourceOverrides(ctx context.Context) (map[string]v1alpha1.ResourceOverride, error) {
+	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ResourceOverrides")
@@ -1283,18 +1445,18 @@ func (_mock *Provider) ResourceOverrides() (map[string]v1alpha1.ResourceOverride
 
 	var r0 map[string]v1alpha1.ResourceOverride
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() (map[string]v1alpha1.ResourceOverride, error)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (map[string]v1alpha1.ResourceOverride, error)); ok {
+		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func() map[string]v1alpha1.ResourceOverride); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) map[string]v1alpha1.ResourceOverride); ok {
+		r0 = returnFunc(ctx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(map[string]v1alpha1.ResourceOverride)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1307,13 +1469,20 @@ type Provider_ResourceOverrides_Call struct {
 }
 
 // ResourceOverrides is a helper method to define mock.On call
-func (_e *Provider_Expecter) ResourceOverrides() *Provider_ResourceOverrides_Call {
-	return &Provider_ResourceOverrides_Call{Call: _e.mock.On("ResourceOverrides")}
+//   - ctx context.Context
+func (_e *Provider_Expecter) ResourceOverrides(ctx any) *Provider_ResourceOverrides_Call {
+	return &Provider_ResourceOverrides_Call{Call: _e.mock.On("ResourceOverrides", ctx)}
 }
 
-func (_c *Provider_ResourceOverrides_Call) Run(run func()) *Provider_ResourceOverrides_Call {
+func (_c *Provider_ResourceOverrides_Call) Run(run func(ctx context.Context)) *Provider_ResourceOverrides_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -1323,14 +1492,14 @@ func (_c *Provider_ResourceOverrides_Call) Return(stringToResourceOverride map[s
 	return _c
 }
 
-func (_c *Provider_ResourceOverrides_Call) RunAndReturn(run func() (map[string]v1alpha1.ResourceOverride, error)) *Provider_ResourceOverrides_Call {
+func (_c *Provider_ResourceOverrides_Call) RunAndReturn(run func(ctx context.Context) (map[string]v1alpha1.ResourceOverride, error)) *Provider_ResourceOverrides_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ResourcesFilter provides a mock function for the type Provider
-func (_mock *Provider) ResourcesFilter() (*settings.ResourcesFilter, error) {
-	ret := _mock.Called()
+func (_mock *Provider) ResourcesFilter(ctx context.Context) (*settings.ResourcesFilter, error) {
+	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ResourcesFilter")
@@ -1338,18 +1507,18 @@ func (_mock *Provider) ResourcesFilter() (*settings.ResourcesFilter, error) {
 
 	var r0 *settings.ResourcesFilter
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() (*settings.ResourcesFilter, error)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (*settings.ResourcesFilter, error)); ok {
+		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func() *settings.ResourcesFilter); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) *settings.ResourcesFilter); ok {
+		r0 = returnFunc(ctx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*settings.ResourcesFilter)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1362,13 +1531,20 @@ type Provider_ResourcesFilter_Call struct {
 }
 
 // ResourcesFilter is a helper method to define mock.On call
-func (_e *Provider_Expecter) ResourcesFilter() *Provider_ResourcesFilter_Call {
-	return &Provider_ResourcesFilter_Call{Call: _e.mock.On("ResourcesFilter")}
+//   - ctx context.Context
+func (_e *Provider_Expecter) ResourcesFilter(ctx any) *Provider_ResourcesFilter_Call {
+	return &Provider_ResourcesFilter_Call{Call: _e.mock.On("ResourcesFilter", ctx)}
 }
 
-func (_c *Provider_ResourcesFilter_Call) Run(run func()) *Provider_ResourcesFilter_Call {
+func (_c *Provider_ResourcesFilter_Call) Run(run func(ctx context.Context)) *Provider_ResourcesFilter_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -1378,14 +1554,14 @@ func (_c *Provider_ResourcesFilter_Call) Return(resourcesFilter *settings.Resour
 	return _c
 }
 
-func (_c *Provider_ResourcesFilter_Call) RunAndReturn(run func() (*settings.ResourcesFilter, error)) *Provider_ResourcesFilter_Call {
+func (_c *Provider_ResourcesFilter_Call) RunAndReturn(run func(ctx context.Context) (*settings.ResourcesFilter, error)) *Provider_ResourcesFilter_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // RespectRBAC provides a mock function for the type Provider
-func (_mock *Provider) RespectRBAC() (int, error) {
-	ret := _mock.Called()
+func (_mock *Provider) RespectRBAC(ctx context.Context) (int, error) {
+	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for RespectRBAC")
@@ -1393,16 +1569,16 @@ func (_mock *Provider) RespectRBAC() (int, error) {
 
 	var r0 int
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() (int, error)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (int, error)); ok {
+		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func() int); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) int); ok {
+		r0 = returnFunc(ctx)
 	} else {
 		r0 = ret.Get(0).(int)
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1415,13 +1591,20 @@ type Provider_RespectRBAC_Call struct {
 }
 
 // RespectRBAC is a helper method to define mock.On call
-func (_e *Provider_Expecter) RespectRBAC() *Provider_RespectRBAC_Call {
-	return &Provider_RespectRBAC_Call{Call: _e.mock.On("RespectRBAC")}
+//   - ctx context.Context
+func (_e *Provider_Expecter) RespectRBAC(ctx any) *Provider_RespectRBAC_Call {
+	return &Provider_RespectRBAC_Call{Call: _e.mock.On("RespectRBAC", ctx)}
 }
 
-func (_c *Provider_RespectRBAC_Call) Run(run func()) *Provider_RespectRBAC_Call {
+func (_c *Provider_RespectRBAC_Call) Run(run func(ctx context.Context)) *Provider_RespectRBAC_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -1431,14 +1614,14 @@ func (_c *Provider_RespectRBAC_Call) Return(n int, err error) *Provider_RespectR
 	return _c
 }
 
-func (_c *Provider_RespectRBAC_Call) RunAndReturn(run func() (int, error)) *Provider_RespectRBAC_Call {
+func (_c *Provider_RespectRBAC_Call) RunAndReturn(run func(ctx context.Context) (int, error)) *Provider_RespectRBAC_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SelfHealBackoff provides a mock function for the type Provider
-func (_mock *Provider) SelfHealBackoff() (*wait.Backoff, error) {
-	ret := _mock.Called()
+func (_mock *Provider) SelfHealBackoff(ctx context.Context) (*wait.Backoff, error) {
+	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for SelfHealBackoff")
@@ -1446,18 +1629,18 @@ func (_mock *Provider) SelfHealBackoff() (*wait.Backoff, error) {
 
 	var r0 *wait.Backoff
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() (*wait.Backoff, error)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (*wait.Backoff, error)); ok {
+		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func() *wait.Backoff); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) *wait.Backoff); ok {
+		r0 = returnFunc(ctx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*wait.Backoff)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1470,13 +1653,20 @@ type Provider_SelfHealBackoff_Call struct {
 }
 
 // SelfHealBackoff is a helper method to define mock.On call
-func (_e *Provider_Expecter) SelfHealBackoff() *Provider_SelfHealBackoff_Call {
-	return &Provider_SelfHealBackoff_Call{Call: _e.mock.On("SelfHealBackoff")}
+//   - ctx context.Context
+func (_e *Provider_Expecter) SelfHealBackoff(ctx any) *Provider_SelfHealBackoff_Call {
+	return &Provider_SelfHealBackoff_Call{Call: _e.mock.On("SelfHealBackoff", ctx)}
 }
 
-func (_c *Provider_SelfHealBackoff_Call) Run(run func()) *Provider_SelfHealBackoff_Call {
+func (_c *Provider_SelfHealBackoff_Call) Run(run func(ctx context.Context)) *Provider_SelfHealBackoff_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -1486,14 +1676,14 @@ func (_c *Provider_SelfHealBackoff_Call) Return(backoff *wait.Backoff, err error
 	return _c
 }
 
-func (_c *Provider_SelfHealBackoff_Call) RunAndReturn(run func() (*wait.Backoff, error)) *Provider_SelfHealBackoff_Call {
+func (_c *Provider_SelfHealBackoff_Call) RunAndReturn(run func(ctx context.Context) (*wait.Backoff, error)) *Provider_SelfHealBackoff_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SelfHealTimeout provides a mock function for the type Provider
-func (_mock *Provider) SelfHealTimeout() (time.Duration, error) {
-	ret := _mock.Called()
+func (_mock *Provider) SelfHealTimeout(ctx context.Context) (time.Duration, error) {
+	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for SelfHealTimeout")
@@ -1501,16 +1691,16 @@ func (_mock *Provider) SelfHealTimeout() (time.Duration, error) {
 
 	var r0 time.Duration
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() (time.Duration, error)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (time.Duration, error)); ok {
+		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func() time.Duration); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) time.Duration); ok {
+		r0 = returnFunc(ctx)
 	} else {
 		r0 = ret.Get(0).(time.Duration)
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1523,13 +1713,20 @@ type Provider_SelfHealTimeout_Call struct {
 }
 
 // SelfHealTimeout is a helper method to define mock.On call
-func (_e *Provider_Expecter) SelfHealTimeout() *Provider_SelfHealTimeout_Call {
-	return &Provider_SelfHealTimeout_Call{Call: _e.mock.On("SelfHealTimeout")}
+//   - ctx context.Context
+func (_e *Provider_Expecter) SelfHealTimeout(ctx any) *Provider_SelfHealTimeout_Call {
+	return &Provider_SelfHealTimeout_Call{Call: _e.mock.On("SelfHealTimeout", ctx)}
 }
 
-func (_c *Provider_SelfHealTimeout_Call) Run(run func()) *Provider_SelfHealTimeout_Call {
+func (_c *Provider_SelfHealTimeout_Call) Run(run func(ctx context.Context)) *Provider_SelfHealTimeout_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -1539,14 +1736,14 @@ func (_c *Provider_SelfHealTimeout_Call) Return(duration time.Duration, err erro
 	return _c
 }
 
-func (_c *Provider_SelfHealTimeout_Call) RunAndReturn(run func() (time.Duration, error)) *Provider_SelfHealTimeout_Call {
+func (_c *Provider_SelfHealTimeout_Call) RunAndReturn(run func(ctx context.Context) (time.Duration, error)) *Provider_SelfHealTimeout_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SensitiveAnnotations provides a mock function for the type Provider
-func (_mock *Provider) SensitiveAnnotations() (map[string]bool, error) {
-	ret := _mock.Called()
+func (_mock *Provider) SensitiveAnnotations(ctx context.Context) (map[string]bool, error) {
+	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for SensitiveAnnotations")
@@ -1554,18 +1751,18 @@ func (_mock *Provider) SensitiveAnnotations() (map[string]bool, error) {
 
 	var r0 map[string]bool
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() (map[string]bool, error)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (map[string]bool, error)); ok {
+		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func() map[string]bool); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) map[string]bool); ok {
+		r0 = returnFunc(ctx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(map[string]bool)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1578,13 +1775,20 @@ type Provider_SensitiveAnnotations_Call struct {
 }
 
 // SensitiveAnnotations is a helper method to define mock.On call
-func (_e *Provider_Expecter) SensitiveAnnotations() *Provider_SensitiveAnnotations_Call {
-	return &Provider_SensitiveAnnotations_Call{Call: _e.mock.On("SensitiveAnnotations")}
+//   - ctx context.Context
+func (_e *Provider_Expecter) SensitiveAnnotations(ctx any) *Provider_SensitiveAnnotations_Call {
+	return &Provider_SensitiveAnnotations_Call{Call: _e.mock.On("SensitiveAnnotations", ctx)}
 }
 
-func (_c *Provider_SensitiveAnnotations_Call) Run(run func()) *Provider_SensitiveAnnotations_Call {
+func (_c *Provider_SensitiveAnnotations_Call) Run(run func(ctx context.Context)) *Provider_SensitiveAnnotations_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -1594,14 +1798,14 @@ func (_c *Provider_SensitiveAnnotations_Call) Return(stringToBool map[string]boo
 	return _c
 }
 
-func (_c *Provider_SensitiveAnnotations_Call) RunAndReturn(run func() (map[string]bool, error)) *Provider_SensitiveAnnotations_Call {
+func (_c *Provider_SensitiveAnnotations_Call) RunAndReturn(run func(ctx context.Context) (map[string]bool, error)) *Provider_SensitiveAnnotations_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // ServerSideDiff provides a mock function for the type Provider
-func (_mock *Provider) ServerSideDiff() (bool, error) {
-	ret := _mock.Called()
+func (_mock *Provider) ServerSideDiff(ctx context.Context) (bool, error) {
+	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ServerSideDiff")
@@ -1609,16 +1813,16 @@ func (_mock *Provider) ServerSideDiff() (bool, error) {
 
 	var r0 bool
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() (bool, error)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (bool, error)); ok {
+		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func() bool); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) bool); ok {
+		r0 = returnFunc(ctx)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1631,13 +1835,20 @@ type Provider_ServerSideDiff_Call struct {
 }
 
 // ServerSideDiff is a helper method to define mock.On call
-func (_e *Provider_Expecter) ServerSideDiff() *Provider_ServerSideDiff_Call {
-	return &Provider_ServerSideDiff_Call{Call: _e.mock.On("ServerSideDiff")}
+//   - ctx context.Context
+func (_e *Provider_Expecter) ServerSideDiff(ctx any) *Provider_ServerSideDiff_Call {
+	return &Provider_ServerSideDiff_Call{Call: _e.mock.On("ServerSideDiff", ctx)}
 }
 
-func (_c *Provider_ServerSideDiff_Call) Run(run func()) *Provider_ServerSideDiff_Call {
+func (_c *Provider_ServerSideDiff_Call) Run(run func(ctx context.Context)) *Provider_ServerSideDiff_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -1647,14 +1858,14 @@ func (_c *Provider_ServerSideDiff_Call) Return(b bool, err error) *Provider_Serv
 	return _c
 }
 
-func (_c *Provider_ServerSideDiff_Call) RunAndReturn(run func() (bool, error)) *Provider_ServerSideDiff_Call {
+func (_c *Provider_ServerSideDiff_Call) RunAndReturn(run func(ctx context.Context) (bool, error)) *Provider_ServerSideDiff_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SettingsManager provides a mock function for the type Provider
-func (_mock *Provider) SettingsManager() (*settings.SettingsManager, error) {
-	ret := _mock.Called()
+func (_mock *Provider) SettingsManager(ctx context.Context) (*settings.SettingsManager, error) {
+	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for SettingsManager")
@@ -1662,18 +1873,18 @@ func (_mock *Provider) SettingsManager() (*settings.SettingsManager, error) {
 
 	var r0 *settings.SettingsManager
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() (*settings.SettingsManager, error)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (*settings.SettingsManager, error)); ok {
+		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func() *settings.SettingsManager); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) *settings.SettingsManager); ok {
+		r0 = returnFunc(ctx)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(*settings.SettingsManager)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1686,13 +1897,20 @@ type Provider_SettingsManager_Call struct {
 }
 
 // SettingsManager is a helper method to define mock.On call
-func (_e *Provider_Expecter) SettingsManager() *Provider_SettingsManager_Call {
-	return &Provider_SettingsManager_Call{Call: _e.mock.On("SettingsManager")}
+//   - ctx context.Context
+func (_e *Provider_Expecter) SettingsManager(ctx any) *Provider_SettingsManager_Call {
+	return &Provider_SettingsManager_Call{Call: _e.mock.On("SettingsManager", ctx)}
 }
 
-func (_c *Provider_SettingsManager_Call) Run(run func()) *Provider_SettingsManager_Call {
+func (_c *Provider_SettingsManager_Call) Run(run func(ctx context.Context)) *Provider_SettingsManager_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -1702,14 +1920,14 @@ func (_c *Provider_SettingsManager_Call) Return(settingsManager *settings.Settin
 	return _c
 }
 
-func (_c *Provider_SettingsManager_Call) RunAndReturn(run func() (*settings.SettingsManager, error)) *Provider_SettingsManager_Call {
+func (_c *Provider_SettingsManager_Call) RunAndReturn(run func(ctx context.Context) (*settings.SettingsManager, error)) *Provider_SettingsManager_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // SourceHydratorCommitMessageTemplate provides a mock function for the type Provider
-func (_mock *Provider) SourceHydratorCommitMessageTemplate() (string, error) {
-	ret := _mock.Called()
+func (_mock *Provider) SourceHydratorCommitMessageTemplate(ctx context.Context) (string, error) {
+	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for SourceHydratorCommitMessageTemplate")
@@ -1717,16 +1935,16 @@ func (_mock *Provider) SourceHydratorCommitMessageTemplate() (string, error) {
 
 	var r0 string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() (string, error)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (string, error)); ok {
+		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func() string); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) string); ok {
+		r0 = returnFunc(ctx)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1739,13 +1957,20 @@ type Provider_SourceHydratorCommitMessageTemplate_Call struct {
 }
 
 // SourceHydratorCommitMessageTemplate is a helper method to define mock.On call
-func (_e *Provider_Expecter) SourceHydratorCommitMessageTemplate() *Provider_SourceHydratorCommitMessageTemplate_Call {
-	return &Provider_SourceHydratorCommitMessageTemplate_Call{Call: _e.mock.On("SourceHydratorCommitMessageTemplate")}
+//   - ctx context.Context
+func (_e *Provider_Expecter) SourceHydratorCommitMessageTemplate(ctx any) *Provider_SourceHydratorCommitMessageTemplate_Call {
+	return &Provider_SourceHydratorCommitMessageTemplate_Call{Call: _e.mock.On("SourceHydratorCommitMessageTemplate", ctx)}
 }
 
-func (_c *Provider_SourceHydratorCommitMessageTemplate_Call) Run(run func()) *Provider_SourceHydratorCommitMessageTemplate_Call {
+func (_c *Provider_SourceHydratorCommitMessageTemplate_Call) Run(run func(ctx context.Context)) *Provider_SourceHydratorCommitMessageTemplate_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -1755,7 +1980,7 @@ func (_c *Provider_SourceHydratorCommitMessageTemplate_Call) Return(s string, er
 	return _c
 }
 
-func (_c *Provider_SourceHydratorCommitMessageTemplate_Call) RunAndReturn(run func() (string, error)) *Provider_SourceHydratorCommitMessageTemplate_Call {
+func (_c *Provider_SourceHydratorCommitMessageTemplate_Call) RunAndReturn(run func(ctx context.Context) (string, error)) *Provider_SourceHydratorCommitMessageTemplate_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1801,8 +2026,8 @@ func (_c *Provider_Subscribe_Call) RunAndReturn(run func(subCh chan<- *settings.
 }
 
 // SyncTimeout provides a mock function for the type Provider
-func (_mock *Provider) SyncTimeout() (time.Duration, error) {
-	ret := _mock.Called()
+func (_mock *Provider) SyncTimeout(ctx context.Context) (time.Duration, error) {
+	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for SyncTimeout")
@@ -1810,16 +2035,16 @@ func (_mock *Provider) SyncTimeout() (time.Duration, error) {
 
 	var r0 time.Duration
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() (time.Duration, error)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (time.Duration, error)); ok {
+		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func() time.Duration); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) time.Duration); ok {
+		r0 = returnFunc(ctx)
 	} else {
 		r0 = ret.Get(0).(time.Duration)
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1832,13 +2057,20 @@ type Provider_SyncTimeout_Call struct {
 }
 
 // SyncTimeout is a helper method to define mock.On call
-func (_e *Provider_Expecter) SyncTimeout() *Provider_SyncTimeout_Call {
-	return &Provider_SyncTimeout_Call{Call: _e.mock.On("SyncTimeout")}
+//   - ctx context.Context
+func (_e *Provider_Expecter) SyncTimeout(ctx any) *Provider_SyncTimeout_Call {
+	return &Provider_SyncTimeout_Call{Call: _e.mock.On("SyncTimeout", ctx)}
 }
 
-func (_c *Provider_SyncTimeout_Call) Run(run func()) *Provider_SyncTimeout_Call {
+func (_c *Provider_SyncTimeout_Call) Run(run func(ctx context.Context)) *Provider_SyncTimeout_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -1848,14 +2080,14 @@ func (_c *Provider_SyncTimeout_Call) Return(duration time.Duration, err error) *
 	return _c
 }
 
-func (_c *Provider_SyncTimeout_Call) RunAndReturn(run func() (time.Duration, error)) *Provider_SyncTimeout_Call {
+func (_c *Provider_SyncTimeout_Call) RunAndReturn(run func(ctx context.Context) (time.Duration, error)) *Provider_SyncTimeout_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // TrackingMethod provides a mock function for the type Provider
-func (_mock *Provider) TrackingMethod() (string, error) {
-	ret := _mock.Called()
+func (_mock *Provider) TrackingMethod(ctx context.Context) (string, error) {
+	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for TrackingMethod")
@@ -1863,16 +2095,16 @@ func (_mock *Provider) TrackingMethod() (string, error) {
 
 	var r0 string
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() (string, error)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (string, error)); ok {
+		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func() string); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) string); ok {
+		r0 = returnFunc(ctx)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1885,13 +2117,20 @@ type Provider_TrackingMethod_Call struct {
 }
 
 // TrackingMethod is a helper method to define mock.On call
-func (_e *Provider_Expecter) TrackingMethod() *Provider_TrackingMethod_Call {
-	return &Provider_TrackingMethod_Call{Call: _e.mock.On("TrackingMethod")}
+//   - ctx context.Context
+func (_e *Provider_Expecter) TrackingMethod(ctx any) *Provider_TrackingMethod_Call {
+	return &Provider_TrackingMethod_Call{Call: _e.mock.On("TrackingMethod", ctx)}
 }
 
-func (_c *Provider_TrackingMethod_Call) Run(run func()) *Provider_TrackingMethod_Call {
+func (_c *Provider_TrackingMethod_Call) Run(run func(ctx context.Context)) *Provider_TrackingMethod_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -1901,7 +2140,7 @@ func (_c *Provider_TrackingMethod_Call) Return(s string, err error) *Provider_Tr
 	return _c
 }
 
-func (_c *Provider_TrackingMethod_Call) RunAndReturn(run func() (string, error)) *Provider_TrackingMethod_Call {
+func (_c *Provider_TrackingMethod_Call) RunAndReturn(run func(ctx context.Context) (string, error)) *Provider_TrackingMethod_Call {
 	_c.Call.Return(run)
 	return _c
 }
