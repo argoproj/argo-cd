@@ -10,10 +10,10 @@ call sites do not.
 
 > [!NOTE]
 > This page is for **contributors** changing how Argo CD reads configuration.
-> It describes the bus as of the first consumer cutover (application-controller).
-> Production processes use `HybridProvider` (CRD first, Legacy fallback). Until
-> the CRD source is wired, every CRD read returns `ErrNotConfigured` and Hybrid
-> falls through to Legacy.
+> It describes the bus as of the application-controller cutover with the
+> composable provider chain. Production processes compose leaf providers with
+> `ChainProvider`. Until the CRD source is wired, `CRDProvider` is omitted from
+> the chain (or included as a no-op that always returns `ErrNotConfigured`).
 
 ## Why it exists
 
@@ -45,98 +45,118 @@ order so PRs stay skimmable.
 | --- | --- |
 | Method = smallest migrateable unit | When a method’s backing CRD field is set, every nested value under that field is considered migrated. |
 | Alphabetical method names | Receivers are added in alphabetical position as each component is wired. |
-| Every getter returns `(T, error)` | Even legacy-guaranteed values use this shape, because CRD-backed reads can fail via a Kubernetes client or informer. |
-| `ErrNotConfigured` sentinel | CRD signals “field / CR absent”; Hybrid falls back to Legacy only on this error. |
+| Every getter returns `(T, error)` | Even process-local values use this shape, because CRD-backed reads can fail via a Kubernetes client or informer. |
+| `ErrNotConfigured` sentinel | A leaf signals “I do not own / do not have this field”; `ChainProvider` skips to the next link. |
 
 ### Implementations
 
 ```mermaid
 flowchart LR
-  consumer["component call site"] --> P["Provider (interface)"]
-  P -.impl.-> Hybrid[HybridProvider]
-  P -.impl.-> Legacy[LegacyProvider]
+  consumer["component call site"] --> P["Provider interface"]
+  P -.impl.-> Chain[ChainProvider]
+  P -.impl.-> Static[StaticProvider]
+  P -.impl.-> SM[SettingsManagerProvider]
+  P -.impl.-> Env[EnvProvider]
   P -.impl.-> CRD[CRDProvider]
-  P -.testImpl.-> Mock["mocks.Provider (mockery)"]
-  Hybrid -->|"try"| CRD
-  Hybrid -->|"ErrNotConfigured fallback"| Legacy
-  Legacy --> SM[SettingsManager + Legacy adapters + env]
-  CRD --> Src[ArgoCDConfiguration CRD source]
+  P -.testImpl.-> Mock["mocks.Provider"]
+  Chain -->|"try in order"| Static
+  Chain --> SM
+  Chain --> Env
+  Chain -.->|"when wired"| CRD
 ```
 
 | Implementation | Constructor | Behavior |
 | --- | --- | --- |
-| `LegacyProvider` | `NewLegacyProvider(settingsMgr, legacy)` | Resolves from `SettingsManager`, component Legacy adapters, and env. **Never** returns `ErrNotConfigured`. |
-| `CRDProvider` | `NewCRDProvider(source)` | Resolves from the ArgoCDConfiguration CR. Until the CRD source is wired, every getter returns `ErrNotConfigured`. |
-| `HybridProvider` | `NewHybridProvider(crd, legacy)` | Tries CRD first; on `errors.Is(err, ErrNotConfigured)` falls back to Legacy. Other CRD errors propagate. |
+| `StaticProvider` | `&StaticProvider{Fields: StaticFields{...}}` | In-memory nilable fields. Unset → `ErrNotConfigured`. Used for component-captured flags and CLI overrides. |
+| `SettingsManagerProvider` | `NewSettingsManagerProvider(mgr)` | ConfigMap-backed product settings. |
+| `EnvProvider` | `NewEnvProvider()` | Process environment variables (e.g. `GitRequestTimeout`). |
+| `CRDProvider` | `NewCRDProvider(source)` | ArgoCDConfiguration CR. Until wired, every getter returns `ErrNotConfigured`. |
+| `ChainProvider` | `NewChainProvider(links...)` | Tries links in order; first non-`ErrNotConfigured` wins. |
 
-Production processes wire Hybrid:
+Leaf providers embed `notConfiguredProvider` so they only implement owned methods.
+`notConfiguredProvider`, `ChainProvider`, and `StaticProvider`/`StaticFields` are
+generated from the `Provider` interface by `go run ./hack/gen-configbus-providers`.
+
+Production processes (pre-CRD) wire:
 
 ```go
-ctrl.configProvider = configbus.NewHybridProvider(
-	configbus.NewCRDProvider(nil),
-	configbus.NewLegacyProvider(settingsMgr, &configbus.LegacyValues{Controller: &ctrl}),
+ctrl.configProvider = configbus.NewChainProvider(
+	&configbus.StaticProvider{Fields: configbus.StaticFields{
+		SyncTimeout: configbus.Ptr(syncTimeout),
+		// ... other component-owned fields ...
+	}},
+	configbus.NewSettingsManagerProvider(settingsMgr),
+	configbus.NewEnvProvider(),
 )
 ```
 
+CLI overrides put a leading `StaticProvider` ahead of the durable sources so
+flags win by chain position.
+
+### Precedence
+
+`StaticProvider` has two roles with opposite precedence needs:
+
+| Role | Chain position | Why |
+| --- | --- | --- |
+| CLI / one-off override | First | Must beat CRD / Settings / Env |
+| Component-captured flags | After CRD (when present), before Settings/Env | CRD should win once set; flags remain the fallback |
+
+- Pre-CRD: `[StaticFallback, SettingsManager, Env]` (+ leading `StaticOverride` for admin CLI)
+- With CRD: `[StaticOverride?, CRD, StaticFallback, SettingsManager, Env]`
+- CRD-only: `[StaticOverride?, CRD]`
+
 ### Testing with mockery
 
-Consumer tests inject `mocks.Provider` (generated by mockery from the `Provider`
-interface; see `.mockery.yaml` and `make mockgen`):
+Consumer tests inject `mocks.Provider` (generated by mockery; see `.mockery.yaml`
+and `make mockgen`), or prepend a `StaticProvider` via `ChainProvider`:
 
 ```go
 provider := mocks.NewProvider(t)
 provider.EXPECT().SelfHealTimeout().Return(30*time.Second, nil)
 ```
 
-Package-level tests in `util/configbus` still exercise `LegacyProvider` against
-`ControllerLegacy` stubs, `CRDProvider`’s `ErrNotConfigured` behavior, and
-`HybridProvider` / `configured()` fallback rules. Prefer `mocks.Provider` in
-component packages instead of hand-rolled Provider fakes.
+Package-level tests exercise leaf `ErrNotConfigured` behavior, chain
+precedence, and a total-resolution coverage test for the controller chain.
 
 ## Architecture (current)
 
 | Piece | Path | Role |
 | --- | --- | --- |
-| `Provider` | `util/configbus/provider.go` | Flat alphabetical typed API (`ReconciliationTimeout()`, `ResourceOverrides()`, …). |
-| `LegacyProvider` | `util/configbus/legacy_provider.go` | SettingsManager + Legacy adapters + env. |
+| `Provider` | `util/configbus/provider.go` | Flat alphabetical typed API + `firstConfigured`. |
+| `StaticProvider` / `StaticFields` | `util/configbus/zz_generated.static_provider.go` | In-memory nilable fields (generated). |
+| `SettingsManagerProvider` | `util/configbus/settings_manager_provider.go` | ConfigMap-backed getters. |
+| `EnvProvider` | `util/configbus/env_provider.go` | Env-backed getters. |
 | `CRDProvider` | `util/configbus/crd_provider.go` | CRD-only reads (stubbed until CRD source lands). |
-| `HybridProvider` | `util/configbus/hybrid_provider.go` | CRD-first with Legacy fallback on `ErrNotConfigured`. |
-| `LegacyValues` / `ControllerLegacy` | `util/configbus/legacy_provider.go` | Component Legacy adapters. Nil field means “not supplied by this binary.” |
-| Legacy adapters | `controller/legacy_config.go` | **Sole** allowed readers of deprecated controller struct fields. |
-
-There is **no** global setting registry. Provider methods call
-`SettingsManager` and/or the component Legacy adapter (or, later, the CRD
-source) directly.
+| `ChainProvider` | `util/configbus/zz_generated.chain_provider.go` | Ordered fallback (generated). |
+| `notConfiguredProvider` | `util/configbus/zz_generated.not_configured.go` | Embeddable `ErrNotConfigured` base (generated). |
 
 ### What is wired today
 
 | Binary | Status |
 | --- | --- |
-| Application controller | Wired: `NewHybridProvider(NewCRDProvider(nil), NewLegacyProvider(...))` in `controller/appcontroller.go` |
-| API server, repo-server, ApplicationSet, notifications, commit-server | Not yet on the bus (follow the same pattern when cut over) |
+| Application controller | Wired: `NewChainProvider(Static, SettingsManager, Env)` in `controller/appcontroller.go` |
+| API server, repo-server, ApplicationSet, notifications, commit-server | Follow the same pattern when cut over |
 
 ### Sources of truth (controller)
 
 | Kind of setting | How the Provider gets it | Examples |
 | --- | --- | --- |
-| Flag / env captured at process start | `ControllerLegacy` → deprecated struct fields (via Legacy / Hybrid) | Reconciliation timeout, sync timeout, self-heal, metrics cluster labels |
-| ConfigMap-backed product config | `SettingsManager` (via Legacy / Hybrid) | Resource overrides, app instance label key, tracking method |
-| CRD-backed product config | `CRDProvider` (via Hybrid when set) | Same surface, once the CRD source is wired |
+| Flag / env captured at process start | `StaticProvider` fields | Reconciliation timeout, sync timeout, self-heal, metrics cluster labels |
+| ConfigMap-backed product config | `SettingsManagerProvider` | Resource overrides, app instance label key, tracking method |
+| Process env | `EnvProvider` | `ARGOCD_GIT_REQUEST_TIMEOUT` |
+| CRD-backed product config | `CRDProvider` (via chain when set) | Same surface, once the CRD source is wired |
 
-Deprecated struct fields stay on the controller for construction/tests, but
-product code and tests must read via `configProvider.*`. Mark fields
-`Deprecated: use configProvider.…` and confine Legacy readers to
-`legacy_config.go`.
+Deprecated struct fields may remain on the controller for construction/tests, but
+product code must read via `configProvider.*`.
 
 ## How the controller wires the Provider
 
-In `controller/appcontroller.go` (after settings manager and controller fields
-exist):
-
 ```go
-ctrl.configProvider = configbus.NewHybridProvider(
-	configbus.NewCRDProvider(nil),
-	configbus.NewLegacyProvider(settingsMgr, &configbus.LegacyValues{Controller: &ctrl}),
+ctrl.configProvider = configbus.NewChainProvider(
+	&configbus.StaticProvider{Fields: configbus.StaticFields{ /* … */ }},
+	configbus.NewSettingsManagerProvider(settingsMgr),
+	configbus.NewEnvProvider(),
 )
 ```
 
@@ -158,41 +178,35 @@ with a zero value.
 ### Add a controller setting (flag / env)
 
 1. **Store the value** on `ApplicationController` (or a nested manager) at
-   construction time, as today.
-2. **Mark the field deprecated** toward the Provider:
-   `// Deprecated: use configProvider.MySetting.`
-3. **Extend `ControllerLegacy`** in `util/configbus/legacy_provider.go`
-   with `LegacyMySetting() T`.
-4. **Implement the Legacy method** in `controller/legacy_config.go` (sole reader
-   of the deprecated field; keep the `SA1019` nolint pattern used by siblings).
-5. **Add `MySetting() (T, error)`** to the flat `Provider` interface in
-   alphabetical order, then implement it on `LegacyProvider`, `CRDProvider`
-   (return `ErrNotConfigured` until the CRD field exists), and `HybridProvider`
-   (one-liner via `configured(...)`).
+   construction time, as today (optional; can pass straight into StaticFields).
+2. **Mark the field deprecated** toward the Provider when it remains on the
+   struct: `// Deprecated: use configProvider.MySetting.`
+3. **Add `MySetting() (T, error)`** to the flat `Provider` interface in
+   alphabetical order.
+4. **Regenerate** generated providers: `go run ./hack/gen-configbus-providers`.
+5. **Set the field** on the controller’s `StaticFields` literal at wire time.
 6. **Update call sites** to use `configProvider.MySetting()` and handle errors.
-7. **Tests:** prefer `mocks.Provider` in the controller package; assert Legacy
-   behavior in `util/configbus` if needed. Run `make mockgen` after changing
-   the interface.
+7. **Tests:** prefer `mocks.Provider` or a `StaticProvider` override. Run
+   `make mockgen` after changing the interface.
 8. Run `go test ./util/configbus/ ./controller/`.
 
 ### Add a SettingsManager-backed setting
 
 1. Ensure the value is available from `util/settings` (existing or new getter).
-2. Add `MySetting() (T, error)` to the `Provider` interface (alphabetical) and
-   implement on all three providers (`LegacyProvider` calls
-   `requireSettingsMgr()` then the settings getter; `CRDProvider` returns
-   `ErrNotConfigured` until wired; `HybridProvider` uses `configured`).
-3. Point controller call sites at the Provider method.
-4. Regen mocks (`make mockgen`); add/adjust unit tests; run
+2. Add `MySetting() (T, error)` to the `Provider` interface (alphabetical).
+3. Regenerate generated providers; implement the method on
+   `SettingsManagerProvider` (call the settings getter). Leave other leaves on
+   the generated `ErrNotConfigured` base.
+4. Point controller call sites at the Provider method.
+5. Regen mocks (`make mockgen`); add/adjust unit tests; run
    `go test ./util/configbus/ ./controller/`.
 
 ### Change how an existing setting is resolved
 
-1. Find the Provider method (`rg 'func \(p \*LegacyProvider\) Foo' util/configbus`
-   or the matching CRD/Hybrid receiver).
+1. Find the owning leaf (`rg 'func \(p \*SettingsManagerProvider\) Foo'` or the
+   StaticFields entry).
 2. Prefer updating that single path over adding a parallel read in the
    controller.
-3. Keep `legacy_config.go` as the only deprecated-field reader.
 
 ## Error handling
 
@@ -201,28 +215,35 @@ with a zero value.
 | Constructor / startup | Return `error` or fatal if the process cannot run correctly |
 | Reconcile / workqueue | Return error or requeue; do not proceed with zero config |
 | Optional best-effort paths | Rare; document why a default is safe |
-| CRD unset field | `ErrNotConfigured` → Hybrid falls back to Legacy |
+| Leaf unset field | `ErrNotConfigured` → Chain skips to next link |
 
 Anti-pattern: `log.WithError(err).Error(...); /* continue */` for Provider
 resolve failures.
+
+The composed chain for a binary should resolve every field getter. The
+`TestControllerChainResolvesAllFields` coverage test guards this for the
+application controller.
 
 ## File map
 
 ```text
 util/configbus/
-├── provider.go                      # Provider interface, ErrNotConfigured, configured()
-├── legacy_provider.go               # LegacyProvider, LegacyValues, ControllerLegacy
-├── legacy_provider_controller.go    # Controller Legacy getters
-├── legacy_provider_settings.go      # SettingsManager-backed getters
-├── legacy_provider_env.go           # Env-only getters
-├── crd_provider.go                  # CRDProvider (ErrNotConfigured until CRD wired)
-├── hybrid_provider.go               # HybridProvider (CRD → Legacy fallback)
-├── mocks/Provider.go                # mockery-generated mocks.Provider
-└── provider_test.go
+├── provider.go                         # Provider interface, ErrNotConfigured, firstConfigured
+├── ptr.go                              # Ptr / PtrPtr helpers for StaticFields literals
+├── settings_manager_provider.go        # SettingsManagerProvider
+├── env_provider.go                     # EnvProvider
+├── crd_provider.go                     # CRDProvider (ErrNotConfigured until CRD wired)
+├── zz_generated.not_configured.go      # notConfiguredProvider base (generated)
+├── zz_generated.chain_provider.go      # ChainProvider (generated)
+├── zz_generated.static_provider.go     # StaticProvider + StaticFields (generated)
+├── mocks/Provider.go                   # mockery-generated mocks.Provider
+├── provider_test.go
+└── coverage_test.go                    # total-resolution coverage
+
+hack/gen-configbus-providers/           # regenerates zz_generated.* from Provider
 
 controller/
-├── appcontroller.go                 # Wires NewHybridProvider; call sites use configProvider
-└── legacy_config.go                 # ControllerLegacy implementation
+└── appcontroller.go                    # Wires NewChainProvider; call sites use configProvider
 ```
 
 ## Related

@@ -812,7 +812,7 @@ func TestLoadCacheSettings(t *testing.T) {
 	})
 	ch := liveStateCache{
 		namespace:      "argocd",
-		configProvider: configbus.NewLegacyProvider(settingsManager, nil),
+		configProvider: configbus.NewSettingsManagerProvider(settingsManager),
 	}
 	label, err := settingsManager.GetAppInstanceLabelKey()
 	require.NoError(t, err)

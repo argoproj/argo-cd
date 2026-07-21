@@ -372,18 +372,27 @@ func reconcileApplications(
 	ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts,
 ) ([]appReconcileResult, error) {
 	settingsMgr := settings.NewSettingsManager(ctx, kubeClientset, namespace)
-	// Admin reconcile has no live ApplicationController; supply a Legacy adapter
-	// that mirrors the CLI flags already passed into this helper.
-	// Temporary: once config is fully CRD-backed these admin flags go away and
-	// values are read from the CRD instead.
-	configProvider := configbus.NewHybridProvider(
-		configbus.NewCRDProvider(nil),
-		configbus.NewLegacyProvider(settingsMgr, &configbus.LegacyValues{
-			Controller: &adminControllerLegacy{
-				serverSideDiff:       serverSideDiff,
-				ignoreNormalizerOpts: ignoreNormalizerOpts,
-			},
-		}),
+	// CLI flags override Diff-related settings via a leading StaticProvider.
+	// Temporary: once config is fully CRD-backed these admin flags go away.
+	// Remaining Static fields mirror the former adminControllerLegacy zeros so
+	// the chain remains total for compare/reconcile.
+	configProvider := configbus.NewChainProvider(
+		&configbus.StaticProvider{Fields: configbus.StaticFields{
+			HardReconciliationTimeout: configbus.Ptr(time.Duration(0)),
+			IgnoreNormalizerJQTimeout: configbus.Ptr(ignoreNormalizerOpts.JQExecutionTimeout),
+			IgnoreNormalizerOpts:      configbus.Ptr(ignoreNormalizerOpts),
+			MetricsClusterLabels:      configbus.Ptr([]string(nil)),
+			PersistResourceHealth:     configbus.Ptr(true),
+			ReconciliationJitter:      configbus.Ptr(time.Duration(0)),
+			ReconciliationTimeout:     configbus.Ptr(time.Duration(0)),
+			RepoErrorGracePeriod:      configbus.Ptr(time.Duration(0)),
+			SelfHealBackoff:           configbus.PtrPtr((*wait.Backoff)(nil)),
+			SelfHealTimeout:           configbus.Ptr(time.Duration(0)),
+			ServerSideDiff:            configbus.Ptr(serverSideDiff),
+			SyncTimeout:               configbus.Ptr(time.Duration(0)),
+		}},
+		configbus.NewSettingsManagerProvider(settingsMgr),
+		configbus.NewEnvProvider(),
 	)
 	argoDB := db.NewDB(namespace, settingsMgr, kubeClientset)
 	appInformerFactory := appinformers.NewSharedInformerFactoryWithOptions(
@@ -496,28 +505,4 @@ func reconcileApplications(
 
 func newLiveStateCache(argoDB db.ArgoDB, appInformer kubecache.SharedIndexInformer, namespace string, configProvider configbus.Provider, server *metrics.MetricsServer) cache.LiveStateCache {
 	return cache.NewLiveStateCache(argoDB, appInformer, namespace, configProvider, server, func(_ map[string]bool, _ corev1.ObjectReference) {}, &sharding.ClusterSharding{}, argo.NewResourceTracking())
-}
-
-// adminControllerLegacy adapts admin-reconcile CLI flags into ControllerLegacy for
-// configbus.Provider. The admin CLI has no live ApplicationController.
-// Temporary until config is fully CRD-backed and these flags are dropped.
-type adminControllerLegacy struct {
-	serverSideDiff       bool
-	ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts
-}
-
-func (a *adminControllerLegacy) LegacyStatusRefreshTimeout() time.Duration     { return 0 }
-func (a *adminControllerLegacy) LegacyStatusHardRefreshTimeout() time.Duration { return 0 }
-func (a *adminControllerLegacy) LegacyStatusRefreshJitter() time.Duration      { return 0 }
-func (a *adminControllerLegacy) LegacySyncTimeout() time.Duration              { return 0 }
-func (a *adminControllerLegacy) LegacySelfHealTimeout() time.Duration          { return 0 }
-func (a *adminControllerLegacy) LegacySelfHealBackoff() *wait.Backoff          { return nil }
-func (a *adminControllerLegacy) LegacyIgnoreNormalizerOpts() normalizers.IgnoreNormalizerOpts {
-	return a.ignoreNormalizerOpts
-}
-func (a *adminControllerLegacy) LegacyMetricsClusterLabels() []string { return nil }
-func (a *adminControllerLegacy) LegacyServerSideDiff() bool           { return a.serverSideDiff }
-func (a *adminControllerLegacy) LegacyPersistResourceHealth() bool    { return true }
-func (a *adminControllerLegacy) LegacyRepoErrorGracePeriod() time.Duration {
-	return 0
 }
