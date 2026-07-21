@@ -185,6 +185,18 @@ export function getClusterLegendDisplay(label: string, clusterList: Cluster[]): 
     return {display: trimClusterServerProtocol(url), tooltip: url, truncate: true};
 }
 
+export const isInvalidRegex = (pattern: string): boolean => {
+    if (!pattern) {
+        return false;
+    }
+    try {
+        new RegExp(pattern);
+        return false;
+    } catch {
+        return true;
+    }
+};
+
 /**
  * Checks if SSO is configured for authentication usage.
  * @param userInfo - User information from the session

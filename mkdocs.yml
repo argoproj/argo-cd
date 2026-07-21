@@ -40,6 +40,7 @@ nav:
     - operator-manual/user-management/keycloak.md
     - operator-manual/user-management/openunison.md
     - operator-manual/user-management/github-actions.md
+    - operator-manual/user-management/gitlab-ci.md
     - operator-manual/user-management/google.md
     - operator-manual/user-management/zitadel.md
     - operator-manual/user-management/identity-center.md
@@ -139,6 +140,7 @@ nav:
     - operator-manual/server-commands/additional-configuration-method.md
   - Upgrading:
     - operator-manual/upgrading/overview.md
+    - operator-manual/upgrading/3.5-3.6.md
     - operator-manual/upgrading/3.4-3.5.md
     - operator-manual/upgrading/3.3-3.4.md
     - operator-manual/upgrading/3.2-3.3.md
@@ -250,6 +252,7 @@ nav:
   - developer-guide/tilt.md
   - developer-guide/custom-resource-icons.md
   - developer-guide/maintaining-internal-argo-cd-forks.md
+  - developer-guide/github-agentics-issue-triage.md
 - faq.md
 - security_considerations.md
 - Support: SUPPORT.md

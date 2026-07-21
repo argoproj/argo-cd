@@ -6952,7 +6952,6 @@
           "$ref": "#/definitions/v1Time"
         },
         "message": {
-          "description": "Deprecated: this field is not used and will be removed in a future release.",
           "type": "string",
           "title": "Message is a human-readable informational message describing the health status"
         },

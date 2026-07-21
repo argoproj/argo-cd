@@ -88,6 +88,11 @@ export const SpinningIcon = ({color, qeId}: {color: string; qeId: string}) => {
     );
 };
 
+export function nameConfirmationError(entered: string, expected: string, emptyMessage: string, mismatchMessage: string): string | false {
+    if (entered === expected) return false;
+    return !entered ? emptyMessage : mismatchMessage;
+}
+
 export async function deleteApplication(appName: string, appNamespace: string, apis: ContextApis, application?: appModels.Application): Promise<boolean> {
     let confirmed = false;
 
@@ -163,7 +168,7 @@ export async function deleteApplication(appName: string, appNamespace: string, a
         ),
         {
             validate: vals => ({
-                applicationName: vals.applicationName !== appName && 'Enter the application name to confirm the deletion'
+                applicationName: nameConfirmationError(vals.applicationName, appName, 'Enter the application name to confirm the deletion', 'Application name does not match')
             }),
             submit: async (vals, _, close) => {
                 try {
@@ -210,7 +215,7 @@ export async function confirmSyncingAppOfApps(apps: appModels.Application[], api
         ),
         {
             validate: vals => ({
-                applicationName: vals.applicationName !== appNameList && 'Enter the application name(s) to confirm syncing'
+                applicationName: nameConfirmationError(vals.applicationName, appNameList, 'Enter the application name(s) to confirm syncing', 'Application name does not match')
             }),
             submit: async (_vals, _, close) => {
                 try {
@@ -606,7 +611,7 @@ export const deletePopup = async (
         {
             validate: vals =>
                 isManaged && {
-                    resourceName: vals.resourceName !== resource.name && 'Enter the resource name to confirm the deletion'
+                    resourceName: nameConfirmationError(vals.resourceName, resource.name, 'Enter the resource name to confirm the deletion', 'Resource name does not match')
                 },
             submit: async (vals, _, close) => {
                 const force = deleteOptions.option === 'force';
