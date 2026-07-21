@@ -12,8 +12,8 @@ call sites do not.
 > This page is for **contributors** changing how Argo CD reads configuration.
 > It describes the bus as of the application-controller cutover with the
 > composable provider chain. Production processes compose leaf providers with
-> `ChainProvider`. Until the CRD source is wired, `CRDProvider` is omitted from
-> the chain (or included as a no-op that always returns `ErrNotConfigured`).
+> `ChainProvider` (`Static`, `SettingsManagerProvider`, `Env`). A CRD-backed
+> leaf is added in a later change once the configuration CRD exists.
 
 ## Why it exists
 
@@ -57,12 +57,10 @@ flowchart LR
   P -.impl.-> Static[StaticProvider]
   P -.impl.-> SM[SettingsManagerProvider]
   P -.impl.-> Env[EnvProvider]
-  P -.impl.-> CRD[CRDProvider]
   P -.testImpl.-> Mock["mocks.Provider"]
   Chain -->|"try in order"| Static
   Chain --> SM
   Chain --> Env
-  Chain -.->|"when wired"| CRD
 ```
 
 | Implementation | Constructor | Behavior |
@@ -70,7 +68,6 @@ flowchart LR
 | `StaticProvider` | `&StaticProvider{Fields: StaticFields{...}}` | In-memory nilable fields. Unset → `ErrNotConfigured`. Used for component-captured flags and CLI overrides. |
 | `SettingsManagerProvider` | `NewSettingsManagerProvider(mgr)` | ConfigMap-backed product settings. |
 | `EnvProvider` | `NewEnvProvider()` | Process environment variables (e.g. `GitRequestTimeout`). |
-| `CRDProvider` | `NewCRDProvider(source)` | ArgoCDConfiguration CR. Until wired, every getter returns `ErrNotConfigured`. |
 | `ChainProvider` | `NewChainProvider(links...)` | Tries links in order; first non-`ErrNotConfigured` wins. |
 
 Leaf providers embed `notConfiguredProvider` so they only implement owned methods.
@@ -99,11 +96,11 @@ flags win by chain position.
 
 | Role | Chain position | Why |
 | --- | --- | --- |
-| CLI / one-off override | First | Must beat CRD / Settings / Env |
-| Component-captured flags | After CRD (when present), before Settings/Env | CRD should win once set; flags remain the fallback |
+| CLI / one-off override | First | Must beat Settings / Env (and CRD once present) |
+| Component-captured flags | Before Settings/Env | Flags remain the fallback behind durable sources |
 
-- Pre-CRD: `[StaticFallback, SettingsManager, Env]` (+ leading `StaticOverride` for admin CLI)
-- With CRD: `[StaticOverride?, CRD, StaticFallback, SettingsManager, Env]`
+- Today: `[StaticFallback, SettingsManager, Env]` (+ leading `StaticOverride` for admin CLI)
+- Later with CRD: `[StaticOverride?, CRD, StaticFallback, SettingsManager, Env]`
 - CRD-only: `[StaticOverride?, CRD]`
 
 ### Testing with mockery
@@ -113,7 +110,7 @@ and `make mockgen`), or prepend a `StaticProvider` via `ChainProvider`:
 
 ```go
 provider := mocks.NewProvider(t)
-provider.EXPECT().SelfHealTimeout().Return(30*time.Second, nil)
+provider.EXPECT().SelfHealTimeout(mock.Anything).Return(30*time.Second, nil)
 ```
 
 Package-level tests exercise leaf `ErrNotConfigured` behavior, chain
@@ -127,7 +124,6 @@ precedence, and a total-resolution coverage test for the controller chain.
 | `StaticProvider` / `StaticFields` | `util/configbus/zz_generated.static_provider.go` | In-memory nilable fields (generated). |
 | `SettingsManagerProvider` | `util/configbus/settings_manager_provider.go` | ConfigMap-backed getters. |
 | `EnvProvider` | `util/configbus/env_provider.go` | Env-backed getters. |
-| `CRDProvider` | `util/configbus/crd_provider.go` | CRD-only reads (stubbed until CRD source lands). |
 | `ChainProvider` | `util/configbus/zz_generated.chain_provider.go` | Ordered fallback (generated). |
 | `notConfiguredProvider` | `util/configbus/zz_generated.not_configured.go` | Embeddable `ErrNotConfigured` base (generated). |
 
@@ -145,7 +141,6 @@ precedence, and a total-resolution coverage test for the controller chain.
 | Flag / env captured at process start | `StaticProvider` fields | Reconciliation timeout, sync timeout, self-heal, metrics cluster labels |
 | ConfigMap-backed product config | `SettingsManagerProvider` | Resource overrides, app instance label key, tracking method |
 | Process env | `EnvProvider` | `ARGOCD_GIT_REQUEST_TIMEOUT` |
-| CRD-backed product config | `CRDProvider` (via chain when set) | Same surface, once the CRD source is wired |
 
 Deprecated struct fields may remain on the controller for construction/tests, but
 product code must read via `configProvider.*`.
@@ -232,7 +227,6 @@ util/configbus/
 ├── ptr.go                              # Ptr / PtrPtr helpers for StaticFields literals
 ├── settings_manager_provider.go        # SettingsManagerProvider
 ├── env_provider.go                     # EnvProvider
-├── crd_provider.go                     # CRDProvider (ErrNotConfigured until CRD wired)
 ├── zz_generated.not_configured.go      # notConfiguredProvider base (generated)
 ├── zz_generated.chain_provider.go      # ChainProvider (generated)
 ├── zz_generated.static_provider.go     # StaticProvider + StaticFields (generated)

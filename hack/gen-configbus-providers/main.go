@@ -23,9 +23,8 @@ const providerPath = "util/configbus/provider.go"
 // Non-field methods: lifecycle / escape hatches routed specially by ChainProvider
 // and left as ErrNotConfigured / no-ops on Static / notConfigured.
 var specialMethods = map[string]bool{
-	"SettingsManager": true,
-	"Subscribe":       true,
-	"Unsubscribe":     true,
+	"Subscribe":   true,
+	"Unsubscribe": true,
 }
 
 type method struct {
@@ -296,14 +295,6 @@ func writeChainMethod(b *strings.Builder, m method) {
 }
 
 `)
-	case "SettingsManager":
-		fmt.Fprintf(b, `func (c *ChainProvider) SettingsManager(%s) %s {
-	return firstConfigured(func(p Provider) %s {
-		return p.SettingsManager(%s)
-	}, c.links)
-}
-
-`, m.Params, m.Results, m.Results, callArgs(m.Params))
 	default:
 		if !m.IsField {
 			return

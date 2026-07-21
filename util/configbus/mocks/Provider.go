@@ -1863,68 +1863,6 @@ func (_c *Provider_ServerSideDiff_Call) RunAndReturn(run func(ctx context.Contex
 	return _c
 }
 
-// SettingsManager provides a mock function for the type Provider
-func (_mock *Provider) SettingsManager(ctx context.Context) (*settings.SettingsManager, error) {
-	ret := _mock.Called(ctx)
-
-	if len(ret) == 0 {
-		panic("no return value specified for SettingsManager")
-	}
-
-	var r0 *settings.SettingsManager
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context) (*settings.SettingsManager, error)); ok {
-		return returnFunc(ctx)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context) *settings.SettingsManager); ok {
-		r0 = returnFunc(ctx)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*settings.SettingsManager)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = returnFunc(ctx)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// Provider_SettingsManager_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SettingsManager'
-type Provider_SettingsManager_Call struct {
-	*mock.Call
-}
-
-// SettingsManager is a helper method to define mock.On call
-//   - ctx context.Context
-func (_e *Provider_Expecter) SettingsManager(ctx any) *Provider_SettingsManager_Call {
-	return &Provider_SettingsManager_Call{Call: _e.mock.On("SettingsManager", ctx)}
-}
-
-func (_c *Provider_SettingsManager_Call) Run(run func(ctx context.Context)) *Provider_SettingsManager_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		run(
-			arg0,
-		)
-	})
-	return _c
-}
-
-func (_c *Provider_SettingsManager_Call) Return(settingsManager *settings.SettingsManager, err error) *Provider_SettingsManager_Call {
-	_c.Call.Return(settingsManager, err)
-	return _c
-}
-
-func (_c *Provider_SettingsManager_Call) RunAndReturn(run func(ctx context.Context) (*settings.SettingsManager, error)) *Provider_SettingsManager_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // SourceHydratorCommitMessageTemplate provides a mock function for the type Provider
 func (_mock *Provider) SourceHydratorCommitMessageTemplate(ctx context.Context) (string, error) {
 	ret := _mock.Called(ctx)

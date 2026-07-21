@@ -79,25 +79,12 @@ func TestStaticProviderConfiguredNilPointer(t *testing.T) {
 	assert.Nil(t, got)
 }
 
-func TestCRDProviderReturnsErrNotConfigured(t *testing.T) {
-	p := NewCRDProvider(nil)
-
-	_, err := p.ReconciliationTimeout(context.Background())
-	require.ErrorIs(t, err, ErrNotConfigured)
-
-	_, err = p.ResourceOverrides(context.Background())
-	require.ErrorIs(t, err, ErrNotConfigured)
-
-	_, err = p.GitRequestTimeout(context.Background())
-	require.ErrorIs(t, err, ErrNotConfigured)
-}
-
 func TestChainProviderPrecedence(t *testing.T) {
 	overrideTimeout := 10 * time.Second
 	fallbackTimeout := 90 * time.Second
 	override := &StaticProvider{Fields: StaticFields{SyncTimeout: &overrideTimeout}}
 	fallback := &StaticProvider{Fields: StaticFields{SyncTimeout: &fallbackTimeout, SelfHealTimeout: Ptr(30 * time.Second)}}
-	chain := NewChainProvider(override, NewCRDProvider(nil), fallback, NewEnvProvider())
+	chain := NewChainProvider(override, fallback, NewEnvProvider())
 
 	d, err := chain.SyncTimeout(context.Background())
 	require.NoError(t, err)
@@ -113,7 +100,8 @@ func TestChainProviderPrecedence(t *testing.T) {
 }
 
 func TestChainProviderSkipsErrNotConfigured(t *testing.T) {
-	chain := NewChainProvider(NewCRDProvider(nil), &StaticProvider{Fields: StaticFields{ReconciliationTimeout: Ptr(120 * time.Second)}})
+	unset := &StaticProvider{}
+	chain := NewChainProvider(unset, &StaticProvider{Fields: StaticFields{ReconciliationTimeout: Ptr(120 * time.Second)}})
 	d, err := chain.ReconciliationTimeout(context.Background())
 	require.NoError(t, err)
 	assert.Equal(t, 120*time.Second, d)
