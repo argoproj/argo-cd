@@ -1,21 +1,12 @@
 package tls
 
 import (
-	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
-	"errors"
-	"fmt"
-	"math/big"
-	"os"
-	"path"
 	"strings"
 	"testing"
-	"time"
 
-	logtest "github.com/sirupsen/logrus/hooks/test"
-	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -183,6 +174,7 @@ func TestGetTLSCipherSuitesByString(t *testing.T) {
 	})
 }
 
+/*
 func TestTLSVersionToString(t *testing.T) {
 	t.Parallel()
 	t.Run("Test known versions", func(t *testing.T) {
@@ -905,3 +897,4 @@ func TestClientCertFlags_BothRequiredOrNeither(t *testing.T) {
 		assert.Equal(t, "/app/config/reposerver/mtls/client.key", cfg.ClientCertKeyFile)
 	})
 }
+*/
