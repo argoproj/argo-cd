@@ -98,7 +98,7 @@ component packages instead of hand-rolled Provider fakes.
 | Piece | Path | Role |
 | --- | --- | --- |
 | `Provider` | `util/configbus/provider.go` | Flat alphabetical typed API (`ReconciliationTimeout()`, `ResourceOverrides()`, …). |
-| `LegacyProvider` | `util/configbus/legacy_provider*.go` | SettingsManager + Legacy adapters + env. |
+| `LegacyProvider` | `util/configbus/legacy_provider.go` | SettingsManager + Legacy adapters + env. |
 | `CRDProvider` | `util/configbus/crd_provider.go` | CRD-only reads (stubbed until CRD source lands). |
 | `HybridProvider` | `util/configbus/hybrid_provider.go` | CRD-first with Legacy fallback on `ErrNotConfigured`. |
 | `LegacyValues` / `ControllerLegacy` | `util/configbus/legacy_provider.go` | Component Legacy adapters. Nil field means “not supplied by this binary.” |
