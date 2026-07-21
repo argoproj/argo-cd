@@ -367,13 +367,15 @@ func reconcileApplications(
 	namespace string,
 	repoServerClient reposerverclient.Clientset,
 	selector string,
-	createLiveStateCache func(argoDB db.ArgoDB, appInformer kubecache.SharedIndexInformer, settingsMgr *settings.SettingsManager, configProvider configbus.Provider, server *metrics.MetricsServer) cache.LiveStateCache,
+	createLiveStateCache func(argoDB db.ArgoDB, appInformer kubecache.SharedIndexInformer, namespace string, configProvider configbus.Provider, server *metrics.MetricsServer) cache.LiveStateCache,
 	serverSideDiff bool,
 	ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts,
 ) ([]appReconcileResult, error) {
 	settingsMgr := settings.NewSettingsManager(ctx, kubeClientset, namespace)
 	// Admin reconcile has no live ApplicationController; supply a Legacy adapter
 	// that mirrors the CLI flags already passed into this helper.
+	// Temporary: once config is fully CRD-backed these admin flags go away and
+	// values are read from the CRD instead.
 	configProvider := configbus.NewHybridProvider(
 		configbus.NewCRDProvider(nil),
 		configbus.NewLegacyProvider(settingsMgr, &configbus.LegacyValues{
@@ -409,7 +411,7 @@ func reconcileApplications(
 	if err != nil {
 		return nil, fmt.Errorf("error starting new metrics server: %w", err)
 	}
-	stateCache := createLiveStateCache(argoDB, appInformer, settingsMgr, configProvider, server)
+	stateCache := createLiveStateCache(argoDB, appInformer, namespace, configProvider, server)
 	if err := stateCache.Init(); err != nil {
 		return nil, fmt.Errorf("error initializing state cache: %w", err)
 	}
@@ -492,12 +494,13 @@ func reconcileApplications(
 	return items, nil
 }
 
-func newLiveStateCache(argoDB db.ArgoDB, appInformer kubecache.SharedIndexInformer, settingsMgr *settings.SettingsManager, configProvider configbus.Provider, server *metrics.MetricsServer) cache.LiveStateCache {
-	return cache.NewLiveStateCache(argoDB, appInformer, settingsMgr, configProvider, server, func(_ map[string]bool, _ corev1.ObjectReference) {}, &sharding.ClusterSharding{}, argo.NewResourceTracking())
+func newLiveStateCache(argoDB db.ArgoDB, appInformer kubecache.SharedIndexInformer, namespace string, configProvider configbus.Provider, server *metrics.MetricsServer) cache.LiveStateCache {
+	return cache.NewLiveStateCache(argoDB, appInformer, namespace, configProvider, server, func(_ map[string]bool, _ corev1.ObjectReference) {}, &sharding.ClusterSharding{}, argo.NewResourceTracking())
 }
 
 // adminControllerLegacy adapts admin-reconcile CLI flags into ControllerLegacy for
 // configbus.Provider. The admin CLI has no live ApplicationController.
+// Temporary until config is fully CRD-backed and these flags are dropped.
 type adminControllerLegacy struct {
 	serverSideDiff       bool
 	ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts

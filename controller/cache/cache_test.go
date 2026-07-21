@@ -106,7 +106,6 @@ func TestHandleModEvent_ClusterExcluded(t *testing.T) {
 		appInformer: nil,
 		onObjectUpdated: func(_ map[string]bool, _ corev1.ObjectReference) {
 		},
-		settingsMgr:   &argosettings.SettingsManager{},
 		metricsServer: &metrics.MetricsServer{},
 		// returns a shard that never process any cluster
 		clusterSharding:  sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm),
@@ -174,15 +173,12 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 	}
 	db := &dbmocks.ArgoDB{}
 	db.EXPECT().GetApplicationControllerReplicas().Return(1)
-	fakeClient := fake.NewClientset()
-	settingsMgr := argosettings.NewSettingsManager(t.Context(), fakeClient, "argocd")
 	gitopsEngineClusterCache := &mocks.ClusterCache{}
 	clustersCache := liveStateCache{
 		clusters: map[string]cache.ClusterCache{
 			testCluster.Server: gitopsEngineClusterCache,
 		},
 		clusterSharding: sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm),
-		settingsMgr:     settingsMgr,
 		lock:            sync.RWMutex{},
 	}
 	channel := make(chan string)
@@ -815,7 +811,7 @@ func TestLoadCacheSettings(t *testing.T) {
 		"installationID":                     "123456789",
 	})
 	ch := liveStateCache{
-		settingsMgr:    settingsManager,
+		namespace:      "argocd",
 		configProvider: configbus.NewLegacyProvider(settingsManager, nil),
 	}
 	label, err := settingsManager.GetAppInstanceLabelKey()
