@@ -637,7 +637,6 @@ Supported values for type in dex.storage:
 
 #### Kubernetes storage RBAC
 
-
 ```yaml
 # RBAC for Dex Kubernetes Storage Backend
 #
