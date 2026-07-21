@@ -208,6 +208,9 @@ type ApplicationSetGenerator struct {
 	Selector *metav1.LabelSelector `json:"selector,omitempty" protobuf:"bytes,9,name=selector"`
 
 	Plugin *PluginGenerator `json:"plugin,omitempty" protobuf:"bytes,10,name=plugin"`
+
+	// ConfigMap generates a single set of parameters from the data of a referenced ConfigMap.
+	ConfigMap *ConfigMapGenerator `json:"configMap,omitempty" protobuf:"bytes,11,name=configMap"`
 }
 
 // ApplicationSetNestedGenerator represents a generator nested within a combination-type generator (MatrixGenerator or
@@ -230,6 +233,9 @@ type ApplicationSetNestedGenerator struct {
 	Selector *metav1.LabelSelector `json:"selector,omitempty" protobuf:"bytes,9,name=selector"`
 
 	Plugin *PluginGenerator `json:"plugin,omitempty" protobuf:"bytes,10,name=plugin"`
+
+	// ConfigMap generates a single set of parameters from the data of a referenced ConfigMap.
+	ConfigMap *ConfigMapGenerator `json:"configMap,omitempty" protobuf:"bytes,11,name=configMap"`
 }
 
 type ApplicationSetNestedGenerators []ApplicationSetNestedGenerator
@@ -249,6 +255,9 @@ type ApplicationSetTerminalGenerator struct {
 
 	// Selector allows to post-filter all generator.
 	Selector *metav1.LabelSelector `json:"selector,omitempty" protobuf:"bytes,8,name=selector"`
+
+	// ConfigMap generates a single set of parameters from the data of a referenced ConfigMap.
+	ConfigMap *ConfigMapGenerator `json:"configMap,omitempty" protobuf:"bytes,9,name=configMap"`
 }
 
 type ApplicationSetTerminalGenerators []ApplicationSetTerminalGenerator
@@ -267,6 +276,7 @@ func (g ApplicationSetTerminalGenerators) toApplicationSetNestedGenerators() []A
 			ClusterDecisionResource: terminalGenerator.ClusterDecisionResource,
 			PullRequest:             terminalGenerator.PullRequest,
 			Plugin:                  terminalGenerator.Plugin,
+			ConfigMap:               terminalGenerator.ConfigMap,
 			Selector:                terminalGenerator.Selector,
 		}
 	}
@@ -807,6 +817,20 @@ type PluginGenerator struct {
 	// Values contains key/value pairs which are passed directly as parameters to the template. These values will not be
 	// sent as parameters to the plugin.
 	Values map[string]string `json:"values,omitempty" protobuf:"bytes,5,name=values"`
+}
+
+// ConfigMapGenerator generates a single set of parameters from the data of a referenced ConfigMap. Each key/value pair
+// in the ConfigMap's data is exposed as a parameter to the template. The ConfigMap must exist in the same namespace as
+// the ApplicationSet controller. This is useful for driving Applications from operator-managed configuration (for
+// example values exported into a ConfigMap by Crossplane, Cluster API, or other provisioning tools).
+type ConfigMapGenerator struct {
+	// ConfigMapRef is the name of the ConfigMap to read parameters from.
+	ConfigMapRef string `json:"configMapRef" protobuf:"bytes,1,name=configMapRef"`
+	// Template is an optional override for the ApplicationSet template, applied for this generator only.
+	Template ApplicationSetTemplate `json:"template,omitempty" protobuf:"bytes,2,name=template"`
+	// Values contains key/value pairs which are passed directly as parameters to the template, in addition to the
+	// ConfigMap data.
+	Values map[string]string `json:"values,omitempty" protobuf:"bytes,3,name=values"`
 }
 
 // ApplicationSetStatus defines the observed state of ApplicationSet
