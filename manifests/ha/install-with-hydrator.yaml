@@ -30983,6 +30983,18 @@ rules:
   - list
   - watch
 - apiGroups:
+  - ""
+  resources:
+  - serviceaccounts
+  verbs:
+  - get
+- apiGroups:
+  - ""
+  resources:
+  - serviceaccounts/token
+  verbs:
+  - create
+- apiGroups:
   - argoproj.io
   resources:
   - applications
@@ -30996,6 +31008,12 @@ rules:
   - update
   - patch
   - delete
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
 - apiGroups:
   - ""
   resources:
@@ -31233,6 +31251,24 @@ rules:
   - update
   - delete
   - patch
+- apiGroups:
+  - ""
+  resources:
+  - serviceaccounts
+  verbs:
+  - get
+- apiGroups:
+  - ""
+  resources:
+  - serviceaccounts/token
+  verbs:
+  - create
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
 - apiGroups:
   - ""
   resources:

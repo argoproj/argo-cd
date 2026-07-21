@@ -1310,3 +1310,42 @@ func TestCreateReadAndWriteRepoCredsSecretForSameURL(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, common.LabelValueSecretTypeRepoCredsWrite, writeSecret.Labels[common.LabelKeySecretType])
 }
+
+func TestWorkloadIdentityFieldsSecretRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	backend := &secretsRepositoryBackend{}
+	repo := &appsv1.Repository{
+		Repo:                                  "oci://myregistry.example.com/repo",
+		Type:                                  "helm",
+		WorkloadIdentityProvider:              "k8s",
+		WorkloadIdentityTokenURL:              "https://sts.example.com/token",
+		WorkloadIdentityAudience:              "myaudience",
+		WorkloadIdentityUsername:              "org+robot",
+		WorkloadIdentityAuthHost:              "auth.example.com",
+		WorkloadIdentityMethod:                "POST",
+		WorkloadIdentityPathTemplate:          "/oauth2/token",
+		WorkloadIdentityBodyTemplate:          "grant_type=token&service={{ .registry }}",
+		WorkloadIdentityAuthType:              "bearer",
+		WorkloadIdentityParams:                map[string]string{"tenant": "mytenant"},
+		WorkloadIdentityResponseTokenField:    "access_token",
+		WorkloadIdentityResponseUsernameField: "username",
+	}
+
+	secret := backend.repositoryToSecret(repo, &corev1.Secret{Data: map[string][]byte{}})
+	roundTripped, err := secretToRepository(secret)
+	require.NoError(t, err)
+
+	assert.Equal(t, repo.WorkloadIdentityProvider, roundTripped.WorkloadIdentityProvider)
+	assert.Equal(t, repo.WorkloadIdentityTokenURL, roundTripped.WorkloadIdentityTokenURL)
+	assert.Equal(t, repo.WorkloadIdentityAudience, roundTripped.WorkloadIdentityAudience)
+	assert.Equal(t, repo.WorkloadIdentityUsername, roundTripped.WorkloadIdentityUsername)
+	assert.Equal(t, repo.WorkloadIdentityAuthHost, roundTripped.WorkloadIdentityAuthHost)
+	assert.Equal(t, repo.WorkloadIdentityMethod, roundTripped.WorkloadIdentityMethod)
+	assert.Equal(t, repo.WorkloadIdentityPathTemplate, roundTripped.WorkloadIdentityPathTemplate)
+	assert.Equal(t, repo.WorkloadIdentityBodyTemplate, roundTripped.WorkloadIdentityBodyTemplate)
+	assert.Equal(t, repo.WorkloadIdentityAuthType, roundTripped.WorkloadIdentityAuthType)
+	assert.Equal(t, repo.WorkloadIdentityParams, roundTripped.WorkloadIdentityParams)
+	assert.Equal(t, repo.WorkloadIdentityResponseTokenField, roundTripped.WorkloadIdentityResponseTokenField)
+	assert.Equal(t, repo.WorkloadIdentityResponseUsernameField, roundTripped.WorkloadIdentityResponseUsernameField)
+}

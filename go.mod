@@ -133,6 +133,8 @@ require (
 	sigs.k8s.io/yaml v1.6.0
 )
 
+require github.com/aws/aws-sdk-go-v2/service/ecr v1.57.2
+
 require (
 	cloud.google.com/go v0.120.0 // indirect
 	cloud.google.com/go/auth v0.15.0 // indirect

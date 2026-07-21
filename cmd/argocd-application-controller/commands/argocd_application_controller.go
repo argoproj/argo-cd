@@ -38,6 +38,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/settings"
 	"github.com/argoproj/argo-cd/v3/util/tls"
 	"github.com/argoproj/argo-cd/v3/util/trace"
+	workloadidentity "github.com/argoproj/argo-cd/v3/util/workloadidentity/v2"
 )
 
 const (
@@ -76,6 +77,8 @@ func NewCommand() *cobra.Command {
 		metricsCacheExpiration           time.Duration
 		metricsApplicationLabels         []string
 		metricsApplicationConditions     []string
+		wiTokenCacheTTL                  time.Duration
+		wiTokenCacheMaxTTL               time.Duration
 		metricsClusterLabels             []string
 		kubectlParallelismLimit          int64
 		cacheSource                      func() (*appstatecache.Cache, error)
@@ -122,6 +125,8 @@ func NewCommand() *cobra.Command {
 			cli.SetLogFormat(cmdutil.LogFormat)
 			cli.SetLogLevel(cmdutil.LogLevel)
 			cli.SetGLogLevel(glogLevel)
+
+			workloadidentity.SetTokenCacheTTLs(wiTokenCacheTTL, wiTokenCacheMaxTTL)
 
 			// Recover from panic and log the error using the configured logger instead of the default.
 			defer func() {
@@ -272,6 +277,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().IntVar(&glogLevel, "gloglevel", 0, "Set the glog logging level")
 	command.Flags().IntVar(&metricsPort, "metrics-port", common.DefaultPortArgoCDMetrics, "Start metrics server on given port")
 	command.Flags().DurationVar(&metricsCacheExpiration, "metrics-cache-expiration", env.ParseDurationFromEnv("ARGOCD_APPLICATION_CONTROLLER_METRICS_CACHE_EXPIRATION", 0*time.Second, 0, math.MaxInt64), "Prometheus metrics cache expiration (disabled  by default. e.g. 24h0m0s)")
+	command.Flags().DurationVar(&wiTokenCacheTTL, "workload-identity-token-cache-ttl", env.ParseDurationFromEnv(workloadidentity.EnvTokenCacheTTL, workloadidentity.DefaultTokenCacheTTL, 0, math.MaxInt64), "TTL for cached workload identity repository credentials whose expiry is not reported by the token endpoint (0 disables caching those)")
+	command.Flags().DurationVar(&wiTokenCacheMaxTTL, "workload-identity-token-cache-max-ttl", env.ParseDurationFromEnv(workloadidentity.EnvTokenCacheMaxTTL, workloadidentity.DefaultTokenCacheMaxTTL, 0, math.MaxInt64), "Upper bound on how long any workload identity repository credential is served from cache")
 	command.Flags().IntVar(&selfHealTimeoutSeconds, "self-heal-timeout-seconds", env.ParseNumFromEnv("ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_TIMEOUT_SECONDS", 0, 0, math.MaxInt32), "Specifies timeout between application self heal attempts")
 	command.Flags().IntVar(&selfHealBackoffTimeoutSeconds, "self-heal-backoff-timeout-seconds", env.ParseNumFromEnv("ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_BACKOFF_TIMEOUT_SECONDS", 2, 0, math.MaxInt32), "Specifies initial timeout of exponential backoff between self heal attempts")
 	command.Flags().IntVar(&selfHealBackoffFactor, "self-heal-backoff-factor", env.ParseNumFromEnv("ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_BACKOFF_FACTOR", 3, 0, math.MaxInt32), "Specifies factor of exponential timeout between application self heal attempts")
