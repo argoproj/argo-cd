@@ -105,3 +105,31 @@ func TestChainProviderSkipsErrNotConfigured(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 120*time.Second, d)
 }
+
+func TestApplicationNamespaces_SharedAlias(t *testing.T) {
+	p := &StaticProvider{Fields: StaticFields{
+		ApplicationNamespaces: Ptr([]string{"app-ns"}),
+	}}
+	ns, err := p.ApplicationNamespaces(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, []string{"app-ns"}, ns)
+
+	ns, err = p.NotificationsApplicationNamespaces(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, []string{"app-ns"}, ns, "NotificationsApplicationNamespaces aliases ApplicationNamespaces")
+
+	chain := NewChainProvider(p)
+	ns, err = chain.NotificationsApplicationNamespaces(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, []string{"app-ns"}, ns)
+}
+
+func TestHydratorEnabled_StaticOwned(t *testing.T) {
+	p := &StaticProvider{Fields: StaticFields{HydratorEnabled: Ptr(true)}}
+	enabled, err := p.HydratorEnabled(context.Background())
+	require.NoError(t, err)
+	assert.True(t, enabled)
+
+	_, err = NewEnvProvider().HydratorEnabled(context.Background())
+	assert.ErrorIs(t, err, ErrNotConfigured)
+}

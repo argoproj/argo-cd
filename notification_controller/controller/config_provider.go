@@ -11,7 +11,7 @@ func (c *notificationController) InitConfigProvider() {
 	c.configProvider = configbus.NewChainProvider(
 		&configbus.StaticProvider{Fields: configbus.StaticFields{
 			NotificationsAppLabelSelector:        configbus.Ptr(c.appLabelSelector),
-			NotificationsApplicationNamespaces:   configbus.Ptr(c.applicationNamespaces),
+			ApplicationNamespaces:                 configbus.Ptr(c.applicationNamespaces),
 			NotificationsConfigMapName:           configbus.Ptr(c.configMapName),
 			NotificationsSecretName:              configbus.Ptr(c.secretName),
 			NotificationsSelfserviceEnabled:      configbus.Ptr(c.selfServiceNotificationEnabled),

@@ -500,6 +500,25 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	return a
 }
 
+// ensureConfigProvider lazily wires a Static/Env chain. Production always
+// constructs the provider in NewServer; unit tests that build ArgoCDServer
+// directly hit this path so configProvider getters remain usable.
+func (a *ArgoCDServer) ensureConfigProvider() {
+	if a.configProvider != nil {
+		return
+	}
+	//nolint:staticcheck // SA1019: StaticFields capture construction-time opts once at wire-up
+	a.configProvider = configbus.NewChainProvider(
+		&configbus.StaticProvider{Fields: configbus.StaticFields{
+			ApplicationNamespaces: configbus.Ptr(a.ApplicationNamespaces),
+			BaseHRef:              configbus.Ptr(a.BaseHRef),
+			HydratorEnabled:       configbus.Ptr(a.HydratorEnabled),
+			RootPath:              configbus.Ptr(a.RootPath),
+		}},
+		configbus.NewEnvProvider(),
+	)
+}
+
 const (
 	// catches corrupted informer state; see https://github.com/argoproj/argo-cd/issues/4960 for more information
 	notObjectErrMsg = "object does not implement the Object interfaces"
@@ -1274,6 +1293,7 @@ func (server *ArgoCDServer) setTokenCookie(token string, w http.ResponseWriter) 
 }
 
 func withRootPath(handler http.Handler, a *ArgoCDServer) (http.Handler, error) {
+	a.ensureConfigProvider()
 	rootPath, err := a.configProvider.RootPath(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve root path: %w", err)

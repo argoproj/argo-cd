@@ -109,6 +109,20 @@ flags win by chain position.
 - Later with CRD: `[StaticOverride?, CRD, StaticFallback, SettingsManager, Env]`
 - CRD-only: `[StaticOverride?, CRD]`
 
+### Shared getters
+
+Some settings are process-wide rather than component-prefixed. They have a
+**single owning leaf** (today: `StaticProvider` fields captured at construction):
+
+| Getter | Owner | Notes |
+| --- | --- | --- |
+| `ApplicationNamespaces` | `StaticProvider` | Shared by API server and notifications. |
+| `HydratorEnabled` | `StaticProvider` | Shared (API server captures it today). |
+
+`NotificationsApplicationNamespaces` is a generated **alias** of
+`ApplicationNamespaces` for older call sites; do not add a second Static field
+for it.
+
 ### Testing with mockery
 
 Prefer **`mocks.Provider`** for consumer unit tests that stub one or a few

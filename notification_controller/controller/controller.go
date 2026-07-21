@@ -67,7 +67,7 @@ type notificationController struct {
 
 	// Deprecated: use configProvider.NotificationsSelfserviceEnabled.
 	selfServiceNotificationEnabled bool
-	// Deprecated: use configProvider.NotificationsApplicationNamespaces.
+	// Deprecated: use configProvider.ApplicationNamespaces.
 	applicationNamespaces []string
 	// Deprecated: use configProvider.NotificationsConfigMapName.
 	configMapName string
@@ -99,7 +99,7 @@ func NewController(
 	}
 	res.InitConfigProvider()
 
-	applicationNamespacesCfg, err := res.configProvider.NotificationsApplicationNamespaces(context.Background())
+	applicationNamespacesCfg, err := res.configProvider.ApplicationNamespaces(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve notifications application namespaces: %w", err)
 	}
