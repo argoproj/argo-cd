@@ -2029,12 +2029,18 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 
 // from all of the treeNodes, get the pod who meets the criteria or whose parents meets the criteria
 func getSelectedPods(treeNodes []v1alpha1.ResourceNode, q *application.ApplicationPodLogsQuery) []v1alpha1.ResourceNode {
+	nodeIndex := make(map[kube.ResourceKey]*v1alpha1.ResourceNode, len(treeNodes))
+	for i := range treeNodes {
+		key := kube.NewResourceKey(treeNodes[i].Group, treeNodes[i].Kind, treeNodes[i].Namespace, treeNodes[i].Name)
+		nodeIndex[key] = &treeNodes[i]
+	}
+
 	var pods []v1alpha1.ResourceNode
 	isTheOneMap := make(map[string]bool)
-	for _, treeNode := range treeNodes {
-		if treeNode.Kind == kube.PodKind && treeNode.Group == "" && treeNode.UID != "" {
-			if isTheSelectedOne(&treeNode, q, treeNodes, isTheOneMap) {
-				pods = append(pods, treeNode)
+	for i := range treeNodes {
+		if treeNodes[i].Kind == kube.PodKind && treeNodes[i].Group == "" && treeNodes[i].UID != "" {
+			if isTheSelectedOne(&treeNodes[i], q, nodeIndex, isTheOneMap) {
+				pods = append(pods, treeNodes[i])
 			}
 		}
 	}
@@ -2042,7 +2048,7 @@ func getSelectedPods(treeNodes []v1alpha1.ResourceNode, q *application.Applicati
 }
 
 // check is currentNode is matching with group, kind, and name, or if any of its parents matches
-func isTheSelectedOne(currentNode *v1alpha1.ResourceNode, q *application.ApplicationPodLogsQuery, resourceNodes []v1alpha1.ResourceNode, isTheOneMap map[string]bool) bool {
+func isTheSelectedOne(currentNode *v1alpha1.ResourceNode, q *application.ApplicationPodLogsQuery, nodeIndex map[kube.ResourceKey]*v1alpha1.ResourceNode, isTheOneMap map[string]bool) bool {
 	exist, value := isTheOneMap[currentNode.UID]
 	if exist {
 		return value
@@ -2062,17 +2068,11 @@ func isTheSelectedOne(currentNode *v1alpha1.ResourceNode, q *application.Applica
 	}
 
 	for _, parentResource := range currentNode.ParentRefs {
-		// look up parentResource from resourceNodes
-		// then check if the parent isTheSelectedOne
-		for _, resourceNode := range resourceNodes {
-			if resourceNode.Namespace == parentResource.Namespace &&
-				resourceNode.Name == parentResource.Name &&
-				resourceNode.Group == parentResource.Group &&
-				resourceNode.Kind == parentResource.Kind {
-				if isTheSelectedOne(&resourceNode, q, resourceNodes, isTheOneMap) {
-					isTheOneMap[currentNode.UID] = true
-					return true
-				}
+		key := kube.NewResourceKey(parentResource.Group, parentResource.Kind, parentResource.Namespace, parentResource.Name)
+		if parentNode, ok := nodeIndex[key]; ok {
+			if isTheSelectedOne(parentNode, q, nodeIndex, isTheOneMap) {
+				isTheOneMap[currentNode.UID] = true
+				return true
 			}
 		}
 	}
