@@ -172,7 +172,7 @@ func (s *secretsRepositoryBackend) RepositoryExists(_ context.Context, repoURL, 
 			return false, nil
 		}
 
-		return false, fmt.Errorf("failed to get repository secret for %q: %w", repoURL, err)
+		return false, fmt.Errorf("failed to get repository secret for %q: %w", git.SanitizeRepoURL(repoURL), err)
 	}
 
 	return secret != nil, nil
@@ -330,21 +330,25 @@ func secretToRepository(secret *corev1.Secret) (*appsv1.Repository, error) {
 	secretCopy := secret.DeepCopy()
 
 	repository := &appsv1.Repository{
-		Name:                       string(secretCopy.Data["name"]),
-		Repo:                       string(secretCopy.Data["url"]),
-		Username:                   string(secretCopy.Data["username"]),
-		Password:                   string(secretCopy.Data["password"]),
-		BearerToken:                string(secretCopy.Data["bearerToken"]),
-		SSHPrivateKey:              string(secretCopy.Data["sshPrivateKey"]),
-		TLSClientCertData:          string(secretCopy.Data["tlsClientCertData"]),
-		TLSClientCertKey:           string(secretCopy.Data["tlsClientCertKey"]),
-		Type:                       string(secretCopy.Data["type"]),
-		GithubAppPrivateKey:        string(secretCopy.Data["githubAppPrivateKey"]),
-		GitHubAppEnterpriseBaseURL: string(secretCopy.Data["githubAppEnterpriseBaseUrl"]),
-		Proxy:                      string(secretCopy.Data["proxy"]),
-		NoProxy:                    string(secretCopy.Data["noProxy"]),
-		Project:                    string(secretCopy.Data["project"]),
-		GCPServiceAccountKey:       string(secretCopy.Data["gcpServiceAccountKey"]),
+		Name:                              string(secretCopy.Data["name"]),
+		Repo:                              string(secretCopy.Data["url"]),
+		Username:                          string(secretCopy.Data["username"]),
+		Password:                          string(secretCopy.Data["password"]),
+		BearerToken:                       string(secretCopy.Data["bearerToken"]),
+		SSHPrivateKey:                     string(secretCopy.Data["sshPrivateKey"]),
+		TLSClientCertData:                 string(secretCopy.Data["tlsClientCertData"]),
+		TLSClientCertKey:                  string(secretCopy.Data["tlsClientCertKey"]),
+		Type:                              string(secretCopy.Data["type"]),
+		GithubAppPrivateKey:               string(secretCopy.Data["githubAppPrivateKey"]),
+		GitHubAppEnterpriseBaseURL:        string(secretCopy.Data["githubAppEnterpriseBaseUrl"]),
+		Proxy:                             string(secretCopy.Data["proxy"]),
+		NoProxy:                           string(secretCopy.Data["noProxy"]),
+		Project:                           string(secretCopy.Data["project"]),
+		GCPServiceAccountKey:              string(secretCopy.Data["gcpServiceAccountKey"]),
+		AzureServicePrincipalClientId:     string(secretCopy.Data["azureServicePrincipalClientId"]),
+		AzureServicePrincipalClientSecret: string(secretCopy.Data["azureServicePrincipalClientSecret"]),
+		AzureServicePrincipalTenantId:     string(secretCopy.Data["azureServicePrincipalTenantId"]),
+		AzureActiveDirectoryEndpoint:      string(secretCopy.Data["azureActiveDirectoryEndpoint"]),
 	}
 
 	insecureIgnoreHostKey, err := boolOrFalse(secretCopy, "insecureIgnoreHostKey")
@@ -407,6 +411,12 @@ func secretToRepository(secret *corev1.Secret) (*appsv1.Repository, error) {
 	}
 	repository.Depth = depth
 
+	webhookManifestCacheWarmDisabled, err := boolOrFalse(secret, "webhookManifestCacheWarmDisabled")
+	if err != nil {
+		return repository, err
+	}
+	repository.WebhookManifestCacheWarmDisabled = webhookManifestCacheWarmDisabled
+
 	return repository, nil
 }
 
@@ -444,6 +454,11 @@ func (s *secretsRepositoryBackend) repositoryToSecret(repository *appsv1.Reposit
 	updateSecretBool(secretCopy, "forceHttpBasicAuth", repository.ForceHttpBasicAuth)
 	updateSecretBool(secretCopy, "useAzureWorkloadIdentity", repository.UseAzureWorkloadIdentity)
 	updateSecretInt(secretCopy, "depth", repository.Depth)
+	updateSecretBool(secretCopy, "webhookManifestCacheWarmDisabled", repository.WebhookManifestCacheWarmDisabled)
+	updateSecretString(secretCopy, "azureServicePrincipalClientId", repository.AzureServicePrincipalClientId)
+	updateSecretString(secretCopy, "azureServicePrincipalClientSecret", repository.AzureServicePrincipalClientSecret)
+	updateSecretString(secretCopy, "azureServicePrincipalTenantId", repository.AzureServicePrincipalTenantId)
+	updateSecretString(secretCopy, "azureActiveDirectoryEndpoint", repository.AzureActiveDirectoryEndpoint)
 	addSecretMetadata(secretCopy, s.getSecretType())
 
 	return secretCopy
@@ -453,19 +468,23 @@ func (s *secretsRepositoryBackend) secretToRepoCred(secret *corev1.Secret) (*app
 	secretCopy := secret.DeepCopy()
 
 	repository := &appsv1.RepoCreds{
-		URL:                        string(secretCopy.Data["url"]),
-		Username:                   string(secretCopy.Data["username"]),
-		Password:                   string(secretCopy.Data["password"]),
-		BearerToken:                string(secretCopy.Data["bearerToken"]),
-		SSHPrivateKey:              string(secretCopy.Data["sshPrivateKey"]),
-		TLSClientCertData:          string(secretCopy.Data["tlsClientCertData"]),
-		TLSClientCertKey:           string(secretCopy.Data["tlsClientCertKey"]),
-		Type:                       string(secretCopy.Data["type"]),
-		GithubAppPrivateKey:        string(secretCopy.Data["githubAppPrivateKey"]),
-		GitHubAppEnterpriseBaseURL: string(secretCopy.Data["githubAppEnterpriseBaseUrl"]),
-		GCPServiceAccountKey:       string(secretCopy.Data["gcpServiceAccountKey"]),
-		Proxy:                      string(secretCopy.Data["proxy"]),
-		NoProxy:                    string(secretCopy.Data["noProxy"]),
+		URL:                               string(secretCopy.Data["url"]),
+		Username:                          string(secretCopy.Data["username"]),
+		Password:                          string(secretCopy.Data["password"]),
+		BearerToken:                       string(secretCopy.Data["bearerToken"]),
+		SSHPrivateKey:                     string(secretCopy.Data["sshPrivateKey"]),
+		TLSClientCertData:                 string(secretCopy.Data["tlsClientCertData"]),
+		TLSClientCertKey:                  string(secretCopy.Data["tlsClientCertKey"]),
+		Type:                              string(secretCopy.Data["type"]),
+		GithubAppPrivateKey:               string(secretCopy.Data["githubAppPrivateKey"]),
+		GitHubAppEnterpriseBaseURL:        string(secretCopy.Data["githubAppEnterpriseBaseUrl"]),
+		GCPServiceAccountKey:              string(secretCopy.Data["gcpServiceAccountKey"]),
+		Proxy:                             string(secretCopy.Data["proxy"]),
+		NoProxy:                           string(secretCopy.Data["noProxy"]),
+		AzureServicePrincipalClientId:     string(secretCopy.Data["azureServicePrincipalClientID"]),
+		AzureServicePrincipalClientSecret: string(secretCopy.Data["azureServicePrincipalClientSecret"]),
+		AzureServicePrincipalTenantId:     string(secretCopy.Data["azureServicePrincipalTenantID"]),
+		AzureActiveDirectoryEndpoint:      string(secretCopy.Data["azureActiveDirectoryEndpoint"]),
 	}
 
 	enableOCI, err := boolOrFalse(secretCopy, "enableOCI")
@@ -533,6 +552,10 @@ func (s *secretsRepositoryBackend) repoCredsToSecret(repoCreds *appsv1.RepoCreds
 	updateSecretString(secretCopy, "noProxy", repoCreds.NoProxy)
 	updateSecretBool(secretCopy, "forceHttpBasicAuth", repoCreds.ForceHttpBasicAuth)
 	updateSecretBool(secretCopy, "useAzureWorkloadIdentity", repoCreds.UseAzureWorkloadIdentity)
+	updateSecretString(secretCopy, "azureServicePrincipalClientID", repoCreds.AzureServicePrincipalClientId)
+	updateSecretString(secretCopy, "azureServicePrincipalClientSecret", repoCreds.AzureServicePrincipalClientSecret)
+	updateSecretString(secretCopy, "azureServicePrincipalTenantID", repoCreds.AzureServicePrincipalTenantId)
+	updateSecretString(secretCopy, "azureActiveDirectoryEndpoint", repoCreds.AzureActiveDirectoryEndpoint)
 	addSecretMetadata(secretCopy, s.getRepoCredSecretType())
 
 	return secretCopy
@@ -572,7 +595,7 @@ func (s *secretsRepositoryBackend) getRepositorySecret(repoURL, project string, 
 		return foundSecret, nil
 	}
 
-	return nil, status.Errorf(codes.NotFound, "repository %q not found", repoURL)
+	return nil, status.Errorf(codes.NotFound, "repository %q not found", git.SanitizeRepoURL(repoURL))
 }
 
 func (s *secretsRepositoryBackend) getRepoCredsSecret(repoURL string) (*corev1.Secret, error) {
@@ -583,7 +606,7 @@ func (s *secretsRepositoryBackend) getRepoCredsSecret(repoURL string) (*corev1.S
 
 	index := s.getRepositoryCredentialIndex(secrets, repoURL)
 	if index < 0 {
-		return nil, status.Errorf(codes.NotFound, "repository credentials %q not found", repoURL)
+		return nil, status.Errorf(codes.NotFound, "repository credentials %q not found", git.SanitizeRepoURL(repoURL))
 	}
 
 	return secrets[index], nil

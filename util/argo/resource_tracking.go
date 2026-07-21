@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	kubeutil "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	kubeutil "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -121,6 +121,27 @@ func UnstructuredToAppInstanceValue(un *unstructured.Unstructured, appName, name
 	}
 }
 
+// TruncateLabel truncates the given value to a length that fits within the
+// Kubernetes label value limit (63 characters). When truncation is required,
+// any trailing special characters are stripped so the result remains a valid
+// label value. Inputs that are already within the limit are returned as-is
+// without trailing-character validation; callers that need a fully validated
+// label should validate separately.
+// See https://github.com/argoproj/argo-cd/issues/18237.
+func TruncateLabel(val string) (string, error) {
+	if len(val) <= LabelMaxLength {
+		return val, nil
+	}
+	val = val[:LabelMaxLength]
+	for !OkEndPattern.MatchString(val) {
+		if len(val) <= 1 {
+			return "", errors.New("unable to truncate label to not end with a special character")
+		}
+		val = val[:len(val)-1]
+	}
+	return val, nil
+}
+
 // SetAppInstance set label/annotation base on tracking method
 func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, val, namespace string, trackingMethod v1alpha1.TrackingMethod, instanceID string) error {
 	setAppInstanceAnnotation := func() error {
@@ -136,36 +157,33 @@ func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, v
 		}
 		return kube.SetAppInstanceAnnotation(un, common.AnnotationKeyAppInstance, rt.BuildAppInstanceValue(appInstanceValue))
 	}
+	setAppInstanceLabel := func(val string) error {
+		labelVal, err := TruncateLabel(val)
+		if err != nil {
+			return fmt.Errorf("failed to set app instance label: %w", err)
+		}
+		if err := kube.SetAppInstanceLabel(un, key, labelVal); err != nil {
+			return fmt.Errorf("failed to set app instance label: %w", err)
+		}
+		return nil
+	}
 	switch trackingMethod {
 	case v1alpha1.TrackingMethodLabel:
-		err := kube.SetAppInstanceLabel(un, key, val)
-		if err != nil {
+		// Label-only tracking uses the label value as the app name (see GetAppName),
+		// so truncating it here would break resource-to-app matching when the app
+		// name exceeds the label limit. Keep the value as-is and let Kubernetes
+		// surface the validation error to the user.
+		if err := kube.SetAppInstanceLabel(un, key, val); err != nil {
 			return fmt.Errorf("failed to set app instance label: %w", err)
 		}
 		return nil
 	case v1alpha1.TrackingMethodAnnotation:
 		return setAppInstanceAnnotation()
 	case v1alpha1.TrackingMethodAnnotationAndLabel:
-		err := setAppInstanceAnnotation()
-		if err != nil {
+		if err := setAppInstanceAnnotation(); err != nil {
 			return err
 		}
-		if len(val) > LabelMaxLength {
-			val = val[:LabelMaxLength]
-			// Prevent errors if the truncated name ends in a special character.
-			// See https://github.com/argoproj/argo-cd/issues/18237.
-			for !OkEndPattern.MatchString(val) {
-				if len(val) <= 1 {
-					return errors.New("failed to set app instance label: unable to truncate label to not end with a special character")
-				}
-				val = val[:len(val)-1]
-			}
-		}
-		err = kube.SetAppInstanceLabel(un, key, val)
-		if err != nil {
-			return fmt.Errorf("failed to set app instance label: %w", err)
-		}
-		return nil
+		return setAppInstanceLabel(val)
 	default:
 		return setAppInstanceAnnotation()
 	}
@@ -263,13 +281,31 @@ func (rt *resourceTracking) Normalize(config, live *unstructured.Unstructured, l
 		return nil
 	}
 
-	annotation, err := kube.GetAppInstanceAnnotation(config, common.AnnotationKeyAppInstance)
+	liveAnnotation, err := kube.GetAppInstanceAnnotation(live, common.AnnotationKeyAppInstance)
 	if err != nil {
 		return err
 	}
-	err = kube.SetAppInstanceAnnotation(live, common.AnnotationKeyAppInstance, annotation)
-	if err != nil {
-		return err
+	if liveAnnotation == "" {
+		// The live resource carries the instance label but no tracking annotation,
+		// which happens when it was last synced under label-based tracking.
+		// Backfill the desired annotation so that migrating to annotation-based
+		// tracking does not mark every resource OutOfSync.
+		//
+		// Note that the label is not necessarily owned by Argo CD: charts commonly
+		// render app.kubernetes.io/instance themselves (e.g. Helm's standard
+		// instance label). That is why the backfill must only happen when the
+		// tracking annotation is absent: if the live resource already has one,
+		// leave it untouched — a mismatch (e.g. the resource moved to another
+		// application) is a real difference that must surface in the diff so a
+		// sync can repair it (see issue #17965).
+		annotation, err := kube.GetAppInstanceAnnotation(config, common.AnnotationKeyAppInstance)
+		if err != nil {
+			return err
+		}
+		err = kube.SetAppInstanceAnnotation(live, common.AnnotationKeyAppInstance, annotation)
+		if err != nil {
+			return err
+		}
 	}
 
 	label, err = kube.GetAppInstanceLabel(config, labelKey)

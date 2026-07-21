@@ -13,7 +13,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -34,6 +34,7 @@ type AppOptions struct {
 	chart                           string
 	env                             string
 	revision                        string
+	tagPrefix                       string
 	revisionHistoryLimit            int
 	destName                        string
 	destServer                      string
@@ -107,6 +108,7 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringVar(&opts.chart, "helm-chart", "", "Helm Chart name")
 	command.Flags().StringVar(&opts.env, "env", "", "Application environment to monitor")
 	command.Flags().StringVar(&opts.revision, "revision", "", "The tracking source branch, tag, commit or Helm chart version the application will sync to")
+	command.Flags().StringVar(&opts.tagPrefix, "tag-prefix", "", "Filter git tags by this prefix before evaluating targetRevision as a semver constraint")
 	command.Flags().StringVar(&opts.drySourceRepo, "dry-source-repo", "", "Repository URL of the app dry source")
 	command.Flags().StringVar(&opts.drySourceRevision, "dry-source-revision", "", "Revision of the app dry source")
 	command.Flags().StringVar(&opts.drySourcePath, "dry-source-path", "", "Path in repository to the app directory for the dry source")
@@ -541,7 +543,7 @@ func SetParameterOverrides(app *argoappv1.Application, parameters []string, inde
 			source.Helm.AddParameter(*newParam)
 		}
 	default:
-		log.Fatalf("Parameters can only be set against Helm applications")
+		log.Fatal("Parameters can only be set against Helm applications")
 	}
 }
 
@@ -686,6 +688,8 @@ func ConstructSource(source *argoappv1.ApplicationSource, appOpts AppOptions, fl
 			source.Chart = appOpts.chart
 		case "revision":
 			source.TargetRevision = appOpts.revision
+		case "tag-prefix":
+			source.TagPrefix = appOpts.tagPrefix
 		case "values":
 			setHelmOpt(source, helmOpts{valueFiles: appOpts.valuesFiles})
 		case "ignore-missing-value-files":

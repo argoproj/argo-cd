@@ -40,6 +40,7 @@ nav:
     - operator-manual/user-management/keycloak.md
     - operator-manual/user-management/openunison.md
     - operator-manual/user-management/github-actions.md
+    - operator-manual/user-management/gitlab-ci.md
     - operator-manual/user-management/google.md
     - operator-manual/user-management/zitadel.md
     - operator-manual/user-management/identity-center.md
@@ -49,6 +50,7 @@ nav:
     - snyk/index.md
     - operator-manual/signed-release-assets.md
   - operator-manual/tls.md
+  - operator-manual/mtls.md
   - operator-manual/cluster-management.md
   - operator-manual/cluster-bootstrapping.md
   - operator-manual/secret-management.md
@@ -82,6 +84,7 @@ nav:
       - operator-manual/notifications/services/alertmanager.md
       - operator-manual/notifications/services/awssqs.md
       - operator-manual/notifications/services/email.md
+      - operator-manual/notifications/services/gcppubsub.md
       - operator-manual/notifications/services/github.md
       - operator-manual/notifications/services/googlechat.md
       - operator-manual/notifications/services/grafana.md
@@ -107,6 +110,7 @@ nav:
     - Use Cases: operator-manual/applicationset/Use-Cases.md
     - Security: operator-manual/applicationset/Security.md
     - How ApplicationSet controller interacts with Argo CD: operator-manual/applicationset/Argo-CD-Integration.md
+    - ApplicationSet Web UI: operator-manual/applicationset/Web-UI.md
     - Generators:
       - operator-manual/applicationset/Generators.md
       - operator-manual/applicationset/Generators-List.md
@@ -136,6 +140,7 @@ nav:
     - operator-manual/server-commands/additional-configuration-method.md
   - Upgrading:
     - operator-manual/upgrading/overview.md
+    - operator-manual/upgrading/3.5-3.6.md
     - operator-manual/upgrading/3.4-3.5.md
     - operator-manual/upgrading/3.3-3.4.md
     - operator-manual/upgrading/3.2-3.3.md
@@ -180,7 +185,9 @@ nav:
   - user-guide/private-repositories.md
   - user-guide/plugins.md
   - user-guide/multiple_sources.md
-  - GnuPG verification: user-guide/gpg-verification.md
+  - Source Integrity Verification:
+    - user-guide/source-integrity.md
+    - Git GnuPG verification: user-guide/source-integrity-git-gpg.md
   - user-guide/auto_sync.md
   - Diffing:
     - Diff Strategies: user-guide/diff-strategies.md
@@ -200,12 +207,15 @@ nav:
   - user-guide/sync-kubectl.md
   - user-guide/skip_reconcile.md
   - Generating Applications with ApplicationSet: user-guide/application-set.md
+  - Managing ApplicationSets in the Web UI: user-guide/application-set-ui.md
   - user-guide/ci_automation.md
   - user-guide/app_deletion.md
+  - user-guide/source-hydrator.md
   - user-guide/best_practices.md
   - user-guide/status-badge.md
   - user-guide/external-url.md
   - user-guide/extra_info.md
+  - user-guide/application-notice.md
   - Notification subscriptions: user-guide/subscriptions.md
   - user-guide/annotations-and-labels.md
   - Command Reference: user-guide/commands/argocd.md
@@ -235,11 +245,13 @@ nav:
   - developer-guide/static-code-analysis.md
   - Extensions:
     - developer-guide/extensions/ui-extensions.md
+    - operator-manual/upgrading/ui-extensions-react-19-upgrading.md
     - developer-guide/extensions/proxy-extensions.md
   - developer-guide/faq.md
   - developer-guide/tilt.md
   - developer-guide/custom-resource-icons.md
   - developer-guide/maintaining-internal-argo-cd-forks.md
+  - developer-guide/github-agentics-issue-triage.md
 - faq.md
 - security_considerations.md
 - Support: SUPPORT.md

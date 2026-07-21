@@ -40,9 +40,14 @@ func NewReloginCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
 			errors.CheckError(err)
 			if localCfg == nil {
-				log.Fatalf("No context found. Login using `argocd login`")
+				log.Fatal("No context found. Login using `argocd login`")
 			}
-			configCtx, err := localCfg.ResolveContext(localCfg.CurrentContext)
+			// Use --argocd-context if specified, otherwise fall back to the current context.
+			configCtxName := localCfg.CurrentContext
+			if clientOpts.Context != "" {
+				configCtxName = clientOpts.Context
+			}
+			configCtx, err := localCfg.ResolveContext(configCtxName)
 			errors.CheckError(err)
 
 			var tokenString string
@@ -79,13 +84,13 @@ func NewReloginCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			}
 
 			localCfg.UpsertUser(localconfig.User{
-				Name:         localCfg.CurrentContext,
+				Name:         configCtxName,
 				AuthToken:    tokenString,
 				RefreshToken: refreshToken,
 			})
 			err = localconfig.WriteLocalConfig(*localCfg, clientOpts.ConfigPath)
 			errors.CheckError(err)
-			fmt.Printf("Context '%s' updated\n", localCfg.CurrentContext)
+			fmt.Printf("Context '%s' updated\n", configCtxName)
 		},
 		Example: `
 # Reinitiates the login with previous contexts

@@ -5,6 +5,7 @@ import (
 	"context"
 	stderrors "errors"
 	"fmt"
+	"math"
 	"os"
 	"path"
 	"path/filepath"
@@ -76,6 +77,9 @@ const (
 
 	// Account for batch events processing (set to 1ms in e2e tests)
 	WhenThenSleepInterval = 5 * time.Millisecond
+
+	// maximum length of log line
+	defaultLogLineMaxLen = 4096
 )
 
 const (
@@ -86,6 +90,7 @@ const (
 	EnvArgoCDRedisName         = "ARGOCD_E2E_REDIS_NAME"
 	EnvArgoCDRepoServerName    = "ARGOCD_E2E_REPO_SERVER_NAME"
 	EnvArgoCDAppControllerName = "ARGOCD_E2E_APPLICATION_CONTROLLER_NAME"
+	EnvLogLineMaxLen           = "ARGOCD_E2E_LOG_LINE_MAX_LEN"
 )
 
 var (
@@ -194,6 +199,8 @@ func IsLocal() bool {
 func init() {
 	// ensure we log all shell execs
 	log.SetLevel(log.DebugLevel)
+	// truncate eccessively long entries
+	log.SetFormatter(MakeTruncatingFormatter(env.ParseNumFromEnv(EnvLogLineMaxLen, defaultLogLineMaxLen, 0, math.MaxInt32)))
 	// set-up variables
 	config := getKubeConfig("", clientcmd.ConfigOverrides{})
 	AppClientset = appclientset.NewForConfigOrDie(config)
@@ -369,6 +376,10 @@ func RepoURL(urlType RepoURLType) string {
 	}
 }
 
+func LocalRepoRoot() string {
+	return repoDirectory()
+}
+
 func RepoBaseURL(urlType RepoURLType) string {
 	return path.Base(RepoURL(urlType))
 }
@@ -484,6 +495,13 @@ func SetImpersonationEnabled(impersonationEnabledFlag string) error {
 	})
 }
 
+func SetImpersonationEnforcement(value string) error {
+	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data["application.sync.impersonation.enforced"] = value
+		return nil
+	})
+}
+
 func SetResourceOverridesSplitKeys(overrides map[string]v1alpha1.ResourceOverride) error {
 	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		for k, v := range overrides {
@@ -536,7 +554,6 @@ func SetAccounts(accounts map[string][]string) error {
 func SetPermissions(permissions []ACL, username string, roleName string) error {
 	return updateRBACConfigMap(func(cm *corev1.ConfigMap) error {
 		var aclstr strings.Builder
-
 		for _, permission := range permissions {
 			_, _ = fmt.Fprintf(&aclstr, "p, role:%s, %s, %s, %s, allow \n", roleName, permission.Resource, permission.Action, permission.Scope)
 		}
@@ -790,6 +807,12 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 			return err
 		},
 		func() error {
+			// delete old aggregated APIServices created by tests. A dangling APIService
+			// backed by a deleted extension apiserver degrades cluster discovery.
+			_, err := Run("", "kubectl", "delete", "apiservice", "-l", TestingLabel+"=true", "--wait=false")
+			return err
+		},
+		func() error {
 			err := updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 				cm.Data = map[string]string{}
 				return nil
@@ -820,6 +843,21 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 			// We can switch user and as result in previous state we will have non-admin user, this case should be reset
 			return LoginAs(adminUsername)
 		},
+		func() error {
+			// If /tmp/argocd-e2e-env exists restart app controller with no environment variables
+			if _, err := os.Stat(e2eEnvVariableFilePath); err == nil {
+				return RestartProcess(ApplicationControllerProcName, nil)
+			}
+			return nil
+		},
+		func() error {
+			// Check processes running with goreman and ensure they are all running
+			need := []string{
+				ApplicationControllerProcName, ApplicationSetControllerProcName, RepoServerProcName, APIServerProcName,
+				RedisProcName, NotificationServerProcName, UIProcName,
+			}
+			return EnsureProcessesAreRunning(need)
+		},
 	})
 
 	RunFunctionsInParallelAndCheckErrors(t, []func() error{
@@ -847,7 +885,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 						SourceRepos:              []string{"*"},
 						Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
 						ClusterResourceWhitelist: []v1alpha1.ClusterResourceRestrictionItem{{Group: "*", Kind: "*"}},
-						SignatureKeys:            []v1alpha1.SignatureKey{{KeyID: GpgGoodKeyID}},
+						SignatureKeys:            []v1alpha1.SignatureKey{{KeyID: GpgGoodKeyID}}, // nolint:staticcheck
 						SourceNamespaces:         []string{AppNamespace()},
 					},
 				},

@@ -4,13 +4,14 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
-	. "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	. "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -18,9 +19,7 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
@@ -33,13 +32,10 @@ import (
 	clusterFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/cluster"
 	projectFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/project"
 	repoFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/repos"
-	"github.com/argoproj/argo-cd/v3/test/e2e/testdata"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/settings"
-
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 )
 
 const (
@@ -157,166 +153,6 @@ func TestGetLogsAllow(t *testing.T) {
 			require.NoError(t, err)
 			assert.NotContains(t, out, "Hi")
 		})
-}
-
-func TestSyncToUnsignedCommit(t *testing.T) {
-	fixture.SkipOnEnv(t, "GPG")
-	Given(t).
-		Project("gpg").
-		Path(guestbookPath).
-		When().
-		IgnoreErrors().
-		CreateApp().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationError)).
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		Expect(HealthIs(health.HealthStatusMissing))
-}
-
-func TestSyncToSignedCommitWithoutKnownKey(t *testing.T) {
-	fixture.SkipOnEnv(t, "GPG")
-	Given(t).
-		Project("gpg").
-		Path(guestbookPath).
-		When().
-		AddSignedFile("test.yaml", "null").
-		IgnoreErrors().
-		CreateApp().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationError)).
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		Expect(HealthIs(health.HealthStatusMissing))
-}
-
-func TestSyncToSignedCommitWithKnownKey(t *testing.T) {
-	fixture.SkipOnEnv(t, "GPG")
-	Given(t).
-		Project("gpg").
-		Path(guestbookPath).
-		GPGPublicKeyAdded().
-		Sleep(2).
-		When().
-		AddSignedFile("test.yaml", "null").
-		IgnoreErrors().
-		CreateApp().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(HealthIs(health.HealthStatusHealthy))
-}
-
-func TestSyncToSignedBranchWithKnownKey(t *testing.T) {
-	fixture.SkipOnEnv(t, "GPG")
-	Given(t).
-		Project("gpg").
-		Path(guestbookPath).
-		Revision("master").
-		GPGPublicKeyAdded().
-		Sleep(2).
-		When().
-		AddSignedFile("test.yaml", "null").
-		IgnoreErrors().
-		CreateApp().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(HealthIs(health.HealthStatusHealthy))
-}
-
-func TestSyncToSignedBranchWithUnknownKey(t *testing.T) {
-	fixture.SkipOnEnv(t, "GPG")
-	Given(t).
-		Project("gpg").
-		Path(guestbookPath).
-		Revision("master").
-		Sleep(2).
-		When().
-		AddSignedFile("test.yaml", "null").
-		IgnoreErrors().
-		CreateApp().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationError)).
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		Expect(HealthIs(health.HealthStatusMissing))
-}
-
-func TestSyncToUnsignedBranch(t *testing.T) {
-	fixture.SkipOnEnv(t, "GPG")
-	Given(t).
-		Project("gpg").
-		Revision("master").
-		Path(guestbookPath).
-		GPGPublicKeyAdded().
-		Sleep(2).
-		When().
-		IgnoreErrors().
-		CreateApp().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationError)).
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		Expect(HealthIs(health.HealthStatusMissing))
-}
-
-func TestSyncToSignedTagWithKnownKey(t *testing.T) {
-	fixture.SkipOnEnv(t, "GPG")
-	Given(t).
-		Project("gpg").
-		Revision("signed-tag").
-		Path(guestbookPath).
-		GPGPublicKeyAdded().
-		Sleep(2).
-		When().
-		AddSignedTag("signed-tag").
-		IgnoreErrors().
-		CreateApp().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(HealthIs(health.HealthStatusHealthy))
-}
-
-func TestSyncToSignedTagWithUnknownKey(t *testing.T) {
-	fixture.SkipOnEnv(t, "GPG")
-	Given(t).
-		Project("gpg").
-		Revision("signed-tag").
-		Path(guestbookPath).
-		Sleep(2).
-		When().
-		AddSignedTag("signed-tag").
-		IgnoreErrors().
-		CreateApp().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationError)).
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		Expect(HealthIs(health.HealthStatusMissing))
-}
-
-func TestSyncToUnsignedTag(t *testing.T) {
-	fixture.SkipOnEnv(t, "GPG")
-	Given(t).
-		Project("gpg").
-		Revision("unsigned-tag").
-		Path(guestbookPath).
-		GPGPublicKeyAdded().
-		Sleep(2).
-		When().
-		AddTag("unsigned-tag").
-		IgnoreErrors().
-		CreateApp().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationError)).
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		Expect(HealthIs(health.HealthStatusMissing))
 }
 
 func TestAppCreation(t *testing.T) {
@@ -548,6 +384,101 @@ func TestImmutableChange(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy))
+}
+
+func TestMultiSyncCRDClientSideSame(t *testing.T) {
+	testMultiSync(t, false, false, "multi-sync/crd", "crd.yaml", false)
+}
+
+func TestMultiSyncCRDClientSideChanged(t *testing.T) {
+	testMultiSync(t, false, true, "multi-sync/crd", "crd.yaml", false)
+}
+
+func TestMultiSyncCRDServerSideSame(t *testing.T) {
+	testMultiSync(t, true, false, "multi-sync/crd", "crd.yaml", false)
+}
+
+func TestMultiSyncCRDServerSideSameBig(t *testing.T) {
+	testMultiSync(t, true, false, "multi-sync/crd", "crd.yaml", true)
+}
+
+func TestMultiSyncCRDServerSideChanged(t *testing.T) {
+	testMultiSync(t, true, true, "multi-sync/crd", "crd.yaml", false)
+}
+
+func TestMultiSyncCRDServerSideChangedBig(t *testing.T) {
+	testMultiSync(t, true, true, "multi-sync/crd", "crd.yaml", true)
+}
+
+func TestMultiSyncBuiltinClientSideSame(t *testing.T) {
+	testMultiSync(t, false, false, "multi-sync/builtin", "cm.yaml", false)
+}
+
+func TestMultiSyncBuiltinClientSideChanged(t *testing.T) {
+	testMultiSync(t, false, true, "multi-sync/builtin", "cm.yaml", false)
+}
+
+func TestMultiSyncBuiltinServerSideSame(t *testing.T) {
+	testMultiSync(t, true, false, "multi-sync/builtin", "cm.yaml", false)
+}
+
+func TestMultiSyncBuiltinServerSideSameBig(t *testing.T) {
+	testMultiSync(t, true, false, "multi-sync/builtin", "cm.yaml", true)
+}
+
+func TestMultiSyncBuiltinServerSideChanged(t *testing.T) {
+	testMultiSync(t, true, true, "multi-sync/builtin", "cm.yaml", false)
+}
+
+func TestMultiSyncBuiltinServerSideChangedBig(t *testing.T) {
+	testMultiSync(t, true, true, "multi-sync/builtin", "cm.yaml", true)
+}
+
+// demostrate that Sync still works after initial Sync
+// several code paths are checked:
+// 1. serverSide vs Client side,
+// 2. second sync w/o change vs with change
+// 3. CRD vs builtin
+// 4  Small size vs Large size: manifests bigger than 256KiB won't fit into the last-applied-configuration annotation
+func testMultiSync(t *testing.T, serverSide, doChange bool, dir, manifest string, isBig bool) {
+	t.Helper()
+	args := []string{}
+	if serverSide {
+		args = append(args, "--server-side")
+	}
+	ctx := Given(t)
+	acts := ctx.Path(dir).
+		When().
+		CreateApp()
+	if isBig {
+		for i := range 16 {
+			// add some long fields so manifest size will be more that 256KiB: that would make it fail on a
+			// client-side kubectl operation because the entite manifest won't fit into the
+			// last-applied-configuration annotation
+			descr := strings.Repeat("A", 16*1024)
+			var patch string
+			if manifest == "cm.yaml" {
+				patch = fmt.Sprintf(`[{"op": "add", "path": "/data/field%d", "value": %q }]`, i, descr)
+			} else {
+				// crd
+				patch = fmt.Sprintf(`[{"op": "add", "path": "/spec/versions/0/schema/openAPIV3Schema/properties/spec/properties/field%d", "value": { "type" : "string", "description" : %q }}]`, i, descr)
+			}
+			acts = acts.PatchFile(manifest, patch)
+		}
+	}
+	acts.Sync(args...).
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When()
+	if doChange {
+		acts = acts.PatchFile(manifest, `[{"op": "add", "path": "/metadata/labels/test-label", "value": "test-value"}]`)
+	}
+	acts = acts.Refresh(RefreshTypeNormal)
+	acts = acts.Sync(args...)
+	acts.Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
 func TestInvalidAppProject(t *testing.T) {
@@ -787,313 +718,6 @@ func TestManipulateApplicationResources(t *testing.T) {
 			require.NoError(t, err)
 		}).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync))
-}
-
-func assetSecretDataHidden(t *testing.T, manifest string) {
-	t.Helper()
-	secret, err := UnmarshalToUnstructured(manifest)
-	require.NoError(t, err)
-
-	_, hasStringData, err := unstructured.NestedMap(secret.Object, "stringData")
-	require.NoError(t, err)
-	assert.False(t, hasStringData)
-
-	secretData, hasData, err := unstructured.NestedMap(secret.Object, "data")
-	require.NoError(t, err)
-	assert.True(t, hasData)
-	for _, v := range secretData {
-		assert.Regexp(t, `[*]*`, v)
-	}
-	var lastAppliedConfigAnnotation string
-	annotations := secret.GetAnnotations()
-	if annotations != nil {
-		lastAppliedConfigAnnotation = annotations[corev1.LastAppliedConfigAnnotation]
-	}
-	if lastAppliedConfigAnnotation != "" {
-		assetSecretDataHidden(t, lastAppliedConfigAnnotation)
-	}
-}
-
-func TestAppWithSecrets(t *testing.T) {
-	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
-	require.NoError(t, err)
-	defer utilio.Close(closer)
-
-	ctx := Given(t)
-	ctx.Path("secrets").
-		When().
-		CreateApp().
-		Sync().
-		Then().
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
-			res := errors.NewHandler(t).FailOnErr(client.GetResource(t.Context(), &applicationpkg.ApplicationResourceRequest{
-				Namespace:    &app.Spec.Destination.Namespace,
-				Kind:         new(kube.SecretKind),
-				Group:        new(""),
-				Name:         &app.Name,
-				Version:      new("v1"),
-				ResourceName: new("test-secret"),
-			})).(*applicationpkg.ApplicationResourceResponse)
-			assetSecretDataHidden(t, res.GetManifest())
-
-			manifests, err := client.GetManifests(t.Context(), &applicationpkg.ApplicationManifestQuery{Name: &app.Name})
-			require.NoError(t, err)
-
-			for _, manifest := range manifests.Manifests {
-				assetSecretDataHidden(t, manifest)
-			}
-
-			diffOutput := errors.NewHandler(t).FailOnErr(fixture.RunCli("app", "diff", app.Name)).(string)
-			assert.Empty(t, diffOutput)
-
-			// make sure resource update error does not print secret details
-			_, err = fixture.RunCli("app", "patch-resource", app.GetName(), "--resource-name", "test-secret",
-				"--kind", "Secret", "--patch", `{"op": "add", "path": "/data", "value": "hello"}'`,
-				"--patch-type", "application/json-patch+json")
-			require.ErrorContains(t, err, fmt.Sprintf("failed to patch Secret %s/test-secret", ctx.DeploymentNamespace()))
-			assert.NotContains(t, err.Error(), "username")
-			assert.NotContains(t, err.Error(), "password")
-
-			// patch secret and make sure app is out of sync and diff detects the change
-			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().Secrets(ctx.DeploymentNamespace()).Patch(t.Context(),
-				"test-secret", types.JSONPatchType, []byte(`[
-	{"op": "remove", "path": "/data/username"},
-	{"op": "add", "path": "/stringData", "value": {"password": "foo"}}
-]`), metav1.PatchOptions{}))
-		}).
-		When().
-		Refresh(RefreshTypeNormal).
-		Then().
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		And(func(app *Application) {
-			diffOutput, err := fixture.RunCli("app", "diff", app.Name)
-			require.Error(t, err)
-			assert.Contains(t, diffOutput, "username: ++++++++")
-			assert.Contains(t, diffOutput, "password: ++++++++++++")
-
-			// local diff should ignore secrets
-			diffOutput = errors.NewHandler(t).FailOnErr(fixture.RunCli("app", "diff", app.Name, "--local", "testdata", "--server-side-generate")).(string)
-			assert.Empty(t, diffOutput)
-
-			// ignore missing field and make sure diff shows no difference
-			app.Spec.IgnoreDifferences = []ResourceIgnoreDifferences{{
-				Kind: kube.SecretKind, JSONPointers: []string{"/data"},
-			}}
-			errors.NewHandler(t).FailOnErr(client.UpdateSpec(t.Context(), &applicationpkg.ApplicationUpdateSpecRequest{Name: &app.Name, Spec: &app.Spec}))
-		}).
-		When().
-		Refresh(RefreshTypeNormal).
-		Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
-			diffOutput := errors.NewHandler(t).FailOnErr(fixture.RunCli("app", "diff", app.Name)).(string)
-			assert.Empty(t, diffOutput)
-		}).
-		// verify not committed secret also ignore during diffing
-		When().
-		WriteFile("secret3.yaml", `
-apiVersion: v1
-kind: Secret
-metadata:
-  name: test-secret3
-stringData:
-  username: test-username`).
-		Then().
-		And(func(app *Application) {
-			diffOutput := errors.NewHandler(t).FailOnErr(fixture.RunCli("app", "diff", app.Name, "--local", "testdata", "--server-side-generate")).(string)
-			assert.Empty(t, diffOutput)
-		})
-}
-
-func TestResourceDiffing(t *testing.T) {
-	ctx := Given(t)
-	ctx.Path(guestbookPath).
-		When().
-		CreateApp().
-		Sync().
-		Then().
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(_ *Application) {
-			// Patch deployment
-			_, err := fixture.KubeClientset.AppsV1().Deployments(ctx.DeploymentNamespace()).Patch(t.Context(),
-				"guestbook-ui", types.JSONPatchType, []byte(`[{ "op": "replace", "path": "/spec/template/spec/containers/0/image", "value": "test" }]`), metav1.PatchOptions{})
-			require.NoError(t, err)
-		}).
-		When().
-		Refresh(RefreshTypeNormal).
-		Then().
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		And(func(app *Application) {
-			diffOutput, err := fixture.RunCli("app", "diff", app.Name, "--local", "testdata", "--server-side-generate")
-			require.Error(t, err)
-			assert.Contains(t, diffOutput, fmt.Sprintf("===== apps/Deployment %s/guestbook-ui ======", ctx.DeploymentNamespace()))
-		}).
-		Given().
-		ResourceOverrides(map[string]ResourceOverride{"apps/Deployment": {
-			IgnoreDifferences: OverrideIgnoreDiff{JSONPointers: []string{"/spec/template/spec/containers/0/image"}},
-		}}).
-		When().
-		Refresh(RefreshTypeNormal).
-		Then().
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
-			diffOutput, err := fixture.RunCli("app", "diff", app.Name, "--local", "testdata", "--server-side-generate")
-			require.NoError(t, err)
-			assert.Empty(t, diffOutput)
-		}).
-		Given().
-		When().
-		// Now we migrate from client-side apply to server-side apply
-		// This is necessary, as starting with kubectl 1.26, all previously
-		// client-side owned fields have ownership migrated to the manager from
-		// the first ssa.
-		// More details: https://github.com/kubernetes/kubectl/issues/1337
-		PatchApp(`[{
-			"op": "add",
-			"path": "/spec/syncPolicy",
-			"value": { "syncOptions": ["ServerSideApply=true"] }
-			}]`).
-		Sync().
-		And(func() {
-			output, err := fixture.RunWithStdin(testdata.SSARevisionHistoryDeployment, "", "kubectl", "apply", "-n", ctx.DeploymentNamespace(), "--server-side=true", "--field-manager=revision-history-manager", "--validate=false", "--force-conflicts", "-f", "-")
-			require.NoError(t, err)
-			assert.Contains(t, output, "serverside-applied")
-		}).
-		Refresh(RefreshTypeNormal).
-		Then().
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		Given().
-		ResourceOverrides(map[string]ResourceOverride{"apps/Deployment": {
-			IgnoreDifferences: OverrideIgnoreDiff{
-				ManagedFieldsManagers: []string{"revision-history-manager"},
-				JSONPointers:          []string{"/spec/template/spec/containers/0/image"},
-			},
-		}}).
-		When().
-		Refresh(RefreshTypeNormal).
-		Then().
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Given().
-		When().
-		Sync().
-		PatchApp(`[{
-			"op": "add",
-			"path": "/spec/syncPolicy",
-			"value": { "syncOptions": ["RespectIgnoreDifferences=true"] }
-			}]`).
-		And(func() {
-			deployment, err := fixture.KubeClientset.AppsV1().Deployments(ctx.DeploymentNamespace()).Get(t.Context(), "guestbook-ui", metav1.GetOptions{})
-			require.NoError(t, err)
-			assert.Equal(t, int32(3), *deployment.Spec.RevisionHistoryLimit)
-		}).
-		And(func() {
-			output, err := fixture.RunWithStdin(testdata.SSARevisionHistoryDeployment, "", "kubectl", "apply", "-n", ctx.DeploymentNamespace(), "--server-side=true", "--field-manager=revision-history-manager", "--validate=false", "--force-conflicts", "-f", "-")
-			require.NoError(t, err)
-			assert.Contains(t, output, "serverside-applied")
-		}).
-		Then().
-		When().Refresh(RefreshTypeNormal).
-		Then().
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(_ *Application) {
-			deployment, err := fixture.KubeClientset.AppsV1().Deployments(ctx.DeploymentNamespace()).Get(t.Context(), "guestbook-ui", metav1.GetOptions{})
-			require.NoError(t, err)
-			assert.Equal(t, int32(1), *deployment.Spec.RevisionHistoryLimit)
-		}).
-		When().Sync().Then().Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(_ *Application) {
-			deployment, err := fixture.KubeClientset.AppsV1().Deployments(ctx.DeploymentNamespace()).Get(t.Context(), "guestbook-ui", metav1.GetOptions{})
-			require.NoError(t, err)
-			assert.Equal(t, int32(1), *deployment.Spec.RevisionHistoryLimit)
-		})
-}
-
-func TestCRDs(t *testing.T) {
-	testEdgeCasesApplicationResources(t, "crd-creation", health.HealthStatusHealthy)
-}
-
-func TestKnownTypesInCRDDiffing(t *testing.T) {
-	dummiesGVR := schema.GroupVersionResource{Group: application.Group, Version: "v1alpha1", Resource: "dummies"}
-
-	ctx := Given(t)
-	ctx.Path("crd-creation").
-		When().CreateApp().Sync().Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		When().
-		And(func() {
-			dummyResIf := fixture.DynamicClientset.Resource(dummiesGVR).Namespace(ctx.DeploymentNamespace())
-			patchData := []byte(`{"spec":{"cpu": "2"}}`)
-			errors.NewHandler(t).FailOnErr(dummyResIf.Patch(t.Context(), "dummy-crd-instance", types.MergePatchType, patchData, metav1.PatchOptions{}))
-		}).Refresh(RefreshTypeNormal).
-		Then().
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		When().
-		And(func() {
-			require.NoError(t, fixture.SetResourceOverrides(map[string]ResourceOverride{
-				"argoproj.io/Dummy": {
-					KnownTypeFields: []KnownTypeField{{
-						Field: "spec",
-						Type:  "core/v1/ResourceList",
-					}},
-				},
-			}))
-		}).
-		Refresh(RefreshTypeNormal).
-		Then().
-		Expect(SyncStatusIs(SyncStatusCodeSynced))
-}
-
-func TestDuplicatedClusterResourcesAnnotationTracking(t *testing.T) {
-	// This test will fail if the controller fails to fix the tracking annotation for malformed cluster resources
-	// (i.e. resources where metadata.namespace is set). Before the bugfix, this test would fail with a diff in the
-	// tracking annotation.
-	Given(t).
-		SetTrackingMethod(string(TrackingMethodAnnotation)).
-		Path("duplicated-resources").
-		When().
-		CreateApp().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(HealthIs(health.HealthStatusHealthy)).
-		And(func(app *Application) {
-			diffOutput, err := fixture.RunCli("app", "diff", app.Name, "--local", "testdata", "--server-side-generate")
-			assert.Empty(t, diffOutput)
-			require.NoError(t, err)
-		})
-}
-
-func TestDuplicatedResources(t *testing.T) {
-	testEdgeCasesApplicationResources(t, "duplicated-resources", health.HealthStatusHealthy)
-}
-
-func TestConfigMap(t *testing.T) {
-	testEdgeCasesApplicationResources(t, "config-map", health.HealthStatusHealthy, "my-map  Synced                configmap/my-map created")
-}
-
-func testEdgeCasesApplicationResources(t *testing.T, appPath string, statusCode health.HealthStatusCode, message ...string) {
-	t.Helper()
-	expect := Given(t).
-		Path(appPath).
-		When().
-		CreateApp().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced))
-	for i := range message {
-		expect = expect.Expect(Success(message[i]))
-	}
-	expect.
-		Expect(HealthIs(statusCode)).
-		And(func(app *Application) {
-			diffOutput, err := fixture.RunCli("app", "diff", app.Name, "--local", "testdata", "--server-side-generate")
-			assert.Empty(t, diffOutput)
-			require.NoError(t, err)
-		})
 }
 
 const actionsConfig = `discovery.lua: return { sample = {} }
@@ -2823,6 +2447,91 @@ func TestSwitchTrackingMethod(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy))
 }
 
+// TestTrackingMethodAnnotationMovedResource verifies that a resource previously
+// tracked by another application surfaces as OutOfSync and that syncing updates
+// its tracking annotation. The manifest deliberately carries a chart-rendered
+// app.kubernetes.io/instance label, which used to hide the stale tracking
+// annotation from the diff (issue #17965).
+func TestTrackingMethodAnnotationMovedResource(t *testing.T) {
+	ctx := Given(t)
+
+	ctx.
+		SetTrackingMethod(string(TrackingMethodAnnotation)).
+		Path("tracking-instance-label").
+		When().
+		CreateApp().
+		Sync().
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		And(func() {
+			// Rewrite the tracking annotation to the value a previous application
+			// (e.g. one replaced by an ApplicationSet-generated app) left behind.
+			patch := fmt.Sprintf(`{"metadata":{"annotations":{%q:%q}}}`,
+				common.AnnotationKeyAppInstance,
+				fmt.Sprintf("old-app:/ConfigMap:%s/my-map", ctx.DeploymentNamespace()))
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Patch(
+				t.Context(), "my-map", types.MergePatchType, []byte(patch), metav1.PatchOptions{}))
+		}).
+		Refresh(RefreshTypeNormal).
+		Then().
+		// The stale tracking annotation is a real difference and must show up.
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		When().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			// Syncing must repair the tracking annotation.
+			cm, err := fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Get(t.Context(), "my-map", metav1.GetOptions{})
+			require.NoError(t, err)
+			assert.Equal(t, fmt.Sprintf("%s:/ConfigMap:%s/my-map", app.Name, ctx.DeploymentNamespace()), cm.Annotations[common.AnnotationKeyAppInstance])
+			// The chart-rendered instance label is not owned by tracking and stays.
+			assert.Equal(t, "my-release", cm.Labels["app.kubernetes.io/instance"])
+		})
+}
+
+// TestTrackingMethodAnnotationMovedResourceSSA is the server-side apply variant
+// of TestTrackingMethodAnnotationMovedResource.
+func TestTrackingMethodAnnotationMovedResourceSSA(t *testing.T) {
+	ctx := Given(t)
+
+	ctx.
+		SetTrackingMethod(string(TrackingMethodAnnotation)).
+		Path("tracking-instance-label").
+		When().
+		CreateApp("--sync-option", "ServerSideApply=true").
+		Sync().
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		And(func() {
+			patch := fmt.Sprintf(`{"metadata":{"annotations":{%q:%q}}}`,
+				common.AnnotationKeyAppInstance,
+				fmt.Sprintf("old-app:/ConfigMap:%s/my-map", ctx.DeploymentNamespace()))
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Patch(
+				t.Context(), "my-map", types.MergePatchType, []byte(patch), metav1.PatchOptions{}))
+		}).
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		When().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			cm, err := fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Get(t.Context(), "my-map", metav1.GetOptions{})
+			require.NoError(t, err)
+			assert.Equal(t, fmt.Sprintf("%s:/ConfigMap:%s/my-map", app.Name, ctx.DeploymentNamespace()), cm.Annotations[common.AnnotationKeyAppInstance])
+		})
+}
+
 func TestSwitchTrackingLabel(t *testing.T) {
 	ctx := Given(t)
 
@@ -3241,201 +2950,5 @@ status:
 
 			// Verify the lastTransitionTime has not been updated
 			assert.Equal(t, "2023-01-01T00:00:00Z", app.Status.Health.LastTransitionTime.UTC().Format(time.RFC3339))
-		})
-}
-
-// TestServerSideDiffCommand tests the --server-side-diff flag for the app diff command
-func TestServerSideDiffCommand(t *testing.T) {
-	Given(t).
-		Path("two-nice-pods").
-		When().
-		CreateApp().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		When().
-		// Create a diff by modifying a pod
-		PatchFile("pod-1.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"test": "server-side-diff"}}]`).
-		AddFile("pod-3.yaml", `apiVersion: v1
-kind: Pod
-metadata:
-  name: pod-3
-  annotations:
-    new: "pod"
-spec:
-  containers:
-    - name: main
-      image: quay.io/argoprojlabs/argocd-e2e-container:0.1
-      imagePullPolicy: IfNotPresent
-      command:
-        - "true"
-  restartPolicy: Never
-`).
-		Refresh(RefreshTypeHard).
-		Then().
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		And(func(app *Application) {
-			// Test regular diff command
-			regularOutput, err := fixture.RunCli("app", "diff", app.Name)
-			require.Error(t, err) // diff command returns non-zero exit code when differences found
-			assert.Contains(t, regularOutput, "===== /Pod")
-			assert.Contains(t, regularOutput, "pod-1")
-			assert.Contains(t, regularOutput, "pod-3")
-
-			// Test server-side diff command
-			serverSideOutput, err := fixture.RunCli("app", "diff", app.Name, "--server-side-diff")
-			require.Error(t, err) // diff command returns non-zero exit code when differences found
-			assert.Contains(t, serverSideOutput, "===== /Pod")
-			assert.Contains(t, serverSideOutput, "pod-1")
-			assert.Contains(t, serverSideOutput, "pod-3")
-
-			// Both outputs should contain similar resource headers
-			assert.Contains(t, regularOutput, "test: server-side-diff")
-			assert.Contains(t, serverSideOutput, "test: server-side-diff")
-			assert.Contains(t, regularOutput, "new: pod")
-			assert.Contains(t, serverSideOutput, "new: pod")
-		})
-}
-
-// TestServerSideDiffWithSyncedApp tests server-side diff when app is already synced (no differences)
-func TestServerSideDiffWithSyncedApp(t *testing.T) {
-	Given(t).
-		Path("guestbook").
-		When().
-		CreateApp().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
-			// Test regular diff command with synced app
-			regularOutput, err := fixture.RunCli("app", "diff", app.Name)
-			require.NoError(t, err) // no differences, should return 0
-
-			// Test server-side diff command with synced app
-			serverSideOutput, err := fixture.RunCli("app", "diff", app.Name, "--server-side-diff")
-			require.NoError(t, err) // no differences, should return 0
-
-			// Both should produce similar output (minimal/no diff output)
-			// The exact output may vary, but both should succeed without errors
-			assert.NotContains(t, regularOutput, "===== ")
-			assert.NotContains(t, serverSideOutput, "===== ")
-		})
-}
-
-// TestServerSideDiffWithRevision tests server-side diff with a specific revision
-func TestServerSideDiffWithRevision(t *testing.T) {
-	Given(t).
-		Path("two-nice-pods").
-		When().
-		CreateApp().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		When().
-		PatchFile("pod-1.yaml", `[{"op": "add", "path": "/metadata/labels", "value": {"version": "v1.1"}}]`).
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		And(func(app *Application) {
-			// Get the current revision
-			currentRevision := ""
-			if len(app.Status.History) > 0 {
-				currentRevision = app.Status.History[len(app.Status.History)-1].Revision
-			}
-
-			if currentRevision != "" {
-				// Test server-side diff with current revision (should show no differences)
-				output, err := fixture.RunCli("app", "diff", app.Name, "--server-side-diff", "--revision", currentRevision)
-				require.NoError(t, err) // no differences expected
-				assert.NotContains(t, output, "===== ")
-			}
-		})
-}
-
-// TestServerSideDiffErrorHandling tests error scenarios for server-side diff
-func TestServerSideDiffErrorHandling(t *testing.T) {
-	Given(t).
-		Path("two-nice-pods").
-		When().
-		CreateApp().
-		Then().
-		And(func(_ *Application) {
-			// Test server-side diff with non-existent app should fail gracefully
-			_, err := fixture.RunCli("app", "diff", "non-existent-app", "--server-side-diff")
-			require.Error(t, err)
-			// Error occurred as expected - this verifies the command fails gracefully
-		})
-}
-
-// TestServerSideDiffWithLocal tests server-side diff with --local flag
-func TestServerSideDiffWithLocal(t *testing.T) {
-	ctx := Given(t)
-	ctx.
-		Path("guestbook").
-		When().
-		CreateApp().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(_ *Application) {
-			// Modify the live deployment in the cluster to create differences
-			// Apply patches to the deployment
-			_, err := fixture.KubeClientset.AppsV1().Deployments(ctx.DeploymentNamespace()).Patch(t.Context(),
-				"guestbook-ui", types.JSONPatchType, []byte(`[
-					{"op": "add", "path": "/spec/template/spec/containers/0/env", "value": [{"name": "LOCAL_CHANGE", "value": "true"}]},
-					{"op": "replace", "path": "/spec/replicas", "value": 2}
-				]`), metav1.PatchOptions{})
-			require.NoError(t, err)
-
-			// Verify the patch was applied by reading back the deployment
-			modifiedDeployment, err := fixture.KubeClientset.AppsV1().Deployments(ctx.DeploymentNamespace()).Get(t.Context(), "guestbook-ui", metav1.GetOptions{})
-			require.NoError(t, err)
-			assert.Equal(t, int32(2), *modifiedDeployment.Spec.Replicas, "Replica count should be updated to 2")
-			assert.Len(t, modifiedDeployment.Spec.Template.Spec.Containers[0].Env, 1, "Should have one environment variable")
-			assert.Equal(t, "LOCAL_CHANGE", modifiedDeployment.Spec.Template.Spec.Containers[0].Env[0].Name)
-		}).
-		When().
-		Refresh(RefreshTypeNormal).
-		Then().
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		And(func(app *Application) {
-			// Test regular diff with --local (add --server-side-generate to avoid deprecation warning)
-			regularOutput, err := fixture.RunCli("app", "diff", app.Name, "--local", "testdata", "--server-side-generate")
-			require.Error(t, err) // diff command returns non-zero exit code when differences found
-			assert.Contains(t, regularOutput, "===== apps/Deployment")
-			assert.Contains(t, regularOutput, "guestbook-ui")
-			assert.Contains(t, regularOutput, "replicas:")
-
-			// Test server-side diff with --local (add --server-side-generate for consistency)
-			serverSideOutput, err := fixture.RunCli("app", "diff", app.Name, "--server-side-diff", "--local", "testdata", "--server-side-generate")
-			require.Error(t, err) // diff command returns non-zero exit code when differences found
-			assert.Contains(t, serverSideOutput, "===== apps/Deployment")
-			assert.Contains(t, serverSideOutput, "guestbook-ui")
-			assert.Contains(t, serverSideOutput, "replicas:")
-
-			// Both outputs should show similar differences
-			assert.Contains(t, regularOutput, "replicas: 2")
-			assert.Contains(t, serverSideOutput, "replicas: 2")
-		})
-}
-
-func TestServerSideDiffWithLocalValidation(t *testing.T) {
-	Given(t).
-		Path("guestbook").
-		When().
-		CreateApp().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
-			// Test that --server-side-diff with --local without --server-side-generate fails with proper error
-			_, err := fixture.RunCli("app", "diff", app.Name, "--server-side-diff", "--local", "testdata")
-			require.Error(t, err)
-			assert.Contains(t, err.Error(), "--server-side-diff with --local requires --server-side-generate")
 		})
 }

@@ -101,6 +101,7 @@ func TestPayloadParserParseApplicationPushEvents(t *testing.T) {
 		payloadType any
 	}{
 		{"GitHub", "testdata/github-commit-event.json", "X-GitHub-Event", "push", WebhookProviderGitHub, github.PushPayload{}},
+		{"GHCR", "testdata/ghcr-package-event.json", "X-GitHub-Event", "package", WebhookProviderGHCR, &RegistryEvent{}},
 		{"GitLab", "testdata/gitlab-event.json", "X-Gitlab-Event", "Push Hook", WebhookProviderGitLab, gitlab.PushEventPayload{}},
 		{"Azure DevOps", "testdata/azuredevops-git-push-event.json", "X-Vss-Activityid", "test", WebhookProviderAzureDevOps, azuredevops.GitPushEvent{}},
 		{"Gogs", "testdata/gogs-event.json", "X-Gogs-Event", "push", WebhookProviderGogs, gogsclient.PushPayload{}},

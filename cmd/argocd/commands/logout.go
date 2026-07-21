@@ -44,7 +44,7 @@ argocd logout cd.argoproj.io
 			localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
 			errutil.CheckError(err)
 			if localCfg == nil {
-				log.Fatalf("Nothing to logout from")
+				log.Fatal("Nothing to logout from")
 			}
 
 			promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
@@ -76,7 +76,7 @@ argocd logout cd.argoproj.io
 				if clientOpts.PlainText {
 					scheme = "http"
 				}
-				if res, err := revokeServerToken(scheme, context, localCfg.GetToken(context), clientOpts.Insecure); err != nil {
+				if res, err := revokeServerToken(c.Context(), scheme, context, localCfg.GetToken(context), clientOpts.Insecure); err != nil {
 					log.Warnf("failed to invalidate token on server: %v.", err)
 				} else {
 					_ = res.Body.Close()
@@ -110,12 +110,12 @@ argocd logout cd.argoproj.io
 }
 
 // revokeServerToken makes a call to the server logout endpoint to revoke the token server side
-func revokeServerToken(scheme, hostName, token string, insecure bool) (res *http.Response, err error) {
+func revokeServerToken(ctx context.Context, scheme, hostName, token string, insecure bool) (res *http.Response, err error) {
 	if token == "" {
 		return nil, errors.New("error getting token from local context file")
 	}
 	logoutURL := fmt.Sprintf("%s://%s%s", scheme, hostName, common.LogoutEndpoint)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	ctx, cancel := context.WithTimeout(ctx, time.Second*30)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, logoutURL, http.NoBody)
 	if err != nil {

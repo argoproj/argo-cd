@@ -1,7 +1,8 @@
+import {useData} from 'argo-ui/v2';
 import * as React from 'react';
 const PieChart = require('react-svg-piechart').default;
 
-import {COLORS} from '../../../shared/components';
+import {ClusterCtx, COLORS} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {HealthStatusCode, SyncStatusCode} from '../../../shared/models';
 import {ComparisonStatusIcon, HealthStatusIcon, HydrateOperationPhaseIcon} from '../utils';
@@ -36,31 +37,35 @@ export const ApplicationsSummary = ({applications}: {applications: models.Applic
         hydrator.set(phase, (hydrator.get(phase) || 0) + 1);
     });
 
+    const clusterP = React.useContext(ClusterCtx);
+    const [clusters = []] = useData(() => clusterP);
+    const clusterMap = new Map(
+        clusters
+            .map(
+                c =>
+                    [
+                        [c.name, c],
+                        [c.server, c]
+                    ] as const
+            )
+            .flat()
+    );
+
     const attributes = [
-        {
-            title: 'APPLICATIONS',
-            value: applications.length
-        },
-        {
-            title: 'SYNCED',
-            value: applications.filter(app => app.status.sync.status === 'Synced').length
-        },
-        {
-            title: 'HEALTHY',
-            value: applications.filter(app => app.status.health.status === 'Healthy').length
-        },
-        {
-            title: 'HYDRATED',
-            value: applications.filter(app => app.status.sourceHydrator?.currentOperation?.phase === 'Hydrated').length
-        },
+        {title: 'APPLICATIONS', value: applications.length},
+        {title: 'SYNCED', value: applications.filter(app => app.status.sync.status === 'Synced').length},
+        {title: 'HEALTHY', value: applications.filter(app => app.status.health.status === 'Healthy').length},
+        {title: 'HYDRATED', value: applications.filter(app => app.status.sourceHydrator?.currentOperation?.phase === 'Hydrated').length},
         {
             title: 'CLUSTERS',
-            value: new Set(applications.map(app => app.spec.destination.server || app.spec.destination.name)).size
+            value: new Set(
+                applications.map(app => {
+                    const destination = app.spec.destination.server || app.spec.destination.name;
+                    return clusterMap.get(destination) || destination;
+                })
+            ).size
         },
-        {
-            title: 'NAMESPACES',
-            value: new Set(applications.map(app => app.spec.destination.namespace)).size
-        }
+        {title: 'NAMESPACES', value: new Set(applications.map(app => app.spec.destination.namespace)).size}
     ];
 
     const charts = [
@@ -80,6 +85,7 @@ export const ApplicationsSummary = ({applications}: {applications: models.Applic
             legend: hydratorColors as Map<string, string>
         }
     ];
+
     return (
         <div className='white-box applications-list__summary'>
             <div className='row'>

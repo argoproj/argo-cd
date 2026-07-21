@@ -1,6 +1,6 @@
-import {useEffect, useState} from 'react';
+import {useCallback, useSyncExternalStore} from 'react';
 import type {CSSProperties} from 'react';
-import {Cluster} from './models';
+import {AuthSettings, Cluster, UserInfo} from './models';
 
 export function hashCode(str: string) {
     let hash = 0;
@@ -28,12 +28,12 @@ export function isValidURL(url: string): boolean {
     try {
         const parsedUrl = new URL(url);
         return parsedUrl.protocol !== 'javascript:' && parsedUrl.protocol !== 'data:' && parsedUrl.protocol !== 'vbscript:';
-    } catch (TypeError) {
+    } catch {
         try {
             // Try parsing as a relative URL.
             const parsedUrl = new URL(url, window.location.origin);
             return parsedUrl.protocol !== 'javascript:' && parsedUrl.protocol !== 'data:' && parsedUrl.protocol !== 'vbscript:';
-        } catch (TypeError) {
+        } catch {
             return false;
         }
     }
@@ -45,7 +45,7 @@ export function isValidManagedByURL(url: string): boolean {
     try {
         const parsedUrl = new URL(url);
         return parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:';
-    } catch (err) {
+    } catch {
         return false;
     }
 }
@@ -96,7 +96,7 @@ export function getTheme(theme: string) {
  * @param cb callback for theme change
  * @returns destroy listener
  */
-export const useSystemTheme = (cb: (theme: string) => void) => {
+const subscribeSystemTheme = (cb: (theme: string) => void) => {
     const dark = window.matchMedia(colorSchemes.dark);
     const light = window.matchMedia(colorSchemes.light);
 
@@ -113,28 +113,24 @@ export const useSystemTheme = (cb: (theme: string) => void) => {
     };
 };
 
+export const createSystemThemeListener = (cb: (theme: string) => void) => subscribeSystemTheme(cb);
+
 export const useTheme = (props: {theme: string}) => {
-    const [theme, setTheme] = useState(getTheme(props.theme));
+    // subscribe to system theme changes, but only register a listener when theme is auto
+    const subscribe = useCallback(
+        (onStoreChange: () => void) => {
+            if (props.theme !== 'auto') {
+                return () => undefined;
+            }
+            return subscribeSystemTheme(() => onStoreChange());
+        },
+        [props.theme]
+    );
 
-    useEffect(() => {
-        let destroyListener: (() => void) | undefined;
+    // derive the resolved theme during render so manual theme changes are reflected immediately
+    const getSnapshot = useCallback(() => getTheme(props.theme), [props.theme]);
 
-        // change theme by system, only register listener when theme is auto
-        if (props.theme === 'auto') {
-            destroyListener = useSystemTheme(systemTheme => {
-                setTheme(systemTheme);
-            });
-        }
-
-        // change theme manually
-        if (props.theme !== theme) {
-            setTheme(getTheme(props.theme));
-        }
-
-        return () => {
-            destroyListener?.();
-        };
-    }, [props.theme]);
+    const theme = useSyncExternalStore(subscribe, getSnapshot);
 
     return [theme];
 };
@@ -145,3 +141,28 @@ export const formatClusterQueryParam = (cluster: Cluster) => {
     }
     return `${cluster.name} (${cluster.server})`;
 };
+
+export const isInvalidRegex = (pattern: string): boolean => {
+    if (!pattern) {
+        return false;
+    }
+    try {
+        new RegExp(pattern);
+        return false;
+    } catch {
+        return true;
+    }
+};
+
+/**
+ * Checks if SSO is configured for authentication usage.
+ * @param userInfo - User information from the session
+ * @param authSettings - Authentication settings from the server
+ * @returns true if SSO should be used, otherwise false
+ */
+export function isSSOConfigured(userInfo: UserInfo | null | undefined, authSettings: AuthSettings): boolean {
+    const isExternalIssuer = userInfo?.iss && userInfo.iss !== 'argocd';
+    const hasDexConnectors = (authSettings.dexConfig?.connectors?.length ?? 0) > 0;
+    const hasOidcConfig = !!authSettings.oidcConfig;
+    return isExternalIssuer && (hasDexConnectors || hasOidcConfig);
+}

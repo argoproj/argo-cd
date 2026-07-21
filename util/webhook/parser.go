@@ -22,6 +22,7 @@ const (
 	WebhookProviderGitHub          WebhookProvider = "github"
 	WebhookProviderGitLab          WebhookProvider = "gitlab"
 	WebhookProviderGogs            WebhookProvider = "gogs"
+	WebhookProviderGHCR            WebhookProvider = "ghcr"
 )
 
 // WebhookConsumer selects the events supported by each webhook consumer.
@@ -52,6 +53,7 @@ type PayloadParser struct {
 	bitbucketserver *bitbucketserver.Webhook
 	azuredevops     *azuredevops.Webhook
 	gogs            *gogs.Webhook
+	ghcr            *ghcrParser
 }
 
 // NewPayloadParser constructs all provider webhook parsers from Argo CD settings.
@@ -88,6 +90,7 @@ func NewPayloadParser(settings WebhookSettings) (*PayloadParser, error) {
 		bitbucketserver: bitbucketServerWebhook,
 		azuredevops:     azureDevOpsWebhook,
 		gogs:            gogsWebhook,
+		ghcr:            newGHCRParser(settings.GetWebhookGitHubSecret()),
 	}, nil
 }
 
@@ -95,6 +98,9 @@ func NewPayloadParser(settings WebhookSettings) (*PayloadParser, error) {
 // by the given consumer. It returns an empty provider for unknown events.
 func (p *PayloadParser) Parse(r *http.Request, consumer WebhookConsumer) (any, WebhookProvider, error) {
 	switch {
+	case consumer == WebhookConsumerApplication && p.ghcr.CanHandle(r):
+		payload, err := p.ghcr.Parse(r)
+		return payload, WebhookProviderGHCR, err
 	case r.Header.Get("X-Vss-Activityid") != "":
 		if consumer == WebhookConsumerApplicationSet {
 			payload, err := p.azuredevops.Parse(r, azuredevops.GitPushEventType, azuredevops.GitPullRequestCreatedEventType, azuredevops.GitPullRequestUpdatedEventType, azuredevops.GitPullRequestMergedEventType)
