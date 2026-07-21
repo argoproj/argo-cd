@@ -51,6 +51,7 @@ var (
 func NewCommand() *cobra.Command {
 	var (
 		parallelismLimit                   int64
+		maxConcurrentGRPCRequests          int64
 		listenPort                         int
 		listenHost                         string
 		metricsPort                        int
@@ -155,7 +156,7 @@ func NewCommand() *cobra.Command {
 				OCIMediaTypes:                                ociMediaTypes,
 				EnableBuiltinGitConfig:                       enableBuiltinGitConfig,
 				HelmUserAgent:                                helmUserAgent,
-			}, askPassServer)
+			}, askPassServer, maxConcurrentGRPCRequests)
 			errors.CheckError(err)
 
 			if otlpAddress != "" {
@@ -243,6 +244,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_REPO_SERVER_LOGFORMAT", "json"), "Set the logging format. One of: json|text")
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_REPO_SERVER_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().Int64Var(&parallelismLimit, "parallelismlimit", int64(env.ParseNumFromEnv("ARGOCD_REPO_SERVER_PARALLELISM_LIMIT", 0, 0, math.MaxInt32)), "Limit on number of concurrent manifests generate requests. Any value less the 1 means no limit.")
+	command.Flags().Int64Var(&maxConcurrentGRPCRequests, "max-concurrent-grpc-requests", int64(env.ParseNumFromEnv("ARGOCD_REPO_SERVER_MAX_CONCURRENT_GRPC_REQUESTS", 0, 0, math.MaxInt32)), "Maximum number of concurrent gRPC requests the repo server will handle. Requests exceeding this limit are rejected with ResourceExhausted so clients can retry on a different replica, enabling graceful scale-out. 0 means no limit.")
 	command.Flags().StringVar(&listenHost, "address", env.StringFromEnv("ARGOCD_REPO_SERVER_LISTEN_ADDRESS", common.DefaultAddressRepoServer), "Listen on given address for incoming connections")
 	command.Flags().IntVar(&listenPort, "port", common.DefaultPortRepoServer, "Listen on given port for incoming connections")
 	command.Flags().StringVar(&metricsHost, "metrics-address", env.StringFromEnv("ARGOCD_REPO_SERVER_METRICS_LISTEN_ADDRESS", common.DefaultAddressRepoServerMetrics), "Listen on given address for metrics")

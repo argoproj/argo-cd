@@ -17,6 +17,7 @@ type MetricsServer struct {
 	gitRequestCounter             *prometheus.CounterVec
 	gitRequestHistogram           *prometheus.HistogramVec
 	repoPendingRequestsGauge      *prometheus.GaugeVec
+	activeGRPCRequestsGauge       prometheus.Gauge
 	redisRequestCounter           *prometheus.CounterVec
 	redisRequestHistogram         *prometheus.HistogramVec
 	ociExtractFailCounter         *prometheus.CounterVec
@@ -87,6 +88,14 @@ func NewMetricsServer() *MetricsServer {
 		[]string{"repo"},
 	)
 	registry.MustRegister(repoPendingRequestsGauge)
+
+	activeGRPCRequestsGauge := prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "argocd_repo_server_active_requests",
+			Help: "Number of currently active gRPC requests being handled by the repo server. Useful for HPA scaling.",
+		},
+	)
+	registry.MustRegister(activeGRPCRequestsGauge)
 
 	redisRequestCounter := prometheus.NewCounterVec(
 		prometheus.CounterOpts{
@@ -178,6 +187,7 @@ func NewMetricsServer() *MetricsServer {
 		gitRequestCounter:             gitRequestCounter,
 		gitRequestHistogram:           gitRequestHistogram,
 		repoPendingRequestsGauge:      repoPendingRequestsGauge,
+		activeGRPCRequestsGauge:       activeGRPCRequestsGauge,
 		redisRequestCounter:           redisRequestCounter,
 		redisRequestHistogram:         redisRequestHistogram,
 		ociRequestCounter:             ociRequestCounter,
@@ -260,4 +270,14 @@ func (m *MetricsServer) IncOCIGetTagsFailCounter(repo string) {
 // IncOCITestRepoFailCounter increments the OCI failed test repo requests counter
 func (m *MetricsServer) IncOCITestRepoFailCounter(repo string) {
 	m.ociTestRepoFailCounter.WithLabelValues(repo).Inc()
+}
+
+// IncActiveGRPCRequests increments the count of active gRPC requests being handled by the repo server.
+func (m *MetricsServer) IncActiveGRPCRequests() {
+	m.activeGRPCRequestsGauge.Inc()
+}
+
+// DecActiveGRPCRequests decrements the count of active gRPC requests being handled by the repo server.
+func (m *MetricsServer) DecActiveGRPCRequests() {
+	m.activeGRPCRequestsGauge.Dec()
 }
