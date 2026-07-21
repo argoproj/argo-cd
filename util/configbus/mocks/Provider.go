@@ -654,6 +654,1336 @@ func (_c *Provider_ApplicationNamespaces_Call) RunAndReturn(run func(ctx context
 	return _c
 }
 
+// ApplicationsetAllowedScmProviders provides a mock function for the type Provider
+func (_mock *Provider) ApplicationsetAllowedScmProviders(ctx context.Context) ([]string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ApplicationsetAllowedScmProviders")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_ApplicationsetAllowedScmProviders_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ApplicationsetAllowedScmProviders'
+type Provider_ApplicationsetAllowedScmProviders_Call struct {
+	*mock.Call
+}
+
+// ApplicationsetAllowedScmProviders is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) ApplicationsetAllowedScmProviders(ctx any) *Provider_ApplicationsetAllowedScmProviders_Call {
+	return &Provider_ApplicationsetAllowedScmProviders_Call{Call: _e.mock.On("ApplicationsetAllowedScmProviders", ctx)}
+}
+
+func (_c *Provider_ApplicationsetAllowedScmProviders_Call) Run(run func(ctx context.Context)) *Provider_ApplicationsetAllowedScmProviders_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_ApplicationsetAllowedScmProviders_Call) Return(strings []string, err error) *Provider_ApplicationsetAllowedScmProviders_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *Provider_ApplicationsetAllowedScmProviders_Call) RunAndReturn(run func(ctx context.Context) ([]string, error)) *Provider_ApplicationsetAllowedScmProviders_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ApplicationsetConcurrentApplicationUpdates provides a mock function for the type Provider
+func (_mock *Provider) ApplicationsetConcurrentApplicationUpdates(ctx context.Context) (int, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ApplicationsetConcurrentApplicationUpdates")
+	}
+
+	var r0 int
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (int, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) int); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_ApplicationsetConcurrentApplicationUpdates_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ApplicationsetConcurrentApplicationUpdates'
+type Provider_ApplicationsetConcurrentApplicationUpdates_Call struct {
+	*mock.Call
+}
+
+// ApplicationsetConcurrentApplicationUpdates is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) ApplicationsetConcurrentApplicationUpdates(ctx any) *Provider_ApplicationsetConcurrentApplicationUpdates_Call {
+	return &Provider_ApplicationsetConcurrentApplicationUpdates_Call{Call: _e.mock.On("ApplicationsetConcurrentApplicationUpdates", ctx)}
+}
+
+func (_c *Provider_ApplicationsetConcurrentApplicationUpdates_Call) Run(run func(ctx context.Context)) *Provider_ApplicationsetConcurrentApplicationUpdates_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_ApplicationsetConcurrentApplicationUpdates_Call) Return(n int, err error) *Provider_ApplicationsetConcurrentApplicationUpdates_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *Provider_ApplicationsetConcurrentApplicationUpdates_Call) RunAndReturn(run func(ctx context.Context) (int, error)) *Provider_ApplicationsetConcurrentApplicationUpdates_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ApplicationsetEnableGitHubAPIMetrics provides a mock function for the type Provider
+func (_mock *Provider) ApplicationsetEnableGitHubAPIMetrics(ctx context.Context) (bool, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ApplicationsetEnableGitHubAPIMetrics")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (bool, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) bool); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_ApplicationsetEnableGitHubAPIMetrics_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ApplicationsetEnableGitHubAPIMetrics'
+type Provider_ApplicationsetEnableGitHubAPIMetrics_Call struct {
+	*mock.Call
+}
+
+// ApplicationsetEnableGitHubAPIMetrics is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) ApplicationsetEnableGitHubAPIMetrics(ctx any) *Provider_ApplicationsetEnableGitHubAPIMetrics_Call {
+	return &Provider_ApplicationsetEnableGitHubAPIMetrics_Call{Call: _e.mock.On("ApplicationsetEnableGitHubAPIMetrics", ctx)}
+}
+
+func (_c *Provider_ApplicationsetEnableGitHubAPIMetrics_Call) Run(run func(ctx context.Context)) *Provider_ApplicationsetEnableGitHubAPIMetrics_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_ApplicationsetEnableGitHubAPIMetrics_Call) Return(b bool, err error) *Provider_ApplicationsetEnableGitHubAPIMetrics_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *Provider_ApplicationsetEnableGitHubAPIMetrics_Call) RunAndReturn(run func(ctx context.Context) (bool, error)) *Provider_ApplicationsetEnableGitHubAPIMetrics_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ApplicationsetEnableNewGitFileGlobbing provides a mock function for the type Provider
+func (_mock *Provider) ApplicationsetEnableNewGitFileGlobbing(ctx context.Context) (bool, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ApplicationsetEnableNewGitFileGlobbing")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (bool, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) bool); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_ApplicationsetEnableNewGitFileGlobbing_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ApplicationsetEnableNewGitFileGlobbing'
+type Provider_ApplicationsetEnableNewGitFileGlobbing_Call struct {
+	*mock.Call
+}
+
+// ApplicationsetEnableNewGitFileGlobbing is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) ApplicationsetEnableNewGitFileGlobbing(ctx any) *Provider_ApplicationsetEnableNewGitFileGlobbing_Call {
+	return &Provider_ApplicationsetEnableNewGitFileGlobbing_Call{Call: _e.mock.On("ApplicationsetEnableNewGitFileGlobbing", ctx)}
+}
+
+func (_c *Provider_ApplicationsetEnableNewGitFileGlobbing_Call) Run(run func(ctx context.Context)) *Provider_ApplicationsetEnableNewGitFileGlobbing_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_ApplicationsetEnableNewGitFileGlobbing_Call) Return(b bool, err error) *Provider_ApplicationsetEnableNewGitFileGlobbing_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *Provider_ApplicationsetEnableNewGitFileGlobbing_Call) RunAndReturn(run func(ctx context.Context) (bool, error)) *Provider_ApplicationsetEnableNewGitFileGlobbing_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ApplicationsetEnablePolicyOverride provides a mock function for the type Provider
+func (_mock *Provider) ApplicationsetEnablePolicyOverride(ctx context.Context) (bool, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ApplicationsetEnablePolicyOverride")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (bool, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) bool); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_ApplicationsetEnablePolicyOverride_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ApplicationsetEnablePolicyOverride'
+type Provider_ApplicationsetEnablePolicyOverride_Call struct {
+	*mock.Call
+}
+
+// ApplicationsetEnablePolicyOverride is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) ApplicationsetEnablePolicyOverride(ctx any) *Provider_ApplicationsetEnablePolicyOverride_Call {
+	return &Provider_ApplicationsetEnablePolicyOverride_Call{Call: _e.mock.On("ApplicationsetEnablePolicyOverride", ctx)}
+}
+
+func (_c *Provider_ApplicationsetEnablePolicyOverride_Call) Run(run func(ctx context.Context)) *Provider_ApplicationsetEnablePolicyOverride_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_ApplicationsetEnablePolicyOverride_Call) Return(b bool, err error) *Provider_ApplicationsetEnablePolicyOverride_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *Provider_ApplicationsetEnablePolicyOverride_Call) RunAndReturn(run func(ctx context.Context) (bool, error)) *Provider_ApplicationsetEnablePolicyOverride_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ApplicationsetEnableProgressiveSyncs provides a mock function for the type Provider
+func (_mock *Provider) ApplicationsetEnableProgressiveSyncs(ctx context.Context) (bool, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ApplicationsetEnableProgressiveSyncs")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (bool, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) bool); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_ApplicationsetEnableProgressiveSyncs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ApplicationsetEnableProgressiveSyncs'
+type Provider_ApplicationsetEnableProgressiveSyncs_Call struct {
+	*mock.Call
+}
+
+// ApplicationsetEnableProgressiveSyncs is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) ApplicationsetEnableProgressiveSyncs(ctx any) *Provider_ApplicationsetEnableProgressiveSyncs_Call {
+	return &Provider_ApplicationsetEnableProgressiveSyncs_Call{Call: _e.mock.On("ApplicationsetEnableProgressiveSyncs", ctx)}
+}
+
+func (_c *Provider_ApplicationsetEnableProgressiveSyncs_Call) Run(run func(ctx context.Context)) *Provider_ApplicationsetEnableProgressiveSyncs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_ApplicationsetEnableProgressiveSyncs_Call) Return(b bool, err error) *Provider_ApplicationsetEnableProgressiveSyncs_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *Provider_ApplicationsetEnableProgressiveSyncs_Call) RunAndReturn(run func(ctx context.Context) (bool, error)) *Provider_ApplicationsetEnableProgressiveSyncs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ApplicationsetEnableScmProviders provides a mock function for the type Provider
+func (_mock *Provider) ApplicationsetEnableScmProviders(ctx context.Context) (bool, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ApplicationsetEnableScmProviders")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (bool, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) bool); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_ApplicationsetEnableScmProviders_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ApplicationsetEnableScmProviders'
+type Provider_ApplicationsetEnableScmProviders_Call struct {
+	*mock.Call
+}
+
+// ApplicationsetEnableScmProviders is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) ApplicationsetEnableScmProviders(ctx any) *Provider_ApplicationsetEnableScmProviders_Call {
+	return &Provider_ApplicationsetEnableScmProviders_Call{Call: _e.mock.On("ApplicationsetEnableScmProviders", ctx)}
+}
+
+func (_c *Provider_ApplicationsetEnableScmProviders_Call) Run(run func(ctx context.Context)) *Provider_ApplicationsetEnableScmProviders_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_ApplicationsetEnableScmProviders_Call) Return(b bool, err error) *Provider_ApplicationsetEnableScmProviders_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *Provider_ApplicationsetEnableScmProviders_Call) RunAndReturn(run func(ctx context.Context) (bool, error)) *Provider_ApplicationsetEnableScmProviders_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ApplicationsetGitSubmoduleEnabled provides a mock function for the type Provider
+func (_mock *Provider) ApplicationsetGitSubmoduleEnabled(ctx context.Context) (bool, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ApplicationsetGitSubmoduleEnabled")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (bool, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) bool); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_ApplicationsetGitSubmoduleEnabled_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ApplicationsetGitSubmoduleEnabled'
+type Provider_ApplicationsetGitSubmoduleEnabled_Call struct {
+	*mock.Call
+}
+
+// ApplicationsetGitSubmoduleEnabled is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) ApplicationsetGitSubmoduleEnabled(ctx any) *Provider_ApplicationsetGitSubmoduleEnabled_Call {
+	return &Provider_ApplicationsetGitSubmoduleEnabled_Call{Call: _e.mock.On("ApplicationsetGitSubmoduleEnabled", ctx)}
+}
+
+func (_c *Provider_ApplicationsetGitSubmoduleEnabled_Call) Run(run func(ctx context.Context)) *Provider_ApplicationsetGitSubmoduleEnabled_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_ApplicationsetGitSubmoduleEnabled_Call) Return(b bool, err error) *Provider_ApplicationsetGitSubmoduleEnabled_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *Provider_ApplicationsetGitSubmoduleEnabled_Call) RunAndReturn(run func(ctx context.Context) (bool, error)) *Provider_ApplicationsetGitSubmoduleEnabled_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ApplicationsetGlobalPreservedAnnotations provides a mock function for the type Provider
+func (_mock *Provider) ApplicationsetGlobalPreservedAnnotations(ctx context.Context) ([]string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ApplicationsetGlobalPreservedAnnotations")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_ApplicationsetGlobalPreservedAnnotations_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ApplicationsetGlobalPreservedAnnotations'
+type Provider_ApplicationsetGlobalPreservedAnnotations_Call struct {
+	*mock.Call
+}
+
+// ApplicationsetGlobalPreservedAnnotations is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) ApplicationsetGlobalPreservedAnnotations(ctx any) *Provider_ApplicationsetGlobalPreservedAnnotations_Call {
+	return &Provider_ApplicationsetGlobalPreservedAnnotations_Call{Call: _e.mock.On("ApplicationsetGlobalPreservedAnnotations", ctx)}
+}
+
+func (_c *Provider_ApplicationsetGlobalPreservedAnnotations_Call) Run(run func(ctx context.Context)) *Provider_ApplicationsetGlobalPreservedAnnotations_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_ApplicationsetGlobalPreservedAnnotations_Call) Return(strings []string, err error) *Provider_ApplicationsetGlobalPreservedAnnotations_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *Provider_ApplicationsetGlobalPreservedAnnotations_Call) RunAndReturn(run func(ctx context.Context) ([]string, error)) *Provider_ApplicationsetGlobalPreservedAnnotations_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ApplicationsetGlobalPreservedLabels provides a mock function for the type Provider
+func (_mock *Provider) ApplicationsetGlobalPreservedLabels(ctx context.Context) ([]string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ApplicationsetGlobalPreservedLabels")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_ApplicationsetGlobalPreservedLabels_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ApplicationsetGlobalPreservedLabels'
+type Provider_ApplicationsetGlobalPreservedLabels_Call struct {
+	*mock.Call
+}
+
+// ApplicationsetGlobalPreservedLabels is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) ApplicationsetGlobalPreservedLabels(ctx any) *Provider_ApplicationsetGlobalPreservedLabels_Call {
+	return &Provider_ApplicationsetGlobalPreservedLabels_Call{Call: _e.mock.On("ApplicationsetGlobalPreservedLabels", ctx)}
+}
+
+func (_c *Provider_ApplicationsetGlobalPreservedLabels_Call) Run(run func(ctx context.Context)) *Provider_ApplicationsetGlobalPreservedLabels_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_ApplicationsetGlobalPreservedLabels_Call) Return(strings []string, err error) *Provider_ApplicationsetGlobalPreservedLabels_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *Provider_ApplicationsetGlobalPreservedLabels_Call) RunAndReturn(run func(ctx context.Context) ([]string, error)) *Provider_ApplicationsetGlobalPreservedLabels_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ApplicationsetMaxResourcesStatusCount provides a mock function for the type Provider
+func (_mock *Provider) ApplicationsetMaxResourcesStatusCount(ctx context.Context) (int, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ApplicationsetMaxResourcesStatusCount")
+	}
+
+	var r0 int
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (int, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) int); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_ApplicationsetMaxResourcesStatusCount_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ApplicationsetMaxResourcesStatusCount'
+type Provider_ApplicationsetMaxResourcesStatusCount_Call struct {
+	*mock.Call
+}
+
+// ApplicationsetMaxResourcesStatusCount is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) ApplicationsetMaxResourcesStatusCount(ctx any) *Provider_ApplicationsetMaxResourcesStatusCount_Call {
+	return &Provider_ApplicationsetMaxResourcesStatusCount_Call{Call: _e.mock.On("ApplicationsetMaxResourcesStatusCount", ctx)}
+}
+
+func (_c *Provider_ApplicationsetMaxResourcesStatusCount_Call) Run(run func(ctx context.Context)) *Provider_ApplicationsetMaxResourcesStatusCount_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_ApplicationsetMaxResourcesStatusCount_Call) Return(n int, err error) *Provider_ApplicationsetMaxResourcesStatusCount_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *Provider_ApplicationsetMaxResourcesStatusCount_Call) RunAndReturn(run func(ctx context.Context) (int, error)) *Provider_ApplicationsetMaxResourcesStatusCount_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ApplicationsetMetricsAddr provides a mock function for the type Provider
+func (_mock *Provider) ApplicationsetMetricsAddr(ctx context.Context) (string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ApplicationsetMetricsAddr")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_ApplicationsetMetricsAddr_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ApplicationsetMetricsAddr'
+type Provider_ApplicationsetMetricsAddr_Call struct {
+	*mock.Call
+}
+
+// ApplicationsetMetricsAddr is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) ApplicationsetMetricsAddr(ctx any) *Provider_ApplicationsetMetricsAddr_Call {
+	return &Provider_ApplicationsetMetricsAddr_Call{Call: _e.mock.On("ApplicationsetMetricsAddr", ctx)}
+}
+
+func (_c *Provider_ApplicationsetMetricsAddr_Call) Run(run func(ctx context.Context)) *Provider_ApplicationsetMetricsAddr_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_ApplicationsetMetricsAddr_Call) Return(s string, err error) *Provider_ApplicationsetMetricsAddr_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *Provider_ApplicationsetMetricsAddr_Call) RunAndReturn(run func(ctx context.Context) (string, error)) *Provider_ApplicationsetMetricsAddr_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ApplicationsetMetricsApplicationsetLabels provides a mock function for the type Provider
+func (_mock *Provider) ApplicationsetMetricsApplicationsetLabels(ctx context.Context) ([]string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ApplicationsetMetricsApplicationsetLabels")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_ApplicationsetMetricsApplicationsetLabels_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ApplicationsetMetricsApplicationsetLabels'
+type Provider_ApplicationsetMetricsApplicationsetLabels_Call struct {
+	*mock.Call
+}
+
+// ApplicationsetMetricsApplicationsetLabels is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) ApplicationsetMetricsApplicationsetLabels(ctx any) *Provider_ApplicationsetMetricsApplicationsetLabels_Call {
+	return &Provider_ApplicationsetMetricsApplicationsetLabels_Call{Call: _e.mock.On("ApplicationsetMetricsApplicationsetLabels", ctx)}
+}
+
+func (_c *Provider_ApplicationsetMetricsApplicationsetLabels_Call) Run(run func(ctx context.Context)) *Provider_ApplicationsetMetricsApplicationsetLabels_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_ApplicationsetMetricsApplicationsetLabels_Call) Return(strings []string, err error) *Provider_ApplicationsetMetricsApplicationsetLabels_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *Provider_ApplicationsetMetricsApplicationsetLabels_Call) RunAndReturn(run func(ctx context.Context) ([]string, error)) *Provider_ApplicationsetMetricsApplicationsetLabels_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ApplicationsetNamespaces provides a mock function for the type Provider
+func (_mock *Provider) ApplicationsetNamespaces(ctx context.Context) ([]string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ApplicationsetNamespaces")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_ApplicationsetNamespaces_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ApplicationsetNamespaces'
+type Provider_ApplicationsetNamespaces_Call struct {
+	*mock.Call
+}
+
+// ApplicationsetNamespaces is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) ApplicationsetNamespaces(ctx any) *Provider_ApplicationsetNamespaces_Call {
+	return &Provider_ApplicationsetNamespaces_Call{Call: _e.mock.On("ApplicationsetNamespaces", ctx)}
+}
+
+func (_c *Provider_ApplicationsetNamespaces_Call) Run(run func(ctx context.Context)) *Provider_ApplicationsetNamespaces_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_ApplicationsetNamespaces_Call) Return(strings []string, err error) *Provider_ApplicationsetNamespaces_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *Provider_ApplicationsetNamespaces_Call) RunAndReturn(run func(ctx context.Context) ([]string, error)) *Provider_ApplicationsetNamespaces_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ApplicationsetPolicy provides a mock function for the type Provider
+func (_mock *Provider) ApplicationsetPolicy(ctx context.Context) (string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ApplicationsetPolicy")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_ApplicationsetPolicy_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ApplicationsetPolicy'
+type Provider_ApplicationsetPolicy_Call struct {
+	*mock.Call
+}
+
+// ApplicationsetPolicy is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) ApplicationsetPolicy(ctx any) *Provider_ApplicationsetPolicy_Call {
+	return &Provider_ApplicationsetPolicy_Call{Call: _e.mock.On("ApplicationsetPolicy", ctx)}
+}
+
+func (_c *Provider_ApplicationsetPolicy_Call) Run(run func(ctx context.Context)) *Provider_ApplicationsetPolicy_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_ApplicationsetPolicy_Call) Return(s string, err error) *Provider_ApplicationsetPolicy_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *Provider_ApplicationsetPolicy_Call) RunAndReturn(run func(ctx context.Context) (string, error)) *Provider_ApplicationsetPolicy_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ApplicationsetProbeAddr provides a mock function for the type Provider
+func (_mock *Provider) ApplicationsetProbeAddr(ctx context.Context) (string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ApplicationsetProbeAddr")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_ApplicationsetProbeAddr_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ApplicationsetProbeAddr'
+type Provider_ApplicationsetProbeAddr_Call struct {
+	*mock.Call
+}
+
+// ApplicationsetProbeAddr is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) ApplicationsetProbeAddr(ctx any) *Provider_ApplicationsetProbeAddr_Call {
+	return &Provider_ApplicationsetProbeAddr_Call{Call: _e.mock.On("ApplicationsetProbeAddr", ctx)}
+}
+
+func (_c *Provider_ApplicationsetProbeAddr_Call) Run(run func(ctx context.Context)) *Provider_ApplicationsetProbeAddr_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_ApplicationsetProbeAddr_Call) Return(s string, err error) *Provider_ApplicationsetProbeAddr_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *Provider_ApplicationsetProbeAddr_Call) RunAndReturn(run func(ctx context.Context) (string, error)) *Provider_ApplicationsetProbeAddr_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ApplicationsetRequeueAfter provides a mock function for the type Provider
+func (_mock *Provider) ApplicationsetRequeueAfter(ctx context.Context) (time.Duration, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ApplicationsetRequeueAfter")
+	}
+
+	var r0 time.Duration
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (time.Duration, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) time.Duration); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(time.Duration)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_ApplicationsetRequeueAfter_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ApplicationsetRequeueAfter'
+type Provider_ApplicationsetRequeueAfter_Call struct {
+	*mock.Call
+}
+
+// ApplicationsetRequeueAfter is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) ApplicationsetRequeueAfter(ctx any) *Provider_ApplicationsetRequeueAfter_Call {
+	return &Provider_ApplicationsetRequeueAfter_Call{Call: _e.mock.On("ApplicationsetRequeueAfter", ctx)}
+}
+
+func (_c *Provider_ApplicationsetRequeueAfter_Call) Run(run func(ctx context.Context)) *Provider_ApplicationsetRequeueAfter_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_ApplicationsetRequeueAfter_Call) Return(duration time.Duration, err error) *Provider_ApplicationsetRequeueAfter_Call {
+	_c.Call.Return(duration, err)
+	return _c
+}
+
+func (_c *Provider_ApplicationsetRequeueAfter_Call) RunAndReturn(run func(ctx context.Context) (time.Duration, error)) *Provider_ApplicationsetRequeueAfter_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ApplicationsetScmNoProxy provides a mock function for the type Provider
+func (_mock *Provider) ApplicationsetScmNoProxy(ctx context.Context) (string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ApplicationsetScmNoProxy")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_ApplicationsetScmNoProxy_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ApplicationsetScmNoProxy'
+type Provider_ApplicationsetScmNoProxy_Call struct {
+	*mock.Call
+}
+
+// ApplicationsetScmNoProxy is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) ApplicationsetScmNoProxy(ctx any) *Provider_ApplicationsetScmNoProxy_Call {
+	return &Provider_ApplicationsetScmNoProxy_Call{Call: _e.mock.On("ApplicationsetScmNoProxy", ctx)}
+}
+
+func (_c *Provider_ApplicationsetScmNoProxy_Call) Run(run func(ctx context.Context)) *Provider_ApplicationsetScmNoProxy_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_ApplicationsetScmNoProxy_Call) Return(s string, err error) *Provider_ApplicationsetScmNoProxy_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *Provider_ApplicationsetScmNoProxy_Call) RunAndReturn(run func(ctx context.Context) (string, error)) *Provider_ApplicationsetScmNoProxy_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ApplicationsetScmProxyURL provides a mock function for the type Provider
+func (_mock *Provider) ApplicationsetScmProxyURL(ctx context.Context) (string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ApplicationsetScmProxyURL")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_ApplicationsetScmProxyURL_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ApplicationsetScmProxyURL'
+type Provider_ApplicationsetScmProxyURL_Call struct {
+	*mock.Call
+}
+
+// ApplicationsetScmProxyURL is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) ApplicationsetScmProxyURL(ctx any) *Provider_ApplicationsetScmProxyURL_Call {
+	return &Provider_ApplicationsetScmProxyURL_Call{Call: _e.mock.On("ApplicationsetScmProxyURL", ctx)}
+}
+
+func (_c *Provider_ApplicationsetScmProxyURL_Call) Run(run func(ctx context.Context)) *Provider_ApplicationsetScmProxyURL_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_ApplicationsetScmProxyURL_Call) Return(s string, err error) *Provider_ApplicationsetScmProxyURL_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *Provider_ApplicationsetScmProxyURL_Call) RunAndReturn(run func(ctx context.Context) (string, error)) *Provider_ApplicationsetScmProxyURL_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ApplicationsetScmRootCAPath provides a mock function for the type Provider
+func (_mock *Provider) ApplicationsetScmRootCAPath(ctx context.Context) (string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ApplicationsetScmRootCAPath")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_ApplicationsetScmRootCAPath_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ApplicationsetScmRootCAPath'
+type Provider_ApplicationsetScmRootCAPath_Call struct {
+	*mock.Call
+}
+
+// ApplicationsetScmRootCAPath is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) ApplicationsetScmRootCAPath(ctx any) *Provider_ApplicationsetScmRootCAPath_Call {
+	return &Provider_ApplicationsetScmRootCAPath_Call{Call: _e.mock.On("ApplicationsetScmRootCAPath", ctx)}
+}
+
+func (_c *Provider_ApplicationsetScmRootCAPath_Call) Run(run func(ctx context.Context)) *Provider_ApplicationsetScmRootCAPath_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_ApplicationsetScmRootCAPath_Call) Return(s string, err error) *Provider_ApplicationsetScmRootCAPath_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *Provider_ApplicationsetScmRootCAPath_Call) RunAndReturn(run func(ctx context.Context) (string, error)) *Provider_ApplicationsetScmRootCAPath_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ApplicationsetTokenRefStrictMode provides a mock function for the type Provider
+func (_mock *Provider) ApplicationsetTokenRefStrictMode(ctx context.Context) (bool, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ApplicationsetTokenRefStrictMode")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (bool, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) bool); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_ApplicationsetTokenRefStrictMode_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ApplicationsetTokenRefStrictMode'
+type Provider_ApplicationsetTokenRefStrictMode_Call struct {
+	*mock.Call
+}
+
+// ApplicationsetTokenRefStrictMode is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) ApplicationsetTokenRefStrictMode(ctx any) *Provider_ApplicationsetTokenRefStrictMode_Call {
+	return &Provider_ApplicationsetTokenRefStrictMode_Call{Call: _e.mock.On("ApplicationsetTokenRefStrictMode", ctx)}
+}
+
+func (_c *Provider_ApplicationsetTokenRefStrictMode_Call) Run(run func(ctx context.Context)) *Provider_ApplicationsetTokenRefStrictMode_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_ApplicationsetTokenRefStrictMode_Call) Return(b bool, err error) *Provider_ApplicationsetTokenRefStrictMode_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *Provider_ApplicationsetTokenRefStrictMode_Call) RunAndReturn(run func(ctx context.Context) (bool, error)) *Provider_ApplicationsetTokenRefStrictMode_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ApplicationsetWebhookAddr provides a mock function for the type Provider
+func (_mock *Provider) ApplicationsetWebhookAddr(ctx context.Context) (string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ApplicationsetWebhookAddr")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_ApplicationsetWebhookAddr_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ApplicationsetWebhookAddr'
+type Provider_ApplicationsetWebhookAddr_Call struct {
+	*mock.Call
+}
+
+// ApplicationsetWebhookAddr is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) ApplicationsetWebhookAddr(ctx any) *Provider_ApplicationsetWebhookAddr_Call {
+	return &Provider_ApplicationsetWebhookAddr_Call{Call: _e.mock.On("ApplicationsetWebhookAddr", ctx)}
+}
+
+func (_c *Provider_ApplicationsetWebhookAddr_Call) Run(run func(ctx context.Context)) *Provider_ApplicationsetWebhookAddr_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_ApplicationsetWebhookAddr_Call) Return(s string, err error) *Provider_ApplicationsetWebhookAddr_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *Provider_ApplicationsetWebhookAddr_Call) RunAndReturn(run func(ctx context.Context) (string, error)) *Provider_ApplicationsetWebhookAddr_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // BaseHRef provides a mock function for the type Provider
 func (_mock *Provider) BaseHRef(ctx context.Context) (string, error) {
 	ret := _mock.Called(ctx)

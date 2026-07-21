@@ -305,7 +305,7 @@ func TestNewSCMHTTPClient(t *testing.T) {
 				scmProxyURL: "",
 			},
 		}
-		client := g.newSCMHTTPClient()
+		client := newSCMHTTPClient(g.scmProxyURL, g.scmNoProxy)
 		assert.NotNil(t, client)
 		assert.Nil(t, client.Transport)
 	})
@@ -318,7 +318,7 @@ func TestNewSCMHTTPClient(t *testing.T) {
 				scmNoProxy:  "example.com",
 			},
 		}
-		client := g.newSCMHTTPClient()
+		client := newSCMHTTPClient(g.scmProxyURL, g.scmNoProxy)
 		assert.NotNil(t, client)
 		require.NotNil(t, client.Transport)
 		tr, ok := client.Transport.(*http.Transport)
@@ -348,14 +348,28 @@ func TestNewSCMConfig(t *testing.T) {
 
 	t.Run("default config", func(t *testing.T) {
 		config := NewSCMConfig(scmRootCAPath, allowedSCMProviders, enableSCMProviders, enableGitHubAPIMetrics, gitHubApps, tokenRefStrictMode)
-		assert.Equal(t, scmRootCAPath, config.scmRootCAPath)
-		assert.Equal(t, allowedSCMProviders, config.allowedSCMProviders)
-		assert.Equal(t, enableSCMProviders, config.enableSCMProviders)
-		assert.Equal(t, enableGitHubAPIMetrics, config.enableGitHubAPIMetrics)
+		gotRootCA, err := config.scmRootCAPathResolved()
+		require.NoError(t, err)
+		assert.Equal(t, scmRootCAPath, gotRootCA)
+		gotAllowed, err := config.allowedSCMProvidersResolved()
+		require.NoError(t, err)
+		assert.Equal(t, allowedSCMProviders, gotAllowed)
+		gotEnable, err := config.enableSCMProvidersResolved()
+		require.NoError(t, err)
+		assert.Equal(t, enableSCMProviders, gotEnable)
+		gotMetrics, err := config.enableGitHubAPIMetricsResolved()
+		require.NoError(t, err)
+		assert.Equal(t, enableGitHubAPIMetrics, gotMetrics)
 		assert.Equal(t, gitHubApps, config.GitHubApps)
-		assert.Equal(t, tokenRefStrictMode, config.tokenRefStrictMode)
-		assert.Empty(t, config.scmProxyURL)
-		assert.Empty(t, config.scmNoProxy)
+		gotStrict, err := config.tokenRefStrictModeResolved()
+		require.NoError(t, err)
+		assert.Equal(t, tokenRefStrictMode, gotStrict)
+		gotProxy, err := config.scmProxyURLResolved()
+		require.NoError(t, err)
+		assert.Empty(t, gotProxy)
+		gotNoProxy, err := config.scmNoProxyResolved()
+		require.NoError(t, err)
+		assert.Empty(t, gotNoProxy)
 	})
 
 	t.Run("config with options", func(t *testing.T) {
@@ -365,8 +379,12 @@ func TestNewSCMConfig(t *testing.T) {
 			WithProxyURL(proxyURL),
 			WithNoProxyList(noProxy),
 		)
-		assert.Equal(t, proxyURL, config.scmProxyURL)
-		assert.Equal(t, noProxy, config.scmNoProxy)
+		gotProxy, err := config.scmProxyURLResolved()
+		require.NoError(t, err)
+		assert.Equal(t, proxyURL, gotProxy)
+		gotNoProxy, err := config.scmNoProxyResolved()
+		require.NoError(t, err)
+		assert.Equal(t, noProxy, gotNoProxy)
 	})
 }
 
@@ -380,7 +398,7 @@ func TestGithubProvider_ProxyWithoutMetrics(t *testing.T) {
 				scmProxyURL:            proxyURL,
 			},
 		}
-		httpClient := g.newSCMHTTPClient()
+		httpClient := newSCMHTTPClient(g.scmProxyURL, g.scmNoProxy)
 
 		// Verify the client has a proxy-configured transport
 		require.NotNil(t, httpClient.Transport)
@@ -401,7 +419,7 @@ func TestGithubProvider_ProxyWithoutMetrics(t *testing.T) {
 				scmProxyURL:            "",
 			},
 		}
-		httpClient := g.newSCMHTTPClient()
+		httpClient := newSCMHTTPClient(g.scmProxyURL, g.scmNoProxy)
 
 		assert.NotNil(t, httpClient)
 		assert.Nil(t, httpClient.Transport) // bare &http.Client{} — uses DefaultTransport

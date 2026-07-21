@@ -104,6 +104,138 @@ func (c *ChainProvider) ApplicationNamespaces(ctx context.Context) ([]string, er
 	}, c.links)
 }
 
+func (c *ChainProvider) ApplicationsetAllowedScmProviders(ctx context.Context) ([]string, error) {
+	return firstConfigured(func(p Provider) ([]string, error) {
+		return p.ApplicationsetAllowedScmProviders(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) ApplicationsetConcurrentApplicationUpdates(ctx context.Context) (int, error) {
+	return firstConfigured(func(p Provider) (int, error) {
+		return p.ApplicationsetConcurrentApplicationUpdates(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) ApplicationsetEnableGitHubAPIMetrics(ctx context.Context) (bool, error) {
+	return firstConfigured(func(p Provider) (bool, error) {
+		return p.ApplicationsetEnableGitHubAPIMetrics(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) ApplicationsetEnableNewGitFileGlobbing(ctx context.Context) (bool, error) {
+	return firstConfigured(func(p Provider) (bool, error) {
+		return p.ApplicationsetEnableNewGitFileGlobbing(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) ApplicationsetEnablePolicyOverride(ctx context.Context) (bool, error) {
+	return firstConfigured(func(p Provider) (bool, error) {
+		return p.ApplicationsetEnablePolicyOverride(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) ApplicationsetEnableProgressiveSyncs(ctx context.Context) (bool, error) {
+	return firstConfigured(func(p Provider) (bool, error) {
+		return p.ApplicationsetEnableProgressiveSyncs(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) ApplicationsetEnableScmProviders(ctx context.Context) (bool, error) {
+	return firstConfigured(func(p Provider) (bool, error) {
+		return p.ApplicationsetEnableScmProviders(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) ApplicationsetGitSubmoduleEnabled(ctx context.Context) (bool, error) {
+	return firstConfigured(func(p Provider) (bool, error) {
+		return p.ApplicationsetGitSubmoduleEnabled(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) ApplicationsetGlobalPreservedAnnotations(ctx context.Context) ([]string, error) {
+	return firstConfigured(func(p Provider) ([]string, error) {
+		return p.ApplicationsetGlobalPreservedAnnotations(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) ApplicationsetGlobalPreservedLabels(ctx context.Context) ([]string, error) {
+	return firstConfigured(func(p Provider) ([]string, error) {
+		return p.ApplicationsetGlobalPreservedLabels(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) ApplicationsetMaxResourcesStatusCount(ctx context.Context) (int, error) {
+	return firstConfigured(func(p Provider) (int, error) {
+		return p.ApplicationsetMaxResourcesStatusCount(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) ApplicationsetMetricsAddr(ctx context.Context) (string, error) {
+	return firstConfigured(func(p Provider) (string, error) {
+		return p.ApplicationsetMetricsAddr(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) ApplicationsetMetricsApplicationsetLabels(ctx context.Context) ([]string, error) {
+	return firstConfigured(func(p Provider) ([]string, error) {
+		return p.ApplicationsetMetricsApplicationsetLabels(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) ApplicationsetNamespaces(ctx context.Context) ([]string, error) {
+	return firstConfigured(func(p Provider) ([]string, error) {
+		return p.ApplicationsetNamespaces(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) ApplicationsetPolicy(ctx context.Context) (string, error) {
+	return firstConfigured(func(p Provider) (string, error) {
+		return p.ApplicationsetPolicy(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) ApplicationsetProbeAddr(ctx context.Context) (string, error) {
+	return firstConfigured(func(p Provider) (string, error) {
+		return p.ApplicationsetProbeAddr(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) ApplicationsetRequeueAfter(ctx context.Context) (time.Duration, error) {
+	return firstConfigured(func(p Provider) (time.Duration, error) {
+		return p.ApplicationsetRequeueAfter(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) ApplicationsetScmNoProxy(ctx context.Context) (string, error) {
+	return firstConfigured(func(p Provider) (string, error) {
+		return p.ApplicationsetScmNoProxy(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) ApplicationsetScmProxyURL(ctx context.Context) (string, error) {
+	return firstConfigured(func(p Provider) (string, error) {
+		return p.ApplicationsetScmProxyURL(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) ApplicationsetScmRootCAPath(ctx context.Context) (string, error) {
+	return firstConfigured(func(p Provider) (string, error) {
+		return p.ApplicationsetScmRootCAPath(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) ApplicationsetTokenRefStrictMode(ctx context.Context) (bool, error) {
+	return firstConfigured(func(p Provider) (bool, error) {
+		return p.ApplicationsetTokenRefStrictMode(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) ApplicationsetWebhookAddr(ctx context.Context) (string, error) {
+	return firstConfigured(func(p Provider) (string, error) {
+		return p.ApplicationsetWebhookAddr(ctx)
+	}, c.links)
+}
+
 func (c *ChainProvider) BaseHRef(ctx context.Context) (string, error) {
 	return firstConfigured(func(p Provider) (string, error) {
 		return p.BaseHRef(ctx)
