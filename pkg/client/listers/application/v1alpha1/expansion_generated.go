@@ -25,3 +25,11 @@ type ApplicationSetListerExpansion interface{}
 // ApplicationSetNamespaceListerExpansion allows custom methods to be added to
 // ApplicationSetNamespaceLister.
 type ApplicationSetNamespaceListerExpansion interface{}
+
+// SyncWindowResourceListerExpansion allows custom methods to be added to
+// SyncWindowResourceLister.
+type SyncWindowResourceListerExpansion interface{}
+
+// SyncWindowResourceNamespaceListerExpansion allows custom methods to be added to
+// SyncWindowResourceNamespaceLister.
+type SyncWindowResourceNamespaceListerExpansion interface{}

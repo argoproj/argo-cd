@@ -100,6 +100,11 @@ type ApplicationSpec struct {
 
 	// SourceHydrator provides a way to push hydrated manifests back to git before syncing them to the cluster.
 	SourceHydrator *SourceHydrator `json:"sourceHydrator,omitempty" protobuf:"bytes,9,opt,name=sourceHydrator"`
+
+	// SyncWindowRefs references external SyncWindowResource CRDs that apply directly to this application.
+	// When specified, the referenced sync windows apply to this application regardless of the
+	// applications/namespaces/clusters filters defined in the SyncWindowResource.
+	SyncWindowRefs []SyncWindowRef `json:"syncWindowRefs,omitempty" protobuf:"bytes,10,rep,name=syncWindowRefs"`
 }
 
 type IgnoreDifferences []ResourceIgnoreDifferences
@@ -2864,6 +2869,8 @@ type AppProjectSpec struct {
 	// SourceIntegrity represents a constraint on manifest sources integrity to be met before they can be used.
 	// Do not access directly, use EffectiveSourceIntegrity() for correct backwards compatibility handling.
 	SourceIntegrity *SourceIntegrity `json:"sourceIntegrity,omitempty" protobuf:"bytes,15,name=sourceIntegrity"`
+	// SyncWindowRefs references external SyncWindowResource CRDs that define sync windows for this project.
+	SyncWindowRefs []SyncWindowProjectRef `json:"syncWindowRefs,omitempty" protobuf:"bytes,16,rep,name=syncWindowRefs"`
 }
 
 // EffectiveSourceIntegrity incorporates the legacy SignatureKeys into SourceIntegrity, if possible
