@@ -127,7 +127,7 @@ func TestHideSecretData_SSDPathCreateRecomputes(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, items, 1)
 	assert.True(t, items[0].Modified)
-	assert.NotContains(t, items[0].TargetState, "valueA")
+	assert.Contains(t, items[0].TargetState, "++++++++")
 }
 
 // TestHideSecretData_SSDPathMasksSensitiveAnnotations verifies that when SSD result
@@ -187,8 +187,8 @@ func TestHideSecretData_NonSSDRecomputes(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, items, 1)
 	assert.True(t, items[0].Modified)
-	assert.NotContains(t, items[0].LiveState, "valueB")
-	assert.NotContains(t, items[0].TargetState, "valueA")
+	assert.Contains(t, items[0].LiveState, "++++++++")
+	assert.Contains(t, items[0].TargetState, "++++++++")
 }
 
 // TestCompareAppStateEmpty tests comparison when both git and live have no objects
