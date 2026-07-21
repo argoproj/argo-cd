@@ -8,7 +8,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
@@ -31,6 +30,24 @@ func NewChainProvider(links ...Provider) *ChainProvider {
 
 // Ensure ChainProvider implements Provider.
 var _ Provider = (*ChainProvider)(nil)
+
+func (c *ChainProvider) SettingsManager() (*settings.SettingsManager, error) {
+	return firstConfigured(func(p Provider) (*settings.SettingsManager, error) {
+		return p.SettingsManager()
+	}, c.links)
+}
+
+func (c *ChainProvider) Subscribe(subCh chan<- *settings.ArgoCDSettings) {
+	for _, l := range c.links {
+		l.Subscribe(subCh)
+	}
+}
+
+func (c *ChainProvider) Unsubscribe(subCh chan<- *settings.ArgoCDSettings) {
+	for _, l := range c.links {
+		l.Unsubscribe(subCh)
+	}
+}
 
 func (c *ChainProvider) AllowedNodeLabels() ([]string, error) {
 	return firstConfigured(func(p Provider) ([]string, error) {
@@ -89,12 +106,6 @@ func (c *ChainProvider) HydratorReadmeTemplate() (string, error) {
 func (c *ChainProvider) IgnoreNormalizerJQTimeout() (time.Duration, error) {
 	return firstConfigured(func(p Provider) (time.Duration, error) {
 		return p.IgnoreNormalizerJQTimeout()
-	}, c.links)
-}
-
-func (c *ChainProvider) IgnoreNormalizerOpts() (normalizers.IgnoreNormalizerOpts, error) {
-	return firstConfigured(func(p Provider) (normalizers.IgnoreNormalizerOpts, error) {
-		return p.IgnoreNormalizerOpts()
 	}, c.links)
 }
 
@@ -218,22 +229,10 @@ func (c *ChainProvider) ServerSideDiff() (bool, error) {
 	}, c.links)
 }
 
-func (c *ChainProvider) SettingsManager() (*settings.SettingsManager, error) {
-	return firstConfigured(func(p Provider) (*settings.SettingsManager, error) {
-		return p.SettingsManager()
-	}, c.links)
-}
-
 func (c *ChainProvider) SourceHydratorCommitMessageTemplate() (string, error) {
 	return firstConfigured(func(p Provider) (string, error) {
 		return p.SourceHydratorCommitMessageTemplate()
 	}, c.links)
-}
-
-func (c *ChainProvider) Subscribe(subCh chan<- *settings.ArgoCDSettings) {
-	for _, l := range c.links {
-		l.Subscribe(subCh)
-	}
 }
 
 func (c *ChainProvider) SyncTimeout() (time.Duration, error) {
@@ -246,10 +245,4 @@ func (c *ChainProvider) TrackingMethod() (string, error) {
 	return firstConfigured(func(p Provider) (string, error) {
 		return p.TrackingMethod()
 	}, c.links)
-}
-
-func (c *ChainProvider) Unsubscribe(subCh chan<- *settings.ArgoCDSettings) {
-	for _, l := range c.links {
-		l.Unsubscribe(subCh)
-	}
 }

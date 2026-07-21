@@ -82,8 +82,6 @@ func parseProvider(path string) ([]method, map[string]string) {
 		switch path {
 		case "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1":
 			name = "v1alpha1"
-		case "github.com/argoproj/argo-cd/v3/util/argo/normalizers":
-			name = "normalizers"
 		case "github.com/argoproj/argo-cd/v3/util/settings":
 			name = "settings"
 		case "k8s.io/apimachinery/pkg/util/wait":
@@ -181,7 +179,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
@@ -223,7 +220,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
@@ -306,7 +302,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
@@ -378,8 +373,6 @@ func zeroValue(typ string) string {
 		return "0"
 	case strings.HasPrefix(typ, "*") || strings.HasPrefix(typ, "[]") || strings.HasPrefix(typ, "map["):
 		return "nil"
-	case typ == "normalizers.IgnoreNormalizerOpts":
-		return "normalizers.IgnoreNormalizerOpts{}"
 	case typ == "settings.ArgoCDDiffOptions":
 		return "settings.ArgoCDDiffOptions{}"
 	default:

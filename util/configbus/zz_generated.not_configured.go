@@ -8,13 +8,20 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 // notConfiguredProvider returns ErrNotConfigured for every field getter and
 // no-ops lifecycle methods. Leaf providers embed it and override owned methods.
 type notConfiguredProvider struct{}
+
+func (notConfiguredProvider) SettingsManager() (*settings.SettingsManager, error) {
+	return nil, ErrNotConfigured
+}
+
+func (notConfiguredProvider) Subscribe(subCh chan<- *settings.ArgoCDSettings) {}
+
+func (notConfiguredProvider) Unsubscribe(subCh chan<- *settings.ArgoCDSettings) {}
 
 func (notConfiguredProvider) AllowedNodeLabels() ([]string, error) {
 	return nil, ErrNotConfigured
@@ -54,10 +61,6 @@ func (notConfiguredProvider) HydratorReadmeTemplate() (string, error) {
 
 func (notConfiguredProvider) IgnoreNormalizerJQTimeout() (time.Duration, error) {
 	return 0, ErrNotConfigured
-}
-
-func (notConfiguredProvider) IgnoreNormalizerOpts() (normalizers.IgnoreNormalizerOpts, error) {
-	return normalizers.IgnoreNormalizerOpts{}, ErrNotConfigured
 }
 
 func (notConfiguredProvider) IgnoreResourceUpdatesOverrides() (map[string]v1alpha1.ResourceOverride, error) {
@@ -140,15 +143,9 @@ func (notConfiguredProvider) ServerSideDiff() (bool, error) {
 	return false, ErrNotConfigured
 }
 
-func (notConfiguredProvider) SettingsManager() (*settings.SettingsManager, error) {
-	return nil, ErrNotConfigured
-}
-
 func (notConfiguredProvider) SourceHydratorCommitMessageTemplate() (string, error) {
 	return "", ErrNotConfigured
 }
-
-func (notConfiguredProvider) Subscribe(subCh chan<- *settings.ArgoCDSettings) {}
 
 func (notConfiguredProvider) SyncTimeout() (time.Duration, error) {
 	return 0, ErrNotConfigured
@@ -157,5 +154,3 @@ func (notConfiguredProvider) SyncTimeout() (time.Duration, error) {
 func (notConfiguredProvider) TrackingMethod() (string, error) {
 	return "", ErrNotConfigured
 }
-
-func (notConfiguredProvider) Unsubscribe(subCh chan<- *settings.ArgoCDSettings) {}
