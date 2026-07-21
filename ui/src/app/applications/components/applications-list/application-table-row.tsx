@@ -11,7 +11,7 @@ import {getAppDefaultSource, OperationState, getApplicationLinkURL, getManagedBy
 import {isValidManagedByURL} from '../../../shared/utils';
 import {ApplicationsLabels} from './applications-labels';
 import {ApplicationsSource} from './applications-source';
-import {CellLink} from './cell-link';
+import {CellLink} from '../../../shared/components';
 import {services} from '../../../shared/services';
 import {ViewPreferences} from '../../../shared/services';
 

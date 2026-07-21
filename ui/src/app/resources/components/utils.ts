@@ -62,3 +62,51 @@ export function resourceHighlightUrl(resource: models.Resource): string {
 export function navigateToManagingApplication(ctx: ContextApis, resource: models.Resource, e?: React.MouseEvent) {
     ctx.navigation.goto(getManagingApplicationUrl(resource.appName, resource.appNamespace), {highlight: resourceHighlightUrl(resource)}, e ? {event: e} : undefined);
 }
+
+/** A row/cell link: a real `href` for middle-click / open-in-new-tab plus an SPA `onClick`. */
+export interface ResourceLink {
+    href: string;
+    onClick: (e: React.MouseEvent<HTMLAnchorElement>) => void;
+}
+
+/** True for clicks the browser should handle natively on the anchor (new tab / new window). */
+function isModifiedClick(e: React.MouseEvent): boolean {
+    return e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0;
+}
+
+/**
+ * Link that opens the resource's details panel on the current Resources page (query params only,
+ * same route). The `href` reproduces the current URL so middle-click opens the panel in a new tab.
+ */
+export function getResourceRowLink(ctx: ContextApis, resource: models.Resource): ResourceLink {
+    const params = {node: resourceNodeUrl(resource), detailsApp: resourceDetailsAppParam(resource)};
+    const search = new URLSearchParams(window.location.search);
+    search.set('node', params.node);
+    search.set('detailsApp', params.detailsApp);
+    return {
+        href: `${window.location.pathname}?${search.toString()}`,
+        onClick: (e: React.MouseEvent<HTMLAnchorElement>) => {
+            if (isModifiedClick(e)) {
+                return;
+            }
+            e.preventDefault();
+            ctx.navigation.goto('.', params, {replace: true});
+        }
+    };
+}
+
+/** Link to the owning Application, highlighting the resource in list/tree view (real route change). */
+export function getResourceAppLink(ctx: ContextApis, resource: models.Resource): ResourceLink {
+    const url = getManagingApplicationUrl(resource.appName, resource.appNamespace);
+    const highlight = resourceHighlightUrl(resource);
+    return {
+        href: `${ctx.baseHref}${url}?highlight=${encodeURIComponent(highlight)}`,
+        onClick: (e: React.MouseEvent<HTMLAnchorElement>) => {
+            if (isModifiedClick(e)) {
+                return;
+            }
+            e.preventDefault();
+            ctx.navigation.goto(`/${url}`, {highlight});
+        }
+    };
+}

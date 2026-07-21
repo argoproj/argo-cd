@@ -3,14 +3,22 @@ import * as React from 'react';
 import classNames from 'classnames';
 import {Key, KeybindingContext, useNav} from 'argo-ui/v2';
 import {take} from 'rxjs/operators';
-import {ActionMenu, Cluster, DataLoader} from '../../../shared/components';
+import {ActionMenu, CellLink, Cluster, DataLoader} from '../../../shared/components';
 import {Consumer, Context, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ResourceIcon} from '../../../applications/components/resource-icon';
 import {ResourceLabel} from '../../../applications/components/resource-label';
 import * as AppUtils from '../../../applications/components/utils';
-import {navigateToManagingApplication, openResourceDetails, openResourceDetailsInApplication, resourceHealthState, resourceHealthStatus} from '../utils';
+import {
+    getResourceAppLink,
+    getResourceRowLink,
+    navigateToManagingApplication,
+    openResourceDetails,
+    openResourceDetailsInApplication,
+    resourceHealthState,
+    resourceHealthStatus
+} from '../utils';
 import './resources-table.scss';
 import {TruncatedTextTooltip, useTruncatedElement} from './truncated-text-tooltip';
 import {RESOURCE_SORT_KEY_TO_TITLE, RESOURCE_SORT_TITLE_TO_KEY, RESOURCES_LIST_SORT_KEY, ResourceSortKey} from './resources-sort';
@@ -82,14 +90,6 @@ export const ResourcesTable = (props: {resources: models.Resource[]; onOpenDetai
             return false;
         }
     });
-
-    const openDetails = (ctx: ContextApis, resource: models.Resource) => {
-        if (props.onOpenDetails) {
-            props.onOpenDetails(resource);
-        } else {
-            openResourceDetails(ctx, resource);
-        }
-    };
 
     const navigateToApplication = (ctx: ContextApis, resource: models.Resource, e?: React.MouseEvent) => {
         navigateToManagingApplication(ctx, resource, e);
@@ -167,7 +167,6 @@ export const ResourcesTable = (props: {resources: models.Resource[]; onOpenDetai
                                                 index={i}
                                                 selectedResource={selectedResource}
                                                 ctx={ctx}
-                                                openDetails={openDetails}
                                                 navigateToApplication={navigateToApplication}
                                             />
                                         );
@@ -188,43 +187,61 @@ const ResourceTableRow = (props: {
     index: number;
     selectedResource: number;
     ctx: ContextApis;
-    openDetails: (ctx: ContextApis, resource: models.Resource) => void;
     navigateToApplication: (ctx: ContextApis, resource: models.Resource, e?: React.MouseEvent) => void;
 }) => {
-    const {resource, groupKind, index: i, selectedResource, ctx, openDetails, navigateToApplication} = props;
-    const {ref: appLinkRef, isTruncated: appLinkIsTruncated} = useTruncatedElement<HTMLButtonElement>(resource.appName ?? '');
+    const {resource, groupKind, index: i, selectedResource, ctx, navigateToApplication} = props;
+    const {ref: appLinkRef, isTruncated: appLinkIsTruncated} = useTruncatedElement<HTMLAnchorElement>(resource.appName ?? '');
+
+    // Row navigation lives on an overlay <a> (single tab stop) plus CellLink wrappers on the cell
+    // content, so middle-click / cmd-click / "open in new tab" and truncation tooltips work. The
+    // Application column and the action menu are separate links/controls lifted above the overlay.
+    const rowLink = getResourceRowLink(ctx, resource);
+    const appLink = getResourceAppLink(ctx, resource);
 
     return (
         <div
-            className={classNames('argo-table-list__row', {
+            className={classNames('argo-table-list__row resources-table__row', {
                 'application-resource-tree__node--orphaned': resource.orphaned,
                 'resources-table__row--selected': selectedResource === i
-            })}
-            onClick={() => openDetails(ctx, resource)}>
+            })}>
+            <a
+                className='resources-table__row__overlay-link'
+                href={rowLink.href}
+                onClick={rowLink.onClick}
+                aria-label={[resource.kind, resource.namespace, resource.name].filter(Boolean).join(' ')}
+            />
             <div className='row'>
                 <div className='resources-table__col-icon'>
                     <ResourceIcon group={resource.group} kind={resource.kind} />
                     <div className='resources-table__kind'>{ResourceLabel({kind: resource.kind})}</div>
                 </div>
                 <div className='columns small-1 large-2 resources-table__col-group-kind'>
-                    <TruncatedTextTooltip content={groupKind} className='application-details__item_text resources-table__tooltip-anchor' />
+                    <CellLink href={rowLink.href} onClick={rowLink.onClick}>
+                        <TruncatedTextTooltip content={groupKind} className='application-details__item_text resources-table__tooltip-anchor' />
+                    </CellLink>
                 </div>
                 <div className='columns small-2 large-1 resources-table__col-namespace'>
-                    <TruncatedTextTooltip content={resource.namespace} className='resources-table__tooltip-anchor' />
+                    <CellLink href={rowLink.href} onClick={rowLink.onClick}>
+                        <TruncatedTextTooltip content={resource.namespace} className='resources-table__tooltip-anchor' />
+                    </CellLink>
                 </div>
                 <div className='columns small-3 resources-table__col-name application-details__item'>
-                    <TruncatedTextTooltip content={resource.name} className='application-details__item_text resources-table__tooltip-anchor' />
+                    <CellLink href={rowLink.href} onClick={rowLink.onClick}>
+                        <TruncatedTextTooltip content={resource.name} className='application-details__item_text resources-table__tooltip-anchor' />
+                    </CellLink>
                 </div>
                 <div className='columns small-1 large-2 resources-table__col-cluster'>
-                    <TruncatedTextTooltip content={resource.clusterName || resource.clusterServer || ''} className='resources-table__cell-text resources-table__tooltip-anchor'>
-                        <Cluster server={resource.clusterServer} name={resource.clusterName} />
-                    </TruncatedTextTooltip>
+                    <CellLink href={rowLink.href} onClick={rowLink.onClick}>
+                        <TruncatedTextTooltip content={resource.clusterName || resource.clusterServer || ''} className='resources-table__cell-text resources-table__tooltip-anchor'>
+                            <Cluster server={resource.clusterServer} name={resource.clusterName} />
+                        </TruncatedTextTooltip>
+                    </CellLink>
                 </div>
-                <div className='columns small-2 resources-table__col-application' onClick={e => e.stopPropagation()}>
+                <div className='columns small-2 resources-table__col-application'>
                     <Tooltip content={resource.appName} enabled={!!resource.appName && appLinkIsTruncated}>
-                        <button ref={appLinkRef} type='button' className='resources-table__application-link' onClick={e => navigateToApplication(ctx, resource, e)}>
+                        <a ref={appLinkRef} className='resources-table__application-link' href={appLink.href} onClick={appLink.onClick}>
                             {resource.appName}
-                        </button>
+                        </a>
                     </Tooltip>
                 </div>
                 <div className='columns small-3 large-2 resources-table__status-col'>

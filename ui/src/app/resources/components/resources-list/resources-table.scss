@@ -178,6 +178,42 @@ $resources-table-menu-width: 2.75rem;
         position: relative;
     }
 
+    .resources-table__row {
+        // Lift interactive and tooltip-bearing descendants above the overlay link so they receive
+        // their own clicks and hover. `a:not(overlay)` covers the CellLink cell wrappers and the
+        // Application link; `[title]` covers the status icons rendered by utils.tsx (`<i title=…>`);
+        // `.argo-dropdown` (position: static by default) is promoted so the action menu is clickable.
+        a:not(.resources-table__row__overlay-link),
+        button,
+        [title],
+        .argo-dropdown {
+            position: relative;
+            z-index: 2;
+        }
+    }
+
+    .resources-table__row__overlay-link {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        color: inherit;
+        text-decoration: none;
+
+        &:hover,
+        &:visited,
+        &:active {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        // The anchor itself is invisible, so draw the keyboard focus outline on its bounding box
+        // (the whole row) for keyboard users.
+        &:focus-visible {
+            outline: 2px solid $argo-color-teal-5;
+            outline-offset: -2px;
+        }
+    }
+
     .resources-table__status-col {
         // Stack the health and sync status on two lines, vertically centered within the row.
         display: flex;

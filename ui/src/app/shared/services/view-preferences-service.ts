@@ -150,6 +150,7 @@ export class ResourcesListPreferences {
     public apiGroupFilter: string[];
     public kindFilter: string[];
     public view: ResourcesListViewType;
+    public searchRegex: boolean;
 
     public statusBarView: HealthStatusBarPreferences;
 }
@@ -236,6 +237,7 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         apiGroupFilter: new Array<string>(),
         hideFilters: false,
         view: 'list' as ResourcesListViewType,
+        searchRegex: false,
         statusBarView: {
             showHealthStatusBar: true
         }
@@ -309,6 +311,7 @@ export class ViewPreferencesService {
         resourcesList.apiGroupFilter = resourcesList.apiGroupFilter || [];
         resourcesList.kindFilter = resourcesList.kindFilter || [];
         resourcesList.statusBarView = resourcesList.statusBarView || {showHealthStatusBar: true};
+        resourcesList.searchRegex = resourcesList.searchRegex || false;
         if (resourcesList.view !== ResourcesListViewKey.List && resourcesList.view !== ResourcesListViewKey.Summary) {
             resourcesList.view = ResourcesListViewKey.List;
         }

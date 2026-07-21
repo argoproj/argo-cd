@@ -5,7 +5,7 @@ import {KeybindingProvider} from 'argo-ui/v2';
 import {RouteComponentProps} from 'react-router';
 import {combineLatest, from, merge, Observable} from 'rxjs';
 import {bufferTime, delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
-import {ClusterCtx, DataLoader, EmptyState, Page, Paginate, Query, SearchBar} from '../../../shared/components';
+import {ClusterCtx, DataLoader, EmptyState, FlexTopBar, Page, Paginate, Query, SearchBar} from '../../../shared/components';
 import {Consumer, ContextApis} from '../../../shared/context';
 import {useObservableQuery} from '../../../shared/hooks/query';
 import * as models from '../../../shared/models';
@@ -13,10 +13,11 @@ import {services, ResourcesListPreferences, HealthStatusBarPreferences, Resource
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 import * as AppUtils from '../../../applications/components/utils';
 import './resources-list.scss';
-import './flex-top-bar.scss';
 import {ResourcesSummary} from './resources-summary';
 import {FilteredResource, getFilterResults, ResourcesFilter} from './resources-filter';
 import classNames from 'classnames';
+import {isInvalidRegex} from '../../../shared/utils';
+import {createMatcher} from './resources-list-search';
 import {ResourcesTable} from './resources-table';
 import {RESOURCE_SORT_OPTIONS, RESOURCES_LIST_SORT_KEY} from './resources-sort';
 import {ResourcesStatusBar} from './resources-status-bar';
@@ -150,9 +151,10 @@ const ViewPref = ({
 
 function filterResources(resources: models.Resource[], pref: ResourcesListPreferences, search: string): {filteredResources: models.Resource[]; filterResults: FilteredResource[]} {
     const filterResults = getFilterResults(resources, pref);
+    const matches = createMatcher(search, pref.searchRegex);
     return {
         filterResults,
-        filteredResources: filterResults.filter(app => (search === '' || app.name?.includes(search)) && Object.values(app.filterResult).every(val => val))
+        filteredResources: filterResults.filter(app => matches(app.name, app.namespace) && Object.values(app.filterResult).every(val => val))
     };
 }
 
@@ -162,51 +164,75 @@ interface ResourcesToolbarProps {
     healthBarPrefs: HealthStatusBarPreferences;
 }
 
-const ResourcesToolbar: React.FC<ResourcesToolbarProps> = ({pref, ctx, healthBarPrefs}) => (
-    <React.Fragment key='resources-list-tools'>
-        <SearchBar value={pref.search} onChange={value => ctx.navigation.goto('.', {search: value || null}, {replace: true})} placeholder='Search resources...' />
-        <Tooltip content='Toggle Health Status Bar'>
-            <button
-                className={`resources-list__accordion argo-button argo-button--base${healthBarPrefs.showHealthStatusBar ? '-o' : ''}`}
-                style={{border: 'none'}}
-                onClick={() => {
-                    const showHealthStatusBar = !healthBarPrefs.showHealthStatusBar;
-                    services.viewPreferences.updatePreferences({
-                        resourcesList: {
-                            ...pref,
-                            statusBarView: {
-                                ...healthBarPrefs,
-                                showHealthStatusBar
+const ResourcesToolbar: React.FC<ResourcesToolbarProps> = ({pref, ctx, healthBarPrefs}) => {
+    const regexInvalid = pref.searchRegex && isInvalidRegex(pref.search);
+    const regexToggleClass = `applications-list__regex-toggle argo-button argo-button--base${pref.searchRegex ? '' : '-o'}${
+        regexInvalid ? ' applications-list__regex-toggle--invalid' : ''
+    }`;
+
+    return (
+        <div className='applications-list__toolbar-controls' key='resources-list-tools'>
+            <SearchBar value={pref.search} onChange={value => ctx.navigation.goto('.', {search: value || null}, {replace: true})} placeholder='Search resources...' />
+            <Tooltip content={pref.searchRegex ? (regexInvalid ? 'Invalid regex pattern' : 'Regex search enabled, click to switch to plain text') : 'Click to enable regex search'}>
+                <button
+                    type='button'
+                    aria-label='Toggle regex search'
+                    aria-pressed={pref.searchRegex}
+                    className={regexToggleClass}
+                    onClick={() => {
+                        services.viewPreferences.updatePreferences({
+                            resourcesList: {...pref, searchRegex: !pref.searchRegex}
+                        });
+                    }}>
+                    .*
+                </button>
+            </Tooltip>
+            <Tooltip content='Toggle Health Status Bar'>
+                <button
+                    className={`resources-list__accordion argo-button argo-button--base${healthBarPrefs.showHealthStatusBar ? '-o' : ''}`}
+                    style={{border: 'none'}}
+                    onClick={() => {
+                        const showHealthStatusBar = !healthBarPrefs.showHealthStatusBar;
+                        services.viewPreferences.updatePreferences({
+                            resourcesList: {
+                                ...pref,
+                                statusBarView: {
+                                    ...healthBarPrefs,
+                                    showHealthStatusBar
+                                }
                             }
-                        }
-                    });
-                }}>
-                <i className={`fas fa-ruler-horizontal`} />
-            </button>
-        </Tooltip>
-        <div className='applications-list__view-type' style={{marginLeft: 'auto'}}>
-            <i
-                className={classNames('fa fa-th-list', {selected: pref.view === ResourcesListViewKey.List}, 'menu_icon')}
-                title='List'
-                onClick={() => {
-                    ctx.navigation.goto('.', {view: ResourcesListViewKey.List});
-                    services.viewPreferences.updatePreferences({
-                        resourcesList: {...pref, view: ResourcesListViewKey.List}
-                    });
-                }}
-            />
-            <i
-                className={classNames('fa fa-chart-pie', {selected: pref.view === ResourcesListViewKey.Summary}, 'menu_icon')}
-                title='Summary'
-                onClick={() => {
-                    ctx.navigation.goto('.', {view: ResourcesListViewKey.Summary});
-                    services.viewPreferences.updatePreferences({
-                        resourcesList: {...pref, view: ResourcesListViewKey.Summary}
-                    });
-                }}
-            />
+                        });
+                    }}>
+                    <i className={`fas fa-ruler-horizontal`} />
+                </button>
+            </Tooltip>
         </div>
-    </React.Fragment>
+    );
+};
+
+const ResourcesViewTypeSwitcher: React.FC<{pref: ResourcesListPreferences & {page: number; search: string}; ctx: ContextApis}> = ({pref, ctx}) => (
+    <div className='applications-list__view-type'>
+        <i
+            className={classNames('fa fa-th-list', {selected: pref.view === ResourcesListViewKey.List}, 'menu_icon')}
+            title='List'
+            onClick={() => {
+                ctx.navigation.goto('.', {view: ResourcesListViewKey.List});
+                services.viewPreferences.updatePreferences({
+                    resourcesList: {...pref, view: ResourcesListViewKey.List}
+                });
+            }}
+        />
+        <i
+            className={classNames('fa fa-chart-pie', {selected: pref.view === ResourcesListViewKey.Summary}, 'menu_icon')}
+            title='Summary'
+            onClick={() => {
+                ctx.navigation.goto('.', {view: ResourcesListViewKey.Summary});
+                services.viewPreferences.updatePreferences({
+                    resourcesList: {...pref, view: ResourcesListViewKey.Summary}
+                });
+            }}
+        />
+    </div>
 );
 
 export const ResourcesList = (props: RouteComponentProps<{}>) => {
@@ -284,14 +310,13 @@ export const ResourcesList = (props: RouteComponentProps<{}>) => {
                                             });
                                             return (
                                                 <React.Fragment>
-                                                    <React.Fragment>
-                                                        <div className='top-bar row flex-top-bar' key='tool-bar'>
-                                                            <div className='flex-top-bar__tools'>
-                                                                <ResourcesToolbar pref={pref} ctx={ctx} healthBarPrefs={healthBarPrefs} />
-                                                            </div>
-                                                        </div>
-                                                        <div className='flex-top-bar__padder' />
-                                                    </React.Fragment>
+                                                    <FlexTopBar
+                                                        toolbar={{
+                                                            tools: <ResourcesToolbar pref={pref} ctx={ctx} healthBarPrefs={healthBarPrefs} />,
+                                                            options: <ResourcesViewTypeSwitcher pref={pref} ctx={ctx} />,
+                                                            addAuth: false
+                                                        }}
+                                                    />
                                                     <div className='resources-list'>
                                                         {resources.length === 0 && pref.projectsFilter?.length === 0 ? (
                                                             <EmptyState icon='argo-icon-application'>
@@ -321,16 +346,26 @@ export const ResourcesList = (props: RouteComponentProps<{}>) => {
                                                                         page={pref.page}
                                                                         emptyState={() => (
                                                                             <EmptyState icon='fa fa-search'>
-                                                                                <h4>No matching resources found</h4>
+                                                                                <h4>
+                                                                                    {pref.searchRegex && isInvalidRegex(pref.search)
+                                                                                        ? 'Invalid regex search pattern'
+                                                                                        : 'No matching resources found'}
+                                                                                </h4>
                                                                                 <h5>
-                                                                                    Change filter criteria or&nbsp;
-                                                                                    <a
-                                                                                        onClick={() => {
-                                                                                            ResourcesListPreferences.clearFilters(pref);
-                                                                                            onFilterPrefChanged(ctx, pref);
-                                                                                        }}>
-                                                                                        clear filters
-                                                                                    </a>
+                                                                                    {pref.searchRegex && isInvalidRegex(pref.search) ? (
+                                                                                        'Fix the regular expression in the search box to see matching resources'
+                                                                                    ) : (
+                                                                                        <>
+                                                                                            Change filter criteria or&nbsp;
+                                                                                            <a
+                                                                                                onClick={() => {
+                                                                                                    ResourcesListPreferences.clearFilters(pref);
+                                                                                                    onFilterPrefChanged(ctx, pref);
+                                                                                                }}>
+                                                                                                clear filters
+                                                                                            </a>
+                                                                                        </>
+                                                                                    )}
                                                                                 </h5>
                                                                             </EmptyState>
                                                                         )}
