@@ -241,10 +241,23 @@ func NewApplicationController(
 		ignoreNormalizerOpts:              ignoreNormalizerOpts,
 		metricsClusterLabels:              metricsClusterLabels,
 	}
-	ctrl.configProvider = configbus.NewHybridProvider(
-		// TODO: Add actual CRD source. For now everything falls back to the Legacy provider.
-		configbus.NewCRDProvider(nil),
-		configbus.NewLegacyProvider(settingsMgr, &configbus.LegacyValues{Controller: &ctrl}),
+	ctrl.configProvider = configbus.NewChainProvider(
+		&configbus.StaticProvider{Fields: configbus.StaticFields{
+			HardReconciliationTimeout: configbus.Ptr(appHardResyncPeriod),
+			IgnoreNormalizerJQTimeout: configbus.Ptr(ignoreNormalizerOpts.JQExecutionTimeout),
+			IgnoreNormalizerOpts:      configbus.Ptr(ignoreNormalizerOpts),
+			MetricsClusterLabels:      configbus.Ptr(metricsClusterLabels),
+			PersistResourceHealth:     configbus.Ptr(persistResourceHealth),
+			ReconciliationJitter:      configbus.Ptr(appResyncJitter),
+			ReconciliationTimeout:     configbus.Ptr(appResyncPeriod),
+			RepoErrorGracePeriod:      configbus.Ptr(repoErrorGracePeriod),
+			SelfHealBackoff:           configbus.PtrPtr(selfHealBackoff),
+			SelfHealTimeout:           configbus.Ptr(selfHealTimeout),
+			ServerSideDiff:            configbus.Ptr(serverSideDiff),
+			SyncTimeout:               configbus.Ptr(syncTimeout),
+		}},
+		configbus.NewSettingsManagerProvider(settingsMgr),
+		configbus.NewEnvProvider(),
 	)
 	if hydratorEnabled {
 		ctrl.hydrator = hydrator.NewHydrator(&ctrl, appResyncPeriod, commitClientset, repoClientset, db)

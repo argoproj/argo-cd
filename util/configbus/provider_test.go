@@ -1,7 +1,6 @@
 package configbus
 
 import (
-	"errors"
 	"testing"
 	"time"
 
@@ -12,32 +11,9 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 )
 
-func TestLegacyProviderResourceOverridesRequiresSettingsMgr(t *testing.T) {
-	p := NewLegacyProvider(nil, nil)
-	_, err := p.ResourceOverrides()
-	require.Error(t, err)
-	assert.NotErrorIs(t, err, ErrNotConfigured)
-}
-
-func TestLegacyProviderTimeoutsWithoutControllerError(t *testing.T) {
-	p := NewLegacyProvider(nil, nil)
-
-	_, err := p.ReconciliationTimeout()
-	require.Error(t, err)
-	assert.NotErrorIs(t, err, ErrNotConfigured)
-
-	_, err = p.HardReconciliationTimeout()
-	require.Error(t, err)
-	assert.NotErrorIs(t, err, ErrNotConfigured)
-
-	_, err = p.ReconciliationJitter()
-	require.Error(t, err)
-	assert.NotErrorIs(t, err, ErrNotConfigured)
-}
-
-func TestLegacyProviderGitRequestTimeoutDefault(t *testing.T) {
+func TestEnvProviderGitRequestTimeoutDefault(t *testing.T) {
 	t.Setenv("ARGOCD_GIT_REQUEST_TIMEOUT", "")
-	p := NewLegacyProvider(nil, nil)
+	p := NewEnvProvider()
 	d, err := p.GitRequestTimeout()
 	require.NoError(t, err)
 	assert.Equal(t, 15*time.Second, d)
@@ -48,38 +24,62 @@ func TestLegacyProviderGitRequestTimeoutDefault(t *testing.T) {
 	assert.Equal(t, 30*time.Second, d)
 }
 
-func TestLegacyProviderControllerLegacyRoundTrip(t *testing.T) {
-	stub := &stubControllerLegacy{
-		statusRefresh:    120 * time.Second,
-		syncTimeout:      5 * time.Minute,
-		serverSideDiff:   true,
-		metricsLabels:    []string{"team"},
-		selfHealTimeout:  30 * time.Second,
-		persistHealth:    true,
-		repoErrorGrace:   90 * time.Second,
-		ignoreNormalizer: normalizers.IgnoreNormalizerOpts{JQExecutionTimeout: 2 * time.Second},
-	}
-	p := NewLegacyProvider(nil, &LegacyValues{Controller: stub})
+func TestEnvProviderUnownedReturnsErrNotConfigured(t *testing.T) {
+	p := NewEnvProvider()
+	_, err := p.SyncTimeout()
+	assert.ErrorIs(t, err, ErrNotConfigured)
+}
 
-	d, err := p.ReconciliationTimeout()
-	require.NoError(t, err)
-	assert.Equal(t, 120*time.Second, d)
+func TestSettingsManagerProviderRequiresMgr(t *testing.T) {
+	p := NewSettingsManagerProvider(nil)
+	_, err := p.ResourceOverrides()
+	require.Error(t, err)
+	assert.NotErrorIs(t, err, ErrNotConfigured)
 
-	d, err = p.SyncTimeout()
+	_, err = p.SyncTimeout()
+	assert.ErrorIs(t, err, ErrNotConfigured)
+}
+
+func TestStaticProviderRoundTrip(t *testing.T) {
+	syncTimeout := 5 * time.Minute
+	labels := []string{"team"}
+	opts := normalizers.IgnoreNormalizerOpts{JQExecutionTimeout: 2 * time.Second}
+	backoff := &wait.Backoff{Duration: time.Second}
+	p := &StaticProvider{Fields: StaticFields{
+		SyncTimeout:               &syncTimeout,
+		MetricsClusterLabels:      &labels,
+		IgnoreNormalizerOpts:      &opts,
+		IgnoreNormalizerJQTimeout: Ptr(2 * time.Second),
+		ServerSideDiff:            Ptr(true),
+		SelfHealBackoff:           PtrPtr(backoff),
+	}}
+
+	d, err := p.SyncTimeout()
 	require.NoError(t, err)
 	assert.Equal(t, 5*time.Minute, d)
+
+	gotLabels, err := p.MetricsClusterLabels()
+	require.NoError(t, err)
+	assert.Equal(t, []string{"team"}, gotLabels)
 
 	b, err := p.ServerSideDiff()
 	require.NoError(t, err)
 	assert.True(t, b)
 
-	labels, err := p.MetricsClusterLabels()
+	gotBackoff, err := p.SelfHealBackoff()
 	require.NoError(t, err)
-	assert.Equal(t, []string{"team"}, labels)
+	assert.Equal(t, backoff, gotBackoff)
 
-	jq, err := p.IgnoreNormalizerJQTimeout()
+	_, err = p.AppInstanceLabelKey()
+	assert.ErrorIs(t, err, ErrNotConfigured)
+}
+
+func TestStaticProviderConfiguredNilPointer(t *testing.T) {
+	var nilBackoff *wait.Backoff
+	p := &StaticProvider{Fields: StaticFields{SelfHealBackoff: PtrPtr(nilBackoff)}}
+	got, err := p.SelfHealBackoff()
 	require.NoError(t, err)
-	assert.Equal(t, 2*time.Second, jq)
+	assert.Nil(t, got)
 }
 
 func TestCRDProviderReturnsErrNotConfigured(t *testing.T) {
@@ -95,104 +95,29 @@ func TestCRDProviderReturnsErrNotConfigured(t *testing.T) {
 	assert.ErrorIs(t, err, ErrNotConfigured)
 }
 
-func TestHybridProviderFallsBackToLegacyOnErrNotConfigured(t *testing.T) {
-	stub := &stubControllerLegacy{
-		statusRefresh:  90 * time.Second,
-		syncTimeout:    2 * time.Minute,
-		serverSideDiff: true,
-		metricsLabels:  []string{"env"},
-	}
-	p := NewHybridProvider(
-		NewCRDProvider(nil),
-		NewLegacyProvider(nil, &LegacyValues{Controller: stub}),
-	)
+func TestChainProviderPrecedence(t *testing.T) {
+	overrideTimeout := 10 * time.Second
+	fallbackTimeout := 90 * time.Second
+	override := &StaticProvider{Fields: StaticFields{SyncTimeout: &overrideTimeout}}
+	fallback := &StaticProvider{Fields: StaticFields{SyncTimeout: &fallbackTimeout, SelfHealTimeout: Ptr(30 * time.Second)}}
+	chain := NewChainProvider(override, NewCRDProvider(nil), fallback, NewEnvProvider())
 
-	d, err := p.ReconciliationTimeout()
+	d, err := chain.SyncTimeout()
 	require.NoError(t, err)
-	assert.Equal(t, 90*time.Second, d)
+	assert.Equal(t, 10*time.Second, d, "override Static must beat fallback")
 
-	d, err = p.SyncTimeout()
+	d, err = chain.SelfHealTimeout()
 	require.NoError(t, err)
-	assert.Equal(t, 2*time.Minute, d)
+	assert.Equal(t, 30*time.Second, d, "fallback Static supplies unset override fields")
 
-	b, err := p.ServerSideDiff()
+	d, err = chain.GitRequestTimeout()
 	require.NoError(t, err)
-	assert.True(t, b)
+	assert.Equal(t, 15*time.Second, d, "EnvProvider supplies env-only fields")
+}
 
-	labels, err := p.MetricsClusterLabels()
+func TestChainProviderSkipsErrNotConfigured(t *testing.T) {
+	chain := NewChainProvider(NewCRDProvider(nil), &StaticProvider{Fields: StaticFields{ReconciliationTimeout: Ptr(120 * time.Second)}})
+	d, err := chain.ReconciliationTimeout()
 	require.NoError(t, err)
-	assert.Equal(t, []string{"env"}, labels)
-}
-
-func TestConfiguredFallback(t *testing.T) {
-	t.Run("ErrNotConfigured falls back to legacy", func(t *testing.T) {
-		v, err := configured(
-			func() (string, error) { return "", ErrNotConfigured },
-			func() (string, error) { return "legacy", nil },
-		)
-		require.NoError(t, err)
-		assert.Equal(t, "legacy", v)
-	})
-
-	t.Run("non-ErrNotConfigured CRD error does not fall back", func(t *testing.T) {
-		crdErr := errors.New("crd boom")
-		legacyCalled := false
-		v, err := configured(
-			func() (string, error) { return "", crdErr },
-			func() (string, error) {
-				legacyCalled = true
-				return "legacy", nil
-			},
-		)
-		assert.ErrorIs(t, err, crdErr)
-		assert.Empty(t, v)
-		assert.False(t, legacyCalled)
-	})
-
-	t.Run("CRD success skips legacy", func(t *testing.T) {
-		legacyCalled := false
-		v, err := configured(
-			func() (string, error) { return "crd", nil },
-			func() (string, error) {
-				legacyCalled = true
-				return "legacy", nil
-			},
-		)
-		require.NoError(t, err)
-		assert.Equal(t, "crd", v)
-		assert.False(t, legacyCalled)
-	})
-}
-
-type stubControllerLegacy struct {
-	statusRefresh, statusHard, statusJitter time.Duration
-	syncTimeout, selfHealTimeout            time.Duration
-	selfHealBackoff                         *wait.Backoff
-	ignoreNormalizer                        normalizers.IgnoreNormalizerOpts
-	metricsLabels                           []string
-	serverSideDiff, persistHealth           bool
-	repoErrorGrace                          time.Duration
-}
-
-func (s *stubControllerLegacy) LegacyStatusRefreshTimeout() time.Duration {
-	return s.statusRefresh
-}
-
-func (s *stubControllerLegacy) LegacyStatusHardRefreshTimeout() time.Duration {
-	return s.statusHard
-}
-func (s *stubControllerLegacy) LegacyStatusRefreshJitter() time.Duration { return s.statusJitter }
-func (s *stubControllerLegacy) LegacySyncTimeout() time.Duration         { return s.syncTimeout }
-func (s *stubControllerLegacy) LegacySelfHealTimeout() time.Duration     { return s.selfHealTimeout }
-
-func (s *stubControllerLegacy) LegacySelfHealBackoff() *wait.Backoff { return s.selfHealBackoff }
-
-func (s *stubControllerLegacy) LegacyIgnoreNormalizerOpts() normalizers.IgnoreNormalizerOpts {
-	return s.ignoreNormalizer
-}
-func (s *stubControllerLegacy) LegacyMetricsClusterLabels() []string { return s.metricsLabels }
-func (s *stubControllerLegacy) LegacyServerSideDiff() bool           { return s.serverSideDiff }
-func (s *stubControllerLegacy) LegacyPersistResourceHealth() bool    { return s.persistHealth }
-func (s *stubControllerLegacy) LegacyRepoErrorGracePeriod() time.Duration {
-	return s.repoErrorGrace
+	assert.Equal(t, 120*time.Second, d)
 }

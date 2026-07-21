@@ -11,9 +11,9 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
-// ErrNotConfigured is returned by CRDProvider when a field is absent from the
-// ArgoCDConfiguration CR (or the CR itself is absent). HybridProvider treats
-// this sentinel as "fall back to LegacyProvider".
+// ErrNotConfigured is returned by a leaf Provider when it does not own / does
+// not have a value for a field. ChainProvider skips links that return this
+// sentinel and continues to the next link.
 var ErrNotConfigured = errors.New("config: not configured")
 
 // Provider is the typed config API for one Argo CD process.
@@ -28,8 +28,9 @@ var ErrNotConfigured = errors.New("config: not configured")
 //     this shape because CRD-backed reads can fail via a Kubernetes client or
 //     informer. Implementations must never omit the error return.
 //
-// Production processes use HybridProvider (CRD first, Legacy fallback on
-// ErrNotConfigured). Tests typically inject mocks.Provider from mockery.
+// Production processes compose leaf providers with ChainProvider (Static /
+// SettingsManager / Env; CRD is inserted once wired). Tests typically inject
+// mocks.Provider from mockery, or a StaticProvider literal.
 type Provider interface {
 	AllowedNodeLabels() ([]string, error)
 	AppInstanceLabelKey() (string, error)
@@ -67,19 +68,32 @@ type Provider interface {
 	SettingsManager() (*settings.SettingsManager, error)
 	SourceHydratorCommitMessageTemplate() (string, error)
 	// Subscribe registers for argocd-cm/secret change notifications when the
-	// backing implementation supports it (LegacyProvider / HybridProvider).
+	// backing implementation supports it (SettingsManagerProvider / ChainProvider).
 	Subscribe(subCh chan<- *settings.ArgoCDSettings)
 	SyncTimeout() (time.Duration, error)
 	TrackingMethod() (string, error)
 	Unsubscribe(subCh chan<- *settings.ArgoCDSettings)
 }
 
-// configured tries the CRD-backed getter first and falls back to Legacy when
-// the CRD source reports ErrNotConfigured. Other CRD errors propagate.
-func configured[T any](crdFn, legacyFn func() (T, error)) (T, error) {
-	v, err := crdFn()
-	if errors.Is(err, ErrNotConfigured) {
-		return legacyFn()
+// firstConfigured tries each link in order and returns the first result that is
+// not ErrNotConfigured. Other errors propagate immediately. If every link
+// returns ErrNotConfigured, that sentinel is returned.
+func firstConfigured[T any](fn func(Provider) (T, error), links []Provider) (T, error) {
+	var zero T
+	var lastNotConfigured error
+	for _, link := range links {
+		v, err := fn(link)
+		if err == nil {
+			return v, nil
+		}
+		if errors.Is(err, ErrNotConfigured) {
+			lastNotConfigured = err
+			continue
+		}
+		return zero, err
 	}
-	return v, err
+	if lastNotConfigured != nil {
+		return zero, lastNotConfigured
+	}
+	return zero, ErrNotConfigured
 }
