@@ -597,8 +597,12 @@ func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Con
 	namesSet := map[string]bool{}
 	for i := range desiredApplications {
 		app := &desiredApplications[i]
-		if app.Name == "" && app.GenerateName == "" {
-			errorsByApp[app.QualifiedName()] = fmt.Errorf("ApplicationSet %s contains an application with no name; a name must be set in the template's metadata.name or via a templatePatch", applicationSetInfo.Name)
+		// ApplicationSet tracks and reconciles generated Applications by name, so every generated
+		// Application must have a concrete name. generateName is not supported: the API server would
+		// assign a random name that subsequent reconciles could never match back to the desired app.
+		// A missing name commonly happens when the name is only set via a templatePatch that renders empty.
+		if app.Name == "" {
+			errorsByApp[app.QualifiedName()] = fmt.Errorf("ApplicationSet %s contains an application with no name; a name must be set in the template's metadata.name or via a templatePatch (generateName is not supported)", applicationSetInfo.Name)
 			continue
 		}
 		if namesSet[app.Name] {

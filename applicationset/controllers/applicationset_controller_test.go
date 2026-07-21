@@ -2549,10 +2549,10 @@ func TestValidateGeneratedApplications(t *testing.T) {
 					},
 				},
 			},
-			validationErrors: map[string]error{"": errors.New("ApplicationSet  contains an application with no name; a name must be set in the template's metadata.name or via a templatePatch")},
+			validationErrors: map[string]error{"": errors.New("ApplicationSet  contains an application with no name; a name must be set in the template's metadata.name or via a templatePatch (generateName is not supported)")},
 		},
 		{
-			name: "app with only generateName should not return error",
+			name: "app with only generateName should return error (generateName is not supported)",
 			apps: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
@@ -2572,7 +2572,7 @@ func TestValidateGeneratedApplications(t *testing.T) {
 					},
 				},
 			},
-			validationErrors: map[string]error{},
+			validationErrors: map[string]error{"": errors.New("ApplicationSet  contains an application with no name; a name must be set in the template's metadata.name or via a templatePatch (generateName is not supported)")},
 		},
 		{
 			name: "can't have both name and server defined",
