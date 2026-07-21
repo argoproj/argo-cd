@@ -29,12 +29,9 @@ var ErrNotConfigured = errors.New("config: not configured")
 //     never omit the error return.
 //
 // Production processes compose leaf providers with ChainProvider (Static /
-// SettingsManager / Env; CRD is inserted once wired). Tests typically inject
-// mocks.Provider from mockery, or a StaticProvider literal.
+// SettingsManagerProvider / Env; CRD is inserted once wired). Tests typically
+// inject mocks.Provider from mockery, or a StaticProvider literal.
 type Provider interface {
-	// SettingsManager is a temporary escape hatch for call sites still needing
-	// the raw manager during migration. Prefer typed getters when possible.
-	SettingsManager(ctx context.Context) (*settings.SettingsManager, error)
 	// Subscribe registers for argocd-cm/secret change notifications when the
 	// backing implementation supports it (SettingsManagerProvider / ChainProvider).
 	Subscribe(subCh chan<- *settings.ArgoCDSettings)

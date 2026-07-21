@@ -16,10 +16,6 @@ import (
 // no-ops lifecycle methods. Leaf providers embed it and override owned methods.
 type notConfiguredProvider struct{}
 
-func (notConfiguredProvider) SettingsManager(_ context.Context) (*settings.SettingsManager, error) {
-	return nil, ErrNotConfigured
-}
-
 func (notConfiguredProvider) Subscribe(subCh chan<- *settings.ArgoCDSettings) {}
 
 func (notConfiguredProvider) Unsubscribe(subCh chan<- *settings.ArgoCDSettings) {}

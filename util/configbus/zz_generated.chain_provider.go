@@ -32,12 +32,6 @@ func NewChainProvider(links ...Provider) *ChainProvider {
 // Ensure ChainProvider implements Provider.
 var _ Provider = (*ChainProvider)(nil)
 
-func (c *ChainProvider) SettingsManager(ctx context.Context) (*settings.SettingsManager, error) {
-	return firstConfigured(func(p Provider) (*settings.SettingsManager, error) {
-		return p.SettingsManager(ctx)
-	}, c.links)
-}
-
 func (c *ChainProvider) Subscribe(subCh chan<- *settings.ArgoCDSettings) {
 	for _, l := range c.links {
 		l.Subscribe(subCh)

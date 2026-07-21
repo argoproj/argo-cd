@@ -28,10 +28,6 @@ func NewSettingsManagerProvider(mgr *settings.SettingsManager) *SettingsManagerP
 // Ensure SettingsManagerProvider implements Provider.
 var _ Provider = (*SettingsManagerProvider)(nil)
 
-func (p *SettingsManagerProvider) SettingsManager(_ context.Context) (*settings.SettingsManager, error) {
-	return p.mgr, nil
-}
-
 func (p *SettingsManagerProvider) Subscribe(subCh chan<- *settings.ArgoCDSettings) {
 	p.mgr.Subscribe(subCh)
 }
