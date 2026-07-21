@@ -17,6 +17,7 @@ import (
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube/kubetest"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
+	"go.etcd.io/etcd/api/v3/v3rpc/rpctypes"
 	"google.golang.org/grpc"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/labels"
@@ -4147,4 +4148,99 @@ func TestPersistAppStatus_AnnotationManagement(t *testing.T) {
 		assert.True(t, hasOther, "other annotations should be preserved")
 		assert.Equal(t, "other-value", otherValue)
 	})
+}
+
+func TestIsOperationStatePayloadTooLargeError(t *testing.T) {
+	// "etcdserver: request is too large" — carried by rpctypes.ErrGRPCRequestTooLarge
+	t.Run("etcdserver: request is too large", func(t *testing.T) {
+		assert.True(t, isOperationStatePayloadTooLargeError(rpctypes.ErrGRPCRequestTooLarge))
+	})
+
+	// "rpc error: code = ResourceExhausted desc = trying to send message larger than max" —
+	// arrives as a plain string after being unwrapped through the REST layer
+	t.Run("rpc error: code = ResourceExhausted desc = trying to send message larger than max", func(t *testing.T) {
+		err := errors.New("rpc error: code = ResourceExhausted desc = trying to send message larger than max")
+		assert.True(t, isOperationStatePayloadTooLargeError(err))
+	})
+
+	// "Request entity too large: limit is 3145728" — HTTP 413 from kube-apiserver
+	t.Run("Request entity too large: limit is 3145728", func(t *testing.T) {
+		err := apierrors.NewRequestEntityTooLargeError("limit is 3145728")
+		assert.True(t, isOperationStatePayloadTooLargeError(err))
+	})
+
+	t.Run("unrelated error returns false", func(t *testing.T) {
+		assert.False(t, isOperationStatePayloadTooLargeError(errors.New("some other error")))
+	})
+
+	t.Run("error is nil, returns false", func(t *testing.T) {
+		assert.False(t, isOperationStatePayloadTooLargeError(nil))
+	})
+}
+
+func TestSetOperationStateTooLargeRequest(t *testing.T) {
+	newState := &v1alpha1.OperationState{
+		Operation: v1alpha1.Operation{
+			Sync: &v1alpha1.SyncOperation{Revision: "HEAD"},
+		},
+		Phase:   synccommon.OperationRunning,
+		Message: "running",
+	}
+
+	tests := []struct {
+		name           string
+		setupApp       func() *v1alpha1.Application
+		wantPhase      string
+		wantMsgContain string
+	}{
+		{
+			name: "operationState is nil",
+			setupApp: func() *v1alpha1.Application {
+				app := newFakeApp()
+				app.Status.OperationState = nil
+				return app
+			},
+		},
+		{
+			name: "operationState is not nil",
+			setupApp: func() *v1alpha1.Application {
+				return newFakeApp()
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := tt.setupApp()
+			ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+
+			patchCallCount := 0
+			fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+			defaultReactor := fakeAppCs.ReactionChain[0]
+			fakeAppCs.ReactionChain = nil
+			fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+				return defaultReactor.React(action)
+			})
+			var capturedPatch []byte
+			fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+				patchCallCount++
+				if patchCallCount == 1 {
+					return true, nil, apierrors.NewRequestEntityTooLargeError("limit is 3145728")
+				}
+				capturedPatch = action.(kubetesting.PatchAction).GetPatch()
+				return defaultReactor.React(action)
+			})
+
+			ctrl.setOperationState(t.Context(), app, newState)
+
+			assert.Equal(t, 2, patchCallCount)
+
+			var patchedObj map[string]any
+			require.NoError(t, json.Unmarshal(capturedPatch, &patchedObj))
+			phase, _, _ := unstructured.NestedString(patchedObj, "status", "operationState", "phase")
+			message, _, _ := unstructured.NestedString(patchedObj, "status", "operationState", "message")
+			assert.Equal(t, string(synccommon.OperationError), phase)
+			assert.Contains(t, message, "exceeds the Kubernetes resource size limit")
+		})
+	}
 }
