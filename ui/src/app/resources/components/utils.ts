@@ -45,6 +45,14 @@ export function openResourceDetails(ctx: ContextApis, resource: models.Resource)
     );
 }
 
+/**
+ * Navigate to the owning Application and open the resource's details panel there.
+ * Matches the DETAILS button in the read-only resource panel (opens details in the app context).
+ */
+export function openResourceDetailsInApplication(ctx: ContextApis, resource: models.Resource, e?: React.MouseEvent) {
+    ctx.navigation.goto(getManagingApplicationUrl(resource.appName, resource.appNamespace), {node: resourceNodeUrl(resource)}, e ? {event: e} : undefined);
+}
+
 /** `highlight` query value: highlight a resource in list/tree view without opening the details panel. */
 export function resourceHighlightUrl(resource: models.Resource): string {
     return resourceNodeUrl(resource);

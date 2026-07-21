@@ -1,16 +1,16 @@
-import {DropDown, Tooltip} from 'argo-ui';
+import {Tooltip} from 'argo-ui';
 import * as React from 'react';
 import classNames from 'classnames';
 import {Key, KeybindingContext, useNav} from 'argo-ui/v2';
 import {take} from 'rxjs/operators';
-import {Cluster, DataLoader} from '../../../shared/components';
+import {ActionMenu, Cluster, DataLoader} from '../../../shared/components';
 import {Consumer, Context, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ResourceIcon} from '../../../applications/components/resource-icon';
 import {ResourceLabel} from '../../../applications/components/resource-label';
 import * as AppUtils from '../../../applications/components/utils';
-import {navigateToManagingApplication, openResourceDetails, resourceHealthState, resourceHealthStatus} from '../utils';
+import {navigateToManagingApplication, openResourceDetails, openResourceDetailsInApplication, resourceHealthState, resourceHealthStatus} from '../utils';
 import './resources-table.scss';
 import {TruncatedTextTooltip, useTruncatedElement} from './truncated-text-tooltip';
 import {RESOURCE_SORT_KEY_TO_TITLE, RESOURCE_SORT_TITLE_TO_KEY, RESOURCES_LIST_SORT_KEY, ResourceSortKey} from './resources-sort';
@@ -239,52 +239,12 @@ const ResourceTableRow = (props: {
                 </div>
             </div>
             <div className='application-details__node-menu resources-table__row-menu' onClick={e => e.stopPropagation()}>
-                <DropDown
-                    isMenu={true}
-                    anchor={() => (
-                        <button type='button' className='argo-button argo-button--light argo-button--lg argo-button--short' onMouseDown={() => document.body.click()}>
-                            <i className='fa fa-ellipsis-v' />
-                        </button>
-                    )}>
-                    {() => (
-                        <ul>
-                            <li
-                                className='application-details__action-menu'
-                                tabIndex={0}
-                                onClick={e => {
-                                    e.stopPropagation();
-                                    openDetails(ctx, resource);
-                                    document.body.click();
-                                }}
-                                onKeyDown={e => {
-                                    if (e.key === 'Enter') {
-                                        e.stopPropagation();
-                                        openDetails(ctx, resource);
-                                        document.body.click();
-                                    }
-                                }}>
-                                <i className='fa fa-fw fa-info-circle' /> Details
-                            </li>
-                            <li
-                                className='application-details__action-menu'
-                                tabIndex={0}
-                                onClick={e => {
-                                    e.stopPropagation();
-                                    navigateToApplication(ctx, resource);
-                                    document.body.click();
-                                }}
-                                onKeyDown={e => {
-                                    if (e.key === 'Enter') {
-                                        e.stopPropagation();
-                                        navigateToApplication(ctx, resource);
-                                        document.body.click();
-                                    }
-                                }}>
-                                <i className='fa fa-fw fa-external-link-alt' /> Open application
-                            </li>
-                        </ul>
-                    )}
-                </DropDown>
+                <ActionMenu
+                    items={[
+                        {title: 'Resource Details', iconClassName: 'fa fa-fw fa-info-circle', action: () => openResourceDetailsInApplication(ctx, resource)},
+                        {title: 'Open Application', iconClassName: 'fa fa-fw fa-external-link-alt', action: () => navigateToApplication(ctx, resource)}
+                    ]}
+                />
             </div>
         </div>
     );
