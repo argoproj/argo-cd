@@ -73,6 +73,43 @@ function processPath(path: string) {
     return '';
 }
 
+const DIRECTORY_GLOB_HINT = 'Optional glob expression used to match files under the application source path. Examples: *.yaml, some-directory/*, {*.yml,*.yaml}.';
+
+function validateDirectoryGlob(pattern?: string) {
+    if (!pattern) {
+        return null;
+    }
+
+    const stack: string[] = [];
+    const openingPairs: {[key: string]: string} = {'[': ']', '{': '}'};
+    const closingPairs: {[key: string]: string} = {']': '[', '}': '{'};
+
+    let escaped = false;
+    for (const char of pattern) {
+        if (escaped) {
+            escaped = false;
+            continue;
+        }
+        if (char === '\\') {
+            escaped = true;
+        } else if (char === '[' || char === '{') {
+            stack.push(char);
+        } else if (char === ']' || char === '}') {
+            const expectedOpening = closingPairs[char];
+            const actualOpening = stack.pop();
+            if (!actualOpening) {
+                return `Expected opening '${expectedOpening}' before closing '${char}' in glob pattern`;
+            }
+            if (actualOpening !== expectedOpening) {
+                return `Expected '${openingPairs[actualOpening]}' to close '${actualOpening}' but found '${char}'`;
+            }
+        }
+    }
+
+    const actualOpening = stack[stack.length - 1];
+    return actualOpening ? `Expected '${openingPairs[actualOpening]}' to close '${actualOpening}' in glob pattern` : null;
+}
+
 function getParamsEditableItems(
     app: models.Application,
     title: string,
@@ -340,6 +377,8 @@ export const ApplicationParameters = (props: {
         const jsonnetTlas = isMulti ? `spec.sources[${ind}].directory.jsonnet.tlas` : 'spec.source.directory.jsonnet.tlas';
         const jsonnetExtVars = isMulti ? `spec.sources[${ind}].directory.jsonnet.extVars` : 'spec.source.directory.jsonnet.extVars';
         const helmValuesPath = isMulti ? `spec.sources[${ind}].helm.values` : 'spec.source.helm.values';
+        const directoryIncludePath = isMulti ? `spec.sources[${ind}].directory.include` : 'spec.source.directory.include';
+        const directoryExcludePath = isMulti ? `spec.sources[${ind}].directory.exclude` : 'spec.source.directory.exclude';
 
         return (
             <div className='application-parameters'>
@@ -403,6 +442,11 @@ export const ApplicationParameters = (props: {
                         for (const fieldPath of [jsonnetTlas, jsonnetExtVars]) {
                             const invalid = ((getNestedField(updatedApp, fieldPath) || []) as Array<models.JsonnetVar>).filter(item => !item.name && !item.code);
                             errors[fieldPath] = invalid.length > 0 ? 'All fields must have name' : null;
+                        }
+
+                        for (const fieldPath of [directoryIncludePath, directoryExcludePath]) {
+                            const value = getNestedField(updatedApp, fieldPath);
+                            errors[fieldPath] = validateDirectoryGlob(typeof value === 'string' ? value : '');
                         }
 
                         const helmSrc = isMulti ? updatedApp.spec.sources[ind] : updatedApp.spec.source;
@@ -1073,6 +1117,7 @@ function gatherDetails(
 
         attributes.push({
             title: 'INCLUDE',
+            hint: DIRECTORY_GLOB_HINT,
             view: directory && directory.include,
             edit: (formApi: FormApi) => (
                 <FormField formApi={formApi} field={isMultiSource ? 'spec.sources[' + ind + '].directory.include' : 'spec.source.directory.include'} component={Text} />
@@ -1081,6 +1126,7 @@ function gatherDetails(
 
         attributes.push({
             title: 'EXCLUDE',
+            hint: DIRECTORY_GLOB_HINT,
             view: directory && directory.exclude,
             edit: (formApi: FormApi) => (
                 <FormField formApi={formApi} field={isMultiSource ? 'spec.sources[' + ind + '].directory.exclude' : 'spec.source.directory.exclude'} component={Text} />
