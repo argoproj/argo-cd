@@ -29,77 +29,78 @@ import (
 )
 
 type AppOptions struct {
-	repoURL                         string
-	appPath                         string
-	chart                           string
-	env                             string
-	revision                        string
-	tagPrefix                       string
-	revisionHistoryLimit            int
-	destName                        string
-	destServer                      string
-	destNamespace                   string
-	Parameters                      []string
-	valuesFiles                     []string
-	ignoreMissingValueFiles         bool
-	values                          string
-	releaseName                     string
-	helmSets                        []string
-	helmSetStrings                  []string
-	helmSetFiles                    []string
-	helmVersion                     string
-	helmPassCredentials             bool
-	helmSkipCrds                    bool
-	helmSkipSchemaValidation        bool
-	helmSkipTests                   bool
-	helmNamespace                   string
-	helmKubeVersion                 string
-	helmApiVersions                 []string //nolint:revive //FIXME(var-naming)
-	project                         string
-	syncPolicy                      string
-	syncOptions                     []string
-	autoPrune                       bool
-	selfHeal                        bool
-	allowEmpty                      bool
-	namePrefix                      string
-	nameSuffix                      string
-	directoryRecurse                bool
-	configManagementPlugin          string
-	jsonnetTlaStr                   []string
-	jsonnetTlaCode                  []string
-	jsonnetExtVarStr                []string
-	jsonnetExtVarCode               []string
-	jsonnetLibs                     []string
-	kustomizeImages                 []string
-	kustomizeReplicas               []string
-	kustomizeVersion                string
-	kustomizeCommonLabels           []string
-	kustomizeCommonAnnotations      []string
-	kustomizeLabelWithoutSelector   bool
-	kustomizeLabelIncludeTemplates  bool
-	kustomizeForceCommonLabels      bool
-	kustomizeForceCommonAnnotations bool
-	kustomizeNamespace              string
-	kustomizeKubeVersion            string
-	kustomizeApiVersions            []string //nolint:revive //FIXME(var-naming)
-	ignoreMissingComponents         bool
-	pluginEnvs                      []string
-	Validate                        bool
-	directoryExclude                string
-	directoryInclude                string
-	retryLimit                      int64
-	retryBackoffDuration            time.Duration
-	retryBackoffMaxDuration         time.Duration
-	retryBackoffFactor              int64
-	retryRefresh                    bool
-	ref                             string
-	SourceName                      string
-	drySourceRepo                   string
-	drySourceRevision               string
-	drySourcePath                   string
-	syncSourceBranch                string
-	syncSourcePath                  string
-	hydrateToBranch                 string
+	repoURL                             string
+	appPath                             string
+	chart                               string
+	env                                 string
+	revision                            string
+	tagPrefix                           string
+	revisionHistoryLimit                int
+	destName                            string
+	destServer                          string
+	destNamespace                       string
+	Parameters                          []string
+	valuesFiles                         []string
+	ignoreMissingValueFiles             bool
+	values                              string
+	releaseName                         string
+	helmSets                            []string
+	helmSetStrings                      []string
+	helmSetFiles                        []string
+	helmVersion                         string
+	helmPassCredentials                 bool
+	helmSkipCrds                        bool
+	helmSkipSchemaValidation            bool
+	helmSkipTests                       bool
+	helmNamespace                       string
+	helmKubeVersion                     string
+	helmApiVersions                     []string //nolint:revive //FIXME(var-naming)
+	project                             string
+	syncPolicy                          string
+	syncOptions                         []string
+	autoPrune                           bool
+	selfHeal                            bool
+	allowEmpty                          bool
+	namePrefix                          string
+	nameSuffix                          string
+	directoryRecurse                    bool
+	directoryDisableExtensionFilter     bool
+	configManagementPlugin              string
+	jsonnetTlaStr                       []string
+	jsonnetTlaCode                      []string
+	jsonnetExtVarStr                    []string
+	jsonnetExtVarCode                   []string
+	jsonnetLibs                         []string
+	kustomizeImages                     []string
+	kustomizeReplicas                   []string
+	kustomizeVersion                    string
+	kustomizeCommonLabels               []string
+	kustomizeCommonAnnotations          []string
+	kustomizeLabelWithoutSelector       bool
+	kustomizeLabelIncludeTemplates      bool
+	kustomizeForceCommonLabels          bool
+	kustomizeForceCommonAnnotations     bool
+	kustomizeNamespace                  string
+	kustomizeKubeVersion                string
+	kustomizeApiVersions                []string //nolint:revive //FIXME(var-naming)
+	ignoreMissingComponents             bool
+	pluginEnvs                          []string
+	Validate                            bool
+	directoryExclude                    string
+	directoryInclude                    string
+	retryLimit                          int64
+	retryBackoffDuration                time.Duration
+	retryBackoffMaxDuration             time.Duration
+	retryBackoffFactor                  int64
+	retryRefresh                        bool
+	ref                                 string
+	SourceName                          string
+	drySourceRepo                       string
+	drySourceRevision                   string
+	drySourcePath                       string
+	syncSourceBranch                    string
+	syncSourcePath                      string
+	hydrateToBranch                     string
 }
 
 func AddAppFlags(command *cobra.Command, opts *AppOptions) {
@@ -145,6 +146,7 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringVar(&opts.nameSuffix, "namesuffix", "", "Kustomize namesuffix")
 	command.Flags().StringVar(&opts.kustomizeVersion, "kustomize-version", "", "Kustomize version")
 	command.Flags().BoolVar(&opts.directoryRecurse, "directory-recurse", false, "Recurse directory")
+	command.Flags().BoolVar(&opts.directoryDisableExtensionFilter, "directory-disable-extension-filter", false, "Disable the built-in file-extension filter so that include/exclude patterns can match files with custom extensions (e.g. *.yaml.sealed). By default (false), only files with a .yaml, .yml, .json, or .jsonnet extension are considered manifests")
 	command.Flags().StringVar(&opts.configManagementPlugin, "config-management-plugin", "", "Config management plugin name")
 	command.Flags().StringArrayVar(&opts.jsonnetTlaStr, "jsonnet-tla-str", []string{}, "Jsonnet top level string arguments")
 	command.Flags().StringArrayVar(&opts.jsonnetTlaCode, "jsonnet-tla-code", []string{}, "Jsonnet top level code arguments")
@@ -734,6 +736,12 @@ func ConstructSource(source *argoappv1.ApplicationSource, appOpts AppOptions, fl
 				source.Directory.Recurse = appOpts.directoryRecurse
 			} else {
 				source.Directory = &argoappv1.ApplicationSourceDirectory{Recurse: appOpts.directoryRecurse}
+			}
+		case "directory-disable-extension-filter":
+			if source.Directory != nil {
+				source.Directory.DisableExtensionFilter = appOpts.directoryDisableExtensionFilter
+			} else {
+				source.Directory = &argoappv1.ApplicationSourceDirectory{DisableExtensionFilter: appOpts.directoryDisableExtensionFilter}
 			}
 		case "directory-exclude":
 			if source.Directory != nil {

@@ -23,6 +23,7 @@ import (
 
 	imagev1 "github.com/opencontainers/image-spec/specs-go/v1"
 	log "github.com/sirupsen/logrus"
+	logtest "github.com/sirupsen/logrus/hooks/test"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
@@ -2723,7 +2724,7 @@ func Test_getPotentiallyValidManifestFile(t *testing.T) {
 		require.NoError(t, err)
 
 		walkFor(t, appDir, filePath, func(info fs.FileInfo) {
-			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(filePath, info, appDir, appDir, "", "")
+			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(filePath, info, appDir, appDir, "", "", true)
 			assert.Nil(t, realFileInfo)
 			assert.Empty(t, ignoreMessage)
 			require.NoError(t, err)
@@ -2741,7 +2742,7 @@ func Test_getPotentiallyValidManifestFile(t *testing.T) {
 		require.NoError(t, err)
 
 		walkFor(t, appDir, aPath, func(info fs.FileInfo) {
-			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(aPath, info, appDir, appDir, "", "")
+			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(aPath, info, appDir, appDir, "", "", true)
 			assert.Nil(t, realFileInfo)
 			assert.Empty(t, ignoreMessage)
 			assert.ErrorContains(t, err, "too many links")
@@ -2757,7 +2758,7 @@ func Test_getPotentiallyValidManifestFile(t *testing.T) {
 		require.NoError(t, err)
 
 		walkFor(t, appDir, aPath, func(info fs.FileInfo) {
-			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(aPath, info, appDir, appDir, "", "")
+			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(aPath, info, appDir, appDir, "", "", true)
 			assert.Nil(t, realFileInfo)
 			assert.NotEmpty(t, ignoreMessage)
 			require.NoError(t, err)
@@ -2772,7 +2773,7 @@ func Test_getPotentiallyValidManifestFile(t *testing.T) {
 		require.NoError(t, err)
 
 		walkFor(t, appDir, linkPath, func(info fs.FileInfo) {
-			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(linkPath, info, appDir, appDir, "", "")
+			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(linkPath, info, appDir, appDir, "", "", true)
 			assert.Nil(t, realFileInfo)
 			assert.Empty(t, ignoreMessage)
 			assert.ErrorContains(t, err, "illegal filepath in symlink")
@@ -2790,7 +2791,7 @@ func Test_getPotentiallyValidManifestFile(t *testing.T) {
 		require.NoError(t, err)
 
 		walkFor(t, appDir, linkPath, func(info fs.FileInfo) {
-			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(linkPath, info, appDir, appDir, "", "")
+			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(linkPath, info, appDir, appDir, "", "", true)
 			assert.Nil(t, realFileInfo)
 			assert.Contains(t, ignoreMessage, "non-regular file")
 			require.NoError(t, err)
@@ -2807,7 +2808,7 @@ func Test_getPotentiallyValidManifestFile(t *testing.T) {
 		require.NoError(t, err)
 
 		walkFor(t, appDir, filePath, func(info fs.FileInfo) {
-			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(filePath, info, appDir, appDir, "*.json", "")
+			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(filePath, info, appDir, appDir, "*.json", "", true)
 			assert.Nil(t, realFileInfo)
 			assert.Empty(t, ignoreMessage)
 			require.NoError(t, err)
@@ -2824,7 +2825,7 @@ func Test_getPotentiallyValidManifestFile(t *testing.T) {
 		require.NoError(t, err)
 
 		walkFor(t, appDir, filePath, func(info fs.FileInfo) {
-			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(filePath, info, appDir, appDir, "", "excluded.*")
+			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(filePath, info, appDir, appDir, "", "excluded.*", true)
 			assert.Nil(t, realFileInfo)
 			assert.Empty(t, ignoreMessage)
 			require.NoError(t, err)
@@ -2845,7 +2846,7 @@ func Test_getPotentiallyValidManifestFile(t *testing.T) {
 		require.NoError(t, err)
 
 		walkFor(t, appDir, linkPath, func(info fs.FileInfo) {
-			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(linkPath, info, appDir, appDir, "", "")
+			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(linkPath, info, appDir, appDir, "", "", true)
 			assert.NotNil(t, realFileInfo)
 			assert.Empty(t, ignoreMessage)
 			require.NoError(t, err)
@@ -2862,7 +2863,7 @@ func Test_getPotentiallyValidManifestFile(t *testing.T) {
 		require.NoError(t, err)
 
 		walkFor(t, appDir, filePath, func(info fs.FileInfo) {
-			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(filePath, info, appDir, appDir, "", "")
+			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(filePath, info, appDir, appDir, "", "", true)
 			assert.NotNil(t, realFileInfo)
 			assert.Empty(t, ignoreMessage)
 			require.NoError(t, err)
@@ -2883,7 +2884,7 @@ func Test_getPotentiallyValidManifestFile(t *testing.T) {
 		require.NoError(t, err)
 
 		walkFor(t, appDir, linkPath, func(info fs.FileInfo) {
-			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(linkPath, info, appDir, appDir, "", "")
+			realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(linkPath, info, appDir, appDir, "", "", true)
 			assert.NotNil(t, realFileInfo)
 			assert.Equal(t, filepath.Base(filePath), realFileInfo.Name())
 			assert.Empty(t, ignoreMessage)
@@ -2906,7 +2907,7 @@ func Test_getPotentiallyValidManifests(t *testing.T) {
 		err = os.Chmod(appDir, 0o000)
 		require.NoError(t, err)
 
-		manifests, err := getPotentiallyValidManifests(logCtx, appDir, appDir, false, "", "", resource.MustParse("0"))
+		manifests, err := getPotentiallyValidManifests(logCtx, appDir, appDir, false, true, "", "", resource.MustParse("0"))
 		assert.Empty(t, manifests)
 		require.Error(t, err)
 
@@ -2918,19 +2919,19 @@ func Test_getPotentiallyValidManifests(t *testing.T) {
 	})
 
 	t.Run("no recursion when recursion is disabled", func(t *testing.T) {
-		manifests, err := getPotentiallyValidManifests(logCtx, "./testdata/recurse", "./testdata/recurse", false, "", "", resource.MustParse("0"))
+		manifests, err := getPotentiallyValidManifests(logCtx, "./testdata/recurse", "./testdata/recurse", false, true, "", "", resource.MustParse("0"))
 		assert.Len(t, manifests, 1)
 		require.NoError(t, err)
 	})
 
 	t.Run("recursion when recursion is enabled", func(t *testing.T) {
-		manifests, err := getPotentiallyValidManifests(logCtx, "./testdata/recurse", "./testdata/recurse", true, "", "", resource.MustParse("0"))
+		manifests, err := getPotentiallyValidManifests(logCtx, "./testdata/recurse", "./testdata/recurse", true, true, "", "", resource.MustParse("0"))
 		assert.Len(t, manifests, 2)
 		require.NoError(t, err)
 	})
 
 	t.Run("non-JSON/YAML is skipped", func(t *testing.T) {
-		manifests, err := getPotentiallyValidManifests(logCtx, "./testdata/non-manifest-file", "./testdata/non-manifest-file", false, "", "", resource.MustParse("0"))
+		manifests, err := getPotentiallyValidManifests(logCtx, "./testdata/non-manifest-file", "./testdata/non-manifest-file", false, true, "", "", resource.MustParse("0"))
 		assert.Empty(t, manifests)
 		require.NoError(t, err)
 	})
@@ -2945,14 +2946,14 @@ func Test_getPotentiallyValidManifests(t *testing.T) {
 		t.Chdir(testDir)
 		require.NoError(t, fileutil.CreateSymlink(t, "a.json", "b.json"))
 		require.NoError(t, fileutil.CreateSymlink(t, "b.json", "a.json"))
-		manifests, err := getPotentiallyValidManifests(logCtx, "./testdata/circular-link", "./testdata/circular-link", false, "", "", resource.MustParse("0"))
+		manifests, err := getPotentiallyValidManifests(logCtx, "./testdata/circular-link", "./testdata/circular-link", false, true, "", "", resource.MustParse("0"))
 		assert.Empty(t, manifests)
 		require.Error(t, err)
 	})
 
 	t.Run("out-of-bounds symlink should throw an error", func(t *testing.T) {
 		require.DirExists(t, "./testdata/out-of-bounds-link")
-		manifests, err := getPotentiallyValidManifests(logCtx, "./testdata/out-of-bounds-link", "./testdata/out-of-bounds-link", false, "", "", resource.MustParse("0"))
+		manifests, err := getPotentiallyValidManifests(logCtx, "./testdata/out-of-bounds-link", "./testdata/out-of-bounds-link", false, true, "", "", resource.MustParse("0"))
 		assert.Empty(t, manifests)
 		require.Error(t, err)
 	})
@@ -2962,13 +2963,13 @@ func Test_getPotentiallyValidManifests(t *testing.T) {
 		require.NoError(t, err)
 		appPath, err := filepath.Abs("./testdata/in-bounds-link/app")
 		require.NoError(t, err)
-		manifests, err := getPotentiallyValidManifests(logCtx, appPath, repoRoot, false, "", "", resource.MustParse("0"))
+		manifests, err := getPotentiallyValidManifests(logCtx, appPath, repoRoot, false, true, "", "", resource.MustParse("0"))
 		assert.Len(t, manifests, 1)
 		require.NoError(t, err)
 	})
 
 	t.Run("symlink to nowhere should be ignored", func(t *testing.T) {
-		manifests, err := getPotentiallyValidManifests(logCtx, "./testdata/link-to-nowhere", "./testdata/link-to-nowhere", false, "", "", resource.MustParse("0"))
+		manifests, err := getPotentiallyValidManifests(logCtx, "./testdata/link-to-nowhere", "./testdata/link-to-nowhere", false, true, "", "", resource.MustParse("0"))
 		assert.Empty(t, manifests)
 		require.NoError(t, err)
 	})
@@ -2979,20 +2980,190 @@ func Test_getPotentiallyValidManifests(t *testing.T) {
 		appPath, err := filepath.Abs("./testdata/in-bounds-link/app")
 		require.NoError(t, err)
 		// The file is 35 bytes.
-		manifests, err := getPotentiallyValidManifests(logCtx, appPath, repoRoot, false, "", "", resource.MustParse("34"))
+		manifests, err := getPotentiallyValidManifests(logCtx, appPath, repoRoot, false, true, "", "", resource.MustParse("34"))
 		assert.Empty(t, manifests)
 		assert.ErrorIs(t, err, ErrExceededMaxCombinedManifestFileSize)
 	})
 
 	t.Run("group of files should be limited at precisely the sum of their size", func(t *testing.T) {
 		// There is a total of 10 files, ech file being 10 bytes.
-		manifests, err := getPotentiallyValidManifests(logCtx, "./testdata/several-files", "./testdata/several-files", false, "", "", resource.MustParse("365"))
+		manifests, err := getPotentiallyValidManifests(logCtx, "./testdata/several-files", "./testdata/several-files", false, true, "", "", resource.MustParse("365"))
 		assert.Len(t, manifests, 10)
 		require.NoError(t, err)
 
-		manifests, err = getPotentiallyValidManifests(logCtx, "./testdata/several-files", "./testdata/several-files", false, "", "", resource.MustParse("100"))
+		manifests, err = getPotentiallyValidManifests(logCtx, "./testdata/several-files", "./testdata/several-files", false, true, "", "", resource.MustParse("100"))
 		assert.Empty(t, manifests)
 		assert.ErrorIs(t, err, ErrExceededMaxCombinedManifestFileSize)
+	})
+}
+
+// Test_getPotentiallyValidManifestFile_disableExtensionFilter verifies how the file-level
+// extension gate behaves as disableExtensionFilter is toggled. When false (the default), only
+// standard manifest extensions are considered (unchanged behavior). When true, the built-in
+// extension check is bypassed and include/exclude become the only filters.
+func Test_getPotentiallyValidManifestFile_disableExtensionFilter(t *testing.T) {
+	testCases := []struct {
+		name                   string
+		fileName               string
+		include                string
+		exclude                string
+		disableExtensionFilter bool
+		expectValid            bool
+	}{
+		{
+			name:        "filter on: custom extension is skipped (default behavior)",
+			fileName:    "secret.yaml.sealed",
+			expectValid: false,
+		},
+		{
+			name:        "filter on: standard extension is still valid",
+			fileName:    "deployment.yaml",
+			expectValid: true,
+		},
+		{
+			name:                   "filter off: custom extension matched by include is valid",
+			fileName:               "secret.yaml.sealed",
+			include:                "{*.yaml.sealed,*.yaml}",
+			disableExtensionFilter: true,
+			expectValid:            true,
+		},
+		{
+			name:                   "filter off: custom extension not matched by include is skipped",
+			fileName:               "secret.yaml.sealed",
+			include:                "*.yaml",
+			disableExtensionFilter: true,
+			expectValid:            false,
+		},
+		{
+			name:                   "filter off: file not matched by include is skipped",
+			fileName:               "README.md",
+			include:                "{*.yaml.sealed,*.yaml}",
+			disableExtensionFilter: true,
+			expectValid:            false,
+		},
+		{
+			name:                   "filter off: exclude still filters when include is empty",
+			fileName:               "secret.yaml.sealed",
+			exclude:                "*.sealed",
+			disableExtensionFilter: true,
+			expectValid:            false,
+		},
+		{
+			name:                   "filter off: empty include and exclude considers any file",
+			fileName:               "config.txt",
+			disableExtensionFilter: true,
+			expectValid:            true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			appDir := tempDir(t)
+			filePath := filepath.Join(appDir, tc.fileName)
+			file, err := os.OpenFile(filePath, os.O_RDONLY|os.O_CREATE, 0o644)
+			require.NoError(t, err)
+			require.NoError(t, file.Close())
+
+			walkFor(t, appDir, filePath, func(info fs.FileInfo) {
+				realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(filePath, info, appDir, appDir, tc.include, tc.exclude, tc.disableExtensionFilter)
+				require.NoError(t, err)
+				assert.Empty(t, ignoreMessage)
+				if tc.expectValid {
+					assert.NotNil(t, realFileInfo)
+				} else {
+					assert.Nil(t, realFileInfo)
+				}
+			})
+		})
+	}
+}
+
+// Test_getPotentiallyValidManifests_disableExtensionFilter verifies directory-level behavior:
+// the safe default when the filter is on, the "consider everything" behavior (plus warning) when
+// the filter is disabled with no include/exclude, and that exclude alone still narrows the set.
+func Test_getPotentiallyValidManifests_disableExtensionFilter(t *testing.T) {
+	manifestBody := []byte("apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: x\n")
+	writeFiles := func(t *testing.T, names ...string) string {
+		t.Helper()
+		appDir := t.TempDir()
+		for _, name := range names {
+			require.NoError(t, os.WriteFile(filepath.Join(appDir, name), manifestBody, 0o644))
+		}
+		return appDir
+	}
+
+	t.Run("filter on: custom extensions are excluded, standard ones kept", func(t *testing.T) {
+		appDir := writeFiles(t, "secret.yaml.sealed", "deployment.yaml")
+		manifests, err := getPotentiallyValidManifests(log.WithField("test", "test"), appDir, appDir, false, false, "", "", resource.MustParse("0"))
+		require.NoError(t, err)
+		assert.Len(t, manifests, 1) // only deployment.yaml; the .sealed file is filtered by the extension regex
+	})
+
+	t.Run("filter off with include picks up custom extensions", func(t *testing.T) {
+		appDir := writeFiles(t, "secret.yaml.sealed", "deployment.yaml", "README.md")
+		manifests, err := getPotentiallyValidManifests(log.WithField("test", "test"), appDir, appDir, false, true, "{*.yaml.sealed,*.yaml}", "", resource.MustParse("0"))
+		require.NoError(t, err)
+		assert.Len(t, manifests, 2) // secret.yaml.sealed + deployment.yaml; README.md is not in include
+	})
+
+	t.Run("filter off with exclude only still narrows the set", func(t *testing.T) {
+		appDir := writeFiles(t, "secret.yaml.sealed", "notes.md")
+		manifests, err := getPotentiallyValidManifests(log.WithField("test", "test"), appDir, appDir, false, true, "", "*.md", resource.MustParse("0"))
+		require.NoError(t, err)
+		assert.Len(t, manifests, 1) // notes.md excluded, secret.yaml.sealed kept
+	})
+
+	t.Run("filter off with both include and exclude: exclude subtracts from include", func(t *testing.T) {
+		appDir := writeFiles(t, "secret.yaml.sealed", "config.yaml.sealed", "app.yaml", "README.md")
+		// include matches both *.yaml.sealed and *.yaml; exclude then removes anything matching secret.*
+		manifests, err := getPotentiallyValidManifests(log.WithField("test", "test"), appDir, appDir, false, true, "{*.yaml.sealed,*.yaml}", "secret.*", resource.MustParse("0"))
+		require.NoError(t, err)
+		// kept: config.yaml.sealed, app.yaml. dropped: secret.yaml.sealed (excluded), README.md (not in include)
+		assert.Len(t, manifests, 2)
+	})
+
+	t.Run("filter off with empty include and exclude considers every file and warns", func(t *testing.T) {
+		logger, hook := logtest.NewNullLogger()
+		appDir := writeFiles(t, "secret.yaml.sealed", "notes.txt", "deployment.yaml")
+
+		manifests, err := getPotentiallyValidManifests(logger.WithField("test", "test"), appDir, appDir, false, true, "", "", resource.MustParse("0"))
+		require.NoError(t, err)
+		assert.Len(t, manifests, 3) // every file is a candidate
+
+		require.Len(t, hook.Entries, 1)
+		assert.Equal(t, log.WarnLevel, hook.LastEntry().Level)
+		assert.Contains(t, hook.LastEntry().Message, "all files in the directory will be read")
+	})
+}
+
+// Test_findManifests_disableExtensionFilter is an end-to-end check that a file with a custom
+// extension is not just selected as a candidate but actually parsed into a manifest object.
+func Test_findManifests_disableExtensionFilter(t *testing.T) {
+	sealedSecret := []byte("apiVersion: bitnami.com/v1alpha1\nkind: SealedSecret\nmetadata:\n  name: my-secret\n")
+
+	t.Run("custom extension is rendered when the extension filter is disabled and include matches", func(t *testing.T) {
+		appDir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(appDir, "my-secret.yaml.sealed"), sealedSecret, 0o644))
+
+		objs, err := findManifests(log.WithField("test", "test"), appDir, appDir, nil, v1alpha1.ApplicationSourceDirectory{
+			DisableExtensionFilter: true,
+			Include:                "{*.yaml.sealed,*.yaml}",
+		}, map[string]bool{}, resource.MustParse("0"))
+		require.NoError(t, err)
+		require.Len(t, objs, 1)
+		assert.Equal(t, "SealedSecret", objs[0].GetKind())
+		assert.Equal(t, "my-secret", objs[0].GetName())
+	})
+
+	t.Run("custom extension is ignored when the extension filter is on (default)", func(t *testing.T) {
+		appDir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(appDir, "my-secret.yaml.sealed"), sealedSecret, 0o644))
+
+		objs, err := findManifests(log.WithField("test", "test"), appDir, appDir, nil, v1alpha1.ApplicationSourceDirectory{
+			Include: "{*.yaml.sealed,*.yaml}",
+		}, map[string]bool{}, resource.MustParse("0"))
+		require.NoError(t, err)
+		assert.Empty(t, objs) // extension regex filters it out before include is consulted
 	})
 }
 
