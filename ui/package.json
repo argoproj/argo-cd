@@ -62,7 +62,8 @@
     "@types/react-dom": "^16.8.2",
     "normalize-url": "4.5.1",
     "redoc/dompurify": "^3.4.0",
-    "rxjs": "6.6.7"
+    "rxjs": "6.6.7",
+    "form-data": "4.0.6"
   },
   "devDependencies": {
     "@babel/core": "^7.27.1",
