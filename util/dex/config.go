@@ -34,11 +34,17 @@ func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTLS b
 			"http": "0.0.0.0:5556",
 		}
 	} else {
-		dexCfg["web"] = map[string]any{
+		webCfg := map[string]any{
 			"https":   "0.0.0.0:5556",
 			"tlsCert": "/tmp/tls.crt",
 			"tlsKey":  "/tmp/tls.key",
 		}
+		if existingWeb, found := dexCfg["web"].(map[string]any); found {
+			if minVersion, ok := existingWeb["tlsMinVersion"]; ok && minVersion != "" {
+				webCfg["tlsMinVersion"] = minVersion
+			}
+		}
+		dexCfg["web"] = webCfg
 	}
 
 	if loggerCfg, found := dexCfg["logger"].(map[string]any); found {

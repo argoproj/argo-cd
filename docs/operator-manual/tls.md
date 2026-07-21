@@ -259,6 +259,20 @@ secret.
 > when replacing certificates, all workloads must be restarted to pick up
 > the certificate and work properly.
 
+
+To configure TLS version for the bundled Dex server, update the `argocd-cm` ConfigMap:
+
+```yaml
+  apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    name: argocd-cm
+  data:
+    dex.config: |
+      web:
+        tlsMinVersion: "1.2"
+```
+
 ### Disabling TLS to argocd-repo-server
 
 In some scenarios where mTLS through sidecar proxies is involved (e.g.
