@@ -14,6 +14,8 @@ type Interface interface {
 	Applications() ApplicationInformer
 	// ApplicationSets returns a ApplicationSetInformer.
 	ApplicationSets() ApplicationSetInformer
+	// SyncWindowResources returns a SyncWindowResourceInformer.
+	SyncWindowResources() SyncWindowResourceInformer
 }
 
 type version struct {
@@ -40,4 +42,9 @@ func (v *version) Applications() ApplicationInformer {
 // ApplicationSets returns a ApplicationSetInformer.
 func (v *version) ApplicationSets() ApplicationSetInformer {
 	return &applicationSetInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// SyncWindowResources returns a SyncWindowResourceInformer.
+func (v *version) SyncWindowResources() SyncWindowResourceInformer {
+	return &syncWindowResourceInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
