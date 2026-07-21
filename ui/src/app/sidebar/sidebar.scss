@@ -67,12 +67,6 @@ $deselected-text: #818d94;
         }
     }
 
-    &__nav {
-        list-style: none;
-        margin: 0;
-        padding: 0;
-    }
-
     &__nav-item {
         cursor: pointer;
         display: flex;
@@ -83,22 +77,6 @@ $deselected-text: #818d94;
         height: $height;
         line-height: $height;
         color: $deselected-text;
-        // Reset native <a>/<button> chrome so anchors and the filter button match the original divs.
-        width: 100%;
-        text-align: left;
-        text-decoration: none;
-        background: none;
-        border: none;
-        padding: 0;
-        appearance: none;
-        -webkit-appearance: none; // older Safari still needs the prefix
-        font-family: inherit;
-
-        // Visible keyboard focus on the dark sidebar background (default ring is low-contrast here).
-        &:focus-visible {
-            outline: 2px solid #fe733f;
-            outline-offset: -2px;
-        }
 
         i {
             font-size: 26px;
@@ -111,16 +89,12 @@ $deselected-text: #818d94;
             font-size: 22px;
             margin-left: 2px;
             margin-right: -2px;
+            margin-top: 12px;
             width: 32px;           
         }
 
         &--active {
             color: white;
-            // Out-specify argo-ui's global `a:hover { color: teal }` so the active item stays white.
-            &:hover,
-            &:focus {
-                color: white;
-            }
             i {
                 color: #fe733f;
             }

@@ -6,7 +6,7 @@ You can click on the "Details" link next to the failed step to get more informat
 
 ![Failed GitHub Action](ci-pipeline-failed.png)
 
-The GitHub actions are configured in [`ci-build.yaml`](https://github.com/argoproj/argo-cd/blob/master/.github/workflows/ci-build.yaml).
+To read more about The GitHub actions are configured in [`ci-build.yaml`](https://github.com/argoproj/argo-cd/blob/master/.github/workflows/ci-build.yaml).
 
 ### Can I retrigger the checks without pushing a new commit?
 

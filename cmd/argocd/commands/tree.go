@@ -6,7 +6,7 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	"k8s.io/apimachinery/pkg/util/duration"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"

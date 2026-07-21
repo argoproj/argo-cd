@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	kubeutil "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
+	kubeutil "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -281,31 +281,13 @@ func (rt *resourceTracking) Normalize(config, live *unstructured.Unstructured, l
 		return nil
 	}
 
-	liveAnnotation, err := kube.GetAppInstanceAnnotation(live, common.AnnotationKeyAppInstance)
+	annotation, err := kube.GetAppInstanceAnnotation(config, common.AnnotationKeyAppInstance)
 	if err != nil {
 		return err
 	}
-	if liveAnnotation == "" {
-		// The live resource carries the instance label but no tracking annotation,
-		// which happens when it was last synced under label-based tracking.
-		// Backfill the desired annotation so that migrating to annotation-based
-		// tracking does not mark every resource OutOfSync.
-		//
-		// Note that the label is not necessarily owned by Argo CD: charts commonly
-		// render app.kubernetes.io/instance themselves (e.g. Helm's standard
-		// instance label). That is why the backfill must only happen when the
-		// tracking annotation is absent: if the live resource already has one,
-		// leave it untouched — a mismatch (e.g. the resource moved to another
-		// application) is a real difference that must surface in the diff so a
-		// sync can repair it (see issue #17965).
-		annotation, err := kube.GetAppInstanceAnnotation(config, common.AnnotationKeyAppInstance)
-		if err != nil {
-			return err
-		}
-		err = kube.SetAppInstanceAnnotation(live, common.AnnotationKeyAppInstance, annotation)
-		if err != nil {
-			return err
-		}
+	err = kube.SetAppInstanceAnnotation(live, common.AnnotationKeyAppInstance, annotation)
+	if err != nil {
+		return err
 	}
 
 	label, err = kube.GetAppInstanceLabel(config, labelKey)

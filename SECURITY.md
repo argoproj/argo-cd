@@ -80,7 +80,7 @@ We will publish security advisories using the
 feature to keep our community well-informed, and will credit you for your
 findings (unless you prefer to stay anonymous, of course).
 
-To report a vulnerability to the Argo CD team, create a draft GitHub security advisory at: https://github.com/argoproj/argo-cd/security/advisories/new
+To report a vulnerability to the Argo CD team a draft GitHub security advisory: https://github.com/argoproj/argo-cd/security/advisories/new
 
 ## Securing your Argo CD Instance
 

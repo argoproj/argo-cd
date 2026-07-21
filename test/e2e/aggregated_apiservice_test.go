@@ -7,7 +7,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	. "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	. "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
 
 	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"

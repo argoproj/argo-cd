@@ -252,6 +252,7 @@ export const ApplicationParameters = (props: {
     } else {
         // For the three other references of ApplicationParameters. They are single source.
         // Create App, Add source, Rollback and History
+        let attributes: EditablePanelItem[] = [];
         if (props.details) {
             const ind = props.multiSourceIndex;
             const isMulti = ind !== undefined;
@@ -263,7 +264,7 @@ export const ApplicationParameters = (props: {
                 gatherDetails(
                     isMulti ? ind : 0,
                     props.details,
-                    [],
+                    attributes,
                     attrSource,
                     app,
                     setRemovedOverrides,
@@ -281,7 +282,19 @@ export const ApplicationParameters = (props: {
             return (
                 <DataLoader noLoaderOnInputChange={true} input={app} load={application => getSingleSource(application)}>
                     {(details: models.RepoAppDetails) => {
-                        const attr = gatherDetails(0, details, [], source, app, setRemovedOverrides, removedOverrides, appParamsDeletedState, setAppParamsDeletedState, false);
+                        attributes = [];
+                        const attr = gatherDetails(
+                            0,
+                            details,
+                            attributes,
+                            source,
+                            app,
+                            setRemovedOverrides,
+                            removedOverrides,
+                            appParamsDeletedState,
+                            setAppParamsDeletedState,
+                            false
+                        );
                         return getEditablePanel(attr, details);
                     }}
                 </DataLoader>

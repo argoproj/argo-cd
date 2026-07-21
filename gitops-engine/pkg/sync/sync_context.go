@@ -10,9 +10,6 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
-	otel_codes "go.opentelemetry.io/otel/codes"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
@@ -31,25 +28,13 @@ import (
 	"k8s.io/klog/v2/textlogger"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 
-	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
-	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
-	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
-	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/hook"
-	resourceutil "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/resource"
-	kubeutil "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/hook"
+	resourceutil "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/resource"
+	kubeutil "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 )
-
-var tracer = otel.Tracer("github.com/argoproj/argo-cd/gitops-engine/pkg/sync")
-
-// taskTraceAttrs returns the standard argocd.resource.* span attributes for a sync task.
-func taskTraceAttrs(t *syncTask) []attribute.KeyValue {
-	return []attribute.KeyValue{
-		attribute.String("argocd.resource.group", t.group()),
-		attribute.String("argocd.resource.kind", t.kind()),
-		attribute.String("argocd.resource.namespace", t.namespace()),
-		attribute.String("argocd.resource.name", t.name()),
-	}
-}
 
 type reconciledResource struct {
 	Target *unstructured.Unstructured
@@ -491,9 +476,6 @@ func (sc *syncContext) setRunningPhase(tasks syncTasks, isPendingDeletion bool) 
 
 // Sync executes next synchronization step and updates operation status.
 func (sc *syncContext) Sync(ctx context.Context) {
-	ctx, span := tracer.Start(ctx, "sync.Sync")
-	span.SetAttributes(attribute.Bool("argocd.sync.started", sc.started()))
-	defer span.End()
 	sc.log.WithValues("skipHooks", sc.skipHooks, "started", sc.started()).Info("Syncing")
 	tasks, ok := sc.getSyncTasks(ctx)
 	if !ok {
@@ -741,8 +723,6 @@ func (sc *syncContext) Sync(ctx context.Context) {
 // Terminate terminates sync operation. The method is asynchronous: it starts deletion is related K8S resources
 // such as in-flight resource hooks, updates operation status, and exists without waiting for resource completion.
 func (sc *syncContext) Terminate(ctx context.Context) {
-	ctx, span := tracer.Start(ctx, "sync.Terminate")
-	defer span.End()
 	sc.log.V(1).Info("terminating")
 	tasks, _ := sc.getSyncTasks(ctx)
 
@@ -972,13 +952,6 @@ func (sc *syncContext) containsResource(resource reconciledResource) bool {
 
 // generates the list of sync tasks we will be performing during this sync.
 func (sc *syncContext) getSyncTasks(ctx context.Context) (_ syncTasks, successful bool) {
-	ctx, span := tracer.Start(ctx, "sync.getSyncTasks")
-	defer func() {
-		if !successful {
-			span.SetStatus(otel_codes.Error, "one or more sync tasks failed to generate")
-		}
-		span.End()
-	}()
 	resourceTasks := syncTasks{}
 	successful = true
 
@@ -1414,13 +1387,6 @@ func (sc *syncContext) performCSAUpgradeMigration(ctx context.Context, liveObj *
 }
 
 func (sc *syncContext) applyObject(ctx context.Context, t *syncTask, dryRun, validate bool) (common.ResultCode, string) {
-	ctx, span := tracer.Start(ctx, "sync.apply")
-	if span.IsRecording() {
-		span.SetAttributes(taskTraceAttrs(t)...)
-		span.SetAttributes(attribute.Bool("argocd.sync.dry_run", dryRun))
-	}
-	defer span.End()
-
 	dryRunStrategy := cmdutil.DryRunNone
 	if dryRun {
 		// irrespective of the dry run mode set in the sync context, always run
@@ -1485,15 +1451,7 @@ func (sc *syncContext) applyObject(ctx context.Context, t *syncTask, dryRun, val
 }
 
 // pruneObject deletes the object if both prune is true and dryRun is false. Otherwise appropriate message
-func (sc *syncContext) pruneObject(ctx context.Context, t *syncTask, prune, dryRun bool) (common.ResultCode, string) {
-	ctx, span := tracer.Start(ctx, "sync.prune")
-	if span.IsRecording() {
-		span.SetAttributes(taskTraceAttrs(t)...)
-		span.SetAttributes(attribute.Bool("argocd.sync.dry_run", dryRun))
-	}
-	defer span.End()
-
-	liveObj := t.liveObj
+func (sc *syncContext) pruneObject(ctx context.Context, liveObj *unstructured.Unstructured, prune, dryRun bool) (common.ResultCode, string) {
 	if !prune {
 		return common.ResultCodePruneSkipped, "ignored (requires pruning)"
 	} else if isPruningDisabled(liveObj, sc.defaultPruneOption) {
@@ -1626,15 +1584,6 @@ const (
 func (sc *syncContext) runTasks(ctx context.Context, tasks syncTasks, dryRun bool) runState {
 	dryRun = dryRun || sc.dryRun
 
-	ctx, span := tracer.Start(ctx, "sync.runTasks")
-	if span.IsRecording() {
-		span.SetAttributes(
-			attribute.Bool("argocd.sync.dry_run", dryRun),
-			attribute.Int("argocd.sync.num_tasks", len(tasks)),
-		)
-	}
-	defer span.End()
-
 	sc.log.WithValues("numTasks", len(tasks), "dryRun", dryRun).V(1).Info("Running tasks")
 
 	state := successful
@@ -1681,7 +1630,7 @@ func (sc *syncContext) runTasks(ctx context.Context, tasks syncTasks, dryRun boo
 			ss.Go(func(state runState) runState {
 				logCtx := sc.log.WithValues("dryRun", dryRun, "task", t)
 				logCtx.V(1).Info("Pruning")
-				result, message := sc.pruneObject(ctx, t, sc.prune, dryRun)
+				result, message := sc.pruneObject(ctx, t.liveObj, sc.prune, dryRun)
 				if result == common.ResultCodeSyncFailed {
 					state = failed
 					logCtx.WithValues("message", message).Info("Pruning failed")

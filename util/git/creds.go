@@ -30,8 +30,8 @@ import (
 
 	gocache "github.com/patrickmn/go-cache"
 
-	argoio "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/io"
-	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/text"
+	argoio "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/io"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/text"
 	"github.com/bradleyfalzon/ghinstallation/v2"
 	log "github.com/sirupsen/logrus"
 
@@ -560,10 +560,10 @@ func (g GitHubAppCreds) getInstallationTransport() (*ghinstallation.Transport, e
 	if installationID == 0 {
 		org, err := ExtractOrgFromRepoURL(g.repoURL)
 		if err != nil {
-			return nil, fmt.Errorf("failed to extract organization from repository URL %s for GitHub App installation discovery: %w", SanitizeRepoURL(g.repoURL), err)
+			return nil, fmt.Errorf("failed to extract organization from repository URL %s for GitHub App installation discovery: %w", g.repoURL, err)
 		}
 		if org == "" {
-			return nil, fmt.Errorf("could not extract organization from repository URL %s: the URL does not contain an organization/owner", SanitizeRepoURL(g.repoURL))
+			return nil, fmt.Errorf("could not extract organization from repository URL %s: the URL does not contain an organization/owner", g.repoURL)
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -800,7 +800,7 @@ func ExtractOrgFromRepoURL(repoURL string) (string, error) {
 	// Use git-urls library to parse all Git URL formats
 	parsed, err := giturls.Parse(repoURL)
 	if err != nil {
-		return "", fmt.Errorf("failed to parse repository URL %q: %w", SanitizeRepoURL(repoURL), err)
+		return "", fmt.Errorf("failed to parse repository URL %q: %w", repoURL, err)
 	}
 
 	// Clean the path: remove leading/trailing slashes and .git suffix
@@ -808,7 +808,7 @@ func ExtractOrgFromRepoURL(repoURL string) (string, error) {
 	path = strings.TrimSuffix(path, ".git")
 
 	if path == "" {
-		return "", fmt.Errorf("repository URL %q does not contain a path", SanitizeRepoURL(repoURL))
+		return "", fmt.Errorf("repository URL %q does not contain a path", repoURL)
 	}
 
 	// Extract the first path component (organization/owner)
@@ -821,7 +821,7 @@ func ExtractOrgFromRepoURL(repoURL string) (string, error) {
 
 	// If there's no slash, the entire path might be just the org (unusual but handle it)
 	// This would fail validation later, but let's return it
-	return "", fmt.Errorf("could not extract organization from repository URL %q: path %q does not contain org/repo format", SanitizeRepoURL(repoURL), path)
+	return "", fmt.Errorf("could not extract organization from repository URL %q: path %q does not contain org/repo format", repoURL, path)
 }
 
 var _ Creds = GoogleCloudCreds{}

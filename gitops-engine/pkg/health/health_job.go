@@ -9,7 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 
-	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
 )
 
 func getJobHealth(obj *unstructured.Unstructured) (*HealthStatus, error) {
@@ -64,7 +64,7 @@ func getBatchv1JobHealth(job *batchv1.Job) (*HealthStatus, error) {
 	case isSuspended:
 		return &HealthStatus{
 			Status:  HealthStatusSuspended,
-			Message: message,
+			Message: failMsg,
 		}, nil
 	default:
 		return &HealthStatus{

@@ -22,7 +22,6 @@ import {
     getOperationType,
     getPodStateReason,
     HealthStatusIcon,
-    nameConfirmationError,
     OperationState,
     ResourceResultIcon
 } from './utils';
@@ -1042,39 +1041,6 @@ describe('getAppHydratorSyncSource', () => {
             targetRevision: 'env/test',
             path: 'out'
         });
-    });
-});
-
-describe('nameConfirmationError', () => {
-    const emptyMsg = 'Enter the resource name to confirm the deletion';
-    const mismatchMsg = 'Resource name does not match';
-
-    it('returns false when entered value matches expected', () => {
-        expect(nameConfirmationError('my-app', 'my-app', emptyMsg, mismatchMsg)).toBe(false);
-    });
-
-    it('returns empty message when field is empty', () => {
-        expect(nameConfirmationError('', 'my-app', emptyMsg, mismatchMsg)).toBe(emptyMsg);
-    });
-
-    it('returns mismatch message when field has a wrong value', () => {
-        expect(nameConfirmationError('wrong-name', 'my-app', emptyMsg, mismatchMsg)).toBe(mismatchMsg);
-    });
-
-    it('returns mismatch message when field has a partial value', () => {
-        expect(nameConfirmationError('my-ap', 'my-app', emptyMsg, mismatchMsg)).toBe(mismatchMsg);
-    });
-
-    it('returns false when both entered and expected are empty strings', () => {
-        expect(nameConfirmationError('', '', emptyMsg, mismatchMsg)).toBe(false);
-    });
-
-    it('uses the provided message strings (application delete variant)', () => {
-        const appEmpty = 'Enter the application name to confirm the deletion';
-        const appMismatch = 'Application name does not match';
-        expect(nameConfirmationError('', 'guestbook', appEmpty, appMismatch)).toBe(appEmpty);
-        expect(nameConfirmationError('guestbook-typo', 'guestbook', appEmpty, appMismatch)).toBe(appMismatch);
-        expect(nameConfirmationError('guestbook', 'guestbook', appEmpty, appMismatch)).toBe(false);
     });
 });
 

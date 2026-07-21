@@ -113,7 +113,7 @@ export const ApplicationCreatePanel = (props: {
     const app = deepMerge(DEFAULT_APP, props.app || {});
     const debouncedOnAppChanged = debounce(props.onAppChanged, 800);
     const [destinationFieldChanges, setDestinationFieldChanges] = React.useState({destFormat: 'URL', destFormatChanged: null});
-    const [comboSwitchedFromPanel, setComboSwitchedFromPanel] = React.useState(false);
+    const comboSwitchedFromPanel = React.useRef(false);
     const currentRepoType = React.useRef(undefined);
     const lastGitOrHelmUrl = React.useRef('');
     const lastOciUrl = React.useRef('');
@@ -125,6 +125,10 @@ export const ApplicationCreatePanel = (props: {
     const [multiSourceMode, setMultiSourceMode] = React.useState(() => (app.spec?.sources?.length ?? 0) >= 2);
 
     React.useEffect(() => {
+        comboSwitchedFromPanel.current = false;
+    }, []);
+
+    React.useEffect(() => {
         return () => {
             debouncedOnAppChanged.cancel();
         };
@@ -134,7 +138,7 @@ export const ApplicationCreatePanel = (props: {
     const currentServer = app.spec.destination.server;
     if (destinationFieldChanges.destFormatChanged !== null) {
         if (destinationComboValue == 'NAME') {
-            if (currentName === undefined && currentServer !== undefined && comboSwitchedFromPanel === false) {
+            if (currentName === undefined && currentServer !== undefined && comboSwitchedFromPanel.current === false) {
                 destinationComboValue = 'URL';
             } else {
                 delete app.spec.destination.server;
@@ -143,7 +147,7 @@ export const ApplicationCreatePanel = (props: {
                 }
             }
         } else {
-            if (currentServer === undefined && currentName !== undefined && comboSwitchedFromPanel === false) {
+            if (currentServer === undefined && currentName !== undefined && comboSwitchedFromPanel.current === false) {
                 destinationComboValue = 'NAME';
             } else {
                 delete app.spec.destination.name;
@@ -499,7 +503,7 @@ export const ApplicationCreatePanel = (props: {
                                                                 action: () => {
                                                                     if (destinationComboValue !== type) {
                                                                         destinationComboValue = type;
-                                                                        setComboSwitchedFromPanel(true);
+                                                                        comboSwitchedFromPanel.current = true;
                                                                         setDestinationFieldChanges({destFormat: type, destFormatChanged: 'changed'});
                                                                     }
                                                                 }

@@ -1081,15 +1081,15 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     const childrenByParentKey = new Map<string, ResourceTreeNode[]>();
     const nodesHavingChildren = new Map<string, number>();
     const childrenMap = new Map<string, ResourceTreeNode[]>();
-    const filtersRef = React.useRef(props.filters);
-    const filteredGraphRef = React.useRef<any[]>([]);
+    const [filters, setFilters] = React.useState(props.filters);
+    const [filteredGraph, setFilteredGraph] = React.useState([]);
     const filteredNodes: any[] = [];
 
     React.useEffect(() => {
-        if (props.filters !== filtersRef.current) {
-            filtersRef.current = props.filters;
-            props.setTreeFilterGraph(filteredGraphRef.current);
-            filteredGraphRef.current = filteredNodes;
+        if (props.filters !== filters) {
+            setFilters(props.filters);
+            setFilteredGraph(filteredNodes);
+            props.setTreeFilterGraph(filteredGraph);
         }
     }, [props.filters]);
     const {podGroupCount, userMsgs, updateUsrHelpTipMsgs, setShowCompactNodes} = props;
@@ -1113,7 +1113,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         predicate: (node: ResourceTreeNode) => boolean
     ) {
         const appKey = appNodeKey(app);
-        const filteredNodeIds: string[] = [];
+        let filtered = 0;
         graphNodesFilter.nodes().forEach(nodeId => {
             const node: ResourceTreeNode = graphNodesFilter.node(nodeId) as any;
             const parentIds = graphNodesFilter.predecessors(nodeId);
@@ -1129,7 +1129,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             if (node.root != null && !shouldKeepNode() && appKey !== nodeId) {
                 const childIds = graphNodesFilter.successors(nodeId);
                 graphNodesFilter.removeNode(nodeId);
-                filteredNodeIds.push(nodeId);
+                filtered++;
                 childIds.forEach((childId: any) => {
                     parentIds.forEach((parentId: any) => {
                         graphNodesFilter.setEdge(parentId, childId);
@@ -1140,11 +1140,11 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             }
         });
 
-        if (filteredNodeIds.length) {
+        if (filtered) {
             graphNodesFilter.setNode(FILTERED_INDICATOR_NODE, {
                 height: NODE_HEIGHT,
                 width: NODE_WIDTH,
-                count: filteredNodeIds.length,
+                count: filtered,
                 type: NODE_TYPES.filteredIndicator
             });
             graphNodesFilter.setEdge(filteredIndicatorParent, FILTERED_INDICATOR_NODE);

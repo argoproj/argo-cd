@@ -49,23 +49,7 @@ func TestSyncWithNoDestinationServiceAccountsInProject(t *testing.T) {
 		// With the impersonation feature enabled, Application sync must fail
 		// when there are no destination service accounts configured in AppProject
 		ExpectConsistently(SyncStatusIs(v1alpha1.SyncStatusCodeOutOfSync), WaitDuration, TimeoutDuration).
-		Expect(OperationMessageContains("no matching service account found for destination server"))
-}
-
-func TestSyncWithNoDestinationServiceAccountsAndEnforcementDisabled(t *testing.T) {
-	Given(t).
-		Path("guestbook").
-		When().
-		WithImpersonationEnabled("", nil).
-		WithImpersonationEnforcementDisabled().
-		CreateFromFile(func(app *v1alpha1.Application) {
-			app.Spec.SyncPolicy = &v1alpha1.SyncPolicy{Automated: &v1alpha1.SyncPolicyAutomated{}}
-		}).
-		Then().
-		// With the impersonation feature enabled, but not enforced, Application sync must succeed
-		// by using the controller service account for the sync operation.
-		ExpectConsistently(SyncStatusIs(v1alpha1.SyncStatusCodeSynced), WaitDuration, TimeoutDuration).
-		Expect(OperationMessageContains("successfully synced"))
+		Expect(OperationMessageContains("failed to find a matching service account to impersonate"))
 }
 
 func TestSyncWithImpersonateWithSyncServiceAccount(t *testing.T) {

@@ -3,12 +3,10 @@ package cli
 import (
 	"errors"
 	"flag"
-	"io"
 	"os"
 	"os/exec"
 	"testing"
 
-	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -134,43 +132,4 @@ func TestSetGLogLevel(t *testing.T) {
 
 	logToStderrFlag := flag.Lookup("logtostderr")
 	assert.Equal(t, "true", logToStderrFlag.Value.String())
-}
-
-func TestBoundedFloat64Var(t *testing.T) {
-	newFlagSet := func() (*pflag.FlagSet, *float64) {
-		var v float64
-		fs := pflag.NewFlagSet("test", pflag.ContinueOnError)
-		fs.SetOutput(io.Discard)
-		BoundedFloat64Var(fs, &v, "ratio", 1.0, 0.0, 1.0, "usage")
-		return fs, &v
-	}
-
-	t.Run("default applied when flag absent", func(t *testing.T) {
-		fs, v := newFlagSet()
-		require.NoError(t, fs.Parse(nil))
-		assert.InDelta(t, 1.0, *v, 0)
-	})
-
-	t.Run("type and default string for help/docs", func(t *testing.T) {
-		fs, _ := newFlagSet()
-		f := fs.Lookup("ratio")
-		assert.Equal(t, "float", f.Value.Type())
-		assert.Equal(t, "1", f.DefValue)
-	})
-
-	valid := map[string]float64{"0": 0.0, "0.3": 0.3, "1": 1.0}
-	for in, want := range valid {
-		t.Run("accepts "+in, func(t *testing.T) {
-			fs, v := newFlagSet()
-			require.NoError(t, fs.Parse([]string{"--ratio=" + in}))
-			assert.InDelta(t, want, *v, 0)
-		})
-	}
-
-	for _, in := range []string{"-0.5", "2", "NaN", "abc"} {
-		t.Run("rejects "+in, func(t *testing.T) {
-			fs, _ := newFlagSet()
-			assert.Error(t, fs.Parse([]string{"--ratio=" + in}))
-		})
-	}
 }

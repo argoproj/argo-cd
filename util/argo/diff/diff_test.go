@@ -261,8 +261,10 @@ func TestDiffConfigBuilder(t *testing.T) {
 }
 
 func TestDiffFromCache(t *testing.T) {
+	t.Parallel()
 	t.Run("returns false and logs warning on cache miss", func(t *testing.T) {
 		// given
+		t.Parallel()
 		hook := test.NewLocal(logrus.StandardLogger())
 		defer hook.Reset()
 
@@ -290,6 +292,7 @@ func TestDiffFromCache(t *testing.T) {
 
 	t.Run("returns false and logs error on cache failure", func(t *testing.T) {
 		// given
+		t.Parallel()
 		hook := test.NewLocal(logrus.StandardLogger())
 		defer hook.Reset()
 

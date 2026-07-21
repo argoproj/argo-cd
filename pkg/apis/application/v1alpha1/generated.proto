@@ -33,6 +33,8 @@ message AppHealthStatus {
   optional string status = 1;
 
   // Message is a human-readable informational message describing the health status
+  //
+  // Deprecated: this field is not used and will be removed in a future release.
   optional string message = 2;
 
   // LastTransitionTime is the time the HealthStatus was set or updated

@@ -3,7 +3,7 @@ package controller
 import (
 	"sort"
 
-	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/syncwaves"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/syncwaves"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 

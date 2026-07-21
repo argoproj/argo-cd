@@ -12,7 +12,6 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
@@ -87,11 +86,11 @@ func (db *db) CreateWriteRepository(ctx context.Context, r *v1alpha1.Repository)
 func (db *db) GetRepository(ctx context.Context, repoURL, project string) (*v1alpha1.Repository, error) {
 	repository, err := db.getRepository(ctx, repoURL, project)
 	if err != nil {
-		return repository, fmt.Errorf("unable to get repository %q: %w", git.SanitizeRepoURL(repoURL), err)
+		return repository, fmt.Errorf("unable to get repository %q: %w", repoURL, err)
 	}
 
 	if err := db.enrichCredsToRepo(ctx, repository); err != nil {
-		return repository, fmt.Errorf("unable to enrich repository %q info with credentials: %w", git.SanitizeRepoURL(repoURL), err)
+		return repository, fmt.Errorf("unable to enrich repository %q info with credentials: %w", repoURL, err)
 	}
 
 	return repository, err
@@ -100,11 +99,11 @@ func (db *db) GetRepository(ctx context.Context, repoURL, project string) (*v1al
 func (db *db) GetWriteRepository(ctx context.Context, repoURL, project string) (*v1alpha1.Repository, error) {
 	repository, err := db.repoWriteBackend().GetRepository(ctx, repoURL, project)
 	if err != nil {
-		return repository, fmt.Errorf("unable to get write repository %q: %w", git.SanitizeRepoURL(repoURL), err)
+		return repository, fmt.Errorf("unable to get write repository %q: %w", repoURL, err)
 	}
 
 	if err := db.enrichWriteCredsToRepo(ctx, repository); err != nil {
-		return repository, fmt.Errorf("unable to enrich write repository %q info with credentials: %w", git.SanitizeRepoURL(repoURL), err)
+		return repository, fmt.Errorf("unable to enrich write repository %q info with credentials: %w", repoURL, err)
 	}
 
 	return repository, err
@@ -152,11 +151,11 @@ func (db *db) getRepository(ctx context.Context, repoURL, project string) (*v1al
 	secretsBackend := db.repoBackend()
 	exists, err := secretsBackend.RepositoryExists(ctx, repoURL, project, true)
 	if err != nil {
-		return nil, fmt.Errorf("unable to check if repository %q exists from secrets backend: %w", git.SanitizeRepoURL(repoURL), err)
+		return nil, fmt.Errorf("unable to check if repository %q exists from secrets backend: %w", repoURL, err)
 	} else if exists {
 		repository, err := secretsBackend.GetRepository(ctx, repoURL, project)
 		if err != nil {
-			return nil, fmt.Errorf("unable to get repository %q from secrets backend: %w", git.SanitizeRepoURL(repoURL), err)
+			return nil, fmt.Errorf("unable to get repository %q from secrets backend: %w", repoURL, err)
 		}
 		return repository, nil
 	}
@@ -239,7 +238,7 @@ func (db *db) DeleteRepository(ctx context.Context, repoURL, project string) err
 		return secretsBackend.DeleteRepository(ctx, repoURL, project)
 	}
 
-	return status.Errorf(codes.NotFound, "repo '%s' not found", git.SanitizeRepoURL(repoURL))
+	return status.Errorf(codes.NotFound, "repo '%s' not found", repoURL)
 }
 
 func (db *db) DeleteWriteRepository(ctx context.Context, repoURL, project string) error {
@@ -250,7 +249,7 @@ func (db *db) DeleteWriteRepository(ctx context.Context, repoURL, project string
 	}
 
 	if !exists {
-		return status.Errorf(codes.NotFound, "repo '%s' not found", git.SanitizeRepoURL(repoURL))
+		return status.Errorf(codes.NotFound, "repo '%s' not found", repoURL)
 	}
 
 	return secretsBackend.DeleteRepository(ctx, repoURL, project)
@@ -280,11 +279,11 @@ func (db *db) GetRepositoryCredentials(ctx context.Context, repoURL string) (*v1
 	secretsBackend := db.repoBackend()
 	exists, err := secretsBackend.RepoCredsExists(ctx, repoURL)
 	if err != nil {
-		return nil, fmt.Errorf("unable to check if repository credentials for %q exists from secrets backend: %w", git.SanitizeRepoURL(repoURL), err)
+		return nil, fmt.Errorf("unable to check if repository credentials for %q exists from secrets backend: %w", repoURL, err)
 	} else if exists {
 		creds, err := secretsBackend.GetRepoCreds(ctx, repoURL)
 		if err != nil {
-			return nil, fmt.Errorf("unable to get repository credentials for %q from secrets backend: %w", git.SanitizeRepoURL(repoURL), err)
+			return nil, fmt.Errorf("unable to get repository credentials for %q from secrets backend: %w", repoURL, err)
 		}
 		return creds, nil
 	}
@@ -298,9 +297,9 @@ func (db *db) GetWriteRepositoryCredentials(ctx context.Context, repoURL string)
 	creds, err := secretBackend.GetRepoCreds(ctx, repoURL)
 	if err != nil {
 		if creds == nil {
-			return nil, fmt.Errorf("unable to check if repo write credentials for %q exists from secrets backend: %w", git.SanitizeRepoURL(repoURL), err)
+			return nil, fmt.Errorf("unable to check if repo write credentials for %q exists from secrets backend: %w", repoURL, err)
 		}
-		return nil, fmt.Errorf("unable to get repo write credentials for %q from secrets backend: %w", git.SanitizeRepoURL(repoURL), err)
+		return nil, fmt.Errorf("unable to get repo write credentials for %q from secrets backend: %w", repoURL, err)
 	}
 	if creds == nil { // to cover for not found. In that case both creds and err are nil
 		return nil, nil

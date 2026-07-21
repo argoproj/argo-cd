@@ -63,7 +63,7 @@ type Client interface {
 	ExtractChart(ctx context.Context, chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, utilio.Closer, error)
 	GetIndex(ctx context.Context, noCache bool, maxIndexSize int64) (*Index, error)
 	GetTags(ctx context.Context, chart string, noCache bool) ([]string, error)
-	TestHelmOCI(ctx context.Context) (bool, error)
+	TestHelmOCI() (bool, error)
 }
 
 type ClientOpts func(c *nativeHelmChart)
@@ -255,7 +255,7 @@ func (c *nativeHelmChart) ExtractChart(ctx context.Context, chart string, versio
 				return "", nil, fmt.Errorf("failed to get password for helm registry: %w", err)
 			}
 			if helmPassword != "" && c.creds.GetUsername() != "" {
-				_, err = helmCmd.RegistryLogin(ctx, c.repoURL, c.creds, c.plainHTTP)
+				_, err = helmCmd.RegistryLogin(c.repoURL, c.creds, c.plainHTTP)
 				if err != nil {
 					_ = os.RemoveAll(tempDir)
 					return "", nil, fmt.Errorf("error logging into OCI registry: %w", err)
@@ -343,7 +343,7 @@ func (c *nativeHelmChart) GetIndex(ctx context.Context, noCache bool, maxIndexSi
 	return index, nil
 }
 
-func (c *nativeHelmChart) TestHelmOCI(ctx context.Context) (bool, error) {
+func (c *nativeHelmChart) TestHelmOCI() (bool, error) {
 	start := time.Now()
 
 	tmpDir, err := os.MkdirTemp("", "helm")
@@ -365,7 +365,7 @@ func (c *nativeHelmChart) TestHelmOCI(ctx context.Context) (bool, error) {
 		return false, fmt.Errorf("failed to get password for helm registry: %w", err)
 	}
 	if c.creds.GetUsername() != "" && helmPassword != "" {
-		_, err = helmCmd.RegistryLogin(ctx, c.repoURL, c.creds, c.plainHTTP)
+		_, err = helmCmd.RegistryLogin(c.repoURL, c.creds, c.plainHTTP)
 		if err != nil {
 			return false, fmt.Errorf("error logging into OCI registry: %w", err)
 		}
