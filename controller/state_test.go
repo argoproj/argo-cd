@@ -130,6 +130,43 @@ func TestHideSecretData_SSDPathCreateRecomputes(t *testing.T) {
 	assert.NotContains(t, items[0].TargetState, "valueA")
 }
 
+// TestHideSecretData_SSDPathMasksSensitiveAnnotations verifies that when SSD result
+// is reused, sensitive annotation values in PredictedLive/NormalizedLive are masked
+// via SettingsManager.GetSensitiveAnnotations. gitops-engine SSD passes a nil
+// hideAnnotations map, so without re-masking those values would leak into the cache.
+func TestHideSecretData_SSDPathMasksSensitiveAnnotations(t *testing.T) {
+	app := newFakeApp()
+	ctrl := newFakeController(t.Context(), &fakeData{
+		configMapData: map[string]string{
+			"resource.sensitive.mask.annotations": "my-sensitive",
+		},
+	}, nil)
+
+	mr := newSecretManagedResource(
+		"test-secret",
+		map[string][]byte{"key": []byte("v")},
+		map[string][]byte{"key": []byte("v")},
+	)
+	predicted := `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"test-secret","annotations":{"my-sensitive":"topsecret"}},"data":{"key":"++++++++"}}`
+	normalized := `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"test-secret","annotations":{"my-sensitive":"topsecret"}},"data":{"key":"++++++++"}}`
+	mr.Diff = diff.DiffResult{
+		Modified:       false,
+		PredictedLive:  []byte(predicted),
+		NormalizedLive: []byte(normalized),
+	}
+
+	compRes := &comparisonResult{
+		managedResources: []managedResource{mr},
+		diffConfig:       buildSSADiffConfig(t),
+	}
+	items, err := ctrl.hideSecretData(t.Context(), &v1alpha1.Cluster{Server: "test", Name: "test"}, app, compRes)
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+	assert.False(t, items[0].Modified)
+	assert.NotContains(t, items[0].PredictedLiveState, "topsecret")
+	assert.NotContains(t, items[0].NormalizedLiveState, "topsecret")
+}
+
 // TestHideSecretData_NonSSDRecomputes verifies that when server-side diff is not
 // in use, the existing client-side recomputation path is preserved.
 func TestHideSecretData_NonSSDRecomputes(t *testing.T) {

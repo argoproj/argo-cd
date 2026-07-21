@@ -814,7 +814,8 @@ func (ctrl *ApplicationController) hideSecretData(ctx context.Context, destClust
 		resDiff := res.Diff
 		if res.Kind == kube.SecretKind && res.Group == "" {
 			var err error
-			target, live, err = diff.HideSecretData(res.Target, res.Live, ctrl.settingsMgr.GetSensitiveAnnotations())
+			hideAnnots := ctrl.settingsMgr.GetSensitiveAnnotations()
+			target, live, err = diff.HideSecretData(res.Target, res.Live, hideAnnots)
 			if err != nil {
 				return nil, fmt.Errorf("error hiding secret data: %w", err)
 			}
@@ -823,6 +824,39 @@ func (ctrl *ApplicationController) hideSecretData(ctx context.Context, destClust
 			useSSDResult := comparisonResult.diffConfig != nil &&
 				comparisonResult.diffConfig.ServerSideDiff() &&
 				res.Target != nil && res.Live != nil
+			// gitops-engine SSD masks Secret data with a nil hideAnnotations map, so
+			// sensitive annotation values would leak into resDiff. Re-mask as a pair.
+			if useSSDResult && len(hideAnnots) > 0 {
+				var predicted, normalized *unstructured.Unstructured
+				if len(resDiff.PredictedLive) > 0 && string(resDiff.PredictedLive) != "null" {
+					predicted = &unstructured.Unstructured{}
+					if err := json.Unmarshal(resDiff.PredictedLive, predicted); err != nil {
+						return nil, fmt.Errorf("error unmarshaling predicted live for secret masking: %w", err)
+					}
+				}
+				if len(resDiff.NormalizedLive) > 0 && string(resDiff.NormalizedLive) != "null" {
+					normalized = &unstructured.Unstructured{}
+					if err := json.Unmarshal(resDiff.NormalizedLive, normalized); err != nil {
+						return nil, fmt.Errorf("error unmarshaling normalized live for secret masking: %w", err)
+					}
+				}
+				predicted, normalized, err = diff.HideSecretData(predicted, normalized, hideAnnots)
+				if err != nil {
+					return nil, fmt.Errorf("error hiding secret data in diff result: %w", err)
+				}
+				if predicted != nil {
+					resDiff.PredictedLive, err = json.Marshal(predicted)
+					if err != nil {
+						return nil, fmt.Errorf("error marshaling masked predicted live: %w", err)
+					}
+				}
+				if normalized != nil {
+					resDiff.NormalizedLive, err = json.Marshal(normalized)
+					if err != nil {
+						return nil, fmt.Errorf("error marshaling masked normalized live: %w", err)
+					}
+				}
+			}
 			if !useSSDResult {
 				compareOptions, err := ctrl.settingsMgr.GetResourceCompareOptions()
 				if err != nil {
