@@ -7,8 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/util/wait"
-
-	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 )
 
 func TestEnvProviderGitRequestTimeoutDefault(t *testing.T) {
@@ -43,12 +41,10 @@ func TestSettingsManagerProviderRequiresMgr(t *testing.T) {
 func TestStaticProviderRoundTrip(t *testing.T) {
 	syncTimeout := 5 * time.Minute
 	labels := []string{"team"}
-	opts := normalizers.IgnoreNormalizerOpts{JQExecutionTimeout: 2 * time.Second}
 	backoff := &wait.Backoff{Duration: time.Second}
 	p := &StaticProvider{Fields: StaticFields{
 		SyncTimeout:               &syncTimeout,
 		MetricsClusterLabels:      &labels,
-		IgnoreNormalizerOpts:      &opts,
 		IgnoreNormalizerJQTimeout: Ptr(2 * time.Second),
 		ServerSideDiff:            Ptr(true),
 		SelfHealBackoff:           PtrPtr(backoff),
@@ -61,6 +57,10 @@ func TestStaticProviderRoundTrip(t *testing.T) {
 	gotLabels, err := p.MetricsClusterLabels()
 	require.NoError(t, err)
 	assert.Equal(t, []string{"team"}, gotLabels)
+
+	jqTimeout, err := p.IgnoreNormalizerJQTimeout()
+	require.NoError(t, err)
+	assert.Equal(t, 2*time.Second, jqTimeout)
 
 	b, err := p.ServerSideDiff()
 	require.NoError(t, err)

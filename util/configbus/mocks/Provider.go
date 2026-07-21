@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 	mock "github.com/stretchr/testify/mock"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -573,59 +572,6 @@ func (_c *Provider_IgnoreNormalizerJQTimeout_Call) Return(duration time.Duration
 }
 
 func (_c *Provider_IgnoreNormalizerJQTimeout_Call) RunAndReturn(run func() (time.Duration, error)) *Provider_IgnoreNormalizerJQTimeout_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// IgnoreNormalizerOpts provides a mock function for the type Provider
-func (_mock *Provider) IgnoreNormalizerOpts() (normalizers.IgnoreNormalizerOpts, error) {
-	ret := _mock.Called()
-
-	if len(ret) == 0 {
-		panic("no return value specified for IgnoreNormalizerOpts")
-	}
-
-	var r0 normalizers.IgnoreNormalizerOpts
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() (normalizers.IgnoreNormalizerOpts, error)); ok {
-		return returnFunc()
-	}
-	if returnFunc, ok := ret.Get(0).(func() normalizers.IgnoreNormalizerOpts); ok {
-		r0 = returnFunc()
-	} else {
-		r0 = ret.Get(0).(normalizers.IgnoreNormalizerOpts)
-	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// Provider_IgnoreNormalizerOpts_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IgnoreNormalizerOpts'
-type Provider_IgnoreNormalizerOpts_Call struct {
-	*mock.Call
-}
-
-// IgnoreNormalizerOpts is a helper method to define mock.On call
-func (_e *Provider_Expecter) IgnoreNormalizerOpts() *Provider_IgnoreNormalizerOpts_Call {
-	return &Provider_IgnoreNormalizerOpts_Call{Call: _e.mock.On("IgnoreNormalizerOpts")}
-}
-
-func (_c *Provider_IgnoreNormalizerOpts_Call) Run(run func()) *Provider_IgnoreNormalizerOpts_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run()
-	})
-	return _c
-}
-
-func (_c *Provider_IgnoreNormalizerOpts_Call) Return(ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts, err error) *Provider_IgnoreNormalizerOpts_Call {
-	_c.Call.Return(ignoreNormalizerOpts, err)
-	return _c
-}
-
-func (_c *Provider_IgnoreNormalizerOpts_Call) RunAndReturn(run func() (normalizers.IgnoreNormalizerOpts, error)) *Provider_IgnoreNormalizerOpts_Call {
 	_c.Call.Return(run)
 	return _c
 }

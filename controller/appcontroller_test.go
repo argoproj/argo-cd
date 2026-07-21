@@ -70,29 +70,6 @@ type namespacedResource struct {
 	AppName string
 }
 
-// overrideConfigProvider wraps a Provider so tests can stub individual getters
-// without writing deprecated controller fields. Prefer this (or a mockery mock)
-// over assigning ctrl.syncTimeout / ctrl.selfHealBackoff.
-type overrideConfigProvider struct {
-	configbus.Provider
-	syncTimeout     *time.Duration
-	selfHealBackoff **wait.Backoff
-}
-
-func (o *overrideConfigProvider) SyncTimeout() (time.Duration, error) {
-	if o.syncTimeout != nil {
-		return *o.syncTimeout, nil
-	}
-	return o.Provider.SyncTimeout()
-}
-
-func (o *overrideConfigProvider) SelfHealBackoff() (*wait.Backoff, error) {
-	if o.selfHealBackoff != nil {
-		return *o.selfHealBackoff, nil
-	}
-	return o.Provider.SelfHealBackoff()
-}
-
 type fakeData struct {
 	apps                            []runtime.Object
 	manifestResponse                *apiclient.ManifestResponse
@@ -3227,7 +3204,12 @@ func TestProcessRequestedAppOperation_SyncTimeout(t *testing.T) {
 				}},
 			}, nil)
 
-			ctrl.configProvider = &overrideConfigProvider{Provider: ctrl.configProvider, syncTimeout: &tc.syncTimeout}
+			ctrl.configProvider = configbus.NewChainProvider(
+				&configbus.StaticProvider{Fields: configbus.StaticFields{
+					SyncTimeout: configbus.Ptr(tc.syncTimeout),
+				}},
+				ctrl.configProvider,
+			)
 			app.Status.OperationState = &v1alpha1.OperationState{
 				Operation: *app.Operation,
 				Phase:     tc.currentPhase,
@@ -3284,7 +3266,12 @@ func TestProcessRequestedAppOperation_RequeuesOperation(t *testing.T) {
 			}},
 		}, nil)
 		syncTimeout := 10 * time.Second
-		ctrl.configProvider = &overrideConfigProvider{Provider: ctrl.configProvider, syncTimeout: &syncTimeout}
+		ctrl.configProvider = configbus.NewChainProvider(
+			&configbus.StaticProvider{Fields: configbus.StaticFields{
+				SyncTimeout: configbus.Ptr(syncTimeout),
+			}},
+			ctrl.configProvider,
+		)
 		app.Status.OperationState = &v1alpha1.OperationState{
 			Operation: *app.Operation,
 			Phase:     synccommon.OperationRunning,
@@ -4023,7 +4010,12 @@ func TestSelfHealRemainingBackoff(t *testing.T) {
 		Duration: 2 * time.Second,
 		Cap:      2 * time.Minute,
 	}
-	ctrl.configProvider = &overrideConfigProvider{Provider: ctrl.configProvider, selfHealBackoff: &backoff}
+	ctrl.configProvider = configbus.NewChainProvider(
+		&configbus.StaticProvider{Fields: configbus.StaticFields{
+			SelfHealBackoff: configbus.PtrPtr(backoff),
+		}},
+		ctrl.configProvider,
+	)
 	app := &v1alpha1.Application{
 		Status: v1alpha1.ApplicationStatus{
 			OperationState: &v1alpha1.OperationState{

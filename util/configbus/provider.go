@@ -7,7 +7,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
@@ -32,6 +31,15 @@ var ErrNotConfigured = errors.New("config: not configured")
 // SettingsManager / Env; CRD is inserted once wired). Tests typically inject
 // mocks.Provider from mockery, or a StaticProvider literal.
 type Provider interface {
+	// SettingsManager is a temporary escape hatch for call sites still needing
+	// the raw manager during migration. Prefer typed getters when possible.
+	SettingsManager() (*settings.SettingsManager, error)
+	// Subscribe registers for argocd-cm/secret change notifications when the
+	// backing implementation supports it (SettingsManagerProvider / ChainProvider).
+	Subscribe(subCh chan<- *settings.ArgoCDSettings)
+	// Unsubscribe unregisters a settings change subscriber.
+	Unsubscribe(subCh chan<- *settings.ArgoCDSettings)
+
 	AllowedNodeLabels() ([]string, error)
 	AppInstanceLabelKey() (string, error)
 	CommitAuthorEmail() (string, error)
@@ -42,7 +50,6 @@ type Provider interface {
 	HelmSettings() (*v1alpha1.HelmOptions, error)
 	HydratorReadmeTemplate() (string, error)
 	IgnoreNormalizerJQTimeout() (time.Duration, error)
-	IgnoreNormalizerOpts() (normalizers.IgnoreNormalizerOpts, error)
 	IgnoreResourceUpdatesOverrides() (map[string]v1alpha1.ResourceOverride, error)
 	InstallationID() (string, error)
 	IsIgnoreResourceUpdatesEnabled() (bool, error)
@@ -63,16 +70,9 @@ type Provider interface {
 	SelfHealTimeout() (time.Duration, error)
 	SensitiveAnnotations() (map[string]bool, error)
 	ServerSideDiff() (bool, error)
-	// SettingsManager is a temporary escape hatch for call sites still needing
-	// the raw manager during migration. Prefer typed getters when possible.
-	SettingsManager() (*settings.SettingsManager, error)
 	SourceHydratorCommitMessageTemplate() (string, error)
-	// Subscribe registers for argocd-cm/secret change notifications when the
-	// backing implementation supports it (SettingsManagerProvider / ChainProvider).
-	Subscribe(subCh chan<- *settings.ArgoCDSettings)
 	SyncTimeout() (time.Duration, error)
 	TrackingMethod() (string, error)
-	Unsubscribe(subCh chan<- *settings.ArgoCDSettings)
 }
 
 // firstConfigured tries each link in order and returns the first result that is

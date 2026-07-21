@@ -35,6 +35,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/env"
@@ -571,11 +572,11 @@ func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.Cluste
 			gvk := un.GroupVersionKind()
 
 			if cacheSettings.ignoreResourceUpdatesEnabled && shouldHashManifest(appName, gvk, un) {
-				ignoreNormalizerOpts, err := c.configProvider.IgnoreNormalizerOpts()
+				ignoreNormalizerJQTimeout, err := c.configProvider.IgnoreNormalizerJQTimeout()
 				if err != nil {
-					log.Errorf("Failed to resolve ignore normalizer opts: %v", err)
+					log.Errorf("Failed to resolve ignore normalizer JQ timeout: %v", err)
 				} else {
-					hash, err := generateManifestHash(un, nil, cacheSettings.resourceOverrides, ignoreNormalizerOpts)
+					hash, err := generateManifestHash(un, nil, cacheSettings.resourceOverrides, normalizers.IgnoreNormalizerOpts{JQExecutionTimeout: ignoreNormalizerJQTimeout})
 					if err != nil {
 						log.Errorf("Failed to generate manifest hash: %v", err)
 					} else {

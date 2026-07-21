@@ -8,7 +8,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
@@ -32,7 +31,6 @@ type StaticFields struct {
 	HelmSettings                        **v1alpha1.HelmOptions
 	HydratorReadmeTemplate              *string
 	IgnoreNormalizerJQTimeout           *time.Duration
-	IgnoreNormalizerOpts                *normalizers.IgnoreNormalizerOpts
 	IgnoreResourceUpdatesOverrides      *map[string]v1alpha1.ResourceOverride
 	InstallationID                      *string
 	IsIgnoreResourceUpdatesEnabled      *bool
@@ -135,13 +133,6 @@ func (p *StaticProvider) IgnoreNormalizerJQTimeout() (time.Duration, error) {
 		return 0, ErrNotConfigured
 	}
 	return *p.Fields.IgnoreNormalizerJQTimeout, nil
-}
-
-func (p *StaticProvider) IgnoreNormalizerOpts() (normalizers.IgnoreNormalizerOpts, error) {
-	if p == nil || p.Fields.IgnoreNormalizerOpts == nil {
-		return normalizers.IgnoreNormalizerOpts{}, ErrNotConfigured
-	}
-	return *p.Fields.IgnoreNormalizerOpts, nil
 }
 
 func (p *StaticProvider) IgnoreResourceUpdatesOverrides() (map[string]v1alpha1.ResourceOverride, error) {

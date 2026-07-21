@@ -12,7 +12,6 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/v3/common"
-	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
@@ -46,14 +45,13 @@ func TestControllerChainResolvesAllFields(t *testing.T) {
 	settingsMgr := settings.NewSettingsManager(ctx, kubeClient, "argocd")
 	require.NoError(t, settingsMgr.ResyncInformers())
 
-	opts := normalizers.IgnoreNormalizerOpts{JQExecutionTimeout: 2 * time.Second}
+	optsTimeout := 2 * time.Second
 	labels := []string{"team"}
 	var backoff *wait.Backoff
 	chain := configbus.NewChainProvider(
 		&configbus.StaticProvider{Fields: configbus.StaticFields{
 			HardReconciliationTimeout: configbus.Ptr(time.Hour),
-			IgnoreNormalizerJQTimeout: configbus.Ptr(opts.JQExecutionTimeout),
-			IgnoreNormalizerOpts:      configbus.Ptr(opts),
+			IgnoreNormalizerJQTimeout: configbus.Ptr(optsTimeout),
 			MetricsClusterLabels:      configbus.Ptr(labels),
 			PersistResourceHealth:     configbus.Ptr(true),
 			ReconciliationJitter:      configbus.Ptr(time.Second),

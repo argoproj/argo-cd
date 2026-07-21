@@ -137,32 +137,16 @@ type ApplicationController struct {
 	projInformer                  cache.SharedIndexInformer
 	appStateManager               AppStateManager
 	stateCache                    statecache.LiveStateCache
-	// Deprecated: use configProvider.ReconciliationTimeout.
-	statusRefreshTimeout time.Duration
-	// Deprecated: use configProvider.HardReconciliationTimeout.
-	statusHardRefreshTimeout time.Duration
-	// Deprecated: use configProvider.ReconciliationJitter.
-	statusRefreshJitter time.Duration
-	// Deprecated: use configProvider.SelfHealTimeout.
-	selfHealTimeout time.Duration
-	// Deprecated: use configProvider.SelfHealBackoff.
-	selfHealBackoff *wait.Backoff
-	// Deprecated: use configProvider.SyncTimeout.
-	syncTimeout               time.Duration
-	db                        db.ArgoDB
-	settingsMgr               *settings_util.SettingsManager
-	configProvider            configbus.Provider
-	refreshRequestedApps      map[string]CompareWith
-	refreshRequestedAppsMutex *sync.Mutex
-	metricsServer             *metrics.MetricsServer
-	// Deprecated: use configProvider.MetricsClusterLabels.
-	metricsClusterLabels  []string
-	kubectlSemaphore      *semaphore.Weighted
-	clusterSharding       sharding.ClusterShardingCache
-	projByNameCache       sync.Map
-	applicationNamespaces []string
-	// Deprecated: use configProvider.IgnoreNormalizerOpts.
-	ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts
+	db                            db.ArgoDB
+	settingsMgr                   *settings_util.SettingsManager
+	configProvider                configbus.Provider
+	refreshRequestedApps          map[string]CompareWith
+	refreshRequestedAppsMutex     *sync.Mutex
+	metricsServer                 *metrics.MetricsServer
+	kubectlSemaphore              *semaphore.Weighted
+	clusterSharding               sharding.ClusterShardingCache
+	projByNameCache               sync.Map
+	applicationNamespaces         []string
 
 	// dynamicClusterDistributionEnabled if disabled deploymentInformer is never initialized
 	dynamicClusterDistributionEnabled bool
@@ -224,28 +208,19 @@ func NewApplicationController(
 		appHydrateQueue:                   workqueue.NewTypedRateLimitingQueueWithConfig(ratelimiter.NewCustomAppControllerRateLimiter[string](rateLimiterConfig), workqueue.TypedRateLimitingQueueConfig[string]{Name: "app_hydration_queue"}),
 		hydrationQueue:                    workqueue.NewTypedRateLimitingQueueWithConfig(ratelimiter.NewCustomAppControllerRateLimiter[hydratortypes.HydrationQueueKey](rateLimiterConfig), workqueue.TypedRateLimitingQueueConfig[hydratortypes.HydrationQueueKey]{Name: "manifest_hydration_queue"}),
 		db:                                db,
-		statusRefreshTimeout:              appResyncPeriod,
-		statusHardRefreshTimeout:          appHardResyncPeriod,
-		statusRefreshJitter:               appResyncJitter,
 		refreshRequestedApps:              make(map[string]CompareWith),
 		refreshRequestedAppsMutex:         &sync.Mutex{},
 		auditLogger:                       argo.NewAuditLogger(kubeClientset, namespace, common.CommandApplicationController, enableK8sEvent),
 		settingsMgr:                       settingsMgr,
-		selfHealTimeout:                   selfHealTimeout,
-		selfHealBackoff:                   selfHealBackoff,
-		syncTimeout:                       syncTimeout,
 		clusterSharding:                   clusterSharding,
 		projByNameCache:                   sync.Map{},
 		applicationNamespaces:             applicationNamespaces,
 		dynamicClusterDistributionEnabled: dynamicClusterDistributionEnabled,
-		ignoreNormalizerOpts:              ignoreNormalizerOpts,
-		metricsClusterLabels:              metricsClusterLabels,
 	}
 	ctrl.configProvider = configbus.NewChainProvider(
 		&configbus.StaticProvider{Fields: configbus.StaticFields{
 			HardReconciliationTimeout: configbus.Ptr(appHardResyncPeriod),
 			IgnoreNormalizerJQTimeout: configbus.Ptr(ignoreNormalizerOpts.JQExecutionTimeout),
-			IgnoreNormalizerOpts:      configbus.Ptr(ignoreNormalizerOpts),
 			MetricsClusterLabels:      configbus.Ptr(metricsClusterLabels),
 			PersistResourceHealth:     configbus.Ptr(persistResourceHealth),
 			ReconciliationJitter:      configbus.Ptr(appResyncJitter),
@@ -345,15 +320,7 @@ func NewApplicationController(
 		}
 	}
 	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.namespace, ctrl.configProvider, ctrl.metricsServer, ctrl.handleObjectUpdated, clusterSharding, argo.NewResourceTracking())
-	ignoreNormalizerOpts, err = ctrl.configProvider.IgnoreNormalizerOpts()
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve ignore normalizer opts: %w", err)
-	}
-	reconciliationTimeout, err := ctrl.configProvider.ReconciliationTimeout()
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve reconciliation timeout: %w", err)
-	}
-	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.onKubectlRun, ctrl.configProvider, stateCache, ctrl.metricsServer, argoCache, reconciliationTimeout, argo.NewResourceTracking(), persistResourceHealth, repoErrorGracePeriod, serverSideDiff, ignoreNormalizerOpts)
+	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.onKubectlRun, ctrl.configProvider, stateCache, ctrl.metricsServer, argoCache, argo.NewResourceTracking())
 	ctrl.appInformer = appInformer
 	ctrl.appLister = appLister
 	ctrl.projInformer = projInformer
@@ -885,12 +852,12 @@ func (ctrl *ApplicationController) hideSecretData(ctx context.Context, destClust
 			if err != nil {
 				return nil, fmt.Errorf("error getting cluster cache: %w", err)
 			}
-			ignoreNormalizerOpts, err := ctrl.configProvider.IgnoreNormalizerOpts()
+			ignoreNormalizerJQTimeout, err := ctrl.configProvider.IgnoreNormalizerJQTimeout()
 			if err != nil {
-				return nil, fmt.Errorf("failed to resolve ignore normalizer opts: %w", err)
+				return nil, fmt.Errorf("failed to resolve ignore normalizer JQ timeout: %w", err)
 			}
 			diffConfig, err := argodiff.NewDiffConfigBuilder().
-				WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles, ignoreNormalizerOpts).
+				WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles, normalizers.IgnoreNormalizerOpts{JQExecutionTimeout: ignoreNormalizerJQTimeout}).
 				WithTracking(appLabelKey, trackingMethod).
 				WithNoCache().
 				WithLogger(logutils.NewLogrusLogger(logutils.NewWithCurrentConfig())).

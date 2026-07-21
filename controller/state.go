@@ -131,28 +131,18 @@ func (res *comparisonResult) GetHealthStatus() health.HealthStatusCode {
 
 // appStateManager allows to compare applications to git
 type appStateManager struct {
-	metricsServer  *metrics.MetricsServer
-	db             db.ArgoDB
-	configProvider configbus.Provider
-	appclientset   appclientset.Interface
-	kubectl        kubeutil.Kubectl
-	onKubectlRun   kubeutil.OnKubectlRunFunc
-	repoClientset  apiclient.Clientset
-	liveStateCache statecache.LiveStateCache
-	cache          *appstatecache.Cache
-	namespace      string
-	// Deprecated: use configProvider.ReconciliationTimeout.
-	statusRefreshTimeout time.Duration
-	resourceTracking     argo.ResourceTracking
-	// Deprecated: use configProvider.PersistResourceHealth.
-	persistResourceHealth bool
-	repoErrorCache        goSync.Map
-	// Deprecated: use configProvider.RepoErrorGracePeriod.
-	repoErrorGracePeriod time.Duration
-	// Deprecated: use configProvider.ServerSideDiff.
-	serverSideDiff bool
-	// Deprecated: use configProvider.IgnoreNormalizerOpts.
-	ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts
+	metricsServer    *metrics.MetricsServer
+	db               db.ArgoDB
+	configProvider   configbus.Provider
+	appclientset     appclientset.Interface
+	kubectl          kubeutil.Kubectl
+	onKubectlRun     kubeutil.OnKubectlRunFunc
+	repoClientset    apiclient.Clientset
+	liveStateCache   statecache.LiveStateCache
+	cache            *appstatecache.Cache
+	namespace        string
+	resourceTracking argo.ResourceTracking
+	repoErrorCache   goSync.Map
 }
 
 // EvaluateAppRevisionsChanges checks if any source revisions have changes without generating manifests.
@@ -912,7 +902,8 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 
 	compareOptions, err := m.configProvider.ResourceCompareOptions()
 	if err != nil {
-		return nil, err
+		log.Warnf("Could not get compare options from config provider (assuming defaults): %v", err)
+		compareOptions = settings.GetDefaultDiffOptions()
 	}
 	manifestRevisions := make([]string, 0)
 
@@ -922,7 +913,7 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 
 	serverSideDiffCfg, err := m.configProvider.ServerSideDiff()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to resolve server-side diff setting: %w", err)
 	}
 	serverSideDiff := serverSideDiffCfg ||
 		resourceutil.HasAnnotationOption(app, common.AnnotationCompareOptions, "ServerSideDiff=true")
@@ -935,16 +926,16 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 
 	reconciliationTimeout, err := m.configProvider.ReconciliationTimeout()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to resolve reconciliation timeout: %w", err)
 	}
 	useDiffCache := useDiffCache(noCache, manifestInfos, sources, app, manifestRevisions, reconciliationTimeout, serverSideDiff, logCtx)
 
-	ignoreNormalizerOpts, err := m.configProvider.IgnoreNormalizerOpts()
+	ignoreNormalizerJQTimeout, err := m.configProvider.IgnoreNormalizerJQTimeout()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to resolve ignore normalizer JQ timeout: %w", err)
 	}
 	diffConfigBuilder := argodiff.NewDiffConfigBuilder().
-		WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles, ignoreNormalizerOpts).
+		WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles, normalizers.IgnoreNormalizerOpts{JQExecutionTimeout: ignoreNormalizerJQTimeout}).
 		WithTracking(appLabelKey, string(trackingMethod))
 
 	if useDiffCache {
@@ -1129,7 +1120,7 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 
 	persistResourceHealth, err := m.configProvider.PersistResourceHealth()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to resolve persist resource health setting: %w", err)
 	}
 	healthStatus, healthMessage, err := setApplicationHealth(managedResources, resourceSummaries, resourceOverrides, app, persistResourceHealth)
 	if err != nil {
@@ -1335,30 +1326,20 @@ func NewAppStateManager(
 	liveStateCache statecache.LiveStateCache,
 	metricsServer *metrics.MetricsServer,
 	cache *appstatecache.Cache,
-	statusRefreshTimeout time.Duration,
 	resourceTracking argo.ResourceTracking,
-	persistResourceHealth bool,
-	repoErrorGracePeriod time.Duration,
-	serverSideDiff bool,
-	ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts,
 ) AppStateManager {
 	return &appStateManager{
-		liveStateCache:        liveStateCache,
-		cache:                 cache,
-		db:                    db,
-		appclientset:          appclientset,
-		kubectl:               kubectl,
-		onKubectlRun:          onKubectlRun,
-		repoClientset:         repoClientset,
-		namespace:             namespace,
-		configProvider:        configProvider,
-		metricsServer:         metricsServer,
-		statusRefreshTimeout:  statusRefreshTimeout,
-		resourceTracking:      resourceTracking,
-		persistResourceHealth: persistResourceHealth,
-		repoErrorGracePeriod:  repoErrorGracePeriod,
-		serverSideDiff:        serverSideDiff,
-		ignoreNormalizerOpts:  ignoreNormalizerOpts,
+		liveStateCache:   liveStateCache,
+		cache:            cache,
+		db:               db,
+		appclientset:     appclientset,
+		kubectl:          kubectl,
+		onKubectlRun:     onKubectlRun,
+		repoClientset:    repoClientset,
+		namespace:        namespace,
+		configProvider:   configProvider,
+		metricsServer:    metricsServer,
+		resourceTracking: resourceTracking,
 	}
 }
 

@@ -17,7 +17,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	kubecache "k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
@@ -374,25 +373,20 @@ func reconcileApplications(
 	settingsMgr := settings.NewSettingsManager(ctx, kubeClientset, namespace)
 	// CLI flags override Diff-related settings via a leading StaticProvider.
 	// Temporary: once config is fully CRD-backed these admin flags go away.
-	// Remaining Static fields mirror the former adminControllerLegacy zeros so
-	// the chain remains total for compare/reconcile.
+	// Trailing Static supplies defaults for controller knobs that Settings/Env
+	// do not own so compare/reconcile remains total.
 	configProvider := configbus.NewChainProvider(
 		&configbus.StaticProvider{Fields: configbus.StaticFields{
-			HardReconciliationTimeout: configbus.Ptr(time.Duration(0)),
 			IgnoreNormalizerJQTimeout: configbus.Ptr(ignoreNormalizerOpts.JQExecutionTimeout),
-			IgnoreNormalizerOpts:      configbus.Ptr(ignoreNormalizerOpts),
-			MetricsClusterLabels:      configbus.Ptr([]string(nil)),
-			PersistResourceHealth:     configbus.Ptr(true),
-			ReconciliationJitter:      configbus.Ptr(time.Duration(0)),
-			ReconciliationTimeout:     configbus.Ptr(time.Duration(0)),
-			RepoErrorGracePeriod:      configbus.Ptr(time.Duration(0)),
-			SelfHealBackoff:           configbus.PtrPtr((*wait.Backoff)(nil)),
-			SelfHealTimeout:           configbus.Ptr(time.Duration(0)),
 			ServerSideDiff:            configbus.Ptr(serverSideDiff),
-			SyncTimeout:               configbus.Ptr(time.Duration(0)),
 		}},
 		configbus.NewSettingsManagerProvider(settingsMgr),
 		configbus.NewEnvProvider(),
+		&configbus.StaticProvider{Fields: configbus.StaticFields{
+			PersistResourceHealth: configbus.Ptr(true),
+			ReconciliationTimeout: configbus.Ptr(time.Duration(0)),
+			RepoErrorGracePeriod:  configbus.Ptr(time.Duration(0)),
+		}},
 	)
 	argoDB := db.NewDB(namespace, settingsMgr, kubeClientset)
 	appInformerFactory := appinformers.NewSharedInformerFactoryWithOptions(
@@ -443,12 +437,7 @@ func reconcileApplications(
 		stateCache,
 		server,
 		cache,
-		time.Second,
 		argo.NewResourceTracking(),
-		false,
-		0,
-		serverSideDiff,
-		ignoreNormalizerOpts,
 	)
 
 	appsList, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(ctx, metav1.ListOptions{LabelSelector: selector})
