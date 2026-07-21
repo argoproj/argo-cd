@@ -242,6 +242,7 @@ func NewApplicationController(
 		metricsClusterLabels:              metricsClusterLabels,
 	}
 	ctrl.configProvider = configbus.NewHybridProvider(
+		// TODO: Add actual CRD source. For now everything falls back to the Legacy provider.
 		configbus.NewCRDProvider(nil),
 		configbus.NewLegacyProvider(settingsMgr, &configbus.LegacyValues{Controller: &ctrl}),
 	)
@@ -254,7 +255,7 @@ func NewApplicationController(
 	kubectl.SetOnKubectlRun(ctrl.onKubectlRun)
 	appInformer, appLister, err := ctrl.newApplicationInformerAndLister()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create application informer and lister: %w", err)
 	}
 	indexers := cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}
 	projInformer := v1alpha1.NewAppProjectInformer(applicationClientset, namespace, appResyncPeriod, indexers)
@@ -330,7 +331,7 @@ func NewApplicationController(
 			return nil, err
 		}
 	}
-	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, ctrl.configProvider, ctrl.metricsServer, ctrl.handleObjectUpdated, clusterSharding, argo.NewResourceTracking())
+	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.namespace, ctrl.configProvider, ctrl.metricsServer, ctrl.handleObjectUpdated, clusterSharding, argo.NewResourceTracking())
 	ignoreNormalizerOpts, err = ctrl.configProvider.IgnoreNormalizerOpts()
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve ignore normalizer opts: %w", err)

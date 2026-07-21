@@ -179,7 +179,6 @@ func NewCommand() *cobra.Command {
 			settingsMgr := settings.NewSettingsManager(ctx, kubeClient, namespace, settings.WithRepoOrClusterChangedHandler(func() {
 				appController.InvalidateProjectsCache()
 			}))
-
 			kubectl := kubeutil.NewKubectl()
 			clusterSharding, err := sharding.GetClusterSharding(kubeClient, settingsMgr, shardingAlgorithm, enableDynamicClusterDistribution)
 			errors.CheckError(err)

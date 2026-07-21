@@ -11,10 +11,10 @@ import (
 )
 
 // CRDProvider resolves config only from the ArgoCDConfiguration CRD. Until the
-// CRD source is wired (layer 08), every getter returns ErrNotConfigured so
-// HybridProvider falls through to LegacyProvider.
+// CRD is introduced, every getter returns ErrNotConfigured so HybridProvider
+// falls through to LegacyProvider.
 type CRDProvider struct {
-	// source is reserved for layer 08. Nil means no CRD is available.
+	// source is reserved until the CRD is introduced. Nil means no CRD is available.
 	source any
 }
 

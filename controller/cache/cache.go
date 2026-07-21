@@ -189,7 +189,7 @@ type ResourceInfo struct {
 func NewLiveStateCache(
 	db db.ArgoDB,
 	appInformer cache.SharedIndexInformer,
-	settingsMgr *settings.SettingsManager,
+	namespace string,
 	configProvider configbus.Provider,
 	metricsServer *metrics.MetricsServer,
 	onObjectUpdated ObjectUpdatedHandler,
@@ -201,7 +201,7 @@ func NewLiveStateCache(
 		db:               db,
 		clusters:         make(map[string]clustercache.ClusterCache),
 		onObjectUpdated:  onObjectUpdated,
-		settingsMgr:      settingsMgr,
+		namespace:        namespace,
 		configProvider:   configProvider,
 		metricsServer:    metricsServer,
 		clusterSharding:  clusterSharding,
@@ -222,14 +222,14 @@ type cacheSettings struct {
 }
 
 type liveStateCache struct {
-	db                   db.ArgoDB
-	appInformer          cache.SharedIndexInformer
-	onObjectUpdated      ObjectUpdatedHandler
-	settingsMgr          *settings.SettingsManager
-	configProvider       configbus.Provider
-	metricsServer        *metrics.MetricsServer
-	clusterSharding      sharding.ClusterShardingCache
-	resourceTracking     argo.ResourceTracking
+	db               db.ArgoDB
+	appInformer      cache.SharedIndexInformer
+	onObjectUpdated  ObjectUpdatedHandler
+	namespace        string
+	configProvider   configbus.Provider
+	metricsServer    *metrics.MetricsServer
+	clusterSharding  sharding.ClusterShardingCache
+	resourceTracking argo.ResourceTracking
 
 	clusters      map[string]clustercache.ClusterCache
 	cacheSettings cacheSettings
@@ -739,7 +739,7 @@ func (c *liveStateCache) GetManagedLiveObjs(destCluster *appv1.Cluster, a *appv1
 		return nil, fmt.Errorf("failed to get cluster info for %q: %w", destCluster.Server, err)
 	}
 	return clusterInfo.GetManagedLiveObjs(targetObjs, func(r *clustercache.Resource) bool {
-		return resInfo(r).AppName == a.InstanceName(c.settingsMgr.GetNamespace())
+		return resInfo(r).AppName == a.InstanceName(c.namespace)
 	})
 }
 
@@ -771,7 +771,7 @@ func (c *liveStateCache) isClusterHasApps(apps []any, cluster *appv1.Cluster) bo
 
 func (c *liveStateCache) watchSettings(ctx context.Context) {
 	updateCh := make(chan *settings.ArgoCDSettings, 1)
-	c.settingsMgr.Subscribe(updateCh)
+	c.configProvider.Subscribe(updateCh)
 
 	done := false
 	for !done {
@@ -798,7 +798,7 @@ func (c *liveStateCache) watchSettings(ctx context.Context) {
 		}
 	}
 	log.Info("shutting down settings watch")
-	c.settingsMgr.Unsubscribe(updateCh)
+	c.configProvider.Unsubscribe(updateCh)
 	close(updateCh)
 }
 

@@ -88,104 +88,76 @@ func (p *LegacyProvider) requireControllerLegacy() (ControllerLegacy, error) {
 	return p.legacy.Controller, nil
 }
 
+func withControllerLegacy[T any](p *LegacyProvider, fn func(ControllerLegacy) T) (T, error) {
+	var zero T
+	c, err := p.requireControllerLegacy()
+	if err != nil {
+		return zero, err
+	}
+	return fn(c), nil
+}
+
+func withSettingsMgr[T any](p *LegacyProvider, fn func(*settings.SettingsManager) (T, error)) (T, error) {
+	var zero T
+	mgr, err := p.requireSettingsMgr()
+	if err != nil {
+		return zero, err
+	}
+	return fn(mgr)
+}
+
 // ---------------------------------------------------------------------------
 // Controller
 // ---------------------------------------------------------------------------
 
 func (p *LegacyProvider) HardReconciliationTimeout() (time.Duration, error) {
-	c, err := p.requireControllerLegacy()
-	if err != nil {
-		return 0, err
-	}
-	return c.LegacyStatusHardRefreshTimeout(), nil
+	return withControllerLegacy(p, ControllerLegacy.LegacyStatusHardRefreshTimeout)
 }
 
 func (p *LegacyProvider) IgnoreNormalizerJQTimeout() (time.Duration, error) {
-	c, err := p.requireControllerLegacy()
-	if err != nil {
-		return 0, err
-	}
-	return c.LegacyIgnoreNormalizerOpts().JQExecutionTimeout, nil
+	return withControllerLegacy(p, func(c ControllerLegacy) time.Duration {
+		return c.LegacyIgnoreNormalizerOpts().JQExecutionTimeout
+	})
 }
 
 func (p *LegacyProvider) IgnoreNormalizerOpts() (normalizers.IgnoreNormalizerOpts, error) {
-	c, err := p.requireControllerLegacy()
-	if err != nil {
-		return normalizers.IgnoreNormalizerOpts{}, err
-	}
-	return c.LegacyIgnoreNormalizerOpts(), nil
+	return withControllerLegacy(p, ControllerLegacy.LegacyIgnoreNormalizerOpts)
 }
 
 func (p *LegacyProvider) MetricsClusterLabels() ([]string, error) {
-	c, err := p.requireControllerLegacy()
-	if err != nil {
-		return nil, err
-	}
-	return c.LegacyMetricsClusterLabels(), nil
+	return withControllerLegacy(p, ControllerLegacy.LegacyMetricsClusterLabels)
 }
 
 func (p *LegacyProvider) PersistResourceHealth() (bool, error) {
-	c, err := p.requireControllerLegacy()
-	if err != nil {
-		return false, err
-	}
-	return c.LegacyPersistResourceHealth(), nil
+	return withControllerLegacy(p, ControllerLegacy.LegacyPersistResourceHealth)
 }
 
 func (p *LegacyProvider) ReconciliationJitter() (time.Duration, error) {
-	c, err := p.requireControllerLegacy()
-	if err != nil {
-		return 0, err
-	}
-	return c.LegacyStatusRefreshJitter(), nil
+	return withControllerLegacy(p, ControllerLegacy.LegacyStatusRefreshJitter)
 }
 
 func (p *LegacyProvider) ReconciliationTimeout() (time.Duration, error) {
-	c, err := p.requireControllerLegacy()
-	if err != nil {
-		return 0, err
-	}
-	return c.LegacyStatusRefreshTimeout(), nil
+	return withControllerLegacy(p, ControllerLegacy.LegacyStatusRefreshTimeout)
 }
 
 func (p *LegacyProvider) RepoErrorGracePeriod() (time.Duration, error) {
-	c, err := p.requireControllerLegacy()
-	if err != nil {
-		return 0, err
-	}
-	return c.LegacyRepoErrorGracePeriod(), nil
+	return withControllerLegacy(p, ControllerLegacy.LegacyRepoErrorGracePeriod)
 }
 
 func (p *LegacyProvider) SelfHealBackoff() (*wait.Backoff, error) {
-	c, err := p.requireControllerLegacy()
-	if err != nil {
-		return nil, err
-	}
-	return c.LegacySelfHealBackoff(), nil
+	return withControllerLegacy(p, ControllerLegacy.LegacySelfHealBackoff)
 }
 
 func (p *LegacyProvider) SelfHealTimeout() (time.Duration, error) {
-	c, err := p.requireControllerLegacy()
-	if err != nil {
-		return 0, err
-	}
-	return c.LegacySelfHealTimeout(), nil
+	return withControllerLegacy(p, ControllerLegacy.LegacySelfHealTimeout)
 }
 
 func (p *LegacyProvider) ServerSideDiff() (bool, error) {
-	c, err := p.requireControllerLegacy()
-	if err != nil {
-		return false, err
-	}
-	return c.LegacyServerSideDiff(), nil
+	return withControllerLegacy(p, ControllerLegacy.LegacyServerSideDiff)
 }
 
 func (p *LegacyProvider) SyncTimeout() (time.Duration, error) {
-	c, err := p.requireControllerLegacy()
-	if err != nil {
-		return 0, err
-	}
-	return c.LegacySyncTimeout(), nil
+	return withControllerLegacy(p, ControllerLegacy.LegacySyncTimeout)
 }
 
 // ---------------------------------------------------------------------------
@@ -201,169 +173,89 @@ func (p *LegacyProvider) GitRequestTimeout() (time.Duration, error) {
 // ---------------------------------------------------------------------------
 
 func (p *LegacyProvider) AllowedNodeLabels() ([]string, error) {
-	mgr, err := p.requireSettingsMgr()
-	if err != nil {
-		return nil, err
-	}
-	return mgr.GetAllowedNodeLabels(), nil
+	return withSettingsMgr(p, func(mgr *settings.SettingsManager) ([]string, error) {
+		return mgr.GetAllowedNodeLabels(), nil
+	})
 }
 
 func (p *LegacyProvider) AppInstanceLabelKey() (string, error) {
-	mgr, err := p.requireSettingsMgr()
-	if err != nil {
-		return "", err
-	}
-	return mgr.GetAppInstanceLabelKey()
+	return withSettingsMgr(p, (*settings.SettingsManager).GetAppInstanceLabelKey)
 }
 
 func (p *LegacyProvider) CommitAuthorEmail() (string, error) {
-	mgr, err := p.requireSettingsMgr()
-	if err != nil {
-		return "", err
-	}
-	return mgr.GetCommitAuthorEmail()
+	return withSettingsMgr(p, (*settings.SettingsManager).GetCommitAuthorEmail)
 }
 
 func (p *LegacyProvider) CommitAuthorName() (string, error) {
-	mgr, err := p.requireSettingsMgr()
-	if err != nil {
-		return "", err
-	}
-	return mgr.GetCommitAuthorName()
+	return withSettingsMgr(p, (*settings.SettingsManager).GetCommitAuthorName)
 }
 
 func (p *LegacyProvider) EnabledSourceTypes() (map[string]bool, error) {
-	mgr, err := p.requireSettingsMgr()
-	if err != nil {
-		return nil, err
-	}
-	return mgr.GetEnabledSourceTypes()
+	return withSettingsMgr(p, (*settings.SettingsManager).GetEnabledSourceTypes)
 }
 
 func (p *LegacyProvider) HelmSettings() (*v1alpha1.HelmOptions, error) {
-	mgr, err := p.requireSettingsMgr()
-	if err != nil {
-		return nil, err
-	}
-	return mgr.GetHelmSettings()
+	return withSettingsMgr(p, (*settings.SettingsManager).GetHelmSettings)
 }
 
 func (p *LegacyProvider) HydratorReadmeTemplate() (string, error) {
-	mgr, err := p.requireSettingsMgr()
-	if err != nil {
-		return "", err
-	}
-	return mgr.GetHydratorReadmeTemplate()
+	return withSettingsMgr(p, (*settings.SettingsManager).GetHydratorReadmeTemplate)
 }
 
 func (p *LegacyProvider) IgnoreResourceUpdatesOverrides() (map[string]v1alpha1.ResourceOverride, error) {
-	mgr, err := p.requireSettingsMgr()
-	if err != nil {
-		return nil, err
-	}
-	return mgr.GetIgnoreResourceUpdatesOverrides()
+	return withSettingsMgr(p, (*settings.SettingsManager).GetIgnoreResourceUpdatesOverrides)
 }
 
 func (p *LegacyProvider) InstallationID() (string, error) {
-	mgr, err := p.requireSettingsMgr()
-	if err != nil {
-		return "", err
-	}
-	return mgr.GetInstallationID()
+	return withSettingsMgr(p, (*settings.SettingsManager).GetInstallationID)
 }
 
 func (p *LegacyProvider) IsIgnoreResourceUpdatesEnabled() (bool, error) {
-	mgr, err := p.requireSettingsMgr()
-	if err != nil {
-		return false, err
-	}
-	return mgr.GetIsIgnoreResourceUpdatesEnabled()
+	return withSettingsMgr(p, (*settings.SettingsManager).GetIsIgnoreResourceUpdatesEnabled)
 }
 
 func (p *LegacyProvider) IsImpersonationEnabled() (bool, error) {
-	mgr, err := p.requireSettingsMgr()
-	if err != nil {
-		return false, err
-	}
-	return mgr.IsImpersonationEnabled()
+	return withSettingsMgr(p, (*settings.SettingsManager).IsImpersonationEnabled)
 }
 
 func (p *LegacyProvider) IsImpersonationEnforced() (bool, error) {
-	mgr, err := p.requireSettingsMgr()
-	if err != nil {
-		return false, err
-	}
-	return mgr.IsImpersonationEnforced()
+	return withSettingsMgr(p, (*settings.SettingsManager).IsImpersonationEnforced)
 }
 
 func (p *LegacyProvider) KustomizeSettings() (*v1alpha1.KustomizeOptions, error) {
-	mgr, err := p.requireSettingsMgr()
-	if err != nil {
-		return nil, err
-	}
-	return mgr.GetKustomizeSettings()
+	return withSettingsMgr(p, (*settings.SettingsManager).GetKustomizeSettings)
 }
 
 func (p *LegacyProvider) ResourceCompareOptions() (settings.ArgoCDDiffOptions, error) {
-	mgr, err := p.requireSettingsMgr()
-	if err != nil {
-		return settings.ArgoCDDiffOptions{}, err
-	}
-	return mgr.GetResourceCompareOptions()
+	return withSettingsMgr(p, (*settings.SettingsManager).GetResourceCompareOptions)
 }
 
 func (p *LegacyProvider) ResourceCustomLabels() ([]string, error) {
-	mgr, err := p.requireSettingsMgr()
-	if err != nil {
-		return nil, err
-	}
-	return mgr.GetResourceCustomLabels()
+	return withSettingsMgr(p, (*settings.SettingsManager).GetResourceCustomLabels)
 }
 
 func (p *LegacyProvider) ResourceOverrides() (map[string]v1alpha1.ResourceOverride, error) {
-	mgr, err := p.requireSettingsMgr()
-	if err != nil {
-		return nil, err
-	}
-	return mgr.GetResourceOverrides()
+	return withSettingsMgr(p, (*settings.SettingsManager).GetResourceOverrides)
 }
 
 func (p *LegacyProvider) ResourcesFilter() (*settings.ResourcesFilter, error) {
-	mgr, err := p.requireSettingsMgr()
-	if err != nil {
-		return nil, err
-	}
-	return mgr.GetResourcesFilter()
+	return withSettingsMgr(p, (*settings.SettingsManager).GetResourcesFilter)
 }
 
 func (p *LegacyProvider) RespectRBAC() (int, error) {
-	mgr, err := p.requireSettingsMgr()
-	if err != nil {
-		return 0, err
-	}
-	return mgr.RespectRBAC()
+	return withSettingsMgr(p, (*settings.SettingsManager).RespectRBAC)
 }
 
 func (p *LegacyProvider) SensitiveAnnotations() (map[string]bool, error) {
-	mgr, err := p.requireSettingsMgr()
-	if err != nil {
-		return nil, err
-	}
-	return mgr.GetSensitiveAnnotations(), nil
+	return withSettingsMgr(p, func(mgr *settings.SettingsManager) (map[string]bool, error) {
+		return mgr.GetSensitiveAnnotations(), nil
+	})
 }
 
 func (p *LegacyProvider) SourceHydratorCommitMessageTemplate() (string, error) {
-	mgr, err := p.requireSettingsMgr()
-	if err != nil {
-		return "", err
-	}
-	return mgr.GetSourceHydratorCommitMessageTemplate()
+	return withSettingsMgr(p, (*settings.SettingsManager).GetSourceHydratorCommitMessageTemplate)
 }
 
 func (p *LegacyProvider) TrackingMethod() (string, error) {
-	mgr, err := p.requireSettingsMgr()
-	if err != nil {
-		return "", err
-	}
-	return mgr.GetTrackingMethod()
+	return withSettingsMgr(p, (*settings.SettingsManager).GetTrackingMethod)
 }

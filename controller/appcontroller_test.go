@@ -58,6 +58,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 	utilTest "github.com/argoproj/argo-cd/v3/util/test"
 )
@@ -67,6 +68,29 @@ var testEnableEventList []string = argo.DefaultEnableEventList()
 type namespacedResource struct {
 	v1alpha1.ResourceNode
 	AppName string
+}
+
+// overrideConfigProvider wraps a Provider so tests can stub individual getters
+// without writing deprecated controller fields. Prefer this (or a mockery mock)
+// over assigning ctrl.syncTimeout / ctrl.selfHealBackoff.
+type overrideConfigProvider struct {
+	configbus.Provider
+	syncTimeout     *time.Duration
+	selfHealBackoff **wait.Backoff
+}
+
+func (o *overrideConfigProvider) SyncTimeout() (time.Duration, error) {
+	if o.syncTimeout != nil {
+		return *o.syncTimeout, nil
+	}
+	return o.Provider.SyncTimeout()
+}
+
+func (o *overrideConfigProvider) SelfHealBackoff() (*wait.Backoff, error) {
+	if o.selfHealBackoff != nil {
+		return *o.selfHealBackoff, nil
+	}
+	return o.Provider.SelfHealBackoff()
 }
 
 type fakeData struct {
@@ -2646,8 +2670,7 @@ func TestOrphanedIndexDoesNotQueryProjectDuringStartupRace(t *testing.T) {
 		},
 	}
 	ctrl, err := NewApplicationController(
-		test.FakeArgoCDNamespace, settingsMgr,
-		kubeClient,
+		test.FakeArgoCDNamespace, settingsMgr, kubeClient,
 		appclientset.NewSimpleClientset(app, proj),
 		mockRepoClientset, mockCommitClientset,
 		appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute),
@@ -2712,8 +2735,7 @@ func TestOrphanedIndexReturnsNamespaceWhenProjectHasOrphanedResources(t *testing
 		},
 	}
 	ctrl, err := NewApplicationController(
-		test.FakeArgoCDNamespace, settingsMgr,
-		kubeClient,
+		test.FakeArgoCDNamespace, settingsMgr, kubeClient,
 		appclientset.NewSimpleClientset(app, proj),
 		mockRepoClientset, mockCommitClientset,
 		appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute),
@@ -3205,8 +3227,7 @@ func TestProcessRequestedAppOperation_SyncTimeout(t *testing.T) {
 				}},
 			}, nil)
 
-			//nolint:staticcheck // SA1019: test writes deprecated syncTimeout; LegacySyncTimeout / Provider read it
-			ctrl.syncTimeout = tc.syncTimeout
+			ctrl.configProvider = &overrideConfigProvider{Provider: ctrl.configProvider, syncTimeout: &tc.syncTimeout}
 			app.Status.OperationState = &v1alpha1.OperationState{
 				Operation: *app.Operation,
 				Phase:     tc.currentPhase,
@@ -3262,8 +3283,8 @@ func TestProcessRequestedAppOperation_RequeuesOperation(t *testing.T) {
 				Manifests: []string{},
 			}},
 		}, nil)
-		//nolint:staticcheck // SA1019: test writes deprecated syncTimeout; LegacySyncTimeout / Provider read it
-		ctrl.syncTimeout = 10 * time.Second
+		syncTimeout := 10 * time.Second
+		ctrl.configProvider = &overrideConfigProvider{Provider: ctrl.configProvider, syncTimeout: &syncTimeout}
 		app.Status.OperationState = &v1alpha1.OperationState{
 			Operation: *app.Operation,
 			Phase:     synccommon.OperationRunning,
@@ -3997,12 +4018,12 @@ func assertDurationAround(t *testing.T, expected time.Duration, actual time.Dura
 
 func TestSelfHealRemainingBackoff(t *testing.T) {
 	ctrl := newFakeController(t.Context(), &fakeData{}, nil)
-	//nolint:staticcheck // SA1019: test writes deprecated selfHealBackoff; LegacySelfHealBackoff / Provider read it
-	ctrl.selfHealBackoff = &wait.Backoff{
+	backoff := &wait.Backoff{
 		Factor:   3,
 		Duration: 2 * time.Second,
 		Cap:      2 * time.Minute,
 	}
+	ctrl.configProvider = &overrideConfigProvider{Provider: ctrl.configProvider, selfHealBackoff: &backoff}
 	app := &v1alpha1.Application{
 		Status: v1alpha1.ApplicationStatus{
 			OperationState: &v1alpha1.OperationState{
