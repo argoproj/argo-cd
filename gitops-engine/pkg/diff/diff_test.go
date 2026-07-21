@@ -1485,9 +1485,8 @@ var (
 	replacement3 = strings.Repeat("+", 16)
 )
 
-// TestExcludeManagerOwnedAncestors covers the scenario from
-// https://github.com/argoproj/argo-cd/issues/28818: a CRD field with
-// x-kubernetes-preserve-unknown-fields can produce a predicted field set
+// TestExcludeManagerOwnedAncestors covers a CRD field with
+// x-kubernetes-preserve-unknown-fields that can produce a predicted field set
 // where a manager-owned leaf (e.g. .spec.configuration.value) is a distinct
 // member from its ancestor containers (.spec, .spec.configuration), because
 // Kubernetes only records the leaf path in managedFields. Removing those
@@ -1522,6 +1521,27 @@ func TestExcludeManagerOwnedAncestors(t *testing.T) {
 		assert.False(t, result.Has(fieldpath.MakePathOrDie("spec")))
 		assert.False(t, result.Has(fieldpath.MakePathOrDie("spec", "configuration")))
 		assert.True(t, result.Has(fieldpath.MakePathOrDie("spec", "configuration", "other")))
+	})
+
+	t.Run("strips a genuinely non-owned sibling while sparing the owned subtree in the same call", func(t *testing.T) {
+		// Mirrors the real webhook scenario: a webhook injects .spec.unrelated,
+		// while argocd owns .spec.configuration.value. Both the ancestor
+		// protection and the removal of unrelated webhook mutations must hold
+		// at once.
+		toRemove := fieldpath.NewSet(
+			fieldpath.MakePathOrDie("spec"),
+			fieldpath.MakePathOrDie("spec", "configuration"),
+			fieldpath.MakePathOrDie("spec", "unrelated"),
+		)
+		managerFieldsSet := fieldpath.NewSet(
+			fieldpath.MakePathOrDie("spec", "configuration", "value"),
+		)
+
+		result := excludeManagerOwnedAncestors(toRemove, managerFieldsSet)
+
+		assert.False(t, result.Has(fieldpath.MakePathOrDie("spec")), "ancestor of owned descendant must stay excluded")
+		assert.False(t, result.Has(fieldpath.MakePathOrDie("spec", "configuration")), "ancestor of owned descendant must stay excluded")
+		assert.True(t, result.Has(fieldpath.MakePathOrDie("spec", "unrelated")), "unrelated webhook-injected sibling must still be removed")
 	})
 }
 

@@ -314,12 +314,15 @@ func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkPa
 	return &unstructured.Unstructured{Object: pl}, nil
 }
 
-// excludeManagerOwnedAncestors removes any path from toRemove whose subtree in
-// managerFieldsSet is non-empty, i.e. the manager owns at least one descendant
-// of that path. This is needed because a *fieldpath.Set can contain a path as
-// a member of an ancestor's set even when a descendant of that path is a
+// excludeManagerOwnedAncestors removes any path from toRemove that has at
+// least one strict descendant present in managerFieldsSet, i.e. owned by the
+// manager. This is needed because a *fieldpath.Set can contain a path as a
+// member of an ancestor's set even when a descendant of that path is a
 // separate, distinct member of the manager's set: removing the ancestor would
-// otherwise drop the manager-owned descendant too.
+// otherwise drop the manager-owned descendant too. Paths in toRemove are
+// assumed to already exclude exact matches in managerFieldsSet (the caller
+// builds toRemove via Difference(managerFieldsSet)), so only strict
+// descendants need to be considered here.
 func excludeManagerOwnedAncestors(toRemove, managerFieldsSet *fieldpath.Set) *fieldpath.Set {
 	filtered := fieldpath.NewSet()
 	toRemove.Iterate(func(path fieldpath.Path) {
