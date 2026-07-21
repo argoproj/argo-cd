@@ -8,6 +8,7 @@ import {Context} from '../../../shared/context';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
 import {HealthStatusIcon, getAppSetHealthStatus, getAppSetConditionCategory} from '../utils';
+import {AppSetPreviewTab} from './appset-preview-tab';
 import './resource-details.scss';
 
 interface AppSetResourceDetailsProps {
@@ -112,6 +113,11 @@ export const AppSetResourceDetails = (props: AppSetResourceDetailsProps) => {
                         </DataLoader>
                     </div>
                 )
+            },
+            {
+                title: 'PREVIEW',
+                key: 'preview',
+                content: <AppSetPreviewTab appSet={appSet} />
             }
         ];
 
@@ -135,7 +141,13 @@ export const AppSetResourceDetails = (props: AppSetResourceDetailsProps) => {
                 <h1>{appSet.metadata.name}</h1>
                 <HealthStatusIcon state={{status: healthStatus, message: ''}} />
             </div>
-            <Tabs navTransparent={true} tabs={getTabs()} selectedTabKey={tab} onTabSelected={selected => appContext.navigation.goto('.', {tab: selected}, {replace: true})} />
+            <Tabs
+                key={tab || 'default'}
+                navTransparent={true}
+                tabs={getTabs()}
+                selectedTabKey={tab}
+                onTabSelected={selected => appContext.navigation.goto('.', {tab: selected}, {replace: true})}
+            />
         </div>
     );
 };

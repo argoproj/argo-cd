@@ -15,8 +15,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 	glob "github.com/bmatcuk/doublestar/v4"
+	"github.com/golang/groupcache/lru"
 	lua "github.com/yuin/gopher-lua"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -38,6 +39,62 @@ const (
 
 // errScriptDoesNotExist is an error type for when a built-in script does not exist.
 var errScriptDoesNotExist = errors.New("built-in script does not exist")
+
+// compiledScriptCacheSize bounds the number of compiled Lua scripts retained in memory.
+// The working set (embedded built-in scripts plus a small number of argocd-cm customizations)
+// is well under this, so eviction is only a safety valve against pathological churn.
+const compiledScriptCacheSize = 1024
+
+var (
+	// scriptCacheEnabled controls whether compiled Lua scripts are cached and reused across
+	// executions. It is always enabled in production; it exists only as a seam so tests and
+	// benchmarks can measure the compile-on-every-call path.
+	scriptCacheEnabled = true
+	// compiledScripts is a process-wide, content-addressed cache of compiled Lua scripts.
+	// The cache key is the raw script source, so any change to a script (for example, an
+	// edited argocd-cm customization) is a distinct key and a cache miss - no explicit
+	// invalidation is required. A bounded size caps memory under pathological churn.
+	compiledScripts = newCompiledScriptCache()
+)
+
+// compiledScriptCache is a bounded, content-addressed cache of compiled Lua scripts.
+// A gopher-lua FunctionProto is immutable and safe to reuse across LStates, so a single
+// compiled proto can back any number of concurrent executions. The working set (embedded
+// built-in scripts plus a small number of argocd-cm customizations) is finite and stable, so
+// LRU eviction is only a safety valve against unbounded growth, not a hot-path concern.
+//
+// It is backed by github.com/golang/groupcache/lru. That cache's Get promotes the accessed
+// entry (a mutation), so a sync.Mutex (not RWMutex) guards all access.
+type compiledScriptCache struct {
+	mu    sync.Mutex
+	cache *lru.Cache
+}
+
+func newCompiledScriptCache() *compiledScriptCache {
+	return &compiledScriptCache{
+		cache: lru.New(compiledScriptCacheSize),
+	}
+}
+
+func (c *compiledScriptCache) get(key string) (*lua.FunctionProto, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if v, ok := c.cache.Get(key); ok {
+		return v.(*lua.FunctionProto), true
+	}
+	return nil, false
+}
+
+func (c *compiledScriptCache) add(key string, proto *lua.FunctionProto) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	// Keep the first compiled proto for a given source. Concurrent misses may both compile,
+	// but the protos are equivalent, so retaining the earliest avoids needless churn.
+	if _, ok := c.cache.Get(key); ok {
+		return
+	}
+	c.cache.Add(key, proto)
+}
 
 type ResourceHealthOverrides map[string]appv1.ResourceOverride
 
@@ -113,7 +170,12 @@ func (vm VM) runLuaWithResourceActionParameters(obj *unstructured.Unstructured, 
 
 	objectValue := decodeValue(l, obj.Object)
 	l.SetGlobal("obj", objectValue)
-	err := l.DoString(script)
+
+	fn, err := loadCompiledFunction(l, script)
+	if err == nil {
+		l.Push(fn)
+		err = l.PCall(0, lua.MultRet, nil)
+	}
 
 	// Remove the default lua stack trace from execution errors since these
 	// errors will make it back to the user
@@ -126,6 +188,26 @@ func (vm VM) runLuaWithResourceActionParameters(obj *unstructured.Unstructured, 
 	}
 
 	return l, err
+}
+
+// loadCompiledFunction returns a callable Lua function for the given script, using the
+// compiled-script cache when enabled. On a cache miss (or when the cache is disabled) the
+// script is compiled via LState.LoadString, which preserves the exact syntax-error behavior
+// of the previous DoString call path. Compilation failures are never cached so that a fresh
+// error is surfaced on each call.
+func loadCompiledFunction(l *lua.LState, script string) (*lua.LFunction, error) {
+	if !scriptCacheEnabled {
+		return l.LoadString(script)
+	}
+	if proto, ok := compiledScripts.get(script); ok {
+		return l.NewFunctionFromProto(proto), nil
+	}
+	fn, err := l.LoadString(script)
+	if err != nil {
+		return nil, err
+	}
+	compiledScripts.add(script, fn.Proto)
+	return fn, nil
 }
 
 // ExecuteHealthLua runs the lua script to generate the health status of a resource

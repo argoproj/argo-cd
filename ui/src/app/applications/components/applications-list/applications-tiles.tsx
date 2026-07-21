@@ -53,14 +53,14 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
     const appContainerRef = React.useRef(null);
     const appsPerRow = useItemsPerContainer(firstTileRef, appContainerRef);
 
-    const {useKeybinding} = React.useContext(KeybindingContext);
+    const {registerKeybinding} = React.useContext(KeybindingContext);
 
-    useKeybinding({keys: Key.RIGHT, action: () => navApp(1)});
-    useKeybinding({keys: Key.LEFT, action: () => navApp(-1)});
-    useKeybinding({keys: Key.DOWN, action: () => navApp(appsPerRow)});
-    useKeybinding({keys: Key.UP, action: () => navApp(-1 * appsPerRow)});
+    registerKeybinding({keys: Key.RIGHT, action: () => navApp(1)});
+    registerKeybinding({keys: Key.LEFT, action: () => navApp(-1)});
+    registerKeybinding({keys: Key.DOWN, action: () => navApp(appsPerRow)});
+    registerKeybinding({keys: Key.UP, action: () => navApp(-1 * appsPerRow)});
 
-    useKeybinding({
+    registerKeybinding({
         keys: Key.ENTER,
         action: () => {
             if (selectedApp > -1) {
@@ -71,7 +71,7 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
         }
     });
 
-    useKeybinding({
+    registerKeybinding({
         keys: Key.ESCAPE,
         action: () => {
             if (selectedApp > -1) {
@@ -82,14 +82,14 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
         }
     });
 
-    useKeybinding({
+    registerKeybinding({
         keys: Object.values(NumKey) as NumKey[],
         action: n => {
             reset();
             return navApp(NumKeyToNumber(n));
         }
     });
-    useKeybinding({
+    registerKeybinding({
         keys: Object.values(NumPadKey) as NumPadKey[],
         action: n => {
             reset();

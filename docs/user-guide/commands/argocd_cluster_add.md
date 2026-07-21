@@ -31,6 +31,7 @@ argocd cluster add CONTEXT [flags]
       --namespace stringArray              List of namespaces which are allowed to manage
       --project string                     project of the cluster
       --proxy-url string                   use proxy to connect cluster
+      --server-proxy-url string            use a different proxy URL (or "" for no proxy) for the ArgoCD server to connect to the cluster; if omitted the value from --proxy-url or the kubeconfig is used
       --service-account string             System namespace service account to use for kubernetes resource management. If not set then default "argocd-manager" SA will be created
       --shard int                          Cluster shard number; inferred from hostname if not set (default -1)
       --system-namespace string            Use different system namespace (default "kube-system")

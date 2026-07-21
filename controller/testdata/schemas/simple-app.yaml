@@ -1,0 +1,29 @@
+swagger: "2.0"
+info:
+  title: SimpleApp
+  version: "v1"
+paths: {}
+definitions:
+  example.com.v1.SimpleApp:
+    type: object
+    x-kubernetes-group-version-kind:
+      - group: example.com
+        version: v1
+        kind: SimpleApp
+    properties:
+      spec:
+        type: object
+        properties:
+          servers:
+            type: array
+            x-kubernetes-list-map-keys:
+              - name
+            items:
+              type: object
+              properties:
+                name:
+                  type: string
+                port:
+                  type: integer
+                enabled:
+                  type: boolean

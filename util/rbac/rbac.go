@@ -314,6 +314,8 @@ func (e *Enforcer) SetMatchMode(mode string) {
 // SetDefaultRole sets a default role to use during enforcement. Will fall back to this role if
 // normal enforcement fails
 func (e *Enforcer) SetDefaultRole(roleName string) {
+	e.lock.Lock()
+	defer e.lock.Unlock()
 	e.defaultRole = roleName
 }
 
@@ -321,13 +323,26 @@ func (e *Enforcer) SetDefaultRole(roleName string) {
 // can extract claims from JWT token and do the proper enforcement based on user, group or any information
 // available in the input parameter list
 func (e *Enforcer) SetClaimsEnforcerFunc(claimsEnforcer ClaimsEnforcerFunc) {
+	e.lock.Lock()
+	defer e.lock.Unlock()
 	e.claimsEnforcerFunc = claimsEnforcer
+}
+
+// snapshotEnforceState returns the defaultRole and claimsEnforcerFunc fields under the
+// Enforcer's lock so enforcement is not racy with concurrent updates — defaultRole from
+// the informer's syncUpdate path, and claimsEnforcerFunc from SetClaimsEnforcerFunc.
+func (e *Enforcer) snapshotEnforceState() (string, ClaimsEnforcerFunc) {
+	e.lock.Lock()
+	defer e.lock.Unlock()
+	return e.defaultRole, e.claimsEnforcerFunc
 }
 
 // Enforce is a wrapper around casbin.Enforce to additionally enforce a default role and a custom
 // claims function
 func (e *Enforcer) Enforce(rvals ...any) bool {
-	return enforce(e.getCasbinEnforcer("", ""), e.defaultRole, e.claimsEnforcerFunc, rvals...)
+	enf := e.getCasbinEnforcer("", "")
+	defaultRole, claimsEnforcerFunc := e.snapshotEnforceState()
+	return enforce(enf, defaultRole, claimsEnforcerFunc, rvals...)
 }
 
 // EnforceErr is a convenience helper to wrap a failed enforcement with a detailed error about the request
@@ -377,7 +392,8 @@ func (e *Enforcer) CreateEnforcerWithRuntimePolicy(project string, policy string
 
 // EnforceWithCustomEnforcer wraps enforce with an custom enforcer
 func (e *Enforcer) EnforceWithCustomEnforcer(enf CasbinEnforcer, rvals ...any) bool {
-	return enforce(enf, e.defaultRole, e.claimsEnforcerFunc, rvals...)
+	defaultRole, claimsEnforcerFunc := e.snapshotEnforceState()
+	return enforce(enf, defaultRole, claimsEnforcerFunc, rvals...)
 }
 
 // enforce is a helper to additionally check a default role and invoke a custom claims enforcement function
@@ -454,39 +470,50 @@ func (e *Enforcer) RunPolicyLoader(ctx context.Context, onUpdated func(cm *corev
 
 func (e *Enforcer) runInformer(ctx context.Context, onUpdated func(cm *corev1.ConfigMap) error) {
 	cmInformer := e.newInformer()
-	_, err := cmInformer.AddEventHandler(
-		cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj any) {
-				if cm, ok := obj.(*corev1.ConfigMap); ok {
-					err := e.syncUpdate(cm, onUpdated)
-					if err != nil {
-						log.Error(err)
-					} else {
-						log.Infof("RBAC ConfigMap '%s' added", e.configmap)
-					}
-				}
-			},
-			UpdateFunc: func(old, new any) {
-				oldCM := old.(*corev1.ConfigMap)
-				newCM := new.(*corev1.ConfigMap)
-				if oldCM.ResourceVersion == newCM.ResourceVersion {
-					return
-				}
-				err := e.syncUpdate(newCM, onUpdated)
-				if err != nil {
-					log.Error(err)
-				} else {
-					log.Infof("RBAC ConfigMap '%s' updated", e.configmap)
-				}
-			},
-		},
-	)
+	_, err := cmInformer.AddEventHandler(e.rbacConfigMapEventHandler(onUpdated))
 	if err != nil {
 		log.Error(err)
 	}
 	log.Info("Starting rbac config informer")
 	cmInformer.Run(ctx.Done())
 	log.Info("rbac configmap informer cancelled")
+}
+
+// rbacConfigMapEventHandler returns the informer event handlers for the RBAC ConfigMap.
+// Add and update events resync the enforcer's policy from the ConfigMap via syncUpdate.
+// Updates whose ResourceVersion is unchanged (e.g. informer resyncs) are skipped. The
+// type assertions are guarded so that unexpected object types (including
+// cache.DeletedFinalStateUnknown tombstones, which carry no UpdateFunc) are safely
+// ignored rather than causing a panic.
+func (e *Enforcer) rbacConfigMapEventHandler(onUpdated func(cm *corev1.ConfigMap) error) cache.ResourceEventHandlerFuncs {
+	return cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj any) {
+			if cm, ok := obj.(*corev1.ConfigMap); ok {
+				err := e.syncUpdate(cm, onUpdated)
+				if err != nil {
+					log.Error(err)
+				} else {
+					log.Infof("RBAC ConfigMap '%s' added", e.configmap)
+				}
+			}
+		},
+		UpdateFunc: func(old, new any) {
+			oldCM, oldOK := old.(*corev1.ConfigMap)
+			newCM, newOK := new.(*corev1.ConfigMap)
+			if !oldOK || !newOK {
+				return
+			}
+			if oldCM.ResourceVersion == newCM.ResourceVersion {
+				return
+			}
+			err := e.syncUpdate(newCM, onUpdated)
+			if err != nil {
+				log.Error(err)
+			} else {
+				log.Infof("RBAC ConfigMap '%s' updated", e.configmap)
+			}
+		},
+	}
 }
 
 // PolicyCSV will generate the final policy csv to be used
