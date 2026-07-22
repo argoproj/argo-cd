@@ -91,6 +91,9 @@ type fakeData struct {
 	// persistResourceHealth controls whether managed resource health is stored
 	// inline on the Application. When nil it defaults to true.
 	persistResourceHealth *bool
+	// configProviderOverride, if set, is chained ahead of the controller's
+	// default provider before informers start (safe under -race).
+	configProviderOverride configbus.Provider
 }
 
 type MockKubectl struct {
@@ -268,6 +271,9 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 	ctrl.clusterSharding = sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm)
 	if err != nil {
 		panic(err)
+	}
+	if data.configProviderOverride != nil {
+		ctrl.configProvider = configbus.NewChainProvider(data.configProviderOverride, ctrl.configProvider)
 	}
 	cancelProj := test.StartInformer(ctrl.projInformer)
 	defer cancelProj()
@@ -3198,19 +3204,18 @@ func TestProcessRequestedAppOperation_SyncTimeout(t *testing.T) {
 					Revision: "HEAD",
 				},
 			}
-			ctrl := newFakeController(t.Context(), &fakeData{
-				apps: []runtime.Object{app, &defaultProj},
-				manifestResponses: []*apiclient.ManifestResponse{{
-					Manifests: []string{},
-				}},
-			}, nil)
-
 			override := configbusmocks.NewProvider(t)
 			override.EXPECT().SyncTimeout(mock.Anything).Return(tc.syncTimeout, nil)
 			override.EXPECT().GlobalProjectsSettings(mock.Anything).Return(nil, configbus.ErrNotConfigured).Maybe()
 			override.EXPECT().IncludeEventLabelKeys(mock.Anything).Return(nil, configbus.ErrNotConfigured).Maybe()
 			override.EXPECT().ExcludeEventLabelKeys(mock.Anything).Return(nil, configbus.ErrNotConfigured).Maybe()
-			ctrl.configProvider = configbus.NewChainProvider(override, ctrl.configProvider)
+			ctrl := newFakeController(t.Context(), &fakeData{
+				apps: []runtime.Object{app, &defaultProj},
+				manifestResponses: []*apiclient.ManifestResponse{{
+					Manifests: []string{},
+				}},
+				configProviderOverride: override,
+			}, nil)
 			app.Status.OperationState = &v1alpha1.OperationState{
 				Operation: *app.Operation,
 				Phase:     tc.currentPhase,
@@ -3260,19 +3265,19 @@ func TestProcessRequestedAppOperation_RequeuesOperation(t *testing.T) {
 		app.Operation = &v1alpha1.Operation{
 			Sync: &v1alpha1.SyncOperation{Revision: "HEAD"},
 		}
-		ctrl := newFakeController(t.Context(), &fakeData{
-			apps: []runtime.Object{app, &defaultProj},
-			manifestResponses: []*apiclient.ManifestResponse{{
-				Manifests: []string{},
-			}},
-		}, nil)
 		syncTimeout := 10 * time.Second
 		override := configbusmocks.NewProvider(t)
 		override.EXPECT().SyncTimeout(mock.Anything).Return(syncTimeout, nil)
 		override.EXPECT().GlobalProjectsSettings(mock.Anything).Return(nil, configbus.ErrNotConfigured).Maybe()
 		override.EXPECT().IncludeEventLabelKeys(mock.Anything).Return(nil, configbus.ErrNotConfigured).Maybe()
 		override.EXPECT().ExcludeEventLabelKeys(mock.Anything).Return(nil, configbus.ErrNotConfigured).Maybe()
-		ctrl.configProvider = configbus.NewChainProvider(override, ctrl.configProvider)
+		ctrl := newFakeController(t.Context(), &fakeData{
+			apps: []runtime.Object{app, &defaultProj},
+			manifestResponses: []*apiclient.ManifestResponse{{
+				Manifests: []string{},
+			}},
+			configProviderOverride: override,
+		}, nil)
 		app.Status.OperationState = &v1alpha1.OperationState{
 			Operation: *app.Operation,
 			Phase:     synccommon.OperationRunning,
@@ -4005,7 +4010,6 @@ func assertDurationAround(t *testing.T, expected time.Duration, actual time.Dura
 }
 
 func TestSelfHealRemainingBackoff(t *testing.T) {
-	ctrl := newFakeController(t.Context(), &fakeData{}, nil)
 	backoff := &wait.Backoff{
 		Factor:   3,
 		Duration: 2 * time.Second,
@@ -4016,7 +4020,7 @@ func TestSelfHealRemainingBackoff(t *testing.T) {
 	// to the real provider for getters this test does not override.
 	override.EXPECT().SelfHealTimeout(mock.Anything).Return(time.Duration(0), configbus.ErrNotConfigured)
 	override.EXPECT().SelfHealRetry(mock.Anything).Return(configbus.SelfHealRetry{Backoff: backoff}, nil)
-	ctrl.configProvider = configbus.NewChainProvider(override, ctrl.configProvider)
+	ctrl := newFakeController(t.Context(), &fakeData{configProviderOverride: override}, nil)
 	app := &v1alpha1.Application{
 		Status: v1alpha1.ApplicationStatus{
 			OperationState: &v1alpha1.OperationState{
