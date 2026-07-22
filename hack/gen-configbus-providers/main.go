@@ -197,8 +197,6 @@ const generatedImports = `import (
 	"context"
 	"time"
 
-	"k8s.io/apimachinery/pkg/util/wait"
-
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
@@ -288,7 +286,8 @@ package configbus
 // Field rules:
 //   - Method returning (T, error) where T is not a pointer → field *T
 //   - Method returning (*U, error) → field **U (nil outer = unset; outer set with
-//     nil inner = configured nil)
+//     nil inner = configured nil). Prefer returning a value type (or a small
+//     policy struct) instead of *U when “configured nil” is a product meaning.
 //   - Method returning ([]T, error) or (map[K]V, error) → field *[]T / *map[K]V
 type StaticFields struct {
 `)

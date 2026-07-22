@@ -226,7 +226,7 @@ func NewApplicationController(
 			ReconciliationJitter:      configbus.Ptr(appResyncJitter),
 			ReconciliationTimeout:     configbus.Ptr(appResyncPeriod),
 			RepoErrorGracePeriod:      configbus.Ptr(repoErrorGracePeriod),
-			SelfHealBackoff:           configbus.PtrPtr(selfHealBackoff),
+			SelfHealRetry:             configbus.Ptr(configbus.SelfHealRetry{Backoff: selfHealBackoff}),
 			SelfHealTimeout:           configbus.Ptr(selfHealTimeout),
 			ServerSideDiff:            configbus.Ptr(serverSideDiff),
 			SyncTimeout:               configbus.Ptr(syncTimeout),
@@ -2604,19 +2604,19 @@ func (ctrl *ApplicationController) selfHealRemainingBackoff(app *appv1.Applicati
 	if err != nil {
 		return 0, fmt.Errorf("failed to resolve self heal timeout: %w", err)
 	}
-	selfHealBackoff, err := ctrl.configProvider.SelfHealBackoff(context.Background())
+	selfHealRetry, err := ctrl.configProvider.SelfHealRetry(context.Background())
 	if err != nil {
-		return 0, fmt.Errorf("failed to resolve self heal backoff: %w", err)
+		return 0, fmt.Errorf("failed to resolve SelfHealRetry: %w", err)
 	}
 	var retryAfter time.Duration
-	if selfHealBackoff == nil {
+	if selfHealRetry.Backoff == nil {
 		if timeSinceOperation == nil {
 			retryAfter = selfHealTimeout
 		} else {
 			retryAfter = selfHealTimeout - *timeSinceOperation
 		}
 	} else {
-		backOff := *selfHealBackoff
+		backOff := *selfHealRetry.Backoff
 		backOff.Steps = selfHealAttemptsCount
 		var delay time.Duration
 		steps := backOff.Steps

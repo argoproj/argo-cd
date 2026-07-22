@@ -58,7 +58,7 @@ func TestControllerChainResolvesAllFields(t *testing.T) {
 			ReconciliationJitter:      configbus.Ptr(time.Second),
 			ReconciliationTimeout:     configbus.Ptr(time.Minute),
 			RepoErrorGracePeriod:      configbus.Ptr(90 * time.Second),
-			SelfHealBackoff:           configbus.PtrPtr(backoff),
+			SelfHealRetry:             configbus.Ptr(configbus.SelfHealRetry{Backoff: backoff}),
 			SelfHealTimeout:           configbus.Ptr(30 * time.Second),
 			ServerSideDiff:            configbus.Ptr(false),
 			SyncTimeout:               configbus.Ptr(5 * time.Minute),

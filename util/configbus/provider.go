@@ -16,6 +16,12 @@ import (
 // sentinel and continues to the next link.
 var ErrNotConfigured = errors.New("config: not configured")
 
+// SelfHealRetry is the self-heal retry policy. A nil Backoff means use a flat
+// SelfHealTimeout rather than exponential backoff.
+type SelfHealRetry struct {
+	Backoff *wait.Backoff
+}
+
 // Provider is the typed config API for one Argo CD process.
 //
 // Construction rules (for reviewers and contributors):
@@ -47,7 +53,7 @@ type Provider interface {
 	GitRequestTimeout(ctx context.Context) (time.Duration, error)
 	GlobalProjectsSettings(ctx context.Context) ([]settings.GlobalProjectSettings, error)
 	HardReconciliationTimeout(ctx context.Context) (time.Duration, error)
-	HelmSettings(ctx context.Context) (*v1alpha1.HelmOptions, error)
+	HelmSettings(ctx context.Context) (v1alpha1.HelmOptions, error)
 	HydratorReadmeTemplate(ctx context.Context) (string, error)
 	IgnoreNormalizerJQTimeout(ctx context.Context) (time.Duration, error)
 	IgnoreResourceUpdatesOverrides(ctx context.Context) (map[string]v1alpha1.ResourceOverride, error)
@@ -56,7 +62,7 @@ type Provider interface {
 	IsIgnoreResourceUpdatesEnabled(ctx context.Context) (bool, error)
 	IsImpersonationEnabled(ctx context.Context) (bool, error)
 	IsImpersonationEnforced(ctx context.Context) (bool, error)
-	KustomizeSettings(ctx context.Context) (*v1alpha1.KustomizeOptions, error)
+	KustomizeSettings(ctx context.Context) (v1alpha1.KustomizeOptions, error)
 	MetricsClusterLabels(ctx context.Context) ([]string, error)
 	PersistResourceHealth(ctx context.Context) (bool, error)
 	ReconciliationJitter(ctx context.Context) (time.Duration, error)
@@ -65,9 +71,9 @@ type Provider interface {
 	ResourceCompareOptions(ctx context.Context) (settings.ArgoCDDiffOptions, error)
 	ResourceCustomLabels(ctx context.Context) ([]string, error)
 	ResourceOverrides(ctx context.Context) (map[string]v1alpha1.ResourceOverride, error)
-	ResourcesFilter(ctx context.Context) (*settings.ResourcesFilter, error)
+	ResourcesFilter(ctx context.Context) (settings.ResourcesFilter, error)
 	RespectRBAC(ctx context.Context) (int, error)
-	SelfHealBackoff(ctx context.Context) (*wait.Backoff, error)
+	SelfHealRetry(ctx context.Context) (SelfHealRetry, error)
 	SelfHealTimeout(ctx context.Context) (time.Duration, error)
 	SensitiveAnnotations(ctx context.Context) (map[string]bool, error)
 	ServerSideDiff(ctx context.Context) (bool, error)

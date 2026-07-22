@@ -290,7 +290,7 @@ application controller.
 ```text
 util/configbus/
 ├── provider.go                         # Provider interface, ErrNotConfigured, firstConfigured
-├── ptr.go                              # Ptr / PtrPtr helpers for StaticFields literals
+├── ptr.go                              # Ptr helper for StaticFields literals
 ├── settings_manager_provider.go        # SettingsManagerProvider
 ├── env_provider.go                     # EnvProvider
 ├── zz_generated.chain_provider.go      # ChainProvider (generated; embedded empty as leaf base)

@@ -397,7 +397,7 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 				AppName:                         app.InstanceName(m.namespace),
 				Namespace:                       appNamespace,
 				ApplicationSource:               &source,
-				KustomizeOptions:                kustomizeSettings,
+				KustomizeOptions:                &kustomizeSettings,
 				KubeVersion:                     serverVersion,
 				ApiVersions:                     apiVersions,
 				SourceIntegrity:                 sourceIntegrity,
@@ -405,7 +405,7 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 				HelmRepoCreds:                   helmRepoCreds,
 				TrackingMethod:                  trackingMethod,
 				EnabledSourceTypes:              enabledSourceTypes,
-				HelmOptions:                     helmOptions,
+				HelmOptions:                     &helmOptions,
 				HasMultipleSources:              app.Spec.HasMultipleSources(),
 				RefSources:                      refSources,
 				ProjectName:                     proj.Name,
@@ -641,7 +641,7 @@ func (m *appStateManager) getComparisonSettings() (string, map[string]v1alpha1.R
 	if err != nil {
 		return "", nil, nil, "", "", err
 	}
-	return appLabelKey, resourceOverrides, resFilter, installationID, trackingMethod, nil
+	return appLabelKey, resourceOverrides, &resFilter, installationID, trackingMethod, nil
 }
 
 func isManagedNamespace(ns *unstructured.Unstructured, app *v1alpha1.Application) bool {
