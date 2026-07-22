@@ -1839,6 +1839,7 @@ func TestSyncWithRetryAndRefreshEnabled(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		When().
 		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": "badValue"}]`).
+		Refresh(RefreshTypeNormal).
 		IgnoreErrors().
 		Sync().
 		DoNotIgnoreErrors().
@@ -1850,6 +1851,7 @@ func TestSyncWithRetryAndRefreshEnabled(t *testing.T) {
 		PatchApp(`[{"op": "add", "path": "/spec/source/path", "value": "failure-during-sync"}]`).
 		// push a fixed commit on HEAD branch
 		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": 42}]`).
+		Refresh(RefreshTypeNormal).
 		IgnoreErrors().
 		Sync().
 		DoNotIgnoreErrors().
