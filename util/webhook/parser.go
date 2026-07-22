@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 
 	"github.com/go-playground/webhooks/v6/azuredevops"
 	"github.com/go-playground/webhooks/v6/bitbucket"
@@ -116,7 +117,7 @@ func newProviderParsers(consumer WebhookConsumer, factories []providerFactory) (
 	parsers := make([]ProviderParser, 0, len(factories))
 	var initErrors []error
 	for _, factory := range factories {
-		if !supportsConsumer(factory.consumers, consumer) {
+		if !slices.Contains(factory.consumers, consumer) {
 			continue
 		}
 		parser, err := factory.new()
@@ -127,15 +128,6 @@ func newProviderParsers(consumer WebhookConsumer, factories []providerFactory) (
 		parsers = append(parsers, parser)
 	}
 	return parsers, errors.Join(initErrors...)
-}
-
-func supportsConsumer(consumers []WebhookConsumer, consumer WebhookConsumer) bool {
-	for _, supported := range consumers {
-		if supported == consumer {
-			return true
-		}
-	}
-	return false
 }
 
 // Dispatch selects the first provider that recognizes r and delegates parsing.
