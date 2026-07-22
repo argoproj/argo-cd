@@ -32,7 +32,7 @@ const panicMsgAppSet = "panic while processing applicationset-controller webhook
 
 type WebhookHandler struct {
 	sync.WaitGroup // for testing
-	parser         *webhook.PayloadParser
+	parsers        []webhook.ProviderParser
 	client         client.Client
 	generators     map[string]generators.Generator
 	queue          chan any
@@ -72,13 +72,13 @@ func NewWebhookHandler(webhookParallelism int, argocdSettingsMgr *argosettings.S
 	if err != nil {
 		return nil, fmt.Errorf("failed to get argocd settings: %w", err)
 	}
-	parser, err := webhook.NewPayloadParser(argocdSettings)
+	parsers, err := webhook.NewProviderParsers(argocdSettings, webhook.WebhookConsumerApplicationSet)
 	if err != nil {
-		return nil, fmt.Errorf("unable to initialize webhook payload parser: %w", err)
+		return nil, fmt.Errorf("unable to initialize webhook provider parsers: %w", err)
 	}
 
 	webhookHandler := &WebhookHandler{
-		parser:     parser,
+		parsers:    parsers,
 		client:     client,
 		generators: generators,
 		queue:      make(chan any, webhook.DefaultPayloadQueueSize),
@@ -132,7 +132,7 @@ func (h *WebhookHandler) HandleEvent(payload any) {
 }
 
 func (h *WebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
-	payload, provider, err := h.parser.Parse(r, webhook.WebhookConsumerApplicationSet)
+	payload, provider, err := webhook.Dispatch(h.parsers, r, webhook.WebhookConsumerApplicationSet)
 	if provider == "" {
 		log.Debug("Ignoring unknown webhook event")
 		http.Error(w, "Unknown webhook event", http.StatusBadRequest)

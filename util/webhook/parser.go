@@ -1,6 +1,7 @@
 package webhook
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -10,6 +11,8 @@ import (
 	"github.com/go-playground/webhooks/v6/github"
 	"github.com/go-playground/webhooks/v6/gitlab"
 	"github.com/go-playground/webhooks/v6/gogs"
+
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 // WebhookProvider identifies the SCM provider that sent a webhook payload.
@@ -33,112 +36,115 @@ const (
 	WebhookConsumerApplicationSet WebhookConsumer = "applicationset"
 )
 
-// WebhookSettings supplies the secrets used to validate incoming webhook payloads.
-type WebhookSettings interface {
-	GetWebhookGitHubSecret() string
-	GetWebhookGitLabSecret() string
-	GetWebhookBitbucketUUID() string
-	GetWebhookBitbucketServerSecret() string
-	GetWebhookGogsSecret() string
-	GetWebhookAzureDevOpsUsername() string
-	GetWebhookAzureDevOpsPassword() string
+type providerFactory struct {
+	name      WebhookProvider
+	consumers []WebhookConsumer
+	new       func() (ProviderParser, error)
 }
 
-// PayloadParser owns provider webhook parsers and dispatches requests according
-// to their provider headers.
-type PayloadParser struct {
-	github          *github.Webhook
-	gitlab          *gitlab.Webhook
-	bitbucket       *bitbucket.Webhook
-	bitbucketserver *bitbucketserver.Webhook
-	azuredevops     *azuredevops.Webhook
-	gogs            *gogs.Webhook
-	ghcr            *ghcrParser
+func defaultProviderFactories(settings *settings.ArgoCDSettings) []providerFactory {
+	return []providerFactory{
+		{
+			name:      WebhookProviderAzureDevOps,
+			consumers: []WebhookConsumer{WebhookConsumerApplication, WebhookConsumerApplicationSet},
+			new: func() (ProviderParser, error) {
+				parser, err := azuredevops.New(azuredevops.Options.BasicAuth(settings.GetWebhookAzureDevOpsUsername(), settings.GetWebhookAzureDevOpsPassword()))
+				return &azureDevOpsParser{webhook: parser}, err
+			},
+		},
+		{
+			name:      WebhookProviderGogs,
+			consumers: []WebhookConsumer{WebhookConsumerApplication},
+			new: func() (ProviderParser, error) {
+				parser, err := gogs.New(gogs.Options.Secret(settings.GetWebhookGogsSecret()))
+				return &gogsParser{webhook: parser}, err
+			},
+		},
+		{
+			name:      WebhookProviderGitHub,
+			consumers: []WebhookConsumer{WebhookConsumerApplication, WebhookConsumerApplicationSet},
+			new: func() (ProviderParser, error) {
+				parser, err := github.New(github.Options.Secret(settings.GetWebhookGitHubSecret()))
+				return &githubParser{webhook: parser}, err
+			},
+		},
+		{
+			name:      WebhookProviderGitLab,
+			consumers: []WebhookConsumer{WebhookConsumerApplication, WebhookConsumerApplicationSet},
+			new: func() (ProviderParser, error) {
+				parser, err := gitlab.New(gitlab.Options.Secret(settings.GetWebhookGitLabSecret()))
+				return &gitlabParser{webhook: parser}, err
+			},
+		},
+		{
+			name:      WebhookProviderBitbucket,
+			consumers: []WebhookConsumer{WebhookConsumerApplication},
+			new: func() (ProviderParser, error) {
+				parser, err := bitbucket.New(bitbucket.Options.UUID(settings.GetWebhookBitbucketUUID()))
+				return &bitbucketParser{webhook: parser}, err
+			},
+		},
+		{
+			name:      WebhookProviderBitbucketServer,
+			consumers: []WebhookConsumer{WebhookConsumerApplication},
+			new: func() (ProviderParser, error) {
+				parser, err := bitbucketserver.New(bitbucketserver.Options.Secret(settings.GetWebhookBitbucketServerSecret()))
+				return &bitbucketServerParser{webhook: parser}, err
+			},
+		},
+		{
+			name:      WebhookProviderGHCR,
+			consumers: []WebhookConsumer{WebhookConsumerApplication},
+			new: func() (ProviderParser, error) {
+				return newGHCRParser(settings.GetWebhookGitHubSecret()), nil
+			},
+		},
+	}
 }
 
-// NewPayloadParser constructs all provider webhook parsers from Argo CD settings.
-func NewPayloadParser(settings WebhookSettings) (*PayloadParser, error) {
-	githubWebhook, err := github.New(github.Options.Secret(settings.GetWebhookGitHubSecret()))
-	if err != nil {
-		return nil, fmt.Errorf("unable to initialize GitHub webhook parser: %w", err)
-	}
-	gitlabWebhook, err := gitlab.New(gitlab.Options.Secret(settings.GetWebhookGitLabSecret()))
-	if err != nil {
-		return nil, fmt.Errorf("unable to initialize GitLab webhook parser: %w", err)
-	}
-	bitbucketWebhook, err := bitbucket.New(bitbucket.Options.UUID(settings.GetWebhookBitbucketUUID()))
-	if err != nil {
-		return nil, fmt.Errorf("unable to initialize Bitbucket webhook parser: %w", err)
-	}
-	bitbucketServerWebhook, err := bitbucketserver.New(bitbucketserver.Options.Secret(settings.GetWebhookBitbucketServerSecret()))
-	if err != nil {
-		return nil, fmt.Errorf("unable to initialize Bitbucket Server webhook parser: %w", err)
-	}
-	gogsWebhook, err := gogs.New(gogs.Options.Secret(settings.GetWebhookGogsSecret()))
-	if err != nil {
-		return nil, fmt.Errorf("unable to initialize Gogs webhook parser: %w", err)
-	}
-	azureDevOpsWebhook, err := azuredevops.New(azuredevops.Options.BasicAuth(settings.GetWebhookAzureDevOpsUsername(), settings.GetWebhookAzureDevOpsPassword()))
-	if err != nil {
-		return nil, fmt.Errorf("unable to initialize Azure DevOps webhook parser: %w", err)
-	}
-
-	return &PayloadParser{
-		github:          githubWebhook,
-		gitlab:          gitlabWebhook,
-		bitbucket:       bitbucketWebhook,
-		bitbucketserver: bitbucketServerWebhook,
-		azuredevops:     azureDevOpsWebhook,
-		gogs:            gogsWebhook,
-		ghcr:            newGHCRParser(settings.GetWebhookGitHubSecret()),
-	}, nil
+// NewProviderParsers constructs the providers supported by consumer. Healthy
+// providers are returned even when another provider fails to initialize.
+func NewProviderParsers(settings *settings.ArgoCDSettings, consumer WebhookConsumer) ([]ProviderParser, error) {
+	return newProviderParsers(consumer, defaultProviderFactories(settings))
 }
 
-// Parse detects the provider from request headers and parses the events supported
-// by the given consumer. It returns an empty provider for unknown events.
-func (p *PayloadParser) Parse(r *http.Request, consumer WebhookConsumer) (any, WebhookProvider, error) {
-	switch {
-	case consumer == WebhookConsumerApplication && p.ghcr.CanHandle(r):
-		payload, err := p.ghcr.Parse(r)
-		return payload, WebhookProviderGHCR, err
-	case r.Header.Get("X-Vss-Activityid") != "":
-		if consumer == WebhookConsumerApplicationSet {
-			payload, err := p.azuredevops.Parse(r, azuredevops.GitPushEventType, azuredevops.GitPullRequestCreatedEventType, azuredevops.GitPullRequestUpdatedEventType, azuredevops.GitPullRequestMergedEventType)
-			return payload, WebhookProviderAzureDevOps, err
-		}
-		payload, err := p.azuredevops.Parse(r, azuredevops.GitPushEventType)
-		return payload, WebhookProviderAzureDevOps, err
-	// Gogs carries incompatible GitHub headers, so it must be detected first.
-	case r.Header.Get("X-Gogs-Event") != "" && consumer == WebhookConsumerApplication:
-		payload, err := p.gogs.Parse(r, gogs.PushEvent)
-		return payload, WebhookProviderGogs, err
-	case r.Header.Get("X-GitHub-Event") != "":
-		if consumer == WebhookConsumerApplicationSet {
-			payload, err := p.github.Parse(r, github.PushEvent, github.PullRequestEvent, github.PingEvent)
-			return payload, WebhookProviderGitHub, err
-		}
-		if consumer != WebhookConsumerApplication {
-			return nil, "", nil
-		}
-		payload, err := p.github.Parse(r, github.PushEvent, github.PingEvent)
-		return payload, WebhookProviderGitHub, err
-	case r.Header.Get("X-Gitlab-Event") != "":
-		if consumer == WebhookConsumerApplicationSet {
-			payload, err := p.gitlab.Parse(r, gitlab.PushEvents, gitlab.TagEvents, gitlab.MergeRequestEvents, gitlab.SystemHookEvents)
-			return payload, WebhookProviderGitLab, err
-		}
-		if consumer != WebhookConsumerApplication {
-			return nil, "", nil
-		}
-		payload, err := p.gitlab.Parse(r, gitlab.PushEvents, gitlab.TagEvents, gitlab.SystemHookEvents)
-		return payload, WebhookProviderGitLab, err
-	case r.Header.Get("X-Hook-UUID") != "" && consumer == WebhookConsumerApplication:
-		payload, err := p.bitbucket.Parse(r, bitbucket.RepoPushEvent)
-		return payload, WebhookProviderBitbucket, err
-	case r.Header.Get("X-Event-Key") != "" && consumer == WebhookConsumerApplication:
-		payload, err := p.bitbucketserver.Parse(r, bitbucketserver.RepositoryReferenceChangedEvent, bitbucketserver.DiagnosticsPingEvent)
-		return payload, WebhookProviderBitbucketServer, err
-	default:
-		return nil, "", nil
+func newProviderParsers(consumer WebhookConsumer, factories []providerFactory) ([]ProviderParser, error) {
+	if consumer != WebhookConsumerApplication && consumer != WebhookConsumerApplicationSet {
+		return nil, fmt.Errorf("unsupported webhook consumer: %s", consumer)
 	}
+
+	parsers := make([]ProviderParser, 0, len(factories))
+	var initErrors []error
+	for _, factory := range factories {
+		if !supportsConsumer(factory.consumers, consumer) {
+			continue
+		}
+		parser, err := factory.new()
+		if err != nil {
+			initErrors = append(initErrors, fmt.Errorf("unable to initialize %s webhook parser: %w", factory.name, err))
+			continue
+		}
+		parsers = append(parsers, parser)
+	}
+	return parsers, errors.Join(initErrors...)
+}
+
+func supportsConsumer(consumers []WebhookConsumer, consumer WebhookConsumer) bool {
+	for _, supported := range consumers {
+		if supported == consumer {
+			return true
+		}
+	}
+	return false
+}
+
+// Dispatch selects the first provider that recognizes r and delegates parsing.
+func Dispatch(parsers []ProviderParser, r *http.Request, consumer WebhookConsumer) (any, WebhookProvider, error) {
+	for _, parser := range parsers {
+		if parser.CanHandle(r) {
+			payload, err := parser.Parse(r, consumer)
+			return payload, parser.Name(), err
+		}
+	}
+	return nil, "", nil
 }

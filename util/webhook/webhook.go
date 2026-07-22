@@ -94,7 +94,7 @@ type ArgoCDWebhookHandler struct {
 	appNs                         []string
 	appClientset                  appclientset.Interface
 	appsLister                    alpha1.ApplicationLister
-	parser                        *PayloadParser
+	parsers                       []ProviderParser
 	settings                      *settings.ArgoCDSettings
 	settingsSrc                   settingsSource
 	queue                         chan any
@@ -105,9 +105,9 @@ type ArgoCDWebhookHandler struct {
 }
 
 func NewHandler(namespace string, applicationNamespaces []string, webhookParallelism int, webhookRefreshWorkers int, appClientset appclientset.Interface, appsLister alpha1.ApplicationLister, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB, maxWebhookPayloadSizeB int64, webhookRefreshJitter time.Duration, webhookRefreshJitterThreshold int) *ArgoCDWebhookHandler {
-	parser, err := NewPayloadParser(set)
+	parsers, err := NewProviderParsers(set, WebhookConsumerApplication)
 	if err != nil {
-		log.Warnf("Unable to initialize webhook payload parser: %v", err)
+		log.Warnf("Unable to initialize some webhook provider parsers: %v", err)
 	}
 
 	log.Debugf("webhookRefreshJitter=%v", webhookRefreshJitter)
@@ -117,7 +117,7 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 		ns:                            namespace,
 		appNs:                         applicationNamespaces,
 		appClientset:                  appClientset,
-		parser:                        parser,
+		parsers:                       parsers,
 		settingsSrc:                   settingsSrc,
 		repoCache:                     repoCache,
 		serverCache:                   serverCache,
@@ -732,21 +732,14 @@ func isHeadTouched(ctx context.Context, bbClient *bb.Client, owner, repoSlug, re
 
 func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, a.maxWebhookPayloadSizeB)
-	if a.parser == nil {
-		log.Error("Webhook payload parser is unavailable")
-		http.Error(w, "Webhook processing failed", http.StatusInternalServerError)
-		return
-	}
-	payload, provider, err := a.parser.Parse(r, WebhookConsumerApplication)
+	payload, provider, err := Dispatch(a.parsers, r, WebhookConsumerApplication)
 	if provider == "" {
 		log.Debug("Ignoring unknown webhook event")
 		http.Error(w, "Unknown webhook event", http.StatusBadRequest)
 		return
 	}
-	a.logWebhookVerificationFailure(provider, err)
 	if err != nil {
 		if errors.Is(err, ErrHMACVerificationFailed) {
-			log.WithField(common.SecurityField, common.SecurityHigh).Infof("Registry webhook HMAC verification failed")
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
@@ -799,33 +792,4 @@ func (a *ArgoCDWebhookHandler) Shutdown() {
 	close(a.queue)
 	a.refreshQueue.ShutDownWithDrain()
 	a.Wait()
-}
-
-func (a *ArgoCDWebhookHandler) logWebhookVerificationFailure(provider WebhookProvider, err error) {
-	switch provider {
-	case WebhookProviderAzureDevOps:
-		if errors.Is(err, azuredevops.ErrBasicAuthVerificationFailed) {
-			log.WithField(common.SecurityField, common.SecurityHigh).Infof("Azure DevOps webhook basic auth verification failed")
-		}
-	case WebhookProviderGogs:
-		if errors.Is(err, gogs.ErrHMACVerificationFailed) {
-			log.WithField(common.SecurityField, common.SecurityHigh).Infof("Gogs webhook HMAC verification failed")
-		}
-	case WebhookProviderGitHub:
-		if errors.Is(err, github.ErrHMACVerificationFailed) {
-			log.WithField(common.SecurityField, common.SecurityHigh).Infof("GitHub webhook HMAC verification failed")
-		}
-	case WebhookProviderGitLab:
-		if errors.Is(err, gitlab.ErrGitLabTokenVerificationFailed) {
-			log.WithField(common.SecurityField, common.SecurityHigh).Infof("GitLab webhook token verification failed")
-		}
-	case WebhookProviderBitbucket:
-		if errors.Is(err, bitbucket.ErrUUIDVerificationFailed) {
-			log.WithField(common.SecurityField, common.SecurityHigh).Infof("BitBucket webhook UUID verification failed")
-		}
-	case WebhookProviderBitbucketServer:
-		if errors.Is(err, bitbucketserver.ErrHMACVerificationFailed) {
-			log.WithField(common.SecurityField, common.SecurityHigh).Infof("BitBucket Server webhook HMAC verification failed")
-		}
-	}
 }
