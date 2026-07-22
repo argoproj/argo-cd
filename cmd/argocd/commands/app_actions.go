@@ -82,7 +82,7 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 			os.Exit(1)
 		}
 		appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
-		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie(ctx)
+		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDieWithContext(ctx)
 		defer utilio.Close(conn)
 		resources, err := getActionableResourcesForApplication(ctx, appIf, &appNs, &appName)
 		errors.CheckError(err)
@@ -178,7 +178,7 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 		appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
 		actionName := args[1]
 
-		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie(ctx)
+		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDieWithContext(ctx)
 		defer utilio.Close(conn)
 		resources, err := getActionableResourcesForApplication(ctx, appIf, &appNs, &appName)
 		errors.CheckError(err)

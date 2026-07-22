@@ -223,7 +223,7 @@ func init() {
 	tlsTestResult, err := grpcutil.TestTLS(apiServerAddress, dialTime)
 	errors.CheckError(err)
 
-	ArgoCDClientset, err = apiclient.NewClient(context.Background(), &apiclient.ClientOptions{
+	ArgoCDClientset, err = apiclient.NewClient(&apiclient.ClientOptions{
 		Insecure:          true,
 		ServerAddr:        apiServerAddress,
 		PlainText:         !tlsTestResult.TLS,
@@ -267,7 +267,7 @@ func init() {
 }
 
 func loginAs(username, password string) error {
-	closer, client, err := ArgoCDClientset.NewSessionClient(context.Background())
+	closer, client, err := ArgoCDClientset.NewSessionClient()
 	if err != nil {
 		return err
 	}
@@ -287,7 +287,7 @@ func loginAs(username, password string) error {
 	}
 	token = sessionResponse.Token
 
-	ArgoCDClientset, err = apiclient.NewClient(context.Background(), &apiclient.ClientOptions{
+	ArgoCDClientset, err = apiclient.NewClient(&apiclient.ClientOptions{
 		Insecure:          true,
 		ServerAddr:        apiServerAddress,
 		AuthToken:         token,

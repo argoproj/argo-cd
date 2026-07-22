@@ -38,7 +38,7 @@ func (c *Consequences) repo() (*v1alpha1.Repository, error) {
 }
 
 func (c *Consequences) get() (*v1alpha1.Repository, error) {
-	_, repoClient, _ := fixture.ArgoCDClientset.NewRepoClient(c.context.T().Context())
+	_, repoClient, _ := fixture.ArgoCDClientset.NewRepoClient()
 
 	repo, _ := repoClient.ListRepositories(context.Background(), &repositorypkg.RepoQuery{})
 	for i := range repo.Items {

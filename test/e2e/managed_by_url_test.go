@@ -77,7 +77,7 @@ func TestManagedByURLWithAnnotation(t *testing.T) {
 			assert.Equal(t, managedByURL, app.Annotations[AnnotationKeyManagedByURL])
 
 			// Test that the application links include the managed-by-url in the deep links
-			conn, appClient, err := fixture.ArgoCDClientset.NewApplicationClient(t.Context())
+			conn, appClient, err := fixture.ArgoCDClientset.NewApplicationClient()
 			require.NoError(t, err)
 			defer conn.Close()
 
@@ -150,7 +150,7 @@ func TestManagedByURLFallbackToCurrentInstance(t *testing.T) {
 		Then().
 		And(func(app *Application) {
 			// Test that the application links use the current instance URL as fallback
-			conn, appClient, err := fixture.ArgoCDClientset.NewApplicationClient(t.Context())
+			conn, appClient, err := fixture.ArgoCDClientset.NewApplicationClient()
 			require.NoError(t, err)
 			defer conn.Close()
 
@@ -164,7 +164,7 @@ func TestManagedByURLFallbackToCurrentInstance(t *testing.T) {
 			assert.Len(t, links.Items, 1, "Should have 1 deep link configured")
 
 			// Get the current ArgoCD server URL from settings
-			conn2, settingsClient, err := fixture.ArgoCDClientset.NewSettingsClient(t.Context())
+			conn2, settingsClient, err := fixture.ArgoCDClientset.NewSettingsClient()
 			require.NoError(t, err)
 			defer conn2.Close()
 
