@@ -7,3 +7,7 @@ tests:
     status: Healthy
     message: "ClusterPolicy is ready"
   inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Degraded
+    message: "policy is not ready: some rules failed to load"
+  inputPath: testdata/degraded.yaml

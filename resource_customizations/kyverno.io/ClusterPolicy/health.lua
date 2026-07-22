@@ -7,6 +7,11 @@ if obj.status ~= nil and obj.status.conditions ~= nil then
       hs.message = "ClusterPolicy is ready"
       return hs
     end
+    if condition.type == "Ready" and condition.status == "False" then
+      hs.status = "Degraded"
+      hs.message = condition.message
+      return hs
+    end
   end
 end
 
