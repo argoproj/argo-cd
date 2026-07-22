@@ -52,6 +52,99 @@ connectors:
     - name: your-github-org
 `
 
+var goodDexConfigWithStorageTypeKubernetes = `
+storage:
+  type: kubernetes
+  config:
+    inCluster: true
+connectors:
+# GitHub example
+- type: github
+  id: github
+  name: GitHub
+  config:
+    clientID: aabbccddeeff00112233
+    clientSecret: $dex.github.clientSecret
+    orgs:
+    - name: your-github-org
+
+# GitHub enterprise example
+- type: github
+  id: acme-github
+  name: Acme GitHub
+  config:
+    hostName: github.acme.example.com
+    clientID: abcdefghijklmnopqrst
+    clientSecret: $dex.acme.clientSecret
+    orgs:
+    - name: your-github-org
+`
+
+var goodDexConfigWithStorageTypeEtcd = `
+storage:
+  type: etcd
+  config:
+    endpoints:
+      - http://localhost:2379
+    namespace: my-etcd-namespace
+connectors:
+# GitHub example
+- type: github
+  id: github
+  name: GitHub
+  config:
+    clientID: aabbccddeeff00112233
+    clientSecret: $dex.github.clientSecret
+    orgs:
+    - name: your-github-org
+
+# GitHub enterprise example
+- type: github
+  id: acme-github
+  name: Acme GitHub
+  config:
+    hostName: github.acme.example.com
+    clientID: abcdefghijklmnopqrst
+    clientSecret: $dex.acme.clientSecret
+    orgs:
+    - name: your-github-org
+`
+
+var goodDexConfigWithStorageTypePostgres = `
+storage:
+  type: postgres
+  config:
+    host: localhost
+    port: 5432
+    database: dex_db
+    user: dex
+    password: 66964843358242dbaaa7778d8477c288
+    ssl:
+      mode: verify-ca
+      caFile: /etc/dex/postgres.ca
+connectors:
+# GitHub example
+- type: github
+  id: github
+  name: GitHub
+  config:
+    clientID: aabbccddeeff00112233
+    clientSecret: $dex.github.clientSecret
+    orgs:
+    - name: your-github-org
+
+# GitHub enterprise example
+- type: github
+  id: acme-github
+  name: Acme GitHub
+  config:
+    hostName: github.acme.example.com
+    clientID: abcdefghijklmnopqrst
+    clientSecret: $dex.acme.clientSecret
+    orgs:
+    - name: your-github-org
+`
+
 var goodDexConfigLDAPWithDollarSign = `
 connectors:
 - type: ldap
@@ -394,6 +487,83 @@ func Test_GenerateDexConfig(t *testing.T) {
 				assert.Equal(t, "barfoo", config["clientSecret"])
 			}
 		}
+	})
+
+	t.Run("kubernetes storage type, config", func(t *testing.T) {
+		s := settings.ArgoCDSettings{
+			URL:       "http://localhost",
+			DexConfig: goodDexConfigWithStorageTypeKubernetes,
+			Secrets:   goodSecrets,
+		}
+		config, err := GenerateDexConfigYAML(&s, false)
+		require.NoError(t, err)
+		assert.NotNil(t, config)
+		var dexCfg map[string]any
+		err = yaml.Unmarshal(config, &dexCfg)
+		if err != nil {
+			panic(err.Error())
+		}
+		storage, ok := dexCfg["storage"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, "kubernetes", storage["type"])
+		storageConfig, ok := storage["config"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, true, storageConfig["inCluster"])
+	})
+
+	t.Run("etcd storage type, config", func(t *testing.T) {
+		s := settings.ArgoCDSettings{
+			URL:       "http://localhost",
+			DexConfig: goodDexConfigWithStorageTypeEtcd,
+			Secrets:   goodSecrets,
+		}
+		config, err := GenerateDexConfigYAML(&s, false)
+		require.NoError(t, err)
+		assert.NotNil(t, config)
+		var dexCfg map[string]any
+		err = yaml.Unmarshal(config, &dexCfg)
+		if err != nil {
+			panic(err.Error())
+		}
+		storage, ok := dexCfg["storage"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, "etcd", storage["type"])
+		storageConfig, ok := storage["config"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, "my-etcd-namespace", storageConfig["namespace"])
+		endpoints, ok := storageConfig["endpoints"].([]any)
+		require.True(t, ok)
+		assert.Equal(t, "http://localhost:2379", endpoints[0])
+	})
+
+	t.Run("postgres storage type, config", func(t *testing.T) {
+		s := settings.ArgoCDSettings{
+			URL:       "http://localhost",
+			DexConfig: goodDexConfigWithStorageTypePostgres,
+			Secrets:   goodSecrets,
+		}
+		config, err := GenerateDexConfigYAML(&s, false)
+		require.NoError(t, err)
+		assert.NotNil(t, config)
+		var dexCfg map[string]any
+		err = yaml.Unmarshal(config, &dexCfg)
+		if err != nil {
+			panic(err.Error())
+		}
+		storage, ok := dexCfg["storage"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, "postgres", storage["type"])
+		storageConfig, ok := storage["config"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, "localhost", storageConfig["host"])
+		assert.Equal(t, float64(5432), storageConfig["port"])
+		assert.Equal(t, "dex_db", storageConfig["database"])
+		assert.Equal(t, "dex", storageConfig["user"])
+		assert.Equal(t, "66964843358242dbaaa7778d8477c288", storageConfig["password"])
+		ssl, ok := storageConfig["ssl"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, "verify-ca", ssl["mode"])
+		assert.Equal(t, "/etc/dex/postgres.ca", ssl["caFile"])
 	})
 
 	t.Run("Secret dereference with extra white space", func(t *testing.T) {
