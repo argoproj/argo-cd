@@ -138,6 +138,16 @@ If errors occur during the callback, the list of changed files will be empty.
 In addition to Git webhooks, Argo CD supports webhooks from OCI-compliant container registries. This enables instant application refresh when
 new artifacts are pushed, eliminating the delay from polling.
 
+> [!NOTE]
+> A registry webhook only **refreshes** matching Applications; the artifact is still resolved by the normal sync. The source must therefore point at a *deployable* OCI artifact like a Helm chart (pushed with `helm push`) or a bundle of Kubernetes manifests and not an arbitrary container image. Pointing a source at a plain image is a common mistake: the webhook fires and the refresh succeeds, but the subsequent sync fails to render manifests.
+
+> [!WARNING]
+> Argo CD rejects OCI artifacts with more than **10 layers**. A normal Helm chart or manifest bundle has one or two layers, but a typical container image has many, so pointing a source at an image fails manifest generation with:
+> ```
+> Failed to load target state: failed to generate manifest for source ... : rpc error: code = Unknown desc = expected no more than 10 oci layers, got 13
+> ```
+> If you hit this, the source is pointing at an image rather than a chart/manifest artifact. Push a Helm chart (e.g. `helm push mychart-1.0.0.tgz oci://docker.io/<namespace>`) or a manifest bundle to that repository and point the Application's `targetRevision` at the chart/bundle tag. When a repository holds both image tags and chart tags, pin `targetRevision` to an exact chart tag. A semver constraint such as `>=1.0.0` can otherwise resolve to a higher-numbered image tag and re-trigger this error.
+
 ### GitHub Container Registry (GHCR)
 
 Webhooks cannot be registered directly on a GHCR image repository. Instead, `package` events are delivered from the associated GitHub repository.
@@ -176,7 +186,9 @@ stringData:
 
 #### Example Application
 
-When a OCI artifact with a known media type is pushed to GHCR, Argo CD refreshes Applications with a matching `repoURL` and `targetRevision`:
+When a OCI artifact with a known media type is pushed to GHCR, Argo CD refreshes Applications with a matching `repoURL` and `targetRevision`. The source can be expressed in two ways.
+
+A full-path OCI source, where `repoURL` points directly at the artifact:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -185,28 +197,123 @@ metadata:
   name: my-app
 spec:
   source:
-    repoURL: oci://ghcr.io/myorg/myimage
+    repoURL: oci://ghcr.io/myorg/mychart
     targetRevision: v1.0.0
-    chart: mychart
+    path: "." # either path or chart is required
   destination:
     server: https://kubernetes.default.svc
     namespace: default
 ```
 
+A Helm-OCI source, where `repoURL` is the registry namespace and the chart name is given separately in `chart` (note: no `oci://` scheme on `repoURL` for this form):
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-app
+spec:
+  source:
+    repoURL: ghcr.io/myorg
+    chart: mychart
+    targetRevision: v1.0.0
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+```
+
+> [!NOTE]
+> When a `chart` is set, Argo CD appends it to `repoURL` before matching the webhook event (so `ghcr.io/myorg` + `chart: mychart` matches a push to `ghcr.io/myorg/mychart`). The chart is not appended if `repoURL` already ends in `/<chart>`, so both forms above match the same push.
+
 The `targetRevision` field supports exact tags and [semver constraints](https://github.com/Masterminds/semver#checking-version-constraints):
 
-| Constraint | Webhook triggers on push of |
-|------------|----------------------------|
-| `1.0.0` | Only `1.0.0` |
-| `^1.2.0` | `>=1.2.0` and `<2.0.0` (e.g., `1.2.1`, `1.9.0`) |
-| `~1.2.0` | `>=1.2.0` and `<1.3.0` (e.g., `1.2.1`, `1.2.9`) |
-| `>=1.0.0` | Any version `>=1.0.0` |
+| Constraint | Webhook triggers on push of                     |
+|------------|-------------------------------------------------|
+| `1.0.0`    | Only `1.0.0`                                    |
+| `^1.2.0`   | `>=1.2.0` and `<2.0.0` (e.g., `1.2.1`, `1.9.0`) |
+| `~1.2.0`   | `>=1.2.0` and `<1.3.0` (e.g., `1.2.1`, `1.2.9`) |
+| `>=1.0.0`  | Any version `>=1.0.0`                           |
 
 #### URL Matching
 
 Argo CD normalizes OCI repository URLs before comparison to ensure consistent matching:
 
 For example, these `repoURL` values all match a webhook event for `ghcr.io/myorg/myimage`:
+
 - `oci://ghcr.io/myorg/myimage`
 - `oci://GHCR.IO/MyOrg/MyImage`
 - `oci://ghcr.io/myorg/myimage/`
+
+### Docker Hub
+
+Docker Hub webhooks are configured per repository and notify Argo CD when a new image tag is pushed.
+
+> [!NOTE]
+> Unlike GitHub, DockerHub neither signs webhook payloads nor sends a provider-specific header. Argo CD therefore identifies DockerHub requests by a `type=dockerhub` query parameter on the webhook URL, and authenticates them with an optional shared secret passed as a `secret` query parameter.
+
+#### Configure the Webhook
+
+Go through the [DockerHub Webhooks](https://docs.docker.com/docker-hub/repos/manage/webhooks/) docs to create a webhook for your repository, and set the url to `https://<argocd-server>/api/webhook?type=dockerhub&secret=<your-webhook-secret>`
+
+> [!NOTE]
+> Docker Hub webhooks are scoped to a single repository, so add a webhook on every repository whose pushes should refresh an Application. Docker Hub also requires a publicly reachable HTTPS URL, so a cluster-internal or `localhost` address will not work, so expose `argocd-server` (e.g. via a tunnel) when testing locally.
+> [!WARNING]
+> Because Docker Hub cannot sign payloads, the shared secret is carried in the webhook URL rather than in a signature header. Always serve the `/api/webhook` endpoint over TLS, and be aware that the secret may be recorded by intermediate proxies or access logs. Configuring a secret is optional but recommended when Argo CD is publicly accessible.
+
+#### Configure the Webhook Secret
+
+Configure the secret in the `argocd-secret` Kubernetes secret under `webhook.dockerhub.secret`. It must match the value used in the `secret` query parameter above:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-secret
+  namespace: argocd
+type: Opaque
+stringData:
+  webhook.dockerhub.secret: <your-webhook-secret>
+```
+
+If no secret is configured, Argo CD accepts Docker Hub events without validation. As with all webhooks, payloads are treated as untrusted and only ever result in a refresh of the matching application.
+
+#### Example Application
+
+When an image is pushed to Docker Hub, Argo CD refreshes Applications with a matching `repoURL` and `targetRevision`. As with GHCR, the source can be a full-path OCI source:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-app
+spec:
+  source:
+    repoURL: oci://docker.io/myorg/mychart
+    targetRevision: v1.0.0
+    path: "." # either path or chart is required
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+```
+
+or a Helm-OCI source, where the chart name is given separately in `chart` (no `oci://` scheme on `repoURL`):
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-app
+spec:
+  source:
+    repoURL: docker.io/myorg
+    chart: mychart
+    targetRevision: v1.0.0
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+```
+
+As with GHCR, `targetRevision` supports exact tags and [semver constraints](https://github.com/Masterminds/semver#checking-version-constraints), and a `chart` field is appended to `repoURL` before matching.
+
+> [!NOTE]
+> The `repoURL` host must be `docker.io`. Official images (pushed without a namespace) are matched under the implicit `library/` namespace, e.g. a push to `nginx` matches `oci://docker.io/library/nginx`.
