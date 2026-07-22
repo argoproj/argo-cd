@@ -8,13 +8,13 @@ Run ArgoCD Repository Server
 
 ArgoCD Repository Server is an internal service which maintains a local cache of the Git repository holding the application manifests, and is responsible for generating and returning the Kubernetes manifests.  This command runs Repository Server in the foreground.  It can be configured by following options.
 
-```sh
+```
 argocd-repo-server [flags]
 ```
 
 ### Options
 
-```clj
+```
       --address string                                 Listen on given address for incoming connections (default "0.0.0.0")
       --allow-oob-symlinks                             Allow out-of-bounds symlinks in repositories (not recommended)
       --client-ca-path string                          Path to the client CA certificate file for mTLS. Defaults to the auto-mounted Secret path; mTLS is skipped if the file does not exist. (default "/app/config/reposerver/mtls/client-ca.crt")

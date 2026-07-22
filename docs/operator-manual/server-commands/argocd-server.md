@@ -8,13 +8,13 @@ Run the ArgoCD API server
 
 The API server is a gRPC/REST server which exposes the API consumed by the Web UI, CLI, and CI/CD systems.  This command runs API server in the foreground.  It can be configured by following options.
 
-```sh
+```
 argocd-server [flags]
 ```
 
 ### Examples
 
-```sh
+```
   # Start the Argo CD API server with default settings
   $ argocd-server
   
@@ -24,7 +24,7 @@ argocd-server [flags]
 
 ### Options
 
-```clj
+```
       --address string                                  Listen on given address (default "0.0.0.0")
       --api-content-types string                        Semicolon separated list of allowed content types for non GET api requests. Any content type is allowed if empty. (default "application/json")
       --app-state-cache-expiration duration             Cache expiration for app state (default 1h0m0s)
