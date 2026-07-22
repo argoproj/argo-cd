@@ -239,10 +239,10 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 		kubectl,
 		appResyncPeriod,
 		time.Hour,
-		0, // appResyncJitter: deterministic unit tests (no randomized refresh delay)
+		time.Second,
 		time.Minute,
 		nil,
-		0, // syncTimeout (unused/zero in fake controller fixtures)
+		0,
 		time.Second*10,
 		common.DefaultPortArgoCDMetrics,
 		data.metricsCacheExpiration,
