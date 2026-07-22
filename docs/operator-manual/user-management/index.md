@@ -316,7 +316,7 @@ data:
 
 Dex login page displays a list of available connectors if more than one is configured.
 For example, with an Okta connector for human users and a GitHub Actions connector for machines (OIDC token exchange), the login screen shows both as clickable options. However, clicking the GitHub Actions connector is not useful for human users and leads to a failed login page.
-To configure Argo CD to redirect users to specific Dex connector, add the `dex.auth.connectorId` key to the `argocd-cm` ConfigMap with the chosen connector ID.
+To configure Argo CD to redirect users to a specific Dex connector, add the `dex.auth.connectorId` key to the `argocd-cm` ConfigMap with the chosen connector ID.
 This applies to both the web UI login button and the `argocd login --sso` CLI flow. The value must match the `id` of a connector defined in `dex.config`; an unknown ID is ignored.
 
 ```yaml
