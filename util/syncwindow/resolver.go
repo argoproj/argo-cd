@@ -28,12 +28,16 @@ func NewResolver(lister listers.SyncWindowResourceLister, namespace string) *Res
 
 // ResolveProjectRefs resolves SyncWindowProjectRef entries from an AppProject into SyncWindow objects.
 // The returned windows incorporate any application/namespace/cluster filters from the project ref.
+// If a ref cannot be resolved, the error is recorded and resolution continues with the remaining
+// refs so that valid deny windows are never silently dropped by a single bad reference.
 func (r *Resolver) ResolveProjectRefs(refs []v1alpha1.SyncWindowProjectRef) (v1alpha1.SyncWindows, error) {
 	var result v1alpha1.SyncWindows
+	var errs []error
 	for _, ref := range refs {
 		resources, err := r.resolveRef(ref.Ref)
 		if err != nil {
-			return nil, fmt.Errorf("failed to resolve sync window ref in project: %w", err)
+			errs = append(errs, fmt.Errorf("failed to resolve sync window ref in project: %w", err))
+			continue
 		}
 		for _, res := range resources {
 			for i := range res.Spec.Windows {
@@ -53,18 +57,22 @@ func (r *Resolver) ResolveProjectRefs(refs []v1alpha1.SyncWindowProjectRef) (v1a
 			}
 		}
 	}
-	return result, nil
+	return result, errors.Join(errs...)
 }
 
 // ResolveAppRefs resolves SyncWindowRef entries from an Application into SyncWindow objects.
 // The returned windows have their application/namespace/cluster filters cleared since
 // they apply directly to the referencing application.
+// If a ref cannot be resolved, the error is recorded and resolution continues with the remaining
+// refs so that valid deny windows are never silently dropped by a single bad reference.
 func (r *Resolver) ResolveAppRefs(refs []v1alpha1.SyncWindowRef) (v1alpha1.SyncWindows, error) {
 	var result v1alpha1.SyncWindows
+	var errs []error
 	for _, ref := range refs {
 		resources, err := r.resolveRef(ref)
 		if err != nil {
-			return nil, fmt.Errorf("failed to resolve sync window ref in application: %w", err)
+			errs = append(errs, fmt.Errorf("failed to resolve sync window ref in application: %w", err))
+			continue
 		}
 		for _, res := range resources {
 			for i := range res.Spec.Windows {
@@ -78,11 +86,14 @@ func (r *Resolver) ResolveAppRefs(refs []v1alpha1.SyncWindowRef) (v1alpha1.SyncW
 			}
 		}
 	}
-	return result, nil
+	return result, errors.Join(errs...)
 }
 
 // resolveRef resolves a single SyncWindowRef to a list of SyncWindowResource objects.
 func (r *Resolver) resolveRef(ref v1alpha1.SyncWindowRef) ([]*v1alpha1.SyncWindowResource, error) {
+	if ref.Name != "" && ref.Selector != nil {
+		return nil, errors.New("sync window ref cannot specify both name and selector")
+	}
 	if ref.Name != "" {
 		sw, err := r.lister.SyncWindowResources(r.namespace).Get(ref.Name)
 		if err != nil {
