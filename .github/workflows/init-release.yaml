@@ -21,8 +21,8 @@ env:
 jobs:
   prepare-release:
     permissions:
-      contents: write  # for peter-evans/create-pull-request to create branch
-      pull-requests: write  # for peter-evans/create-pull-request to create a PR
+      contents: write # to push branch
+      pull-requests: write # to create PR
     name: Automatically generate version and manifests on ${{ inputs.TARGET_BRANCH }}
     runs-on: ubuntu-24.04
     env:
@@ -34,31 +34,46 @@ jobs:
     steps:
       - name: Harden the runner (Audit all outbound calls)
         if: ${{ vars.disable_harden_runner != 'true' }}
-        uses: step-security/harden-runner@a5ad31d6a139d249332a2605b85202e8c0b78450 # v2.19.1
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
         with:
           egress-policy: audit
 
       - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
           ref: ${{ inputs.TARGET_BRANCH }}
+          persist-credentials: false
 
       - name: Check if TARGET_VERSION is well formed.
         run: |
           set -xue
           # Target version must not contain 'v' prefix
-          if echo "${{ inputs.TARGET_VERSION }}" | grep -e '^v'; then
-            echo "::error::Target version '${{ inputs.TARGET_VERSION }}' should not begin with a 'v' prefix, refusing to continue." >&2
+          if echo "${INPUTS_TARGET_VERSION}" | grep -e '^v'; then
+            echo "::error::Target version '${INPUTS_TARGET_VERSION}' should not begin with a 'v' prefix, refusing to continue." >&2
             exit 1
           fi
+        env:
+          INPUTS_TARGET_VERSION: ${{ inputs.TARGET_VERSION }}
 
       - name: Create VERSION information
         run: |
           set -ue
-          echo "Bumping version from $(cat VERSION) to ${{ inputs.TARGET_VERSION }}"
-          echo "${{ inputs.TARGET_VERSION }}" > VERSION
+          echo "Bumping version from $(cat VERSION) to ${INPUTS_TARGET_VERSION}"
+          echo "${INPUTS_TARGET_VERSION}" > VERSION
+        env:
+          INPUTS_TARGET_VERSION: ${{ inputs.TARGET_VERSION }}
+
+      - name: Update go.mod gitops-engine version to release tag
+        run: |
+          set -xue
+          # Update the require line to reference the gitops-engine tag that will be created at release time.
+          # Derive the major version from TARGET_VERSION so this works across future major bumps.
+          GE_VERSION="v${{ inputs.TARGET_VERSION }}"
+          MAJOR=$(echo "${{ inputs.TARGET_VERSION }}" | cut -d. -f1)
+          GE_MODULE="github.com/argoproj/argo-cd/gitops-engine/v${MAJOR}"
+          sed -i "s|${GE_MODULE} v[^ ]*|${GE_MODULE} ${GE_VERSION}|" go.mod
 
         # We install kustomize in the dist directory
       - name: Add dist to PATH
@@ -69,8 +84,10 @@ jobs:
         run: |
           set -ue
           make install-codegen-tools-local
-          make manifests-local VERSION=${{ inputs.TARGET_VERSION }}
+          make manifests-local VERSION=${INPUTS_TARGET_VERSION}
           git diff
+        env:
+          INPUTS_TARGET_VERSION: ${{ inputs.TARGET_VERSION }}
 
       - name: Generate version compatibility table
         run: |
@@ -80,14 +97,25 @@ jobs:
           git stash pop
 
       - name: Create pull request
-        uses: peter-evans/create-pull-request@c0f553fe549906ede9cf27b5156039d195d2ece0  # v8.1.0
-        with:
-          commit-message: "Bump version to ${{ inputs.TARGET_VERSION }}"
-          title: "Bump version to ${{ inputs.TARGET_VERSION }} on ${{ inputs.TARGET_BRANCH }} branch"
-          body: Updating VERSION and manifests to ${{ inputs.TARGET_VERSION }}
-          branch: update-version
-          branch-suffix: random
-          signoff: true
-          labels: release
-
-
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          BRANCH="update-version-$(date +%s)"
+          git checkout -b "$BRANCH"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit --signoff -m "Bump version to ${TARGET_VERSION}"
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$BRANCH"
+          gh pr create \
+            --title "Bump version to ${TARGET_VERSION} on ${TARGET_BRANCH} branch" \
+            --body "Updating VERSION and manifests to ${TARGET_VERSION}" \
+            --head "$BRANCH" \
+            --base "${TARGET_BRANCH}" \
+            --label release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TARGET_VERSION: ${{ inputs.TARGET_VERSION }}
+          TARGET_BRANCH: ${{ inputs.TARGET_BRANCH }}

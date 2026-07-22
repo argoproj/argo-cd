@@ -7,6 +7,7 @@ import (
 )
 
 func TestParseSecretKey(t *testing.T) {
+	t.Parallel()
 	secretName, tokenKey := ParseSecretKey("#my-secret:my-token")
 	assert.Equal(t, "my-secret", secretName)
 	assert.Equal(t, "$my-token", tokenKey)

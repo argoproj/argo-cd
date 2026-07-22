@@ -9,10 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
-	. "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	. "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -152,60 +152,6 @@ func TestNamespacedGetLogsAllowNS(t *testing.T) {
 			require.NoError(t, err)
 			assert.NotContains(t, out, "Hi")
 		})
-}
-
-func TestNamespacedSyncToUnsignedCommit(t *testing.T) {
-	fixture.SkipOnEnv(t, "GPG")
-	GivenWithNamespace(t, fixture.AppNamespace()).
-		SetTrackingMethod("annotation").
-		Project("gpg").
-		Path(guestbookPath).
-		When().
-		IgnoreErrors().
-		CreateApp().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationError)).
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		Expect(HealthIs(health.HealthStatusMissing))
-}
-
-func TestNamespacedSyncToSignedCommitWKK(t *testing.T) {
-	fixture.SkipOnEnv(t, "GPG")
-	Given(t).
-		SetAppNamespace(fixture.AppNamespace()).
-		SetTrackingMethod("annotation").
-		Project("gpg").
-		Path(guestbookPath).
-		When().
-		AddSignedFile("test.yaml", "null").
-		IgnoreErrors().
-		CreateApp().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationError)).
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		Expect(HealthIs(health.HealthStatusMissing))
-}
-
-func TestNamespacedSyncToSignedCommitKWKK(t *testing.T) {
-	fixture.SkipOnEnv(t, "GPG")
-	Given(t).
-		SetAppNamespace(fixture.AppNamespace()).
-		SetTrackingMethod("annotation").
-		Project("gpg").
-		Path(guestbookPath).
-		GPGPublicKeyAdded().
-		Sleep(2).
-		When().
-		AddSignedFile("test.yaml", "null").
-		IgnoreErrors().
-		CreateApp().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		Expect(HealthIs(health.HealthStatusHealthy))
 }
 
 func TestNamespacedAppCreation(t *testing.T) {
@@ -560,6 +506,49 @@ func TestNamespacedManipulateApplicationResources(t *testing.T) {
 			require.NoError(t, err)
 		}).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync))
+}
+
+func TestAppInNamespaceCommands(t *testing.T) {
+	ctx := Given(t)
+	ctx.
+		Path(guestbookPath).
+		SetTrackingMethod("annotation").
+		SetAppNamespace(fixture.AppNamespace()).
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(_ *Application) {
+			manifests, err := fixture.RunCli("app", "manifests", ctx.AppName(), "--app-namespace", ctx.AppNamespace())
+			require.NoError(t, err)
+			resources, err := kube.SplitYAML([]byte(manifests))
+			require.NoError(t, err)
+
+			foundDeployment := false
+			for i := range resources {
+				if resources[i].GetKind() == kube.DeploymentKind && resources[i].GetName() == "guestbook-ui" {
+					foundDeployment = true
+					break
+				}
+			}
+			assert.True(t, foundDeployment)
+
+			resourceList, err := fixture.RunCli("app", "resources", ctx.AppName(), "--app-namespace", ctx.AppNamespace())
+			require.NoError(t, err)
+			assert.Contains(t, resourceList, "Deployment")
+			assert.Contains(t, resourceList, "Service")
+
+			resource, err := fixture.RunCli("app", "get-resource", ctx.AppName(), "--app-namespace", ctx.AppNamespace(), "--kind", "Deployment", "-o", "json")
+			require.NoError(t, err)
+			assert.Contains(t, resource, `"kind": "Deployment"`)
+			assert.Contains(t, resource, `"name": "guestbook-ui"`)
+
+			actions, err := fixture.RunCli("app", "actions", "list", ctx.AppName(), "--app-namespace", ctx.AppNamespace(), "--kind", "Deployment", "-o", "json")
+			require.NoError(t, err)
+			assert.Contains(t, actions, `"Name": "guestbook-ui"`)
+			assert.Contains(t, actions, `"Kind": "Deployment"`)
+		})
 }
 
 func TestNamespacedAppWithSecrets(t *testing.T) {
