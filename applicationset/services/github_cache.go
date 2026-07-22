@@ -134,7 +134,7 @@ func RegisterGitHubCacheMetrics() {
 	})
 }
 
-// Cache Storage is a thread-safe LRU cache for storing HTTP responses from GitHub API requests depending of the authentification used (AppSecretName, TokenRef, or anonymous).
+// Cache Storage is a thread-safe LRU cache for storing HTTP responses from GitHub API requests depending on the authentication used (AppSecretName, TokenRef, or anonymous).
 // It uses a map of LRU caches, one for each unique cache context.
 // Each LRU cache is protected by a read-write mutex to ensure thread safety.
 // The cache stores the response body as bytes and the Vary headers to determine if a cached response is valid for a given request.
@@ -341,6 +341,7 @@ func newLRUStorage(cacheCtx *GitHubCacheContext, size int) Storage {
 	// Initialise counters/gauges at zero so they appear in metrics output
 	// before any entry is stored or evicted.
 	globalGitHubStorageMetrics.StorageItemsEvictedTotal.WithLabelValues(cacheContextKey).Add(0)
+	globalGitHubStorageMetrics.StorageItemsTotal.WithLabelValues(cacheContextKey).Set(0)
 	globalGitHubStorageMetrics.StorageBytesTotal.WithLabelValues(cacheContextKey).Set(0)
 	storage := Storage{
 		key:  cacheContextKey,

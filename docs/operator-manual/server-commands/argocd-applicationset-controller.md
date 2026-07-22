@@ -35,7 +35,7 @@ argocd-applicationset-controller [flags]
       --enable-policy-override                    For security reason if 'policy' is set, it is not possible to override it at applicationSet level. 'allow-policy-override' allows user to define their own policy (default true)
       --enable-progressive-syncs                  Enable use of the experimental progressive syncs feature.
       --enable-scm-providers                      Enable retrieving information from SCM providers, used by the SCM and PR generators (Default: true) (default true)
-      --github-cache-size int                     Size of the GitHub cache (default 2000)
+      --github-cache-size int                     Maximum number of entries in the in-memory GitHub response cache per credential context (default 2000)
   -h, --help                                      help for argocd-applicationset-controller
       --insecure-skip-tls-verify                  If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
       --kubeconfig string                         Path to a kube config. Only required if out-of-cluster

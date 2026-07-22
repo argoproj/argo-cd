@@ -64,7 +64,9 @@ func getInstallationClient(g github_app_auth.Authentication, url string, enableT
 // Client builds a github client for the given app authentication.
 // enableTokenCache controls whether the installation access token is cached for
 // its lifetime (up to ~1 h) to avoid a token-acquisition round-trip on every call.
-// Mandatory if --enable-github-cache is set on the ApplicationSet controller.
+// This is particularly useful for GitHub App authentication, where the token
+// changes on every reconciliation. For token-based or anonymous auth the response
+// cache still functions independently of this flag.
 func Client(ctx context.Context, g github_app_auth.Authentication, url, org string, enableTokenCache bool, optionalHTTPClient ...*http.Client) (*github.Client, error) {
 	if url == "" {
 		url = g.EnterpriseBaseURL

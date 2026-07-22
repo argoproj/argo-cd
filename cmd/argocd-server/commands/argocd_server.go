@@ -358,7 +358,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&enableNewGitFileGlobbing, "appset-enable-new-git-file-globbing", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_GIT_FILE_GLOBBING", false), "Enable new globbing in Git files generator.")
 	command.Flags().BoolVar(&enableGitHubAPIMetrics, "appset-enable-github-api-metrics", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_GITHUB_API_METRICS", false), "Enable GitHub API metrics for generators that use the GitHub API")
 	command.Flags().BoolVar(&enableGitHubCache, "appset-enable-github-cache", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_GITHUB_CACHE", false), "Enable GitHub cache for generators that use the GitHub API")
-	command.Flags().IntVar(&githubCacheSize, "appset-github-cache-size", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_GITHUB_CACHE_SIZE", 2000, 1, math.MaxInt), "Size of the GitHub cache")
+	command.Flags().IntVar(&githubCacheSize, "appset-github-cache-size", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_GITHUB_CACHE_SIZE", 2000, 1, math.MaxInt), "Maximum number of entries in the in-memory GitHub response cache per credential context")
 
 	repoServerClientTLSConfigSrc = tls.AddClientTLSFlagsToCmdWithPrefix(command, "SERVER")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(command)

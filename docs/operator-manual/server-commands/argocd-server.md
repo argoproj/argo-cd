@@ -34,7 +34,7 @@ argocd-server [flags]
       --appset-enable-github-cache                      Enable GitHub cache for generators that use the GitHub API
       --appset-enable-new-git-file-globbing             Enable new globbing in Git files generator.
       --appset-enable-scm-providers                     Enable retrieving information from SCM providers, used by the SCM and PR generators (Default: true) (default true)
-      --appset-github-cache-size int                    Size of the GitHub cache (default 2000)
+      --appset-github-cache-size int                    Maximum number of entries in the in-memory GitHub response cache per credential context (default 2000)
       --appset-scm-root-ca-path string                  Provide Root CA Path for self-signed TLS Certificates
       --as string                                       Username to impersonate for the operation
       --as-group stringArray                            Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
