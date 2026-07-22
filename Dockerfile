@@ -52,6 +52,7 @@ RUN groupadd -g $ARGOCD_USER_ID argocd && \
     mkdir -p /home/argocd && \
     chown argocd:0 /home/argocd && \
     chmod g=u /home/argocd && \
+    sed -i '/^Components:/ s/$/ universe/' /etc/apt/sources.list.d/ubuntu.sources && \
     apt-get update && \
     apt-get dist-upgrade -y && \
     apt-get install --no-install-recommends -y \

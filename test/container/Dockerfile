@@ -24,7 +24,8 @@ ARG GIT_APT_VERSION=1:2.53.0-1ubuntu1
 # NOTE: binutils-gold contains the gold linker, which was recently removed
 #       from binutils, but is still nesessary for building lint-tools on arm64 only
 #       until this Golang issue is fixed: https://github.com/golang/go/issues/22040
-RUN  apt-get update && apt-get install --fix-missing --no-install-recommends -y \
+RUN  sed -i '/^Components:/ s/$/ universe/' /etc/apt/sources.list.d/ubuntu.sources && \
+    apt-get update && apt-get install --fix-missing --no-install-recommends -y \
     ca-certificates \
     curl \
     openssh-server \

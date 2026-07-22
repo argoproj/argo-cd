@@ -12,7 +12,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 # renovate: datasource=deb depName=git registryUrl=https://archive.ubuntu.com/ubuntu?suite=resolute&components=main,security&binaryArch=amd64
 ARG GIT_APT_VERSION=1:2.53.0-1ubuntu1
 
-RUN  apt-get update && apt-get install --no-install-recommends -y \
+RUN  sed -i '/^Components:/ s/$/ universe/' /etc/apt/sources.list.d/ubuntu.sources && \
+     apt-get update && apt-get install --no-install-recommends -y \
     ca-certificates \
     curl \
     openssh-server \
