@@ -25,10 +25,10 @@ const (
 	ApplicationSetPlural    string = "applicationsets"
 	ApplicationSetFullName  string = ApplicationSetPlural + "." + Group
 
-	// SyncWindow constants
-	SyncWindowKind      string = "SyncWindow"
-	SyncWindowSingular  string = "syncwindow"
-	SyncWindowShortName string = "sw"
-	SyncWindowPlural    string = "syncwindows"
-	SyncWindowFullName  string = SyncWindowPlural + "." + Group
+	// SyncWindowResource constants
+	SyncWindowResourceKind      string = "SyncWindowResource"
+	SyncWindowResourceSingular  string = "syncwindowresource"
+	SyncWindowResourceShortName string = "sw"
+	SyncWindowResourcePlural    string = "syncwindowresources"
+	SyncWindowResourceFullName  string = SyncWindowResourcePlural + "." + Group
 )

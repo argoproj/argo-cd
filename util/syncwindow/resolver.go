@@ -1,6 +1,7 @@
 package syncwindow
 
 import (
+	"errors"
 	"fmt"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -96,7 +97,7 @@ func (r *Resolver) resolveRef(ref v1alpha1.SyncWindowRef) ([]*v1alpha1.SyncWindo
 		}
 		return r.lister.SyncWindowResources(r.namespace).List(selector)
 	}
-	return nil, fmt.Errorf("sync window ref must specify either name or selector")
+	return nil, errors.New("sync window ref must specify either name or selector")
 }
 
 // convertLabelSelector converts a metav1.LabelSelector to a labels.Selector.
