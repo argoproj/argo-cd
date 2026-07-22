@@ -657,6 +657,11 @@ func (sc *syncContext) Sync(ctx context.Context) {
 		return
 	}
 
+	// Capture whether any completed resource synced with warnings before the
+	// completed tasks are filtered out, so the operation-level phase can
+	// reflect it when no work remains.
+	syncedWithWarning := tasks.Any(func(t *syncTask) bool { return t.syncStatus == common.ResultCodeSyncedWithWarning })
+
 	sc.log.WithValues("tasks", tasks).V(1).Info("Filtering out non-pending tasks")
 	// remove tasks that are completed, we can assume that there are no running tasks
 	tasks = tasks.Filter(func(t *syncTask) bool { return t.pending() })
@@ -670,7 +675,13 @@ func (sc *syncContext) Sync(ctx context.Context) {
 	if len(tasks) == 0 {
 		// delete all completed hooks which have appropriate delete policy
 		sc.deleteHooks(ctx, hooksPendingDeletionSuccessful)
-		sc.setOperationPhase(common.OperationSucceeded, "successfully synced (no more tasks)")
+		// Preserve a warning message at the operation level if any resource
+		// synced with warnings. Otherwise the sync is plainly successful.
+		if syncedWithWarning {
+			sc.setOperationPhase(common.OperationWarning, "synced with warnings (no more tasks)")
+		} else {
+			sc.setOperationPhase(common.OperationSucceeded, "successfully synced (no more tasks)")
+		}
 		return
 	}
 
@@ -718,7 +729,7 @@ func (sc *syncContext) Sync(ctx context.Context) {
 				sc.deleteHooks(ctx, hooksPendingDeletionFailed)
 			}
 		}
-	case successful:
+	case successful, warning:
 		if remainingTasks.Len() == 0 && !tasks.Any(func(task *syncTask) bool { return task.isHook() }) {
 			// if it is the last phase/wave and the only running tasks are non-hooks, then we are successful
 			// EVEN if those objects subsequently degrades
@@ -727,7 +738,12 @@ func (sc *syncContext) Sync(ctx context.Context) {
 
 			// delete all completed hooks which have appropriate delete policy
 			sc.deleteHooks(ctx, hooksPendingDeletionSuccessful)
-			sc.setOperationPhase(common.OperationSucceeded, "successfully synced (all tasks run)")
+			// Check for warnings across all waves, not just the current one
+			if runState == warning || sc.hasWarnings() {
+				sc.setOperationPhase(common.OperationWarning, "synced with warnings (all tasks run)")
+			} else {
+				sc.setOperationPhase(common.OperationSucceeded, "successfully synced (all tasks run)")
+			}
 		} else {
 			sc.setRunningPhase(tasks, false)
 		}
@@ -964,6 +980,17 @@ func (sc *syncContext) executeSyncFailPhase(ctx context.Context, syncFailTasks, 
 
 func (sc *syncContext) started() bool {
 	return len(sc.syncRes) > 0
+}
+
+// hasWarnings returns true if any resource result has SyncedWithWarning status.
+// This is used to determine the final operation phase in multi-wave syncs.
+func (sc *syncContext) hasWarnings() bool {
+	for _, res := range sc.syncRes {
+		if res.Status == common.ResultCodeSyncedWithWarning {
+			return true
+		}
+	}
+	return false
 }
 
 func (sc *syncContext) containsResource(resource reconciledResource) bool {
@@ -1481,6 +1508,15 @@ func (sc *syncContext) applyObject(ctx context.Context, t *syncTask, dryRun, val
 			sc.log.Error(err, fmt.Sprintf("failed to ensure that CRD %s is ready", crdName))
 		}
 	}
+	// The resource operations layer folds any API server warnings into the returned message
+	// with a "Warning:" prefix.
+	// https://github.com/kubernetes/client-go/blob/v0.36.2/rest/warnings.go#L107
+	//
+	// Surface their presence as a distinct result code so the UI can flag the
+	// resource, while keeping the full message (i.e., normal output + warnings).
+	if strings.Contains(message, "Warning:") {
+		return common.ResultCodeSyncedWithWarning, message
+	}
 	return common.ResultCodeSynced, message
 }
 
@@ -1608,10 +1644,11 @@ func (sc *syncContext) getResourceIf(task *syncTask, verb string) (dynamic.Resou
 }
 
 var operationPhases = map[common.ResultCode]common.OperationPhase{
-	common.ResultCodeSynced:       common.OperationRunning,
-	common.ResultCodeSyncFailed:   common.OperationFailed,
-	common.ResultCodePruned:       common.OperationSucceeded,
-	common.ResultCodePruneSkipped: common.OperationSucceeded,
+	common.ResultCodeSynced:            common.OperationRunning,
+	common.ResultCodeSyncFailed:        common.OperationFailed,
+	common.ResultCodePruned:            common.OperationSucceeded,
+	common.ResultCodePruneSkipped:      common.OperationSucceeded,
+	common.ResultCodeSyncedWithWarning: common.OperationWarning,
 }
 
 // tri-state
@@ -1619,6 +1656,7 @@ type runState int
 
 const (
 	successful runState = iota
+	warning
 	pending
 	failed
 )
@@ -1763,9 +1801,13 @@ func (sc *syncContext) processCreateTasks(ctx context.Context, state runState, t
 			logCtx.V(1).Info("Applying")
 			validate := sc.validate && !resourceutil.HasAnnotationOption(t.targetObj, common.AnnotationSyncOptions, common.SyncOptionsDisableValidation)
 			result, message := sc.applyObject(ctx, t, dryRun, validate)
-			if result == common.ResultCodeSyncFailed {
+			switch result {
+			case common.ResultCodeSyncFailed:
 				logCtx.WithValues("message", message).Info("Apply failed")
 				state = failed
+			case common.ResultCodeSyncedWithWarning:
+				logCtx.WithValues("message", message).Info("Applied with warning")
+				state = warning
 			}
 			if !dryRun || sc.dryRun || result == common.ResultCodeSyncFailed {
 				phase := operationPhases[result]
@@ -1865,9 +1907,17 @@ func (s *stateSync) Wait() runState {
 			if result == failed {
 				res = failed
 			}
-		case successful:
+		case warning:
+			// A warning is a successful state; only a more severe outcome
+			// (still pending, or failed) can override it. It must not be
+			// downgraded back to successful.
 			switch result {
 			case pending, failed:
+				res = result
+			}
+		case successful:
+			switch result {
+			case warning, pending, failed:
 				res = result
 			}
 		}
