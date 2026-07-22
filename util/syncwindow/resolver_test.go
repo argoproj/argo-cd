@@ -176,6 +176,6 @@ func TestResolveRef_EmptyRef(t *testing.T) {
 	}
 
 	_, err := resolver.ResolveProjectRefs(refs)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "must specify either name or selector")
 }
