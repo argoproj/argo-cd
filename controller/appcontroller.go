@@ -945,7 +945,18 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 
 	errors.CheckError(ctrl.stateCache.Init())
 
-	if !cache.WaitForCacheSync(ctx.Done(), ctrl.appInformer.HasSynced, ctrl.projInformer.HasSynced) {
+	cacheSyncs := []cache.InformerSynced{ctrl.appInformer.HasSynced, ctrl.projInformer.HasSynced}
+	// Only block on the SyncWindowResource cache when the CRD is actually installed. Waiting
+	// unconditionally would hang controller startup forever on clusters without the CRD (its
+	// informer can never sync). When the CRD is present, awaiting it closes the fail-open gap
+	// where CRD-based deny windows would not be enforced until the cache catches up.
+	if ctrl.syncWindowCRDInstalled() {
+		cacheSyncs = append(cacheSyncs, ctrl.syncWindowInformer.HasSynced)
+	} else {
+		log.Info("SyncWindowResource CRD not installed; skipping its cache sync")
+	}
+
+	if !cache.WaitForCacheSync(ctx.Done(), cacheSyncs...) {
 		log.Error("Timed out waiting for caches to sync")
 		return
 	}
@@ -2361,6 +2372,24 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 	return patchDuration
 }
 
+// syncWindowCRDInstalled reports whether the SyncWindowResource CRD is registered in the API server.
+// It is used to decide whether to block controller startup on the SyncWindowResource informer cache:
+// waiting for a cache that can never sync (CRD absent) would hang startup indefinitely.
+func (ctrl *ApplicationController) syncWindowCRDInstalled() bool {
+	groupVersion := appv1.SchemeGroupVersion.String()
+	resources, err := ctrl.applicationClientset.Discovery().ServerResourcesForGroupVersion(groupVersion)
+	if err != nil {
+		log.WithError(err).Warnf("Unable to discover resources for %s; assuming SyncWindowResource CRD is not installed", groupVersion)
+		return false
+	}
+	for _, r := range resources.APIResources {
+		if r.Name == application.SyncWindowResourcePlural {
+			return true
+		}
+	}
+	return false
+}
+
 // syncWindowPreventsAutoSync checks if sync windows (both inline and CRD-based) prevent auto-sync.
 func (ctrl *ApplicationController) syncWindowPreventsAutoSync(app *appv1.Application, project *appv1.AppProject) (bool, error) {
 	var filteredWindows, directWindows appv1.SyncWindows
@@ -2368,19 +2397,19 @@ func (ctrl *ApplicationController) syncWindowPreventsAutoSync(app *appv1.Applica
 		resolver := syncwindow.NewResolver(ctrl.syncWindowLister, ctrl.namespace)
 
 		if len(project.Spec.SyncWindowRefs) > 0 {
-			if windows, err := resolver.ResolveProjectRefs(project.Spec.SyncWindowRefs); err != nil {
-				log.WithError(err).Warn("Failed to resolve project sync window refs")
-			} else {
-				filteredWindows = append(filteredWindows, windows...)
+			windows, err := resolver.ResolveProjectRefs(project.Spec.SyncWindowRefs)
+			if err != nil {
+				log.WithError(err).Warn("Failed to resolve some project sync window refs")
 			}
+			filteredWindows = append(filteredWindows, windows...)
 		}
 
 		if len(app.Spec.SyncWindowRefs) > 0 {
-			if windows, err := resolver.ResolveAppRefs(app.Spec.SyncWindowRefs); err != nil {
-				log.WithError(err).Warn("Failed to resolve app sync window refs")
-			} else {
-				directWindows = append(directWindows, windows...)
+			windows, err := resolver.ResolveAppRefs(app.Spec.SyncWindowRefs)
+			if err != nil {
+				log.WithError(err).Warn("Failed to resolve some app sync window refs")
 			}
+			directWindows = append(directWindows, windows...)
 		}
 	}
 	return syncWindowPreventsSync(app, project, filteredWindows, directWindows)

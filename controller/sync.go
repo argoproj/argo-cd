@@ -681,7 +681,7 @@ func delayBetweenSyncWaves(_ common.SyncPhase, _ int, finalWave bool) error {
 
 func syncWindowPreventsSync(app *v1alpha1.Application, proj *v1alpha1.AppProject, filteredWindows v1alpha1.SyncWindows, directWindows v1alpha1.SyncWindows) (bool, error) {
 	window := proj.Spec.SyncWindows.Matches(app)
-	// Merge filtered windows (from project/global refs) — these need Matches() filtering.
+	// Merge filtered windows (from project refs) — these need Matches() filtering.
 	if len(filteredWindows) > 0 {
 		additionalMatched := filteredWindows.Matches(app)
 		if additionalMatched.HasWindows() {
@@ -727,19 +727,19 @@ func (m *appStateManager) resolveSyncWindowCRDRefs(app *v1alpha1.Application, pr
 	resolver := syncwindow.NewResolver(m.syncWindowLister, m.namespace)
 
 	if len(proj.Spec.SyncWindowRefs) > 0 {
-		if windows, err := resolver.ResolveProjectRefs(proj.Spec.SyncWindowRefs); err != nil {
-			log.WithError(err).Warn("Failed to resolve project sync window refs")
-		} else {
-			filtered = append(filtered, windows...)
+		windows, err := resolver.ResolveProjectRefs(proj.Spec.SyncWindowRefs)
+		if err != nil {
+			log.WithError(err).Warn("Failed to resolve some project sync window refs")
 		}
+		filtered = append(filtered, windows...)
 	}
 
 	if len(app.Spec.SyncWindowRefs) > 0 {
-		if windows, err := resolver.ResolveAppRefs(app.Spec.SyncWindowRefs); err != nil {
-			log.WithError(err).Warn("Failed to resolve app sync window refs")
-		} else {
-			direct = append(direct, windows...)
+		windows, err := resolver.ResolveAppRefs(app.Spec.SyncWindowRefs)
+		if err != nil {
+			log.WithError(err).Warn("Failed to resolve some app sync window refs")
 		}
+		direct = append(direct, windows...)
 	}
 
 	return filtered, direct
