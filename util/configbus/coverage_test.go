@@ -72,11 +72,10 @@ func TestControllerChainResolvesAllFields(t *testing.T) {
 
 func assertProviderFullyResolved(t *testing.T, p configbus.Provider) {
 	t.Helper()
-	pt := reflect.TypeOf((*configbus.Provider)(nil)).Elem()
+	pt := reflect.TypeFor[configbus.Provider]()
 	pv := reflect.ValueOf(p)
 	ctx := context.Background()
-	for i := 0; i < pt.NumMethod(); i++ {
-		m := pt.Method(i)
+	for m := range pt.Methods() {
 		switch m.Name {
 		case "Subscribe", "Unsubscribe":
 			continue
