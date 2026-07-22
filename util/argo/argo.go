@@ -1,3 +1,4 @@
+//nolint:staticcheck // SA1019: ValidateRepo still on SettingsManager until server-layer configbus cutover
 package argo
 
 import (

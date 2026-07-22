@@ -1,3 +1,4 @@
+//nolint:staticcheck // SA1019: application server settings reads migrate on configbus/02-server
 package application
 
 import (

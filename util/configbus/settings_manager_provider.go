@@ -1,3 +1,4 @@
+//nolint:staticcheck // SA1019: this file is the allowed bridge to deprecated SettingsManager product getters.
 package configbus
 
 import (
