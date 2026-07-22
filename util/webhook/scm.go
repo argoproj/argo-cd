@@ -16,19 +16,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 )
 
-// ProviderParser detects and parses webhook requests for one provider.
-//
-// CanHandle inspects request headers to decide whether this parser owns the
-// request. Parse extracts the provider-specific payload. On verification
-// failures it emits a provider-specific security-audit log line directly. A
-// (nil, nil) return signals a request that was claimed but
-// intentionally skipped (e.g. an unsupported sub-event).
-type ProviderParser interface {
-	CanHandle(r *http.Request) bool
-	Parse(r *http.Request, consumer WebhookConsumer) (any, error)
-	Name() WebhookProvider
-}
-
 type azureDevOpsParser struct {
 	webhook *azuredevops.Webhook
 }

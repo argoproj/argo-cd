@@ -3,7 +3,6 @@ package webhook
 import (
 	"errors"
 	"fmt"
-	"net/http"
 	"slices"
 
 	"github.com/go-playground/webhooks/v6/azuredevops"
@@ -14,27 +13,6 @@ import (
 	"github.com/go-playground/webhooks/v6/gogs"
 
 	"github.com/argoproj/argo-cd/v3/util/settings"
-)
-
-// WebhookProvider identifies the SCM provider that sent a webhook payload.
-type WebhookProvider string
-
-const (
-	WebhookProviderAzureDevOps     WebhookProvider = "azuredevops"
-	WebhookProviderBitbucket       WebhookProvider = "bitbucket"
-	WebhookProviderBitbucketServer WebhookProvider = "bitbucketserver"
-	WebhookProviderGitHub          WebhookProvider = "github"
-	WebhookProviderGitLab          WebhookProvider = "gitlab"
-	WebhookProviderGogs            WebhookProvider = "gogs"
-	WebhookProviderGHCR            WebhookProvider = "ghcr"
-)
-
-// WebhookConsumer selects the events supported by each webhook consumer.
-type WebhookConsumer string
-
-const (
-	WebhookConsumerApplication    WebhookConsumer = "application"
-	WebhookConsumerApplicationSet WebhookConsumer = "applicationset"
 )
 
 type providerFactory struct {
@@ -128,15 +106,4 @@ func newProviderParsers(consumer WebhookConsumer, factories []providerFactory) (
 		parsers = append(parsers, parser)
 	}
 	return parsers, errors.Join(initErrors...)
-}
-
-// Dispatch selects the first provider that recognizes r and delegates parsing.
-func Dispatch(parsers []ProviderParser, r *http.Request, consumer WebhookConsumer) (any, WebhookProvider, error) {
-	for _, parser := range parsers {
-		if parser.CanHandle(r) {
-			payload, err := parser.Parse(r, consumer)
-			return payload, parser.Name(), err
-		}
-	}
-	return nil, "", nil
 }
