@@ -97,8 +97,6 @@ type ArgoCDSettings struct {
 	StatusBadgeRootUrl string `json:"statusBadgeRootUrl,omitempty"` //nolint:revive //FIXME(var-naming)
 	// DexConfig contains portions of a dex config yaml
 	DexConfig string `json:"dexConfig,omitempty"`
-	// DexStorage contains the storage type and configuration for dex
-	DexStorage *DexStorage `json:"dexStorage,omitempty"`
 	// OIDCConfigRAW holds OIDC configuration as a raw string
 	OIDCConfigRAW string `json:"oidcConfig,omitempty"`
 	// ServerSignature holds the key used to generate JWT tokens.
@@ -182,14 +180,6 @@ type GoogleAnalytics struct {
 type GlobalProjectSettings struct {
 	ProjectName   string               `json:"projectName,omitempty"`
 	LabelSelector metav1.LabelSelector `json:"labelSelector,omitempty"`
-}
-
-// DexStorage contains the type and configuration for dex storage
-type DexStorage struct {
-	// Type specifies the storage backend used by dex (e.g., kubernetes, memory)
-	Type string `json:"type,omitempty"`
-	// Config contains the storage-specific configuration
-	Config map[string]any `json:"config,omitempty"`
 }
 
 // Help settings
@@ -453,10 +443,6 @@ const (
 	settingAdditionalUrlsKey = "additionalUrls"
 	// settingDexConfigKey designates the key for the dex config
 	settingDexConfigKey = "dex.config"
-	// settingDexStorageKey designates the key for the dex storage
-	settingDexStorageKey = "dex.storage"
-	// defaultDexStorageType holds the default storage type for dex
-	defaultDexStorageType = "memory"
 	// settingsOIDCConfigKey designates the key for OIDC config
 	settingsOIDCConfigKey = "oidc.config"
 	// statusBadgeEnabledKey holds the key which enables of disables status badge feature
@@ -1683,14 +1669,6 @@ func getDownloadBinaryUrlsFromConfigMap(argoCDCM *corev1.ConfigMap) map[string]s
 // updateSettingsFromConfigMap transfers settings from a Kubernetes configmap into an ArgoCDSettings struct.
 func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.ConfigMap) {
 	settings.DexConfig = argoCDCM.Data[settingDexConfigKey]
-	if raw, ok := argoCDCM.Data[settingDexStorageKey]; ok && raw != "" {
-		var dexStorage DexStorage
-		if err := yaml.Unmarshal([]byte(raw), &dexStorage); err != nil {
-			log.Warnf("Failed to unmarshal %s: %v", settingDexStorageKey, err)
-		} else {
-			settings.DexStorage = &dexStorage
-		}
-	}
 	settings.OIDCConfigRAW = argoCDCM.Data[settingsOIDCConfigKey]
 	if err := ValidateOIDCConfig(settings.OIDCConfigRAW); err != nil {
 		log.Warnf("Failed to validate OIDC config: %v", err)
@@ -2360,33 +2338,6 @@ func appendURLPath(inputURL string, inputPath string) (string, error) {
 
 func (a *ArgoCDSettings) RedirectURL() (string, error) {
 	return appendURLPath(a.URL, common.CallbackEndpoint)
-}
-
-// DexStorageTypeSetting returns the storage type setting for Dex.
-// Defaults to memory.
-func (a *ArgoCDSettings) DexStorageTypeSetting() string {
-	if a.DexStorage != nil && a.DexStorage.Type != "" {
-		return a.DexStorage.Type
-	}
-	return defaultDexStorageType
-}
-
-// BuildDexStorage builds the storage configuration for Dex based on the current settings.
-func (a *ArgoCDSettings) BuildDexStorage() map[string]any {
-	storageType := a.DexStorageTypeSetting()
-	storage := map[string]any{
-		"type": storageType,
-	}
-	switch storageType {
-	case defaultDexStorageType:
-		// no config needed
-	default:
-		// sqlite3, postgres, etcd, etc — backend-specific config
-		if a.DexStorage != nil && a.DexStorage.Config != nil {
-			storage["config"] = a.DexStorage.Config
-		}
-	}
-	return storage
 }
 
 func (a *ArgoCDSettings) ArgoURLForRequest(r *http.Request) (string, error) {

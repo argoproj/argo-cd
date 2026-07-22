@@ -616,13 +616,14 @@ If either of those two applies, then you can disable OIDC provider certificate v
 
 By default, Dex stores session state (auth requests, refresh tokens, signingkeys) in memory. This means state does not persist across `argocd-dex-server` pod restarts, and it is not safe to run multiple Dex replicas since each replica would have its own independent state.
 
-To persist state and support HA deployments, configure a durable storage backend via `dex.storage` and respective configurations in `argocd-cm`:
+To persist state and support HA deployments, configure a durable storage backend via `dex.config` and respective configurations in `argocd-cm`:
 
 ```yaml
-  dex.storage: |
-    type: kubernetes
-    config:
-      inCluster: true
+  dex.config: |
+    storage:
+      type: kubernetes
+      config:
+        inCluster: true
 ```
 
 Supported values for type in dex.storage:
@@ -651,6 +652,7 @@ Supported values for type in dex.storage:
 #   - Manage Dex custom resources (AuthCodes, RefreshTokens, SigningKeys, etc.)
 #
 # Replace the namespace below if Argo CD is installed in a different namespace.
+# Restart existing dex pod for reflecting below RBAC permissions.
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -664,10 +666,10 @@ rules:
     - authcodes
     - authrequests
     - oauth2clients
-    - signingkeys
+    - signingkeies
     - refreshtokens
     - passwords
-    - offlinesessionses
+    - offlinesessions
     - connectors
     - devicerequests
     - devicetokens
@@ -688,10 +690,6 @@ rules:
     - get
     - list
     - watch
-    - create
-    - update
-    - patch
-    - delete
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding

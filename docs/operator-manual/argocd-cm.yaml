@@ -7,14 +7,6 @@ metadata:
     app.kubernetes.io/name: argocd-cm
     app.kubernetes.io/part-of: argocd
 data:
-  # Dex storage configuration
-  dex.storage: |
-    # Dex storage backend (optional). Defaults to "memory" if unset.
-    # "memory" does not persist across argocd-dex-server restarts and is not HA-safe.
-    # Durable backends (kubernetes, postgres, sqlite3, etcd) require extra setup.
-    # The "kubernetes" backend additionally requires RBAC for the argocd-dex-server
-    # ServiceAccount (see the same doc section).
-    type: memory
   # Argo CD's externally facing base URL (optional). Required when configuring SSO
   url: https://argo-cd-demo.argoproj.io
 
@@ -62,6 +54,10 @@ data:
   # https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/user-management/index.md#sso
   # https://dexidp.io/docs/connectors/
   dex.config: |
+    storage:
+      type: kubernetes
+      config:
+        inCluster: true
     web:
       tlsMinVersion: "1.2"
     connectors:
