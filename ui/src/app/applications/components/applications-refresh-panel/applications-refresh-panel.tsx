@@ -18,6 +18,7 @@ const RefreshTypes = ['normal', 'hard'];
 export const ApplicationsRefreshPanel = ({show, apps, hide}: {show: boolean; apps: models.Application[]; hide: () => void}) => {
     const [form, setForm] = React.useState<FormApi>(null);
     const [progress, setProgress] = React.useState<Progress>(null);
+    const [batchSizeError, setBatchSizeError] = React.useState<string>(null);
     const getSelectedApps = (params: any) => apps.filter((_, i) => params['app/' + i]);
 
     return (
@@ -38,7 +39,7 @@ export const ApplicationsRefreshPanel = ({show, apps, hide}: {show: boolean; app
                         </div>
                     }>
                     <Form
-                        defaultValues={{refreshType: 'normal'}}
+                        defaultValues={{refreshType: 'normal', batchSize: 20}}
                         onSubmit={async (params: any) => {
                             const selectedApps = getSelectedApps(params);
                             if (selectedApps.length === 0) {
@@ -46,6 +47,12 @@ export const ApplicationsRefreshPanel = ({show, apps, hide}: {show: boolean; app
                                 return;
                             }
 
+                            const parsedBatchSize = parseInt(params.batchSize, 10);
+                            if (isNaN(parsedBatchSize) || parsedBatchSize < 1) {
+                                setBatchSizeError('Batch size must be a positive integer.');
+                                return;
+                            }
+                            const batchSize = parsedBatchSize;
                             setProgress({percentage: 0, title: 'Refreshing applications'});
                             let i = 0;
                             const refreshActions = [];
@@ -66,7 +73,7 @@ export const ApplicationsRefreshPanel = ({show, apps, hide}: {show: boolean; app
                                 };
                                 refreshActions.push(refreshAction());
 
-                                if (refreshActions.length >= 20) {
+                                if (refreshActions.length >= batchSize) {
                                     await Promise.all(refreshActions);
                                     refreshActions.length = 0;
                                 }
@@ -95,6 +102,22 @@ export const ApplicationsRefreshPanel = ({show, apps, hide}: {show: boolean; app
                                             </label>
                                         ))}
                                     </div>
+                                </div>
+                                <div style={{marginBottom: '1em'}}>
+                                    <label>Batch Size</label>
+                                    <input
+                                        type='number'
+                                        min={1}
+                                        className={`argo-field${batchSizeError ? ' argo-field--invalid' : ''}`}
+                                        value={formApi.values.batchSize}
+                                        onChange={e => {
+                                            const val = parseInt(e.target.value, 10);
+                                            setBatchSizeError(isNaN(val) || val < 1 ? 'Batch size must be a positive integer.' : null);
+                                            formApi.setValue('batchSize', e.target.value);
+                                        }}
+                                        style={{width: '80px', marginLeft: '0.5em'}}
+                                    />
+                                    {batchSizeError && <div style={{color: 'red', fontSize: '0.8em', marginTop: '0.25em'}}>{batchSizeError}</div>}
                                 </div>
                                 {show && <ApplicationSelector apps={apps} formApi={formApi} />}
                             </div>
