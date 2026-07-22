@@ -101,6 +101,12 @@ spec:
                   name: argocd-cmd-params-cm
                   key: reposerver.tls.ciphers
                   optional: true
+          - name: ARGOCD_REPO_SERVER_CLIENT_CA_PATH
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: reposerver.client.ca.path
+                optional: true
           - name: ARGOCD_REPO_CACHE_EXPIRATION
             valueFrom:
                 configMapKeyRef:
@@ -109,10 +115,24 @@ spec:
                   optional: true
           - name: REDIS_SERVER
             valueFrom:
-                configMapKeyRef:
-                  name: argocd-cmd-params-cm
-                  key: redis.server
-                  optional: true
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: redis.server
+                optional: true
+
+          - name: REDIS_SENTINEL_HOSTS
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: redis.sentinel.hosts
+                optional: true
+
+          - name: REDIS_SENTINEL_MASTER
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: redis.sentinel.master
+                optional: true
           - name: REDIS_COMPRESSION
             valueFrom:
               configMapKeyRef:
@@ -124,6 +144,12 @@ spec:
                 configMapKeyRef:
                   name: argocd-cmd-params-cm
                   key: redis.db
+                  optional: true
+          - name: ARGOCD_REDIS_KEY_PREFIX
+            valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: redis.key.prefix
                   optional: true
           - name: ARGOCD_DEFAULT_CACHE_EXPIRATION
             valueFrom:
@@ -155,6 +181,12 @@ spec:
                   name: argocd-cmd-params-cm
                   key: otlp.attrs
                   optional: true
+          - name: ARGOCD_REPO_SERVER_OTLP_SAMPLE_RATIO
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: otlp.sample.ratio
+                optional: true
           - name: ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE
             valueFrom:
               configMapKeyRef:
@@ -312,6 +344,8 @@ spec:
           mountPath: /app/config/gpg/keys
         - name: argocd-repo-server-tls
           mountPath: /app/config/reposerver/tls
+        - name: argocd-repo-server-mtls
+          mountPath: /app/config/reposerver/mtls
         - name: tmp
           mountPath: /tmp
         - mountPath: /helm-working-dir
@@ -365,6 +399,13 @@ spec:
               path: tls.key
             - key: ca.crt
               path: ca.crt
+        - name: argocd-repo-server-mtls
+          secret:
+            secretName: argocd-repo-server-mtls
+            optional: true
+            items:
+            - key: client-ca.crt
+              path: client-ca.crt
         - emptyDir: {}
           name: var-files
         - emptyDir: {}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"net/url"
 	"os"
@@ -16,6 +17,7 @@ import (
 
 	bb "github.com/ktrysmt/go-bitbucket"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/client-go/util/workqueue"
 
 	alpha1 "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 
@@ -78,26 +80,33 @@ var (
 
 var _ settingsSource = &settings.SettingsManager{}
 
-type ArgoCDWebhookHandler struct {
-	sync.WaitGroup         // for testing
-	repoCache              *cache.Cache
-	serverCache            *servercache.Cache
-	db                     db.ArgoDB
-	ns                     string
-	appNs                  []string
-	appClientset           appclientset.Interface
-	appsLister             alpha1.ApplicationLister
-	parsers                []Extractor
-	settings               *settings.ArgoCDSettings
-	settingsSrc            settingsSource
-	queue                  chan any
-	maxWebhookPayloadSizeB int64
+// appRefreshRequest represents a request to refresh an application with optional jitter
+type appRefreshRequest struct {
+	appName      string
+	appNamespace string
+	hydrateType  *v1alpha1.HydrateType
 }
 
-func NewHandler(namespace string, applicationNamespaces []string, webhookParallelism int, appClientset appclientset.Interface, appsLister alpha1.ApplicationLister,
-	set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache,
-	serverCache *servercache.Cache, argoDB db.ArgoDB, maxWebhookPayloadSizeB int64,
-) *ArgoCDWebhookHandler {
+type ArgoCDWebhookHandler struct {
+	sync.WaitGroup                // for testing
+	repoCache                     *cache.Cache
+	serverCache                   *servercache.Cache
+	db                            db.ArgoDB
+	ns                            string
+	appNs                         []string
+	appClientset                  appclientset.Interface
+	appsLister                    alpha1.ApplicationLister
+	parsers                       []Extractor
+	settings                      *settings.ArgoCDSettings
+	settingsSrc                   settingsSource
+	queue                         chan any
+	refreshQueue                  workqueue.TypedDelayingInterface[*appRefreshRequest]
+	maxWebhookPayloadSizeB        int64
+	webhookRefreshJitter          time.Duration
+	webhookRefreshJitterThreshold int
+}
+
+func NewHandler(namespace string, applicationNamespaces []string, webhookParallelism int, webhookRefreshWorkers int, appClientset appclientset.Interface, appsLister alpha1.ApplicationLister, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB, maxWebhookPayloadSizeB int64, webhookRefreshJitter time.Duration, webhookRefreshJitterThreshold int) *ArgoCDWebhookHandler {
 	githubWebhook, err := github.New(github.Options.Secret(set.GetWebhookGitHubSecret()))
 	if err != nil {
 		log.Warnf("Unable to init the GitHub webhook")
@@ -146,22 +155,29 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 	}
 	parsers = append(parsers, newGHCRParser(set.GetWebhookGitHubSecret()))
 
+	log.Debugf("webhookRefreshJitter=%v", webhookRefreshJitter)
+	log.Debugf("webhookRefreshJitterThreshold=%d", webhookRefreshJitterThreshold)
+
 	acdWebhook := ArgoCDWebhookHandler{
-		ns:                     namespace,
-		appNs:                  applicationNamespaces,
-		appClientset:           appClientset,
-		parsers:                parsers,
-		settingsSrc:            settingsSrc,
-		repoCache:              repoCache,
-		serverCache:            serverCache,
-		settings:               set,
-		db:                     argoDB,
-		queue:                  make(chan any, payloadQueueSize),
-		maxWebhookPayloadSizeB: maxWebhookPayloadSizeB,
-		appsLister:             appsLister,
+		ns:                            namespace,
+		appNs:                         applicationNamespaces,
+		appClientset:                  appClientset,
+		parsers:                       parsers,
+		settingsSrc:                   settingsSrc,
+		repoCache:                     repoCache,
+		serverCache:                   serverCache,
+		settings:                      set,
+		db:                            argoDB,
+		queue:                         make(chan any, payloadQueueSize),
+		refreshQueue:                  workqueue.NewTypedDelayingQueue[*appRefreshRequest](),
+		maxWebhookPayloadSizeB:        maxWebhookPayloadSizeB,
+		appsLister:                    appsLister,
+		webhookRefreshJitter:          webhookRefreshJitter,
+		webhookRefreshJitterThreshold: webhookRefreshJitterThreshold,
 	}
 
 	acdWebhook.startWorkerPool(webhookParallelism)
+	acdWebhook.startRefreshWorkers(webhookRefreshWorkers)
 
 	return &acdWebhook
 }
@@ -178,6 +194,42 @@ func (a *ArgoCDWebhookHandler) startWorkerPool(webhookParallelism int) {
 				guard.RecoverAndLog(func() { a.HandleEvent(payload) }, compLog, panicMsgServer)
 			}
 		})
+	}
+}
+
+// startRefreshWorkers starts worker goroutines to process app refresh requests from the refresh queue
+func (a *ArgoCDWebhookHandler) startRefreshWorkers(count int) {
+	for range count {
+		a.Go(func() {
+			for {
+				req, shutdown := a.refreshQueue.Get()
+				if shutdown {
+					return
+				}
+				guard.RecoverAndLog(func() { a.processAppRefresh(req) }, log.WithField("component", "api-server-webhook-refresh"), panicMsgServer)
+				a.refreshQueue.Done(req)
+			}
+		})
+	}
+}
+
+// processAppRefresh processes a single app refresh request
+func (a *ArgoCDWebhookHandler) processAppRefresh(req *appRefreshRequest) {
+	namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(req.appNamespace)
+	_, err := argo.RefreshApp(namespacedAppInterface, req.appName, v1alpha1.RefreshTypeNormal, req.hydrateType)
+	if err != nil {
+		if req.hydrateType != nil {
+			log.Warnf("Failed to hydrate app '%s' for controller reprocessing: %v", req.appName, err)
+		} else {
+			log.Warnf("Failed to refresh app '%s' for controller reprocessing: %v", req.appName, err)
+		}
+		return
+	}
+
+	if req.hydrateType != nil {
+		log.Infof("Requested app '%s' hydration", req.appName)
+	} else {
+		log.Infof("Requested app '%s' refresh", req.appName)
 	}
 }
 
@@ -429,6 +481,7 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 			}
 		}
 
+		appCount := 0
 		// iterate over apps and check if any files specified in their sources have changed
 		for _, app := range filteredApps {
 			// get all sources, including sync source and dry source if source hydrator is configured
@@ -457,9 +510,18 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 						if hydrateType != nil {
 							log.Infof("webhook trigger refresh app to hydrate '%s'", app.Name)
 						}
-						namespacedAppInterface := a.appClientset.ArgoprojV1alpha1().Applications(app.Namespace)
-						if _, err := argo.RefreshApp(namespacedAppInterface, app.Name, v1alpha1.RefreshTypeNormal, hydrateType); err != nil {
-							log.Errorf("Failed to refresh app '%s': %v", app.Name, err)
+						appCount++
+						req := &appRefreshRequest{
+							appName:      app.Name,
+							appNamespace: app.Namespace,
+							hydrateType:  hydrateType,
+						}
+						// Apply jitter only if more than threshold apps are affected
+						if appCount > a.webhookRefreshJitterThreshold && a.webhookRefreshJitter != 0 {
+							jitter := time.Duration(float64(a.webhookRefreshJitter) * rand.Float64())
+							a.refreshQueue.AddAfter(req, jitter)
+						} else {
+							a.refreshQueue.Add(req)
 						}
 						break // we don't need to check other sources
 					} else if change.shaBefore != "" && change.shaAfter != "" && !cacheWarmDisabled {
@@ -782,4 +844,11 @@ func (a *ArgoCDWebhookHandler) processWebhook(r *http.Request) (any, bool, error
 	}
 	log.Debug("Ignoring unknown webhook event")
 	return nil, false, nil
+}
+
+// Shutdown gracefully shuts down the webhook handler by closing queues and waiting for workers
+func (a *ArgoCDWebhookHandler) Shutdown() {
+	close(a.queue)
+	a.refreshQueue.ShutDownWithDrain()
+	a.Wait()
 }

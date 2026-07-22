@@ -30,7 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 
 	"github.com/argoproj/argo-cd/v3/applicationset/generators"
 	"github.com/argoproj/argo-cd/v3/applicationset/generators/mocks"
@@ -42,6 +42,7 @@ import (
 	applog "github.com/argoproj/argo-cd/v3/util/app/log"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/settings"
+	testutil "github.com/argoproj/argo-cd/v3/util/test"
 )
 
 // getDefaultTestClientSet creates a Clientset with the default argo objects
@@ -1223,8 +1224,8 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 				require.NoError(t, err)
 				initObjs = append(initObjs, &a)
 			}
+			client := testutil.MakeSaneFakeClient(fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build())
 
-			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
 			metrics := appsetmetrics.NewFakeAppsetMetrics()
 
 			r := ApplicationSetReconciler{
@@ -1238,7 +1239,12 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			require.NoError(t, err)
 
 			for _, obj := range c.expected {
-				got := &v1alpha1.Application{}
+				got := &v1alpha1.Application{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Application",
+						APIVersion: "argoproj.io/v1alpha1",
+					},
+				}
 				_ = client.Get(t.Context(), crtclient.ObjectKey{
 					Namespace: obj.Namespace,
 					Name:      obj.Name,
@@ -2163,7 +2169,7 @@ func TestCreateApplications(t *testing.T) {
 				initObjs = append(initObjs, &a)
 			}
 
-			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+			client := testutil.MakeSaneFakeClient(fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build())
 			metrics := appsetmetrics.NewFakeAppsetMetrics()
 
 			r := ApplicationSetReconciler{
@@ -2177,15 +2183,18 @@ func TestCreateApplications(t *testing.T) {
 			require.NoError(t, err)
 
 			for _, obj := range c.expected {
-				got := &v1alpha1.Application{}
+				got := &v1alpha1.Application{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       "Application",
+						APIVersion: "argoproj.io/v1alpha1",
+					},
+				}
 				_ = client.Get(t.Context(), crtclient.ObjectKey{
 					Namespace: obj.Namespace,
 					Name:      obj.Name,
 				}, got)
-
 				err = controllerutil.SetControllerReference(&c.appSet, &obj, r.Scheme)
 				require.NoError(t, err)
-
 				assert.Equal(t, obj, *got)
 			}
 		})
@@ -2307,7 +2316,7 @@ func TestDeleteInCluster(t *testing.T) {
 			initObjs = append(initObjs, &temp)
 		}
 
-		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build()
+		client := testutil.MakeSaneFakeClient(fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build())
 		metrics := appsetmetrics.NewFakeAppsetMetrics()
 
 		kubeclientset := kubefake.NewClientset()
@@ -2330,7 +2339,12 @@ func TestDeleteInCluster(t *testing.T) {
 
 		// For each of the expected objects, verify they exist on the cluster
 		for _, obj := range c.expected {
-			got := &v1alpha1.Application{}
+			got := &v1alpha1.Application{
+				TypeMeta: metav1.TypeMeta{
+					Kind:       application.ApplicationKind,
+					APIVersion: "argoproj.io/v1alpha1",
+				},
+			}
 			_ = client.Get(t.Context(), crtclient.ObjectKey{
 				Namespace: obj.Namespace,
 				Name:      obj.Name,
@@ -2338,7 +2352,6 @@ func TestDeleteInCluster(t *testing.T) {
 
 			err = controllerutil.SetControllerReference(&c.appSet, &obj, r.Scheme)
 			require.NoError(t, err)
-
 			assert.Equal(t, obj, *got)
 		}
 
@@ -2514,6 +2527,52 @@ func TestValidateGeneratedApplications(t *testing.T) {
 				},
 			},
 			validationErrors: map[string]error{},
+		},
+		{
+			name: "app with no name should return error",
+			apps: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "default",
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://url",
+							Path:           "/",
+							TargetRevision: "HEAD",
+						},
+						Destination: v1alpha1.ApplicationDestination{
+							Namespace: "namespace",
+							Name:      "my-cluster",
+						},
+					},
+				},
+			},
+			validationErrors: map[string]error{"": errors.New("ApplicationSet  contains an application with no name; a name must be set in the template's metadata.name or via a templatePatch (generateName is not supported)")},
+		},
+		{
+			name: "app with only generateName should return error (generateName is not supported)",
+			apps: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						GenerateName: "app-",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "default",
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://url",
+							Path:           "/",
+							TargetRevision: "HEAD",
+						},
+						Destination: v1alpha1.ApplicationDestination{
+							Namespace: "namespace",
+							Name:      "my-cluster",
+						},
+					},
+				},
+			},
+			validationErrors: map[string]error{"": errors.New("ApplicationSet  contains an application with no name; a name must be set in the template's metadata.name or via a templatePatch (generateName is not supported)")},
 		},
 		{
 			name: "can't have both name and server defined",
@@ -2753,7 +2812,7 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 	for _, c := range []struct {
 		name                string
 		appset              v1alpha1.ApplicationSet
-		condition           v1alpha1.ApplicationSetCondition
+		condition           []v1alpha1.ApplicationSetCondition
 		parametersGenerated bool
 		testfunc            func(t *testing.T, conditions []v1alpha1.ApplicationSetCondition)
 	}{
@@ -2775,11 +2834,13 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 					Template: v1alpha1.ApplicationSetTemplate{},
 				},
 			},
-			condition: v1alpha1.ApplicationSetCondition{
-				Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
-				Message: "This is a message",
-				Reason:  "test",
-				Status:  v1alpha1.ApplicationSetConditionStatusFalse,
+			condition: []v1alpha1.ApplicationSetCondition{
+				{
+					Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
+					Message: "This is a message",
+					Reason:  "test",
+					Status:  v1alpha1.ApplicationSetConditionStatusFalse,
+				},
 			},
 			parametersGenerated: false,
 			testfunc: func(t *testing.T, conditions []v1alpha1.ApplicationSetCondition) {
@@ -2813,11 +2874,13 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 					Template: v1alpha1.ApplicationSetTemplate{},
 				},
 			},
-			condition: v1alpha1.ApplicationSetCondition{
-				Type:    v1alpha1.ApplicationSetConditionParametersGenerated,
-				Message: "This is a message",
-				Reason:  "test",
-				Status:  v1alpha1.ApplicationSetConditionStatusFalse,
+			condition: []v1alpha1.ApplicationSetCondition{
+				{
+					Type:    v1alpha1.ApplicationSetConditionParametersGenerated,
+					Message: "This is a message",
+					Reason:  "test",
+					Status:  v1alpha1.ApplicationSetConditionStatusFalse,
+				},
 			},
 			parametersGenerated: true,
 			testfunc: func(t *testing.T, conditions []v1alpha1.ApplicationSetCondition) {
@@ -2847,11 +2910,13 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 					Template: v1alpha1.ApplicationSetTemplate{},
 				},
 			},
-			condition: v1alpha1.ApplicationSetCondition{
-				Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
-				Message: "This is a message",
-				Reason:  "test",
-				Status:  v1alpha1.ApplicationSetConditionStatusFalse,
+			condition: []v1alpha1.ApplicationSetCondition{
+				{
+					Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
+					Message: "This is a message",
+					Reason:  "test",
+					Status:  v1alpha1.ApplicationSetConditionStatusFalse,
+				},
 			},
 			parametersGenerated: true,
 			testfunc: func(t *testing.T, conditions []v1alpha1.ApplicationSetCondition) {
@@ -2885,11 +2950,13 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 					Template: v1alpha1.ApplicationSetTemplate{},
 				},
 			},
-			condition: v1alpha1.ApplicationSetCondition{
-				Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
-				Message: "Completed",
-				Reason:  "test",
-				Status:  v1alpha1.ApplicationSetConditionStatusTrue,
+			condition: []v1alpha1.ApplicationSetCondition{
+				{
+					Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
+					Message: "Completed",
+					Reason:  "test",
+					Status:  v1alpha1.ApplicationSetConditionStatusTrue,
+				},
 			},
 			testfunc: func(t *testing.T, conditions []v1alpha1.ApplicationSetCondition) {
 				t.Helper()
@@ -2926,11 +2993,13 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 					Template: v1alpha1.ApplicationSetTemplate{},
 				},
 			},
-			condition: v1alpha1.ApplicationSetCondition{
-				Type:    v1alpha1.ApplicationSetConditionErrorOccurred,
-				Message: "Error",
-				Reason:  "test",
-				Status:  v1alpha1.ApplicationSetConditionStatusTrue,
+			condition: []v1alpha1.ApplicationSetCondition{
+				{
+					Type:    v1alpha1.ApplicationSetConditionErrorOccurred,
+					Message: "Error",
+					Reason:  "test",
+					Status:  v1alpha1.ApplicationSetConditionStatusTrue,
+				},
 			},
 			testfunc: func(t *testing.T, conditions []v1alpha1.ApplicationSetCondition) {
 				t.Helper()
@@ -2992,10 +3061,12 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 					},
 				},
 			},
-			condition: v1alpha1.ApplicationSetCondition{
-				Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
-				Message: "existing",
-				Status:  v1alpha1.ApplicationSetConditionStatusFalse,
+			condition: []v1alpha1.ApplicationSetCondition{
+				{
+					Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
+					Message: "existing",
+					Status:  v1alpha1.ApplicationSetConditionStatusFalse,
+				},
 			},
 			parametersGenerated: true,
 			testfunc: func(t *testing.T, conditions []v1alpha1.ApplicationSetCondition) {
@@ -3059,10 +3130,12 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 					},
 				},
 			},
-			condition: v1alpha1.ApplicationSetCondition{
-				Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
-				Message: "existing",
-				Status:  v1alpha1.ApplicationSetConditionStatusFalse,
+			condition: []v1alpha1.ApplicationSetCondition{
+				{
+					Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
+					Message: "existing",
+					Status:  v1alpha1.ApplicationSetConditionStatusFalse,
+				},
 			},
 			parametersGenerated: true,
 			testfunc: func(t *testing.T, conditions []v1alpha1.ApplicationSetCondition) {
@@ -3112,10 +3185,12 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 					},
 				},
 			},
-			condition: v1alpha1.ApplicationSetCondition{
-				Type:    v1alpha1.ApplicationSetConditionRolloutProgressing,
-				Message: "do not add me",
-				Status:  v1alpha1.ApplicationSetConditionStatusTrue,
+			condition: []v1alpha1.ApplicationSetCondition{
+				{
+					Type:    v1alpha1.ApplicationSetConditionRolloutProgressing,
+					Message: "do not add me",
+					Status:  v1alpha1.ApplicationSetConditionStatusTrue,
+				},
 			},
 			parametersGenerated: true,
 			testfunc: func(t *testing.T, conditions []v1alpha1.ApplicationSetCondition) {
@@ -3169,10 +3244,12 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 					},
 				},
 			},
-			condition: v1alpha1.ApplicationSetCondition{
-				Type:    v1alpha1.ApplicationSetConditionRolloutProgressing,
-				Message: "new value",
-				Status:  v1alpha1.ApplicationSetConditionStatusFalse,
+			condition: []v1alpha1.ApplicationSetCondition{
+				{
+					Type:    v1alpha1.ApplicationSetConditionRolloutProgressing,
+					Message: "new value",
+					Status:  v1alpha1.ApplicationSetConditionStatusFalse,
+				},
 			},
 			parametersGenerated: true,
 			testfunc: func(t *testing.T, conditions []v1alpha1.ApplicationSetCondition) {

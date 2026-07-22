@@ -16,11 +16,11 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
-	synccommon "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube/kubetest"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube/kubetest"
 	"github.com/argoproj/pkg/v2/sync"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
@@ -4988,7 +4988,7 @@ func TestTerminateOperationWithConflicts(t *testing.T) {
 	}
 
 	appServer := newTestAppServer(t, testApp)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Get the fake clientset from the deepCopy wrapper
 	fakeAppCs := appServer.appclientset.(*deepCopyAppClientset).GetUnderlyingClientSet().(*apps.Clientset)
@@ -5120,6 +5120,76 @@ func TestGetApplicationClusterConfig(t *testing.T) {
 		config, err := appServer.getApplicationClusterConfig(t.Context(), app, project)
 		assert.Nil(t, config)
 		assert.ErrorContains(t, err, "no matching service account found")
+	})
+
+	t.Run("ImpersonationEnabledWithNoMatchEnforcementDisabled", func(t *testing.T) {
+		f := func(enf *rbac.Enforcer) {
+			_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+			enf.SetDefaultRole("role:admin")
+		}
+
+		app := newTestApp()
+		appServer := newTestAppServerWithEnforcerConfigure(t, f,
+			map[string]string{
+				"application.sync.impersonation.enabled":  "true",
+				"application.sync.impersonation.enforced": "false",
+			},
+			app,
+		)
+
+		// "default" project has no DestinationServiceAccounts
+		project := &v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "default"},
+			Spec: v1alpha1.AppProjectSpec{
+				SourceRepos:  []string{"*"},
+				Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+			},
+		}
+
+		config, err := appServer.getApplicationClusterConfig(t.Context(), app, project)
+		require.NoError(t, err)
+		assert.NotNil(t, config)
+		// Should not have impersonation set (uses controller SA)
+		assert.Empty(t, config.Impersonate.UserName)
+	})
+
+	t.Run("ImpersonationEnabledWithMatchEnforcementDisabled", func(t *testing.T) {
+		f := func(enf *rbac.Enforcer) {
+			_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+			enf.SetDefaultRole("role:admin")
+		}
+
+		projWithSA := &v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "proj-impersonate", Namespace: "default"},
+			Spec: v1alpha1.AppProjectSpec{
+				SourceRepos:  []string{"*"},
+				Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				DestinationServiceAccounts: []v1alpha1.ApplicationDestinationServiceAccount{
+					{
+						Server:                "https://cluster-api.example.com",
+						Namespace:             test.FakeDestNamespace,
+						DefaultServiceAccount: "test-sa",
+					},
+				},
+			},
+		}
+
+		app := newTestApp(func(a *v1alpha1.Application) {
+			a.Spec.Project = "proj-impersonate"
+		})
+
+		appServer := newTestAppServerWithEnforcerConfigure(t, f,
+			map[string]string{
+				"application.sync.impersonation.enabled":  "true",
+				"application.sync.impersonation.enforced": "false",
+			},
+			app, projWithSA,
+		)
+
+		config, err := appServer.getApplicationClusterConfig(t.Context(), app, projWithSA)
+		require.NoError(t, err)
+		// Should use impersonation since SA is configured
+		assert.Equal(t, "system:serviceaccount:"+test.FakeDestNamespace+":test-sa", config.Impersonate.UserName)
 	})
 }
 

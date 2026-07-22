@@ -11,6 +11,7 @@ import (
 )
 
 func TestProcessApplicationListField_SyncOperation(t *testing.T) {
+	t.Parallel()
 	list := v1alpha1.ApplicationList{
 		Items: []v1alpha1.Application{{Operation: &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{
 			Revision: "abc",
@@ -34,6 +35,7 @@ func TestProcessApplicationListField_SyncOperation(t *testing.T) {
 }
 
 func TestProcessApplicationListField_SyncOperationMissing(t *testing.T) {
+	t.Parallel()
 	list := v1alpha1.ApplicationList{
 		Items: []v1alpha1.Application{{Operation: nil}},
 	}

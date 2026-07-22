@@ -26,7 +26,7 @@ generate the payload for GitHub webhook.
 Triggers are typically managed by administrators and encapsulate information about when and which notification should be sent.
 The end users just need to subscribe to the trigger and specify the notification destination. In order to improve user experience
 triggers might include multiple conditions with a different set of templates for each condition. For example, the following trigger
-covers all stages of sync status operation and use a different template for different cases:
+covers all stages of sync status operation and uses a different template for different cases:
 
 ```yaml
 apiVersion: v1
@@ -69,7 +69,7 @@ kind: ConfigMap
 metadata:
   name: argocd-notifications-cm
 data:
-  # Optional 'oncePer' property ensure that notification is sent only once per specified field value
+  # Optional 'oncePer' property ensures that notification is sent only once per specified field value
   # E.g. following is triggered once per sync revision
   trigger.on-deployed: |
     when: app.status?.operationState.phase in ['Succeeded'] and app.status.health.status == 'Healthy'
