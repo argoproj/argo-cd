@@ -97,7 +97,7 @@ func TestGetAppProj_invalidProjectNestedString(t *testing.T) {
 		},
 	}
 	informer := cache.NewSharedIndexInformer(nil, nil, 0, nil)
-	proj := getAppProj(app, informer)
+	proj := getAppProj(app, informer, "argocd")
 
 	assert.Nil(t, proj)
 }
