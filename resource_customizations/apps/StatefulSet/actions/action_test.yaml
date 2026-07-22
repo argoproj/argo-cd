@@ -9,6 +9,19 @@ actionTests:
       replicas: '6'
   - action: scale
     inputPath: testdata/statefulset.yaml
-    expectedErrorMessage: 'invalid number: not_a_number'
+    expectedErrorMessage: 'replicas parameter is required'
+  - action: scale
+    inputPath: testdata/statefulset.yaml
+    expectedErrorMessage: 'invalid number: -1 (must be a non-negative integer)'
+    parameters:
+        replicas: '-1'
+  - action: scale
+    inputPath: testdata/statefulset.yaml
+    expectedErrorMessage: 'invalid number: 1.5 (must be a non-negative integer)'
+    parameters:
+        replicas: '1.5'
+  - action: scale
+    inputPath: testdata/statefulset.yaml
+    expectedErrorMessage: 'invalid number: not_a_number (must be a non-negative integer)'
     parameters:
       replicas: 'not_a_number'
