@@ -32237,7 +32237,7 @@ spec:
               key: dexserver.connector.failure.continue
               name: argocd-cmd-params-cm
               optional: true
-        image: ghcr.io/dexidp/dex:v2.45.0
+        image: ghcr.io/dexidp/dex:v2.45.1
         imagePullPolicy: Always
         name: dex
         ports:
@@ -33094,6 +33094,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: server.disable.auth
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_SERVER_DISABLE_SWAGGER_UI
+          valueFrom:
+            configMapKeyRef:
+              key: server.disable.swagger.ui
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_SERVER_ENABLE_GZIP
