@@ -1,12 +1,20 @@
 package tls
 
 import (
+	"crypto/rsa"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
+	"errors"
+	"fmt"
+	"math/big"
+	"os"
+	"path"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -174,7 +182,6 @@ func TestGetTLSCipherSuitesByString(t *testing.T) {
 	})
 }
 
-/*
 func TestTLSVersionToString(t *testing.T) {
 	t.Parallel()
 	t.Run("Test known versions", func(t *testing.T) {
@@ -319,18 +326,19 @@ func TestGetTLSConfigCustomizer(t *testing.T) {
 	t.Parallel()
 	t.Run("Valid TLS customization", func(t *testing.T) {
 		t.Parallel()
-		cfunc, err := getTLSConfigCustomizer(DefaultTLSMinVersion, DefaultTLSMaxVersion, DefaultTLSCipherSuite)
+		cfunc, err := getTLSConfigCustomizer(DefaultTLSMinVersion, DefaultTLSMaxVersion, DefaultTLSCipherSuite, DefaultTLSCurvePreferences)
 		require.NoError(t, err)
 		assert.NotNil(t, cfunc)
 		config := tls.Config{}
 		cfunc(&config)
 		assert.Equal(t, config.MinVersion, uint16(tls.VersionTLS12))
 		assert.Equal(t, config.MaxVersion, uint16(tls.VersionTLS13))
+		assert.Equal(t, config.CurvePreferences, []tls.CurveID([]tls.CurveID(nil)))
 	})
 
-	t.Run("Valid TLS customization - No cipher customization for TLSv1.3 only with default ciphers", func(t *testing.T) {
+	t.Run("Valid TLS customization - No cipher customization for TLSv1.3 only with default ciphers and single curve preference", func(t *testing.T) {
 		t.Parallel()
-		cfunc, err := getTLSConfigCustomizer("1.3", "1.3", DefaultTLSCipherSuite)
+		cfunc, err := getTLSConfigCustomizer("1.3", "1.3", DefaultTLSCipherSuite, "X25519")
 		require.NoError(t, err)
 		assert.NotNil(t, cfunc)
 		config := tls.Config{}
@@ -338,11 +346,12 @@ func TestGetTLSConfigCustomizer(t *testing.T) {
 		assert.Equal(t, config.MinVersion, uint16(tls.VersionTLS13))
 		assert.Equal(t, config.MaxVersion, uint16(tls.VersionTLS13))
 		assert.Empty(t, config.CipherSuites)
+		assert.Equal(t, config.CurvePreferences, []tls.CurveID([]tls.CurveID{0x1d}))
 	})
 
-	t.Run("Valid TLS customization - No cipher customization for TLSv1.3 only with custom ciphers", func(t *testing.T) {
+	t.Run("Valid TLS customization - No cipher customization for TLSv1.3 only with custom ciphers and two curve preferences", func(t *testing.T) {
 		t.Parallel()
-		cfunc, err := getTLSConfigCustomizer("1.3", "1.3", "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256")
+		cfunc, err := getTLSConfigCustomizer("1.3", "1.3", "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256", "X25519:X25519MLKEM768")
 		require.NoError(t, err)
 		assert.NotNil(t, cfunc)
 		config := tls.Config{}
@@ -350,32 +359,33 @@ func TestGetTLSConfigCustomizer(t *testing.T) {
 		assert.Equal(t, config.MinVersion, uint16(tls.VersionTLS13))
 		assert.Equal(t, config.MaxVersion, uint16(tls.VersionTLS13))
 		assert.Empty(t, config.CipherSuites)
+		assert.Equal(t, config.CurvePreferences, []tls.CurveID([]tls.CurveID{0x1d, 0x11ec}))
 	})
 
 	t.Run("Invalid TLS customization - Min version higher than max version", func(t *testing.T) {
 		t.Parallel()
-		cfunc, err := getTLSConfigCustomizer("1.3", "1.2", DefaultTLSCipherSuite)
+		cfunc, err := getTLSConfigCustomizer("1.3", "1.2", DefaultTLSCipherSuite, DefaultTLSCurvePreferences)
 		require.Error(t, err)
 		assert.Nil(t, cfunc)
 	})
 
 	t.Run("Invalid TLS customization - Invalid min version given", func(t *testing.T) {
 		t.Parallel()
-		cfunc, err := getTLSConfigCustomizer("2.0", "1.2", DefaultTLSCipherSuite)
+		cfunc, err := getTLSConfigCustomizer("2.0", "1.2", DefaultTLSCipherSuite, DefaultTLSCurvePreferences)
 		require.Error(t, err)
 		assert.Nil(t, cfunc)
 	})
 
 	t.Run("Invalid TLS customization - Invalid max version given", func(t *testing.T) {
 		t.Parallel()
-		cfunc, err := getTLSConfigCustomizer("1.2", "2.0", DefaultTLSCipherSuite)
+		cfunc, err := getTLSConfigCustomizer("1.2", "2.0", DefaultTLSCipherSuite, DefaultTLSCurvePreferences)
 		require.Error(t, err)
 		assert.Nil(t, cfunc)
 	})
 
 	t.Run("Invalid TLS customization - Unknown cipher suite given", func(t *testing.T) {
 		t.Parallel()
-		cfunc, err := getTLSConfigCustomizer("1.3", "1.2", "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:invalid")
+		cfunc, err := getTLSConfigCustomizer("1.3", "1.2", "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256:invalid", DefaultTLSCurvePreferences)
 		require.Error(t, err)
 		assert.Nil(t, cfunc)
 	})
@@ -897,4 +907,3 @@ func TestClientCertFlags_BothRequiredOrNeither(t *testing.T) {
 		assert.Equal(t, "/app/config/reposerver/mtls/client.key", cfg.ClientCertKeyFile)
 	})
 }
-*/

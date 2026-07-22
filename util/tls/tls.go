@@ -175,9 +175,12 @@ func getTLSConfigCustomizer(minVersionStr, maxVersionStr, tlsCiphersStr, tlsCurv
 		cipherSuites = make([]uint16, 0)
 	}
 
-	curvePreferences, err := getTLSCurvePreferencesByString(strings.Split(tlsCurvePreferences, ":"))
-	if err != nil {
-		return nil, err
+	var curvePreferences []tls.CurveID
+	if tlsCurvePreferences != "" {
+		curvePreferences, err = getTLSCurvePreferencesByString(strings.Split(tlsCurvePreferences, ":"))
+		if err != nil {
+			return nil, err
+		}
 	}
 	return func(config *tls.Config) {
 		config.MinVersion = minVersion
