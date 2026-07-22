@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/cache"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	"github.com/r3labs/diff/v3"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -28,6 +28,7 @@ import (
 	applicationsv1 "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v3/util/db"
+	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/glob"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/settings"
@@ -568,7 +569,7 @@ func GetRefSources(ctx context.Context, sources argoappv1.ApplicationSources, pr
 
 			repo, err := getRepository(ctx, source.RepoURL, project)
 			if err != nil {
-				return nil, fmt.Errorf("failed to get repository %s: %w", source.RepoURL, err)
+				return nil, fmt.Errorf("failed to get repository %s: %w", git.SanitizeRepoURL(source.RepoURL), err)
 			}
 			refKey := "$" + source.Ref
 			revision := source.TargetRevision

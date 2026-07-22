@@ -63,7 +63,7 @@ type Client interface {
 	ExtractChart(ctx context.Context, chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, utilio.Closer, error)
 	GetIndex(ctx context.Context, noCache bool, maxIndexSize int64) (*Index, error)
 	GetTags(ctx context.Context, chart string, noCache bool) ([]string, error)
-	TestHelmOCI() (bool, error)
+	TestHelmOCI(ctx context.Context) (bool, error)
 }
 
 type ClientOpts func(c *nativeHelmChart)
@@ -115,19 +115,27 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, enabl
 	return c
 }
 
+// WithHelmChartCacheExpiration sets the cache expiration duration for chart cache.
+func WithHelmChartCacheExpiration(helmChartCacheExpiration time.Duration) ClientOpts {
+	return func(c *nativeHelmChart) {
+		c.helmChartCacheExpiration = helmChartCacheExpiration
+	}
+}
+
 var _ Client = &nativeHelmChart{}
 
 type nativeHelmChart struct {
-	chartCachePaths utilio.TempPaths
-	repoURL         string
-	creds           Creds
-	repoLock        sync.KeyLock
-	enableOci       bool
-	plainHTTP       bool
-	indexCache      indexCache
-	proxy           string
-	noProxy         string
-	customUserAgent string // Custom User-Agent string (optional)
+	chartCachePaths          utilio.TempPaths
+	repoURL                  string
+	creds                    Creds
+	repoLock                 sync.KeyLock
+	enableOci                bool
+	plainHTTP                bool
+	indexCache               indexCache
+	proxy                    string
+	noProxy                  string
+	customUserAgent          string        // Custom User-Agent string (optional)
+	helmChartCacheExpiration time.Duration // Cache expiration for chart cache
 }
 
 // getUserAgent returns the User-Agent string to use for HTTP requests.
@@ -210,6 +218,28 @@ func (c *nativeHelmChart) ExtractChart(ctx context.Context, chart string, versio
 		return "", nil, fmt.Errorf("error checking existence of cached chart path: %w", err)
 	}
 
+	// if chart tar exists, check if it is expired based on cache expiration duration configuration.
+	if exists && c.helmChartCacheExpiration > 0 {
+		info, err := os.Stat(cachedChartPath)
+		if err != nil {
+			log.WithFields(log.Fields{
+				"path": cachedChartPath,
+				"err":  err,
+			}).Warn("error checking cached Helm chart; removing cached archive")
+			_ = os.RemoveAll(cachedChartPath)
+			exists = false
+		} else if time.Since(info.ModTime()) > c.helmChartCacheExpiration {
+			if err := os.RemoveAll(cachedChartPath); err != nil {
+				_ = os.RemoveAll(tempDir)
+				return "", nil, fmt.Errorf(
+					"error removing expired cached chart: %w",
+					err,
+				)
+			}
+			exists = false
+		}
+	}
+
 	if !exists {
 		// create empty temp directory to extract chart from the registry
 		tempDest, err := files.CreateTempDir(os.TempDir())
@@ -225,7 +255,7 @@ func (c *nativeHelmChart) ExtractChart(ctx context.Context, chart string, versio
 				return "", nil, fmt.Errorf("failed to get password for helm registry: %w", err)
 			}
 			if helmPassword != "" && c.creds.GetUsername() != "" {
-				_, err = helmCmd.RegistryLogin(c.repoURL, c.creds, c.plainHTTP)
+				_, err = helmCmd.RegistryLogin(ctx, c.repoURL, c.creds, c.plainHTTP)
 				if err != nil {
 					_ = os.RemoveAll(tempDir)
 					return "", nil, fmt.Errorf("error logging into OCI registry: %w", err)
@@ -313,7 +343,7 @@ func (c *nativeHelmChart) GetIndex(ctx context.Context, noCache bool, maxIndexSi
 	return index, nil
 }
 
-func (c *nativeHelmChart) TestHelmOCI() (bool, error) {
+func (c *nativeHelmChart) TestHelmOCI(ctx context.Context) (bool, error) {
 	start := time.Now()
 
 	tmpDir, err := os.MkdirTemp("", "helm")
@@ -335,7 +365,7 @@ func (c *nativeHelmChart) TestHelmOCI() (bool, error) {
 		return false, fmt.Errorf("failed to get password for helm registry: %w", err)
 	}
 	if c.creds.GetUsername() != "" && helmPassword != "" {
-		_, err = helmCmd.RegistryLogin(c.repoURL, c.creds, c.plainHTTP)
+		_, err = helmCmd.RegistryLogin(ctx, c.repoURL, c.creds, c.plainHTTP)
 		if err != nil {
 			return false, fmt.Errorf("error logging into OCI registry: %w", err)
 		}

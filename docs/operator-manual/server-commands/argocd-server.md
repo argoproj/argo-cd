@@ -51,6 +51,7 @@ argocd-server [flags]
       --dex-server-strict-tls                           Perform strict validation of TLS certificates when connecting to dex server
       --disable-auth                                    Disable client authentication
       --disable-compression                             If true, opt-out of response compression for all requests to the server
+      --disable-swagger-ui                              Disable the Swagger UI (/swagger-ui) endpoint
       --enable-gzip                                     Enable GZIP compression (default true)
       --enable-k8s-event none                           Enable ArgoCD to use k8s event. For disabling all events, set the value as none. (e.g --enable-k8s-event=none), For enabling specific events, set the value as `event reason`. (e.g --enable-k8s-event=StatusRefreshed,ResourceCreated) (default [all])
       --enable-proxy-extension                          Enable Proxy Extension feature
@@ -72,6 +73,7 @@ argocd-server [flags]
       --otlp-attrs strings                              List of OpenTelemetry collector extra attrs when send traces, each attribute is separated by a colon(e.g. key:value)
       --otlp-headers stringToString                     List of OpenTelemetry collector extra headers sent with traces, headers are comma-separated key-value pairs(e.g. key1=value1,key2=value2) (default [])
       --otlp-insecure                                   OpenTelemetry collector insecure mode (default true)
+      --otlp-sample-ratio float                         Fraction of traces to sample, from 0.0 (none) to 1.0 (all). Parent-based, so downstream services honor the upstream sampling decision (default 1)
       --password string                                 Password for basic authentication to the API server
       --port int                                        Listen on given port (default 8080)
       --proxy-url string                                If provided, this URL will be used to connect via proxy

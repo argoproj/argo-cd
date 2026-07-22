@@ -49,8 +49,9 @@ import (
 )
 
 var (
-	ErrInvalidRepoURL = errors.New("repo URL is invalid")
-	ErrNoNoteFound    = errors.New("no note found")
+	ErrInvalidRepoURL   = errors.New("repo URL is invalid")
+	ErrNoNoteFound      = errors.New("no note found")
+	ErrRevisionNotFound = errors.New("revision not found")
 )
 
 // builtinGitConfig configuration contains statements that are needed
@@ -276,11 +277,11 @@ func NewClient(rawRepoURL string, creds Creds, insecure bool, enableLfs bool, pr
 	r := regexp.MustCompile(`([/:])`)
 	normalizedGitURL := NormalizeGitURL(rawRepoURL)
 	if normalizedGitURL == "" {
-		return nil, fmt.Errorf("repository %q cannot be initialized: %w", rawRepoURL, ErrInvalidRepoURL)
+		return nil, fmt.Errorf("repository %q cannot be initialized: %w", SanitizeRepoURL(rawRepoURL), ErrInvalidRepoURL)
 	}
 	root := filepath.Join(os.TempDir(), r.ReplaceAllString(normalizedGitURL, "_"))
 	if root == os.TempDir() {
-		return nil, fmt.Errorf("repository %q cannot be initialized, because its root would be system temp at %s", rawRepoURL, root)
+		return nil, fmt.Errorf("repository %q cannot be initialized, because its root would be system temp at %s", SanitizeRepoURL(rawRepoURL), root)
 	}
 	return NewClientExt(rawRepoURL, root, creds, insecure, enableLfs, proxy, noProxy, opts...)
 }
@@ -431,7 +432,7 @@ func buildSSHAuth(repoURL string, creds *SSHCreds) (transport.AuthMethod, error)
 		// avoids handing back an AuthMethod with no host-key verification.
 		// For the no-credentials path, newAuth catches this and lets go-git
 		// fall back to its DefaultAuthBuilder.
-		return nil, fmt.Errorf("could not set up SSH known hosts callback for %s: %w", repoURL, err)
+		return nil, fmt.Errorf("could not set up SSH known hosts callback for %s: %w", SanitizeRepoURL(repoURL), err)
 	}
 
 	if creds == nil {
@@ -1000,7 +1001,7 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 
 	// If we get here, revision string had non hexadecimal characters (indicating its a branch, tag,
 	// or symbolic ref) and we were unable to resolve it to a commit SHA.
-	return "", fmt.Errorf("unable to resolve '%s' to a commit SHA", revision)
+	return "", fmt.Errorf("unable to resolve '%s' to a commit SHA: %w", revision, ErrRevisionNotFound)
 }
 
 // CommitSHA returns current commit sha from `git rev-parse HEAD`
@@ -1030,7 +1031,7 @@ func (m *nativeGitClient) RevisionMetadata(ctx context.Context, revision string)
 	cmd.Stdin = strings.NewReader(message)
 	out, err = m.runCmdOutput(cmd, runOpts{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to interpret trailers for revision %q in repo %q: %w", revision, m.repoURL, err)
+		return nil, fmt.Errorf("failed to interpret trailers for revision %q in repo %q: %w", revision, SanitizeRepoURL(m.repoURL), err)
 	}
 	relatedCommits, _ := GetReferences(log.WithFields(log.Fields{"repo": m.repoURL, "revision": revision}), out)
 
@@ -1693,13 +1694,7 @@ func (m *nativeGitClient) AddAndPushNote(ctx context.Context, sha string, namesp
 		log.Debugf("AddAndPushNote push failed (attempt %d): %v", attempt, err)
 
 		// Check if this is a retryable error
-		errStr := err.Error()
-		isRetryable := strings.Contains(errStr, "fetch first") || // Remote updated after our fetch (concurrent push completed between our fetch and push)
-			strings.Contains(errStr, "reference already exists") || // Concurrent push is holding the lock (git server-side lock)
-			strings.Contains(errStr, "incorrect old value") || // Git detected our local ref is stale (concurrent update)
-			strings.Contains(errStr, "failed to update ref") // Generic ref update failure that may include transient issues
-
-		if !isRetryable {
+		if !isRetryableNotePushError(err.Error()) {
 			return struct{}{}, backoff.Permanent(fmt.Errorf("failed to push note: %w", err))
 		}
 
@@ -1714,6 +1709,20 @@ func (m *nativeGitClient) AddAndPushNote(ctx context.Context, sha string, namesp
 		return fmt.Errorf("failed to push note after retries: %w", err)
 	}
 	return nil
+}
+
+// isRetryableNotePushError reports whether a failed git notes push is caused by a
+// concurrent update to the same notes ref and is therefore safe to retry after
+// re-fetching the remote ref. Multiple application controller shards can hydrate
+// and push to the same refs/notes ref at once, and git reports the resulting
+// collision through several different messages depending on the git version and
+// server, including "cannot lock ref" when the server already holds the ref lock.
+func isRetryableNotePushError(errStr string) bool {
+	return strings.Contains(errStr, "fetch first") || // Remote updated after our fetch (concurrent push completed between our fetch and push)
+		strings.Contains(errStr, "reference already exists") || // Concurrent push is holding the lock (git server-side lock)
+		strings.Contains(errStr, "incorrect old value") || // Git detected our local ref is stale (concurrent update)
+		strings.Contains(errStr, "failed to update ref") || // Generic ref update failure that may include transient issues
+		strings.Contains(errStr, "cannot lock ref") // Server could not lock the notes ref because a concurrent push from another shard holds it
 }
 
 // HasFileChanged returns the outout of git diff considering whether it is tracked or un-tracked
@@ -1771,7 +1780,24 @@ func (m *nativeGitClient) runCredentialedCmd(ctx context.Context, args ...string
 	cmd := exec.CommandContext(ctx, "git", args...)
 	cmd.Env = append(cmd.Env, environ...)
 	_, err = m.runCmdOutput(cmd, runOpts{})
-	return err
+	return humanizeAuthPromptError(m.repoURL, err)
+}
+
+// gitTerminalPromptDisabledMsg is the substring Git prints when it needs
+// credentials it wasn't given and interactive prompts are disabled
+// (GIT_TERMINAL_PROMPT=0). It signals a failed git authentication, not an actual
+// terminal problem.
+const gitTerminalPromptDisabledMsg = "terminal prompts disabled"
+
+// humanizeAuthPromptError rewrites Git's misleading "terminal prompts disabled"
+// failure into an authentication error, since the raw message reads as a tty
+// problem when the real cause is that no credentials matched the repository URL.
+// Any other error is returned unchanged.
+func humanizeAuthPromptError(repoURL string, err error) error {
+	if err == nil || !strings.Contains(err.Error(), gitTerminalPromptDisabledMsg) {
+		return err
+	}
+	return fmt.Errorf("failed to authenticate to git repository %q: no credentials matched this URL: %w", SanitizeRepoURL(repoURL), err)
 }
 
 func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, error) {
