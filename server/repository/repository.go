@@ -33,15 +33,15 @@ import (
 
 // Server provides a Repository service
 type Server struct {
-	db              db.ArgoDB
-	repoClientset   apiclient.Clientset
-	enf             *rbac.Enforcer
-	cache           *servercache.Cache
-	appLister       applisters.ApplicationLister
-	projLister      cache.SharedIndexInformer
-	settings         *settings.SettingsManager
-	namespace        string
-	configProvider   configbus.Provider
+	db             db.ArgoDB
+	repoClientset  apiclient.Clientset
+	enf            *rbac.Enforcer
+	cache          *servercache.Cache
+	appLister      applisters.ApplicationLister
+	projLister     cache.SharedIndexInformer
+	settings       *settings.SettingsManager
+	namespace      string
+	configProvider configbus.Provider
 }
 
 // NewServer returns a new instance of the Repository service

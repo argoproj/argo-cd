@@ -19,7 +19,6 @@ import (
 // Server provides a Session service
 type Server struct {
 	mgr                *sessionmgr.SessionManager
-	settingsMgr        *settings.SettingsManager
 	authenticator      Authenticator
 	policyEnf          *rbacpolicy.RBACPolicyEnforcer
 	limitLoginAttempts func() (utilio.Closer, error)
@@ -36,8 +35,8 @@ const (
 )
 
 // NewServer returns a new instance of the Session service
-func NewServer(mgr *sessionmgr.SessionManager, settingsMgr *settings.SettingsManager, authenticator Authenticator, policyEnf *rbacpolicy.RBACPolicyEnforcer, rateLimiter func() (utilio.Closer, error), configProvider configbus.Provider) *Server {
-	return &Server{mgr, settingsMgr, authenticator, policyEnf, rateLimiter, configProvider}
+func NewServer(mgr *sessionmgr.SessionManager, authenticator Authenticator, policyEnf *rbacpolicy.RBACPolicyEnforcer, rateLimiter func() (utilio.Closer, error), configProvider configbus.Provider) *Server {
+	return &Server{mgr, authenticator, policyEnf, rateLimiter, configProvider}
 }
 
 // Create generates a JWT token signed by Argo CD intended for web/CLI logins of the admin user
@@ -78,7 +77,8 @@ func (s *Server) Create(ctx context.Context, q *session.SessionCreateRequest) (*
 	jwtToken, err := s.mgr.Create(
 		fmt.Sprintf("%s:%s", q.Username, settings.AccountCapabilityLogin),
 		int64(userSessionDuration.Seconds()),
-		uniqueId.String())
+		uniqueId.String(),
+	)
 	if err != nil {
 		s.mgr.IncLoginRequestCounter(failure)
 		return nil, err

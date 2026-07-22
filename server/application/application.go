@@ -89,21 +89,21 @@ var (
 
 // Server provides an Application service
 type Server struct {
-	ns                     string
-	kubeclientset          kubernetes.Interface
-	appclientset           appclientset.Interface
-	appLister              applisters.ApplicationLister
-	appInformer            cache.SharedIndexInformer
-	appBroadcaster         broadcast.Broadcaster[v1alpha1.ApplicationWatchEvent]
-	repoClientset          apiclient.Clientset
-	kubectl                kube.Kubectl
-	db                     db.ArgoDB
-	enf                    *rbac.Enforcer
-	projectLock            sync.KeyLock
-	settingsMgr            *settings.SettingsManager
-	cache                  *servercache.Cache
-	projInformer           cache.SharedIndexInformer
-	configProvider         configbus.Provider
+	ns             string
+	kubeclientset  kubernetes.Interface
+	appclientset   appclientset.Interface
+	appLister      applisters.ApplicationLister
+	appInformer    cache.SharedIndexInformer
+	appBroadcaster broadcast.Broadcaster[v1alpha1.ApplicationWatchEvent]
+	repoClientset  apiclient.Clientset
+	kubectl        kube.Kubectl
+	db             db.ArgoDB
+	enf            *rbac.Enforcer
+	projectLock    sync.KeyLock
+	settingsMgr    *settings.SettingsManager
+	cache          *servercache.Cache
+	projInformer   cache.SharedIndexInformer
+	configProvider configbus.Provider
 }
 
 // NewServer returns a new instance of the Application service
@@ -139,21 +139,21 @@ func NewServer(
 		log.Error(err)
 	}
 	s := &Server{
-		ns:                     namespace,
-		appclientset:           &deepCopyAppClientset{appclientset},
-		appLister:              &deepCopyApplicationLister{appLister},
-		appInformer:            appInformer,
-		appBroadcaster:         appBroadcaster,
-		kubeclientset:          kubeclientset,
-		cache:                  cache,
-		db:                     db,
-		repoClientset:          repoClientset,
-		kubectl:                kubectl,
-		enf:                    enf,
-		projectLock:            projectLock,
-		settingsMgr:            settingsMgr,
-		projInformer:           projInformer,
-		configProvider:         configProvider,
+		ns:             namespace,
+		appclientset:   &deepCopyAppClientset{appclientset},
+		appLister:      &deepCopyApplicationLister{appLister},
+		appInformer:    appInformer,
+		appBroadcaster: appBroadcaster,
+		kubeclientset:  kubeclientset,
+		cache:          cache,
+		db:             db,
+		repoClientset:  repoClientset,
+		kubectl:        kubectl,
+		enf:            enf,
+		projectLock:    projectLock,
+		settingsMgr:    settingsMgr,
+		projInformer:   projInformer,
+		configProvider: configProvider,
 	}
 	return s, s.getAppResources
 }

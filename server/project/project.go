@@ -36,7 +36,6 @@ import (
 	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 	"github.com/argoproj/argo-cd/v3/util/session"
-	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 const (
@@ -46,26 +45,25 @@ const (
 
 // Server provides a Project service
 type Server struct {
-	ns            string
-	enf           *rbac.Enforcer
-	policyEnf     *rbacpolicy.RBACPolicyEnforcer
-	appclientset  appclientset.Interface
+	ns             string
+	enf            *rbac.Enforcer
+	policyEnf      *rbacpolicy.RBACPolicyEnforcer
+	appclientset   appclientset.Interface
 	kubeclientset  kubernetes.Interface
 	projectLock    sync.KeyLock
-	sessionMgr    *session.SessionManager
+	sessionMgr     *session.SessionManager
 	projInformer   cache.SharedIndexInformer
-	settingsMgr    *settings.SettingsManager
 	db             db.ArgoDB
 	configProvider configbus.Provider
 }
 
 // NewServer returns a new instance of the Project service
 func NewServer(ns string, kubeclientset kubernetes.Interface, appclientset appclientset.Interface, enf *rbac.Enforcer, projectLock sync.KeyLock, sessionMgr *session.SessionManager, policyEnf *rbacpolicy.RBACPolicyEnforcer,
-	projInformer cache.SharedIndexInformer, settingsMgr *settings.SettingsManager, db db.ArgoDB, configProvider configbus.Provider,
+	projInformer cache.SharedIndexInformer, db db.ArgoDB, configProvider configbus.Provider,
 ) *Server {
 	return &Server{
 		enf: enf, policyEnf: policyEnf, appclientset: appclientset, kubeclientset: kubeclientset, ns: ns, projectLock: projectLock, sessionMgr: sessionMgr,
-		projInformer: projInformer, settingsMgr: settingsMgr, db: db, configProvider: configProvider,
+		projInformer: projInformer, db: db, configProvider: configProvider,
 	}
 }
 

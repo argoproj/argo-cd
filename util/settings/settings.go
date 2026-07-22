@@ -2940,6 +2940,7 @@ func (mgr *SettingsManager) GetAllowedNodeLabels() []string {
 }
 
 // IsInClusterEnabled returns false if in-cluster is explicitly disabled in argocd-cm configmap, true otherwise
+//
 // Deprecated: use configbus.Provider.InClusterEnabled instead.
 func (mgr *SettingsManager) IsInClusterEnabled() (bool, error) {
 	argoCDCM, err := mgr.getConfigMap()

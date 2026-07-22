@@ -71,11 +71,12 @@ func newTestAccountServerExt(t *testing.T, ctx context.Context, enforceFn rbac.C
 	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
 	enforcer.SetClaimsEnforcerFunc(enforceFn)
 
-	return NewServer(sessionMgr, settingsMgr, enforcer, testNamespace, configbus.NewSettingsManagerProvider(settingsMgr)), session.NewServer(sessionMgr, settingsMgr, nil, nil, nil, configbus.NewSettingsManagerProvider(settingsMgr))
+	provider := configbus.NewSettingsManagerProvider(settingsMgr)
+	return NewServer(sessionMgr, settingsMgr, enforcer, testNamespace, provider), session.NewServer(sessionMgr, nil, nil, nil, provider)
 }
 
-func getAdminAccount(mgr *settings.SettingsManager) (*settings.Account, error) {
-	accounts, err := mgr.GetAccounts()
+func getAdminAccount(ctx context.Context, provider configbus.Provider) (*settings.Account, error) {
+	accounts, err := provider.Accounts(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -124,12 +125,12 @@ func TestUpdatePassword(t *testing.T) {
 	require.Error(t, err)
 
 	// ensure password can be updated with valid password and immediately be used
-	adminAccount, err := getAdminAccount(accountServer.settingsMgr)
+	adminAccount, err := getAdminAccount(ctx, accountServer.configProvider)
 	require.NoError(t, err)
 	prevHash := adminAccount.PasswordHash
 	_, err = accountServer.UpdatePassword(ctx, &account.UpdatePasswordRequest{CurrentPassword: "oldpassword", NewPassword: "newpassword"})
 	require.NoError(t, err)
-	adminAccount, err = getAdminAccount(accountServer.settingsMgr)
+	adminAccount, err = getAdminAccount(ctx, accountServer.configProvider)
 	require.NoError(t, err)
 	assert.NotEqual(t, prevHash, adminAccount.PasswordHash)
 	require.NoError(t, accountServer.sessionMgr.VerifyUsernamePassword("admin", "newpassword"))

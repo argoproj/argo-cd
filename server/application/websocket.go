@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	httputil "github.com/argoproj/argo-cd/v3/util/http"
 	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
-	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 	util_session "github.com/argoproj/argo-cd/v3/util/session"
 

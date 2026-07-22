@@ -43,14 +43,14 @@ var testEnableEventList []string = argo.DefaultEnableEventList()
 
 func testAppSetConfigProvider(applicationNamespaces []string) configbus.Provider {
 	return &configbus.StaticProvider{Fields: configbus.StaticFields{
-		ApplicationNamespaces:      configbus.Ptr(applicationNamespaces),
-		EnableK8sEvent:             configbus.Ptr(testEnableEventList),
-		GitSubmoduleEnabled:        configbus.Ptr(true),
-		EnableNewGitFileGlobbing:   configbus.Ptr(true),
-		ScmRootCAPath:              configbus.Ptr(""),
-		AllowedScmProviders:        configbus.Ptr([]string{}),
-		EnableScmProviders:         configbus.Ptr(true),
-		EnableGitHubAPIMetrics:     configbus.Ptr(true),
+		ApplicationNamespaces:    configbus.Ptr(applicationNamespaces),
+		EnableK8sEvent:           configbus.Ptr(testEnableEventList),
+		GitSubmoduleEnabled:      configbus.Ptr(true),
+		EnableNewGitFileGlobbing: configbus.Ptr(true),
+		ScmRootCAPath:            configbus.Ptr(""),
+		AllowedScmProviders:      configbus.Ptr([]string{}),
+		EnableScmProviders:       configbus.Ptr(true),
+		EnableGitHubAPIMetrics:   configbus.Ptr(true),
 	}}
 }
 

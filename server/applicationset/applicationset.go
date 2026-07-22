@@ -54,20 +54,20 @@ import (
 )
 
 type Server struct {
-	ns                       string
-	db                       db.ArgoDB
-	enf                      *rbac.Enforcer
-	k8sClient                kubernetes.Interface
-	dynamicClient            dynamic.Interface
-	client                   client.Client
-	repoClientSet            repoapiclient.Clientset
-	appclientset             appclientset.Interface
-	appsetInformer           cache.SharedIndexInformer
-	appsetLister             applisters.ApplicationSetLister
-	appSetBroadcaster        broadcast.Broadcaster[v1alpha1.ApplicationSetWatchEvent]
-	projectLock              sync.KeyLock
-	configProvider           configbus.Provider
-	clusterInformer          *settings.ClusterInformer
+	ns                string
+	db                db.ArgoDB
+	enf               *rbac.Enforcer
+	k8sClient         kubernetes.Interface
+	dynamicClient     dynamic.Interface
+	client            client.Client
+	repoClientSet     repoapiclient.Clientset
+	appclientset      appclientset.Interface
+	appsetInformer    cache.SharedIndexInformer
+	appsetLister      applisters.ApplicationSetLister
+	appSetBroadcaster broadcast.Broadcaster[v1alpha1.ApplicationSetWatchEvent]
+	projectLock       sync.KeyLock
+	configProvider    configbus.Provider
+	clusterInformer   *settings.ClusterInformer
 }
 
 func (s *Server) Watch(q *applicationset.ApplicationSetWatchQuery, ws applicationset.ApplicationSetService_WatchServer) error {

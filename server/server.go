@@ -206,21 +206,21 @@ type ArgoCDServer struct {
 	db              db.ArgoDB
 
 	// stopCh is the channel which when closed, will shutdown the Argo CD server
-	stopCh                chan os.Signal
-	userStateStorage      util_session.UserStateStorage
-	indexDataInit         gosync.Once
-	indexData             []byte
-	indexDataErr          error
-	staticAssets          http.FileSystem
-	apiFactory            api.Factory
-	secretInformer        cache.SharedIndexInformer
-	configMapInformer     cache.SharedIndexInformer
-	serviceSet            *ArgoCDServiceSet
-	extensionManager      *extension.Manager
-	Shutdown              func()
-	terminateRequested    atomic.Bool
-	available             atomic.Bool
-	configProvider        configbus.Provider
+	stopCh             chan os.Signal
+	userStateStorage   util_session.UserStateStorage
+	indexDataInit      gosync.Once
+	indexData          []byte
+	indexDataErr       error
+	staticAssets       http.FileSystem
+	apiFactory         api.Factory
+	secretInformer     cache.SharedIndexInformer
+	configMapInformer  cache.SharedIndexInformer
+	serviceSet         *ArgoCDServiceSet
+	extensionManager   *extension.Manager
+	Shutdown           func()
+	terminateRequested atomic.Bool
+	available          atomic.Bool
+	configProvider     configbus.Provider
 }
 
 type ArgoCDServerOpts struct {
@@ -455,35 +455,35 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	//nolint:staticcheck // SA1019: StaticFields capture construction-time opts once at wire-up
 	a.configProvider = configbus.NewChainProvider(
 		&configbus.StaticProvider{Fields: configbus.StaticFields{
-			AllowedScmProviders:       configbus.Ptr(a.AllowedScmProviders),
-			ApplicationNamespaces:     configbus.Ptr(a.ApplicationNamespaces),
-			BaseHRef:                  configbus.Ptr(a.BaseHRef),
-			ContentSecurityPolicy:     configbus.Ptr(a.ContentSecurityPolicy),
-			ContentTypes:              configbus.Ptr(a.ContentTypes),
-			DexServerAddr:             configbus.Ptr(a.DexServerAddr),
-			DexServerPlaintext:        configbus.Ptr(dexPlaintext),
-			DexServerStrictTLS:        configbus.Ptr(dexStrictTLS),
-			DisableAuth:               configbus.Ptr(a.DisableAuth),
-			EnableGZip:                configbus.Ptr(a.EnableGZip),
-			EnableGitHubAPIMetrics:    configbus.Ptr(a.EnableGitHubAPIMetrics),
-			EnableK8sEvent:            configbus.Ptr(a.EnableK8sEvent),
-			EnableNewGitFileGlobbing:  configbus.Ptr(a.EnableNewGitFileGlobbing),
-			EnableProxyExtension:      configbus.Ptr(a.EnableProxyExtension),
-			EnableScmProviders:        configbus.Ptr(a.EnableScmProviders),
-			GitSubmoduleEnabled:       configbus.Ptr(a.GitSubmoduleEnabled),
-			HydratorEnabled:           configbus.Ptr(a.HydratorEnabled),
-			Insecure:                  configbus.Ptr(a.Insecure),
-			ListenHost:                configbus.Ptr(a.ListenHost),
-			ListenPort:                configbus.Ptr(a.ListenPort),
-			MetricsHost:               configbus.Ptr(a.MetricsHost),
-			MetricsPort:               configbus.Ptr(a.MetricsPort),
-			RootPath:                  configbus.Ptr(a.RootPath),
-			ScmRootCAPath:             configbus.Ptr(a.ScmRootCAPath),
-			StaticAssetsDir:           configbus.Ptr(a.StaticAssetsDir),
-			SyncWithReplaceAllowed:    configbus.Ptr(a.SyncWithReplaceAllowed),
-			WebhookParallelism:        configbus.Ptr(a.WebhookParallelism),
-			WebhookRefreshWorkers:     configbus.Ptr(a.WebhookRefreshWorkers),
-			XFrameOptions:             configbus.Ptr(a.XFrameOptions),
+			AllowedScmProviders:      configbus.Ptr(a.AllowedScmProviders),
+			ApplicationNamespaces:    configbus.Ptr(a.ApplicationNamespaces),
+			BaseHRef:                 configbus.Ptr(a.BaseHRef),
+			ContentSecurityPolicy:    configbus.Ptr(a.ContentSecurityPolicy),
+			ContentTypes:             configbus.Ptr(a.ContentTypes),
+			DexServerAddr:            configbus.Ptr(a.DexServerAddr),
+			DexServerPlaintext:       configbus.Ptr(dexPlaintext),
+			DexServerStrictTLS:       configbus.Ptr(dexStrictTLS),
+			DisableAuth:              configbus.Ptr(a.DisableAuth),
+			EnableGZip:               configbus.Ptr(a.EnableGZip),
+			EnableGitHubAPIMetrics:   configbus.Ptr(a.EnableGitHubAPIMetrics),
+			EnableK8sEvent:           configbus.Ptr(a.EnableK8sEvent),
+			EnableNewGitFileGlobbing: configbus.Ptr(a.EnableNewGitFileGlobbing),
+			EnableProxyExtension:     configbus.Ptr(a.EnableProxyExtension),
+			EnableScmProviders:       configbus.Ptr(a.EnableScmProviders),
+			GitSubmoduleEnabled:      configbus.Ptr(a.GitSubmoduleEnabled),
+			HydratorEnabled:          configbus.Ptr(a.HydratorEnabled),
+			Insecure:                 configbus.Ptr(a.Insecure),
+			ListenHost:               configbus.Ptr(a.ListenHost),
+			ListenPort:               configbus.Ptr(a.ListenPort),
+			MetricsHost:              configbus.Ptr(a.MetricsHost),
+			MetricsPort:              configbus.Ptr(a.MetricsPort),
+			RootPath:                 configbus.Ptr(a.RootPath),
+			ScmRootCAPath:            configbus.Ptr(a.ScmRootCAPath),
+			StaticAssetsDir:          configbus.Ptr(a.StaticAssetsDir),
+			SyncWithReplaceAllowed:   configbus.Ptr(a.SyncWithReplaceAllowed),
+			WebhookParallelism:       configbus.Ptr(a.WebhookParallelism),
+			WebhookRefreshWorkers:    configbus.Ptr(a.WebhookRefreshWorkers),
+			XFrameOptions:            configbus.Ptr(a.XFrameOptions),
 		}},
 		configbus.NewSettingsManagerProvider(settingsMgr),
 		configbus.NewEnvProvider(),
@@ -712,8 +712,7 @@ func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 	// reads those hooks. If this is called first, there may be a data race.
 	server.userStateStorage.Init(ctx)
 
-	svcSet, err := newArgoCDServiceSet(server)
-	errorsutil.CheckError(err)
+	svcSet := newArgoCDServiceSet(server)
 	if server.sessionMgr != nil {
 		server.sessionMgr.CollectMetrics(metricsServ)
 	}
@@ -1171,7 +1170,7 @@ type ArgoCDServiceSet struct {
 	VersionService        *version.Server
 }
 
-func newArgoCDServiceSet(a *ArgoCDServer) (*ArgoCDServiceSet, error) {
+func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 	kubectl := kubeutil.NewKubectl()
 	clusterService := cluster.NewServer(a.db, a.enf, a.Cache, kubectl)
 	repoService := repository.NewServer(a.RepoClientset, a.db, a.enf, a.Cache, a.appLister, a.projInformer, a.Namespace, a.settingsMgr, a.configProvider)
@@ -1180,7 +1179,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) (*ArgoCDServiceSet, error) {
 	if maxConcurrentLoginRequestsCount > 0 {
 		loginRateLimiter = session.NewLoginRateLimiter(maxConcurrentLoginRequestsCount)
 	}
-	sessionService := session.NewServer(a.sessionMgr, a.settingsMgr, a, a.policyEnforcer, loginRateLimiter, a.configProvider)
+	sessionService := session.NewServer(a.sessionMgr, a, a.policyEnforcer, loginRateLimiter, a.configProvider)
 	projectLock := sync.NewKeyLock()
 	applicationService, appResourceTreeFn := application.NewServer(
 		a.Namespace,
@@ -1217,7 +1216,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) (*ArgoCDServiceSet, error) {
 		a.clusterInformer,
 	)
 
-	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr, a.policyEnforcer, a.projInformer, a.settingsMgr, a.db, a.configProvider)
+	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr, a.policyEnforcer, a.projInformer, a.db, a.configProvider)
 	settingsService := settings.NewServer(a.settingsMgr, a.RepoClientset, a, a.configProvider)
 	accountService := account.NewServer(a.sessionMgr, a.settingsMgr, a.enf, a.Namespace, a.configProvider)
 
@@ -1241,7 +1240,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) (*ArgoCDServiceSet, error) {
 		CertificateService:    certificateService,
 		GpgkeyService:         gpgkeyService,
 		VersionService:        versionService,
-	}, nil
+	}
 }
 
 // translateGrpcCookieHeader conditionally sets a cookie on the response.
@@ -1427,9 +1426,7 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 	healthz.ServeHealthCheck(mux, server.healthCheck)
 
 	// Dex reverse proxy and OAuth2 login/callback
-	if err := server.registerDexHandlers(mux, dexServerAddr, baseHRef); err != nil {
-		return nil, fmt.Errorf("failed to register dex handlers: %w", err)
-	}
+	server.registerDexHandlers(mux, dexServerAddr, baseHRef)
 
 	// Webhook handler for git events (Note: cache timeouts are hardcoded because API server does not write to cache and not really using them)
 	argoDB := db.NewDB(server.Namespace, server.settingsMgr, server.KubeClientset)
@@ -1547,16 +1544,15 @@ func (server *ArgoCDServer) serveExtensions(extensionsSharedPath string, w http.
 }
 
 // registerDexHandlers will register dex HTTP handlers
-func (server *ArgoCDServer) registerDexHandlers(mux *http.ServeMux, dexServerAddr, baseHRef string) error {
+func (server *ArgoCDServer) registerDexHandlers(mux *http.ServeMux, dexServerAddr, baseHRef string) {
 	if !server.settings.IsSSOConfigured() {
-		return nil
+		return
 	}
 	// Run dex OpenID Connect Identity Provider behind a reverse proxy (served at /api/dex)
 	mux.Handle(common.DexAPIEndpoint+"/", otelhttp.NewHandler(http.HandlerFunc(dexutil.NewDexHTTPReverseProxy(dexServerAddr, baseHRef, server.DexTLSConfig)), "server.dex/Proxy"))
 
 	mux.Handle(common.LoginEndpoint, otelhttp.NewHandler(http.HandlerFunc(server.ssoClientApp.HandleLogin), "server.ClientApp/HandleLogin"))
 	mux.Handle(common.CallbackEndpoint, otelhttp.NewHandler(http.HandlerFunc(server.ssoClientApp.HandleCallback), "server.ClientApp/HandleCallback"))
-	return nil
 }
 
 // newRedirectServer returns an HTTP server which does a 307 redirect to the HTTPS server
