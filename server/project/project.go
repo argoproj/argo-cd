@@ -50,24 +50,31 @@ type Server struct {
 	enf           *rbac.Enforcer
 	policyEnf     *rbacpolicy.RBACPolicyEnforcer
 	appclientset  appclientset.Interface
-	kubeclientset kubernetes.Interface
-	auditLogger   *argo.AuditLogger
-	projectLock   sync.KeyLock
+	kubeclientset  kubernetes.Interface
+	projectLock    sync.KeyLock
 	sessionMgr    *session.SessionManager
-	projInformer  cache.SharedIndexInformer
-	settingsMgr   *settings.SettingsManager
-	db            db.ArgoDB
+	projInformer   cache.SharedIndexInformer
+	settingsMgr    *settings.SettingsManager
+	db             db.ArgoDB
+	configProvider configbus.Provider
 }
 
 // NewServer returns a new instance of the Project service
 func NewServer(ns string, kubeclientset kubernetes.Interface, appclientset appclientset.Interface, enf *rbac.Enforcer, projectLock sync.KeyLock, sessionMgr *session.SessionManager, policyEnf *rbacpolicy.RBACPolicyEnforcer,
-	projInformer cache.SharedIndexInformer, settingsMgr *settings.SettingsManager, db db.ArgoDB, enableK8sEvent []string,
+	projInformer cache.SharedIndexInformer, settingsMgr *settings.SettingsManager, db db.ArgoDB, configProvider configbus.Provider,
 ) *Server {
-	auditLogger := argo.NewAuditLogger(kubeclientset, ns, "argocd-server", enableK8sEvent)
 	return &Server{
-		enf: enf, policyEnf: policyEnf, appclientset: appclientset, kubeclientset: kubeclientset, ns: ns, projectLock: projectLock, auditLogger: auditLogger, sessionMgr: sessionMgr,
-		projInformer: projInformer, settingsMgr: settingsMgr, db: db,
+		enf: enf, policyEnf: policyEnf, appclientset: appclientset, kubeclientset: kubeclientset, ns: ns, projectLock: projectLock, sessionMgr: sessionMgr,
+		projInformer: projInformer, settingsMgr: settingsMgr, db: db, configProvider: configProvider,
 	}
+}
+
+func (s *Server) auditLogger(ctx context.Context) (*argo.AuditLogger, error) {
+	enableK8sEvent, err := s.configProvider.EnableK8sEvent(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return argo.NewAuditLogger(s.kubeclientset, s.ns, "argocd-server", enableK8sEvent), nil
 }
 
 func validateProject(proj *v1alpha1.AppProject) error {
@@ -521,7 +528,12 @@ func (s *Server) logEvent(ctx context.Context, a *v1alpha1.AppProject, reason st
 		user = "Unknown user"
 	}
 	message := fmt.Sprintf("%s %s", user, action)
-	s.auditLogger.LogAppProjEvent(a, eventInfo, message, user)
+	auditLogger, err := s.auditLogger(ctx)
+	if err != nil {
+		log.Errorf("failed to resolve audit logger: %v", err)
+		return
+	}
+	auditLogger.LogAppProjEvent(a, eventInfo, message, user)
 }
 
 func (s *Server) GetSyncWindowsState(ctx context.Context, q *project.SyncWindowsQuery) (*project.SyncWindowsResponse, error) {

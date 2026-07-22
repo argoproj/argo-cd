@@ -47,6 +47,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v3/reposerver/cache"
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
@@ -88,6 +89,14 @@ func assertLogContainsSubstr(t *testing.T, hook *test.Hook, substr string) {
 		}
 	}
 	t.Errorf("log hook did not contain message with substring: %q", substr)
+}
+
+func testWebhookConfigProvider(applicationNamespaces []string) configbus.Provider {
+	return &configbus.StaticProvider{Fields: configbus.StaticFields{
+		ApplicationNamespaces:   configbus.Ptr(applicationNamespaces),
+		WebhookParallelism:      configbus.Ptr(10),
+		WebhookRefreshWorkers:   configbus.Ptr(10),
+	}}
 }
 
 func NewMockHandler(reactor *reactorDef, applicationNamespaces []string, objects ...runtime.Object) *ArgoCDWebhookHandler {
@@ -171,12 +180,16 @@ func newMockHandler(reactor *reactorDef, applicationNamespaces []string, maxPayl
 		appClientset.AddReactor(reactor.verb, reactor.resource, reactor.reaction)
 	}
 	cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
-	return NewHandler("argocd", applicationNamespaces, 10, 10, appClientset, &fakeAppsLister{clientset: appClientset}, argoSettings, &fakeSettingsSrc{}, cache.NewCache(
+	handler, err := NewHandler("argocd", testWebhookConfigProvider(applicationNamespaces), appClientset, &fakeAppsLister{clientset: appClientset}, argoSettings, &fakeSettingsSrc{}, cache.NewCache(
 		cacheClient,
 		1*time.Minute,
 		1*time.Minute,
 		10*time.Second,
-	), servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute), argoDB, maxPayloadSize, 0, 10, &fakeProjectNamespaceLister{clientset: appClientset, namespace: "argocd"})
+	), servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute), argoDB, maxPayloadSize, 0, 10)
+	if err != nil {
+		panic(err)
+	}
+	return handler
 }
 
 func TestGitHubCommitEvent(t *testing.T) {
@@ -1155,11 +1168,9 @@ func TestHandleEvent(t *testing.T) {
 			})
 			appClientset.AddReactor("patch", "applications", reaction)
 
-			h := NewHandler(
+			h, err := NewHandler(
 				"argocd",
-				[]string{},
-				10,
-				1,
+				testWebhookConfigProvider([]string{}),
 				appClientset,
 				&fakeAppsLister{clientset: appClientset},
 				&settings.ArgoCDSettings{},
@@ -1172,6 +1183,7 @@ func TestHandleEvent(t *testing.T) {
 				10,
 				&fakeProjectNamespaceLister{clientset: appClientset, namespace: "argocd"},
 			)
+			require.NoError(t, err)
 
 			// Create payload with the changed file
 			payload := createTestPayload(ttc.changedFile)
@@ -1972,11 +1984,9 @@ func TestWebhookRefreshWithJitter(t *testing.T) {
 		appClientset.AddReactor("patch", "applications", reaction)
 
 		cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
-		h := NewHandler(
+		h, err := NewHandler(
 			"argocd",
-			[]string{},
-			10,
-			5,
+			testWebhookConfigProvider([]string{}),
 			appClientset,
 			&fakeAppsLister{clientset: appClientset},
 			&settings.ArgoCDSettings{},
@@ -1989,6 +1999,7 @@ func TestWebhookRefreshWithJitter(t *testing.T) {
 			10,
 			&fakeProjectNamespaceLister{clientset: appClientset, namespace: "argocd"},
 		)
+		require.NoError(t, err)
 
 		req := &appRefreshRequest{
 			appName:      "test-app",
@@ -2010,14 +2021,12 @@ func TestWebhookRefreshWithJitter(t *testing.T) {
 		assert.True(t, patched, "app should be patched after jitter delay")
 	})
 
-	t.Run("no jitter applied when threshold not exceeded", func(_ *testing.T) {
+	t.Run("no jitter applied when threshold not exceeded", func(t *testing.T) {
 		appClientset := appclientset.NewSimpleClientset(&app)
 		cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
-		h := NewHandler(
+		h, err := NewHandler(
 			"argocd",
-			[]string{},
-			10,
-			5,
+			testWebhookConfigProvider([]string{}),
 			appClientset,
 			&fakeAppsLister{clientset: appClientset},
 			&settings.ArgoCDSettings{},
@@ -2030,6 +2039,7 @@ func TestWebhookRefreshWithJitter(t *testing.T) {
 			100, // High threshold - won't be exceeded
 			&fakeProjectNamespaceLister{clientset: appClientset, namespace: "argocd"},
 		)
+		require.NoError(t, err)
 
 		req := &appRefreshRequest{
 			appName:      "test-app",

@@ -12,11 +12,7 @@ import (
 )
 
 func testServerWithRootPath(rootPath string) *ArgoCDServer {
-	server := &ArgoCDServer{
-		ArgoCDServerOpts: ArgoCDServerOpts{
-			RootPath: rootPath,
-		},
-	}
+	server := &ArgoCDServer{}
 	server.configProvider = &configbus.StaticProvider{Fields: configbus.StaticFields{
 		RootPath: configbus.Ptr(rootPath),
 	}}
@@ -26,14 +22,19 @@ func testServerWithRootPath(rootPath string) *ArgoCDServer {
 // TestWithRootPathEmptyRootPath tests that withRootPath returns the original handler when RootPath is empty
 func TestWithRootPathEmptyRootPath(t *testing.T) {
 	t.Parallel()
+	// Create a simple handler
 	originalHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
 
 	server := testServerWithRootPath("")
+
+	// Call withRootPath
 	handler, err := withRootPath(originalHandler, server)
 	require.NoError(t, err)
 
+	// Verify that the returned handler is the original handler
+	// Since we can't directly compare function references, we'll use a type assertion
 	_, isServeMux := handler.(*http.ServeMux)
 	assert.False(t, isServeMux, "When RootPath is empty, withRootPath should return the original handler, not a ServeMux")
 }
@@ -41,14 +42,18 @@ func TestWithRootPathEmptyRootPath(t *testing.T) {
 // TestWithRootPathNonEmptyRootPath tests that withRootPath returns a ServeMux when RootPath is not empty
 func TestWithRootPathNonEmptyRootPath(t *testing.T) {
 	t.Parallel()
+	// Create a simple handler
 	originalHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
 
 	server := testServerWithRootPath("/argocd")
+
+	// Call withRootPath
 	handler, err := withRootPath(originalHandler, server)
 	require.NoError(t, err)
 
+	// Verify that the returned handler is a ServeMux
 	_, isServeMux := handler.(*http.ServeMux)
 	assert.True(t, isServeMux, "When RootPath is not empty, withRootPath should return a ServeMux")
 }
@@ -56,16 +61,20 @@ func TestWithRootPathNonEmptyRootPath(t *testing.T) {
 // TestNewRedirectServerEmptyRootPath tests that newRedirectServer correctly handles empty rootPath
 func TestNewRedirectServerEmptyRootPath(t *testing.T) {
 	t.Parallel()
+	// Call newRedirectServer with empty rootPath
 	server := newRedirectServer(8080, "")
 
+	// Verify the server address
 	assert.Equal(t, "localhost:8080", server.Addr, "When rootPath is empty, server address should be 'localhost:8080'")
 
+	// Test the redirect handler
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/applications", http.NoBody)
 	req.Host = "example.com:8080"
 	w := httptest.NewRecorder()
 
 	server.Handler.ServeHTTP(w, req)
 
+	// Verify the redirect URL
 	assert.Equal(t, http.StatusTemporaryRedirect, w.Code, "Should return a 307 Temporary Redirect status code")
 	redirectURL := w.Header().Get("Location")
 	expectedURL := "https://example.com:8080/applications"
@@ -75,16 +84,20 @@ func TestNewRedirectServerEmptyRootPath(t *testing.T) {
 // TestNewRedirectServerNonEmptyRootPath tests that newRedirectServer correctly handles non-empty rootPath
 func TestNewRedirectServerNonEmptyRootPath(t *testing.T) {
 	t.Parallel()
+	// Call newRedirectServer with non-empty rootPath
 	server := newRedirectServer(8080, "/argocd")
 
+	// Verify the server address
 	assert.Equal(t, "localhost:8080/argocd", server.Addr, "When rootPath is '/argocd', server address should be 'localhost:8080/argocd'")
 
+	// Test the redirect handler
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/applications", http.NoBody)
 	req.Host = "example.com:8080"
 	w := httptest.NewRecorder()
 
 	server.Handler.ServeHTTP(w, req)
 
+	// Verify the redirect URL
 	assert.Equal(t, http.StatusTemporaryRedirect, w.Code, "Should return a 307 Temporary Redirect status code")
 	redirectURL := w.Header().Get("Location")
 	expectedURL := "https://example.com:8080/argocd/applications"
@@ -94,20 +107,25 @@ func TestNewRedirectServerNonEmptyRootPath(t *testing.T) {
 // TestNewRedirectServerRootPathDuplication tests that newRedirectServer does not duplicate rootPath in the redirect URL
 func TestNewRedirectServerRootPathDuplication(t *testing.T) {
 	t.Parallel()
+	// Call newRedirectServer with non-empty rootPath
 	server := newRedirectServer(8080, "/argocd")
 
+	// Test the redirect handler with a request path that already includes rootPath
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/argocd/applications", http.NoBody)
 	req.Host = "example.com:8080"
 	w := httptest.NewRecorder()
 
 	server.Handler.ServeHTTP(w, req)
 
+	// Verify the redirect URL
 	assert.Equal(t, http.StatusTemporaryRedirect, w.Code, "Should return a 307 Temporary Redirect status code")
 	redirectURL := w.Header().Get("Location")
 
+	// The URL should not have duplicated rootPath
 	duplicatedURL := "https://example.com:8080/argocd/argocd/applications"
 	assert.NotEqual(t, duplicatedURL, redirectURL, "Redirect URL should not have duplicated rootPath")
 
+	// The correct URL should be
 	correctURL := "https://example.com:8080/argocd/applications"
 	assert.Equal(t, correctURL, redirectURL, "Redirect URL should be correct without duplicated rootPath")
 }

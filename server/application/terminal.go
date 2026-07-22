@@ -22,6 +22,7 @@ import (
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	applisters "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 	"github.com/argoproj/argo-cd/v3/util/security"
@@ -35,25 +36,25 @@ type terminalHandler struct {
 	appResourceTreeFn func(ctx context.Context, app *appv1.Application) (*appv1.ApplicationTree, error)
 	allowedShells     []string
 	namespace         string
-	enabledNamespaces []string
+	configProvider    configbus.Provider
 	sessionManager    *util_session.SessionManager
 	terminalOptions   *TerminalOptions
 }
 
 type TerminalOptions struct {
-	DisableAuth bool
-	Enf         *rbac.Enforcer
+	ConfigProvider configbus.Provider
+	Enf            *rbac.Enforcer
 }
 
 // NewHandler returns a new terminal handler.
-func NewHandler(appLister applisters.ApplicationLister, namespace string, enabledNamespaces []string, db db.ArgoDB, appResourceTree AppResourceTreeFn, allowedShells []string, sessionManager *util_session.SessionManager, terminalOptions *TerminalOptions) *terminalHandler {
+func NewHandler(appLister applisters.ApplicationLister, namespace string, configProvider configbus.Provider, db db.ArgoDB, appResourceTree AppResourceTreeFn, allowedShells []string, sessionManager *util_session.SessionManager, terminalOptions *TerminalOptions) *terminalHandler {
 	return &terminalHandler{
 		appLister:         appLister,
 		db:                db,
 		appResourceTreeFn: appResourceTree,
 		allowedShells:     allowedShells,
 		namespace:         namespace,
-		enabledNamespaces: enabledNamespaces,
+		configProvider:    configProvider,
 		sessionManager:    sessionManager,
 		terminalOptions:   terminalOptions,
 	}
@@ -137,7 +138,12 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		ns = s.namespace
 	}
 
-	if !security.IsNamespaceEnabled(ns, s.namespace, s.enabledNamespaces) {
+	applicationNamespaces, err := s.configProvider.ApplicationNamespaces(r.Context())
+	if err != nil {
+		http.Error(w, "Failed to resolve application namespaces: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if !security.IsNamespaceEnabled(ns, s.namespace, applicationNamespaces) {
 		http.Error(w, security.NamespaceNotPermittedError(ns).Error(), http.StatusForbidden)
 		return
 	}

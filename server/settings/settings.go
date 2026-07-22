@@ -14,18 +14,16 @@ import (
 
 	settingspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/settings"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 // Server provides a Settings service
 type Server struct {
-	mgr                       *settings.SettingsManager
-	repoClient                apiclient.Clientset
-	authenticator             Authenticator
-	disableAuth               bool
-	appsInAnyNamespaceEnabled bool
-	hydratorEnabled           bool
-	syncWithReplaceAllowed    bool
+	mgr            *settings.SettingsManager
+	repoClient     apiclient.Clientset
+	authenticator  Authenticator
+	configProvider configbus.Provider
 }
 
 type Authenticator interface {
@@ -33,8 +31,8 @@ type Authenticator interface {
 }
 
 // NewServer returns a new instance of the Settings service
-func NewServer(mgr *settings.SettingsManager, repoClient apiclient.Clientset, authenticator Authenticator, disableAuth, appsInAnyNamespaceEnabled bool, hydratorEnabled bool, syncWithReplaceAllowed bool) *Server {
-	return &Server{mgr: mgr, repoClient: repoClient, authenticator: authenticator, disableAuth: disableAuth, appsInAnyNamespaceEnabled: appsInAnyNamespaceEnabled, hydratorEnabled: hydratorEnabled, syncWithReplaceAllowed: syncWithReplaceAllowed}
+func NewServer(mgr *settings.SettingsManager, repoClient apiclient.Clientset, authenticator Authenticator, configProvider configbus.Provider) *Server {
+	return &Server{mgr: mgr, repoClient: repoClient, authenticator: authenticator, configProvider: configProvider}
 }
 
 // Get returns Argo CD settings
@@ -95,6 +93,23 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 		return nil, err
 	}
 
+	applicationNamespaces, err := s.configProvider.ApplicationNamespaces(ctx)
+	if err != nil {
+		return nil, err
+	}
+	hydratorEnabled, err := s.configProvider.HydratorEnabled(ctx)
+	if err != nil {
+		return nil, err
+	}
+	syncWithReplaceAllowed, err := s.configProvider.SyncWithReplaceAllowed(ctx)
+	if err != nil {
+		return nil, err
+	}
+	disableAuth, err := s.configProvider.DisableAuth(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	set := settingspkg.Settings{
 		URL:                argoCDSettings.URL,
 		AdditionalURLs:     argoCDSettings.AdditionalURLs,
@@ -120,14 +135,14 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 		TrackingMethod:            trackingMethod,
 		InstallationID:            installationID,
 		ExecEnabled:               argoCDSettings.ExecEnabled,
-		AppsInAnyNamespaceEnabled: s.appsInAnyNamespaceEnabled,
+		AppsInAnyNamespaceEnabled: len(applicationNamespaces) > 0,
 		ImpersonationEnabled:      argoCDSettings.ImpersonationEnabled,
-		HydratorEnabled:           s.hydratorEnabled,
-		SyncWithReplaceAllowed:    s.syncWithReplaceAllowed,
+		HydratorEnabled:           hydratorEnabled,
+		SyncWithReplaceAllowed:    syncWithReplaceAllowed,
 		ResourceViewEnabled:       argoCDSettings.ResourceViewEnabled,
 	}
 
-	if sessionmgr.LoggedIn(ctx) || s.disableAuth {
+	if sessionmgr.LoggedIn(ctx) || disableAuth {
 		set.UiBannerContent = argoCDSettings.UiBannerContent
 		set.UiBannerURL = argoCDSettings.UiBannerURL
 		set.UiBannerPermanent = argoCDSettings.UiBannerPermanent

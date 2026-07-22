@@ -179,7 +179,11 @@ func (t *terminalSession) validatePermissions(p []byte) (int, error) {
 
 func (t *terminalSession) performValidationsAndReconnect(p []byte) (int, error) {
 	// In disable auth mode, no point verifying the token or validating permissions
-	if t.terminalOpts.DisableAuth {
+	disableAuth, err := t.terminalOpts.ConfigProvider.DisableAuth(t.ctx)
+	if err != nil {
+		return 0, err
+	}
+	if disableAuth {
 		return 0, nil
 	}
 

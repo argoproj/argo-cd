@@ -221,8 +221,6 @@ type ArgoCDServer struct {
 	terminateRequested    atomic.Bool
 	available             atomic.Bool
 	configProvider        configbus.Provider
-	configInsecure        bool
-	applicationNamespaces []string
 }
 
 type ArgoCDServerOpts struct {
@@ -503,11 +501,6 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	return a
 }
 
-// ConfigProvider returns the configbus Provider used for durable product settings.
-func (a *ArgoCDServer) ConfigProvider() configbus.Provider {
-	return a.configProvider
-}
-
 const (
 	// catches corrupted informer state; see https://github.com/argoproj/argo-cd/issues/4960 for more information
 	notObjectErrMsg = "object does not implement the Object interfaces"
@@ -706,16 +699,6 @@ func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 	if err != nil {
 		errorsutil.CheckError(fmt.Errorf("failed to resolve root path: %w", err))
 	}
-	insecure, err := server.configProvider.Insecure(ctx)
-	if err != nil {
-		errorsutil.CheckError(fmt.Errorf("failed to resolve insecure: %w", err))
-	}
-	server.configInsecure = insecure
-	applicationNamespaces, err := server.configProvider.ApplicationNamespaces(ctx)
-	if err != nil {
-		errorsutil.CheckError(fmt.Errorf("failed to resolve application namespaces: %w", err))
-	}
-	server.applicationNamespaces = applicationNamespaces
 
 	metricsServ := metrics.NewMetricsServer(metricsHost, metricsPort)
 	if server.RedisClient != nil {
@@ -803,7 +786,9 @@ func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 	// Start the muxed listeners for our servers
 	log.Infof("argocd %s serving on port %d (url: %s, tls: %v, namespace: %s, sso: %v)",
 		common.GetVersion(), listenPort, server.settings.URL, useTLS, server.Namespace, server.settings.IsSSOConfigured())
-	log.Infof("Enabled application namespace patterns: %s", server.allowedApplicationNamespacesAsString())
+	appNsStr, err := server.allowedApplicationNamespacesAsString(ctx)
+	errorsutil.CheckError(err)
+	log.Infof("Enabled application namespace patterns: %s", appNsStr)
 
 	go func() { server.checkServeErr("grpcS", grpcS.Serve(grpcL)) }()
 	go func() { server.checkServeErr("httpS", httpS.Serve(httpL)) }()
@@ -958,7 +943,9 @@ func (server *ArgoCDServer) watchSettings() {
 	prevHarborSecret := server.settings.GetWebhookHarborSecret()
 	prevExtConfig := server.settings.ExtensionConfig
 	var prevCert, prevCertKey string
-	if server.settings.Certificate != nil && !server.configInsecure {
+	insecure, err := server.configProvider.Insecure(context.Background())
+	errorsutil.CheckError(err)
+	if server.settings.Certificate != nil && !insecure {
 		prevCert, prevCertKey = tlsutil.EncodeX509KeyPairString(*server.settings.Certificate)
 	}
 
@@ -1021,7 +1008,9 @@ func (server *ArgoCDServer) watchSettings() {
 				log.Info("extensions configs updated successfully")
 			}
 		}
-		if !server.configInsecure {
+		insecure, err := server.configProvider.Insecure(context.Background())
+		errorsutil.CheckError(err)
+		if !insecure {
 			var newCert, newCertKey string
 			if server.settings.Certificate != nil {
 				newCert, newCertKey = tlsutil.EncodeX509KeyPairString(*server.settings.Certificate)
@@ -1181,54 +1170,9 @@ type ArgoCDServiceSet struct {
 }
 
 func newArgoCDServiceSet(a *ArgoCDServer) (*ArgoCDServiceSet, error) {
-	hydratorEnabled, err := a.configProvider.HydratorEnabled(context.Background())
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve hydrator enabled: %w", err)
-	}
-	applicationNamespaces, err := a.configProvider.ApplicationNamespaces(context.Background())
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve application namespaces: %w", err)
-	}
-	enableK8sEvent, err := a.configProvider.EnableK8sEvent(context.Background())
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve enable k8s event: %w", err)
-	}
-	syncWithReplaceAllowed, err := a.configProvider.SyncWithReplaceAllowed(context.Background())
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve sync with replace allowed: %w", err)
-	}
-	gitSubmoduleEnabled, err := a.configProvider.GitSubmoduleEnabled(context.Background())
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve git submodule enabled: %w", err)
-	}
-	enableNewGitFileGlobbing, err := a.configProvider.EnableNewGitFileGlobbing(context.Background())
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve enable new git file globbing: %w", err)
-	}
-	scmRootCAPath, err := a.configProvider.ScmRootCAPath(context.Background())
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve scm root ca path: %w", err)
-	}
-	allowedScmProviders, err := a.configProvider.AllowedScmProviders(context.Background())
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve allowed scm providers: %w", err)
-	}
-	enableScmProviders, err := a.configProvider.EnableScmProviders(context.Background())
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve enable scm providers: %w", err)
-	}
-	enableGitHubAPIMetrics, err := a.configProvider.EnableGitHubAPIMetrics(context.Background())
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve enable github api metrics: %w", err)
-	}
-	disableAuth, err := a.configProvider.DisableAuth(context.Background())
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve disable auth: %w", err)
-	}
-
 	kubectl := kubeutil.NewKubectl()
 	clusterService := cluster.NewServer(a.db, a.enf, a.Cache, kubectl)
-	repoService := repository.NewServer(a.RepoClientset, a.db, a.enf, a.Cache, a.appLister, a.projInformer, a.Namespace, a.settingsMgr, hydratorEnabled)
+	repoService := repository.NewServer(a.RepoClientset, a.db, a.enf, a.Cache, a.appLister, a.projInformer, a.Namespace, a.settingsMgr, a.configProvider)
 	repoCredsService := repocreds.NewServer(a.db, a.enf)
 	var loginRateLimiter func() (utilio.Closer, error)
 	if maxConcurrentLoginRequestsCount > 0 {
@@ -1251,9 +1195,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) (*ArgoCDServiceSet, error) {
 		projectLock,
 		a.settingsMgr,
 		a.projInformer,
-		applicationNamespaces,
-		enableK8sEvent,
-		syncWithReplaceAllowed,
+		a.configProvider,
 	)
 
 	applicationSetService := applicationset.NewServer(
@@ -1269,35 +1211,18 @@ func newArgoCDServiceSet(a *ArgoCDServer) (*ArgoCDServiceSet, error) {
 		nil,
 		a.Namespace,
 		projectLock,
-		applicationNamespaces,
-		gitSubmoduleEnabled,
-		enableNewGitFileGlobbing,
-		scmRootCAPath,
-		allowedScmProviders,
-		enableScmProviders,
-		enableGitHubAPIMetrics,
-		enableK8sEvent,
+		a.configProvider,
 		a.clusterInformer,
 	)
 
-	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr, a.policyEnforcer, a.projInformer, a.settingsMgr, a.db, enableK8sEvent)
-	appsInAnyNamespaceEnabled := len(applicationNamespaces) > 0
-	settingsService := settings.NewServer(a.settingsMgr, a.RepoClientset, a, disableAuth, appsInAnyNamespaceEnabled, hydratorEnabled, syncWithReplaceAllowed)
+	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr, a.policyEnforcer, a.projInformer, a.settingsMgr, a.db, a.configProvider)
+	settingsService := settings.NewServer(a.settingsMgr, a.RepoClientset, a, a.configProvider)
 	accountService := account.NewServer(a.sessionMgr, a.settingsMgr, a.enf, a.Namespace)
 
 	notificationService := notification.NewServer(a.apiFactory)
 	certificateService := certificate.NewServer(a.db, a.enf)
 	gpgkeyService := gpgkey.NewServer(a.db, a.enf)
-	versionService := version.NewServer(a, func() (bool, error) {
-		if disableAuth {
-			return true, nil
-		}
-		sett, err := a.settingsMgr.GetSettings()
-		if err != nil {
-			return false, err
-		}
-		return sett.AnonymousUserEnabled, err
-	})
+	versionService := version.NewServer(a, a.configProvider, a.settingsMgr)
 
 	return &ArgoCDServiceSet{
 		ClusterService:        clusterService,
@@ -1393,10 +1318,6 @@ func registerSwaggerUI(mux *http.ServeMux, rootPath string, disableSwaggerUI boo
 // newHTTPServer returns the HTTP server to serve HTTP/HTTPS requests. This is implemented
 // using grpc-gateway as a proxy to the gRPC server.
 func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandler http.Handler, appResourceTreeFn application.AppResourceTreeFn, conn *grpc.ClientConn, metricsReg HTTPMetricsRegistry) (*http.Server, error) {
-	applicationNamespaces, err := server.configProvider.ApplicationNamespaces(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve application namespaces: %w", err)
-	}
 	rootPath, err := server.configProvider.RootPath(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve root path: %w", err)
@@ -1413,21 +1334,9 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve content types: %w", err)
 	}
-	disableAuth, err := server.configProvider.DisableAuth(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve disable auth: %w", err)
-	}
 	enableProxyExtension, err := server.configProvider.EnableProxyExtension(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve enable proxy extension: %w", err)
-	}
-	webhookParallelism, err := server.configProvider.WebhookParallelism(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve webhook parallelism: %w", err)
-	}
-	webhookRefreshWorkers, err := server.configProvider.WebhookRefreshWorkers(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve webhook refresh workers: %w", err)
 	}
 	dexServerAddr, err := server.configProvider.DexServerAddr(ctx)
 	if err != nil {
@@ -1441,8 +1350,8 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 		Handler: &handlerSwitcher{
 			handler: mux,
 			urlToHandler: map[string]http.Handler{
-				"/api/badge":          otelhttp.NewHandler(badge.NewHandler(server.AppClientset, server.settingsMgr, server.Namespace, applicationNamespaces), "server.ArgoCDServer/badge"),
-				common.LogoutEndpoint: otelhttp.NewHandler(logout.NewHandler(server.settingsMgr, server.sessionMgr, rootPath, baseHRef), "server.ArgoCDServer/logout"),
+				"/api/badge":          otelhttp.NewHandler(badge.NewHandler(server.AppClientset, server.settingsMgr, server.Namespace, server.configProvider), "server.ArgoCDServer/badge"),
+				common.LogoutEndpoint: otelhttp.NewHandler(logout.NewHandler(server.settingsMgr, server.sessionMgr, server.configProvider), "server.ArgoCDServer/logout"),
 			},
 			contentTypeToHandler: map[string]http.Handler{
 				"application/grpc-web+proto": grpcWebHandler,
@@ -1482,17 +1391,17 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 	}
 	mux.Handle("/api/", handler)
 
-	terminalOpts := application.TerminalOptions{DisableAuth: disableAuth, Enf: server.enf}
+	terminalOpts := application.TerminalOptions{ConfigProvider: server.configProvider, Enf: server.enf}
 
-	terminal := application.NewHandler(server.appLister, server.Namespace, applicationNamespaces, server.db, appResourceTreeFn, server.settings.ExecShells, server.sessionMgr, &terminalOpts).
+	terminal := application.NewHandler(server.appLister, server.Namespace, server.configProvider, server.db, appResourceTreeFn, server.settings.ExecShells, server.sessionMgr, &terminalOpts).
 		WithFeatureFlagMiddleware(server.settingsMgr.GetSettings)
-	th := util_session.WithAuthMiddleware(disableAuth, server.settings.IsSSOConfigured(), server.ssoClientApp, server.sessionMgr, terminal)
+	th := server.withAuthMiddleware(terminal)
 	mux.Handle("/terminal", th)
 
 	// Proxy extension is currently an alpha feature and is disabled
 	// by default.
 	if enableProxyExtension {
-		err = registerExtensions(mux, server, metricsReg, disableAuth)
+		err = registerExtensions(mux, server, metricsReg)
 		if err != nil {
 			return nil, fmt.Errorf("failed to register extensions: %w", err)
 		}
@@ -1522,7 +1431,10 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 
 	// Webhook handler for git events (Note: cache timeouts are hardcoded because API server does not write to cache and not really using them)
 	argoDB := db.NewDB(server.Namespace, server.settingsMgr, server.KubeClientset)
-	acdWebhookHandler := webhook.NewHandler(server.Namespace, applicationNamespaces, webhookParallelism, webhookRefreshWorkers, server.AppClientset, server.appLister, server.settings, server.settingsMgr, server.RepoServerCache, server.Cache, argoDB, server.settingsMgr.GetMaxWebhookPayloadSize(), server.settingsMgr.GetWebhookRefreshJitter(), server.settingsMgr.GetWebhookRefreshJitterThreshold(), server.projLister)
+	acdWebhookHandler, err := webhook.NewHandler(server.Namespace, server.configProvider, server.AppClientset, server.appLister, server.settings, server.settingsMgr, server.RepoServerCache, server.Cache, argoDB, server.settingsMgr.GetMaxWebhookPayloadSize(), server.settingsMgr.GetWebhookRefreshJitter(), server.settingsMgr.GetWebhookRefreshJitterThreshold())
+	if err != nil {
+		return nil, fmt.Errorf("failed to create webhook handler: %w", err)
+	}
 
 	mux.HandleFunc("/api/webhook", acdWebhookHandler.Handler)
 
@@ -1570,10 +1482,10 @@ func enforceContentTypes(handler http.Handler, types []string) http.Handler {
 // registerExtensions will try to register all configured extensions
 // in the given mux. If any error is returned while registering
 // extensions handlers, no route will be added in the given mux.
-func registerExtensions(mux *http.ServeMux, a *ArgoCDServer, metricsReg HTTPMetricsRegistry, disableAuth bool) error {
+func registerExtensions(mux *http.ServeMux, a *ArgoCDServer, metricsReg HTTPMetricsRegistry) error {
 	a.log.Info("Registering extensions...")
 	extHandler := http.HandlerFunc(a.extensionManager.CallExtension())
-	authMiddleware := a.sessionMgr.AuthMiddlewareFunc(disableAuth, a.settings.IsSSOConfigured(), a.ssoClientApp)
+	authMiddleware := a.withAuthMiddleware
 	// auth middleware ensures that requests to all extensions are authenticated first
 	mux.Handle(extension.URLPrefix+"/", otelhttp.NewHandler(authMiddleware(extHandler), "server.ArgoCDServer/extensions"))
 
@@ -1864,6 +1776,18 @@ func (server *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, 
 	return ctx, nil
 }
 
+func (server *ArgoCDServer) withAuthMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		disableAuth, err := server.configProvider.DisableAuth(r.Context())
+		if err != nil {
+			log.Errorf("failed to resolve disable auth: %v", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
+		util_session.WithAuthMiddleware(disableAuth, server.settings.IsSSOConfigured(), server.ssoClientApp, server.sessionMgr, next).ServeHTTP(w, r)
+	})
+}
+
 // getClaims extracts, validates and refreshes a JWT token from an incoming request context.
 func (server *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, error) {
 	var span trace.Span
@@ -2061,14 +1985,17 @@ func bug21955WorkaroundInterceptor(ctx context.Context, req any, _ *grpc.UnarySe
 
 // allowedApplicationNamespacesAsString returns a string containing comma-separated list
 // of allowed application namespaces
-func (server *ArgoCDServer) allowedApplicationNamespacesAsString() string {
+func (server *ArgoCDServer) allowedApplicationNamespacesAsString(ctx context.Context) (string, error) {
 	ns := server.Namespace
-	applicationNamespaces := server.applicationNamespaces
+	applicationNamespaces, err := server.configProvider.ApplicationNamespaces(ctx)
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve application namespaces: %w", err)
+	}
 	if len(applicationNamespaces) > 0 {
 		ns += ", "
 		ns += strings.Join(applicationNamespaces, ", ")
 	}
-	return ns
+	return ns, nil
 }
 
 // newNamespaceFilterTransform returns a cache.TransformFunc that drops objects

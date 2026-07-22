@@ -101,12 +101,10 @@ type Server struct {
 	db                     db.ArgoDB
 	enf                    *rbac.Enforcer
 	projectLock            sync.KeyLock
-	auditLogger            *argo.AuditLogger
 	settingsMgr            *settings.SettingsManager
 	cache                  *servercache.Cache
 	projInformer           cache.SharedIndexInformer
-	enabledNamespaces      []string
-	syncWithReplaceAllowed bool
+	configProvider         configbus.Provider
 }
 
 // NewServer returns a new instance of the Application service
@@ -125,9 +123,7 @@ func NewServer(
 	projectLock sync.KeyLock,
 	settingsMgr *settings.SettingsManager,
 	projInformer cache.SharedIndexInformer,
-	enabledNamespaces []string,
-	enableK8sEvent []string,
-	syncWithReplaceAllowed bool,
+	configProvider configbus.Provider,
 ) (application.ApplicationServiceServer, AppResourceTreeFn) {
 	if appBroadcaster == nil {
 		appBroadcaster = broadcast.NewHandler[v1alpha1.Application, v1alpha1.ApplicationWatchEvent](
@@ -156,13 +152,19 @@ func NewServer(
 		kubectl:                kubectl,
 		enf:                    enf,
 		projectLock:            projectLock,
-		auditLogger:            argo.NewAuditLogger(kubeclientset, namespace, "argocd-server", enableK8sEvent),
 		settingsMgr:            settingsMgr,
 		projInformer:           projInformer,
-		enabledNamespaces:      enabledNamespaces,
-		syncWithReplaceAllowed: syncWithReplaceAllowed,
+		configProvider:         configProvider,
 	}
 	return s, s.getAppResources
+}
+
+func (s *Server) auditLogger(ctx context.Context) (*argo.AuditLogger, error) {
+	enableK8sEvent, err := s.configProvider.EnableK8sEvent(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return argo.NewAuditLogger(s.kubeclientset, s.ns, "argocd-server", enableK8sEvent), nil
 }
 
 // getAppEnforceRBAC gets the Application with the given name in the given namespace. If no namespace is
@@ -260,7 +262,11 @@ func (s *Server) getAppEnforceRBAC(ctx context.Context, action, project, namespa
 func (s *Server) getApplicationEnforceRBACInformer(ctx context.Context, action, project, namespace, name string) (*v1alpha1.Application, *v1alpha1.AppProject, error) {
 	namespaceOrDefault := s.appNamespaceOrDefault(namespace)
 	return s.getAppEnforceRBAC(ctx, action, project, namespaceOrDefault, name, func() (*v1alpha1.Application, error) {
-		if !s.isNamespaceEnabled(namespaceOrDefault) {
+		enabled, err := s.isNamespaceEnabled(ctx, namespaceOrDefault)
+		if err != nil {
+			return nil, err
+		}
+		if !enabled {
 			return nil, security.NamespaceNotPermittedError(namespaceOrDefault)
 		}
 		return s.appLister.Applications(namespaceOrDefault).Get(name)
@@ -273,7 +279,11 @@ func (s *Server) getApplicationEnforceRBACInformer(ctx context.Context, action, 
 func (s *Server) getApplicationEnforceRBACClient(ctx context.Context, action, project, namespace, name, resourceVersion string) (*v1alpha1.Application, *v1alpha1.AppProject, error) {
 	namespaceOrDefault := s.appNamespaceOrDefault(namespace)
 	return s.getAppEnforceRBAC(ctx, action, project, namespaceOrDefault, name, func() (*v1alpha1.Application, error) {
-		if !s.isNamespaceEnabled(namespaceOrDefault) {
+		enabled, err := s.isNamespaceEnabled(ctx, namespaceOrDefault)
+		if err != nil {
+			return nil, err
+		}
+		if !enabled {
 			return nil, security.NamespaceNotPermittedError(namespaceOrDefault)
 		}
 		app, err := s.appclientset.ArgoprojV1alpha1().Applications(namespaceOrDefault).Get(ctx, name, metav1.GetOptions{
@@ -318,7 +328,11 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*v1
 	for _, a := range filteredApps {
 		// Skip any application that is neither in the control plane's namespace
 		// nor in the list of enabled namespaces.
-		if !s.isNamespaceEnabled(a.Namespace) {
+		enabled, err := s.isNamespaceEnabled(ctx, a.Namespace)
+		if err != nil {
+			return nil, err
+		}
+		if !enabled {
 			continue
 		}
 		if s.enf.Enforce(ctx.Value("claims"), rbac.ResourceApplications, rbac.ActionGet, a.RBACName(s.ns)) {
@@ -377,7 +391,11 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 
 	appNs := s.appNamespaceOrDefault(a.Namespace)
 
-	if !s.isNamespaceEnabled(appNs) {
+	enabled, err := s.isNamespaceEnabled(ctx, appNs)
+	if err != nil {
+		return nil, err
+	}
+	if !enabled {
 		return nil, security.NamespaceNotPermittedError(appNs)
 	}
 
@@ -499,7 +517,11 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		return nil, err
 	}
 
-	if !s.isNamespaceEnabled(a.Namespace) {
+	enabled, err := s.isNamespaceEnabled(ctx, a.Namespace)
+	if err != nil {
+		return nil, err
+	}
+	if !enabled {
 		return nil, security.NamespaceNotPermittedError(a.Namespace)
 	}
 
@@ -1224,29 +1246,33 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 	return &application.ApplicationResponse{}, nil
 }
 
-func (s *Server) isApplicationPermitted(selector labels.Selector, minVersion int, claims any, appName, appNs string, projects map[string]bool, a v1alpha1.Application) bool {
+func (s *Server) isApplicationPermitted(ctx context.Context, selector labels.Selector, minVersion int, claims any, appName, appNs string, projects map[string]bool, a v1alpha1.Application) (bool, error) {
 	if len(projects) > 0 && !projects[a.Spec.GetProject()] {
-		return false
+		return false, nil
 	}
 
 	if appVersion, err := strconv.Atoi(a.ResourceVersion); err == nil && appVersion < minVersion {
-		return false
+		return false, nil
 	}
 	matchedEvent := (appName == "" || (a.Name == appName && a.Namespace == appNs)) && selector.Matches(labels.Set(a.Labels))
 	if !matchedEvent {
-		return false
+		return false, nil
 	}
 
-	if !s.isNamespaceEnabled(a.Namespace) {
-		return false
+	enabled, err := s.isNamespaceEnabled(ctx, a.Namespace)
+	if err != nil {
+		return false, err
+	}
+	if !enabled {
+		return false, nil
 	}
 
 	if !s.enf.Enforce(claims, rbac.ResourceApplications, rbac.ActionGet, a.RBACName(s.ns)) {
 		// do not emit apps user does not have accessing
-		return false
+		return false, nil
 	}
 
-	return true
+	return true, nil
 }
 
 func (s *Server) Watch(q *application.ApplicationQuery, ws application.ApplicationService_WatchServer) error {
@@ -1275,12 +1301,16 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 	// sendIfPermitted is a helper to send the application to the client's streaming channel if the
 	// caller has RBAC privileges permissions to view it
 	sendIfPermitted := func(a v1alpha1.Application, eventType watch.EventType) {
-		permitted := s.isApplicationPermitted(selector, minVersion, claims, appName, appNs, projects, a)
+		permitted, err := s.isApplicationPermitted(ws.Context(), selector, minVersion, claims, appName, appNs, projects, a)
+		if err != nil {
+			logCtx.Warnf("Unable to evaluate watch permissions: %v", err)
+			return
+		}
 		if !permitted {
 			return
 		}
 		s.inferResourcesStatusHealth(&a)
-		err := ws.Send(&v1alpha1.ApplicationWatchEvent{
+		err = ws.Send(&v1alpha1.ApplicationWatchEvent{
 			Type:        eventType,
 			Application: a,
 		})
@@ -2132,8 +2162,14 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		syncOptions = syncReq.SyncOptions.Items
 	}
 
-	if syncOptions.HasOption(common.SyncOptionReplace) && !s.syncWithReplaceAllowed {
-		return nil, status.Error(codes.FailedPrecondition, "sync with replace was disabled on the API Server level via the server configuration")
+	if syncOptions.HasOption(common.SyncOptionReplace) {
+		syncWithReplaceAllowed, err := s.configProvider.SyncWithReplaceAllowed(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if !syncWithReplaceAllowed {
+			return nil, status.Error(codes.FailedPrecondition, "sync with replace was disabled on the API Server level via the server configuration")
+		}
 	}
 
 	if syncReq.Manifests != nil && sourceintegrity.HasCriteria(proj.EffectiveSourceIntegrity(), a.Spec.GetSources()...) {
@@ -2554,7 +2590,12 @@ func (s *Server) logAppEvent(ctx context.Context, a *v1alpha1.Application, reaso
 	}
 	message := fmt.Sprintf("%s %s", user, action)
 	eventLabels := argo.GetAppEventLabels(ctx, a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, configbus.NewSettingsManagerProvider(s.settingsMgr), s.db)
-	s.auditLogger.LogAppEvent(a, eventInfo, message, user, eventLabels)
+	auditLogger, err := s.auditLogger(ctx)
+	if err != nil {
+		log.Errorf("failed to resolve audit logger: %v", err)
+		return
+	}
+	auditLogger.LogAppEvent(a, eventInfo, message, user, eventLabels)
 }
 
 func (s *Server) logResourceEvent(ctx context.Context, res *v1alpha1.ResourceNode, reason string, action string) {
@@ -2564,7 +2605,12 @@ func (s *Server) logResourceEvent(ctx context.Context, res *v1alpha1.ResourceNod
 		user = "Unknown user"
 	}
 	message := fmt.Sprintf("%s %s", user, action)
-	s.auditLogger.LogResourceEvent(res, eventInfo, message, user)
+	auditLogger, err := s.auditLogger(ctx)
+	if err != nil {
+		log.Errorf("failed to resolve audit logger: %v", err)
+		return
+	}
+	auditLogger.LogResourceEvent(res, eventInfo, message, user)
 }
 
 func (s *Server) ListResourceActions(ctx context.Context, q *application.ApplicationResourceRequest) (*application.ResourceActionsListResponse, error) {
@@ -2973,8 +3019,12 @@ func (s *Server) appNamespaceOrDefault(appNs string) string {
 	return appNs
 }
 
-func (s *Server) isNamespaceEnabled(namespace string) bool {
-	return security.IsNamespaceEnabled(namespace, s.ns, s.enabledNamespaces)
+func (s *Server) isNamespaceEnabled(ctx context.Context, namespace string) (bool, error) {
+	applicationNamespaces, err := s.configProvider.ApplicationNamespaces(ctx)
+	if err != nil {
+		return false, err
+	}
+	return security.IsNamespaceEnabled(namespace, s.ns, applicationNamespaces), nil
 }
 
 // getProjectsFromApplicationQuery gets the project names from a query. If the legacy "project" field was specified, use

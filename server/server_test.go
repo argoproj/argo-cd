@@ -417,7 +417,7 @@ func TestRevokedToken(t *testing.T) {
 func TestCertsAreNotGeneratedInInsecureMode(t *testing.T) {
 	s, closer := fakeServer(t)
 	defer closer()
-	insecure, err := s.ConfigProvider().Insecure(context.Background())
+	insecure, err := s.configProvider.Insecure(context.Background())
 	require.NoError(t, err)
 	assert.True(t, insecure)
 	assert.Nil(t, s.settings.Certificate)
@@ -780,9 +780,9 @@ connectors:
 	}
 	argocd = NewServer(t.Context(), argoCDOpts, ApplicationSetOpts{})
 	var err error
-	dexServerAddr, err := argocd.ConfigProvider().DexServerAddr(context.Background())
+	dexServerAddr, err := argocd.configProvider.DexServerAddr(context.Background())
 	require.NoError(t, err)
-	baseHRef, err := argocd.ConfigProvider().BaseHRef(context.Background())
+	baseHRef, err := argocd.configProvider.BaseHRef(context.Background())
 	require.NoError(t, err)
 	argocd.ssoClientApp, err = oidc.NewClientApp(argocd.settings, dexServerAddr, argocd.DexTLSConfig, baseHRef, cache.NewInMemoryCache(24*time.Hour))
 	require.NoError(t, err)
@@ -1943,7 +1943,7 @@ func Test_StaticAssetsDir_no_symlink_traversal(t *testing.T) {
 	defer closer()
 
 	// Create a symlink to the file
-	staticAssetsDir, err := argocd.ConfigProvider().StaticAssetsDir(context.Background())
+	staticAssetsDir, err := argocd.configProvider.StaticAssetsDir(context.Background())
 	require.NoError(t, err)
 	symlinkPath := filepath.Join(staticAssetsDir, "link.txt")
 	err = os.Symlink(filePath, symlinkPath)

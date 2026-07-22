@@ -11,6 +11,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	httputil "github.com/argoproj/argo-cd/v3/util/http"
 	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
 	"github.com/argoproj/argo-cd/v3/util/session"
@@ -18,22 +19,20 @@ import (
 )
 
 // NewHandler creates handler serving to do api/logout endpoint
-func NewHandler(settingsMrg *settings.SettingsManager, sessionMgr *session.SessionManager, rootPath, baseHRef string) *Handler {
+func NewHandler(settingsMrg *settings.SettingsManager, sessionMgr *session.SessionManager, configProvider configbus.Provider) *Handler {
 	return &Handler{
-		settingsMgr: settingsMrg,
-		rootPath:    rootPath,
-		baseHRef:    baseHRef,
-		verifyToken: sessionMgr.VerifyToken,
-		revokeToken: sessionMgr.RevokeToken,
+		settingsMgr:    settingsMrg,
+		configProvider: configProvider,
+		verifyToken:    sessionMgr.VerifyToken,
+		revokeToken:    sessionMgr.RevokeToken,
 	}
 }
 
 type Handler struct {
-	settingsMgr *settings.SettingsManager
-	rootPath    string
-	verifyToken func(ctx context.Context, tokenString string) (jwt.Claims, string, error)
-	revokeToken func(ctx context.Context, id string, expiringAt time.Duration) error
-	baseHRef    string
+	settingsMgr    *settings.SettingsManager
+	configProvider configbus.Provider
+	verifyToken    func(ctx context.Context, tokenString string) (jwt.Claims, string, error)
+	revokeToken    func(ctx context.Context, id string, expiringAt time.Duration) error
 }
 
 var (
@@ -58,6 +57,17 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	rootPath, err := h.configProvider.RootPath(r.Context())
+	if err != nil {
+		http.Error(w, "Failed to resolve root path: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	baseHRef, err := h.configProvider.BaseHRef(r.Context())
+	if err != nil {
+		http.Error(w, "Failed to resolve base href: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	argoURL, err := argoCDSettings.ArgoURLForRequest(r)
 	if err != nil {
 		log.Warnf("unable to find ArgoCD URL from config: %v", err)
@@ -66,7 +76,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		// golang does not provide any easy way to determine scheme of current request
 		// so redirecting ot http which will auto-redirect too https if necessary
 		host := strings.TrimRight(r.Host, "/")
-		argoURL = "http://" + host + "/" + strings.TrimRight(strings.TrimLeft(h.rootPath, "/"), "/")
+		argoURL = "http://" + host + "/" + strings.TrimRight(strings.TrimLeft(rootPath, "/"), "/")
 	}
 
 	logoutRedirectURL := strings.TrimRight(strings.TrimLeft(argoURL, "/"), "/")
@@ -93,7 +103,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Value: "",
 		}
 
-		argocdCookie.Path = "/" + strings.TrimRight(strings.TrimLeft(h.baseHRef, "/"), "/")
+		argocdCookie.Path = "/" + strings.TrimRight(strings.TrimLeft(baseHRef, "/"), "/")
 		w.Header().Add("Set-Cookie", argocdCookie.String())
 	}
 

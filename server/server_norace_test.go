@@ -195,7 +195,7 @@ func withStaticHeaderOverrides(t *testing.T, s *FakeArgoCDServer, xFrameOptions,
 
 func mustListenPort(t *testing.T, s *FakeArgoCDServer) int {
 	t.Helper()
-	port, err := s.ConfigProvider().ListenPort(context.Background())
+	port, err := s.configProvider.ListenPort(context.Background())
 	require.NoError(t, err)
 	return port
 }
