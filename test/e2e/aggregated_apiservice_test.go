@@ -84,7 +84,7 @@ metadata:
 			// under test: without reacting to the APIService event, the cache never
 			// watches wardle.example.com and the Flunder is absent from the tree (and
 			// the UI) until a manual invalidation.
-			closer, cdClient := ArgoCDClientset.NewApplicationClientOrDie(t.Context())
+			closer, cdClient := ArgoCDClientset.NewApplicationClientOrDie()
 			defer utilio.Close(closer)
 
 			require.Eventually(t, func() bool {

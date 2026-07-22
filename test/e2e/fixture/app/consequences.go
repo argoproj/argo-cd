@@ -119,7 +119,7 @@ func (c *Consequences) get() (*v1alpha1.Application, error) {
 
 func (c *Consequences) resource(kind, name, namespace string) v1alpha1.ResourceStatus {
 	c.context.T().Helper()
-	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient(c.context.T().Context())
+	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
 	require.NoError(c.context.T(), err)
 	defer utilio.Close(closer)
 	app, err := client.Get(context.Background(), &applicationpkg.ApplicationQuery{
