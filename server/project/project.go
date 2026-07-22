@@ -314,12 +314,12 @@ func (s *Server) GetDetailedProject(ctx context.Context, q *project.ProjectQuery
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceProjects, rbac.ActionGet, q.Name); err != nil {
 		return nil, err
 	}
-	proj, repositories, clusters, err := argo.GetAppProjectWithScopedResources(ctx, q.Name, listersv1alpha1.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, configbus.NewSettingsManagerProvider(s.settingsMgr), s.db)
+	proj, repositories, clusters, err := argo.GetAppProjectWithScopedResources(ctx, q.Name, listersv1alpha1.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.configProvider, s.db)
 	if err != nil {
 		return nil, err
 	}
 	proj.NormalizeJWTTokens()
-	globalProjects := argo.GetGlobalProjects(ctx, proj, listersv1alpha1.NewAppProjectLister(s.projInformer.GetIndexer()), configbus.NewSettingsManagerProvider(s.settingsMgr))
+	globalProjects := argo.GetGlobalProjects(ctx, proj, listersv1alpha1.NewAppProjectLister(s.projInformer.GetIndexer()), s.configProvider)
 	var apiRepos []*v1alpha1.Repository
 	for _, repo := range repositories {
 		apiRepos = append(apiRepos, repo.Normalize().Sanitized())
@@ -357,7 +357,7 @@ func (s *Server) GetGlobalProjects(ctx context.Context, q *project.ProjectQuery)
 		return nil, err
 	}
 
-	globalProjects := argo.GetGlobalProjects(ctx, projOrig, listersv1alpha1.NewAppProjectLister(s.projInformer.GetIndexer()), configbus.NewSettingsManagerProvider(s.settingsMgr))
+	globalProjects := argo.GetGlobalProjects(ctx, projOrig, listersv1alpha1.NewAppProjectLister(s.projInformer.GetIndexer()), s.configProvider)
 
 	res := &project.GlobalProjectsResponse{}
 	res.Items = globalProjects

@@ -41,6 +41,130 @@ func (_m *Provider) EXPECT() *Provider_Expecter {
 	return &Provider_Expecter{mock: &_m.Mock}
 }
 
+// Accounts provides a mock function for the type Provider
+func (_mock *Provider) Accounts(ctx context.Context) (map[string]settings.Account, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Accounts")
+	}
+
+	var r0 map[string]settings.Account
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (map[string]settings.Account, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) map[string]settings.Account); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[string]settings.Account)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_Accounts_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Accounts'
+type Provider_Accounts_Call struct {
+	*mock.Call
+}
+
+// Accounts is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) Accounts(ctx any) *Provider_Accounts_Call {
+	return &Provider_Accounts_Call{Call: _e.mock.On("Accounts", ctx)}
+}
+
+func (_c *Provider_Accounts_Call) Run(run func(ctx context.Context)) *Provider_Accounts_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_Accounts_Call) Return(stringToAccount map[string]settings.Account, err error) *Provider_Accounts_Call {
+	_c.Call.Return(stringToAccount, err)
+	return _c
+}
+
+func (_c *Provider_Accounts_Call) RunAndReturn(run func(ctx context.Context) (map[string]settings.Account, error)) *Provider_Accounts_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// AdditionalURLs provides a mock function for the type Provider
+func (_mock *Provider) AdditionalURLs(ctx context.Context) ([]string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AdditionalURLs")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_AdditionalURLs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AdditionalURLs'
+type Provider_AdditionalURLs_Call struct {
+	*mock.Call
+}
+
+// AdditionalURLs is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) AdditionalURLs(ctx any) *Provider_AdditionalURLs_Call {
+	return &Provider_AdditionalURLs_Call{Call: _e.mock.On("AdditionalURLs", ctx)}
+}
+
+func (_c *Provider_AdditionalURLs_Call) Run(run func(ctx context.Context)) *Provider_AdditionalURLs_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_AdditionalURLs_Call) Return(strings []string, err error) *Provider_AdditionalURLs_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *Provider_AdditionalURLs_Call) RunAndReturn(run func(ctx context.Context) ([]string, error)) *Provider_AdditionalURLs_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // AllowedNodeLabels provides a mock function for the type Provider
 func (_mock *Provider) AllowedNodeLabels(ctx context.Context) ([]string, error) {
 	ret := _mock.Called(ctx)
@@ -1619,6 +1743,68 @@ func (_c *Provider_ExecShells_Call) RunAndReturn(run func(ctx context.Context) (
 	return _c
 }
 
+// ExtensionConfig provides a mock function for the type Provider
+func (_mock *Provider) ExtensionConfig(ctx context.Context) (map[string]string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ExtensionConfig")
+	}
+
+	var r0 map[string]string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (map[string]string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) map[string]string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[string]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_ExtensionConfig_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ExtensionConfig'
+type Provider_ExtensionConfig_Call struct {
+	*mock.Call
+}
+
+// ExtensionConfig is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) ExtensionConfig(ctx any) *Provider_ExtensionConfig_Call {
+	return &Provider_ExtensionConfig_Call{Call: _e.mock.On("ExtensionConfig", ctx)}
+}
+
+func (_c *Provider_ExtensionConfig_Call) Run(run func(ctx context.Context)) *Provider_ExtensionConfig_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_ExtensionConfig_Call) Return(stringToString map[string]string, err error) *Provider_ExtensionConfig_Call {
+	_c.Call.Return(stringToString, err)
+	return _c
+}
+
+func (_c *Provider_ExtensionConfig_Call) RunAndReturn(run func(ctx context.Context) (map[string]string, error)) *Provider_ExtensionConfig_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GitRequestTimeout provides a mock function for the type Provider
 func (_mock *Provider) GitRequestTimeout(ctx context.Context) (time.Duration, error) {
 	ret := _mock.Called(ctx)
@@ -1801,6 +1987,68 @@ func (_c *Provider_GlobalProjectsSettings_Call) RunAndReturn(run func(ctx contex
 	return _c
 }
 
+// GoogleAnalytics provides a mock function for the type Provider
+func (_mock *Provider) GoogleAnalytics(ctx context.Context) (*settings.GoogleAnalytics, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GoogleAnalytics")
+	}
+
+	var r0 *settings.GoogleAnalytics
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (*settings.GoogleAnalytics, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) *settings.GoogleAnalytics); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*settings.GoogleAnalytics)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_GoogleAnalytics_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GoogleAnalytics'
+type Provider_GoogleAnalytics_Call struct {
+	*mock.Call
+}
+
+// GoogleAnalytics is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) GoogleAnalytics(ctx any) *Provider_GoogleAnalytics_Call {
+	return &Provider_GoogleAnalytics_Call{Call: _e.mock.On("GoogleAnalytics", ctx)}
+}
+
+func (_c *Provider_GoogleAnalytics_Call) Run(run func(ctx context.Context)) *Provider_GoogleAnalytics_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_GoogleAnalytics_Call) Return(googleAnalytics *settings.GoogleAnalytics, err error) *Provider_GoogleAnalytics_Call {
+	_c.Call.Return(googleAnalytics, err)
+	return _c
+}
+
+func (_c *Provider_GoogleAnalytics_Call) RunAndReturn(run func(ctx context.Context) (*settings.GoogleAnalytics, error)) *Provider_GoogleAnalytics_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // HardReconciliationTimeout provides a mock function for the type Provider
 func (_mock *Provider) HardReconciliationTimeout(ctx context.Context) (time.Duration, error) {
 	ret := _mock.Called(ctx)
@@ -1917,6 +2165,68 @@ func (_c *Provider_HelmSettings_Call) Return(helmOptions v1alpha1.HelmOptions, e
 }
 
 func (_c *Provider_HelmSettings_Call) RunAndReturn(run func(ctx context.Context) (v1alpha1.HelmOptions, error)) *Provider_HelmSettings_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Help provides a mock function for the type Provider
+func (_mock *Provider) Help(ctx context.Context) (*settings.Help, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Help")
+	}
+
+	var r0 *settings.Help
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (*settings.Help, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) *settings.Help); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*settings.Help)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_Help_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Help'
+type Provider_Help_Call struct {
+	*mock.Call
+}
+
+// Help is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) Help(ctx any) *Provider_Help_Call {
+	return &Provider_Help_Call{Call: _e.mock.On("Help", ctx)}
+}
+
+func (_c *Provider_Help_Call) Run(run func(ctx context.Context)) *Provider_Help_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_Help_Call) Return(help *settings.Help, err error) *Provider_Help_Call {
+	_c.Call.Return(help, err)
+	return _c
+}
+
+func (_c *Provider_Help_Call) RunAndReturn(run func(ctx context.Context) (*settings.Help, error)) *Provider_Help_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -3063,6 +3373,66 @@ func (_c *Provider_MetricsPort_Call) Return(n int, err error) *Provider_MetricsP
 }
 
 func (_c *Provider_MetricsPort_Call) RunAndReturn(run func(ctx context.Context) (int, error)) *Provider_MetricsPort_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// OIDCLogoutURL provides a mock function for the type Provider
+func (_mock *Provider) OIDCLogoutURL(ctx context.Context) (string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for OIDCLogoutURL")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_OIDCLogoutURL_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'OIDCLogoutURL'
+type Provider_OIDCLogoutURL_Call struct {
+	*mock.Call
+}
+
+// OIDCLogoutURL is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) OIDCLogoutURL(ctx any) *Provider_OIDCLogoutURL_Call {
+	return &Provider_OIDCLogoutURL_Call{Call: _e.mock.On("OIDCLogoutURL", ctx)}
+}
+
+func (_c *Provider_OIDCLogoutURL_Call) Run(run func(ctx context.Context)) *Provider_OIDCLogoutURL_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_OIDCLogoutURL_Call) Return(s string, err error) *Provider_OIDCLogoutURL_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *Provider_OIDCLogoutURL_Call) RunAndReturn(run func(ctx context.Context) (string, error)) *Provider_OIDCLogoutURL_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -4714,6 +5084,66 @@ func (_c *Provider_Unsubscribe_Call) Return() *Provider_Unsubscribe_Call {
 
 func (_c *Provider_Unsubscribe_Call) RunAndReturn(run func(subCh chan<- *settings.ArgoCDSettings)) *Provider_Unsubscribe_Call {
 	_c.Run(run)
+	return _c
+}
+
+// UserSessionDuration provides a mock function for the type Provider
+func (_mock *Provider) UserSessionDuration(ctx context.Context) (time.Duration, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for UserSessionDuration")
+	}
+
+	var r0 time.Duration
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (time.Duration, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) time.Duration); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(time.Duration)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_UserSessionDuration_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UserSessionDuration'
+type Provider_UserSessionDuration_Call struct {
+	*mock.Call
+}
+
+// UserSessionDuration is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) UserSessionDuration(ctx any) *Provider_UserSessionDuration_Call {
+	return &Provider_UserSessionDuration_Call{Call: _e.mock.On("UserSessionDuration", ctx)}
+}
+
+func (_c *Provider_UserSessionDuration_Call) Run(run func(ctx context.Context)) *Provider_UserSessionDuration_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_UserSessionDuration_Call) Return(duration time.Duration, err error) *Provider_UserSessionDuration_Call {
+	_c.Call.Return(duration, err)
+	return _c
+}
+
+func (_c *Provider_UserSessionDuration_Call) RunAndReturn(run func(ctx context.Context) (time.Duration, error)) *Provider_UserSessionDuration_Call {
+	_c.Call.Return(run)
 	return _c
 }
 

@@ -811,7 +811,7 @@ func (s *Server) testRepo(ctx context.Context, repo *v1alpha1.Repository) error 
 }
 
 func (s *Server) isRepoPermittedInProject(ctx context.Context, repo string, projName string) error {
-	proj, err := argo.GetAppProjectByName(ctx, projName, applisters.NewAppProjectLister(s.projLister.GetIndexer()), s.namespace, configbus.NewSettingsManagerProvider(s.settings), s.db)
+	proj, err := argo.GetAppProjectByName(ctx, projName, applisters.NewAppProjectLister(s.projLister.GetIndexer()), s.namespace, s.configProvider, s.db)
 	if err != nil {
 		return err
 	}

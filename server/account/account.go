@@ -202,9 +202,9 @@ func (s *Server) ensureHasAccountPermission(ctx context.Context, action string, 
 // ListAccounts returns the list of accounts
 func (s *Server) ListAccounts(ctx context.Context, _ *account.ListAccountRequest) (*account.AccountsList, error) {
 	resp := account.AccountsList{}
-	accounts, err := s.settingsMgr.GetAccounts()
+	accounts, err := s.configProvider.Accounts(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get accounts: %w", err)
+		return nil, fmt.Errorf("failed to resolve Accounts: %w", err)
 	}
 	for name, a := range accounts {
 		if err := s.ensureHasAccountPermission(ctx, rbac.ActionGet, name); err == nil {
@@ -222,11 +222,15 @@ func (s *Server) GetAccount(ctx context.Context, r *account.GetAccountRequest) (
 	if err := s.ensureHasAccountPermission(ctx, rbac.ActionGet, r.Name); err != nil {
 		return nil, fmt.Errorf("permission denied to get account %s: %w", r.Name, err)
 	}
-	a, err := s.settingsMgr.GetAccount(r.Name)
+	accounts, err := s.configProvider.Accounts(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get account %s: %w", r.Name, err)
+		return nil, fmt.Errorf("failed to resolve Accounts: %w", err)
 	}
-	return toAPIAccount(r.Name, *a), nil
+	a, ok := accounts[r.Name]
+	if !ok {
+		return nil, status.Errorf(codes.NotFound, "account '%s' does not exist", r.Name)
+	}
+	return toAPIAccount(r.Name, a), nil
 }
 
 // CreateToken creates a token

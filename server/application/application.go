@@ -720,7 +720,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 
 		source := a.Spec.GetSource()
 
-		proj, err := argo.GetAppProject(ctx, a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, configbus.NewSettingsManagerProvider(s.settingsMgr), s.db)
+		proj, err := argo.GetAppProject(ctx, a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.configProvider, s.db)
 		if err != nil {
 			return fmt.Errorf("error getting app project: %w", err)
 		}
@@ -1157,7 +1157,7 @@ func (s *Server) Patch(ctx context.Context, q *application.ApplicationPatchReque
 }
 
 func (s *Server) getAppProject(ctx context.Context, a *v1alpha1.Application, logCtx *log.Entry) (*v1alpha1.AppProject, error) {
-	proj, err := argo.GetAppProject(ctx, a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, configbus.NewSettingsManagerProvider(s.settingsMgr), s.db)
+	proj, err := argo.GetAppProject(ctx, a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.configProvider, s.db)
 	if err == nil {
 		return proj, nil
 	}
@@ -2587,7 +2587,7 @@ func (s *Server) logAppEvent(ctx context.Context, a *v1alpha1.Application, reaso
 		user = "Unknown user"
 	}
 	message := fmt.Sprintf("%s %s", user, action)
-	eventLabels := argo.GetAppEventLabels(ctx, a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, configbus.NewSettingsManagerProvider(s.settingsMgr), s.db)
+	eventLabels := argo.GetAppEventLabels(ctx, a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.configProvider, s.db)
 	auditLogger, err := s.auditLogger(ctx)
 	if err != nil {
 		log.Errorf("failed to resolve audit logger: %v", err)

@@ -54,18 +54,18 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 	if err != nil {
 		return nil, err
 	}
-	gaSettings, err := s.mgr.GetGoogleAnalytics()
+	gaSettings, err := s.configProvider.GoogleAnalytics(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to resolve GoogleAnalytics: %w", err)
 	}
-	help, err := s.mgr.GetHelp()
+	help, err := s.configProvider.Help(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to resolve Help: %w", err)
 	}
 	userLoginsDisabled := true
-	accounts, err := s.mgr.GetAccounts()
+	accounts, err := s.configProvider.Accounts(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to resolve Accounts: %w", err)
 	}
 	for _, account := range accounts {
 		if account.Enabled && account.HasCapability(settings.AccountCapabilityLogin) {
@@ -123,9 +123,18 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 		return nil, fmt.Errorf("failed to resolve DisableAuth: %w", err)
 	}
 
+	serverURL, err := s.configProvider.ServerURL(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve ServerURL: %w", err)
+	}
+	additionalURLs, err := s.configProvider.AdditionalURLs(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve AdditionalURLs: %w", err)
+	}
+
 	set := settingspkg.Settings{
-		URL:                argoCDSettings.URL,
-		AdditionalURLs:     argoCDSettings.AdditionalURLs,
+		URL:                serverURL,
+		AdditionalURLs:     additionalURLs,
 		AppLabelKey:        appInstanceLabelKey,
 		StatusBadgeEnabled: statusBadgeEnabled,
 		StatusBadgeRootUrl: argoCDSettings.StatusBadgeRootUrl,
@@ -164,7 +173,11 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 		set.ResourceOverrides = overrides
 	}
 	if sessionmgr.LoggedIn(ctx) {
-		set.PasswordPattern = argoCDSettings.PasswordPattern
+		passwordPattern, err := s.configProvider.PasswordPattern(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve PasswordPattern: %w", err)
+		}
+		set.PasswordPattern = passwordPattern
 	}
 	if argoCDSettings.DexConfig != "" {
 		var cfg settingspkg.DexConfig

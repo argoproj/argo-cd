@@ -42,6 +42,18 @@ func (c *ChainProvider) Unsubscribe(subCh chan<- *settings.ArgoCDSettings) {
 	}
 }
 
+func (c *ChainProvider) Accounts(ctx context.Context) (map[string]settings.Account, error) {
+	return firstConfigured(func(p Provider) (map[string]settings.Account, error) {
+		return p.Accounts(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) AdditionalURLs(ctx context.Context) ([]string, error) {
+	return firstConfigured(func(p Provider) ([]string, error) {
+		return p.AdditionalURLs(ctx)
+	}, c.links)
+}
+
 func (c *ChainProvider) AllowedNodeLabels(ctx context.Context) ([]string, error) {
 	return firstConfigured(func(p Provider) ([]string, error) {
 		return p.AllowedNodeLabels(ctx)
@@ -198,6 +210,12 @@ func (c *ChainProvider) ExecShells(ctx context.Context) ([]string, error) {
 	}, c.links)
 }
 
+func (c *ChainProvider) ExtensionConfig(ctx context.Context) (map[string]string, error) {
+	return firstConfigured(func(p Provider) (map[string]string, error) {
+		return p.ExtensionConfig(ctx)
+	}, c.links)
+}
+
 func (c *ChainProvider) GitRequestTimeout(ctx context.Context) (time.Duration, error) {
 	return firstConfigured(func(p Provider) (time.Duration, error) {
 		return p.GitRequestTimeout(ctx)
@@ -216,6 +234,12 @@ func (c *ChainProvider) GlobalProjectsSettings(ctx context.Context) ([]settings.
 	}, c.links)
 }
 
+func (c *ChainProvider) GoogleAnalytics(ctx context.Context) (*settings.GoogleAnalytics, error) {
+	return firstConfigured(func(p Provider) (*settings.GoogleAnalytics, error) {
+		return p.GoogleAnalytics(ctx)
+	}, c.links)
+}
+
 func (c *ChainProvider) HardReconciliationTimeout(ctx context.Context) (time.Duration, error) {
 	return firstConfigured(func(p Provider) (time.Duration, error) {
 		return p.HardReconciliationTimeout(ctx)
@@ -225,6 +249,12 @@ func (c *ChainProvider) HardReconciliationTimeout(ctx context.Context) (time.Dur
 func (c *ChainProvider) HelmSettings(ctx context.Context) (v1alpha1.HelmOptions, error) {
 	return firstConfigured(func(p Provider) (v1alpha1.HelmOptions, error) {
 		return p.HelmSettings(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) Help(ctx context.Context) (*settings.Help, error) {
+	return firstConfigured(func(p Provider) (*settings.Help, error) {
+		return p.Help(ctx)
 	}, c.links)
 }
 
@@ -339,6 +369,12 @@ func (c *ChainProvider) MetricsHost(ctx context.Context) (string, error) {
 func (c *ChainProvider) MetricsPort(ctx context.Context) (int, error) {
 	return firstConfigured(func(p Provider) (int, error) {
 		return p.MetricsPort(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) OIDCLogoutURL(ctx context.Context) (string, error) {
+	return firstConfigured(func(p Provider) (string, error) {
+		return p.OIDCLogoutURL(ctx)
 	}, c.links)
 }
 
@@ -495,6 +531,12 @@ func (c *ChainProvider) SyncWithReplaceAllowed(ctx context.Context) (bool, error
 func (c *ChainProvider) TrackingMethod(ctx context.Context) (string, error) {
 	return firstConfigured(func(p Provider) (string, error) {
 		return p.TrackingMethod(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) UserSessionDuration(ctx context.Context) (time.Duration, error) {
+	return firstConfigured(func(p Provider) (time.Duration, error) {
+		return p.UserSessionDuration(ctx)
 	}, c.links)
 }
 

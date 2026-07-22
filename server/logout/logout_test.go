@@ -43,11 +43,14 @@ var (
 	expectedOIDCLogoutURLWithRootPath    = "https://dev-5695098.okta.com/oauth2/v1/logout?id_token_hint=" + oidcToken + "&post_logout_redirect_uri=" + baseURL + "/" + rootPath
 )
 
-func testLogoutConfigProvider(rootPath, baseHRef string) configbus.Provider {
-	return &configbus.StaticProvider{Fields: configbus.StaticFields{
-		RootPath: configbus.Ptr(rootPath),
-		BaseHRef: configbus.Ptr(baseHRef),
-	}}
+func testLogoutConfigProvider(settingsMgr *settings.SettingsManager, rootPath, baseHRef string) configbus.Provider {
+	return configbus.NewChainProvider(
+		&configbus.StaticProvider{Fields: configbus.StaticFields{
+			RootPath: configbus.Ptr(rootPath),
+			BaseHRef: configbus.Ptr(baseHRef),
+		}},
+		configbus.NewSettingsManagerProvider(settingsMgr),
+	)
 }
 
 func TestConstructLogoutURL(t *testing.T) {
@@ -295,35 +298,35 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 	t.Cleanup(closer)
 	sessionManager := session.NewSessionManager(settingsManagerWithOIDCConfig, test.NewFakeProjLister(), "", nil, session.NewUserStateStorage(redisClient))
 
-	dexHandler := NewHandler(settingsManagerWithDexConfig, sessionManager, testLogoutConfigProvider(rootPath, baseHRef))
+	dexHandler := NewHandler(sessionManager, testLogoutConfigProvider(settingsManagerWithDexConfig, rootPath, baseHRef))
 	dexHandler.verifyToken = func(_ context.Context, tokenString string) (jwt.Claims, string, error) {
 		if !validJWTPattern.MatchString(tokenString) {
 			return nil, "", errors.New("invalid jwt")
 		}
 		return &jwt.RegisteredClaims{Issuer: "dev"}, "", nil
 	}
-	oidcHandler := NewHandler(settingsManagerWithOIDCConfig, sessionManager, testLogoutConfigProvider(rootPath, baseHRef))
+	oidcHandler := NewHandler(sessionManager, testLogoutConfigProvider(settingsManagerWithOIDCConfig, rootPath, baseHRef))
 	oidcHandler.verifyToken = func(_ context.Context, tokenString string) (jwt.Claims, string, error) {
 		if !validJWTPattern.MatchString(tokenString) {
 			return nil, "", errors.New("invalid jwt")
 		}
 		return &jwt.RegisteredClaims{Issuer: "okta"}, "", nil
 	}
-	nonoidcHandler := NewHandler(settingsManagerWithoutOIDCConfig, sessionManager, testLogoutConfigProvider("", baseHRef))
+	nonoidcHandler := NewHandler(sessionManager, testLogoutConfigProvider(settingsManagerWithoutOIDCConfig, "", baseHRef))
 	nonoidcHandler.verifyToken = func(_ context.Context, tokenString string) (jwt.Claims, string, error) {
 		if !validJWTPattern.MatchString(tokenString) {
 			return nil, "", errors.New("invalid jwt")
 		}
 		return &jwt.RegisteredClaims{Issuer: session.SessionManagerClaimsIssuer}, "", nil
 	}
-	oidcHandlerWithoutLogoutURL := NewHandler(settingsManagerWithOIDCConfigButNoLogoutURL, sessionManager, testLogoutConfigProvider("", baseHRef))
+	oidcHandlerWithoutLogoutURL := NewHandler(sessionManager, testLogoutConfigProvider(settingsManagerWithOIDCConfigButNoLogoutURL, "", baseHRef))
 	oidcHandlerWithoutLogoutURL.verifyToken = func(_ context.Context, tokenString string) (jwt.Claims, string, error) {
 		if !validJWTPattern.MatchString(tokenString) {
 			return nil, "", errors.New("invalid jwt")
 		}
 		return &jwt.RegisteredClaims{Issuer: "okta"}, "", nil
 	}
-	nonoidcHandlerWithMultipleURLs := NewHandler(settingsManagerWithoutOIDCAndMultipleURLs, sessionManager, testLogoutConfigProvider("", baseHRef))
+	nonoidcHandlerWithMultipleURLs := NewHandler(sessionManager, testLogoutConfigProvider(settingsManagerWithoutOIDCAndMultipleURLs, "", baseHRef))
 	nonoidcHandlerWithMultipleURLs.verifyToken = func(_ context.Context, tokenString string) (jwt.Claims, string, error) {
 		if !validJWTPattern.MatchString(tokenString) {
 			return nil, "", errors.New("invalid jwt")
@@ -331,7 +334,7 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 		return &jwt.RegisteredClaims{Issuer: "okta"}, "", nil
 	}
 
-	oidcHandlerWithoutBaseURL := NewHandler(settingsManagerWithOIDCConfigButNoURL, sessionManager, testLogoutConfigProvider("argocd", baseHRef))
+	oidcHandlerWithoutBaseURL := NewHandler(sessionManager, testLogoutConfigProvider(settingsManagerWithOIDCConfigButNoURL, "argocd", baseHRef))
 	oidcHandlerWithoutBaseURL.verifyToken = func(_ context.Context, tokenString string) (jwt.Claims, string, error) {
 		if !validJWTPattern.MatchString(tokenString) {
 			return nil, "", errors.New("invalid jwt")
@@ -524,7 +527,7 @@ func TestHandlerRevokeToken(t *testing.T) {
 		var revokedID string
 		var revokeCalled bool
 
-		handler := NewHandler(settingsMgr, sessionMgr, testLogoutConfigProvider("", baseHRef))
+		handler := NewHandler(sessionMgr, testLogoutConfigProvider(settingsMgr, "", baseHRef))
 		handler.verifyToken = func(_ context.Context, _ string) (jwt.Claims, string, error) {
 			return jwt.MapClaims{
 				"iss": session.SessionManagerClaimsIssuer,
@@ -555,7 +558,7 @@ func TestHandlerRevokeToken(t *testing.T) {
 		var revokedID string
 		var revokeCalled bool
 
-		handler := NewHandler(settingsMgr, sessionMgr, testLogoutConfigProvider("", baseHRef))
+		handler := NewHandler(sessionMgr, testLogoutConfigProvider(settingsMgr, "", baseHRef))
 		handler.verifyToken = func(_ context.Context, _ string) (jwt.Claims, string, error) {
 			return jwt.MapClaims{
 				"iss":     "dex",
@@ -584,7 +587,7 @@ func TestHandlerRevokeToken(t *testing.T) {
 		t.Parallel()
 		var revokedID string
 
-		handler := NewHandler(settingsMgr, sessionMgr, testLogoutConfigProvider("", baseHRef))
+		handler := NewHandler(sessionMgr, testLogoutConfigProvider(settingsMgr, "", baseHRef))
 		handler.verifyToken = func(_ context.Context, _ string) (jwt.Claims, string, error) {
 			return jwt.MapClaims{
 				"iss":     session.SessionManagerClaimsIssuer,
@@ -612,7 +615,7 @@ func TestHandlerRevokeToken(t *testing.T) {
 		t.Parallel()
 		revokeCalled := false
 
-		handler := NewHandler(settingsMgr, sessionMgr, testLogoutConfigProvider("", baseHRef))
+		handler := NewHandler(sessionMgr, testLogoutConfigProvider(settingsMgr, "", baseHRef))
 		handler.verifyToken = func(_ context.Context, _ string) (jwt.Claims, string, error) {
 			return jwt.MapClaims{
 				"iss": session.SessionManagerClaimsIssuer,
@@ -639,7 +642,7 @@ func TestHandlerRevokeToken(t *testing.T) {
 		t.Parallel()
 		revokeCalled := false
 
-		handler := NewHandler(settingsMgr, sessionMgr, testLogoutConfigProvider("", baseHRef))
+		handler := NewHandler(sessionMgr, testLogoutConfigProvider(settingsMgr, "", baseHRef))
 		handler.verifyToken = func(_ context.Context, _ string) (jwt.Claims, string, error) {
 			return jwt.MapClaims{
 				"iss": session.SessionManagerClaimsIssuer,
@@ -665,7 +668,7 @@ func TestHandlerRevokeToken(t *testing.T) {
 
 	t.Run("Revocation timeout does not block logout", func(t *testing.T) {
 		t.Parallel()
-		handler := NewHandler(settingsMgr, sessionMgr, testLogoutConfigProvider("", baseHRef))
+		handler := NewHandler(sessionMgr, testLogoutConfigProvider(settingsMgr, "", baseHRef))
 		handler.verifyToken = func(_ context.Context, _ string) (jwt.Claims, string, error) {
 			return jwt.MapClaims{
 				"iss": session.SessionManagerClaimsIssuer,
@@ -695,7 +698,7 @@ func TestHandlerRevokeToken(t *testing.T) {
 
 	t.Run("revokeToken error does not prevent redirect", func(t *testing.T) {
 		t.Parallel()
-		handler := NewHandler(settingsMgr, sessionMgr, testLogoutConfigProvider("", baseHRef))
+		handler := NewHandler(sessionMgr, testLogoutConfigProvider(settingsMgr, "", baseHRef))
 		handler.verifyToken = func(_ context.Context, _ string) (jwt.Claims, string, error) {
 			return jwt.MapClaims{
 				"iss": session.SessionManagerClaimsIssuer,

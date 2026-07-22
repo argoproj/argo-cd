@@ -21,6 +21,8 @@ import (
 //     policy struct) instead of *U when “configured nil” is a product meaning.
 //   - Method returning ([]T, error) or (map[K]V, error) → field *[]T / *map[K]V
 type StaticFields struct {
+	Accounts                                      *map[string]settings.Account
+	AdditionalURLs                                *[]string
 	AllowedNodeLabels                             *[]string
 	AllowedScmProviders                           *[]string
 	AnonymousUserEnabled                          *bool
@@ -47,11 +49,14 @@ type StaticFields struct {
 	ExcludeEventLabelKeys                         *[]string
 	ExecEnabled                                   *bool
 	ExecShells                                    *[]string
+	ExtensionConfig                               *map[string]string
 	GitRequestTimeout                             *time.Duration
 	GitSubmoduleEnabled                           *bool
 	GlobalProjectsSettings                        *[]settings.GlobalProjectSettings
+	GoogleAnalytics                               **settings.GoogleAnalytics
 	HardReconciliationTimeout                     *time.Duration
 	HelmSettings                                  *v1alpha1.HelmOptions
+	Help                                          **settings.Help
 	HydratorEnabled                               *bool
 	HydratorReadmeTemplate                        *string
 	IgnoreNormalizerJQTimeout                     *time.Duration
@@ -71,6 +76,7 @@ type StaticFields struct {
 	MetricsClusterLabels                          *[]string
 	MetricsHost                                   *string
 	MetricsPort                                   *int
+	OIDCLogoutURL                                 *string
 	PasswordPattern                               *string
 	PersistResourceHealth                         *bool
 	ProjectDeepLinks                              *[]settings.DeepLink
@@ -97,6 +103,7 @@ type StaticFields struct {
 	SyncTimeout                                   *time.Duration
 	SyncWithReplaceAllowed                        *bool
 	TrackingMethod                                *string
+	UserSessionDuration                           *time.Duration
 	WebhookParallelism                            *int
 	WebhookRefreshJitter                          *time.Duration
 	WebhookRefreshJitterThreshold                 *int
@@ -116,6 +123,20 @@ type StaticProvider struct {
 
 // Ensure StaticProvider implements Provider.
 var _ Provider = (*StaticProvider)(nil)
+
+func (p *StaticProvider) Accounts(_ context.Context) (map[string]settings.Account, error) {
+	if p == nil || p.Fields.Accounts == nil {
+		return nil, ErrNotConfigured
+	}
+	return *p.Fields.Accounts, nil
+}
+
+func (p *StaticProvider) AdditionalURLs(_ context.Context) ([]string, error) {
+	if p == nil || p.Fields.AdditionalURLs == nil {
+		return nil, ErrNotConfigured
+	}
+	return *p.Fields.AdditionalURLs, nil
+}
 
 func (p *StaticProvider) AllowedNodeLabels(_ context.Context) ([]string, error) {
 	if p == nil || p.Fields.AllowedNodeLabels == nil {
@@ -299,6 +320,13 @@ func (p *StaticProvider) ExecShells(_ context.Context) ([]string, error) {
 	return *p.Fields.ExecShells, nil
 }
 
+func (p *StaticProvider) ExtensionConfig(_ context.Context) (map[string]string, error) {
+	if p == nil || p.Fields.ExtensionConfig == nil {
+		return nil, ErrNotConfigured
+	}
+	return *p.Fields.ExtensionConfig, nil
+}
+
 func (p *StaticProvider) GitRequestTimeout(_ context.Context) (time.Duration, error) {
 	if p == nil || p.Fields.GitRequestTimeout == nil {
 		return 0, ErrNotConfigured
@@ -320,6 +348,13 @@ func (p *StaticProvider) GlobalProjectsSettings(_ context.Context) ([]settings.G
 	return *p.Fields.GlobalProjectsSettings, nil
 }
 
+func (p *StaticProvider) GoogleAnalytics(_ context.Context) (*settings.GoogleAnalytics, error) {
+	if p == nil || p.Fields.GoogleAnalytics == nil {
+		return nil, ErrNotConfigured
+	}
+	return *p.Fields.GoogleAnalytics, nil
+}
+
 func (p *StaticProvider) HardReconciliationTimeout(_ context.Context) (time.Duration, error) {
 	if p == nil || p.Fields.HardReconciliationTimeout == nil {
 		return 0, ErrNotConfigured
@@ -332,6 +367,13 @@ func (p *StaticProvider) HelmSettings(_ context.Context) (v1alpha1.HelmOptions, 
 		return v1alpha1.HelmOptions{}, ErrNotConfigured
 	}
 	return *p.Fields.HelmSettings, nil
+}
+
+func (p *StaticProvider) Help(_ context.Context) (*settings.Help, error) {
+	if p == nil || p.Fields.Help == nil {
+		return nil, ErrNotConfigured
+	}
+	return *p.Fields.Help, nil
 }
 
 func (p *StaticProvider) HydratorEnabled(_ context.Context) (bool, error) {
@@ -465,6 +507,13 @@ func (p *StaticProvider) MetricsPort(_ context.Context) (int, error) {
 		return 0, ErrNotConfigured
 	}
 	return *p.Fields.MetricsPort, nil
+}
+
+func (p *StaticProvider) OIDCLogoutURL(_ context.Context) (string, error) {
+	if p == nil || p.Fields.OIDCLogoutURL == nil {
+		return "", ErrNotConfigured
+	}
+	return *p.Fields.OIDCLogoutURL, nil
 }
 
 func (p *StaticProvider) PasswordPattern(_ context.Context) (string, error) {
@@ -647,6 +696,13 @@ func (p *StaticProvider) TrackingMethod(_ context.Context) (string, error) {
 		return "", ErrNotConfigured
 	}
 	return *p.Fields.TrackingMethod, nil
+}
+
+func (p *StaticProvider) UserSessionDuration(_ context.Context) (time.Duration, error) {
+	if p == nil || p.Fields.UserSessionDuration == nil {
+		return 0, ErrNotConfigured
+	}
+	return *p.Fields.UserSessionDuration, nil
 }
 
 func (p *StaticProvider) WebhookParallelism(_ context.Context) (int, error) {

@@ -3,6 +3,7 @@ package logout
 import (
 	"context"
 	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -15,13 +16,11 @@ import (
 	httputil "github.com/argoproj/argo-cd/v3/util/http"
 	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
 	"github.com/argoproj/argo-cd/v3/util/session"
-	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 // NewHandler creates handler serving to do api/logout endpoint
-func NewHandler(settingsMrg *settings.SettingsManager, sessionMgr *session.SessionManager, configProvider configbus.Provider) *Handler {
+func NewHandler(sessionMgr *session.SessionManager, configProvider configbus.Provider) *Handler {
 	return &Handler{
-		settingsMgr:    settingsMrg,
 		configProvider: configProvider,
 		verifyToken:    sessionMgr.VerifyToken,
 		revokeToken:    sessionMgr.RevokeToken,
@@ -29,7 +28,6 @@ func NewHandler(settingsMrg *settings.SettingsManager, sessionMgr *session.Sessi
 }
 
 type Handler struct {
-	settingsMgr    *settings.SettingsManager
 	configProvider configbus.Provider
 	verifyToken    func(ctx context.Context, tokenString string) (jwt.Claims, string, error)
 	revokeToken    func(ctx context.Context, id string, expiringAt time.Duration) error
@@ -45,18 +43,22 @@ func constructLogoutURL(logoutURL, token, logoutRedirectURL string) string {
 	return logoutRedirectURLPattern.ReplaceAllString(constructedLogoutURL, logoutRedirectURL)
 }
 
+func argoURLForRequest(r *http.Request, serverURL string, additionalURLs []string) (string, error) {
+	for _, candidateURL := range append([]string{serverURL}, additionalURLs...) {
+		u, err := url.Parse(candidateURL)
+		if err != nil {
+			return "", err
+		}
+		if u.Host == r.Host && strings.HasPrefix(r.URL.RequestURI(), u.RequestURI()) {
+			return candidateURL, nil
+		}
+	}
+	return serverURL, nil
+}
+
 // ServeHTTP is the logout handler for ArgoCD and constructs OIDC logout URL and redirects to it for OIDC issued sessions,
 // and redirects user to '/login' for argocd issued sessions
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	var tokenString string
-	var oidcConfig *settings.OIDCConfig
-
-	argoCDSettings, err := h.settingsMgr.GetSettings()
-	if err != nil {
-		http.Error(w, "Failed to retrieve argoCD settings: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
 	rootPath, err := h.configProvider.RootPath(r.Context())
 	if err != nil {
 		http.Error(w, "Failed to resolve root path: "+err.Error(), http.StatusInternalServerError)
@@ -67,8 +69,18 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to resolve base href: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+	serverURL, err := h.configProvider.ServerURL(r.Context())
+	if err != nil {
+		http.Error(w, "Failed to resolve server URL: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	additionalURLs, err := h.configProvider.AdditionalURLs(r.Context())
+	if err != nil {
+		http.Error(w, "Failed to resolve additional URLs: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
 
-	argoURL, err := argoCDSettings.ArgoURLForRequest(r)
+	argoURL, err := argoURLForRequest(r, serverURL, additionalURLs)
 	if err != nil {
 		log.Warnf("unable to find ArgoCD URL from config: %v", err)
 	}
@@ -82,7 +94,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	logoutRedirectURL := strings.TrimRight(strings.TrimLeft(argoURL, "/"), "/")
 
 	cookies := r.Cookies()
-	tokenString, err = httputil.JoinCookies(common.AuthCookieName, cookies)
+	tokenString, err := httputil.JoinCookies(common.AuthCookieName, cookies)
 	// Build message safely: only include err when non-nil
 	if err != nil {
 		http.Error(w, "Failed to retrieve ArgoCD auth token: "+err.Error(), http.StatusBadRequest)
@@ -140,11 +152,15 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if argoCDSettings.OIDCConfig() == nil || argoCDSettings.OIDCConfig().LogoutURL == "" || issuer == session.SessionManagerClaimsIssuer {
+	oidcLogoutURL, err := h.configProvider.OIDCLogoutURL(r.Context())
+	if err != nil {
+		http.Error(w, "Failed to resolve OIDC logout URL: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if oidcLogoutURL == "" || issuer == session.SessionManagerClaimsIssuer {
 		http.Redirect(w, r, logoutRedirectURL, http.StatusSeeOther)
 	} else {
-		oidcConfig = argoCDSettings.OIDCConfig()
-		logoutURL := constructLogoutURL(oidcConfig.LogoutURL, tokenString, logoutRedirectURL)
+		logoutURL := constructLogoutURL(oidcLogoutURL, tokenString, logoutRedirectURL)
 		http.Redirect(w, r, logoutURL, http.StatusSeeOther)
 	}
 }
