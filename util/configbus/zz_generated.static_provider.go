@@ -6,8 +6,6 @@ import (
 	"context"
 	"time"
 
-	"k8s.io/apimachinery/pkg/util/wait"
-
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
@@ -19,7 +17,8 @@ import (
 // Field rules:
 //   - Method returning (T, error) where T is not a pointer → field *T
 //   - Method returning (*U, error) → field **U (nil outer = unset; outer set with
-//     nil inner = configured nil)
+//     nil inner = configured nil). Prefer returning a value type (or a small
+//     policy struct) instead of *U when “configured nil” is a product meaning.
 //   - Method returning ([]T, error) or (map[K]V, error) → field *[]T / *map[K]V
 type StaticFields struct {
 	AllowedNodeLabels                   *[]string
@@ -31,7 +30,7 @@ type StaticFields struct {
 	GitRequestTimeout                   *time.Duration
 	GlobalProjectsSettings              *[]settings.GlobalProjectSettings
 	HardReconciliationTimeout           *time.Duration
-	HelmSettings                        **v1alpha1.HelmOptions
+	HelmSettings                        *v1alpha1.HelmOptions
 	HydratorReadmeTemplate              *string
 	IgnoreNormalizerJQTimeout           *time.Duration
 	IgnoreResourceUpdatesOverrides      *map[string]v1alpha1.ResourceOverride
@@ -40,7 +39,7 @@ type StaticFields struct {
 	IsIgnoreResourceUpdatesEnabled      *bool
 	IsImpersonationEnabled              *bool
 	IsImpersonationEnforced             *bool
-	KustomizeSettings                   **v1alpha1.KustomizeOptions
+	KustomizeSettings                   *v1alpha1.KustomizeOptions
 	MetricsClusterLabels                *[]string
 	PersistResourceHealth               *bool
 	ReconciliationJitter                *time.Duration
@@ -49,9 +48,9 @@ type StaticFields struct {
 	ResourceCompareOptions              *settings.ArgoCDDiffOptions
 	ResourceCustomLabels                *[]string
 	ResourceOverrides                   *map[string]v1alpha1.ResourceOverride
-	ResourcesFilter                     **settings.ResourcesFilter
+	ResourcesFilter                     *settings.ResourcesFilter
 	RespectRBAC                         *int
-	SelfHealBackoff                     **wait.Backoff
+	SelfHealRetry                       *SelfHealRetry
 	SelfHealTimeout                     *time.Duration
 	SensitiveAnnotations                *map[string]bool
 	ServerSideDiff                      *bool
@@ -136,9 +135,9 @@ func (p *StaticProvider) HardReconciliationTimeout(_ context.Context) (time.Dura
 	return *p.Fields.HardReconciliationTimeout, nil
 }
 
-func (p *StaticProvider) HelmSettings(_ context.Context) (*v1alpha1.HelmOptions, error) {
+func (p *StaticProvider) HelmSettings(_ context.Context) (v1alpha1.HelmOptions, error) {
 	if p == nil || p.Fields.HelmSettings == nil {
-		return nil, ErrNotConfigured
+		return v1alpha1.HelmOptions{}, ErrNotConfigured
 	}
 	return *p.Fields.HelmSettings, nil
 }
@@ -199,9 +198,9 @@ func (p *StaticProvider) IsImpersonationEnforced(_ context.Context) (bool, error
 	return *p.Fields.IsImpersonationEnforced, nil
 }
 
-func (p *StaticProvider) KustomizeSettings(_ context.Context) (*v1alpha1.KustomizeOptions, error) {
+func (p *StaticProvider) KustomizeSettings(_ context.Context) (v1alpha1.KustomizeOptions, error) {
 	if p == nil || p.Fields.KustomizeSettings == nil {
-		return nil, ErrNotConfigured
+		return v1alpha1.KustomizeOptions{}, ErrNotConfigured
 	}
 	return *p.Fields.KustomizeSettings, nil
 }
@@ -262,9 +261,9 @@ func (p *StaticProvider) ResourceOverrides(_ context.Context) (map[string]v1alph
 	return *p.Fields.ResourceOverrides, nil
 }
 
-func (p *StaticProvider) ResourcesFilter(_ context.Context) (*settings.ResourcesFilter, error) {
+func (p *StaticProvider) ResourcesFilter(_ context.Context) (settings.ResourcesFilter, error) {
 	if p == nil || p.Fields.ResourcesFilter == nil {
-		return nil, ErrNotConfigured
+		return settings.ResourcesFilter{}, ErrNotConfigured
 	}
 	return *p.Fields.ResourcesFilter, nil
 }
@@ -276,11 +275,11 @@ func (p *StaticProvider) RespectRBAC(_ context.Context) (int, error) {
 	return *p.Fields.RespectRBAC, nil
 }
 
-func (p *StaticProvider) SelfHealBackoff(_ context.Context) (*wait.Backoff, error) {
-	if p == nil || p.Fields.SelfHealBackoff == nil {
-		return nil, ErrNotConfigured
+func (p *StaticProvider) SelfHealRetry(_ context.Context) (SelfHealRetry, error) {
+	if p == nil || p.Fields.SelfHealRetry == nil {
+		return SelfHealRetry{}, ErrNotConfigured
 	}
-	return *p.Fields.SelfHealBackoff, nil
+	return *p.Fields.SelfHealRetry, nil
 }
 
 func (p *StaticProvider) SelfHealTimeout(_ context.Context) (time.Duration, error) {

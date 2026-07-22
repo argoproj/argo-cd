@@ -6,8 +6,6 @@ import (
 	"context"
 	"time"
 
-	"k8s.io/apimachinery/pkg/util/wait"
-
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
@@ -98,8 +96,8 @@ func (c *ChainProvider) HardReconciliationTimeout(ctx context.Context) (time.Dur
 	}, c.links)
 }
 
-func (c *ChainProvider) HelmSettings(ctx context.Context) (*v1alpha1.HelmOptions, error) {
-	return firstConfigured(func(p Provider) (*v1alpha1.HelmOptions, error) {
+func (c *ChainProvider) HelmSettings(ctx context.Context) (v1alpha1.HelmOptions, error) {
+	return firstConfigured(func(p Provider) (v1alpha1.HelmOptions, error) {
 		return p.HelmSettings(ctx)
 	}, c.links)
 }
@@ -152,8 +150,8 @@ func (c *ChainProvider) IsImpersonationEnforced(ctx context.Context) (bool, erro
 	}, c.links)
 }
 
-func (c *ChainProvider) KustomizeSettings(ctx context.Context) (*v1alpha1.KustomizeOptions, error) {
-	return firstConfigured(func(p Provider) (*v1alpha1.KustomizeOptions, error) {
+func (c *ChainProvider) KustomizeSettings(ctx context.Context) (v1alpha1.KustomizeOptions, error) {
+	return firstConfigured(func(p Provider) (v1alpha1.KustomizeOptions, error) {
 		return p.KustomizeSettings(ctx)
 	}, c.links)
 }
@@ -206,8 +204,8 @@ func (c *ChainProvider) ResourceOverrides(ctx context.Context) (map[string]v1alp
 	}, c.links)
 }
 
-func (c *ChainProvider) ResourcesFilter(ctx context.Context) (*settings.ResourcesFilter, error) {
-	return firstConfigured(func(p Provider) (*settings.ResourcesFilter, error) {
+func (c *ChainProvider) ResourcesFilter(ctx context.Context) (settings.ResourcesFilter, error) {
+	return firstConfigured(func(p Provider) (settings.ResourcesFilter, error) {
 		return p.ResourcesFilter(ctx)
 	}, c.links)
 }
@@ -218,9 +216,9 @@ func (c *ChainProvider) RespectRBAC(ctx context.Context) (int, error) {
 	}, c.links)
 }
 
-func (c *ChainProvider) SelfHealBackoff(ctx context.Context) (*wait.Backoff, error) {
-	return firstConfigured(func(p Provider) (*wait.Backoff, error) {
-		return p.SelfHealBackoff(ctx)
+func (c *ChainProvider) SelfHealRetry(ctx context.Context) (SelfHealRetry, error) {
+	return firstConfigured(func(p Provider) (SelfHealRetry, error) {
+		return p.SelfHealRetry(ctx)
 	}, c.links)
 }
 

@@ -3208,6 +3208,9 @@ func TestProcessRequestedAppOperation_SyncTimeout(t *testing.T) {
 
 			override := configbusmocks.NewProvider(t)
 			override.EXPECT().SyncTimeout(mock.Anything).Return(tc.syncTimeout, nil)
+			override.EXPECT().GlobalProjectsSettings(mock.Anything).Return(nil, configbus.ErrNotConfigured).Maybe()
+			override.EXPECT().IncludeEventLabelKeys(mock.Anything).Return(nil, configbus.ErrNotConfigured).Maybe()
+			override.EXPECT().ExcludeEventLabelKeys(mock.Anything).Return(nil, configbus.ErrNotConfigured).Maybe()
 			ctrl.configProvider = configbus.NewChainProvider(override, ctrl.configProvider)
 			app.Status.OperationState = &v1alpha1.OperationState{
 				Operation: *app.Operation,
@@ -3267,6 +3270,9 @@ func TestProcessRequestedAppOperation_RequeuesOperation(t *testing.T) {
 		syncTimeout := 10 * time.Second
 		override := configbusmocks.NewProvider(t)
 		override.EXPECT().SyncTimeout(mock.Anything).Return(syncTimeout, nil)
+		override.EXPECT().GlobalProjectsSettings(mock.Anything).Return(nil, configbus.ErrNotConfigured).Maybe()
+		override.EXPECT().IncludeEventLabelKeys(mock.Anything).Return(nil, configbus.ErrNotConfigured).Maybe()
+		override.EXPECT().ExcludeEventLabelKeys(mock.Anything).Return(nil, configbus.ErrNotConfigured).Maybe()
 		ctrl.configProvider = configbus.NewChainProvider(override, ctrl.configProvider)
 		app.Status.OperationState = &v1alpha1.OperationState{
 			Operation: *app.Operation,
@@ -4022,7 +4028,7 @@ func TestSelfHealRemainingBackoff(t *testing.T) {
 	// Unstubbed mock methods panic; return ErrNotConfigured so Chain falls through
 	// to the real provider for getters this test does not override.
 	override.EXPECT().SelfHealTimeout(mock.Anything).Return(time.Duration(0), configbus.ErrNotConfigured)
-	override.EXPECT().SelfHealBackoff(mock.Anything).Return(backoff, nil)
+	override.EXPECT().SelfHealRetry(mock.Anything).Return(configbus.SelfHealRetry{Backoff: backoff}, nil)
 	ctrl.configProvider = configbus.NewChainProvider(override, ctrl.configProvider)
 	app := &v1alpha1.Application{
 		Status: v1alpha1.ApplicationStatus{

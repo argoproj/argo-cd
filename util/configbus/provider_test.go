@@ -44,7 +44,7 @@ func TestStaticProviderRoundTrip(t *testing.T) {
 		MetricsClusterLabels:      &labels,
 		IgnoreNormalizerJQTimeout: Ptr(2 * time.Second),
 		ServerSideDiff:            Ptr(true),
-		SelfHealBackoff:           PtrPtr(backoff),
+		SelfHealRetry:             Ptr(SelfHealRetry{Backoff: backoff}),
 	}}
 
 	d, err := p.SyncTimeout(context.Background())
@@ -63,20 +63,19 @@ func TestStaticProviderRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, b)
 
-	gotBackoff, err := p.SelfHealBackoff(context.Background())
+	gotRetry, err := p.SelfHealRetry(context.Background())
 	require.NoError(t, err)
-	assert.Equal(t, backoff, gotBackoff)
+	assert.Equal(t, backoff, gotRetry.Backoff)
 
 	_, err = p.AppInstanceLabelKey(context.Background())
 	require.ErrorIs(t, err, ErrNotConfigured)
 }
 
-func TestStaticProviderConfiguredNilPointer(t *testing.T) {
-	var nilBackoff *wait.Backoff
-	p := &StaticProvider{Fields: StaticFields{SelfHealBackoff: PtrPtr(nilBackoff)}}
-	got, err := p.SelfHealBackoff(context.Background())
+func TestStaticProviderConfiguredNilSelfHealBackoff(t *testing.T) {
+	p := &StaticProvider{Fields: StaticFields{SelfHealRetry: Ptr(SelfHealRetry{Backoff: nil})}}
+	got, err := p.SelfHealRetry(context.Background())
 	require.NoError(t, err)
-	assert.Nil(t, got)
+	assert.Nil(t, got.Backoff)
 }
 
 func TestChainProviderPrecedence(t *testing.T) {

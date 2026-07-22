@@ -75,8 +75,17 @@ func (p *SettingsManagerProvider) GlobalProjectsSettings(_ context.Context) ([]s
 	return withMgr(p, (*settings.SettingsManager).GetGlobalProjectsSettings)
 }
 
-func (p *SettingsManagerProvider) HelmSettings(_ context.Context) (*v1alpha1.HelmOptions, error) {
-	return withMgr(p, (*settings.SettingsManager).GetHelmSettings)
+func (p *SettingsManagerProvider) HelmSettings(_ context.Context) (v1alpha1.HelmOptions, error) {
+	return withMgr(p, func(mgr *settings.SettingsManager) (v1alpha1.HelmOptions, error) {
+		opts, err := mgr.GetHelmSettings()
+		if err != nil {
+			return v1alpha1.HelmOptions{}, err
+		}
+		if opts == nil {
+			return v1alpha1.HelmOptions{}, nil
+		}
+		return *opts, nil
+	})
 }
 
 func (p *SettingsManagerProvider) HydratorReadmeTemplate(_ context.Context) (string, error) {
@@ -109,8 +118,17 @@ func (p *SettingsManagerProvider) IsImpersonationEnforced(_ context.Context) (bo
 	return withMgr(p, (*settings.SettingsManager).IsImpersonationEnforced)
 }
 
-func (p *SettingsManagerProvider) KustomizeSettings(_ context.Context) (*v1alpha1.KustomizeOptions, error) {
-	return withMgr(p, (*settings.SettingsManager).GetKustomizeSettings)
+func (p *SettingsManagerProvider) KustomizeSettings(_ context.Context) (v1alpha1.KustomizeOptions, error) {
+	return withMgr(p, func(mgr *settings.SettingsManager) (v1alpha1.KustomizeOptions, error) {
+		opts, err := mgr.GetKustomizeSettings()
+		if err != nil {
+			return v1alpha1.KustomizeOptions{}, err
+		}
+		if opts == nil {
+			return v1alpha1.KustomizeOptions{}, nil
+		}
+		return *opts, nil
+	})
 }
 
 func (p *SettingsManagerProvider) ResourceCompareOptions(_ context.Context) (settings.ArgoCDDiffOptions, error) {
@@ -125,8 +143,17 @@ func (p *SettingsManagerProvider) ResourceOverrides(_ context.Context) (map[stri
 	return withMgr(p, (*settings.SettingsManager).GetResourceOverrides)
 }
 
-func (p *SettingsManagerProvider) ResourcesFilter(_ context.Context) (*settings.ResourcesFilter, error) {
-	return withMgr(p, (*settings.SettingsManager).GetResourcesFilter)
+func (p *SettingsManagerProvider) ResourcesFilter(_ context.Context) (settings.ResourcesFilter, error) {
+	return withMgr(p, func(mgr *settings.SettingsManager) (settings.ResourcesFilter, error) {
+		f, err := mgr.GetResourcesFilter()
+		if err != nil {
+			return settings.ResourcesFilter{}, err
+		}
+		if f == nil {
+			return settings.ResourcesFilter{}, nil
+		}
+		return *f, nil
+	})
 }
 
 func (p *SettingsManagerProvider) RespectRBAC(_ context.Context) (int, error) {

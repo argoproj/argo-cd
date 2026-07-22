@@ -276,7 +276,7 @@ func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
 	}
 	clusterSettings := clustercache.Settings{
 		ResourceHealthOverride: lua.ResourceHealthOverrides(resourceOverrides),
-		ResourcesFilter:        resourcesFilter,
+		ResourcesFilter:        &resourcesFilter,
 	}
 
 	return &cacheSettings{
