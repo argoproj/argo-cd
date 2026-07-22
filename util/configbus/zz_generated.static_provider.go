@@ -21,78 +21,87 @@ import (
 //     policy struct) instead of *U when “configured nil” is a product meaning.
 //   - Method returning ([]T, error) or (map[K]V, error) → field *[]T / *map[K]V
 type StaticFields struct {
-	AllowedNodeLabels                   *[]string
-	AllowedScmProviders                 *[]string
-	AnonymousUserEnabled                *bool
-	AppInstanceLabelKey                 *string
-	ApplicationDeepLinks                *[]settings.DeepLink
-	ApplicationNamespaces               *[]string
-	BaseHRef                            *string
-	CommitAuthorEmail                   *string
-	CommitAuthorName                    *string
-	ContentSecurityPolicy               *string
-	ContentTypes                        *[]string
-	DexServerAddr                       *string
-	DexServerPlaintext                  *bool
-	DexServerStrictTLS                  *bool
-	DisableAuth                         *bool
-	EnableGZip                          *bool
-	EnableGitHubAPIMetrics              *bool
-	EnableK8sEvent                      *[]string
-	EnableNewGitFileGlobbing            *bool
-	EnableProxyExtension                *bool
-	EnableScmProviders                  *bool
-	EnabledSourceTypes                  *map[string]bool
-	ExcludeEventLabelKeys               *[]string
-	ExecEnabled                         *bool
-	ExecShells                          *[]string
-	GitRequestTimeout                   *time.Duration
-	GitSubmoduleEnabled                 *bool
-	GlobalProjectsSettings              *[]settings.GlobalProjectSettings
-	HardReconciliationTimeout           *time.Duration
-	HelmSettings                        *v1alpha1.HelmOptions
-	HydratorEnabled                     *bool
-	HydratorReadmeTemplate              *string
-	IgnoreNormalizerJQTimeout           *time.Duration
-	IgnoreResourceUpdatesOverrides      *map[string]v1alpha1.ResourceOverride
-	IncludeEventLabelKeys               *[]string
-	Insecure                            *bool
-	InstallationID                      *string
-	IsIgnoreResourceUpdatesEnabled      *bool
-	IsImpersonationEnabled              *bool
-	IsImpersonationEnforced             *bool
-	KustomizeSettings                   *v1alpha1.KustomizeOptions
-	ListenHost                          *string
-	ListenPort                          *int
-	MetricsClusterLabels                *[]string
-	MetricsHost                         *string
-	MetricsPort                         *int
-	PersistResourceHealth               *bool
-	ProjectDeepLinks                    *[]settings.DeepLink
-	ReconciliationJitter                *time.Duration
-	ReconciliationTimeout               *time.Duration
-	RepoErrorGracePeriod                *time.Duration
-	ResourceCompareOptions              *settings.ArgoCDDiffOptions
-	ResourceCustomLabels                *[]string
-	ResourceDeepLinks                   *[]settings.DeepLink
-	ResourceOverrides                   *map[string]v1alpha1.ResourceOverride
-	ResourcesFilter                     *settings.ResourcesFilter
-	RespectRBAC                         *int
-	RootPath                            *string
-	ScmRootCAPath                       *string
-	SelfHealRetry                       *SelfHealRetry
-	SelfHealTimeout                     *time.Duration
-	SensitiveAnnotations                *map[string]bool
-	ServerSideDiff                      *bool
-	SourceHydratorCommitMessageTemplate *string
-	StaticAssetsDir                     *string
-	StatusBadgeEnabled                  *bool
-	SyncTimeout                         *time.Duration
-	SyncWithReplaceAllowed              *bool
-	TrackingMethod                      *string
-	WebhookParallelism                  *int
-	WebhookRefreshWorkers               *int
-	XFrameOptions                       *string
+	AllowedNodeLabels                             *[]string
+	AllowedScmProviders                           *[]string
+	AnonymousUserEnabled                          *bool
+	AppInstanceLabelKey                           *string
+	ApplicationDeepLinks                          *[]settings.DeepLink
+	ApplicationFineGrainedRBACInheritanceDisabled *bool
+	ApplicationNamespaces                         *[]string
+	BaseHRef                                      *string
+	CommitAuthorEmail                             *string
+	CommitAuthorName                              *string
+	ContentSecurityPolicy                         *string
+	ContentTypes                                  *[]string
+	DexServerAddr                                 *string
+	DexServerPlaintext                            *bool
+	DexServerStrictTLS                            *bool
+	DisableAuth                                   *bool
+	EnableGZip                                    *bool
+	EnableGitHubAPIMetrics                        *bool
+	EnableK8sEvent                                *[]string
+	EnableNewGitFileGlobbing                      *bool
+	EnableProxyExtension                          *bool
+	EnableScmProviders                            *bool
+	EnabledSourceTypes                            *map[string]bool
+	ExcludeEventLabelKeys                         *[]string
+	ExecEnabled                                   *bool
+	ExecShells                                    *[]string
+	GitRequestTimeout                             *time.Duration
+	GitSubmoduleEnabled                           *bool
+	GlobalProjectsSettings                        *[]settings.GlobalProjectSettings
+	HardReconciliationTimeout                     *time.Duration
+	HelmSettings                                  *v1alpha1.HelmOptions
+	HydratorEnabled                               *bool
+	HydratorReadmeTemplate                        *string
+	IgnoreNormalizerJQTimeout                     *time.Duration
+	IgnoreResourceUpdatesOverrides                *map[string]v1alpha1.ResourceOverride
+	InClusterEnabled                              *bool
+	IncludeEventLabelKeys                         *[]string
+	Insecure                                      *bool
+	InstallationID                                *string
+	IsIgnoreResourceUpdatesEnabled                *bool
+	IsImpersonationEnabled                        *bool
+	IsImpersonationEnforced                       *bool
+	KustomizeSettings                             *v1alpha1.KustomizeOptions
+	ListenHost                                    *string
+	ListenPort                                    *int
+	MaxPodLogsToRender                            *int64
+	MaxWebhookPayloadSize                         *int64
+	MetricsClusterLabels                          *[]string
+	MetricsHost                                   *string
+	MetricsPort                                   *int
+	PasswordPattern                               *string
+	PersistResourceHealth                         *bool
+	ProjectDeepLinks                              *[]settings.DeepLink
+	ReconciliationJitter                          *time.Duration
+	ReconciliationTimeout                         *time.Duration
+	RepoErrorGracePeriod                          *time.Duration
+	RequireOverridePrivilegeForRevisionSync       *bool
+	ResourceCompareOptions                        *settings.ArgoCDDiffOptions
+	ResourceCustomLabels                          *[]string
+	ResourceDeepLinks                             *[]settings.DeepLink
+	ResourceOverrides                             *map[string]v1alpha1.ResourceOverride
+	ResourcesFilter                               *settings.ResourcesFilter
+	RespectRBAC                                   *int
+	RootPath                                      *string
+	ScmRootCAPath                                 *string
+	SelfHealRetry                                 *SelfHealRetry
+	SelfHealTimeout                               *time.Duration
+	SensitiveAnnotations                          *map[string]bool
+	ServerSideDiff                                *bool
+	ServerURL                                     *string
+	SourceHydratorCommitMessageTemplate           *string
+	StaticAssetsDir                               *string
+	StatusBadgeEnabled                            *bool
+	SyncTimeout                                   *time.Duration
+	SyncWithReplaceAllowed                        *bool
+	TrackingMethod                                *string
+	WebhookParallelism                            *int
+	WebhookRefreshJitter                          *time.Duration
+	WebhookRefreshJitterThreshold                 *int
+	WebhookRefreshWorkers                         *int
+	XFrameOptions                                 *string
 }
 
 // StaticProvider is a leaf Provider backed by StaticFields.
@@ -141,6 +150,13 @@ func (p *StaticProvider) ApplicationDeepLinks(_ context.Context) ([]settings.Dee
 		return nil, ErrNotConfigured
 	}
 	return *p.Fields.ApplicationDeepLinks, nil
+}
+
+func (p *StaticProvider) ApplicationFineGrainedRBACInheritanceDisabled(_ context.Context) (bool, error) {
+	if p == nil || p.Fields.ApplicationFineGrainedRBACInheritanceDisabled == nil {
+		return false, ErrNotConfigured
+	}
+	return *p.Fields.ApplicationFineGrainedRBACInheritanceDisabled, nil
 }
 
 func (p *StaticProvider) ApplicationNamespaces(_ context.Context) ([]string, error) {
@@ -346,6 +362,13 @@ func (p *StaticProvider) IgnoreResourceUpdatesOverrides(_ context.Context) (map[
 	return *p.Fields.IgnoreResourceUpdatesOverrides, nil
 }
 
+func (p *StaticProvider) InClusterEnabled(_ context.Context) (bool, error) {
+	if p == nil || p.Fields.InClusterEnabled == nil {
+		return false, ErrNotConfigured
+	}
+	return *p.Fields.InClusterEnabled, nil
+}
+
 func (p *StaticProvider) IncludeEventLabelKeys(_ context.Context) ([]string, error) {
 	if p == nil || p.Fields.IncludeEventLabelKeys == nil {
 		return nil, ErrNotConfigured
@@ -409,6 +432,20 @@ func (p *StaticProvider) ListenPort(_ context.Context) (int, error) {
 	return *p.Fields.ListenPort, nil
 }
 
+func (p *StaticProvider) MaxPodLogsToRender(_ context.Context) (int64, error) {
+	if p == nil || p.Fields.MaxPodLogsToRender == nil {
+		return 0, ErrNotConfigured
+	}
+	return *p.Fields.MaxPodLogsToRender, nil
+}
+
+func (p *StaticProvider) MaxWebhookPayloadSize(_ context.Context) (int64, error) {
+	if p == nil || p.Fields.MaxWebhookPayloadSize == nil {
+		return 0, ErrNotConfigured
+	}
+	return *p.Fields.MaxWebhookPayloadSize, nil
+}
+
 func (p *StaticProvider) MetricsClusterLabels(_ context.Context) ([]string, error) {
 	if p == nil || p.Fields.MetricsClusterLabels == nil {
 		return nil, ErrNotConfigured
@@ -428,6 +465,13 @@ func (p *StaticProvider) MetricsPort(_ context.Context) (int, error) {
 		return 0, ErrNotConfigured
 	}
 	return *p.Fields.MetricsPort, nil
+}
+
+func (p *StaticProvider) PasswordPattern(_ context.Context) (string, error) {
+	if p == nil || p.Fields.PasswordPattern == nil {
+		return "", ErrNotConfigured
+	}
+	return *p.Fields.PasswordPattern, nil
 }
 
 func (p *StaticProvider) PersistResourceHealth(_ context.Context) (bool, error) {
@@ -463,6 +507,13 @@ func (p *StaticProvider) RepoErrorGracePeriod(_ context.Context) (time.Duration,
 		return 0, ErrNotConfigured
 	}
 	return *p.Fields.RepoErrorGracePeriod, nil
+}
+
+func (p *StaticProvider) RequireOverridePrivilegeForRevisionSync(_ context.Context) (bool, error) {
+	if p == nil || p.Fields.RequireOverridePrivilegeForRevisionSync == nil {
+		return false, ErrNotConfigured
+	}
+	return *p.Fields.RequireOverridePrivilegeForRevisionSync, nil
 }
 
 func (p *StaticProvider) ResourceCompareOptions(_ context.Context) (settings.ArgoCDDiffOptions, error) {
@@ -549,6 +600,13 @@ func (p *StaticProvider) ServerSideDiff(_ context.Context) (bool, error) {
 	return *p.Fields.ServerSideDiff, nil
 }
 
+func (p *StaticProvider) ServerURL(_ context.Context) (string, error) {
+	if p == nil || p.Fields.ServerURL == nil {
+		return "", ErrNotConfigured
+	}
+	return *p.Fields.ServerURL, nil
+}
+
 func (p *StaticProvider) SourceHydratorCommitMessageTemplate(_ context.Context) (string, error) {
 	if p == nil || p.Fields.SourceHydratorCommitMessageTemplate == nil {
 		return "", ErrNotConfigured
@@ -596,6 +654,20 @@ func (p *StaticProvider) WebhookParallelism(_ context.Context) (int, error) {
 		return 0, ErrNotConfigured
 	}
 	return *p.Fields.WebhookParallelism, nil
+}
+
+func (p *StaticProvider) WebhookRefreshJitter(_ context.Context) (time.Duration, error) {
+	if p == nil || p.Fields.WebhookRefreshJitter == nil {
+		return 0, ErrNotConfigured
+	}
+	return *p.Fields.WebhookRefreshJitter, nil
+}
+
+func (p *StaticProvider) WebhookRefreshJitterThreshold(_ context.Context) (int, error) {
+	if p == nil || p.Fields.WebhookRefreshJitterThreshold == nil {
+		return 0, ErrNotConfigured
+	}
+	return *p.Fields.WebhookRefreshJitterThreshold, nil
 }
 
 func (p *StaticProvider) WebhookRefreshWorkers(_ context.Context) (int, error) {

@@ -496,8 +496,9 @@ func TestValidateRepo(t *testing.T) {
 
 	kubeClient := fake.NewClientset(&cm)
 	settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, test.FakeArgoCDNamespace)
+	configProvider := configbus.NewSettingsManagerProvider(settingsMgr)
 
-	conditions, err := ValidateRepo(t.Context(), app, repoClientSet, db, &kubetest.MockKubectlCmd{Version: kubeVersion, APIResources: apiResources}, proj, settingsMgr)
+	conditions, err := ValidateRepo(t.Context(), app, repoClientSet, db, &kubetest.MockKubectlCmd{Version: kubeVersion, APIResources: apiResources}, proj, configProvider)
 
 	require.NoError(t, err)
 	assert.Empty(t, conditions)
@@ -584,8 +585,9 @@ func TestValidateRepo_SourceHydrator(t *testing.T) {
 	}
 	kubeClient := fake.NewClientset(&cm)
 	settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, test.FakeArgoCDNamespace)
+	configProvider := configbus.NewSettingsManagerProvider(settingsMgr)
 
-	conditions, err := ValidateRepo(t.Context(), app, repoClientSet, db, &kubetest.MockKubectlCmd{Version: kubeVersion, APIResources: apiResources}, proj, settingsMgr)
+	conditions, err := ValidateRepo(t.Context(), app, repoClientSet, db, &kubetest.MockKubectlCmd{Version: kubeVersion, APIResources: apiResources}, proj, configProvider)
 
 	require.NoError(t, err)
 	assert.Empty(t, conditions)

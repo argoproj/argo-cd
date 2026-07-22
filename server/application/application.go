@@ -1401,7 +1401,7 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *v1alpha1.Appl
 
 	if validate {
 		conditions := make([]v1alpha1.ApplicationCondition, 0)
-		condition, err := argo.ValidateRepo(ctx, app, s.repoClientset, s.db, s.kubectl, proj, s.settingsMgr)
+		condition, err := argo.ValidateRepo(ctx, app, s.repoClientset, s.db, s.kubectl, proj, s.configProvider)
 		if err != nil {
 			return fmt.Errorf("error validating the repo: %w", err)
 		}
@@ -1514,9 +1514,9 @@ func (s *Server) getAppResources(ctx context.Context, a *v1alpha1.Application) (
 }
 
 func (s *Server) getAppLiveResource(ctx context.Context, action string, q *application.ApplicationResourceRequest) (*v1alpha1.ResourceNode, *rest.Config, *v1alpha1.Application, error) {
-	fineGrainedInheritanceDisabled, err := s.settingsMgr.ApplicationFineGrainedRBACInheritanceDisabled()
+	fineGrainedInheritanceDisabled, err := s.configProvider.ApplicationFineGrainedRBACInheritanceDisabled(ctx)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, fmt.Errorf("failed to resolve ApplicationFineGrainedRBACInheritanceDisabled: %w", err)
 	}
 
 	if fineGrainedInheritanceDisabled && (action == rbac.ActionDelete || action == rbac.ActionUpdate) {
@@ -1947,9 +1947,9 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 		return nil
 	}
 
-	maxPodLogsToRender, err := s.settingsMgr.GetMaxPodLogsToRender()
+	maxPodLogsToRender, err := s.configProvider.MaxPodLogsToRender(ws.Context())
 	if err != nil {
-		return fmt.Errorf("error getting MaxPodLogsToRender config: %w", err)
+		return fmt.Errorf("failed to resolve MaxPodLogsToRender: %w", err)
 	}
 
 	if int64(len(pods)) > maxPodLogsToRender {
@@ -2235,11 +2235,9 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 }
 
 func (s *Server) resolveSourceRevisions(ctx context.Context, a *v1alpha1.Application, syncReq *application.ApplicationSyncRequest) (string, string, []string, []string, error) {
-	requireOverridePrivilegeForRevisionSync, err := s.settingsMgr.RequireOverridePrivilegeForRevisionSync()
+	requireOverridePrivilegeForRevisionSync, err := s.configProvider.RequireOverridePrivilegeForRevisionSync(ctx)
 	if err != nil {
-		// give up, and return the error
-		return "", "", nil, nil,
-			fmt.Errorf("error getting setting 'RequireOverridePrivilegeForRevisionSync' from configmap: : %w", err)
+		return "", "", nil, nil, fmt.Errorf("failed to resolve RequireOverridePrivilegeForRevisionSync: %w", err)
 	}
 	if a.Spec.HasMultipleSources() {
 		numOfSources := int64(len(a.Spec.GetSources()))
@@ -2395,11 +2393,11 @@ func (s *Server) ListLinks(ctx context.Context, req *application.ListAppLinksReq
 
 	// If no managed-by URL is set, use the current instance's URL
 	if deepLinksObject[deeplinks.ManagedByURLKey] == nil {
-		settings, err := s.settingsMgr.GetSettings()
+		serverURL, err := s.configProvider.ServerURL(ctx)
 		if err != nil {
-			log.Warnf("Failed to get settings: %v", err)
-		} else if settings.URL != "" {
-			deepLinksObject[deeplinks.ManagedByURLKey] = settings.URL
+			log.Warnf("Failed to resolve ServerURL: %v", err)
+		} else if serverURL != "" {
+			deepLinksObject[deeplinks.ManagedByURLKey] = serverURL
 		}
 	}
 

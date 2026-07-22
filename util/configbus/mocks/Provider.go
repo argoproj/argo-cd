@@ -347,6 +347,66 @@ func (_c *Provider_ApplicationDeepLinks_Call) RunAndReturn(run func(ctx context.
 	return _c
 }
 
+// ApplicationFineGrainedRBACInheritanceDisabled provides a mock function for the type Provider
+func (_mock *Provider) ApplicationFineGrainedRBACInheritanceDisabled(ctx context.Context) (bool, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ApplicationFineGrainedRBACInheritanceDisabled")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (bool, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) bool); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_ApplicationFineGrainedRBACInheritanceDisabled_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ApplicationFineGrainedRBACInheritanceDisabled'
+type Provider_ApplicationFineGrainedRBACInheritanceDisabled_Call struct {
+	*mock.Call
+}
+
+// ApplicationFineGrainedRBACInheritanceDisabled is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) ApplicationFineGrainedRBACInheritanceDisabled(ctx any) *Provider_ApplicationFineGrainedRBACInheritanceDisabled_Call {
+	return &Provider_ApplicationFineGrainedRBACInheritanceDisabled_Call{Call: _e.mock.On("ApplicationFineGrainedRBACInheritanceDisabled", ctx)}
+}
+
+func (_c *Provider_ApplicationFineGrainedRBACInheritanceDisabled_Call) Run(run func(ctx context.Context)) *Provider_ApplicationFineGrainedRBACInheritanceDisabled_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_ApplicationFineGrainedRBACInheritanceDisabled_Call) Return(b bool, err error) *Provider_ApplicationFineGrainedRBACInheritanceDisabled_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *Provider_ApplicationFineGrainedRBACInheritanceDisabled_Call) RunAndReturn(run func(ctx context.Context) (bool, error)) *Provider_ApplicationFineGrainedRBACInheritanceDisabled_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ApplicationNamespaces provides a mock function for the type Provider
 func (_mock *Provider) ApplicationNamespaces(ctx context.Context) ([]string, error) {
 	ret := _mock.Called(ctx)
@@ -2103,6 +2163,66 @@ func (_c *Provider_IgnoreResourceUpdatesOverrides_Call) RunAndReturn(run func(ct
 	return _c
 }
 
+// InClusterEnabled provides a mock function for the type Provider
+func (_mock *Provider) InClusterEnabled(ctx context.Context) (bool, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for InClusterEnabled")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (bool, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) bool); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_InClusterEnabled_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'InClusterEnabled'
+type Provider_InClusterEnabled_Call struct {
+	*mock.Call
+}
+
+// InClusterEnabled is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) InClusterEnabled(ctx any) *Provider_InClusterEnabled_Call {
+	return &Provider_InClusterEnabled_Call{Call: _e.mock.On("InClusterEnabled", ctx)}
+}
+
+func (_c *Provider_InClusterEnabled_Call) Run(run func(ctx context.Context)) *Provider_InClusterEnabled_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_InClusterEnabled_Call) Return(b bool, err error) *Provider_InClusterEnabled_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *Provider_InClusterEnabled_Call) RunAndReturn(run func(ctx context.Context) (bool, error)) *Provider_InClusterEnabled_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // IncludeEventLabelKeys provides a mock function for the type Provider
 func (_mock *Provider) IncludeEventLabelKeys(ctx context.Context) ([]string, error) {
 	ret := _mock.Called(ctx)
@@ -2645,6 +2765,126 @@ func (_c *Provider_ListenPort_Call) RunAndReturn(run func(ctx context.Context) (
 	return _c
 }
 
+// MaxPodLogsToRender provides a mock function for the type Provider
+func (_mock *Provider) MaxPodLogsToRender(ctx context.Context) (int64, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for MaxPodLogsToRender")
+	}
+
+	var r0 int64
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (int64, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) int64); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_MaxPodLogsToRender_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MaxPodLogsToRender'
+type Provider_MaxPodLogsToRender_Call struct {
+	*mock.Call
+}
+
+// MaxPodLogsToRender is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) MaxPodLogsToRender(ctx any) *Provider_MaxPodLogsToRender_Call {
+	return &Provider_MaxPodLogsToRender_Call{Call: _e.mock.On("MaxPodLogsToRender", ctx)}
+}
+
+func (_c *Provider_MaxPodLogsToRender_Call) Run(run func(ctx context.Context)) *Provider_MaxPodLogsToRender_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_MaxPodLogsToRender_Call) Return(n int64, err error) *Provider_MaxPodLogsToRender_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *Provider_MaxPodLogsToRender_Call) RunAndReturn(run func(ctx context.Context) (int64, error)) *Provider_MaxPodLogsToRender_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// MaxWebhookPayloadSize provides a mock function for the type Provider
+func (_mock *Provider) MaxWebhookPayloadSize(ctx context.Context) (int64, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for MaxWebhookPayloadSize")
+	}
+
+	var r0 int64
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (int64, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) int64); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(int64)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_MaxWebhookPayloadSize_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'MaxWebhookPayloadSize'
+type Provider_MaxWebhookPayloadSize_Call struct {
+	*mock.Call
+}
+
+// MaxWebhookPayloadSize is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) MaxWebhookPayloadSize(ctx any) *Provider_MaxWebhookPayloadSize_Call {
+	return &Provider_MaxWebhookPayloadSize_Call{Call: _e.mock.On("MaxWebhookPayloadSize", ctx)}
+}
+
+func (_c *Provider_MaxWebhookPayloadSize_Call) Run(run func(ctx context.Context)) *Provider_MaxWebhookPayloadSize_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_MaxWebhookPayloadSize_Call) Return(n int64, err error) *Provider_MaxWebhookPayloadSize_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *Provider_MaxWebhookPayloadSize_Call) RunAndReturn(run func(ctx context.Context) (int64, error)) *Provider_MaxWebhookPayloadSize_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // MetricsClusterLabels provides a mock function for the type Provider
 func (_mock *Provider) MetricsClusterLabels(ctx context.Context) ([]string, error) {
 	ret := _mock.Called(ctx)
@@ -2823,6 +3063,66 @@ func (_c *Provider_MetricsPort_Call) Return(n int, err error) *Provider_MetricsP
 }
 
 func (_c *Provider_MetricsPort_Call) RunAndReturn(run func(ctx context.Context) (int, error)) *Provider_MetricsPort_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// PasswordPattern provides a mock function for the type Provider
+func (_mock *Provider) PasswordPattern(ctx context.Context) (string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for PasswordPattern")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_PasswordPattern_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'PasswordPattern'
+type Provider_PasswordPattern_Call struct {
+	*mock.Call
+}
+
+// PasswordPattern is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) PasswordPattern(ctx any) *Provider_PasswordPattern_Call {
+	return &Provider_PasswordPattern_Call{Call: _e.mock.On("PasswordPattern", ctx)}
+}
+
+func (_c *Provider_PasswordPattern_Call) Run(run func(ctx context.Context)) *Provider_PasswordPattern_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_PasswordPattern_Call) Return(s string, err error) *Provider_PasswordPattern_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *Provider_PasswordPattern_Call) RunAndReturn(run func(ctx context.Context) (string, error)) *Provider_PasswordPattern_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -3125,6 +3425,66 @@ func (_c *Provider_RepoErrorGracePeriod_Call) Return(duration time.Duration, err
 }
 
 func (_c *Provider_RepoErrorGracePeriod_Call) RunAndReturn(run func(ctx context.Context) (time.Duration, error)) *Provider_RepoErrorGracePeriod_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// RequireOverridePrivilegeForRevisionSync provides a mock function for the type Provider
+func (_mock *Provider) RequireOverridePrivilegeForRevisionSync(ctx context.Context) (bool, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for RequireOverridePrivilegeForRevisionSync")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (bool, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) bool); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_RequireOverridePrivilegeForRevisionSync_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RequireOverridePrivilegeForRevisionSync'
+type Provider_RequireOverridePrivilegeForRevisionSync_Call struct {
+	*mock.Call
+}
+
+// RequireOverridePrivilegeForRevisionSync is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) RequireOverridePrivilegeForRevisionSync(ctx any) *Provider_RequireOverridePrivilegeForRevisionSync_Call {
+	return &Provider_RequireOverridePrivilegeForRevisionSync_Call{Call: _e.mock.On("RequireOverridePrivilegeForRevisionSync", ctx)}
+}
+
+func (_c *Provider_RequireOverridePrivilegeForRevisionSync_Call) Run(run func(ctx context.Context)) *Provider_RequireOverridePrivilegeForRevisionSync_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_RequireOverridePrivilegeForRevisionSync_Call) Return(b bool, err error) *Provider_RequireOverridePrivilegeForRevisionSync_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *Provider_RequireOverridePrivilegeForRevisionSync_Call) RunAndReturn(run func(ctx context.Context) (bool, error)) *Provider_RequireOverridePrivilegeForRevisionSync_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -3857,6 +4217,66 @@ func (_c *Provider_ServerSideDiff_Call) RunAndReturn(run func(ctx context.Contex
 	return _c
 }
 
+// ServerURL provides a mock function for the type Provider
+func (_mock *Provider) ServerURL(ctx context.Context) (string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ServerURL")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_ServerURL_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ServerURL'
+type Provider_ServerURL_Call struct {
+	*mock.Call
+}
+
+// ServerURL is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) ServerURL(ctx any) *Provider_ServerURL_Call {
+	return &Provider_ServerURL_Call{Call: _e.mock.On("ServerURL", ctx)}
+}
+
+func (_c *Provider_ServerURL_Call) Run(run func(ctx context.Context)) *Provider_ServerURL_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_ServerURL_Call) Return(s string, err error) *Provider_ServerURL_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *Provider_ServerURL_Call) RunAndReturn(run func(ctx context.Context) (string, error)) *Provider_ServerURL_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // SourceHydratorCommitMessageTemplate provides a mock function for the type Provider
 func (_mock *Provider) SourceHydratorCommitMessageTemplate(ctx context.Context) (string, error) {
 	ret := _mock.Called(ctx)
@@ -4353,6 +4773,126 @@ func (_c *Provider_WebhookParallelism_Call) Return(n int, err error) *Provider_W
 }
 
 func (_c *Provider_WebhookParallelism_Call) RunAndReturn(run func(ctx context.Context) (int, error)) *Provider_WebhookParallelism_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// WebhookRefreshJitter provides a mock function for the type Provider
+func (_mock *Provider) WebhookRefreshJitter(ctx context.Context) (time.Duration, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for WebhookRefreshJitter")
+	}
+
+	var r0 time.Duration
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (time.Duration, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) time.Duration); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(time.Duration)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_WebhookRefreshJitter_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'WebhookRefreshJitter'
+type Provider_WebhookRefreshJitter_Call struct {
+	*mock.Call
+}
+
+// WebhookRefreshJitter is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) WebhookRefreshJitter(ctx any) *Provider_WebhookRefreshJitter_Call {
+	return &Provider_WebhookRefreshJitter_Call{Call: _e.mock.On("WebhookRefreshJitter", ctx)}
+}
+
+func (_c *Provider_WebhookRefreshJitter_Call) Run(run func(ctx context.Context)) *Provider_WebhookRefreshJitter_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_WebhookRefreshJitter_Call) Return(duration time.Duration, err error) *Provider_WebhookRefreshJitter_Call {
+	_c.Call.Return(duration, err)
+	return _c
+}
+
+func (_c *Provider_WebhookRefreshJitter_Call) RunAndReturn(run func(ctx context.Context) (time.Duration, error)) *Provider_WebhookRefreshJitter_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// WebhookRefreshJitterThreshold provides a mock function for the type Provider
+func (_mock *Provider) WebhookRefreshJitterThreshold(ctx context.Context) (int, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for WebhookRefreshJitterThreshold")
+	}
+
+	var r0 int
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (int, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) int); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(int)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_WebhookRefreshJitterThreshold_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'WebhookRefreshJitterThreshold'
+type Provider_WebhookRefreshJitterThreshold_Call struct {
+	*mock.Call
+}
+
+// WebhookRefreshJitterThreshold is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) WebhookRefreshJitterThreshold(ctx any) *Provider_WebhookRefreshJitterThreshold_Call {
+	return &Provider_WebhookRefreshJitterThreshold_Call{Call: _e.mock.On("WebhookRefreshJitterThreshold", ctx)}
+}
+
+func (_c *Provider_WebhookRefreshJitterThreshold_Call) Run(run func(ctx context.Context)) *Provider_WebhookRefreshJitterThreshold_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_WebhookRefreshJitterThreshold_Call) Return(n int, err error) *Provider_WebhookRefreshJitterThreshold_Call {
+	_c.Call.Return(n, err)
+	return _c
+}
+
+func (_c *Provider_WebhookRefreshJitterThreshold_Call) RunAndReturn(run func(ctx context.Context) (int, error)) *Provider_WebhookRefreshJitterThreshold_Call {
 	_c.Call.Return(run)
 	return _c
 }

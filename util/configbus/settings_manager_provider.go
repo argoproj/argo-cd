@@ -3,6 +3,7 @@ package configbus
 
 import (
 	"context"
+	"time"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/settings"
@@ -70,6 +71,10 @@ func (p *SettingsManagerProvider) ApplicationDeepLinks(_ context.Context) ([]set
 	})
 }
 
+func (p *SettingsManagerProvider) ApplicationFineGrainedRBACInheritanceDisabled(_ context.Context) (bool, error) {
+	return withMgr(p, (*settings.SettingsManager).ApplicationFineGrainedRBACInheritanceDisabled)
+}
+
 func (p *SettingsManagerProvider) CommitAuthorEmail(_ context.Context) (string, error) {
 	return withMgr(p, (*settings.SettingsManager).GetCommitAuthorEmail)
 }
@@ -133,6 +138,10 @@ func (p *SettingsManagerProvider) IgnoreResourceUpdatesOverrides(_ context.Conte
 	return withMgr(p, (*settings.SettingsManager).GetIgnoreResourceUpdatesOverrides)
 }
 
+func (p *SettingsManagerProvider) InClusterEnabled(_ context.Context) (bool, error) {
+	return withMgr(p, (*settings.SettingsManager).IsInClusterEnabled)
+}
+
 func (p *SettingsManagerProvider) IncludeEventLabelKeys(_ context.Context) ([]string, error) {
 	return withMgr(p, func(mgr *settings.SettingsManager) ([]string, error) {
 		return mgr.GetIncludeEventLabelKeys(), nil
@@ -168,10 +177,28 @@ func (p *SettingsManagerProvider) KustomizeSettings(_ context.Context) (v1alpha1
 	})
 }
 
+func (p *SettingsManagerProvider) MaxPodLogsToRender(_ context.Context) (int64, error) {
+	return withMgr(p, (*settings.SettingsManager).GetMaxPodLogsToRender)
+}
+
+func (p *SettingsManagerProvider) MaxWebhookPayloadSize(_ context.Context) (int64, error) {
+	return withMgr(p, func(mgr *settings.SettingsManager) (int64, error) {
+		return mgr.GetMaxWebhookPayloadSize(), nil
+	})
+}
+
+func (p *SettingsManagerProvider) PasswordPattern(_ context.Context) (string, error) {
+	return withMgr(p, (*settings.SettingsManager).GetPasswordPattern)
+}
+
 func (p *SettingsManagerProvider) ProjectDeepLinks(_ context.Context) ([]settings.DeepLink, error) {
 	return withMgr(p, func(mgr *settings.SettingsManager) ([]settings.DeepLink, error) {
 		return mgr.GetDeepLinks(settings.ProjectDeepLinks)
 	})
+}
+
+func (p *SettingsManagerProvider) RequireOverridePrivilegeForRevisionSync(_ context.Context) (bool, error) {
+	return withMgr(p, (*settings.SettingsManager).RequireOverridePrivilegeForRevisionSync)
 }
 
 func (p *SettingsManagerProvider) ResourceCompareOptions(_ context.Context) (settings.ArgoCDDiffOptions, error) {
@@ -215,6 +242,16 @@ func (p *SettingsManagerProvider) SensitiveAnnotations(_ context.Context) (map[s
 	})
 }
 
+func (p *SettingsManagerProvider) ServerURL(_ context.Context) (string, error) {
+	return withMgr(p, func(mgr *settings.SettingsManager) (string, error) {
+		sett, err := mgr.GetSettings()
+		if err != nil {
+			return "", err
+		}
+		return sett.URL, nil
+	})
+}
+
 func (p *SettingsManagerProvider) SourceHydratorCommitMessageTemplate(_ context.Context) (string, error) {
 	return withMgr(p, (*settings.SettingsManager).GetSourceHydratorCommitMessageTemplate)
 }
@@ -231,4 +268,16 @@ func (p *SettingsManagerProvider) StatusBadgeEnabled(_ context.Context) (bool, e
 
 func (p *SettingsManagerProvider) TrackingMethod(_ context.Context) (string, error) {
 	return withMgr(p, (*settings.SettingsManager).GetTrackingMethod)
+}
+
+func (p *SettingsManagerProvider) WebhookRefreshJitter(_ context.Context) (time.Duration, error) {
+	return withMgr(p, func(mgr *settings.SettingsManager) (time.Duration, error) {
+		return mgr.GetWebhookRefreshJitter(), nil
+	})
+}
+
+func (p *SettingsManagerProvider) WebhookRefreshJitterThreshold(_ context.Context) (int, error) {
+	return withMgr(p, func(mgr *settings.SettingsManager) (int, error) {
+		return mgr.GetWebhookRefreshJitterThreshold(), nil
+	})
 }

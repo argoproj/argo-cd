@@ -18,6 +18,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/account"
 	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/password"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 	"github.com/argoproj/argo-cd/v3/util/security"
@@ -27,15 +28,16 @@ import (
 
 // Server provides a Session service
 type Server struct {
-	sessionMgr  *session.SessionManager
-	settingsMgr *settings.SettingsManager
-	enf         *rbac.Enforcer
-	namespace   string
+	sessionMgr     *session.SessionManager
+	settingsMgr    *settings.SettingsManager
+	enf            *rbac.Enforcer
+	namespace      string
+	configProvider configbus.Provider
 }
 
 // NewServer returns a new instance of the Session service
-func NewServer(sessionMgr *session.SessionManager, settingsMgr *settings.SettingsManager, enf *rbac.Enforcer, namespace string) *Server {
-	return &Server{sessionMgr, settingsMgr, enf, namespace}
+func NewServer(sessionMgr *session.SessionManager, settingsMgr *settings.SettingsManager, enf *rbac.Enforcer, namespace string, configProvider configbus.Provider) *Server {
+	return &Server{sessionMgr: sessionMgr, settingsMgr: settingsMgr, enf: enf, namespace: namespace, configProvider: configProvider}
 }
 
 // UpdatePassword updates the password of the currently authenticated account or the account specified in the request.
@@ -82,9 +84,9 @@ func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRe
 	}
 
 	// Need to validate password complexity with regular expression
-	passwordPattern, err := s.settingsMgr.GetPasswordPattern()
+	passwordPattern, err := s.configProvider.PasswordPattern(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get password pattern: %w", err)
+		return nil, fmt.Errorf("failed to resolve PasswordPattern: %w", err)
 	}
 
 	validPasswordRegexp, err := regexp.Compile(passwordPattern)

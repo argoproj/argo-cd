@@ -59,12 +59,15 @@ func TestSettingsServer(t *testing.T) {
 	t.Parallel()
 	newServer := func(data map[string]string) *Server {
 		_, settingsMgr := fixtures(t.Context(), data)
-		return NewServer(settingsMgr, nil, nil, &configbus.StaticProvider{Fields: configbus.StaticFields{
-			ApplicationNamespaces:  configbus.Ptr([]string{}),
-			DisableAuth:          configbus.Ptr(false),
-			HydratorEnabled:        configbus.Ptr(false),
-			SyncWithReplaceAllowed: configbus.Ptr(false),
-		}})
+		return NewServer(settingsMgr, nil, nil, configbus.NewChainProvider(
+			&configbus.StaticProvider{Fields: configbus.StaticFields{
+				ApplicationNamespaces:  configbus.Ptr([]string{}),
+				DisableAuth:            configbus.Ptr(false),
+				HydratorEnabled:        configbus.Ptr(false),
+				SyncWithReplaceAllowed: configbus.Ptr(false),
+			}},
+			configbus.NewSettingsManagerProvider(settingsMgr),
+		))
 	}
 
 	t.Run("TestGetInstallationID", func(t *testing.T) {

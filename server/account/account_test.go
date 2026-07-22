@@ -19,6 +19,7 @@ import (
 	sessionpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/v3/server/session"
 	"github.com/argoproj/argo-cd/v3/test"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/password"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 	sessionutil "github.com/argoproj/argo-cd/v3/util/session"
@@ -70,7 +71,7 @@ func newTestAccountServerExt(t *testing.T, ctx context.Context, enforceFn rbac.C
 	enforcer := rbac.NewEnforcer(kubeclientset, testNamespace, common.ArgoCDRBACConfigMapName, nil)
 	enforcer.SetClaimsEnforcerFunc(enforceFn)
 
-	return NewServer(sessionMgr, settingsMgr, enforcer, testNamespace), session.NewServer(sessionMgr, settingsMgr, nil, nil, nil)
+	return NewServer(sessionMgr, settingsMgr, enforcer, testNamespace, configbus.NewSettingsManagerProvider(settingsMgr)), session.NewServer(sessionMgr, settingsMgr, nil, nil, nil)
 }
 
 func getAdminAccount(mgr *settings.SettingsManager) (*settings.Account, error) {

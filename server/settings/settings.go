@@ -37,18 +37,18 @@ func NewServer(mgr *settings.SettingsManager, repoClient apiclient.Clientset, au
 
 // Get returns Argo CD settings
 func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settingspkg.Settings, error) {
-	resourceOverrides, err := s.mgr.GetResourceOverrides()
+	resourceOverrides, err := s.configProvider.ResourceOverrides(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to resolve ResourceOverrides: %w", err)
 	}
 	overrides := make(map[string]*v1alpha1.ResourceOverride)
 	for k := range resourceOverrides {
 		val := resourceOverrides[k]
 		overrides[k] = &val
 	}
-	appInstanceLabelKey, err := s.mgr.GetAppInstanceLabelKey()
+	appInstanceLabelKey, err := s.configProvider.AppInstanceLabelKey(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to resolve AppInstanceLabelKey: %w", err)
 	}
 	argoCDSettings, err := s.mgr.GetSettings()
 	if err != nil {
@@ -74,50 +74,63 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 		}
 	}
 
-	kustomizeSettings, err := s.mgr.GetKustomizeSettings()
+	kustomizeSettings, err := s.configProvider.KustomizeSettings(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to resolve KustomizeSettings: %w", err)
 	}
 	var kustomizeVersions []string
 	for i := range kustomizeSettings.Versions {
 		kustomizeVersions = append(kustomizeVersions, kustomizeSettings.Versions[i].Name)
 	}
 
-	trackingMethod, err := s.mgr.GetTrackingMethod()
+	trackingMethod, err := s.configProvider.TrackingMethod(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to resolve TrackingMethod: %w", err)
 	}
 
-	installationID, err := s.mgr.GetInstallationID()
+	installationID, err := s.configProvider.InstallationID(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to resolve InstallationID: %w", err)
+	}
+
+	statusBadgeEnabled, err := s.configProvider.StatusBadgeEnabled(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve StatusBadgeEnabled: %w", err)
+	}
+	execEnabled, err := s.configProvider.ExecEnabled(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve ExecEnabled: %w", err)
+	}
+	impersonationEnabled, err := s.configProvider.IsImpersonationEnabled(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve IsImpersonationEnabled: %w", err)
 	}
 
 	applicationNamespaces, err := s.configProvider.ApplicationNamespaces(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to resolve ApplicationNamespaces: %w", err)
 	}
 	hydratorEnabled, err := s.configProvider.HydratorEnabled(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to resolve HydratorEnabled: %w", err)
 	}
 	syncWithReplaceAllowed, err := s.configProvider.SyncWithReplaceAllowed(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to resolve SyncWithReplaceAllowed: %w", err)
 	}
 	disableAuth, err := s.configProvider.DisableAuth(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to resolve DisableAuth: %w", err)
 	}
 
 	set := settingspkg.Settings{
 		URL:                argoCDSettings.URL,
 		AdditionalURLs:     argoCDSettings.AdditionalURLs,
 		AppLabelKey:        appInstanceLabelKey,
-		StatusBadgeEnabled: argoCDSettings.StatusBadgeEnabled,
+		StatusBadgeEnabled: statusBadgeEnabled,
 		StatusBadgeRootUrl: argoCDSettings.StatusBadgeRootUrl,
 		KustomizeOptions: &v1alpha1.KustomizeOptions{
-			BuildOptions: argoCDSettings.KustomizeBuildOptions,
+			BuildOptions: kustomizeSettings.BuildOptions,
 		},
 		GoogleAnalytics: &settingspkg.GoogleAnalyticsConfig{
 			TrackingID:     gaSettings.TrackingID,
@@ -134,9 +147,9 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 		UiLoginButtonText:         argoCDSettings.UiLoginButtonText,
 		TrackingMethod:            trackingMethod,
 		InstallationID:            installationID,
-		ExecEnabled:               argoCDSettings.ExecEnabled,
+		ExecEnabled:               execEnabled,
 		AppsInAnyNamespaceEnabled: len(applicationNamespaces) > 0,
-		ImpersonationEnabled:      argoCDSettings.ImpersonationEnabled,
+		ImpersonationEnabled:      impersonationEnabled,
 		HydratorEnabled:           hydratorEnabled,
 		SyncWithReplaceAllowed:    syncWithReplaceAllowed,
 		ResourceViewEnabled:       argoCDSettings.ResourceViewEnabled,

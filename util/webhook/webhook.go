@@ -90,26 +90,23 @@ type appRefreshRequest struct {
 }
 
 type ArgoCDWebhookHandler struct {
-	sync.WaitGroup                // for testing
-	repoCache                     *cache.Cache
-	serverCache                   *servercache.Cache
-	db                            db.ArgoDB
-	ns                            string
-	configProvider                configbus.Provider
-	appClientset                  appclientset.Interface
-	appsLister                    alpha1.ApplicationLister
-	appProjectsLister             alpha1.AppProjectNamespaceLister
-	parsers                       []Extractor
-	settings                      *settings.ArgoCDSettings
-	settingsSrc                   settingsSource
-	queue                         chan any
-	refreshQueue                  workqueue.TypedDelayingInterface[*appRefreshRequest]
-	maxWebhookPayloadSizeB        int64
-	webhookRefreshJitter          time.Duration
-	webhookRefreshJitterThreshold int
+	sync.WaitGroup // for testing
+	repoCache      *cache.Cache
+	serverCache    *servercache.Cache
+	db             db.ArgoDB
+	ns             string
+	configProvider configbus.Provider
+	appClientset   appclientset.Interface
+	appsLister     alpha1.ApplicationLister
+	appProjectsLister alpha1.AppProjectNamespaceLister
+	parsers        []Extractor
+	settings       *settings.ArgoCDSettings
+	settingsSrc    settingsSource
+	queue          chan any
+	refreshQueue   workqueue.TypedDelayingInterface[*appRefreshRequest]
 }
 
-func NewHandler(namespace string, configProvider configbus.Provider, appClientset appclientset.Interface, appsLister alpha1.ApplicationLister, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB, maxWebhookPayloadSizeB int64, webhookRefreshJitter time.Duration, webhookRefreshJitterThreshold int) (*ArgoCDWebhookHandler, error) {
+func NewHandler(namespace string, configProvider configbus.Provider, appClientset appclientset.Interface, appsLister alpha1.ApplicationLister, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB, appProjectsLister alpha1.AppProjectNamespaceLister) (*ArgoCDWebhookHandler, error) {
 	webhookParallelism, err := configProvider.WebhookParallelism(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve webhook parallelism: %w", err)
@@ -168,26 +165,20 @@ func NewHandler(namespace string, configProvider configbus.Provider, appClientse
 	parsers = append(parsers, newGHCRParser(set.GetWebhookGitHubSecret()))
 	parsers = append(parsers, newHarborParser(set.GetWebhookHarborSecret()))
 
-	log.Debugf("webhookRefreshJitter=%v", webhookRefreshJitter)
-	log.Debugf("webhookRefreshJitterThreshold=%d", webhookRefreshJitterThreshold)
-
 	acdWebhook := ArgoCDWebhookHandler{
-		ns:                            namespace,
-		configProvider:                configProvider,
-		appClientset:                  appClientset,
-		parsers:                       parsers,
-		settingsSrc:                   settingsSrc,
-		repoCache:                     repoCache,
-		serverCache:                   serverCache,
-		settings:                      set,
-		db:                            argoDB,
-		queue:                         make(chan any, payloadQueueSize),
-		refreshQueue:                  workqueue.NewTypedDelayingQueue[*appRefreshRequest](),
-		maxWebhookPayloadSizeB:        maxWebhookPayloadSizeB,
-		appsLister:                    appsLister,
-		appProjectsLister:             appProjectsLister,
-		webhookRefreshJitter:          webhookRefreshJitter,
-		webhookRefreshJitterThreshold: webhookRefreshJitterThreshold,
+		ns:                namespace,
+		configProvider:    configProvider,
+		appClientset:      appClientset,
+		parsers:           parsers,
+		settingsSrc:       settingsSrc,
+		repoCache:         repoCache,
+		serverCache:       serverCache,
+		settings:          set,
+		db:                argoDB,
+		queue:             make(chan any, payloadQueueSize),
+		refreshQueue:      workqueue.NewTypedDelayingQueue[*appRefreshRequest](),
+		appsLister:        appsLister,
+		appProjectsLister: appProjectsLister,
 	}
 
 	acdWebhook.startWorkerPool(webhookParallelism)
@@ -474,6 +465,19 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 		return
 	}
 
+	webhookRefreshJitter, err := a.configProvider.WebhookRefreshJitter(context.Background())
+	if err != nil {
+		log.Errorf("Failed to resolve WebhookRefreshJitter: %v", err)
+		return
+	}
+	webhookRefreshJitterThreshold, err := a.configProvider.WebhookRefreshJitterThreshold(context.Background())
+	if err != nil {
+		log.Errorf("Failed to resolve WebhookRefreshJitterThreshold: %v", err)
+		return
+	}
+	log.Debugf("webhookRefreshJitter=%v", webhookRefreshJitter)
+	log.Debugf("webhookRefreshJitterThreshold=%d", webhookRefreshJitterThreshold)
+
 	// Skip any application that is neither in the control plane's namespace
 	// nor in the list of enabled namespaces.
 	var filteredApps []v1alpha1.Application
@@ -537,8 +541,8 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 							hydrateType:  hydrateType,
 						}
 						// Apply jitter only if more than threshold apps are affected
-						if appCount > a.webhookRefreshJitterThreshold && a.webhookRefreshJitter != 0 {
-							jitter := time.Duration(float64(a.webhookRefreshJitter) * rand.Float64())
+						if appCount > webhookRefreshJitterThreshold && webhookRefreshJitter != 0 {
+							jitter := time.Duration(float64(webhookRefreshJitter) * rand.Float64())
 							a.refreshQueue.AddAfter(req, jitter)
 						} else {
 							a.refreshQueue.Add(req)
@@ -821,7 +825,13 @@ func isHeadTouched(ctx context.Context, bbClient *bb.Client, owner, repoSlug, re
 }
 
 func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
-	r.Body = http.MaxBytesReader(w, r.Body, a.maxWebhookPayloadSizeB)
+	maxWebhookPayloadSizeB, err := a.configProvider.MaxWebhookPayloadSize(r.Context())
+	if err != nil {
+		log.Errorf("Failed to resolve MaxWebhookPayloadSize: %v", err)
+		http.Error(w, "Webhook processing failed", http.StatusInternalServerError)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxWebhookPayloadSizeB)
 	payload, handled, err := a.processWebhook(r)
 	if !handled {
 		http.Error(w, "Unknown webhook event", http.StatusBadRequest)
@@ -836,8 +846,8 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 
 		// If the error is due to a large payload, return a more user-friendly error message
 		if isParsingPayloadError(err) {
-			log.WithField(common.SecurityField, common.SecurityHigh).Warnf("Webhook processing failed: payload too large or corrupted (limit %v MB): %v", a.maxWebhookPayloadSizeB/1024/1024, err)
-			http.Error(w, fmt.Sprintf("Webhook processing failed: payload must be valid JSON under %v MB", a.maxWebhookPayloadSizeB/1024/1024), http.StatusBadRequest)
+			log.WithField(common.SecurityField, common.SecurityHigh).Warnf("Webhook processing failed: payload too large or corrupted (limit %v MB): %v", maxWebhookPayloadSizeB/1024/1024, err)
+			http.Error(w, fmt.Sprintf("Webhook processing failed: payload must be valid JSON under %v MB", maxWebhookPayloadSizeB/1024/1024), http.StatusBadRequest)
 			return
 		}
 

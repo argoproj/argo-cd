@@ -72,6 +72,12 @@ func (c *ChainProvider) ApplicationDeepLinks(ctx context.Context) ([]settings.De
 	}, c.links)
 }
 
+func (c *ChainProvider) ApplicationFineGrainedRBACInheritanceDisabled(ctx context.Context) (bool, error) {
+	return firstConfigured(func(p Provider) (bool, error) {
+		return p.ApplicationFineGrainedRBACInheritanceDisabled(ctx)
+	}, c.links)
+}
+
 func (c *ChainProvider) ApplicationNamespaces(ctx context.Context) ([]string, error) {
 	return firstConfigured(func(p Provider) ([]string, error) {
 		return p.ApplicationNamespaces(ctx)
@@ -246,6 +252,12 @@ func (c *ChainProvider) IgnoreResourceUpdatesOverrides(ctx context.Context) (map
 	}, c.links)
 }
 
+func (c *ChainProvider) InClusterEnabled(ctx context.Context) (bool, error) {
+	return firstConfigured(func(p Provider) (bool, error) {
+		return p.InClusterEnabled(ctx)
+	}, c.links)
+}
+
 func (c *ChainProvider) IncludeEventLabelKeys(ctx context.Context) ([]string, error) {
 	return firstConfigured(func(p Provider) ([]string, error) {
 		return p.IncludeEventLabelKeys(ctx)
@@ -300,6 +312,18 @@ func (c *ChainProvider) ListenPort(ctx context.Context) (int, error) {
 	}, c.links)
 }
 
+func (c *ChainProvider) MaxPodLogsToRender(ctx context.Context) (int64, error) {
+	return firstConfigured(func(p Provider) (int64, error) {
+		return p.MaxPodLogsToRender(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) MaxWebhookPayloadSize(ctx context.Context) (int64, error) {
+	return firstConfigured(func(p Provider) (int64, error) {
+		return p.MaxWebhookPayloadSize(ctx)
+	}, c.links)
+}
+
 func (c *ChainProvider) MetricsClusterLabels(ctx context.Context) ([]string, error) {
 	return firstConfigured(func(p Provider) ([]string, error) {
 		return p.MetricsClusterLabels(ctx)
@@ -315,6 +339,12 @@ func (c *ChainProvider) MetricsHost(ctx context.Context) (string, error) {
 func (c *ChainProvider) MetricsPort(ctx context.Context) (int, error) {
 	return firstConfigured(func(p Provider) (int, error) {
 		return p.MetricsPort(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) PasswordPattern(ctx context.Context) (string, error) {
+	return firstConfigured(func(p Provider) (string, error) {
+		return p.PasswordPattern(ctx)
 	}, c.links)
 }
 
@@ -345,6 +375,12 @@ func (c *ChainProvider) ReconciliationTimeout(ctx context.Context) (time.Duratio
 func (c *ChainProvider) RepoErrorGracePeriod(ctx context.Context) (time.Duration, error) {
 	return firstConfigured(func(p Provider) (time.Duration, error) {
 		return p.RepoErrorGracePeriod(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) RequireOverridePrivilegeForRevisionSync(ctx context.Context) (bool, error) {
+	return firstConfigured(func(p Provider) (bool, error) {
+		return p.RequireOverridePrivilegeForRevisionSync(ctx)
 	}, c.links)
 }
 
@@ -420,6 +456,12 @@ func (c *ChainProvider) ServerSideDiff(ctx context.Context) (bool, error) {
 	}, c.links)
 }
 
+func (c *ChainProvider) ServerURL(ctx context.Context) (string, error) {
+	return firstConfigured(func(p Provider) (string, error) {
+		return p.ServerURL(ctx)
+	}, c.links)
+}
+
 func (c *ChainProvider) SourceHydratorCommitMessageTemplate(ctx context.Context) (string, error) {
 	return firstConfigured(func(p Provider) (string, error) {
 		return p.SourceHydratorCommitMessageTemplate(ctx)
@@ -459,6 +501,18 @@ func (c *ChainProvider) TrackingMethod(ctx context.Context) (string, error) {
 func (c *ChainProvider) WebhookParallelism(ctx context.Context) (int, error) {
 	return firstConfigured(func(p Provider) (int, error) {
 		return p.WebhookParallelism(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) WebhookRefreshJitter(ctx context.Context) (time.Duration, error) {
+	return firstConfigured(func(p Provider) (time.Duration, error) {
+		return p.WebhookRefreshJitter(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) WebhookRefreshJitterThreshold(ctx context.Context) (int, error) {
+	return firstConfigured(func(p Provider) (int, error) {
+		return p.WebhookRefreshJitterThreshold(ctx)
 	}, c.links)
 }
 

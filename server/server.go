@@ -569,9 +569,9 @@ func (server *ArgoCDServer) logInClusterWarnings() error {
 	}
 	if len(inClusterNames) > 0 {
 		// Don't make this call unless we actually have in-cluster secrets, to save time.
-		inClusterEnabled, err := server.settingsMgr.IsInClusterEnabled()
+		inClusterEnabled, err := server.configProvider.InClusterEnabled(context.Background())
 		if err != nil {
-			return fmt.Errorf("could not check if in-cluster is enabled: %w", err)
+			return fmt.Errorf("failed to resolve InClusterEnabled: %w", err)
 		}
 		if !inClusterEnabled {
 			for _, clusterName := range inClusterNames {
@@ -1217,7 +1217,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) (*ArgoCDServiceSet, error) {
 
 	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr, a.policyEnforcer, a.projInformer, a.settingsMgr, a.db, a.configProvider)
 	settingsService := settings.NewServer(a.settingsMgr, a.RepoClientset, a, a.configProvider)
-	accountService := account.NewServer(a.sessionMgr, a.settingsMgr, a.enf, a.Namespace)
+	accountService := account.NewServer(a.sessionMgr, a.settingsMgr, a.enf, a.Namespace, a.configProvider)
 
 	notificationService := notification.NewServer(a.apiFactory)
 	certificateService := certificate.NewServer(a.db, a.enf)
@@ -1431,7 +1431,7 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 
 	// Webhook handler for git events (Note: cache timeouts are hardcoded because API server does not write to cache and not really using them)
 	argoDB := db.NewDB(server.Namespace, server.settingsMgr, server.KubeClientset)
-	acdWebhookHandler, err := webhook.NewHandler(server.Namespace, server.configProvider, server.AppClientset, server.appLister, server.settings, server.settingsMgr, server.RepoServerCache, server.Cache, argoDB, server.settingsMgr.GetMaxWebhookPayloadSize(), server.settingsMgr.GetWebhookRefreshJitter(), server.settingsMgr.GetWebhookRefreshJitterThreshold())
+	acdWebhookHandler, err := webhook.NewHandler(server.Namespace, server.configProvider, server.AppClientset, server.appLister, server.settings, server.settingsMgr, server.RepoServerCache, server.Cache, argoDB, server.projLister)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create webhook handler: %w", err)
 	}
@@ -1762,11 +1762,11 @@ func (server *ArgoCDServer) Authenticate(ctx context.Context) (context.Context, 
 	}
 
 	if claimsErr != nil {
-		argoCDSettings, err := server.settingsMgr.GetSettings()
+		anonymousUserEnabled, err := server.configProvider.AnonymousUserEnabled(ctx)
 		if err != nil {
-			return ctx, status.Errorf(codes.Internal, "unable to load settings: %v", err)
+			return ctx, status.Errorf(codes.Internal, "failed to resolve AnonymousUserEnabled: %v", err)
 		}
-		if !argoCDSettings.AnonymousUserEnabled {
+		if !anonymousUserEnabled {
 			return ctx, claimsErr
 		}
 		//nolint:staticcheck

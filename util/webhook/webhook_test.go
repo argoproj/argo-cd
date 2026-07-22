@@ -92,10 +92,17 @@ func assertLogContainsSubstr(t *testing.T, hook *test.Hook, substr string) {
 }
 
 func testWebhookConfigProvider(applicationNamespaces []string) configbus.Provider {
+	return testWebhookConfigProviderWithPayloadLimit(applicationNamespaces, int64(50)*1024*1024)
+}
+
+func testWebhookConfigProviderWithPayloadLimit(applicationNamespaces []string, maxPayloadSize int64) configbus.Provider {
 	return &configbus.StaticProvider{Fields: configbus.StaticFields{
-		ApplicationNamespaces:   configbus.Ptr(applicationNamespaces),
-		WebhookParallelism:      configbus.Ptr(10),
-		WebhookRefreshWorkers:   configbus.Ptr(10),
+		ApplicationNamespaces:         configbus.Ptr(applicationNamespaces),
+		MaxWebhookPayloadSize:         configbus.Ptr(maxPayloadSize),
+		WebhookParallelism:            configbus.Ptr(10),
+		WebhookRefreshJitter:          configbus.Ptr(time.Duration(0)),
+		WebhookRefreshJitterThreshold: configbus.Ptr(10),
+		WebhookRefreshWorkers:         configbus.Ptr(10),
 	}}
 }
 
@@ -180,12 +187,12 @@ func newMockHandler(reactor *reactorDef, applicationNamespaces []string, maxPayl
 		appClientset.AddReactor(reactor.verb, reactor.resource, reactor.reaction)
 	}
 	cacheClient := cacheutil.NewCache(cacheutil.NewInMemoryCache(1 * time.Hour))
-	handler, err := NewHandler("argocd", testWebhookConfigProvider(applicationNamespaces), appClientset, &fakeAppsLister{clientset: appClientset}, argoSettings, &fakeSettingsSrc{}, cache.NewCache(
+	handler, err := NewHandler("argocd", testWebhookConfigProviderWithPayloadLimit(applicationNamespaces, maxPayloadSize), appClientset, &fakeAppsLister{clientset: appClientset}, argoSettings, &fakeSettingsSrc{}, cache.NewCache(
 		cacheClient,
 		1*time.Minute,
 		1*time.Minute,
 		10*time.Second,
-	), servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute), argoDB, maxPayloadSize, 0, 10)
+	), servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute), argoDB)
 	if err != nil {
 		panic(err)
 	}
@@ -1178,10 +1185,6 @@ func TestHandleEvent(t *testing.T) {
 				repoCache,
 				serverCache,
 				mockDB,
-				int64(50)*1024*1024,
-				0,
-				10,
-				&fakeProjectNamespaceLister{clientset: appClientset, namespace: "argocd"},
 			)
 			require.NoError(t, err)
 
@@ -1994,9 +1997,6 @@ func TestWebhookRefreshWithJitter(t *testing.T) {
 			cache.NewCache(cacheClient, 1*time.Minute, 1*time.Minute, 10*time.Second),
 			servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute),
 			&mocks.ArgoDB{},
-			int64(50)*1024*1024,
-			2*time.Second,
-			10,
 			&fakeProjectNamespaceLister{clientset: appClientset, namespace: "argocd"},
 		)
 		require.NoError(t, err)
@@ -2034,9 +2034,6 @@ func TestWebhookRefreshWithJitter(t *testing.T) {
 			cache.NewCache(cacheClient, 1*time.Minute, 1*time.Minute, 10*time.Second),
 			servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute),
 			&mocks.ArgoDB{},
-			int64(50)*1024*1024,
-			2*time.Second,
-			100, // High threshold - won't be exceeded
 			&fakeProjectNamespaceLister{clientset: appClientset, namespace: "argocd"},
 		)
 		require.NoError(t, err)
