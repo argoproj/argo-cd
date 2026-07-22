@@ -820,9 +820,9 @@ func TestLoadCacheSettings(t *testing.T) {
 			configbus.NewSettingsManagerProvider(settingsManager),
 		),
 	}
-	label, err := settingsManager.GetAppInstanceLabelKey()
+	label, err := ch.configProvider.AppInstanceLabelKey(t.Context())
 	require.NoError(t, err)
-	trackingMethod, err := settingsManager.GetTrackingMethod()
+	trackingMethod, err := ch.configProvider.TrackingMethod(t.Context())
 	require.NoError(t, err)
 	res, err := ch.loadCacheSettings()
 	require.NoError(t, err)

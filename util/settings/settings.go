@@ -1084,6 +1084,7 @@ func (mgr *SettingsManager) GetIsIgnoreResourceUpdatesEnabled() (bool, error) {
 }
 
 // GetResourceOverrides loads Resource Overrides from argocd-cm ConfigMap
+//
 // Deprecated: use configbus.Provider.ResourceOverrides instead.
 func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.ResourceOverride, error) {
 	argoCDCM, err := mgr.getConfigMap()
@@ -1268,6 +1269,7 @@ func GetDefaultDiffOptions() ArgoCDDiffOptions {
 }
 
 // GetResourceCompareOptions loads the resource compare options settings from the ConfigMap
+//
 // Deprecated: use configbus.Provider.ResourceCompareOptions instead.
 func (mgr *SettingsManager) GetResourceCompareOptions() (ArgoCDDiffOptions, error) {
 	// We have a sane set of default diff options
@@ -1289,6 +1291,7 @@ func (mgr *SettingsManager) GetResourceCompareOptions() (ArgoCDDiffOptions, erro
 }
 
 // GetHelmSettings returns helm settings
+//
 // Deprecated: use configbus.Provider.HelmSettings instead.
 func (mgr *SettingsManager) GetHelmSettings() (*v1alpha1.HelmOptions, error) {
 	argoCDCM, err := mgr.getConfigMap()
@@ -1309,6 +1312,7 @@ func (mgr *SettingsManager) GetHelmSettings() (*v1alpha1.HelmOptions, error) {
 }
 
 // GetKustomizeSettings loads the kustomize settings from argocd-cm ConfigMap
+//
 // Deprecated: use configbus.Provider.KustomizeSettings instead.
 func (mgr *SettingsManager) GetKustomizeSettings() (*v1alpha1.KustomizeOptions, error) {
 	argoCDCM, err := mgr.getConfigMap()
@@ -2720,6 +2724,7 @@ func isUnresolvedEnvVarReference(val string, secretValues map[string]string) boo
 }
 
 // GetGlobalProjectsSettings loads the global project settings from argocd-cm ConfigMap
+//
 // Deprecated: use configbus.Provider.GlobalProjectsSettings instead.
 func (mgr *SettingsManager) GetGlobalProjectsSettings() ([]GlobalProjectSettings, error) {
 	argoCDCM, err := mgr.getConfigMap()
@@ -2876,6 +2881,7 @@ func (mgr *SettingsManager) GetWebhookRefreshJitterThreshold() int {
 }
 
 // IsImpersonationEnabled returns true if application sync with impersonation feature is enabled in argocd-cm configmap
+//
 // Deprecated: use configbus.Provider.IsImpersonationEnabled instead.
 func (mgr *SettingsManager) IsImpersonationEnabled() (bool, error) {
 	cm, err := mgr.getConfigMap()
@@ -2886,6 +2892,7 @@ func (mgr *SettingsManager) IsImpersonationEnabled() (bool, error) {
 }
 
 // IsImpersonationEnforced returns true if impersonation enforcement is enabled (requires service account to be configured)
+//
 // Deprecated: use configbus.Provider.IsImpersonationEnforced instead.
 func (mgr *SettingsManager) IsImpersonationEnforced() (bool, error) {
 	cm, err := mgr.getConfigMap()
