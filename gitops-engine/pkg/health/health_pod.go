@@ -100,7 +100,7 @@ func getCorev1PodHealth(pod *corev1.Pod, isHook bool) (*HealthStatus, error) {
 		// The AnnotationIgnoreRestartPolicy annotation makes a running pod with a restart policy
 		// of OnFailure or Never be assessed like a long-running pod. The annotation is not honored
 		// on hook pods.
-		_, hasIgnoreRestartPolicy := pod.Annotations[common.AnnotationIgnoreRestartPolicy]
+		hasIgnoreRestartPolicy := pod.GetAnnotations() != nil && pod.GetAnnotations()[common.AnnotationIgnoreRestartPolicy] == "true"
 		switch {
 		case policy == corev1.RestartPolicyAlways || (hasIgnoreRestartPolicy && !isHook):
 			// if pod is ready, it is automatically healthy
