@@ -355,7 +355,11 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 			clone, ok := payload.Repository.Links["clone"].([]any)
 			if ok {
 				for _, l := range clone {
-					link := l.(map[string]any)
+					link, ok := l.(map[string]any)
+					if !ok {
+						log.Debugf("skipping malformed clone link entry: expected map, got %T", l)
+						continue
+					}
 					if link["name"] == "http" || link["name"] == "ssh" {
 						if href, ok := link["href"].(string); ok {
 							webURLs = append(webURLs, href)
@@ -750,11 +754,11 @@ func fetchDiffStatFromBitbucket(_ context.Context, bbClient *bb.Client, owner, r
 	if err != nil {
 		return nil, fmt.Errorf("error getting the diffstat: %w", err)
 	}
-	changedFiles := make([]string, len(diffStatResp.DiffStats))
-	for i, value := range diffStatResp.DiffStats {
+	changedFiles := make([]string, 0, len(diffStatResp.DiffStats))
+	for _, value := range diffStatResp.DiffStats {
 		changedFilePath := value.New["path"]
-		if changedFilePath != nil {
-			changedFiles[i] = changedFilePath.(string)
+		if s, ok := changedFilePath.(string); ok {
+			changedFiles = append(changedFiles, s)
 		}
 	}
 	log.Debugf("changed files for spec %s: %v", spec, changedFiles)
