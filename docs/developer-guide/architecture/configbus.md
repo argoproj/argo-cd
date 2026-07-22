@@ -47,6 +47,9 @@ order so PRs stay skimmable.
 | Alphabetical method names | Receivers are added in alphabetical position as each component is wired. |
 | Every getter returns `(T, error)` | Even process-local values use this shape, because CRD-backed reads can fail via a Kubernetes client or informer. |
 | `ErrNotConfigured` sentinel | A leaf signals “I do not own / do not have this field”; `ChainProvider` skips to the next link. |
+| Just-in-time reads | Call sites invoke `configProvider.Foo(ctx)` immediately before use. Do **not** resolve once and store the result on a struct field, local “cache”, or constructor argument that child code then treats as the source of truth. |
+| Pass the Provider, not values | When wiring nested managers/handlers, pass `configbus.Provider` (or the owning component that holds it). Do not plumb resolved scalars (`hydratorEnabled`, `applicationNamespaces`, …) through constructors. |
+| `SettingsManager` stays infrastructural | Keep a `settingsMgr` field only for APIs that are not yet on the Provider (`Subscribe`, `GetSettings`, DB/session construction, and similar). Do not read migrated product settings from `settingsMgr` when a Provider getter exists. |
 
 ### Implementations
 
@@ -142,8 +145,15 @@ precedence, and a total-resolution coverage test for the controller chain.
 | ConfigMap-backed product config | `SettingsManagerProvider` | Resource overrides, app instance label key, tracking method |
 | Process env | `EnvProvider` | `ARGOCD_GIT_REQUEST_TIMEOUT` |
 
-Deprecated struct fields may remain on the controller for construction/tests, but
-product code must read via `configProvider.*`.
+CLI-captured flag values may still appear on opts/structs **only** long enough to
+feed the leading `StaticProvider` leaf at wire time. After that, product code
+must read via `configProvider.*`—never from the opts field, and never from a
+second cached copy of the resolved value.
+
+**Allowed crystallization (rare):** values that define process topology and
+cannot be cheaply reconfigured without restart (for example informer namespace
+scope). Prefer documenting those exceptions next to the field. Everything else
+is JIT.
 
 ## How the controller wires the Provider
 
@@ -155,10 +165,10 @@ ctrl.configProvider = configbus.NewChainProvider(
 )
 ```
 
-Call sites then use:
+Call sites then use (JIT, with context):
 
 ```go
-timeout, err := ctrl.configProvider.SelfHealTimeout()
+timeout, err := ctrl.configProvider.SelfHealTimeout(ctx)
 if err != nil {
 	return fmt.Errorf("failed to resolve self heal timeout: %w", err)
 }
@@ -168,22 +178,44 @@ Every Provider method returns `(T, error)`. Bubble errors at call sites
 (return, fatal at startup, or requeue)—do **not** log-and-ignore and continue
 with a zero value.
 
+### Anti-patterns
+
+```go
+// BAD: crystallize then use the copy
+insecure, _ := provider.Insecure(ctx)
+server.configInsecure = insecure
+// ...
+if !server.configInsecure { /* ... */ }
+
+// BAD: resolve a batch and pass scalars into children
+hydratorEnabled, _ := provider.HydratorEnabled(ctx)
+repoService := repository.NewServer(..., settingsMgr, hydratorEnabled)
+
+// GOOD: pass the Provider; child resolves at the use site
+repoService := repository.NewServer(..., settingsMgr, provider)
+// inside an RPC handler:
+hydratorEnabled, err := s.configProvider.HydratorEnabled(ctx)
+```
+
 ## Common tasks
 
 ### Add a controller setting (flag / env)
 
-1. **Store the value** on `ApplicationController` (or a nested manager) at
-   construction time, as today (optional; can pass straight into StaticFields).
-2. **Mark the field deprecated** toward the Provider when it remains on the
-   struct: `// Deprecated: use configProvider.MySetting.`
-3. **Add `MySetting() (T, error)`** to the flat `Provider` interface in
+1. **Capture the flag** into the component’s `StaticFields` literal at wire
+   time (directly from the local flag variable is fine; no need to park it on
+   a long-lived struct field).
+2. If an opts field must remain for CLI/construction compatibility, mark it
+   `// Deprecated: use configProvider.MySetting.` and stop reading it from
+   product code.
+3. **Add `MySetting(ctx) (T, error)`** to the flat `Provider` interface in
    alphabetical order.
 4. **Regenerate** generated providers: `go run ./hack/gen-configbus-providers`.
-5. **Set the field** on the controller’s `StaticFields` literal at wire time.
-6. **Update call sites** to use `configProvider.MySetting()` and handle errors.
-7. **Tests:** prefer `mocks.Provider` or a `StaticProvider` override. Run
+5. **Update call sites** to use `configProvider.MySetting(ctx)` immediately
+   before the value is needed (including inside nested packages that receive
+   the Provider). Do not store the result on another struct field.
+6. **Tests:** prefer `mocks.Provider` or a `StaticProvider` override. Run
    `make mockgen` after changing the interface.
-8. Run `go test ./util/configbus/ ./controller/`.
+7. Run `go test ./util/configbus/ ./controller/`.
 
 ### Add a SettingsManager-backed setting
 
@@ -192,7 +224,8 @@ with a zero value.
 3. Regenerate generated providers; implement the method on
    `SettingsManagerProvider` (call the settings getter). Leave other leaves on
    the generated `ErrNotConfigured` base.
-4. Point controller call sites at the Provider method.
+4. Point controller call sites at the Provider method (JIT; pass the Provider
+   into nested managers rather than resolved values).
 5. Regen mocks (`make mockgen`); add/adjust unit tests; run
    `go test ./util/configbus/ ./controller/`.
 
