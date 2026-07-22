@@ -24,7 +24,7 @@ func newSyncWindowResource(name, namespace string, labels map[string]string, win
 	return &v1alpha1.SyncWindowResource{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "argoproj.io/v1alpha1",
-			Kind:       "SyncWindow",
+			Kind:       "SyncWindowResource",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -163,8 +163,55 @@ func TestResolveRef_NotFound(t *testing.T) {
 		{Ref: v1alpha1.SyncWindowRef{Name: "nonexistent"}},
 	}
 
-	_, err := resolver.ResolveProjectRefs(refs)
-	assert.Error(t, err)
+	windows, err := resolver.ResolveProjectRefs(refs)
+	require.Error(t, err)
+	assert.Empty(t, windows)
+}
+
+// TestResolveProjectRefs_BadRefDoesNotDropValidWindows verifies that a bad ref does not
+// silently discard windows resolved from earlier valid refs.  A deny window from a valid ref must
+// still be returned alongside the error so callers can enforce it.
+func TestResolveProjectRefs_BadRefDoesNotDropValidWindows(t *testing.T) {
+	sw := newSyncWindowResource("valid-window", "argocd", nil, []v1alpha1.SyncWindowDefinition{
+		{Kind: "deny", Schedule: "0 22 * * *", Duration: "2h"},
+	})
+
+	lister := newFakeLister(sw)
+	resolver := NewResolver(lister, "argocd")
+
+	refs := []v1alpha1.SyncWindowProjectRef{
+		{Ref: v1alpha1.SyncWindowRef{Name: "valid-window"}},
+		{Ref: v1alpha1.SyncWindowRef{Name: "nonexistent"}},
+	}
+
+	windows, err := resolver.ResolveProjectRefs(refs)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "nonexistent")
+	// The deny window from the valid ref must still be present.
+	require.Len(t, windows, 1)
+	assert.Equal(t, "deny", windows[0].Kind)
+}
+
+// TestResolveAppRefs_BadRefDoesNotDropValidWindows is the application-ref equivalent of the above.
+func TestResolveAppRefs_BadRefDoesNotDropValidWindows(t *testing.T) {
+	sw := newSyncWindowResource("valid-window", "argocd", nil, []v1alpha1.SyncWindowDefinition{
+		{Kind: "deny", Schedule: "0 22 * * *", Duration: "2h"},
+	})
+
+	lister := newFakeLister(sw)
+	resolver := NewResolver(lister, "argocd")
+
+	refs := []v1alpha1.SyncWindowRef{
+		{Name: "valid-window"},
+		{Name: "nonexistent"},
+	}
+
+	windows, err := resolver.ResolveAppRefs(refs)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "nonexistent")
+	// The deny window from the valid ref must still be present.
+	require.Len(t, windows, 1)
+	assert.Equal(t, "deny", windows[0].Kind)
 }
 
 func TestResolveRef_EmptyRef(t *testing.T) {
@@ -178,4 +225,20 @@ func TestResolveRef_EmptyRef(t *testing.T) {
 	_, err := resolver.ResolveProjectRefs(refs)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "must specify either name or selector")
+}
+
+func TestResolveRef_NameAndSelectorMutuallyExclusive(t *testing.T) {
+	lister := newFakeLister()
+	resolver := NewResolver(lister, "argocd")
+
+	refs := []v1alpha1.SyncWindowProjectRef{
+		{Ref: v1alpha1.SyncWindowRef{
+			Name:     "some-window",
+			Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"team": "sre"}},
+		}},
+	}
+
+	_, err := resolver.ResolveProjectRefs(refs)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "cannot specify both name and selector")
 }
