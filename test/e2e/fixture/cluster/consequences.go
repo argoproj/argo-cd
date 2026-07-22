@@ -38,7 +38,7 @@ func (c *Consequences) cluster() (*v1alpha1.Cluster, error) {
 }
 
 func (c *Consequences) get() (*v1alpha1.Cluster, error) {
-	_, clusterClient, _ := fixture.ArgoCDClientset.NewClusterClient(c.context.T().Context())
+	_, clusterClient, _ := fixture.ArgoCDClientset.NewClusterClient()
 
 	cluster, _ := clusterClient.List(context.Background(), &clusterpkg.ClusterQuery{})
 	for i := range cluster.Items {

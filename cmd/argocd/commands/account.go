@@ -96,7 +96,7 @@ has appropriate RBAC permissions to change other accounts.
 				os.Exit(1)
 			}
 			acdClient := headless.NewClientOrDie(clientOpts, c)
-			conn, usrIf := acdClient.NewAccountClientOrDie(ctx)
+			conn, usrIf := acdClient.NewAccountClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
 
 			userInfo := getCurrentAccount(ctx, acdClient)
@@ -176,7 +176,7 @@ func NewAccountGetUserInfoCommand(clientOpts *argocdclient.ClientOptions) *cobra
 				os.Exit(1)
 			}
 
-			conn, client := headless.NewClientOrDie(clientOpts, c).NewSessionClientOrDie(ctx)
+			conn, client := headless.NewClientOrDie(clientOpts, c).NewSessionClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
 
 			response, err := client.GetUserInfo(ctx, &session.GetUserInfoRequest{})
@@ -232,7 +232,7 @@ Resources: %v
 				os.Exit(1)
 			}
 
-			conn, client := headless.NewClientOrDie(clientOpts, c).NewAccountClientOrDie(ctx)
+			conn, client := headless.NewClientOrDie(clientOpts, c).NewAccountClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
 
 			response, err := client.CanI(ctx, &accountpkg.CanIRequest{
@@ -270,7 +270,7 @@ func NewAccountListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 		Run: func(c *cobra.Command, _ []string) {
 			ctx := c.Context()
 
-			conn, client := headless.NewClientOrDie(clientOpts, c).NewAccountClientOrDie(ctx)
+			conn, client := headless.NewClientOrDie(clientOpts, c).NewAccountClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
 
 			response, err := client.ListAccounts(ctx, &accountpkg.ListAccountRequest{})
@@ -294,7 +294,7 @@ func NewAccountListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 }
 
 func getCurrentAccount(ctx context.Context, clientset argocdclient.Client) session.GetUserInfoResponse {
-	conn, client := clientset.NewSessionClientOrDie(ctx)
+	conn, client := clientset.NewSessionClientOrDieWithContext(ctx)
 	defer utilio.Close(conn)
 	userInfo, err := client.GetUserInfo(ctx, &session.GetUserInfoRequest{})
 	errors.CheckError(err)
@@ -323,7 +323,7 @@ argocd account get --account <account-name>`,
 				account = getCurrentAccount(ctx, clientset).Username
 			}
 
-			conn, client := clientset.NewAccountClientOrDie(ctx)
+			conn, client := clientset.NewAccountClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
 
 			acc, err := client.GetAccount(ctx, &accountpkg.GetAccountRequest{Name: account})
@@ -391,7 +391,7 @@ argocd account generate-token --account <account-name>`,
 			ctx := c.Context()
 
 			clientset := headless.NewClientOrDie(clientOpts, c)
-			conn, client := clientset.NewAccountClientOrDie(ctx)
+			conn, client := clientset.NewAccountClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
 			if account == "" {
 				account = getCurrentAccount(ctx, clientset).Username
@@ -433,7 +433,7 @@ argocd account delete-token --account <account-name> ID`,
 			id := args[0]
 
 			clientset := headless.NewClientOrDie(clientOpts, c)
-			conn, client := clientset.NewAccountClientOrDie(ctx)
+			conn, client := clientset.NewAccountClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
 			if account == "" {
 				account = getCurrentAccount(ctx, clientset).Username
@@ -472,7 +472,7 @@ export ARGOCD_AUTH_TOKEN=$(argocd account session-token)
 curl -H "Authorization: Bearer $ARGOCD_AUTH_TOKEN" $ARGOCD_SERVER/api/v1/applications`,
 		Run: func(c *cobra.Command, _ []string) {
 			// Create client first - this handles token refresh automatically
-			_, err := argocdclient.NewClient(c.Context(), clientOpts)
+			_, err := argocdclient.NewClientWithContext(c.Context(), clientOpts)
 			if err != nil {
 				if strings.Contains(err.Error(), "invalid_grant") && strings.Contains(err.Error(), "Invalid refresh_token") {
 					log.Fatal("Refresh token is invalid or expired. Please run 'argocd relogin' to re-authenticate")

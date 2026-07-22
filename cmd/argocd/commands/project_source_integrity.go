@@ -44,10 +44,10 @@ argocd proj source-integrity git policies delete PROJECT POLICY_ID
 var (
 	// Indirections needed for a client lookup during tests. Mocks are injected here.
 	newProjectClient = func(clientOpts *argocdclient.ClientOptions, c *cobra.Command) (io.Closer, projectpkg.ProjectServiceClient) {
-		return headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie(c.Context())
+		return headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDieWithContext(c.Context())
 	}
 	newGpgKeyClient = func(clientOpts *argocdclient.ClientOptions, c *cobra.Command) (io.Closer, gpgkey.GPGKeyServiceClient) {
-		return headless.NewClientOrDie(clientOpts, c).NewGPGKeyClientOrDie(c.Context())
+		return headless.NewClientOrDie(clientOpts, c).NewGPGKeyClientOrDieWithContext(c.Context())
 	}
 )
 

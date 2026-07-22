@@ -31,7 +31,7 @@ func (c *Consequences) detailedProject() (*project.DetailedProjectsResponse, err
 }
 
 func (c *Consequences) get() (*project.DetailedProjectsResponse, error) {
-	_, projectClient, _ := fixture.ArgoCDClientset.NewProjectClient(c.context.T().Context())
+	_, projectClient, _ := fixture.ArgoCDClientset.NewProjectClient()
 	prj, err := projectClient.GetDetailedProject(context.Background(), &project.ProjectQuery{
 		Name: c.context.GetName(),
 	})

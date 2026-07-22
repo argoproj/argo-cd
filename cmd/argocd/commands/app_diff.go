@@ -671,7 +671,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			}
 
 			clientset := headless.NewClientOrDie(clientOpts, c)
-			conn, appIf := clientset.NewApplicationClientOrDie(ctx)
+			conn, appIf := clientset.NewApplicationClientOrDieWithContext(ctx)
 			defer io.Close(conn)
 			appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
 			app, err := appIf.Get(ctx, &application.ApplicationQuery{
@@ -695,7 +695,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 			liveState, err := appIf.ManagedResources(ctx, &application.ResourcesQuery{ApplicationName: &appName, AppNamespace: &appNs})
 			errors.CheckError(err)
-			conn, settingsIf := clientset.NewSettingsClientOrDie(ctx)
+			conn, settingsIf := clientset.NewSettingsClientOrDieWithContext(ctx)
 			defer io.Close(conn)
 			argoSettings, err := settingsIf.Get(ctx, &settings.SettingsQuery{})
 			errors.CheckError(err)
@@ -742,7 +742,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					getTargetManifests = newLocalServerSideProvider(appIf, appName, appNs, local, localIncludes)
 				} else {
 					fmt.Fprint(os.Stderr, "Warning: local diff without --server-side-generate is deprecated and does not work with plugins. Server-side generation will be the default in v2.7.")
-					conn, clusterIf := clientset.NewClusterClientOrDie(ctx)
+					conn, clusterIf := clientset.NewClusterClientOrDieWithContext(ctx)
 					defer io.Close(conn)
 					getTargetManifests = newLocalClientSideProvider(clusterIf, argoSettings, app, proj.Project, local, localRepoRoot)
 					// Local diff does not support to hide the configurable annotations in the secrets.

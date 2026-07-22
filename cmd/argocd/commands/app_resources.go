@@ -77,7 +77,7 @@ func NewApplicationGetResourceCommand(clientOpts *argocdclient.ClientOptions) *c
 
 		appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
 
-		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie(ctx)
+		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDieWithContext(ctx)
 		defer utilio.Close(conn)
 
 		tree, err := appIf.ResourceTree(ctx, &applicationpkg.ResourcesQuery{
@@ -323,7 +323,7 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 		}
 		appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
 
-		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie(ctx)
+		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDieWithContext(ctx)
 		defer utilio.Close(conn)
 		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{
 			ApplicationName: &appName,
@@ -392,7 +392,7 @@ func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions)
 		}
 		appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
 
-		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie(ctx)
+		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDieWithContext(ctx)
 		defer utilio.Close(conn)
 		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{
 			ApplicationName: &appName,
@@ -558,7 +558,7 @@ func NewApplicationListResourcesCommand(clientOpts *argocdclient.ClientOptions) 
 			}
 			listAll := !c.Flag("orphaned").Changed
 			appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
-			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie(ctx)
+			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
 			appResourceTree, err := appIf.ResourceTree(ctx, &applicationpkg.ResourcesQuery{
 				ApplicationName: &appName,
