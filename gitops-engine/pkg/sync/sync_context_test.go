@@ -904,8 +904,7 @@ func TestServerResourcesRetry(t *testing.T) {
 			expectedMessage:    "not valid",
 		},
 	}
-	for i := range testCases {
-		tc := testCases[i]
+	for _, tc := range testCases {
 		t.Run(tc.desc, func(t *testing.T) {
 			// Given
 			t.Parallel()
@@ -943,7 +942,7 @@ func TestSync_getSyncTasks_FailureMessage(t *testing.T) {
 			Resources: []*metav1.APIResourceList{},
 		},
 	}
-	fakeDisco.PrependReactor("get", "resource", func(_ testcore.Action) (handled bool, ret runtime.Object, err error) {
+	fakeDisco.PrependReactor("get", "resource", func(action testcore.Action) (handled bool, ret runtime.Object, err error) {
 		reactorCalls++
 		return true, nil, errors.New("discovery failed")
 	})
@@ -1246,8 +1245,7 @@ func TestSync_ServerSideApply(t *testing.T) {
 		{"LiveObjectMissing", withReplaceAnnotation(testingutils.NewPod()), nil, "create", false, ""},
 	}
 
-	for i := range testCases {
-		tc := testCases[i]
+	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			syncCtx := newTestSyncCtx(nil)
