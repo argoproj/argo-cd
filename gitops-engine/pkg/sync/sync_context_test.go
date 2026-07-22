@@ -161,6 +161,256 @@ func TestSyncNamespaceCreatedBeforeDryRunWithFailure(t *testing.T) {
 	assert.Equal(t, "invalid object failing dry-run", resources[1].Message)
 }
 
+func TestSyncWithWarning(t *testing.T) {
+	pod := testingutils.NewPod()
+	syncCtx := newTestSyncCtx(nil)
+	syncCtx.resources = groupResources(ReconciliationResult{
+		Live:   []*unstructured.Unstructured{nil},
+		Target: []*unstructured.Unstructured{pod},
+	})
+	mockResourceOps := syncCtx.resourceOps.(*kubetest.MockResourceOps)
+	mockResourceOps.Commands = map[string]kubetest.KubectlOutput{
+		pod.GetName(): {Output: "pod/my-pod created. Warning: would violate PodSecurity \"restricted\""},
+	}
+
+	syncCtx.Sync(context.Background())
+	phase, _, resources := syncCtx.GetState()
+
+	assert.Equal(t, synccommon.OperationWarning, phase)
+	assert.True(t, phase.Successful())
+	assert.True(t, phase.Completed())
+	require.Len(t, resources, 1)
+	assert.Equal(t, synccommon.ResultCodeSyncedWithWarning, resources[0].Status)
+	assert.Contains(t, resources[0].Message, "Warning: would violate PodSecurity")
+}
+
+func TestSyncWithWarning_MultipleResources_OneWithWarning(t *testing.T) {
+	pod := testingutils.NewPod()
+	svc := testingutils.NewService()
+	syncCtx := newTestSyncCtx(nil)
+	syncCtx.resources = groupResources(ReconciliationResult{
+		Live:   []*unstructured.Unstructured{nil, nil},
+		Target: []*unstructured.Unstructured{pod, svc},
+	})
+	mockResourceOps := syncCtx.resourceOps.(*kubetest.MockResourceOps)
+	mockResourceOps.Commands = map[string]kubetest.KubectlOutput{
+		pod.GetName(): {Output: "pod/my-pod created. Warning: policy test.warn: Pod requires review"},
+		svc.GetName(): {Output: "service/my-service created"},
+	}
+
+	syncCtx.Sync(context.Background())
+	phase, _, resources := syncCtx.GetState()
+
+	// Operation phase should be Warning because at least one resource has a warning
+	assert.Equal(t, synccommon.OperationWarning, phase)
+	assert.True(t, phase.Successful())
+	require.Len(t, resources, 2)
+
+	// Find each resource and verify its status
+	for _, res := range resources {
+		switch res.ResourceKey.Kind {
+		case "Pod":
+			assert.Equal(t, synccommon.ResultCodeSyncedWithWarning, res.Status)
+			assert.Contains(t, res.Message, "Warning:")
+		case "Service":
+			assert.Equal(t, synccommon.ResultCodeSynced, res.Status)
+			assert.NotContains(t, res.Message, "Warning:")
+		}
+	}
+}
+
+func TestSyncWithWarning_MultipleResources_AllWithWarnings(t *testing.T) {
+	pod := testingutils.NewPod()
+	svc := testingutils.NewService()
+	syncCtx := newTestSyncCtx(nil)
+	syncCtx.resources = groupResources(ReconciliationResult{
+		Live:   []*unstructured.Unstructured{nil, nil},
+		Target: []*unstructured.Unstructured{pod, svc},
+	})
+	mockResourceOps := syncCtx.resourceOps.(*kubetest.MockResourceOps)
+	mockResourceOps.Commands = map[string]kubetest.KubectlOutput{
+		pod.GetName(): {Output: "pod/my-pod created. Warning: policy test.warn: Warning for Pod/my-pod"},
+		svc.GetName(): {Output: "service/my-service created. Warning: policy test.warn: Warning for Service/my-service"},
+	}
+
+	syncCtx.Sync(context.Background())
+	phase, _, resources := syncCtx.GetState()
+
+	assert.Equal(t, synccommon.OperationWarning, phase)
+	require.Len(t, resources, 2)
+
+	for _, res := range resources {
+		assert.Equal(t, synccommon.ResultCodeSyncedWithWarning, res.Status)
+		assert.Contains(t, res.Message, fmt.Sprintf("Warning for %s/", res.ResourceKey.Kind))
+	}
+}
+
+func TestSyncWithWarning_MultipleWarningsPerResource(t *testing.T) {
+	pod := testingutils.NewPod()
+	syncCtx := newTestSyncCtx(nil)
+	syncCtx.resources = groupResources(ReconciliationResult{
+		Live:   []*unstructured.Unstructured{nil},
+		Target: []*unstructured.Unstructured{pod},
+	})
+	mockResourceOps := syncCtx.resourceOps.(*kubetest.MockResourceOps)
+	// Multiple warnings from different policies
+	mockResourceOps.Commands = map[string]kubetest.KubectlOutput{
+		pod.GetName(): {Output: "pod/my-pod created.\nWarning: policy-a.rule1: First warning\nWarning: policy-b.rule2: Second warning"},
+	}
+
+	syncCtx.Sync(context.Background())
+	phase, _, resources := syncCtx.GetState()
+
+	assert.Equal(t, synccommon.OperationWarning, phase)
+	require.Len(t, resources, 1)
+	assert.Equal(t, synccommon.ResultCodeSyncedWithWarning, resources[0].Status)
+	assert.Contains(t, resources[0].Message, "First warning")
+	assert.Contains(t, resources[0].Message, "Second warning")
+}
+
+func TestSyncWithWarning_DifferentWaves(t *testing.T) {
+	pod := testingutils.NewPod()
+	pod.SetAnnotations(map[string]string{synccommon.AnnotationSyncWave: "0"})
+
+	svc := testingutils.NewService()
+	svc.SetAnnotations(map[string]string{synccommon.AnnotationSyncWave: "1"})
+
+	syncCtx := newTestSyncCtx(nil, WithOperationSettings(false, true, false, false),
+		WithHealthOverride(resourceNameHealthOverride(map[string]health.HealthStatusCode{
+			pod.GetName(): health.HealthStatusHealthy,
+		})))
+
+	syncCtx.resources = groupResources(ReconciliationResult{
+		Live:   []*unstructured.Unstructured{nil, nil},
+		Target: []*unstructured.Unstructured{pod, svc},
+	})
+	mockResourceOps := syncCtx.resourceOps.(*kubetest.MockResourceOps)
+	mockResourceOps.Commands = map[string]kubetest.KubectlOutput{
+		pod.GetName(): {Output: "pod/my-pod created. Warning: wave0-warning"},
+		svc.GetName(): {Output: "service/my-service created. Warning: wave1-warning"},
+	}
+
+	// First sync: wave 0
+	syncCtx.Sync(context.Background())
+	phase, _, resources := syncCtx.GetState()
+	assert.Equal(t, synccommon.OperationRunning, phase)
+	require.Len(t, resources, 1)
+	assert.Equal(t, synccommon.ResultCodeSyncedWithWarning, resources[0].Status)
+	assert.Contains(t, resources[0].Message, "wave0-warning")
+
+	// Update live resources for wave 1
+	syncCtx.resources = groupResources(ReconciliationResult{
+		Live:   []*unstructured.Unstructured{pod, nil},
+		Target: []*unstructured.Unstructured{pod, svc},
+	})
+
+	// Second sync: wave 1
+	syncCtx.Sync(context.Background())
+	phase, _, resources = syncCtx.GetState()
+	assert.Equal(t, synccommon.OperationWarning, phase)
+	require.Len(t, resources, 2)
+
+	// Verify each wave's warning is correctly associated
+	for _, res := range resources {
+		switch res.ResourceKey.Kind {
+		case "Pod":
+			assert.Contains(t, res.Message, "wave0-warning")
+			assert.NotContains(t, res.Message, "wave1-warning")
+		case "Service":
+			assert.Contains(t, res.Message, "wave1-warning")
+			assert.NotContains(t, res.Message, "wave0-warning")
+		}
+	}
+}
+
+func TestSyncWithWarning_FirstWaveWarning_SecondWaveNoWarning(t *testing.T) {
+	pod := testingutils.NewPod()
+	pod.SetAnnotations(map[string]string{synccommon.AnnotationSyncWave: "0"})
+
+	svc := testingutils.NewService()
+	svc.SetAnnotations(map[string]string{synccommon.AnnotationSyncWave: "1"})
+
+	syncCtx := newTestSyncCtx(nil, WithOperationSettings(false, true, false, false),
+		WithHealthOverride(resourceNameHealthOverride(map[string]health.HealthStatusCode{
+			pod.GetName(): health.HealthStatusHealthy,
+		})))
+
+	syncCtx.resources = groupResources(ReconciliationResult{
+		Live:   []*unstructured.Unstructured{nil, nil},
+		Target: []*unstructured.Unstructured{pod, svc},
+	})
+	mockResourceOps := syncCtx.resourceOps.(*kubetest.MockResourceOps)
+	mockResourceOps.Commands = map[string]kubetest.KubectlOutput{
+		pod.GetName(): {Output: "pod/my-pod created. Warning: wave0-warning"},
+		svc.GetName(): {Output: "service/my-service created"}, // No warning in final wave
+	}
+
+	// First sync: wave 0 with warning
+	syncCtx.Sync(context.Background())
+	phase, _, resources := syncCtx.GetState()
+	assert.Equal(t, synccommon.OperationRunning, phase)
+	require.Len(t, resources, 1)
+	assert.Equal(t, synccommon.ResultCodeSyncedWithWarning, resources[0].Status)
+
+	// Update live resources for wave 1
+	syncCtx.resources = groupResources(ReconciliationResult{
+		Live:   []*unstructured.Unstructured{pod, nil},
+		Target: []*unstructured.Unstructured{pod, svc},
+	})
+
+	// Second sync: wave 1 without warning
+	syncCtx.Sync(context.Background())
+	phase, _, resources = syncCtx.GetState()
+
+	// Operation phase must still be Warning because wave 0 had warnings
+	assert.Equal(t, synccommon.OperationWarning, phase)
+	assert.True(t, phase.Successful())
+	require.Len(t, resources, 2)
+
+	// Verify resource statuses
+	for _, res := range resources {
+		switch res.ResourceKey.Kind {
+		case "Pod":
+			assert.Equal(t, synccommon.ResultCodeSyncedWithWarning, res.Status)
+		case "Service":
+			assert.Equal(t, synccommon.ResultCodeSynced, res.Status)
+		}
+	}
+}
+
+func TestSyncWithWarning_AndFailure(t *testing.T) {
+	pod := testingutils.NewPod()
+	svc := testingutils.NewService()
+	syncCtx := newTestSyncCtx(nil)
+	syncCtx.resources = groupResources(ReconciliationResult{
+		Live:   []*unstructured.Unstructured{nil, nil},
+		Target: []*unstructured.Unstructured{pod, svc},
+	})
+	mockResourceOps := syncCtx.resourceOps.(*kubetest.MockResourceOps)
+	mockResourceOps.Commands = map[string]kubetest.KubectlOutput{
+		pod.GetName(): {Output: "pod/my-pod created. Warning: admission warning"},
+		svc.GetName(): {Err: errors.New("service creation failed")},
+	}
+
+	syncCtx.Sync(context.Background())
+	phase, _, resources := syncCtx.GetState()
+
+	// Operation should fail because one resource failed
+	assert.Equal(t, synccommon.OperationFailed, phase)
+	assert.False(t, phase.Successful())
+	require.Len(t, resources, 2)
+
+	for _, res := range resources {
+		switch res.ResourceKey.Kind {
+		case "Pod":
+			assert.Equal(t, synccommon.ResultCodeSyncedWithWarning, res.Status)
+			assert.Contains(t, res.Message, "Warning:")
+		case "Service":
+			assert.Equal(t, synccommon.ResultCodeSyncFailed, res.Status)
+		}
+	}
+}
+
 func TestSyncCreateInSortedOrder(t *testing.T) {
 	syncCtx := newTestSyncCtx(nil)
 	syncCtx.resources = groupResources(ReconciliationResult{
