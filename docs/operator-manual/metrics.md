@@ -54,6 +54,7 @@ Metrics about applications. Scraped at the `argocd-metrics:8082/metrics` endpoin
 | hostname           | argocd-application-controller-0 | Hostname of the Argo CD component that initiated the request to Redis.                                                                                                                          |
 | initiator          | argocd-server                   | Name of the Argo CD component that initiated the request to Redis. Possible values are: argocd-application-controller, argocd-repo-server, argocd-server.                                       |
 | kind               | Deployment                      | Kind name of a Kubernetes resource being monitored.                                                                                                                                             |
+| last_operation_phase | Failed                        | Phase of the most recently completed or in-progress operation on an Application, sourced from `status.operationState.phase` on the `argocd_app_info` metric. Unlike the `operation` label, this value persists after the operation finishes, so it reflects the outcome of the *last sync attempt* rather than whether one is currently running. Possible values are: `""` (no operation has ever run), Error, Failed, Running, Succeeded, Terminating.                                                                                                 |
 | method             | GET                             | HTTP method used for the request. Possible values are: GET, DELETE, PATCH, POST, PUT.                                                                                                           |
 | name               | my-app                          | Name of an Application.                                                                                                                                                                         |
 | namespace          | default                         | Namespace of an Application (namespace where the Application CR is located, not the destination namespace).                                                                                     |
@@ -65,6 +66,34 @@ Metrics about applications. Scraped at the `argocd-metrics:8082/metrics` endpoin
 | result             | hit                             | Result of an attempt to get a transport from the kubectl (client-go) transport cache. Possible values are: hit, miss, unreachable.                                                              |
 | server             | https://example.com             | Server where the operation is performed.                                                                                                                                                        |
 | verb               | List                            | Kubernetes API verb used in the request. Possible values are: Get, Watch, List, Create, Delete, Patch, Update.                                                                                  |
+
+### Alerting on the outcome of the last sync attempt
+
+`sync_status` and `health_status` on `argocd_app_info` describe whether the live state currently matches Git — they say
+nothing about how the *last sync attempt* went. It is possible for a sync to fail (for example, a PreSync hook Job exits
+non-zero) and for the Application to become `Synced`/`Healthy` again afterwards without a new operation ever running, e.g.
+because the offending Git commit was reverted. In that situation `status.operationState.phase` is still `Failed`, but
+nothing in `sync_status` or `health_status` reflects it.
+
+The `last_operation_phase` label exposes `status.operationState.phase` directly on `argocd_app_info` so that this state is
+visible as a gauge (a level), not just as an increment on the `argocd_app_sync_total` counter (an edge). Counter-based
+alerts such as `increase(argocd_app_sync_total{phase="Failed"}[10m]) > 0` fire once and then resolve as the time window
+slides past, even though the Application is still in a failed state, and the counter resets on controller restart.
+`last_operation_phase` lets you alert on "is any Application currently in a failed state" directly:
+
+```yaml
+- alert: ArgoCDLastSyncFailed
+  expr: argocd_app_info{last_operation_phase=~"Failed|Error"} == 1
+  for: 5m
+  labels:
+    severity: warning
+  annotations:
+    summary: "Argo CD application {{ $labels.name }} last sync attempt failed"
+    description: >-
+      The most recent operation on {{ $labels.namespace }}/{{ $labels.name }} ended in
+      {{ $labels.last_operation_phase }}. This may be stale even if sync_status/health_status
+      currently look healthy.
+```
 
 ### Metrics Cache Expiration
 
