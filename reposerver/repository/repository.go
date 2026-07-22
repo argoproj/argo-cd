@@ -28,8 +28,8 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/util/oci"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
-	textutils "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/text"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
+	textutils "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/text"
 	"github.com/argoproj/pkg/v2/sync"
 	jsonpatch "github.com/evanphx/json-patch"
 	gogit "github.com/go-git/go-git/v5"
@@ -38,6 +38,8 @@ import (
 	"github.com/google/uuid"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/retry"
 	log "github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"golang.org/x/sync/semaphore"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -69,6 +71,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/kustomize"
 	"github.com/argoproj/argo-cd/v3/util/manifeststream"
 	"github.com/argoproj/argo-cd/v3/util/settings"
+	traceutil "github.com/argoproj/argo-cd/v3/util/trace"
 	"github.com/argoproj/argo-cd/v3/util/versions"
 )
 
@@ -82,6 +85,8 @@ const (
 )
 
 var ErrExceededMaxCombinedManifestFileSize = errors.New("exceeded max combined manifest file size")
+
+var tracer = otel.Tracer("github.com/argoproj/argo-cd/v3/reposerver/repository")
 
 // Service implements ManifestService interface
 type Service struct {
@@ -227,6 +232,13 @@ func (s *Service) ListOCITags(ctx context.Context, q *apiclient.ListRefsRequest)
 
 // ListRefs List a subset of the refs (currently, branches and tags) of a git repo
 func (s *Service) ListRefs(_ context.Context, q *apiclient.ListRefsRequest) (*apiclient.Refs, error) {
+	if q.Repo == nil {
+		return nil, status.Error(codes.InvalidArgument, "must pass a valid repo")
+	}
+	if git.NormalizeGitURL(q.Repo.Repo) == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "repository URL %q is invalid", q.Repo.Repo)
+	}
+
 	gitClient, err := s.newClient(q.Repo)
 	if err != nil {
 		return nil, fmt.Errorf("error creating git client: %w", err)
@@ -630,8 +642,21 @@ func (s *Service) checkOutOfBoundsSymlinks(rootPath string, version string, noCa
 	return checker.(func() error)()
 }
 
-func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestRequest) (*apiclient.ManifestResponse, error) {
-	var res *apiclient.ManifestResponse
+func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestRequest) (res *apiclient.ManifestResponse, retErr error) {
+	// The otelgrpc server handler already created the RPC span as the parent; this names
+	// and annotates the manifest-generation work so it shows up in the reconcile trace.
+	ctx, span := tracer.Start(ctx, "reposerver.GenerateManifest")
+	if span.IsRecording() {
+		span.SetAttributes(
+			attribute.String("argocd.app.name", q.AppName),
+			attribute.String("argocd.revision", q.Revision),
+		)
+		if q.Repo != nil {
+			span.SetAttributes(attribute.String("argocd.repo.url", git.SanitizeRepoURL(q.Repo.Repo)))
+		}
+	}
+	defer func() { traceutil.EndSpan(span, retErr) }()
+
 	var err error
 
 	// Skip this path for ref only sources
@@ -1223,7 +1248,7 @@ func sanitizeRepoName(repoName string) string {
 // if multiple threads are trying to run it.
 // Multiple goroutines might process same helm app in one repo concurrently when repo server process multiple
 // manifest generation requests of the same commit.
-func runHelmBuild(appPath string, h helm.Helm) error {
+func runHelmBuild(ctx context.Context, appPath string, h helm.Helm) error {
 	manifestGenerateLock.Lock(appPath)
 	defer manifestGenerateLock.Unlock(appPath)
 
@@ -1238,7 +1263,7 @@ func runHelmBuild(appPath string, h helm.Helm) error {
 		return err
 	}
 
-	err = h.DependencyBuild()
+	err = h.DependencyBuild(ctx)
 	if err != nil {
 		return fmt.Errorf("error building helm chart dependencies: %w", err)
 	}
@@ -1264,7 +1289,7 @@ func parseKubeVersion(version string) (string, error) {
 	return kubeVersion.String(), nil
 }
 
-func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths utilio.TempPaths) ([]*unstructured.Unstructured, string, error) {
+func helmTemplate(ctx context.Context, appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths utilio.TempPaths) ([]*unstructured.Unstructured, string, error) {
 	// We use the app name as Helm's release name property, which must not
 	// contain any underscore characters and must not exceed 53 characters.
 	// We are not interested in the fully qualified application name while
@@ -1388,7 +1413,7 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			return nil, "", err
 		}
 
-		err = runHelmBuild(appPath, h)
+		err = runHelmBuild(ctx, appPath, h)
 		if err != nil {
 			var reposNotPermitted []string
 			// We do a sanity check here to give a nicer error message in case any of the Helm repositories are not permitted by
@@ -1719,7 +1744,10 @@ func WithCMPUseManifestGeneratePaths(enabled bool) GenerateManifestOpt {
 }
 
 // GenerateManifests generates manifests from a path. Overrides are applied as a side effect on the given ApplicationSource.
-func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, q *apiclient.ManifestRequest, isLocal bool, gitCredsStore git.CredsStore, maxCombinedManifestQuantity resource.Quantity, gitRepoPaths utilio.TempPaths, opts ...GenerateManifestOpt) (*apiclient.ManifestResponse, error) {
+func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, q *apiclient.ManifestRequest, isLocal bool, gitCredsStore git.CredsStore, maxCombinedManifestQuantity resource.Quantity, gitRepoPaths utilio.TempPaths, opts ...GenerateManifestOpt) (_ *apiclient.ManifestResponse, retErr error) {
+	ctx, span := tracer.Start(ctx, "reposerver.GenerateManifests")
+	defer func() { traceutil.EndSpan(span, retErr) }()
+
 	opt := newGenerateManifestOpt(opts...)
 	var targetObjs []*unstructured.Unstructured
 
@@ -1731,6 +1759,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 	if err != nil {
 		return nil, fmt.Errorf("error getting app source type: %w", err)
 	}
+	span.SetAttributes(attribute.String("argocd.app.source_type", string(appSourceType)))
 	repoURL := ""
 	if q.Repo != nil {
 		repoURL = q.Repo.Repo
@@ -1741,7 +1770,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 	switch appSourceType {
 	case v1alpha1.ApplicationSourceTypeHelm:
 		var command string
-		targetObjs, command, err = helmTemplate(appPath, repoRoot, env, q, isLocal, gitRepoPaths)
+		targetObjs, command, err = helmTemplate(ctx, appPath, repoRoot, env, q, isLocal, gitRepoPaths)
 		commands = append(commands, command)
 	case v1alpha1.ApplicationSourceTypeKustomize:
 		var kustomizeBinary string
@@ -2439,7 +2468,24 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 	settings := operationSettings{allowConcurrent: q.Source.AllowsConcurrentProcessing(), noCache: q.NoCache, noRevisionCache: q.NoCache || q.NoRevisionCache}
 	err := s.runRepoOperation(ctx, q.Source.TargetRevision, q.Repo, q.Source, nil, cacheFn, operation, settings, len(q.RefSources) > 0, q.RefSources)
 
-	return res, err
+	return res, toUserInputStatusError(err)
+}
+
+// toUserInputStatusError maps errors that are caused by invalid user input to a
+// gRPC InvalidArgument status, so they are not reported as codes.Unknown (which
+// implies a server fault and pollutes error-rate SLOs). Errors that already
+// carry a non-Unknown gRPC status code are returned unchanged.
+func toUserInputStatusError(err error) error {
+	if err == nil {
+		return nil
+	}
+	if _, ok := status.FromError(err); ok && status.Code(err) != codes.Unknown {
+		return err
+	}
+	if errors.Is(err, apppathutil.ErrAppPathDoesNotExist) || errors.Is(err, git.ErrRevisionNotFound) {
+		return status.Error(codes.InvalidArgument, err.Error())
+	}
+	return err
 }
 
 func (s *Service) createGetAppDetailsCacheHandler(res *apiclient.RepoAppDetailsResponse, q *apiclient.RepoServerAppDetailsQuery) func(revision string, _ cache.ResolvedRevisions, _ bool) (bool, error) {
@@ -2948,7 +2994,10 @@ func directoryPermissionInitializer(rootPath string) goio.Closer {
 
 // checkoutRevision is a convenience function to initialize a repo, fetch, and checkout a revision
 // Returns the 40 character commit SHA after the checkout has been performed
-func (s *Service) checkoutRevision(ctx context.Context, gitClient git.Client, revision string, submoduleEnabled bool, depth int64, clean bool) (goio.Closer, error) {
+func (s *Service) checkoutRevision(ctx context.Context, gitClient git.Client, revision string, submoduleEnabled bool, depth int64, clean bool) (_ goio.Closer, retErr error) {
+	ctx, span := tracer.Start(ctx, "reposerver.checkoutRevision")
+	span.SetAttributes(attribute.String("argocd.revision", revision))
+	defer func() { traceutil.EndSpan(span, retErr) }()
 	closer := s.gitRepoInitializer(gitClient.Root())
 	err := checkoutRevision(ctx, gitClient, revision, submoduleEnabled, depth, clean)
 	if err != nil {
@@ -3100,7 +3149,7 @@ func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositor
 				if repo.InsecureOCIForceHttp {
 					clientOpts = append(clientOpts, helm.WithPlainHTTP())
 				}
-				_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI, repo.Proxy, repo.NoProxy, clientOpts...).TestHelmOCI()
+				_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI, repo.Proxy, repo.NoProxy, clientOpts...).TestHelmOCI(ctx)
 				return err
 			}
 			_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI, repo.Proxy, repo.NoProxy).GetIndex(ctx, false, s.initConstants.HelmRegistryMaxIndexSize)
