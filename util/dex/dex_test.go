@@ -500,9 +500,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 		assert.NotNil(t, config)
 		var dexCfg map[string]any
 		err = yaml.Unmarshal(config, &dexCfg)
-		if err != nil {
-			panic(err.Error())
-		}
+		require.NoError(t, err)
 		storage, ok := dexCfg["storage"].(map[string]any)
 		require.True(t, ok)
 		assert.Equal(t, "kubernetes", storage["type"])
@@ -522,9 +520,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 		assert.NotNil(t, config)
 		var dexCfg map[string]any
 		err = yaml.Unmarshal(config, &dexCfg)
-		if err != nil {
-			panic(err.Error())
-		}
+		require.NoError(t, err)
 		storage, ok := dexCfg["storage"].(map[string]any)
 		require.True(t, ok)
 		assert.Equal(t, "etcd", storage["type"])
@@ -533,6 +529,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 		assert.Equal(t, "my-etcd-namespace", storageConfig["namespace"])
 		endpoints, ok := storageConfig["endpoints"].([]any)
 		require.True(t, ok)
+		require.NotEmpty(t, endpoints)
 		assert.Equal(t, "http://localhost:2379", endpoints[0])
 	})
 
@@ -547,9 +544,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 		assert.NotNil(t, config)
 		var dexCfg map[string]any
 		err = yaml.Unmarshal(config, &dexCfg)
-		if err != nil {
-			panic(err.Error())
-		}
+		require.NoError(t, err)
 		storage, ok := dexCfg["storage"].(map[string]any)
 		require.True(t, ok)
 		assert.Equal(t, "postgres", storage["type"])
