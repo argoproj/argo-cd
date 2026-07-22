@@ -8,13 +8,13 @@ Run the ArgoCD API server
 
 The API server is a gRPC/REST server which exposes the API consumed by the Web UI, CLI, and CI/CD systems.  This command runs API server in the foreground.  It can be configured by following options.
 
-```
+```sh
 argocd-server [flags]
 ```
 
 ### Examples
 
-```
+```sh
   # Start the Argo CD API server with default settings
   $ argocd-server
   
@@ -24,7 +24,7 @@ argocd-server [flags]
 
 ### Options
 
-```
+```clj
       --address string                                  Listen on given address (default "0.0.0.0")
       --api-content-types string                        Semicolon separated list of allowed content types for non GET api requests. Any content type is allowed if empty. (default "application/json")
       --app-state-cache-expiration duration             Cache expiration for app state (default 1h0m0s)
@@ -115,6 +115,7 @@ argocd-server [flags]
       --tlsciphers string                               The list of acceptable ciphers to be used when establishing TLS connections. Use 'list' to list available ciphers. (default "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384")
       --tlsmaxversion string                            The maximum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3) (default "1.3")
       --tlsminversion string                            The minimum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3) (default "1.2")
+      --tlscurvepreferences string.                     The list of acceptable curve preferences separated by colon to be used when establishing TLS connections (default "")
       --token string                                    Bearer token for authentication to the API server
       --user string                                     The name of the kubeconfig user to use
       --username string                                 Username for basic authentication to the API server
