@@ -3001,7 +3001,7 @@ message SyncWindowRef {
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-// +kubebuilder:resource:path=syncwindows,shortName=sw;sws
+// +kubebuilder:resource:path=syncwindowresources,shortName=sw
 message SyncWindowResource {
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 

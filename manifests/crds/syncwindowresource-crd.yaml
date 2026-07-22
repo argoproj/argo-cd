@@ -2,26 +2,26 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   labels:
-    app.kubernetes.io/name: syncwindows.argoproj.io
+    app.kubernetes.io/name: syncwindowresources.argoproj.io
     app.kubernetes.io/part-of: argocd
-  name: syncwindows.argoproj.io
+  name: syncwindowresources.argoproj.io
 spec:
   group: argoproj.io
   names:
-    kind: SyncWindow
-    listKind: SyncWindowList
-    plural: syncwindows
+    kind: SyncWindowResource
+    listKind: SyncWindowResourceList
+    plural: syncwindowresources
     shortNames:
     - sw
-    - sws
-    singular: syncwindow
+    singular: syncwindowresource
   scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: SyncWindowResource is a CRD that defines reusable sync windows
-          which can be referenced by AppProjects and Applications.
+        description: |-
+          SyncWindowResource is a CRD that defines reusable sync windows which can be referenced
+          by AppProjects and Applications.
         properties:
           apiVersion:
             description: |-
@@ -44,25 +44,30 @@ spec:
             description: SyncWindowResourceSpec defines the desired state of a SyncWindowResource
             properties:
               windows:
-                description: Windows is a list of sync window definitions contained
-                  in this resource.
+                description: |-
+                  Windows is a list of sync window definitions contained in this resource.
+                  Multiple windows are allowed for easy transition from projects and to group related windows.
                 items:
-                  description: SyncWindowDefinition defines a single sync window entry
-                    within a SyncWindowResource.
+                  description: |-
+                    SyncWindowDefinition defines a single sync window entry within a SyncWindowResource.
+                    When referenced from an Application, the Applications/Namespaces/Clusters filters are ignored
+                    since the window applies directly to the referencing application.
                   properties:
                     andOperator:
                       description: UseAndOperator uses AND operator for matching applications,
                         namespaces and clusters instead of the default OR.
                       type: boolean
                     applications:
-                      description: Applications contains a list of applications that
-                        the window will apply to (glob patterns supported).
+                      description: |-
+                        Applications contains a list of applications that the window will apply to (glob patterns supported).
+                        Ignored when the SyncWindowResource is referenced directly from an Application.
                       items:
                         type: string
                       type: array
                     clusters:
-                      description: Clusters contains a list of clusters that the window
-                        will apply to (glob patterns supported).
+                      description: |-
+                        Clusters contains a list of clusters that the window will apply to (glob patterns supported).
+                        Ignored when the SyncWindowResource is referenced directly from an Application.
                       items:
                         type: string
                       type: array
@@ -71,8 +76,8 @@ spec:
                       maxLength: 255
                       type: string
                     duration:
-                      description: Duration is the amount of time the sync window will
-                        be open (e.g. "1h", "30m").
+                      description: Duration is the amount of time the sync window
+                        will be open (e.g. "1h", "30m").
                       type: string
                     kind:
                       description: Kind defines if the window allows or blocks syncs.
@@ -83,8 +88,9 @@ spec:
                         otherwise be blocked.
                       type: boolean
                     namespaces:
-                      description: Namespaces contains a list of namespaces that the
-                        window will apply to (glob patterns supported).
+                      description: |-
+                        Namespaces contains a list of namespaces that the window will apply to (glob patterns supported).
+                        Ignored when the SyncWindowResource is referenced directly from an Application.
                       items:
                         type: string
                       type: array
@@ -101,9 +107,9 @@ spec:
                         e.g. "America/New_York"). Defaults to UTC.
                       type: string
                   required:
+                  - duration
                   - kind
                   - schedule
-                  - duration
                   type: object
                 type: array
             required:
