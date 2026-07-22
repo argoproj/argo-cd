@@ -1,0 +1,16 @@
+apiVersion: acme.cert-manager.io/v1
+kind: Challenge
+metadata:
+  name: example-tls-chal-123
+  namespace: default
+spec:
+  type: DNS-01
+  dnsName: example.com
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+status:
+  state: invalid
+  processing: false
+  presented: false
+  reason: "Error accepting authorization: acme: authorization error for example.com: 403 urn:ietf:params:acme:error:unauthorized"
