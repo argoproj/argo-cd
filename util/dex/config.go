@@ -32,7 +32,7 @@ func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTLS b
 		if storageType, ok := existingStorage["type"]; ok && storageType != "" {
 			storage["type"] = storageType
 		}
-		if storageConfig, ok := existingStorage["config"]; ok && storageConfig != "" {
+		if storageConfig, ok := existingStorage["config"].(map[string]any); ok {
 			storage["config"] = storageConfig
 		}
 	} else {
