@@ -128,6 +128,30 @@ func TestGetAppProj_appInDifferentNamespace(t *testing.T) {
 	assert.Equal(t, "argocd", result.GetNamespace())
 }
 
+func TestGetAppProj_defaultsToDefaultProject(t *testing.T) {
+	// The 'default' project lives in the controller namespace.
+	proj := &unstructured.Unstructured{}
+	proj.SetGroupVersionKind(v1alpha1.AppProjectSchemaGroupVersionKind)
+	proj.SetName("default")
+	proj.SetNamespace("argocd")
+
+	informer := cache.NewSharedIndexInformer(&cache.ListWatch{}, &unstructured.Unstructured{}, 0,
+		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
+	require.NoError(t, informer.GetIndexer().Add(proj))
+
+	// An app with no spec.project belongs to the 'default' project.
+	app := &unstructured.Unstructured{
+		Object: map[string]any{
+			"metadata": map[string]any{"name": "my-app", "namespace": "argocd"},
+			"spec":     map[string]any{},
+		},
+	}
+
+	result := getAppProj(app, informer, "argocd")
+	require.NotNil(t, result)
+	assert.Equal(t, "default", result.GetName())
+}
+
 func TestInit(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.SchemeBuilder.AddToScheme(scheme)

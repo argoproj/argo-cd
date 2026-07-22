@@ -207,9 +207,13 @@ func (c *notificationController) Run(ctx context.Context, processors int) {
 }
 
 func getAppProj(app *unstructured.Unstructured, appProjInformer cache.SharedIndexInformer, controllerNamespace string) *unstructured.Unstructured {
-	projName, ok, err := unstructured.NestedString(app.Object, "spec", "project")
-	if !ok || err != nil {
+	projName, _, err := unstructured.NestedString(app.Object, "spec", "project")
+	if err != nil {
 		return nil
+	}
+	// An empty or absent project means the app belongs to the 'default' project.
+	if projName == "" {
+		projName = "default"
 	}
 	// AppProjects live in the controller namespace, and the informer only watches
 	// that namespace, so key on it rather than the application's namespace (which
