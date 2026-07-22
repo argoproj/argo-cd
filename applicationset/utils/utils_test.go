@@ -604,6 +604,32 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 				"value": "non\n compliant\n yaml",
 			},
 		},
+		{
+			name:        "tpl",
+			fieldVal:    "{{ tpl \"{{.value}}\" . }}",
+			expectedVal: "hello world",
+			params: map[string]any{
+				"value": "hello world",
+			},
+		},
+		{
+			name:            "tpl non-existent value with missingkey=error",
+			fieldVal:        "{{ tpl \"{{.DoesNotExist}}\" . }}",
+			errorMessage:    "failed to execute go template {{ tpl \"{{.DoesNotExist}}\" . }}: template: base:1:3: executing \"base\" at <tpl \"{{.DoesNotExist}}\" .>: error calling tpl: error during tpl function execution for \"{{.DoesNotExist}}\": template: base:1:2: executing \"base\" at <.DoesNotExist>: map has no entry for key \"DoesNotExist\"",
+			templateOptions: []string{"missingkey=error"},
+			params: map[string]any{
+				"value": "hello world",
+			},
+		},
+		{
+			name:            "tpl non-existent value with missingkey=default",
+			fieldVal:        "{{ tpl \"{{.DoesNotExist}}\" . }}",
+			expectedVal:     "",
+			templateOptions: []string{"missingkey=default"},
+			params: map[string]any{
+				"value": "hello world",
+			},
+		},
 	}
 
 	for _, test := range tests {

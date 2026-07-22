@@ -35,6 +35,8 @@ var sprigFuncMap = sprig.GenericFuncMap() // a singleton for better performance
 var baseTemplate *template.Template
 
 func init() {
+	baseTemplate = template.New("base")
+
 	// Avoid allowing the user to learn things about the environment.
 	delete(sprigFuncMap, "env")
 	delete(sprigFuncMap, "expandenv")
@@ -47,7 +49,7 @@ func init() {
 
 	// Initialize the base template with sprig functions once at startup.
 	// This must be done after modifying sprigFuncMap above.
-	baseTemplate = template.New("base").Funcs(sprigFuncMap)
+	baseTemplate = baseTemplate.Funcs(sprigFuncMap)
 }
 
 type Renderer interface {
@@ -409,6 +411,7 @@ func (r *Render) Replace(tmpl string, replaceMap map[string]any, useGoTemplate b
 		for _, option := range goTemplateOptions {
 			cloned = cloned.Option(option)
 		}
+		cloned = withTplFunc(cloned)
 		parsed, err := cloned.Parse(tmpl)
 		if err != nil {
 			return "", fmt.Errorf("failed to parse template %s: %w", tmpl, err)
