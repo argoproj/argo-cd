@@ -2421,6 +2421,7 @@ func TestSyncRBACSettingsError(t *testing.T) {
 		},
 	})
 	appServer.settingsMgr = settings.NewSettingsManager(ctx, brokenclientset, testNamespace)
+	appServer.configProvider = testConfigProvider([]string{}, appServer.settingsMgr)
 	// and sync to different revision
 	syncReq := &application.ApplicationSyncRequest{
 		Name:     &app.Name,
@@ -2429,7 +2430,7 @@ func TestSyncRBACSettingsError(t *testing.T) {
 
 	_, err2 := appServer.Sync(ctx, syncReq)
 	require.Error(t, err2)
-	require.ErrorContains(t, err2, "error getting setting")
+	require.ErrorContains(t, err2, "failed to resolve RequireOverridePrivilegeForRevisionSync")
 }
 
 func TestSyncRBACOverrideFalse_DiffRevNoOverrideAllowed(t *testing.T) {
@@ -3172,7 +3173,9 @@ func TestLogsGetSelectedPod(t *testing.T) {
 }
 
 func TestMaxPodLogsRender(t *testing.T) {
-	defaultMaxPodLogsToRender, _ := newTestAppServer(t).settingsMgr.GetMaxPodLogsToRender()
+	appServer := newTestAppServer(t)
+	defaultMaxPodLogsToRender, err := appServer.configProvider.MaxPodLogsToRender(t.Context())
+	require.NoError(t, err)
 
 	// Case: number of pods to view logs is less than defaultMaxPodLogsToRender
 	podNumber := int(defaultMaxPodLogsToRender - 1)

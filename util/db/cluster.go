@@ -76,7 +76,7 @@ func (db *db) ListClusters(_ context.Context) (*appv1.ClusterList, error) {
 	clusterList := appv1.ClusterList{
 		Items: make([]appv1.Cluster, 0),
 	}
-	inClusterEnabled, err := db.settingsMgr.IsInClusterEnabled()
+	inClusterEnabled, err := db.settingsMgr.IsInClusterEnabled() //nolint:staticcheck // SA1019: ArgoDB not yet on configbus.Provider
 	if err != nil {
 		log.Warnf(errCheckingInClusterEnabled, "ListClusters", err)
 	}
@@ -100,7 +100,7 @@ func (db *db) ListClusters(_ context.Context) (*appv1.ClusterList, error) {
 // CreateCluster creates a cluster
 func (db *db) CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Cluster, error) {
 	if c.Server == appv1.KubernetesInternalAPIServerAddr {
-		inClusterEnabled, err := db.settingsMgr.IsInClusterEnabled()
+		inClusterEnabled, err := db.settingsMgr.IsInClusterEnabled() //nolint:staticcheck // SA1019: ArgoDB not yet on configbus.Provider
 		if err != nil {
 			log.Warnf(errCheckingInClusterEnabled, "CreateCluster", err)
 		}
@@ -150,7 +150,7 @@ func (db *db) WatchClusters(ctx context.Context,
 	handleModEvent func(oldCluster *appv1.Cluster, newCluster *appv1.Cluster),
 	handleDeleteEvent func(clusterServer string),
 ) error {
-	inClusterEnabled, err := db.settingsMgr.IsInClusterEnabled()
+	inClusterEnabled, err := db.settingsMgr.IsInClusterEnabled() //nolint:staticcheck // SA1019: ArgoDB not yet on configbus.Provider
 	if err != nil {
 		log.Warnf(errCheckingInClusterEnabled, "WatchClusters", err)
 	}
@@ -246,7 +246,7 @@ func (db *db) GetCluster(_ context.Context, server string) (*appv1.Cluster, erro
 		return nil, fmt.Errorf("failed to get cluster informer: %w", err)
 	}
 	if server == appv1.KubernetesInternalAPIServerAddr {
-		inClusterEnabled, err := db.settingsMgr.IsInClusterEnabled()
+		inClusterEnabled, err := db.settingsMgr.IsInClusterEnabled() //nolint:staticcheck // SA1019: ArgoDB not yet on configbus.Provider
 		if err != nil {
 			log.Warnf(errCheckingInClusterEnabled, "GetCluster", err)
 		}
@@ -307,7 +307,7 @@ func (db *db) GetClusterServersByName(_ context.Context, name string) ([]string,
 		return servers, nil
 	}
 
-	inClusterEnabled, err := db.settingsMgr.IsInClusterEnabled()
+	inClusterEnabled, err := db.settingsMgr.IsInClusterEnabled() //nolint:staticcheck // SA1019: ArgoDB not yet on configbus.Provider
 	if err != nil {
 		return nil, fmt.Errorf(errCheckingInClusterEnabled, "GetClusterServersByName", err)
 	}

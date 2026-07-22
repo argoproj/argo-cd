@@ -1,4 +1,3 @@
-//nolint:staticcheck // SA1019: application server settings reads migrate on configbus/02-server
 package application
 
 import (
@@ -475,7 +474,7 @@ func (s *Server) queryRepoServer(ctx context.Context, proj *v1alpha1.AppProject,
 	if err != nil {
 		return fmt.Errorf("error getting helm repository credentials: %w", err)
 	}
-	helmOptions, err := s.settingsMgr.GetHelmSettings()
+	helmOptions, err := s.configProvider.HelmSettings(ctx)
 	if err != nil {
 		return fmt.Errorf("error getting helm settings: %w", err)
 	}
@@ -483,7 +482,7 @@ func (s *Server) queryRepoServer(ctx context.Context, proj *v1alpha1.AppProject,
 	if err != nil {
 		return fmt.Errorf("error getting permitted repos credentials: %w", err)
 	}
-	enabledSourceTypes, err := s.settingsMgr.GetEnabledSourceTypes()
+	enabledSourceTypes, err := s.configProvider.EnabledSourceTypes(ctx)
 	if err != nil {
 		return fmt.Errorf("error getting settings enabled source types: %w", err)
 	}
@@ -504,7 +503,7 @@ func (s *Server) queryRepoServer(ctx context.Context, proj *v1alpha1.AppProject,
 		return fmt.Errorf("failed to get permitted OCI credentials for project %q: %w", proj.Name, err)
 	}
 
-	return action(client, permittedHelmRepos, permittedHelmCredentials, permittedOCIRepos, permittedOCICredentials, helmOptions, enabledSourceTypes)
+	return action(client, permittedHelmRepos, permittedHelmCredentials, permittedOCIRepos, permittedOCICredentials, &helmOptions, enabledSourceTypes)
 }
 
 // GetManifests returns application manifests
@@ -529,7 +528,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	err = s.queryRepoServer(ctx, proj, func(
 		client apiclient.RepoServerServiceClient, helmRepos []*v1alpha1.Repository, helmCreds []*v1alpha1.RepoCreds, ociRepos []*v1alpha1.Repository, ociCreds []*v1alpha1.RepoCreds, helmOptions *v1alpha1.HelmOptions, enableGenerateManifests map[string]bool,
 	) error {
-		appInstanceLabelKey, err := s.settingsMgr.GetAppInstanceLabelKey()
+		appInstanceLabelKey, err := s.configProvider.AppInstanceLabelKey(ctx)
 		if err != nil {
 			return fmt.Errorf("error getting app instance label key from settings: %w", err)
 		}
@@ -587,16 +586,16 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 				return fmt.Errorf("error getting repository: %w", err)
 			}
 
-			kustomizeSettings, err := s.settingsMgr.GetKustomizeSettings()
+			kustomizeSettings, err := s.configProvider.KustomizeSettings(ctx)
 			if err != nil {
 				return fmt.Errorf("error getting kustomize settings: %w", err)
 			}
 
-			installationID, err := s.settingsMgr.GetInstallationID()
+			installationID, err := s.configProvider.InstallationID(ctx)
 			if err != nil {
 				return fmt.Errorf("error getting installation ID: %w", err)
 			}
-			trackingMethod, err := s.settingsMgr.GetTrackingMethod()
+			trackingMethod, err := s.configProvider.TrackingMethod(ctx)
 			if err != nil {
 				return fmt.Errorf("error getting trackingMethod from settings: %w", err)
 			}
@@ -621,7 +620,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 				Namespace:                       a.Spec.Destination.Namespace,
 				ApplicationSource:               &source,
 				Repos:                           repos,
-				KustomizeOptions:                kustomizeSettings,
+				KustomizeOptions:                &kustomizeSettings,
 				KubeVersion:                     serverVersion,
 				ApiVersions:                     argo.APIResourcesToStrings(apiResources, true),
 				HelmRepoCreds:                   helmRepoCreds,
@@ -656,7 +655,11 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 				return nil, fmt.Errorf("error unmarshaling manifest into unstructured: %w", err)
 			}
 			if obj.GetKind() == kube.SecretKind && obj.GroupVersionKind().Group == "" {
-				obj, _, err = diff.HideSecretData(obj, nil, s.settingsMgr.GetSensitiveAnnotations())
+				sensitiveAnnotations, err := s.configProvider.SensitiveAnnotations(ctx)
+				if err != nil {
+					return nil, fmt.Errorf("failed to resolve SensitiveAnnotations: %w", err)
+				}
+				obj, _, err = diff.HideSecretData(obj, nil, sensitiveAnnotations)
 				if err != nil {
 					return nil, fmt.Errorf("error hiding secret data: %w", err)
 				}
@@ -693,12 +696,12 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 	err = s.queryRepoServer(ctx, proj, func(
 		client apiclient.RepoServerServiceClient, helmRepos []*v1alpha1.Repository, helmCreds []*v1alpha1.RepoCreds, _ []*v1alpha1.Repository, _ []*v1alpha1.RepoCreds, helmOptions *v1alpha1.HelmOptions, enableGenerateManifests map[string]bool,
 	) error {
-		appInstanceLabelKey, err := s.settingsMgr.GetAppInstanceLabelKey()
+		appInstanceLabelKey, err := s.configProvider.AppInstanceLabelKey(ctx)
 		if err != nil {
 			return fmt.Errorf("error getting app instance label key from settings: %w", err)
 		}
 
-		trackingMethod, err := s.settingsMgr.GetTrackingMethod()
+		trackingMethod, err := s.configProvider.TrackingMethod(ctx)
 		if err != nil {
 			return fmt.Errorf("error getting trackingMethod from settings: %w", err)
 		}
@@ -730,7 +733,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 			return fmt.Errorf("error getting repository: %w", err)
 		}
 
-		kustomizeSettings, err := s.settingsMgr.GetKustomizeSettings()
+		kustomizeSettings, err := s.configProvider.KustomizeSettings(ctx)
 		if err != nil {
 			return fmt.Errorf("error getting kustomize settings: %w", err)
 		}
@@ -743,7 +746,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 			Namespace:                       a.Spec.Destination.Namespace,
 			ApplicationSource:               &source,
 			Repos:                           helmRepos,
-			KustomizeOptions:                kustomizeSettings,
+			KustomizeOptions:                &kustomizeSettings,
 			KubeVersion:                     serverVersion,
 			ApiVersions:                     argo.APIResourcesToStrings(apiResources, true),
 			HelmRepoCreds:                   helmCreds,
@@ -784,7 +787,11 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 			return fmt.Errorf("error unmarshaling manifest into unstructured: %w", err)
 		}
 		if obj.GetKind() == kube.SecretKind && obj.GroupVersionKind().Group == "" {
-			obj, _, err = diff.HideSecretData(obj, nil, s.settingsMgr.GetSensitiveAnnotations())
+			sensitiveAnnotations, err := s.configProvider.SensitiveAnnotations(ctx)
+			if err != nil {
+				return fmt.Errorf("failed to resolve SensitiveAnnotations: %w", err)
+			}
+			obj, _, err = diff.HideSecretData(obj, nil, sensitiveAnnotations)
 			if err != nil {
 				return fmt.Errorf("error hiding secret data: %w", err)
 			}
@@ -869,11 +876,11 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*v1a
 			if err != nil {
 				return fmt.Errorf("error getting repository: %w", err)
 			}
-			kustomizeSettings, err := s.settingsMgr.GetKustomizeSettings()
+			kustomizeSettings, err := s.configProvider.KustomizeSettings(ctx)
 			if err != nil {
 				return fmt.Errorf("error getting kustomize settings: %w", err)
 			}
-			trackingMethod, err := s.settingsMgr.GetTrackingMethod()
+			trackingMethod, err := s.configProvider.TrackingMethod(ctx)
 			if err != nil {
 				return fmt.Errorf("error getting trackingMethod from settings: %w", err)
 			}
@@ -881,7 +888,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*v1a
 				Repo:               repo,
 				Source:             &source,
 				AppName:            appName,
-				KustomizeOptions:   kustomizeSettings,
+				KustomizeOptions:   &kustomizeSettings,
 				Repos:              helmRepos,
 				NoCache:            true,
 				TrackingMethod:     trackingMethod,
@@ -1439,7 +1446,7 @@ func (s *Server) getApplicationClusterConfig(ctx context.Context, a *v1alpha1.Ap
 		return nil, fmt.Errorf("error getting cluster REST config: %w", err)
 	}
 
-	impersonationEnabled, err := s.settingsMgr.IsImpersonationEnabled()
+	impersonationEnabled, err := s.configProvider.IsImpersonationEnabled(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error getting impersonation setting: %w", err)
 	}
@@ -1454,7 +1461,7 @@ func (s *Server) getApplicationClusterConfig(ctx context.Context, a *v1alpha1.Ap
 	}
 	if serviceAccountToImpersonate == "" {
 		// No matching service account found - check enforcement
-		impersonationEnforced, enforcedErr := s.settingsMgr.IsImpersonationEnforced()
+		impersonationEnforced, enforcedErr := s.configProvider.IsImpersonationEnforced(ctx)
 		if enforcedErr != nil {
 			return nil, fmt.Errorf("error getting impersonation enforcement setting: %w", enforcedErr)
 		}
@@ -1562,7 +1569,7 @@ func (s *Server) GetResource(ctx context.Context, q *application.ApplicationReso
 	if err != nil {
 		return nil, fmt.Errorf("error getting resource: %w", err)
 	}
-	obj, err = s.replaceSecretValues(obj)
+	obj, err = s.replaceSecretValues(ctx, obj)
 	if err != nil {
 		return nil, fmt.Errorf("error replacing secret values: %w", err)
 	}
@@ -1574,9 +1581,13 @@ func (s *Server) GetResource(ctx context.Context, q *application.ApplicationReso
 	return &application.ApplicationResourceResponse{Manifest: &manifest}, nil
 }
 
-func (s *Server) replaceSecretValues(obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+func (s *Server) replaceSecretValues(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
 	if obj.GetKind() == kube.SecretKind && obj.GroupVersionKind().Group == "" {
-		_, obj, err := diff.HideSecretData(nil, obj, s.settingsMgr.GetSensitiveAnnotations())
+		sensitiveAnnotations, err := s.configProvider.SensitiveAnnotations(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve SensitiveAnnotations: %w", err)
+		}
+		_, obj, err := diff.HideSecretData(nil, obj, sensitiveAnnotations)
 		if err != nil {
 			return nil, err
 		}
@@ -1613,7 +1624,7 @@ func (s *Server) PatchResource(ctx context.Context, q *application.ApplicationRe
 	if manifest == nil {
 		return nil, errors.New("failed to patch resource: manifest was nil")
 	}
-	manifest, err = s.replaceSecretValues(manifest)
+	manifest, err = s.replaceSecretValues(ctx, manifest)
 	if err != nil {
 		return nil, fmt.Errorf("error replacing secret values: %w", err)
 	}
@@ -2378,7 +2389,7 @@ func (s *Server) ListLinks(ctx context.Context, req *application.ListAppLinksReq
 		return nil, fmt.Errorf("error getting application: %w", err)
 	}
 
-	deepLinks, err := s.settingsMgr.GetDeepLinks(settings.ApplicationDeepLinks)
+	deepLinks, err := s.configProvider.ApplicationDeepLinks(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read application deep links from configmap: %w", err)
 	}
@@ -2448,12 +2459,12 @@ func (s *Server) ListResourceLinks(ctx context.Context, req *application.Applica
 	if err != nil {
 		return nil, err
 	}
-	deepLinks, err := s.settingsMgr.GetDeepLinks(settings.ResourceDeepLinks)
+	deepLinks, err := s.configProvider.ResourceDeepLinks(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read application deep links from configmap: %w", err)
 	}
 
-	obj, err = s.replaceSecretValues(obj)
+	obj, err = s.replaceSecretValues(ctx, obj)
 	if err != nil {
 		return nil, fmt.Errorf("error replacing secret values: %w", err)
 	}
@@ -2616,7 +2627,7 @@ func (s *Server) ListResourceActions(ctx context.Context, q *application.Applica
 	if err != nil {
 		return nil, err
 	}
-	resourceOverrides, err := s.settingsMgr.GetResourceOverrides()
+	resourceOverrides, err := s.configProvider.ResourceOverrides(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error getting resource overrides: %w", err)
 	}
@@ -2734,7 +2745,7 @@ func (s *Server) RunResourceActionV2(ctx context.Context, q *application.Resourc
 		return nil, fmt.Errorf("error marshaling live object: %w", err)
 	}
 
-	resourceOverrides, err := s.settingsMgr.GetResourceOverrides()
+	resourceOverrides, err := s.configProvider.ResourceOverrides(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error getting resource overrides: %w", err)
 	}
@@ -3057,7 +3068,7 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 		return nil, fmt.Errorf("error getting ArgoCD settings: %w", err)
 	}
 
-	resourceOverrides, err := s.settingsMgr.GetResourceOverrides()
+	resourceOverrides, err := s.configProvider.ResourceOverrides(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error getting resource overrides: %w", err)
 	}
@@ -3091,7 +3102,7 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 
 	dryRunner := diff.NewK8sServerSideDryRunner(applier)
 
-	appLabelKey, err := s.settingsMgr.GetAppInstanceLabelKey()
+	appLabelKey, err := s.configProvider.AppInstanceLabelKey(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error getting app instance label key: %w", err)
 	}
@@ -3244,7 +3255,11 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 					return nil, fmt.Errorf("error unmarshaling normalized live for secret masking: %w", err)
 				}
 			}
-			maskedTarget, maskedLive, err := diff.HideSecretData(targetObj, liveObj, s.settingsMgr.GetSensitiveAnnotations())
+			sensitiveAnnotations, err := s.configProvider.SensitiveAnnotations(ctx)
+			if err != nil {
+				return nil, fmt.Errorf("failed to resolve SensitiveAnnotations: %w", err)
+			}
+			maskedTarget, maskedLive, err := diff.HideSecretData(targetObj, liveObj, sensitiveAnnotations)
 			if err != nil {
 				return nil, fmt.Errorf("error masking secret data: %w", err)
 			}

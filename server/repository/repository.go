@@ -388,13 +388,13 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 	if err != nil {
 		return nil, err
 	}
-	kustomizeSettings, err := s.settings.GetKustomizeSettings()
+	kustomizeSettings, err := s.configProvider.KustomizeSettings(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to resolve KustomizeSettings: %w", err)
 	}
-	helmOptions, err := s.settings.GetHelmSettings()
+	helmOptions, err := s.configProvider.HelmSettings(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to resolve HelmSettings: %w", err)
 	}
 
 	refSources := make(v1alpha1.RefTargetRevisionMapping)
@@ -410,8 +410,8 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 		Repo:             repo,
 		Source:           q.Source,
 		Repos:            helmRepos,
-		KustomizeOptions: kustomizeSettings,
-		HelmOptions:      helmOptions,
+		KustomizeOptions: &kustomizeSettings,
+		HelmOptions:      &helmOptions,
 		AppName:          q.AppName,
 		RefSources:       refSources,
 	})

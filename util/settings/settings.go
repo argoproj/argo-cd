@@ -945,6 +945,7 @@ func (mgr *SettingsManager) GetInstallationID() (string, error) {
 	return argoCDCM.Data[settingsInstallationID], nil
 }
 
+// Deprecated: use configbus.Provider.PasswordPattern instead.
 func (mgr *SettingsManager) GetPasswordPattern() (string, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
@@ -957,6 +958,7 @@ func (mgr *SettingsManager) GetPasswordPattern() (string, error) {
 	return label, nil
 }
 
+// Deprecated: use configbus.Provider.ApplicationFineGrainedRBACInheritanceDisabled instead.
 func (mgr *SettingsManager) ApplicationFineGrainedRBACInheritanceDisabled() (bool, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
@@ -983,6 +985,7 @@ func (mgr *SettingsManager) GetServerRBACRollbackEnforceEnable() (bool, error) {
 	return strconv.ParseBool(argoCDCM.Data[settingsServerRBACRollbackEnforceEnableKey])
 }
 
+// Deprecated: use configbus.Provider.MaxPodLogsToRender instead.
 func (mgr *SettingsManager) GetMaxPodLogsToRender() (int64, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
@@ -996,6 +999,7 @@ func (mgr *SettingsManager) GetMaxPodLogsToRender() (int64, error) {
 	return strconv.ParseInt(argoCDCM.Data[settingsMaxPodLogsToRender], 10, 64)
 }
 
+// Deprecated: use configbus.Provider.ApplicationDeepLinks / ProjectDeepLinks / ResourceDeepLinks instead.
 func (mgr *SettingsManager) GetDeepLinks(deeplinkType string) ([]DeepLink, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
@@ -1373,6 +1377,7 @@ func addKustomizeVersion(prefix, name, path string, kvMap map[string]v1alpha1.Ku
 	return nil
 }
 
+// Deprecated: use configbus.Provider.GoogleAnalytics instead.
 func (mgr *SettingsManager) GetGoogleAnalytics() (*GoogleAnalytics, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
@@ -1384,6 +1389,7 @@ func (mgr *SettingsManager) GetGoogleAnalytics() (*GoogleAnalytics, error) {
 	}, nil
 }
 
+// Deprecated: use configbus.Provider.Help instead.
 func (mgr *SettingsManager) GetHelp() (*Help, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
@@ -1404,6 +1410,7 @@ func (mgr *SettingsManager) GetHelp() (*Help, error) {
 	}, nil
 }
 
+// Deprecated: use configbus.Provider.RequireOverridePrivilegeForRevisionSync instead.
 func (mgr *SettingsManager) RequireOverridePrivilegeForRevisionSync() (bool, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
@@ -2816,6 +2823,7 @@ func (mgr *SettingsManager) GetSensitiveAnnotations() map[string]bool {
 	return annotationKeys
 }
 
+// Deprecated: use configbus.Provider.MaxWebhookPayloadSize instead.
 func (mgr *SettingsManager) GetMaxWebhookPayloadSize() int64 {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
@@ -2835,6 +2843,7 @@ func (mgr *SettingsManager) GetMaxWebhookPayloadSize() int64 {
 	return maxPayloadSizeMB * 1024 * 1024
 }
 
+// Deprecated: use configbus.Provider.WebhookRefreshJitter instead.
 func (mgr *SettingsManager) GetWebhookRefreshJitter() time.Duration {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
@@ -2855,6 +2864,7 @@ func (mgr *SettingsManager) GetWebhookRefreshJitter() time.Duration {
 	return *jitter
 }
 
+// Deprecated: use configbus.Provider.WebhookRefreshJitterThreshold instead.
 func (mgr *SettingsManager) GetWebhookRefreshJitterThreshold() int {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
@@ -2930,6 +2940,7 @@ func (mgr *SettingsManager) GetAllowedNodeLabels() []string {
 }
 
 // IsInClusterEnabled returns false if in-cluster is explicitly disabled in argocd-cm configmap, true otherwise
+// Deprecated: use configbus.Provider.InClusterEnabled instead.
 func (mgr *SettingsManager) IsInClusterEnabled() (bool, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {

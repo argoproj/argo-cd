@@ -257,7 +257,9 @@ func Test_createRBACObject(t *testing.T) {
 
 func testRepoConfigProvider(hydratorEnabled bool) configbus.Provider {
 	return &configbus.StaticProvider{Fields: configbus.StaticFields{
-		HydratorEnabled: configbus.Ptr(hydratorEnabled),
+		HydratorEnabled:   configbus.Ptr(hydratorEnabled),
+		HelmSettings:      configbus.Ptr(appsv1.HelmOptions{}),
+		KustomizeSettings: configbus.Ptr(appsv1.KustomizeOptions{}),
 	}}
 }
 
