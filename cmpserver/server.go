@@ -108,9 +108,9 @@ func (a *ArgoCDCMPServer) Run() {
 // CreateGRPC creates new configured grpc server
 func (a *ArgoCDCMPServer) CreateGRPC() (*grpc.Server, error) {
 	server := grpc.NewServer(a.opts...)
-	versionpkg.RegisterVersionServiceServer(server, version.NewServer(nil, func() (bool, error) {
-		return true, nil
-	}))
+	versionpkg.RegisterVersionServiceServer(server, version.NewServer(nil, &configbus.StaticProvider{Fields: configbus.StaticFields{
+		DisableAuth: configbus.Ptr(true),
+	}}))
 	pluginService := plugin.NewService(a.initConstants)
 	err := pluginService.Init(common.GetCMPWorkDir())
 	if err != nil {
