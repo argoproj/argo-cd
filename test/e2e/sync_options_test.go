@@ -94,7 +94,9 @@ func TestSyncOptionsValidateFalse(t *testing.T) {
 		CreateApp().
 		Sync().
 		Then().
-		Expect(OperationPhaseIs(OperationSucceeded))
+		// With Validate=false the API server accepts the unknown field but returns a warning about it,
+		// so the sync succeeds with a warning (OperationWarning) rather than plain OperationSucceeded.
+		Expect(OperationPhaseIs(OperationWarning))
 	// NOTE: it is a bug that we do not detect this as OutOfSync. This is because we
 	// are dropping fields as part of remarshalling. See: https://github.com/argoproj/argo-cd/issues/1787
 	// Expect(SyncStatusIs(SyncStatusCodeOutOfSync))

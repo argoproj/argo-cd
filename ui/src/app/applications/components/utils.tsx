@@ -1071,6 +1071,10 @@ export const ResourceResultIcon = ({resource}: {resource: appModels.ResourceResu
             case appModels.ResultCodes.PruneSkipped:
                 icon = 'fa-heart';
                 break;
+            case appModels.ResultCodes.SyncedWithWarning:
+                color = COLORS.sync_result.synced_with_warning;
+                icon = 'fa-exclamation-circle';
+                break;
         }
         let title: string = resource.message;
         if (resource.message) {
@@ -1101,6 +1105,10 @@ export const ResourceResultIcon = ({resource}: {resource: appModels.ResourceResu
                 color = COLORS.operation.terminating;
                 className = 'fa fa-circle-notch fa-spin';
                 break;
+            case appModels.OperationPhases.Warning:
+                color = COLORS.operation.warning;
+                className = 'fa fa-exclamation-circle';
+                break;
         }
         let title: string = resource.message;
         if (resource.message) {
@@ -1116,7 +1124,12 @@ export const OperationState = ({app, quiet, isButton}: {app: appModels.Applicati
     if (appOperationState === undefined) {
         return null;
     }
-    if (quiet && [appModels.OperationPhases.Running, appModels.OperationPhases.Failed, appModels.OperationPhases.Error].indexOf(appOperationState.phase) === -1) {
+    if (
+        quiet &&
+        [appModels.OperationPhases.Running, appModels.OperationPhases.Failed, appModels.OperationPhases.Error, appModels.OperationPhases.Warning].indexOf(
+            appOperationState.phase
+        ) === -1
+    ) {
         return null;
     }
 
