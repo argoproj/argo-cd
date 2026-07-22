@@ -234,8 +234,8 @@ func (c *ChainProvider) GlobalProjectsSettings(ctx context.Context) ([]settings.
 	}, c.links)
 }
 
-func (c *ChainProvider) GoogleAnalytics(ctx context.Context) (*settings.GoogleAnalytics, error) {
-	return firstConfigured(func(p Provider) (*settings.GoogleAnalytics, error) {
+func (c *ChainProvider) GoogleAnalytics(ctx context.Context) (settings.GoogleAnalytics, error) {
+	return firstConfigured(func(p Provider) (settings.GoogleAnalytics, error) {
 		return p.GoogleAnalytics(ctx)
 	}, c.links)
 }
@@ -252,8 +252,8 @@ func (c *ChainProvider) HelmSettings(ctx context.Context) (v1alpha1.HelmOptions,
 	}, c.links)
 }
 
-func (c *ChainProvider) Help(ctx context.Context) (*settings.Help, error) {
-	return firstConfigured(func(p Provider) (*settings.Help, error) {
+func (c *ChainProvider) Help(ctx context.Context) (settings.Help, error) {
+	return firstConfigured(func(p Provider) (settings.Help, error) {
 		return p.Help(ctx)
 	}, c.links)
 }

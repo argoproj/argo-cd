@@ -47,7 +47,7 @@ var controllerResolvedMethods = map[string]struct{}{
 	"ResourceOverrides":                   {},
 	"ResourcesFilter":                     {},
 	"RespectRBAC":                         {},
-	"SelfHealBackoff":                     {},
+	"SelfHealRetry":                       {},
 	"SelfHealTimeout":                     {},
 	"SensitiveAnnotations":                {},
 	"ServerSideDiff":                      {},

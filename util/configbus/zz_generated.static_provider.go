@@ -53,10 +53,10 @@ type StaticFields struct {
 	GitRequestTimeout                             *time.Duration
 	GitSubmoduleEnabled                           *bool
 	GlobalProjectsSettings                        *[]settings.GlobalProjectSettings
-	GoogleAnalytics                               **settings.GoogleAnalytics
+	GoogleAnalytics                               *settings.GoogleAnalytics
 	HardReconciliationTimeout                     *time.Duration
 	HelmSettings                                  *v1alpha1.HelmOptions
-	Help                                          **settings.Help
+	Help                                          *settings.Help
 	HydratorEnabled                               *bool
 	HydratorReadmeTemplate                        *string
 	IgnoreNormalizerJQTimeout                     *time.Duration
@@ -348,9 +348,9 @@ func (p *StaticProvider) GlobalProjectsSettings(_ context.Context) ([]settings.G
 	return *p.Fields.GlobalProjectsSettings, nil
 }
 
-func (p *StaticProvider) GoogleAnalytics(_ context.Context) (*settings.GoogleAnalytics, error) {
+func (p *StaticProvider) GoogleAnalytics(_ context.Context) (settings.GoogleAnalytics, error) {
 	if p == nil || p.Fields.GoogleAnalytics == nil {
-		return nil, ErrNotConfigured
+		return settings.GoogleAnalytics{}, ErrNotConfigured
 	}
 	return *p.Fields.GoogleAnalytics, nil
 }
@@ -369,9 +369,9 @@ func (p *StaticProvider) HelmSettings(_ context.Context) (v1alpha1.HelmOptions, 
 	return *p.Fields.HelmSettings, nil
 }
 
-func (p *StaticProvider) Help(_ context.Context) (*settings.Help, error) {
+func (p *StaticProvider) Help(_ context.Context) (settings.Help, error) {
 	if p == nil || p.Fields.Help == nil {
-		return nil, ErrNotConfigured
+		return settings.Help{}, ErrNotConfigured
 	}
 	return *p.Fields.Help, nil
 }

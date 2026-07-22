@@ -1988,24 +1988,22 @@ func (_c *Provider_GlobalProjectsSettings_Call) RunAndReturn(run func(ctx contex
 }
 
 // GoogleAnalytics provides a mock function for the type Provider
-func (_mock *Provider) GoogleAnalytics(ctx context.Context) (*settings.GoogleAnalytics, error) {
+func (_mock *Provider) GoogleAnalytics(ctx context.Context) (settings.GoogleAnalytics, error) {
 	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GoogleAnalytics")
 	}
 
-	var r0 *settings.GoogleAnalytics
+	var r0 settings.GoogleAnalytics
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context) (*settings.GoogleAnalytics, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (settings.GoogleAnalytics, error)); ok {
 		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context) *settings.GoogleAnalytics); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context) settings.GoogleAnalytics); ok {
 		r0 = returnFunc(ctx)
 	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*settings.GoogleAnalytics)
-		}
+		r0 = ret.Get(0).(settings.GoogleAnalytics)
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
 		r1 = returnFunc(ctx)
@@ -2039,12 +2037,12 @@ func (_c *Provider_GoogleAnalytics_Call) Run(run func(ctx context.Context)) *Pro
 	return _c
 }
 
-func (_c *Provider_GoogleAnalytics_Call) Return(googleAnalytics *settings.GoogleAnalytics, err error) *Provider_GoogleAnalytics_Call {
+func (_c *Provider_GoogleAnalytics_Call) Return(googleAnalytics settings.GoogleAnalytics, err error) *Provider_GoogleAnalytics_Call {
 	_c.Call.Return(googleAnalytics, err)
 	return _c
 }
 
-func (_c *Provider_GoogleAnalytics_Call) RunAndReturn(run func(ctx context.Context) (*settings.GoogleAnalytics, error)) *Provider_GoogleAnalytics_Call {
+func (_c *Provider_GoogleAnalytics_Call) RunAndReturn(run func(ctx context.Context) (settings.GoogleAnalytics, error)) *Provider_GoogleAnalytics_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2170,24 +2168,22 @@ func (_c *Provider_HelmSettings_Call) RunAndReturn(run func(ctx context.Context)
 }
 
 // Help provides a mock function for the type Provider
-func (_mock *Provider) Help(ctx context.Context) (*settings.Help, error) {
+func (_mock *Provider) Help(ctx context.Context) (settings.Help, error) {
 	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Help")
 	}
 
-	var r0 *settings.Help
+	var r0 settings.Help
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context) (*settings.Help, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (settings.Help, error)); ok {
 		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context) *settings.Help); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context) settings.Help); ok {
 		r0 = returnFunc(ctx)
 	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*settings.Help)
-		}
+		r0 = ret.Get(0).(settings.Help)
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
 		r1 = returnFunc(ctx)
@@ -2221,12 +2217,12 @@ func (_c *Provider_Help_Call) Run(run func(ctx context.Context)) *Provider_Help_
 	return _c
 }
 
-func (_c *Provider_Help_Call) Return(help *settings.Help, err error) *Provider_Help_Call {
+func (_c *Provider_Help_Call) Return(help settings.Help, err error) *Provider_Help_Call {
 	_c.Call.Return(help, err)
 	return _c
 }
 
-func (_c *Provider_Help_Call) RunAndReturn(run func(ctx context.Context) (*settings.Help, error)) *Provider_Help_Call {
+func (_c *Provider_Help_Call) RunAndReturn(run func(ctx context.Context) (settings.Help, error)) *Provider_Help_Call {
 	_c.Call.Return(run)
 	return _c
 }

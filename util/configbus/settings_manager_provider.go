@@ -141,8 +141,17 @@ func (p *SettingsManagerProvider) GlobalProjectsSettings(_ context.Context) ([]s
 	return withMgr(p, (*settings.SettingsManager).GetGlobalProjectsSettings)
 }
 
-func (p *SettingsManagerProvider) GoogleAnalytics(_ context.Context) (*settings.GoogleAnalytics, error) {
-	return withMgr(p, (*settings.SettingsManager).GetGoogleAnalytics)
+func (p *SettingsManagerProvider) GoogleAnalytics(_ context.Context) (settings.GoogleAnalytics, error) {
+	return withMgr(p, func(mgr *settings.SettingsManager) (settings.GoogleAnalytics, error) {
+		ga, err := mgr.GetGoogleAnalytics()
+		if err != nil {
+			return settings.GoogleAnalytics{}, err
+		}
+		if ga == nil {
+			return settings.GoogleAnalytics{}, nil
+		}
+		return *ga, nil
+	})
 }
 
 func (p *SettingsManagerProvider) HelmSettings(_ context.Context) (v1alpha1.HelmOptions, error) {
@@ -158,8 +167,17 @@ func (p *SettingsManagerProvider) HelmSettings(_ context.Context) (v1alpha1.Helm
 	})
 }
 
-func (p *SettingsManagerProvider) Help(_ context.Context) (*settings.Help, error) {
-	return withMgr(p, (*settings.SettingsManager).GetHelp)
+func (p *SettingsManagerProvider) Help(_ context.Context) (settings.Help, error) {
+	return withMgr(p, func(mgr *settings.SettingsManager) (settings.Help, error) {
+		help, err := mgr.GetHelp()
+		if err != nil {
+			return settings.Help{}, err
+		}
+		if help == nil {
+			return settings.Help{}, nil
+		}
+		return *help, nil
+	})
 }
 
 func (p *SettingsManagerProvider) HydratorReadmeTemplate(_ context.Context) (string, error) {

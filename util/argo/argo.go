@@ -333,6 +333,7 @@ func ValidateRepo(
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve HelmSettings: %w", err)
 	}
+	helmOptionsPtr := &helmOptions
 
 	helmRepos, err := db.ListHelmRepositories(ctx)
 	if err != nil {
@@ -400,7 +401,7 @@ func ValidateRepo(
 		repoClient,
 		permittedHelmRepos,
 		permittedOCIRepos,
-		helmOptions,
+		helmOptionsPtr,
 		destCluster,
 		apiGroups,
 		proj,
@@ -844,6 +845,7 @@ func verifyGenerateManifests(
 		})
 		return conditions // Can't perform the next check without settings.
 	}
+	kustomizeSettingsPtr := &kustomizeSettings
 
 	for _, source := range sources {
 		repoRes, err := db.GetRepository(ctx, source.RepoURL, proj.Name)
@@ -907,7 +909,7 @@ func verifyGenerateManifests(
 			Namespace:                       app.Spec.Destination.Namespace,
 			ApplicationSource:               &source,
 			AppLabelKey:                     appLabelKey,
-			KustomizeOptions:                kustomizeSettings,
+			KustomizeOptions:                kustomizeSettingsPtr,
 			KubeVersion:                     kubeVersion,
 			ApiVersions:                     apiVersions,
 			HelmOptions:                     helmOptions,
