@@ -325,6 +325,19 @@ func getFilteredGeneratorTypes() map[string]bool {
 	return result
 }
 
+// generatorOwnParamKeys maps generator type names to the top-level param keys they produce.
+// When pre-resolving Values templates with cross-generator params, these keys are excluded so
+// that templates referencing the generator's own metadata (e.g. cluster annotations) are not
+// resolved from a different generator's params.  This prevents the scenario where two generators
+// of the same type in a Matrix (e.g. ClusterGenerator × ClusterGenerator) would incorrectly
+// apply the first generator's metadata values to the second generator's Values templates.
+var generatorOwnParamKeys = map[string][]string{
+	"ClusterGenerator":     {"name", "nameNormalized", "server", "project", "metadata", "clusters"},
+	"GitGenerator":         {"path"},
+	"SCMProviderGenerator": {"organization", "repository", "repository_id", "url", "branch", "sha", "short_sha", "short_sha_7", "labels", "branchNormalized"},
+	"PullRequestGenerator": {"number", "title", "branch", "branch_slug", "target_branch", "target_branch_slug", "head_sha", "head_short_sha", "head_short_sha_7", "author", "labels"},
+}
+
 func isMissingKeyError(err error) bool {
 	if err == nil {
 		return false
@@ -369,8 +382,33 @@ func (r *Render) RenderGeneratorParams(gen *argoappsv1.ApplicationSetGenerator, 
 			originalMap := original.Interface().(map[string]string)
 			resolvedMap := make(map[string]string, len(originalMap))
 
+			// Build a params map that excludes keys the generator itself produces.
+			// This ensures that when two generators of the same type are used in a Matrix
+			// (e.g. ClusterGenerator × ClusterGenerator), the second generator's Values
+			// templates that reference its own metadata (e.g. cluster annotations) are not
+			// accidentally pre-resolved using the first generator's metadata values.
+			// Templates referencing truly cross-generator keys (not in ownKeys) can still
+			// be pre-resolved correctly here.
+			resolveParams := params
+			if ownKeys, hasOwnKeys := generatorOwnParamKeys[parent.Type().Name()]; hasOwnKeys {
+				filtered := make(map[string]any, len(params))
+				for pk, pv := range params {
+					isOwn := false
+					for _, ownKey := range ownKeys {
+						if pk == ownKey || strings.HasPrefix(pk, ownKey+".") {
+							isOwn = true
+							break
+						}
+					}
+					if !isOwn {
+						filtered[pk] = pv
+					}
+				}
+				resolveParams = filtered
+			}
+
 			for k, v := range originalMap {
-				resolved, err := r.Replace(v, params, useGoTemplate, resolveOptions)
+				resolved, err := r.Replace(v, resolveParams, useGoTemplate, resolveOptions)
 				if err != nil {
 					if isMissingKeyError(err) {
 						resolvedMap[k] = v
