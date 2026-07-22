@@ -551,7 +551,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 		storageConfig, ok := storage["config"].(map[string]any)
 		require.True(t, ok)
 		assert.Equal(t, "localhost", storageConfig["host"])
-		assert.Equal(t, float64(5432), storageConfig["port"])
+		assert.InDelta(t, 5432.0, storageConfig["port"], 0.0)
 		assert.Equal(t, "dex_db", storageConfig["database"])
 		assert.Equal(t, "dex", storageConfig["user"])
 		assert.Equal(t, "66964843358242dbaaa7778d8477c288", storageConfig["password"])
