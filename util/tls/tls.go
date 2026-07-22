@@ -207,6 +207,8 @@ func getTLSCurvePreferencesByString(curves []string) ([]tls.CurveID, error) {
 	ids := make([]tls.CurveID, 0, len(curves))
 	for _, curve := range curves {
 		id, ok := tlsCurveByString[strings.TrimSpace(curve)]
+		trimmed := strings.TrimSpace(curve)
+		id, ok := tlsCurveByString[trimmed]
 		if !ok {
 			return nil, fmt.Errorf("invalid TLS curve preference: %s", curve)
 		}
@@ -234,7 +236,7 @@ func AddTLSFlagsToCmdWithPrefix(cmd *cobra.Command, prefix string) func() (Confi
 	cmd.Flags().StringVar(&minVersionStr, prefix+"tlsminversion", env.StringFromEnv("ARGOCD_"+envPrefix+"TLS_MIN_VERSION", DefaultTLSMinVersion), "The minimum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3)")
 	cmd.Flags().StringVar(&maxVersionStr, prefix+"tlsmaxversion", env.StringFromEnv("ARGOCD_"+envPrefix+"TLS_MAX_VERSION", DefaultTLSMaxVersion), "The maximum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3)")
 	cmd.Flags().StringVar(&tlsCiphersStr, prefix+"tlsciphers", env.StringFromEnv("ARGOCD_"+envPrefix+"TLS_CIPHERS", DefaultTLSCipherSuite), "The list of acceptable ciphers to be used when establishing TLS connections. Use 'list' to list available ciphers.")
-	cmd.Flags().StringVar(&tlsCurvePreferences, prefix+"tlscurvepreferences", env.StringFromEnv("ARGOCD_"+envPrefix+"TLS_CURVE_PREFERENCES", DefaultTLSCurvePreferences), "The list of acceptable curve preferences to be used when establishing TLS connections.")
+	cmd.Flags().StringVar(&tlsCurvePreferences, prefix+"tlscurvepreferences", env.StringFromEnv("ARGOCD_"+envPrefix+"TLS_CURVE_PREFERENCES", DefaultTLSCurvePreferences), "Colon-separated list of TLS curve preferences to be used when establishing TLS connections (e.g. X25519:CurveP256).")
 	return func() (ConfigCustomizer, error) {
 		return getTLSConfigCustomizer(minVersionStr, maxVersionStr, tlsCiphersStr, tlsCurvePreferences)
 	}

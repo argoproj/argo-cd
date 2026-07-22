@@ -58,7 +58,7 @@ setting command line parameters. The following parameters are available:
 |`--tlsminversion`|`1.2`|The minimum TLS version to be offered to clients|
 |`--tlsmaxversion`|`1.3`|The maximum TLS version to be offered to clients|
 |`--tlsciphers`|`TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:TLS_RSA_WITH_AES_256_GCM_SHA384`|A colon separated list of TLS cipher suites to be offered to clients|
-|`--tlscurvepreferences`|`""`|A colon separated list of TLS curve preferences to be offered to clients|
+|`--tlscurvepreferences`|`""`|A colon-separated list of TLS curve preferences to be offered to clients|
 
 ### TLS certificates used by argocd-server
 
@@ -114,7 +114,7 @@ setting command line parameters. The following parameters are available:
 |`--tlsminversion`|`1.2`|The minimum TLS version to be offered to clients|
 |`--tlsmaxversion`|`1.3`|The maximum TLS version to be offered to clients|
 |`--tlsciphers`|`TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384:TLS_RSA_WITH_AES_256_GCM_SHA384`|A colon-separated list of TLS cipher suites to be offered to clients|
-|`--tlscurvepreferences`|`""`|A colon separated list of TLS curve preferences to be offered to clients|
+|`--tlscurvepreferences`|`""`|A colon-separated list of TLS curve preferences to be offered to clients|
 
 ### Inbound TLS certificates used by argocd-repo-server
 
