@@ -17,10 +17,12 @@
 # checksums.
 ###############################################################################
 # renovate: datasource=github-releases depName=helm/helm packageName=helm/helm
-HELM_VERSION=4.2.2
+HELM_VERSION=4.2.3
 # renovate: datasource=github-releases depName=kubernetes-sigs/kustomize packageName=kubernetes-sigs/kustomize extractVersion=^kustomize/v(?<version>.*)$
 KUSTOMIZE_VERSION=5.8.1
 protoc_version=29.3
 oras_version=1.2.0
 # renovate: datasource=github-releases depName=git-lfs/git-lfs packageName=git-lfs/git-lfs
 GIT_LFS_VERSION=3.7.1
+# renovate: datasource=github-releases depName=github/gh-aw packageName=github/gh-aw
+GH_AW_VERSION=0.81.6

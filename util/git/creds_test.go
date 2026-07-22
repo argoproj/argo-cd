@@ -909,7 +909,7 @@ func TestGitHubAppGetAccessToken_CustomTimeout(t *testing.T) {
 		gitClientTimeout = 15 * time.Second
 	})
 
-	t.Run("gitClientTimeout must be honoured for for token requests as well", func(t *testing.T) {
+	t.Run("gitClientTimeout must be honoured for token requests as well", func(t *testing.T) {
 		gitClientTimeout = 1 * time.Second // Very short — should cause timeout but won't
 
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

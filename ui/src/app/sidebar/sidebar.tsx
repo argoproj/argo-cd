@@ -93,10 +93,8 @@ export const Sidebar = (props: SidebarProps) => {
                                                 e.preventDefault();
                                                 context.history.push(item.path);
                                             }}>
-                                            <div>
-                                                <i className={item?.iconClassName || ''} />
-                                                {!props.pref.hideSidebar && item.title}
-                                            </div>
+                                            <i className={item?.iconClassName || ''} />
+                                            {!props.pref.hideSidebar && item.title}
                                         </a>
                                     </Tooltip>
                                 </li>
