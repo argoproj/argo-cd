@@ -40,9 +40,9 @@ func main() {
 	root := findRoot()
 	methods, _ := parseProvider(filepath.Join(root, providerPath))
 
-	write(filepath.Join(root, "util/configbus/zz_generated.not_configured.go"), genNotConfigured(methods))
-	write(filepath.Join(root, "util/configbus/zz_generated.chain_provider.go"), genChain(methods))
-	write(filepath.Join(root, "util/configbus/zz_generated.static_provider.go"), genStatic(methods))
+	write(filepath.Join(root, "util", "configbus", "zz_generated.not_configured.go"), genNotConfigured(methods))
+	write(filepath.Join(root, "util", "configbus", "zz_generated.chain_provider.go"), genChain(methods))
+	write(filepath.Join(root, "util", "configbus", "zz_generated.static_provider.go"), genStatic(methods))
 	fmt.Println("generated configbus providers from", providerPath)
 }
 
