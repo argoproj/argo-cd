@@ -93,7 +93,7 @@ func (a *ArgoCDWebhookHandler) HandleRegistryEvent(event *RegistryEvent) {
 			// The effective full OCI URL is repoURL/chart, so also try that when chart is set.
 			normalizedSourceURLWithChart := normalizedSourceURL
 			if source.Chart != "" {
-				normalizedSourceURLWithChart = normalizeOCI(source.RepoURL + "/" + source.Chart)
+				normalizedSourceURLWithChart = normalizeOCI(strings.TrimRight(source.RepoURL, "/") + "/" + source.Chart)
 			}
 			if normalizedSourceURL != normalizedRepoURL && normalizedSourceURLWithChart != normalizedRepoURL {
 				fields := log.Fields{

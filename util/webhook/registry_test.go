@@ -237,22 +237,27 @@ func TestHandleRegistryEvent_NamespaceFiltering(t *testing.T) {
 }
 
 func TestHandleRegistryEvent_HelmOCI(t *testing.T) {
+	prev := logrus.GetLevel()
 	logrus.SetLevel(logrus.DebugLevel)
+	t.Cleanup(func() { logrus.SetLevel(prev) })
 
 	tests := []struct {
 		name        string
+		repoURL     string
 		chart       string
 		wantRefresh bool
 		wantLog     string
 	}{
 		{
 			name:        "chart name matches event repository",
+			repoURL:     "ghcr.io/myorg/charts",
 			chart:       "mychart",
 			wantRefresh: true,
 			wantLog:     "Requested app 'helm-oci-app' refresh",
 		},
 		{
 			name:        "chart name does not match event repository",
+			repoURL:     "ghcr.io/myorg/charts",
 			chart:       "other-chart",
 			wantRefresh: false,
 			wantLog:     "Skipping app: OCI repository URLs do not match",
@@ -280,7 +285,7 @@ func TestHandleRegistryEvent_HelmOCI(t *testing.T) {
 					Spec: v1alpha1.ApplicationSpec{
 						Sources: v1alpha1.ApplicationSources{
 							{
-								RepoURL:        "ghcr.io/myorg/charts",
+								RepoURL:        tt.repoURL,
 								Chart:          tt.chart,
 								TargetRevision: "1.2.3",
 							},
@@ -305,4 +310,48 @@ func TestHandleRegistryEvent_HelmOCI(t *testing.T) {
 			assert.Contains(t, hook.LastEntry().Message, tt.wantLog)
 		})
 	}
+}
+
+func TestHandleRegistryEvent_PlainOCI(t *testing.T) {
+	prev := logrus.GetLevel()
+	logrus.SetLevel(logrus.DebugLevel)
+	t.Cleanup(func() { logrus.SetLevel(prev) })
+
+	hook := test.NewGlobal()
+	patchedApps := []string{}
+	reaction := func(action kubetesting.Action) (bool, runtime.Object, error) {
+		patch := action.(kubetesting.PatchAction)
+		patchedApps = append(patchedApps, patch.GetName())
+		return true, nil, nil
+	}
+
+	h := NewMockHandler(
+		&reactorDef{"patch", "applications", reaction},
+		[]string{},
+		&v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "plain-oci-app",
+				Namespace: "argocd",
+			},
+			Spec: v1alpha1.ApplicationSpec{
+				Sources: v1alpha1.ApplicationSources{
+					{
+						RepoURL:        "oci://ghcr.io/myorg/charts/mychart",
+						TargetRevision: "1.2.3",
+					},
+				},
+			},
+		},
+	)
+
+	event := &RegistryEvent{
+		RegistryURL: "ghcr.io",
+		Repository:  "myorg/charts/mychart",
+		Tag:         "1.2.3",
+	}
+
+	h.HandleRegistryEvent(event)
+
+	assert.Contains(t, patchedApps, "plain-oci-app")
+	assert.Contains(t, hook.LastEntry().Message, "Requested app 'plain-oci-app' refresh")
 }
