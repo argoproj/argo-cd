@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"net/netip"
 	"path/filepath"
 	"testing"
 
@@ -134,4 +135,30 @@ func TestNewCommand_CACertFlagRegistrationAndDefault(t *testing.T) {
 	require.NotNil(t, clientCertKeyFlag, "flag \"repo-server-client-cert-key-path\" must be registered on argocd-server")
 	assert.Equal(t, "/app/config/reposerver/mtls/client.key", clientCertKeyFlag.DefValue,
 		"flag \"repo-server-client-cert-key-path\" must default to the auto-mounted Secret path")
+}
+
+func TestParseTrustedProxyCIDRs(t *testing.T) {
+	prefixes, err := parseTrustedProxyCIDRs([]string{
+		"10.0.0.0/8",
+		"2001:db8::/32",
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, []netip.Prefix{
+		netip.MustParsePrefix("10.0.0.0/8"),
+		netip.MustParsePrefix("2001:db8::/32"),
+	}, prefixes)
+
+	_, err = parseTrustedProxyCIDRs([]string{"not-a-cidr"})
+	assert.Error(t, err)
+}
+
+func TestNewCommand_TrustedProxyCIDRsFlag(t *testing.T) {
+	t.Setenv("ARGOCD_SERVER_TRUSTED_PROXY_CIDRS", "10.0.0.0/8,2001:db8::/32")
+
+	cmd := NewCommand()
+
+	values, err := cmd.Flags().GetStringSlice("trusted-proxy-cidrs")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"10.0.0.0/8", "2001:db8::/32"}, values)
 }

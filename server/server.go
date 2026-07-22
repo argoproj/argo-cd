@@ -11,6 +11,7 @@ import (
 	"math"
 	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"os"
 	"os/exec"
@@ -135,6 +136,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/swagger"
 	tlsutil "github.com/argoproj/argo-cd/v3/util/tls"
 	"github.com/argoproj/argo-cd/v3/util/webhook"
+	grpc_realip "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/realip"
 )
 
 const (
@@ -253,6 +255,7 @@ type ArgoCDServerOpts struct {
 	EnableK8sEvent          []string
 	HydratorEnabled         bool
 	SyncWithReplaceAllowed  bool
+	TrustedProxyCIDRs       []netip.Prefix
 }
 
 type ApplicationSetOpts struct {
@@ -911,6 +914,29 @@ func (server *ArgoCDServer) useTLS() bool {
 	return true
 }
 
+var grpcGatewayTrustedCIDRs = []netip.Prefix{
+	netip.MustParsePrefix("127.0.0.0/8"),
+	netip.MustParsePrefix("::1/128"),
+}
+
+func (server *ArgoCDServer) realIPInterceptorOptions() []grpc_realip.Option {
+	trustedPeers := append([]netip.Prefix{}, grpcGatewayTrustedCIDRs...)
+	trustedPeers = append(trustedPeers, server.TrustedProxyCIDRs...)
+
+	return []grpc_realip.Option{
+		grpc_realip.WithTrustedPeers(trustedPeers),
+		grpc_realip.WithTrustedProxies(server.TrustedProxyCIDRs),
+		grpc_realip.WithHeaders([]string{grpc_realip.XForwardedFor}),
+	}
+}
+
+func realIPLoggingFields(ctx context.Context) logging.Fields {
+	if ip, ok := grpc_realip.FromContext(ctx); ok {
+		return logging.Fields{"peer.address", ip.String()}
+	}
+	return nil
+}
+
 func (server *ArgoCDServer) newGRPCServer(prometheusRegistry *prometheus.Registry) (*grpc.Server, application.AppResourceTreeFn) {
 	var serverMetricsOptions []grpc_prometheus.ServerMetricsOption
 	if enableGRPCTimeHistogram {
@@ -956,8 +982,11 @@ func (server *ArgoCDServer) newGRPCServer(prometheusRegistry *prometheus.Registr
 	}
 	// NOTE: notice we do not configure the gRPC server here with TLS (e.g. grpc.Creds(creds))
 	// This is because TLS handshaking occurs in cmux handling
-	sOpts = append(sOpts, grpc.ChainStreamInterceptor(
-		logging.StreamServerInterceptor(grpc_util.InterceptorLogger(server.log)),
+	streamInterceptors := []grpc.StreamServerInterceptor{
+		logging.StreamServerInterceptor(
+			grpc_util.InterceptorLogger(server.log),
+			logging.WithFieldsFromContext(realIPLoggingFields),
+		),
 		serverMetrics.StreamServerInterceptor(),
 		grpc_auth.StreamServerInterceptor(server.Authenticate),
 		grpc_util.UserAgentStreamServerInterceptor(common.ArgoCDUserAgentName, clientConstraint),
@@ -967,10 +996,33 @@ func (server *ArgoCDServer) newGRPCServer(prometheusRegistry *prometheus.Registr
 		grpc_util.ErrorCodeK8sStreamServerInterceptor(),
 		grpc_util.ErrorCodeGitStreamServerInterceptor(),
 		recovery.StreamServerInterceptor(recovery.WithRecoveryHandler(grpc_util.LoggerRecoveryHandler(server.log))),
-	))
-	sOpts = append(sOpts, grpc.ChainUnaryInterceptor(
+	}
+
+	unaryInterceptors := []grpc.UnaryServerInterceptor{
 		bug21955WorkaroundInterceptor,
-		logging.UnaryServerInterceptor(grpc_util.InterceptorLogger(server.log)),
+	}
+
+	if len(server.TrustedProxyCIDRs) > 0 {
+		realIPOptions := server.realIPInterceptorOptions()
+
+		streamInterceptors = append(
+			[]grpc.StreamServerInterceptor{
+				grpc_realip.StreamServerInterceptorOpts(realIPOptions...),
+			},
+			streamInterceptors...,
+		)
+
+		unaryInterceptors = append(
+			unaryInterceptors,
+			grpc_realip.UnaryServerInterceptorOpts(realIPOptions...),
+		)
+	}
+
+	unaryInterceptors = append(unaryInterceptors,
+		logging.UnaryServerInterceptor(
+			grpc_util.InterceptorLogger(server.log),
+			logging.WithFieldsFromContext(realIPLoggingFields),
+		),
 		serverMetrics.UnaryServerInterceptor(),
 		grpc_auth.UnaryServerInterceptor(server.Authenticate),
 		grpc_util.UserAgentUnaryServerInterceptor(common.ArgoCDUserAgentName, clientConstraint),
@@ -980,7 +1032,12 @@ func (server *ArgoCDServer) newGRPCServer(prometheusRegistry *prometheus.Registr
 		grpc_util.ErrorCodeK8sUnaryServerInterceptor(),
 		grpc_util.ErrorCodeGitUnaryServerInterceptor(),
 		recovery.UnaryServerInterceptor(recovery.WithRecoveryHandler(grpc_util.LoggerRecoveryHandler(server.log))),
-	))
+	)
+
+	sOpts = append(sOpts,
+		grpc.ChainStreamInterceptor(streamInterceptors...),
+		grpc.ChainUnaryInterceptor(unaryInterceptors...),
+	)
 	sOpts = append(sOpts, grpc.StatsHandler(otelgrpc.NewServerHandler()))
 	grpcS := grpc.NewServer(sOpts...)
 

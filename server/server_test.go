@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -46,6 +48,9 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 	settings_util "github.com/argoproj/argo-cd/v3/util/settings"
 	testutil "github.com/argoproj/argo-cd/v3/util/test"
+	grpc_realip "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/realip"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/peer"
 )
 
 type FakeArgoCDServer struct {
@@ -1928,4 +1933,56 @@ func Test_StaticAssetsDir_no_symlink_traversal(t *testing.T) {
 	argocd.newStaticAssetsHandler()(w, req)
 	resp = w.Result()
 	assert.Equal(t, http.StatusOK, resp.StatusCode, "should have been able to access the normal file")
+}
+
+func TestRealIPLoggingFields(t *testing.T) {
+	trustedProxy := netip.MustParsePrefix("10.0.0.0/8")
+
+	testCases := []struct {
+		name   string
+		peerIP string
+		header string
+		wantIP string
+	}{
+		{
+			name:   "uses forwarded address from trusted proxy",
+			peerIP: "10.0.0.10",
+			header: "203.0.113.10",
+			wantIP: "203.0.113.10",
+		},
+		{
+			name:   "ignores forwarded address from untrusted client",
+			peerIP: "198.51.100.10",
+			header: "203.0.113.10",
+			wantIP: "198.51.100.10",
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := peer.NewContext(t.Context(), &peer.Peer{
+				Addr: &net.TCPAddr{
+					IP:   net.ParseIP(tt.peerIP),
+					Port: 443,
+				},
+			})
+			ctx = metadata.NewIncomingContext(ctx, metadata.Pairs(
+				grpc_realip.XForwardedFor, tt.header,
+			))
+
+			interceptor := grpc_realip.UnaryServerInterceptor(
+				[]netip.Prefix{trustedProxy},
+				[]string{grpc_realip.XForwardedFor},
+			)
+
+			_, err := interceptor(ctx, nil, &grpc.UnaryServerInfo{}, func(ctx context.Context, _ any) (any, error) {
+				fields := realIPLoggingFields(ctx)
+				require.Len(t, fields, 2)
+				assert.Equal(t, "peer.address", fields[0])
+				assert.Equal(t, tt.wantIP, fields[1])
+				return nil, nil
+			})
+			require.NoError(t, err)
+		})
+	}
 }
