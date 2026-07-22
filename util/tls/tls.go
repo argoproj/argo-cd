@@ -191,13 +191,21 @@ func getTLSConfigCustomizer(minVersionStr, maxVersionStr, tlsCiphersStr, tlsCurv
 }
 
 var tlsCurveByString = map[string]tls.CurveID{
+	"SecP256r1MLKEM768":  tls.SecP256r1MLKEM768,
+	"SecP384r1MLKEM1024": tls.SecP384r1MLKEM1024,
+	"P256":               tls.CurveP256,
+	"P384":               tls.CurveP384,
+	"P521":               tls.CurveP521,
 	"CurveP256":          tls.CurveP256,
 	"CurveP384":          tls.CurveP384,
 	"CurveP521":          tls.CurveP521,
 	"X25519":             tls.X25519,
-	"X25519MLKEM768":     tls.X25519MLKEM768,
-	"SecP256r1MLKEM768":  tls.SecP256r1MLKEM768,
-	"SecP384r1MLKEM1024": tls.SecP384r1MLKEM1024,
+	"P-256":              tls.CurveP256,
+	"P-384":              tls.CurveP384,
+	"P-521":              tls.CurveP521,
+
+	// Post-Quantum hybrid: ML-KEM 768 combined with X25519 (Go 1.24+)
+	"X25519MLKEM768": tls.X25519MLKEM768,
 }
 
 func getTLSCurvePreferencesByString(curves []string) ([]tls.CurveID, error) {
@@ -207,8 +215,6 @@ func getTLSCurvePreferencesByString(curves []string) ([]tls.CurveID, error) {
 	ids := make([]tls.CurveID, 0, len(curves))
 	for _, curve := range curves {
 		id, ok := tlsCurveByString[strings.TrimSpace(curve)]
-		trimmed := strings.TrimSpace(curve)
-		id, ok := tlsCurveByString[trimmed]
 		if !ok {
 			return nil, fmt.Errorf("invalid TLS curve preference: %s", curve)
 		}
