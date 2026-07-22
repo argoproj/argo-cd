@@ -888,6 +888,17 @@ func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *a
 				_ = cluster.EnsureSynced()
 			}()
 		}
+	} else if c.canHandleCluster(newCluster) { // Cluster not in cache - check if we should add it, it may have just been moved to a new shard
+		log.Infof("Cluster %s reassigned to this shard, initializing cache", newCluster.Server)
+		if c.appInformer == nil {
+			log.Errorf("Cannot get a cluster appInformer. Cache for the recently moved cluster will not be started this time")
+			return
+		}
+		if c.isClusterHasApps(c.appInformer.GetStore().List(), newCluster) {
+			go func() {
+				_, _ = c.getSyncedCluster(newCluster)
+			}()
+		}
 	}
 }
 
