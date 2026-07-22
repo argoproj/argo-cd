@@ -35,7 +35,7 @@ func getInstallationClient(g github_app_auth.Authentication, url string, enableT
 	// on every call. Gated by the same flag as the HTTP response cache so operators
 	// can opt in or out of both caching layers together.
 	if enableTokenCache {
-		transport = NewGitHubAppCacheTokenTransport(transport, g.Id, g.InstallationId)
+		transport = NewGitHubAppCacheTokenTransport(transport, g.Id, g.InstallationId, url)
 	}
 
 	itr, err := ghinstallation.New(transport, g.Id, g.InstallationId, []byte(g.PrivateKey))

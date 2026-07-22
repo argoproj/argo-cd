@@ -65,7 +65,8 @@ func TestGetInstallationClient_TokenCacheEnabled(t *testing.T) {
 	// Pre-populate the global registry so the second newIsolatedTransport call
 	// below can observe a shared state without a real upstream.  We simulate
 	// the scenario where a previous reconciliation loop already fetched a token.
-	key := tokenRegistryKey(testAppID, testInstallationID)
+	const baseURL = "https://api.github.com"
+	key := tokenRegistryKey(testAppID, testInstallationID, baseURL)
 	state := &tokenEntry{
 		token: &accessToken{Token: "tok-persisted", ExpiresAt: time.Now().Add(time.Hour)},
 	}
@@ -82,7 +83,7 @@ func TestGetInstallationClient_TokenCacheEnabled(t *testing.T) {
 		}, nil
 	})
 
-	tr := NewGitHubAppCacheTokenTransport(parent, testAppID, testInstallationID)
+	tr := NewGitHubAppCacheTokenTransport(parent, testAppID, testInstallationID, baseURL)
 	tokenURL := "https://api.github.com/app/installations/9992/access_tokens"
 
 	req, err := http.NewRequestWithContext(t.Context(), http.MethodPost, tokenURL, http.NoBody)
@@ -112,7 +113,7 @@ func TestCacheTokenTransport_SharedStateAcrossInstances(t *testing.T) {
 		testInstallationID int64 = 8882
 	)
 	t.Cleanup(func() {
-		globalTokenRegistry.Delete(tokenRegistryKey(testAppID, testInstallationID))
+		globalTokenRegistry.Delete(tokenRegistryKey(testAppID, testInstallationID, "https://api.github.com"))
 	})
 
 	upstreamCalls := 0
@@ -127,7 +128,7 @@ func TestCacheTokenTransport_SharedStateAcrossInstances(t *testing.T) {
 	tokenURL := "https://api.github.com/app/installations/8882/access_tokens"
 
 	// First transport (first reconciliation loop) fetches and caches the token.
-	tr1 := NewGitHubAppCacheTokenTransport(parent, testAppID, testInstallationID)
+	tr1 := NewGitHubAppCacheTokenTransport(parent, testAppID, testInstallationID, "https://api.github.com")
 	req1, _ := http.NewRequestWithContext(t.Context(), http.MethodPost, tokenURL, http.NoBody)
 	resp1, err := tr1.RoundTrip(req1)
 	require.NoError(t, err)
@@ -137,7 +138,7 @@ func TestCacheTokenTransport_SharedStateAcrossInstances(t *testing.T) {
 
 	// Second transport (second reconciliation loop) gets a new instance but
 	// shares the same registry entry
-	tr2 := NewGitHubAppCacheTokenTransport(parent, testAppID, testInstallationID)
+	tr2 := NewGitHubAppCacheTokenTransport(parent, testAppID, testInstallationID, "https://api.github.com")
 	req2, _ := http.NewRequestWithContext(t.Context(), http.MethodPost, tokenURL, http.NoBody)
 	resp2, err := tr2.RoundTrip(req2)
 	require.NoError(t, err)

@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"reflect"
+	"strings"
 	"sync"
 	"time"
 
@@ -43,8 +44,10 @@ type tokenEntry struct {
 // tokenRegistryKey returns a unique string key for the given GitHub App
 // installation endpoint. It is used as the key in globalTokenRegistry so the
 // linter can see that every component is actively used in key construction.
-func tokenRegistryKey(appID, installationID int64) string {
-	return fmt.Sprintf("%d/%d", appID, installationID)
+// The base URL is included so that tokens for different GitHub endpoints
+// (e.g. github.com vs GitHub Enterprise) are never mixed up.
+func tokenRegistryKey(appID, installationID int64, baseURL string) string {
+	return fmt.Sprintf("%s/%d/%d", baseURL, appID, installationID)
 }
 
 var globalTokenRegistry sync.Map
@@ -181,12 +184,25 @@ func (t *GitHubAppCacheTokenTransport) RoundTrip(req *http.Request) (resp *http.
 	return resp, err
 }
 
-func NewGitHubAppCacheTokenTransport(parent http.RoundTripper, appID, installationID int64) *GitHubAppCacheTokenTransport {
+// NewGitHubAppCacheTokenTransport creates a transport that caches the GitHub
+// App installation access token for its lifetime to avoid a round-trip on every
+// reconciliation.
+//
+// baseURL is the GitHub API base URL (e.g. "https://api.github.com" for
+// github.com, or "https://github.example.com/api/v3" for GitHub Enterprise).
+// An empty string defaults to "https://api.github.com".
+// The base URL is incorporated into the registry key so that tokens for
+// different GitHub endpoints are never mixed up.
+func NewGitHubAppCacheTokenTransport(parent http.RoundTripper, appID, installationID int64, baseURL string) *GitHubAppCacheTokenTransport {
+	if baseURL == "" {
+		baseURL = "https://api.github.com"
+	}
+	baseURL = strings.TrimRight(baseURL, "/")
 	log.Debug("Creating new GitHub App token cache transport")
-	key := tokenRegistryKey(appID, installationID)
+	key := tokenRegistryKey(appID, installationID, baseURL)
 	return &GitHubAppCacheTokenTransport{
 		parent:          parent,
-		requestURLCache: fmt.Sprintf("https://api.github.com/app/installations/%d/access_tokens", installationID),
+		requestURLCache: fmt.Sprintf("%s/app/installations/%d/access_tokens", baseURL, installationID),
 		tokenEntry:      newTokenEntry(key),
 	}
 }
