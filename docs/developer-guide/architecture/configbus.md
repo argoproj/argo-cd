@@ -74,9 +74,11 @@ flowchart LR
 | `EnvProvider` | `NewEnvProvider()` | Process environment variables (e.g. `GitRequestTimeout`). |
 | `ChainProvider` | `NewChainProvider(links...)` | Tries links in order; first non-`ErrNotConfigured` wins. |
 
-Leaf providers embed `notConfiguredProvider` so they only implement owned methods.
-`notConfiguredProvider`, `ChainProvider`, and `StaticProvider`/`StaticFields` are
-generated from the `Provider` interface by `go run ./hack/gen-configbus-providers`.
+Leaf providers embed an empty `ChainProvider` so they only implement owned
+methods: a chain with no links resolves every promoted getter to
+`ErrNotConfigured` and makes the lifecycle methods no-ops. `ChainProvider` and
+`StaticProvider`/`StaticFields` are generated from the `Provider` interface by
+`go run ./hack/gen-configbus-providers`.
 
 Production processes (pre-CRD) wire:
 
@@ -130,8 +132,7 @@ precedence, and a total-resolution coverage test for the controller chain.
 | `StaticProvider` / `StaticFields` | `util/configbus/zz_generated.static_provider.go` | In-memory nilable fields (generated). |
 | `SettingsManagerProvider` | `util/configbus/settings_manager_provider.go` | ConfigMap-backed getters. |
 | `EnvProvider` | `util/configbus/env_provider.go` | Env-backed getters. |
-| `ChainProvider` | `util/configbus/zz_generated.chain_provider.go` | Ordered fallback (generated). |
-| `notConfiguredProvider` | `util/configbus/zz_generated.not_configured.go` | Embeddable `ErrNotConfigured` base (generated). |
+| `ChainProvider` | `util/configbus/zz_generated.chain_provider.go` | Ordered fallback (generated). Embedded empty in leaves as the `ErrNotConfigured` base. |
 
 ### What is wired today
 
@@ -292,8 +293,7 @@ util/configbus/
 ├── ptr.go                              # Ptr / PtrPtr helpers for StaticFields literals
 ├── settings_manager_provider.go        # SettingsManagerProvider
 ├── env_provider.go                     # EnvProvider
-├── zz_generated.not_configured.go      # notConfiguredProvider base (generated)
-├── zz_generated.chain_provider.go      # ChainProvider (generated)
+├── zz_generated.chain_provider.go      # ChainProvider (generated; embedded empty as leaf base)
 ├── zz_generated.static_provider.go     # StaticProvider + StaticFields (generated)
 ├── mocks/Provider.go                   # mockery-generated mocks.Provider
 ├── provider_test.go

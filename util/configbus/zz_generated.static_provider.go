@@ -59,7 +59,11 @@ type StaticFields struct {
 
 // StaticProvider is a leaf Provider backed by StaticFields.
 type StaticProvider struct {
-	notConfiguredProvider
+	// ChainProvider is embedded with no links on purpose: an empty chain
+	// resolves every promoted field getter to ErrNotConfigured and makes the
+	// lifecycle methods no-ops, so this leaf only implements the fields it
+	// owns. Do not populate its links.
+	ChainProvider
 	Fields StaticFields
 }
 
