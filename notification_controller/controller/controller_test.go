@@ -102,6 +102,32 @@ func TestGetAppProj_invalidProjectNestedString(t *testing.T) {
 	assert.Nil(t, proj)
 }
 
+func TestGetAppProj_appInDifferentNamespace(t *testing.T) {
+	// AppProject lives in the controller namespace...
+	proj := &unstructured.Unstructured{}
+	proj.SetGroupVersionKind(v1alpha1.AppProjectSchemaGroupVersionKind)
+	proj.SetName("my-proj")
+	proj.SetNamespace("argocd")
+
+	informer := cache.NewSharedIndexInformer(&cache.ListWatch{}, &unstructured.Unstructured{}, 0,
+		cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
+	require.NoError(t, informer.GetIndexer().Add(proj))
+
+	// ...while the application lives in a different (app) namespace. Keying on the
+	// app namespace would miss the cache; the lookup must use the controller namespace.
+	app := &unstructured.Unstructured{
+		Object: map[string]any{
+			"metadata": map[string]any{"name": "my-app", "namespace": "some-app-ns"},
+			"spec":     map[string]any{"project": "my-proj"},
+		},
+	}
+
+	result := getAppProj(app, informer, "argocd")
+	require.NotNil(t, result)
+	assert.Equal(t, "my-proj", result.GetName())
+	assert.Equal(t, "argocd", result.GetNamespace())
+}
+
 func TestInit(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.SchemeBuilder.AddToScheme(scheme)
