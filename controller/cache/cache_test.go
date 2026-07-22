@@ -810,9 +810,15 @@ func TestLoadCacheSettings(t *testing.T) {
 		"application.resourceTrackingMethod": string(appv1.TrackingMethodLabel),
 		"installationID":                     "123456789",
 	})
+	jqTimeout := 2 * time.Second
 	ch := liveStateCache{
-		namespace:      "argocd",
-		configProvider: configbus.NewSettingsManagerProvider(settingsManager),
+		namespace: "argocd",
+		configProvider: configbus.NewChainProvider(
+			&configbus.StaticProvider{Fields: configbus.StaticFields{
+				IgnoreNormalizerJQTimeout: configbus.Ptr(jqTimeout),
+			}},
+			configbus.NewSettingsManagerProvider(settingsManager),
+		),
 	}
 	label, err := settingsManager.GetAppInstanceLabelKey()
 	require.NoError(t, err)
@@ -824,6 +830,7 @@ func TestLoadCacheSettings(t *testing.T) {
 	assert.Equal(t, label, res.appInstanceLabelKey)
 	assert.Equal(t, string(appv1.TrackingMethodLabel), trackingMethod)
 	assert.Equal(t, "123456789", res.installationID)
+	assert.Equal(t, jqTimeout, res.ignoreNormalizerJQTimeout)
 
 	// By default the values won't be nil
 	assert.NotNil(t, res.resourceOverrides)
