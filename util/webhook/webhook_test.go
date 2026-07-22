@@ -1237,6 +1237,184 @@ func createTestPayload(changedFile string) []byte {
 	return []byte(payload)
 }
 
+// createEmptyCommitPayload creates a GitHub push event payload where the commit has no file changes.
+func createEmptyCommitPayload() []byte {
+	payload := fmt.Sprintf(`{
+		"ref": "refs/heads/master",
+		"before": "%s",
+		"after": "%s",
+		"repository": {
+			"html_url": "https://github.com/jessesuen/test-repo",
+			"default_branch": "master"
+		},
+		"commits": [
+			{
+				"added": [],
+				"modified": [],
+				"removed": []
+			}
+		]
+	}`, testBeforeSHA, testAfterSHA)
+	return []byte(payload)
+}
+
+// Test_affectedRevisionInfo_EmptyCommit verifies that pushes from SCMs that provide file
+// lists always return a non-nil changedFiles slice (even when no files changed), while SCMs
+// that do not provide file lists return nil (triggering an unconditional refresh).
+func Test_affectedRevisionInfo_EmptyCommit(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name                 string
+		hookPayload          any
+		expectedChangedFiles []string
+	}{
+		{
+			// GitHub provides file lists: even with no commits, changedFiles must be non-nil.
+			// A zero-value PushPayload simulates a push with an empty commit (no file changes).
+			name:                 "github push with no file changes produces non-nil empty changedFiles",
+			hookPayload:          github.PushPayload{},
+			expectedChangedFiles: []string{},
+		},
+		{
+			// GitLab provides file lists: a commit with no files must produce non-nil empty slice.
+			name: "gitlab push with no file changes produces non-nil empty changedFiles",
+			hookPayload: gitlab.PushEventPayload{
+				Commits: []gitlab.Commit{{Added: []string{}, Modified: []string{}, Removed: []string{}}},
+			},
+			expectedChangedFiles: []string{},
+		},
+		{
+			// Gogs provides file lists: a commit with no files must produce non-nil empty slice.
+			name: "gogs push with no file changes produces non-nil empty changedFiles",
+			hookPayload: gogsclient.PushPayload{
+				Commits: []*gogsclient.PayloadCommit{{Added: []string{}, Modified: []string{}, Removed: []string{}}},
+			},
+			expectedChangedFiles: []string{},
+		},
+		{
+			// Azure DevOps does not include changed files in its payload: must produce nil.
+			name: "azure devops payload produces nil changedFiles (file list unavailable)",
+			hookPayload: azuredevops.GitPushEvent{
+				Resource: azuredevops.Resource{
+					RefUpdates: []azuredevops.RefUpdate{{Name: "refs/heads/master"}},
+				},
+			},
+			expectedChangedFiles: nil,
+		},
+		{
+			// Bitbucket Server does not include changed files in its payload: must produce nil.
+			name: "bitbucket server payload produces nil changedFiles (file list unavailable)",
+			hookPayload: bitbucketserver.RepositoryReferenceChangedPayload{
+				Changes: []bitbucketserver.RepositoryChange{
+					{Reference: bitbucketserver.RepositoryReference{ID: "refs/heads/master"}},
+				},
+				Repository: bitbucketserver.Repository{Links: map[string]any{"clone": []any{}}},
+			},
+			expectedChangedFiles: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		ttc := tt
+		t.Run(ttc.name, func(t *testing.T) {
+			t.Parallel()
+			h := NewMockHandler(nil, []string{})
+			_, _, _, _, changedFiles := h.affectedRevisionInfo(ttc.hookPayload)
+			require.Equal(t, ttc.expectedChangedFiles, changedFiles)
+		})
+	}
+}
+
+// TestHandleEvent_EmptyCommit verifies that an empty commit from GitHub (no file changes)
+// does not trigger a refresh for apps that use manifest-generate-paths annotation.
+func TestHandleEvent_EmptyCommit(t *testing.T) {
+	t.Parallel()
+
+	app := &v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-app",
+			Namespace: "argocd",
+			Annotations: map[string]string{
+				"argocd.argoproj.io/manifest-generate-paths": "manifests",
+			},
+		},
+		Spec: v1alpha1.ApplicationSpec{
+			Sources: v1alpha1.ApplicationSources{
+				{
+					RepoURL:        "https://github.com/jessesuen/test-repo",
+					Path:           "source/path",
+					TargetRevision: "HEAD",
+				},
+			},
+			Destination: v1alpha1.ApplicationDestination{Server: testClusterURL},
+		},
+	}
+
+	var patched bool
+	reaction := func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if action.GetVerb() == "patch" {
+			patched = true
+		}
+		return true, nil, nil
+	}
+
+	appClientset := appclientset.NewSimpleClientset(app)
+	defaultReactor := appClientset.ReactionChain[0]
+	appClientset.ReactionChain = nil
+	appClientset.AddReactor("list", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		return defaultReactor.React(action)
+	})
+	appClientset.AddReactor("patch", "applications", reaction)
+
+	inMemoryCache := cacheutil.NewInMemoryCache(1 * time.Hour)
+	cacheClient := cacheutil.NewCache(inMemoryCache)
+	repoCache := cache.NewCache(cacheClient, 1*time.Minute, 1*time.Minute, 10*time.Second)
+	serverCache := servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute)
+	mockDB := &mocks.ArgoDB{}
+	mockDB.EXPECT().GetCluster(mock.Anything, testClusterURL).Return(&v1alpha1.Cluster{
+		Server: testClusterURL,
+		Info: v1alpha1.ClusterInfo{
+			ServerVersion:   "1.28.0",
+			ConnectionState: v1alpha1.ConnectionState{Status: v1alpha1.ConnectionStatusSuccessful},
+		},
+	}, nil).Maybe()
+	mockDB.EXPECT().ListRepositories(mock.Anything).Return([]*v1alpha1.Repository{}, nil).Maybe()
+	require.NoError(t, serverCache.SetClusterInfo(testClusterURL, &v1alpha1.ClusterInfo{
+		ServerVersion:   "1.28.0",
+		ConnectionState: v1alpha1.ConnectionState{Status: v1alpha1.ConnectionStatusSuccessful},
+	}))
+
+	h := NewHandler(
+		"argocd",
+		[]string{},
+		10,
+		1,
+		appClientset,
+		&fakeAppsLister{clientset: appClientset},
+		&settings.ArgoCDSettings{},
+		&fakeSettingsSrc{},
+		repoCache,
+		serverCache,
+		mockDB,
+		int64(50)*1024*1024,
+		0,
+		10,
+	)
+
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", http.NoBody)
+	req.Header.Set("X-GitHub-Event", "push")
+	req.Body = io.NopCloser(bytes.NewReader(createEmptyCommitPayload()))
+
+	w := httptest.NewRecorder()
+	h.Handler(w, req)
+	time.Sleep(50 * time.Millisecond)
+	h.Shutdown()
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.False(t, patched, "app with manifest-generate-paths annotation must not be refreshed on empty commit")
+}
+
 func Test_affectedRevisionInfo_bitbucket_changed_files(t *testing.T) {
 	httpmock.Activate()
 	defer httpmock.DeactivateAndReset()

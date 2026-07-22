@@ -259,6 +259,9 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 		change.shaAfter = ParseRevision(payload.After)
 		change.shaBefore = ParseRevision(payload.Before)
 		touchedHead = bool(payload.Repository.DefaultBranch == revision)
+		// Initialize to non-nil so an empty commit (no files changed) is distinguishable
+		// from SCMs that do not provide file lists at all (which remain nil).
+		changedFiles = []string{}
 		for _, commit := range payload.Commits {
 			changedFiles = append(changedFiles, commit.Added...)
 			changedFiles = append(changedFiles, commit.Modified...)
@@ -271,6 +274,7 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 		change.shaAfter = ParseRevision(payload.After)
 		change.shaBefore = ParseRevision(payload.Before)
 		touchedHead = bool(payload.Project.DefaultBranch == revision)
+		changedFiles = []string{}
 		for _, commit := range payload.Commits {
 			changedFiles = append(changedFiles, commit.Added...)
 			changedFiles = append(changedFiles, commit.Modified...)
@@ -284,6 +288,7 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 		change.shaAfter = ParseRevision(payload.After)
 		change.shaBefore = ParseRevision(payload.Before)
 		touchedHead = bool(payload.Project.DefaultBranch == revision)
+		changedFiles = []string{}
 		for _, commit := range payload.Commits {
 			changedFiles = append(changedFiles, commit.Added...)
 			changedFiles = append(changedFiles, commit.Modified...)
@@ -336,8 +341,12 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 			diffStatChangedFiles, err := fetchDiffStatFromBitbucket(ctx, bbClient, owner, repoSlug, spec)
 			if err != nil {
 				log.Warnf("error fetching changed files using bitbucket diffstat api: %v", err)
+			} else {
+				// Assign directly so a non-nil empty slice from the diffstat API
+				// is preserved (signals "we know no files changed"), distinguishing
+				// it from nil which means "file list unavailable".
+				changedFiles = diffStatChangedFiles
 			}
-			changedFiles = append(changedFiles, diffStatChangedFiles...)
 			touchedHead, err = isHeadTouched(ctx, bbClient, owner, repoSlug, revision)
 			if err != nil {
 				log.Warnf("error fetching bitbucket repo details: %v", err)
@@ -386,6 +395,7 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []st
 			webURLs = append(webURLs, payload.Repo.HTMLURL)
 			touchedHead = payload.Repo.DefaultBranch == revision
 		}
+		changedFiles = []string{}
 		for _, commit := range payload.Commits {
 			changedFiles = append(changedFiles, commit.Added...)
 			changedFiles = append(changedFiles, commit.Modified...)
