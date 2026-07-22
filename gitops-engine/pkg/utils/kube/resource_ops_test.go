@@ -1,13 +1,10 @@
 package kube
 
 import (
+	"bytes"
 	"encoding/json"
 	"testing"
 
-	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube/mocks"
-	"k8s.io/kubectl/pkg/cmd/auth"
-	testingutils "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/testing"
-	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/tracing"
 	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -18,9 +15,14 @@ import (
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
 	"k8s.io/kubectl/pkg/cmd/apply"
+	"k8s.io/kubectl/pkg/cmd/auth"
 	"k8s.io/kubectl/pkg/cmd/create"
 	"k8s.io/kubectl/pkg/cmd/replace"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube/mocks"
+	testingutils "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/testing"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/tracing"
 )
 
 func newTestKubectlResourceOperations(t *testing.T) (*kubectlResourceOperations, *mocks.KubectlOptionsRunner) {
@@ -561,4 +563,32 @@ func TestRealKubectlOptionsRunner_AuthReconcile_PanicRecovery(t *testing.T) {
 	err := runner.AuthReconcile((*auth.ReconcileOptions)(nil))
 	require.Error(t, err, "AuthReconcile must return an error rather than propagating the panic")
 	assert.Contains(t, err.Error(), "error running kubectl auth reconcile")
+}
+
+// TestWarningClients verifies the isolation helper used by the apply/create/
+// replace paths without a handler it reuses the shared cached factory/config,
+// and with one it returns an isolated config carrying the handler so that
+// concurrent operations never share their warnings.
+func TestWarningClients(t *testing.T) {
+	t.Parallel()
+
+	t.Run("nil handler reuses the shared factory and config", func(t *testing.T) {
+		t.Parallel()
+		k, _ := newTestKubectlResourceOperations(t)
+		fact, cfg := k.warningClients(nil)
+		assert.Same(t, k.config, cfg)
+		assert.Equal(t, k.fact, fact)
+	})
+
+	t.Run("non-nil handler returns an isolated config carrying the handler", func(t *testing.T) {
+		t.Parallel()
+		k, _ := newTestKubectlResourceOperations(t)
+		wh := rest.NewWarningWriter(&bytes.Buffer{}, rest.WarningWriterOptions{})
+
+		fact, cfg := k.warningClients(wh)
+		require.NotNil(t, fact)
+		assert.NotSame(t, k.config, cfg, "config must be a copy, not the shared one")
+		assert.Equal(t, rest.WarningHandler(wh), cfg.WarningHandler)
+		assert.Nil(t, k.config.WarningHandler, "the shared config must not be mutated")
+	})
 }

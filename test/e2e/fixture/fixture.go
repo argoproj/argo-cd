@@ -1001,7 +1001,12 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 		},
 		func() error {
 			// create namespace for this test
-			_, err := Run("", "kubectl", "create", "ns", state.deploymentNamespace)
+			// --save-config records a kubectl.kubernetes.io/last-applied-configuration annotation on the
+			// namespace. Tests that later apply this same namespace declaratively (e.g. via a Namespace
+			// manifest or managedNamespaceMetadata) would otherwise trigger kubectl's client-side
+			// "missing last-applied-configuration annotation" warning, which now surfaces as an
+			// OperationWarning phase and breaks OperationSucceeded assertions.
+			_, err := Run("", "kubectl", "create", "ns", state.deploymentNamespace, "--save-config")
 			if err != nil {
 				return err
 			}

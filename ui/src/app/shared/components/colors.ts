@@ -26,18 +26,21 @@ export const COLORS = {
         failed: ARGO_FAILED_COLOR,
         running: ARGO_RUNNING_COLOR,
         success: ARGO_SUCCESS_COLOR,
-        terminating: ARGO_TERMINATING_COLOR
+        terminating: ARGO_TERMINATING_COLOR,
+        warning: ARGO_WARNING_COLOR
     },
     sync: {
         synced: ARGO_SUCCESS_COLOR,
         out_of_sync: ARGO_WARNING_COLOR,
-        unknown: ARGO_GRAY4_COLOR
+        unknown: ARGO_GRAY4_COLOR,
+        SyncedWithWarning: ARGO_WARNING_COLOR
     },
     sync_result: {
         failed: ARGO_FAILED_COLOR,
         synced: ARGO_SUCCESS_COLOR,
         pruned: ARGO_GRAY4_COLOR,
-        unknown: ARGO_GRAY4_COLOR
+        unknown: ARGO_GRAY4_COLOR,
+        SyncedWithWarning: ARGO_WARNING_COLOR
     },
     sync_window: {
         deny: ARGO_FAILED_COLOR,
