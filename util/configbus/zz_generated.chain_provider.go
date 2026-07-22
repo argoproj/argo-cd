@@ -74,9 +74,21 @@ func (c *ChainProvider) EnabledSourceTypes(ctx context.Context) (map[string]bool
 	}, c.links)
 }
 
+func (c *ChainProvider) ExcludeEventLabelKeys(ctx context.Context) ([]string, error) {
+	return firstConfigured(func(p Provider) ([]string, error) {
+		return p.ExcludeEventLabelKeys(ctx)
+	}, c.links)
+}
+
 func (c *ChainProvider) GitRequestTimeout(ctx context.Context) (time.Duration, error) {
 	return firstConfigured(func(p Provider) (time.Duration, error) {
 		return p.GitRequestTimeout(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) GlobalProjectsSettings(ctx context.Context) ([]settings.GlobalProjectSettings, error) {
+	return firstConfigured(func(p Provider) ([]settings.GlobalProjectSettings, error) {
+		return p.GlobalProjectsSettings(ctx)
 	}, c.links)
 }
 
@@ -107,6 +119,12 @@ func (c *ChainProvider) IgnoreNormalizerJQTimeout(ctx context.Context) (time.Dur
 func (c *ChainProvider) IgnoreResourceUpdatesOverrides(ctx context.Context) (map[string]v1alpha1.ResourceOverride, error) {
 	return firstConfigured(func(p Provider) (map[string]v1alpha1.ResourceOverride, error) {
 		return p.IgnoreResourceUpdatesOverrides(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) IncludeEventLabelKeys(ctx context.Context) ([]string, error) {
+	return firstConfigured(func(p Provider) ([]string, error) {
+		return p.IncludeEventLabelKeys(ctx)
 	}, c.links)
 }
 
