@@ -1,0 +1,17 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: "All objects available"
+    inputPath: testdata/available.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Waiting for Installation status to observe the current generation"
+    inputPath: testdata/stale_generation.yaml
+  - healthStatus:
+      status: Degraded
+      message: "Some components are not ready: calico-node"
+    inputPath: testdata/degraded.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Waiting for Installation to become available"
+    inputPath: testdata/progressing.yaml
