@@ -516,7 +516,7 @@ func (proj AppProject) isDestinationMatched(dst ApplicationDestination) bool {
 		switch {
 		case matched:
 			anyDestinationMatched = true
-		case (!dstNameMatched && isDenyPattern(item.Name)) || (!dstServerMatched && isDenyPattern(item.Server)) && dstNamespaceMatched:
+		case ((!dstNameMatched && isDenyPattern(item.Name)) || (!dstServerMatched && isDenyPattern(item.Server))) && dstNamespaceMatched:
 			return false
 		case !dstNamespaceMatched && isDenyPattern(item.Namespace) && dstServerMatched:
 			return false
