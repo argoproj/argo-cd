@@ -4,6 +4,7 @@ import {KeybindingProvider} from 'argo-ui/v2';
 
 import {AccountDetails} from './account-details/account-details';
 import {AccountsList} from './accounts-list/accounts-list';
+import {AdvancedSettings} from './advanced-settings/advanced-settings';
 import {CertsList} from './certs-list/certs-list';
 import {ClusterDetails} from './cluster-details/cluster-details';
 import {ClustersList} from './clusters-list/clusters-list';
@@ -28,6 +29,7 @@ export const SettingsContainer = (props: RouteComponentProps<any>) => (
             <Route exact={true} path={`${props.match.path}/accounts`} component={AccountsList} />
             <Route exact={true} path={`${props.match.path}/accounts/:name`} component={AccountDetails} />
             <Route exact={true} path={`${props.match.path}/appearance`} component={AppearanceList} />
+            <Route exact={true} path={`${props.match.path}/advanced`} component={AdvancedSettings} />
             <Redirect path='*' to={`${props.match.path}`} />
         </Switch>
     </KeybindingProvider>

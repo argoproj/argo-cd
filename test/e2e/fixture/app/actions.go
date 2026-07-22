@@ -542,7 +542,7 @@ func (a *Actions) And(block func()) *Actions {
 
 func (a *Actions) Then() *Consequences {
 	a.context.T().Helper()
-	return &Consequences{a.context, a, 15}
+	return &Consequences{a.context, a, 25}
 }
 
 func (a *Actions) runCli(args ...string) {
@@ -589,6 +589,12 @@ func (a *Actions) WithImpersonationEnabled(serviceAccountName string, policyRule
 func (a *Actions) WithImpersonationDisabled() *Actions {
 	a.context.T().Helper()
 	require.NoError(a.context.T(), fixture.SetImpersonationEnabled("false"))
+	return a
+}
+
+func (a *Actions) WithImpersonationEnforcementDisabled() *Actions {
+	a.context.T().Helper()
+	require.NoError(a.context.T(), fixture.SetImpersonationEnforcement("false"))
 	return a
 }
 

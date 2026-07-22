@@ -56,8 +56,8 @@ import (
 	"k8s.io/klog/v2/textlogger"
 	"k8s.io/kubectl/pkg/util/openapi"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/tracing"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/tracing"
 )
 
 const (
@@ -1091,8 +1091,29 @@ func (c *clusterCache) checkPermission(ctx context.Context, reviewInterface auth
 //
 // When this function exits, the cluster cache is up to date, and the appropriate resources are being watched for
 // changes.
-func (c *clusterCache) sync() error {
+func (c *clusterCache) sync() (err error) {
 	c.log.Info("Start syncing cluster")
+
+	start := time.Now()
+	syncLock := sync.Mutex{}
+
+	var discoveryEnd time.Time
+	defer func() {
+		end := time.Now()
+		if discoveryEnd.IsZero() {
+			discoveryEnd = end
+		}
+		log := c.log.WithValues(
+			"total_ms", end.Sub(start).Milliseconds(),
+			"discovery_ms", discoveryEnd.Sub(start).Milliseconds(),
+			"list_ms", end.Sub(discoveryEnd).Milliseconds(),
+		)
+		if err != nil {
+			log.Error(err, "Failed to sync cluster")
+		} else {
+			log.Info("Cluster successfully synced")
+		}
+	}()
 
 	for i := range c.apisMeta {
 		c.apisMeta[i].watchCancel()
@@ -1103,11 +1124,13 @@ func (c *clusterCache) sync() error {
 		c.eventMetaCh = make(chan eventMeta)
 	}
 
+	syncLock.Lock()
 	c.apisMeta = make(map[schema.GroupKind]*apiMeta)
 	c.resources = make(map[kube.ResourceKey]*Resource)
 	c.nsIndex = make(map[string]map[kube.ResourceKey]*Resource)
 	c.namespacedResources = make(map[schema.GroupKind]bool)
 	c.parentUIDToChildren = make(map[types.UID]map[kube.ResourceKey]struct{})
+	syncLock.Unlock()
 	config := c.config
 	version, err := c.kubectl.GetServerVersion(config)
 	if err != nil {
@@ -1148,17 +1171,16 @@ func (c *clusterCache) sync() error {
 		go c.processEvents()
 	}
 
-	// Each API is processed in parallel, so we need to take out a lock when we update clusterCache fields.
-	lock := sync.Mutex{}
+	discoveryEnd = time.Now()
 	err = kube.RunAllAsync(len(apis), func(i int) error {
 		api := apis[i]
 
-		lock.Lock()
 		ctx, cancel := context.WithCancel(context.Background())
 		info := &apiMeta{namespaced: api.Meta.Namespaced, watchCancel: cancel}
+		syncLock.Lock()
 		c.apisMeta[api.GroupKind] = info
 		c.namespacedResources[api.GroupKind] = api.Meta.Namespaced
-		lock.Unlock()
+		syncLock.Unlock()
 
 		return c.processApi(client, api, func(resClient dynamic.ResourceInterface, ns string) error {
 			resourceVersion, err := c.listResources(ctx, resClient, func(listPager *pager.ListPager) error {
@@ -1167,9 +1189,9 @@ func (c *clusterCache) sync() error {
 						return fmt.Errorf("object %s/%s has an unexpected type", un.GroupVersionKind().String(), un.GetName())
 					} else {
 						newRes := c.newResource(un)
-						lock.Lock()
+						syncLock.Lock()
 						c.setNode(newRes)
-						lock.Unlock()
+						syncLock.Unlock()
 					}
 					return nil
 				})
@@ -1186,10 +1208,10 @@ func (c *clusterCache) sync() error {
 					}
 					// if we are not allowed to list the resource, remove it from the watch list
 					if !keep {
-						lock.Lock()
+						syncLock.Lock()
 						delete(c.apisMeta, api.GroupKind)
 						delete(c.namespacedResources, api.GroupKind)
-						lock.Unlock()
+						syncLock.Unlock()
 						return nil
 					}
 				}
@@ -1202,11 +1224,8 @@ func (c *clusterCache) sync() error {
 		})
 	})
 	if err != nil {
-		c.log.Error(err, "Failed to sync cluster")
 		return fmt.Errorf("failed to sync cluster %s: %w", c.config.Host, err)
 	}
-
-	c.log.Info("Cluster successfully synced")
 	return nil
 }
 

@@ -623,10 +623,17 @@ export interface AuthSettings {
     uiBannerURL: string;
     uiBannerPermanent: boolean;
     uiBannerPosition: string;
+    uiLoginButtonText: string;
     execEnabled: boolean;
     appsInAnyNamespaceEnabled: boolean;
     hydratorEnabled: boolean;
     syncWithReplaceAllowed: boolean;
+    appLabelKey: string;
+    trackingMethod: string;
+    additionalUrls: string[];
+    impersonationEnabled: boolean;
+    controllerNamespace: string;
+    installationID: string;
 }
 
 export interface UserInfo {
