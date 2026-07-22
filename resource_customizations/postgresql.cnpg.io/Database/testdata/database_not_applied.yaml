@@ -1,0 +1,11 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: test-database
+  namespace: default
+spec:
+  cluster:
+    name: test-cluster
+status:
+  applied: false
+  message: "Database creation failed"
