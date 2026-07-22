@@ -394,7 +394,7 @@ func (projCache *appProjCache) GetAppProject(ctx context.Context) (*appv1.AppPro
 	if projCache.appProj != nil {
 		return projCache.appProj, nil
 	}
-	proj, err := argo.GetAppProjectByName(ctx, projCache.name, applisters.NewAppProjectLister(projCache.ctrl.projInformer.GetIndexer()), projCache.ctrl.namespace, projCache.ctrl.settingsMgr, projCache.ctrl.db)
+	proj, err := argo.GetAppProjectByName(ctx, projCache.name, applisters.NewAppProjectLister(projCache.ctrl.projInformer.GetIndexer()), projCache.ctrl.namespace, projCache.ctrl.configProvider, projCache.ctrl.db)
 	if err != nil {
 		return nil, err
 	}
@@ -2960,7 +2960,7 @@ func (ctrl *ApplicationController) getAppList(options metav1.ListOptions) (*appv
 }
 
 func (ctrl *ApplicationController) logAppEvent(ctx context.Context, a *appv1.Application, eventInfo argo.EventInfo, message string) {
-	eventLabels := argo.GetAppEventLabels(ctx, a, applisters.NewAppProjectLister(ctrl.projInformer.GetIndexer()), ctrl.namespace, ctrl.settingsMgr, ctrl.db)
+	eventLabels := argo.GetAppEventLabels(ctx, a, applisters.NewAppProjectLister(ctrl.projInformer.GetIndexer()), ctrl.namespace, ctrl.configProvider, ctrl.db)
 	ctrl.auditLogger.LogAppEvent(a, eventInfo, message, "", eventLabels)
 }
 

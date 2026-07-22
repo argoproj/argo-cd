@@ -65,6 +65,16 @@ func (p *SettingsManagerProvider) EnabledSourceTypes(_ context.Context) (map[str
 	return withMgr(p, (*settings.SettingsManager).GetEnabledSourceTypes)
 }
 
+func (p *SettingsManagerProvider) ExcludeEventLabelKeys(_ context.Context) ([]string, error) {
+	return withMgr(p, func(mgr *settings.SettingsManager) ([]string, error) {
+		return mgr.GetExcludeEventLabelKeys(), nil
+	})
+}
+
+func (p *SettingsManagerProvider) GlobalProjectsSettings(_ context.Context) ([]settings.GlobalProjectSettings, error) {
+	return withMgr(p, (*settings.SettingsManager).GetGlobalProjectsSettings)
+}
+
 func (p *SettingsManagerProvider) HelmSettings(_ context.Context) (*v1alpha1.HelmOptions, error) {
 	return withMgr(p, (*settings.SettingsManager).GetHelmSettings)
 }
@@ -75,6 +85,12 @@ func (p *SettingsManagerProvider) HydratorReadmeTemplate(_ context.Context) (str
 
 func (p *SettingsManagerProvider) IgnoreResourceUpdatesOverrides(_ context.Context) (map[string]v1alpha1.ResourceOverride, error) {
 	return withMgr(p, (*settings.SettingsManager).GetIgnoreResourceUpdatesOverrides)
+}
+
+func (p *SettingsManagerProvider) IncludeEventLabelKeys(_ context.Context) ([]string, error) {
+	return withMgr(p, func(mgr *settings.SettingsManager) ([]string, error) {
+		return mgr.GetIncludeEventLabelKeys(), nil
+	})
 }
 
 func (p *SettingsManagerProvider) InstallationID(_ context.Context) (string, error) {

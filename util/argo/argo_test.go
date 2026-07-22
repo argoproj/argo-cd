@@ -30,6 +30,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient/mocks"
 	"github.com/argoproj/argo-cd/v3/test"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	dbmocks "github.com/argoproj/argo-cd/v3/util/db/mocks"
 	"github.com/argoproj/argo-cd/v3/util/settings"
@@ -84,7 +85,7 @@ func TestGetAppProjectWithNoProjDefined(t *testing.T) {
 	kubeClient := fake.NewClientset(&cm)
 	settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, test.FakeArgoCDNamespace)
 	argoDB := db.NewDB("default", settingsMgr, kubeClient)
-	proj, err := GetAppProject(ctx, &testApp, applisters.NewAppProjectLister(informer.GetIndexer()), namespace, settingsMgr, argoDB)
+	proj, err := GetAppProject(ctx, &testApp, applisters.NewAppProjectLister(informer.GetIndexer()), namespace, configbus.NewSettingsManagerProvider(settingsMgr), argoDB)
 	require.NoError(t, err)
 	assert.Equal(t, proj.Name, projName)
 }
@@ -1516,11 +1517,11 @@ func TestGetGlobalProjects(t *testing.T) {
 
 		projLister := applisters.NewAppProjectLister(informer.GetIndexer())
 
-		xGlobalProjects := GetGlobalProjects(isX, projLister, settingsMgr)
+		xGlobalProjects := GetGlobalProjects(t.Context(), isX, projLister, configbus.NewSettingsManagerProvider(settingsMgr))
 		assert.Len(t, xGlobalProjects, 1)
 		assert.Equal(t, "default-x", xGlobalProjects[0].Name)
 
-		nonXGlobalProjects := GetGlobalProjects(isNoX, projLister, settingsMgr)
+		nonXGlobalProjects := GetGlobalProjects(t.Context(), isNoX, projLister, configbus.NewSettingsManagerProvider(settingsMgr))
 		assert.Len(t, nonXGlobalProjects, 1)
 		assert.Equal(t, "default-non-x", nonXGlobalProjects[0].Name)
 	})
@@ -2202,7 +2203,7 @@ func TestGetAppEventLabels(t *testing.T) {
 			settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, test.FakeArgoCDNamespace)
 			argoDB := db.NewDB("default", settingsMgr, kubeClient)
 
-			eventLabels := GetAppEventLabels(ctx, &app, applisters.NewAppProjectLister(informer.GetIndexer()), test.FakeArgoCDNamespace, settingsMgr, argoDB)
+			eventLabels := GetAppEventLabels(ctx, &app, applisters.NewAppProjectLister(informer.GetIndexer()), test.FakeArgoCDNamespace, configbus.NewSettingsManagerProvider(settingsMgr), argoDB)
 			assert.Len(t, eventLabels, len(tt.expectedEventLabels))
 			for ek, ev := range tt.expectedEventLabels {
 				v, found := eventLabels[ek]

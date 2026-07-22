@@ -27,12 +27,15 @@ type StaticFields struct {
 	CommitAuthorEmail                   *string
 	CommitAuthorName                    *string
 	EnabledSourceTypes                  *map[string]bool
+	ExcludeEventLabelKeys               *[]string
 	GitRequestTimeout                   *time.Duration
+	GlobalProjectsSettings              *[]settings.GlobalProjectSettings
 	HardReconciliationTimeout           *time.Duration
 	HelmSettings                        **v1alpha1.HelmOptions
 	HydratorReadmeTemplate              *string
 	IgnoreNormalizerJQTimeout           *time.Duration
 	IgnoreResourceUpdatesOverrides      *map[string]v1alpha1.ResourceOverride
+	IncludeEventLabelKeys               *[]string
 	InstallationID                      *string
 	IsIgnoreResourceUpdatesEnabled      *bool
 	IsImpersonationEnabled              *bool
@@ -105,11 +108,25 @@ func (p *StaticProvider) EnabledSourceTypes(_ context.Context) (map[string]bool,
 	return *p.Fields.EnabledSourceTypes, nil
 }
 
+func (p *StaticProvider) ExcludeEventLabelKeys(_ context.Context) ([]string, error) {
+	if p == nil || p.Fields.ExcludeEventLabelKeys == nil {
+		return nil, ErrNotConfigured
+	}
+	return *p.Fields.ExcludeEventLabelKeys, nil
+}
+
 func (p *StaticProvider) GitRequestTimeout(_ context.Context) (time.Duration, error) {
 	if p == nil || p.Fields.GitRequestTimeout == nil {
 		return 0, ErrNotConfigured
 	}
 	return *p.Fields.GitRequestTimeout, nil
+}
+
+func (p *StaticProvider) GlobalProjectsSettings(_ context.Context) ([]settings.GlobalProjectSettings, error) {
+	if p == nil || p.Fields.GlobalProjectsSettings == nil {
+		return nil, ErrNotConfigured
+	}
+	return *p.Fields.GlobalProjectsSettings, nil
 }
 
 func (p *StaticProvider) HardReconciliationTimeout(_ context.Context) (time.Duration, error) {
@@ -145,6 +162,13 @@ func (p *StaticProvider) IgnoreResourceUpdatesOverrides(_ context.Context) (map[
 		return nil, ErrNotConfigured
 	}
 	return *p.Fields.IgnoreResourceUpdatesOverrides, nil
+}
+
+func (p *StaticProvider) IncludeEventLabelKeys(_ context.Context) ([]string, error) {
+	if p == nil || p.Fields.IncludeEventLabelKeys == nil {
+		return nil, ErrNotConfigured
+	}
+	return *p.Fields.IncludeEventLabelKeys, nil
 }
 
 func (p *StaticProvider) InstallationID(_ context.Context) (string, error) {

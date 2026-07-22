@@ -76,7 +76,7 @@ type Provider_AllowedNodeLabels_Call struct {
 
 // AllowedNodeLabels is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Provider_Expecter) AllowedNodeLabels(ctx any) *Provider_AllowedNodeLabels_Call {
+func (_e *Provider_Expecter) AllowedNodeLabels(ctx interface{}) *Provider_AllowedNodeLabels_Call {
 	return &Provider_AllowedNodeLabels_Call{Call: _e.mock.On("AllowedNodeLabels", ctx)}
 }
 
@@ -136,7 +136,7 @@ type Provider_AppInstanceLabelKey_Call struct {
 
 // AppInstanceLabelKey is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Provider_Expecter) AppInstanceLabelKey(ctx any) *Provider_AppInstanceLabelKey_Call {
+func (_e *Provider_Expecter) AppInstanceLabelKey(ctx interface{}) *Provider_AppInstanceLabelKey_Call {
 	return &Provider_AppInstanceLabelKey_Call{Call: _e.mock.On("AppInstanceLabelKey", ctx)}
 }
 
@@ -196,7 +196,7 @@ type Provider_CommitAuthorEmail_Call struct {
 
 // CommitAuthorEmail is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Provider_Expecter) CommitAuthorEmail(ctx any) *Provider_CommitAuthorEmail_Call {
+func (_e *Provider_Expecter) CommitAuthorEmail(ctx interface{}) *Provider_CommitAuthorEmail_Call {
 	return &Provider_CommitAuthorEmail_Call{Call: _e.mock.On("CommitAuthorEmail", ctx)}
 }
 
@@ -256,7 +256,7 @@ type Provider_CommitAuthorName_Call struct {
 
 // CommitAuthorName is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Provider_Expecter) CommitAuthorName(ctx any) *Provider_CommitAuthorName_Call {
+func (_e *Provider_Expecter) CommitAuthorName(ctx interface{}) *Provider_CommitAuthorName_Call {
 	return &Provider_CommitAuthorName_Call{Call: _e.mock.On("CommitAuthorName", ctx)}
 }
 
@@ -318,7 +318,7 @@ type Provider_EnabledSourceTypes_Call struct {
 
 // EnabledSourceTypes is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Provider_Expecter) EnabledSourceTypes(ctx any) *Provider_EnabledSourceTypes_Call {
+func (_e *Provider_Expecter) EnabledSourceTypes(ctx interface{}) *Provider_EnabledSourceTypes_Call {
 	return &Provider_EnabledSourceTypes_Call{Call: _e.mock.On("EnabledSourceTypes", ctx)}
 }
 
@@ -341,6 +341,68 @@ func (_c *Provider_EnabledSourceTypes_Call) Return(stringToBool map[string]bool,
 }
 
 func (_c *Provider_EnabledSourceTypes_Call) RunAndReturn(run func(ctx context.Context) (map[string]bool, error)) *Provider_EnabledSourceTypes_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ExcludeEventLabelKeys provides a mock function for the type Provider
+func (_mock *Provider) ExcludeEventLabelKeys(ctx context.Context) ([]string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ExcludeEventLabelKeys")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_ExcludeEventLabelKeys_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ExcludeEventLabelKeys'
+type Provider_ExcludeEventLabelKeys_Call struct {
+	*mock.Call
+}
+
+// ExcludeEventLabelKeys is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) ExcludeEventLabelKeys(ctx interface{}) *Provider_ExcludeEventLabelKeys_Call {
+	return &Provider_ExcludeEventLabelKeys_Call{Call: _e.mock.On("ExcludeEventLabelKeys", ctx)}
+}
+
+func (_c *Provider_ExcludeEventLabelKeys_Call) Run(run func(ctx context.Context)) *Provider_ExcludeEventLabelKeys_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_ExcludeEventLabelKeys_Call) Return(strings []string, err error) *Provider_ExcludeEventLabelKeys_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *Provider_ExcludeEventLabelKeys_Call) RunAndReturn(run func(ctx context.Context) ([]string, error)) *Provider_ExcludeEventLabelKeys_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -378,7 +440,7 @@ type Provider_GitRequestTimeout_Call struct {
 
 // GitRequestTimeout is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Provider_Expecter) GitRequestTimeout(ctx any) *Provider_GitRequestTimeout_Call {
+func (_e *Provider_Expecter) GitRequestTimeout(ctx interface{}) *Provider_GitRequestTimeout_Call {
 	return &Provider_GitRequestTimeout_Call{Call: _e.mock.On("GitRequestTimeout", ctx)}
 }
 
@@ -401,6 +463,68 @@ func (_c *Provider_GitRequestTimeout_Call) Return(duration time.Duration, err er
 }
 
 func (_c *Provider_GitRequestTimeout_Call) RunAndReturn(run func(ctx context.Context) (time.Duration, error)) *Provider_GitRequestTimeout_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GlobalProjectsSettings provides a mock function for the type Provider
+func (_mock *Provider) GlobalProjectsSettings(ctx context.Context) ([]settings.GlobalProjectSettings, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GlobalProjectsSettings")
+	}
+
+	var r0 []settings.GlobalProjectSettings
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]settings.GlobalProjectSettings, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []settings.GlobalProjectSettings); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]settings.GlobalProjectSettings)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_GlobalProjectsSettings_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GlobalProjectsSettings'
+type Provider_GlobalProjectsSettings_Call struct {
+	*mock.Call
+}
+
+// GlobalProjectsSettings is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) GlobalProjectsSettings(ctx interface{}) *Provider_GlobalProjectsSettings_Call {
+	return &Provider_GlobalProjectsSettings_Call{Call: _e.mock.On("GlobalProjectsSettings", ctx)}
+}
+
+func (_c *Provider_GlobalProjectsSettings_Call) Run(run func(ctx context.Context)) *Provider_GlobalProjectsSettings_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_GlobalProjectsSettings_Call) Return(globalProjectSettingss []settings.GlobalProjectSettings, err error) *Provider_GlobalProjectsSettings_Call {
+	_c.Call.Return(globalProjectSettingss, err)
+	return _c
+}
+
+func (_c *Provider_GlobalProjectsSettings_Call) RunAndReturn(run func(ctx context.Context) ([]settings.GlobalProjectSettings, error)) *Provider_GlobalProjectsSettings_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -438,7 +562,7 @@ type Provider_HardReconciliationTimeout_Call struct {
 
 // HardReconciliationTimeout is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Provider_Expecter) HardReconciliationTimeout(ctx any) *Provider_HardReconciliationTimeout_Call {
+func (_e *Provider_Expecter) HardReconciliationTimeout(ctx interface{}) *Provider_HardReconciliationTimeout_Call {
 	return &Provider_HardReconciliationTimeout_Call{Call: _e.mock.On("HardReconciliationTimeout", ctx)}
 }
 
@@ -500,7 +624,7 @@ type Provider_HelmSettings_Call struct {
 
 // HelmSettings is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Provider_Expecter) HelmSettings(ctx any) *Provider_HelmSettings_Call {
+func (_e *Provider_Expecter) HelmSettings(ctx interface{}) *Provider_HelmSettings_Call {
 	return &Provider_HelmSettings_Call{Call: _e.mock.On("HelmSettings", ctx)}
 }
 
@@ -560,7 +684,7 @@ type Provider_HydratorReadmeTemplate_Call struct {
 
 // HydratorReadmeTemplate is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Provider_Expecter) HydratorReadmeTemplate(ctx any) *Provider_HydratorReadmeTemplate_Call {
+func (_e *Provider_Expecter) HydratorReadmeTemplate(ctx interface{}) *Provider_HydratorReadmeTemplate_Call {
 	return &Provider_HydratorReadmeTemplate_Call{Call: _e.mock.On("HydratorReadmeTemplate", ctx)}
 }
 
@@ -620,7 +744,7 @@ type Provider_IgnoreNormalizerJQTimeout_Call struct {
 
 // IgnoreNormalizerJQTimeout is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Provider_Expecter) IgnoreNormalizerJQTimeout(ctx any) *Provider_IgnoreNormalizerJQTimeout_Call {
+func (_e *Provider_Expecter) IgnoreNormalizerJQTimeout(ctx interface{}) *Provider_IgnoreNormalizerJQTimeout_Call {
 	return &Provider_IgnoreNormalizerJQTimeout_Call{Call: _e.mock.On("IgnoreNormalizerJQTimeout", ctx)}
 }
 
@@ -682,7 +806,7 @@ type Provider_IgnoreResourceUpdatesOverrides_Call struct {
 
 // IgnoreResourceUpdatesOverrides is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Provider_Expecter) IgnoreResourceUpdatesOverrides(ctx any) *Provider_IgnoreResourceUpdatesOverrides_Call {
+func (_e *Provider_Expecter) IgnoreResourceUpdatesOverrides(ctx interface{}) *Provider_IgnoreResourceUpdatesOverrides_Call {
 	return &Provider_IgnoreResourceUpdatesOverrides_Call{Call: _e.mock.On("IgnoreResourceUpdatesOverrides", ctx)}
 }
 
@@ -705,6 +829,68 @@ func (_c *Provider_IgnoreResourceUpdatesOverrides_Call) Return(stringToResourceO
 }
 
 func (_c *Provider_IgnoreResourceUpdatesOverrides_Call) RunAndReturn(run func(ctx context.Context) (map[string]v1alpha1.ResourceOverride, error)) *Provider_IgnoreResourceUpdatesOverrides_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// IncludeEventLabelKeys provides a mock function for the type Provider
+func (_mock *Provider) IncludeEventLabelKeys(ctx context.Context) ([]string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for IncludeEventLabelKeys")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_IncludeEventLabelKeys_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IncludeEventLabelKeys'
+type Provider_IncludeEventLabelKeys_Call struct {
+	*mock.Call
+}
+
+// IncludeEventLabelKeys is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) IncludeEventLabelKeys(ctx interface{}) *Provider_IncludeEventLabelKeys_Call {
+	return &Provider_IncludeEventLabelKeys_Call{Call: _e.mock.On("IncludeEventLabelKeys", ctx)}
+}
+
+func (_c *Provider_IncludeEventLabelKeys_Call) Run(run func(ctx context.Context)) *Provider_IncludeEventLabelKeys_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_IncludeEventLabelKeys_Call) Return(strings []string, err error) *Provider_IncludeEventLabelKeys_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *Provider_IncludeEventLabelKeys_Call) RunAndReturn(run func(ctx context.Context) ([]string, error)) *Provider_IncludeEventLabelKeys_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -742,7 +928,7 @@ type Provider_InstallationID_Call struct {
 
 // InstallationID is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Provider_Expecter) InstallationID(ctx any) *Provider_InstallationID_Call {
+func (_e *Provider_Expecter) InstallationID(ctx interface{}) *Provider_InstallationID_Call {
 	return &Provider_InstallationID_Call{Call: _e.mock.On("InstallationID", ctx)}
 }
 
@@ -802,7 +988,7 @@ type Provider_IsIgnoreResourceUpdatesEnabled_Call struct {
 
 // IsIgnoreResourceUpdatesEnabled is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Provider_Expecter) IsIgnoreResourceUpdatesEnabled(ctx any) *Provider_IsIgnoreResourceUpdatesEnabled_Call {
+func (_e *Provider_Expecter) IsIgnoreResourceUpdatesEnabled(ctx interface{}) *Provider_IsIgnoreResourceUpdatesEnabled_Call {
 	return &Provider_IsIgnoreResourceUpdatesEnabled_Call{Call: _e.mock.On("IsIgnoreResourceUpdatesEnabled", ctx)}
 }
 
@@ -862,7 +1048,7 @@ type Provider_IsImpersonationEnabled_Call struct {
 
 // IsImpersonationEnabled is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Provider_Expecter) IsImpersonationEnabled(ctx any) *Provider_IsImpersonationEnabled_Call {
+func (_e *Provider_Expecter) IsImpersonationEnabled(ctx interface{}) *Provider_IsImpersonationEnabled_Call {
 	return &Provider_IsImpersonationEnabled_Call{Call: _e.mock.On("IsImpersonationEnabled", ctx)}
 }
 
@@ -922,7 +1108,7 @@ type Provider_IsImpersonationEnforced_Call struct {
 
 // IsImpersonationEnforced is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Provider_Expecter) IsImpersonationEnforced(ctx any) *Provider_IsImpersonationEnforced_Call {
+func (_e *Provider_Expecter) IsImpersonationEnforced(ctx interface{}) *Provider_IsImpersonationEnforced_Call {
 	return &Provider_IsImpersonationEnforced_Call{Call: _e.mock.On("IsImpersonationEnforced", ctx)}
 }
 
@@ -984,7 +1170,7 @@ type Provider_KustomizeSettings_Call struct {
 
 // KustomizeSettings is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Provider_Expecter) KustomizeSettings(ctx any) *Provider_KustomizeSettings_Call {
+func (_e *Provider_Expecter) KustomizeSettings(ctx interface{}) *Provider_KustomizeSettings_Call {
 	return &Provider_KustomizeSettings_Call{Call: _e.mock.On("KustomizeSettings", ctx)}
 }
 
@@ -1046,7 +1232,7 @@ type Provider_MetricsClusterLabels_Call struct {
 
 // MetricsClusterLabels is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Provider_Expecter) MetricsClusterLabels(ctx any) *Provider_MetricsClusterLabels_Call {
+func (_e *Provider_Expecter) MetricsClusterLabels(ctx interface{}) *Provider_MetricsClusterLabels_Call {
 	return &Provider_MetricsClusterLabels_Call{Call: _e.mock.On("MetricsClusterLabels", ctx)}
 }
 
@@ -1106,7 +1292,7 @@ type Provider_PersistResourceHealth_Call struct {
 
 // PersistResourceHealth is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Provider_Expecter) PersistResourceHealth(ctx any) *Provider_PersistResourceHealth_Call {
+func (_e *Provider_Expecter) PersistResourceHealth(ctx interface{}) *Provider_PersistResourceHealth_Call {
 	return &Provider_PersistResourceHealth_Call{Call: _e.mock.On("PersistResourceHealth", ctx)}
 }
 
@@ -1166,7 +1352,7 @@ type Provider_ReconciliationJitter_Call struct {
 
 // ReconciliationJitter is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Provider_Expecter) ReconciliationJitter(ctx any) *Provider_ReconciliationJitter_Call {
+func (_e *Provider_Expecter) ReconciliationJitter(ctx interface{}) *Provider_ReconciliationJitter_Call {
 	return &Provider_ReconciliationJitter_Call{Call: _e.mock.On("ReconciliationJitter", ctx)}
 }
 
@@ -1226,7 +1412,7 @@ type Provider_ReconciliationTimeout_Call struct {
 
 // ReconciliationTimeout is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Provider_Expecter) ReconciliationTimeout(ctx any) *Provider_ReconciliationTimeout_Call {
+func (_e *Provider_Expecter) ReconciliationTimeout(ctx interface{}) *Provider_ReconciliationTimeout_Call {
 	return &Provider_ReconciliationTimeout_Call{Call: _e.mock.On("ReconciliationTimeout", ctx)}
 }
 
@@ -1286,7 +1472,7 @@ type Provider_RepoErrorGracePeriod_Call struct {
 
 // RepoErrorGracePeriod is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Provider_Expecter) RepoErrorGracePeriod(ctx any) *Provider_RepoErrorGracePeriod_Call {
+func (_e *Provider_Expecter) RepoErrorGracePeriod(ctx interface{}) *Provider_RepoErrorGracePeriod_Call {
 	return &Provider_RepoErrorGracePeriod_Call{Call: _e.mock.On("RepoErrorGracePeriod", ctx)}
 }
 
@@ -1346,7 +1532,7 @@ type Provider_ResourceCompareOptions_Call struct {
 
 // ResourceCompareOptions is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Provider_Expecter) ResourceCompareOptions(ctx any) *Provider_ResourceCompareOptions_Call {
+func (_e *Provider_Expecter) ResourceCompareOptions(ctx interface{}) *Provider_ResourceCompareOptions_Call {
 	return &Provider_ResourceCompareOptions_Call{Call: _e.mock.On("ResourceCompareOptions", ctx)}
 }
 
@@ -1408,7 +1594,7 @@ type Provider_ResourceCustomLabels_Call struct {
 
 // ResourceCustomLabels is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Provider_Expecter) ResourceCustomLabels(ctx any) *Provider_ResourceCustomLabels_Call {
+func (_e *Provider_Expecter) ResourceCustomLabels(ctx interface{}) *Provider_ResourceCustomLabels_Call {
 	return &Provider_ResourceCustomLabels_Call{Call: _e.mock.On("ResourceCustomLabels", ctx)}
 }
 
@@ -1470,7 +1656,7 @@ type Provider_ResourceOverrides_Call struct {
 
 // ResourceOverrides is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Provider_Expecter) ResourceOverrides(ctx any) *Provider_ResourceOverrides_Call {
+func (_e *Provider_Expecter) ResourceOverrides(ctx interface{}) *Provider_ResourceOverrides_Call {
 	return &Provider_ResourceOverrides_Call{Call: _e.mock.On("ResourceOverrides", ctx)}
 }
 
@@ -1532,7 +1718,7 @@ type Provider_ResourcesFilter_Call struct {
 
 // ResourcesFilter is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Provider_Expecter) ResourcesFilter(ctx any) *Provider_ResourcesFilter_Call {
+func (_e *Provider_Expecter) ResourcesFilter(ctx interface{}) *Provider_ResourcesFilter_Call {
 	return &Provider_ResourcesFilter_Call{Call: _e.mock.On("ResourcesFilter", ctx)}
 }
 
@@ -1592,7 +1778,7 @@ type Provider_RespectRBAC_Call struct {
 
 // RespectRBAC is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Provider_Expecter) RespectRBAC(ctx any) *Provider_RespectRBAC_Call {
+func (_e *Provider_Expecter) RespectRBAC(ctx interface{}) *Provider_RespectRBAC_Call {
 	return &Provider_RespectRBAC_Call{Call: _e.mock.On("RespectRBAC", ctx)}
 }
 
@@ -1654,7 +1840,7 @@ type Provider_SelfHealBackoff_Call struct {
 
 // SelfHealBackoff is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Provider_Expecter) SelfHealBackoff(ctx any) *Provider_SelfHealBackoff_Call {
+func (_e *Provider_Expecter) SelfHealBackoff(ctx interface{}) *Provider_SelfHealBackoff_Call {
 	return &Provider_SelfHealBackoff_Call{Call: _e.mock.On("SelfHealBackoff", ctx)}
 }
 
@@ -1714,7 +1900,7 @@ type Provider_SelfHealTimeout_Call struct {
 
 // SelfHealTimeout is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Provider_Expecter) SelfHealTimeout(ctx any) *Provider_SelfHealTimeout_Call {
+func (_e *Provider_Expecter) SelfHealTimeout(ctx interface{}) *Provider_SelfHealTimeout_Call {
 	return &Provider_SelfHealTimeout_Call{Call: _e.mock.On("SelfHealTimeout", ctx)}
 }
 
@@ -1776,7 +1962,7 @@ type Provider_SensitiveAnnotations_Call struct {
 
 // SensitiveAnnotations is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Provider_Expecter) SensitiveAnnotations(ctx any) *Provider_SensitiveAnnotations_Call {
+func (_e *Provider_Expecter) SensitiveAnnotations(ctx interface{}) *Provider_SensitiveAnnotations_Call {
 	return &Provider_SensitiveAnnotations_Call{Call: _e.mock.On("SensitiveAnnotations", ctx)}
 }
 
@@ -1836,7 +2022,7 @@ type Provider_ServerSideDiff_Call struct {
 
 // ServerSideDiff is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Provider_Expecter) ServerSideDiff(ctx any) *Provider_ServerSideDiff_Call {
+func (_e *Provider_Expecter) ServerSideDiff(ctx interface{}) *Provider_ServerSideDiff_Call {
 	return &Provider_ServerSideDiff_Call{Call: _e.mock.On("ServerSideDiff", ctx)}
 }
 
@@ -1896,7 +2082,7 @@ type Provider_SourceHydratorCommitMessageTemplate_Call struct {
 
 // SourceHydratorCommitMessageTemplate is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Provider_Expecter) SourceHydratorCommitMessageTemplate(ctx any) *Provider_SourceHydratorCommitMessageTemplate_Call {
+func (_e *Provider_Expecter) SourceHydratorCommitMessageTemplate(ctx interface{}) *Provider_SourceHydratorCommitMessageTemplate_Call {
 	return &Provider_SourceHydratorCommitMessageTemplate_Call{Call: _e.mock.On("SourceHydratorCommitMessageTemplate", ctx)}
 }
 
@@ -1936,7 +2122,7 @@ type Provider_Subscribe_Call struct {
 
 // Subscribe is a helper method to define mock.On call
 //   - subCh chan<- *settings.ArgoCDSettings
-func (_e *Provider_Expecter) Subscribe(subCh any) *Provider_Subscribe_Call {
+func (_e *Provider_Expecter) Subscribe(subCh interface{}) *Provider_Subscribe_Call {
 	return &Provider_Subscribe_Call{Call: _e.mock.On("Subscribe", subCh)}
 }
 
@@ -1996,7 +2182,7 @@ type Provider_SyncTimeout_Call struct {
 
 // SyncTimeout is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Provider_Expecter) SyncTimeout(ctx any) *Provider_SyncTimeout_Call {
+func (_e *Provider_Expecter) SyncTimeout(ctx interface{}) *Provider_SyncTimeout_Call {
 	return &Provider_SyncTimeout_Call{Call: _e.mock.On("SyncTimeout", ctx)}
 }
 
@@ -2056,7 +2242,7 @@ type Provider_TrackingMethod_Call struct {
 
 // TrackingMethod is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Provider_Expecter) TrackingMethod(ctx any) *Provider_TrackingMethod_Call {
+func (_e *Provider_Expecter) TrackingMethod(ctx interface{}) *Provider_TrackingMethod_Call {
 	return &Provider_TrackingMethod_Call{Call: _e.mock.On("TrackingMethod", ctx)}
 }
 
@@ -2096,7 +2282,7 @@ type Provider_Unsubscribe_Call struct {
 
 // Unsubscribe is a helper method to define mock.On call
 //   - subCh chan<- *settings.ArgoCDSettings
-func (_e *Provider_Expecter) Unsubscribe(subCh any) *Provider_Unsubscribe_Call {
+func (_e *Provider_Expecter) Unsubscribe(subCh interface{}) *Provider_Unsubscribe_Call {
 	return &Provider_Unsubscribe_Call{Call: _e.mock.On("Unsubscribe", subCh)}
 }
 
