@@ -626,7 +626,7 @@ To persist state and support HA deployments, configure a durable storage backend
         inCluster: true
 ```
 
-Supported values for type in dex.storage:
+Supported values for `storage.type` in `dex.config`:
 
 | Type         | Persists across restarts | HA support | Notes                                                                                          |
 | ------------ | ------------------------ | ---------- | ---------------------------------------------------------------------------------------------- |

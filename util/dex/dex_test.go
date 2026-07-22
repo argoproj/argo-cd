@@ -509,6 +509,22 @@ func Test_GenerateDexConfig(t *testing.T) {
 		assert.Equal(t, true, storageConfig["inCluster"])
 	})
 
+	t.Run("default storage type is memory when not specified", func(t *testing.T) {
+		s := settings.ArgoCDSettings{
+			URL:       "http://localhost",
+			DexConfig: goodDexConfig,
+		}
+		config, err := GenerateDexConfigYAML(&s, false)
+		require.NoError(t, err)
+		assert.NotNil(t, config)
+		var dexCfg map[string]any
+		err = yaml.Unmarshal(config, &dexCfg)
+		require.NoError(t, err)
+		storage, ok := dexCfg["storage"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, "memory", storage["type"])
+	})
+
 	t.Run("etcd storage type, config", func(t *testing.T) {
 		s := settings.ArgoCDSettings{
 			URL:       "http://localhost",
