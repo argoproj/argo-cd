@@ -72,7 +72,7 @@ func NewServer(ns string, kubeclientset kubernetes.Interface, appclientset appcl
 func (s *Server) auditLogger(ctx context.Context) (*argo.AuditLogger, error) {
 	enableK8sEvent, err := s.configProvider.EnableK8sEvent(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to resolve EnableK8sEvent: %w", err)
 	}
 	return argo.NewAuditLogger(s.kubeclientset, s.ns, "argocd-server", enableK8sEvent), nil
 }
@@ -194,9 +194,9 @@ func (s *Server) ListLinks(ctx context.Context, q *project.ListProjectLinksReque
 		return nil, fmt.Errorf("error getting application: %w", err)
 	}
 
-	deepLinks, err := s.settingsMgr.GetDeepLinks(settings.ProjectDeepLinks)
+	deepLinks, err := s.configProvider.ProjectDeepLinks(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read application deep links from configmap: %w", err)
+		return nil, fmt.Errorf("failed to resolve ProjectDeepLinks: %w", err)
 	}
 
 	deeplinksObj := deeplinks.CreateDeepLinksObject(nil, nil, nil, obj)

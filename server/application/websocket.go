@@ -12,6 +12,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 	httputil "github.com/argoproj/argo-cd/v3/util/http"
 	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 	util_session "github.com/argoproj/argo-cd/v3/util/session"
 
@@ -45,6 +46,7 @@ type terminalSession struct {
 	sessionManager *util_session.SessionManager
 	token          *string
 	appRBACName    string
+	configProvider configbus.Provider
 	terminalOpts   *TerminalOptions
 }
 
@@ -75,7 +77,7 @@ func getToken(r *http.Request) (string, error) {
 }
 
 // newTerminalSession create terminalSession
-func newTerminalSession(ctx context.Context, w http.ResponseWriter, r *http.Request, responseHeader http.Header, sessionManager *util_session.SessionManager, appRBACName string, terminalOpts *TerminalOptions) (*terminalSession, error) {
+func newTerminalSession(ctx context.Context, w http.ResponseWriter, r *http.Request, responseHeader http.Header, sessionManager *util_session.SessionManager, appRBACName string, configProvider configbus.Provider, terminalOpts *TerminalOptions) (*terminalSession, error) {
 	token, err := getToken(r)
 	if err != nil {
 		return nil, err
@@ -93,6 +95,7 @@ func newTerminalSession(ctx context.Context, w http.ResponseWriter, r *http.Requ
 		sessionManager: sessionManager,
 		token:          &token,
 		appRBACName:    appRBACName,
+		configProvider: configProvider,
 		terminalOpts:   terminalOpts,
 	}
 	return session, nil
@@ -179,7 +182,7 @@ func (t *terminalSession) validatePermissions(p []byte) (int, error) {
 
 func (t *terminalSession) performValidationsAndReconnect(p []byte) (int, error) {
 	// In disable auth mode, no point verifying the token or validating permissions
-	disableAuth, err := t.terminalOpts.ConfigProvider.DisableAuth(t.ctx)
+	disableAuth, err := t.configProvider.DisableAuth(t.ctx)
 	if err != nil {
 		return 0, err
 	}

@@ -165,6 +165,66 @@ func (_c *Provider_AllowedScmProviders_Call) RunAndReturn(run func(ctx context.C
 	return _c
 }
 
+// AnonymousUserEnabled provides a mock function for the type Provider
+func (_mock *Provider) AnonymousUserEnabled(ctx context.Context) (bool, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for AnonymousUserEnabled")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (bool, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) bool); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_AnonymousUserEnabled_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AnonymousUserEnabled'
+type Provider_AnonymousUserEnabled_Call struct {
+	*mock.Call
+}
+
+// AnonymousUserEnabled is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) AnonymousUserEnabled(ctx any) *Provider_AnonymousUserEnabled_Call {
+	return &Provider_AnonymousUserEnabled_Call{Call: _e.mock.On("AnonymousUserEnabled", ctx)}
+}
+
+func (_c *Provider_AnonymousUserEnabled_Call) Run(run func(ctx context.Context)) *Provider_AnonymousUserEnabled_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_AnonymousUserEnabled_Call) Return(b bool, err error) *Provider_AnonymousUserEnabled_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *Provider_AnonymousUserEnabled_Call) RunAndReturn(run func(ctx context.Context) (bool, error)) *Provider_AnonymousUserEnabled_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // AppInstanceLabelKey provides a mock function for the type Provider
 func (_mock *Provider) AppInstanceLabelKey(ctx context.Context) (string, error) {
 	ret := _mock.Called(ctx)
@@ -221,6 +281,68 @@ func (_c *Provider_AppInstanceLabelKey_Call) Return(s string, err error) *Provid
 }
 
 func (_c *Provider_AppInstanceLabelKey_Call) RunAndReturn(run func(ctx context.Context) (string, error)) *Provider_AppInstanceLabelKey_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ApplicationDeepLinks provides a mock function for the type Provider
+func (_mock *Provider) ApplicationDeepLinks(ctx context.Context) ([]settings.DeepLink, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ApplicationDeepLinks")
+	}
+
+	var r0 []settings.DeepLink
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]settings.DeepLink, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []settings.DeepLink); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]settings.DeepLink)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_ApplicationDeepLinks_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ApplicationDeepLinks'
+type Provider_ApplicationDeepLinks_Call struct {
+	*mock.Call
+}
+
+// ApplicationDeepLinks is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) ApplicationDeepLinks(ctx any) *Provider_ApplicationDeepLinks_Call {
+	return &Provider_ApplicationDeepLinks_Call{Call: _e.mock.On("ApplicationDeepLinks", ctx)}
+}
+
+func (_c *Provider_ApplicationDeepLinks_Call) Run(run func(ctx context.Context)) *Provider_ApplicationDeepLinks_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_ApplicationDeepLinks_Call) Return(deepLinks []settings.DeepLink, err error) *Provider_ApplicationDeepLinks_Call {
+	_c.Call.Return(deepLinks, err)
+	return _c
+}
+
+func (_c *Provider_ApplicationDeepLinks_Call) RunAndReturn(run func(ctx context.Context) ([]settings.DeepLink, error)) *Provider_ApplicationDeepLinks_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1311,6 +1433,128 @@ func (_c *Provider_ExcludeEventLabelKeys_Call) Return(strings []string, err erro
 }
 
 func (_c *Provider_ExcludeEventLabelKeys_Call) RunAndReturn(run func(ctx context.Context) ([]string, error)) *Provider_ExcludeEventLabelKeys_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ExecEnabled provides a mock function for the type Provider
+func (_mock *Provider) ExecEnabled(ctx context.Context) (bool, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ExecEnabled")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (bool, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) bool); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_ExecEnabled_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ExecEnabled'
+type Provider_ExecEnabled_Call struct {
+	*mock.Call
+}
+
+// ExecEnabled is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) ExecEnabled(ctx any) *Provider_ExecEnabled_Call {
+	return &Provider_ExecEnabled_Call{Call: _e.mock.On("ExecEnabled", ctx)}
+}
+
+func (_c *Provider_ExecEnabled_Call) Run(run func(ctx context.Context)) *Provider_ExecEnabled_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_ExecEnabled_Call) Return(b bool, err error) *Provider_ExecEnabled_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *Provider_ExecEnabled_Call) RunAndReturn(run func(ctx context.Context) (bool, error)) *Provider_ExecEnabled_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ExecShells provides a mock function for the type Provider
+func (_mock *Provider) ExecShells(ctx context.Context) ([]string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ExecShells")
+	}
+
+	var r0 []string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_ExecShells_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ExecShells'
+type Provider_ExecShells_Call struct {
+	*mock.Call
+}
+
+// ExecShells is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) ExecShells(ctx any) *Provider_ExecShells_Call {
+	return &Provider_ExecShells_Call{Call: _e.mock.On("ExecShells", ctx)}
+}
+
+func (_c *Provider_ExecShells_Call) Run(run func(ctx context.Context)) *Provider_ExecShells_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_ExecShells_Call) Return(strings []string, err error) *Provider_ExecShells_Call {
+	_c.Call.Return(strings, err)
+	return _c
+}
+
+func (_c *Provider_ExecShells_Call) RunAndReturn(run func(ctx context.Context) ([]string, error)) *Provider_ExecShells_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2643,6 +2887,68 @@ func (_c *Provider_PersistResourceHealth_Call) RunAndReturn(run func(ctx context
 	return _c
 }
 
+// ProjectDeepLinks provides a mock function for the type Provider
+func (_mock *Provider) ProjectDeepLinks(ctx context.Context) ([]settings.DeepLink, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ProjectDeepLinks")
+	}
+
+	var r0 []settings.DeepLink
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]settings.DeepLink, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []settings.DeepLink); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]settings.DeepLink)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_ProjectDeepLinks_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ProjectDeepLinks'
+type Provider_ProjectDeepLinks_Call struct {
+	*mock.Call
+}
+
+// ProjectDeepLinks is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) ProjectDeepLinks(ctx any) *Provider_ProjectDeepLinks_Call {
+	return &Provider_ProjectDeepLinks_Call{Call: _e.mock.On("ProjectDeepLinks", ctx)}
+}
+
+func (_c *Provider_ProjectDeepLinks_Call) Run(run func(ctx context.Context)) *Provider_ProjectDeepLinks_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_ProjectDeepLinks_Call) Return(deepLinks []settings.DeepLink, err error) *Provider_ProjectDeepLinks_Call {
+	_c.Call.Return(deepLinks, err)
+	return _c
+}
+
+func (_c *Provider_ProjectDeepLinks_Call) RunAndReturn(run func(ctx context.Context) ([]settings.DeepLink, error)) *Provider_ProjectDeepLinks_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // ReconciliationJitter provides a mock function for the type Provider
 func (_mock *Provider) ReconciliationJitter(ctx context.Context) (time.Duration, error) {
 	ret := _mock.Called(ctx)
@@ -2941,6 +3247,68 @@ func (_c *Provider_ResourceCustomLabels_Call) Return(strings []string, err error
 }
 
 func (_c *Provider_ResourceCustomLabels_Call) RunAndReturn(run func(ctx context.Context) ([]string, error)) *Provider_ResourceCustomLabels_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// ResourceDeepLinks provides a mock function for the type Provider
+func (_mock *Provider) ResourceDeepLinks(ctx context.Context) ([]settings.DeepLink, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for ResourceDeepLinks")
+	}
+
+	var r0 []settings.DeepLink
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]settings.DeepLink, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) []settings.DeepLink); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]settings.DeepLink)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_ResourceDeepLinks_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ResourceDeepLinks'
+type Provider_ResourceDeepLinks_Call struct {
+	*mock.Call
+}
+
+// ResourceDeepLinks is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) ResourceDeepLinks(ctx any) *Provider_ResourceDeepLinks_Call {
+	return &Provider_ResourceDeepLinks_Call{Call: _e.mock.On("ResourceDeepLinks", ctx)}
+}
+
+func (_c *Provider_ResourceDeepLinks_Call) Run(run func(ctx context.Context)) *Provider_ResourceDeepLinks_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_ResourceDeepLinks_Call) Return(deepLinks []settings.DeepLink, err error) *Provider_ResourceDeepLinks_Call {
+	_c.Call.Return(deepLinks, err)
+	return _c
+}
+
+func (_c *Provider_ResourceDeepLinks_Call) RunAndReturn(run func(ctx context.Context) ([]settings.DeepLink, error)) *Provider_ResourceDeepLinks_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -3605,6 +3973,66 @@ func (_c *Provider_StaticAssetsDir_Call) Return(s string, err error) *Provider_S
 }
 
 func (_c *Provider_StaticAssetsDir_Call) RunAndReturn(run func(ctx context.Context) (string, error)) *Provider_StaticAssetsDir_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// StatusBadgeEnabled provides a mock function for the type Provider
+func (_mock *Provider) StatusBadgeEnabled(ctx context.Context) (bool, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for StatusBadgeEnabled")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (bool, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) bool); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_StatusBadgeEnabled_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'StatusBadgeEnabled'
+type Provider_StatusBadgeEnabled_Call struct {
+	*mock.Call
+}
+
+// StatusBadgeEnabled is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) StatusBadgeEnabled(ctx any) *Provider_StatusBadgeEnabled_Call {
+	return &Provider_StatusBadgeEnabled_Call{Call: _e.mock.On("StatusBadgeEnabled", ctx)}
+}
+
+func (_c *Provider_StatusBadgeEnabled_Call) Run(run func(ctx context.Context)) *Provider_StatusBadgeEnabled_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_StatusBadgeEnabled_Call) Return(b bool, err error) *Provider_StatusBadgeEnabled_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *Provider_StatusBadgeEnabled_Call) RunAndReturn(run func(ctx context.Context) (bool, error)) *Provider_StatusBadgeEnabled_Call {
 	_c.Call.Return(run)
 	return _c
 }

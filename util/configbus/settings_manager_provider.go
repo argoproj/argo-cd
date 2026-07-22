@@ -50,8 +50,24 @@ func (p *SettingsManagerProvider) AllowedNodeLabels(_ context.Context) ([]string
 	})
 }
 
+func (p *SettingsManagerProvider) AnonymousUserEnabled(_ context.Context) (bool, error) {
+	return withMgr(p, func(mgr *settings.SettingsManager) (bool, error) {
+		sett, err := mgr.GetSettings()
+		if err != nil {
+			return false, err
+		}
+		return sett.AnonymousUserEnabled, nil
+	})
+}
+
 func (p *SettingsManagerProvider) AppInstanceLabelKey(_ context.Context) (string, error) {
 	return withMgr(p, (*settings.SettingsManager).GetAppInstanceLabelKey)
+}
+
+func (p *SettingsManagerProvider) ApplicationDeepLinks(_ context.Context) ([]settings.DeepLink, error) {
+	return withMgr(p, func(mgr *settings.SettingsManager) ([]settings.DeepLink, error) {
+		return mgr.GetDeepLinks(settings.ApplicationDeepLinks)
+	})
 }
 
 func (p *SettingsManagerProvider) CommitAuthorEmail(_ context.Context) (string, error) {
@@ -69,6 +85,26 @@ func (p *SettingsManagerProvider) EnabledSourceTypes(_ context.Context) (map[str
 func (p *SettingsManagerProvider) ExcludeEventLabelKeys(_ context.Context) ([]string, error) {
 	return withMgr(p, func(mgr *settings.SettingsManager) ([]string, error) {
 		return mgr.GetExcludeEventLabelKeys(), nil
+	})
+}
+
+func (p *SettingsManagerProvider) ExecEnabled(_ context.Context) (bool, error) {
+	return withMgr(p, func(mgr *settings.SettingsManager) (bool, error) {
+		sett, err := mgr.GetSettings()
+		if err != nil {
+			return false, err
+		}
+		return sett.ExecEnabled, nil
+	})
+}
+
+func (p *SettingsManagerProvider) ExecShells(_ context.Context) ([]string, error) {
+	return withMgr(p, func(mgr *settings.SettingsManager) ([]string, error) {
+		sett, err := mgr.GetSettings()
+		if err != nil {
+			return nil, err
+		}
+		return sett.ExecShells, nil
 	})
 }
 
@@ -132,12 +168,24 @@ func (p *SettingsManagerProvider) KustomizeSettings(_ context.Context) (v1alpha1
 	})
 }
 
+func (p *SettingsManagerProvider) ProjectDeepLinks(_ context.Context) ([]settings.DeepLink, error) {
+	return withMgr(p, func(mgr *settings.SettingsManager) ([]settings.DeepLink, error) {
+		return mgr.GetDeepLinks(settings.ProjectDeepLinks)
+	})
+}
+
 func (p *SettingsManagerProvider) ResourceCompareOptions(_ context.Context) (settings.ArgoCDDiffOptions, error) {
 	return withMgr(p, (*settings.SettingsManager).GetResourceCompareOptions)
 }
 
 func (p *SettingsManagerProvider) ResourceCustomLabels(_ context.Context) ([]string, error) {
 	return withMgr(p, (*settings.SettingsManager).GetResourceCustomLabels)
+}
+
+func (p *SettingsManagerProvider) ResourceDeepLinks(_ context.Context) ([]settings.DeepLink, error) {
+	return withMgr(p, func(mgr *settings.SettingsManager) ([]settings.DeepLink, error) {
+		return mgr.GetDeepLinks(settings.ResourceDeepLinks)
+	})
 }
 
 func (p *SettingsManagerProvider) ResourceOverrides(_ context.Context) (map[string]v1alpha1.ResourceOverride, error) {
@@ -169,6 +217,16 @@ func (p *SettingsManagerProvider) SensitiveAnnotations(_ context.Context) (map[s
 
 func (p *SettingsManagerProvider) SourceHydratorCommitMessageTemplate(_ context.Context) (string, error) {
 	return withMgr(p, (*settings.SettingsManager).GetSourceHydratorCommitMessageTemplate)
+}
+
+func (p *SettingsManagerProvider) StatusBadgeEnabled(_ context.Context) (bool, error) {
+	return withMgr(p, func(mgr *settings.SettingsManager) (bool, error) {
+		sett, err := mgr.GetSettings()
+		if err != nil {
+			return false, err
+		}
+		return sett.StatusBadgeEnabled, nil
+	})
 }
 
 func (p *SettingsManagerProvider) TrackingMethod(_ context.Context) (string, error) {

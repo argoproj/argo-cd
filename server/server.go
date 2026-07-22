@@ -1222,7 +1222,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) (*ArgoCDServiceSet, error) {
 	notificationService := notification.NewServer(a.apiFactory)
 	certificateService := certificate.NewServer(a.db, a.enf)
 	gpgkeyService := gpgkey.NewServer(a.db, a.enf)
-	versionService := version.NewServer(a, a.configProvider, a.settingsMgr)
+	versionService := version.NewServer(a, a.configProvider)
 
 	return &ArgoCDServiceSet{
 		ClusterService:        clusterService,
@@ -1350,7 +1350,7 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 		Handler: &handlerSwitcher{
 			handler: mux,
 			urlToHandler: map[string]http.Handler{
-				"/api/badge":          otelhttp.NewHandler(badge.NewHandler(server.AppClientset, server.settingsMgr, server.Namespace, server.configProvider), "server.ArgoCDServer/badge"),
+				"/api/badge":          otelhttp.NewHandler(badge.NewHandler(server.AppClientset, server.Namespace, server.configProvider), "server.ArgoCDServer/badge"),
 				common.LogoutEndpoint: otelhttp.NewHandler(logout.NewHandler(server.settingsMgr, server.sessionMgr, server.configProvider), "server.ArgoCDServer/logout"),
 			},
 			contentTypeToHandler: map[string]http.Handler{
@@ -1391,10 +1391,10 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 	}
 	mux.Handle("/api/", handler)
 
-	terminalOpts := application.TerminalOptions{ConfigProvider: server.configProvider, Enf: server.enf}
+	terminalOpts := application.TerminalOptions{Enf: server.enf}
 
-	terminal := application.NewHandler(server.appLister, server.Namespace, server.configProvider, server.db, appResourceTreeFn, server.settings.ExecShells, server.sessionMgr, &terminalOpts).
-		WithFeatureFlagMiddleware(server.settingsMgr.GetSettings)
+	terminal := application.NewHandler(server.appLister, server.Namespace, server.configProvider, server.db, appResourceTreeFn, server.sessionMgr, &terminalOpts).
+		WithFeatureFlagMiddleware()
 	th := server.withAuthMiddleware(terminal)
 	mux.Handle("/terminal", th)
 

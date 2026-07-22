@@ -18,19 +18,17 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/assets"
 	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/security"
-	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 // NewHandler creates handler serving to do api/badge endpoint
-func NewHandler(appClientset versioned.Interface, settingsMrg *settings.SettingsManager, namespace string, configProvider configbus.Provider) http.Handler {
-	return &Handler{appClientset: appClientset, namespace: namespace, settingsMgr: settingsMrg, configProvider: configProvider}
+func NewHandler(appClientset versioned.Interface, namespace string, configProvider configbus.Provider) http.Handler {
+	return &Handler{appClientset: appClientset, namespace: namespace, configProvider: configProvider}
 }
 
 // Handler used to get application in order to access health/sync
 type Handler struct {
 	namespace      string
 	appClientset   versioned.Interface
-	settingsMgr    *settings.SettingsManager
 	configProvider configbus.Provider
 }
 
@@ -102,8 +100,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	notFound := false
 	adjustWidth := false
 	svgWidth := svgWidthWithoutRevision
-	if sets, err := h.settingsMgr.GetSettings(); err == nil {
-		enabled = sets.StatusBadgeEnabled
+	enabled, err := h.configProvider.StatusBadgeEnabled(r.Context())
+	if err != nil {
+		http.Error(w, "Failed to resolve status badge enabled: "+err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	applicationNamespaces, err := h.configProvider.ApplicationNamespaces(r.Context())

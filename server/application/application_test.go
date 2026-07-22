@@ -72,12 +72,15 @@ const (
 
 var testEnableEventList []string = argo.DefaultEnableEventList()
 
-func testConfigProvider(applicationNamespaces []string) configbus.Provider {
-	return &configbus.StaticProvider{Fields: configbus.StaticFields{
-		ApplicationNamespaces:  configbus.Ptr(applicationNamespaces),
-		EnableK8sEvent:         configbus.Ptr(testEnableEventList),
-		SyncWithReplaceAllowed: configbus.Ptr(true),
-	}}
+func testConfigProvider(applicationNamespaces []string, settingsMgr *settings.SettingsManager) configbus.Provider {
+	return configbus.NewChainProvider(
+		&configbus.StaticProvider{Fields: configbus.StaticFields{
+			ApplicationNamespaces:  configbus.Ptr(applicationNamespaces),
+			EnableK8sEvent:         configbus.Ptr(testEnableEventList),
+			SyncWithReplaceAllowed: configbus.Ptr(true),
+		}},
+		configbus.NewSettingsManagerProvider(settingsMgr),
+	)
 }
 
 type broadcasterMock struct {
@@ -317,7 +320,7 @@ func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer),
 		sync.NewKeyLock(),
 		settingsMgr,
 		projInformer,
-		testConfigProvider([]string{}),
+		testConfigProvider([]string{}, settingsMgr),
 	)
 	return server.(*Server)
 }
@@ -499,7 +502,7 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(b *testing.B, f func(*rb
 		sync.NewKeyLock(),
 		settingsMgr,
 		projInformer,
-		testConfigProvider([]string{}),
+		testConfigProvider([]string{}, settingsMgr),
 	)
 	return server.(*Server)
 }
@@ -3770,7 +3773,7 @@ func TestIsApplicationPermitted(t *testing.T) {
 		testApp := newTestApp()
 		appServer := newTestAppServer(t, testApp)
 		appServer.ns = "server-ns"
-		appServer.configProvider = testConfigProvider([]string{"demo"})
+		appServer.configProvider = testConfigProvider([]string{"demo"}, appServer.settingsMgr)
 		permitted, err := appServer.isApplicationPermitted(t.Context(), labels.Everything(), 0, nil, testApp.Name, testApp.Namespace, nil, *testApp)
 		require.NoError(t, err)
 		assert.False(t, permitted)
@@ -3780,7 +3783,7 @@ func TestIsApplicationPermitted(t *testing.T) {
 		testApp := newTestApp()
 		appServer := newTestAppServer(t, testApp)
 		appServer.ns = "server-ns"
-		appServer.configProvider = testConfigProvider([]string{testApp.Namespace})
+		appServer.configProvider = testConfigProvider([]string{testApp.Namespace}, appServer.settingsMgr)
 		permitted, err := appServer.isApplicationPermitted(t.Context(), labels.Everything(), 0, nil, testApp.Name, testApp.Namespace, nil, *testApp)
 		require.NoError(t, err)
 		assert.True(t, permitted)
@@ -3825,7 +3828,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		testApp1 := newTestApp()
 		testApp1.Namespace = "argocd-1"
 		appServer := newTestAppServer(t, testApp1)
-		appServer.configProvider = testConfigProvider([]string{"argocd-1"})
+		appServer.configProvider = testConfigProvider([]string{"argocd-1"}, appServer.settingsMgr)
 		apps, err := appServer.List(t.Context(), &application.ApplicationQuery{})
 		require.NoError(t, err)
 		require.Len(t, apps.Items, 1)
@@ -3867,7 +3870,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 			},
 		}
 		appServer := newTestAppServer(t, testApp, otherNsProj)
-		appServer.configProvider = testConfigProvider([]string{"argocd-1"})
+		appServer.configProvider = testConfigProvider([]string{"argocd-1"}, appServer.settingsMgr)
 		app, err := appServer.Get(t.Context(), &application.ApplicationQuery{
 			Name:         new("test-app"),
 			AppNamespace: new("argocd-1"),
@@ -3891,7 +3894,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 			},
 		}
 		appServer := newTestAppServer(t, testApp, otherNsProj)
-		appServer.configProvider = testConfigProvider([]string{"argocd-1"})
+		appServer.configProvider = testConfigProvider([]string{"argocd-1"}, appServer.settingsMgr)
 		app, err := appServer.Get(t.Context(), &application.ApplicationQuery{
 			Name:         new("test-app"),
 			AppNamespace: new("argocd-1"),
@@ -3914,7 +3917,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 			},
 		}
 		appServer := newTestAppServer(t, otherNsProj)
-		appServer.configProvider = testConfigProvider([]string{"argocd-1"})
+		appServer.configProvider = testConfigProvider([]string{"argocd-1"}, appServer.settingsMgr)
 		app, err := appServer.Create(t.Context(), &application.ApplicationCreateRequest{
 			Application: testApp,
 		})
@@ -3938,7 +3941,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 			},
 		}
 		appServer := newTestAppServer(t, otherNsProj)
-		appServer.configProvider = testConfigProvider([]string{"argocd-1"})
+		appServer.configProvider = testConfigProvider([]string{"argocd-1"}, appServer.settingsMgr)
 		app, err := appServer.Create(t.Context(), &application.ApplicationCreateRequest{
 			Application: testApp,
 		})
@@ -3961,7 +3964,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 			},
 		}
 		appServer := newTestAppServer(t, otherNsProj)
-		appServer.configProvider = testConfigProvider([]string{"argocd-2"})
+		appServer.configProvider = testConfigProvider([]string{"argocd-2"}, appServer.settingsMgr)
 		app, err := appServer.Create(t.Context(), &application.ApplicationCreateRequest{
 			Application: testApp,
 		})
@@ -3983,7 +3986,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 			},
 		}
 		appServer := newTestAppServer(t, testApp, otherNsProj)
-		appServer.configProvider = testConfigProvider([]string{"argocd-1"})
+		appServer.configProvider = testConfigProvider([]string{"argocd-1"}, appServer.settingsMgr)
 		active, err := appServer.GetApplicationSyncWindows(t.Context(), &application.ApplicationSyncWindowsQuery{Name: &testApp.Name, AppNamespace: &testApp.Namespace})
 		require.NoError(t, err)
 		assert.Empty(t, active.ActiveWindows)
@@ -4002,7 +4005,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 			},
 		}
 		appServer := newTestAppServer(t, testApp, otherNsProj)
-		appServer.configProvider = testConfigProvider([]string{"argocd-1"})
+		appServer.configProvider = testConfigProvider([]string{"argocd-1"}, appServer.settingsMgr)
 		active, err := appServer.GetApplicationSyncWindows(t.Context(), &application.ApplicationSyncWindowsQuery{Name: &testApp.Name, AppNamespace: &testApp.Namespace})
 		require.Error(t, err)
 		require.Nil(t, active)
@@ -4022,7 +4025,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 			},
 		}
 		appServer := newTestAppServer(t, testApp, otherNsProj)
-		appServer.configProvider = testConfigProvider([]string{"argocd-1"})
+		appServer.configProvider = testConfigProvider([]string{"argocd-1"}, appServer.settingsMgr)
 		links, err := appServer.ListLinks(t.Context(), &application.ListAppLinksRequest{
 			Name:      new("test-app"),
 			Namespace: new("argocd-1"),
@@ -4045,7 +4048,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 			},
 		}
 		appServer := newTestAppServer(t, testApp, otherNsProj)
-		appServer.configProvider = testConfigProvider([]string{"argocd-1"})
+		appServer.configProvider = testConfigProvider([]string{"argocd-1"}, appServer.settingsMgr)
 		links, err := appServer.ListLinks(t.Context(), &application.ListAppLinksRequest{
 			Name:      new("test-app"),
 			Namespace: new("argocd-1"),

@@ -54,9 +54,21 @@ func (c *ChainProvider) AllowedScmProviders(ctx context.Context) ([]string, erro
 	}, c.links)
 }
 
+func (c *ChainProvider) AnonymousUserEnabled(ctx context.Context) (bool, error) {
+	return firstConfigured(func(p Provider) (bool, error) {
+		return p.AnonymousUserEnabled(ctx)
+	}, c.links)
+}
+
 func (c *ChainProvider) AppInstanceLabelKey(ctx context.Context) (string, error) {
 	return firstConfigured(func(p Provider) (string, error) {
 		return p.AppInstanceLabelKey(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) ApplicationDeepLinks(ctx context.Context) ([]settings.DeepLink, error) {
+	return firstConfigured(func(p Provider) ([]settings.DeepLink, error) {
+		return p.ApplicationDeepLinks(ctx)
 	}, c.links)
 }
 
@@ -165,6 +177,18 @@ func (c *ChainProvider) EnabledSourceTypes(ctx context.Context) (map[string]bool
 func (c *ChainProvider) ExcludeEventLabelKeys(ctx context.Context) ([]string, error) {
 	return firstConfigured(func(p Provider) ([]string, error) {
 		return p.ExcludeEventLabelKeys(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) ExecEnabled(ctx context.Context) (bool, error) {
+	return firstConfigured(func(p Provider) (bool, error) {
+		return p.ExecEnabled(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) ExecShells(ctx context.Context) ([]string, error) {
+	return firstConfigured(func(p Provider) ([]string, error) {
+		return p.ExecShells(ctx)
 	}, c.links)
 }
 
@@ -300,6 +324,12 @@ func (c *ChainProvider) PersistResourceHealth(ctx context.Context) (bool, error)
 	}, c.links)
 }
 
+func (c *ChainProvider) ProjectDeepLinks(ctx context.Context) ([]settings.DeepLink, error) {
+	return firstConfigured(func(p Provider) ([]settings.DeepLink, error) {
+		return p.ProjectDeepLinks(ctx)
+	}, c.links)
+}
+
 func (c *ChainProvider) ReconciliationJitter(ctx context.Context) (time.Duration, error) {
 	return firstConfigured(func(p Provider) (time.Duration, error) {
 		return p.ReconciliationJitter(ctx)
@@ -327,6 +357,12 @@ func (c *ChainProvider) ResourceCompareOptions(ctx context.Context) (settings.Ar
 func (c *ChainProvider) ResourceCustomLabels(ctx context.Context) ([]string, error) {
 	return firstConfigured(func(p Provider) ([]string, error) {
 		return p.ResourceCustomLabels(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) ResourceDeepLinks(ctx context.Context) ([]settings.DeepLink, error) {
+	return firstConfigured(func(p Provider) ([]settings.DeepLink, error) {
+		return p.ResourceDeepLinks(ctx)
 	}, c.links)
 }
 
@@ -393,6 +429,12 @@ func (c *ChainProvider) SourceHydratorCommitMessageTemplate(ctx context.Context)
 func (c *ChainProvider) StaticAssetsDir(ctx context.Context) (string, error) {
 	return firstConfigured(func(p Provider) (string, error) {
 		return p.StaticAssetsDir(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) StatusBadgeEnabled(ctx context.Context) (bool, error) {
+	return firstConfigured(func(p Provider) (bool, error) {
+		return p.StatusBadgeEnabled(ctx)
 	}, c.links)
 }
 

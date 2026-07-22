@@ -23,7 +23,9 @@ import (
 type StaticFields struct {
 	AllowedNodeLabels                   *[]string
 	AllowedScmProviders                 *[]string
+	AnonymousUserEnabled                *bool
 	AppInstanceLabelKey                 *string
+	ApplicationDeepLinks                *[]settings.DeepLink
 	ApplicationNamespaces               *[]string
 	BaseHRef                            *string
 	CommitAuthorEmail                   *string
@@ -42,6 +44,8 @@ type StaticFields struct {
 	EnableScmProviders                  *bool
 	EnabledSourceTypes                  *map[string]bool
 	ExcludeEventLabelKeys               *[]string
+	ExecEnabled                         *bool
+	ExecShells                          *[]string
 	GitRequestTimeout                   *time.Duration
 	GitSubmoduleEnabled                 *bool
 	GlobalProjectsSettings              *[]settings.GlobalProjectSettings
@@ -64,11 +68,13 @@ type StaticFields struct {
 	MetricsHost                         *string
 	MetricsPort                         *int
 	PersistResourceHealth               *bool
+	ProjectDeepLinks                    *[]settings.DeepLink
 	ReconciliationJitter                *time.Duration
 	ReconciliationTimeout               *time.Duration
 	RepoErrorGracePeriod                *time.Duration
 	ResourceCompareOptions              *settings.ArgoCDDiffOptions
 	ResourceCustomLabels                *[]string
+	ResourceDeepLinks                   *[]settings.DeepLink
 	ResourceOverrides                   *map[string]v1alpha1.ResourceOverride
 	ResourcesFilter                     *settings.ResourcesFilter
 	RespectRBAC                         *int
@@ -80,6 +86,7 @@ type StaticFields struct {
 	ServerSideDiff                      *bool
 	SourceHydratorCommitMessageTemplate *string
 	StaticAssetsDir                     *string
+	StatusBadgeEnabled                  *bool
 	SyncTimeout                         *time.Duration
 	SyncWithReplaceAllowed              *bool
 	TrackingMethod                      *string
@@ -115,11 +122,25 @@ func (p *StaticProvider) AllowedScmProviders(_ context.Context) ([]string, error
 	return *p.Fields.AllowedScmProviders, nil
 }
 
+func (p *StaticProvider) AnonymousUserEnabled(_ context.Context) (bool, error) {
+	if p == nil || p.Fields.AnonymousUserEnabled == nil {
+		return false, ErrNotConfigured
+	}
+	return *p.Fields.AnonymousUserEnabled, nil
+}
+
 func (p *StaticProvider) AppInstanceLabelKey(_ context.Context) (string, error) {
 	if p == nil || p.Fields.AppInstanceLabelKey == nil {
 		return "", ErrNotConfigured
 	}
 	return *p.Fields.AppInstanceLabelKey, nil
+}
+
+func (p *StaticProvider) ApplicationDeepLinks(_ context.Context) ([]settings.DeepLink, error) {
+	if p == nil || p.Fields.ApplicationDeepLinks == nil {
+		return nil, ErrNotConfigured
+	}
+	return *p.Fields.ApplicationDeepLinks, nil
 }
 
 func (p *StaticProvider) ApplicationNamespaces(_ context.Context) ([]string, error) {
@@ -246,6 +267,20 @@ func (p *StaticProvider) ExcludeEventLabelKeys(_ context.Context) ([]string, err
 		return nil, ErrNotConfigured
 	}
 	return *p.Fields.ExcludeEventLabelKeys, nil
+}
+
+func (p *StaticProvider) ExecEnabled(_ context.Context) (bool, error) {
+	if p == nil || p.Fields.ExecEnabled == nil {
+		return false, ErrNotConfigured
+	}
+	return *p.Fields.ExecEnabled, nil
+}
+
+func (p *StaticProvider) ExecShells(_ context.Context) ([]string, error) {
+	if p == nil || p.Fields.ExecShells == nil {
+		return nil, ErrNotConfigured
+	}
+	return *p.Fields.ExecShells, nil
 }
 
 func (p *StaticProvider) GitRequestTimeout(_ context.Context) (time.Duration, error) {
@@ -402,6 +437,13 @@ func (p *StaticProvider) PersistResourceHealth(_ context.Context) (bool, error) 
 	return *p.Fields.PersistResourceHealth, nil
 }
 
+func (p *StaticProvider) ProjectDeepLinks(_ context.Context) ([]settings.DeepLink, error) {
+	if p == nil || p.Fields.ProjectDeepLinks == nil {
+		return nil, ErrNotConfigured
+	}
+	return *p.Fields.ProjectDeepLinks, nil
+}
+
 func (p *StaticProvider) ReconciliationJitter(_ context.Context) (time.Duration, error) {
 	if p == nil || p.Fields.ReconciliationJitter == nil {
 		return 0, ErrNotConfigured
@@ -435,6 +477,13 @@ func (p *StaticProvider) ResourceCustomLabels(_ context.Context) ([]string, erro
 		return nil, ErrNotConfigured
 	}
 	return *p.Fields.ResourceCustomLabels, nil
+}
+
+func (p *StaticProvider) ResourceDeepLinks(_ context.Context) ([]settings.DeepLink, error) {
+	if p == nil || p.Fields.ResourceDeepLinks == nil {
+		return nil, ErrNotConfigured
+	}
+	return *p.Fields.ResourceDeepLinks, nil
 }
 
 func (p *StaticProvider) ResourceOverrides(_ context.Context) (map[string]v1alpha1.ResourceOverride, error) {
@@ -512,6 +561,13 @@ func (p *StaticProvider) StaticAssetsDir(_ context.Context) (string, error) {
 		return "", ErrNotConfigured
 	}
 	return *p.Fields.StaticAssetsDir, nil
+}
+
+func (p *StaticProvider) StatusBadgeEnabled(_ context.Context) (bool, error) {
+	if p == nil || p.Fields.StatusBadgeEnabled == nil {
+		return false, ErrNotConfigured
+	}
+	return *p.Fields.StatusBadgeEnabled, nil
 }
 
 func (p *StaticProvider) SyncTimeout(_ context.Context) (time.Duration, error) {

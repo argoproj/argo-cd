@@ -69,10 +69,6 @@ func NewServer(
 	}
 }
 
-func (s *Server) hydratorEnabled(ctx context.Context) (bool, error) {
-	return s.configProvider.HydratorEnabled(ctx)
-}
-
 func (s *Server) getRepo(ctx context.Context, url, project string) (*v1alpha1.Repository, error) {
 	repo, err := s.db.GetRepository(ctx, url, project)
 	if err != nil {
@@ -162,9 +158,9 @@ func (s *Server) Get(ctx context.Context, q *repositorypkg.RepoQuery) (*v1alpha1
 }
 
 func (s *Server) GetWrite(ctx context.Context, q *repositorypkg.RepoQuery) (*v1alpha1.Repository, error) {
-	hydratorEnabled, err := s.hydratorEnabled(ctx)
+	hydratorEnabled, err := s.configProvider.HydratorEnabled(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to resolve HydratorEnabled: %w", err)
 	}
 	if !hydratorEnabled {
 		return nil, status.Error(codes.Unimplemented, "hydrator is disabled")
@@ -206,9 +202,9 @@ func (s *Server) ListRepositories(ctx context.Context, q *repositorypkg.RepoQuer
 // ListWriteRepositories returns a list of all configured repositories where the user has write access and the state of
 // their connections
 func (s *Server) ListWriteRepositories(ctx context.Context, q *repositorypkg.RepoQuery) (*v1alpha1.RepositoryList, error) {
-	hydratorEnabled, err := s.hydratorEnabled(ctx)
+	hydratorEnabled, err := s.configProvider.HydratorEnabled(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to resolve HydratorEnabled: %w", err)
 	}
 	if !hydratorEnabled {
 		return nil, status.Error(codes.Unimplemented, "hydrator is disabled")
@@ -506,9 +502,9 @@ func (s *Server) CreateRepository(ctx context.Context, q *repositorypkg.RepoCrea
 
 // CreateWriteRepository creates a repository configuration with write credentials
 func (s *Server) CreateWriteRepository(ctx context.Context, q *repositorypkg.RepoCreateRequest) (*v1alpha1.Repository, error) {
-	hydratorEnabled, err := s.hydratorEnabled(ctx)
+	hydratorEnabled, err := s.configProvider.HydratorEnabled(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to resolve HydratorEnabled: %w", err)
 	}
 	if !hydratorEnabled {
 		return nil, status.Error(codes.Unimplemented, "hydrator is disabled")
@@ -585,9 +581,9 @@ func (s *Server) UpdateRepository(ctx context.Context, q *repositorypkg.RepoUpda
 
 // UpdateWriteRepository updates a repository configuration with write credentials
 func (s *Server) UpdateWriteRepository(ctx context.Context, q *repositorypkg.RepoUpdateRequest) (*v1alpha1.Repository, error) {
-	hydratorEnabled, err := s.hydratorEnabled(ctx)
+	hydratorEnabled, err := s.configProvider.HydratorEnabled(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to resolve HydratorEnabled: %w", err)
 	}
 	if !hydratorEnabled {
 		return nil, status.Error(codes.Unimplemented, "hydrator is disabled")
@@ -643,9 +639,9 @@ func (s *Server) DeleteRepository(ctx context.Context, q *repositorypkg.RepoQuer
 
 // DeleteWriteRepository removes a repository from the configuration
 func (s *Server) DeleteWriteRepository(ctx context.Context, q *repositorypkg.RepoQuery) (*repositorypkg.RepoResponse, error) {
-	hydratorEnabled, err := s.hydratorEnabled(ctx)
+	hydratorEnabled, err := s.configProvider.HydratorEnabled(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to resolve HydratorEnabled: %w", err)
 	}
 	if !hydratorEnabled {
 		return nil, status.Error(codes.Unimplemented, "hydrator is disabled")
@@ -757,9 +753,9 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 // ValidateWriteAccess checks whether write access to a repository is possible with the
 // given URL and credentials.
 func (s *Server) ValidateWriteAccess(ctx context.Context, q *repositorypkg.RepoAccessQuery) (*repositorypkg.RepoResponse, error) {
-	hydratorEnabled, err := s.hydratorEnabled(ctx)
+	hydratorEnabled, err := s.configProvider.HydratorEnabled(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to resolve HydratorEnabled: %w", err)
 	}
 	if !hydratorEnabled {
 		return nil, status.Error(codes.Unimplemented, "hydrator is disabled")

@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"slices"
@@ -27,14 +28,12 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 	"github.com/argoproj/argo-cd/v3/util/security"
 	util_session "github.com/argoproj/argo-cd/v3/util/session"
-	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 type terminalHandler struct {
 	appLister         applisters.ApplicationLister
 	db                db.ArgoDB
 	appResourceTreeFn func(ctx context.Context, app *appv1.Application) (*appv1.ApplicationTree, error)
-	allowedShells     []string
 	namespace         string
 	configProvider    configbus.Provider
 	sessionManager    *util_session.SessionManager
@@ -42,17 +41,15 @@ type terminalHandler struct {
 }
 
 type TerminalOptions struct {
-	ConfigProvider configbus.Provider
-	Enf            *rbac.Enforcer
+	Enf *rbac.Enforcer
 }
 
 // NewHandler returns a new terminal handler.
-func NewHandler(appLister applisters.ApplicationLister, namespace string, configProvider configbus.Provider, db db.ArgoDB, appResourceTree AppResourceTreeFn, allowedShells []string, sessionManager *util_session.SessionManager, terminalOptions *TerminalOptions) *terminalHandler {
+func NewHandler(appLister applisters.ApplicationLister, namespace string, configProvider configbus.Provider, db db.ArgoDB, appResourceTree AppResourceTreeFn, sessionManager *util_session.SessionManager, terminalOptions *TerminalOptions) *terminalHandler {
 	return &terminalHandler{
 		appLister:         appLister,
 		db:                db,
 		appResourceTreeFn: appResourceTree,
-		allowedShells:     allowedShells,
 		namespace:         namespace,
 		configProvider:    configProvider,
 		sessionManager:    sessionManager,
@@ -72,19 +69,17 @@ func (s *terminalHandler) getApplicationClusterRawConfig(ctx context.Context, a 
 	return rawConfig, nil
 }
 
-type GetSettingsFunc func() (*settings.ArgoCDSettings, error)
-
 // WithFeatureFlagMiddleware is an HTTP middleware to verify if the terminal
 // feature is enabled before invoking the main handler
-func (s *terminalHandler) WithFeatureFlagMiddleware(getSettings GetSettingsFunc) http.Handler {
+func (s *terminalHandler) WithFeatureFlagMiddleware() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		argocdSettings, err := getSettings()
+		execEnabled, err := s.configProvider.ExecEnabled(r.Context())
 		if err != nil {
-			log.Errorf("error executing WithFeatureFlagMiddleware: error getting settings: %s", err)
-			http.Error(w, "Failed to get settings", http.StatusBadRequest)
+			log.Errorf("error executing WithFeatureFlagMiddleware: failed to resolve ExecEnabled: %s", err)
+			http.Error(w, "Failed to resolve exec enabled", http.StatusBadRequest)
 			return
 		}
-		if !argocdSettings.ExecEnabled {
+		if !execEnabled {
 			w.WriteHeader(http.StatusNotFound)
 			return
 		}
@@ -224,7 +219,7 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	fieldLog.Info("terminal session starting")
 
-	session, err := newTerminalSession(ctx, w, r, nil, s.sessionManager, appRBACName, s.terminalOptions)
+	session, err := newTerminalSession(ctx, w, r, nil, s.sessionManager, appRBACName, s.configProvider, s.terminalOptions)
 	if err != nil {
 		http.Error(w, "Failed to start terminal session", http.StatusBadRequest)
 		return
@@ -235,12 +230,18 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// load balancers which may close an idle connection after some period of time
 	go session.StartKeepalives(time.Second * 5)
 
-	if slices.Contains(s.allowedShells, shell) {
+	allowedShells, err := s.configProvider.ExecShells(ctx)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to resolve exec shells: %s", err), http.StatusInternalServerError)
+		return
+	}
+
+	if slices.Contains(allowedShells, shell) {
 		cmd := []string{shell}
 		err = startProcess(ctx, kubeClientset, config, namespace, podName, container, cmd, session)
 	} else {
 		// No shell given or the given shell was not allowed: try the configured shells until one succeeds or all fail.
-		for _, testShell := range s.allowedShells {
+		for _, testShell := range allowedShells {
 			cmd := []string{testShell}
 			if err = startProcess(ctx, kubeClientset, config, namespace, podName, container, cmd, session); err == nil {
 				break

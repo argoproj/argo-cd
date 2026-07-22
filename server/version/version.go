@@ -2,6 +2,7 @@ package version
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/go-jsonnet"
@@ -13,7 +14,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/helm"
 	"github.com/argoproj/argo-cd/v3/util/kustomize"
 	sessionmgr "github.com/argoproj/argo-cd/v3/util/session"
-	utilsettings "github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 type Server struct {
@@ -22,26 +22,25 @@ type Server struct {
 	jsonnetVersion   string
 	authenticator    settings.Authenticator
 	configProvider   configbus.Provider
-	settingsMgr      *utilsettings.SettingsManager
 }
 
-func NewServer(authenticator settings.Authenticator, configProvider configbus.Provider, settingsMgr *utilsettings.SettingsManager) *Server {
-	return &Server{authenticator: authenticator, configProvider: configProvider, settingsMgr: settingsMgr}
+func NewServer(authenticator settings.Authenticator, configProvider configbus.Provider) *Server {
+	return &Server{authenticator: authenticator, configProvider: configProvider}
 }
 
 func (s *Server) allowUnauthenticated(ctx context.Context) (bool, error) {
 	disableAuth, err := s.configProvider.DisableAuth(ctx)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to resolve DisableAuth: %w", err)
 	}
 	if disableAuth {
 		return true, nil
 	}
-	sett, err := s.settingsMgr.GetSettings()
+	anonymousUserEnabled, err := s.configProvider.AnonymousUserEnabled(ctx)
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to resolve AnonymousUserEnabled: %w", err)
 	}
-	return sett.AnonymousUserEnabled, nil
+	return anonymousUserEnabled, nil
 }
 
 // Version returns the version of the API server
@@ -49,7 +48,7 @@ func (s *Server) Version(ctx context.Context, _ *empty.Empty) (*version.VersionM
 	vers := common.GetVersion()
 	allowUnauthenticated, err := s.allowUnauthenticated(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to resolve whether unauthenticated version is allowed: %w", err)
 	}
 
 	if !sessionmgr.LoggedIn(ctx) && !allowUnauthenticated {
