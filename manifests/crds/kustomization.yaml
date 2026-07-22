@@ -5,3 +5,4 @@ resources:
 - application-crd.yaml
 - appproject-crd.yaml
 - applicationset-crd.yaml
+- syncwindowresource-crd.yaml

@@ -31824,6 +31824,130 @@ spec:
     served: true
     storage: true
 ---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  labels:
+    app.kubernetes.io/name: syncwindowresources.argoproj.io
+    app.kubernetes.io/part-of: argocd
+  name: syncwindowresources.argoproj.io
+spec:
+  group: argoproj.io
+  names:
+    kind: SyncWindowResource
+    listKind: SyncWindowResourceList
+    plural: syncwindowresources
+    shortNames:
+    - sw
+    singular: syncwindowresource
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: |-
+          SyncWindowResource is a CRD that defines reusable sync windows which can be referenced
+          by AppProjects and Applications.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: SyncWindowResourceSpec defines the desired state of a SyncWindowResource
+            properties:
+              windows:
+                description: |-
+                  Windows is a list of sync window definitions contained in this resource.
+                  Multiple windows are allowed for easy transition from projects and to group related windows.
+                items:
+                  description: |-
+                    SyncWindowDefinition defines a single sync window entry within a SyncWindowResource.
+                    When referenced from an Application, the Applications/Namespaces/Clusters filters are ignored
+                    since the window applies directly to the referencing application.
+                  properties:
+                    andOperator:
+                      description: UseAndOperator uses AND operator for matching applications,
+                        namespaces and clusters instead of the default OR.
+                      type: boolean
+                    applications:
+                      description: |-
+                        Applications contains a list of applications that the window will apply to (glob patterns supported).
+                        Ignored when the SyncWindowResource is referenced directly from an Application.
+                      items:
+                        type: string
+                      type: array
+                    clusters:
+                      description: |-
+                        Clusters contains a list of clusters that the window will apply to (glob patterns supported).
+                        Ignored when the SyncWindowResource is referenced directly from an Application.
+                      items:
+                        type: string
+                      type: array
+                    description:
+                      description: Description of the sync window (max 255 chars).
+                      maxLength: 255
+                      type: string
+                    duration:
+                      description: Duration is the amount of time the sync window
+                        will be open (e.g. "1h", "30m").
+                      type: string
+                    kind:
+                      description: Kind defines if the window allows or blocks syncs.
+                        Must be "allow" or "deny".
+                      type: string
+                    manualSync:
+                      description: ManualSync enables manual syncs when they would
+                        otherwise be blocked.
+                      type: boolean
+                    namespaces:
+                      description: |-
+                        Namespaces contains a list of namespaces that the window will apply to (glob patterns supported).
+                        Ignored when the SyncWindowResource is referenced directly from an Application.
+                      items:
+                        type: string
+                      type: array
+                    schedule:
+                      description: Schedule is the time the window will begin, specified
+                        in cron format.
+                      type: string
+                    syncOverrun:
+                      description: SyncOverrun allows ongoing syncs to continue past
+                        window boundaries.
+                      type: boolean
+                    timeZone:
+                      description: TimeZone of the sync window schedule (IANA timezone,
+                        e.g. "America/New_York"). Defaults to UTC.
+                      type: string
+                  required:
+                  - duration
+                  - kind
+                  - schedule
+                  type: object
+                type: array
+            required:
+            - windows
+            type: object
+        required:
+        - metadata
+        - spec
+        type: object
+    served: true
+    storage: true
+---
 apiVersion: v1
 kind: ServiceAccount
 metadata:

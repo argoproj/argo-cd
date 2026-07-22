@@ -179,4 +179,3 @@ func TestResolveRef_EmptyRef(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "must specify either name or selector")
 }
-

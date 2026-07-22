@@ -18,9 +18,10 @@ import (
 )
 
 var kindToCRDPath = map[string]string{
-	application.ApplicationFullName:    "manifests/crds/application-crd.yaml",
-	application.AppProjectFullName:     "manifests/crds/appproject-crd.yaml",
-	application.ApplicationSetFullName: "manifests/crds/applicationset-crd.yaml",
+	application.ApplicationFullName:        "manifests/crds/application-crd.yaml",
+	application.AppProjectFullName:         "manifests/crds/appproject-crd.yaml",
+	application.ApplicationSetFullName:     "manifests/crds/applicationset-crd.yaml",
+	application.SyncWindowResourceFullName: "manifests/crds/syncwindowresource-crd.yaml",
 }
 
 func getCustomResourceDefinitions(ctx context.Context) map[string]*apiextensionsv1.CustomResourceDefinition {

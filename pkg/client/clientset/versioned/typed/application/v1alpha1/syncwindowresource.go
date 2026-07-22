@@ -41,7 +41,7 @@ type syncWindowResources struct {
 func newSyncWindowResources(c *ArgoprojV1alpha1Client, namespace string) *syncWindowResources {
 	return &syncWindowResources{
 		gentype.NewClientWithList[*applicationv1alpha1.SyncWindowResource, *applicationv1alpha1.SyncWindowResourceList](
-			"syncwindows",
+			"syncwindowresources",
 			c.RESTClient(),
 			scheme.ParameterCodec,
 			namespace,
