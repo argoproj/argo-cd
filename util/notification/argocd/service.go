@@ -149,7 +149,8 @@ func (svc *argoCDService) GetAppProject(ctx context.Context, projectName string)
 	if svc.appProjInformer != nil {
 		if obj, exists, err := svc.appProjInformer.GetIndexer().GetByKey(svc.namespace + "/" + projectName); err == nil && exists {
 			if u, ok := obj.(*unstructured.Unstructured); ok {
-				return u, nil
+				// Informer cache objects are shared across goroutines; return a copy.
+				return u.DeepCopy(), nil
 			}
 		}
 	}
