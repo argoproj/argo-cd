@@ -1091,10 +1091,29 @@ func (c *clusterCache) checkPermission(ctx context.Context, reviewInterface auth
 //
 // When this function exits, the cluster cache is up to date, and the appropriate resources are being watched for
 // changes.
-func (c *clusterCache) sync() error {
+func (c *clusterCache) sync() (err error) {
 	c.log.Info("Start syncing cluster")
 
+	start := time.Now()
 	syncLock := sync.Mutex{}
+
+	var discoveryEnd time.Time
+	defer func() {
+		end := time.Now()
+		if discoveryEnd.IsZero() {
+			discoveryEnd = end
+		}
+		log := c.log.WithValues(
+			"total_ms", end.Sub(start).Milliseconds(),
+			"discovery_ms", discoveryEnd.Sub(start).Milliseconds(),
+			"list_ms", end.Sub(discoveryEnd).Milliseconds(),
+		)
+		if err != nil {
+			log.Error(err, "Failed to sync cluster")
+		} else {
+			log.Info("Cluster successfully synced")
+		}
+	}()
 
 	for i := range c.apisMeta {
 		c.apisMeta[i].watchCancel()
@@ -1152,6 +1171,7 @@ func (c *clusterCache) sync() error {
 		go c.processEvents()
 	}
 
+	discoveryEnd = time.Now()
 	err = kube.RunAllAsync(len(apis), func(i int) error {
 		api := apis[i]
 
@@ -1204,11 +1224,8 @@ func (c *clusterCache) sync() error {
 		})
 	})
 	if err != nil {
-		c.log.Error(err, "Failed to sync cluster")
 		return fmt.Errorf("failed to sync cluster %s: %w", c.config.Host, err)
 	}
-
-	c.log.Info("Cluster successfully synced")
 	return nil
 }
 
