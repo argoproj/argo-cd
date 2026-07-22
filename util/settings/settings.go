@@ -1673,8 +1673,13 @@ func getDownloadBinaryUrlsFromConfigMap(argoCDCM *corev1.ConfigMap) map[string]s
 // updateSettingsFromConfigMap transfers settings from a Kubernetes configmap into an ArgoCDSettings struct.
 func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.ConfigMap) {
 	settings.DexConfig = argoCDCM.Data[settingDexConfigKey]
-	settings.DexAuthConnectorID = getDexAuthConnectorID(argoCDCM.Data)
 	settings.OIDCConfigRAW = argoCDCM.Data[settingsOIDCConfigKey]
+	// connector_id is only meaningful when the bundled Dex server is the active SSO provider.
+	// When external OIDC is configured it takes precedence over Dex (see NewClientApp), so leave
+	// DexAuthConnectorID empty to avoid appending a Dex-specific parameter to an external IdP.
+	if settings.OIDCConfigRAW == "" {
+		settings.DexAuthConnectorID = getDexAuthConnectorID(argoCDCM.Data)
+	}
 	if err := ValidateOIDCConfig(settings.OIDCConfigRAW); err != nil {
 		log.Warnf("Failed to validate OIDC config: %v", err)
 	}

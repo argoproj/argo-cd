@@ -3026,3 +3026,37 @@ func Test_getDexAuthConnectorID(t *testing.T) {
 		})
 	}
 }
+
+func Test_updateSettingsFromConfigMap_DexAuthConnectorID(t *testing.T) {
+	tests := []struct {
+		name                string
+		cmData              map[string]string
+		expectedConnectorID string
+	}{
+		{
+			name: "bundled Dex active, connector forced",
+			cmData: map[string]string{
+				settingDexConfigKey:          "connectors: [{id: github}]",
+				settingDexAuthConnectorIDKey: "github",
+			},
+			expectedConnectorID: "github",
+		},
+		{
+			name: "external OIDC configured takes precedence over Dex, connector not forced",
+			cmData: map[string]string{
+				settingsOIDCConfigKey:        "name: Okta\nissuer: https://example.com\nclientID: aaa\nclientSecret: bbb\n",
+				settingDexConfigKey:          "connectors: [{id: github}]",
+				settingDexAuthConnectorIDKey: "github",
+			},
+			expectedConnectorID: "",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			settings := &ArgoCDSettings{}
+			updateSettingsFromConfigMap(settings, &corev1.ConfigMap{Data: tc.cmData})
+			assert.Equal(t, tc.expectedConnectorID, settings.DexAuthConnectorID)
+		})
+	}
+}
