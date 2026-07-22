@@ -9,9 +9,12 @@ import (
 )
 
 // EnvProvider resolves process environment variables. Unowned field getters
-// return ErrNotConfigured via the embedded notConfiguredProvider.
+// return ErrNotConfigured via the embedded empty ChainProvider.
 type EnvProvider struct {
-	notConfiguredProvider
+	// ChainProvider is embedded with no links on purpose: an empty chain
+	// resolves every promoted field getter to ErrNotConfigured, so this leaf
+	// only implements the fields it owns. Do not populate its links.
+	ChainProvider
 }
 
 // NewEnvProvider constructs an EnvProvider.
