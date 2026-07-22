@@ -1504,6 +1504,9 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	ctx, span := tracer.Start(ctx, "controller.Operation")
 	setAppTraceAttrs(span, app)
 	var state *appv1.OperationState
+	// requeuedForRetry marks the retry-backoff early return, where no sync work is
+	// performed this cycle and the app is only rescheduled for a future retry.
+	requeuedForRetry := false
 	// Registered first so it runs last: after the panic-recovery and timing defers below have
 	// finalized state. The operation reports failure via state.Phase (not a return value), so map
 	// a terminal failed phase onto the span status; panics are handled by the recovery defer.
@@ -1534,15 +1537,37 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 			logCtx = logCtx.WithField(k, v.Milliseconds())
 		}
 		logCtx = logCtx.WithField("time_ms", time.Since(ts.StartTime).Milliseconds())
-		logCtx.Debug("Finished processing requested app operation")
+		if state != nil {
+			logCtx = logCtx.WithField("phase", state.Phase)
+			logCtx = logCtx.WithField("retryCount", state.RetryCount)
+			logCtx = logCtx.WithField("startedAt", state.StartedAt.Unix())
+			if state.FinishedAt != nil {
+				logCtx = logCtx.WithField("finishedAt", state.FinishedAt.Unix())
+			}
+			// Always publish `revisions` as an array so the field type is stable.
+			revisions := []string{}
+			if state.SyncResult != nil {
+				if len(state.SyncResult.Revisions) > 0 {
+					revisions = state.SyncResult.Revisions
+				} else if state.SyncResult.Revision != "" {
+					revisions = []string{state.SyncResult.Revision}
+				}
+			}
+			logCtx = logCtx.WithField("revisions", revisions)
+		}
+		if requeuedForRetry {
+			logCtx.Debug("Finished processing requested app operation")
+		} else {
+			logCtx.Info("Finished processing requested app operation")
+		}
 	}()
 
-	syncTimeout, syncTimeoutErr := ctrl.configProvider.SyncTimeout(context.Background())
+	syncTimeout, syncTimeoutErr := ctrl.configProvider.SyncTimeout(ctx)
 	requeueAfter := appOperationMaxRequeueInterval
 	defer func() {
 		// Re-enqueue the app onto the operation queue to keep polling the in-progress sync.
 		// Cap the delay by the remaining sync timeout so a timeout is enforced promptly.
-		if syncTimeout > 0 && state != nil && state.Phase != synccommon.OperationTerminating {
+		if syncTimeoutErr == nil && syncTimeout > 0 && state != nil && state.Phase != synccommon.OperationTerminating {
 			if remaining := time.Until(state.StartedAt.Add(syncTimeout)); remaining < requeueAfter {
 				requeueAfter = remaining
 			}
@@ -1576,6 +1601,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 			if retryAfter > 0 {
 				logCtx.Infof("Skipping retrying in-progress operation. Attempting again at: %s", retryAt.Format(time.RFC3339))
 				requeueAfter = retryAfter
+				requeuedForRetry = true
 				return
 			}
 
@@ -1606,7 +1632,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 
 	if syncTimeoutErr != nil {
 		state.Phase = synccommon.OperationError
-		state.Message = syncTimeoutErr.Error()
+		state.Message = fmt.Sprintf("failed to resolve SyncTimeout: %v", syncTimeoutErr)
 		ctrl.setOperationState(ctx, app, state)
 		return
 	}
@@ -1662,7 +1688,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	}
 
 	ctrl.setOperationState(ctx, app, state)
-	ts.AddCheckpoint("final_set_operation_state")
+	ts.AddCheckpoint("final_set_operation_state_ms")
 	if state.Phase.Completed() && (app.Operation.Sync != nil && !app.Operation.Sync.DryRun) {
 		// if we just completed an operation, force a refresh so that UI will report up-to-date
 		// sync/health information

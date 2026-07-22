@@ -220,6 +220,10 @@ type cacheSettings struct {
 
 	// ignoreResourceUpdates is a flag to enable resource-ignore rules.
 	ignoreResourceUpdatesEnabled bool
+
+	// ignoreNormalizerJQTimeout is resolved once with other cache settings. Not hot-reloaded
+	// independently of loadCacheSettings / invalidate.
+	ignoreNormalizerJQTimeout time.Duration
 }
 
 type liveStateCache struct {
@@ -266,12 +270,24 @@ func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
 	if err != nil {
 		return nil, err
 	}
+	ignoreNormalizerJQTimeout, err := c.configProvider.IgnoreNormalizerJQTimeout(context.Background())
+	if err != nil {
+		return nil, err
+	}
 	clusterSettings := clustercache.Settings{
 		ResourceHealthOverride: lua.ResourceHealthOverrides(resourceOverrides),
 		ResourcesFilter:        resourcesFilter,
 	}
 
-	return &cacheSettings{clusterSettings, appInstanceLabelKey, appv1.TrackingMethod(trackingMethod), installationID, resourceUpdatesOverrides, ignoreResourceUpdatesEnabled}, nil
+	return &cacheSettings{
+		clusterSettings:              clusterSettings,
+		appInstanceLabelKey:          appInstanceLabelKey,
+		trackingMethod:               appv1.TrackingMethod(trackingMethod),
+		installationID:               installationID,
+		resourceOverrides:            resourceUpdatesOverrides,
+		ignoreResourceUpdatesEnabled: ignoreResourceUpdatesEnabled,
+		ignoreNormalizerJQTimeout:    ignoreNormalizerJQTimeout,
+	}, nil
 }
 
 func asResourceNode(r *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) appv1.ResourceNode {
@@ -572,16 +588,11 @@ func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.Cluste
 			gvk := un.GroupVersionKind()
 
 			if cacheSettings.ignoreResourceUpdatesEnabled && shouldHashManifest(appName, gvk, un) {
-				ignoreNormalizerJQTimeout, err := c.configProvider.IgnoreNormalizerJQTimeout(context.Background())
+				hash, err := generateManifestHash(un, nil, cacheSettings.resourceOverrides, normalizers.IgnoreNormalizerOpts{JQExecutionTimeout: cacheSettings.ignoreNormalizerJQTimeout})
 				if err != nil {
-					log.Errorf("Failed to resolve ignore normalizer JQ timeout: %v", err)
+					log.Errorf("Failed to generate manifest hash: %v", err)
 				} else {
-					hash, err := generateManifestHash(un, nil, cacheSettings.resourceOverrides, normalizers.IgnoreNormalizerOpts{JQExecutionTimeout: ignoreNormalizerJQTimeout})
-					if err != nil {
-						log.Errorf("Failed to generate manifest hash: %v", err)
-					} else {
-						res.manifestHash = hash
-					}
+					res.manifestHash = hash
 				}
 			}
 
