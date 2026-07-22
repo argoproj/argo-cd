@@ -254,9 +254,14 @@ if err != nil {
 3. Regenerate generated providers; implement the method on
    `SettingsManagerProvider` (call the settings getter). Leave other leaves on
    the generated `ErrNotConfigured` base.
-4. Point call sites at the Provider method (JIT). Remove any direct
+4. Mark the SettingsManager product getter `Deprecated:` pointing at the
+   Provider method so `staticcheck` SA1019 flags remaining direct call sites.
+   Keep the only allowed use in `settings_manager_provider.go` (file-level
+   `nolint:staticcheck`). Deprecate in the same stack layer that first wraps
+   the getter on SettingsManagerProvider.
+5. Point call sites at the Provider method (JIT). Remove any direct
    `settingsMgr.Get…` / field reads for that setting in the migrated component.
-5. Regen mocks (`make mockgen`); prefer `mocks.Provider` in unit tests; run
+6. Regen mocks (`make mockgen`); prefer `mocks.Provider` in unit tests; run
    `go test ./util/configbus/ ./controller/`.
 
 ### Change how an existing setting is resolved

@@ -669,6 +669,7 @@ func (mgr *SettingsManager) onRepoOrClusterChanged() {
 	}
 }
 
+// Deprecated: use configbus.Provider.RespectRBAC instead.
 func (mgr *SettingsManager) RespectRBAC() (int, error) {
 	cm, err := mgr.getConfigMap()
 	if err != nil {
@@ -869,6 +870,7 @@ func (mgr *SettingsManager) getSecrets() ([]*corev1.Secret, error) {
 	return secretList, nil
 }
 
+// Deprecated: use configbus.Provider.HydratorReadmeTemplate instead.
 func (mgr *SettingsManager) GetHydratorReadmeTemplate() (string, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
@@ -881,6 +883,7 @@ func (mgr *SettingsManager) GetHydratorReadmeTemplate() (string, error) {
 	return readmeTemplate, nil
 }
 
+// Deprecated: use configbus.Provider.ResourcesFilter instead.
 func (mgr *SettingsManager) GetResourcesFilter() (*ResourcesFilter, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
@@ -907,6 +910,7 @@ func (mgr *SettingsManager) GetResourcesFilter() (*ResourcesFilter, error) {
 	return rf, nil
 }
 
+// Deprecated: use configbus.Provider.AppInstanceLabelKey instead.
 func (mgr *SettingsManager) GetAppInstanceLabelKey() (string, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
@@ -919,6 +923,7 @@ func (mgr *SettingsManager) GetAppInstanceLabelKey() (string, error) {
 	return label, nil
 }
 
+// Deprecated: use configbus.Provider.TrackingMethod instead.
 func (mgr *SettingsManager) GetTrackingMethod() (string, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
@@ -931,6 +936,7 @@ func (mgr *SettingsManager) GetTrackingMethod() (string, error) {
 	return tm, nil
 }
 
+// Deprecated: use configbus.Provider.InstallationID instead.
 func (mgr *SettingsManager) GetInstallationID() (string, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
@@ -1005,6 +1011,7 @@ func (mgr *SettingsManager) GetDeepLinks(deeplinkType string) ([]DeepLink, error
 	return deepLinks, nil
 }
 
+// Deprecated: use configbus.Provider.EnabledSourceTypes instead.
 func (mgr *SettingsManager) GetEnabledSourceTypes() (map[string]bool, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
@@ -1024,12 +1031,15 @@ func (mgr *SettingsManager) GetEnabledSourceTypes() (map[string]bool, error) {
 	return res, nil
 }
 
+// Deprecated: use configbus.Provider.IgnoreResourceUpdatesOverrides instead.
 func (mgr *SettingsManager) GetIgnoreResourceUpdatesOverrides() (map[string]v1alpha1.ResourceOverride, error) {
+	//nolint:staticcheck // SA1019: SettingsManager still composes deprecated product getters internally.
 	compareOptions, err := mgr.GetResourceCompareOptions()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get compare options: %w", err)
 	}
 
+	//nolint:staticcheck // SA1019: SettingsManager still composes deprecated product getters internally.
 	resourceOverrides, err := mgr.GetResourceOverrides()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get resource overrides: %w", err)
@@ -1059,6 +1069,7 @@ func (mgr *SettingsManager) GetIgnoreResourceUpdatesOverrides() (map[string]v1al
 	return resourceOverrides, nil
 }
 
+// Deprecated: use configbus.Provider.IsIgnoreResourceUpdatesEnabled instead.
 func (mgr *SettingsManager) GetIsIgnoreResourceUpdatesEnabled() (bool, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
@@ -1073,6 +1084,7 @@ func (mgr *SettingsManager) GetIsIgnoreResourceUpdatesEnabled() (bool, error) {
 }
 
 // GetResourceOverrides loads Resource Overrides from argocd-cm ConfigMap
+// Deprecated: use configbus.Provider.ResourceOverrides instead.
 func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.ResourceOverride, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
@@ -1091,7 +1103,7 @@ func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.Resource
 		return nil, err
 	}
 
-	diffOptions, err := mgr.GetResourceCompareOptions()
+	diffOptions, err := mgr.GetResourceCompareOptions() //nolint:staticcheck // SA1019: GetResourceOverrides still composes compare options.
 	if err != nil {
 		return nil, fmt.Errorf("failed to get compare options: %w", err)
 	}
@@ -1118,6 +1130,7 @@ func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.Resource
 	return resourceOverrides, nil
 }
 
+// Deprecated: use configbus.Provider.SourceHydratorCommitMessageTemplate instead.
 func (mgr *SettingsManager) GetSourceHydratorCommitMessageTemplate() (string, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
@@ -1130,6 +1143,7 @@ func (mgr *SettingsManager) GetSourceHydratorCommitMessageTemplate() (string, er
 	return argoCDCM.Data[settingsSourceHydratorCommitMessageTemplateKey], nil
 }
 
+// Deprecated: use configbus.Provider.CommitAuthorName instead.
 func (mgr *SettingsManager) GetCommitAuthorName() (string, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
@@ -1138,6 +1152,7 @@ func (mgr *SettingsManager) GetCommitAuthorName() (string, error) {
 	return argoCDCM.Data[settingsCommitAuthorNameKey], nil
 }
 
+// Deprecated: use configbus.Provider.CommitAuthorEmail instead.
 func (mgr *SettingsManager) GetCommitAuthorEmail() (string, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
@@ -1253,6 +1268,7 @@ func GetDefaultDiffOptions() ArgoCDDiffOptions {
 }
 
 // GetResourceCompareOptions loads the resource compare options settings from the ConfigMap
+// Deprecated: use configbus.Provider.ResourceCompareOptions instead.
 func (mgr *SettingsManager) GetResourceCompareOptions() (ArgoCDDiffOptions, error) {
 	// We have a sane set of default diff options
 	diffOptions := GetDefaultDiffOptions()
@@ -1273,6 +1289,7 @@ func (mgr *SettingsManager) GetResourceCompareOptions() (ArgoCDDiffOptions, erro
 }
 
 // GetHelmSettings returns helm settings
+// Deprecated: use configbus.Provider.HelmSettings instead.
 func (mgr *SettingsManager) GetHelmSettings() (*v1alpha1.HelmOptions, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
@@ -1292,6 +1309,7 @@ func (mgr *SettingsManager) GetHelmSettings() (*v1alpha1.HelmOptions, error) {
 }
 
 // GetKustomizeSettings loads the kustomize settings from argocd-cm ConfigMap
+// Deprecated: use configbus.Provider.KustomizeSettings instead.
 func (mgr *SettingsManager) GetKustomizeSettings() (*v1alpha1.KustomizeOptions, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
@@ -2702,6 +2720,7 @@ func isUnresolvedEnvVarReference(val string, secretValues map[string]string) boo
 }
 
 // GetGlobalProjectsSettings loads the global project settings from argocd-cm ConfigMap
+// Deprecated: use configbus.Provider.GlobalProjectsSettings instead.
 func (mgr *SettingsManager) GetGlobalProjectsSettings() ([]GlobalProjectSettings, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
@@ -2723,6 +2742,7 @@ func (mgr *SettingsManager) GetNamespace() string {
 	return mgr.namespace
 }
 
+// Deprecated: use configbus.Provider.ResourceCustomLabels instead.
 func (mgr *SettingsManager) GetResourceCustomLabels() ([]string, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
@@ -2735,6 +2755,7 @@ func (mgr *SettingsManager) GetResourceCustomLabels() ([]string, error) {
 	return []string{}, nil
 }
 
+// Deprecated: use configbus.Provider.IncludeEventLabelKeys instead.
 func (mgr *SettingsManager) GetIncludeEventLabelKeys() []string {
 	labelKeys := []string{}
 	argoCDCM, err := mgr.getConfigMap()
@@ -2751,6 +2772,7 @@ func (mgr *SettingsManager) GetIncludeEventLabelKeys() []string {
 	return labelKeys
 }
 
+// Deprecated: use configbus.Provider.ExcludeEventLabelKeys instead.
 func (mgr *SettingsManager) GetExcludeEventLabelKeys() []string {
 	labelKeys := []string{}
 	argoCDCM, err := mgr.getConfigMap()
@@ -2767,6 +2789,7 @@ func (mgr *SettingsManager) GetExcludeEventLabelKeys() []string {
 	return labelKeys
 }
 
+// Deprecated: use configbus.Provider.SensitiveAnnotations instead.
 func (mgr *SettingsManager) GetSensitiveAnnotations() map[string]bool {
 	annotationKeys := make(map[string]bool)
 
@@ -2853,6 +2876,7 @@ func (mgr *SettingsManager) GetWebhookRefreshJitterThreshold() int {
 }
 
 // IsImpersonationEnabled returns true if application sync with impersonation feature is enabled in argocd-cm configmap
+// Deprecated: use configbus.Provider.IsImpersonationEnabled instead.
 func (mgr *SettingsManager) IsImpersonationEnabled() (bool, error) {
 	cm, err := mgr.getConfigMap()
 	if err != nil {
@@ -2862,6 +2886,7 @@ func (mgr *SettingsManager) IsImpersonationEnabled() (bool, error) {
 }
 
 // IsImpersonationEnforced returns true if impersonation enforcement is enabled (requires service account to be configured)
+// Deprecated: use configbus.Provider.IsImpersonationEnforced instead.
 func (mgr *SettingsManager) IsImpersonationEnforced() (bool, error) {
 	cm, err := mgr.getConfigMap()
 	if err != nil {
@@ -2873,6 +2898,7 @@ func (mgr *SettingsManager) IsImpersonationEnforced() (bool, error) {
 	return defaultImpersonationEnforcedFlag, nil
 }
 
+// Deprecated: use configbus.Provider.AllowedNodeLabels instead.
 func (mgr *SettingsManager) GetAllowedNodeLabels() []string {
 	labelKeys := []string{}
 	argoCDCM, err := mgr.getConfigMap()
