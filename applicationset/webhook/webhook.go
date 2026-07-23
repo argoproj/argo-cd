@@ -23,6 +23,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/webhook"
 
 	"github.com/go-playground/webhooks/v6/azuredevops"
+	"github.com/go-playground/webhooks/v6/gitea"
 	"github.com/go-playground/webhooks/v6/github"
 	"github.com/go-playground/webhooks/v6/gitlab"
 	log "github.com/sirupsen/logrus"
@@ -39,6 +40,7 @@ type WebhookHandler struct {
 	github         *github.Webhook
 	gitlab         *gitlab.Webhook
 	azuredevops    *azuredevops.Webhook
+	gitea          *gitea.Webhook
 	client         client.Client
 	generators     map[string]generators.Generator
 	queue          chan any
@@ -54,6 +56,13 @@ type prGeneratorInfo struct {
 	Azuredevops *prGeneratorAzuredevopsInfo
 	Github      *prGeneratorGithubInfo
 	Gitlab      *prGeneratorGitlabInfo
+	Gitea       *prGeneratorGiteaInfo
+}
+
+type prGeneratorGiteaInfo struct {
+	Owner       string
+	Repo        string
+	APIHostname string
 }
 
 type prGeneratorAzuredevopsInfo struct {
@@ -90,11 +99,16 @@ func NewWebhookHandler(webhookParallelism int, argocdSettingsMgr *argosettings.S
 	if err != nil {
 		return nil, fmt.Errorf("unable to init Azure DevOps webhook: %w", err)
 	}
+	giteaHandler, err := gitea.New()
+	if err != nil {
+		return nil, fmt.Errorf("unable to init Gitea webhook: %w", err)
+	}
 
 	webhookHandler := &WebhookHandler{
 		github:      githubHandler,
 		gitlab:      gitlabHandler,
 		azuredevops: azuredevopsHandler,
+		gitea:       giteaHandler,
 		client:      client,
 		generators:  generators,
 		queue:       make(chan any, payloadQueueSize),
@@ -169,6 +183,11 @@ func (h *WebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 		payload, err = h.gitlab.Parse(r, gitlab.PushEvents, gitlab.TagEvents, gitlab.MergeRequestEvents, gitlab.SystemHookEvents)
 	case r.Header.Get("X-Vss-Activityid") != "":
 		payload, err = h.azuredevops.Parse(r, azuredevops.GitPushEventType, azuredevops.GitPullRequestCreatedEventType, azuredevops.GitPullRequestUpdatedEventType, azuredevops.GitPullRequestMergedEventType)
+	case r.Header.Get("X-Gitea-Event") != "", r.Header.Get("X-Forgejo-Event") != "":
+		if r.Header.Get("X-Gitea-Event") == "" {
+			r.Header.Set("X-Gitea-Event", r.Header.Get("X-Forgejo-Event"))
+		}
+		payload, err = h.gitea.Parse(r, gitea.PushEvent, gitea.PullRequestEvent)
 	default:
 		log.Debug("Ignoring unknown webhook event")
 		http.Error(w, "Unknown webhook event", http.StatusBadRequest)
@@ -214,6 +233,13 @@ func getGitGeneratorInfo(payload any) *gitGeneratorInfo {
 		revision = webhook.ParseRevision(payload.Resource.RefUpdates[0].Name)
 		touchedHead = payload.Resource.RefUpdates[0].Name == payload.Resource.Repository.DefaultBranch
 		// unfortunately, Azure DevOps doesn't provide a list of changed files
+	case gitea.PushPayload:
+		if payload.Repo == nil {
+			return nil
+		}
+		webURL = payload.Repo.HTMLURL
+		revision = webhook.ParseRevision(payload.Ref)
+		touchedHead = payload.Repo.DefaultBranch == revision
 	default:
 		return nil
 	}
@@ -279,6 +305,24 @@ func getPRGeneratorInfo(payload any) *prGeneratorInfo {
 			Repo:    repo,
 			Project: project,
 		}
+	case gitea.PullRequestPayload:
+		if !slices.Contains(giteaAllowedPullRequestActions, string(payload.Action)) {
+			return nil
+		}
+		if payload.Repository == nil {
+			return nil
+		}
+		repoURL := payload.Repository.HTMLURL
+		urlObj, err := url.Parse(repoURL)
+		if err != nil {
+			log.Errorf("Failed to parse repoURL '%s'", repoURL)
+			return nil
+		}
+		info.Gitea = &prGeneratorGiteaInfo{
+			Owner:       payload.Repository.Owner.UserName,
+			Repo:        payload.Repository.Name,
+			APIHostname: urlObj.Hostname(),
+		}
 	default:
 		return nil
 	}
@@ -311,6 +355,16 @@ var azuredevopsAllowedPullRequestActions = []string{
 	"git.pullrequest.created",
 	"git.pullrequest.merged",
 	"git.pullrequest.updated",
+}
+
+// giteaAllowedPullRequestActions is a list of Gitea/Forgejo actions that allow refresh
+var giteaAllowedPullRequestActions = []string{
+	"opened",
+	"closed",
+	"reopened",
+	"synchronized",
+	"labeled",
+	"unlabeled",
 }
 
 func shouldRefreshGitGenerator(gen *v1alpha1.GitGenerator, info *gitGeneratorInfo) bool {
@@ -405,6 +459,24 @@ func shouldRefreshPRGenerator(gen *v1alpha1.PullRequestGenerator, info *prGenera
 			return false
 		}
 		if gen.AzureDevOps.Repo != info.Azuredevops.Repo {
+			return false
+		}
+		return true
+	}
+
+	if gen.Gitea != nil && info.Gitea != nil {
+		if !strings.EqualFold(gen.Gitea.Owner, info.Gitea.Owner) {
+			return false
+		}
+		if !strings.EqualFold(gen.Gitea.Repo, info.Gitea.Repo) {
+			return false
+		}
+		urlObj, err := url.Parse(gen.Gitea.API)
+		if err != nil {
+			log.Errorf("Failed to parse Gitea API URL '%s'", gen.Gitea.API)
+			return false
+		}
+		if !strings.EqualFold(urlObj.Hostname(), info.Gitea.APIHostname) {
 			return false
 		}
 		return true
