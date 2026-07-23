@@ -116,10 +116,10 @@ func (m *appStateManager) applyDiffImpersonationConfig(config *rest.Config, proj
 			return fmt.Errorf("no matching service account found for destination server %s and namespace %s", destCluster.Server, app.Spec.Destination.Namespace)
 		}
 		// Non-enforced mode: fall back to the controller credential, consistent with sync.
-		logEntry.Infof("server-side diff: no matching service account found for impersonation (project: %s, server: %s, namespace: %s), falling back to controller service account", project.Name, destCluster.Server, app.Spec.Destination.Namespace)
+		logEntry.Debugf("server-side diff: no matching service account found for impersonation (project: %s, server: %s, namespace: %s), falling back to controller service account", project.Name, destCluster.Server, app.Spec.Destination.Namespace)
 		return nil
 	}
-	logEntry.Infof("server-side diff: impersonating service account %q, matching sync", serviceAccountToImpersonate)
+	logEntry.Debugf("server-side diff: impersonating service account %q, matching sync", serviceAccountToImpersonate)
 	config.Impersonate = rest.ImpersonationConfig{
 		UserName: serviceAccountToImpersonate,
 	}
