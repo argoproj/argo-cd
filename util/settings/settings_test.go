@@ -2515,6 +2515,37 @@ func TestRequireOverridePrivilegeForRevisionSyncTrue(t *testing.T) {
 		"when user enables the flag in argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must not return any error")
 }
 
+func TestRBACLocalUserStrictMode(t *testing.T) {
+	withSecretKey := func(secret *corev1.Secret) {
+		secret.Data["server.secretkey"] = nil
+	}
+
+	t.Run("defaults to false when not set", func(t *testing.T) {
+		_, settingsManager := fixtures(t.Context(), map[string]string{}, withSecretKey)
+		settings, err := settingsManager.GetSettings()
+		require.NoError(t, err)
+		assert.False(t, settings.RBACLocalUserStrictMode)
+	})
+
+	t.Run("parses true", func(t *testing.T) {
+		_, settingsManager := fixtures(t.Context(), map[string]string{
+			"rbac.local.user.strictmode": "true",
+		}, withSecretKey)
+		settings, err := settingsManager.GetSettings()
+		require.NoError(t, err)
+		assert.True(t, settings.RBACLocalUserStrictMode)
+	})
+
+	t.Run("parses false", func(t *testing.T) {
+		_, settingsManager := fixtures(t.Context(), map[string]string{
+			"rbac.local.user.strictmode": "false",
+		}, withSecretKey)
+		settings, err := settingsManager.GetSettings()
+		require.NoError(t, err)
+		assert.False(t, settings.RBACLocalUserStrictMode)
+	})
+}
+
 func TestRequireOverridePrivilegeForRevisionSyncParseError(t *testing.T) {
 	// When a value is set that cannot be parsed as boolean,
 	// Then RequireOverridePrivilegeForRevisionSync() must return false and nil error.

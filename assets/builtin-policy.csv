@@ -51,3 +51,4 @@ p, role:admin, exec, create, */*, allow
 
 g, role:admin, role:readonly
 g, admin, role:admin
+g, admin@local, role:admin
