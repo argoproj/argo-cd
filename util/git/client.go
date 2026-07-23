@@ -278,7 +278,7 @@ func WithTagPrefix(prefix string) ClientOpts {
 	}
 }
 
-// WithOptimizedLsRemote enables native git ls-remote calls for branches and tags.
+// WithOptimizedLsRemote enables native Git ref resolution for HEAD, branches, and tags.
 func WithOptimizedLsRemote(enabled bool) ClientOpts {
 	return func(c *nativeGitClient) {
 		c.optimizedLsRemoteEnabled = enabled
@@ -953,17 +953,11 @@ func getGitTags(refs []*plumbing.Reference) []string {
 }
 
 func (m *nativeGitClient) optimizedLsRemoteCacheKey() string {
-	return fmt.Sprintf("ls-remote-optimized|%s|heads,tags", m.repoURL)
+	return fmt.Sprintf("ls-remote-optimized|%s|HEAD,heads,tags", m.repoURL)
 }
 
 func (m *nativeGitClient) lsRemoteOptimized(revision string) (string, bool, error) {
 	if !m.optimizedLsRemoteEnabled {
-		return "", false, nil
-	}
-
-	// An explicit HEAD pattern is not sent as a protocol v2 ref-prefix, so it
-	// still receives the full advertisement and is better served by the default cache.
-	if revision == "" || revision == headRevision {
 		return "", false, nil
 	}
 
@@ -976,10 +970,18 @@ func (m *nativeGitClient) lsRemoteOptimized(revision string) (string, bool, erro
 
 	cacheKey := m.optimizedLsRemoteCacheKey()
 	refs, err := m.getRefsFromCacheOrFetch(cacheKey, "optimized", func() ([]*plumbing.Reference, error) {
-		return m.runLsRemote("ls-remote", "--heads", "--tags", m.repoURL)
+		refs, err := m.runLsRemote("ls-remote", "--heads", "--tags", m.repoURL)
+		if err != nil {
+			return nil, err
+		}
+		headRef, err := m.runTargetedHeadFetch()
+		if err != nil {
+			return nil, err
+		}
+		return append(refs, headRef), nil
 	})
 	if err != nil {
-		return "", errors.Is(err, context.DeadlineExceeded), err
+		return "", false, err
 	}
 	res, err := m.resolveRevisionWithoutTruncatedSHAFallback(revision, refs)
 	if err != nil {
@@ -993,6 +995,81 @@ func (m *nativeGitClient) lsRemoteOptimized(revision string) (string, bool, erro
 	return res, true, nil
 }
 
+func (m *nativeGitClient) runTargetedHeadFetch() (*plumbing.Reference, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), gitClientTimeout)
+	defer cancel()
+
+	gitDir, err := os.MkdirTemp("", "argocd-ls-remote-head-")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create temporary Git directory for HEAD resolution: %w", err)
+	}
+	defer func() {
+		if err := os.RemoveAll(gitDir); err != nil {
+			log.Debugf("Failed to remove temporary Git directory for HEAD resolution: %v", err)
+		}
+	}()
+
+	// git ls-remote cannot combine HEAD with --heads and --tags while retaining
+	// protocol v2 server-side narrowing. A dry-run fetch from a fresh bare
+	// repository sends a bounded set of HEAD-related ref-prefix values, without
+	// downloading objects or writing FETCH_HEAD. This runs inside the shared
+	// optimized cache fill, so concurrent callers produce one bulk query and one
+	// HEAD query per cache refresh.
+	initCmd := exec.CommandContext(ctx, "git", "init", "--bare", "--quiet", ".")
+	if _, err := m.runCmdOutput(initCmd, runOpts{Dir: gitDir}); err != nil {
+		return nil, fmt.Errorf("failed to initialize temporary Git directory for HEAD resolution: %w", err)
+	}
+
+	if m.OnLsRemote != nil {
+		done := m.OnLsRemote(m.repoURL)
+		defer done()
+	}
+
+	out, err := m.runCredentialedCmdOutput(ctx, runOpts{Dir: gitDir},
+		"--git-dir=.",
+		"-c", "protocol.version=2",
+		"fetch",
+		"--dry-run",
+		"--porcelain",
+		"--no-tags",
+		m.repoURL,
+		headRevision,
+	)
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, fmt.Errorf("targeted Git HEAD query timed out after %s: %w", gitClientTimeout, ctxErr)
+		}
+		return nil, err
+	}
+	return parseTargetedHeadFetchOutput(out)
+}
+
+func parseTargetedHeadFetchOutput(out string) (*plumbing.Reference, error) {
+	scanner := bufio.NewScanner(strings.NewReader(out))
+	var headRef *plumbing.Reference
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) != 4 || fields[3] != "FETCH_HEAD" || !plumbing.IsHash(fields[2]) {
+			return nil, fmt.Errorf("malformed targeted Git HEAD query line: %q", line)
+		}
+		if headRef != nil {
+			return nil, errors.New("targeted Git HEAD query returned multiple refs")
+		}
+		headRef = plumbing.NewHashReference(headRevision, plumbing.NewHash(fields[2]))
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	if headRef == nil {
+		return nil, fmt.Errorf("targeted Git HEAD query returned no ref: %w", ErrRevisionNotFound)
+	}
+	return headRef, nil
+}
+
 func (m *nativeGitClient) runLsRemote(args ...string) ([]*plumbing.Reference, error) {
 	if m.OnLsRemote != nil {
 		done := m.OnLsRemote(m.repoURL)
@@ -1002,7 +1079,9 @@ func (m *nativeGitClient) runLsRemote(args ...string) ([]*plumbing.Reference, er
 	ctx, cancel := context.WithTimeout(context.Background(), gitClientTimeout)
 	defer cancel()
 
-	args = append([]string{"-c", "protocol.version=2"}, args...)
+	// ls-remote does not need a local repository. Disable repository discovery so
+	// config found under the shared temp directory cannot influence the command.
+	args = append([]string{"--git-dir=" + os.DevNull, "-c", "protocol.version=2"}, args...)
 	out, err := m.runCredentialedCmdOutput(ctx, runOpts{Dir: os.TempDir()}, args...)
 	if err != nil {
 		if ctxErr := ctx.Err(); ctxErr != nil {
