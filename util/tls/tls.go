@@ -190,6 +190,8 @@ func getTLSConfigCustomizer(minVersionStr, maxVersionStr, tlsCiphersStr, tlsCurv
 	}, nil
 }
 
+// Accept multiple aliases for the same curve to support different naming
+// conventions (Go, OpenSSL, Kubernetes configs, and user-provided values).
 var tlsCurveByString = map[string]tls.CurveID{
 	"SecP256r1MLKEM768":  tls.SecP256r1MLKEM768,
 	"SecP384r1MLKEM1024": tls.SecP384r1MLKEM1024,
@@ -216,7 +218,7 @@ func getTLSCurvePreferencesByString(curves []string) ([]tls.CurveID, error) {
 	for _, curve := range curves {
 		id, ok := tlsCurveByString[strings.TrimSpace(curve)]
 		if !ok {
-			return nil, fmt.Errorf("invalid TLS curve preference: %s", curve)
+			return nil, fmt.Errorf("invalid TLS curve preference: %s", strings.TrimSpace(curve))
 		}
 		ids = append(ids, id)
 	}

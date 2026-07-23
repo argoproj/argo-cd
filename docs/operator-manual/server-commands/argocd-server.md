@@ -116,7 +116,7 @@ argocd-server [flags]
       --tlsciphers string                               The list of acceptable ciphers to be used when establishing TLS connections. Use 'list' to list available ciphers. (default "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384")
       --tlsmaxversion string                            The maximum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3) (default "1.3")
       --tlsminversion string                            The minimum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3) (default "1.2")
-      --tlscurvepreferences string.                     The list of acceptable curve preferences separated by colon to be used when establishing TLS connections (default "")
+      --tlscurvepreferences string                      The Colon-separated list of TLS curve preferences to be used when establishing TLS connections (e.g X25519:CurveP256). (default "")
       --token string                                    Bearer token for authentication to the API server
       --user string                                     The name of the kubeconfig user to use
       --username string                                 Username for basic authentication to the API server
