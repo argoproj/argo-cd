@@ -2,6 +2,7 @@ package webhook
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"html"
 	"net/http"
@@ -73,8 +74,8 @@ func NewWebhookHandler(webhookParallelism int, argocdSettingsMgr *argosettings.S
 		return nil, fmt.Errorf("failed to get argocd settings: %w", err)
 	}
 	parsers, err := webhook.NewProviderParsers(argocdSettings, webhook.WebhookConsumerApplicationSet)
-	if err != nil {
-		return nil, fmt.Errorf("unable to initialize webhook provider parsers: %w", err)
+	if err := validateProviderParserInitialization(len(parsers), err); err != nil {
+		return nil, err
 	}
 
 	webhookHandler := &WebhookHandler{
@@ -87,6 +88,19 @@ func NewWebhookHandler(webhookParallelism int, argocdSettingsMgr *argosettings.S
 	webhookHandler.startWorkerPool(webhookParallelism)
 
 	return webhookHandler, nil
+}
+
+func validateProviderParserInitialization(parserCount int, initErr error) error {
+	if parserCount == 0 {
+		if initErr == nil {
+			initErr = errors.New("no webhook provider parsers initialized")
+		}
+		return fmt.Errorf("unable to initialize webhook provider parsers: %w", initErr)
+	}
+	if initErr != nil {
+		log.Warnf("Unable to initialize some webhook provider parsers: %v", initErr)
+	}
+	return nil
 }
 
 func (h *WebhookHandler) startWorkerPool(webhookParallelism int) {
