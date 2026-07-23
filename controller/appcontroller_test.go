@@ -2226,6 +2226,22 @@ func TestComparisonExpiry(t *testing.T) {
 		assert.False(t, softExpired)
 		assert.False(t, hardExpired)
 	})
+
+	t.Run("nil ReconciledAt is expired when timeout configured", func(t *testing.T) {
+		app := newFakeApp()
+		app.Status.ReconciledAt = nil
+		softExpired, hardExpired := comparisonExpiry(app.Status, time.Hour, time.Minute)
+		assert.True(t, softExpired)
+		assert.True(t, hardExpired)
+	})
+
+	t.Run("nil ReconciledAt is not expired when timeout is zero", func(t *testing.T) {
+		app := newFakeApp()
+		app.Status.ReconciledAt = nil
+		softExpired, hardExpired := comparisonExpiry(app.Status, 0, 0)
+		assert.False(t, softExpired)
+		assert.False(t, hardExpired)
+	})
 }
 
 func TestNeedRefreshAppStatusZeroTimeout(t *testing.T) {

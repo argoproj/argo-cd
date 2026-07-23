@@ -2153,8 +2153,7 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 }
 
 // comparisonExpiry reports whether soft/hard comparison windows have expired.
-// A timeout of 0 (or negative) disables that expiry check, matching FAQ behavior
-// for timeout.reconciliation=0s / timeout.hard.reconciliation=0s.
+// A timeout <= 0 disables that expiry check (e.g. timeout.reconciliation=0s or timeout.hard.reconciliation=0s).
 func comparisonExpiry(status appv1.ApplicationStatus, statusRefreshTimeout, statusHardRefreshTimeout time.Duration) (softExpired, hardExpired bool) {
 	softExpired = statusRefreshTimeout > 0 && status.Expired(statusRefreshTimeout)
 	hardExpired = statusHardRefreshTimeout > 0 && status.Expired(statusHardRefreshTimeout)
