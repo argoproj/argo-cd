@@ -21,9 +21,9 @@ Would result in:
 
 ## CLI Download Links
 
-The **Help** page (linked from the bottom of the sidebar) always shows a download button for the Linux CLI binary that is embedded in the Argo CD server, so users can fetch a working CLI without any configuration.
+The **Help** page (linked from the bottom of the sidebar) links to the GitHub releases page for the running Argo CD version, where the CLI is available for all supported operating systems and architectures.
 
-To offer the CLI for additional operating systems and architectures, set `help.download.<os>-<arch>` keys in the [argocd-cm](argocd-cm-yaml.md) ConfigMap. Each configured key adds a download button on the Help page pointing at the URL you provide:
+To offer direct download buttons (for example from an internal mirror), set `help.download.<os>-<arch>` keys in the [argocd-cm](argocd-cm-yaml.md) ConfigMap. Each configured key adds a download button on the Help page pointing at the URL you provide. The Argo CD server also serves its own embedded Linux CLI binary at `download/argocd-linux-<arch>`, which can be used as a target for these keys:
 
 ```yaml
 apiVersion: v1
@@ -48,6 +48,3 @@ The following `<os>-<arch>` keys are recognized; any other key is ignored:
 - `darwin-amd64`
 - `darwin-arm64`
 - `windows-amd64`
-
-> [!NOTE]
-> The default Linux button is always shown in addition to any configured links, so configuring `help.download.linux-<arch>` for the server's own architecture results in two Linux buttons.
