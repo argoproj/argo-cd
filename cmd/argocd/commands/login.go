@@ -77,7 +77,7 @@ argocd login cd.argoproj.io --core`,
 			default:
 				server = args[0]
 
-				if !skipTestTLS {
+				if !skipTestTLS && !clientOpts.PlainText {
 					dialTime := 30 * time.Second
 					tlsTestResult, err := grpc_util.TestTLS(server, dialTime)
 					errors.CheckError(err)
