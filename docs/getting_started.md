@@ -90,7 +90,7 @@ Follow the [ingress documentation](operator-manual/ingress.md) on how to configu
 kubectl port-forward svc/argocd-server -n argocd 8080:443
 ```
 
-The API server can then be accessed using https://localhost:8080
+The browser URL for the forwarded API server is `https://localhost:8080`. The Argo CD CLI expects a server address rather than a URL, so use `localhost:8080` without the `https://` scheme.
 
 
 ## 4. Log in Using The CLI
@@ -116,6 +116,14 @@ Using the username `admin` and the password from above, log in to Argo CD's IP o
 ```bash
 argocd login <ARGOCD_SERVER>
 ```
+
+The `<ARGOCD_SERVER>` argument must be a hostname or IP address, optionally followed by a port, without a URL scheme or path. For example, after using the port forwarding command above, log in with:
+
+```bash
+argocd login localhost:8080
+```
+
+For a plaintext HTTP endpoint, add `--plaintext`. If Argo CD is served behind a proxy on a subpath, add `--grpc-web-root-path <path>` instead of including the path in `ARGOCD_SERVER`; see the [ingress documentation](operator-manual/ingress.md).
 
 > [!NOTE]
 > The CLI environment must be able to communicate with the Argo CD API server. If it isn't directly accessible as described above in step 3, you can tell the CLI to access it using port forwarding through one of these mechanisms: 1) add `--port-forward-namespace argocd` flag to every CLI command; or 2) set `ARGOCD_OPTS` environment variable: `export ARGOCD_OPTS='--port-forward-namespace argocd'`.
