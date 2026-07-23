@@ -22,7 +22,7 @@ For implementation details (mirror fallback, digest checks, sync errors), see [W
 > [!NOTE]
 > **OCI Helm charts**
 >
-> OCI Helm registries (`enableOCI: true` or host-style `repoURL` without `https://`) are **not** covered by `sourceIntegrity.helm` in this release. Chart integrity for OCI Helm is planned as part of broader OCI support (for example Sigstore/cosign), not Helm `.prov` layers on OCI artifacts.
+> OCI Helm registries (`enableOCI: true` or host-style `repoURL` without `https://`) and Helm `.prov` layers on OCI artifacts are **not** verified by `sourceIntegrity.helm` in the moment.
 
 For GnuPG verification of Git commit signatures, see [Git GnuPG verification](./source-integrity-git-gpg.md).
 
@@ -30,12 +30,11 @@ For GnuPG verification of Git commit signatures, see [Git GnuPG verification](./
 > **Compatibility**
 >
 > Helm provenance policies are configured under `AppProject.spec.sourceIntegrity.helm`.
-> At least one of `git` or `helm` must be set on `sourceIntegrity` (they are both optional fields, but the object cannot be empty).
 
 > [!WARNING]
 > **Policies silently bypass if GnuPG is disabled**
 >
-> Provenance verification requires `ARGOCD_GPG_ENABLED=true` on `argocd-repo-server`.
+> Provenance verification requires `ARGOCD_GPG_ENABLED=true` environment variable set.
 >
 > **Critical:** If GnuPG is disabled, configured policies will **pass without verification** —
 > there is no error or warning. Unsigned charts or charts with invalid signatures will

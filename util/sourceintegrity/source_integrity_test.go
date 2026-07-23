@@ -711,9 +711,7 @@ func TestVerifyHelmReturnsNilWhenNilSI(t *testing.T) {
 }
 
 func TestVerifyHelmPassWhenGPGDisabled(t *testing.T) {
-	if IsGPGEnabled() {
-		t.Skip("Run with ARGOCD_GPG_ENABLED=false to test pass when GPG is disabled")
-	}
+	t.Setenv("ARGOCD_GPG_ENABLED", "false")
 	si := &v1alpha1.SourceIntegrity{
 		Helm: &v1alpha1.SourceIntegrityHelm{
 			Policies: []*v1alpha1.SourceIntegrityHelmPolicy{{
