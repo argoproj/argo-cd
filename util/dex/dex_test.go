@@ -394,94 +394,102 @@ var goodSecretswithCRLF = map[string]string{
 	"dex.acme.clientSecret":   "barfoo\n\r",
 }
 
-func Test_GenerateDexConfigStorageTypeAndConfig(t *testing.T) {
-	t.Run("kubernetes storage type, config", func(t *testing.T) {
-		s := settings.ArgoCDSettings{
-			URL:       "http://localhost",
-			DexConfig: goodDexConfigWithStorageTypeKubernetes,
-			Secrets:   goodSecrets,
-		}
-		config, err := GenerateDexConfigYAML(&s, false)
-		require.NoError(t, err)
-		assert.NotNil(t, config)
-		var dexCfg map[string]any
-		err = yaml.Unmarshal(config, &dexCfg)
-		require.NoError(t, err)
-		storage, ok := dexCfg["storage"].(map[string]any)
-		require.True(t, ok)
-		assert.Equal(t, "kubernetes", storage["type"])
-		storageConfig, ok := storage["config"].(map[string]any)
-		require.True(t, ok)
-		assert.Equal(t, true, storageConfig["inCluster"])
-	})
+func Test_GenerateDexConfigYAMLStorage(t *testing.T) {
+	tests := []struct {
+		name     string
+		settings settings.ArgoCDSettings
+		wantType string
+		validate func(t *testing.T, storage map[string]any)
+	}{
+		{
+			name: "kubernetes storage type, config",
+			settings: settings.ArgoCDSettings{
+				URL:       "http://localhost",
+				DexConfig: goodDexConfigWithStorageTypeKubernetes,
+				Secrets:   goodSecrets,
+			},
+			wantType: "kubernetes",
+			validate: func(t *testing.T, storage map[string]any) {
+				storageConfig, ok := storage["config"].(map[string]any)
+				require.True(t, ok)
+				assert.Equal(t, true, storageConfig["inCluster"])
+			},
+		},
+		{
+			name: "default storage type is memory when not specified",
+			settings: settings.ArgoCDSettings{
+				URL:       "http://localhost",
+				DexConfig: goodDexConfig,
+			},
+			wantType: "memory",
+		},
+		{
+			name: "etcd storage type, config",
+			settings: settings.ArgoCDSettings{
+				URL:       "http://localhost",
+				DexConfig: goodDexConfigWithStorageTypeEtcd,
+				Secrets:   goodSecrets,
+			},
+			wantType: "etcd",
+			validate: func(t *testing.T, storage map[string]any) {
+				storageConfig, ok := storage["config"].(map[string]any)
+				require.True(t, ok)
 
-	t.Run("default storage type is memory when not specified", func(t *testing.T) {
-		s := settings.ArgoCDSettings{
-			URL:       "http://localhost",
-			DexConfig: goodDexConfig,
-		}
-		config, err := GenerateDexConfigYAML(&s, false)
-		require.NoError(t, err)
-		assert.NotNil(t, config)
-		var dexCfg map[string]any
-		err = yaml.Unmarshal(config, &dexCfg)
-		require.NoError(t, err)
-		storage, ok := dexCfg["storage"].(map[string]any)
-		require.True(t, ok)
-		assert.Equal(t, "memory", storage["type"])
-	})
+				assert.Equal(t, "my-etcd-namespace", storageConfig["namespace"])
 
-	t.Run("etcd storage type, config", func(t *testing.T) {
-		s := settings.ArgoCDSettings{
-			URL:       "http://localhost",
-			DexConfig: goodDexConfigWithStorageTypeEtcd,
-			Secrets:   goodSecrets,
-		}
-		config, err := GenerateDexConfigYAML(&s, false)
-		require.NoError(t, err)
-		assert.NotNil(t, config)
-		var dexCfg map[string]any
-		err = yaml.Unmarshal(config, &dexCfg)
-		require.NoError(t, err)
-		storage, ok := dexCfg["storage"].(map[string]any)
-		require.True(t, ok)
-		assert.Equal(t, "etcd", storage["type"])
-		storageConfig, ok := storage["config"].(map[string]any)
-		require.True(t, ok)
-		assert.Equal(t, "my-etcd-namespace", storageConfig["namespace"])
-		endpoints, ok := storageConfig["endpoints"].([]any)
-		require.True(t, ok)
-		require.NotEmpty(t, endpoints)
-		assert.Equal(t, "http://localhost:2379", endpoints[0])
-	})
+				endpoints, ok := storageConfig["endpoints"].([]any)
+				require.True(t, ok)
+				require.NotEmpty(t, endpoints)
 
-	t.Run("postgres storage type, config", func(t *testing.T) {
-		s := settings.ArgoCDSettings{
-			URL:       "http://localhost",
-			DexConfig: goodDexConfigWithStorageTypePostgres,
-			Secrets:   goodSecrets,
-		}
-		config, err := GenerateDexConfigYAML(&s, false)
-		require.NoError(t, err)
-		assert.NotNil(t, config)
-		var dexCfg map[string]any
-		err = yaml.Unmarshal(config, &dexCfg)
-		require.NoError(t, err)
-		storage, ok := dexCfg["storage"].(map[string]any)
-		require.True(t, ok)
-		assert.Equal(t, "postgres", storage["type"])
-		storageConfig, ok := storage["config"].(map[string]any)
-		require.True(t, ok)
-		assert.Equal(t, "localhost", storageConfig["host"])
-		assert.InDelta(t, 5432.0, storageConfig["port"], 0.0)
-		assert.Equal(t, "dex_db", storageConfig["database"])
-		assert.Equal(t, "dex", storageConfig["user"])
-		assert.Equal(t, "66964843358242dbaaa7778d8477c288", storageConfig["password"])
-		ssl, ok := storageConfig["ssl"].(map[string]any)
-		require.True(t, ok)
-		assert.Equal(t, "verify-ca", ssl["mode"])
-		assert.Equal(t, "/etc/dex/postgres.ca", ssl["caFile"])
-	})
+				assert.Equal(t, "http://localhost:2379", endpoints[0])
+			},
+		},
+		{
+			name: "postgres storage type, config",
+			settings: settings.ArgoCDSettings{
+				URL:       "http://localhost",
+				DexConfig: goodDexConfigWithStorageTypePostgres,
+				Secrets:   goodSecrets,
+			},
+			wantType: "postgres",
+			validate: func(t *testing.T, storage map[string]any) {
+				storageConfig, ok := storage["config"].(map[string]any)
+				require.True(t, ok)
+
+				assert.Equal(t, "localhost", storageConfig["host"])
+				assert.InDelta(t, 5432.0, storageConfig["port"], 0.0)
+				assert.Equal(t, "dex_db", storageConfig["database"])
+				assert.Equal(t, "dex", storageConfig["user"])
+				assert.Equal(t, "66964843358242dbaaa7778d8477c288", storageConfig["password"])
+
+				ssl, ok := storageConfig["ssl"].(map[string]any)
+				require.True(t, ok)
+				assert.Equal(t, "verify-ca", ssl["mode"])
+				assert.Equal(t, "/etc/dex/postgres.ca", ssl["caFile"])
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			config, err := GenerateDexConfigYAML(&tc.settings, false)
+			require.NoError(t, err)
+			require.NotNil(t, config)
+
+			var dexCfg map[string]any
+			err = yaml.Unmarshal(config, &dexCfg)
+			require.NoError(t, err)
+
+			storage, ok := dexCfg["storage"].(map[string]any)
+			require.True(t, ok)
+
+			assert.Equal(t, tc.wantType, storage["type"])
+
+			if tc.validate != nil {
+				tc.validate(t, storage)
+			}
+		})
+	}
 }
 
 func Test_GenerateDexConfig(t *testing.T) {
