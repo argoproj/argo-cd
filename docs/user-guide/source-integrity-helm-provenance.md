@@ -26,16 +26,10 @@ For implementation details (mirror fallback, digest checks, sync errors), see [W
 
 For GnuPG verification of Git commit signatures, see [Git GnuPG verification](./source-integrity-git-gpg.md).
 
-> [!NOTE]
-> **Compatibility**
->
-> Helm provenance policies are configured under `AppProject.spec.sourceIntegrity.helm`.
-> At least one of `git` or `helm` must be set on `sourceIntegrity` (they are both optional fields, but the object cannot be empty).
-
 > [!WARNING]
 > **Policies silently bypass if GnuPG is disabled**
 >
-> Provenance verification requires `ARGOCD_GPG_ENABLED=true` on `argocd-repo-server`.
+> Provenance verification requires `ARGOCD_GPG_ENABLED=true` Environment Variable.
 >
 > **Critical:** If GnuPG is disabled, configured policies will **pass without verification** —
 > there is no error or warning. Unsigned charts or charts with invalid signatures will
