@@ -1711,6 +1711,45 @@ func TestBeforeHookCreation(t *testing.T) {
 	assert.Equal(t, "waiting for completion of hook /Pod/my-pod", message)
 }
 
+// TestSync_NeverDeletePolicyHookIsRetained is regression coverage for
+// https://github.com/argoproj/argo-cd/issues/13429. A hook annotated
+// hook-delete-policy: Never that already exists in the cluster must NOT be
+// deleted-before-creation on the next sync — contrast TestSync_ExistingHooksWithFinalizer,
+// where the BeforeHookCreation hook in the same setup IS deleted. This retention is what
+// lets a permanent resource (e.g. a ServiceAccount that a later PreSync Job depends on)
+// be modeled as a hook without being orphaned. This test exercises the deleteBeforeCreation
+// path directly (a live hook object in a fresh, pending operation), so it fails if "Never"
+// were to fall back to the BeforeHookCreation default.
+func TestSync_NeverDeletePolicyHookIsRetained(t *testing.T) {
+	neverHook := newHook("never-hook", synccommon.HookTypePreSync, synccommon.HookDeletePolicyNever)
+
+	syncCtx := newTestSyncCtx(nil)
+	fakeDynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme(), neverHook)
+	syncCtx.dynamicIf = fakeDynamicClient
+	deletedCount := 0
+	fakeDynamicClient.PrependReactor("delete", "*", func(_ testcore.Action) (handled bool, ret runtime.Object, err error) {
+		deletedCount++
+		return false, nil, nil
+	})
+	syncCtx.resources = groupResources(ReconciliationResult{
+		Live:   []*unstructured.Unstructured{neverHook},
+		Target: []*unstructured.Unstructured{nil},
+	})
+	syncCtx.hooks = []*unstructured.Unstructured{neverHook}
+
+	// A fresh (pending) sync over the already-present Never hook: deleteBeforeCreation() must
+	// be false, so the hook is retained rather than deleted-and-recreated.
+	syncCtx.Sync(context.Background())
+	phase, _, _ := syncCtx.GetState()
+
+	assert.Equal(t, synccommon.OperationRunning, phase)
+	assert.Equal(t, 0, deletedCount, "hook with delete policy Never must not be deleted before creation")
+
+	// The live hook must still exist in the cluster after the sync.
+	_, err := syncCtx.getResource(context.Background(), &syncTask{liveObj: neverHook})
+	require.NoError(t, err, "hook with delete policy Never must be retained in the cluster")
+}
+
 func TestSync_ExistingHooksWithFinalizer(t *testing.T) {
 	hook1 := newHook("existing-hook-1", synccommon.HookTypePreSync, synccommon.HookDeletePolicyBeforeHookCreation)
 	hook2 := newHook("existing-hook-2", synccommon.HookTypePreSync, synccommon.HookDeletePolicyHookFailed)

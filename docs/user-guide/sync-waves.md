@@ -49,8 +49,12 @@ This can take the following values:
 | `HookSucceeded`      | The hook resource is deleted when the sync succeeds. For completion-based hooks such as `Job` or `Workflow`, this typically happens after the hook completes successfully. |
 | `HookFailed`         | The hook resource is deleted after the hook failed.                                                                                                |
 | `BeforeHookCreation` | Any existing hook resource is deleted before the new one is created (since v1.3). It is meant to be used with `/metadata/name`.                  |
+| `Never`              | The hook resource is applied but never deleted automatically by Argo CD, so it persists across syncs. Use it for permanent resources (for example a `ServiceAccount`, `ConfigMap`, `Secret`, or RBAC object) that must be created during a hook phase — not for run-to-completion hooks such as `Job` or `Workflow`, which would then never be re-run. |
 
 Note that if no deletion policy is specified, Argo CD will automatically assume `BeforeHookCreation` rules.
+
+> [!NOTE]
+> The `HookSucceeded`, `HookFailed`, and `BeforeHookCreation` policies all eventually delete the hook resource. `Never` is the only policy that keeps the resource in the cluster, which is why it is the right choice for permanent resources that other resources depend on (for example a `ServiceAccount` referenced by a later `PreSync` migration `Job`).
 
 When Helm hook annotations are mapped onto Argo CD hooks, delete-policy evaluation still follows Argo CD sync phases and sync result semantics rather than Helm's per-hook-event lifecycle. For example, a `PreSync` resource mapped from Helm may remain available until later phases finish, and passive resources such as `ServiceAccount` do not have a completion state like `Job` or `Workflow`.
 
