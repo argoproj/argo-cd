@@ -891,10 +891,18 @@ func (server *ArgoCDServer) watchSettings() {
 func (server *ArgoCDServer) rbacPolicyLoader(ctx context.Context) {
 	err := server.enf.RunPolicyLoader(ctx, func(cm *corev1.ConfigMap) error {
 		var scopes []string
-		if scopesStr, ok := cm.Data[rbac.ConfigMapScopesKey]; scopesStr != "" && ok {
+		// "claims" is the canonical key; "scopes" is kept as a deprecated
+		// alias for backward compatibility.
+		scopesStr, ok := cm.Data[rbac.ConfigMapClaimsKey]
+		if !ok || scopesStr == "" {
+			if legacyStr, legacyOK := cm.Data[rbac.ConfigMapScopesKey]; legacyOK && legacyStr != "" {
+				log.Warnf("the %q field in the argocd-rbac-cm ConfigMap is deprecated, use %q instead", rbac.ConfigMapScopesKey, rbac.ConfigMapClaimsKey)
+				scopesStr, ok = legacyStr, true
+			}
+		}
+		if ok && scopesStr != "" {
 			scopes = make([]string, 0)
-			err := yaml.Unmarshal([]byte(scopesStr), &scopes)
-			if err != nil {
+			if err := yaml.Unmarshal([]byte(scopesStr), &scopes); err != nil {
 				return fmt.Errorf("error unmarshalling scopes: %w", err)
 			}
 		}
