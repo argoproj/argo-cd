@@ -1,0 +1,18 @@
+apiVersion: kro.run/v1alpha1
+kind: WebApplication
+metadata:
+  name: my-app
+  namespace: default
+  generation: 1
+spec:
+  name: web-app
+  image: nginx:latest
+status:
+  state: ACTIVE
+  availableReplicas: 3
+  conditions:
+    - type: Ready
+      status: "True"
+      reason: Ready
+      message: ""
+      lastTransitionTime: "2025-08-08T00:03:46Z"
