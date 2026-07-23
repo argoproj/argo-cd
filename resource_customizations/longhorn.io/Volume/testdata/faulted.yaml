@@ -1,0 +1,11 @@
+apiVersion: longhorn.io/v1beta2
+kind: Volume
+metadata:
+  name: pvc-abc123
+  namespace: longhorn-system
+spec:
+  numberOfReplicas: 3
+  size: "10737418240"
+status:
+  state: detached
+  robustness: faulted
