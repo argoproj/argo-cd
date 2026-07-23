@@ -1011,10 +1011,11 @@ func (m *nativeGitClient) runTargetedHeadFetch() (*plumbing.Reference, error) {
 
 	// git ls-remote cannot combine HEAD with --heads and --tags while retaining
 	// protocol v2 server-side narrowing. A dry-run fetch from a fresh bare
-	// repository sends a bounded set of HEAD-related ref-prefix values, without
-	// downloading objects or writing FETCH_HEAD. This runs inside the shared
-	// optimized cache fill, so concurrent callers produce one bulk query and one
-	// HEAD query per cache refresh.
+	// repository sends a bounded set of HEAD-related ref-prefix values. Git still
+	// transfers a pack during a dry-run, so depth limits it to the tip commit and
+	// the tree filter omits trees and blobs when the server supports filtering.
+	// This runs inside the shared optimized cache fill, so concurrent callers
+	// produce one bulk query and one HEAD query per cache refresh.
 	initCmd := exec.CommandContext(ctx, "git", "init", "--bare", "--quiet", ".")
 	if _, err := m.runCmdOutput(initCmd, runOpts{Dir: gitDir}); err != nil {
 		return nil, fmt.Errorf("failed to initialize temporary Git directory for HEAD resolution: %w", err)
@@ -1032,6 +1033,8 @@ func (m *nativeGitClient) runTargetedHeadFetch() (*plumbing.Reference, error) {
 		"--dry-run",
 		"--porcelain",
 		"--no-tags",
+		"--depth=1",
+		"--filter=tree:0",
 		m.repoURL,
 		headRevision,
 	)

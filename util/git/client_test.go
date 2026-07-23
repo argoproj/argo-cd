@@ -1041,7 +1041,7 @@ func TestOptimizedLsRemoteCachesHeadWithBranchesAndTags(t *testing.T) {
 printf '%%s\n' "$*" >> "$GIT_LS_REMOTE_CALLS_FILE"
 case "$*" in
   *"ls-remote --heads --tags"*) printf '%s\trefs/heads/main\n' ;;
-  *"fetch --dry-run --porcelain --no-tags"*) printf '* 0000000000000000000000000000000000000000 %s FETCH_HEAD\n' ;;
+  *"fetch --dry-run --porcelain --no-tags --depth=1 --filter=tree:0"*) printf '* 0000000000000000000000000000000000000000 %s FETCH_HEAD\n' ;;
 esac
 `, commitSHA, commitSHA), 0o755))
 	t.Setenv("GIT_LS_REMOTE_CALLS_FILE", callsFile)
@@ -1069,7 +1069,7 @@ esac
 	assert.Equal(t, []string{
 		"--git-dir=" + os.DevNull + " -c protocol.version=2 ls-remote --heads --tags " + repoURL,
 		"init --bare --quiet .",
-		"--git-dir=. -c protocol.version=2 fetch --dry-run --porcelain --no-tags " + repoURL + " HEAD",
+		"--git-dir=. -c protocol.version=2 fetch --dry-run --porcelain --no-tags --depth=1 --filter=tree:0 " + repoURL + " HEAD",
 	}, strings.Split(strings.TrimSpace(string(calls)), "\n"))
 	assert.Equal(t, []string{"ls-remote-optimized|" + repoURL + "|HEAD,heads,tags"}, cache.setKeys)
 }
@@ -1229,7 +1229,7 @@ func TestOptimizedLsRemoteHeadFailureFallsBackToGoGit(t *testing.T) {
 	require.NoError(t, os.WriteFile(fakeGit, fmt.Appendf(nil, `#!/bin/sh
 case "$*" in
   *"ls-remote --heads --tags"*) printf '%s\trefs/heads/main\n' ;;
-  *"fetch --dry-run --porcelain --no-tags"*) exit 1 ;;
+  *"fetch --dry-run --porcelain --no-tags --depth=1 --filter=tree:0"*) exit 1 ;;
 esac
 `, fakeSHA), 0o755))
 	t.Setenv("PATH", fakeBin+string(os.PathListSeparator)+os.Getenv("PATH"))
@@ -1309,7 +1309,7 @@ case "$*" in
     sleep 0.1
     printf '%s\trefs/heads/main\n'
     ;;
-  *"fetch --dry-run --porcelain --no-tags"*)
+  *"fetch --dry-run --porcelain --no-tags --depth=1 --filter=tree:0"*)
     sleep 0.1
     printf '* 0000000000000000000000000000000000000000 %s FETCH_HEAD\n'
     ;;
@@ -1355,7 +1355,7 @@ esac
 	assert.Equal(t, []string{
 		"--git-dir=" + os.DevNull + " -c protocol.version=2 ls-remote --heads --tags " + repoURL,
 		"init --bare --quiet .",
-		"--git-dir=. -c protocol.version=2 fetch --dry-run --porcelain --no-tags " + repoURL + " HEAD",
+		"--git-dir=. -c protocol.version=2 fetch --dry-run --porcelain --no-tags --depth=1 --filter=tree:0 " + repoURL + " HEAD",
 	}, strings.Split(strings.TrimSpace(string(calls)), "\n"))
 	assert.EqualValues(t, 2, lsRemoteCalls.Load())
 	assert.Equal(t, 1, cache.setCalls)
