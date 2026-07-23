@@ -80,7 +80,7 @@ kubectl exec -it <argocd-repo-server-pod> -- \
 
 ## What Argo CD verifies
 
-Once `.prov` bytes and chart `.tgz` bytes are loaded, Argo CD runs these steps (check name `HELM/PROVENANCE`):
+Once `.prov` and chart archive are loaded, Argo CD runs these steps (check name `HELM/PROVENANCE`):
 
 | Step | What is checked |
 |------|-----------------|
