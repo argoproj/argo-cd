@@ -45,4 +45,24 @@ else
     }
 end
 
+-- Declarative hibernation for a cluster
+-- https://cloudnative-pg.io/docs/current/declarative_hibernation/
+local isHibernated = false
+if obj.metadata and obj.metadata.annotations and obj.metadata.annotations["cnpg.io/hibernation"] == "on" then
+    isHibernated = true
+end
+
+-- Add hibernate/rehydrate actions based on current state
+if isHibernated then
+    actions["rehydrate"] = {
+        ["iconClass"] = "fa fa-fw fa-sun-o",
+        ["displayName"] = "Rehydrate (exit hibernation)"
+    }
+else
+    actions["hibernate"] = {
+        ["iconClass"] = "fa fa-fw fa-moon-o",
+        ["displayName"] = "Hibernate Cluster"
+    }
+end
+
 return actions
