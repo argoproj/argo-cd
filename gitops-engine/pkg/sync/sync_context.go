@@ -1845,11 +1845,9 @@ func newStateSync(currentState runState) *stateSync {
 }
 
 func (s *stateSync) Go(f func(runState) runState) {
-	s.wg.Add(1)
-	go func() {
-		defer s.wg.Done()
+	s.wg.Go(func() {
 		s.results <- f(s.currentState)
-	}()
+	})
 }
 
 func (s *stateSync) Wait() runState {

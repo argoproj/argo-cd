@@ -898,7 +898,6 @@ func TestServerResourcesRetry(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.desc, func(t *testing.T) {
 			// Given
 			t.Parallel()
@@ -936,7 +935,7 @@ func TestSync_getSyncTasks_FailureMessage(t *testing.T) {
 			Resources: []*metav1.APIResourceList{},
 		},
 	}
-	fakeDisco.Fake.PrependReactor("get", "resource", func(action testcore.Action) (handled bool, ret runtime.Object, err error) {
+	fakeDisco.PrependReactor("get", "resource", func(action testcore.Action) (handled bool, ret runtime.Object, err error) {
 		reactorCalls++
 		return true, nil, errors.New("discovery failed")
 	})
@@ -950,7 +949,7 @@ func TestSync_getSyncTasks_FailureMessage(t *testing.T) {
 	syncCtx.Sync(context.Background())
 	phase, msg, _ := syncCtx.GetState()
 
-	require.Greater(t, reactorCalls, 0, "FakeDiscovery reactor must have been invoked for this test to be meaningful")
+	require.Positive(t, reactorCalls, "FakeDiscovery reactor must have been invoked for this test to be meaningful")
 
 	assert.Equal(t, synccommon.OperationFailed, phase)
 	assert.Contains(t, msg, "one or more synchronization tasks are not valid")
@@ -974,7 +973,7 @@ func Test_getSyncTasks_ErrorCaching(t *testing.T) {
 			Resources: []*metav1.APIResourceList{},
 		},
 	}
-	fakeDisco.Fake.PrependReactor("get", "resource", func(action testcore.Action) (handled bool, ret runtime.Object, err error) {
+	fakeDisco.PrependReactor("get", "resource", func(action testcore.Action) (handled bool, ret runtime.Object, err error) {
 		discoveryCalls++
 		return true, nil, errors.New("persistent discovery error")
 	})
@@ -989,7 +988,7 @@ func Test_getSyncTasks_ErrorCaching(t *testing.T) {
 	assert.False(t, ok)
 	assert.NotNil(t, tasks)
 
-	require.Greater(t, discoveryCalls, 0, "FakeDiscovery reactor must have been invoked for the caching test to be meaningful")
+	require.Positive(t, discoveryCalls, "FakeDiscovery reactor must have been invoked for the caching test to be meaningful")
 	assert.Equal(t, 1, discoveryCalls, "Discovery should have been called only once due to error caching")
 }
 
@@ -1238,7 +1237,6 @@ func TestSync_ServerSideApply(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			syncCtx := newTestSyncCtx(nil)
