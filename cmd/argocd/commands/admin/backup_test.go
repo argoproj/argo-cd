@@ -487,3 +487,210 @@ func TestIsSkipLabelMatches(t *testing.T) {
 		})
 	}
 }
+
+// Test_checkAppHasNoNeedToStopOperation verifies the guard used by `argocd admin import` to decide
+// whether an Application has an in-flight operation that must be stopped before it is overwritten.
+func Test_checkAppHasNoNeedToStopOperation(t *testing.T) {
+	newApp := func(withOperation bool) unstructured.Unstructured {
+		obj := unstructured.Unstructured{
+			Object: map[string]any{
+				"apiVersion": "argoproj.io/v1alpha1",
+				"kind":       "Application",
+				"metadata":   map[string]any{"name": "test-app"},
+			},
+		}
+		if withOperation {
+			obj.Object["operation"] = map[string]any{"sync": map[string]any{}}
+		}
+		return obj
+	}
+
+	configMap := unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "v1",
+			"kind":       "ConfigMap",
+			"metadata":   map[string]any{"name": "test-cm"},
+		},
+	}
+
+	tests := []struct {
+		name          string
+		liveObj       unstructured.Unstructured
+		stopOperation bool
+		expected      bool
+	}{
+		{
+			name:          "returns true when stopOperation is false even if the app has an operation",
+			liveObj:       newApp(true),
+			stopOperation: false,
+			expected:      true,
+		},
+		{
+			name:          "returns true for non-Application kinds when stopOperation is true",
+			liveObj:       configMap,
+			stopOperation: true,
+			expected:      true,
+		},
+		{
+			name:          "returns false when an Application has an in-flight operation and stopOperation is true",
+			liveObj:       newApp(true),
+			stopOperation: true,
+			expected:      false,
+		},
+		{
+			name:          "returns true when an Application has no operation and stopOperation is true",
+			liveObj:       newApp(false),
+			stopOperation: true,
+			expected:      true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := checkAppHasNoNeedToStopOperation(tt.liveObj, tt.stopOperation)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+// Test_updateLive verifies that updateLive overlays the backup's metadata and type-specific payload
+// onto a copy of the live resource, without mutating the original live object.
+func Test_updateLive(t *testing.T) {
+	t.Run("ConfigMap data/labels/annotations/finalizers come from the backup while other live fields are preserved", func(t *testing.T) {
+		bak := &unstructured.Unstructured{
+			Object: map[string]any{
+				"apiVersion": "v1",
+				"kind":       "ConfigMap",
+				"metadata": map[string]any{
+					"name":        "my-cm",
+					"labels":      map[string]any{"from": "backup"},
+					"annotations": map[string]any{"from": "backup"},
+					"finalizers":  []any{"backup-finalizer"},
+				},
+				"data": map[string]any{"key": "backup-value"},
+			},
+		}
+		live := &unstructured.Unstructured{
+			Object: map[string]any{
+				"apiVersion": "v1",
+				"kind":       "ConfigMap",
+				"metadata": map[string]any{
+					"name":            "my-cm",
+					"namespace":       "argocd",
+					"labels":          map[string]any{"from": "live"},
+					"annotations":     map[string]any{"from": "live"},
+					"resourceVersion": "12345",
+				},
+				"data": map[string]any{"key": "live-value"},
+			},
+		}
+
+		result := updateLive(bak, live, false)
+
+		// payload and mutable metadata are taken from the backup
+		assert.Equal(t, map[string]any{"key": "backup-value"}, result.Object["data"])
+		assert.Equal(t, map[string]string{"from": "backup"}, result.GetLabels())
+		assert.Equal(t, map[string]string{"from": "backup"}, result.GetAnnotations())
+		assert.Equal(t, []string{"backup-finalizer"}, result.GetFinalizers())
+		// unrelated live metadata is left intact
+		assert.Equal(t, "argocd", result.GetNamespace())
+		assert.Equal(t, "12345", result.GetResourceVersion())
+		// the original live object must not be mutated
+		assert.Equal(t, map[string]any{"key": "live-value"}, live.Object["data"])
+	})
+
+	t.Run("AppProject spec is replaced with the backup spec", func(t *testing.T) {
+		bak := &unstructured.Unstructured{
+			Object: map[string]any{
+				"apiVersion": "argoproj.io/v1alpha1",
+				"kind":       "AppProject",
+				"metadata":   map[string]any{"name": "default"},
+				"spec":       map[string]any{"sourceRepos": []any{"https://backup.example.com"}},
+			},
+		}
+		live := &unstructured.Unstructured{
+			Object: map[string]any{
+				"apiVersion": "argoproj.io/v1alpha1",
+				"kind":       "AppProject",
+				"metadata":   map[string]any{"name": "default"},
+				"spec":       map[string]any{"sourceRepos": []any{"https://live.example.com"}},
+			},
+		}
+
+		result := updateLive(bak, live, false)
+		assert.Equal(t, map[string]any{"sourceRepos": []any{"https://backup.example.com"}}, result.Object["spec"])
+	})
+
+	t.Run("ApplicationSet spec is replaced with the backup spec", func(t *testing.T) {
+		bak := &unstructured.Unstructured{
+			Object: map[string]any{
+				"apiVersion": "argoproj.io/v1alpha1",
+				"kind":       "ApplicationSet",
+				"metadata":   map[string]any{"name": "test-appset"},
+				"spec":       map[string]any{"goTemplate": true},
+			},
+		}
+		live := &unstructured.Unstructured{
+			Object: map[string]any{
+				"apiVersion": "argoproj.io/v1alpha1",
+				"kind":       "ApplicationSet",
+				"metadata":   map[string]any{"name": "test-appset"},
+				"spec":       map[string]any{"goTemplate": false},
+			},
+		}
+
+		result := updateLive(bak, live, false)
+		assert.Equal(t, map[string]any{"goTemplate": true}, result.Object["spec"])
+	})
+
+	t.Run("Application operation is removed and spec/status come from the backup when stopOperation is true", func(t *testing.T) {
+		bak := &unstructured.Unstructured{
+			Object: map[string]any{
+				"apiVersion": "argoproj.io/v1alpha1",
+				"kind":       "Application",
+				"metadata":   map[string]any{"name": "test"},
+				"spec":       map[string]any{"project": "backup-project"},
+				"status":     map[string]any{"health": map[string]any{"status": "Healthy"}},
+			},
+		}
+		live := &unstructured.Unstructured{
+			Object: map[string]any{
+				"apiVersion": "argoproj.io/v1alpha1",
+				"kind":       "Application",
+				"metadata":   map[string]any{"name": "test"},
+				"spec":       map[string]any{"project": "live-project"},
+				"status":     map[string]any{"health": map[string]any{"status": "Degraded"}},
+				"operation":  map[string]any{"sync": map[string]any{}},
+			},
+		}
+
+		result := updateLive(bak, live, true)
+		assert.Equal(t, map[string]any{"project": "backup-project"}, result.Object["spec"])
+		assert.Equal(t, map[string]any{"health": map[string]any{"status": "Healthy"}}, result.Object["status"])
+		assert.Nil(t, result.Object["operation"])
+	})
+
+	t.Run("Application operation is preserved when stopOperation is false", func(t *testing.T) {
+		operation := map[string]any{"sync": map[string]any{"revision": "abc123"}}
+		bak := &unstructured.Unstructured{
+			Object: map[string]any{
+				"apiVersion": "argoproj.io/v1alpha1",
+				"kind":       "Application",
+				"metadata":   map[string]any{"name": "test"},
+				"spec":       map[string]any{"project": "backup-project"},
+			},
+		}
+		live := &unstructured.Unstructured{
+			Object: map[string]any{
+				"apiVersion": "argoproj.io/v1alpha1",
+				"kind":       "Application",
+				"metadata":   map[string]any{"name": "test"},
+				"spec":       map[string]any{"project": "live-project"},
+				"operation":  operation,
+			},
+		}
+
+		result := updateLive(bak, live, false)
+		assert.Equal(t, operation, result.Object["operation"])
+	})
+}
