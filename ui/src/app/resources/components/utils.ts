@@ -100,7 +100,7 @@ export function getResourceAppLink(ctx: ContextApis, resource: models.Resource):
     const url = getManagingApplicationUrl(resource.appName, resource.appNamespace);
     const highlight = resourceHighlightUrl(resource);
     return {
-        href: `${ctx.baseHref}${url}?highlight=${encodeURIComponent(highlight)}`,
+        href: `${ctx.baseHref}/${url}?highlight=${encodeURIComponent(highlight)}`,
         onClick: (e: React.MouseEvent<HTMLAnchorElement>) => {
             if (isModifiedClick(e)) {
                 return;
