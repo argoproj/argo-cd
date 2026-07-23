@@ -49,8 +49,9 @@ import (
 )
 
 var (
-	ErrInvalidRepoURL = errors.New("repo URL is invalid")
-	ErrNoNoteFound    = errors.New("no note found")
+	ErrInvalidRepoURL   = errors.New("repo URL is invalid")
+	ErrNoNoteFound      = errors.New("no note found")
+	ErrRevisionNotFound = errors.New("revision not found")
 )
 
 // builtinGitConfig configuration contains statements that are needed
@@ -1000,7 +1001,7 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 
 	// If we get here, revision string had non hexadecimal characters (indicating its a branch, tag,
 	// or symbolic ref) and we were unable to resolve it to a commit SHA.
-	return "", fmt.Errorf("unable to resolve '%s' to a commit SHA", revision)
+	return "", fmt.Errorf("unable to resolve '%s' to a commit SHA: %w", revision, ErrRevisionNotFound)
 }
 
 // CommitSHA returns current commit sha from `git rev-parse HEAD`
@@ -1779,7 +1780,24 @@ func (m *nativeGitClient) runCredentialedCmd(ctx context.Context, args ...string
 	cmd := exec.CommandContext(ctx, "git", args...)
 	cmd.Env = append(cmd.Env, environ...)
 	_, err = m.runCmdOutput(cmd, runOpts{})
-	return err
+	return humanizeAuthPromptError(m.repoURL, err)
+}
+
+// gitTerminalPromptDisabledMsg is the substring Git prints when it needs
+// credentials it wasn't given and interactive prompts are disabled
+// (GIT_TERMINAL_PROMPT=0). It signals a failed git authentication, not an actual
+// terminal problem.
+const gitTerminalPromptDisabledMsg = "terminal prompts disabled"
+
+// humanizeAuthPromptError rewrites Git's misleading "terminal prompts disabled"
+// failure into an authentication error, since the raw message reads as a tty
+// problem when the real cause is that no credentials matched the repository URL.
+// Any other error is returned unchanged.
+func humanizeAuthPromptError(repoURL string, err error) error {
+	if err == nil || !strings.Contains(err.Error(), gitTerminalPromptDisabledMsg) {
+		return err
+	}
+	return fmt.Errorf("failed to authenticate to git repository %q: no credentials matched this URL: %w", SanitizeRepoURL(repoURL), err)
 }
 
 func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, error) {

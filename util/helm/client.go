@@ -63,7 +63,7 @@ type Client interface {
 	ExtractChart(ctx context.Context, chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, utilio.Closer, error)
 	GetIndex(ctx context.Context, noCache bool, maxIndexSize int64) (*Index, error)
 	GetTags(ctx context.Context, chart string, noCache bool) ([]string, error)
-	TestHelmOCI() (bool, error)
+	TestHelmOCI(ctx context.Context) (bool, error)
 	// GetChartTgzPath returns the path to the cached chart .tgz (valid after ExtractChart). Traditional Helm only.
 	GetChartTgzPath(chart string, version string) (string, error)
 	// FetchProvenance fetches the .prov file for the chart version and returns its content and the chart filename. Traditional Helm only.
@@ -259,7 +259,7 @@ func (c *nativeHelmChart) ExtractChart(ctx context.Context, chart string, versio
 				return "", nil, fmt.Errorf("failed to get password for helm registry: %w", err)
 			}
 			if helmPassword != "" && c.creds.GetUsername() != "" {
-				_, err = helmCmd.RegistryLogin(c.repoURL, c.creds, c.plainHTTP)
+				_, err = helmCmd.RegistryLogin(ctx, c.repoURL, c.creds, c.plainHTTP)
 				if err != nil {
 					_ = os.RemoveAll(tempDir)
 					return "", nil, fmt.Errorf("error logging into OCI registry: %w", err)
@@ -347,7 +347,7 @@ func (c *nativeHelmChart) GetIndex(ctx context.Context, noCache bool, maxIndexSi
 	return index, nil
 }
 
-func (c *nativeHelmChart) TestHelmOCI() (bool, error) {
+func (c *nativeHelmChart) TestHelmOCI(ctx context.Context) (bool, error) {
 	start := time.Now()
 
 	tmpDir, err := os.MkdirTemp("", "helm")
@@ -369,7 +369,7 @@ func (c *nativeHelmChart) TestHelmOCI() (bool, error) {
 		return false, fmt.Errorf("failed to get password for helm registry: %w", err)
 	}
 	if c.creds.GetUsername() != "" && helmPassword != "" {
-		_, err = helmCmd.RegistryLogin(c.repoURL, c.creds, c.plainHTTP)
+		_, err = helmCmd.RegistryLogin(ctx, c.repoURL, c.creds, c.plainHTTP)
 		if err != nil {
 			return false, fmt.Errorf("error logging into OCI registry: %w", err)
 		}

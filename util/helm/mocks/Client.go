@@ -489,8 +489,8 @@ func (_c *Client_GetTags_Call) RunAndReturn(run func(ctx context.Context, chart 
 }
 
 // TestHelmOCI provides a mock function for the type Client
-func (_mock *Client) TestHelmOCI() (bool, error) {
-	ret := _mock.Called()
+func (_mock *Client) TestHelmOCI(ctx context.Context) (bool, error) {
+	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for TestHelmOCI")
@@ -498,16 +498,16 @@ func (_mock *Client) TestHelmOCI() (bool, error) {
 
 	var r0 bool
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() (bool, error)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (bool, error)); ok {
+		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func() bool); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) bool); ok {
+		r0 = returnFunc(ctx)
 	} else {
 		r0 = ret.Get(0).(bool)
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -520,13 +520,20 @@ type Client_TestHelmOCI_Call struct {
 }
 
 // TestHelmOCI is a helper method to define mock.On call
-func (_e *Client_Expecter) TestHelmOCI() *Client_TestHelmOCI_Call {
-	return &Client_TestHelmOCI_Call{Call: _e.mock.On("TestHelmOCI")}
+//   - ctx context.Context
+func (_e *Client_Expecter) TestHelmOCI(ctx any) *Client_TestHelmOCI_Call {
+	return &Client_TestHelmOCI_Call{Call: _e.mock.On("TestHelmOCI", ctx)}
 }
 
-func (_c *Client_TestHelmOCI_Call) Run(run func()) *Client_TestHelmOCI_Call {
+func (_c *Client_TestHelmOCI_Call) Run(run func(ctx context.Context)) *Client_TestHelmOCI_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -536,7 +543,7 @@ func (_c *Client_TestHelmOCI_Call) Return(b bool, err error) *Client_TestHelmOCI
 	return _c
 }
 
-func (_c *Client_TestHelmOCI_Call) RunAndReturn(run func() (bool, error)) *Client_TestHelmOCI_Call {
+func (_c *Client_TestHelmOCI_Call) RunAndReturn(run func(ctx context.Context) (bool, error)) *Client_TestHelmOCI_Call {
 	_c.Call.Return(run)
 	return _c
 }
