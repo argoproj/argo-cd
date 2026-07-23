@@ -12,9 +12,11 @@ import (
 	"math"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/text"
 	"github.com/google/shlex"
@@ -33,6 +35,22 @@ import (
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	utillog "github.com/argoproj/argo-cd/v3/util/log"
 )
+
+func WithSignalContext(run func(c *cobra.Command, args []string, stop context.CancelFunc)) func(c *cobra.Command, args []string) {
+	return func(c *cobra.Command, args []string) {
+		ctx, stop := signal.NotifyContext(c.Context(), syscall.SIGINT, syscall.SIGTERM)
+		c.SetContext(ctx)
+		run(c, args, stop)
+	}
+}
+
+func WithSignalContextE(run func(c *cobra.Command, args []string, stop context.CancelFunc) error) func(c *cobra.Command, args []string) error {
+	return func(c *cobra.Command, args []string) error {
+		ctx, stop := signal.NotifyContext(c.Context(), syscall.SIGINT, syscall.SIGTERM)
+		c.SetContext(ctx)
+		return run(c, args, stop)
+	}
+}
 
 // NewVersionCmd returns a new `version` command to be used as a sub-command to root
 func NewVersionCmd(cliName string) *cobra.Command {
