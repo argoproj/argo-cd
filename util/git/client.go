@@ -54,6 +54,8 @@ var (
 	ErrRevisionNotFound = errors.New("revision not found")
 )
 
+const headRevision = "HEAD"
+
 // builtinGitConfig configuration contains statements that are needed
 // for correct ArgoCD operation. These settings will override any
 // user-provided configuration of same options.
@@ -778,7 +780,7 @@ func (m *nativeGitClient) Submodule(ctx context.Context) error {
 
 // Checkout checks out the specified revision
 func (m *nativeGitClient) Checkout(ctx context.Context, revision string, submoduleEnabled bool, cleanState bool) (string, error) {
-	if revision == "" || revision == "HEAD" {
+	if revision == "" || revision == headRevision {
 		revision = "origin/HEAD"
 	}
 	if out, err := m.runCmd(ctx, "checkout", "--force", revision); err != nil {
@@ -818,37 +820,35 @@ func (m *nativeGitClient) Checkout(ctx context.Context, revision string, submodu
 }
 
 func (m *nativeGitClient) getRefsFromCacheOrFetch(cacheKey string, logPrefix string, fetch func() ([]*plumbing.Reference, error)) ([]*plumbing.Reference, error) {
-	myLockUUID, err := uuid.NewRandom()
-	myLockID := ""
-	if err != nil {
-		log.Debugf("Error generating %s git references cache lock id: %v", logPrefix, err)
-	} else {
-		myLockID = myLockUUID.String()
-	}
-
 	needsUnlock := false
 	if m.gitRefCache != nil && m.loadRefFromCache {
-		var res []*plumbing.Reference
-		foundLockID, err := m.gitRefCache.GetOrLockGitReferences(cacheKey, myLockID, &res)
-		isLockOwner := myLockID == foundLockID
-		if !isLockOwner && err == nil {
-			// Valid value already in cache
-			return res, nil
-		} else if !isLockOwner && err != nil {
-			// Error getting value from cache
-			log.Debugf("Error getting %s git references from cache: %v", logPrefix, err)
-			return nil, err
-		}
-		needsUnlock = true
-		// Defer a soft reset of the cache lock, if the value is set this call will be ignored
-		defer func() {
-			if needsUnlock {
-				err := m.gitRefCache.UnlockGitReferences(cacheKey, myLockID)
-				if err != nil {
-					log.Debugf("Error unlocking %s git references from cache: %v", logPrefix, err)
-				}
+		myLockUUID, err := uuid.NewRandom()
+		if err != nil {
+			log.Debugf("Error generating %s git references cache lock id, bypassing cache lock: %v", logPrefix, err)
+		} else {
+			myLockID := myLockUUID.String()
+			var res []*plumbing.Reference
+			foundLockID, err := m.gitRefCache.GetOrLockGitReferences(cacheKey, myLockID, &res)
+			isLockOwner := myLockID == foundLockID
+			if !isLockOwner && err == nil {
+				// Valid value already in cache
+				return res, nil
+			} else if !isLockOwner && err != nil {
+				// Error getting value from cache
+				log.Debugf("Error getting %s git references from cache: %v", logPrefix, err)
+				return nil, err
 			}
-		}()
+			needsUnlock = true
+			// Defer a soft reset of the cache lock, if the value is set this call will be ignored
+			defer func() {
+				if needsUnlock {
+					err := m.gitRefCache.UnlockGitReferences(cacheKey, myLockID)
+					if err != nil {
+						log.Debugf("Error unlocking %s git references from cache: %v", logPrefix, err)
+					}
+				}
+			}()
+		}
 	}
 
 	res, err := fetch()
@@ -953,7 +953,7 @@ func getGitTags(refs []*plumbing.Reference) []string {
 }
 
 func (m *nativeGitClient) optimizedLsRemoteCacheKey() string {
-	return fmt.Sprintf("ls-remote-optimized|%s|HEAD,heads,tags", m.repoURL)
+	return fmt.Sprintf("ls-remote-optimized|%s|heads,tags", m.repoURL)
 }
 
 func (m *nativeGitClient) lsRemoteOptimized(revision string) (string, bool, error) {
@@ -961,8 +961,10 @@ func (m *nativeGitClient) lsRemoteOptimized(revision string) (string, bool, erro
 		return "", false, nil
 	}
 
-	if revision == "" {
-		revision = "HEAD"
+	// An explicit HEAD pattern is not sent as a protocol v2 ref-prefix, so it
+	// still receives the full advertisement and is better served by the default cache.
+	if revision == "" || revision == headRevision {
+		return "", false, nil
 	}
 
 	if strings.HasPrefix(revision, "refs/") {
@@ -973,42 +975,17 @@ func (m *nativeGitClient) lsRemoteOptimized(revision string) (string, bool, erro
 	}
 
 	cacheKey := m.optimizedLsRemoteCacheKey()
-	fetchedBulkRefs := false
-	fetchBulkRefs := func() ([]*plumbing.Reference, error) {
-		fetchedBulkRefs = true
+	refs, err := m.getRefsFromCacheOrFetch(cacheKey, "optimized", func() ([]*plumbing.Reference, error) {
 		return m.runLsRemote("ls-remote", "--heads", "--tags", m.repoURL)
-	}
-	refs, err := m.getRefsFromCacheOrFetch(cacheKey, "optimized", fetchBulkRefs)
+	})
 	if err != nil {
 		return "", errors.Is(err, context.DeadlineExceeded), err
 	}
 	res, err := m.resolveRevisionWithoutTruncatedSHAFallback(revision, refs)
-	if err != nil && revision == "HEAD" {
-		// --heads and --tags provide protocol v2 server-side narrowing, but exclude HEAD.
-		// Fetch HEAD only when requested; if the bulk listing came from cache, refresh it
-		// first so HEAD and its target branch cannot resolve to different commits.
-		if !fetchedBulkRefs {
-			refs, err = fetchBulkRefs()
-			if err != nil {
-				return "", errors.Is(err, context.DeadlineExceeded), err
-			}
-		}
-		headRefs, headErr := m.runLsRemote("ls-remote", m.repoURL, "HEAD")
-		if headErr != nil {
-			return "", errors.Is(headErr, context.DeadlineExceeded), headErr
-		}
-		refs = append(refs, headRefs...)
-		if m.gitRefCache != nil {
-			if cacheErr := m.gitRefCache.SetGitReferences(cacheKey, refs); cacheErr != nil {
-				log.Warnf("Failed to add HEAD to optimized git references cache: %v", cacheErr)
-			}
-		}
-		res, err = m.resolveRevisionWithoutTruncatedSHAFallback(revision, refs)
-	}
 	if err != nil {
 		// Short names can refer to custom namespaces, and hexadecimal names can be
 		// truncated commit SHAs. Preserve the full resolver for either case.
-		if revision != "HEAD" && !strings.HasPrefix(revision, "refs/") {
+		if !strings.HasPrefix(revision, "refs/") {
 			return "", false, nil
 		}
 		return "", true, err
@@ -1110,7 +1087,7 @@ func (m *nativeGitClient) resolveRevisionWithoutTruncatedSHAFallback(revision st
 
 func (m *nativeGitClient) resolveRevisionWithOptions(revision string, refs []*plumbing.Reference, allowTruncatedSHAFallback bool) (string, error) {
 	if revision == "" {
-		revision = "HEAD"
+		revision = headRevision
 	}
 
 	maxV, err := versions.MaxVersion(revision, getGitTags(refs), m.tagPrefix)
@@ -1169,7 +1146,7 @@ func (m *nativeGitClient) resolveRevisionWithOptions(revision string, refs []*pl
 
 // CommitSHA returns current commit sha from `git rev-parse HEAD`
 func (m *nativeGitClient) CommitSHA(ctx context.Context) (string, error) {
-	out, err := m.runCmd(ctx, "rev-parse", "HEAD")
+	out, err := m.runCmd(ctx, "rev-parse", headRevision)
 	if err != nil {
 		return "", err
 	}

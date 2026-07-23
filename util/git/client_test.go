@@ -883,18 +883,15 @@ func TestParseLsRemoteOutput(t *testing.T) {
 	}
 }
 
-func TestOptimizedLsRemoteFetchesHeadOnlyWhenRequested(t *testing.T) {
+func TestOptimizedLsRemoteSkipsHead(t *testing.T) {
 	fakeBin := t.TempDir()
 	fakeGit := filepath.Join(fakeBin, "git")
 	callsFile := filepath.Join(t.TempDir(), "calls")
 	const commitSHA = "abcdef0123456789abcdef0123456789abcdef01"
 	require.NoError(t, os.WriteFile(fakeGit, fmt.Appendf(nil, `#!/bin/sh
 printf '%%s\n' "$*" >> "$GIT_LS_REMOTE_CALLS_FILE"
-case "$*" in
-  *" HEAD") printf '%s\tHEAD\n' ;;
-  *) printf '%s\trefs/heads/main\n' ;;
-esac
-`, commitSHA, commitSHA), 0o755))
+printf '%s\trefs/heads/main\n'
+`, commitSHA), 0o755))
 	t.Setenv("GIT_LS_REMOTE_CALLS_FILE", callsFile)
 	t.Setenv("PATH", fakeBin+string(os.PathListSeparator)+os.Getenv("PATH"))
 
@@ -912,17 +909,17 @@ esac
 	require.NoError(t, err)
 	assert.Equal(t, "-c protocol.version=2 ls-remote --heads --tags "+repoURL, strings.TrimSpace(string(calls)))
 
-	sha, err = client.LsRemote("HEAD")
-	require.NoError(t, err)
-	assert.Equal(t, commitSHA, sha)
+	nativeClient := client.(*nativeGitClient)
+	for _, revision := range []string{"", headRevision} {
+		sha, handled, err := nativeClient.lsRemoteOptimized(revision)
+		require.NoError(t, err)
+		assert.False(t, handled)
+		assert.Empty(t, sha)
+	}
 
 	calls, err = os.ReadFile(callsFile)
 	require.NoError(t, err)
-	assert.Equal(t, []string{
-		"-c protocol.version=2 ls-remote --heads --tags " + repoURL,
-		"-c protocol.version=2 ls-remote --heads --tags " + repoURL,
-		"-c protocol.version=2 ls-remote " + repoURL + " HEAD",
-	}, strings.Split(strings.TrimSpace(string(calls)), "\n"))
+	assert.Equal(t, "-c protocol.version=2 ls-remote --heads --tags "+repoURL, strings.TrimSpace(string(calls)))
 }
 
 func TestOptimizedLsRemote(t *testing.T) {
@@ -989,13 +986,15 @@ func TestOptimizedLsRemoteIgnoresUnusableClientRoot(t *testing.T) {
 	require.NoError(t, err)
 	expectedSHABytes, err := outputCmd(ctx, sourceRepoPath, "git", "rev-parse", "HEAD")
 	require.NoError(t, err)
+	branchBytes, err := outputCmd(ctx, sourceRepoPath, "git", "symbolic-ref", "--short", "HEAD")
+	require.NoError(t, err)
 
 	clientRoot := filepath.Join(t.TempDir(), "not-a-directory")
 	require.NoError(t, os.WriteFile(clientRoot, nil, 0o600))
 	client, err := NewClientExt("file://"+sourceRepoPath, clientRoot, NopCreds{}, true, false, "", "", WithOptimizedLsRemote(true))
 	require.NoError(t, err)
 
-	sha, handled, err := client.(*nativeGitClient).lsRemoteOptimized("HEAD")
+	sha, handled, err := client.(*nativeGitClient).lsRemoteOptimized(strings.TrimSpace(string(branchBytes)))
 	require.NoError(t, err)
 	assert.True(t, handled)
 	assert.Equal(t, strings.TrimSpace(string(expectedSHABytes)), sha)
@@ -1054,7 +1053,7 @@ func TestOptimizedLsRemoteTimeoutDoesNotFallback(t *testing.T) {
 	assert.Equal(t, 1, lsRemoteCalls, "timed out optimized ls-remote should not fall back to full ls-remote")
 }
 
-func TestOptimizedLsRemoteUsesSharedCacheKey(t *testing.T) {
+func TestOptimizedLsRemoteUsesSeparateCacheKeys(t *testing.T) {
 	setupGitEnv(t)
 	ctx := t.Context()
 	sourceRepoPath := t.TempDir()
@@ -1096,35 +1095,19 @@ func TestOptimizedLsRemoteUsesSharedCacheKey(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, mainSHA, sha)
 
-	assert.Equal(t, 3, lsRemoteCalls, "HEAD should refresh bulk refs before adding the on-demand HEAD result")
-	assert.NotContains(t, cache.setKeys, repoURL, "optimized lookups must not populate the full-ref cache key")
+	assert.Equal(t, 2, lsRemoteCalls, "branches and HEAD should each populate their own cache once")
 	assert.Equal(t, []string{
-		"ls-remote-optimized|" + repoURL + "|HEAD,heads,tags",
-		"ls-remote-optimized|" + repoURL + "|HEAD,heads,tags",
+		"ls-remote-optimized|" + repoURL + "|heads,tags",
+		repoURL,
 	}, cache.setKeys)
 }
 
-func TestOptimizedLsRemoteHeadRefreshesSharedSnapshot(t *testing.T) {
-	setupGitEnv(t)
-	ctx := t.Context()
-	sourceRepoPath := t.TempDir()
-
-	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "init"))
-	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "checkout", "-b", "main"))
-	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "commit", "-m", "old", "--allow-empty"))
-	oldSHABytes, err := outputCmd(ctx, sourceRepoPath, "git", "rev-parse", "HEAD")
-	require.NoError(t, err)
-	oldSHA := strings.TrimSpace(string(oldSHABytes))
-	require.NoError(t, runCmd(ctx, sourceRepoPath, "git", "commit", "-m", "new", "--allow-empty"))
-	newSHABytes, err := outputCmd(ctx, sourceRepoPath, "git", "rev-parse", "HEAD")
-	require.NoError(t, err)
-	newSHA := strings.TrimSpace(string(newSHABytes))
-
-	repoURL := "file://" + sourceRepoPath
-	cacheKey := "ls-remote-optimized|" + repoURL + "|HEAD,heads,tags"
+func TestOptimizedLsRemoteHeadUsesDefaultCache(t *testing.T) {
+	const cachedSHA = "1111111111111111111111111111111111111111"
+	repoURL := "https://example.com/repo.git"
 	cache := &fakeGitRefCache{refsByKey: map[string][]*plumbing.Reference{
-		cacheKey: {
-			plumbing.NewHashReference("refs/heads/main", plumbing.NewHash(oldSHA)),
+		repoURL: {
+			plumbing.NewHashReference(headRevision, plumbing.NewHash(cachedSHA)),
 		},
 	}}
 	lsRemoteCalls := 0
@@ -1139,14 +1122,11 @@ func TestOptimizedLsRemoteHeadRefreshesSharedSnapshot(t *testing.T) {
 		}))
 	require.NoError(t, err)
 
-	sha, err := client.LsRemote("HEAD")
+	sha, err := client.LsRemote(headRevision)
 	require.NoError(t, err)
-	assert.Equal(t, newSHA, sha)
-	sha, err = client.LsRemote("main")
-	require.NoError(t, err)
-	assert.Equal(t, newSHA, sha)
-	assert.Equal(t, 2, lsRemoteCalls, "HEAD should refresh the stale bulk listing and fetch HEAD once")
-	assert.Equal(t, []string{cacheKey}, cache.setKeys)
+	assert.Equal(t, cachedSHA, sha)
+	assert.Zero(t, lsRemoteCalls, "HEAD should use the existing full-ref cache")
+	assert.Empty(t, cache.setKeys)
 }
 
 func TestOptimizedLsRemoteIgnoresExistingFullRefCache(t *testing.T) {
@@ -1188,7 +1168,7 @@ func TestOptimizedLsRemoteIgnoresExistingFullRefCache(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, newSHA, sha)
 	assert.Equal(t, 1, lsRemoteCalls, "optimized lookup must fetch when only the full-ref cache key exists")
-	assert.Contains(t, cache.setKeys, "ls-remote-optimized|"+repoURL+"|HEAD,heads,tags")
+	assert.Contains(t, cache.setKeys, "ls-remote-optimized|"+repoURL+"|heads,tags")
 }
 
 func TestOptimizedLsRemoteHardRefreshUpdatesOptimizedCache(t *testing.T) {
@@ -1208,10 +1188,9 @@ func TestOptimizedLsRemoteHardRefreshUpdatesOptimizedCache(t *testing.T) {
 	newSHA := strings.TrimSpace(string(newSHABytes))
 
 	repoURL := "file://" + sourceRepoPath
-	cacheKey := "ls-remote-optimized|" + repoURL + "|HEAD,heads,tags"
+	cacheKey := "ls-remote-optimized|" + repoURL + "|heads,tags"
 	cache := &fakeGitRefCache{refsByKey: map[string][]*plumbing.Reference{
 		cacheKey: {
-			plumbing.NewHashReference("HEAD", plumbing.NewHash(oldSHA)),
 			plumbing.NewHashReference("refs/heads/main", plumbing.NewHash(oldSHA)),
 		},
 	}}
@@ -1220,7 +1199,7 @@ func TestOptimizedLsRemoteHardRefreshUpdatesOptimizedCache(t *testing.T) {
 		WithOptimizedLsRemote(true))
 	require.NoError(t, err)
 
-	sha, err := noCacheClient.LsRemote("HEAD")
+	sha, err := noCacheClient.LsRemote("main")
 	require.NoError(t, err)
 	assert.Equal(t, newSHA, sha)
 
@@ -1229,9 +1208,6 @@ func TestOptimizedLsRemoteHardRefreshUpdatesOptimizedCache(t *testing.T) {
 		WithOptimizedLsRemote(true))
 	require.NoError(t, err)
 
-	sha, err = cachedClient.LsRemote("HEAD")
-	require.NoError(t, err)
-	assert.Equal(t, newSHA, sha)
 	sha, err = cachedClient.LsRemote("main")
 	require.NoError(t, err)
 	assert.Equal(t, newSHA, sha)
