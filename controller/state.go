@@ -46,6 +46,7 @@ import (
 	argodiff "github.com/argoproj/argo-cd/v3/util/argo/diff"
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
@@ -130,23 +131,18 @@ func (res *comparisonResult) GetHealthStatus() health.HealthStatusCode {
 
 // appStateManager allows to compare applications to git
 type appStateManager struct {
-	metricsServer         *metrics.MetricsServer
-	db                    db.ArgoDB
-	settingsMgr           *settings.SettingsManager
-	appclientset          appclientset.Interface
-	kubectl               kubeutil.Kubectl
-	onKubectlRun          kubeutil.OnKubectlRunFunc
-	repoClientset         apiclient.Clientset
-	liveStateCache        statecache.LiveStateCache
-	cache                 *appstatecache.Cache
-	namespace             string
-	statusRefreshTimeout  time.Duration
-	resourceTracking      argo.ResourceTracking
-	persistResourceHealth bool
-	repoErrorCache        goSync.Map
-	repoErrorGracePeriod  time.Duration
-	serverSideDiff        bool
-	ignoreNormalizerOpts  normalizers.IgnoreNormalizerOpts
+	metricsServer    *metrics.MetricsServer
+	db               db.ArgoDB
+	configProvider   configbus.Provider
+	appclientset     appclientset.Interface
+	kubectl          kubeutil.Kubectl
+	onKubectlRun     kubeutil.OnKubectlRunFunc
+	repoClientset    apiclient.Clientset
+	liveStateCache   statecache.LiveStateCache
+	cache            *appstatecache.Cache
+	namespace        string
+	resourceTracking argo.ResourceTracking
+	repoErrorCache   goSync.Map
 }
 
 // EvaluateAppRevisionsChanges checks if any source revisions have changes without generating manifests.
@@ -155,17 +151,17 @@ type appStateManager struct {
 func (m *appStateManager) EvaluateAppRevisionsChanges(ctx context.Context, app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, revisions []string, proj *v1alpha1.AppProject, sendRuntimeState bool, noRevisionCache bool) (bool, []string, error) {
 	hasChanges := false
 
-	appLabelKey, err := m.settingsMgr.GetAppInstanceLabelKey()
+	appLabelKey, err := m.configProvider.AppInstanceLabelKey(ctx)
 	if err != nil {
 		return false, nil, fmt.Errorf("failed to get app instance label key: %w", err)
 	}
 
-	trackingMethod, err := m.settingsMgr.GetTrackingMethod()
+	trackingMethod, err := m.configProvider.TrackingMethod(ctx)
 	if err != nil {
 		return false, nil, fmt.Errorf("failed to get trackingMethod: %w", err)
 	}
 
-	installationID, err := m.settingsMgr.GetInstallationID()
+	installationID, err := m.configProvider.InstallationID(ctx)
 	if err != nil {
 		return false, nil, fmt.Errorf("failed to get installation ID: %w", err)
 	}
@@ -269,28 +265,28 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 		return nil, nil, false, fmt.Errorf("failed to get permitted OCI credentials for project %q: %w", proj.Name, err)
 	}
 
-	enabledSourceTypes, err := m.settingsMgr.GetEnabledSourceTypes()
+	enabledSourceTypes, err := m.configProvider.EnabledSourceTypes(ctx)
 	if err != nil {
 		return nil, nil, false, fmt.Errorf("failed to get enabled source types: %w", err)
 	}
 	ts.AddCheckpoint("plugins_ms")
 
-	kustomizeSettings, err := m.settingsMgr.GetKustomizeSettings()
+	kustomizeSettings, err := m.configProvider.KustomizeSettings(ctx)
 	if err != nil {
 		return nil, nil, false, fmt.Errorf("failed to get Kustomize settings: %w", err)
 	}
 
-	helmOptions, err := m.settingsMgr.GetHelmSettings()
+	helmOptions, err := m.configProvider.HelmSettings(ctx)
 	if err != nil {
 		return nil, nil, false, fmt.Errorf("failed to get Helm settings: %w", err)
 	}
 
-	trackingMethod, err := m.settingsMgr.GetTrackingMethod()
+	trackingMethod, err := m.configProvider.TrackingMethod(ctx)
 	if err != nil {
 		return nil, nil, false, fmt.Errorf("failed to get trackingMethod: %w", err)
 	}
 
-	installationID, err := m.settingsMgr.GetInstallationID()
+	installationID, err := m.configProvider.InstallationID(ctx)
 	if err != nil {
 		return nil, nil, false, fmt.Errorf("failed to get installation ID: %w", err)
 	}
@@ -401,7 +397,7 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 				AppName:                         app.InstanceName(m.namespace),
 				Namespace:                       appNamespace,
 				ApplicationSource:               &source,
-				KustomizeOptions:                kustomizeSettings,
+				KustomizeOptions:                &kustomizeSettings,
 				KubeVersion:                     serverVersion,
 				ApiVersions:                     apiVersions,
 				SourceIntegrity:                 sourceIntegrity,
@@ -409,7 +405,7 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 				HelmRepoCreds:                   helmRepoCreds,
 				TrackingMethod:                  trackingMethod,
 				EnabledSourceTypes:              enabledSourceTypes,
-				HelmOptions:                     helmOptions,
+				HelmOptions:                     &helmOptions,
 				HasMultipleSources:              app.Spec.HasMultipleSources(),
 				RefSources:                      refSources,
 				ProjectName:                     proj.Name,
@@ -625,27 +621,27 @@ func NormalizeTargetObjects(namespace string, objs []*unstructured.Unstructured,
 // getComparisonSettings will return the system level settings related to the
 // diff/normalization process.
 func (m *appStateManager) getComparisonSettings() (string, map[string]v1alpha1.ResourceOverride, *settings.ResourcesFilter, string, string, error) {
-	resourceOverrides, err := m.settingsMgr.GetResourceOverrides()
+	resourceOverrides, err := m.configProvider.ResourceOverrides(context.Background())
 	if err != nil {
 		return "", nil, nil, "", "", err
 	}
-	appLabelKey, err := m.settingsMgr.GetAppInstanceLabelKey()
+	appLabelKey, err := m.configProvider.AppInstanceLabelKey(context.Background())
 	if err != nil {
 		return "", nil, nil, "", "", err
 	}
-	resFilter, err := m.settingsMgr.GetResourcesFilter()
+	resFilter, err := m.configProvider.ResourcesFilter(context.Background())
 	if err != nil {
 		return "", nil, nil, "", "", err
 	}
-	installationID, err := m.settingsMgr.GetInstallationID()
+	installationID, err := m.configProvider.InstallationID(context.Background())
 	if err != nil {
 		return "", nil, nil, "", "", err
 	}
-	trackingMethod, err := m.settingsMgr.GetTrackingMethod()
+	trackingMethod, err := m.configProvider.TrackingMethod(context.Background())
 	if err != nil {
 		return "", nil, nil, "", "", err
 	}
-	return appLabelKey, resourceOverrides, resFilter, installationID, trackingMethod, nil
+	return appLabelKey, resourceOverrides, &resFilter, installationID, trackingMethod, nil
 }
 
 func isManagedNamespace(ns *unstructured.Unstructured, app *v1alpha1.Application) bool {
@@ -748,7 +744,11 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 			msg := "Failed to load target state: " + err.Error()
 			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})
 			if firstSeen, ok := m.repoErrorCache.Load(app.Name); ok {
-				if time.Since(firstSeen.(time.Time)) <= m.repoErrorGracePeriod && !noRevisionCache {
+				repoErrorGracePeriod, graceErr := m.configProvider.RepoErrorGracePeriod(ctx)
+				if graceErr != nil {
+					return nil, fmt.Errorf("failed to resolve repo error grace period: %w", graceErr)
+				}
+				if time.Since(firstSeen.(time.Time)) <= repoErrorGracePeriod && !noRevisionCache {
 					// if first seen is less than grace period and it's not a Level 3 comparison,
 					// ignore error and short circuit
 					logCtx.Debugf("Ignoring repo error %v, already encountered error in grace period", err.Error())
@@ -900,9 +900,9 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 	reconciliation := sync.Reconcile(targetObjsForSync, liveObjByKey, app.Spec.Destination.Namespace, infoProvider)
 	ts.AddCheckpoint("live_ms")
 
-	compareOptions, err := m.settingsMgr.GetResourceCompareOptions()
+	compareOptions, err := m.configProvider.ResourceCompareOptions(ctx)
 	if err != nil {
-		log.Warnf("Could not get compare options from ConfigMap (assuming defaults): %v", err)
+		log.Warnf("Could not get compare options from config provider (assuming defaults): %v", err)
 		compareOptions = settings.GetDefaultDiffOptions()
 	}
 	manifestRevisions := make([]string, 0)
@@ -911,7 +911,11 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 		manifestRevisions = append(manifestRevisions, manifestInfo.Revision)
 	}
 
-	serverSideDiff := m.serverSideDiff ||
+	serverSideDiffCfg, err := m.configProvider.ServerSideDiff(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve server-side diff setting: %w", err)
+	}
+	serverSideDiff := serverSideDiffCfg ||
 		resourceutil.HasAnnotationOption(app, common.AnnotationCompareOptions, "ServerSideDiff=true")
 
 	// This allows turning SSD off for a given app if it is enabled at the
@@ -920,10 +924,18 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 		serverSideDiff = false
 	}
 
-	useDiffCache := useDiffCache(noCache, manifestInfos, sources, app, manifestRevisions, m.statusRefreshTimeout, serverSideDiff, logCtx)
+	reconciliationTimeout, err := m.configProvider.ReconciliationTimeout(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve reconciliation timeout: %w", err)
+	}
+	useDiffCache := useDiffCache(noCache, manifestInfos, sources, app, manifestRevisions, reconciliationTimeout, serverSideDiff, logCtx)
 
+	ignoreNormalizerJQTimeout, err := m.configProvider.IgnoreNormalizerJQTimeout(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve ignore normalizer JQ timeout: %w", err)
+	}
 	diffConfigBuilder := argodiff.NewDiffConfigBuilder().
-		WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles, m.ignoreNormalizerOpts).
+		WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles, normalizers.IgnoreNormalizerOpts{JQExecutionTimeout: ignoreNormalizerJQTimeout}).
 		WithTracking(appLabelKey, string(trackingMethod))
 
 	if useDiffCache {
@@ -1106,7 +1118,11 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 
 	ts.AddCheckpoint("sync_ms")
 
-	healthStatus, healthMessage, err := setApplicationHealth(managedResources, resourceSummaries, resourceOverrides, app, m.persistResourceHealth)
+	persistResourceHealth, err := m.configProvider.PersistResourceHealth(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve persist resource health setting: %w", err)
+	}
+	healthStatus, healthMessage, err := setApplicationHealth(managedResources, resourceSummaries, resourceOverrides, app, persistResourceHealth)
 	if err != nil {
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: "error setting app health: " + err.Error(), LastTransitionTime: &now})
 	}
@@ -1306,34 +1322,24 @@ func NewAppStateManager(
 	namespace string,
 	kubectl kubeutil.Kubectl,
 	onKubectlRun kubeutil.OnKubectlRunFunc,
-	settingsMgr *settings.SettingsManager,
+	configProvider configbus.Provider,
 	liveStateCache statecache.LiveStateCache,
 	metricsServer *metrics.MetricsServer,
 	cache *appstatecache.Cache,
-	statusRefreshTimeout time.Duration,
 	resourceTracking argo.ResourceTracking,
-	persistResourceHealth bool,
-	repoErrorGracePeriod time.Duration,
-	serverSideDiff bool,
-	ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts,
 ) AppStateManager {
 	return &appStateManager{
-		liveStateCache:        liveStateCache,
-		cache:                 cache,
-		db:                    db,
-		appclientset:          appclientset,
-		kubectl:               kubectl,
-		onKubectlRun:          onKubectlRun,
-		repoClientset:         repoClientset,
-		namespace:             namespace,
-		settingsMgr:           settingsMgr,
-		metricsServer:         metricsServer,
-		statusRefreshTimeout:  statusRefreshTimeout,
-		resourceTracking:      resourceTracking,
-		persistResourceHealth: persistResourceHealth,
-		repoErrorGracePeriod:  repoErrorGracePeriod,
-		serverSideDiff:        serverSideDiff,
-		ignoreNormalizerOpts:  ignoreNormalizerOpts,
+		liveStateCache:   liveStateCache,
+		cache:            cache,
+		db:               db,
+		appclientset:     appclientset,
+		kubectl:          kubectl,
+		onKubectlRun:     onKubectlRun,
+		repoClientset:    repoClientset,
+		namespace:        namespace,
+		configProvider:   configProvider,
+		metricsServer:    metricsServer,
+		resourceTracking: resourceTracking,
 	}
 }
 

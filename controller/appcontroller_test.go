@@ -58,6 +58,8 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
+	configbusmocks "github.com/argoproj/argo-cd/v3/util/configbus/mocks"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 	utilTest "github.com/argoproj/argo-cd/v3/util/test"
 )
@@ -89,6 +91,9 @@ type fakeData struct {
 	// persistResourceHealth controls whether managed resource health is stored
 	// inline on the Application. When nil it defaults to true.
 	persistResourceHealth *bool
+	// configProviderOverride, if set, is chained ahead of the controller's
+	// default provider before informers start (safe under -race).
+	configProviderOverride configbus.Provider
 }
 
 type MockKubectl struct {
@@ -266,6 +271,9 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 	ctrl.clusterSharding = sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm)
 	if err != nil {
 		panic(err)
+	}
+	if data.configProviderOverride != nil {
+		ctrl.configProvider = configbus.NewChainProvider(data.configProviderOverride, ctrl.configProvider)
 	}
 	cancelProj := test.StartInformer(ctrl.projInformer)
 	defer cancelProj()
@@ -3151,14 +3159,18 @@ func TestProcessRequestedAppOperation_SyncTimeout(t *testing.T) {
 					Revision: "HEAD",
 				},
 			}
+			override := configbusmocks.NewProvider(t)
+			override.EXPECT().SyncTimeout(mock.Anything).Return(tc.syncTimeout, nil)
+			override.EXPECT().GlobalProjectsSettings(mock.Anything).Return(nil, configbus.ErrNotConfigured).Maybe()
+			override.EXPECT().IncludeEventLabelKeys(mock.Anything).Return(nil, configbus.ErrNotConfigured).Maybe()
+			override.EXPECT().ExcludeEventLabelKeys(mock.Anything).Return(nil, configbus.ErrNotConfigured).Maybe()
 			ctrl := newFakeController(t.Context(), &fakeData{
 				apps: []runtime.Object{app, &defaultProj},
 				manifestResponses: []*apiclient.ManifestResponse{{
 					Manifests: []string{},
 				}},
+				configProviderOverride: override,
 			}, nil)
-
-			ctrl.syncTimeout = tc.syncTimeout
 			app.Status.OperationState = &v1alpha1.OperationState{
 				Operation: *app.Operation,
 				Phase:     tc.currentPhase,
@@ -3208,13 +3220,19 @@ func TestProcessRequestedAppOperation_RequeuesOperation(t *testing.T) {
 		app.Operation = &v1alpha1.Operation{
 			Sync: &v1alpha1.SyncOperation{Revision: "HEAD"},
 		}
+		syncTimeout := 10 * time.Second
+		override := configbusmocks.NewProvider(t)
+		override.EXPECT().SyncTimeout(mock.Anything).Return(syncTimeout, nil)
+		override.EXPECT().GlobalProjectsSettings(mock.Anything).Return(nil, configbus.ErrNotConfigured).Maybe()
+		override.EXPECT().IncludeEventLabelKeys(mock.Anything).Return(nil, configbus.ErrNotConfigured).Maybe()
+		override.EXPECT().ExcludeEventLabelKeys(mock.Anything).Return(nil, configbus.ErrNotConfigured).Maybe()
 		ctrl := newFakeController(t.Context(), &fakeData{
 			apps: []runtime.Object{app, &defaultProj},
 			manifestResponses: []*apiclient.ManifestResponse{{
 				Manifests: []string{},
 			}},
+			configProviderOverride: override,
 		}, nil)
-		ctrl.syncTimeout = 10 * time.Second
 		app.Status.OperationState = &v1alpha1.OperationState{
 			Operation: *app.Operation,
 			Phase:     synccommon.OperationRunning,
@@ -3228,7 +3246,9 @@ func TestProcessRequestedAppOperation_RequeuesOperation(t *testing.T) {
 		require.Len(t, rq.calls, 1)
 		assert.Equal(t, ctrl.toAppKey(app.QualifiedName()), rq.calls[0].item)
 		assert.Positive(t, rq.calls[0].delay)
-		assert.LessOrEqual(t, rq.calls[0].delay, ctrl.syncTimeout)
+		syncTimeout, err := ctrl.configProvider.SyncTimeout(context.Background())
+		require.NoError(t, err)
+		assert.LessOrEqual(t, rq.calls[0].delay, syncTimeout)
 		assert.Less(t, rq.calls[0].delay, appOperationMaxRequeueInterval)
 	})
 
@@ -3945,12 +3965,17 @@ func assertDurationAround(t *testing.T, expected time.Duration, actual time.Dura
 }
 
 func TestSelfHealRemainingBackoff(t *testing.T) {
-	ctrl := newFakeController(t.Context(), &fakeData{}, nil)
-	ctrl.selfHealBackoff = &wait.Backoff{
+	backoff := &wait.Backoff{
 		Factor:   3,
 		Duration: 2 * time.Second,
 		Cap:      2 * time.Minute,
 	}
+	override := configbusmocks.NewProvider(t)
+	// Unstubbed mock methods panic; return ErrNotConfigured so Chain falls through
+	// to the real provider for getters this test does not override.
+	override.EXPECT().SelfHealTimeout(mock.Anything).Return(time.Duration(0), configbus.ErrNotConfigured)
+	override.EXPECT().SelfHealRetry(mock.Anything).Return(configbus.SelfHealRetry{Backoff: backoff}, nil)
+	ctrl := newFakeController(t.Context(), &fakeData{configProviderOverride: override}, nil)
 	app := &v1alpha1.Application{
 		Status: v1alpha1.ApplicationStatus{
 			OperationState: &v1alpha1.OperationState{
@@ -4017,7 +4042,8 @@ func TestSelfHealRemainingBackoff(t *testing.T) {
 		tc := testCases[i]
 		t.Run(fmt.Sprintf("test case %d", i), func(t *testing.T) {
 			app.Status.OperationState.FinishedAt = tc.finishedAt
-			duration := ctrl.selfHealRemainingBackoff(app, tc.attempts)
+			duration, err := ctrl.selfHealRemainingBackoff(app, tc.attempts)
+			require.NoError(t, err)
 			shouldSelfHeal := duration <= 0
 			require.Equal(t, tc.shouldSelfHeal, shouldSelfHeal)
 			assertDurationAround(t, tc.expectedDuration, duration)

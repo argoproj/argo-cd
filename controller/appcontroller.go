@@ -62,6 +62,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	argodiff "github.com/argoproj/argo-cd/v3/util/argo/diff"
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/stats"
 
@@ -136,23 +137,15 @@ type ApplicationController struct {
 	projInformer                  cache.SharedIndexInformer
 	appStateManager               AppStateManager
 	stateCache                    statecache.LiveStateCache
-	statusRefreshTimeout          time.Duration
-	statusHardRefreshTimeout      time.Duration
-	statusRefreshJitter           time.Duration
-	selfHealTimeout               time.Duration
-	selfHealBackoff               *wait.Backoff
-	syncTimeout                   time.Duration
 	db                            db.ArgoDB
-	settingsMgr                   *settings_util.SettingsManager
+	configProvider                configbus.Provider
 	refreshRequestedApps          map[string]CompareWith
 	refreshRequestedAppsMutex     *sync.Mutex
 	metricsServer                 *metrics.MetricsServer
-	metricsClusterLabels          []string
 	kubectlSemaphore              *semaphore.Weighted
 	clusterSharding               sharding.ClusterShardingCache
 	projByNameCache               sync.Map
 	applicationNamespaces         []string
-	ignoreNormalizerOpts          normalizers.IgnoreNormalizerOpts
 
 	// dynamicClusterDistributionEnabled if disabled deploymentInformer is never initialized
 	dynamicClusterDistributionEnabled bool
@@ -162,6 +155,7 @@ type ApplicationController struct {
 }
 
 // NewApplicationController creates new instance of ApplicationController.
+// The config provider is wired from the controller itself as the legacy source.
 func NewApplicationController(
 	namespace string,
 	settingsMgr *settings_util.SettingsManager,
@@ -213,23 +207,31 @@ func NewApplicationController(
 		appHydrateQueue:                   workqueue.NewTypedRateLimitingQueueWithConfig(ratelimiter.NewCustomAppControllerRateLimiter[string](rateLimiterConfig), workqueue.TypedRateLimitingQueueConfig[string]{Name: "app_hydration_queue"}),
 		hydrationQueue:                    workqueue.NewTypedRateLimitingQueueWithConfig(ratelimiter.NewCustomAppControllerRateLimiter[hydratortypes.HydrationQueueKey](rateLimiterConfig), workqueue.TypedRateLimitingQueueConfig[hydratortypes.HydrationQueueKey]{Name: "manifest_hydration_queue"}),
 		db:                                db,
-		statusRefreshTimeout:              appResyncPeriod,
-		statusHardRefreshTimeout:          appHardResyncPeriod,
-		statusRefreshJitter:               appResyncJitter,
 		refreshRequestedApps:              make(map[string]CompareWith),
 		refreshRequestedAppsMutex:         &sync.Mutex{},
 		auditLogger:                       argo.NewAuditLogger(kubeClientset, namespace, common.CommandApplicationController, enableK8sEvent),
-		settingsMgr:                       settingsMgr,
-		selfHealTimeout:                   selfHealTimeout,
-		selfHealBackoff:                   selfHealBackoff,
-		syncTimeout:                       syncTimeout,
 		clusterSharding:                   clusterSharding,
 		projByNameCache:                   sync.Map{},
 		applicationNamespaces:             applicationNamespaces,
 		dynamicClusterDistributionEnabled: dynamicClusterDistributionEnabled,
-		ignoreNormalizerOpts:              ignoreNormalizerOpts,
-		metricsClusterLabels:              metricsClusterLabels,
 	}
+	ctrl.configProvider = configbus.NewChainProvider(
+		&configbus.StaticProvider{Fields: configbus.StaticFields{
+			HardReconciliationTimeout: configbus.Ptr(appHardResyncPeriod),
+			IgnoreNormalizerJQTimeout: configbus.Ptr(ignoreNormalizerOpts.JQExecutionTimeout),
+			MetricsClusterLabels:      configbus.Ptr(metricsClusterLabels),
+			PersistResourceHealth:     configbus.Ptr(persistResourceHealth),
+			ReconciliationJitter:      configbus.Ptr(appResyncJitter),
+			ReconciliationTimeout:     configbus.Ptr(appResyncPeriod),
+			RepoErrorGracePeriod:      configbus.Ptr(repoErrorGracePeriod),
+			SelfHealRetry:             configbus.Ptr(configbus.SelfHealRetry{Backoff: selfHealBackoff}),
+			SelfHealTimeout:           configbus.Ptr(selfHealTimeout),
+			ServerSideDiff:            configbus.Ptr(serverSideDiff),
+			SyncTimeout:               configbus.Ptr(syncTimeout),
+		}},
+		configbus.NewSettingsManagerProvider(settingsMgr),
+		configbus.NewEnvProvider(),
+	)
 	if hydratorEnabled {
 		ctrl.hydrator = hydrator.NewHydrator(&ctrl, appResyncPeriod, commitClientset, repoClientset, db)
 	}
@@ -237,10 +239,12 @@ func NewApplicationController(
 		ctrl.kubectlSemaphore = semaphore.NewWeighted(kubectlParallelismLimit)
 	}
 	kubectl.SetOnKubectlRun(ctrl.onKubectlRun)
-	appInformer, appLister := ctrl.newApplicationInformerAndLister()
+	appInformer, appLister, err := ctrl.newApplicationInformerAndLister()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create application informer and lister: %w", err)
+	}
 	indexers := cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}
 	projInformer := v1alpha1.NewAppProjectInformer(applicationClientset, namespace, appResyncPeriod, indexers)
-	var err error
 	_, err = projInformer.AddEventHandler(ctrl.appProjectEventHandlerFuncs())
 	if err != nil {
 		return nil, err
@@ -313,8 +317,8 @@ func NewApplicationController(
 			return nil, err
 		}
 	}
-	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, ctrl.metricsServer, ctrl.handleObjectUpdated, clusterSharding, argo.NewResourceTracking())
-	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.onKubectlRun, ctrl.settingsMgr, stateCache, ctrl.metricsServer, argoCache, ctrl.statusRefreshTimeout, argo.NewResourceTracking(), persistResourceHealth, repoErrorGracePeriod, serverSideDiff, ignoreNormalizerOpts)
+	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.namespace, ctrl.configProvider, ctrl.metricsServer, ctrl.handleObjectUpdated, clusterSharding, argo.NewResourceTracking())
+	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.onKubectlRun, ctrl.configProvider, stateCache, ctrl.metricsServer, argoCache, argo.NewResourceTracking())
 	ctrl.appInformer = appInformer
 	ctrl.appLister = appLister
 	ctrl.projInformer = projInformer
@@ -388,7 +392,7 @@ func (projCache *appProjCache) GetAppProject(ctx context.Context) (*appv1.AppPro
 	if projCache.appProj != nil {
 		return projCache.appProj, nil
 	}
-	proj, err := argo.GetAppProjectByName(ctx, projCache.name, applisters.NewAppProjectLister(projCache.ctrl.projInformer.GetIndexer()), projCache.ctrl.namespace, projCache.ctrl.settingsMgr, projCache.ctrl.db)
+	proj, err := argo.GetAppProjectByName(ctx, projCache.name, applisters.NewAppProjectLister(projCache.ctrl.projInformer.GetIndexer()), projCache.ctrl.namespace, projCache.ctrl.configProvider, projCache.ctrl.db)
 	if err != nil {
 		return nil, err
 	}
@@ -782,7 +786,10 @@ func (ctrl *ApplicationController) getAppHosts(destCluster *appv1.Cluster, a *ap
 			return resourcesInfo[i].ResourceName < resourcesInfo[j].ResourceName
 		})
 
-		allowedNodeLabels := ctrl.settingsMgr.GetAllowedNodeLabels()
+		allowedNodeLabels, err := ctrl.configProvider.AllowedNodeLabels(context.Background())
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve allowed node labels: %w", err)
+		}
 		nodeLabels := make(map[string]string)
 		for _, label := range allowedNodeLabels {
 			if val, ok := node.Labels[label]; ok {
@@ -814,23 +821,27 @@ func (ctrl *ApplicationController) hideSecretData(ctx context.Context, destClust
 		resDiff := res.Diff
 		if res.Kind == kube.SecretKind && res.Group == "" {
 			var err error
-			target, live, err = diff.HideSecretData(res.Target, res.Live, ctrl.settingsMgr.GetSensitiveAnnotations())
+			sensitiveAnnotations, err := ctrl.configProvider.SensitiveAnnotations(ctx)
+			if err != nil {
+				return nil, fmt.Errorf("error getting sensitive annotations: %w", err)
+			}
+			target, live, err = diff.HideSecretData(res.Target, res.Live, sensitiveAnnotations)
 			if err != nil {
 				return nil, fmt.Errorf("error hiding secret data: %w", err)
 			}
-			compareOptions, err := ctrl.settingsMgr.GetResourceCompareOptions()
+			compareOptions, err := ctrl.configProvider.ResourceCompareOptions(ctx)
 			if err != nil {
 				return nil, fmt.Errorf("error getting resource compare options: %w", err)
 			}
-			resourceOverrides, err := ctrl.settingsMgr.GetResourceOverrides()
+			resourceOverrides, err := ctrl.configProvider.ResourceOverrides(ctx)
 			if err != nil {
 				return nil, fmt.Errorf("error getting resource overrides: %w", err)
 			}
-			appLabelKey, err := ctrl.settingsMgr.GetAppInstanceLabelKey()
+			appLabelKey, err := ctrl.configProvider.AppInstanceLabelKey(ctx)
 			if err != nil {
 				return nil, fmt.Errorf("error getting app instance label key: %w", err)
 			}
-			trackingMethod, err := ctrl.settingsMgr.GetTrackingMethod()
+			trackingMethod, err := ctrl.configProvider.TrackingMethod(ctx)
 			if err != nil {
 				return nil, fmt.Errorf("error getting tracking method: %w", err)
 			}
@@ -839,8 +850,12 @@ func (ctrl *ApplicationController) hideSecretData(ctx context.Context, destClust
 			if err != nil {
 				return nil, fmt.Errorf("error getting cluster cache: %w", err)
 			}
+			ignoreNormalizerJQTimeout, err := ctrl.configProvider.IgnoreNormalizerJQTimeout(ctx)
+			if err != nil {
+				return nil, fmt.Errorf("failed to resolve ignore normalizer JQ timeout: %w", err)
+			}
 			diffConfig, err := argodiff.NewDiffConfigBuilder().
-				WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles, ctrl.ignoreNormalizerOpts).
+				WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles, normalizers.IgnoreNormalizerOpts{JQExecutionTimeout: ignoreNormalizerJQTimeout}).
 				WithTracking(appLabelKey, trackingMethod).
 				WithNoCache().
 				WithLogger(logutils.NewLogrusLogger(logutils.NewWithCurrentConfig())).
@@ -909,7 +924,11 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 	defer ctrl.hydrationQueue.ShutDown()
 
 	ctrl.RegisterClusterSecretUpdater(ctx)
-	ctrl.metricsServer.RegisterClustersInfoSource(ctx, ctrl.stateCache, ctrl.db, ctrl.metricsClusterLabels)
+	metricsClusterLabels, err := ctrl.configProvider.MetricsClusterLabels(ctx)
+	if err != nil {
+		log.WithError(err).Fatal("failed to resolve metrics cluster labels")
+	}
+	ctrl.metricsServer.RegisterClustersInfoSource(ctx, ctrl.stateCache, ctrl.db, metricsClusterLabels)
 
 	if ctrl.dynamicClusterDistributionEnabled {
 		// only start deployment informer if dynamic distribution is enabled
@@ -1541,12 +1560,13 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		}
 	}()
 
+	syncTimeout, syncTimeoutErr := ctrl.configProvider.SyncTimeout(ctx)
 	requeueAfter := appOperationMaxRequeueInterval
 	defer func() {
 		// Re-enqueue the app onto the operation queue to keep polling the in-progress sync.
 		// Cap the delay by the remaining sync timeout so a timeout is enforced promptly.
-		if ctrl.syncTimeout > 0 && state != nil && state.Phase != synccommon.OperationTerminating {
-			if remaining := time.Until(state.StartedAt.Add(ctrl.syncTimeout)); remaining < requeueAfter {
+		if syncTimeoutErr == nil && syncTimeout > 0 && state != nil && state.Phase != synccommon.OperationTerminating {
+			if remaining := time.Until(state.StartedAt.Add(syncTimeout)); remaining < requeueAfter {
 				requeueAfter = remaining
 			}
 		}
@@ -1559,12 +1579,12 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		switch {
 		case state.Phase == synccommon.OperationTerminating:
 			logCtx.Infof("Resuming in-progress operation. phase: %s, message: %s", state.Phase, state.Message)
-		case ctrl.syncTimeout != time.Duration(0) && time.Now().After(state.StartedAt.Add(ctrl.syncTimeout)):
+		case syncTimeoutErr == nil && syncTimeout != time.Duration(0) && time.Now().After(state.StartedAt.Add(syncTimeout)):
 			state.Phase = synccommon.OperationTerminating
 			state.Message = "operation is terminating due to timeout"
 			terminatingCause = "controller sync timeout"
 			ctrl.setOperationState(ctx, app, state)
-			logCtx.Infof("Terminating in-progress operation due to timeout. Started at: %v, timeout: %v", state.StartedAt, ctrl.syncTimeout)
+			logCtx.Infof("Terminating in-progress operation due to timeout. Started at: %v, timeout: %v", state.StartedAt, syncTimeout)
 		case state.Phase == synccommon.OperationRunning && state.FinishedAt != nil:
 			// Failed operation with retry strategy might be in-progress and has completion time
 			retryAt, err := app.Status.OperationState.Operation.Retry.NextRetryAt(state.FinishedAt.Time, state.RetryCount)
@@ -1607,6 +1627,13 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		logCtx.Infof("Initialized new operation: %v", *app.Operation)
 	}
 	ts.AddCheckpoint("initial_operation_stage_ms")
+
+	if syncTimeoutErr != nil {
+		state.Phase = synccommon.OperationError
+		state.Message = fmt.Sprintf("failed to resolve SyncTimeout: %v", syncTimeoutErr)
+		ctrl.setOperationState(ctx, app, state)
+		return
+	}
 
 	terminating := state.Phase == synccommon.OperationTerminating
 
@@ -1820,7 +1847,17 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		return processNext
 	}
 	origApp = origApp.DeepCopy()
-	needRefresh, refreshType, comparisonLevel := ctrl.needRefreshAppStatus(origApp, ctrl.statusRefreshTimeout, ctrl.statusHardRefreshTimeout)
+	refreshTimeout, err := ctrl.configProvider.ReconciliationTimeout(context.Background())
+	if err != nil {
+		log.WithField("appkey", appKey).WithError(err).Error("Failed to resolve reconciliation timeout")
+		return processNext
+	}
+	hardRefreshTimeout, err := ctrl.configProvider.HardReconciliationTimeout(context.Background())
+	if err != nil {
+		log.WithField("appkey", appKey).WithError(err).Error("Failed to resolve hard reconciliation timeout")
+		return processNext
+	}
+	needRefresh, refreshType, comparisonLevel := ctrl.needRefreshAppStatus(origApp, refreshTimeout, hardRefreshTimeout)
 
 	if !needRefresh {
 		return processNext
@@ -2438,8 +2475,16 @@ func (ctrl *ApplicationController) autoSync(ctx context.Context, app *appv1.Appl
 			op.Sync.SelfHealAttemptsCount = app.Status.OperationState.Operation.Sync.SelfHealAttemptsCount
 		}
 
-		if remainingTime := ctrl.selfHealRemainingBackoff(app, int(op.Sync.SelfHealAttemptsCount)); remainingTime > 0 {
-			logCtx.Infof("Skipping auto-sync: already attempted sync to %s with timeout %v (retrying in %v)", lastAttemptedRevisions, ctrl.selfHealTimeout, remainingTime)
+		remainingTime, err := ctrl.selfHealRemainingBackoff(app, int(op.Sync.SelfHealAttemptsCount))
+		if err != nil {
+			return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: err.Error()}, 0
+		}
+		if remainingTime > 0 {
+			selfHealTimeout, err := ctrl.configProvider.SelfHealTimeout(ctx)
+			if err != nil {
+				return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: err.Error()}, 0
+			}
+			logCtx.Infof("Skipping auto-sync: already attempted sync to %s with timeout %v (retrying in %v)", lastAttemptedRevisions, selfHealTimeout, remainingTime)
 			ctrl.requestAppRefresh(app.QualifiedName(), CompareWithLatest.Pointer(), &remainingTime)
 			return nil, 0
 		}
@@ -2537,9 +2582,9 @@ func alreadyAttemptedSync(app *appv1.Application, desiredRevisions []string, new
 	return reflect.DeepEqual(app.Spec.GetSource(), app.Status.OperationState.SyncResult.Source), []string{app.Status.OperationState.SyncResult.Revision}, app.Status.OperationState.Phase
 }
 
-func (ctrl *ApplicationController) selfHealRemainingBackoff(app *appv1.Application, selfHealAttemptsCount int) time.Duration {
+func (ctrl *ApplicationController) selfHealRemainingBackoff(app *appv1.Application, selfHealAttemptsCount int) (time.Duration, error) {
 	if app.Status.OperationState == nil {
-		return time.Duration(0)
+		return time.Duration(0), nil
 	}
 
 	var timeSinceOperation *time.Duration
@@ -2547,15 +2592,23 @@ func (ctrl *ApplicationController) selfHealRemainingBackoff(app *appv1.Applicati
 		timeSinceOperation = new(time.Since(app.Status.OperationState.FinishedAt.Time))
 	}
 
+	selfHealTimeout, err := ctrl.configProvider.SelfHealTimeout(context.Background())
+	if err != nil {
+		return 0, fmt.Errorf("failed to resolve self heal timeout: %w", err)
+	}
+	selfHealRetry, err := ctrl.configProvider.SelfHealRetry(context.Background())
+	if err != nil {
+		return 0, fmt.Errorf("failed to resolve SelfHealRetry: %w", err)
+	}
 	var retryAfter time.Duration
-	if ctrl.selfHealBackoff == nil {
+	if selfHealRetry.Backoff == nil {
 		if timeSinceOperation == nil {
-			retryAfter = ctrl.selfHealTimeout
+			retryAfter = selfHealTimeout
 		} else {
-			retryAfter = ctrl.selfHealTimeout - *timeSinceOperation
+			retryAfter = selfHealTimeout - *timeSinceOperation
 		}
 	} else {
-		backOff := *ctrl.selfHealBackoff
+		backOff := *selfHealRetry.Backoff
 		backOff.Steps = selfHealAttemptsCount
 		var delay time.Duration
 		steps := backOff.Steps
@@ -2568,7 +2621,7 @@ func (ctrl *ApplicationController) selfHealRemainingBackoff(app *appv1.Applicati
 			retryAfter = delay - *timeSinceOperation
 		}
 	}
-	return retryAfter
+	return retryAfter, nil
 }
 
 // isAppNamespaceAllowed returns whether the application is allowed in the
@@ -2610,16 +2663,23 @@ func (ctrl *ApplicationController) canProcessApp(obj any) bool {
 	return ctrl.clusterSharding.IsManagedCluster(destCluster)
 }
 
-func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.SharedIndexInformer, applisters.ApplicationLister) {
+func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.SharedIndexInformer, applisters.ApplicationLister, error) {
 	watchNamespace := ctrl.namespace
 	// If we have at least one additional namespace configured, we need to
 	// watch on them all.
 	if len(ctrl.applicationNamespaces) > 0 {
 		watchNamespace = ""
 	}
-	refreshTimeout := ctrl.statusRefreshTimeout
-	if ctrl.statusHardRefreshTimeout.Seconds() != 0 && (ctrl.statusHardRefreshTimeout < ctrl.statusRefreshTimeout) {
-		refreshTimeout = ctrl.statusHardRefreshTimeout
+	refreshTimeout, err := ctrl.configProvider.ReconciliationTimeout(context.Background())
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to resolve reconciliation timeout: %w", err)
+	}
+	hardRefreshTimeout, err := ctrl.configProvider.HardReconciliationTimeout(context.Background())
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to resolve hard reconciliation timeout: %w", err)
+	}
+	if hardRefreshTimeout.Seconds() != 0 && (hardRefreshTimeout < refreshTimeout) {
+		refreshTimeout = hardRefreshTimeout
 	}
 	informer := cache.NewSharedIndexInformer(
 		&cache.ListWatch{
@@ -2673,11 +2733,11 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 		},
 	)
 	lister := applisters.NewApplicationLister(informer.GetIndexer())
-	_, err := informer.AddEventHandler(ctrl.applicationEventHandlerFuncs())
+	_, err = informer.AddEventHandler(ctrl.applicationEventHandlerFuncs())
 	if err != nil {
-		return nil, nil
+		return nil, nil, err
 	}
-	return informer, lister
+	return informer, lister, nil
 }
 
 // appProjectEventHandlerFuncs returns the informer event handlers for AppProject
@@ -2759,10 +2819,17 @@ func (ctrl *ApplicationController) applicationEventHandlerFuncs() cache.Resource
 					log.WithFields(applog.GetAppLogFields(newApp)).Info("Enabled automated sync")
 					compareWith = CompareWithLatest.Pointer()
 				}
-				if ctrl.statusRefreshJitter != 0 && oldApp.ResourceVersion == newApp.ResourceVersion {
+				if oldApp.ResourceVersion == newApp.ResourceVersion {
 					// Handler is refreshing the apps, add a random jitter to spread the load and avoid spikes
-					jitter := time.Duration(float64(ctrl.statusRefreshJitter) * rand.Float64())
-					delay = &jitter
+					statusRefreshJitter, err := ctrl.configProvider.ReconciliationJitter(context.Background())
+					if err != nil {
+						log.WithFields(applog.GetAppLogFields(newApp)).WithError(err).Error("Failed to resolve reconciliation jitter")
+						return
+					}
+					if statusRefreshJitter != 0 {
+						jitter := time.Duration(float64(statusRefreshJitter) * rand.Float64())
+						delay = &jitter
+					}
 				}
 			}
 			ctrl.requestAppRefresh(newApp.QualifiedName(), compareWith, delay)
@@ -2885,12 +2952,12 @@ func (ctrl *ApplicationController) getAppList(options metav1.ListOptions) (*appv
 }
 
 func (ctrl *ApplicationController) logAppEvent(ctx context.Context, a *appv1.Application, eventInfo argo.EventInfo, message string) {
-	eventLabels := argo.GetAppEventLabels(ctx, a, applisters.NewAppProjectLister(ctrl.projInformer.GetIndexer()), ctrl.namespace, ctrl.settingsMgr, ctrl.db)
+	eventLabels := argo.GetAppEventLabels(ctx, a, applisters.NewAppProjectLister(ctrl.projInformer.GetIndexer()), ctrl.namespace, ctrl.configProvider, ctrl.db)
 	ctrl.auditLogger.LogAppEvent(a, eventInfo, message, "", eventLabels)
 }
 
 func (ctrl *ApplicationController) applyImpersonationConfig(config *rest.Config, proj *appv1.AppProject, app *appv1.Application, destCluster *appv1.Cluster) error {
-	impersonationEnabled, err := ctrl.settingsMgr.IsImpersonationEnabled()
+	impersonationEnabled, err := ctrl.configProvider.IsImpersonationEnabled(context.Background())
 	if err != nil {
 		return fmt.Errorf("error getting impersonation setting: %w", err)
 	}

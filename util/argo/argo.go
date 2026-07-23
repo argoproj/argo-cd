@@ -1,3 +1,4 @@
+//nolint:staticcheck // SA1019: ValidateRepo still on SettingsManager until server-layer configbus cutover
 package argo
 
 import (
@@ -27,6 +28,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/typed/application/v1alpha1"
 	applicationsv1 "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/glob"
@@ -738,13 +740,13 @@ func APIResourcesToStrings(resources []kube.APIResourceInfo, includeKinds bool) 
 }
 
 // GetAppProjectWithScopedResources returns a project from an application with scoped resources
-func GetAppProjectWithScopedResources(ctx context.Context, name string, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB) (*argoappv1.AppProject, argoappv1.Repositories, []*argoappv1.Cluster, error) {
+func GetAppProjectWithScopedResources(ctx context.Context, name string, projLister applicationsv1.AppProjectLister, ns string, configProvider configbus.Provider, db db.ArgoDB) (*argoappv1.AppProject, argoappv1.Repositories, []*argoappv1.Cluster, error) {
 	projOrig, err := projLister.AppProjects(ns).Get(name)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("error getting app project %q: %w", name, err)
 	}
 
-	project, err := GetAppVirtualProject(projOrig, projLister, settingsManager)
+	project, err := GetAppVirtualProject(ctx, projOrig, projLister, configProvider)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("error getting app virtual project: %w", err)
 	}
@@ -761,7 +763,7 @@ func GetAppProjectWithScopedResources(ctx context.Context, name string, projList
 }
 
 // GetAppProjectByName returns a project from an application based on name
-func GetAppProjectByName(ctx context.Context, name string, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB) (*argoappv1.AppProject, error) {
+func GetAppProjectByName(ctx context.Context, name string, projLister applicationsv1.AppProjectLister, ns string, configProvider configbus.Provider, db db.ArgoDB) (*argoappv1.AppProject, error) {
 	projOrig, err := projLister.AppProjects(ns).Get(name)
 	if err != nil {
 		return nil, fmt.Errorf("error getting app project %q: %w", name, err)
@@ -787,13 +789,13 @@ func GetAppProjectByName(ctx context.Context, name string, projLister applicatio
 			}
 		}
 	}
-	return GetAppVirtualProject(project, projLister, settingsManager)
+	return GetAppVirtualProject(ctx, project, projLister, configProvider)
 }
 
 // GetAppProject returns a project from an application. It will also ensure
 // that the application is allowed to use the project.
-func GetAppProject(ctx context.Context, app *argoappv1.Application, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB) (*argoappv1.AppProject, error) {
-	proj, err := GetAppProjectByName(ctx, app.Spec.GetProject(), projLister, ns, settingsManager, db)
+func GetAppProject(ctx context.Context, app *argoappv1.Application, projLister applicationsv1.AppProjectLister, ns string, configProvider configbus.Provider, db db.ArgoDB) (*argoappv1.AppProject, error) {
+	proj, err := GetAppProjectByName(ctx, app.Spec.GetProject(), projLister, ns, configProvider, db)
 	if err != nil {
 		return nil, err
 	}
@@ -1130,12 +1132,12 @@ func GetDestinationCluster(ctx context.Context, destination argoappv1.Applicatio
 	return cluster, nil
 }
 
-func GetGlobalProjects(proj *argoappv1.AppProject, projLister applicationsv1.AppProjectLister, settingsManager *settings.SettingsManager) []*argoappv1.AppProject {
-	gps, err := settingsManager.GetGlobalProjectsSettings()
+func GetGlobalProjects(ctx context.Context, proj *argoappv1.AppProject, projLister applicationsv1.AppProjectLister, configProvider configbus.Provider) []*argoappv1.AppProject {
+	gps, err := configProvider.GlobalProjectsSettings(ctx)
 	globalProjects := []*argoappv1.AppProject{}
 
 	if err != nil {
-		log.Warnf("Failed to get global project settings: %v", err)
+		log.Warnf("Failed to resolve GlobalProjectsSettings: %v", err)
 		return globalProjects
 	}
 
@@ -1174,9 +1176,9 @@ func GetGlobalProjects(proj *argoappv1.AppProject, projLister applicationsv1.App
 	return globalProjects
 }
 
-func GetAppVirtualProject(proj *argoappv1.AppProject, projLister applicationsv1.AppProjectLister, settingsManager *settings.SettingsManager) (*argoappv1.AppProject, error) {
+func GetAppVirtualProject(ctx context.Context, proj *argoappv1.AppProject, projLister applicationsv1.AppProjectLister, configProvider configbus.Provider) (*argoappv1.AppProject, error) {
 	virtualProj := proj.DeepCopy()
-	globalProjects := GetGlobalProjects(proj, projLister, settingsManager)
+	globalProjects := GetGlobalProjects(ctx, proj, projLister, configProvider)
 
 	for _, gp := range globalProjects {
 		virtualProj = mergeVirtualProject(virtualProj, gp)
@@ -1314,7 +1316,7 @@ func IsValidContainerName(name string) bool {
 // If matched, the corresponding labels are returned to be added to the generated event. In case of a conflict
 // between labels on the Application and AppProject, the Application label values are prioritized and added to the event.
 // Furthermore, labels specified in `resource.excludeEventLabelKeys` in argocd-cm are removed from the event labels, if they were included.
-func GetAppEventLabels(ctx context.Context, app *argoappv1.Application, projLister applicationsv1.AppProjectLister, ns string, settingsManager *settings.SettingsManager, db db.ArgoDB) map[string]string {
+func GetAppEventLabels(ctx context.Context, app *argoappv1.Application, projLister applicationsv1.AppProjectLister, ns string, configProvider configbus.Provider, db db.ArgoDB) map[string]string {
 	eventLabels := make(map[string]string)
 
 	// Get all app & app-project labels
@@ -1322,7 +1324,7 @@ func GetAppEventLabels(ctx context.Context, app *argoappv1.Application, projList
 	if labels == nil {
 		labels = make(map[string]string)
 	}
-	proj, err := GetAppProject(ctx, app, projLister, ns, settingsManager, db)
+	proj, err := GetAppProject(ctx, app, projLister, ns, configProvider, db)
 	if err == nil {
 		for k, v := range proj.Labels {
 			_, found := labels[k]
@@ -1335,20 +1337,28 @@ func GetAppEventLabels(ctx context.Context, app *argoappv1.Application, projList
 	}
 
 	// Filter out event labels to include
-	inKeys := settingsManager.GetIncludeEventLabelKeys()
-	for k, v := range labels {
-		found := glob.MatchStringInList(inKeys, k, glob.GLOB)
-		if found {
-			eventLabels[k] = v
+	inKeys, err := configProvider.IncludeEventLabelKeys(ctx)
+	if err != nil {
+		log.Warnf("Failed to resolve IncludeEventLabelKeys: %v", err)
+	} else {
+		for k, v := range labels {
+			found := glob.MatchStringInList(inKeys, k, glob.GLOB)
+			if found {
+				eventLabels[k] = v
+			}
 		}
 	}
 
 	// Remove excluded event labels
-	exKeys := settingsManager.GetExcludeEventLabelKeys()
-	for k := range eventLabels {
-		found := glob.MatchStringInList(exKeys, k, glob.GLOB)
-		if found {
-			delete(eventLabels, k)
+	exKeys, err := configProvider.ExcludeEventLabelKeys(ctx)
+	if err != nil {
+		log.Warnf("Failed to resolve ExcludeEventLabelKeys: %v", err)
+	} else {
+		for k := range eventLabels {
+			found := glob.MatchStringInList(exKeys, k, glob.GLOB)
+			if found {
+				delete(eventLabels, k)
+			}
 		}
 	}
 

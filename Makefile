@@ -267,7 +267,6 @@ notification-docs:
 	go run ./hack/gen-docs
 	go run ./hack/gen-catalog docs
 
-
 .PHONY: clientgen
 clientgen:
 	export GO111MODULE=off
@@ -593,7 +592,6 @@ start-local: mod-vendor-local dep-ui-local cli-local
 .PHONY: run
 run:
 	bash ./hack/goreman-start.sh
-
 
 # Runs pre-commit validation with the virtualized toolchain
 .PHONY: pre-commit
