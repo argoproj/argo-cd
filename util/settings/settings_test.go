@@ -2982,14 +2982,16 @@ func Test_getDexAuthConnectorID(t *testing.T) {
 		{
 			name: "dexConfig invalid YAML",
 			cmData: map[string]string{
-				settingDexConfigKey: "invalid: [",
+				settingDexConfigKey:          "invalid: [",
+				settingDexAuthConnectorIDKey: "github",
 			},
 			expectedConnector: "",
 		},
 		{
 			name: "connectors not a slice",
 			cmData: map[string]string{
-				settingDexConfigKey: "connectors: foo",
+				settingDexConfigKey:          "connectors: foo",
+				settingDexAuthConnectorIDKey: "github",
 			},
 			expectedConnector: "",
 		},
