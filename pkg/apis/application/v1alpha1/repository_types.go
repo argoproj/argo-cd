@@ -1,9 +1,13 @@
 package v1alpha1
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"strings"
+	"time"
+
+	"golang.org/x/oauth2/google"
 
 	"github.com/argoproj/argo-cd/v3/util/oci"
 
@@ -328,9 +332,35 @@ func (repo *Repository) GetHelmCreds() helm.Creds {
 
 // GetOCICreds returns the credentials from a repository configuration used to authenticate an OCI repository
 func (repo *Repository) GetOCICreds() oci.Creds {
+	username := repo.Username
+	password := repo.Password
+
+	if repo.GCPServiceAccountKey != "" {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		creds, err := google.CredentialsFromJSONWithType(
+			ctx,
+			[]byte(repo.GCPServiceAccountKey),
+			google.ServiceAccount,
+			"https://www.googleapis.com/auth/cloud-platform",
+		)
+		if err != nil {
+			log.Warnf("Failed to parse GCP service account key for repository %s: %v", repo.Repo, err)
+		} else if creds != nil {
+			token, err := creds.TokenSource.Token()
+			if err != nil {
+				log.Warnf("Failed to fetch GCP OAuth access token for repository %s: %v", repo.Repo, err)
+			} else if token != nil && token.AccessToken != "" {
+				username = "oauth2accesstoken"
+				password = token.AccessToken
+			}
+		}
+	}
+
 	return oci.Creds{
-		Username:           repo.Username,
-		Password:           repo.Password,
+		Username:           username,
+		Password:           password,
 		CAPath:             getCAPath(repo.Repo),
 		CertData:           []byte(repo.TLSClientCertData),
 		KeyData:            []byte(repo.TLSClientCertKey),
