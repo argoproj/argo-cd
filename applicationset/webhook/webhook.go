@@ -162,6 +162,10 @@ func (h *WebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Webhook processing failed: "+html.EscapeString(err.Error()), status)
 		return
 	}
+	if payload == nil {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
 
 	select {
 	case h.queue <- payload:

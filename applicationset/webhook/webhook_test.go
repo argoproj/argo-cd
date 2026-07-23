@@ -31,10 +31,40 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	argosettings "github.com/argoproj/argo-cd/v3/util/settings"
+	webhookutil "github.com/argoproj/argo-cd/v3/util/webhook"
 )
 
 type generatorMock struct {
 	mock.Mock
+}
+
+type claimedEmptyParser struct{}
+
+func (claimedEmptyParser) CanHandle(_ *http.Request) bool {
+	return true
+}
+
+func (claimedEmptyParser) Parse(_ *http.Request, _ webhookutil.WebhookConsumer) (any, error) {
+	return nil, nil
+}
+
+func (claimedEmptyParser) Name() webhookutil.WebhookProvider {
+	return webhookutil.WebhookProviderGitHub
+}
+
+func TestWebhookHandlerDoesNotQueueClaimedEmptyPayload(t *testing.T) {
+	queue := make(chan any, 1)
+	handler := &WebhookHandler{
+		parsers: []webhookutil.ProviderParser{claimedEmptyParser{}},
+		queue:   queue,
+	}
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", http.NoBody)
+	w := httptest.NewRecorder()
+
+	handler.Handler(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Empty(t, queue)
 }
 
 func TestValidateProviderParserInitialization(t *testing.T) {
