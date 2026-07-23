@@ -56,11 +56,14 @@ func newAzureCommand() *cobra.Command {
 	command := &cobra.Command{
 		Use: "azure",
 		Run: func(c *cobra.Command, _ []string) {
+			verbose, _ := c.Flags().GetBool("verbose")
+			ctx := contextWithVerbose(c.Context(), verbose)
 			o, err := buildAzureTokenOptions()
 			errors.CheckError(err)
+			verboseLog(ctx, "argocd-k8s-auth azure: login-method=%q server-id=%q environment=%q", o.LoginMethod, o.ServerID, o.Environment)
 			tp, err := token.GetTokenProvider(o)
 			errors.CheckError(err)
-			tok, err := tp.GetAccessToken(c.Context())
+			tok, err := tp.GetAccessToken(ctx)
 			errors.CheckError(err)
 			_, _ = fmt.Fprint(os.Stdout, formatJSON(tok.Token, tok.ExpiresOn))
 		},

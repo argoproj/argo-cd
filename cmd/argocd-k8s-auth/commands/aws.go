@@ -44,7 +44,9 @@ func newAWSCommand() *cobra.Command {
 	command := &cobra.Command{
 		Use: "aws",
 		Run: func(c *cobra.Command, _ []string) {
-			ctx := c.Context()
+			verbose, _ := c.Flags().GetBool("verbose")
+			ctx := contextWithVerbose(c.Context(), verbose)
+			verboseLog(ctx, "argocd-k8s-auth aws: cluster-name=%q role-arn=%q profile=%q", clusterName, roleARN, profile)
 
 			presignedURLString, err := getSignedRequestWithRetry(ctx, time.Minute, 5*time.Second, clusterName, roleARN, profile, getSignedRequest)
 			errors.CheckError(err)
@@ -74,6 +76,7 @@ func getSignedRequestWithRetry(ctx context.Context, timeout, interval time.Durat
 		case <-ctx.Done():
 			return "", fmt.Errorf("timeout while trying to get signed aws request: last error: %w", err)
 		case <-time.After(interval):
+			verboseLog(ctx, "argocd-k8s-auth aws: retrying after error: %v", err)
 		}
 	}
 }
@@ -91,6 +94,7 @@ func loadAWSConfig(ctx context.Context, profile string) (aws.Config, error) {
 	if profile != "" {
 		opts = append(opts, config.WithSharedConfigProfile(profile))
 	}
+	verboseLog(ctx, "argocd-k8s-auth aws: loading default AWS configuration")
 	cfg, err := config.LoadDefaultConfig(ctx, opts...)
 	if err != nil {
 		return aws.Config{}, fmt.Errorf("error loading AWS configuration: %w", err)
@@ -107,6 +111,7 @@ func getSignedRequestWithConfig(ctx context.Context, clusterName, roleARN string
 	// See kubernetes-sigs/aws-iam-authenticator pkg/token/token.go GetWithSTS().
 	client := sts.NewFromConfig(cfg)
 	if roleARN != "" {
+		verboseLog(ctx, "argocd-k8s-auth aws: assuming role %q", roleARN)
 		appCreds := stscreds.NewAssumeRoleProvider(client, roleARN)
 		cfg.Credentials = aws.NewCredentialsCache(appCreds)
 		client = sts.NewFromConfig(cfg)
