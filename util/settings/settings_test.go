@@ -2595,7 +2595,6 @@ func TestGetHydratorReadmeTemplate(t *testing.T) {
 		template, err := settingsManager.GetHydratorReadmeTemplate()
 		require.Error(t, err)
 		assert.Equal(t, DefaultManifestHydrationReadmeTemplate, template)
-
 	})
 }
 
