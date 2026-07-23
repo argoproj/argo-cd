@@ -29,8 +29,8 @@ importers:
         specifier: ^6.1.6
         version: 6.2.6(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       argo-ui:
-        specifier: git+https://github.com/argoproj/argo-ui.git#ad616de862f60d5348fe41ccaa72d7b74f9c3a13
-        version: https://codeload.github.com/argoproj/argo-ui/tar.gz/ad616de862f60d5348fe41ccaa72d7b74f9c3a13(@types/react@19.2.14)(jquery@4.0.0)(react-dom@19.2.6(react@19.2.6))(react-router-dom@5.3.4(react@19.2.6))(react@19.2.6)(what-input@5.2.12)
+        specifier: git+https://github.com/argoproj/argo-ui.git#ddb31739b573c8be19f3d0085667be695b425c1b
+        version: https://codeload.github.com/argoproj/argo-ui/tar.gz/ddb31739b573c8be19f3d0085667be695b425c1b(@types/react@19.2.14)(jquery@4.0.0)(react-dom@19.2.6(react@19.2.6))(react-router-dom@5.3.4(react@19.2.6))(react@19.2.6)(what-input@5.2.12)
       buffer:
         specifier: ^6.0.3
         version: 6.0.3
@@ -327,8 +327,8 @@ importers:
         specifier: ^0.5.1
         version: 0.5.1
       react-toastify:
-        specifier: 9.0.3
-        version: 9.0.3(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+        specifier: 11.1.0
+        version: 11.1.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       sass:
         specifier: ^1.100.0
         version: 1.100.0
@@ -2431,8 +2431,8 @@ packages:
   arg@4.1.3:
     resolution: {integrity: sha512-58S9QDqG0Xx27YwPSt9fJxivjYl432YCwfDMfZ+71RAqUrZef7LrKQZ3LHLOwCS4FLNBplP533Zx895SeOCHvA==}
 
-  argo-ui@https://codeload.github.com/argoproj/argo-ui/tar.gz/ad616de862f60d5348fe41ccaa72d7b74f9c3a13:
-    resolution: {tarball: https://codeload.github.com/argoproj/argo-ui/tar.gz/ad616de862f60d5348fe41ccaa72d7b74f9c3a13}
+  argo-ui@https://codeload.github.com/argoproj/argo-ui/tar.gz/ddb31739b573c8be19f3d0085667be695b425c1b:
+    resolution: {tarball: https://codeload.github.com/argoproj/argo-ui/tar.gz/ddb31739b573c8be19f3d0085667be695b425c1b}
     version: 1.0.0
     peerDependencies:
       '@types/react': ^19.0.0
@@ -4956,11 +4956,11 @@ packages:
     peerDependencies:
       react: ^18.0.0 || ^19.0.0
 
-  react-toastify@9.0.3:
-    resolution: {integrity: sha512-0QZJk0SqYBxouRBGCFU3ymvjlwimRRhVH7SzqGRiVrQ001KSoUNbGKx9Yq42aoPv18n45yJzEFG82zqv3HnASg==}
+  react-toastify@11.1.0:
+    resolution: {integrity: sha512-e9h23x3phN0wbFeB6yovmWp7lobzV4CaCH0LO8nVP6H7Y+3GbcLpIzMm9dJhcp1RXbpyfvjgpfXqO80QAmn7sg==}
     peerDependencies:
-      react: '>=16'
-      react-dom: '>=16'
+      react: ^18 || ^19
+      react-dom: ^18 || ^19
 
   react-virtualized@9.22.6:
     resolution: {integrity: sha512-U5j7KuUQt3AaMatlMJ0UJddqSiX+Km0YJxSqbAzIiGw5EmNz0khMyqP2hzgu4+QUtm+QPIrxzUX4raJxmVJnHg==}
@@ -8488,7 +8488,7 @@ snapshots:
 
   arg@4.1.3: {}
 
-  argo-ui@https://codeload.github.com/argoproj/argo-ui/tar.gz/ad616de862f60d5348fe41ccaa72d7b74f9c3a13(@types/react@19.2.14)(jquery@4.0.0)(react-dom@19.2.6(react@19.2.6))(react-router-dom@5.3.4(react@19.2.6))(react@19.2.6)(what-input@5.2.12):
+  argo-ui@https://codeload.github.com/argoproj/argo-ui/tar.gz/ddb31739b573c8be19f3d0085667be695b425c1b(@types/react@19.2.14)(jquery@4.0.0)(react-dom@19.2.6(react@19.2.6))(react-router-dom@5.3.4(react@19.2.6))(react@19.2.6)(what-input@5.2.12):
     dependencies:
       '@fortawesome/fontawesome-free': 6.7.2
       '@tippy.js/react': 3.1.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
@@ -8503,7 +8503,7 @@ snapshots:
       react: 19.2.6
       react-dom: 19.2.6(react@19.2.6)
       react-router-dom: 5.3.4(react@19.2.6)
-      react-toastify: 9.0.3(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
+      react-toastify: 11.1.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       rxjs: 6.6.7
       typescript: 4.9.5
       uuid: 9.0.1
@@ -11501,9 +11501,9 @@ snapshots:
       prop-types: 15.8.1
       react: 19.2.6
 
-  react-toastify@9.0.3(react-dom@19.2.6(react@19.2.6))(react@19.2.6):
+  react-toastify@11.1.0(react-dom@19.2.6(react@19.2.6))(react@19.2.6):
     dependencies:
-      clsx: 1.2.1
+      clsx: 2.1.1
       react: 19.2.6
       react-dom: 19.2.6(react@19.2.6)
 
