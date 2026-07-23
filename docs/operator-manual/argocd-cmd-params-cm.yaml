@@ -304,10 +304,10 @@ data:
   reposerver.enable.git.submodule: "true"
   # Number of concurrent git ls-remote requests. Any value less than 1 means no limit.
   reposerver.git.lsremote.parallelism.limit: "0"
-  # Git requests timeout.
-  reposerver.git.request.timeout: "15s"
   # Enable native Git protocol v2 ls-remote with server-side branch and tag narrowing.
   reposerver.git.lsremote.optimized.enabled: "false"
+  # Git requests timeout.
+  reposerver.git.request.timeout: "15s"
   # Enable builtin git configuration options that are required for correct argocd-repo-server operation (default "true")
   reposerver.enable.builtin.git.config: "true"
   # Include hidden directories from Git
