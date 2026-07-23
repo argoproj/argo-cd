@@ -22,14 +22,9 @@ For implementation details (mirror fallback, digest checks, sync errors), see [W
 > [!NOTE]
 > **OCI Helm charts**
 >
-> OCI Helm registries (`enableOCI: true` or host-style `repoURL` without `https://`) and Helm `.prov` layers on OCI artifacts are **not** verified by `sourceIntegrity.helm` in the moment.
+> OCI Helm registries (`enableOCI: true` or host-style `repoURL` without `https://`) and Helm `.prov` layers on OCI artifacts are currently **not** verified by `sourceIntegrity.helm`.
 
 For GnuPG verification of Git commit signatures, see [Git GnuPG verification](./source-integrity-git-gpg.md).
-
-> [!NOTE]
-> **Compatibility**
->
-> Helm provenance policies are configured under `AppProject.spec.sourceIntegrity.helm`.
 
 > [!WARNING]
 > **Policies silently bypass if GnuPG is disabled**
@@ -85,14 +80,14 @@ kubectl exec -it <argocd-repo-server-pod> -- \
 
 ## What Argo CD verifies
 
-Once `.prov` bytes and chart `.tgz` bytes are loaded, Argo CD runs these steps (check name `HELM/PROVENANCE`):
+Once `.prov` and chart archive are loaded, Argo CD runs these steps (check name `HELM/PROVENANCE`):
 
 | Step | What is checked |
 |------|-----------------|
 | 1. Provenance present | `.prov` content is non-empty |
 | 2. PGP signature | `gpg --verify` on the cleartext message; signer key ID must be in `provenance.keys` and in the repo-server keyring |
 | 3. Signed body parse | Extract the signed YAML plaintext from the PGP cleartext envelope |
-| 4. Files digest | Find `files.<chart-filename>: sha256:...` in the signed body and compare to SHA256 of the chart `.tgz` |
+| 4. Files digest | Find `files.<chart-filename>: sha256:...` in the signed body and compare to SHA256 of the chart archive |
 
 If any step fails, sync is blocked with a `ResourceComparison` error.
 
@@ -151,7 +146,7 @@ spec:
 
 When a matching policy includes `provenance`, Argo CD requires verification to succeed before sync: `.prov` must be present, the signature must verify, the signer must be listed in `keys`, and the chart digest must match.
 
-When `keys` is empty, verification still runs but no signer is trusted. Sync fails if `.prov` is missing, or with `signed with unallowed key` if the chart is signed. Configure at least one trusted key ID to allow sync.
+Sync fails if `.prov` is missing, or with `signed with unallowed key` if the chart is signed, but the signature key is not present in `.provenance.keys`.
 
 To skip Helm provenance checks for a project, do not configure `sourceIntegrity.helm` (or use a project without `sourceIntegrity`). Each Helm policy requires a `provenance` block in the CRD.
 
