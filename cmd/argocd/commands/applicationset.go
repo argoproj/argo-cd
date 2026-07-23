@@ -22,6 +22,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/applicationset"
 	arogappsetv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/grpc"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
@@ -86,7 +87,8 @@ func NewApplicationSetGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	argocd appset get --appset-namespace=APPSET_NAMESPACE APPSETNAME
 
 		`),
-		Run: func(c *cobra.Command, args []string) {
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
+			defer stop()
 			ctx := c.Context()
 
 			if len(args) == 0 {
@@ -121,7 +123,7 @@ func NewApplicationSetGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			default:
 				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 			}
-		},
+		}),
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide")
 	command.Flags().BoolVar(&showParams, "show-params", false, "Show ApplicationSet parameters and overrides")
@@ -149,7 +151,8 @@ func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cob
 	# Dry-run AppSet creation to see what applications would be managed
 	argocd appset create --dry-run <filename or URL> -o json | jq -r '.status.resources[].name' 
 		`),
-		Run: func(c *cobra.Command, args []string) {
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
+			defer stop()
 			ctx := c.Context()
 
 			if len(args) == 0 {
@@ -234,7 +237,7 @@ func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cob
 					c.PrintErrf("ApplicationSet '%s' resources are up to date\n", created.Name)
 				}
 			}
-		},
+		}),
 	}
 	command.Flags().BoolVar(&upsert, "upsert", false, "Allows to override ApplicationSet with the same name even if supplied ApplicationSet spec is different from existing spec")
 	command.Flags().BoolVar(&dryRun, "dry-run", false, "Allows to evaluate the ApplicationSet template on the server to get a preview of the applications that would be created")
@@ -258,7 +261,8 @@ func NewApplicationSetGenerateCommand(clientOpts *argocdclient.ClientOptions) *c
 	# Generate apps of ApplicationSet rendered templates in a specific namespace
 	argocd appset generate --appset-namespace=APPSET_NAMESPACE <filename or URL> (<filename or URL>...)
 `),
-		Run: func(c *cobra.Command, args []string) {
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
+			defer stop()
 			ctx := c.Context()
 
 			if len(args) == 0 {
@@ -315,7 +319,7 @@ func NewApplicationSetGenerateCommand(clientOpts *argocdclient.ClientOptions) *c
 			default:
 				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 			}
-		},
+		}),
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide")
 	command.Flags().StringVarP(&appSetNamespace, "appset-namespace", "N", "", "Namespace used for generating Applications (ignored when provided YAML file has namespace set in metadata)")
@@ -337,7 +341,8 @@ func NewApplicationSetListCommand(clientOpts *argocdclient.ClientOptions) *cobra
 	# List all ApplicationSets
 	argocd appset list
 		`),
-		Run: func(c *cobra.Command, _ []string) {
+		Run: cli.WithSignalContext(func(c *cobra.Command, _ []string, stop context.CancelFunc) {
+			defer stop()
 			ctx := c.Context()
 
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationSetClientOrDieWithContext(ctx)
@@ -358,7 +363,7 @@ func NewApplicationSetListCommand(clientOpts *argocdclient.ClientOptions) *cobra
 			default:
 				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 			}
-		},
+		}),
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: wide|name|json|yaml")
 	command.Flags().StringVarP(&selector, "selector", "l", "", "List applicationsets by label")
@@ -388,7 +393,8 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 	# Delete ApplicationSet in a specific namespace using --appset-namespace flag
 	argocd appset delete --appset-namespace=APPSET_NAMESPACE APPSETNAME
 		`),
-		Run: func(c *cobra.Command, args []string) {
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
+			defer stop()
 			ctx := c.Context()
 
 			if len(args) == 0 {
@@ -448,7 +454,7 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 					fmt.Println("The command to delete '" + appSetQualifiedName + "' was cancelled.")
 				}
 			}
-		},
+		}),
 	}
 	command.Flags().BoolVarP(&noPrompt, "yes", "y", false, "Turn off prompting to confirm cascaded deletion of Application resources")
 	command.Flags().BoolVar(&wait, "wait", false, "Wait until deletion of the applicationset(s) completes")
