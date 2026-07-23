@@ -146,7 +146,7 @@ spec:
 
 When a matching policy includes `provenance`, Argo CD requires verification to succeed before sync: `.prov` must be present, the signature must verify, the signer must be listed in `keys`, and the chart digest must match.
 
-When `keys` is empty, verification still runs but no signer is trusted. Sync fails if `.prov` is missing, or with `signed with unallowed key` if the chart is signed. Configure at least one trusted key ID to allow sync.
+Sync fails if `.prov` is missing, or with `signed with unallowed key` if the chart is signed, but the signature key is not present in `.provenance.keys`.
 
 To skip Helm provenance checks for a project, do not configure `sourceIntegrity.helm` (or use a project without `sourceIntegrity`). Each Helm policy requires a `provenance` block in the CRD.
 
