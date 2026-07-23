@@ -1130,11 +1130,15 @@ func (c *clusterCache) recordSyncWarning(msg string) {
 	c.syncWarnings = append(c.syncWarnings, msg)
 }
 
-// handleNamespacedListError classifies a list error for a (GVK, namespace) pair using SSAR.
-// If the error is not a 403 Forbidden, it is returned as-is.
-// If it is Forbidden and SSAR confirms no access, errSkipNamespace is returned and a warning is recorded.
-// If it is Forbidden but SSAR confirms access, the original error is returned (genuine/transient 403).
+// handleNamespacedListError classifies a list error for a (GVK, namespace) pair.
+// NotFound → skip immediately (namespace is gone, no SSAR needed).
+// Forbidden → SSAR disambiguates: denied = skip with warning, allowed = propagate (genuine 403).
+// Anything else → propagate as-is.
 func (c *clusterCache) handleNamespacedListError(ctx context.Context, reviewInterface authType1.SelfSubjectAccessReviewInterface, api kube.APIResourceInfo, namespace string, listErr error) error {
+	if apierrors.IsNotFound(listErr) {
+		c.recordSyncWarning(fmt.Sprintf("namespace %q: %s not found (skipped): %v", namespace, api.GroupKind, listErr))
+		return errSkipNamespace
+	}
 	if !apierrors.IsForbidden(listErr) {
 		return listErr
 	}

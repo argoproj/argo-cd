@@ -3005,7 +3005,7 @@ func TestProcessApi_SkipSentinel_ContinuesToNextNamespace(t *testing.T) {
 	}
 }
 
-func TestHandleNamespacedListError_ClassifyForbiddenError(t *testing.T) {
+func TestHandleNamespacedListError(t *testing.T) {
 	api := kube.APIResourceInfo{
 		GroupVersionResource: schema.GroupVersionResource{
 			Group:    "apps",
@@ -3020,6 +3020,9 @@ func TestHandleNamespacedListError_ClassifyForbiddenError(t *testing.T) {
 		"",
 		fmt.Errorf("namespace %q not found", namespace),
 	)
+	notFoundErr := apierrors.NewNotFound(schema.GroupResource{Group: "apps", Resource: "deployments"}, "x")
+	unauthorizedErr := apierrors.NewUnauthorized("nope")
+	ssarBackendErr := fmt.Errorf("SSAR backend error")
 	genericErr := fmt.Errorf("generic connection failure")
 
 	tests := []struct {
@@ -3027,55 +3030,49 @@ func TestHandleNamespacedListError_ClassifyForbiddenError(t *testing.T) {
 		listErr        error
 		ssarAllowed    bool
 		ssarReactorErr error
-		wantSkip       bool
-		wantOrigErr    bool
-		wantWarning    bool
+		wantErr        error
+		wantWarning    string
 		wantSSARCall   bool
 	}{
 		{
-			name:         "forbidden + SSAR denied → errSkipNamespace + warning",
-			listErr:      forbiddenErr,
-			ssarAllowed:  false,
-			wantSkip:     true,
-			wantWarning:  true,
-			wantSSARCall: true,
+			name:                "forbidden + SSAR denied → skip namespace with warning",
+			listErr:             forbiddenErr,
+			ssarAllowed:         false,
+			wantErr:             errSkipNamespace,
+			wantWarning: "cannot list",
+			wantSSARCall:        true,
 		},
 		{
-			name:         "forbidden + SSAR allowed → propagate original error, no warning",
+			name:         "forbidden + SSAR allowed → propagate original (genuine 403)",
 			listErr:      forbiddenErr,
 			ssarAllowed:  true,
-			wantOrigErr:  true,
-			wantWarning:  false,
+			wantErr:      forbiddenErr,
 			wantSSARCall: true,
 		},
 		{
-			name:           "forbidden + SSAR call itself errors → propagate, no warning",
+			name:           "forbidden + SSAR backend failure → propagate wrapped SSAR error",
 			listErr:        forbiddenErr,
-			ssarReactorErr: fmt.Errorf("SSAR backend error"),
-			wantSkip:       false,
-			wantOrigErr:    false, // returns a wrapped SSAR error, not the original
-			wantWarning:    false,
+			ssarReactorErr: ssarBackendErr,
+			wantErr:        ssarBackendErr,
 			wantSSARCall:   true,
 		},
 		{
-			name:         "non-forbidden error → propagate unchanged, no SSAR call, no warning",
+			name:         "generic error → propagate unchanged",
 			listErr:      genericErr,
-			wantOrigErr:  true,
-			wantWarning:  false,
+			wantErr:      genericErr,
 			wantSSARCall: false,
 		},
 		{
-			name:         "NotFound error → propagate unchanged, no SSAR call, no warning",
-			listErr:      apierrors.NewNotFound(schema.GroupResource{Group: "apps", Resource: "deployments"}, "x"),
-			wantOrigErr:  true,
-			wantWarning:  false,
-			wantSSARCall: false,
+			name:                "NotFound → skip namespace with warning (no SSAR needed)",
+			listErr:             notFoundErr,
+			wantErr:             errSkipNamespace,
+			wantWarning: "not found",
+			wantSSARCall:        false,
 		},
 		{
-			name:         "Unauthorized error → propagate unchanged, no SSAR call, no warning",
-			listErr:      apierrors.NewUnauthorized("nope"),
-			wantOrigErr:  true,
-			wantWarning:  false,
+			name:         "Unauthorized → propagate unchanged",
+			listErr:      unauthorizedErr,
+			wantErr:      unauthorizedErr,
 			wantSSARCall: false,
 		},
 	}
@@ -3092,9 +3089,7 @@ func TestHandleNamespacedListError_ClassifyForbiddenError(t *testing.T) {
 				return true, sar, nil
 			})
 
-			c := &clusterCache{
-				syncWarnings: nil,
-			}
+			c := &clusterCache{}
 
 			got := c.handleNamespacedListError(
 				context.Background(),
@@ -3104,23 +3099,15 @@ func TestHandleNamespacedListError_ClassifyForbiddenError(t *testing.T) {
 				tc.listErr,
 			)
 
-			if tc.wantSkip {
-				assert.ErrorIs(t, got, errSkipNamespace, "expected errSkipNamespace sentinel")
-			}
-			if tc.wantOrigErr {
-				assert.ErrorIs(t, got, tc.listErr, "expected original listErr propagated")
-			}
-			if !tc.wantSkip && !tc.wantOrigErr {
-				// SSAR error case: must return a non-nil error that is neither skip nor the original
-				require.Error(t, got)
-				assert.False(t, errors.Is(got, errSkipNamespace), "must not return skip sentinel on SSAR error")
-			}
+			assert.ErrorIs(t, got, tc.wantErr)
 
-			if tc.wantWarning {
-				assert.True(t, len(c.syncWarnings) > 0, "expected a warning to be recorded")
-				assert.Contains(t, strings.Join(c.syncWarnings, " "), namespace, "warning must mention the namespace")
+			if tc.wantWarning != "" {
+				require.NotEmpty(t, c.syncWarnings, "expected a warning to be recorded")
+				warning := c.syncWarnings[0]
+				assert.Contains(t, warning, namespace)
+				assert.Contains(t, warning, tc.wantWarning)
 			} else {
-				assert.Empty(t, c.syncWarnings, "expected no warnings recorded")
+				assert.Empty(t, c.syncWarnings)
 			}
 
 			ssarCalled := false
@@ -3130,7 +3117,7 @@ func TestHandleNamespacedListError_ClassifyForbiddenError(t *testing.T) {
 					break
 				}
 			}
-			assert.Equal(t, tc.wantSSARCall, ssarCalled, "SSAR should be consulted iff the error is Forbidden")
+			assert.Equal(t, tc.wantSSARCall, ssarCalled)
 		})
 	}
 }
