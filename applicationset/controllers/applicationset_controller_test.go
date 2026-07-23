@@ -30,7 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 
 	"github.com/argoproj/argo-cd/v3/applicationset/generators"
 	"github.com/argoproj/argo-cd/v3/applicationset/generators/mocks"
@@ -2527,6 +2527,52 @@ func TestValidateGeneratedApplications(t *testing.T) {
 				},
 			},
 			validationErrors: map[string]error{},
+		},
+		{
+			name: "app with no name should return error",
+			apps: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "default",
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://url",
+							Path:           "/",
+							TargetRevision: "HEAD",
+						},
+						Destination: v1alpha1.ApplicationDestination{
+							Namespace: "namespace",
+							Name:      "my-cluster",
+						},
+					},
+				},
+			},
+			validationErrors: map[string]error{"": errors.New("ApplicationSet  contains an application with no name; a name must be set in the template's metadata.name or via a templatePatch (generateName is not supported)")},
+		},
+		{
+			name: "app with only generateName should return error (generateName is not supported)",
+			apps: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						GenerateName: "app-",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "default",
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://url",
+							Path:           "/",
+							TargetRevision: "HEAD",
+						},
+						Destination: v1alpha1.ApplicationDestination{
+							Namespace: "namespace",
+							Name:      "my-cluster",
+						},
+					},
+				},
+			},
+			validationErrors: map[string]error{"": errors.New("ApplicationSet  contains an application with no name; a name must be set in the template's metadata.name or via a templatePatch (generateName is not supported)")},
 		},
 		{
 			name: "can't have both name and server defined",

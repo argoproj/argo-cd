@@ -200,6 +200,79 @@ export enum ConnectionMethod {
     AZURESERVICEPRINCIPAL = 'via Azure Service Principal'
 }
 
+const ConnectRepoFormButton = ({method, onSelection, formApi}: {method: string; onSelection: (method: string) => void; formApi: React.MutableRefObject<FormApi | null>}) => {
+    return (
+        <div className='white-box'>
+            <p>Choose your connection method:</p>
+            <DropDownMenu
+                anchor={() => (
+                    <p>
+                        {method.toUpperCase()} <i className='fa fa-caret-down' />
+                    </p>
+                )}
+                items={[ConnectionMethod.SSH, ConnectionMethod.HTTPS, ConnectionMethod.GITHUBAPP, ConnectionMethod.GOOGLECLOUD, ConnectionMethod.AZURESERVICEPRINCIPAL].map(
+                    (
+                        connectMethod:
+                            ConnectionMethod.SSH | ConnectionMethod.HTTPS | ConnectionMethod.GITHUBAPP | ConnectionMethod.GOOGLECLOUD | ConnectionMethod.AZURESERVICEPRINCIPAL
+                    ) => ({
+                        title: connectMethod.toUpperCase(),
+                        action: () => {
+                            onSelection(connectMethod);
+                            const formState = formApi.current.getFormState();
+                            formApi.current.setFormState({
+                                ...formState,
+                                errors: {}
+                            });
+                        }
+                    })
+                )}
+            />
+        </div>
+    );
+};
+
+const SlidingPanelHeader = ({
+    showConnectRepo,
+    displayEditPanel,
+    connecting,
+    onConnect,
+    onSaveCredsTemplate,
+    setConnectRepo,
+    setDisplayEditPanel
+}: {
+    showConnectRepo: boolean;
+    displayEditPanel: boolean;
+    connecting: boolean;
+    onConnect: () => void;
+    onSaveCredsTemplate: () => void;
+    setConnectRepo: (val: boolean) => void;
+    setDisplayEditPanel: (val: boolean) => void;
+}) => {
+    return (
+        <>
+            {showConnectRepo && (
+                <>
+                    <button className='argo-button argo-button--base' onClick={onConnect}>
+                        <Spinner show={connecting} style={{marginRight: '5px'}} />
+                        Connect
+                    </button>{' '}
+                    <button className='argo-button argo-button--base' onClick={onSaveCredsTemplate}>
+                        Save as credentials template
+                    </button>{' '}
+                    <button onClick={() => setConnectRepo(false)} className='argo-button argo-button--base-o'>
+                        Cancel
+                    </button>
+                </>
+            )}
+            {displayEditPanel && (
+                <button onClick={() => setDisplayEditPanel(false)} className='argo-button argo-button--base-o'>
+                    Cancel
+                </button>
+            )}
+        </>
+    );
+};
+
 export const ReposList = ({match, location}: RouteComponentProps) => {
     const [connecting, setConnecting] = React.useState(false);
     const [method, setMethod] = React.useState<string>(ConnectionMethod.SSH);
@@ -249,41 +322,6 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
         };
         fetchAuthSettings();
     }, []);
-
-    const ConnectRepoFormButton = ({method, onSelection}: {method: string; onSelection: (method: string) => void}) => {
-        return (
-            <div className='white-box'>
-                <p>Choose your connection method:</p>
-                <DropDownMenu
-                    anchor={() => (
-                        <p>
-                            {method.toUpperCase()} <i className='fa fa-caret-down' />
-                        </p>
-                    )}
-                    items={[ConnectionMethod.SSH, ConnectionMethod.HTTPS, ConnectionMethod.GITHUBAPP, ConnectionMethod.GOOGLECLOUD, ConnectionMethod.AZURESERVICEPRINCIPAL].map(
-                        (
-                            connectMethod:
-                                | ConnectionMethod.SSH
-                                | ConnectionMethod.HTTPS
-                                | ConnectionMethod.GITHUBAPP
-                                | ConnectionMethod.GOOGLECLOUD
-                                | ConnectionMethod.AZURESERVICEPRINCIPAL
-                        ) => ({
-                            title: connectMethod.toUpperCase(),
-                            action: () => {
-                                onSelection(connectMethod);
-                                const formState = formApi.current.getFormState();
-                                formApi.current.setFormState({
-                                    ...formState,
-                                    errors: {}
-                                });
-                            }
-                        })
-                    )}
-                />
-            </div>
-        );
-    };
 
     const onChooseDefaultValues = (): FormValues => {
         return {type: 'git', ghType: 'GitHub', azureType: 'Azure Public Cloud', write: false};
@@ -344,42 +382,6 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                 };
             }
         }
-    };
-
-    const SlidingPanelHeader = () => {
-        return (
-            <>
-                {showConnectRepo() && (
-                    <>
-                        <button
-                            className='argo-button argo-button--base'
-                            onClick={() => {
-                                credsTemplate.current = false;
-                                formApi.current.submitForm(null);
-                            }}>
-                            <Spinner show={connecting} style={{marginRight: '5px'}} />
-                            Connect
-                        </button>{' '}
-                        <button
-                            className='argo-button argo-button--base'
-                            onClick={() => {
-                                credsTemplate.current = true;
-                                formApi.current.submitForm(null);
-                            }}>
-                            Save as credentials template
-                        </button>{' '}
-                        <button onClick={() => setConnectRepo(false)} className='argo-button argo-button--base-o'>
-                            Cancel
-                        </button>
-                    </>
-                )}
-                {displayEditPanel && (
-                    <button onClick={() => setDisplayEditPanel(false)} className='argo-button argo-button--base-o'>
-                        Cancel
-                    </button>
-                )}
-            </>
-        );
     };
 
     const onSubmitForm = (params: FormValues) => {
@@ -1021,8 +1023,24 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                         setDisplayEditPanel(false);
                     }
                 }}
-                header={<SlidingPanelHeader />}>
-                {showConnectRepo() && <ConnectRepoFormButton method={method} onSelection={setMethod} />}
+                header={
+                    <SlidingPanelHeader
+                        showConnectRepo={showConnectRepo()}
+                        displayEditPanel={displayEditPanel}
+                        connecting={connecting}
+                        onConnect={() => {
+                            credsTemplate.current = false;
+                            formApi.current.submitForm(null);
+                        }}
+                        onSaveCredsTemplate={() => {
+                            credsTemplate.current = true;
+                            formApi.current.submitForm(null);
+                        }}
+                        setConnectRepo={setConnectRepo}
+                        setDisplayEditPanel={setDisplayEditPanel}
+                    />
+                }>
+                {showConnectRepo() && <ConnectRepoFormButton method={method} onSelection={setMethod} formApi={formApi} />}
                 {displayEditPanel && currentRepo && (
                     <RepoDetails item={currentRepo} save={(params: NewHTTPSRepoParams) => updateHTTPSRepo(params)} readonly={!isRepoUpdatable(currentRepo)} />
                 )}

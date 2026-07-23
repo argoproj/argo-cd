@@ -124,6 +124,12 @@ spec:
                   name: argocd-cmd-params-cm
                   key: server.disable.auth
                   optional: true
+            - name: ARGOCD_SERVER_DISABLE_SWAGGER_UI
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: server.disable.swagger.ui
+                  optional: true
             - name: ARGOCD_SERVER_ENABLE_GZIP
               valueFrom:
                 configMapKeyRef:
@@ -238,6 +244,20 @@ spec:
                   name: argocd-cmd-params-cm
                   key: redis.server
                   optional: true
+
+            - name: REDIS_SENTINEL_HOSTS
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: redis.sentinel.hosts
+                  optional: true
+
+            - name: REDIS_SENTINEL_MASTER
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: redis.sentinel.master
+                  optional: true
             - name: REDIS_COMPRESSION
               valueFrom:
                 configMapKeyRef:
@@ -249,6 +269,12 @@ spec:
                 configMapKeyRef:
                   name: argocd-cmd-params-cm
                   key: redis.db
+                  optional: true
+            - name: ARGOCD_REDIS_KEY_PREFIX
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: redis.key.prefix
                   optional: true
             - name: ARGOCD_DEFAULT_CACHE_EXPIRATION
               valueFrom:
@@ -297,6 +323,12 @@ spec:
                 configMapKeyRef:
                   name: argocd-cmd-params-cm
                   key: otlp.attrs
+                  optional: true
+            - name: ARGOCD_SERVER_OTLP_SAMPLE_RATIO
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: otlp.sample.ratio
                   optional: true
             - name: ARGOCD_APPLICATION_NAMESPACES
               valueFrom:
