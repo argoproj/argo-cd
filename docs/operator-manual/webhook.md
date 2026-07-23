@@ -133,6 +133,28 @@ The webhook handler uses this OAuth token to make the API request to the origina
 If the Argo CD webhook handler cannot find a matching repository credential, the list of changed files would remain empty.
 If errors occur during the callback, the list of changed files will be empty.
 
+### Special handling for BitBucket Server (Data Center)
+
+BitBucket Server (Data Center) does not include the list of changed files in the webhook payload.
+This prevents the [Manifest Paths Annotation](high_availability.md#manifest-paths-annotation) feature from working correctly for monorepos hosted on BitBucket Server.
+
+To enable changed-file detection, set the webhook secret in `argocd-secret`:
+
+```bash
+kubectl patch secret argocd-secret -n argocd \
+  --type=merge \
+  -p '{"stringData": {"webhook.bitbucketserver.secret": "<your-secret>"}}'
+```
+
+**Requirements:**
+
+- The webhook **must be authenticated**: `webhook.bitbucketserver.secret` must be set in `argocd-secret`. Argo CD will only fetch changed files when the incoming webhook has been verified against the shared secret (required to prevent SSRF).
+- The repository **must have credentials** stored in Argo CD (basic auth or bearer token). If no matching credential is found, all apps pointing to the repository will be refreshed (safe fallback).
+
+> [!NOTE]
+> If changed-file detection fails for any reason, Argo CD falls back to refreshing all apps pointing to the repository — the same behavior as when no secret is configured.
+
+
 ## 3. Webhook Configuration for OCI-Compliant Registries
 
 In addition to Git webhooks, Argo CD supports webhooks from OCI-compliant container registries. This enables instant application refresh when
