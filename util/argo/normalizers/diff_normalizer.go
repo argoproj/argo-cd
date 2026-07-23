@@ -190,7 +190,12 @@ func (n *ignoreNormalizer) Normalize(un *unstructured.Unstructured) error {
 	for _, patch := range n.patches {
 		groupKind := un.GroupVersionKind().GroupKind()
 
-		if glob.Match(patch.GetGroupKind().Group, groupKind.Group) &&
+		patchGroup := patch.GetGroupKind().Group
+		if patchGroup == "" {
+			patchGroup = "*"
+		}
+
+		if glob.Match(patchGroup, groupKind.Group) &&
 			glob.Match(patch.GetGroupKind().Kind, groupKind.Kind) &&
 			(patch.GetName() == "" || patch.GetName() == un.GetName()) &&
 			(patch.GetNamespace() == "" || patch.GetNamespace() == un.GetNamespace()) {

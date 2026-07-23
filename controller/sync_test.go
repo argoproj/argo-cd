@@ -731,6 +731,134 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 		assert.Equal(t, "here", env0["value"])
 	})
 
+	t.Run("ignore-deployment-replicas-from-0-to-1", func(t *testing.T) {
+		ignores := []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:        "apps",
+				Kind:         "Deployment",
+				JSONPointers: []string{"/spec/replicas"},
+			},
+		}
+		f := setupHTTPProxy(t, ignores)
+		live := test.YamlToUnstructured(`
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: client
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: client
+  template:
+    metadata:
+      labels:
+        app: client
+    spec:
+      containers:
+      - image: alpine:3
+        name: alpine
+`)
+		target := test.YamlToUnstructured(`
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: client
+  namespace: default
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app: client
+  template:
+    metadata:
+      labels:
+        app: client
+    spec:
+      containers:
+      - image: alpine:3
+        name: alpine
+`)
+		f.comparisonResult.reconciliationResult.Live = []*unstructured.Unstructured{live}
+		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
+
+		targets, err := normalizeTargetResources(nil, f.comparisonResult)
+		require.NoError(t, err)
+		require.Len(t, targets, 1)
+
+		spec, ok, err := unstructured.NestedMap(targets[0].Object, "spec")
+		require.NoError(t, err)
+		require.True(t, ok)
+		assert.Equal(t, int64(1), spec["replicas"])
+	})
+
+	// Regression test for https://github.com/argoproj/argo-cd/issues/28590
+	// When ignoreDifferences is scoped to a specific resource name (e.g. name: util-d)
+	// and RespectIgnoreDifferences=true, the live replica count must be preserved.
+	t.Run("ignore-deployment-replicas-name-scoped-issue-28590", func(t *testing.T) {
+		ignores := []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Kind:         "Deployment",
+				Name:         "util-d",
+				JSONPointers: []string{"/spec/replicas"},
+			},
+		}
+		f := setupHTTPProxy(t, ignores)
+		live := test.YamlToUnstructured(`
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: util-d
+  namespace: app-db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: util
+  template:
+    metadata:
+      labels:
+        app: util
+    spec:
+      containers:
+      - image: httpd:latest
+        name: util
+`)
+		target := test.YamlToUnstructured(`
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: util-d
+  namespace: app-db
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app: util
+  template:
+    metadata:
+      labels:
+        app: util
+    spec:
+      containers:
+      - image: httpd:latest
+        name: util
+`)
+		f.comparisonResult.reconciliationResult.Live = []*unstructured.Unstructured{live}
+		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
+
+		targets, err := normalizeTargetResources(nil, f.comparisonResult)
+		require.NoError(t, err)
+		require.Len(t, targets, 1)
+
+		spec, ok, err := unstructured.NestedMap(targets[0].Object, "spec")
+		require.NoError(t, err)
+		require.True(t, ok)
+		// RespectIgnoreDifferences=true must preserve the live replica count (1), not the git value (0)
+		assert.Equal(t, int64(1), spec["replicas"])
+	})
+
 	t.Run("patches ignored differences in individual array elements of HTTPProxy CRD", func(t *testing.T) {
 		doc := loadCRDSchema(t, "testdata/schemas/httpproxy_openapi_v2.yaml")
 		disco := &fakeDiscovery{schema: doc}
