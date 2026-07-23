@@ -1,13 +1,10 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"os"
 	"os/exec"
-	"os/signal"
 	"path/filepath"
-	"syscall"
 
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
@@ -45,15 +42,11 @@ func main() {
 	}
 
 	isArgocdCLI := false
-	// Only the user-facing CLI gets signal-aware context wiring: server binaries
-	// install their own handlers, and NotifyContext would swallow their SIGINT/SIGTERM.
-	handleSignals := false
 
 	switch binaryName {
 	case common.CommandCLI:
 		command = cli.NewCommand()
 		isArgocdCLI = true
-		handleSignals = true
 	case common.CommandServer:
 		command = apiserver.NewCommand()
 	case common.CommandApplicationController:
@@ -81,7 +74,6 @@ func main() {
 		// "argocd-linux-amd64", "argocd-darwin-amd64", "argocd-windows-amd64.exe" are also valid binary names
 		command = cli.NewCommand()
 		isArgocdCLI = true
-		handleSignals = true
 	}
 
 	if isArgocdCLI {
@@ -92,19 +84,7 @@ func main() {
 		command.SilenceUsage = true
 	}
 
-	ctx := context.Background()
-	if handleSignals {
-		var stop context.CancelFunc
-		ctx, stop = signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
-		defer stop()
-		go func() {
-			// second Ctrl-C restores default signal behavior and force-terminates
-			<-ctx.Done()
-			stop()
-		}()
-	}
-
-	err := command.ExecuteContext(ctx)
+	err := command.Execute()
 	// if an error is present, try to look for various scenarios
 	// such as if the error is from the execution of a normal argocd command,
 	// unknown command error or any other.
