@@ -395,6 +395,47 @@ var goodSecretswithCRLF = map[string]string{
 }
 
 func Test_GenerateDexConfigYAMLStorage(t *testing.T) {
+	validateKubernetesStorage := func(t *testing.T, storage map[string]any) {
+		t.Helper()
+
+		storageConfig, ok := storage["config"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, true, storageConfig["inCluster"])
+	}
+
+	validateEtcdStorage := func(t *testing.T, storage map[string]any) {
+		t.Helper()
+
+		storageConfig, ok := storage["config"].(map[string]any)
+		require.True(t, ok)
+
+		assert.Equal(t, "my-etcd-namespace", storageConfig["namespace"])
+
+		endpoints, ok := storageConfig["endpoints"].([]any)
+		require.True(t, ok)
+		require.NotEmpty(t, endpoints)
+
+		assert.Equal(t, "http://localhost:2379", endpoints[0])
+	}
+
+	validatePostgresStorage := func(t *testing.T, storage map[string]any) {
+		t.Helper()
+
+		storageConfig, ok := storage["config"].(map[string]any)
+		require.True(t, ok)
+
+		assert.Equal(t, "localhost", storageConfig["host"])
+		assert.InDelta(t, 5432.0, storageConfig["port"], 0.0)
+		assert.Equal(t, "dex_db", storageConfig["database"])
+		assert.Equal(t, "dex", storageConfig["user"])
+		assert.Equal(t, "66964843358242dbaaa7778d8477c288", storageConfig["password"])
+
+		ssl, ok := storageConfig["ssl"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, "verify-ca", ssl["mode"])
+		assert.Equal(t, "/etc/dex/postgres.ca", ssl["caFile"])
+	}
+
 	tests := []struct {
 		name     string
 		settings settings.ArgoCDSettings
@@ -409,11 +450,7 @@ func Test_GenerateDexConfigYAMLStorage(t *testing.T) {
 				Secrets:   goodSecrets,
 			},
 			wantType: "kubernetes",
-			validate: func(t *testing.T, storage map[string]any) {
-				storageConfig, ok := storage["config"].(map[string]any)
-				require.True(t, ok)
-				assert.Equal(t, true, storageConfig["inCluster"])
-			},
+			validate: validateKubernetesStorage,
 		},
 		{
 			name: "default storage type is memory when not specified",
@@ -431,18 +468,7 @@ func Test_GenerateDexConfigYAMLStorage(t *testing.T) {
 				Secrets:   goodSecrets,
 			},
 			wantType: "etcd",
-			validate: func(t *testing.T, storage map[string]any) {
-				storageConfig, ok := storage["config"].(map[string]any)
-				require.True(t, ok)
-
-				assert.Equal(t, "my-etcd-namespace", storageConfig["namespace"])
-
-				endpoints, ok := storageConfig["endpoints"].([]any)
-				require.True(t, ok)
-				require.NotEmpty(t, endpoints)
-
-				assert.Equal(t, "http://localhost:2379", endpoints[0])
-			},
+			validate: validateEtcdStorage,
 		},
 		{
 			name: "postgres storage type, config",
@@ -452,21 +478,7 @@ func Test_GenerateDexConfigYAMLStorage(t *testing.T) {
 				Secrets:   goodSecrets,
 			},
 			wantType: "postgres",
-			validate: func(t *testing.T, storage map[string]any) {
-				storageConfig, ok := storage["config"].(map[string]any)
-				require.True(t, ok)
-
-				assert.Equal(t, "localhost", storageConfig["host"])
-				assert.InDelta(t, 5432.0, storageConfig["port"], 0.0)
-				assert.Equal(t, "dex_db", storageConfig["database"])
-				assert.Equal(t, "dex", storageConfig["user"])
-				assert.Equal(t, "66964843358242dbaaa7778d8477c288", storageConfig["password"])
-
-				ssl, ok := storageConfig["ssl"].(map[string]any)
-				require.True(t, ok)
-				assert.Equal(t, "verify-ca", ssl["mode"])
-				assert.Equal(t, "/etc/dex/postgres.ca", ssl["caFile"])
-			},
+			validate: validatePostgresStorage,
 		},
 	}
 
