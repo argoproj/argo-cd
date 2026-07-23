@@ -87,7 +87,7 @@ Once `.prov` and chart archive are loaded, Argo CD runs these steps (check name 
 | 1. Provenance present | `.prov` content is non-empty |
 | 2. PGP signature | `gpg --verify` on the cleartext message; signer key ID must be in `provenance.keys` and in the repo-server keyring |
 | 3. Signed body parse | Extract the signed YAML plaintext from the PGP cleartext envelope |
-| 4. Files digest | Find `files.<chart-filename>: sha256:...` in the signed body and compare to SHA256 of the chart `.tgz` |
+| 4. Files digest | Find `files.<chart-filename>: sha256:...` in the signed body and compare to SHA256 of the chart archive |
 
 If any step fails, sync is blocked with a `ResourceComparison` error.
 
