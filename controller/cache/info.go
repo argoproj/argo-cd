@@ -584,10 +584,48 @@ func populateGatewayAPIRouteInfo(un *unstructured.Unstructured, res *ResourceInf
 		urls = res.NetworkingInfo.ExternalURLs
 	}
 
+	// Generate ExternalURLs from spec.hostnames for HTTPRoute.
+	// Scheme defaults to http since TLS termination is handled at the Gateway level.
+	if un.GetKind() == "HTTPRoute" {
+		enableDefaultExternalURLs := true
+		if ignoreVal, ok := un.GetAnnotations()[common.AnnotationKeyIgnoreDefaultLinks]; ok {
+			if ignoreDefaultLinks, err := strconv.ParseBool(ignoreVal); err == nil {
+				enableDefaultExternalURLs = !ignoreDefaultLinks
+			}
+		}
+		if enableDefaultExternalURLs {
+			urls = append(urls, generateHTTPRouteURLs(un)...)
+		}
+	}
+
 	res.NetworkingInfo = &v1alpha1.ResourceNetworkingInfo{
 		TargetRefs:   targets,
 		ExternalURLs: urls,
 	}
+}
+
+func generateHTTPRouteURLs(un *unstructured.Unstructured) []string {
+	hostnames, ok, err := unstructured.NestedStringSlice(un.Object, "spec", "hostnames")
+	if !ok || err != nil {
+		return nil
+	}
+	urlsSet := make(map[string]bool)
+	for _, hostname := range hostnames {
+		if hostname == "" || strings.HasPrefix(hostname, "*") {
+			continue
+		}
+		urlStr := "http://" + hostname
+		if err := settings.ValidateExternalURL(urlStr); err != nil {
+			log.Warnf("Invalid URL generated for HTTPRoute %s/%s hostname %q: %v", un.GetNamespace(), un.GetName(), hostname, err)
+			continue
+		}
+		urlsSet[urlStr] = true
+	}
+	urls := make([]string, 0, len(urlsSet))
+	for u := range urlsSet {
+		urls = append(urls, u)
+	}
+	return urls
 }
 
 func isPodInitializedConditionTrue(status *corev1.PodStatus) bool {
