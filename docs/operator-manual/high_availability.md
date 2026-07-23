@@ -39,9 +39,8 @@ the appropriate tool.
   requests.
 
 * For repositories with very large ref advertisements, enable `--git-ls-remote-optimized` to resolve branches and tags
-  with `git -c protocol.version=2 ls-remote --heads --tags`. Unsupported refs, such as `refs/pull/`, continue to use the
-  default resolver. Argo CD queries `HEAD` separately only when an application requests `HEAD` or leaves the revision
-  empty.
+  with `git -c protocol.version=2 ls-remote --heads --tags`. `HEAD` and unsupported refs, such as `refs/pull/`, continue
+  to use the default resolver.
 
 * `argocd-repo-server` Every 3m (by default) Argo CD checks for changes to the app manifests. Argo CD assumes by default
   that manifests only change when the repo changes, so it caches the generated manifests (for 24h by default). With
