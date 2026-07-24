@@ -2830,21 +2830,14 @@ func TestProcessRequestedAppOperation_FailedNoRetries(t *testing.T) {
 		Sync: &v1alpha1.SyncOperation{},
 	}
 	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
-	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-	receivedPatch := map[string]any{}
-	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		if patchAction, ok := action.(kubetesting.PatchAction); ok {
-			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
-		}
-		return true, &v1alpha1.Application{}, nil
-	})
 
 	ctrl.processRequestedAppOperation(app)
 
-	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
-	message, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "message")
-	assert.Equal(t, string(synccommon.OperationError), phase)
-	assert.Equal(t, "Failed to load application project: error getting app project \"default\": appproject.argoproj.io \"default\" not found", message)
+	patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, patchedApp.Status.OperationState)
+	assert.Equal(t, synccommon.OperationError, patchedApp.Status.OperationState.Phase)
+	assert.Equal(t, "Failed to load application project: error getting app project \"default\": appproject.argoproj.io \"default\" not found", patchedApp.Status.OperationState.Message)
 }
 
 func TestProcessRequestedAppOperation_InvalidDestination(t *testing.T) {
@@ -2857,25 +2850,14 @@ func TestProcessRequestedAppOperation_InvalidDestination(t *testing.T) {
 	proj.Name = "test-project"
 	proj.Spec.SourceNamespaces = []string{test.FakeArgoCDNamespace}
 	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app, &proj}}, nil)
-	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-	receivedPatch := map[string]any{}
-	func() {
-		fakeAppCs.Lock()
-		defer fakeAppCs.Unlock()
-		fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-			if patchAction, ok := action.(kubetesting.PatchAction); ok {
-				require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
-			}
-			return true, &v1alpha1.Application{}, nil
-		})
-	}()
 
 	ctrl.processRequestedAppOperation(app)
 
-	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
-	message, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "message")
-	assert.Equal(t, string(synccommon.OperationError), phase)
-	assert.Contains(t, message, "application destination can't have both name and server defined: another-cluster https://localhost:6443")
+	patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, patchedApp.Status.OperationState)
+	assert.Equal(t, synccommon.OperationError, patchedApp.Status.OperationState.Phase)
+	assert.Contains(t, patchedApp.Status.OperationState.Message, "application destination can't have both name and server defined: another-cluster https://localhost:6443")
 }
 
 func TestProcessRequestedAppOperation_FailedHasRetries(t *testing.T) {
@@ -2886,23 +2868,15 @@ func TestProcessRequestedAppOperation_FailedHasRetries(t *testing.T) {
 		Retry: v1alpha1.RetryStrategy{Limit: 1},
 	}
 	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
-	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-	receivedPatch := map[string]any{}
-	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		if patchAction, ok := action.(kubetesting.PatchAction); ok {
-			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
-		}
-		return true, &v1alpha1.Application{}, nil
-	})
 
 	ctrl.processRequestedAppOperation(app)
 
-	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
-	message, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "message")
-	retryCount, _, _ := unstructured.NestedFloat64(receivedPatch, "status", "operationState", "retryCount")
-	assert.Equal(t, string(synccommon.OperationRunning), phase)
-	assert.Contains(t, message, "Failed to load application project: error getting app project \"invalid-project\": appproject.argoproj.io \"invalid-project\" not found. Retrying attempt #1")
-	assert.InEpsilon(t, float64(1), retryCount, 0.0001)
+	patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, patchedApp.Status.OperationState)
+	assert.Equal(t, synccommon.OperationRunning, patchedApp.Status.OperationState.Phase)
+	assert.Contains(t, patchedApp.Status.OperationState.Message, "Failed to load application project: error getting app project \"invalid-project\": appproject.argoproj.io \"invalid-project\" not found. Retrying attempt #1")
+	assert.EqualValues(t, 1, patchedApp.Status.OperationState.RetryCount)
 }
 
 func TestProcessRequestedAppOperation_RunningPreviouslyFailed(t *testing.T) {
@@ -2933,25 +2907,16 @@ func TestProcessRequestedAppOperation_RunningPreviouslyFailed(t *testing.T) {
 		},
 	}
 	ctrl := newFakeController(t.Context(), data, nil)
-	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-	receivedPatch := map[string]any{}
-	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		if patchAction, ok := action.(kubetesting.PatchAction); ok {
-			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
-		}
-		return true, &v1alpha1.Application{}, nil
-	})
 
 	ctrl.processRequestedAppOperation(app)
 
-	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
-	message, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "message")
-	finishedAtStr, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "finishedAt")
-	finishedAt, err := time.Parse(time.RFC3339, finishedAtStr)
+	patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
 	require.NoError(t, err)
-	assert.Equal(t, string(synccommon.OperationSucceeded), phase)
-	assert.Equal(t, "successfully synced (no more tasks)", message)
-	assert.Truef(t, finishedAt.After(failedAttemptFinisedAt), "finishedAt was expected to be updated. The retry was not performed.")
+	require.NotNil(t, patchedApp.Status.OperationState)
+	require.NotNil(t, patchedApp.Status.OperationState.FinishedAt)
+	assert.Equal(t, synccommon.OperationSucceeded, patchedApp.Status.OperationState.Phase)
+	assert.Equal(t, "successfully synced (no more tasks)", patchedApp.Status.OperationState.Message)
+	assert.Truef(t, patchedApp.Status.OperationState.FinishedAt.After(failedAttemptFinisedAt), "finishedAt was expected to be updated. The retry was not performed.")
 }
 
 func TestProcessRequestedAppOperation_RunningPreviouslyFailedBackoff(t *testing.T) {
@@ -3018,21 +2983,14 @@ func TestProcessRequestedAppOperation_HasRetriesTerminated(t *testing.T) {
 		},
 	}
 	ctrl := newFakeController(t.Context(), data, nil)
-	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-	receivedPatch := map[string]any{}
-	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		if patchAction, ok := action.(kubetesting.PatchAction); ok {
-			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
-		}
-		return true, &v1alpha1.Application{}, nil
-	})
 
 	ctrl.processRequestedAppOperation(app)
 
-	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
-	message, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "message")
-	assert.Equal(t, string(synccommon.OperationFailed), phase)
-	assert.Equal(t, "Operation terminated", message)
+	patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, patchedApp.Status.OperationState)
+	assert.Equal(t, synccommon.OperationFailed, patchedApp.Status.OperationState.Phase)
+	assert.Equal(t, "Operation terminated", patchedApp.Status.OperationState.Message)
 }
 
 func TestProcessRequestedAppOperation_Successful(t *testing.T) {
@@ -3047,21 +3005,14 @@ func TestProcessRequestedAppOperation_Successful(t *testing.T) {
 			Manifests: []string{},
 		}},
 	}, nil)
-	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-	receivedPatch := map[string]any{}
-	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		if patchAction, ok := action.(kubetesting.PatchAction); ok {
-			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
-		}
-		return true, &v1alpha1.Application{}, nil
-	})
 
 	ctrl.processRequestedAppOperation(app)
 
-	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
-	message, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "message")
-	assert.Equal(t, string(synccommon.OperationSucceeded), phase)
-	assert.Equal(t, "successfully synced (no more tasks)", message)
+	patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, patchedApp.Status.OperationState)
+	assert.Equal(t, synccommon.OperationSucceeded, patchedApp.Status.OperationState.Phase)
+	assert.Equal(t, "successfully synced (no more tasks)", patchedApp.Status.OperationState.Message)
 	ok, level := ctrl.isRefreshRequested(ctrl.toAppKey(app.Name))
 	assert.True(t, ok)
 	assert.Equal(t, CompareWithLatestForceResolve, level)
@@ -3082,24 +3033,40 @@ func TestProcessRequestedAppAutomatedOperation_Successful(t *testing.T) {
 			Manifests: []string{},
 		}},
 	}, nil)
-	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-	receivedPatch := map[string]any{}
-	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		if patchAction, ok := action.(kubetesting.PatchAction); ok {
-			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
-		}
-		return true, &v1alpha1.Application{}, nil
-	})
 
 	ctrl.processRequestedAppOperation(app)
 
-	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
-	message, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "message")
-	assert.Equal(t, string(synccommon.OperationSucceeded), phase)
-	assert.Equal(t, "successfully synced (no more tasks)", message)
+	patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, patchedApp.Status.OperationState)
+	assert.Equal(t, synccommon.OperationSucceeded, patchedApp.Status.OperationState.Phase)
+	assert.Equal(t, "successfully synced (no more tasks)", patchedApp.Status.OperationState.Message)
 	ok, level := ctrl.isRefreshRequested(ctrl.toAppKey(app.Name))
 	assert.True(t, ok)
 	assert.Equal(t, CompareWithLatest, level)
+}
+
+func TestSetOperationState_EmptySyncRevisionClearsPreviousRevision(t *testing.T) {
+	app := newFakeApp()
+	require.Equal(t, "HEAD", app.Status.OperationState.Operation.Sync.Revision)
+
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app.DeepCopy()}}, nil)
+
+	ctrl.setOperationState(t.Context(), app, &v1alpha1.OperationState{
+		Phase:     synccommon.OperationRunning,
+		StartedAt: metav1.Now(),
+		Operation: v1alpha1.Operation{
+			Sync:  &v1alpha1.SyncOperation{},
+			Retry: v1alpha1.RetryStrategy{Limit: 5},
+		},
+	})
+
+	patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, patchedApp.Status.OperationState)
+	require.NotNil(t, patchedApp.Status.OperationState.Operation.Sync)
+	assert.Empty(t, patchedApp.Status.OperationState.Operation.Sync.Revision,
+		"empty Sync.Revision (omitempty) must clear the previous revision if empty instead of preserving it")
 }
 
 func TestProcessRequestedAppOperation_SyncTimeout(t *testing.T) {
