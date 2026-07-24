@@ -372,7 +372,7 @@ func TestLFSClient(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	err = client.Fetch(t.Context(), "", 0)
+	err = client.Fetch(t.Context(), "")
 	require.NoError(t, err)
 
 	_, err = client.Checkout(t.Context(), commitSHA, true, true)
@@ -402,14 +402,14 @@ func TestVerifyCommitSignature(t *testing.T) {
 	setupGitEnv(t)
 	p := t.TempDir()
 
-	client, err := NewClientExt("https://github.com/argoproj/argocd-example-apps.git", p, NopCreds{}, false, false, "", "")
+	// Use shallow fetch to avoid timeout fetching the entire repo
+	client, err := NewClientExt("https://github.com/argoproj/argocd-example-apps.git", p, NopCreds{}, false, false, "", "", WithDepth(1))
 	require.NoError(t, err)
 
 	err = client.Init()
 	require.NoError(t, err)
 
-	// Use shallow fetch to avoid timeout fetching the entire repo
-	err = client.Fetch(t.Context(), "", 1)
+	err = client.Fetch(t.Context(), "")
 	require.NoError(t, err)
 
 	commitSHA, err := client.LsRemote("HEAD")
@@ -421,9 +421,9 @@ func TestVerifyCommitSignature(t *testing.T) {
 	// Fetch the specific commits needed for signature verification
 	signedCommit := "723b86e01bea11dcf72316cb172868fcbf05d69e"
 	unsignedCommit := "1ccdee0a611224ccc6b9ff7919fe7002f905436e"
-	err = client.Fetch(t.Context(), signedCommit, 1)
+	err = client.Fetch(t.Context(), signedCommit)
 	require.NoError(t, err)
-	err = client.Fetch(t.Context(), unsignedCommit, 1)
+	err = client.Fetch(t.Context(), unsignedCommit)
 	require.NoError(t, err)
 
 	// 28027897aad1262662096745f2ce2d4c74d02b7f is a commit that is signed in the repo
@@ -474,11 +474,11 @@ func TestNewFactory(t *testing.T) {
 		err = client.Init()
 		require.NoError(t, err)
 
-		err = client.Fetch(t.Context(), "", 0)
+		err = client.Fetch(t.Context(), "")
 		require.NoError(t, err)
 
 		// Do a second fetch to make sure we can treat `already up-to-date` error as not an error
-		err = client.Fetch(t.Context(), "", 0)
+		err = client.Fetch(t.Context(), "")
 		require.NoError(t, err)
 
 		_, err = client.Checkout(t.Context(), commitSHA, true, true)

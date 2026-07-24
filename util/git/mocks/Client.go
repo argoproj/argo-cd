@@ -542,16 +542,16 @@ func (_c *Client_CommitSHA_Call) RunAndReturn(run func(ctx context.Context) (str
 }
 
 // Fetch provides a mock function for the type Client
-func (_mock *Client) Fetch(ctx context.Context, revision string, depth int64) error {
-	ret := _mock.Called(ctx, revision, depth)
+func (_mock *Client) Fetch(ctx context.Context, revision string) error {
+	ret := _mock.Called(ctx, revision)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Fetch")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, int64) error); ok {
-		r0 = returnFunc(ctx, revision, depth)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) error); ok {
+		r0 = returnFunc(ctx, revision)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -566,12 +566,11 @@ type Client_Fetch_Call struct {
 // Fetch is a helper method to define mock.On call
 //   - ctx context.Context
 //   - revision string
-//   - depth int64
-func (_e *Client_Expecter) Fetch(ctx any, revision any, depth any) *Client_Fetch_Call {
-	return &Client_Fetch_Call{Call: _e.mock.On("Fetch", ctx, revision, depth)}
+func (_e *Client_Expecter) Fetch(ctx any, revision any) *Client_Fetch_Call {
+	return &Client_Fetch_Call{Call: _e.mock.On("Fetch", ctx, revision)}
 }
 
-func (_c *Client_Fetch_Call) Run(run func(ctx context.Context, revision string, depth int64)) *Client_Fetch_Call {
+func (_c *Client_Fetch_Call) Run(run func(ctx context.Context, revision string)) *Client_Fetch_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -581,14 +580,9 @@ func (_c *Client_Fetch_Call) Run(run func(ctx context.Context, revision string, 
 		if args[1] != nil {
 			arg1 = args[1].(string)
 		}
-		var arg2 int64
-		if args[2] != nil {
-			arg2 = args[2].(int64)
-		}
 		run(
 			arg0,
 			arg1,
-			arg2,
 		)
 	})
 	return _c
@@ -599,7 +593,7 @@ func (_c *Client_Fetch_Call) Return(err error) *Client_Fetch_Call {
 	return _c
 }
 
-func (_c *Client_Fetch_Call) RunAndReturn(run func(ctx context.Context, revision string, depth int64) error) *Client_Fetch_Call {
+func (_c *Client_Fetch_Call) RunAndReturn(run func(ctx context.Context, revision string) error) *Client_Fetch_Call {
 	_c.Call.Return(run)
 	return _c
 }
