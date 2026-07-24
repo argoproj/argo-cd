@@ -32,7 +32,7 @@ argocd app get APPNAME [flags]
   # Show application parameters and overrides for a source named "test"
   argocd app get my-app --show-params --source-name test
   
-  # Refresh application data when retrieving
+  # Refresh application data when retrieving (does not bypass manifest cache; use --hard-refresh for that)
   argocd app get my-app --refresh
   
   # Perform a hard refresh, including refreshing application data and target manifests cache
@@ -52,7 +52,7 @@ argocd app get APPNAME [flags]
       --hard-refresh           Refresh application data as well as target manifests cache
   -h, --help                   help for get
   -o, --output string          Output format. One of: json|yaml|wide|tree (default "wide")
-      --refresh                Refresh application data when retrieving
+      --refresh                Refresh application data when retrieving (does not bypass manifest cache; use --hard-refresh for that)
       --show-operation         Show application operation
       --show-params            Show application parameters and overrides
       --source-name string     Name of the source from the list of sources of the app.
