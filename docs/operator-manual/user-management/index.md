@@ -611,3 +611,127 @@ Disabling certificate verification might make sense if:
 
 If either of those two applies, then you can disable OIDC provider certificate verification by setting
 `oidc.tls.insecure.skip.verify` to `"true"` in the `argocd-cm` ConfigMap.
+
+## Dex Storage Backend
+
+By default, Dex stores session state (auth requests, refresh tokens, signingkeys) in memory. This means state does not persist across `argocd-dex-server` pod restarts, and it is not safe to run multiple Dex replicas since each replica would have its own independent state.
+
+To persist state and support HA deployments, configure a durable storage backend via `dex.config` and respective configurations in `argocd-cm`:
+
+```yaml
+  dex.config: |
+    storage:
+      type: kubernetes
+      config:
+        inCluster: true
+```
+
+Supported values for `storage.type` in `dex.config`:
+
+| Type         | Persists across restarts | HA support | Notes                                                                                          |
+| ------------ | ------------------------ | ---------- | ---------------------------------------------------------------------------------------------- |
+| `memory`     | No                       | No         | Default. Simplest, no extra setup.                                                             |
+| `kubernetes` | Yes                      | Yes        | Stores state as custom resources in-cluster. Requires additional RBAC for `argocd-dex-server`. |
+| `postgres`   | Yes                      | Yes        | Requires a reachable Postgres instance.                                                        |
+| `sqlite3`    | Yes                      | No         | File-based; not suitable for multiple replicas.                                                |
+| `etcd`       | Yes                      | Yes        | Requires a reachable etcd cluster.                                                             |
+
+#### Kubernetes storage RBAC
+
+```yaml
+# RBAC for Dex Kubernetes Storage Backend
+#
+# Apply this manifest only when using:
+#
+#   dex.config:
+#     storage:
+#       type: kubernetes
+#
+# This grants the Dex ServiceAccount permission to:
+#   - Access ConfigMaps and Secrets used by Dex
+#   - Manage Dex custom resources (AuthCodes, RefreshTokens, SigningKeys, etc.)
+#
+# Replace the namespace below if Argo CD is installed in a different namespace.
+# Restart existing dex pod for reflecting below RBAC permissions.
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: argocd-dex-server
+  namespace: argocd
+rules:
+- apiGroups:
+    - dex.coreos.com
+  resources:
+    - authcodes
+    - authrequests
+    - oauth2clients
+    - signingkeies
+    - refreshtokens
+    - passwords
+    - offlinesessions
+    - connectors
+    - devicerequests
+    - devicetokens
+  verbs:
+    - get
+    - list
+    - watch
+    - create
+    - update
+    - patch
+    - delete
+- apiGroups:
+    - ""
+  resources:
+    - configmaps
+    - secrets
+  verbs:
+    - get
+    - list
+    - watch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: argocd-dex-server
+  namespace: argocd
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argocd-dex-server
+subjects:
+- kind: ServiceAccount
+  name: argocd-dex-server
+  namespace: argocd
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: argocd-dex-server-crd-manager
+rules:
+- apiGroups:
+    - apiextensions.k8s.io
+  resources:
+    - customresourcedefinitions
+  verbs:
+    - get
+    - list
+    - watch
+    - create
+    - update
+    - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: argocd-dex-server-crd-manager
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: argocd-dex-server-crd-manager
+subjects:
+- kind: ServiceAccount
+  name: argocd-dex-server
+  namespace: argocd
+```
