@@ -11,8 +11,8 @@ overrides:
   rxjs: 6.6.7
   formidable: 2.1.3
   dompurify: 3.4.0
-  js-yaml@^4: 4.3.0
-  js-yaml@^3: 3.15.0
+  js-yaml@4.1.1: 4.3.0
+  js-yaml@3.14.1: 3.15.0
 
 importers:
 
@@ -61,7 +61,7 @@ importers:
         specifier: ^4.7.2
         version: 4.10.1
       js-yaml:
-        specifier: 4.3.0
+        specifier: ^4.3.0
         version: 4.3.0
       json-merge-patch:
         specifier: ^0.2.3
