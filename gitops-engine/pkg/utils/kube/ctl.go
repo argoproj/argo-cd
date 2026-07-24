@@ -304,7 +304,8 @@ func (k *KubectlCmd) ManageResources(config *rest.Config) (ResourceOperations, f
 		optionsRunner: &realKubectlOptionsRunner{
 			onKubectlRun: k.OnKubectlRun,
 		},
-		outputMode: outputModeLog,
+		outputMode:     outputModeLog,
+		kubeconfigPath: f.Name(),
 	}, cleanup, nil
 }
 
@@ -335,7 +336,8 @@ func (k *KubectlCmd) ManageServerSideDiffDryRuns(config *rest.Config) (diff.Kube
 		optionsRunner: &realKubectlOptionsRunner{
 			onKubectlRun: k.OnKubectlRun,
 		},
-		outputMode: outputModeJSON,
+		outputMode:     outputModeJSON,
+		kubeconfigPath: f.Name(),
 	}, cleanup, nil
 }
 
