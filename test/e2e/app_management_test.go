@@ -508,11 +508,11 @@ func TestNestedRefresh(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		When().
 		PatchFile(manifest, `[{"op": "add", "path": "/metadata/labels/test-label", "value": "test-value"}]`)
-	// runs app get --refresh asynchronoously, so we do not wait for the refresh to finish
+	// runs app get --refresh asynchronously, so we do not wait for the refresh to finish
 	go ctx.When().Refresh(RefreshTypeNormal)
-	// wait until Refresh actually runs `helm template`.  We can
+	// wait until Refresh actually runs `helm template`. We can
 	// catch it because the template is really nasty and
-	// `helm templates` rendering takes tens of seconds
+	// `helm template` rendering takes tens of seconds
 	acts.Then().Expect(HelmTemplateRuns())
 	// ps output line containing helm PID and command line
 	helmProcessData := acts.GetLastOutput()

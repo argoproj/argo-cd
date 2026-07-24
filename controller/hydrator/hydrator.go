@@ -68,7 +68,7 @@ type Dependencies interface {
 	// PersistHydrationStatus persists the application status for the source hydrator.
 	PersistHydrationStatus(orig *appv1.Application, newStatus *appv1.SourceHydratorStatus)
 
-	// Remove the hydrate and hydrate-timestamp annotations
+	// RemoveHydrationAnnotations removes the hydrate and hydrate-timestamp annotations.
 	RemoveHydrationAnnotations(orig *appv1.Application)
 
 	// AddHydrationQueueItem adds a hydration queue item to the queue. This is used to trigger the hydration process for
