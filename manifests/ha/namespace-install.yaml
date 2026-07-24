@@ -87,6 +87,32 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   labels:
+    app.kubernetes.io/component: conversion-webhook
+    app.kubernetes.io/name: argocd-conversion-webhook
+    app.kubernetes.io/part-of: argocd
+  name: argocd-conversion-webhook
+  namespace: argocd
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - create
+- apiGroups:
+  - ""
+  resourceNames:
+  - argocd-conversion-webhook-tls
+  resources:
+  - secrets
+  verbs:
+  - get
+  - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
     app.kubernetes.io/component: application-controller
     app.kubernetes.io/name: argocd-application-controller
     app.kubernetes.io/part-of: argocd
@@ -379,6 +405,24 @@ rules:
   verbs:
   - get
   - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/component: conversion-webhook
+    app.kubernetes.io/name: argocd-conversion-webhook
+    app.kubernetes.io/part-of: argocd
+  name: argocd-conversion-webhook
+  namespace: argocd
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argocd-conversion-webhook
+subjects:
+- kind: ServiceAccount
+  name: argocd-conversion-webhook
+  namespace: argocd
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding

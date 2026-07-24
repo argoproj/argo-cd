@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"encoding/pem"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -77,12 +78,42 @@ func TestInjectCABundle_MatchingBundleLeftUnchanged(t *testing.T) {
 }
 
 func TestInjectCABundle_StaleBundleIsReplaced(t *testing.T) {
-	// Simulates a webhook pod restart: the CRD still carries the previous
-	// pod's ephemeral self-signed certificate, which cannot verify the cert
-	// the new pod serves.
+	// Simulates a certificate rotation: the CRD still carries the previous
+	// certificate's CA, which cannot verify the cert the new pod serves. The
+	// previous CA must survive the merge so pods still serving the previous
+	// certificate keep working until they restart.
 	previous := generateTestCert(t)
 	current := generateTestCert(t)
 	client := apiextensionsfake.NewSimpleClientset(newAppCRD(certPEM(t, previous)))
+
+	require.NoError(t, injectCABundle(t.Context(), client, current))
+
+	bundle := getCABundle(t, client)
+	assert.Equal(t, append(certPEM(t, previous), certPEM(t, current)...), bundle)
+	assert.True(t, caBundleVerifiesCert(bundle, previous))
+	assert.True(t, caBundleVerifiesCert(bundle, current))
+}
+
+func TestInjectCABundle_ExpiredEntriesAreDropped(t *testing.T) {
+	expired, err := tlsutil.GenerateX509KeyPair(tlsutil.CertOptions{
+		Hosts:        []string{"argocd-conversion-webhook"},
+		Organization: "Argo CD Test",
+		IsCA:         true,
+		ValidFrom:    time.Now().Add(-2 * time.Hour),
+		ValidFor:     time.Hour,
+	})
+	require.NoError(t, err)
+	current := generateTestCert(t)
+	client := apiextensionsfake.NewSimpleClientset(newAppCRD(certPEM(t, expired)))
+
+	require.NoError(t, injectCABundle(t.Context(), client, current))
+
+	assert.Equal(t, certPEM(t, current), getCABundle(t, client))
+}
+
+func TestInjectCABundle_GarbageBundleIsReplaced(t *testing.T) {
+	current := generateTestCert(t)
+	client := apiextensionsfake.NewSimpleClientset(newAppCRD([]byte("not pem")))
 
 	require.NoError(t, injectCABundle(t.Context(), client, current))
 

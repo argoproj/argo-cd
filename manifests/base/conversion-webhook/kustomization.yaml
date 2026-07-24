@@ -6,5 +6,7 @@ resources:
 - argocd-conversion-webhook-deployment.yaml
 - argocd-conversion-webhook-service.yaml
 - argocd-conversion-webhook-sa.yaml
+- argocd-conversion-webhook-role.yaml
+- argocd-conversion-webhook-rolebinding.yaml
 - argocd-conversion-webhook-clusterrole.yaml
 - argocd-conversion-webhook-clusterrolebinding.yaml

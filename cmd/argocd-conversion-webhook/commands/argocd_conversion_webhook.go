@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"net/http"
@@ -20,7 +21,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/server/conversion"
 	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/env"
-	tlsutil "github.com/argoproj/argo-cd/v3/util/tls"
 )
 
 const (
@@ -63,31 +63,30 @@ func NewCommand() *cobra.Command {
 				fmt.Sprintf("%s.%s.svc.cluster.local", serviceName, namespace),
 			}
 
-			// Create TLS config (will generate self-signed cert if not provided). The
-			// webhook only presents a server certificate, so no client-CA path is needed.
-			tlsConfig, err := tlsutil.CreateTLSConfig(tlsCertPath, tlsKeyPath, hosts, true, "")
-			if err != nil {
-				return fmt.Errorf("failed to create TLS config: %w", err)
-			}
-
-			// Get the certificate for CA bundle injection
-			if len(tlsConfig.Certificates) == 0 {
-				return errors.New("no TLS certificates available")
-			}
-			cert := &tlsConfig.Certificates[0]
-
-			// Set up in-cluster config for CA bundle injection
+			// Set up in-cluster config for TLS secret access and CA bundle injection
+			var kubeClient kubernetes.Interface
 			restConfig, err := rest.InClusterConfig()
 			if err != nil {
-				log.Warnf("Not running in cluster, CA bundle injection disabled: %v", err)
+				log.Warnf("Not running in cluster, TLS secret persistence and CA bundle injection disabled: %v", err)
+				restConfig = nil
 			} else {
-				// Verify we can create a client
-				_, err = kubernetes.NewForConfig(restConfig)
+				kubeClient, err = kubernetes.NewForConfig(restConfig)
 				if err != nil {
-					log.Warnf("Failed to create kubernetes client, CA bundle injection disabled: %v", err)
+					log.Warnf("Failed to create kubernetes client, TLS secret persistence and CA bundle injection disabled: %v", err)
 					restConfig = nil
+					kubeClient = nil
 				}
 			}
+
+			// Resolve the serving certificate: mounted files, then the keypair
+			// persisted in the TLS Secret (created on first use, shared by all
+			// replicas), then an ephemeral in-memory keypair for local runs. The
+			// webhook only presents a server certificate, so no client CA is needed.
+			cert, err := conversion.LoadServingCert(ctx, tlsCertPath, tlsKeyPath, hosts, kubeClient, namespace)
+			if err != nil {
+				return fmt.Errorf("failed to load serving certificate: %w", err)
+			}
+			tlsConfig := &tls.Config{Certificates: []tls.Certificate{*cert}}
 
 			// Inject CA bundle into the CRD BEFORE the server starts listening.
 			// Until this completes, the CRD's caBundle does not match the cert

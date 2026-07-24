@@ -1,12 +1,14 @@
 package conversion
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
@@ -61,27 +63,25 @@ func injectCABundle(ctx context.Context, apiextClient apiextensionsclient.Interf
 		return fmt.Errorf("failed to parse CA certificate: %w", err)
 	}
 
-	// Encode as PEM
-	caPEM := pem.EncodeToMemory(&pem.Block{
-		Type:  "CERTIFICATE",
-		Bytes: caCert.Raw,
-	})
-
-	// Leave an existing caBundle alone only when it can verify the certificate
-	// we are about to serve (cert-manager's CA injector or a manual install
-	// manages it, and the mounted serving cert chains to it). Otherwise the
-	// bundle is stale: the default install generates an ephemeral self-signed
-	// certificate on every pod start, so the bundle injected by a previous pod
-	// would break every conversion request after a restart if left in place.
+	// Leave an existing caBundle alone when it can verify the certificate we
+	// are about to serve (cert-manager's CA injector or a manual install
+	// manages it, and the mounted serving cert chains to it). Otherwise merge
+	// our CA into the bundle rather than replacing it: during a certificate
+	// rotation, pods serving the previous certificate keep working as long as
+	// the previous CA stays in the bundle. Expired entries are dropped on the
+	// way, so the bundle only accumulates CAs that can still verify something.
+	var existingBundle []byte
 	if crd.Spec.Conversion.Webhook != nil &&
 		crd.Spec.Conversion.Webhook.ClientConfig != nil &&
 		len(crd.Spec.Conversion.Webhook.ClientConfig.CABundle) > 0 {
-		if caBundleVerifiesCert(crd.Spec.Conversion.Webhook.ClientConfig.CABundle, tlsCert) {
+		existingBundle = crd.Spec.Conversion.Webhook.ClientConfig.CABundle
+		if caBundleVerifiesCert(existingBundle, tlsCert) {
 			log.Info("Existing CA bundle on Application CRD verifies the serving certificate; leaving it unchanged")
 			return nil
 		}
-		log.Info("Existing CA bundle on Application CRD does not verify the serving certificate; updating it")
+		log.Info("Existing CA bundle on Application CRD does not verify the serving certificate; merging our CA into it")
 	}
+	caPEM := mergeCABundle(existingBundle, caCert)
 
 	// Build the patch via json.Marshal — a []byte field is base64-encoded
 	// by encoding/json, which matches Kubernetes' wire format for caBundle.
@@ -113,6 +113,32 @@ func injectCABundle(ctx context.Context, apiextClient apiextensionsclient.Interf
 
 	log.Info("Successfully injected CA bundle into Application CRD conversion webhook")
 	return nil
+}
+
+// mergeCABundle returns a PEM bundle containing the still-valid certificates
+// from the existing bundle followed by the given CA. Unparseable and expired
+// entries are dropped; if the whole existing bundle is garbage, the result is
+// just the new CA.
+func mergeCABundle(existing []byte, caCert *x509.Certificate) []byte {
+	var merged []byte
+	now := time.Now()
+	rest := existing
+	for {
+		var block *pem.Block
+		block, rest = pem.Decode(rest)
+		if block == nil {
+			break
+		}
+		if block.Type != "CERTIFICATE" {
+			continue
+		}
+		cert, err := x509.ParseCertificate(block.Bytes)
+		if err != nil || now.After(cert.NotAfter) || bytes.Equal(cert.Raw, caCert.Raw) {
+			continue
+		}
+		merged = append(merged, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})...)
+	}
+	return append(merged, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: caCert.Raw})...)
 }
 
 // caBundleVerifiesCert reports whether the PEM-encoded CA bundle can verify
