@@ -3,6 +3,6 @@ kind: Kustomization
 
 helmCharts:
   - name: helm-values
-    repo: oci://localhost:5001/myrepo
+    repo: oci://localhost:5002/myrepo
     version: 1.0.0
     releaseName: test
