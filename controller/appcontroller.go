@@ -2248,13 +2248,13 @@ func (ctrl *ApplicationController) persistReconciliationStatus(ctx context.Conte
 //
 // The annotations are left in place if the timestamp annotation value has changed in k8s.
 //
-// It builds a single JSONPatch requests to remove the annotations, which contains
+// It builds a single JSONPatch request to remove the annotations, which contains
 // a "test" operation to ensure that timestamp value matches before deleting.
 //
 // In most cases the annotations are not modified and are successfully removed.
 //
 // If patch operation fails, it tests whether it was because of the timestamp change:
-// If so, both annotation remain so an additional refresh/hydration operation will be performed.
+// If so, both annotations remain so an additional refresh/hydration operation will be performed.
 // Otherwise it re-reads the actual application manifest state and retries the operation
 // according to the updated manifest (in case one of the annotations was deleted externally).
 //
