@@ -1,0 +1,17 @@
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: app-vpa
+  namespace: default
+spec:
+  targetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: missing-app
+status:
+  conditions:
+  - lastTransitionTime: "2025-05-01T10:00:00Z"
+    message: No pods match the VPA selector
+    reason: NoPodsMatched
+    status: "True"
+    type: NoPodsMatched
