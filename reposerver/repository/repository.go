@@ -1262,13 +1262,14 @@ type kustomizeHelmChart struct {
 
 // getKustomizeHelmRepos parses a kustomization.yaml for helmCharts entries and resolves
 // their repository credentials. This is the Kustomize equivalent of getHelmRepos, which
-// does the same for Chart.yaml dependencies.
-func getKustomizeHelmRepos(appPath string, repositories []*v1alpha1.Repository, helmRepoCreds []*v1alpha1.RepoCreds) ([]helm.HelmRepository, error) {
+// does the same for Chart.yaml dependencies. Discovery is best-effort so that Kustomize
+// remains responsible for reporting errors reading or parsing the kustomization file.
+func getKustomizeHelmRepos(appPath string, repositories []*v1alpha1.Repository, helmRepoCreds []*v1alpha1.RepoCreds) []helm.HelmRepository {
 	dependencies, err := getKustomizeHelmChartRepos(appPath)
 	if err != nil {
-		return nil, fmt.Errorf("error retrieving kustomize helm chart repos: %w", err)
+		return nil
 	}
-	return resolveHelmRepoCredentials(dependencies, repositories, helmRepoCreds), nil
+	return resolveHelmRepoCredentials(dependencies, repositories, helmRepoCreds)
 }
 
 // getKustomizeHelmChartRepos parses a kustomization.yaml and returns Repository entries
@@ -1857,11 +1858,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		// OCI registries. This mirrors the auth setup done for direct Helm
 		// rendering in helmTemplate / helm.DependencyBuild.
 		if q.KustomizeOptions != nil && kustomize.IsHelmEnabled(q.KustomizeOptions.BuildOptions) {
-			var helmRepos []helm.HelmRepository
-			helmRepos, err = getKustomizeHelmRepos(appPath, q.Repos, q.HelmRepoCreds)
-			if err != nil {
-				return nil, fmt.Errorf("error getting kustomize helm repos: %w", err)
-			}
+			helmRepos := getKustomizeHelmRepos(appPath, q.Repos, q.HelmRepoCreds)
 			if len(helmRepos) > 0 {
 				var h helm.Helm
 				h, err = helm.NewHelmApp(appPath, helmRepos, false, "", q.Repo.Proxy, q.Repo.NoProxy, false, false)
