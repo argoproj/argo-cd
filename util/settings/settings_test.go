@@ -2568,6 +2568,7 @@ func TestUserInfoGroupsClaim(t *testing.T) {
 
 		result := settings.UserInfoGroupsClaim()
 		assert.Equal(t, "groups", result)
+	})
 }
 
 func TestGetHydratorReadmeTemplate(t *testing.T) {
@@ -2594,7 +2595,6 @@ func TestGetHydratorReadmeTemplate(t *testing.T) {
 		template, err := settingsManager.GetHydratorReadmeTemplate()
 		require.Error(t, err)
 		assert.Equal(t, DefaultManifestHydrationReadmeTemplate, template)
-
 	})
 }
 
