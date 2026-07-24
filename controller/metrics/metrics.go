@@ -69,6 +69,20 @@ var (
 		nil,
 	)
 
+	descAppSyncWindow = prometheus.NewDesc(
+		"argocd_app_sync_window",
+		"Whether a sync window of the given kind is currently active for the application. Emitted as a 0/1 gauge per window_kind (\"allow\", \"deny\"); 1 means at least one matching window of that kind is currently active.",
+		append(descAppDefaultLabels, "window_kind"),
+		nil,
+	)
+
+	descAppSyncBlocked = prometheus.NewDesc(
+		"argocd_app_sync_blocked",
+		"Whether automatic syncs of the application are currently blocked by its project's sync windows. Emitted as a 0/1 gauge: 1 means an automatic sync attempt right now would be rejected (an active deny window applies, or only allow windows are configured and none is active). Reports 0 when no sync windows are configured, distinguishing that case from \"allow=0, deny=0\" caused by inactive allow windows.",
+		descAppDefaultLabels,
+		nil,
+	)
+
 	syncCounter = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "argocd_app_sync_total",
@@ -158,8 +172,12 @@ var (
 	}, []string{"server"})
 )
 
+// AppProjectGetter resolves the AppProject for a given Application. It may be nil,
+// in which case sync window metrics are not emitted.
+type AppProjectGetter func(app *argoappv1.Application) (*argoappv1.AppProject, error)
+
 // NewMetricsServer returns a new prometheus server which collects application metrics
-func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFilter func(obj any) bool, healthCheck func(r *http.Request) error, appLabels []string, appConditions []string, db db.ArgoDB) (*MetricsServer, error) {
+func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFilter func(obj any) bool, healthCheck func(r *http.Request) error, appLabels []string, appConditions []string, db db.ArgoDB, getAppProject AppProjectGetter) (*MetricsServer, error) {
 	hostname, err := os.Hostname()
 	if err != nil {
 		return nil, err
@@ -185,7 +203,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 	}
 
 	mux := http.NewServeMux()
-	registry := NewAppRegistry(appLister, appFilter, appLabels, appConditions, db)
+	registry := NewAppRegistry(appLister, appFilter, appLabels, appConditions, db, getAppProject)
 
 	mux.Handle(MetricsPath, promhttp.HandlerFor(prometheus.Gatherers{
 		// contains app controller specific metrics
@@ -360,23 +378,25 @@ type appCollector struct {
 	appLabels     []string
 	appConditions []string
 	db            db.ArgoDB
+	getAppProject AppProjectGetter
 }
 
 // NewAppCollector returns a prometheus collector for application metrics
-func NewAppCollector(appLister applister.ApplicationLister, appFilter func(obj any) bool, appLabels []string, appConditions []string, db db.ArgoDB) prometheus.Collector {
+func NewAppCollector(appLister applister.ApplicationLister, appFilter func(obj any) bool, appLabels []string, appConditions []string, db db.ArgoDB, getAppProject AppProjectGetter) prometheus.Collector {
 	return &appCollector{
 		store:         appLister,
 		appFilter:     appFilter,
 		appLabels:     appLabels,
 		appConditions: appConditions,
 		db:            db,
+		getAppProject: getAppProject,
 	}
 }
 
 // NewAppRegistry creates a new prometheus registry that collects applications
-func NewAppRegistry(appLister applister.ApplicationLister, appFilter func(obj any) bool, appLabels []string, appConditions []string, db db.ArgoDB) *prometheus.Registry {
+func NewAppRegistry(appLister applister.ApplicationLister, appFilter func(obj any) bool, appLabels []string, appConditions []string, db db.ArgoDB, getAppProject AppProjectGetter) *prometheus.Registry {
 	registry := prometheus.NewRegistry()
-	registry.MustRegister(NewAppCollector(appLister, appFilter, appLabels, appConditions, db))
+	registry.MustRegister(NewAppCollector(appLister, appFilter, appLabels, appConditions, db, getAppProject))
 	return registry
 }
 
@@ -389,6 +409,10 @@ func (c *appCollector) Describe(ch chan<- *prometheus.Desc) {
 		ch <- descAppConditions
 	}
 	ch <- descAppInfo
+	if c.getAppProject != nil {
+		ch <- descAppSyncWindow
+		ch <- descAppSyncBlocked
+	}
 }
 
 // Collect implements the prometheus.Collector interface
@@ -471,4 +495,59 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 			addGauge(descAppConditions, float64(count), conditionType)
 		}
 	}
+
+	if c.getAppProject != nil {
+		allow, deny, blocked := syncWindowMetricValues(c.getAppProject, app)
+		addGauge(descAppSyncWindow, allow, "allow")
+		addGauge(descAppSyncWindow, deny, "deny")
+		addGauge(descAppSyncBlocked, blocked)
+	}
+}
+
+// syncWindowMetricValues returns the gauge values for the
+// argocd_app_sync_window (allow, deny) and argocd_app_sync_blocked series of
+// the given application. allow and deny are each 1 if at least one matching
+// sync window of that kind is currently active, otherwise 0. blocked is 1 if
+// an automatic sync attempt right now would be rejected by the window
+// evaluator (active deny window, or only allow windows are configured and none
+// is active), otherwise 0; when no sync windows are configured blocked is 0,
+// which distinguishes that case from "allow=0, deny=0" caused by inactive
+// allow windows. Errors resolving the project or evaluating window schedules
+// are logged and treated as "no active window" so all three series still
+// report a value for the application; this keeps `unless on(...)`-style alert
+// queries well-defined across application/project configurations.
+func syncWindowMetricValues(getAppProject AppProjectGetter, app *argoappv1.Application) (allow, deny, blocked float64) {
+	proj, err := getAppProject(app)
+	if err != nil {
+		log.Warnf("Failed to get AppProject for application %s/%s: %v", app.Namespace, app.Name, err)
+		return 0, 0, 0
+	}
+	if proj == nil {
+		return 0, 0, 0
+	}
+	matched := proj.Spec.SyncWindows.Matches(app)
+	active, err := matched.Active()
+	if err != nil {
+		log.Warnf("Failed to evaluate sync windows for application %s/%s: %v", app.Namespace, app.Name, err)
+		return 0, 0, 0
+	}
+	if active.HasWindows() {
+		for _, w := range *active {
+			switch w.Kind {
+			case "allow":
+				allow = 1
+			case "deny":
+				deny = 1
+			}
+		}
+	}
+	canSync, err := matched.CanSync(false, nil)
+	if err != nil {
+		log.Warnf("Failed to evaluate sync window state for application %s/%s: %v", app.Namespace, app.Name, err)
+		return allow, deny, 0
+	}
+	if !canSync {
+		blocked = 1
+	}
+	return allow, deny, blocked
 }
