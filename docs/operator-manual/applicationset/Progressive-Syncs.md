@@ -96,6 +96,32 @@ Once each batch of Applications reaches a `Healthy` status, the next batch is sy
 
 If there are any applications that don't match the listed expressions, they will not be synced by the RollingSync strategy and must be manually synced as describe above.
 
+##### Parallel groups
+
+For independent application tracks, `parallelGroups` can run multiple RollingSync steps concurrently. Groups are still processed in order: every Application selected by every step in a group must become Healthy before the next group starts. The existing `steps` field remains the sequential form.
+
+```yaml
+spec:
+  strategy:
+    type: RollingSync
+    rollingSync:
+      parallelGroups:
+        - steps:
+            - matchExpressions:
+                - key: cluster
+                  operator: In
+                  values: [cluster-a]
+            - matchExpressions:
+                - key: cluster
+                  operator: In
+                  values: [cluster-b]
+        - steps:
+            - matchExpressions:
+                - key: tier
+                  operator: In
+                  values: [production]
+```
+
 ### Deletion Strategies
 
 The `deletionOrder` field controls the order in which applications are deleted when they are removed from the ApplicationSet. Available values:

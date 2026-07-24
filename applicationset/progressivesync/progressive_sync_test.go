@@ -919,6 +919,31 @@ func TestBuildAppDependencyList(t *testing.T) {
 	}
 }
 
+func TestGetAppsToSyncWithParallelGroups(t *testing.T) {
+	appSet := v1alpha1.ApplicationSet{
+		Status: v1alpha1.ApplicationSetStatus{
+			ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{Application: "app1", Status: v1alpha1.ProgressiveSyncHealthy},
+				{Application: "app2", Status: v1alpha1.ProgressiveSyncProgressing},
+			},
+		},
+	}
+	currentApps := []v1alpha1.Application{
+		{ObjectMeta: metav1.ObjectMeta{Name: "app1"}},
+		{ObjectMeta: metav1.ObjectMeta{Name: "app2"}},
+		{ObjectMeta: metav1.ObjectMeta{Name: "app3"}},
+	}
+
+	got := getAppsToSyncWithGroups(
+		appSet,
+		[][]string{{"app1"}, {"app2"}, {"app3"}},
+		[][]int{{0, 1}, {2}},
+		currentApps,
+	)
+
+	assert.Equal(t, map[string]bool{"app1": true, "app2": true}, got)
+}
+
 func TestGetAppsToSync(t *testing.T) {
 	t.Parallel()
 	scheme := runtime.NewScheme()
