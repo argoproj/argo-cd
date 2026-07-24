@@ -736,6 +736,90 @@ func TestCallExtension(t *testing.T) {
 		require.NotNil(t, resp)
 		assert.Equal(t, http.StatusBadRequest, resp.StatusCode)
 	})
+	t.Run("will preserve path when preservePath is true", func(t *testing.T) {
+		// given
+		t.Parallel()
+		f := setup()
+		withRbac(f, true, true)
+		withUser(f, "some-user", []string{"group1", "group2"})
+
+		clusterURL := "some-url"
+		app := getApp("", clusterURL, defaultProjectName)
+		proj := getProjectWithDestinations("project-name", nil, []string{clusterURL})
+		f.appGetterMock.On("Get", mock.Anything, mock.Anything).Return(app, nil)
+		withProject(proj, f)
+
+		// Create a backend server that echoes the received path
+		backendServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("X-Received-Path", r.URL.Path)
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprint(w, "path:"+r.URL.Path)
+		}))
+		defer backendServer.Close()
+
+		// Configure extensions with preservePath settings
+		extensionConfig := fmt.Sprintf(`
+extensions:
+- name: preserve-path-ext
+  backend:
+    services:
+    - url: %s
+      preservePath: true
+- name: no-preserve-path-ext
+  backend:
+    services:
+    - url: %s
+      preservePath: false
+`, backendServer.URL, backendServer.URL)
+
+		withExtensionConfig(extensionConfig, f)
+		ts := startTestServer(t, f)
+		defer ts.Close()
+
+		test := func(extName string) {
+			var wg sync.WaitGroup
+			wg.Add(2)
+			f.metricsMock.
+				On("IncExtensionRequestCounter", extName, http.StatusOK).
+				Run(func(_ mock.Arguments) {
+					wg.Done()
+				})
+			f.metricsMock.
+				On("ObserveExtensionRequestDuration", extName, mock.Anything).
+				Run(func(_ mock.Arguments) {
+					wg.Done()
+				})
+
+			// when
+			backendPath := "/some/deep/path"
+			req := newExtensionRequest(t, "GET", fmt.Sprintf("%s/extensions/%s%s", ts.URL, extName, backendPath))
+
+			// then
+			resp, err := http.DefaultClient.Do(req)
+			require.NoError(t, err)
+			assert.Equal(t, http.StatusOK, resp.StatusCode)
+
+			switch extName {
+			case "preserve-path-ext":
+				assert.Equal(t, fmt.Sprintf("/extensions/%s%s", extName, backendPath), resp.Header.Get("X-Received-Path"))
+			case "no-preserve-path-ext":
+				assert.Equal(t, backendPath, resp.Header.Get("X-Received-Path"))
+			}
+
+			// waitgroup is necessary to make sure assertions aren't executed before
+			// the goroutine initiated by extension.CallExtension concludes which would
+			// lead to flaky test.
+			wg.Wait()
+			f.metricsMock.AssertCalled(t, "IncExtensionRequestCounter", extName, http.StatusOK)
+			f.metricsMock.AssertCalled(t, "ObserveExtensionRequestDuration", extName, mock.Anything)
+		}
+
+		// Test preservePath: true - should keep full path
+		test("preserve-path-ext")
+
+		// Test preservePath: false - should strip extension prefix
+		test("no-preserve-path-ext")
+	})
 }
 
 func getExtensionConfig(name, url string) string {
