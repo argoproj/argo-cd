@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	stderrors "errors"
 	"fmt"
 	"os"
@@ -95,7 +96,8 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 		Use:     "add REPOURL",
 		Short:   "Add git repository connection parameters",
 		Example: repocredsAddExamples,
-		Run: func(c *cobra.Command, args []string) {
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
+			defer stop()
 			ctx := c.Context()
 
 			if len(args) != 1 {
@@ -164,7 +166,7 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 				}
 			}
 
-			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoCredsClientOrDie()
+			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoCredsClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
 
 			// If the user set a username, but didn't supply password via --password,
@@ -191,7 +193,7 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 			createdRepo, err := repoIf.CreateRepositoryCredentials(ctx, &repoCreateReq)
 			errors.CheckError(err)
 			fmt.Printf("Repository credentials for '%s' added\n", createdRepo.URL)
-		},
+		}),
 	}
 	command.Flags().StringVar(&repo.Username, "username", "", "username to the repository")
 	command.Flags().StringVar(&repo.Password, "password", "", "password to the repository")
@@ -227,14 +229,15 @@ func NewRepoCredsRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			# Remove credentials for the repositories with URL https://git.example.com/repos
 			argocd repocreds rm https://git.example.com/repos/
 		`),
-		Run: func(c *cobra.Command, args []string) {
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
+			defer stop()
 			ctx := c.Context()
 
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoCredsClientOrDie()
+			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoCredsClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
 
 			promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
@@ -249,7 +252,7 @@ func NewRepoCredsRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					fmt.Printf("The command to remove '%s' was cancelled.\n", repoURL)
 				}
 			}
-		},
+		}),
 	}
 	return command
 }
@@ -293,10 +296,11 @@ func NewRepoCredsListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 			# List all repo urls in url format
 			argocd repocreds list -o url
 		`),
-		Run: func(c *cobra.Command, _ []string) {
+		Run: cli.WithSignalContext(func(c *cobra.Command, _ []string, stop context.CancelFunc) {
+			defer stop()
 			ctx := c.Context()
 
-			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoCredsClientOrDie()
+			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoCredsClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
 			repos, err := repoIf.ListRepositoryCredentials(ctx, &repocredspkg.RepoCredsQuery{})
 			errors.CheckError(err)
@@ -311,7 +315,7 @@ func NewRepoCredsListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 			default:
 				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 			}
-		},
+		}),
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|url")
 	return command

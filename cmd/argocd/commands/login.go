@@ -59,7 +59,8 @@ argocd login cd.argoproj.io --sso
 
 # Configure direct access using Kubernetes API server
 argocd login cd.argoproj.io --core`,
-		Run: func(c *cobra.Command, args []string) {
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
+			defer stop()
 			ctx := c.Context()
 
 			var server string
@@ -127,7 +128,7 @@ argocd login cd.argoproj.io --core`,
 			var refreshToken string
 			if !clientOpts.Core {
 				acdClient := headless.NewClientOrDie(&loginOpts, c)
-				setConn, setIf := acdClient.NewSettingsClientOrDie()
+				setConn, setIf := acdClient.NewSettingsClientOrDieWithContext(ctx)
 				defer utilio.Close(setConn)
 				if !sso {
 					tokenString = passwordLogin(ctx, acdClient, username, password)
@@ -179,7 +180,7 @@ argocd login cd.argoproj.io --core`,
 			err = localconfig.WriteLocalConfig(*localCfg, clientOpts.ConfigPath)
 			errors.CheckError(err)
 			fmt.Printf("Context '%s' updated\n", ctxName)
-		},
+		}),
 	}
 	command.Flags().StringVar(&ctxName, "name", "", "Name to use for the context")
 	command.Flags().StringVar(&username, "username", "", "The username of an account to authenticate")
@@ -362,7 +363,7 @@ func oauth2Login(
 
 func passwordLogin(ctx context.Context, acdClient argocdclient.Client, username, password string) string {
 	username, password = cli.PromptCredentials(username, password)
-	sessConn, sessionIf := acdClient.NewSessionClientOrDie()
+	sessConn, sessionIf := acdClient.NewSessionClientOrDieWithContext(ctx)
 	defer utilio.Close(sessConn)
 	sessionRequest := sessionpkg.SessionCreateRequest{
 		Username: username,

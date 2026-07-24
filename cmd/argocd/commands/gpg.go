@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	stderrors "errors"
 	"fmt"
 	"os"
@@ -14,6 +15,7 @@ import (
 	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
 	gpgkeypkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/gpgkey"
 	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/templates"
@@ -54,10 +56,11 @@ func NewGPGListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
   argocd gpg list -o yaml
   		`),
 
-		Run: func(c *cobra.Command, _ []string) {
+		Run: cli.WithSignalContext(func(c *cobra.Command, _ []string, stop context.CancelFunc) {
+			defer stop()
 			ctx := c.Context()
 
-			conn, gpgIf := headless.NewClientOrDie(clientOpts, c).NewGPGKeyClientOrDie()
+			conn, gpgIf := headless.NewClientOrDie(clientOpts, c).NewGPGKeyClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
 			keys, err := gpgIf.List(ctx, &gpgkeypkg.GnuPGPublicKeyQuery{})
 			errors.CheckError(err)
@@ -70,7 +73,7 @@ func NewGPGListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			default:
 				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 			}
-		},
+		}),
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide")
 	return command
@@ -93,13 +96,14 @@ func NewGPGGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
   argocd gpg get KEYID -o yaml
   		`),
 
-		Run: func(c *cobra.Command, args []string) {
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
+			defer stop()
 			ctx := c.Context()
 
 			if len(args) != 1 {
 				errors.Fatal(errors.ErrorGeneric, "Missing KEYID argument")
 			}
-			conn, gpgIf := headless.NewClientOrDie(clientOpts, c).NewGPGKeyClientOrDie()
+			conn, gpgIf := headless.NewClientOrDie(clientOpts, c).NewGPGKeyClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
 			key, err := gpgIf.Get(ctx, &gpgkeypkg.GnuPGPublicKeyQuery{KeyID: args[0]})
 			errors.CheckError(err)
@@ -116,7 +120,7 @@ func NewGPGGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			default:
 				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 			}
-		},
+		}),
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide")
 	return command
@@ -133,7 +137,8 @@ func NewGPGAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
   argocd gpg add --from /path/to/keyfile
   		`),
 
-		Run: func(c *cobra.Command, _ []string) {
+		Run: cli.WithSignalContext(func(c *cobra.Command, _ []string, stop context.CancelFunc) {
+			defer stop()
 			ctx := c.Context()
 
 			if fromFile == "" {
@@ -143,7 +148,7 @@ func NewGPGAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			if err != nil {
 				errors.CheckError(err)
 			}
-			conn, gpgIf := headless.NewClientOrDie(clientOpts, c).NewGPGKeyClientOrDie()
+			conn, gpgIf := headless.NewClientOrDie(clientOpts, c).NewGPGKeyClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
 			resp, err := gpgIf.Create(ctx, &gpgkeypkg.GnuPGPublicKeyCreateRequest{Publickey: &appsv1.GnuPGPublicKey{KeyData: string(keyData)}})
 			errors.CheckError(err)
@@ -152,7 +157,7 @@ func NewGPGAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				fmt.Printf(", and %d key(s) were skipped because they exist already", len(resp.Skipped))
 			}
 			fmt.Print(".\n")
-		},
+		}),
 	}
 	command.Flags().StringVarP(&fromFile, "from", "f", "", "Path to the file that contains the GPG public key to import")
 	return command
@@ -163,7 +168,8 @@ func NewGPGDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 	command := &cobra.Command{
 		Use:   "rm KEYID",
 		Short: "Removes a GPG public key from the server's keyring",
-		Run: func(c *cobra.Command, args []string) {
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
+			defer stop()
 			ctx := c.Context()
 
 			if len(args) != 1 {
@@ -172,7 +178,7 @@ func NewGPGDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 
 			keyId := args[0]
 
-			conn, gpgIf := headless.NewClientOrDie(clientOpts, c).NewGPGKeyClientOrDie()
+			conn, gpgIf := headless.NewClientOrDie(clientOpts, c).NewGPGKeyClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
 
 			promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
@@ -184,7 +190,7 @@ func NewGPGDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 			} else {
 				fmt.Printf("The command to delete key with key ID '%s' was cancelled.\n", keyId)
 			}
-		},
+		}),
 	}
 	return command
 }

@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strconv"
@@ -14,6 +15,7 @@ import (
 	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
 	projectpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
@@ -58,7 +60,8 @@ func newProjectWindowsToggleCommand(clientOpts *argocdclient.ClientOptions, use,
 		Short:   short,
 		Long:    long,
 		Example: example,
-		Run: func(c *cobra.Command, args []string) {
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
+			defer stop()
 			ctx := c.Context()
 
 			if len(args) != 2 {
@@ -70,7 +73,7 @@ func newProjectWindowsToggleCommand(clientOpts *argocdclient.ClientOptions, use,
 			id, err := strconv.Atoi(args[1])
 			errors.CheckError(err)
 
-			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
+			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
 
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
@@ -90,7 +93,7 @@ func newProjectWindowsToggleCommand(clientOpts *argocdclient.ClientOptions, use,
 
 			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
 			errors.CheckError(err)
-		},
+		}),
 	}
 }
 
@@ -211,7 +214,8 @@ argocd proj windows add PROJECT \
     --manual-sync \
     --sync-overrun \
     --description "Ticket 123"`,
-		Run: func(c *cobra.Command, args []string) {
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
+			defer stop()
 			ctx := c.Context()
 
 			if len(args) != 1 {
@@ -219,7 +223,7 @@ argocd proj windows add PROJECT \
 				os.Exit(1)
 			}
 			projName := args[0]
-			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
+			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
 
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
@@ -230,7 +234,7 @@ argocd proj windows add PROJECT \
 
 			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
 			errors.CheckError(err)
-		},
+		}),
 	}
 	command.Flags().StringVarP(&kind, "kind", "k", "", "Sync window kind, either allow or deny")
 	command.Flags().StringVar(&schedule, "schedule", "", "Sync window schedule in cron format. (e.g. --schedule \"0 22 * * *\")")
@@ -258,7 +262,8 @@ argocd proj windows delete default 0
 
 #Delete a sync window from a project (new-project) with ID 1
 argocd proj windows delete new-project 1`,
-		Run: func(c *cobra.Command, args []string) {
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
+			defer stop()
 			ctx := c.Context()
 
 			if len(args) != 2 {
@@ -270,7 +275,7 @@ argocd proj windows delete new-project 1`,
 			id, err := strconv.Atoi(args[1])
 			errors.CheckError(err)
 
-			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
+			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
 
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
@@ -287,7 +292,7 @@ argocd proj windows delete new-project 1`,
 			} else {
 				fmt.Print("The command to delete the sync window was cancelled\n")
 			}
-		},
+		}),
 	}
 	return command
 }
@@ -311,7 +316,8 @@ func NewProjectWindowsUpdateCommand(clientOpts *argocdclient.ClientOptions) *cob
 argocd proj windows update PROJECT ID \
     --schedule "0 20 * * *"
 `,
-		Run: func(c *cobra.Command, args []string) {
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
+			defer stop()
 			ctx := c.Context()
 
 			if len(args) != 2 {
@@ -323,7 +329,7 @@ argocd proj windows update PROJECT ID \
 			id, err := strconv.Atoi(args[1])
 			errors.CheckError(err)
 
-			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
+			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
 
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
@@ -340,7 +346,7 @@ argocd proj windows update PROJECT ID \
 
 			_, err = projIf.Update(ctx, &projectpkg.ProjectUpdateRequest{Project: proj})
 			errors.CheckError(err)
-		},
+		}),
 	}
 	command.Flags().StringVar(&schedule, "schedule", "", "Sync window schedule in cron format. (e.g. --schedule \"0 22 * * *\")")
 	command.Flags().StringVar(&duration, "duration", "", "Sync window duration. (e.g. --duration 1h)")
@@ -367,7 +373,8 @@ argocd proj windows list PROJECT -o yaml
 
 #List project windows info for a project name (test-project)
 argocd proj windows list test-project`,
-		Run: func(c *cobra.Command, args []string) {
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
+			defer stop()
 			ctx := c.Context()
 
 			if len(args) != 1 {
@@ -375,7 +382,7 @@ argocd proj windows list test-project`,
 				os.Exit(1)
 			}
 			projName := args[0]
-			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
+			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
 
 			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: projName})
@@ -389,7 +396,7 @@ argocd proj windows list test-project`,
 			default:
 				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 			}
-		},
+		}),
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide")
 	return command

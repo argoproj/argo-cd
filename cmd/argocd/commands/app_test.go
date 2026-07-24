@@ -2229,6 +2229,14 @@ func (c *readyEventAcdClient) NewSettingsClientOrDie() (io.Closer, settingspkg.S
 	return &fakeConnection{}, &fakeSettingsServiceClient{}
 }
 
+func (c *readyEventAcdClient) NewApplicationClientOrDieWithContext(_ context.Context) (io.Closer, applicationpkg.ApplicationServiceClient) {
+	return c.NewApplicationClientOrDie()
+}
+
+func (c *readyEventAcdClient) NewSettingsClientOrDieWithContext(_ context.Context) (io.Closer, settingspkg.SettingsServiceClient) {
+	return c.NewSettingsClientOrDie()
+}
+
 // deleteAcdClient emits a single Deleted event immediately so the watch loop
 // can return without relying on a timeout.
 type deleteAcdClient struct {
@@ -2253,6 +2261,14 @@ func (c *deleteAcdClient) NewApplicationClientOrDie() (io.Closer, applicationpkg
 
 func (c *deleteAcdClient) NewSettingsClientOrDie() (io.Closer, settingspkg.SettingsServiceClient) {
 	return &fakeConnection{}, &fakeSettingsServiceClient{}
+}
+
+func (c *deleteAcdClient) NewApplicationClientOrDieWithContext(_ context.Context) (io.Closer, applicationpkg.ApplicationServiceClient) {
+	return c.NewApplicationClientOrDie()
+}
+
+func (c *deleteAcdClient) NewSettingsClientOrDieWithContext(_ context.Context) (io.Closer, settingspkg.SettingsServiceClient) {
+	return c.NewSettingsClientOrDie()
 }
 
 // readyAcdClient is like customAcdClient but returns an application that is
@@ -2280,6 +2296,14 @@ func (c *readyAcdClient) NewApplicationClientOrDie() (io.Closer, applicationpkg.
 
 func (c *readyAcdClient) NewSettingsClientOrDie() (io.Closer, settingspkg.SettingsServiceClient) {
 	return &fakeConnection{}, &fakeSettingsServiceClient{}
+}
+
+func (c *readyAcdClient) NewApplicationClientOrDieWithContext(_ context.Context) (io.Closer, applicationpkg.ApplicationServiceClient) {
+	return c.NewApplicationClientOrDie()
+}
+
+func (c *readyAcdClient) NewSettingsClientOrDieWithContext(_ context.Context) (io.Closer, settingspkg.SettingsServiceClient) {
+	return c.NewSettingsClientOrDie()
 }
 
 type readyFakeAppServiceClient struct {
@@ -2339,6 +2363,14 @@ func (c *customAcdClient) NewApplicationClientOrDie() (io.Closer, applicationpkg
 
 func (c *customAcdClient) NewSettingsClientOrDie() (io.Closer, settingspkg.SettingsServiceClient) {
 	return &fakeConnection{}, &fakeSettingsServiceClient{}
+}
+
+func (c *customAcdClient) NewApplicationClientOrDieWithContext(_ context.Context) (io.Closer, applicationpkg.ApplicationServiceClient) {
+	return c.NewApplicationClientOrDie()
+}
+
+func (c *customAcdClient) NewSettingsClientOrDieWithContext(_ context.Context) (io.Closer, settingspkg.SettingsServiceClient) {
+	return c.NewSettingsClientOrDie()
 }
 
 type fakeConnection struct{}
@@ -2663,6 +2695,110 @@ func (c *fakeAcdClient) NewAccountClient() (io.Closer, accountpkg.AccountService
 
 func (c *fakeAcdClient) NewAccountClientOrDie() (io.Closer, accountpkg.AccountServiceClient) {
 	return nil, nil
+}
+
+func (c *fakeAcdClient) NewRepoClientWithContext(_ context.Context) (io.Closer, repositorypkg.RepositoryServiceClient, error) {
+	return c.NewRepoClient()
+}
+
+func (c *fakeAcdClient) NewRepoClientOrDieWithContext(_ context.Context) (io.Closer, repositorypkg.RepositoryServiceClient) {
+	return c.NewRepoClientOrDie()
+}
+
+func (c *fakeAcdClient) NewRepoCredsClientWithContext(_ context.Context) (io.Closer, repocredspkg.RepoCredsServiceClient, error) {
+	return c.NewRepoCredsClient()
+}
+
+func (c *fakeAcdClient) NewRepoCredsClientOrDieWithContext(_ context.Context) (io.Closer, repocredspkg.RepoCredsServiceClient) {
+	return c.NewRepoCredsClientOrDie()
+}
+
+func (c *fakeAcdClient) NewCertClientWithContext(_ context.Context) (io.Closer, certificatepkg.CertificateServiceClient, error) {
+	return c.NewCertClient()
+}
+
+func (c *fakeAcdClient) NewCertClientOrDieWithContext(_ context.Context) (io.Closer, certificatepkg.CertificateServiceClient) {
+	return c.NewCertClientOrDie()
+}
+
+func (c *fakeAcdClient) NewClusterClientWithContext(_ context.Context) (io.Closer, clusterpkg.ClusterServiceClient, error) {
+	return c.NewClusterClient()
+}
+
+func (c *fakeAcdClient) NewClusterClientOrDieWithContext(_ context.Context) (io.Closer, clusterpkg.ClusterServiceClient) {
+	return c.NewClusterClientOrDie()
+}
+
+func (c *fakeAcdClient) NewGPGKeyClientWithContext(_ context.Context) (io.Closer, gpgkeypkg.GPGKeyServiceClient, error) {
+	return c.NewGPGKeyClient()
+}
+
+func (c *fakeAcdClient) NewGPGKeyClientOrDieWithContext(_ context.Context) (io.Closer, gpgkeypkg.GPGKeyServiceClient) {
+	return c.NewGPGKeyClientOrDie()
+}
+
+func (c *fakeAcdClient) NewApplicationClientWithContext(_ context.Context) (io.Closer, applicationpkg.ApplicationServiceClient, error) {
+	return c.NewApplicationClient()
+}
+
+func (c *fakeAcdClient) NewApplicationClientOrDieWithContext(_ context.Context) (io.Closer, applicationpkg.ApplicationServiceClient) {
+	return c.NewApplicationClientOrDie()
+}
+
+func (c *fakeAcdClient) NewApplicationSetClientWithContext(_ context.Context) (io.Closer, applicationsetpkg.ApplicationSetServiceClient, error) {
+	return c.NewApplicationSetClient()
+}
+
+func (c *fakeAcdClient) NewApplicationSetClientOrDieWithContext(_ context.Context) (io.Closer, applicationsetpkg.ApplicationSetServiceClient) {
+	return c.NewApplicationSetClientOrDie()
+}
+
+func (c *fakeAcdClient) NewNotificationClientWithContext(_ context.Context) (io.Closer, notificationpkg.NotificationServiceClient, error) {
+	return c.NewNotificationClient()
+}
+
+func (c *fakeAcdClient) NewNotificationClientOrDieWithContext(_ context.Context) (io.Closer, notificationpkg.NotificationServiceClient) {
+	return c.NewNotificationClientOrDie()
+}
+
+func (c *fakeAcdClient) NewSessionClientWithContext(_ context.Context) (io.Closer, sessionpkg.SessionServiceClient, error) {
+	return c.NewSessionClient()
+}
+
+func (c *fakeAcdClient) NewSessionClientOrDieWithContext(_ context.Context) (io.Closer, sessionpkg.SessionServiceClient) {
+	return c.NewSessionClientOrDie()
+}
+
+func (c *fakeAcdClient) NewSettingsClientWithContext(_ context.Context) (io.Closer, settingspkg.SettingsServiceClient, error) {
+	return c.NewSettingsClient()
+}
+
+func (c *fakeAcdClient) NewSettingsClientOrDieWithContext(_ context.Context) (io.Closer, settingspkg.SettingsServiceClient) {
+	return c.NewSettingsClientOrDie()
+}
+
+func (c *fakeAcdClient) NewVersionClientWithContext(_ context.Context) (io.Closer, versionpkg.VersionServiceClient, error) {
+	return c.NewVersionClient()
+}
+
+func (c *fakeAcdClient) NewVersionClientOrDieWithContext(_ context.Context) (io.Closer, versionpkg.VersionServiceClient) {
+	return c.NewVersionClientOrDie()
+}
+
+func (c *fakeAcdClient) NewProjectClientWithContext(_ context.Context) (io.Closer, projectpkg.ProjectServiceClient, error) {
+	return c.NewProjectClient()
+}
+
+func (c *fakeAcdClient) NewProjectClientOrDieWithContext(_ context.Context) (io.Closer, projectpkg.ProjectServiceClient) {
+	return c.NewProjectClientOrDie()
+}
+
+func (c *fakeAcdClient) NewAccountClientWithContext(_ context.Context) (io.Closer, accountpkg.AccountServiceClient, error) {
+	return c.NewAccountClient()
+}
+
+func (c *fakeAcdClient) NewAccountClientOrDieWithContext(_ context.Context) (io.Closer, accountpkg.AccountServiceClient) {
+	return c.NewAccountClientOrDie()
 }
 
 func (c *fakeAcdClient) WatchApplicationWithRetry(_ context.Context, _ string, _ string) chan *v1alpha1.ApplicationWatchEvent {

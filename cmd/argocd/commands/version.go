@@ -12,6 +12,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/version"
+	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
@@ -39,7 +40,8 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions, serverVersion *versio
   # Print only client and server core version strings in YAML format
   argocd version --short -o yaml
 `,
-		Run: func(cmd *cobra.Command, _ []string) {
+		Run: cli.WithSignalContext(func(cmd *cobra.Command, _ []string, stop context.CancelFunc) {
+			defer stop()
 			ctx := cmd.Context()
 
 			cv := common.GetVersion()
@@ -84,7 +86,7 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions, serverVersion *versio
 			default:
 				log.Fatalf("unknown output format: %s", output)
 			}
-		},
+		}),
 	}
 	versionCmd.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|short")
 	versionCmd.Flags().BoolVar(&short, "short", false, "print just the version number")
@@ -93,7 +95,7 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions, serverVersion *versio
 }
 
 func getServerVersion(ctx context.Context, options *argocdclient.ClientOptions, c *cobra.Command) *version.VersionMessage {
-	conn, versionIf := headless.NewClientOrDie(options, c).NewVersionClientOrDie()
+	conn, versionIf := headless.NewClientOrDie(options, c).NewVersionClientOrDieWithContext(ctx)
 	defer utilio.Close(conn)
 
 	v, err := versionIf.Version(ctx, &empty.Empty{})

@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -25,6 +26,7 @@ import (
 	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
 	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
@@ -77,7 +79,7 @@ func NewApplicationGetResourceCommand(clientOpts *argocdclient.ClientOptions) *c
 
 		appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
 
-		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
+		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDieWithContext(ctx)
 		defer utilio.Close(conn)
 
 		tree, err := appIf.ResourceTree(ctx, &applicationpkg.ResourcesQuery{
@@ -323,7 +325,7 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 		}
 		appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
 
-		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
+		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDieWithContext(ctx)
 		defer utilio.Close(conn)
 		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{
 			ApplicationName: &appName,
@@ -392,7 +394,7 @@ func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions)
 		}
 		appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
 
-		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
+		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDieWithContext(ctx)
 		defer utilio.Close(conn)
 		resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{
 			ApplicationName: &appName,
@@ -550,7 +552,8 @@ func NewApplicationListResourcesCommand(clientOpts *argocdclient.ClientOptions) 
   # Shows resource hierarchy with parent-child relationships including information about age, health and reason
   argocd app resources my-app --output tree=detailed
   		`),
-		Run: func(c *cobra.Command, args []string) {
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
+			defer stop()
 			ctx := c.Context()
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
@@ -558,7 +561,7 @@ func NewApplicationListResourcesCommand(clientOpts *argocdclient.ClientOptions) 
 			}
 			listAll := !c.Flag("orphaned").Changed
 			appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
-			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
+			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
 			appResourceTree, err := appIf.ResourceTree(ctx, &applicationpkg.ResourcesQuery{
 				ApplicationName: &appName,
@@ -567,7 +570,7 @@ func NewApplicationListResourcesCommand(clientOpts *argocdclient.ClientOptions) 
 			})
 			errors.CheckError(err)
 			printResources(listAll, orphaned, appResourceTree, output)
-		},
+		}),
 	}
 	command.Flags().BoolVar(&orphaned, "orphaned", false, "Lists only orphaned resources")
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Namespace of the application")

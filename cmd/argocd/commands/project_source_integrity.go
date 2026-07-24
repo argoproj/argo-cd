@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -44,10 +45,10 @@ argocd proj source-integrity git policies delete PROJECT POLICY_ID
 var (
 	// Indirections needed for a client lookup during tests. Mocks are injected here.
 	newProjectClient = func(clientOpts *argocdclient.ClientOptions, c *cobra.Command) (io.Closer, projectpkg.ProjectServiceClient) {
-		return headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
+		return headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDieWithContext(c.Context())
 	}
 	newGpgKeyClient = func(clientOpts *argocdclient.ClientOptions, c *cobra.Command) (io.Closer, gpgkey.GPGKeyServiceClient) {
-		return headless.NewClientOrDie(clientOpts, c).NewGPGKeyClientOrDie()
+		return headless.NewClientOrDie(clientOpts, c).NewGPGKeyClientOrDieWithContext(c.Context())
 	}
 )
 
@@ -109,7 +110,8 @@ func NewProjectSourceIntegrityGitPoliciesListCommand(clientOpts *argocdclient.Cl
 			# List all git policies for project PROJECT.
 			argocd proj source-integrity git policies list PROJECT
 		`),
-		RunE: func(c *cobra.Command, args []string) error {
+		RunE: cli.WithSignalContextE(func(c *cobra.Command, args []string, stop context.CancelFunc) error {
+			defer stop()
 			ctx := c.Context()
 
 			if len(args) != 1 {
@@ -131,7 +133,7 @@ func NewProjectSourceIntegrityGitPoliciesListCommand(clientOpts *argocdclient.Cl
 
 			listGitGpgPolicies(c.OutOrStdout(), proj)
 			return nil
-		},
+		}),
 	}
 	return command
 }
@@ -173,7 +175,8 @@ func NewProjectSourceIntegrityGitPoliciesDeleteCommand(clientOpts *argocdclient.
 			# Delete git policy at index 1 and 3 from project named PROJECT
 			argocd proj source-integrity git policies delete PROJECT 1 3
 		`),
-		RunE: func(c *cobra.Command, args []string) error {
+		RunE: cli.WithSignalContextE(func(c *cobra.Command, args []string, stop context.CancelFunc) error {
+			defer stop()
 			ctx := c.Context()
 
 			if len(args) < 2 {
@@ -239,7 +242,7 @@ func NewProjectSourceIntegrityGitPoliciesDeleteCommand(clientOpts *argocdclient.
 			}
 
 			return nil
-		},
+		}),
 	}
 	command.Flags().BoolVarP(&yes, "yes", "y", false, "Skip explicit confirmation")
 	return command
@@ -270,7 +273,8 @@ func NewProjectSourceIntegrityGitPoliciesAddCommand(clientOpts *argocdclient.Cli
 				--gpg-mode strict \
 				--gpg-key D56C4FCA57A46444
 		`),
-		RunE: func(c *cobra.Command, args []string) error {
+		RunE: cli.WithSignalContextE(func(c *cobra.Command, args []string, stop context.CancelFunc) error {
+			defer stop()
 			ctx := c.Context()
 
 			if len(args) != 1 {
@@ -324,7 +328,7 @@ func NewProjectSourceIntegrityGitPoliciesAddCommand(clientOpts *argocdclient.Cli
 			// Print resulting policies out of convenience
 			listGitGpgPolicies(c.OutOrStdout(), proj)
 			return nil
-		},
+		}),
 	}
 	command.Flags().StringSliceVar(&repoURLs, "repo-url", []string{}, "Repository URL pattern (can be repeated)")
 	command.Flags().StringVar(&gpgMode, "gpg-mode", "", "GPG verification mode (strict, head, or none)")
@@ -375,7 +379,8 @@ func NewProjectSourceIntegrityGitPoliciesUpdateCommand(clientOpts *argocdclient.
 				--gpg-mode strict \
 				--add-gpg-key D56C4FCA57A46444
 		`),
-		RunE: func(c *cobra.Command, args []string) error {
+		RunE: cli.WithSignalContextE(func(c *cobra.Command, args []string, stop context.CancelFunc) error {
+			defer stop()
 			ctx := c.Context()
 
 			if len(args) != 2 {
@@ -516,7 +521,7 @@ func NewProjectSourceIntegrityGitPoliciesUpdateCommand(clientOpts *argocdclient.
 			}
 
 			return nil
-		},
+		}),
 	}
 	command.Flags().StringVar(&gpgMode, "gpg-mode", "", "Set GPG verification mode (strict, head, or none)")
 	command.Flags().StringSliceVar(&repoURLs, "repo-url", []string{}, "Set repository URL pattern (replaces existing)")
