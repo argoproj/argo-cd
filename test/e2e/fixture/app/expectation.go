@@ -76,8 +76,14 @@ func OperationMessageContains(text string) Expectation {
 func OperationRetriedMinimumTimes(minRetries int64) Expectation {
 	return func(c *Consequences) (state, string) {
 		operationState := c.app().Status.OperationState
+		// operationState is briefly nil while a new operation is being started (SetAppOperation
+		// clears status.operationState when it sets spec.operation), so treat nil as "not retried
+		// yet" and keep polling instead of dereferencing it.
+		if operationState == nil {
+			return pending, fmt.Sprintf("operation state retry count should be at least %d, but no operation state is set yet", minRetries)
+		}
 		actual := operationState.RetryCount
-		message := fmt.Sprintf("operation state retry cound should be at least %d, is %d, message: '%s'", minRetries, actual, operationState.Message)
+		message := fmt.Sprintf("operation state retry count should be at least %d, is %d, message: '%s'", minRetries, actual, operationState.Message)
 		return simple(actual >= minRetries, message)
 	}
 }

@@ -1693,47 +1693,103 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 		now := metav1.Now()
 		state.FinishedAt = &now
 	}
-	patch := map[string]any{
-		"status": map[string]any{
-			"operationState": state,
-		},
-	}
-	if state.Phase.Completed() {
-		// If operation is completed, clear the operation field to indicate no operation is
-		// in progress.
-		patch["operation"] = nil
-	}
 	if reflect.DeepEqual(app.Status.OperationState, state) {
 		logCtx.Infof("No operation updates necessary to '%s'. Skipping patch", app.QualifiedName())
 		return
 	}
-	patchJSON, err := json.Marshal(patch)
-	if err != nil {
-		logCtx.WithError(err).Error("error marshaling json")
-		return
-	}
-	if app.Status.OperationState != nil && app.Status.OperationState.FinishedAt != nil && state.FinishedAt == nil {
-		patchJSON, err = jsonpatch.MergeMergePatches(patchJSON, []byte(`{"status": {"operationState": {"finishedAt": null}}}`))
-		if err != nil {
-			logCtx.WithError(err).Error("error merging operation state patch")
-			return
-		}
-	}
 
+	// Persist operationState with optimistic concurrency instead of a blind merge patch.
+	//
+	// A merge patch of status.operationState is unsafe for two reasons that, together, can
+	// strand an application in a perpetual "running" phase (argoproj/argo-cd#18613, #23765):
+	//   1. operationState's fields are `omitempty`, so a patch carrying only a subset of them
+	//      cannot clear the rest — a stale "Running" progress update silently leaves the
+	//      finishedAt recorded by a preceding terminal write in place.
+	//   2. a merge patch has no resourceVersion precondition, so an out-of-order update can
+	//      overwrite a newer one, letting a late progress update clobber the terminal
+	//      "Succeeded"/"Failed" write.
+	//
+	// Reading the live application and patching status.operationState with the live
+	// resourceVersion as a precondition replaces the whole operationState atomically, so a
+	// concurrent writer causes a Conflict + refetch instead of a silent clobber. Optimistic
+	// concurrency alone is not enough, however: a stale writer that refetches would still
+	// overwrite a completed operation with a current resourceVersion. So we also refuse,
+	// semantically, to move a completed operation back to a non-terminal phase. Once an
+	// operation completes, the top-level operation field is cleared; a non-terminal write for
+	// an operation whose operation field is already gone is therefore out of order and is discarded.
+	written := false
 	kube.RetryUntilSucceed(ctx, updateOperationStateTimeout, "Update application operation state", logutils.NewLogrusLogger(logutils.NewWithCurrentConfig()), func() error {
-		_, err := ctrl.PatchAppWithWriteBack(ctx, app.Name, app.Namespace, types.MergePatchType, patchJSON, metav1.PatchOptions{})
+		live, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(ctx, app.Name, metav1.GetOptions{})
 		if err != nil {
 			// Stop retrying updating deleted application
 			if apierrors.IsNotFound(err) {
 				return nil
 			}
-			// kube.RetryUntilSucceed logs failed attempts at "debug" level, but we want to know if this fails. Log a
-			// warning.
+			return fmt.Errorf("error reading application before operation state update: %w", err)
+		}
+
+		if !state.Phase.Completed() && live.Operation == nil &&
+			live.Status.OperationState != nil && live.Status.OperationState.Phase.Completed() {
+			logCtx.Warnf("Discarding stale operation state update (phase: %s): live operation already completed as %s",
+				state.Phase, live.Status.OperationState.Phase)
+			return nil
+		}
+
+		newOperation := live.Operation
+		if state.Phase.Completed() {
+			// If operation is completed, clear the operation field to indicate no operation is
+			// in progress.
+			newOperation = nil
+		}
+
+		// Build a patch scoped to just status.operationState (and, on completion, operation)
+		// instead of writing back the whole Application. createMergePatch diffs against the live
+		// operationState, so it emits explicit nulls for the fields the new state drops.
+		patch, modified, err := createMergePatch(
+			&appv1.Application{Operation: live.Operation, Status: appv1.ApplicationStatus{OperationState: live.Status.OperationState}},
+			&appv1.Application{Operation: newOperation, Status: appv1.ApplicationStatus{OperationState: state}},
+		)
+		if err != nil {
+			logCtx.WithError(err).Error("error constructing operation state patch")
+			return nil
+		}
+		if !modified {
+			// Live already matches the desired operation state; nothing to persist.
+			return nil
+		}
+
+		// Embed the resourceVersion we just read so the apiserver applies the patch under
+		// optimistic concurrency: if the live object changed since the Get above (for example the
+		// terminal write we must not clobber, or a status refresh), the patch is rejected with a
+		// Conflict and RetryUntilSucceed refetches and re-evaluates the guard.
+		if live.ResourceVersion == "" {
+			return fmt.Errorf("live application %q has no resourceVersion; refusing to patch operation state without an optimistic-concurrency precondition", app.QualifiedName())
+		}
+		patch, err = jsonpatch.MergeMergePatches(patch, fmt.Appendf(nil, `{"metadata":{"resourceVersion":%q}}`, live.ResourceVersion))
+		if err != nil {
+			logCtx.WithError(err).Error("error adding resourceVersion precondition to operation state patch")
+			return nil
+		}
+
+		if _, err := ctrl.PatchAppWithWriteBack(ctx, app.Name, app.Namespace, types.MergePatchType, patch, metav1.PatchOptions{}); err != nil {
+			// Stop retrying updating deleted application
+			if apierrors.IsNotFound(err) {
+				return nil
+			}
+			// A conflict means the live object changed under us (for example the terminal
+			// write we must not clobber, or a status refresh); refetch and re-evaluate.
+			// kube.RetryUntilSucceed logs failed attempts at "debug" level, but we want to
+			// know if this fails. Log a warning.
 			logCtx.WithError(err).Warn("error patching application with operation state")
 			return fmt.Errorf("error patching application with operation state: %w", err)
 		}
+		written = true
 		return nil
 	})
+
+	if !written {
+		return
+	}
 
 	logCtx.Infof("updated '%s' operation (phase: %s)", app.QualifiedName(), state.Phase)
 	if state.Phase.Completed() {
