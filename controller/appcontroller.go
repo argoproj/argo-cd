@@ -2265,7 +2265,7 @@ func (ctrl *ApplicationController) handleRefreshAnnotation(ctx context.Context, 
 	// recording the message via EndSpan does not risk leaking credentials.
 	var spanErr error
 	// FIXME: remove check when caller function in hydrator gets tracing added
-	if ctx != context.TODO() {
+	if ctx != nil {
 		// NB: leaf span only — the annotations patch below deliberately stays on context.Background() so a
 		// canceled reconcile ctx never aborts a durable status write. The span just measures it.
 		_, span := tracer.Start(ctx, "controller.handleRefreshAnnotations")
