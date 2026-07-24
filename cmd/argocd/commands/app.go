@@ -890,13 +890,11 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				sourcePosition = int(pos)
 			}
 
-			if app.Spec.HasMultipleSources() {
-				if sourcePosition <= 0 {
-					errors.Fatal(errors.ErrorGeneric, "Source position should be specified and must be greater than 0 for applications with multiple sources")
-				}
-				if len(app.Spec.GetSources()) < sourcePosition {
-					errors.Fatal(errors.ErrorGeneric, "Source position should be less than the number of sources in the application")
-				}
+			if app.Spec.HasMultipleSources() && sourcePosition <= 0 && cmdutil.HasSourceScopedFlags(appOpts, c.Flags()) {
+				errors.Fatal(errors.ErrorGeneric, "Source position should be specified and must be greater than 0 for applications with multiple sources")
+			}
+			if app.Spec.HasMultipleSources() && sourcePosition > 0 && len(app.Spec.GetSources()) < sourcePosition {
+				errors.Fatal(errors.ErrorGeneric, "Source position should be less than the number of sources in the application")
 			}
 
 			visited := cmdutil.SetAppSpecOptions(c.Flags(), &app.Spec, &appOpts, sourcePosition)
