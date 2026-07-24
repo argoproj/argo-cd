@@ -9,8 +9,11 @@ import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
 import {getAppDefaultSource, OperationState, getApplicationLinkURL, getManagedByURL, MANAGED_BY_URL_INVALID_TEXT, MANAGED_BY_URL_INVALID_TOOLTIP} from '../utils';
 import {isValidManagedByURL} from '../../../shared/utils';
+import {EntryField, EntryFieldList} from './entry-fields';
 import {services} from '../../../shared/services';
 import {ViewPreferences} from '../../../shared/services';
+
+import './entry-fields.scss';
 
 export interface ApplicationTileProps {
     app: models.Application;
@@ -70,8 +73,11 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
     };
 
     return (
+        // role=group + aria-label names the card as one labelled record, matching the table row.
         <div
             ref={tileRef}
+            role='group'
+            aria-label={AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)}
             className={`argo-table-list__row applications-list__entry applications-list__entry--health-${healthStatus} ${selected ? 'applications-tiles__selected' : ''}`}>
             <a
                 className='row applications-tiles__wrapper'
@@ -94,49 +100,33 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
                         <div className={app.status.summary?.externalURLs?.length > 0 ? 'columns small-2' : 'columns small-1'} aria-hidden='true' />
                     </div>
 
-                    <div className='applications-tiles__fields'>
-                        {/* Project row */}
-                        <div className='row applications-tiles__field-row'>
-                            <div className='columns applications-tiles__field-label' title='Project:'>
-                                Project:
-                            </div>
-                            <div className='columns applications-tiles__field-value'>{app.spec.project}</div>
-                        </div>
-
-                        {/* Labels row */}
-                        <div className='row applications-tiles__field-row'>
-                            <div className='columns applications-tiles__field-label' title='Labels:'>
-                                Labels:
-                            </div>
-                            <div className='columns applications-tiles__field-value'>
-                                <Tooltip
-                                    zIndex={4}
-                                    content={
-                                        <div>
-                                            {Object.keys(app.metadata.labels || {})
-                                                .map(label => ({label, value: app.metadata.labels[label]}))
-                                                .map(item => (
-                                                    <div key={item.label}>
-                                                        {item.label}={item.value}
-                                                    </div>
-                                                ))}
-                                        </div>
-                                    }>
-                                    <span>
+                    <EntryFieldList variant='tile'>
+                        <EntryField name='project' label='Project'>
+                            {app.spec.project}
+                        </EntryField>
+                        <EntryField name='labels' label='Labels'>
+                            <Tooltip
+                                zIndex={4}
+                                content={
+                                    <div>
                                         {Object.keys(app.metadata.labels || {})
-                                            .map(label => `${label}=${app.metadata.labels[label]}`)
-                                            .join(', ')}
-                                    </span>
-                                </Tooltip>
-                            </div>
-                        </div>
-
-                        {/* Status row */}
-                        <div className='row applications-tiles__field-row'>
-                            <div className='columns applications-tiles__field-label' title='Status:'>
-                                Status:
-                            </div>
-                            <div className='columns applications-tiles__field-value' qe-id='applications-tiles-health-status'>
+                                            .map(label => ({label, value: app.metadata.labels[label]}))
+                                            .map(item => (
+                                                <div key={item.label}>
+                                                    {item.label}={item.value}
+                                                </div>
+                                            ))}
+                                    </div>
+                                }>
+                                <span>
+                                    {Object.keys(app.metadata.labels || {})
+                                        .map(label => `${label}=${app.metadata.labels[label]}`)
+                                        .join(', ')}
+                                </span>
+                            </Tooltip>
+                        </EntryField>
+                        <EntryField name='status' label='Status'>
+                            <span qe-id='applications-tiles-health-status'>
                                 <AppUtils.HealthStatusIcon state={app.status.health} /> {app.status.health.status}
                                 &nbsp;
                                 {app.status.sourceHydrator?.currentOperation && (
@@ -149,87 +139,41 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
                                 <AppUtils.ComparisonStatusIcon status={app.status.sync.status} /> {app.status.sync.status}
                                 &nbsp;
                                 <OperationState app={app} quiet={true} />
-                            </div>
-                        </div>
-
-                        {/* Repository row */}
-                        <div className='row applications-tiles__field-row'>
-                            <div className='columns applications-tiles__field-label' title='Repository:'>
-                                Repository:
-                            </div>
-                            <div className='columns applications-tiles__field-value'>
-                                <Tooltip content={source?.repoURL || ''} zIndex={4}>
-                                    <span>{source?.repoURL}</span>
-                                </Tooltip>
-                            </div>
-                        </div>
-
-                        {/* Target Revision row */}
-                        <div className='row applications-tiles__field-row'>
-                            <div className='columns applications-tiles__field-label' title='Target Revision:'>
-                                Target Revision:
-                            </div>
-                            <div className='columns applications-tiles__field-value'>{targetRevision}</div>
-                        </div>
-
-                        {/* Path row (conditional) */}
+                            </span>
+                        </EntryField>
+                        <EntryField name='repository' label='Repository'>
+                            <Tooltip content={source?.repoURL || ''} zIndex={4}>
+                                <span>{source?.repoURL}</span>
+                            </Tooltip>
+                        </EntryField>
+                        <EntryField name='targetRevision' label='Target Revision'>
+                            {targetRevision}
+                        </EntryField>
                         {source?.path && (
-                            <div className='row applications-tiles__field-row'>
-                                <div className='columns applications-tiles__field-label' title='Path:'>
-                                    Path:
-                                </div>
-                                <div className='columns applications-tiles__field-value'>{source?.path}</div>
-                            </div>
+                            <EntryField name='path' label='Path'>
+                                {source?.path}
+                            </EntryField>
                         )}
-
-                        {/* Chart row (conditional) */}
                         {source?.chart && (
-                            <div className='row applications-tiles__field-row'>
-                                <div className='columns applications-tiles__field-label' title='Chart:'>
-                                    Chart:
-                                </div>
-                                <div className='columns applications-tiles__field-value'>{source?.chart}</div>
-                            </div>
+                            <EntryField name='chart' label='Chart'>
+                                {source?.chart}
+                            </EntryField>
                         )}
-
-                        {/* Destination row */}
-                        <div className='row applications-tiles__field-row'>
-                            <div className='columns applications-tiles__field-label' title='Destination:'>
-                                Destination:
-                            </div>
-                            <div className='columns applications-tiles__field-value'>
-                                <Cluster server={app.spec.destination.server} name={app.spec.destination.name} />
-                            </div>
-                        </div>
-
-                        {/* Namespace row */}
-                        <div className='row applications-tiles__field-row'>
-                            <div className='columns applications-tiles__field-label' title='Namespace:'>
-                                Namespace:
-                            </div>
-                            <div className='columns applications-tiles__field-value'>{app.spec.destination.namespace}</div>
-                        </div>
-
-                        {/* Created At row */}
-                        <div className='row applications-tiles__field-row'>
-                            <div className='columns applications-tiles__field-label' title='Age:'>
-                                Created At:
-                            </div>
-                            <div className='columns applications-tiles__field-value'>{AppUtils.formatCreationTimestamp(app.metadata.creationTimestamp)}</div>
-                        </div>
-
-                        {/* Last Sync row (conditional) */}
+                        <EntryField name='destination' label='Destination'>
+                            <Cluster server={app.spec.destination.server} name={app.spec.destination.name} />
+                        </EntryField>
+                        <EntryField name='namespace' label='Namespace'>
+                            {app.spec.destination.namespace}
+                        </EntryField>
+                        <EntryField name='createdAt' label='Created At'>
+                            {AppUtils.formatCreationTimestamp(app.metadata.creationTimestamp)}
+                        </EntryField>
                         {app.status.operationState && (
-                            <div className='row applications-tiles__field-row'>
-                                <div className='columns applications-tiles__field-label' title='Last sync:'>
-                                    Last Sync:
-                                </div>
-                                <div className='columns applications-tiles__field-value'>
-                                    {AppUtils.formatCreationTimestamp(app.status.operationState.finishedAt || app.status.operationState.startedAt)}
-                                </div>
-                            </div>
+                            <EntryField name='lastSync' label='Last Sync'>
+                                {AppUtils.formatCreationTimestamp(app.status.operationState.finishedAt || app.status.operationState.startedAt)}
+                            </EntryField>
                         )}
-                    </div>
+                    </EntryFieldList>
                 </div>
             </a>
 
