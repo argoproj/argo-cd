@@ -361,6 +361,74 @@ func (_c *ClusterCache_GetManagedLiveObjs_Call) RunAndReturn(run func(targetObjs
 	return _c
 }
 
+// GetManagedLiveObjsForKey provides a mock function for the type ClusterCache
+func (_mock *ClusterCache) GetManagedLiveObjsForKey(targetObjs []*unstructured.Unstructured, appKey string) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
+	ret := _mock.Called(targetObjs, appKey)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetManagedLiveObjsForKey")
+	}
+
+	var r0 map[kube.ResourceKey]*unstructured.Unstructured
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func([]*unstructured.Unstructured, string) (map[kube.ResourceKey]*unstructured.Unstructured, error)); ok {
+		return returnFunc(targetObjs, appKey)
+	}
+	if returnFunc, ok := ret.Get(0).(func([]*unstructured.Unstructured, string) map[kube.ResourceKey]*unstructured.Unstructured); ok {
+		r0 = returnFunc(targetObjs, appKey)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[kube.ResourceKey]*unstructured.Unstructured)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func([]*unstructured.Unstructured, string) error); ok {
+		r1 = returnFunc(targetObjs, appKey)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// ClusterCache_GetManagedLiveObjsForKey_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetManagedLiveObjsForKey'
+type ClusterCache_GetManagedLiveObjsForKey_Call struct {
+	*mock.Call
+}
+
+// GetManagedLiveObjsForKey is a helper method to define mock.On call
+//   - targetObjs []*unstructured.Unstructured
+//   - appKey string
+func (_e *ClusterCache_Expecter) GetManagedLiveObjsForKey(targetObjs any, appKey any) *ClusterCache_GetManagedLiveObjsForKey_Call {
+	return &ClusterCache_GetManagedLiveObjsForKey_Call{Call: _e.mock.On("GetManagedLiveObjsForKey", targetObjs, appKey)}
+}
+
+func (_c *ClusterCache_GetManagedLiveObjsForKey_Call) Run(run func(targetObjs []*unstructured.Unstructured, appKey string)) *ClusterCache_GetManagedLiveObjsForKey_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 []*unstructured.Unstructured
+		if args[0] != nil {
+			arg0 = args[0].([]*unstructured.Unstructured)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *ClusterCache_GetManagedLiveObjsForKey_Call) Return(resourceKeyToUnstructured map[kube.ResourceKey]*unstructured.Unstructured, err error) *ClusterCache_GetManagedLiveObjsForKey_Call {
+	_c.Call.Return(resourceKeyToUnstructured, err)
+	return _c
+}
+
+func (_c *ClusterCache_GetManagedLiveObjsForKey_Call) RunAndReturn(run func(targetObjs []*unstructured.Unstructured, appKey string) (map[kube.ResourceKey]*unstructured.Unstructured, error)) *ClusterCache_GetManagedLiveObjsForKey_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetOpenAPISchema provides a mock function for the type ClusterCache
 func (_mock *ClusterCache) GetOpenAPISchema() openapi.Resources {
 	ret := _mock.Called()

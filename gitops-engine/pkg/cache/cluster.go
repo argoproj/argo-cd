@@ -171,6 +171,9 @@ type ClusterCache interface {
 	// The function returns all resources from cache for those `isManaged` function returns true and resources
 	// specified in targetObjs list.
 	GetManagedLiveObjs(targetObjs []*unstructured.Unstructured, isManaged func(r *Resource) bool) (map[kube.ResourceKey]*unstructured.Unstructured, error)
+	// GetManagedLiveObjsForKey is like GetManagedLiveObjs but uses the managed
+	// index (SetManagedIndexKeyFn) to avoid scanning all cached resources.
+	GetManagedLiveObjsForKey(targetObjs []*unstructured.Unstructured, appKey string) (map[kube.ResourceKey]*unstructured.Unstructured, error)
 	// GetClusterInfo returns cluster cache statistics
 	GetClusterInfo() ClusterInfo
 	// OnResourceUpdated register event handler that is executed every time when resource get's updated in the cache
@@ -260,7 +263,12 @@ type clusterCache struct {
 	// lock is a rw lock which protects the fields of clusterInfo
 	lock      sync.RWMutex
 	resources map[kube.ResourceKey]*Resource
-	nsIndex   map[string]map[kube.ResourceKey]*Resource
+	// managedIndex maps a caller-defined key (e.g. owning app name) to that
+	// key's resources, so an app's resources can be fetched without scanning
+	// the whole cache. Maintained under c.lock. See SetManagedIndexKeyFn.
+	managedIndex      map[string]map[kube.ResourceKey]*Resource
+	managedIndexKeyFn func(r *Resource) string
+	nsIndex           map[string]map[kube.ResourceKey]*Resource
 
 	kubectl          kube.Kubectl
 	log              logr.Logger
@@ -489,6 +497,7 @@ func (c *clusterCache) setNode(n *Resource) {
 	existing := c.resources[key]
 
 	c.resources[key] = n
+	c.updateManagedIndex(existing, n)
 	ns, ok := c.nsIndex[key.Namespace]
 	if !ok {
 		ns = make(map[kube.ResourceKey]*Resource)
@@ -1127,6 +1136,7 @@ func (c *clusterCache) sync() (err error) {
 	syncLock.Lock()
 	c.apisMeta = make(map[schema.GroupKind]*apiMeta)
 	c.resources = make(map[kube.ResourceKey]*Resource)
+	c.managedIndex = make(map[string]map[kube.ResourceKey]*Resource)
 	c.nsIndex = make(map[string]map[kube.ResourceKey]*Resource)
 	c.namespacedResources = make(map[schema.GroupKind]bool)
 	c.parentUIDToChildren = make(map[types.UID]map[kube.ResourceKey]struct{})
@@ -1552,6 +1562,66 @@ func (c *clusterCache) managesNamespace(namespace string) bool {
 // The function returns all resources from cache for those `isManaged` function returns true and resources
 // specified in targetObjs list.
 func (c *clusterCache) GetManagedLiveObjs(targetObjs []*unstructured.Unstructured, isManaged func(r *Resource) bool) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
+	return c.getManagedLiveObjs(targetObjs, func(managedObjs map[kube.ResourceKey]*unstructured.Unstructured) {
+		// iterate all objects in live state cache to find ones associated with app
+		for key, o := range c.resources {
+			if isManaged(o) && o.Resource != nil && len(o.OwnerRefs) == 0 {
+				managedObjs[key] = o.Resource
+			}
+		}
+	})
+}
+
+// GetManagedLiveObjsForKey resolves an app's managed resources through the
+// managed index instead of scanning every cached resource. It is O(resources
+// managed by appKey) rather than O(all resources in the cluster). It requires a
+// managed index key function to have been configured via SetManagedIndexKeyFn.
+func (c *clusterCache) GetManagedLiveObjsForKey(targetObjs []*unstructured.Unstructured, appKey string) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
+	return c.getManagedLiveObjs(targetObjs, func(managedObjs map[kube.ResourceKey]*unstructured.Unstructured) {
+		for key, o := range c.managedIndex[appKey] {
+			if o.Resource != nil && len(o.OwnerRefs) == 0 {
+				managedObjs[key] = o.Resource
+			}
+		}
+	})
+}
+
+// updateManagedIndex keeps managedIndex consistent with a resource
+// add/replace/remove. Must be called while holding c.lock. oldRes is the
+// previous version (nil on add); newRes is the new version (nil on remove).
+func (c *clusterCache) updateManagedIndex(oldRes, newRes *Resource) {
+	if c.managedIndexKeyFn == nil {
+		return
+	}
+	if c.managedIndex == nil {
+		c.managedIndex = map[string]map[kube.ResourceKey]*Resource{}
+	}
+	if oldRes != nil {
+		if k := c.managedIndexKeyFn(oldRes); k != "" {
+			if m := c.managedIndex[k]; m != nil {
+				delete(m, oldRes.ResourceKey())
+				if len(m) == 0 {
+					delete(c.managedIndex, k)
+				}
+			}
+		}
+	}
+	if newRes != nil {
+		if k := c.managedIndexKeyFn(newRes); k != "" {
+			m := c.managedIndex[k]
+			if m == nil {
+				m = map[kube.ResourceKey]*Resource{}
+				c.managedIndex[k] = m
+			}
+			m[newRes.ResourceKey()] = newRes
+		}
+	}
+}
+
+// getManagedLiveObjs holds the shared logic of GetManagedLiveObjs(ForKey): it
+// validates namespaces, seeds the managed set via seed(), then fills in target
+// objects that are missing our tracking label.
+func (c *clusterCache) getManagedLiveObjs(targetObjs []*unstructured.Unstructured, seed func(map[kube.ResourceKey]*unstructured.Unstructured)) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
@@ -1566,12 +1636,7 @@ func (c *clusterCache) GetManagedLiveObjs(targetObjs []*unstructured.Unstructure
 	}
 
 	managedObjs := make(map[kube.ResourceKey]*unstructured.Unstructured)
-	// iterate all objects in live state cache to find ones associated with app
-	for key, o := range c.resources {
-		if isManaged(o) && o.Resource != nil && len(o.OwnerRefs) == 0 {
-			managedObjs[key] = o.Resource
-		}
-	}
+	seed(managedObjs)
 	// but are simply missing our label
 	lock := &sync.Mutex{}
 	err := kube.RunAllAsync(len(targetObjs), func(i int) error {
@@ -1726,6 +1791,7 @@ func (c *clusterCache) onNodeRemoved(key kube.ResourceKey) {
 	existing, ok := c.resources[key]
 	if ok {
 		delete(c.resources, key)
+		c.updateManagedIndex(existing, nil)
 		ns, ok := c.nsIndex[key.Namespace]
 		if ok {
 			delete(ns, key)

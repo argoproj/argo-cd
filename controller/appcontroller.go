@@ -117,7 +117,12 @@ func (a CompareWith) Pointer() *CompareWith {
 
 // ApplicationController is the controller for application resources.
 type ApplicationController struct {
-	cache                *appstatecache.Cache
+	cache *appstatecache.Cache
+	// hostScanMu/hostScanCache memoize the per-cluster Node/Pod snapshot used
+	// by getAppHosts so the full cluster-cache scan runs at most once per
+	// hostScanTTL per cluster instead of once per app per reconcile.
+	hostScanMu           sync.Mutex
+	hostScanCache        map[string]*hostScanEntry
 	namespace            string
 	kubeClientset        kubernetes.Interface
 	kubectl              kube.Kubectl
@@ -710,26 +715,24 @@ func (ctrl *ApplicationController) getAppHosts(destCluster *appv1.Cluster, a *ap
 		}
 	}
 
-	allNodesInfo := map[string]statecache.NodeInfo{}
-	allPodsByNode := map[string][]statecache.PodInfo{}
-	appPodsByNode := map[string][]statecache.PodInfo{}
-	err := ctrl.stateCache.IterateResources(destCluster, func(res *clustercache.Resource, info *statecache.ResourceInfo) {
-		key := res.ResourceKey()
-
-		switch {
-		case info.NodeInfo != nil && key.Group == "" && key.Kind == "Node":
-			allNodesInfo[key.Name] = *info.NodeInfo
-		case info.PodInfo != nil && key.Group == "" && key.Kind == kube.PodKind:
-			if appPods[key] {
-				appPodsByNode[info.PodInfo.NodeName] = append(appPodsByNode[info.PodInfo.NodeName], *info.PodInfo)
-			} else {
-				allPodsByNode[info.PodInfo.NodeName] = append(allPodsByNode[info.PodInfo.NodeName], *info.PodInfo)
-			}
-		}
-	})
-	ts.AddCheckpoint("iterate_resources_ms")
+	// The cluster-wide Node/Pod scan is identical for every Application on the
+	// same destination cluster. Scanning the entire cluster cache once per app
+	// per reconcile is O(apps * cluster_resources); memoize it per cluster and
+	// only do the per-app pod bucketing here.
+	allNodesInfo, allPods, err := ctrl.getClusterHostScan(destCluster)
 	if err != nil {
 		return nil, err
+	}
+	ts.AddCheckpoint("iterate_resources_ms")
+
+	allPodsByNode := map[string][]statecache.PodInfo{}
+	appPodsByNode := map[string][]statecache.PodInfo{}
+	for _, p := range allPods {
+		if appPods[p.key] {
+			appPodsByNode[p.pod.NodeName] = append(appPodsByNode[p.pod.NodeName], p.pod)
+		} else {
+			allPodsByNode[p.pod.NodeName] = append(allPodsByNode[p.pod.NodeName], p.pod)
+		}
 	}
 
 	var hosts []appv1.HostInfo
@@ -2908,3 +2911,51 @@ func (ctrl *ApplicationController) applyImpersonationConfig(config *rest.Config,
 }
 
 type ClusterFilterFunction func(c *appv1.Cluster, distributionFunction sharding.DistributionFunction) bool
+
+// hostScanPod pairs a cached Pod's resource key with its PodInfo so getAppHosts
+// can bucket an app's own pods out of the shared per-cluster snapshot.
+type hostScanPod struct {
+	key kube.ResourceKey
+	pod statecache.PodInfo
+}
+
+// hostScanEntry is a memoized per-cluster snapshot of Nodes and Pods.
+type hostScanEntry struct {
+	at    time.Time
+	nodes map[string]statecache.NodeInfo
+	pods  []hostScanPod
+}
+
+const hostScanTTL = 10 * time.Second
+
+// getClusterHostScan returns a memoized snapshot of all Nodes and Pods in the
+// destination cluster. The scan over the whole cluster cache is expensive, so it
+// is computed at most once per hostScanTTL per cluster and shared across all
+// Applications instead of being repeated for every app on every reconcile.
+func (ctrl *ApplicationController) getClusterHostScan(destCluster *appv1.Cluster) (map[string]statecache.NodeInfo, []hostScanPod, error) {
+	ctrl.hostScanMu.Lock()
+	defer ctrl.hostScanMu.Unlock()
+	if ctrl.hostScanCache == nil {
+		ctrl.hostScanCache = map[string]*hostScanEntry{}
+	}
+	key := destCluster.Server
+	if e, ok := ctrl.hostScanCache[key]; ok && time.Since(e.at) < hostScanTTL {
+		return e.nodes, e.pods, nil
+	}
+	nodes := map[string]statecache.NodeInfo{}
+	var pods []hostScanPod
+	err := ctrl.stateCache.IterateResources(destCluster, func(res *clustercache.Resource, info *statecache.ResourceInfo) {
+		rk := res.ResourceKey()
+		switch {
+		case info.NodeInfo != nil && rk.Group == "" && rk.Kind == "Node":
+			nodes[rk.Name] = *info.NodeInfo
+		case info.PodInfo != nil && rk.Group == "" && rk.Kind == kube.PodKind:
+			pods = append(pods, hostScanPod{key: rk, pod: *info.PodInfo})
+		}
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	ctrl.hostScanCache[key] = &hostScanEntry{at: time.Now(), nodes: nodes, pods: pods}
+	return nodes, pods, nil
+}
