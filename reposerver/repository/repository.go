@@ -1869,7 +1869,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 					return nil, fmt.Errorf("error initializing helm app for kustomize OCI auth: %w", err)
 				}
 				defer h.Dispose()
-				if err = h.RegistryLoginOCI(); err != nil {
+				if err = h.RegistryLoginOCI(ctx); err != nil {
 					return nil, fmt.Errorf("error logging into OCI registries: %w", err)
 				}
 				buildOpts.HelmEnvVars = h.Environ()
