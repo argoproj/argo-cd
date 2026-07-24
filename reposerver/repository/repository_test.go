@@ -5939,6 +5939,45 @@ images:
 			"kustomize build . --enable-helm --helm-kube-version 5.6.7 --helm-api-versions v1 --helm-api-versions v2",
 		}, res.Commands)
 	})
+
+	t.Run("kustomize version-specific build options", func(t *testing.T) {
+		service := newService(t, "testdata/kustomization_yaml")
+		fakeKustomize := path.Join(t.TempDir(), "kustomize")
+		err := os.WriteFile(fakeKustomize, []byte(`#!/bin/sh
+cat <<'EOF'
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: test-map
+EOF
+`), os.FileMode(0o700))
+		require.NoError(t, err)
+
+		q := apiclient.ManifestRequest{
+			Repo: &v1alpha1.Repository{},
+			KustomizeOptions: &v1alpha1.KustomizeOptions{
+				Versions: []v1alpha1.KustomizeVersion{
+					{
+						Name:         "v1.2.3",
+						Path:         fakeKustomize,
+						BuildOptions: "--load-restrictor LoadRestrictionsNone",
+					},
+				},
+			},
+			ApplicationSource: &v1alpha1.ApplicationSource{
+				Path: ".",
+				Kustomize: &v1alpha1.ApplicationSourceKustomize{
+					Version: "v1.2.3",
+				},
+			},
+			ProjectName:        "something",
+			ProjectSourceRepos: []string{"*"},
+		}
+
+		res, err := service.GenerateManifest(t.Context(), &q)
+		require.NoError(t, err)
+		assert.Equal(t, []string{fakeKustomize + " build . --load-restrictor LoadRestrictionsNone"}, res.Commands)
+	})
 }
 
 func Test_SkipSchemaValidation(t *testing.T) {
