@@ -1,0 +1,20 @@
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  name: test
+  namespace: test
+spec:
+  destination:
+    create: true
+    name: test
+    overwrite: false
+    transformation: {}
+  hmacSecretData: true
+  mount: test
+  path: test
+  refreshAfter: 60s
+  type: kv-v2
+  vaultAuthRef: test
+status:
+  lastGeneration: 1
+  secretMAC: test

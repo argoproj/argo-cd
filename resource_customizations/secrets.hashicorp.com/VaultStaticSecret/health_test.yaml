@@ -1,0 +1,9 @@
+tests:
+  - healthStatus:
+      status: Degraded
+      message: 'Either the service account cannot authenticate with Vault or requested secret not found - view events for more information'
+    inputPath: testdata/degraded.yaml
+  - healthStatus:
+      status: Healthy
+      message: 'Secret was found'
+    inputPath: testdata/healthy.yaml
