@@ -124,6 +124,7 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 		ImpersonationEnabled:      argoCDSettings.ImpersonationEnabled,
 		HydratorEnabled:           s.hydratorEnabled,
 		SyncWithReplaceAllowed:    s.syncWithReplaceAllowed,
+		ResourceViewEnabled:       argoCDSettings.ResourceViewEnabled,
 	}
 
 	if sessionmgr.LoggedIn(ctx) || s.disableAuth {

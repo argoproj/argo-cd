@@ -41,6 +41,21 @@ function treeNodeKey(node: NodeId & {uid?: string}) {
     return node.uid || nodeKey(node);
 }
 
+export function nodeIdMatchesResourceKey(nodeId: string, targetKey: string, nodes: ResourceTreeNode[]): boolean {
+    if (nodeId === targetKey) {
+        return true;
+    }
+    const node = nodes.find(n => n.uid === nodeId || nodeKey(n) === nodeId);
+    return !!node && nodeKey(node) === targetKey;
+}
+
+export function groupedNodeIdsContainKey(groupedNodeIds: string[], targetKey: string, nodes: ResourceTreeNode[]): boolean {
+    if (!targetKey) {
+        return false;
+    }
+    return groupedNodeIds.some(id => nodeIdMatchesResourceKey(id, targetKey, nodes));
+}
+
 const color = require('color');
 
 export interface ResourceTreeNode extends models.ResourceNode {
@@ -105,6 +120,7 @@ const NODE_TYPES = {
     groupedNodes: 'grouped_nodes',
     podGroup: 'pod_group'
 };
+
 // generate lots of colors with different darkness
 const TRAFFIC_COLORS = [0, 0.25, 0.4, 0.6].map(darken => BASE_COLORS.map(item => color(item).darken(darken).hex())).reduce((first, second) => first.concat(second), []);
 
@@ -286,15 +302,16 @@ function renderFilteredNode(node: {count: number} & dagre.Node, onClearFilter: (
     );
 }
 
-function renderGroupedNodes(props: ApplicationResourceTreeProps, node: {count: number; groupedNodeIds: string[]} & dagre.Node & ResourceTreeNode) {
+function renderGroupedNodes(props: ApplicationResourceTreeProps, node: {count: number; groupedNodeIds: string[]} & dagre.Node & ResourceTreeNode, allNodes: ResourceTreeNode[]) {
     const indicators = new Array<number>();
     let count = Math.min(node.count - 1, 3);
     while (count > 0) {
         indicators.push(count--);
     }
+    const isActive = groupedNodeIdsContainKey(node.groupedNodeIds, props.selectedNodeFullName || '', allNodes);
     return (
         <React.Fragment>
-            <div className='application-resource-tree__node' style={{left: node.x, top: node.y, width: node.width, height: node.height}}>
+            <div className={classNames('application-resource-tree__node', {active: isActive})} style={{left: node.x, top: node.y, width: node.width, height: node.height}}>
                 <div className='application-resource-tree__node-kind-icon'>
                     <ResourceIcon group={node.group} kind={node.kind} />
                     <br />
@@ -476,7 +493,7 @@ function renderPodGroup(
     return (
         <div
             className={classNames('application-resource-tree__node', {
-                'active': fullName === props.selectedNodeFullName,
+                'active': fullName === props.selectedNodeFullName && !rootNode,
                 'application-resource-tree__node--orphaned': node.orphaned,
                 'application-resource-tree__node--grouped-node': !showPodGroupByStatus
             })}
@@ -811,7 +828,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, node: ResourceT
         <div
             onClick={() => props.onNodeClick && props.onNodeClick(fullName)}
             className={classNames('application-resource-tree__node', !isManagedAppSet && 'application-resource-tree__node--' + node.kind.toLowerCase(), {
-                'active': fullName === props.selectedNodeFullName,
+                'active': fullName === props.selectedNodeFullName && !rootNode,
                 'application-resource-tree__node--orphaned': node.orphaned
             })}
             title={isAppSetParent ? `ApplicationSet: ${node.name}\nThis ApplicationSet generates and manages this Application.` : describeNode(node)}
@@ -1507,7 +1524,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                         case NODE_TYPES.externalLoadBalancer:
                             return <React.Fragment key={key}>{renderLoadBalancerNode(node as any)}</React.Fragment>;
                         case NODE_TYPES.groupedNodes:
-                            return <React.Fragment key={key}>{renderGroupedNodes(props, node as any)}</React.Fragment>;
+                            return <React.Fragment key={key}>{renderGroupedNodes(props, node as any, nodes)}</React.Fragment>;
                         case NODE_TYPES.podGroup:
                             return <React.Fragment key={key}>{renderPodGroup(props, node as ResourceTreeNode & dagre.Node, childrenMap, showPodGroupByStatus)}</React.Fragment>;
                         default:

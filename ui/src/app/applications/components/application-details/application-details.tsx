@@ -26,6 +26,8 @@ import {ResourceDetails} from '../resource-details/resource-details';
 import {AppSetResourceDetails} from '../resource-details/appset-resource-details';
 import * as AppUtils from '../utils';
 import {ApplicationResourceList, ApplicationResourceParentRef} from './application-resource-list';
+import {APPLICATION_DETAILS_SORT_KEY, ApplicationResourceSortKey, compareApplicationResource, GROUPED_NODES_DETAILS_SORT_KEY} from './application-resource-sort';
+import {useListSort} from '../../../shared/hooks/use-list-sort';
 import {Filters, FiltersProps} from './application-resource-filter';
 import {getAppDefaultSource, getAppCurrentVersion, urlPattern} from '../utils';
 import {ChartDetails, OCIMetadata} from '../../../shared/models';
@@ -78,7 +80,11 @@ export const NodeInfo = (node?: string): {key: string; container: number} => {
 
 export const SelectNode = (fullName: string, containerIndex = 0, tab: string = null, appContext: ContextApis) => {
     const node = fullName ? `${fullName}/${containerIndex}` : null;
-    appContext.navigation.goto('.', {node, tab}, {replace: true});
+    // Clear the deep-link highlight only when the highlighted node itself is selected.
+    // Selecting any other node keeps the highlight so the deep-linked resource stays marked.
+    const highlightKey = NodeInfo(new URLSearchParams(window.location.search).get('highlight')).key;
+    const clearHighlight = Boolean(fullName) && highlightKey === fullName;
+    appContext.navigation.goto('.', clearHighlight ? {node, tab, highlight: null} : {node, tab}, {replace: true});
 };
 
 export const ApplicationDetails: FC<RouteComponentProps<{appnamespace: string; name: string}> & {objectListKind: string}> = props => {
@@ -115,6 +121,11 @@ export const ApplicationDetails: FC<RouteComponentProps<{appnamespace: string; n
         collapsedNodes: [],
         ...getExtensionsState()
     }));
+
+    const resourceSort = useListSort<ApplicationResourceSortKey>('createdAt', false);
+    const groupedResourceSort = useListSort<ApplicationResourceSortKey>('createdAt', false);
+    const sortResources = (resources: models.ResourceStatus[], sort: ReturnType<typeof useListSort<ApplicationResourceSortKey>>) =>
+        [...resources].sort((a, b) => sort.dir * compareApplicationResource(a, b, sort.sortKey));
 
     const getAppNamespace = useCallback(() => {
         if (typeof props.match.params.appnamespace === 'undefined') {
@@ -154,6 +165,8 @@ export const ApplicationDetails: FC<RouteComponentProps<{appnamespace: string; n
     const selectedRollbackDeploymentIndex = parseInt(new URLSearchParams(props.history.location.search).get('rollback'), 10);
     const selectedNodeInfo = NodeInfo(new URLSearchParams(props.history.location.search).get('node'));
     const selectedNodeKey = selectedNodeInfo.key;
+    const highlightNodeInfo = NodeInfo(new URLSearchParams(props.history.location.search).get('highlight'));
+    const highlightNodeKey = highlightNodeInfo.key;
     const selectedExtension = new URLSearchParams(props.history.location.search).get('extension');
 
     // Define escapeRegex first as it's used by other functions
@@ -744,7 +757,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                             const getResourceTreeProps = () => {
                                 const commonProps = {
                                     nodeFilter: (node: ResourceTreeNode) => filterTreeNode(node, treeFilter),
-                                    selectedNodeFullName: selectedNodeKey,
+                                    selectedNodeFullName: highlightNodeKey,
                                     showCompactNodes: pref.groupNodes,
                                     userMsgs: pref.userHelpTipMsgs,
                                     tree,
@@ -1136,14 +1149,21 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                             </DataLoader>
                                                             {(filteredRes.length > 0 && (
                                                                 <Paginate
+                                                                    key={highlightNodeKey || 'application-resources'}
                                                                     page={state.page}
-                                                                    data={filteredRes}
+                                                                    data={sortResources(filteredRes, resourceSort)}
                                                                     onPageChange={page => setState(prevState => ({...prevState, page}))}
-                                                                    preferencesKey='application-details'>
+                                                                    preferencesKey={APPLICATION_DETAILS_SORT_KEY}
+                                                                    focusItemKey={highlightNodeKey || undefined}
+                                                                    getItemKey={res => AppUtils.nodeKey(res)}>
                                                                     {data => (
                                                                         <ApplicationResourceList
                                                                             pref={pref}
                                                                             onNodeClick={fullName => selectNode(fullName)}
+                                                                            selectedNodeFullName={highlightNodeKey || undefined}
+                                                                            sortKey={resourceSort.sortKey}
+                                                                            requestSort={resourceSort.requestSort}
+                                                                            sortIcon={resourceSort.sortIcon}
                                                                             resources={data}
                                                                             nodeMenu={
                                                                                 isApplication
@@ -1177,14 +1197,21 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                 <div className='application-details__sliding-panel-pagination-wrap'>
                                                     {(pref.view === 'tree' || pref.view === 'network') && <ApplicationResourceParentRef resources={groupedResources} tree={tree} />}
                                                     <Paginate
+                                                        key={highlightNodeKey || 'grouped-resources'}
                                                         page={state.slidingPanelPage}
-                                                        data={groupedResources}
+                                                        data={sortResources(groupedResources, groupedResourceSort)}
                                                         onPageChange={page => setState(prevState => ({...prevState, slidingPanelPage: page}))}
-                                                        preferencesKey='grouped-nodes-details'>
+                                                        preferencesKey={GROUPED_NODES_DETAILS_SORT_KEY}
+                                                        focusItemKey={highlightNodeKey || undefined}
+                                                        getItemKey={res => AppUtils.nodeKey(res)}>
                                                         {data => (
                                                             <ApplicationResourceList
                                                                 pref={pref}
                                                                 onNodeClick={fullName => selectNode(fullName)}
+                                                                selectedNodeFullName={highlightNodeKey || undefined}
+                                                                sortKey={groupedResourceSort.sortKey}
+                                                                requestSort={groupedResourceSort.requestSort}
+                                                                sortIcon={groupedResourceSort.sortIcon}
                                                                 resources={data}
                                                                 nodeMenu={node =>
                                                                     AppUtils.renderResourceMenu(node, application as appModels.Application, tree, appContext, appChanged, () =>
