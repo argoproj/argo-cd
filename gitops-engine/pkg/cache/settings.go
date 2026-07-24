@@ -183,3 +183,24 @@ func SetEventProcessingInterval(interval time.Duration) UpdateSettingsFunc {
 		cache.eventProcessingInterval = interval
 	}
 }
+
+// SetManifestCompressionEnabled controls whether manifests are stored compressed or as raw *unstructured.Unstructured
+func SetManifestCompressionEnabled(enabled bool) UpdateSettingsFunc {
+	return func(cache *clusterCache) {
+		cache.manifestCompressionEnabled = enabled
+	}
+}
+
+// SetManifestStorageType sets the serialization format for cached manifests
+func SetManifestStorageType(storageType ManifestStorageType) UpdateSettingsFunc {
+	return func(cache *clusterCache) {
+		cache.manifestStorageType = normalizeManifestStorageType(storageType)
+	}
+}
+
+// SetManifestCompressionType sets the compression algorithm for cached manifests
+func SetManifestCompressionType(compressionType ManifestCompressionType) UpdateSettingsFunc {
+	return func(cache *clusterCache) {
+		cache.manifestCompressionType = normalizeManifestCompressionType(compressionType)
+	}
+}
