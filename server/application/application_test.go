@@ -5084,31 +5084,24 @@ func TestTerminateOperationWithConflicts(t *testing.T) {
 		return true, freshApp, nil
 	})
 
-	// Mock Patch to return conflict on first call, success on second
-	// TerminateOperation uses v1beta1 Patch on status subresource
-	patchCallCount := 0
-	fakeAppCs.AddReactor("patch", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		patchCallCount++
-		updateCallCount++ // Keep tracking for assertion
+	// Mock Update to return conflict on first call, success on second
+	fakeAppCs.AddReactor("update", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		updateCallCount++
+		updateAction := action.(kubetesting.UpdateAction)
+		app := updateAction.GetObject().(*v1alpha1.Application)
 
-		// First call: return conflict to trigger retry
-		if patchCallCount == 1 {
+		// First call (with original resource version): return conflict
+		if app.ResourceVersion == "1" {
 			return true, nil, apierrors.NewConflict(
 				schema.GroupResource{Group: "argoproj.io", Resource: "applications"},
-				testApp.Name,
+				app.Name,
 				stderrors.New("the object has been modified"),
 			)
 		}
 
-		// Second call: return success with appropriate type based on API version
-		if action.GetResource().Version == "v1beta1" {
-			patchedApp := v1beta1.ConvertFromV1alpha1(testApp.DeepCopy())
-			patchedApp.Status.OperationState.Phase = synccommon.OperationTerminating
-			return true, patchedApp, nil
-		}
-		patchedApp := testApp.DeepCopy()
-		patchedApp.Status.OperationState.Phase = synccommon.OperationTerminating
-		return true, patchedApp, nil
+		// Second call (with refreshed resource version from Get): return success
+		updatedApp := app.DeepCopy()
+		return true, updatedApp, nil
 	})
 
 	// Attempt to terminate the operation
@@ -5118,7 +5111,7 @@ func TestTerminateOperationWithConflicts(t *testing.T) {
 
 	// Should succeed after retrying with the fresh app
 	require.NoError(t, err)
-	assert.GreaterOrEqual(t, updateCallCount, 2, "Patch should be called at least twice (once with conflict, once with success)")
+	assert.GreaterOrEqual(t, updateCallCount, 2, "Update should be called at least twice (once with conflict, once with success)")
 }
 
 func TestGetApplicationClusterConfig(t *testing.T) {

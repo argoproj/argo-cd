@@ -45,7 +45,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	eventspb "github.com/argoproj/argo-cd/v3/pkg/apiclient/events"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1beta1"
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 	applisters "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
@@ -2516,23 +2515,9 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *application.
 		if a.Operation == nil || a.Status.OperationState == nil {
 			return nil, status.Errorf(codes.InvalidArgument, "Unable to terminate operation. No operation is in progress")
 		}
-
-		// Use status subresource patch via v1beta1 client to update operation state
-		statusPatch, err := json.Marshal(map[string]any{
-			"status": map[string]any{
-				"operationState": map[string]any{
-					"phase": common.OperationTerminating,
-				},
-			},
-		})
-		if err != nil {
-			return nil, fmt.Errorf("error marshaling status patch: %w", err)
-		}
-
-		patchedApp, err := s.appclientset.ArgoprojV1beta1().Applications(appNs).Patch(ctx, appName, types.MergePatchType, statusPatch, metav1.PatchOptions{}, "status")
+		a.Status.OperationState.Phase = common.OperationTerminating
+		updated, err := s.appclientset.ArgoprojV1alpha1().Applications(appNs).Update(ctx, a, metav1.UpdateOptions{})
 		if err == nil {
-			// Convert back to v1alpha1 for waitSync
-			updated := v1beta1.ConvertToV1alpha1(patchedApp)
 			s.waitSync(updated)
 			s.logAppEvent(ctx, a, argo.EventReasonResourceUpdated, "terminated running operation")
 			return &application.OperationTerminateResponse{}, nil

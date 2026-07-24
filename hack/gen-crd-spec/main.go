@@ -144,8 +144,9 @@ func main() {
 // addConversionWebhook configures the CRD to use a conversion webhook
 // for converting between v1alpha1 and v1beta1 API versions.
 //
-// The service name and namespace can be overridden via ARGOCD_CONVERSION_WEBHOOK_SERVICE
-// and ARGOCD_CONVERSION_WEBHOOK_NAMESPACE so distributions that install Argo CD
+// The service name and namespace can be overridden via ARGOCD_CONVERSION_WEBHOOK_SERVICE_NAME
+// and ARGOCD_CONVERSION_WEBHOOK_NAMESPACE (the same variables the conversion-webhook command
+// reads for its cert SANs) so distributions that install Argo CD
 // into a non-default namespace can regenerate the CRD without a manual patch.
 // Operators who don't regenerate are expected to patch the CRD post-deploy.
 func addConversionWebhook(crd *apiextensionsv1.CustomResourceDefinition) {
@@ -153,7 +154,7 @@ func addConversionWebhook(crd *apiextensionsv1.CustomResourceDefinition) {
 		crd.Annotations = make(map[string]string)
 	}
 
-	serviceName := envOrDefault("ARGOCD_CONVERSION_WEBHOOK_SERVICE", "argocd-conversion-webhook")
+	serviceName := envOrDefault("ARGOCD_CONVERSION_WEBHOOK_SERVICE_NAME", "argocd-conversion-webhook")
 	namespace := envOrDefault("ARGOCD_CONVERSION_WEBHOOK_NAMESPACE", "argocd")
 
 	crd.Spec.Conversion = &apiextensionsv1.CustomResourceConversion{
