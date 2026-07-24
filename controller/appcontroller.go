@@ -286,13 +286,16 @@ func NewApplicationController(
 						return err
 					}
 					for _, app := range apps {
+						// Update the sharding cache for all apps before determining
+						// which ones this controller should reconcile.
+						ctrl.clusterSharding.AddApp(app)
+
 						if !ctrl.canProcessApp(app) {
 							continue
 						}
 						key, err := cache.MetaNamespaceKeyFunc(app)
 						if err == nil {
 							ctrl.appRefreshQueue.AddRateLimited(key)
-							ctrl.clusterSharding.AddApp(app)
 						}
 					}
 				}
@@ -2720,30 +2723,40 @@ func (ctrl *ApplicationController) appProjectEventHandlerFuncs() cache.ResourceE
 }
 
 // applicationEventHandlerFuncs returns the informer event handlers for Application
-// objects. Events for applications this controller cannot process (per canProcessApp)
-// are ignored. DeleteFunc unwraps cache.DeletedFinalStateUnknown tombstones and
-// immediately enqueues a refresh, while add/update use the rate-limited queues. The
-// cluster sharding cache is updated to reflect the application's lifecycle.
+// objects. The cluster sharding cache is updated for all application events so every
+// controller replica maintains a consistent view of application distribution. Work
+// queue additions are gated by canProcessApp. DeleteFunc unwraps
+// cache.DeletedFinalStateUnknown tombstones and immediately enqueues a refresh,
+// while add/update use the rate-limited queues.
 func (ctrl *ApplicationController) applicationEventHandlerFuncs() cache.ResourceEventHandlerFuncs {
 	return cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj any) {
+			if newApp, newOK := obj.(*appv1.Application); newOK {
+				// Update the sharding cache for all apps, regardless of whether
+				// this controller processes the app. All replicas must track all
+				// apps so the load-based shard distribution stays consistent
+				// across replicas. Only work queue additions are gated by
+				// canProcessApp.
+				ctrl.clusterSharding.AddApp(newApp)
+			}
 			if !ctrl.canProcessApp(obj) {
 				return
 			}
+
 			key, err := cache.MetaNamespaceKeyFunc(obj)
 			if err == nil {
 				ctrl.appRefreshQueue.AddRateLimited(key)
 			}
-			newApp, newOK := obj.(*appv1.Application)
-			if err == nil && newOK {
-				ctrl.clusterSharding.AddApp(newApp)
-			}
 		},
 		UpdateFunc: func(old, new any) {
+			if updatedApp, updatedOK := new.(*appv1.Application); updatedOK {
+				// Update the sharding cache for all apps regardless of shard
+				// assignment. See the comment in AddFunc.
+				ctrl.clusterSharding.UpdateApp(updatedApp)
+			}
 			if !ctrl.canProcessApp(new) {
 				return
 			}
-
 			key, err := cache.MetaNamespaceKeyFunc(new)
 			if err != nil {
 				return
@@ -2769,6 +2782,7 @@ func (ctrl *ApplicationController) applicationEventHandlerFuncs() cache.Resource
 			if ctrl.hydrator != nil && newOK {
 				ctrl.appHydrateQueue.AddRateLimited(newApp.QualifiedName())
 			}
+
 			if newOK && ctrl.shouldProcessOperation(newApp) {
 				ctrl.appOperationQueue.AddRateLimited(key)
 			}
@@ -2779,6 +2793,11 @@ func (ctrl *ApplicationController) applicationEventHandlerFuncs() cache.Resource
 			if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
 				obj = tombstone.Obj
 			}
+			if delApp, delOK := obj.(*appv1.Application); delOK {
+				// Update the sharding cache for all apps regardless of shard
+				// assignment. See the comment in AddFunc.
+				ctrl.clusterSharding.DeleteApp(delApp)
+			}
 			if !ctrl.canProcessApp(obj) {
 				return
 			}
@@ -2788,10 +2807,6 @@ func (ctrl *ApplicationController) applicationEventHandlerFuncs() cache.Resource
 			if err == nil {
 				// for deletes, we immediately add to the refresh queue
 				ctrl.appRefreshQueue.Add(key)
-			}
-			delApp, delOK := obj.(*appv1.Application)
-			if err == nil && delOK {
-				ctrl.clusterSharding.DeleteApp(delApp)
 			}
 		},
 	}
