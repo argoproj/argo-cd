@@ -20,8 +20,8 @@ Verify that commits in the source repository are correctly signed with one of th
 > Keys configured in `signatureKeys` will continue to be supported, but they cannot be used together with `sourceIntegrity`.
 > See below on how to convert the legacy `signatureKeys` configuration to `sourceIntegrity`.
 
-Verification of GnuPG signatures is only supported with Git repositories. It is
-not possible when using Helm or OCI application sources.
+Verification of GnuPG commit signatures is only supported with Git repositories.
+For Helm chart provenance (GnuPG-signed `.prov` files) on traditional Helm repositories, see [Helm chart provenance verification](./source-integrity-helm-provenance.md).
 
 The GnuPG verification requires populating the Argo CD GnuPG keyring, and configuring source integrity policies for your repositories.
 
