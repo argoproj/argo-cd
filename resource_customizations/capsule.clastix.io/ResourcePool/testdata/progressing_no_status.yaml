@@ -1,0 +1,12 @@
+apiVersion: capsule.clastix.io/v1beta2
+kind: ResourcePool
+metadata:
+  name: solar-pool
+spec:
+  selectors:
+    - matchLabels:
+        capsule.clastix.io/tenant: solar
+  quota:
+    hard:
+      cpu: "10"
+      memory: 20Gi

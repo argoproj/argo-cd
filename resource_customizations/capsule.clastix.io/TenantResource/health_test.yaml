@@ -1,0 +1,17 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "Waiting for status"
+  inputPath: testdata/progressing_no_status.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for reconciliation (generation mismatch)"
+  inputPath: testdata/progressing_generation_mismatch.yaml
+- healthStatus:
+    status: Healthy
+    message: "Resources have been successfully replicated into the target namespaces"
+  inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Degraded
+    message: "TenantResource failed to replicate resources"
+  inputPath: testdata/degraded.yaml

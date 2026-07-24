@@ -1,0 +1,13 @@
+apiVersion: capsule.clastix.io/v1beta1
+kind: GlobalProxySettings
+metadata:
+  name: global-proxy
+spec:
+  subjects:
+    - name: cluster-admin-group
+      kind: Group
+      proxySettings:
+        - kind: Nodes
+          operations:
+            - List
+            - Get

@@ -1,0 +1,17 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "Waiting for status"
+  inputPath: testdata/progressing_no_status.yaml
+- healthStatus:
+    status: Progressing
+    message: "Decryption and replication in progress"
+  inputPath: testdata/progressing_unknown.yaml
+- healthStatus:
+    status: Healthy
+    message: "All managed secrets have been successfully decrypted and replicated into their target namespaces"
+  inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Degraded
+    message: "Failed to replicate secret into target namespaces"
+  inputPath: testdata/degraded.yaml

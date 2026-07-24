@@ -1,0 +1,22 @@
+apiVersion: capsule.clastix.io/v1beta1
+kind: ProxySetting
+metadata:
+  name: alice-proxy
+  namespace: solar-production
+  generation: 1
+spec:
+  subjects:
+    - name: alice
+      kind: User
+      proxySettings:
+        - kind: IngressClasses
+          operations:
+            - List
+status:
+  observedGeneration: 1
+  conditions:
+    - type: Ready
+      status: "True"
+      lastTransitionTime: "2024-01-01T00:00:00Z"
+      message: Proxy rules have been successfully applied
+      reason: Ready

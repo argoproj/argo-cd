@@ -1,0 +1,21 @@
+apiVersion: addons.projectcapsule.dev/v1alpha1
+kind: GlobalSopsSecret
+metadata:
+  name: global-tls-ca
+  generation: 1
+spec:
+  namespaceSelector:
+    matchLabels:
+      capsule.clastix.io/tenant: solar
+  secretTemplates:
+    - name: tls-ca
+      stringData:
+        ca.crt: ENC[AES256_GCM,data:encrypted==,tag:tag==,type:str]
+status:
+  observedGeneration: 1
+  conditions:
+    - type: Ready
+      status: "False"
+      lastTransitionTime: "2024-01-01T00:00:00Z"
+      message: Failed to replicate secret into target namespaces
+      reason: ReplicationError
