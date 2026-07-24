@@ -54,6 +54,16 @@ var (
 	ErrRevisionNotFound = errors.New("revision not found")
 )
 
+// Values returned by HeadSignatureStatus for the GPG signature status code
+// (git's %G? placeholder). The full set is documented under PRETTY FORMATS
+// in git-log(1); only G and U represent good signatures that callers should
+// accept (U = good but unknown trust, expected when the signing key has not
+// been ultimately trusted in the local keyring).
+const (
+	SignatureStatusGood             = "G"
+	SignatureStatusGoodUnknownTrust = "U"
+)
+
 // builtinGitConfig configuration contains statements that are needed
 // for correct ArgoCD operation. These settings will override any
 // user-provided configuration of same options.
@@ -159,8 +169,19 @@ type Client interface {
 	CheckoutOrNew(ctx context.Context, branch, base string, submoduleEnabled bool) (string, error)
 	// RemoveContents removes all files from the given paths in the git repository.
 	RemoveContents(ctx context.Context, paths []string) (string, error)
-	// CommitAndPush commits and pushes changes to the target branch.
-	CommitAndPush(ctx context.Context, branch, message string) (string, error)
+	// Commit stages all changes and creates a single commit. If signingKeyID
+	// is non-empty, the commit is GPG-signed with the given key from the
+	// shared GNUPGHOME (common.GetGnuPGHomePath()); the key's passphrase, if
+	// any, must already be cached in gpg-agent. Returns the git output.
+	Commit(message, signingKeyID string) (string, error)
+	// Push pushes the target branch to origin.
+	Push(branch string) (string, error)
+	// HeadSignatureStatus returns git's signature status code (%G?) and the
+	// long key ID used to sign HEAD (%GK). Used to assert a freshly created
+	// signed commit was produced by the expected key before pushing. See the
+	// SignatureStatus* constants for the values that indicate a usable
+	// signature.
+	HeadSignatureStatus() (status, keyID string, err error)
 	// GetCommitNote gets the note associated with the DRY sha stored in the specific namespace
 	GetCommitNote(ctx context.Context, sha string, namespace string) (string, error)
 	// AddAndPushNote adds a note to a DRY sha and then pushes it.
@@ -1596,32 +1617,75 @@ func (m *nativeGitClient) RemoveContents(ctx context.Context, paths []string) (s
 	return "", nil
 }
 
-// CommitAndPush commits and pushes changes to the target branch.
-func (m *nativeGitClient) CommitAndPush(ctx context.Context, branch, message string) (string, error) {
-	out, err := m.runCmd(ctx, "add", ".")
-	if err != nil {
+// Commit stages all changes and creates a single commit. If signingKeyID is
+// non-empty, the commit is GPG-signed with that key from the shared GNUPGHOME;
+// the key's passphrase, if any, must already be cached in gpg-agent so gpg can
+// sign non-interactively.
+func (m *nativeGitClient) Commit(message, signingKeyID string) (string, error) {
+	ctx := context.Background()
+	if out, err := m.runCmd(ctx, "add", "."); err != nil {
 		return out, fmt.Errorf("failed to add files: %w", err)
 	}
 
-	out, err = m.runCmd(ctx, "commit", "-m", message)
-	if err != nil {
-		if strings.Contains(out, "nothing to commit, working tree clean") {
-			return out, nil
+	if signingKeyID == "" {
+		out, err := m.runCmd(ctx, "commit", "-m", message)
+		if err != nil {
+			if strings.Contains(out, "nothing to commit, working tree clean") {
+				return out, nil
+			}
+			return out, fmt.Errorf("failed to commit: %w", err)
 		}
-		return out, fmt.Errorf("failed to commit: %w", err)
+		return out, nil
 	}
 
+	// Signed commit: configure the signing key on this invocation only (no
+	// persistent git config writes) and route through cmdWithGPG so gpg sees
+	// the configured GNUPGHOME.
+	args := []string{
+		"-c", "user.signingkey=" + signingKeyID,
+		"-c", "commit.gpgsign=true",
+		"commit", "-m", message,
+	}
+	cmd := m.cmdWithGPG(ctx, "git", args...)
+	out, err := m.runCmdOutput(cmd, runOpts{})
+	if err != nil {
+		// Unlike the unsigned path we do NOT swallow "nothing to commit": a
+		// signed commit is only requested when we expect a real change, and
+		// silently returning would leave the caller verifying the signature of
+		// a stale HEAD it never created.
+		return out, fmt.Errorf("failed to create signed commit: %w", err)
+	}
+	return out, nil
+}
+
+// Push pushes the target branch to origin.
+func (m *nativeGitClient) Push(branch string) (string, error) {
 	if m.OnPush != nil {
 		done := m.OnPush(m.repoURL)
 		defer done()
 	}
-
-	err = m.runCredentialedCmd(ctx, "push", "origin", branch)
-	if err != nil {
+	if err := m.runCredentialedCmd(context.Background(), "push", "origin", branch); err != nil {
 		return "", fmt.Errorf("failed to push: %w", err)
 	}
-
 	return "", nil
+}
+
+// HeadSignatureStatus returns the GPG signature status code (%G?) and the
+// signing key ID (%GK) for HEAD. Status is empty (and keyID "") when HEAD
+// carries no signature. See man git-log under PRETTY FORMATS for codes; for
+// our purposes "G" (good) and "U" (good but unknown trust) are acceptable.
+func (m *nativeGitClient) HeadSignatureStatus() (string, string, error) {
+	ctx := context.Background()
+	cmd := m.cmdWithGPG(ctx, "git", "log", "-1", "--pretty=format:%G?:%GK", "HEAD")
+	out, err := m.runCmdOutput(cmd, runOpts{})
+	if err != nil {
+		return "", "", fmt.Errorf("failed to read HEAD signature status: %w", err)
+	}
+	parts := strings.SplitN(strings.TrimSpace(out), ":", 2)
+	if len(parts) != 2 {
+		return "", "", fmt.Errorf("unexpected signature status output: %q", out)
+	}
+	return parts[0], parts[1], nil
 }
 
 // GetCommitNote gets the note associated with the DRY sha stored in the specific namespace
