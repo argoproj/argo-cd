@@ -556,12 +556,16 @@ jobs:
         # latest: true means that this version mush upload the coverage report to codecov.io
         # We designate the latest version because we only collect code coverage for that version.
         k3s:
+          # renovate: datasource=github-releases depName=k3s-e2e-latest packageName=k3s-io/k3s extractVersion=^(?<version>v[0-9.]+)\+k3s.*$
           - version: v1.36.0
             latest: true
+          # renovate: datasource=github-releases depName=k3s-e2e-v1.35 packageName=k3s-io/k3s extractVersion=^(?<version>v[0-9.]+)\+k3s.*$
           - version: v1.35.0
             latest: false
+          # renovate: datasource=github-releases depName=k3s-e2e-v1.34 packageName=k3s-io/k3s extractVersion=^(?<version>v[0-9.]+)\+k3s.*$
           - version: v1.34.2
             latest: false
+          # renovate: datasource=github-releases depName=k3s-e2e-v1.33 packageName=k3s-io/k3s extractVersion=^(?<version>v[0-9.]+)\+k3s.*$
           - version: v1.33.1
             latest: false
     needs:

@@ -1,0 +1,49 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Auto-update k3s versions in the e2e test matrix. The latest entry gets full updates; older entries are constrained to patch bumps within their minor version.",
+  "customManagers": [
+    {
+      "description": "Extract k3s version entries from the e2e test matrix in ci-build.yaml",
+      "customType": "regex",
+      "fileMatch": [
+        ".github\\/workflows\\/ci-build\\.ya?ml$"
+      ],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>.*?)(?: depName=(?<depName>.+?))? packageName=(?<packageName>.+?)(?: versioning=(?<versioning>.*?))?(?: extractVersion=(?<extractVersion>.*?))?\\s*\\n\\s*- version:\\s*(?<currentValue>v[0-9.]+)"
+      ]
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "Enable updates for k3s e2e matrix entries",
+      "matchDatasources": [
+        "github-releases"
+      ],
+      "matchDepNames": [
+        "/^k3s-e2e-/"
+      ],
+      "enabled": true
+    },
+    {
+      "description": "Constrain k3s v1.35 entries to patch-only updates within the v1.35 minor line",
+      "matchDepNames": [
+        "k3s-e2e-v1.35"
+      ],
+      "allowedVersions": "/^v1\\.35\\./"
+    },
+    {
+      "description": "Constrain k3s v1.34 entries to patch-only updates within the v1.34 minor line",
+      "matchDepNames": [
+        "k3s-e2e-v1.34"
+      ],
+      "allowedVersions": "/^v1\\.34\\./"
+    },
+    {
+      "description": "Constrain k3s v1.33 entries to patch-only updates within the v1.33 minor line",
+      "matchDepNames": [
+        "k3s-e2e-v1.33"
+      ],
+      "allowedVersions": "/^v1\\.33\\./"
+    }
+  ]
+}
