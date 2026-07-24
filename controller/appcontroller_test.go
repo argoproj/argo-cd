@@ -2432,6 +2432,172 @@ apps/Deployment:
 	}
 }
 
+func TestHasFailedPostSyncHook(t *testing.T) {
+	cases := []struct {
+		name       string
+		setup      func(app *v1alpha1.Application)
+		wantFailed bool
+		wantMsg    string
+	}{
+		{
+			name: "single/aggregates-postsync-failures",
+			setup: func(app *v1alpha1.Application) {
+				app.Status.Sync.Revision = "r1"
+				app.Status.OperationState = &v1alpha1.OperationState{
+					Phase: synccommon.OperationFailed,
+					SyncResult: &v1alpha1.SyncOperationResult{
+						Revision: "r1",
+						Resources: []*v1alpha1.ResourceResult{
+							{
+								Kind:      "Job",
+								Namespace: "default",
+								Name:      "post-1",
+								HookType:  synccommon.HookTypePostSync,
+								HookPhase: synccommon.OperationFailed,
+								Message:   "exit code 1",
+							},
+							{
+								Kind:      "Job",
+								Name:      "post-2",
+								SyncPhase: synccommon.SyncPhasePostSync,
+								HookPhase: synccommon.OperationFailed,
+								Message:   "",
+							},
+						},
+					},
+				}
+			},
+			wantFailed: true,
+			wantMsg:    "default/post-1: exit code 1; post-2: unknown reason",
+		},
+		{
+			name: "single/revision-mismatch",
+			setup: func(app *v1alpha1.Application) {
+				app.Status.Sync.Revision = "status-rev"
+				app.Status.OperationState = &v1alpha1.OperationState{
+					Phase: synccommon.OperationFailed,
+					SyncResult: &v1alpha1.SyncOperationResult{
+						Revision: "op-rev",
+						Resources: []*v1alpha1.ResourceResult{
+							{
+								Kind:      "Job",
+								Name:      "post",
+								HookType:  synccommon.HookTypePostSync,
+								HookPhase: synccommon.OperationFailed,
+								Message:   "boom",
+							},
+						},
+					},
+				}
+			},
+			wantFailed: false,
+			wantMsg:    "",
+		},
+		{
+			name: "multi/matches-all-revisions",
+			setup: func(app *v1alpha1.Application) {
+				revs := []string{"r1", "r2"}
+				app.Spec.Sources = []v1alpha1.ApplicationSource{{}, {}}
+				app.Status.Sync.Revisions = append([]string{}, revs...)
+				app.Status.OperationState = &v1alpha1.OperationState{
+					Phase: synccommon.OperationFailed,
+					SyncResult: &v1alpha1.SyncOperationResult{
+						Revisions: append([]string{}, revs...),
+						Resources: []*v1alpha1.ResourceResult{
+							{
+								Kind:      "Job",
+								Namespace: "ns-a",
+								Name:      "post-hook",
+								HookType:  synccommon.HookTypePostSync,
+								HookPhase: synccommon.OperationFailed,
+								Message:   "boom",
+							},
+						},
+					},
+				}
+			},
+			wantFailed: true,
+			wantMsg:    "ns-a/post-hook: boom",
+		},
+		{
+			name: "ignores-successful-operation",
+			setup: func(app *v1alpha1.Application) {
+				app.Status.Sync.Revision = "r1"
+				app.Status.OperationState = &v1alpha1.OperationState{
+					Phase: synccommon.OperationSucceeded,
+					SyncResult: &v1alpha1.SyncOperationResult{
+						Revision: "r1",
+						Resources: []*v1alpha1.ResourceResult{
+							{
+								Kind:      "Job",
+								Name:      "post",
+								HookType:  synccommon.HookTypePostSync,
+								HookPhase: synccommon.OperationFailed,
+								Message:   "should be ignored",
+							},
+						},
+					},
+				}
+			},
+			wantFailed: false,
+			wantMsg:    "",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			app := newFakeApp()
+			tc.setup(app)
+
+			failed, msg := hasFailedPostSyncHook(app)
+
+			require.Equal(t, tc.wantFailed, failed)
+			assert.Equal(t, tc.wantMsg, msg)
+		})
+	}
+}
+
+// PostSync hook failures on the latest revision set FailedError condition (health is unchanged).
+func TestProcessQueue_FailedError_SetsCondition(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.Project = "default"
+	app.Status.OperationState = &v1alpha1.OperationState{
+		Phase: synccommon.OperationFailed,
+		SyncResult: &v1alpha1.SyncOperationResult{
+			Revision: "r1",
+			Resources: []*v1alpha1.ResourceResult{
+				{Kind: "Job", Namespace: "default", Name: "post-1", HookType: synccommon.HookTypePostSync, HookPhase: synccommon.OperationFailed, Message: "exit code 1"},
+				{Kind: "Job", Name: "post-2", SyncPhase: synccommon.SyncPhasePostSync, HookPhase: synccommon.OperationFailed, Message: ""},
+			},
+		},
+	}
+
+	ctrl := newFakeController(t.Context(), &fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{}, Namespace: test.FakeDestNamespace, Server: test.FakeClusterURL, Revision: "r1",
+		},
+		managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{},
+	}, nil)
+
+	ctrl.processAppRefreshQueueItem()
+
+	apps, err := ctrl.appLister.List(labels.Everything())
+	require.NoError(t, err)
+	require.NotEmpty(t, apps)
+	got := apps[0]
+
+	var cond *v1alpha1.ApplicationCondition
+	for i := range got.Status.Conditions {
+		if got.Status.Conditions[i].Type == v1alpha1.ApplicationConditionFailedError {
+			cond = &got.Status.Conditions[i]
+			break
+		}
+	}
+	require.NotNil(t, cond, "FailedError condition must exist")
+	assert.Equal(t, "PostSync hook failed: default/post-1: exit code 1; post-2: unknown reason", cond.Message)
+}
+
 func TestUpdateHealthStatusProgression(t *testing.T) {
 	app := newFakeAppWithHealthAndTime(health.HealthStatusDegraded, testTimestamp)
 	deployment := kube.MustToUnstructured(&appsv1.Deployment{
