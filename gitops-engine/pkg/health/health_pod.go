@@ -9,6 +9,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/kubectl/pkg/util/podutils"
 
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/hook"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 )
 
@@ -21,13 +23,13 @@ func getPodHealth(obj *unstructured.Unstructured) (*HealthStatus, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to convert unstructured Pod to typed: %w", err)
 		}
-		return getCorev1PodHealth(&pod)
+		return getCorev1PodHealth(&pod, hook.IsHook(obj))
 	default:
 		return nil, fmt.Errorf("unsupported Pod GVK: %s", gvk)
 	}
 }
 
-func getCorev1PodHealth(pod *corev1.Pod) (*HealthStatus, error) {
+func getCorev1PodHealth(pod *corev1.Pod, isHook bool) (*HealthStatus, error) {
 	// This logic cannot be applied when the pod.Spec.RestartPolicy is: corev1.RestartPolicyOnFailure,
 	// corev1.RestartPolicyNever, otherwise it breaks the resource hook logic.
 	// The issue is, if we mark a pod with ImagePullBackOff as Degraded, and the pod is used as a resource hook,
@@ -94,8 +96,13 @@ func getCorev1PodHealth(pod *corev1.Pod) (*HealthStatus, error) {
 
 		return &HealthStatus{Status: HealthStatusDegraded, Message: ""}, nil
 	case corev1.PodRunning:
-		switch pod.Spec.RestartPolicy {
-		case corev1.RestartPolicyAlways:
+		policy := pod.Spec.RestartPolicy
+		// The AnnotationIgnoreRestartPolicy annotation makes a running pod with a restart policy
+		// of OnFailure or Never be assessed like a long-running pod. The annotation is not honored
+		// on hook pods.
+		hasIgnoreRestartPolicy := pod.GetAnnotations() != nil && pod.GetAnnotations()[common.AnnotationIgnoreRestartPolicy] == "true"
+		switch {
+		case policy == corev1.RestartPolicyAlways || (hasIgnoreRestartPolicy && !isHook):
 			// if pod is ready, it is automatically healthy
 			if podutils.IsPodReady(pod) {
 				return &HealthStatus{
@@ -117,10 +124,11 @@ func getCorev1PodHealth(pod *corev1.Pod) (*HealthStatus, error) {
 				Status:  HealthStatusProgressing,
 				Message: pod.Status.Message,
 			}, nil
-		case corev1.RestartPolicyOnFailure, corev1.RestartPolicyNever:
-			// pods set with a restart policy of OnFailure or Never, have a finite life.
+		case policy == corev1.RestartPolicyOnFailure || policy == corev1.RestartPolicyNever:
+			// Pods set with a restart policy of OnFailure or Never have a finite life.
 			// These pods are typically resource hooks. Thus, we consider these as Progressing
-			// instead of healthy.
+			// instead of healthy. If this is unwanted, use the AnnotationIgnoreRestartPolicy
+			// annotation.
 			return &HealthStatus{
 				Status:  HealthStatusProgressing,
 				Message: pod.Status.Message,
