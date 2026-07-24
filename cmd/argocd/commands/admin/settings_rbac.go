@@ -413,7 +413,54 @@ func checkPolicy(subject, action, resource, subResource, builtinPolicy, userPoli
 			subResource = "*/*"
 		}
 	}
-	return enf.Enforce(subject, realResource, action, subResource)
+	result := enf.Enforce(subject, realResource, action, subResource)
+	if result {
+		warnIfUnenforcedGroupGrant(subject, builtinPolicy, userPolicy)
+	}
+	return result
+}
+
+// warnIfUnenforcedGroupGrant emits a warning when a group subject is granted a
+// permission via a direct `p,` line but is not bound to any role with a `g,`
+// line. The API server only evaluates a user's group if it appears in a
+// grouping policy (see server/rbacpolicy), so such a grant is silently ignored
+// at runtime even though this command reports it as allowed.
+func warnIfUnenforcedGroupGrant(subject, builtinPolicy, userPolicy string) {
+	if !isGroupSubject(subject) {
+		return
+	}
+	if hasGroupBinding(subject, builtinPolicy) || hasGroupBinding(subject, userPolicy) {
+		return
+	}
+	log.Warnf("subject %q is a group with a direct 'p,' policy but no 'g, %s, role:...' binding; "+
+		"the API server ignores such grants at runtime, so this permission will NOT take effect. "+
+		"Bind the group to a role instead.", subject, subject)
+}
+
+// isGroupSubject reports whether the subject looks like an SSO group (an
+// "org:team" style name) rather than a role, project role, or local user.
+// Roles ("role:...") and project roles ("proj:...") are excluded, as are local
+// users, which conventionally contain no ":".
+func isGroupSubject(subject string) bool {
+	if strings.HasPrefix(subject, "role:") || strings.HasPrefix(subject, "proj:") {
+		return false
+	}
+	return strings.Contains(subject, ":")
+}
+
+// hasGroupBinding reports whether the policy contains a grouping ("g,") line
+// that binds the given subject to a role.
+func hasGroupBinding(subject, policy string) bool {
+	for line := range strings.SplitSeq(policy, "\n") {
+		fields := strings.Split(line, ",")
+		if len(fields) < 2 {
+			continue
+		}
+		if strings.TrimSpace(fields[0]) == "g" && strings.TrimSpace(fields[1]) == subject {
+			return true
+		}
+	}
+	return false
 }
 
 // resolveRBACResourceName resolves a user supplied value to a valid RBAC
