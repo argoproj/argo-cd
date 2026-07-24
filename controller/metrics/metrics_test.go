@@ -159,6 +159,85 @@ status:
     type: ExcludedResourceWarning
 `
 
+const fakeApp5 = `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-app-5
+  namespace: argocd
+  labels:
+    team-name: my-team
+    team-bu: bu-id
+    argoproj.io/cluster: test-cluster
+spec:
+  destination:
+    namespace: dummy-namespace
+    name: cluster1
+  project: important-project
+  source:
+    path: some/path
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+status:
+  sync:
+    status: Unknown
+  health:
+    status: Unknown
+  conditions:
+  - lastTransitionTime: "2024-08-07T12:25:40Z"
+    message: Failed to compare desired state to live state
+    type: ComparisonError
+  - lastTransitionTime: "2024-08-07T12:25:40Z"
+    message: Failed to sync application
+    type: SyncError
+  - lastTransitionTime: "2024-08-07T12:25:40Z"
+    message: Application referencing project which does not exist
+    type: InvalidSpecError
+  - lastTransitionTime: "2024-08-07T12:25:40Z"
+    message: Failed to delete application resources
+    type: DeletionError
+  - lastTransitionTime: "2024-08-07T12:25:40Z"
+    message: Unknown controller error
+    type: UnknownError
+  - lastTransitionTime: "2024-08-07T12:25:40Z"
+    message: Failed to sync application (retry)
+    type: SyncError
+  - lastTransitionTime: "2024-08-07T12:25:40Z"
+    message: "PostSync hook failed: default/fail-postsync: Job has reached the specified backoff limit"
+    type: FailedError
+`
+
+const fakeApp6 = `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-app-6
+  namespace: argocd
+  labels:
+    team-name: my-team
+    team-bu: bu-id
+    argoproj.io/cluster: test-cluster
+spec:
+  destination:
+    namespace: dummy-namespace
+    name: cluster1
+  project: important-project
+  source:
+    path: some/path
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+status:
+  sync:
+    status: OutOfSync
+  health:
+    status: Degraded
+  conditions:
+  - lastTransitionTime: "2024-08-07T12:25:40Z"
+    message: Failed to sync application
+    type: SyncError
+  - lastTransitionTime: "2024-08-07T12:25:40Z"
+    message: Application has 1 orphaned resources
+    type: OrphanedResourceWarning
+`
+
 const fakeDefaultApp = `
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -462,6 +541,94 @@ argocd_app_condition{condition="ExcludedResourceWarning",name="my-app-4",namespa
 `,
 			},
 		},
+		{
+			description:      "metric will output SyncError failed condition",
+			metricConditions: []string{argoappv1.ApplicationConditionSyncError},
+			testCombination: testCombination{
+				applications: []string{fakeApp5},
+				responseContains: `
+# HELP argocd_app_condition Report application conditions.
+# TYPE argocd_app_condition gauge
+argocd_app_condition{condition="SyncError",name="my-app-5",namespace="argocd",project="important-project"} 2
+`,
+			},
+		},
+		{
+			description:      "metric will output ComparisonError failed condition",
+			metricConditions: []string{argoappv1.ApplicationConditionComparisonError},
+			testCombination: testCombination{
+				applications: []string{fakeApp5},
+				responseContains: `
+# HELP argocd_app_condition Report application conditions.
+# TYPE argocd_app_condition gauge
+argocd_app_condition{condition="ComparisonError",name="my-app-5",namespace="argocd",project="important-project"} 1
+`,
+			},
+		},
+		{
+			description:      "metric will output InvalidSpecError failed condition",
+			metricConditions: []string{argoappv1.ApplicationConditionInvalidSpecError},
+			testCombination: testCombination{
+				applications: []string{fakeApp5},
+				responseContains: `
+# HELP argocd_app_condition Report application conditions.
+# TYPE argocd_app_condition gauge
+argocd_app_condition{condition="InvalidSpecError",name="my-app-5",namespace="argocd",project="important-project"} 1
+`,
+			},
+		},
+		{
+			description:      "metric will output FailedError condition",
+			metricConditions: []string{argoappv1.ApplicationConditionFailedError},
+			testCombination: testCombination{
+				applications: []string{fakeApp5},
+				responseContains: `
+# HELP argocd_app_condition Report application conditions.
+# TYPE argocd_app_condition gauge
+argocd_app_condition{condition="FailedError",name="my-app-5",namespace="argocd",project="important-project"} 1
+`,
+			},
+		},
+		{
+			description: "metric will output all Error-type failed conditions",
+			metricConditions: []string{
+				argoappv1.ApplicationConditionComparisonError,
+				argoappv1.ApplicationConditionSyncError,
+				argoappv1.ApplicationConditionInvalidSpecError,
+				argoappv1.ApplicationConditionDeletionError,
+				argoappv1.ApplicationConditionUnknownError,
+				argoappv1.ApplicationConditionFailedError,
+			},
+			testCombination: testCombination{
+				applications: []string{fakeApp5},
+				responseContains: `
+# HELP argocd_app_condition Report application conditions.
+# TYPE argocd_app_condition gauge
+argocd_app_condition{condition="ComparisonError",name="my-app-5",namespace="argocd",project="important-project"} 1
+argocd_app_condition{condition="SyncError",name="my-app-5",namespace="argocd",project="important-project"} 2
+argocd_app_condition{condition="InvalidSpecError",name="my-app-5",namespace="argocd",project="important-project"} 1
+argocd_app_condition{condition="DeletionError",name="my-app-5",namespace="argocd",project="important-project"} 1
+argocd_app_condition{condition="UnknownError",name="my-app-5",namespace="argocd",project="important-project"} 1
+argocd_app_condition{condition="FailedError",name="my-app-5",namespace="argocd",project="important-project"} 1
+`,
+			},
+		},
+		{
+			description: "metric will output mixed Error and Warning conditions without omitting failed conditions",
+			metricConditions: []string{
+				argoappv1.ApplicationConditionSyncError,
+				argoappv1.ApplicationConditionOrphanedResourceWarning,
+			},
+			testCombination: testCombination{
+				applications: []string{fakeApp6},
+				responseContains: `
+# HELP argocd_app_condition Report application conditions.
+# TYPE argocd_app_condition gauge
+argocd_app_condition{condition="SyncError",name="my-app-6",namespace="argocd",project="important-project"} 1
+argocd_app_condition{condition="OrphanedResourceWarning",name="my-app-6",namespace="argocd",project="important-project"} 1
+`,
+			},
+		},
 	}
 
 	for _, c := range cases {
@@ -469,6 +636,31 @@ argocd_app_condition{condition="ExcludedResourceWarning",name="my-app-4",namespa
 			testMetricServer(t, c.applications, c.responseContains, []string{}, c.metricConditions)
 		})
 	}
+
+	t.Run("metric will not emit failed conditions when only warnings are configured", func(t *testing.T) {
+		cancel, appLister := newFakeLister(t.Context(), fakeApp5)
+		defer cancel()
+		mockDB := mocks.NewArgoDB(t)
+		mockDB.EXPECT().GetClusterServersByName(mock.Anything, "cluster1").Return([]string{"https://localhost:6443"}, nil).Maybe()
+		mockDB.EXPECT().GetCluster(mock.Anything, "https://localhost:6443").Return(&argoappv1.Cluster{Name: "cluster1", Server: "https://localhost:6443"}, nil).Maybe()
+		metricsServ, err := NewMetricsServer("localhost:8082", appLister, appFilter, noOpHealthCheck, []string{}, []string{argoappv1.ApplicationConditionOrphanedResourceWarning}, mockDB)
+		require.NoError(t, err)
+
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", http.NoBody)
+		require.NoError(t, err)
+		rr := httptest.NewRecorder()
+		metricsServ.Handler.ServeHTTP(rr, req)
+		require.Equal(t, http.StatusOK, rr.Code)
+		body := rr.Body.String()
+
+		assert.Contains(t, body, `argocd_app_info{autosync_enabled="false",dest_namespace="dummy-namespace",dest_server="https://localhost:6443",health_status="Unknown",name="my-app-5",namespace="argocd",operation="",project="important-project",repo="https://github.com/argoproj/argocd-example-apps",sync_status="Unknown"} 1`)
+		assert.NotContains(t, body, `condition="SyncError"`)
+		assert.NotContains(t, body, `condition="ComparisonError"`)
+		assert.NotContains(t, body, `condition="InvalidSpecError"`)
+		assert.NotContains(t, body, `condition="DeletionError"`)
+		assert.NotContains(t, body, `condition="UnknownError"`)
+		assert.NotContains(t, body, `condition="FailedError"`)
+	})
 }
 
 func TestMetricsSyncCounter(t *testing.T) {
