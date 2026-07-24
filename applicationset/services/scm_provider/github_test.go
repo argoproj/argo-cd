@@ -747,6 +747,16 @@ func TestGithubGetBranches(t *testing.T) {
 	_, err = host.GetBranches(t.Context(), repo2)
 	require.NoError(t, err)
 
+	// Repo has contents but default branch is reported to not exist
+	repo3 := &Repository{
+		Organization: "argoproj",
+		Repository:   "argo-cd",
+		Branch:       "does-not-exist",
+	}
+	host.repoSizes["argo-cd"] = 108
+	_, err = host.GetBranches(t.Context(), repo3)
+	require.Error(t, err)
+
 	// Get all branches
 	host.allBranches = true
 	repos, err = host.GetBranches(t.Context(), repo)
