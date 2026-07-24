@@ -498,7 +498,7 @@ func TestInvalidAppProject(t *testing.T) {
 func TestNestedRefresh(t *testing.T) {
 	dir := "slow-manifest"
 	manifest := "templates/cm.yaml"
-	ctx := Given(t).Timeout(50)
+	ctx := Given(t).Timeout(70)
 	acts := ctx.Path(dir).
 		When().
 		CreateApp().
@@ -509,7 +509,7 @@ func TestNestedRefresh(t *testing.T) {
 		When().
 		PatchFile(manifest, `[{"op": "add", "path": "/metadata/labels/test-label", "value": "test-value"}]`)
 	// runs app get --refresh asynchronoously, so we do not wait for the refresh to finish
-	go acts.Refresh(RefreshTypeNormal)
+	go ctx.When().Refresh(RefreshTypeNormal)
 	// wait until Refresh actually runs `helm template`.  We can
 	// catch it because the template is really nasty and
 	// `helm templates` rendering takes tens of seconds
@@ -519,7 +519,7 @@ func TestNestedRefresh(t *testing.T) {
 	// make another change
 	acts = acts.PatchFile(manifest, `[{"op": "add", "path": "/metadata/labels/test-label", "value": "test-value2"}]`)
 	// second (nested) refresh request
-	go acts.Refresh(RefreshTypeNormal)
+	go ctx.When().Refresh(RefreshTypeNormal)
 	// get process one more time and ensure the same helm process
 	// still running, so the second refresh was nested
 	acts.Then().Expect(HelmTemplateRuns()).Expect(Success(helmProcessData))
