@@ -213,6 +213,38 @@ func TestRedact(t *testing.T) {
 	assert.Equal(t, "****** ******", Redact([]string{"foo"})("foo foo"))
 }
 
+func TestStripAnsi(t *testing.T) {
+	cases := map[string]string{
+		"":                             "",
+		"plain text":                   "plain text",
+		"\x1b[1;31mError\x1b[0m: oops": "Error: oops",
+		"\x1b[KNo newline clear":       "No newline clear",
+	}
+	for in, want := range cases {
+		assert.Equal(t, want, stripAnsi(in))
+	}
+}
+
+func TestRunCommandErrStripsAnsi(t *testing.T) {
+	// Reproduces the scenario from issue #4770 where a subcommand emits ANSI
+	// color codes on stderr. The codes must be stripped from the surfaced error.
+	_, err := RunCommand("sh", CmdOpts{}, "-c", `printf '\033[1;31mError\033[0m: boom\n' >&2; exit 1`)
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), "\x1b")
+	assert.Contains(t, err.Error(), "Error: boom")
+}
+
+func TestRunCommandErrCaptureStderrStripsAnsi(t *testing.T) {
+	// Exercises the CaptureStderr error path: both stdout and stderr are
+	// captured, and ANSI escapes on stderr must be stripped before returning.
+	output, err := RunCommand("sh", CmdOpts{CaptureStderr: true}, "-c", `printf 'stdout-line\n'; printf '\033[1;31mError\033[0m: boom\n' >&2; exit 1`)
+	require.Error(t, err)
+	assert.NotContains(t, output, "\x1b")
+	assert.Contains(t, output, "stdout-line")
+	assert.Contains(t, output, "Error: boom")
+	assert.NotContains(t, err.Error(), "\x1b")
+}
+
 func TestRunCaptureStderr(t *testing.T) {
 	output, err := RunCommand("sh", CmdOpts{CaptureStderr: true}, "-c", "echo hello world && echo my-error >&2 && exit 0")
 	assert.Equal(t, "hello world\nmy-error", output)
