@@ -1,0 +1,11 @@
+apiVersion: capsule.clastix.io/v1beta2
+kind: TenantOwner
+metadata:
+  name: alice
+  namespace: solar
+spec:
+  tenantRef:
+    name: solar
+  ownerRef:
+    kind: User
+    name: alice
