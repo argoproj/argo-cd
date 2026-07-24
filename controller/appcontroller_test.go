@@ -4139,7 +4139,7 @@ func TestPersistReconciliationStatus_AnnotationManagement(t *testing.T) {
 		appCs := ctrl.applicationClientset.(*appclientset.Clientset)
 		appCs.ReactionChain = nil
 		var patchCalls int
-		appCs.AddReactor("patch", "*", func(action kubetesting.Action) (bool, runtime.Object, error) {
+		appCs.AddReactor("patch", "*", func(_ kubetesting.Action) (bool, runtime.Object, error) {
 			patchCalls++
 			return true, app, nil
 		})
@@ -4162,7 +4162,7 @@ func TestPersistReconciliationStatus_AnnotationManagement(t *testing.T) {
 		var patchCalls int
 		appCs.AddReactor("patch", "*", func(_ kubetesting.Action) (bool, runtime.Object, error) {
 			patchCalls++
-			return true, &v1alpha1.Application{}, nil
+			return true, app, nil
 		})
 
 		origApp := app.DeepCopy()
