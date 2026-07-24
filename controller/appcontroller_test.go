@@ -210,32 +210,6 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 		panic(err)
 	}
 
-	// Ensure a default project exists to prevent the indexer function from calling
-	// setAppCondition during cache sync, which would cause a deadlock with the
-	// v1beta1 patch reactor. The indexer calls getAppProj() for each app, and if
-	// the project doesn't exist, it calls setAppCondition -> PatchAppStatusWithWriteBack
-	// -> writeBackToInformer, which deadlocks during cache sync.
-	hasDefaultProject := false
-	for _, obj := range data.apps {
-		if proj, ok := obj.(*v1alpha1.AppProject); ok && proj.Name == "default" {
-			hasDefaultProject = true
-			break
-		}
-	}
-	if !hasDefaultProject {
-		defaultProj := &v1alpha1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "default",
-				Namespace: test.FakeArgoCDNamespace,
-			},
-			Spec: v1alpha1.AppProjectSpec{
-				SourceRepos:  []string{"*"},
-				Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
-			},
-		}
-		data.apps = append(data.apps, defaultProj)
-	}
-
 	// Mock out call to GenerateManifest
 	mockRepoClient := &mockrepoclient.RepoServerServiceClient{}
 
@@ -3184,15 +3158,14 @@ func TestProcessRequestedAppOperation_FailedNoRetries(t *testing.T) {
 
 func TestProcessRequestedAppOperation_InvalidDestination(t *testing.T) {
 	app := newFakeAppWithDestMismatch()
-	// Pre-set the condition that would be set during indexer sync for the invalid destination.
-	// The app has both destination.name and destination.server set, which is invalid.
-	// This prevents a deadlock where setAppCondition tries to update the informer store while
-	// it's locked during sync.
-	app.Status.SetConditions([]v1alpha1.ApplicationCondition{{Type: v1alpha1.ApplicationConditionInvalidSpecError, Message: "application destination can't have both name and server defined: another-cluster https://localhost:6443"}}, nil)
+	app.Spec.Project = "test-project"
 	app.Operation = &v1alpha1.Operation{
 		Sync: &v1alpha1.SyncOperation{},
 	}
-	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+	proj := defaultProj
+	proj.Name = "test-project"
+	proj.Spec.SourceNamespaces = []string{test.FakeArgoCDNamespace}
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app, &proj}}, nil)
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 	receivedPatch := map[string]any{}
 	func() {
@@ -3202,9 +3175,7 @@ func TestProcessRequestedAppOperation_InvalidDestination(t *testing.T) {
 			if patchAction, ok := action.(kubetesting.PatchAction); ok {
 				require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
 			}
-			// Return handled=false to let the default reactors handle the patch properly.
-			// Returning an empty application would corrupt the informer state via writeBackToInformer.
-			return false, nil, nil
+			return true, &v1alpha1.Application{}, nil
 		})
 	}()
 

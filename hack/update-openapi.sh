@@ -23,7 +23,7 @@ VERSIONS="v1alpha1 v1beta1"
 for VERSION in ${VERSIONS}; do
   openapi-gen \
     --go-header-file "${PROJECT_ROOT}/hack/custom-boilerplate.go.txt" \
-    --output-pkg github.com/argoproj/argo-cd/v3/pkg/apis/application/${VERSION} \
+    --output-pkg "github.com/argoproj/argo-cd/v3/pkg/apis/application/${VERSION}" \
     --report-filename pkg/apis/api-rules/violation_exceptions.list \
     --output-dir "${GOPATH}/src" \
     "$@"
