@@ -27,6 +27,13 @@ const base = bases.length > 0 ? bases[0].getAttribute('href') || '/' : '/';
 export const history = createBrowserHistory({basename: base});
 requests.setBaseHRef(base);
 
+// Guards the SSO re-authentication redirect below. Multiple watch streams can emit 401s
+// simultaneously when a session expires; without this, each one reassigns
+// window.location.href and cancels the previous in-flight navigation to the identity
+// provider, so the browser never actually leaves the page. Reset happens naturally: the
+// redirect is a full page load, which discards this module's state.
+let ssoRedirectInProgress = false;
+
 type Routes = {[path: string]: {component: React.ComponentType<RouteComponentProps<any>>; noLayout?: boolean}};
 
 const routes: Routes = {
@@ -348,6 +355,10 @@ export class App extends React.Component<
                 // If basehref is the default `/` it will become an empty string.
                 const basehref = document.querySelector('head > base').getAttribute('href').replace(/\/$/, '');
                 if (isSSO) {
+                    if (ssoRedirectInProgress) {
+                        return;
+                    }
+                    ssoRedirectInProgress = true;
                     window.location.href = `${basehref}/auth/login?return_url=${encodeURIComponent(location.href)}`;
                 } else {
                     history.push(`/login?return_url=${encodeURIComponent(location.href)}`);
