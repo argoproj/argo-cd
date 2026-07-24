@@ -82,6 +82,30 @@ func TestReceiveApplicationStream(t *testing.T) {
 		assert.NotContains(t, names, "dummy")
 		assert.NotNil(t, env)
 	})
+
+	t.Run("slash-pattern in plugin-tar-exclude excludes by relative path", func(t *testing.T) {
+		t.Parallel()
+		streamMock := newStreamMock()
+		appDir := filepath.Join(getTestDataDir(t), "app")
+		workdir, err := files.CreateTempDir("")
+		require.NoError(t, err)
+		defer func() {
+			close(streamMock.messages)
+			if os.RemoveAll(workdir) != nil {
+				t.Fatal(err)
+			}
+		}()
+		go streamMock.sendFile(t.Context(), t, appDir, streamMock, nil, []string{"applicationset/latest/**"})
+
+		_, err = cmp.ReceiveRepoStream(t.Context(), streamMock, workdir, false)
+		require.NoError(t, err)
+		latestDir := filepath.Join(workdir, "applicationset", "latest")
+		stableDir := filepath.Join(workdir, "applicationset", "stable")
+		_, statErr := os.Stat(filepath.Join(latestDir, "kustomization.yaml"))
+		assert.True(t, os.IsNotExist(statErr), "applicationset/latest/kustomization.yaml should be excluded")
+		_, statErr = os.Stat(filepath.Join(stableDir, "kustomization.yaml"))
+		assert.NoError(t, statErr, "applicationset/stable/kustomization.yaml should be present")
+	})
 }
 
 func (m *streamMock) sendFile(ctx context.Context, t *testing.T, basedir string, sender cmp.StreamSender, env []string, excludedGlobs []string) {
