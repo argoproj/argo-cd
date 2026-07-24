@@ -225,7 +225,16 @@ func (s *Service) generateManifestGeneric(stream GenerateManifestStream) error {
 	if !strings.HasPrefix(appPath, workDir) {
 		return errors.New("illegal appPath: out of workDir bound")
 	}
-	response, err := s.generateManifest(ctx, appPath, metadata.GetEnv())
+
+	log.Debugf("Plugin using workdir: %s", workDir)
+
+	envEntries := metadata.GetEnv()
+	envEntries = append(envEntries, &apiclient.EnvEntry{
+		Name:  "ARGOCD_REPO_SERVER_CMP_WORKDIR",
+		Value: workDir,
+	})
+
+	response, err := s.generateManifest(ctx, appPath, envEntries)
 	if err != nil {
 		return fmt.Errorf("error generating manifests: %w", err)
 	}
