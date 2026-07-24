@@ -17,9 +17,12 @@ import (
 )
 
 // maxRequestBodySize bounds the size of an incoming ConversionReview to prevent
-// memory DoS. ConversionReview requests carry a list of full Application objects;
-// 16 MiB comfortably covers the largest Applications kube-apiserver will send.
-const maxRequestBodySize = 16 << 20
+// memory DoS. The limit is per-review, not per-object: kube-apiserver batches
+// every item of a LIST that needs conversion into a single ConversionReview,
+// with no chunking, so a large cluster's `kubectl get applications.v1beta1 -A`
+// converts the whole result set in one request. 512 MiB accommodates LISTs of
+// thousands of large Applications while still bounding memory.
+const maxRequestBodySize = 512 << 20
 
 // Handler handles CRD conversion webhook requests for Application resources.
 // It converts between v1alpha1 and v1beta1 API versions.
@@ -61,6 +64,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	response := h.convert(review.Request)
 	review.Response = response
+	// kube-apiserver only reads .response; dropping the request avoids
+	// re-serializing every original object back into the response body.
+	review.Request = nil
 
 	// Encode into a buffer first so that an encode failure can return a clean
 	// 500 instead of corrupting an already-started 200 response body.

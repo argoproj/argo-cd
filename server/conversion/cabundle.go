@@ -24,15 +24,19 @@ import (
 // This function is safe to call on every server startup - it will only patch the CRD
 // if the conversion webhook is configured and the CA bundle needs updating.
 func InjectCABundle(ctx context.Context, restConfig *rest.Config, tlsCert *tls.Certificate) error {
-	if tlsCert == nil || len(tlsCert.Certificate) == 0 {
-		log.Debug("No TLS certificate available, skipping CA bundle injection")
-		return nil
-	}
-
 	// Create apiextensions client
 	apiextClient, err := apiextensionsclient.NewForConfig(restConfig)
 	if err != nil {
 		return fmt.Errorf("failed to create apiextensions client: %w", err)
+	}
+
+	return injectCABundle(ctx, apiextClient, tlsCert)
+}
+
+func injectCABundle(ctx context.Context, apiextClient apiextensionsclient.Interface, tlsCert *tls.Certificate) error {
+	if tlsCert == nil || len(tlsCert.Certificate) == 0 {
+		log.Debug("No TLS certificate available, skipping CA bundle injection")
+		return nil
 	}
 
 	// Get current CRD to check if conversion webhook is configured
@@ -63,14 +67,20 @@ func InjectCABundle(ctx context.Context, restConfig *rest.Config, tlsCert *tls.C
 		Bytes: caCert.Raw,
 	})
 
-	// Only inject when caBundle is empty. If something else has already
-	// populated it (cert-manager's CA injector, a manual install, etc),
-	// leave it alone — overwriting would break those trust chains.
+	// Leave an existing caBundle alone only when it can verify the certificate
+	// we are about to serve (cert-manager's CA injector or a manual install
+	// manages it, and the mounted serving cert chains to it). Otherwise the
+	// bundle is stale: the default install generates an ephemeral self-signed
+	// certificate on every pod start, so the bundle injected by a previous pod
+	// would break every conversion request after a restart if left in place.
 	if crd.Spec.Conversion.Webhook != nil &&
 		crd.Spec.Conversion.Webhook.ClientConfig != nil &&
 		len(crd.Spec.Conversion.Webhook.ClientConfig.CABundle) > 0 {
-		log.Info("CA bundle is already set on Application CRD; leaving it unchanged")
-		return nil
+		if caBundleVerifiesCert(crd.Spec.Conversion.Webhook.ClientConfig.CABundle, tlsCert) {
+			log.Info("Existing CA bundle on Application CRD verifies the serving certificate; leaving it unchanged")
+			return nil
+		}
+		log.Info("Existing CA bundle on Application CRD does not verify the serving certificate; updating it")
 	}
 
 	// Build the patch via json.Marshal — a []byte field is base64-encoded
@@ -103,4 +113,27 @@ func InjectCABundle(ctx context.Context, restConfig *rest.Config, tlsCert *tls.C
 
 	log.Info("Successfully injected CA bundle into Application CRD conversion webhook")
 	return nil
+}
+
+// caBundleVerifiesCert reports whether the PEM-encoded CA bundle can verify
+// the leaf of the given serving certificate chain.
+func caBundleVerifiesCert(bundlePEM []byte, cert *tls.Certificate) bool {
+	roots := x509.NewCertPool()
+	if !roots.AppendCertsFromPEM(bundlePEM) {
+		return false
+	}
+	leaf, err := x509.ParseCertificate(cert.Certificate[0])
+	if err != nil {
+		return false
+	}
+	intermediates := x509.NewCertPool()
+	for _, der := range cert.Certificate[1:] {
+		ic, err := x509.ParseCertificate(der)
+		if err != nil {
+			return false
+		}
+		intermediates.AddCert(ic)
+	}
+	_, err = leaf.Verify(x509.VerifyOptions{Roots: roots, Intermediates: intermediates})
+	return err == nil
 }

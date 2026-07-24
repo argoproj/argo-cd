@@ -54,6 +54,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/controller/sharding"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	appv1beta1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1beta1"
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v3/pkg/client/informers/externalversions/application/v1alpha1"
 	applisters "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
@@ -1794,6 +1795,21 @@ func (ctrl *ApplicationController) PatchAppWithWriteBack(ctx context.Context, na
 	return patchedApp, err
 }
 
+// PatchAppStatusWithWriteBack patches an application's status via the v1beta1
+// status subresource and writes the result back to the informer cache. Status
+// subresource writes do not bump metadata.generation, which is what allows
+// status.observedGeneration to converge with metadata.generation.
+func (ctrl *ApplicationController) PatchAppStatusWithWriteBack(ctx context.Context, name, ns string, pt types.PatchType, data []byte, opts metav1.PatchOptions) (result *appv1.Application, err error) {
+	patchedApp, err := ctrl.applicationClientset.ArgoprojV1beta1().Applications(ns).Patch(ctx, name, pt, data, opts, "status")
+	if err != nil {
+		return nil, err
+	}
+	// Convert v1beta1 back to v1alpha1 for the informer cache
+	v1alpha1App := appv1beta1.ConvertToV1alpha1(patchedApp)
+	ctrl.writeBackToInformer(v1alpha1App)
+	return v1alpha1App, err
+}
+
 func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext bool) {
 	patchDuration := time.Duration(0) // time spent in doing patch/update calls
 	setOpDuration := time.Duration(0) // time spent in doing Operation patch calls in autosync
@@ -1896,7 +1912,9 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		app.Status.Sync.Status = appv1.SyncStatusCodeUnknown
 		app.Status.Health.Status = health.HealthStatusUnknown
 		app.Status.Health.Message = ""
-		app.Status.ReconciledAt = &now
+		// ReconciledAt is deliberately left stale here: a fresh stamp would defeat
+		// needRefreshAppStatus's expiry check, delaying recovery (e.g. after a
+		// missing AppProject is created) until a full statusRefreshTimeout.
 		patchDuration = ctrl.persistReconciliationStatus(ctx, origApp, &app.Status)
 
 		if err := ctrl.cache.SetAppResourcesTree(app.InstanceName(ctrl.namespace), &appv1.ApplicationTree{}); err != nil {
@@ -2248,6 +2266,12 @@ func (ctrl *ApplicationController) persistReconciliationStatus(ctx context.Conte
 	newAnnotations := make(map[string]string)
 	maps.Copy(newAnnotations, orig.GetAnnotations())
 	delete(newAnnotations, appv1.AnnotationKeyRefresh)
+	// Record the generation that was just reconciled. Stamped here rather than in
+	// persistAppStatus so hydration-only writes don't claim a generation the
+	// reconciler hasn't processed yet. The status write goes through the v1beta1
+	// status subresource, which does not bump metadata.generation, so
+	// observedGeneration can converge with generation.
+	newStatus.ObservedGeneration = orig.Generation
 	return ctrl.persistAppStatus(ctx, orig, newStatus, newAnnotations)
 }
 
@@ -2296,92 +2320,78 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 		patchDuration = time.Since(start)
 	}()
 
-	// Track the generation that was just reconciled. The field exists on both
-	// v1alpha1.ApplicationStatus and v1beta1, so createMergePatch will include
-	// it in the diff when it changes — no need for a post-process pass.
-	newStatus.ObservedGeneration = orig.Generation
-
+	// Status goes through the v1beta1 status subresource (which does not bump
+	// metadata.generation); annotation changes cannot ride along on a status
+	// subresource write, so they are applied in a separate metadata patch below.
 	statusPatch, statusModified, err := createMergePatch(
-		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: orig.GetAnnotations()}, Status: orig.Status},
-		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: newAnnotations}, Status: *newStatus})
+		&appv1.Application{Status: orig.Status},
+		&appv1.Application{Status: *newStatus})
 	if err != nil {
 		spanErr = err
 		logCtx.WithError(err).Error("Error constructing app status patch")
 		return patchDuration
 	}
-	if !statusModified {
-		logCtx.Infof("No status changes. Skipping patch")
-		return patchDuration
+	if statusModified {
+		_, err = ctrl.PatchAppStatusWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, statusPatch, metav1.PatchOptions{})
+		if err != nil {
+			spanErr = err
+			if apierrors.IsRequestEntityTooLargeError(err) {
+				logCtx.WithError(err).Warn("Application status exceeds the Kubernetes resource size limit; falling back to error condition only")
+				fallbackStatus := orig.Status.DeepCopy()
+				fallbackStatus.SetConditions([]appv1.ApplicationCondition{
+					{
+						Type:    appv1.ApplicationConditionUnknownError,
+						Message: "Application status exceeds the Kubernetes resource size limit and could not be persisted. The displayed status may be stale. Reduce the number of managed resources, set ApplyOutOfSyncOnly=true, lower spec.revisionHistoryLimit, or split the Application.",
+					},
+				},
+					map[appv1.ApplicationConditionType]bool{
+						appv1.ApplicationConditionUnknownError: true,
+					})
+
+				fallbackPatch, modified, mpErr := createMergePatch(
+					&appv1.Application{Status: orig.Status},
+					&appv1.Application{Status: *fallbackStatus},
+				)
+				if mpErr != nil {
+					logCtx.WithError(mpErr).Error("Error constructing fallback status patch")
+					return patchDuration
+				}
+				if modified {
+					if _, fbErr := ctrl.PatchAppStatusWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, fallbackPatch, metav1.PatchOptions{}); fbErr != nil {
+						logCtx.WithError(fbErr).Error("Error persisting fallback status with error condition")
+					}
+				}
+			} else {
+				logCtx.WithError(err).Warn("Error updating application status")
+			}
+		} else {
+			logCtx.Infof("Status update successful")
+		}
 	}
-	_, err = ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, statusPatch, metav1.PatchOptions{})
+
+	// Apply annotation changes (e.g. consuming the refresh/hydrate annotations)
+	// via a metadata-only merge patch on the main resource. This is attempted
+	// regardless of the status write's outcome so a consumed annotation doesn't
+	// keep retriggering work.
+	annotationPatch, annotationsModified, err := createMergePatch(
+		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: orig.GetAnnotations()}},
+		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: newAnnotations}})
 	if err != nil {
 		spanErr = err
-		if apierrors.IsRequestEntityTooLargeError(err) {
-			logCtx.WithError(err).Warn("Application status exceeds the Kubernetes resource size limit; falling back to error condition only")
-			fallbackStatus := orig.Status.DeepCopy()
-			fallbackStatus.SetConditions([]appv1.ApplicationCondition{
-				{
-					Type:    appv1.ApplicationConditionUnknownError,
-					Message: "Application status exceeds the Kubernetes resource size limit and could not be persisted. The displayed status may be stale. Reduce the number of managed resources, set ApplyOutOfSyncOnly=true, lower spec.revisionHistoryLimit, or split the Application.",
-				},
-			},
-				map[appv1.ApplicationConditionType]bool{
-					appv1.ApplicationConditionUnknownError: true,
-				})
-
-			fallbackPatch, modified, mpErr := createMergePatch(
-				&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: orig.GetAnnotations()}, Status: orig.Status},
-				&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: newAnnotations}, Status: *fallbackStatus},
-			)
-			if mpErr != nil {
-				logCtx.WithError(mpErr).Error("Error constructing fallback status patch")
-				return patchDuration
-			}
-			if !modified {
-				return patchDuration
-			}
-			if _, fbErr := ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, fallbackPatch, metav1.PatchOptions{}); fbErr != nil {
-				logCtx.WithError(fbErr).Error("Error persisting fallback status with error condition")
-			}
-			return patchDuration
+		logCtx.WithError(err).Error("Error constructing app annotation patch")
+		return patchDuration
+	}
+	if annotationsModified {
+		if _, err := ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, annotationPatch, metav1.PatchOptions{}); err != nil {
+			spanErr = err
+			logCtx.WithError(err).Warn("Error updating application annotations")
 		}
-		logCtx.WithError(err).Warn("Error updating application status")
-	} else {
-		logCtx.Infof("Status update successful")
+	}
+
+	if !statusModified && !annotationsModified {
+		logCtx.Infof("No status changes. Skipping patch")
 	}
 	return patchDuration
-}
-
-// clearAnnotations removes the specified annotation keys from the application using a metadata merge patch.
-func (ctrl *ApplicationController) clearAnnotations(orig *appv1.Application, keys ...string) {
-	logCtx := log.WithFields(applog.GetAppLogFields(orig))
-	origAnnotations := orig.GetAnnotations()
-	if origAnnotations == nil {
-		return
-	}
-	annotationsToRemove := make(map[string]any)
-	for _, key := range keys {
-		if _, exists := origAnnotations[key]; exists {
-			annotationsToRemove[key] = nil
-		}
-	}
-	if len(annotationsToRemove) == 0 {
-		return
-	}
-	annotationPatch := map[string]any{
-		"metadata": map[string]any{
-			"annotations": annotationsToRemove,
-		},
-	}
-	metadataPatchJSON, err := json.Marshal(annotationPatch)
-	if err != nil {
-		logCtx.WithError(err).Error("Error constructing annotation patch")
-		return
-	}
-	_, err = ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, metadataPatchJSON, metav1.PatchOptions{})
-	if err != nil {
-		logCtx.WithError(err).Warn("Error clearing annotations")
-	}
 }
 
 // autoSync will initiate a sync operation for an application configured with automated sync

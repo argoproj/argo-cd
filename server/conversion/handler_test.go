@@ -186,9 +186,13 @@ func TestHandler_ConvertV1beta1ToV1alpha1(t *testing.T) {
 	assert.Equal(t, "argoproj.io/v1alpha1", convertedApp["apiVersion"])
 
 	spec := convertedApp["spec"].(map[string]any)
-	// Single source should also populate the source field
-	source := spec["source"].(map[string]any)
-	assert.Equal(t, "https://github.com/example/repo", source["repoURL"])
+	// Without a source-format marker (an app authored via v1beta1), the plural
+	// sources form is preserved as-is — the singular field must not be
+	// synthesized, or the conversion round-trip would rewrite stored specs.
+	assert.NotContains(t, spec, "source")
+	sources := spec["sources"].([]any)
+	require.Len(t, sources, 1)
+	assert.Equal(t, "https://github.com/example/repo", sources[0].(map[string]any)["repoURL"])
 }
 
 func TestHandler_SameVersion(t *testing.T) {

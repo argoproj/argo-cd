@@ -44,7 +44,6 @@ type ApplicationStatus struct {
 
 // ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.
 // +kubebuilder:validation:XValidation:rule="(has(self.sources) && size(self.sources) > 0) || has(self.sourceHydrator)",message="sources is required (or sourceHydrator must be set)"
-// +kubebuilder:validation:XValidation:rule="!has(self.sourceHydrator) || !has(self.sources) || size(self.sources) == 0",message="cannot have both sources and sourceHydrator defined"
 // +kubebuilder:validation:XValidation:rule="!has(self.sources) || size(self.sources) == 0 || self.sources.all(s, has(s.repoURL) && size(s.repoURL) > 0)",message="all sources must have a repoURL"
 // +kubebuilder:validation:XValidation:rule="!has(self.sources) || size(self.sources) == 0 || self.sources.all(s, !has(s.chart) || !has(s.path) || size(s.chart) == 0 || size(s.path) == 0)",message="sources cannot have both chart and path defined"
 // +kubebuilder:validation:XValidation:rule="!has(self.sources) || size(self.sources) == 0 || self.sources.all(s, !has(s.ref) || size(s.ref) == 0 || (!has(s.path) || size(s.path) == 0) && (!has(s.chart) || size(s.chart) == 0))",message="ref sources cannot have path or chart defined"

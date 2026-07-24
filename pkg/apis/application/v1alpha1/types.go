@@ -1242,10 +1242,11 @@ type ApplicationStatus struct {
 	ControllerNamespace string `json:"controllerNamespace,omitempty" protobuf:"bytes,13,opt,name=controllerNamespace"`
 	// SourceHydrator stores information about the current state of source hydration
 	SourceHydrator SourceHydratorStatus `json:"sourceHydrator,omitempty" protobuf:"bytes,14,opt,name=sourceHydrator"`
-	// ObservedGeneration is the most recent generation observed for this application.
-	// It corresponds to the application's generation, which is updated on mutation by the API Server.
-	// This field is used to indicate whether the controller has processed the latest spec changes.
-	// Note: This field is managed by the controller via the v1beta1 API's status subresource.
+	// ObservedGeneration is the most recent generation the controller has reconciled.
+	// It is written via the v1beta1 status subresource (status-subresource writes do
+	// not bump metadata.generation, so this can converge with the generation); a value
+	// equal to metadata.generation indicates the controller has processed the latest
+	// spec changes.
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty" protobuf:"varint,15,opt,name=observedGeneration"`
 }

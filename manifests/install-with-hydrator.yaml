@@ -3253,10 +3253,11 @@ spec:
                 type: string
               observedGeneration:
                 description: |-
-                  ObservedGeneration is the most recent generation observed for this application.
-                  It corresponds to the application's generation, which is updated on mutation by the API Server.
-                  This field is used to indicate whether the controller has processed the latest spec changes.
-                  Note: This field is managed by the controller via the v1beta1 API's status subresource.
+                  ObservedGeneration is the most recent generation the controller has reconciled.
+                  It is written via the v1beta1 status subresource (status-subresource writes do
+                  not bump metadata.generation, so this can converge with the generation); a value
+                  equal to metadata.generation indicates the controller has processed the latest
+                  spec changes.
                 format: int64
                 type: integer
               operationState:
@@ -8224,9 +8225,6 @@ spec:
             x-kubernetes-validations:
             - message: sources is required (or sourceHydrator must be set)
               rule: (has(self.sources) && size(self.sources) > 0) || has(self.sourceHydrator)
-            - message: cannot have both sources and sourceHydrator defined
-              rule: '!has(self.sourceHydrator) || !has(self.sources) || size(self.sources)
-                == 0'
             - message: all sources must have a repoURL
               rule: '!has(self.sources) || size(self.sources) == 0 || self.sources.all(s,
                 has(s.repoURL) && size(s.repoURL) > 0)'
@@ -9183,10 +9181,11 @@ spec:
                 type: string
               observedGeneration:
                 description: |-
-                  ObservedGeneration is the most recent generation observed for this application.
-                  It corresponds to the application's generation, which is updated on mutation by the API Server.
-                  This field is used to indicate whether the controller has processed the latest spec changes.
-                  Note: This field is managed by the controller via the v1beta1 API's status subresource.
+                  ObservedGeneration is the most recent generation the controller has reconciled.
+                  It is written via the v1beta1 status subresource (status-subresource writes do
+                  not bump metadata.generation, so this can converge with the generation); a value
+                  equal to metadata.generation indicates the controller has processed the latest
+                  spec changes.
                 format: int64
                 type: integer
               operation:
@@ -37900,6 +37899,7 @@ rules:
   - argoproj.io
   resources:
   - applications
+  - applications/status
   - applicationsets
   - appprojects
   verbs:

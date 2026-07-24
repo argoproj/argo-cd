@@ -763,10 +763,11 @@ message ApplicationStatus {
   // SourceHydrator stores information about the current state of source hydration
   optional SourceHydratorStatus sourceHydrator = 14;
 
-  // ObservedGeneration is the most recent generation observed for this application.
-  // It corresponds to the application's generation, which is updated on mutation by the API Server.
-  // This field is used to indicate whether the controller has processed the latest spec changes.
-  // Note: This field is managed by the controller via the v1beta1 API's status subresource.
+  // ObservedGeneration is the most recent generation the controller has reconciled.
+  // It is written via the v1beta1 status subresource (status-subresource writes do
+  // not bump metadata.generation, so this can converge with the generation); a value
+  // equal to metadata.generation indicates the controller has processed the latest
+  // spec changes.
   // +optional
   optional int64 observedGeneration = 15;
 }

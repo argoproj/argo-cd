@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"strconv"
 	"strings"
 	"sync"
@@ -4402,7 +4403,7 @@ func TestPersistAppStatus_AnnotationManagement(t *testing.T) {
 		assert.Equal(t, "other-value", otherValue)
 	})
 
-	t.Run("clearAnnotations deletes only specified keys", func(t *testing.T) {
+	t.Run("persistAppStatus with explicit annotations deletes only specified keys", func(t *testing.T) {
 		app := newFakeApp()
 		app.Annotations = map[string]string{
 			v1alpha1.AnnotationKeyRefresh: string(v1alpha1.RefreshTypeNormal),
@@ -4415,9 +4416,12 @@ func TestPersistAppStatus_AnnotationManagement(t *testing.T) {
 		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
 
 		origApp := app.DeepCopy()
+		newStatus := app.Status.DeepCopy()
 
-		// Only clear hydrate annotation
-		ctrl.clearAnnotations(origApp, v1alpha1.AnnotationKeyHydrate)
+		// Drop only the hydrate annotation through the merge-patch diff
+		newAnnotations := maps.Clone(origApp.GetAnnotations())
+		delete(newAnnotations, v1alpha1.AnnotationKeyHydrate)
+		ctrl.persistAppStatus(t.Context(), origApp, newStatus, newAnnotations)
 
 		// Verify the patch was created correctly
 		patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})

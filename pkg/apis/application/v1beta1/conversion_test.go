@@ -303,6 +303,9 @@ func TestConvertDoesNotAliasInput(t *testing.T) {
 	// Mutating the converted v1alpha1 result must not mutate the v1beta1 input
 	// (previously dst.Source aliased src.Sources[0]).
 	src := &Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations: map[string]string{SourceFormatAnnotation: SourceFormatSingular},
+		},
 		Spec: ApplicationSpec{
 			Sources: ApplicationSources{
 				{RepoURL: "https://original.example.com/repo", Path: "manifests"},
@@ -351,12 +354,13 @@ func TestConvertToV1alpha1_BasicApplication(t *testing.T) {
 	assert.Equal(t, "test-app", dst.Name)
 	assert.Equal(t, "argocd", dst.Namespace)
 	assert.Equal(t, "default", dst.Spec.Project)
-	// For single-source apps, only Source is set (not Sources) to preserve
-	// the original v1alpha1 single-source behavior
-	require.NotNil(t, dst.Spec.Source)
-	assert.Equal(t, "https://github.com/example/repo", dst.Spec.Source.RepoURL)
-	assert.Empty(t, dst.Spec.Sources, "Sources should not be set for single-source apps")
-	assert.False(t, dst.Spec.HasMultipleSources(), "Single-source app should have HasMultipleSources false")
+	// A v1beta1 object without a source-format marker (e.g. created natively via
+	// v1beta1) keeps the plural sources form in v1alpha1: collapsing a
+	// single-element list into the singular field would make conversion
+	// non-idempotent and rewrite stored specs.
+	assert.Nil(t, dst.Spec.Source, "Source must not be synthesized without a source-format marker")
+	require.Len(t, dst.Spec.Sources, 1)
+	assert.Equal(t, "https://github.com/example/repo", dst.Spec.Sources[0].RepoURL)
 }
 
 func TestConvertToV1alpha1_MultipleSources(t *testing.T) {
@@ -467,12 +471,14 @@ func TestConvertRoundTrip_V1alpha1ToV1beta1ToV1alpha1(t *testing.T) {
 	assert.Equal(t, original.Labels, roundTripped.Labels)
 	assert.Equal(t, original.Spec.Project, roundTripped.Spec.Project)
 	assert.Equal(t, original.Spec.Destination, roundTripped.Spec.Destination)
-	// For single-source apps, only Source is set (not Sources) to preserve
-	// the original v1alpha1 single-source behavior
+	// The original used the singular `source` form; the round-trip must restore
+	// exactly that form (recorded via SourceFormatAnnotation).
 	require.NotNil(t, roundTripped.Spec.Source)
 	assert.Equal(t, original.Spec.Source.RepoURL, roundTripped.Spec.Source.RepoURL)
 	assert.Empty(t, roundTripped.Spec.Sources, "Sources should not be set for single-source apps")
 	assert.False(t, roundTripped.Spec.HasMultipleSources(), "Single-source app should have HasMultipleSources false")
+	assert.NotContains(t, roundTripped.Annotations, SourceFormatAnnotation,
+		"the source-format marker is conversion metadata and must be stripped from the v1alpha1 form")
 	assert.Equal(t, original.Spec.SyncPolicy.Automated.Prune, roundTripped.Spec.SyncPolicy.Automated.Prune)
 	assert.Equal(t, original.Spec.SyncPolicy.Automated.SelfHeal, roundTripped.Spec.SyncPolicy.Automated.SelfHeal)
 	assert.Equal(t, original.Spec.SyncPolicy.SyncOptions, roundTripped.Spec.SyncPolicy.SyncOptions)
@@ -538,8 +544,8 @@ func TestConvertRoundTrip_V1beta1ToV1alpha1ToV1beta1(t *testing.T) {
 }
 
 func TestConvertStatus_ObservedGeneration(t *testing.T) {
-	// Test that ObservedGeneration is preserved in both directions
-	// Both v1alpha1 and v1beta1 now have the ObservedGeneration field
+	// ObservedGeneration lives on the shared (embedded) v1alpha1 status and must
+	// be preserved in both directions and across a round-trip.
 
 	t.Run("v1alpha1 to v1beta1 - ObservedGeneration is preserved", func(t *testing.T) {
 		src := &v1alpha1.Application{
@@ -568,9 +574,7 @@ func TestConvertStatus_ObservedGeneration(t *testing.T) {
 
 		dst := ConvertFromV1alpha1(src)
 
-		// ObservedGeneration should be preserved
 		assert.Equal(t, int64(3), dst.Status.ObservedGeneration)
-		// Other status fields should be preserved
 		assert.Equal(t, v1alpha1.SyncStatusCodeSynced, dst.Status.Sync.Status)
 	})
 
@@ -603,14 +607,11 @@ func TestConvertStatus_ObservedGeneration(t *testing.T) {
 
 		dst := ConvertToV1alpha1(src)
 
-		// ObservedGeneration should be preserved
 		assert.Equal(t, int64(3), dst.Status.ObservedGeneration)
-		// Other status fields should be preserved
 		assert.Equal(t, v1alpha1.SyncStatusCodeSynced, dst.Status.Sync.Status)
 	})
 
 	t.Run("round-trip preserves ObservedGeneration", func(t *testing.T) {
-		// When converting v1beta1 -> v1alpha1 -> v1beta1, ObservedGeneration is preserved
 		src := &Application{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:       "test-app",
@@ -637,13 +638,9 @@ func TestConvertStatus_ObservedGeneration(t *testing.T) {
 			},
 		}
 
-		// Convert to v1alpha1 and back
-		v1alpha1App := ConvertToV1alpha1(src)
-		roundTripped := ConvertFromV1alpha1(v1alpha1App)
+		roundTripped := ConvertFromV1alpha1(ConvertToV1alpha1(src))
 
-		// ObservedGeneration is preserved in round-trip
 		assert.Equal(t, int64(3), roundTripped.Status.ObservedGeneration)
-		// Other status fields should be preserved
 		assert.Equal(t, v1alpha1.SyncStatusCodeSynced, roundTripped.Status.Sync.Status)
 	})
 }
@@ -707,8 +704,8 @@ func TestConvertOperation_RelocatedUnderStatus(t *testing.T) {
 }
 
 func TestConvertFromV1alpha1_SourceHydratorDoesNotSetSources(t *testing.T) {
-	// When SourceHydrator is set, Sources should NOT be set in v1beta1
-	// because the CEL validation rule "cannot have both sources and sourceHydrator defined" would fail
+	// A hydrator-only app (no source/sources in v1alpha1) converts with empty
+	// Sources — there is nothing to merge.
 	src := &v1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "argoproj.io/v1alpha1",
@@ -745,13 +742,14 @@ func TestConvertFromV1alpha1_SourceHydratorDoesNotSetSources(t *testing.T) {
 	assert.Equal(t, "https://github.com/example/repo", dst.Spec.SourceHydrator.DrySource.RepoURL)
 	assert.Equal(t, "env/dev", dst.Spec.SourceHydrator.SyncSource.TargetBranch)
 
-	// Sources should NOT be set (empty) for hydrator apps
-	assert.Empty(t, dst.Spec.Sources, "Sources should be empty for hydrator apps to satisfy CEL validation")
+	// Nothing to merge, so Sources stays empty
+	assert.Empty(t, dst.Spec.Sources, "Sources should be empty when the v1alpha1 app has no source/sources")
 }
 
-func TestConvertFromV1alpha1_SourceHydratorIgnoresSourcesIfBothSet(t *testing.T) {
-	// Even if v1alpha1 has both SourceHydrator and Sources set (which shouldn't happen),
-	// v1beta1 should prioritize SourceHydrator and not set Sources
+func TestConvertFromV1alpha1_SourceHydratorKeepsSourcesIfBothSet(t *testing.T) {
+	// v1alpha1 legally stores both SourceHydrator and Sources. Conversion must
+	// be lossless: dropping sources here would permanently erase them from
+	// storage on any v1beta1 round-trip.
 	src := &v1alpha1.Application{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "argoproj.io/v1alpha1",
@@ -778,7 +776,6 @@ func TestConvertFromV1alpha1_SourceHydratorIgnoresSourcesIfBothSet(t *testing.T)
 					TargetBranch: "env/dev",
 				},
 			},
-			// This shouldn't happen in practice, but testing defensive behavior
 			Sources: v1alpha1.ApplicationSources{
 				{
 					RepoURL:        "https://github.com/example/other-repo",
@@ -794,9 +791,15 @@ func TestConvertFromV1alpha1_SourceHydratorIgnoresSourcesIfBothSet(t *testing.T)
 	// SourceHydrator should be preserved
 	require.NotNil(t, dst.Spec.SourceHydrator)
 
-	// Sources should NOT be set, even if it was set in v1alpha1
-	// This prevents CEL validation failure
-	assert.Empty(t, dst.Spec.Sources, "Sources should be empty for hydrator apps even if v1alpha1 had Sources set")
+	// Sources must be preserved alongside the hydrator
+	require.Len(t, dst.Spec.Sources, 1)
+	assert.Equal(t, "https://github.com/example/other-repo", dst.Spec.Sources[0].RepoURL)
+
+	// And the round-trip back to v1alpha1 must be identity
+	roundTripped := ConvertToV1alpha1(dst)
+	assert.Equal(t, src.Spec.SourceHydrator, roundTripped.Spec.SourceHydrator)
+	assert.Equal(t, src.Spec.Sources, roundTripped.Spec.Sources)
+	assert.Nil(t, roundTripped.Spec.Source)
 }
 
 func TestConvertToV1alpha1_SourceHydratorPreserved(t *testing.T) {
@@ -844,30 +847,34 @@ func TestConvertToV1alpha1_SourceHydratorPreserved(t *testing.T) {
 }
 
 // TestConvertSyncOptions_AllKnownOptionsRoundTrip guards against silent data loss in
-// SyncOptions conversion. convertSyncOptionsFromStrings is a hard-coded allowlist, so a
-// newly-added sync option that isn't given a case there would be dropped on conversion.
-// Every option string defined in gitops-engine's sync/common and Argo CD's common package
-// must survive a v1alpha1 -> v1beta1 -> v1alpha1 round trip; if this list drifts from the
-// switch in conversion.go, this test fails.
+// SyncOptions conversion. Every option string with a structured representation must
+// survive a v1alpha1 -> v1beta1 -> v1alpha1 round trip via its structured field; if
+// this list drifts from the switch in conversion.go, this test fails. Strings without
+// a structured field are dropped deliberately: new options are added to the v1beta1
+// type, not backported to v1alpha1's string list, so unknown strings are typos or
+// dead data (see TestConvertSyncOptions_UnknownOptionsDropped).
 func TestConvertSyncOptions_AllKnownOptionsRoundTrip(t *testing.T) {
-	// Each entry is an option string that has a distinct structured representation and
-	// must be preserved. "true-only" toggles (e.g. CreateNamespace) have no meaningful
-	// "=false" form — every consumer checks HasOption("X=true") — so only "=true" is listed.
 	knownOptions := []string{
 		"Validate=true",
 		"Validate=false",
 		"CreateNamespace=true",
+		"CreateNamespace=false",
 		"PruneLast=true",
+		"PruneLast=false",
 		"Replace=true",
 		"Replace=false",
 		"Force=true",
+		"Force=false",
 		"ServerSideApply=true",
 		"ServerSideApply=false",
 		"ApplyOutOfSyncOnly=true",
 		"ApplyOutOfSyncOnly=false",
 		"SkipDryRunOnMissingResource=true",
+		"SkipDryRunOnMissingResource=false",
 		"RespectIgnoreDifferences=true",
+		"RespectIgnoreDifferences=false",
 		"FailOnSharedResource=true",
+		"FailOnSharedResource=false",
 		"ClientSideApplyMigration=true",
 		"ClientSideApplyMigration=false",
 		"Prune=false",
@@ -886,4 +893,72 @@ func TestConvertSyncOptions_AllKnownOptionsRoundTrip(t *testing.T) {
 			assert.Contains(t, roundTripped, opt, "sync option %q was lost during round-trip conversion; add a case for it in convertSyncOptionsFromStrings/convertSyncOptionsToStrings", opt)
 		})
 	}
+}
+
+// TestConvertSyncOptions_UnknownOptionsDropped documents that option strings without a
+// structured field are dropped on conversion. This is deliberate: new sync options are
+// added to the v1beta1 structured type and are not backported to v1alpha1's string
+// list, so an unknown string in a v1alpha1 object is a typo or dead data.
+func TestConvertSyncOptions_UnknownOptionsDropped(t *testing.T) {
+	structured := convertSyncOptionsFromStrings(v1alpha1.SyncOptions{"NotARealOption=42", "Validate=true"})
+
+	roundTripped := convertSyncOptionsToStrings(structured)
+	assert.NotContains(t, roundTripped, "NotARealOption=42")
+	assert.Contains(t, roundTripped, "Validate=true")
+}
+
+// TestConvertRoundTrip_SourceFormPreserved verifies that the three v1alpha1 ways of
+// expressing sources — singular `source`, plural `sources`, or both — each survive a
+// v1alpha1 -> v1beta1 -> v1alpha1 round trip in their exact original form. Anything
+// else flips HasMultipleSources() and rewrites stored specs on conversion.
+func TestConvertRoundTrip_SourceFormPreserved(t *testing.T) {
+	source := v1alpha1.ApplicationSource{RepoURL: "https://github.com/example/repo", Path: "manifests"}
+
+	newApp := func(mutate func(*v1alpha1.ApplicationSpec)) *v1alpha1.Application {
+		app := &v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{Name: "test-app", Namespace: "argocd"},
+			Spec: v1alpha1.ApplicationSpec{
+				Project:     "default",
+				Destination: v1alpha1.ApplicationDestination{Server: "https://kubernetes.default.svc"},
+			},
+		}
+		mutate(&app.Spec)
+		return app
+	}
+
+	t.Run("singular source", func(t *testing.T) {
+		original := newApp(func(spec *v1alpha1.ApplicationSpec) { spec.Source = &source })
+		roundTripped := ConvertToV1alpha1(ConvertFromV1alpha1(original))
+		assert.Equal(t, original.Spec.Source, roundTripped.Spec.Source)
+		assert.Empty(t, roundTripped.Spec.Sources)
+		assert.False(t, roundTripped.Spec.HasMultipleSources())
+	})
+
+	t.Run("single-element sources", func(t *testing.T) {
+		original := newApp(func(spec *v1alpha1.ApplicationSpec) {
+			spec.Sources = v1alpha1.ApplicationSources{source}
+		})
+		roundTripped := ConvertToV1alpha1(ConvertFromV1alpha1(original))
+		assert.Nil(t, roundTripped.Spec.Source, "singular source must not be synthesized for a sources-form app")
+		assert.Equal(t, original.Spec.Sources, roundTripped.Spec.Sources)
+		assert.True(t, roundTripped.Spec.HasMultipleSources(), "HasMultipleSources must not flip on round-trip")
+	})
+
+	t.Run("both source and sources", func(t *testing.T) {
+		original := newApp(func(spec *v1alpha1.ApplicationSpec) {
+			spec.Source = &source
+			spec.Sources = v1alpha1.ApplicationSources{source}
+		})
+		roundTripped := ConvertToV1alpha1(ConvertFromV1alpha1(original))
+		assert.Equal(t, original.Spec.Source, roundTripped.Spec.Source)
+		assert.Equal(t, original.Spec.Sources, roundTripped.Spec.Sources)
+	})
+
+	t.Run("marker annotation is stripped from the v1alpha1 form", func(t *testing.T) {
+		original := newApp(func(spec *v1alpha1.ApplicationSpec) { spec.Source = &source })
+		converted := ConvertFromV1alpha1(original)
+		assert.Equal(t, SourceFormatSingular, converted.Annotations[SourceFormatAnnotation])
+		roundTripped := ConvertToV1alpha1(converted)
+		assert.NotContains(t, roundTripped.Annotations, SourceFormatAnnotation)
+	})
 }
