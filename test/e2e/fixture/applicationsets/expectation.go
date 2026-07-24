@@ -392,3 +392,18 @@ func ApplicationsExistAndNotBeingDeleted(appNames []string) Expectation {
 		return succeeded, fmt.Sprintf("all apps %v exist and are not being deleted", appNames)
 	}
 }
+
+func ApplicationsHasStatus(appNames []string, status v1alpha1.SyncStatusCode) Expectation {
+	return func(c *Consequences) (state, string) {
+		for _, appName := range appNames {
+			app := c.app(appName)
+			if app == nil {
+				return pending, fmt.Sprintf("app '%s' does not exist but should", appName)
+			}
+			if app.Status.Sync.Status != status {
+				return pending, fmt.Sprintf("app '%s' has '%s' status, expected: '%s'", appName, app.Status.Sync.Status, status)
+			}
+		}
+		return succeeded, fmt.Sprintf("all apps %v has status '%s'", appNames, status)
+	}
+}

@@ -1289,7 +1289,8 @@ func shouldRequeueForApplication(appOld *argov1alpha1.Application, appNew *argov
 	if !cmp.Equal(appOld.Spec, appNew.Spec, cmpopts.EquateEmpty(), cmpopts.EquateComparable(argov1alpha1.ApplicationDestination{})) ||
 		!cmp.Equal(appOld.GetAnnotations(), appNew.GetAnnotations(), cmpopts.EquateEmpty()) ||
 		!cmp.Equal(appOld.GetLabels(), appNew.GetLabels(), cmpopts.EquateEmpty()) ||
-		!cmp.Equal(appOld.GetFinalizers(), appNew.GetFinalizers(), cmpopts.EquateEmpty()) {
+		!cmp.Equal(appOld.GetFinalizers(), appNew.GetFinalizers(), cmpopts.EquateEmpty()) ||
+		!cmp.Equal(appOld.Status.Sync.ComparedTo, appNew.Status.Sync.ComparedTo, cmpopts.EquateEmpty()) {
 		return true
 	}
 

@@ -4487,6 +4487,46 @@ func TestGetSources(t *testing.T) {
 	}
 }
 
+func TestGetSourcesSyncStatus(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name            string
+		status          ApplicationStatus
+		expectedSources ApplicationSources
+	}{
+		{"compareTo is empty", ApplicationStatus{Sync: SyncStatus{ComparedTo: ComparedTo{}}}, ApplicationSources{}},
+		{
+			"compareTo has single source",
+			ApplicationStatus{Sync: SyncStatus{ComparedTo: ComparedTo{Source: ApplicationSource{RepoURL: "https://github.com/test.git", TargetRevision: "revision-1"}}}},
+			ApplicationSources{
+				{RepoURL: "https://github.com/test.git", TargetRevision: "revision-1"},
+			},
+		},
+		{
+			"compareTo has multisources",
+			ApplicationStatus{Sync: SyncStatus{ComparedTo: ComparedTo{
+				Sources: ApplicationSources{
+					{RepoURL: "https://github.com/test.git", TargetRevision: "revision-1"},
+					{RepoURL: "https://github.com/test2.git", TargetRevision: "revision-1", Helm: &ApplicationSourceHelm{Values: "test"}},
+				},
+			}}},
+			ApplicationSources{
+				{RepoURL: "https://github.com/test.git", TargetRevision: "revision-1"},
+				{RepoURL: "https://github.com/test2.git", TargetRevision: "revision-1", Helm: &ApplicationSourceHelm{Values: "test"}},
+			},
+		},
+	}
+	for _, testCase := range tests {
+		testCopy := testCase
+		t.Run(testCopy.name, func(t *testing.T) {
+			t.Parallel()
+			sources := testCopy.status.GetSourcesSyncStatus()
+			assert.Equal(t, testCopy.expectedSources, sources)
+		})
+	}
+}
+
 func TestOptionalArrayEquality(t *testing.T) {
 	// Demonstrate that the JSON unmarshalling of an empty array parameter is an OptionalArray with the array field set
 	// to an empty array.

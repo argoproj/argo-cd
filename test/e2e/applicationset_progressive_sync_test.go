@@ -21,6 +21,157 @@ const (
 	TransitionTimeout = 60 * time.Second
 )
 
+func TestProgressiveSyncSpecChangeTriggersResync(t *testing.T) {
+	if os.Getenv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS") != "true" {
+		t.Skip("Skipping progressive sync tests - ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS not enabled")
+	}
+
+	expectedHealthy := map[string]v1alpha1.ApplicationSetApplicationStatus{
+		"app1-dev": {
+			Application: "app1-dev",
+			Status:      v1alpha1.ProgressiveSyncHealthy,
+		},
+	}
+
+	expectedDevApp := v1alpha1.Application{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "app1-dev",
+			Namespace: fixture.TestNamespace(),
+			Labels: map[string]string{
+				"environment": "dev",
+			},
+			Finalizers: []string{
+				"resources-finalizer.argocd.argoproj.io",
+			},
+		},
+		Spec: v1alpha1.ApplicationSpec{
+			Project: "default",
+			Source: &v1alpha1.ApplicationSource{
+				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+				Path:           "helm-guestbook",
+				TargetRevision: "HEAD",
+				Helm: &v1alpha1.ApplicationSourceHelm{
+					Parameters: []v1alpha1.HelmParameter{
+						{
+							Name:  "replicaCount",
+							Value: "1",
+						},
+					},
+				},
+			},
+			Destination: v1alpha1.ApplicationDestination{
+				Server:    "https://kubernetes.default.svc",
+				Namespace: "app1",
+			},
+		},
+	}
+
+	expectedAfterSyncApp := expectedDevApp.DeepCopy()
+	expectedAfterSyncApp.Spec.Source.Helm.Parameters[0].Value = "3"
+
+	Given(t).
+		When().
+		Create(v1alpha1.ApplicationSet{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "progressive-sync-apps",
+			},
+			Spec: v1alpha1.ApplicationSetSpec{
+				GoTemplate: true,
+				Template: v1alpha1.ApplicationSetTemplate{
+					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
+						Name:      "{{.name}}-{{.environment}}",
+						Namespace: fixture.TestNamespace(),
+						Labels: map[string]string{
+							"environment": "{{.environment}}",
+						},
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "default",
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+							Path:           "helm-guestbook",
+							TargetRevision: "HEAD",
+							Helm: &v1alpha1.ApplicationSourceHelm{
+								Parameters: []v1alpha1.HelmParameter{
+									{
+										Name:  "replicaCount",
+										Value: "1",
+									},
+								},
+							},
+						},
+						Destination: v1alpha1.ApplicationDestination{
+							Server:    "https://kubernetes.default.svc",
+							Namespace: "{{.name}}",
+						},
+						SyncPolicy: &v1alpha1.SyncPolicy{
+							SyncOptions: v1alpha1.SyncOptions{"CreateNamespace=true"},
+						},
+					},
+				},
+				Generators: []v1alpha1.ApplicationSetGenerator{
+					{
+						List: &v1alpha1.ListGenerator{
+							Elements: []apiextensionsv1.JSON{
+								{Raw: []byte(`{"name": "app1", "environment": "dev"}`)},
+							},
+						},
+					},
+				},
+				Strategy: &v1alpha1.ApplicationSetStrategy{
+					Type: "RollingSync",
+					RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+						Steps: generateStandardRolloutSyncSteps(),
+					},
+				},
+			},
+		}).
+		Then().
+		And(func() {
+			t.Log("ApplicationSet created ")
+		}).
+		Expect(ApplicationsExist([]v1alpha1.Application{expectedDevApp})).
+		And(func() {
+			t.Log("All applications exist")
+		}).
+		ExpectWithDuration(
+			CheckProgressiveSyncStatusCodeOfApplications(expectedHealthy),
+			TransitionTimeout,
+		).
+		When().
+		Update(func(appset *v1alpha1.ApplicationSet) {
+			appset.Spec.Template.Spec.Source.Helm.Parameters = []v1alpha1.HelmParameter{
+				{
+					Name:  "replicaCount",
+					Value: "3",
+				},
+			}
+		}).
+		Then().
+		ExpectWithDuration(
+			ApplicationsHasStatus([]string{expectedDevApp.Name}, v1alpha1.SyncStatusCodeOutOfSync),
+			TransitionTimeout,
+		).
+		Expect(ApplicationsExist([]v1alpha1.Application{*expectedAfterSyncApp})).
+		ExpectWithDuration(
+			CheckProgressiveSyncStatusCodeOfApplications(expectedHealthy),
+			TransitionTimeout,
+		).
+		ExpectWithDuration(
+			ApplicationsHasStatus([]string{expectedDevApp.Name}, v1alpha1.SyncStatusCodeSynced),
+			TransitionTimeout,
+		).
+		// cleanup
+		When().
+		Delete(metav1.DeletePropagationForeground).
+		Then().
+		ExpectWithDuration(ApplicationsDoNotExist([]v1alpha1.Application{expectedDevApp}), time.Minute)
+}
+
 func TestApplicationSetProgressiveSyncStep(t *testing.T) {
 	if os.Getenv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS") != "true" {
 		t.Skip("Skipping progressive sync tests - env variable not set to enable progressive sync")
