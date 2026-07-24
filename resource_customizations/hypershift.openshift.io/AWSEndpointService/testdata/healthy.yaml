@@ -1,0 +1,22 @@
+apiVersion: hypershift.openshift.io/v1beta1
+kind: AWSEndpointService
+metadata:
+  name: kube-apiserver
+  namespace: clusters-example
+  generation: 1
+spec:
+  networkLoadBalancerName: kube-apiserver
+status:
+  endpointServiceName: "com.amazonaws.vpce.us-east-1.vpce-svc-abc123"
+  endpointID: "vpce-abc123"
+  conditions:
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    message: "Endpoint Service is available"
+    reason: AWSSuccess
+    status: "True"
+    type: AWSEndpointServiceAvailable
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    message: "Endpoint is available"
+    reason: AWSSuccess
+    status: "True"
+    type: AWSEndpointAvailable

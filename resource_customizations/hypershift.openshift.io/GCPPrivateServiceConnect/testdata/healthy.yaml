@@ -1,0 +1,20 @@
+apiVersion: hypershift.openshift.io/v1beta1
+kind: GCPPrivateServiceConnect
+metadata:
+  name: kube-apiserver
+  namespace: clusters-example
+  generation: 1
+spec:
+  loadBalancerIP: "10.0.0.10"
+  consumerAcceptList:
+  - "my-project-123"
+status:
+  serviceAttachmentName: "kube-apiserver-psc"
+  serviceAttachmentURI: "https://www.googleapis.com/compute/v1/projects/my-project/regions/us-east1/serviceAttachments/kube-apiserver-psc"
+  endpointIP: "10.1.0.5"
+  conditions:
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    message: "GCP Private Service Connect infrastructure is available"
+    reason: GCPSuccess
+    status: "True"
+    type: GCPPrivateServiceConnectAvailable
