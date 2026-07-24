@@ -1566,6 +1566,70 @@ func Test_PickFailureAttemptWhenOverflowed(t *testing.T) {
 	})
 }
 
+func Test_PickFailureAttemptEdgeCases(t *testing.T) {
+	t.Run("Empty map returns nil", func(t *testing.T) {
+		failures := map[string]LoginAttempts{}
+		user := pickRandomNonAdminLoginFailure(failures, "test")
+		assert.Nil(t, user)
+	})
+
+	t.Run("Single eligible entry is returned", func(t *testing.T) {
+		failures := map[string]LoginAttempts{
+			"test2": {FailCount: 1},
+		}
+		user := pickRandomNonAdminLoginFailure(failures, "test")
+		assert.NotNil(t, user)
+		assert.Equal(t, "test2", *user)
+	})
+
+	t.Run("Only admin and current user returns nil", func(t *testing.T) {
+		failures := map[string]LoginAttempts{
+			common.ArgoCDAdminUsername: {FailCount: 1},
+			"test":                     {FailCount: 1},
+		}
+		user := pickRandomNonAdminLoginFailure(failures, "test")
+		assert.Nil(t, user)
+	})
+
+	t.Run("Multiple eligible entries, always returns an eligible key", func(t *testing.T) {
+		failures := map[string]LoginAttempts{
+			"user1": {FailCount: 1},
+			"user2": {FailCount: 1},
+			"user3": {FailCount: 1},
+		}
+		for range 1000 {
+			user := pickRandomNonAdminLoginFailure(failures, "test")
+			assert.NotNil(t, user)
+			assert.NotEqual(t, common.ArgoCDAdminUsername, *user)
+			assert.NotEqual(t, "test", *user)
+		}
+	})
+}
+
+func Test_GetLoginFailureWindow(t *testing.T) {
+	t.Run("Default window is in seconds not nanoseconds", func(t *testing.T) {
+		window := getLoginFailureWindow()
+		// defaultFailureWindow is 300, should be 300 seconds = 5 minutes
+		assert.Equal(t, 300*time.Second, window)
+	})
+}
+
+func Test_ExpireOldFailedAttempts(t *testing.T) {
+	t.Run("Expiring entries based on duration", func(t *testing.T) {
+		now := time.Now()
+		failures := map[string]LoginAttempts{
+			"old-user": {FailCount: 3, LastFailed: now.Add(-10 * time.Minute)},
+			"new-user": {FailCount: 1, LastFailed: now.Add(-1 * time.Minute)},
+		}
+		expired := expireOldFailedAttempts(5*time.Minute, failures)
+		assert.Equal(t, 1, expired)
+		_, exists := failures["old-user"]
+		assert.False(t, exists)
+		_, exists = failures["new-user"]
+		assert.True(t, exists)
+	})
+}
+
 func TestTokenUniqueID(t *testing.T) {
 	testCases := []struct {
 		name   string
