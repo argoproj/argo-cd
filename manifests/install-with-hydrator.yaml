@@ -34075,6 +34075,12 @@ spec:
               optional: true
         - name: KUBECACHEDIR
           value: /tmp/kubecache
+        - name: ARGOCD_SOURCE_NAMESPACE_DISCOVERY
+          valueFrom:
+            configMapKeyRef:
+              key: application.namespaces.discovery
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-application-controller

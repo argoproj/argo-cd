@@ -320,6 +320,18 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	clusterInformer, err := settings_util.NewClusterInformer(opts.KubeClientset, opts.Namespace)
 	errorsutil.CheckError(err)
 
+	sourceNamespaceLabel, err := settingsMgr.GetAppSourceNamespaceKey()
+	errorsutil.CheckError(err)
+	namespaces, err := opts.KubeClientset.CoreV1().Namespaces().List(ctx, metav1.ListOptions{
+		LabelSelector: sourceNamespaceLabel,
+	})
+	if !apierrors.IsForbidden(err) {
+		errorsutil.CheckError(err)
+	}
+	for _, ns := range namespaces.Items {
+		opts.ApplicationNamespaces = append(opts.ApplicationNamespaces, ns.Name)
+	}
+
 	appInformerNs := opts.Namespace
 	if len(opts.ApplicationNamespaces) > 0 {
 		appInformerNs = ""

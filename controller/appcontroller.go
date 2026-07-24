@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"reflect"
 	"runtime/debug"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -39,7 +40,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/informers"
-	informerv1 "k8s.io/client-go/informers/apps/v1"
+	appsinformerv1 "k8s.io/client-go/informers/apps/v1"
+	informersv1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
@@ -79,6 +81,7 @@ import (
 const (
 	updateOperationStateTimeout             = 1 * time.Second
 	defaultDeploymentInformerResyncDuration = 10 * time.Second
+	defaultNamespaceInformerResyncDuration  = 10 * time.Second
 	// orphanedIndex contains application which monitor orphaned resources by namespace
 	orphanedIndex = "orphaned"
 	// appOperationRequeueDelay is the batching window used when a managed resource changes.
@@ -126,37 +129,40 @@ type ApplicationController struct {
 	// queue contains app namespace/name
 	appRefreshQueue workqueue.TypedRateLimitingInterface[string]
 	// queue contains app namespace/name/comparisonType and used to request app refresh with the predefined comparison type
-	appComparisonTypeRefreshQueue workqueue.TypedRateLimitingInterface[string]
-	appOperationQueue             workqueue.TypedRateLimitingInterface[string]
-	projectRefreshQueue           workqueue.TypedRateLimitingInterface[string]
-	appHydrateQueue               workqueue.TypedRateLimitingInterface[string]
-	hydrationQueue                workqueue.TypedRateLimitingInterface[hydratortypes.HydrationQueueKey]
-	appInformer                   cache.SharedIndexInformer
-	appLister                     applisters.ApplicationLister
-	projInformer                  cache.SharedIndexInformer
-	appStateManager               AppStateManager
-	stateCache                    statecache.LiveStateCache
-	statusRefreshTimeout          time.Duration
-	statusHardRefreshTimeout      time.Duration
-	statusRefreshJitter           time.Duration
-	selfHealTimeout               time.Duration
-	selfHealBackoff               *wait.Backoff
-	syncTimeout                   time.Duration
-	db                            db.ArgoDB
-	settingsMgr                   *settings_util.SettingsManager
-	refreshRequestedApps          map[string]CompareWith
-	refreshRequestedAppsMutex     *sync.Mutex
-	metricsServer                 *metrics.MetricsServer
-	metricsClusterLabels          []string
-	kubectlSemaphore              *semaphore.Weighted
-	clusterSharding               sharding.ClusterShardingCache
-	projByNameCache               sync.Map
-	applicationNamespaces         []string
-	ignoreNormalizerOpts          normalizers.IgnoreNormalizerOpts
+	appComparisonTypeRefreshQueue   workqueue.TypedRateLimitingInterface[string]
+	appOperationQueue               workqueue.TypedRateLimitingInterface[string]
+	projectRefreshQueue             workqueue.TypedRateLimitingInterface[string]
+	appHydrateQueue                 workqueue.TypedRateLimitingInterface[string]
+	hydrationQueue                  workqueue.TypedRateLimitingInterface[hydratortypes.HydrationQueueKey]
+	appInformer                     cache.SharedIndexInformer
+	appLister                       applisters.ApplicationLister
+	projInformer                    cache.SharedIndexInformer
+	appStateManager                 AppStateManager
+	stateCache                      statecache.LiveStateCache
+	statusRefreshTimeout            time.Duration
+	statusHardRefreshTimeout        time.Duration
+	statusRefreshJitter             time.Duration
+	selfHealTimeout                 time.Duration
+	selfHealBackoff                 *wait.Backoff
+	syncTimeout                     time.Duration
+	db                              db.ArgoDB
+	settingsMgr                     *settings_util.SettingsManager
+	refreshRequestedApps            map[string]CompareWith
+	refreshRequestedAppsMutex       *sync.Mutex
+	metricsServer                   *metrics.MetricsServer
+	metricsClusterLabels            []string
+	kubectlSemaphore                *semaphore.Weighted
+	clusterSharding                 sharding.ClusterShardingCache
+	projByNameCache                 sync.Map
+	applicationNamespaces           []string
+	applicationNamespacesMu         sync.RWMutex
+	sourceNamespaceDiscoveryEnabled bool
+	namespaceInformer               informersv1.NamespaceInformer
+	ignoreNormalizerOpts            normalizers.IgnoreNormalizerOpts
 
 	// dynamicClusterDistributionEnabled if disabled deploymentInformer is never initialized
 	dynamicClusterDistributionEnabled bool
-	deploymentInformer                informerv1.DeploymentInformer
+	deploymentInformer                appsinformerv1.DeploymentInformer
 
 	hydrator *hydrator.Hydrator
 }
@@ -193,6 +199,7 @@ func NewApplicationController(
 	ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts,
 	enableK8sEvent []string,
 	hydratorEnabled bool,
+	sourceNamespaceDiscoveryEnabled bool,
 ) (*ApplicationController, error) {
 	log.Infof("appResyncPeriod=%v, appHardResyncPeriod=%v, appResyncJitter=%v", appResyncPeriod, appHardResyncPeriod, appResyncJitter)
 	db := db.NewDB(namespace, settingsMgr, kubeClientset)
@@ -226,6 +233,8 @@ func NewApplicationController(
 		clusterSharding:                   clusterSharding,
 		projByNameCache:                   sync.Map{},
 		applicationNamespaces:             applicationNamespaces,
+		applicationNamespacesMu:           sync.RWMutex{},
+		sourceNamespaceDiscoveryEnabled:   sourceNamespaceDiscoveryEnabled,
 		dynamicClusterDistributionEnabled: dynamicClusterDistributionEnabled,
 		ignoreNormalizerOpts:              ignoreNormalizerOpts,
 		metricsClusterLabels:              metricsClusterLabels,
@@ -237,24 +246,53 @@ func NewApplicationController(
 		ctrl.kubectlSemaphore = semaphore.NewWeighted(kubectlParallelismLimit)
 	}
 	kubectl.SetOnKubectlRun(ctrl.onKubectlRun)
+
+	// get all namespaces with the source namespace label and initialize the namespace informer
+	// if source namespace discovery is enabled
+	var err error
+	sourceNamespaceLabel, err := settingsMgr.GetAppSourceNamespaceKey()
+	if err != nil {
+		return nil, err
+	}
+	namespaces, err := ctrl.kubeClientset.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{
+		LabelSelector: sourceNamespaceLabel,
+	})
+	if err != nil {
+		if !apierrors.IsForbidden(err) {
+			return nil, err
+		}
+		log.Error("App controller is forbidden from listing namespaces, namespaces with label will not allow applications!")
+	}
+	for _, ns := range namespaces.Items {
+		ctrl.addApplicationNamespace(ns.Name)
+	}
+
+	namespaceFactory := informers.NewSharedInformerFactoryWithOptions(ctrl.kubeClientset, defaultNamespaceInformerResyncDuration, informers.WithTweakListOptions(func(opts *metav1.ListOptions) {
+		opts.LabelSelector = sourceNamespaceLabel
+	}))
+	if sourceNamespaceDiscoveryEnabled {
+		ctrl.namespaceInformer = namespaceFactory.Core().V1().Namespaces()
+		_, err := ctrl.namespaceInformer.Informer().AddEventHandler(ctrl.namespaceEventHandlerFuncs())
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	appInformer, appLister := ctrl.newApplicationInformerAndLister()
 	indexers := cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}
 	projInformer := v1alpha1.NewAppProjectInformer(applicationClientset, namespace, appResyncPeriod, indexers)
-	var err error
 	_, err = projInformer.AddEventHandler(ctrl.appProjectEventHandlerFuncs())
 	if err != nil {
 		return nil, err
 	}
 
-	factory := informers.NewSharedInformerFactoryWithOptions(ctrl.kubeClientset, defaultDeploymentInformerResyncDuration, informers.WithNamespace(settingsMgr.GetNamespace()))
-
-	var deploymentInformer informerv1.DeploymentInformer
+	deploymentFactory := informers.NewSharedInformerFactoryWithOptions(ctrl.kubeClientset, defaultDeploymentInformerResyncDuration, informers.WithNamespace(settingsMgr.GetNamespace()))
+	var deploymentInformer appsinformerv1.DeploymentInformer
 
 	// only initialize deployment informer if dynamic distribution is enabled
 	if dynamicClusterDistributionEnabled {
-		deploymentInformer = factory.Apps().V1().Deployments()
+		deploymentInformer = deploymentFactory.Apps().V1().Deployments()
 	}
-
 	readinessHealthCheck := func(_ *http.Request) error {
 		if dynamicClusterDistributionEnabled {
 			applicationControllerName := env.StringFromEnv(common.EnvAppControllerName, common.DefaultApplicationControllerName)
@@ -914,6 +952,11 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 	if ctrl.dynamicClusterDistributionEnabled {
 		// only start deployment informer if dynamic distribution is enabled
 		go ctrl.deploymentInformer.Informer().Run(ctx.Done())
+	}
+
+	if ctrl.sourceNamespaceDiscoveryEnabled {
+		// namespace informer should only start if source namespace discovery is enabled
+		go ctrl.namespaceInformer.Informer().Run(ctx.Done())
 	}
 
 	clusters, err := ctrl.db.ListClusters(ctx)
@@ -2574,6 +2617,8 @@ func (ctrl *ApplicationController) selfHealRemainingBackoff(app *appv1.Applicati
 // isAppNamespaceAllowed returns whether the application is allowed in the
 // namespace it's residing in.
 func (ctrl *ApplicationController) isAppNamespaceAllowed(app *appv1.Application) bool {
+	ctrl.applicationNamespacesMu.RLock()
+	defer ctrl.applicationNamespacesMu.RUnlock()
 	return app.Namespace == ctrl.namespace || glob.MatchStringInList(ctrl.applicationNamespaces, app.Namespace, glob.REGEXP)
 }
 
@@ -2614,9 +2659,11 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 	watchNamespace := ctrl.namespace
 	// If we have at least one additional namespace configured, we need to
 	// watch on them all.
+	ctrl.applicationNamespacesMu.RLock()
 	if len(ctrl.applicationNamespaces) > 0 {
 		watchNamespace = ""
 	}
+	ctrl.applicationNamespacesMu.RUnlock()
 	refreshTimeout := ctrl.statusRefreshTimeout
 	if ctrl.statusHardRefreshTimeout.Seconds() != 0 && (ctrl.statusHardRefreshTimeout < ctrl.statusRefreshTimeout) {
 		refreshTimeout = ctrl.statusHardRefreshTimeout
@@ -2866,9 +2913,11 @@ func (ctrl *ApplicationController) getAppList(options metav1.ListOptions) (*appv
 	watchNamespace := ctrl.namespace
 	// If we have at least one additional namespace configured, we need to
 	// watch on them all.
+	ctrl.applicationNamespacesMu.RLock()
 	if len(ctrl.applicationNamespaces) > 0 {
 		watchNamespace = ""
 	}
+	ctrl.applicationNamespacesMu.RUnlock()
 
 	appList, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(watchNamespace).List(context.TODO(), options)
 	if err != nil {
@@ -2908,3 +2957,45 @@ func (ctrl *ApplicationController) applyImpersonationConfig(config *rest.Config,
 }
 
 type ClusterFilterFunction func(c *appv1.Cluster, distributionFunction sharding.DistributionFunction) bool
+
+// addApplicationNamespace is a thread safe add function for application namespaces. It also
+// ensures that namespaces only appear.
+func (ctrl *ApplicationController) addApplicationNamespace(ns string) {
+	ctrl.applicationNamespacesMu.Lock()
+	defer ctrl.applicationNamespacesMu.Unlock()
+	if slices.Index(ctrl.applicationNamespaces, ns) == -1 {
+		ctrl.applicationNamespaces = append(ctrl.applicationNamespaces, ns)
+	}
+}
+
+// namespaceEventHandlerFuncs returns handler events for the namespace informer.
+// These events update the application namespaces based on the event observed
+func (ctrl *ApplicationController) namespaceEventHandlerFuncs() cache.ResourceEventHandlerFuncs {
+	return cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj any) {
+			ns, ok := obj.(*corev1.Namespace)
+			if !ok {
+				return
+			}
+			ctrl.addApplicationNamespace(ns.Name)
+		},
+		UpdateFunc: func(_ any, newObj any) {
+			ns, ok := newObj.(*corev1.Namespace)
+			if !ok {
+				return
+			}
+			ctrl.addApplicationNamespace(ns.Name)
+		},
+		DeleteFunc: func(obj any) {
+			ns, ok := obj.(*corev1.Namespace)
+			if !ok {
+				return
+			}
+			ctrl.applicationNamespacesMu.Lock()
+			defer ctrl.applicationNamespacesMu.Unlock()
+			if i := slices.Index(ctrl.applicationNamespaces, ns.Name); i != -1 {
+				ctrl.applicationNamespaces = slices.Delete(ctrl.applicationNamespaces, i, i+1)
+			}
+		},
+	}
+}
