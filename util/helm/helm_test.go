@@ -1,6 +1,7 @@
 package helm
 
 import (
+	"context"
 	"os/exec"
 	"path/filepath"
 	"slices"
@@ -344,11 +345,25 @@ func TestRegistryLoginOCI(t *testing.T) {
 			require.NoError(t, err)
 
 			h := &helm{cmd: *c, repos: tc.repos}
-			err = h.RegistryLoginOCI()
+			err = h.RegistryLoginOCI(t.Context())
 			require.NoError(t, err)
 			assert.Equal(t, tc.expectedLogins, loggedInRegistries)
 		})
 	}
+}
+
+func TestRegistryLoginOCI_UsesProvidedContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	c, err := newCmdWithVersion(".", false, "", "", func(cmd *exec.Cmd, _ func(string) string) (string, error) {
+		return "", cmd.Run()
+	})
+	require.NoError(t, err)
+
+	h := &helm{cmd: *c, repos: []HelmRepository{{Repo: "example.com/myrepo", EnableOci: true, Creds: HelmCreds{Username: "user", Password: "pass"}}}}
+	err = h.RegistryLoginOCI(ctx)
+	require.ErrorIs(t, err, context.Canceled)
 }
 
 func TestDependencyBuild_PlainHTTPFromDependencyRepo(t *testing.T) {
