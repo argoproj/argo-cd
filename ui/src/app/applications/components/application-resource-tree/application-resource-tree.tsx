@@ -469,9 +469,12 @@ function renderPodGroup(
     }
 
     // Use Dagre's measured height directly to avoid duplicating sizing logic in the render path.
-    // Dagre assigns node.y as the node center; convert to DOM top-left for rendering.
+    // Dagre assigns node.y as the node center. The other node renderers use `top: node.y`, which
+    // shifts every NODE_HEIGHT-sized node down by NODE_HEIGHT / 2 from its Dagre box; apply the
+    // same shift here so the vertical gaps Dagre computed between pod groups and their neighbors
+    // are preserved on screen.
     const podGroupHeight = node.height;
-    const podGroupTop = node.y - podGroupHeight / 2;
+    const podGroupTop = node.y - podGroupHeight / 2 + NODE_HEIGHT / 2;
 
     return (
         <div
