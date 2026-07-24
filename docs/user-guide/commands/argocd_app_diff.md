@@ -25,7 +25,7 @@ argocd app diff APPNAME [flags]
   -h, --help                                              help for diff
       --ignore-normalizer-jq-execution-timeout duration   Set ignore normalizer JQ execution timeout (default 1s)
       --local string                                      Compare live app to a local manifests
-      --local-include stringArray                         Used with --server-side-generate, specify patterns of filenames to send. Patterns without a path separator match on filename only; patterns containing '/' match on the relative path and support '**' to span multiple directories (e.g. "charts/**" includes all Helm chart files). (default [*.yaml,*.yml,*.json,charts/**])
+      --local-include stringArray                         Used with --server-side-generate, specify patterns of filenames to send. Patterns without a path separator match on filename only; patterns containing '/' match on the relative path and support '**' to span multiple directories (e.g. "charts/**" includes all Helm chart files). WARNING: The default patterns 'charts/**/*.yaml', 'charts/**/*.yml', and 'charts/**/*.tpl' will upload only matching files under the charts/ directory. Use --local-include to override the default patterns if you need to include more files, such as 'charts/**' for all files. (default [*.yaml,*.yml,*.json,charts/**/*.yaml,charts/**/*.yml,charts/**/*.tpl])
       --local-repo-root string                            Path to the repository root. Used together with --local allows setting the repository root (default "/")
       --refresh                                           Refresh application data when retrieving
       --revision string                                   Compare live app to a particular revision
