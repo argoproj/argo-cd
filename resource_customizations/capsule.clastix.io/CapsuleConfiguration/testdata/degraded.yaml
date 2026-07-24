@@ -1,0 +1,16 @@
+apiVersion: capsule.clastix.io/v1beta2
+kind: CapsuleConfiguration
+metadata:
+  name: default
+  generation: 1
+spec:
+  userGroups:
+    - capsule.clastix.io
+status:
+  observedGeneration: 1
+  conditions:
+    - type: Ready
+      status: "False"
+      lastTransitionTime: "2024-01-01T00:00:00Z"
+      message: CapsuleConfiguration failed to reconcile
+      reason: ReconcileError

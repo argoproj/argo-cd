@@ -1,0 +1,17 @@
+apiVersion: capsule.clastix.io/v1beta2
+kind: GlobalTenantResource
+metadata:
+  name: global-shared-config
+  generation: 1
+spec:
+  tenantSelector: {}
+  resyncPeriod: 60s
+  resources: []
+status:
+  observedGeneration: 1
+  conditions:
+    - type: Ready
+      status: "False"
+      lastTransitionTime: "2024-01-01T00:00:00Z"
+      message: GlobalTenantResource failed to replicate resources
+      reason: ReplicationError

@@ -1,0 +1,24 @@
+apiVersion: capsule.clastix.io/v1beta2
+kind: ResourcePool
+metadata:
+  name: solar-pool
+  generation: 1
+spec:
+  selectors:
+    - matchLabels:
+        capsule.clastix.io/tenant: solar
+  quota:
+    hard:
+      cpu: "10"
+      memory: 20Gi
+status:
+  observedGeneration: 1
+  exhaustions:
+    cpu: "10"
+    memory: 20Gi
+  conditions:
+    - type: Ready
+      status: "True"
+      lastTransitionTime: "2024-01-01T00:00:00Z"
+      message: ResourcePool is active and within limits
+      reason: Ready

@@ -1,0 +1,16 @@
+apiVersion: capsule.clastix.io/v1beta2
+kind: GlobalTenantResource
+metadata:
+  name: global-shared-config
+spec:
+  tenantSelector: {}
+  resyncPeriod: 60s
+  resources:
+    - namespaceSelector: {}
+      rawItems:
+        - apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: global-config
+          data:
+            key: value

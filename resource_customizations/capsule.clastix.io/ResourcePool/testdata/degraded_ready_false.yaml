@@ -1,0 +1,21 @@
+apiVersion: capsule.clastix.io/v1beta2
+kind: ResourcePool
+metadata:
+  name: solar-pool
+  generation: 1
+spec:
+  selectors:
+    - matchLabels:
+        capsule.clastix.io/tenant: solar
+  quota:
+    hard:
+      cpu: "10"
+      memory: 20Gi
+status:
+  observedGeneration: 1
+  conditions:
+    - type: Ready
+      status: "False"
+      lastTransitionTime: "2024-01-01T00:00:00Z"
+      message: ResourcePool failed to reconcile
+      reason: ReconcileError

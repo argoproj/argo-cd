@@ -1,0 +1,17 @@
+apiVersion: capsule.clastix.io/v1beta2
+kind: TenantResource
+metadata:
+  name: solar-tenantresource
+  namespace: solar-production
+  generation: 1
+spec:
+  resyncPeriod: 60s
+  resources: []
+status:
+  observedGeneration: 1
+  conditions:
+    - type: Ready
+      status: "True"
+      lastTransitionTime: "2024-01-01T00:00:00Z"
+      message: Resources have been successfully replicated into the target namespaces
+      reason: Ready

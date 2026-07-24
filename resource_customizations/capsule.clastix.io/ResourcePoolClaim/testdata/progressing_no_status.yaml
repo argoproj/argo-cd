@@ -1,0 +1,11 @@
+apiVersion: capsule.clastix.io/v1beta2
+kind: ResourcePoolClaim
+metadata:
+  name: solar-claim
+  namespace: solar-production
+spec:
+  poolRef:
+    name: solar-pool
+  resources:
+    cpu: "2"
+    memory: 4Gi
