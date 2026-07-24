@@ -2446,9 +2446,6 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 
 			fallbackPatch, modified, mpErr := createMergePatch(
 				&appv1.Application{
-					ObjectMeta: metav1.ObjectMeta{
-						Annotations: orig.GetAnnotations(),
-					},
 					Status: orig.Status,
 				},
 				&appv1.Application{

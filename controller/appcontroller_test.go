@@ -49,6 +49,7 @@ import (
 	mockcommitclient "github.com/argoproj/argo-cd/v3/commitserver/apiclient/mocks"
 	mockstatecache "github.com/argoproj/argo-cd/v3/controller/cache/mocks"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	mockrepoclient "github.com/argoproj/argo-cd/v3/reposerver/apiclient/mocks"
@@ -3360,6 +3361,7 @@ func TestApplicationController_PersistAppStatus_FallbackOnSizeLimit(t *testing.T
 	app := newFakeApp()
 	app.Status.Health.Status = health.HealthStatusHealthy
 	app.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
+	app.SetAnnotations(map[string]string{"foo": "bar", appv1.AnnotationKeyRefresh: "normal"})
 
 	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
@@ -3396,6 +3398,7 @@ func TestApplicationController_PersistAppStatus_FallbackOnSizeLimit(t *testing.T
 
 	status, ok := fallback["status"].(map[string]any)
 	require.True(t, ok, "fallback patch should contain status")
+	require.Equal(t, 1, len(fallback), "fallback patch should contain only status")
 
 	_, hasResources := status["resources"]
 	assert.False(t, hasResources, "fallback patch should NOT contain status.resources")
@@ -3422,8 +3425,11 @@ func TestApplicationController_PersistAppStatus_NonSizeLimitErrorNoFallback(t *t
 	})
 
 	var patchCalls int
-	fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (bool, runtime.Object, error) {
+	var capturedPatches [][]byte
+	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (bool, runtime.Object, error) {
 		patchCalls++
+		patchAction := action.(kubetesting.PatchAction)
+		capturedPatches = append(capturedPatches, patchAction.GetPatch())
 		return true, nil, errors.New("boom")
 	})
 
@@ -3433,6 +3439,13 @@ func TestApplicationController_PersistAppStatus_NonSizeLimitErrorNoFallback(t *t
 	ctrl.persistAppStatus(t.Context(), app, newStatus)
 
 	assert.Equal(t, 1, patchCalls, "non-size-limit errors should NOT trigger fallback patch")
+
+	var patch map[string]any
+	require.NoError(t, json.Unmarshal(capturedPatches[0], &patch))
+
+	_, ok := patch["status"].(map[string]any)
+	require.True(t, ok, "patch should contain status")
+	require.Equal(t, 1, len(patch), "patch should contain only status")
 }
 
 func TestApplicationController_PersistAppStatus_FallbackMessageContainsUserGuidance(t *testing.T) {
