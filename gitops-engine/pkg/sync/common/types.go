@@ -53,6 +53,13 @@ const (
 
 	// Default field manager for client-side apply migration
 	DefaultClientSideApplyMigrationManager = "kubectl-client-side-apply"
+
+	// SeededClientSideApplyManager is the field manager name used for the synthetic
+	// "Update" managed-fields entry that Argo CD seeds from the last-applied-configuration
+	// annotation before the first server-side apply, when the live object has no managed
+	// fields. This prevents kubernetes from adding `before-first-apply` managed-fields which
+	// would cause Argo to take ownership of all fields in the live object.
+	SeededClientSideApplyManager = "argocd-csa-migration"
 )
 
 type PermissionValidator func(un *unstructured.Unstructured, res *metav1.APIResource) error
