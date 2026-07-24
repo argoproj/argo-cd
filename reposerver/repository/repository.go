@@ -2349,6 +2349,9 @@ func getPluginParamEnvs(envVars []string, plugin *v1alpha1.ApplicationSourcePlug
 }
 
 func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, pluginName string, envVars *v1alpha1.Env, q *apiclient.ManifestRequest, creds git.Creds, tarDoneCh chan<- bool, tarExcludedGlobs []string, useManifestGeneratePaths bool) ([]*unstructured.Unstructured, error) {
+	ctx, span := tracer.Start(ctx, "repository.runConfigManagementPluginSidecars")
+	defer span.End()
+
 	// compute variables.
 	env, err := getPluginEnvs(envVars, q)
 	if err != nil {
@@ -2410,6 +2413,9 @@ func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, p
 // The cmp-server will generate the manifests. Returns a response object with the generated
 // manifests.
 func generateManifestsCMP(ctx context.Context, appPath, rootPath string, env []string, cmpClient pluginclient.ConfigManagementPluginServiceClient, tarDoneCh chan<- bool, tarExcludedGlobs []string) (*pluginclient.ManifestResponse, error) {
+	ctx, span := tracer.Start(ctx, "repository.generateManifestsCMP")
+	defer span.End()
+
 	generateManifestStream, err := cmpClient.GenerateManifest(ctx, grpc_retry.Disable())
 	if err != nil {
 		return nil, fmt.Errorf("error getting generateManifestStream: %w", err)
