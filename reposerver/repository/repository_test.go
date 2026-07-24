@@ -1309,7 +1309,7 @@ func TestHelmWithMissingValueFiles(t *testing.T) {
 
 	// Should fail since we're passing a non-existent values file, and error should indicate that
 	_, err := service.GenerateManifest(t.Context(), req)
-	require.ErrorContains(t, err, missingValuesFile+": no such file or directory")
+	require.ErrorContains(t, err, "value file "+missingValuesFile+" does not exist")
 
 	// Should template without error even if defining a non-existent values file
 	req.ApplicationSource.Helm.IgnoreMissingValueFiles = true
@@ -3977,6 +3977,14 @@ func Test_getResolvedValueFiles(t *testing.T) {
 
 	paths.Add(git.NormalizeGitURL("https://github.com/org/repo1"), path.Join(tempDir, "repo1"))
 
+	// Create files required by test cases that expect successful resolution.
+	require.NoError(t, os.MkdirAll(path.Join(tempDir, "main-repo", "app-path"), 0o755))
+	require.NoError(t, os.MkdirAll(path.Join(tempDir, "repo1", "app-path"), 0o755))
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "main-repo", "values.yaml"), []byte{}, 0o644))
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "main-repo", "app-path", "values.yaml"), []byte{}, 0o644))
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "repo1", "values.yaml"), []byte{}, 0o644))
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "repo1", "app-path", "values.yaml"), []byte{}, 0o644))
+
 	testCases := []struct {
 		name         string
 		rawPath      string
@@ -4126,6 +4134,68 @@ func Test_getResolvedValueFiles(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_getResolvedValueFiles_missingFile(t *testing.T) {
+	t.Parallel()
+
+	tempDir := t.TempDir()
+	paths := utilio.NewRandomizedTempPaths(tempDir)
+	require.NoError(t, os.MkdirAll(path.Join(tempDir, "repo"), 0o755))
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "repo", "existing.yaml"), []byte{}, 0o644))
+
+	repoPath := path.Join(tempDir, "repo")
+
+	t.Run("missing file with ignoreMissingValueFiles=false returns error", func(t *testing.T) {
+		t.Parallel()
+		_, err := getResolvedValueFiles(repoPath, repoPath, &v1alpha1.Env{}, []string{},
+			[]string{"nonexistent.yaml"}, map[string]*v1alpha1.RefTarget{}, paths, false)
+		require.ErrorContains(t, err, "does not exist")
+	})
+
+	t.Run("missing file with ignoreMissingValueFiles=true is silently skipped", func(t *testing.T) {
+		t.Parallel()
+		resolved, err := getResolvedValueFiles(repoPath, repoPath, &v1alpha1.Env{}, []string{},
+			[]string{"nonexistent.yaml"}, map[string]*v1alpha1.RefTarget{}, paths, true)
+		require.NoError(t, err)
+		assert.Empty(t, resolved)
+	})
+
+	t.Run("existing file is included", func(t *testing.T) {
+		t.Parallel()
+		resolved, err := getResolvedValueFiles(repoPath, repoPath, &v1alpha1.Env{}, []string{},
+			[]string{"existing.yaml"}, map[string]*v1alpha1.RefTarget{}, paths, false)
+		require.NoError(t, err)
+		require.Len(t, resolved, 1)
+		assert.Equal(t, path.Join(repoPath, "existing.yaml"), string(resolved[0]))
+	})
+
+	t.Run("mix of existing and missing with ignoreMissingValueFiles=false errors on missing", func(t *testing.T) {
+		t.Parallel()
+		_, err := getResolvedValueFiles(repoPath, repoPath, &v1alpha1.Env{}, []string{},
+			[]string{"existing.yaml", "missing.yaml"}, map[string]*v1alpha1.RefTarget{}, paths, false)
+		require.ErrorContains(t, err, "does not exist")
+	})
+
+	t.Run("mix of existing and missing with ignoreMissingValueFiles=true only includes existing", func(t *testing.T) {
+		t.Parallel()
+		resolved, err := getResolvedValueFiles(repoPath, repoPath, &v1alpha1.Env{}, []string{},
+			[]string{"existing.yaml", "missing.yaml"}, map[string]*v1alpha1.RefTarget{}, paths, true)
+		require.NoError(t, err)
+		require.Len(t, resolved, 1)
+		assert.Equal(t, path.Join(repoPath, "existing.yaml"), string(resolved[0]))
+	})
+
+	t.Run("multiple existing files are all included", func(t *testing.T) {
+		t.Parallel()
+		require.NoError(t, os.WriteFile(path.Join(tempDir, "repo", "second.yaml"), []byte{}, 0o644))
+		resolved, err := getResolvedValueFiles(repoPath, repoPath, &v1alpha1.Env{}, []string{},
+			[]string{"existing.yaml", "second.yaml"}, map[string]*v1alpha1.RefTarget{}, paths, false)
+		require.NoError(t, err)
+		require.Len(t, resolved, 2)
+		assert.Equal(t, path.Join(repoPath, "existing.yaml"), string(resolved[0]))
+		assert.Equal(t, path.Join(repoPath, "second.yaml"), string(resolved[1]))
+	})
 }
 
 func Test_getResolvedValueFiles_glob(t *testing.T) {
