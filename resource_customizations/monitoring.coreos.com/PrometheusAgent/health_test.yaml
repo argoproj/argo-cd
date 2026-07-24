@@ -1,0 +1,13 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: "All instances are available"
+    inputPath: testdata/healthy.yaml
+  - healthStatus:
+      status: Progressing
+      message: "SomePodsNotReady"
+    inputPath: testdata/progressing.yaml
+  - healthStatus:
+      status: Degraded
+      message: "pod prometheus-agent-0: 0/5 nodes are available"
+    inputPath: testdata/degraded.yaml
