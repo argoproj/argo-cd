@@ -91,8 +91,8 @@ func TestReceiveApplicationStream(t *testing.T) {
 		require.NoError(t, err)
 		defer func() {
 			close(streamMock.messages)
-			if os.RemoveAll(workdir) != nil {
-				t.Fatal(err)
+			if removeErr := os.RemoveAll(workdir); removeErr != nil {
+				t.Fatal(removeErr)
 			}
 		}()
 		go streamMock.sendFile(t.Context(), t, appDir, streamMock, nil, []string{"applicationset/latest/**"})
