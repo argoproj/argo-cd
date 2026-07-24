@@ -158,14 +158,18 @@ func (h *helm) RegistryLoginOCI(ctx context.Context) error {
 
 func (h *helm) Environ() []string {
 	env := h.cmd.Environ()
+	hasOCIRepoWithCustomCA := false
 	for i := range h.repos {
 		repo := h.repos[i]
 		if repo.EnableOci && repo.GetCAPath() != "" {
-			// Kustomize does not expose Helm's --ca-file option. The configured
-			// repository CAs are already mounted in this directory, which Helm's
-			// Go TLS client loads through SSL_CERT_DIR.
-			return append(env, "SSL_CERT_DIR="+cert.GetTLSCertificateDataPath())
+			hasOCIRepoWithCustomCA = true
 		}
+	}
+	if hasOCIRepoWithCustomCA {
+		// Kustomize does not expose Helm's --ca-file option. The configured
+		// repository CAs are already mounted in this directory, which Helm's
+		// Go TLS client loads through SSL_CERT_DIR.
+		env = append(env, "SSL_CERT_DIR="+cert.GetTLSCertificateDataPath())
 	}
 	return env
 }
