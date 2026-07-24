@@ -304,6 +304,8 @@ data:
   reposerver.enable.git.submodule: "true"
   # Number of concurrent git ls-remote requests. Any value less than 1 means no limit.
   reposerver.git.lsremote.parallelism.limit: "0"
+  # Enable native Git protocol v2 ref resolution with server-side HEAD, branch, and tag narrowing.
+  reposerver.git.lsremote.optimized.enabled: "false"
   # Git requests timeout.
   reposerver.git.request.timeout: "15s"
   # Enable builtin git configuration options that are required for correct argocd-repo-server operation (default "true")
