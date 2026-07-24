@@ -2,6 +2,7 @@ package helm
 
 import (
 	"context"
+	"fmt"
 	"os/exec"
 	"path/filepath"
 	"slices"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/util/io/path"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
@@ -364,6 +366,26 @@ func TestRegistryLoginOCI_UsesProvidedContext(t *testing.T) {
 	h := &helm{cmd: *c, repos: []HelmRepository{{Repo: "example.com/myrepo", EnableOci: true, Creds: HelmCreds{Username: "user", Password: "pass"}}}}
 	err = h.RegistryLoginOCI(ctx)
 	require.ErrorIs(t, err, context.Canceled)
+}
+
+func TestHelmEnviron_IncludesOCIRegistryCAs(t *testing.T) {
+	tlsDataPath := t.TempDir()
+	t.Setenv(common.EnvVarTLSDataPath, tlsDataPath)
+
+	c, err := NewCmd(".", "", "", "")
+	require.NoError(t, err)
+	defer c.Close()
+
+	h := &helm{cmd: *c, repos: []HelmRepository{
+		{Repo: "one.example.com/chart", EnableOci: true, Creds: HelmCreds{CAPath: filepath.Join(tlsDataPath, "one.example.com")}},
+		{Repo: "two.example.com/chart", EnableOci: true, Creds: HelmCreds{CAPath: filepath.Join(tlsDataPath, "two.example.com")}},
+	}}
+	env := h.Environ()
+
+	registryConfig := fmt.Sprintf("HELM_REGISTRY_CONFIG=%s/config/registry/config.json", c.helmHome)
+	assert.Contains(t, env, registryConfig)
+	assert.Len(t, env, 2)
+	assert.Contains(t, env, "SSL_CERT_DIR="+tlsDataPath)
 }
 
 func TestDependencyBuild_PlainHTTPFromDependencyRepo(t *testing.T) {

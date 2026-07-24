@@ -13,6 +13,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"sigs.k8s.io/yaml"
 
+	"github.com/argoproj/argo-cd/v3/util/cert"
 	"github.com/argoproj/argo-cd/v3/util/config"
 	executil "github.com/argoproj/argo-cd/v3/util/exec"
 	pathutil "github.com/argoproj/argo-cd/v3/util/io/path"
@@ -42,7 +43,8 @@ type Helm interface {
 	// RegistryLoginOCI logs into OCI registries for repos that have credentials configured.
 	RegistryLoginOCI(ctx context.Context) error
 	// Environ returns the environment variables needed for a child process to use
-	// the Helm configuration home managed by this instance (e.g. for registry auth).
+	// the Helm configuration home managed by this instance (e.g. for registry auth
+	// and TLS certificates).
 	Environ() []string
 	// Dispose deletes temp resources
 	Dispose()
@@ -155,7 +157,17 @@ func (h *helm) RegistryLoginOCI(ctx context.Context) error {
 }
 
 func (h *helm) Environ() []string {
-	return h.cmd.Environ()
+	env := h.cmd.Environ()
+	for i := range h.repos {
+		repo := h.repos[i]
+		if repo.EnableOci && repo.GetCAPath() != "" {
+			// Kustomize does not expose Helm's --ca-file option. The configured
+			// repository CAs are already mounted in this directory, which Helm's
+			// Go TLS client loads through SSL_CERT_DIR.
+			return append(env, "SSL_CERT_DIR="+cert.GetTLSCertificateDataPath())
+		}
+	}
+	return env
 }
 
 func (h *helm) Dispose() {

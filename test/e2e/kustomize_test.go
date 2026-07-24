@@ -355,7 +355,8 @@ func TestKustomizeApiVersions(t *testing.T) {
 
 func TestKustomizeHelmOCIRegistryWithoutCredentialsFails(t *testing.T) {
 	Given(t).
-		PushChartToAuthenticatedOCIRegistry("testdata/helm-values", "helm-values", "1.0.0").
+		CustomCACertAdded().
+		PushChartToTLSAuthenticatedOCIRegistry("testdata/helm-values", "helm-values", "1.0.0").
 		Path("kustomize-helm-oci").
 		And(func() {
 			errors.NewHandler(t).FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
@@ -364,16 +365,18 @@ func TestKustomizeHelmOCIRegistryWithoutCredentialsFails(t *testing.T) {
 		}).
 		When().
 		IgnoreErrors().
-		CreateApp().
+		// Allow the Application to be created so the sync can report the expected registry authentication failure.
+		CreateApp("--validate=false").
 		Sync().
 		Then().
-		Expect(OperationPhaseIs(OperationFailed))
+		Expect(OperationPhaseIs(OperationError))
 }
 
 func TestKustomizeHelmOCIRegistryWithCredentials(t *testing.T) {
 	Given(t).
-		PushChartToAuthenticatedOCIRegistry("testdata/helm-values", "helm-values", "1.0.0").
-		HelmAuthenticatedOCIRepoAdded("myrepo").
+		CustomCACertAdded().
+		PushChartToTLSAuthenticatedOCIRegistry("testdata/helm-values", "helm-values", "1.0.0").
+		HelmTLSAuthenticatedOCIRepoAdded("myrepo").
 		Path("kustomize-helm-oci").
 		And(func() {
 			errors.NewHandler(t).FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",

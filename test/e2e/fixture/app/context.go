@@ -215,6 +215,11 @@ func (c *Context) HelmAuthenticatedOCIRepoAdded(name string) *Context {
 	return c
 }
 
+func (c *Context) HelmTLSAuthenticatedOCIRepoAdded(name string) *Context {
+	repos.AddHelmTLSAuthenticatedOCIRepo(c.T(), name)
+	return c
+}
+
 func (c *Context) PushImageToOCIRegistry(pathName, tag string) *Context {
 	repos.PushImageToOCIRegistry(c.T(), pathName, tag)
 	return c
@@ -232,6 +237,11 @@ func (c *Context) PushChartToOCIRegistry(chartPathName, chartName, chartVersion 
 
 func (c *Context) PushChartToAuthenticatedOCIRegistry(chartPathName, chartName, chartVersion string) *Context {
 	repos.PushChartToAuthenticatedOCIRegistry(c.T(), chartPathName, chartName, chartVersion)
+	return c
+}
+
+func (c *Context) PushChartToTLSAuthenticatedOCIRegistry(chartPathName, chartName, chartVersion string) *Context {
+	repos.PushChartToTLSAuthenticatedOCIRegistry(c.T(), chartPathName, chartName, chartVersion)
 	return c
 }
 
