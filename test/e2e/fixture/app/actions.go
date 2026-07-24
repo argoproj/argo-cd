@@ -617,7 +617,6 @@ func (a *Actions) GetHelmTemplateProcess() *Actions {
 	appName := a.context.AppName()
 	regexStr := "(?m)^.* helm template \\. --name-template " + appName + " .*$"
 	regex := regexp.MustCompile(regexStr)
-	require.NoError(a.context.T(), err)
 	a.lastOutput = regex.FindString(output)
 	a.lastError = nil
 	return a

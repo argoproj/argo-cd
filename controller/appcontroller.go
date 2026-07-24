@@ -2301,7 +2301,7 @@ func (ctrl *ApplicationController) handleRefreshAnnotation(ctx context.Context, 
 				if hasAnnotation && hasNewTimestamp && newTimestamp != origTimestamp {
 					// there is refresh set and refresh timestamp changed,
 					// new refresh was requested while the old one was running
-					logCtx.Infof("New refresh requested: timestamp %s changed from %s to %s", annotation, origTimestamp, newTimestamp)
+					logCtx.Infof("New request arrived while processed: %s changed from %s to %s", timestampAnnotation, origTimestamp, newTimestamp)
 				} else {
 					// there was some other change (like deleted refresh annotation)
 					// retry the operation with the updated annotations

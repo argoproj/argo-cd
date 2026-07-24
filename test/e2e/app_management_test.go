@@ -494,7 +494,7 @@ func TestInvalidAppProject(t *testing.T) {
 		Expect(Error("", "is not allowed"))
 }
 
-// Test refresh request stat comes while a refresh already running
+// Test a refresh request comes while a refresh is already running
 func TestNestedRefresh(t *testing.T) {
 	dir := "slow-manifest"
 	manifest := "templates/cm.yaml"
@@ -508,7 +508,7 @@ func TestNestedRefresh(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		When().
 		PatchFile(manifest, `[{"op": "add", "path": "/metadata/labels/test-label", "value": "test-value"}]`)
-	// runs app get --refresh asynchroniously, so we do not wait for refresh to finish
+	// runs app get --refresh asynchronoously, so we do not wait for the refresh to finish
 	go acts.Refresh(RefreshTypeNormal)
 	// wait until Refresh actually runs `helm template`.  We can
 	// catch it because the template is really nasty and

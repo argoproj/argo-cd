@@ -650,7 +650,7 @@ func TestHydratorNestedRequest(t *testing.T) {
 		When().
 		PatchDrySourceFile(manifest, `[{"op": "add", "path": "/metadata/labels/test-label", "value": "test-value"}]`)
 
-	// runs app get --refresh asynchroniously, so we do not wait for hydration to finish
+	// runs app get --refresh asynchronoously, so we do not wait for hydration to finish
 	go acts.Refresh(RefreshTypeNormal)
 	// wait until Hydration actually runs `helm template`.  We can
 	// catch it because the template is really nasty and
