@@ -45,7 +45,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	eventspb "github.com/argoproj/argo-cd/v3/pkg/apiclient/events"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 	applisters "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
@@ -2176,8 +2175,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 
 	appName := syncReq.GetName()
 	appNs := s.appNamespaceOrDefault(syncReq.GetAppNamespace())
-	appIf := s.appclientset.ArgoprojV1alpha1().Applications(appNs)
-	a, err = argo.SetAppOperation(appIf, appName, &op)
+	a, err = argo.SetAppOperation(s.appclientset.ArgoprojV1alpha1().Applications(appNs), appName, &op)
 	if err != nil {
 		return nil, fmt.Errorf("error setting app operation: %w", err)
 	}
@@ -2316,8 +2314,7 @@ func (s *Server) Rollback(ctx context.Context, rollbackReq *application.Applicat
 	}
 	appName := rollbackReq.GetName()
 	appNs := s.appNamespaceOrDefault(rollbackReq.GetAppNamespace())
-	appIf := s.appclientset.ArgoprojV1alpha1().Applications(appNs)
-	a, err = argo.SetAppOperation(appIf, appName, &op)
+	a, err = argo.SetAppOperation(s.appclientset.ArgoprojV1alpha1().Applications(appNs), appName, &op)
 	if err != nil {
 		return nil, fmt.Errorf("error setting app operation: %w", err)
 	}

@@ -431,6 +431,15 @@ func LoadX509Cert(path string) (*x509.Certificate, error) {
 // the specified list of hosts. If hosts is nil or empty, self-signed cert
 // creation will be disabled.
 func CreateServerTLSConfig(tlsCertPath, tlsKeyPath string, hosts []string, clientCAPath string) (*tls.Config, error) {
+	return CreateTLSConfig(tlsCertPath, tlsKeyPath, hosts, false, clientCAPath)
+}
+
+// CreateTLSConfig provides a TLS configuration. It either uses the certificate and key
+// provided at tlsCertPath and tlsKeyPath, or, if these are not given, generates a
+// self-signed certificate valid for the specified list of hosts (disabled when hosts is
+// nil or empty). isCA marks a generated certificate as a CA certificate, and clientCAPath,
+// when set, enables verification of client certificates against that CA bundle.
+func CreateTLSConfig(tlsCertPath, tlsKeyPath string, hosts []string, isCA bool, clientCAPath string) (*tls.Config, error) {
 	var cert *tls.Certificate
 	var err error
 
@@ -463,7 +472,7 @@ func CreateServerTLSConfig(tlsCertPath, tlsKeyPath string, hosts []string, clien
 		c, err := GenerateX509KeyPair(CertOptions{
 			Hosts:        hosts,
 			Organization: "Argo CD",
-			IsCA:         false,
+			IsCA:         isCA,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("error generating X509 key pair: %w", err)

@@ -1468,7 +1468,11 @@ func (ctrl *ApplicationController) setAppCondition(app *appv1.Application, condi
 		},
 	})
 	if err == nil {
-		_, err = ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Patch(context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
+		// Use direct patch without writeBackToInformer since this can be called from the indexer.
+		// Writing back to the informer from within the indexer causes a deadlock because
+		// the indexer runs during store.Update() and writeBackToInformer calls store.Update() again.
+		_, err = ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Patch(
+			context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
 	}
 	if err != nil {
 		logCtx.WithError(err).Error("Unable to set application condition")
@@ -1892,6 +1896,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		app.Status.Sync.Status = appv1.SyncStatusCodeUnknown
 		app.Status.Health.Status = health.HealthStatusUnknown
 		app.Status.Health.Message = ""
+		app.Status.ReconciledAt = &now
 		patchDuration = ctrl.persistReconciliationStatus(ctx, origApp, &app.Status)
 
 		if err := ctrl.cache.SetAppResourcesTree(app.InstanceName(ctrl.namespace), &appv1.ApplicationTree{}); err != nil {
@@ -2278,7 +2283,19 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 			newStatus.Health.Message = orig.Status.Health.Message
 		}
 	}
-	patch, modified, err := createMergePatch(
+
+	// calculate time for patch calls
+	start := time.Now()
+	defer func() {
+		patchDuration = time.Since(start)
+	}()
+
+	// Track the generation that was just reconciled. The field exists on both
+	// v1alpha1.ApplicationStatus and v1beta1, so createMergePatch will include
+	// it in the diff when it changes — no need for a post-process pass.
+	newStatus.ObservedGeneration = orig.Generation
+
+	statusPatch, statusModified, err := createMergePatch(
 		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: orig.GetAnnotations()}, Status: orig.Status},
 		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: newAnnotations}, Status: *newStatus})
 	if err != nil {
@@ -2286,16 +2303,11 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 		logCtx.WithError(err).Error("Error constructing app status patch")
 		return patchDuration
 	}
-	if !modified {
+	if !statusModified {
 		logCtx.Infof("No status changes. Skipping patch")
 		return patchDuration
 	}
-	// calculate time for patch call
-	start := time.Now()
-	defer func() {
-		patchDuration = time.Since(start)
-	}()
-	_, err = ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, patch, metav1.PatchOptions{})
+	_, err = ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, statusPatch, metav1.PatchOptions{})
 	if err != nil {
 		spanErr = err
 		if apierrors.IsRequestEntityTooLargeError(err) {
@@ -2312,18 +2324,8 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 				})
 
 			fallbackPatch, modified, mpErr := createMergePatch(
-				&appv1.Application{
-					ObjectMeta: metav1.ObjectMeta{
-						Annotations: orig.GetAnnotations(),
-					},
-					Status: orig.Status,
-				},
-				&appv1.Application{
-					ObjectMeta: metav1.ObjectMeta{
-						Annotations: newAnnotations,
-					},
-					Status: *fallbackStatus,
-				},
+				&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: orig.GetAnnotations()}, Status: orig.Status},
+				&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: newAnnotations}, Status: *fallbackStatus},
 			)
 			if mpErr != nil {
 				logCtx.WithError(mpErr).Error("Error constructing fallback status patch")
@@ -2337,11 +2339,43 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 			}
 			return patchDuration
 		}
-		logCtx.WithError(err).Warn("Error updating application")
+		logCtx.WithError(err).Warn("Error updating application status")
 	} else {
-		logCtx.Infof("Update successful")
+		logCtx.Infof("Status update successful")
 	}
 	return patchDuration
+}
+
+// clearAnnotations removes the specified annotation keys from the application using a metadata merge patch.
+func (ctrl *ApplicationController) clearAnnotations(orig *appv1.Application, keys ...string) {
+	logCtx := log.WithFields(applog.GetAppLogFields(orig))
+	origAnnotations := orig.GetAnnotations()
+	if origAnnotations == nil {
+		return
+	}
+	annotationsToRemove := make(map[string]any)
+	for _, key := range keys {
+		if _, exists := origAnnotations[key]; exists {
+			annotationsToRemove[key] = nil
+		}
+	}
+	if len(annotationsToRemove) == 0 {
+		return
+	}
+	annotationPatch := map[string]any{
+		"metadata": map[string]any{
+			"annotations": annotationsToRemove,
+		},
+	}
+	metadataPatchJSON, err := json.Marshal(annotationPatch)
+	if err != nil {
+		logCtx.WithError(err).Error("Error constructing annotation patch")
+		return
+	}
+	_, err = ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, metadataPatchJSON, metav1.PatchOptions{})
+	if err != nil {
+		logCtx.WithError(err).Warn("Error clearing annotations")
+	}
 }
 
 // autoSync will initiate a sync operation for an application configured with automated sync
@@ -2471,10 +2505,9 @@ func (ctrl *ApplicationController) autoSync(ctx context.Context, app *appv1.Appl
 		}
 	}
 
-	appIf := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace)
 	ts.AddCheckpoint("get_applications_ms")
 	start := time.Now()
-	updatedApp, err := argo.SetAppOperation(appIf, app.Name, &op)
+	updatedApp, err := argo.SetAppOperation(ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace), app.Name, &op)
 	ts.AddCheckpoint("set_app_operation_ms")
 	setOpTime := time.Since(start)
 	if err != nil {

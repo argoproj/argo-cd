@@ -1294,7 +1294,8 @@ func (m *appStateManager) persistRevisionHistory(
 	if err != nil {
 		return fmt.Errorf("error marshaling revision history patch: %w", err)
 	}
-	_, err = m.appclientset.ArgoprojV1alpha1().Applications(app.Namespace).Patch(context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
+	// Use v1beta1 client with status subresource for proper separation of spec/status updates
+	_, err = m.appclientset.ArgoprojV1beta1().Applications(app.Namespace).Patch(context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{}, "status")
 	return err
 }
 
