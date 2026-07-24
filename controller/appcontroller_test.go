@@ -3360,7 +3360,7 @@ func TestApplicationController_PersistAppStatus_FallbackOnSizeLimit(t *testing.T
 	app := newFakeApp()
 	app.Status.Health.Status = health.HealthStatusHealthy
 	app.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
-	app.SetAnnotations(map[string]string{"foo": "bar", v1alpha1.AnnotationKeyRefresh: "normal"})
+	app.SetAnnotations(map[string]string{"foo": "bar", v1alpha1.AnnotationKeyRefresh: string(v1alpha1.RefreshTypeNormal)})
 
 	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
@@ -4127,23 +4127,50 @@ func TestPersistReconciliationStatus_AnnotationManagement(t *testing.T) {
 		assert.True(t, hasOther, "other annotations should be preserved")
 		assert.Equal(t, "other-value", otherValue)
 	})
-	t.Run("persistReconciliationStatus works when there are no annotation", func(t *testing.T) {
+	t.Run("persistReconciliationStatus does not patch when there are unrelated annotations", func(t *testing.T) {
 		app := newFakeApp()
 		app.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
 		app.Status.Health.Status = health.HealthStatusHealthy
+		app.Annotations = map[string]string{
+			"other-annotation": "other-value",
+		}
 
 		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+		appCs := ctrl.applicationClientset.(*appclientset.Clientset)
+		appCs.ReactionChain = nil
+		var patchCalls int
+		appCs.AddReactor("patch", "*", func(action kubetesting.Action) (bool, runtime.Object, error) {
+			patchCalls++
+			return true, app, nil
+		})
 
 		origApp := app.DeepCopy()
 		newStatus := app.Status.DeepCopy()
 
 		ctrl.persistReconciliationStatus(t.Context(), origApp, newStatus)
+		// Verify no patch was performed
+		assert.Zero(t, patchCalls)
+	})
+	t.Run("persistReconciliationStatus does not patch when there are no annotations", func(t *testing.T) {
+		app := newFakeApp()
+		app.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
+		app.Status.Health.Status = health.HealthStatusHealthy
 
-		// Verify the patch was created correctly
-		patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
-		require.NoError(t, err)
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+		appCs := ctrl.applicationClientset.(*appclientset.Clientset)
+		appCs.ReactionChain = nil
+		var patchCalls int
+		appCs.AddReactor("patch", "*", func(_ kubetesting.Action) (bool, runtime.Object, error) {
+			patchCalls++
+			return true, &v1alpha1.Application{}, nil
+		})
 
-		assert.Empty(t, patchedApp.Annotations)
+		origApp := app.DeepCopy()
+		newStatus := app.Status.DeepCopy()
+
+		ctrl.persistReconciliationStatus(t.Context(), origApp, newStatus)
+		// Verify no patch was performed
+		assert.Zero(t, patchCalls)
 	})
 }
 
