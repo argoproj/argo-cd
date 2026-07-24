@@ -72,7 +72,11 @@ spec:
             memory: 64Mi
           limits:
             cpu: 500m
-            memory: 128Mi
+            # Sized for the handler's default 32 MiB request-body cap: peak
+            # usage is a small multiple of the body size (decoded + converted
+            # objects + encoded response). Raise together with
+            # ARGOCD_CONVERSION_WEBHOOK_MAX_REQUEST_BODY_SIZE.
+            memory: 256Mi
         securityContext:
           runAsNonRoot: true
           readOnlyRootFilesystem: true

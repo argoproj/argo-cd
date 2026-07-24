@@ -3,8 +3,8 @@ package conversion
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"io"
 	"net/http"
 
 	log "github.com/sirupsen/logrus"
@@ -14,23 +14,32 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1beta1"
+	"github.com/argoproj/argo-cd/v3/util/env"
 )
 
-// maxRequestBodySize bounds the size of an incoming ConversionReview to prevent
-// memory DoS. The limit is per-review, not per-object: kube-apiserver batches
-// every item of a LIST that needs conversion into a single ConversionReview,
-// with no chunking, so a large cluster's `kubectl get applications.v1beta1 -A`
-// converts the whole result set in one request. 512 MiB accommodates LISTs of
-// thousands of large Applications while still bounding memory.
-const maxRequestBodySize = 512 << 20
+// defaultMaxRequestBodySize bounds the size of an incoming ConversionReview to
+// prevent memory DoS. The limit is per-review, not per-object: kube-apiserver
+// batches every item of a LIST that needs conversion into a single
+// ConversionReview, with no chunking, so a large cluster's
+// `kubectl get applications.v1beta1 -A` converts the whole result set in one
+// request. Peak memory is a small multiple of the body size (decoded objects,
+// converted objects, encoded response), so this default is sized to fit the
+// deployment's memory limit; operators with very large Applications LISTs can
+// raise it via ARGOCD_CONVERSION_WEBHOOK_MAX_REQUEST_BODY_SIZE together with
+// the pod memory limit.
+const defaultMaxRequestBodySize = 32 << 20
 
 // Handler handles CRD conversion webhook requests for Application resources.
 // It converts between v1alpha1 and v1beta1 API versions.
-type Handler struct{}
+type Handler struct {
+	maxRequestBodySize int64
+}
 
 // NewHandler creates a new conversion webhook handler.
 func NewHandler() *Handler {
-	return &Handler{}
+	return &Handler{
+		maxRequestBodySize: env.ParseInt64FromEnv("ARGOCD_CONVERSION_WEBHOOK_MAX_REQUEST_BODY_SIZE", defaultMaxRequestBodySize, 1<<20, 1<<40),
+	}
 }
 
 // ServeHTTP handles the conversion webhook request.
@@ -40,17 +49,20 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBodySize)
+	r.Body = http.MaxBytesReader(w, r.Body, h.maxRequestBodySize)
 	defer r.Body.Close()
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		log.WithError(err).Error("Failed to read conversion webhook request body")
-		http.Error(w, "failed to read request body", http.StatusBadRequest)
-		return
-	}
 
+	// Decode straight off the limited reader instead of buffering the whole
+	// body first — large LIST conversions would otherwise hold two copies of
+	// the payload in memory at once.
 	var review apiextensionsv1.ConversionReview
-	if err := json.Unmarshal(body, &review); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&review); err != nil {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			log.WithError(err).Error("Conversion webhook request body exceeds the configured size limit")
+			http.Error(w, fmt.Sprintf("request body exceeds the %d byte limit (configurable via ARGOCD_CONVERSION_WEBHOOK_MAX_REQUEST_BODY_SIZE)", maxBytesErr.Limit), http.StatusRequestEntityTooLarge)
+			return
+		}
 		log.WithError(err).Error("Failed to unmarshal ConversionReview")
 		http.Error(w, "failed to parse ConversionReview", http.StatusBadRequest)
 		return

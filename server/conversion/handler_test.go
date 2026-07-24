@@ -25,6 +25,18 @@ func TestHandler_MethodNotAllowed(t *testing.T) {
 	assert.Equal(t, http.StatusMethodNotAllowed, rr.Code)
 }
 
+func TestHandler_BodyTooLarge(t *testing.T) {
+	handler := &Handler{maxRequestBodySize: 16}
+
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/convert", bytes.NewBufferString(`{"request": {"uid": "way-over-sixteen-bytes"}}`))
+	rr := httptest.NewRecorder()
+
+	handler.ServeHTTP(rr, req)
+
+	assert.Equal(t, http.StatusRequestEntityTooLarge, rr.Code)
+	assert.Contains(t, rr.Body.String(), "ARGOCD_CONVERSION_WEBHOOK_MAX_REQUEST_BODY_SIZE")
+}
+
 func TestHandler_InvalidJSON(t *testing.T) {
 	handler := NewHandler()
 

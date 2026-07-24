@@ -38483,7 +38483,7 @@ spec:
         resources:
           limits:
             cpu: 500m
-            memory: 128Mi
+            memory: 256Mi
           requests:
             cpu: 50m
             memory: 64Mi
