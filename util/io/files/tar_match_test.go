@@ -1,6 +1,7 @@
 package files
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -95,6 +96,30 @@ func TestMatchPath(t *testing.T) {
 			path:    "charts/foo.yaml",
 			wantErr: true,
 		},
+		{
+			name:     "OS-native separator in pattern is normalised before matching",
+			pattern:  filepath.FromSlash("charts/**"),
+			path:     "charts/podinfo/templates/_helpers.tpl",
+			expected: true,
+		},
+		{
+			name:     "OS-native separator in path is normalised before matching",
+			pattern:  "charts/**",
+			path:     filepath.FromSlash("charts/podinfo/templates/_helpers.tpl"),
+			expected: true,
+		},
+		{
+			name:     "OS-native separator in both pattern and path",
+			pattern:  filepath.FromSlash("charts/**"),
+			path:     filepath.FromSlash("charts/podinfo/values.yaml"),
+			expected: true,
+		},
+		{
+			name:     "OS-native separator pattern does not match outside dir",
+			pattern:  filepath.FromSlash("charts/**"),
+			path:     filepath.FromSlash("other/values.yaml"),
+			expected: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -178,12 +203,182 @@ func TestMatchesPattern(t *testing.T) {
 			relativePath: "charts/foo.yaml",
 			wantErr:      true,
 		},
+		{
+			name:         "slug-less glob matches nested file via basename",
+			pattern:      "*.yaml",
+			base:         "values.yaml",
+			relativePath: "charts/podinfo/values.yaml",
+			expected:     true,
+		},
+		{
+			name:         "OS-native separator path pattern matches relative path",
+			pattern:      filepath.FromSlash("charts/**"),
+			base:         "_helpers.tpl",
+			relativePath: "charts/podinfo/templates/_helpers.tpl",
+			expected:     true,
+		},
+		{
+			name:         "OS-native separator exact path pattern matches",
+			pattern:      filepath.FromSlash("charts/podinfo/values.yaml"),
+			base:         "values.yaml",
+			relativePath: "charts/podinfo/values.yaml",
+			expected:     true,
+		},
+		{
+			name:         "OS-native separator path pattern does not match outside dir",
+			pattern:      filepath.FromSlash("charts/**"),
+			base:         "values.yaml",
+			relativePath: "other/values.yaml",
+			expected:     false,
+		},
+		{
+			name:         "OS-native separator multi-segment pattern matches nested path",
+			pattern:      filepath.FromSlash("applicationset/latest/**"),
+			base:         "kustomization.yaml",
+			relativePath: "applicationset/latest/kustomization.yaml",
+			expected:     true,
+		},
+		{
+			name:         "OS-native separator multi-segment pattern does not match sibling dir",
+			pattern:      filepath.FromSlash("applicationset/latest/**"),
+			base:         "kustomization.yaml",
+			relativePath: "applicationset/stable/kustomization.yaml",
+			expected:     false,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			got, err := matchesPattern(tt.pattern, tt.base, tt.relativePath)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.expected, got)
+		})
+	}
+}
+
+func TestMatchesExclusionPattern(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name         string
+		pattern      string
+		relativePath string
+		expected     bool
+		wantErr      bool
+	}{
+		{
+			name:         "slug-less glob matches root-level file",
+			pattern:      "*.yaml",
+			relativePath: "values.yaml",
+			expected:     true,
+		},
+		{
+			name:         "slug-less glob does not match nested file",
+			pattern:      "*.yaml",
+			relativePath: "charts/podinfo/values.yaml",
+			expected:     false,
+		},
+		{
+			name:         "slug-less exact name matches root-level file",
+			pattern:      "README.md",
+			relativePath: "README.md",
+			expected:     true,
+		},
+		{
+			name:         "slug-less exact name does not match nested file with same basename",
+			pattern:      "README.md",
+			relativePath: "docs/README.md",
+			expected:     false,
+		},
+		{
+			name:         "slash pattern with ** matches nested file",
+			pattern:      "charts/**",
+			relativePath: "charts/podinfo/templates/_helpers.tpl",
+			expected:     true,
+		},
+		{
+			name:         "slash pattern with ** does not match outside dir",
+			pattern:      "charts/**",
+			relativePath: "other/values.yaml",
+			expected:     false,
+		},
+		{
+			name:         "exact slash pattern matches",
+			pattern:      "charts/podinfo/values.yaml",
+			relativePath: "charts/podinfo/values.yaml",
+			expected:     true,
+		},
+		{
+			name:         "exact slash pattern does not match different path",
+			pattern:      "charts/podinfo/values.yaml",
+			relativePath: "charts/other/values.yaml",
+			expected:     false,
+		},
+		{
+			name:         "doublestar-only pattern matches nested yaml",
+			pattern:      "**/*.yaml",
+			relativePath: "charts/podinfo/values.yaml",
+			expected:     true,
+		},
+		{
+			name:         "doublestar-only pattern does not match non-yaml",
+			pattern:      "**/*.yaml",
+			relativePath: "charts/podinfo/_helpers.tpl",
+			expected:     false,
+		},
+		{
+			name:         "invalid slug-less pattern returns error",
+			pattern:      "[invalid",
+			relativePath: "foo.yaml",
+			wantErr:      true,
+		},
+		{
+			name:         "invalid slash pattern returns error",
+			pattern:      "charts/[invalid",
+			relativePath: "charts/foo.yaml",
+			wantErr:      true,
+		},
+		{
+			name:         "OS-native separator slug-less pattern matches root-level file",
+			pattern:      filepath.FromSlash("*.yaml"),
+			relativePath: "values.yaml",
+			expected:     true,
+		},
+		{
+			name:         "OS-native separator slug-less pattern does not match nested file",
+			pattern:      filepath.FromSlash("*.yaml"),
+			relativePath: "charts/podinfo/values.yaml",
+			expected:     false,
+		},
+		{
+			name:         "OS-native separator slash pattern matches nested file",
+			pattern:      filepath.FromSlash("charts/**"),
+			relativePath: "charts/podinfo/values.yaml",
+			expected:     true,
+		},
+		{
+			name:         "OS-native separator multi-segment pattern matches",
+			pattern:      filepath.FromSlash("applicationset/latest/**"),
+			relativePath: "applicationset/latest/kustomization.yaml",
+			expected:     true,
+		},
+		{
+			name:         "OS-native separator multi-segment pattern does not match sibling",
+			pattern:      filepath.FromSlash("applicationset/latest/**"),
+			relativePath: "applicationset/stable/kustomization.yaml",
+			expected:     false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := matchesExclusionPattern(tt.pattern, tt.relativePath)
 			if tt.wantErr {
 				require.Error(t, err)
 				return

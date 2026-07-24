@@ -241,7 +241,7 @@ func (t *tgz) tgzFile(path string, fi os.FileInfo, err error) error {
 	}
 	if t.exclusions != nil {
 		for _, exclusionPattern := range t.exclusions {
-			found, matchErr := matchesPattern(exclusionPattern, base, relativePath)
+			found, matchErr := matchesExclusionPattern(exclusionPattern, relativePath)
 			if matchErr != nil {
 				return fmt.Errorf("error verifying exclusion pattern %q: %w", exclusionPattern, matchErr)
 			}
@@ -309,4 +309,12 @@ func supportedFileMode(fi os.FileInfo) bool {
 		return true
 	}
 	return false
+}
+
+func matchesExclusionPattern(pattern, relativePath string) (bool, error) {
+	normPattern := filepath.ToSlash(pattern)
+	if strings.Contains(normPattern, "/") || strings.Contains(normPattern, "**") {
+		return matchPath(pattern, relativePath)
+	}
+	return filepath.Match(normPattern, filepath.ToSlash(relativePath))
 }
