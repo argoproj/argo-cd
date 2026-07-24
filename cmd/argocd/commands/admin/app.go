@@ -425,6 +425,8 @@ func reconcileApplications(
 		0,
 		serverSideDiff,
 		ignoreNormalizerOpts,
+		nil,
+		nil,
 	)
 
 	appsList, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(ctx, metav1.ListOptions{LabelSelector: selector})

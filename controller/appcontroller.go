@@ -73,6 +73,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/helm"
 	logutils "github.com/argoproj/argo-cd/v3/util/log"
 	settings_util "github.com/argoproj/argo-cd/v3/util/settings"
+	"github.com/argoproj/argo-cd/v3/util/syncwindow"
 	traceutil "github.com/argoproj/argo-cd/v3/util/trace"
 )
 
@@ -157,6 +158,9 @@ type ApplicationController struct {
 	// dynamicClusterDistributionEnabled if disabled deploymentInformer is never initialized
 	dynamicClusterDistributionEnabled bool
 	deploymentInformer                informerv1.DeploymentInformer
+
+	syncWindowInformer cache.SharedIndexInformer
+	syncWindowLister   applisters.SyncWindowResourceLister
 
 	hydrator *hydrator.Hydrator
 }
@@ -314,7 +318,13 @@ func NewApplicationController(
 		}
 	}
 	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, ctrl.metricsServer, ctrl.handleObjectUpdated, clusterSharding, argo.NewResourceTracking())
-	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.onKubectlRun, ctrl.settingsMgr, stateCache, ctrl.metricsServer, argoCache, ctrl.statusRefreshTimeout, argo.NewResourceTracking(), persistResourceHealth, repoErrorGracePeriod, serverSideDiff, ignoreNormalizerOpts)
+
+	syncWindowInformer := v1alpha1.NewSyncWindowResourceInformer(applicationClientset, namespace, appResyncPeriod, indexers)
+	syncWindowLister := applisters.NewSyncWindowResourceLister(syncWindowInformer.GetIndexer())
+	ctrl.syncWindowInformer = syncWindowInformer
+	ctrl.syncWindowLister = syncWindowLister
+
+	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.onKubectlRun, ctrl.settingsMgr, stateCache, ctrl.metricsServer, argoCache, ctrl.statusRefreshTimeout, argo.NewResourceTracking(), persistResourceHealth, repoErrorGracePeriod, serverSideDiff, ignoreNormalizerOpts, syncWindowLister, syncWindowInformer.HasSynced)
 	ctrl.appInformer = appInformer
 	ctrl.appLister = appLister
 	ctrl.projInformer = projInformer
@@ -931,10 +941,22 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 
 	go ctrl.appInformer.Run(ctx.Done())
 	go ctrl.projInformer.Run(ctx.Done())
+	go ctrl.syncWindowInformer.Run(ctx.Done())
 
 	errors.CheckError(ctrl.stateCache.Init())
 
-	if !cache.WaitForCacheSync(ctx.Done(), ctrl.appInformer.HasSynced, ctrl.projInformer.HasSynced) {
+	cacheSyncs := []cache.InformerSynced{ctrl.appInformer.HasSynced, ctrl.projInformer.HasSynced}
+	// Only block on the SyncWindowResource cache when the CRD is actually installed. Waiting
+	// unconditionally would hang controller startup forever on clusters without the CRD (its
+	// informer can never sync). When the CRD is present, awaiting it closes the fail-open gap
+	// where CRD-based deny windows would not be enforced until the cache catches up.
+	if ctrl.syncWindowCRDInstalled() {
+		cacheSyncs = append(cacheSyncs, ctrl.syncWindowInformer.HasSynced)
+	} else {
+		log.Info("SyncWindowResource CRD not installed; skipping its cache sync")
+	}
+
+	if !cache.WaitForCacheSync(ctx.Done(), cacheSyncs...) {
 		log.Error("Timed out waiting for caches to sync")
 		return
 	}
@@ -1967,8 +1989,8 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		app.Status.Summary = tree.GetSummary(app)
 	}
 
-	canSync, _ := project.Spec.SyncWindows.Matches(app).CanSync(false, nil)
-	if canSync {
+	isSyncBlocked, _ := ctrl.syncWindowPreventsAutoSync(app, project)
+	if !isSyncBlocked {
 		syncErrCond, opDuration := ctrl.autoSync(ctx, app, compareResult.syncStatus, compareResult.resources, compareResult.revisionsMayHaveChanges)
 		setOpDuration = opDuration
 		if syncErrCond != nil {
@@ -2342,6 +2364,49 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 		logCtx.Infof("Update successful")
 	}
 	return patchDuration
+}
+
+// syncWindowCRDInstalled reports whether the SyncWindowResource CRD is registered in the API server.
+// It is used to decide whether to block controller startup on the SyncWindowResource informer cache:
+// waiting for a cache that can never sync (CRD absent) would hang startup indefinitely.
+func (ctrl *ApplicationController) syncWindowCRDInstalled() bool {
+	groupVersion := appv1.SchemeGroupVersion.String()
+	resources, err := ctrl.applicationClientset.Discovery().ServerResourcesForGroupVersion(groupVersion)
+	if err != nil {
+		log.WithError(err).Warnf("Unable to discover resources for %s; assuming SyncWindowResource CRD is not installed", groupVersion)
+		return false
+	}
+	for _, r := range resources.APIResources {
+		if r.Name == application.SyncWindowResourcePlural {
+			return true
+		}
+	}
+	return false
+}
+
+// syncWindowPreventsAutoSync checks if sync windows (both inline and CRD-based) prevent auto-sync.
+func (ctrl *ApplicationController) syncWindowPreventsAutoSync(app *appv1.Application, project *appv1.AppProject) (bool, error) {
+	var filteredWindows, directWindows appv1.SyncWindows
+	if ctrl.syncWindowLister != nil && ctrl.syncWindowInformer.HasSynced() {
+		resolver := syncwindow.NewResolver(ctrl.syncWindowLister, ctrl.namespace)
+
+		if len(project.Spec.SyncWindowRefs) > 0 {
+			windows, err := resolver.ResolveProjectRefs(project.Spec.SyncWindowRefs)
+			if err != nil {
+				log.WithError(err).Warn("Failed to resolve some project sync window refs")
+			}
+			filteredWindows = append(filteredWindows, windows...)
+		}
+
+		if len(app.Spec.SyncWindowRefs) > 0 {
+			windows, err := resolver.ResolveAppRefs(app.Spec.SyncWindowRefs)
+			if err != nil {
+				log.WithError(err).Warn("Failed to resolve some app sync window refs")
+			}
+			directWindows = append(directWindows, windows...)
+		}
+	}
+	return syncWindowPreventsSync(app, project, filteredWindows, directWindows)
 }
 
 // autoSync will initiate a sync operation for an application configured with automated sync
