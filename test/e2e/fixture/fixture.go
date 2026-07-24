@@ -144,6 +144,7 @@ const (
 	HelmOCIRegistryURL                 = "localhost:5000/myrepo"
 	HelmAuthenticatedOCIRegistryURL    = "localhost:5001/myrepo"
 	HelmTLSAuthenticatedOCIRegistryURL = "localhost:5002/myrepo"
+	HelmTLSAuthenticatedOCIHostURL     = "localhost:5002"
 	OCIRegistryURL                     = "oci://localhost:5000/my-oci-repo"
 	OCIHostURL                         = "oci://localhost:5000"
 	AuthenticatedOCIHostURL            = "oci://localhost:5001"
