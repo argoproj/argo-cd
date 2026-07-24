@@ -2126,8 +2126,7 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 	compareWith := CompareWithLatest
 	refreshType := appv1.RefreshTypeNormal
 
-	softExpired := app.Status.ReconciledAt == nil || app.Status.ReconciledAt.Add(statusRefreshTimeout).Before(time.Now().UTC())
-	hardExpired := (app.Status.ReconciledAt == nil || app.Status.ReconciledAt.Add(statusHardRefreshTimeout).Before(time.Now().UTC())) && statusHardRefreshTimeout.Seconds() != 0
+	softExpired, hardExpired := comparisonExpiry(app.Status, statusRefreshTimeout, statusHardRefreshTimeout)
 
 	if requestedType, ok := app.IsRefreshRequested(); ok {
 		compareWith = CompareWithLatestForceResolve
@@ -2171,6 +2170,14 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 		return true, refreshType, compareWith
 	}
 	return false, refreshType, compareWith
+}
+
+// comparisonExpiry reports whether soft/hard comparison windows have expired.
+// A timeout <= 0 disables that expiry check (e.g. timeout.reconciliation=0s or timeout.hard.reconciliation=0s).
+func comparisonExpiry(status appv1.ApplicationStatus, statusRefreshTimeout, statusHardRefreshTimeout time.Duration) (softExpired, hardExpired bool) {
+	softExpired = statusRefreshTimeout > 0 && status.Expired(statusRefreshTimeout)
+	hardExpired = statusHardRefreshTimeout > 0 && status.Expired(statusHardRefreshTimeout)
+	return softExpired, hardExpired
 }
 
 func (ctrl *ApplicationController) refreshAppConditions(ctx context.Context, app *appv1.Application) (*appv1.AppProject, bool) {

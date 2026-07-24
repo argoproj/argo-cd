@@ -2145,6 +2145,78 @@ func TestUnchangedManagedNamespaceMetadata(t *testing.T) {
 	assert.Equal(t, CompareWithLatest, compareWith)
 }
 
+func TestComparisonExpiry(t *testing.T) {
+	t.Run("soft expired", func(t *testing.T) {
+		app := newFakeApp()
+		past := metav1.NewTime(time.Now().UTC().Add(-2 * time.Hour))
+		app.Status.ReconciledAt = &past
+		softExpired, hardExpired := comparisonExpiry(app.Status, time.Hour, 0)
+		assert.True(t, softExpired)
+		assert.False(t, hardExpired)
+	})
+
+	t.Run("hard expired when hard timeout configured and shorter than soft window", func(t *testing.T) {
+		app := newFakeApp()
+		past := metav1.NewTime(time.Now().UTC().Add(-10 * time.Minute))
+		app.Status.ReconciledAt = &past
+		softExpired, hardExpired := comparisonExpiry(app.Status, 2*time.Hour, time.Minute)
+		assert.False(t, softExpired)
+		assert.True(t, hardExpired)
+	})
+
+	t.Run("neither soft nor hard expired", func(t *testing.T) {
+		app := newFakeApp()
+		recent := metav1.NewTime(time.Now().UTC().Add(-30 * time.Second))
+		app.Status.ReconciledAt = &recent
+		softExpired, hardExpired := comparisonExpiry(app.Status, 2*time.Hour, time.Minute)
+		assert.False(t, softExpired)
+		assert.False(t, hardExpired)
+	})
+
+	t.Run("soft timeout zero disables expiry check", func(t *testing.T) {
+		app := newFakeApp()
+		past := metav1.NewTime(time.Now().UTC().Add(-2 * time.Hour))
+		app.Status.ReconciledAt = &past
+		softExpired, hardExpired := comparisonExpiry(app.Status, 0, 0)
+		assert.False(t, softExpired)
+		assert.False(t, hardExpired)
+	})
+
+	t.Run("nil ReconciledAt is expired when timeout configured", func(t *testing.T) {
+		app := newFakeApp()
+		app.Status.ReconciledAt = nil
+		softExpired, hardExpired := comparisonExpiry(app.Status, time.Hour, time.Minute)
+		assert.True(t, softExpired)
+		assert.True(t, hardExpired)
+	})
+
+	t.Run("nil ReconciledAt is not expired when timeout is zero", func(t *testing.T) {
+		app := newFakeApp()
+		app.Status.ReconciledAt = nil
+		softExpired, hardExpired := comparisonExpiry(app.Status, 0, 0)
+		assert.False(t, softExpired)
+		assert.False(t, hardExpired)
+	})
+}
+
+func TestNeedRefreshAppStatusZeroTimeout(t *testing.T) {
+	app := newFakeApp()
+	app.Status.Sync = v1alpha1.SyncStatus{
+		Status: v1alpha1.SyncStatusCodeSynced,
+		ComparedTo: v1alpha1.ComparedTo{
+			Destination:       app.Spec.Destination,
+			IgnoreDifferences: app.Spec.IgnoreDifferences,
+			Source:            app.Spec.GetSource(),
+		},
+	}
+	past := metav1.NewTime(time.Now().UTC().Add(-2 * time.Hour))
+	app.Status.ReconciledAt = &past
+
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+	needRefresh, _, _ := ctrl.needRefreshAppStatus(app, 0, 0)
+	assert.False(t, needRefresh, "timeout 0 should disable automatic expiry-based refresh")
+}
+
 func TestRefreshAppConditions(t *testing.T) {
 	defaultProj := v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{
