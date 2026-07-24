@@ -8,7 +8,51 @@ const webpack = require('webpack');
 
 const isProd = process.env.NODE_ENV === 'production';
 
+// React Compiler is on by default; set REACT_COMPILER=0 for a no-compiler
+// baseline build (used for A/B measurement). REACT_COMPILER_LOG=1 turns on the
+// plugin's per-component compiled/bailed report (off in normal/CI builds).
+const reactCompiler = process.env.REACT_COMPILER !== '0';
+const reactCompilerLog = process.env.REACT_COMPILER_LOG === '1';
+
 console.log(`Bundling in ${isProd ? 'production' : 'development'}...`);
+console.log(`React Compiler: ${reactCompiler ? 'enabled' : 'disabled'}${reactCompiler && reactCompilerLog ? ' (logging)' : ''}`);
+
+const esbuildTsxLoader = {
+    loader: 'esbuild-loader',
+    options: {
+        loader: 'tsx',
+        target: 'es2015',
+        tsconfigRaw: require('./tsconfig.json')
+    }
+};
+
+// When enabled, Babel handles the full .tsx transpile (TS + JSX) so the React
+// Compiler analyzes source-equivalent input. esbuild can't be the first pass
+// here: running the compiler on esbuild's type-stripped/JSX-lowered output
+// produces spurious bailouts, so we drop esbuild for .tsx when the compiler is
+// on and let Babel + esbuild's JS minify (later) split the work.
+const tsxRule = reactCompiler
+    ? {
+          test: /\.tsx?$/,
+          loader: 'babel-loader',
+          options: {
+              babelrc: false,
+              configFile: false,
+              // Strip types and transform JSX only; leave ES modules intact so
+              // webpack resolves imports (preset-env's module transform changed
+              // resolution and surfaced spurious missing-dep errors in argo-ui).
+              // esbuild's existing /\.js$/ rule handles final JS lowering.
+              presets: [
+                  ['@babel/preset-react', {runtime: 'automatic'}],
+                  ['@babel/preset-typescript', {isTSX: true, allExtensions: true}]
+              ],
+              plugins: [['babel-plugin-react-compiler', {target: '19', ...(reactCompilerLog ? {logger: {logEvent: (filename, event) => console.log(`[react-compiler] ${event.kind} ${filename ?? ''}`)}} : {})}]]
+          }
+      }
+    : {
+          test: /\.tsx?$/,
+          ...esbuildTsxLoader
+      };
 
 const proxyConf = {
     target: process.env.ARGOCD_API_URL || 'http://localhost:8080',
@@ -39,15 +83,7 @@ const config = {
     }],
     module: {
         rules: [
-            {
-                test: /\.tsx?$/,
-                loader: 'esbuild-loader',
-                options: {
-                    loader: 'tsx',
-                    target: 'es2015',
-                    tsconfigRaw: require('./tsconfig.json')
-                }
-            },
+            tsxRule,
             {
                 enforce: 'pre',
                 test: /\.js$/,
@@ -96,7 +132,6 @@ const config = {
         new webpack.DefinePlugin({
             'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || 'development'),
             'process.env.NODE_ONLINE_ENV': JSON.stringify(process.env.NODE_ONLINE_ENV || 'offline'),
-            'process.env.HOST_ARCH': JSON.stringify(process.env.HOST_ARCH || 'amd64'),
             'process.platform': JSON.stringify('browser'),
             'SYSTEM_INFO': JSON.stringify({
                 version: process.env.ARGO_VERSION || 'latest'
@@ -128,7 +163,7 @@ const config = {
         }),
         new MonacoWebpackPlugin({
             // https://github.com/microsoft/monaco-editor-webpack-plugin#options
-            languages: ['yaml']
+            languages: ['yaml', 'json']
         }),
         codecovWebpackPlugin({
             enableBundleAnalysis: process.env.CODECOV_TOKEN !== undefined,
@@ -161,7 +196,7 @@ const config = {
         },
         proxy: [
             {
-                context: ['/extensions', '/api', '/auth', '/swagger-ui', '/swagger.json'],
+                context: ['/extensions', '/api', '/auth', '/swagger-ui', '/swagger.json', '/download'],
                 ...proxyConf
             },
             {

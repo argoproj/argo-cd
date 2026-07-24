@@ -2,7 +2,7 @@ import * as React from 'react';
 
 import * as monacoEditor from 'monaco-editor';
 import {services} from '../services';
-import {getTheme, useSystemTheme} from '../utils';
+import {getTheme, createSystemThemeListener} from '../utils';
 
 export interface EditorInput {
     text: string;
@@ -33,7 +33,7 @@ const MonacoEditorLazy = React.lazy(() =>
             const editorApiRef = React.useRef<monacoEditor.editor.IEditor | null>(null);
 
             React.useEffect(() => {
-                const destroySystemThemeListener = useSystemTheme(systemTheme => {
+                const destroySystemThemeListener = createSystemThemeListener(systemTheme => {
                     if (theme === 'auto') {
                         monaco.editor.setTheme(systemTheme === 'dark' ? 'vs-dark' : 'vs');
                     }
@@ -85,7 +85,7 @@ const MonacoEditorLazy = React.lazy(() =>
                                         scrollBeyondLastLine: props.vScrollBar,
                                         scrollbar: {
                                             alwaysConsumeMouseWheel: false,
-                                            vertical: props.vScrollBar ? 'visible' : 'hidden'
+                                            vertical: props.vScrollBar ? 'auto' : 'hidden'
                                         }
                                     });
 

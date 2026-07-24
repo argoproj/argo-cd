@@ -553,6 +553,13 @@ spec:
                         description: RepoURL is the URL to the repository (Git or
                           Helm) that contains the application manifests
                         type: string
+                      tagPrefix:
+                        description: |-
+                          TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                          The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                          For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                          "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
+                        type: string
                       targetRevision:
                         description: |-
                           TargetRevision defines the revision of the source to sync the application to.
@@ -941,6 +948,13 @@ spec:
                         repoURL:
                           description: RepoURL is the URL to the repository (Git or
                             Helm) that contains the application manifests
+                          type: string
+                        tagPrefix:
+                          description: |-
+                            TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                            The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                            For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                            "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
                           type: string
                         targetRevision:
                           description: |-
@@ -1436,6 +1450,13 @@ spec:
                   repoURL:
                     description: RepoURL is the URL to the repository (Git or Helm)
                       that contains the application manifests
+                    type: string
+                  tagPrefix:
+                    description: |-
+                      TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                      The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                      For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                      "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
                     type: string
                   targetRevision:
                     description: |-
@@ -2233,6 +2254,13 @@ spec:
                       description: RepoURL is the URL to the repository (Git or Helm)
                         that contains the application manifests
                       type: string
+                    tagPrefix:
+                      description: |-
+                        TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                        The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                        For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                        "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
+                      type: string
                     targetRevision:
                       description: |-
                         TargetRevision defines the revision of the source to sync the application to.
@@ -2365,10 +2393,8 @@ spec:
                     format: date-time
                     type: string
                   message:
-                    description: |-
-                      Message is a human-readable informational message describing the health status
-
-                      Deprecated: this field is not used and will be removed in a future release.
+                    description: Message is a human-readable informational message
+                      describing the health status
                     type: string
                   status:
                     description: Status holds the status code of the application
@@ -2793,6 +2819,13 @@ spec:
                           description: RepoURL is the URL to the repository (Git or
                             Helm) that contains the application manifests
                           type: string
+                        tagPrefix:
+                          description: |-
+                            TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                            The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                            For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                            "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
+                          type: string
                         targetRevision:
                           description: |-
                             TargetRevision defines the revision of the source to sync the application to.
@@ -3188,6 +3221,13 @@ spec:
                           repoURL:
                             description: RepoURL is the URL to the repository (Git
                               or Helm) that contains the application manifests
+                            type: string
+                          tagPrefix:
+                            description: |-
+                              TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                              The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                              For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                              "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
                             type: string
                           targetRevision:
                             description: |-
@@ -3748,6 +3788,13 @@ spec:
                                 description: RepoURL is the URL to the repository
                                   (Git or Helm) that contains the application manifests
                                 type: string
+                              tagPrefix:
+                                description: |-
+                                  TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                                  The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                                  For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                                  "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
+                                type: string
                               targetRevision:
                                 description: |-
                                   TargetRevision defines the revision of the source to sync the application to.
@@ -4162,6 +4209,13 @@ spec:
                                 repoURL:
                                   description: RepoURL is the URL to the repository
                                     (Git or Helm) that contains the application manifests
+                                  type: string
+                                tagPrefix:
+                                  description: |-
+                                    TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                                    The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                                    For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                                    "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
                                   type: string
                                 targetRevision:
                                   description: |-
@@ -4689,6 +4743,13 @@ spec:
                             description: RepoURL is the URL to the repository (Git
                               or Helm) that contains the application manifests
                             type: string
+                          tagPrefix:
+                            description: |-
+                              TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                              The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                              For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                              "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
+                            type: string
                           targetRevision:
                             description: |-
                               TargetRevision defines the revision of the source to sync the application to.
@@ -5093,6 +5154,13 @@ spec:
                             repoURL:
                               description: RepoURL is the URL to the repository (Git
                                 or Helm) that contains the application manifests
+                              type: string
+                            tagPrefix:
+                              description: |-
+                                TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                                The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                                For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                                "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
                               type: string
                             targetRevision:
                               description: |-
@@ -6151,6 +6219,10 @@ spec:
                     items:
                       type: string
                     type: array
+                  isAppOfApps:
+                    description: IsAppOfApps holds true if the application has any
+                      application for child resource.
+                    type: boolean
                 type: object
               sync:
                 description: Sync contains information about the application's current
@@ -6599,6 +6671,13 @@ spec:
                             description: RepoURL is the URL to the repository (Git
                               or Helm) that contains the application manifests
                             type: string
+                          tagPrefix:
+                            description: |-
+                              TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                              The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                              For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                              "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
+                            type: string
                           targetRevision:
                             description: |-
                               TargetRevision defines the revision of the source to sync the application to.
@@ -7004,6 +7083,13 @@ spec:
                               description: RepoURL is the URL to the repository (Git
                                 or Helm) that contains the application manifests
                               type: string
+                            tagPrefix:
+                              description: |-
+                                TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                                The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                                For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                                "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
+                              type: string
                             targetRevision:
                               description: |-
                                 TargetRevision defines the revision of the source to sync the application to.
@@ -7077,925 +7163,6 @@ spec:
               More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
             type: string
           metadata:
-            type: object
-          operation:
-            description: Operation contains information about a requested or running
-              operation
-            properties:
-              info:
-                description: Info is a list of informational items for this operation
-                items:
-                  properties:
-                    name:
-                      type: string
-                    value:
-                      type: string
-                  required:
-                  - name
-                  - value
-                  type: object
-                type: array
-              initiatedBy:
-                description: InitiatedBy contains information about who initiated
-                  the operations
-                properties:
-                  automated:
-                    description: Automated is set to true if operation was initiated
-                      automatically by the application controller.
-                    type: boolean
-                  username:
-                    description: Username contains the name of a user who started
-                      operation
-                    type: string
-                type: object
-              retry:
-                description: Retry controls the strategy to apply if a sync fails
-                properties:
-                  backoff:
-                    description: Backoff controls how to backoff on subsequent retries
-                      of failed syncs
-                    properties:
-                      duration:
-                        description: Duration is the amount to back off. Default unit
-                          is seconds, but could also be a duration (e.g. "2m", "1h")
-                        type: string
-                      factor:
-                        description: Factor is a factor to multiply the base duration
-                          after each failed retry
-                        format: int64
-                        type: integer
-                      maxDuration:
-                        description: MaxDuration is the maximum amount of time allowed
-                          for the backoff strategy
-                        type: string
-                    type: object
-                  limit:
-                    description: Limit is the maximum number of attempts for retrying
-                      a failed sync. If set to 0, no retries will be performed.
-                    format: int64
-                    type: integer
-                  refresh:
-                    description: 'Refresh indicates if the latest revision should
-                      be used on retry instead of the initial one (default: false)'
-                    type: boolean
-                type: object
-              sync:
-                description: Sync contains parameters for the operation
-                properties:
-                  autoHealAttemptsCount:
-                    description: SelfHealAttemptsCount contains the number of auto-heal
-                      attempts
-                    format: int64
-                    type: integer
-                  dryRun:
-                    description: DryRun specifies to perform a `kubectl apply --dry-run`
-                      without actually performing the sync
-                    type: boolean
-                  manifests:
-                    description: Manifests is an optional field that overrides sync
-                      source with a local directory for development
-                    items:
-                      type: string
-                    type: array
-                  prune:
-                    description: Prune specifies to delete resources from the cluster
-                      that are no longer tracked in git
-                    type: boolean
-                  resources:
-                    description: Resources describes which resources shall be part
-                      of the sync
-                    items:
-                      description: SyncOperationResource contains resources to sync.
-                      properties:
-                        group:
-                          type: string
-                        kind:
-                          type: string
-                        name:
-                          type: string
-                        namespace:
-                          type: string
-                      required:
-                      - kind
-                      - name
-                      type: object
-                    type: array
-                  revision:
-                    description: |-
-                      Revision is the revision (Git) or chart version (Helm) which to sync the application to
-                      If omitted, will use the revision specified in app spec.
-                    type: string
-                  revisions:
-                    description: |-
-                      Revisions is the list of revision (Git) or chart version (Helm) which to sync each source in sources field for the application to
-                      If omitted, will use the revision specified in app spec.
-                    items:
-                      type: string
-                    type: array
-                  source:
-                    description: |-
-                      Source overrides the source definition set in the application.
-                      This is typically set in a Rollback operation and is nil during a Sync operation
-                    properties:
-                      chart:
-                        description: Chart is a Helm chart name, and must be specified
-                          for applications sourced from a Helm repo.
-                        type: string
-                      directory:
-                        description: Directory holds path/directory specific options
-                        properties:
-                          exclude:
-                            description: Exclude contains a glob pattern to match
-                              paths against that should be explicitly excluded from
-                              being used during manifest generation
-                            type: string
-                          include:
-                            description: Include contains a glob pattern to match
-                              paths against that should be explicitly included during
-                              manifest generation
-                            type: string
-                          jsonnet:
-                            description: Jsonnet holds options specific to Jsonnet
-                            properties:
-                              extVars:
-                                description: ExtVars is a list of Jsonnet External
-                                  Variables
-                                items:
-                                  description: JsonnetVar represents a variable to
-                                    be passed to jsonnet during manifest generation
-                                  properties:
-                                    code:
-                                      type: boolean
-                                    name:
-                                      type: string
-                                    value:
-                                      type: string
-                                  required:
-                                  - name
-                                  - value
-                                  type: object
-                                type: array
-                              libs:
-                                description: Additional library search dirs
-                                items:
-                                  type: string
-                                type: array
-                              tlas:
-                                description: TLAS is a list of Jsonnet Top-level Arguments
-                                items:
-                                  description: JsonnetVar represents a variable to
-                                    be passed to jsonnet during manifest generation
-                                  properties:
-                                    code:
-                                      type: boolean
-                                    name:
-                                      type: string
-                                    value:
-                                      type: string
-                                  required:
-                                  - name
-                                  - value
-                                  type: object
-                                type: array
-                            type: object
-                          recurse:
-                            description: Recurse specifies whether to scan a directory
-                              recursively for manifests
-                            type: boolean
-                        type: object
-                      helm:
-                        description: Helm holds helm specific options
-                        properties:
-                          apiVersions:
-                            description: |-
-                              APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
-                              Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
-                            items:
-                              type: string
-                            type: array
-                          fileParameters:
-                            description: FileParameters are file parameters to the
-                              helm template
-                            items:
-                              description: HelmFileParameter is a file parameter that's
-                                passed to helm template during manifest generation
-                              properties:
-                                name:
-                                  description: Name is the name of the Helm parameter
-                                  type: string
-                                path:
-                                  description: Path is the path to the file containing
-                                    the values for the Helm parameter
-                                  type: string
-                              type: object
-                            type: array
-                          ignoreMissingValueFiles:
-                            description: IgnoreMissingValueFiles prevents helm template
-                              from failing when valueFiles do not exist locally by
-                              not appending them to helm template --values
-                            type: boolean
-                          kubeVersion:
-                            description: |-
-                              KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
-                              uses the Kubernetes version of the target cluster.
-                            type: string
-                          namespace:
-                            description: Namespace is an optional namespace to template
-                              with. If left empty, defaults to the app's destination
-                              namespace.
-                            type: string
-                          parameters:
-                            description: Parameters is a list of Helm parameters which
-                              are passed to the helm template command upon manifest
-                              generation
-                            items:
-                              description: HelmParameter is a parameter that's passed
-                                to helm template during manifest generation
-                              properties:
-                                forceString:
-                                  description: ForceString determines whether to tell
-                                    Helm to interpret booleans and numbers as strings
-                                  type: boolean
-                                name:
-                                  description: Name is the name of the Helm parameter
-                                  type: string
-                                value:
-                                  description: Value is the value for the Helm parameter
-                                  type: string
-                              type: object
-                            type: array
-                          passCredentials:
-                            description: PassCredentials pass credentials to all domains
-                              (Helm's --pass-credentials)
-                            type: boolean
-                          releaseName:
-                            description: ReleaseName is the Helm release name to use.
-                              If omitted it will use the application name
-                            type: string
-                          skipCrds:
-                            description: SkipCrds skips custom resource definition
-                              installation step (Helm's --skip-crds)
-                            type: boolean
-                          skipSchemaValidation:
-                            description: SkipSchemaValidation skips JSON schema validation
-                              (Helm's --skip-schema-validation)
-                            type: boolean
-                          skipTests:
-                            description: SkipTests skips test manifest installation
-                              step (Helm's --skip-tests).
-                            type: boolean
-                          valueFiles:
-                            description: ValuesFiles is a list of Helm value files
-                              to use when generating a template
-                            items:
-                              type: string
-                            type: array
-                          values:
-                            description: Values specifies Helm values to be passed
-                              to helm template, typically defined as a block. ValuesObject
-                              takes precedence over Values, so use one or the other.
-                            type: string
-                          valuesObject:
-                            description: ValuesObject specifies Helm values to be
-                              passed to helm template, defined as a map. This takes
-                              precedence over Values.
-                            type: object
-                            x-kubernetes-preserve-unknown-fields: true
-                          version:
-                            description: Version is the Helm version to use for templating
-                              ("3")
-                            type: string
-                        type: object
-                      kustomize:
-                        description: Kustomize holds kustomize specific options
-                        properties:
-                          apiVersions:
-                            description: |-
-                              APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
-                              Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
-                            items:
-                              type: string
-                            type: array
-                          commonAnnotations:
-                            additionalProperties:
-                              type: string
-                            description: CommonAnnotations is a list of additional
-                              annotations to add to rendered manifests
-                            type: object
-                          commonAnnotationsEnvsubst:
-                            description: CommonAnnotationsEnvsubst specifies whether
-                              to apply env variables substitution for annotation values
-                            type: boolean
-                          commonLabels:
-                            additionalProperties:
-                              type: string
-                            description: CommonLabels is a list of additional labels
-                              to add to rendered manifests
-                            type: object
-                          components:
-                            description: Components specifies a list of kustomize
-                              components to add to the kustomization before building
-                            items:
-                              type: string
-                            type: array
-                          forceCommonAnnotations:
-                            description: ForceCommonAnnotations specifies whether
-                              to force applying common annotations to resources for
-                              Kustomize apps
-                            type: boolean
-                          forceCommonLabels:
-                            description: ForceCommonLabels specifies whether to force
-                              applying common labels to resources for Kustomize apps
-                            type: boolean
-                          ignoreMissingComponents:
-                            description: IgnoreMissingComponents prevents kustomize
-                              from failing when components do not exist locally by
-                              not appending them to kustomization file
-                            type: boolean
-                          images:
-                            description: Images is a list of Kustomize image override
-                              specifications
-                            items:
-                              description: KustomizeImage represents a Kustomize image
-                                definition in the format [old_image_name=]<image_name>:<image_tag>
-                              type: string
-                            type: array
-                          kubeVersion:
-                            description: |-
-                              KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
-                              uses the Kubernetes version of the target cluster.
-                            type: string
-                          labelIncludeTemplates:
-                            description: LabelIncludeTemplates specifies whether to
-                              apply common labels to resource templates or not
-                            type: boolean
-                          labelWithoutSelector:
-                            description: LabelWithoutSelector specifies whether to
-                              apply common labels to resource selectors or not
-                            type: boolean
-                          namePrefix:
-                            description: NamePrefix overrides the namePrefix in the
-                              kustomization.yaml for Kustomize apps
-                            type: string
-                          nameSuffix:
-                            description: NameSuffix overrides the nameSuffix in the
-                              kustomization.yaml for Kustomize apps
-                            type: string
-                          namespace:
-                            description: Namespace sets the namespace that Kustomize
-                              adds to all resources
-                            type: string
-                          patches:
-                            description: Patches is a list of Kustomize patches
-                            items:
-                              properties:
-                                options:
-                                  additionalProperties:
-                                    type: boolean
-                                  type: object
-                                patch:
-                                  type: string
-                                path:
-                                  type: string
-                                target:
-                                  properties:
-                                    annotationSelector:
-                                      type: string
-                                    group:
-                                      type: string
-                                    kind:
-                                      type: string
-                                    labelSelector:
-                                      type: string
-                                    name:
-                                      type: string
-                                    namespace:
-                                      type: string
-                                    version:
-                                      type: string
-                                  type: object
-                              type: object
-                            type: array
-                          replicas:
-                            description: Replicas is a list of Kustomize Replicas
-                              override specifications
-                            items:
-                              properties:
-                                count:
-                                  anyOf:
-                                  - type: integer
-                                  - type: string
-                                  description: Number of replicas
-                                  x-kubernetes-int-or-string: true
-                                name:
-                                  description: Name of Deployment or StatefulSet
-                                  type: string
-                              required:
-                              - count
-                              - name
-                              type: object
-                            type: array
-                          version:
-                            description: Version controls which version of Kustomize
-                              to use for rendering manifests
-                            type: string
-                        type: object
-                      name:
-                        description: Name is used to refer to a source and is displayed
-                          in the UI. It is used in multi-source Applications.
-                        type: string
-                      path:
-                        description: Path is a directory path within the Git repository,
-                          and is only valid for applications sourced from Git.
-                        type: string
-                      plugin:
-                        description: Plugin holds config management plugin specific
-                          options
-                        properties:
-                          env:
-                            description: Env is a list of environment variable entries
-                            items:
-                              description: EnvEntry represents an entry in the application's
-                                environment
-                              properties:
-                                name:
-                                  description: Name is the name of the variable, usually
-                                    expressed in uppercase
-                                  type: string
-                                value:
-                                  description: Value is the value of the variable
-                                  type: string
-                              required:
-                              - name
-                              - value
-                              type: object
-                            type: array
-                          name:
-                            type: string
-                          parameters:
-                            items:
-                              properties:
-                                array:
-                                  description: Array is the value of an array type
-                                    parameter.
-                                  items:
-                                    type: string
-                                  type: array
-                                map:
-                                  additionalProperties:
-                                    type: string
-                                  description: Map is the value of a map type parameter.
-                                  type: object
-                                name:
-                                  description: Name is the name identifying a parameter.
-                                  type: string
-                                string:
-                                  description: String_ is the value of a string type
-                                    parameter.
-                                  type: string
-                              type: object
-                            type: array
-                        type: object
-                      ref:
-                        description: Ref is reference to another source within sources
-                          field. This field will not be used if used with a `source`
-                          tag.
-                        type: string
-                      repoURL:
-                        description: RepoURL is the URL to the repository (Git or
-                          Helm) that contains the application manifests
-                        type: string
-                      targetRevision:
-                        description: |-
-                          TargetRevision defines the revision of the source to sync the application to.
-                          In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
-                          In case of Helm, this is a semver tag for the Chart's version.
-                        type: string
-                    required:
-                    - repoURL
-                    type: object
-                  sources:
-                    description: |-
-                      Sources overrides the source definition set in the application.
-                      This is typically set in a Rollback operation and is nil during a Sync operation
-                    items:
-                      description: ApplicationSource contains all required information
-                        about the source of an application
-                      properties:
-                        chart:
-                          description: Chart is a Helm chart name, and must be specified
-                            for applications sourced from a Helm repo.
-                          type: string
-                        directory:
-                          description: Directory holds path/directory specific options
-                          properties:
-                            exclude:
-                              description: Exclude contains a glob pattern to match
-                                paths against that should be explicitly excluded from
-                                being used during manifest generation
-                              type: string
-                            include:
-                              description: Include contains a glob pattern to match
-                                paths against that should be explicitly included during
-                                manifest generation
-                              type: string
-                            jsonnet:
-                              description: Jsonnet holds options specific to Jsonnet
-                              properties:
-                                extVars:
-                                  description: ExtVars is a list of Jsonnet External
-                                    Variables
-                                  items:
-                                    description: JsonnetVar represents a variable
-                                      to be passed to jsonnet during manifest generation
-                                    properties:
-                                      code:
-                                        type: boolean
-                                      name:
-                                        type: string
-                                      value:
-                                        type: string
-                                    required:
-                                    - name
-                                    - value
-                                    type: object
-                                  type: array
-                                libs:
-                                  description: Additional library search dirs
-                                  items:
-                                    type: string
-                                  type: array
-                                tlas:
-                                  description: TLAS is a list of Jsonnet Top-level
-                                    Arguments
-                                  items:
-                                    description: JsonnetVar represents a variable
-                                      to be passed to jsonnet during manifest generation
-                                    properties:
-                                      code:
-                                        type: boolean
-                                      name:
-                                        type: string
-                                      value:
-                                        type: string
-                                    required:
-                                    - name
-                                    - value
-                                    type: object
-                                  type: array
-                              type: object
-                            recurse:
-                              description: Recurse specifies whether to scan a directory
-                                recursively for manifests
-                              type: boolean
-                          type: object
-                        helm:
-                          description: Helm holds helm specific options
-                          properties:
-                            apiVersions:
-                              description: |-
-                                APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
-                                Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
-                              items:
-                                type: string
-                              type: array
-                            fileParameters:
-                              description: FileParameters are file parameters to the
-                                helm template
-                              items:
-                                description: HelmFileParameter is a file parameter
-                                  that's passed to helm template during manifest generation
-                                properties:
-                                  name:
-                                    description: Name is the name of the Helm parameter
-                                    type: string
-                                  path:
-                                    description: Path is the path to the file containing
-                                      the values for the Helm parameter
-                                    type: string
-                                type: object
-                              type: array
-                            ignoreMissingValueFiles:
-                              description: IgnoreMissingValueFiles prevents helm template
-                                from failing when valueFiles do not exist locally
-                                by not appending them to helm template --values
-                              type: boolean
-                            kubeVersion:
-                              description: |-
-                                KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
-                                uses the Kubernetes version of the target cluster.
-                              type: string
-                            namespace:
-                              description: Namespace is an optional namespace to template
-                                with. If left empty, defaults to the app's destination
-                                namespace.
-                              type: string
-                            parameters:
-                              description: Parameters is a list of Helm parameters
-                                which are passed to the helm template command upon
-                                manifest generation
-                              items:
-                                description: HelmParameter is a parameter that's passed
-                                  to helm template during manifest generation
-                                properties:
-                                  forceString:
-                                    description: ForceString determines whether to
-                                      tell Helm to interpret booleans and numbers
-                                      as strings
-                                    type: boolean
-                                  name:
-                                    description: Name is the name of the Helm parameter
-                                    type: string
-                                  value:
-                                    description: Value is the value for the Helm parameter
-                                    type: string
-                                type: object
-                              type: array
-                            passCredentials:
-                              description: PassCredentials pass credentials to all
-                                domains (Helm's --pass-credentials)
-                              type: boolean
-                            releaseName:
-                              description: ReleaseName is the Helm release name to
-                                use. If omitted it will use the application name
-                              type: string
-                            skipCrds:
-                              description: SkipCrds skips custom resource definition
-                                installation step (Helm's --skip-crds)
-                              type: boolean
-                            skipSchemaValidation:
-                              description: SkipSchemaValidation skips JSON schema
-                                validation (Helm's --skip-schema-validation)
-                              type: boolean
-                            skipTests:
-                              description: SkipTests skips test manifest installation
-                                step (Helm's --skip-tests).
-                              type: boolean
-                            valueFiles:
-                              description: ValuesFiles is a list of Helm value files
-                                to use when generating a template
-                              items:
-                                type: string
-                              type: array
-                            values:
-                              description: Values specifies Helm values to be passed
-                                to helm template, typically defined as a block. ValuesObject
-                                takes precedence over Values, so use one or the other.
-                              type: string
-                            valuesObject:
-                              description: ValuesObject specifies Helm values to be
-                                passed to helm template, defined as a map. This takes
-                                precedence over Values.
-                              type: object
-                              x-kubernetes-preserve-unknown-fields: true
-                            version:
-                              description: Version is the Helm version to use for
-                                templating ("3")
-                              type: string
-                          type: object
-                        kustomize:
-                          description: Kustomize holds kustomize specific options
-                          properties:
-                            apiVersions:
-                              description: |-
-                                APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
-                                Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
-                              items:
-                                type: string
-                              type: array
-                            commonAnnotations:
-                              additionalProperties:
-                                type: string
-                              description: CommonAnnotations is a list of additional
-                                annotations to add to rendered manifests
-                              type: object
-                            commonAnnotationsEnvsubst:
-                              description: CommonAnnotationsEnvsubst specifies whether
-                                to apply env variables substitution for annotation
-                                values
-                              type: boolean
-                            commonLabels:
-                              additionalProperties:
-                                type: string
-                              description: CommonLabels is a list of additional labels
-                                to add to rendered manifests
-                              type: object
-                            components:
-                              description: Components specifies a list of kustomize
-                                components to add to the kustomization before building
-                              items:
-                                type: string
-                              type: array
-                            forceCommonAnnotations:
-                              description: ForceCommonAnnotations specifies whether
-                                to force applying common annotations to resources
-                                for Kustomize apps
-                              type: boolean
-                            forceCommonLabels:
-                              description: ForceCommonLabels specifies whether to
-                                force applying common labels to resources for Kustomize
-                                apps
-                              type: boolean
-                            ignoreMissingComponents:
-                              description: IgnoreMissingComponents prevents kustomize
-                                from failing when components do not exist locally
-                                by not appending them to kustomization file
-                              type: boolean
-                            images:
-                              description: Images is a list of Kustomize image override
-                                specifications
-                              items:
-                                description: KustomizeImage represents a Kustomize
-                                  image definition in the format [old_image_name=]<image_name>:<image_tag>
-                                type: string
-                              type: array
-                            kubeVersion:
-                              description: |-
-                                KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
-                                uses the Kubernetes version of the target cluster.
-                              type: string
-                            labelIncludeTemplates:
-                              description: LabelIncludeTemplates specifies whether
-                                to apply common labels to resource templates or not
-                              type: boolean
-                            labelWithoutSelector:
-                              description: LabelWithoutSelector specifies whether
-                                to apply common labels to resource selectors or not
-                              type: boolean
-                            namePrefix:
-                              description: NamePrefix overrides the namePrefix in
-                                the kustomization.yaml for Kustomize apps
-                              type: string
-                            nameSuffix:
-                              description: NameSuffix overrides the nameSuffix in
-                                the kustomization.yaml for Kustomize apps
-                              type: string
-                            namespace:
-                              description: Namespace sets the namespace that Kustomize
-                                adds to all resources
-                              type: string
-                            patches:
-                              description: Patches is a list of Kustomize patches
-                              items:
-                                properties:
-                                  options:
-                                    additionalProperties:
-                                      type: boolean
-                                    type: object
-                                  patch:
-                                    type: string
-                                  path:
-                                    type: string
-                                  target:
-                                    properties:
-                                      annotationSelector:
-                                        type: string
-                                      group:
-                                        type: string
-                                      kind:
-                                        type: string
-                                      labelSelector:
-                                        type: string
-                                      name:
-                                        type: string
-                                      namespace:
-                                        type: string
-                                      version:
-                                        type: string
-                                    type: object
-                                type: object
-                              type: array
-                            replicas:
-                              description: Replicas is a list of Kustomize Replicas
-                                override specifications
-                              items:
-                                properties:
-                                  count:
-                                    anyOf:
-                                    - type: integer
-                                    - type: string
-                                    description: Number of replicas
-                                    x-kubernetes-int-or-string: true
-                                  name:
-                                    description: Name of Deployment or StatefulSet
-                                    type: string
-                                required:
-                                - count
-                                - name
-                                type: object
-                              type: array
-                            version:
-                              description: Version controls which version of Kustomize
-                                to use for rendering manifests
-                              type: string
-                          type: object
-                        name:
-                          description: Name is used to refer to a source and is displayed
-                            in the UI. It is used in multi-source Applications.
-                          type: string
-                        path:
-                          description: Path is a directory path within the Git repository,
-                            and is only valid for applications sourced from Git.
-                          type: string
-                        plugin:
-                          description: Plugin holds config management plugin specific
-                            options
-                          properties:
-                            env:
-                              description: Env is a list of environment variable entries
-                              items:
-                                description: EnvEntry represents an entry in the application's
-                                  environment
-                                properties:
-                                  name:
-                                    description: Name is the name of the variable,
-                                      usually expressed in uppercase
-                                    type: string
-                                  value:
-                                    description: Value is the value of the variable
-                                    type: string
-                                required:
-                                - name
-                                - value
-                                type: object
-                              type: array
-                            name:
-                              type: string
-                            parameters:
-                              items:
-                                properties:
-                                  array:
-                                    description: Array is the value of an array type
-                                      parameter.
-                                    items:
-                                      type: string
-                                    type: array
-                                  map:
-                                    additionalProperties:
-                                      type: string
-                                    description: Map is the value of a map type parameter.
-                                    type: object
-                                  name:
-                                    description: Name is the name identifying a parameter.
-                                    type: string
-                                  string:
-                                    description: String_ is the value of a string
-                                      type parameter.
-                                    type: string
-                                type: object
-                              type: array
-                          type: object
-                        ref:
-                          description: Ref is reference to another source within sources
-                            field. This field will not be used if used with a `source`
-                            tag.
-                          type: string
-                        repoURL:
-                          description: RepoURL is the URL to the repository (Git or
-                            Helm) that contains the application manifests
-                          type: string
-                        targetRevision:
-                          description: |-
-                            TargetRevision defines the revision of the source to sync the application to.
-                            In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
-                            In case of Helm, this is a semver tag for the Chart's version.
-                          type: string
-                      required:
-                      - repoURL
-                      type: object
-                    type: array
-                  syncOptions:
-                    description: SyncOptions provide per-sync sync-options, e.g. Validate=false
-                    items:
-                      type: string
-                    type: array
-                  syncStrategy:
-                    description: SyncStrategy describes how to perform the sync
-                    properties:
-                      apply:
-                        description: Apply will perform a `kubectl apply` to perform
-                          the sync.
-                        properties:
-                          force:
-                            description: |-
-                              Force indicates whether or not to supply the --force flag to `kubectl apply`.
-                              The --force flag deletes and re-create the resource, when PATCH encounters conflict and has
-                              retried for 5 times.
-                            type: boolean
-                        type: object
-                      hook:
-                        description: Hook will submit any referenced resources to
-                          perform the sync. This is the default strategy
-                        properties:
-                          force:
-                            description: |-
-                              Force indicates whether or not to supply the --force flag to `kubectl apply`.
-                              The --force flag deletes and re-create the resource, when PATCH encounters conflict and has
-                              retried for 5 times.
-                            type: boolean
-                        type: object
-                    type: object
-                type: object
             type: object
           spec:
             description: ApplicationSpec represents desired application state. Contains
@@ -8873,6 +8040,13 @@ spec:
                       description: RepoURL is the URL to the repository (Git or Helm)
                         that contains the application manifests
                       type: string
+                    tagPrefix:
+                      description: |-
+                        TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                        The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                        For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                        "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
+                      type: string
                     targetRevision:
                       description: |-
                         TargetRevision defines the revision of the source to sync the application to.
@@ -9096,7 +8270,20 @@ spec:
                 || !has(self.syncPolicy.syncOptions.prune) || self.syncPolicy.syncOptions.prune
                 != ''disabled'''
           status:
-            description: ApplicationStatus contains status information for the application
+            description: |-
+              ApplicationStatus is the v1beta1 application status. It embeds the shared
+              v1alpha1 status verbatim and relocates the imperative `operation` trigger
+              from the top level (where v1alpha1 keeps it) into status. Because v1beta1
+              serves status via the `status` subresource, this makes requesting a sync a
+              status-subresource write gated by `applications/status` RBAC rather than a
+              spec write: manual syncs go through the API/UI/CLI, and setting `operation`
+              and clearing `operationState` become a single atomic status update.
+              The embedded v1alpha1.ApplicationStatus flattens for JSON (`,inline`) and for
+              the CRD OpenAPI schema (controller-gen). For protobuf, go-to-protobuf treats
+              the anonymous field as an embedded message occupying its own field number
+              (embed=true, nullable=false) — the same pattern metav1.ObjectMeta uses when
+              embedded cross-package — so the shared status lives at field 1 and Operation
+              at field 2 without their field numbers colliding.
             properties:
               conditions:
                 description: Conditions is a list of currently observed application
@@ -9136,10 +8323,8 @@ spec:
                     format: date-time
                     type: string
                   message:
-                    description: |-
-                      Message is a human-readable informational message describing the health status
-
-                      Deprecated: this field is not used and will be removed in a future release.
+                    description: Message is a human-readable informational message
+                      describing the health status
                     type: string
                   status:
                     description: Status holds the status code of the application
@@ -9564,6 +8749,13 @@ spec:
                           description: RepoURL is the URL to the repository (Git or
                             Helm) that contains the application manifests
                           type: string
+                        tagPrefix:
+                          description: |-
+                            TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                            The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                            For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                            "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
+                          type: string
                         targetRevision:
                           description: |-
                             TargetRevision defines the revision of the source to sync the application to.
@@ -9960,6 +9152,13 @@ spec:
                             description: RepoURL is the URL to the repository (Git
                               or Helm) that contains the application manifests
                             type: string
+                          tagPrefix:
+                            description: |-
+                              TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                              The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                              For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                              "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
+                            type: string
                           targetRevision:
                             description: |-
                               TargetRevision defines the revision of the source to sync the application to.
@@ -9990,6 +9189,971 @@ spec:
                   Note: This field is managed by the controller via the v1beta1 API's status subresource.
                 format: int64
                 type: integer
+              operation:
+                description: Operation contains information about a requested or running
+                  operation.
+                properties:
+                  info:
+                    description: Info is a list of informational items for this operation
+                    items:
+                      properties:
+                        name:
+                          type: string
+                        value:
+                          type: string
+                      required:
+                      - name
+                      - value
+                      type: object
+                    type: array
+                  initiatedBy:
+                    description: InitiatedBy contains information about who initiated
+                      the operations
+                    properties:
+                      automated:
+                        description: Automated is set to true if operation was initiated
+                          automatically by the application controller.
+                        type: boolean
+                      username:
+                        description: Username contains the name of a user who started
+                          operation
+                        type: string
+                    type: object
+                  retry:
+                    description: Retry controls the strategy to apply if a sync fails
+                    properties:
+                      backoff:
+                        description: Backoff controls how to backoff on subsequent
+                          retries of failed syncs
+                        properties:
+                          duration:
+                            description: Duration is the amount to back off. Default
+                              unit is seconds, but could also be a duration (e.g.
+                              "2m", "1h")
+                            type: string
+                          factor:
+                            description: Factor is a factor to multiply the base duration
+                              after each failed retry
+                            format: int64
+                            type: integer
+                          maxDuration:
+                            description: MaxDuration is the maximum amount of time
+                              allowed for the backoff strategy
+                            type: string
+                        type: object
+                      limit:
+                        description: Limit is the maximum number of attempts for retrying
+                          a failed sync. If set to 0, no retries will be performed.
+                        format: int64
+                        type: integer
+                      refresh:
+                        description: 'Refresh indicates if the latest revision should
+                          be used on retry instead of the initial one (default: false)'
+                        type: boolean
+                    type: object
+                  sync:
+                    description: Sync contains parameters for the operation
+                    properties:
+                      autoHealAttemptsCount:
+                        description: SelfHealAttemptsCount contains the number of
+                          auto-heal attempts
+                        format: int64
+                        type: integer
+                      dryRun:
+                        description: DryRun specifies to perform a `kubectl apply
+                          --dry-run` without actually performing the sync
+                        type: boolean
+                      manifests:
+                        description: Manifests is an optional field that overrides
+                          sync source with a local directory for development
+                        items:
+                          type: string
+                        type: array
+                      prune:
+                        description: Prune specifies to delete resources from the
+                          cluster that are no longer tracked in git
+                        type: boolean
+                      resources:
+                        description: Resources describes which resources shall be
+                          part of the sync
+                        items:
+                          description: SyncOperationResource contains resources to
+                            sync.
+                          properties:
+                            group:
+                              type: string
+                            kind:
+                              type: string
+                            name:
+                              type: string
+                            namespace:
+                              type: string
+                          required:
+                          - kind
+                          - name
+                          type: object
+                        type: array
+                      revision:
+                        description: |-
+                          Revision is the revision (Git) or chart version (Helm) which to sync the application to
+                          If omitted, will use the revision specified in app spec.
+                        type: string
+                      revisions:
+                        description: |-
+                          Revisions is the list of revision (Git) or chart version (Helm) which to sync each source in sources field for the application to
+                          If omitted, will use the revision specified in app spec.
+                        items:
+                          type: string
+                        type: array
+                      source:
+                        description: |-
+                          Source overrides the source definition set in the application.
+                          This is typically set in a Rollback operation and is nil during a Sync operation
+                        properties:
+                          chart:
+                            description: Chart is a Helm chart name, and must be specified
+                              for applications sourced from a Helm repo.
+                            type: string
+                          directory:
+                            description: Directory holds path/directory specific options
+                            properties:
+                              exclude:
+                                description: Exclude contains a glob pattern to match
+                                  paths against that should be explicitly excluded
+                                  from being used during manifest generation
+                                type: string
+                              include:
+                                description: Include contains a glob pattern to match
+                                  paths against that should be explicitly included
+                                  during manifest generation
+                                type: string
+                              jsonnet:
+                                description: Jsonnet holds options specific to Jsonnet
+                                properties:
+                                  extVars:
+                                    description: ExtVars is a list of Jsonnet External
+                                      Variables
+                                    items:
+                                      description: JsonnetVar represents a variable
+                                        to be passed to jsonnet during manifest generation
+                                      properties:
+                                        code:
+                                          type: boolean
+                                        name:
+                                          type: string
+                                        value:
+                                          type: string
+                                      required:
+                                      - name
+                                      - value
+                                      type: object
+                                    type: array
+                                  libs:
+                                    description: Additional library search dirs
+                                    items:
+                                      type: string
+                                    type: array
+                                  tlas:
+                                    description: TLAS is a list of Jsonnet Top-level
+                                      Arguments
+                                    items:
+                                      description: JsonnetVar represents a variable
+                                        to be passed to jsonnet during manifest generation
+                                      properties:
+                                        code:
+                                          type: boolean
+                                        name:
+                                          type: string
+                                        value:
+                                          type: string
+                                      required:
+                                      - name
+                                      - value
+                                      type: object
+                                    type: array
+                                type: object
+                              recurse:
+                                description: Recurse specifies whether to scan a directory
+                                  recursively for manifests
+                                type: boolean
+                            type: object
+                          helm:
+                            description: Helm holds helm specific options
+                            properties:
+                              apiVersions:
+                                description: |-
+                                  APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                                  Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
+                                items:
+                                  type: string
+                                type: array
+                              fileParameters:
+                                description: FileParameters are file parameters to
+                                  the helm template
+                                items:
+                                  description: HelmFileParameter is a file parameter
+                                    that's passed to helm template during manifest
+                                    generation
+                                  properties:
+                                    name:
+                                      description: Name is the name of the Helm parameter
+                                      type: string
+                                    path:
+                                      description: Path is the path to the file containing
+                                        the values for the Helm parameter
+                                      type: string
+                                  type: object
+                                type: array
+                              ignoreMissingValueFiles:
+                                description: IgnoreMissingValueFiles prevents helm
+                                  template from failing when valueFiles do not exist
+                                  locally by not appending them to helm template --values
+                                type: boolean
+                              kubeVersion:
+                                description: |-
+                                  KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+                                  uses the Kubernetes version of the target cluster.
+                                type: string
+                              namespace:
+                                description: Namespace is an optional namespace to
+                                  template with. If left empty, defaults to the app's
+                                  destination namespace.
+                                type: string
+                              parameters:
+                                description: Parameters is a list of Helm parameters
+                                  which are passed to the helm template command upon
+                                  manifest generation
+                                items:
+                                  description: HelmParameter is a parameter that's
+                                    passed to helm template during manifest generation
+                                  properties:
+                                    forceString:
+                                      description: ForceString determines whether
+                                        to tell Helm to interpret booleans and numbers
+                                        as strings
+                                      type: boolean
+                                    name:
+                                      description: Name is the name of the Helm parameter
+                                      type: string
+                                    value:
+                                      description: Value is the value for the Helm
+                                        parameter
+                                      type: string
+                                  type: object
+                                type: array
+                              passCredentials:
+                                description: PassCredentials pass credentials to all
+                                  domains (Helm's --pass-credentials)
+                                type: boolean
+                              releaseName:
+                                description: ReleaseName is the Helm release name
+                                  to use. If omitted it will use the application name
+                                type: string
+                              skipCrds:
+                                description: SkipCrds skips custom resource definition
+                                  installation step (Helm's --skip-crds)
+                                type: boolean
+                              skipSchemaValidation:
+                                description: SkipSchemaValidation skips JSON schema
+                                  validation (Helm's --skip-schema-validation)
+                                type: boolean
+                              skipTests:
+                                description: SkipTests skips test manifest installation
+                                  step (Helm's --skip-tests).
+                                type: boolean
+                              valueFiles:
+                                description: ValuesFiles is a list of Helm value files
+                                  to use when generating a template
+                                items:
+                                  type: string
+                                type: array
+                              values:
+                                description: Values specifies Helm values to be passed
+                                  to helm template, typically defined as a block.
+                                  ValuesObject takes precedence over Values, so use
+                                  one or the other.
+                                type: string
+                              valuesObject:
+                                description: ValuesObject specifies Helm values to
+                                  be passed to helm template, defined as a map. This
+                                  takes precedence over Values.
+                                type: object
+                                x-kubernetes-preserve-unknown-fields: true
+                              version:
+                                description: Version is the Helm version to use for
+                                  templating ("3")
+                                type: string
+                            type: object
+                          kustomize:
+                            description: Kustomize holds kustomize specific options
+                            properties:
+                              apiVersions:
+                                description: |-
+                                  APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                                  Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
+                                items:
+                                  type: string
+                                type: array
+                              commonAnnotations:
+                                additionalProperties:
+                                  type: string
+                                description: CommonAnnotations is a list of additional
+                                  annotations to add to rendered manifests
+                                type: object
+                              commonAnnotationsEnvsubst:
+                                description: CommonAnnotationsEnvsubst specifies whether
+                                  to apply env variables substitution for annotation
+                                  values
+                                type: boolean
+                              commonLabels:
+                                additionalProperties:
+                                  type: string
+                                description: CommonLabels is a list of additional
+                                  labels to add to rendered manifests
+                                type: object
+                              components:
+                                description: Components specifies a list of kustomize
+                                  components to add to the kustomization before building
+                                items:
+                                  type: string
+                                type: array
+                              forceCommonAnnotations:
+                                description: ForceCommonAnnotations specifies whether
+                                  to force applying common annotations to resources
+                                  for Kustomize apps
+                                type: boolean
+                              forceCommonLabels:
+                                description: ForceCommonLabels specifies whether to
+                                  force applying common labels to resources for Kustomize
+                                  apps
+                                type: boolean
+                              ignoreMissingComponents:
+                                description: IgnoreMissingComponents prevents kustomize
+                                  from failing when components do not exist locally
+                                  by not appending them to kustomization file
+                                type: boolean
+                              images:
+                                description: Images is a list of Kustomize image override
+                                  specifications
+                                items:
+                                  description: KustomizeImage represents a Kustomize
+                                    image definition in the format [old_image_name=]<image_name>:<image_tag>
+                                  type: string
+                                type: array
+                              kubeVersion:
+                                description: |-
+                                  KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+                                  uses the Kubernetes version of the target cluster.
+                                type: string
+                              labelIncludeTemplates:
+                                description: LabelIncludeTemplates specifies whether
+                                  to apply common labels to resource templates or
+                                  not
+                                type: boolean
+                              labelWithoutSelector:
+                                description: LabelWithoutSelector specifies whether
+                                  to apply common labels to resource selectors or
+                                  not
+                                type: boolean
+                              namePrefix:
+                                description: NamePrefix overrides the namePrefix in
+                                  the kustomization.yaml for Kustomize apps
+                                type: string
+                              nameSuffix:
+                                description: NameSuffix overrides the nameSuffix in
+                                  the kustomization.yaml for Kustomize apps
+                                type: string
+                              namespace:
+                                description: Namespace sets the namespace that Kustomize
+                                  adds to all resources
+                                type: string
+                              patches:
+                                description: Patches is a list of Kustomize patches
+                                items:
+                                  properties:
+                                    options:
+                                      additionalProperties:
+                                        type: boolean
+                                      type: object
+                                    patch:
+                                      type: string
+                                    path:
+                                      type: string
+                                    target:
+                                      properties:
+                                        annotationSelector:
+                                          type: string
+                                        group:
+                                          type: string
+                                        kind:
+                                          type: string
+                                        labelSelector:
+                                          type: string
+                                        name:
+                                          type: string
+                                        namespace:
+                                          type: string
+                                        version:
+                                          type: string
+                                      type: object
+                                  type: object
+                                type: array
+                              replicas:
+                                description: Replicas is a list of Kustomize Replicas
+                                  override specifications
+                                items:
+                                  properties:
+                                    count:
+                                      anyOf:
+                                      - type: integer
+                                      - type: string
+                                      description: Number of replicas
+                                      x-kubernetes-int-or-string: true
+                                    name:
+                                      description: Name of Deployment or StatefulSet
+                                      type: string
+                                  required:
+                                  - count
+                                  - name
+                                  type: object
+                                type: array
+                              version:
+                                description: Version controls which version of Kustomize
+                                  to use for rendering manifests
+                                type: string
+                            type: object
+                          name:
+                            description: Name is used to refer to a source and is
+                              displayed in the UI. It is used in multi-source Applications.
+                            type: string
+                          path:
+                            description: Path is a directory path within the Git repository,
+                              and is only valid for applications sourced from Git.
+                            type: string
+                          plugin:
+                            description: Plugin holds config management plugin specific
+                              options
+                            properties:
+                              env:
+                                description: Env is a list of environment variable
+                                  entries
+                                items:
+                                  description: EnvEntry represents an entry in the
+                                    application's environment
+                                  properties:
+                                    name:
+                                      description: Name is the name of the variable,
+                                        usually expressed in uppercase
+                                      type: string
+                                    value:
+                                      description: Value is the value of the variable
+                                      type: string
+                                  required:
+                                  - name
+                                  - value
+                                  type: object
+                                type: array
+                              name:
+                                type: string
+                              parameters:
+                                items:
+                                  properties:
+                                    array:
+                                      description: Array is the value of an array
+                                        type parameter.
+                                      items:
+                                        type: string
+                                      type: array
+                                    map:
+                                      additionalProperties:
+                                        type: string
+                                      description: Map is the value of a map type
+                                        parameter.
+                                      type: object
+                                    name:
+                                      description: Name is the name identifying a
+                                        parameter.
+                                      type: string
+                                    string:
+                                      description: String_ is the value of a string
+                                        type parameter.
+                                      type: string
+                                  type: object
+                                type: array
+                            type: object
+                          ref:
+                            description: Ref is reference to another source within
+                              sources field. This field will not be used if used with
+                              a `source` tag.
+                            type: string
+                          repoURL:
+                            description: RepoURL is the URL to the repository (Git
+                              or Helm) that contains the application manifests
+                            type: string
+                          tagPrefix:
+                            description: |-
+                              TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                              The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                              For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                              "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
+                            type: string
+                          targetRevision:
+                            description: |-
+                              TargetRevision defines the revision of the source to sync the application to.
+                              In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
+                              In case of Helm, this is a semver tag for the Chart's version.
+                            type: string
+                        required:
+                        - repoURL
+                        type: object
+                      sources:
+                        description: |-
+                          Sources overrides the source definition set in the application.
+                          This is typically set in a Rollback operation and is nil during a Sync operation
+                        items:
+                          description: ApplicationSource contains all required information
+                            about the source of an application
+                          properties:
+                            chart:
+                              description: Chart is a Helm chart name, and must be
+                                specified for applications sourced from a Helm repo.
+                              type: string
+                            directory:
+                              description: Directory holds path/directory specific
+                                options
+                              properties:
+                                exclude:
+                                  description: Exclude contains a glob pattern to
+                                    match paths against that should be explicitly
+                                    excluded from being used during manifest generation
+                                  type: string
+                                include:
+                                  description: Include contains a glob pattern to
+                                    match paths against that should be explicitly
+                                    included during manifest generation
+                                  type: string
+                                jsonnet:
+                                  description: Jsonnet holds options specific to Jsonnet
+                                  properties:
+                                    extVars:
+                                      description: ExtVars is a list of Jsonnet External
+                                        Variables
+                                      items:
+                                        description: JsonnetVar represents a variable
+                                          to be passed to jsonnet during manifest
+                                          generation
+                                        properties:
+                                          code:
+                                            type: boolean
+                                          name:
+                                            type: string
+                                          value:
+                                            type: string
+                                        required:
+                                        - name
+                                        - value
+                                        type: object
+                                      type: array
+                                    libs:
+                                      description: Additional library search dirs
+                                      items:
+                                        type: string
+                                      type: array
+                                    tlas:
+                                      description: TLAS is a list of Jsonnet Top-level
+                                        Arguments
+                                      items:
+                                        description: JsonnetVar represents a variable
+                                          to be passed to jsonnet during manifest
+                                          generation
+                                        properties:
+                                          code:
+                                            type: boolean
+                                          name:
+                                            type: string
+                                          value:
+                                            type: string
+                                        required:
+                                        - name
+                                        - value
+                                        type: object
+                                      type: array
+                                  type: object
+                                recurse:
+                                  description: Recurse specifies whether to scan a
+                                    directory recursively for manifests
+                                  type: boolean
+                              type: object
+                            helm:
+                              description: Helm holds helm specific options
+                              properties:
+                                apiVersions:
+                                  description: |-
+                                    APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                                    Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
+                                  items:
+                                    type: string
+                                  type: array
+                                fileParameters:
+                                  description: FileParameters are file parameters
+                                    to the helm template
+                                  items:
+                                    description: HelmFileParameter is a file parameter
+                                      that's passed to helm template during manifest
+                                      generation
+                                    properties:
+                                      name:
+                                        description: Name is the name of the Helm
+                                          parameter
+                                        type: string
+                                      path:
+                                        description: Path is the path to the file
+                                          containing the values for the Helm parameter
+                                        type: string
+                                    type: object
+                                  type: array
+                                ignoreMissingValueFiles:
+                                  description: IgnoreMissingValueFiles prevents helm
+                                    template from failing when valueFiles do not exist
+                                    locally by not appending them to helm template
+                                    --values
+                                  type: boolean
+                                kubeVersion:
+                                  description: |-
+                                    KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+                                    uses the Kubernetes version of the target cluster.
+                                  type: string
+                                namespace:
+                                  description: Namespace is an optional namespace
+                                    to template with. If left empty, defaults to the
+                                    app's destination namespace.
+                                  type: string
+                                parameters:
+                                  description: Parameters is a list of Helm parameters
+                                    which are passed to the helm template command
+                                    upon manifest generation
+                                  items:
+                                    description: HelmParameter is a parameter that's
+                                      passed to helm template during manifest generation
+                                    properties:
+                                      forceString:
+                                        description: ForceString determines whether
+                                          to tell Helm to interpret booleans and numbers
+                                          as strings
+                                        type: boolean
+                                      name:
+                                        description: Name is the name of the Helm
+                                          parameter
+                                        type: string
+                                      value:
+                                        description: Value is the value for the Helm
+                                          parameter
+                                        type: string
+                                    type: object
+                                  type: array
+                                passCredentials:
+                                  description: PassCredentials pass credentials to
+                                    all domains (Helm's --pass-credentials)
+                                  type: boolean
+                                releaseName:
+                                  description: ReleaseName is the Helm release name
+                                    to use. If omitted it will use the application
+                                    name
+                                  type: string
+                                skipCrds:
+                                  description: SkipCrds skips custom resource definition
+                                    installation step (Helm's --skip-crds)
+                                  type: boolean
+                                skipSchemaValidation:
+                                  description: SkipSchemaValidation skips JSON schema
+                                    validation (Helm's --skip-schema-validation)
+                                  type: boolean
+                                skipTests:
+                                  description: SkipTests skips test manifest installation
+                                    step (Helm's --skip-tests).
+                                  type: boolean
+                                valueFiles:
+                                  description: ValuesFiles is a list of Helm value
+                                    files to use when generating a template
+                                  items:
+                                    type: string
+                                  type: array
+                                values:
+                                  description: Values specifies Helm values to be
+                                    passed to helm template, typically defined as
+                                    a block. ValuesObject takes precedence over Values,
+                                    so use one or the other.
+                                  type: string
+                                valuesObject:
+                                  description: ValuesObject specifies Helm values
+                                    to be passed to helm template, defined as a map.
+                                    This takes precedence over Values.
+                                  type: object
+                                  x-kubernetes-preserve-unknown-fields: true
+                                version:
+                                  description: Version is the Helm version to use
+                                    for templating ("3")
+                                  type: string
+                              type: object
+                            kustomize:
+                              description: Kustomize holds kustomize specific options
+                              properties:
+                                apiVersions:
+                                  description: |-
+                                    APIVersions specifies the Kubernetes resource API versions to pass to Helm when templating manifests. By default,
+                                    Argo CD uses the API versions of the target cluster. The format is [group/]version/kind.
+                                  items:
+                                    type: string
+                                  type: array
+                                commonAnnotations:
+                                  additionalProperties:
+                                    type: string
+                                  description: CommonAnnotations is a list of additional
+                                    annotations to add to rendered manifests
+                                  type: object
+                                commonAnnotationsEnvsubst:
+                                  description: CommonAnnotationsEnvsubst specifies
+                                    whether to apply env variables substitution for
+                                    annotation values
+                                  type: boolean
+                                commonLabels:
+                                  additionalProperties:
+                                    type: string
+                                  description: CommonLabels is a list of additional
+                                    labels to add to rendered manifests
+                                  type: object
+                                components:
+                                  description: Components specifies a list of kustomize
+                                    components to add to the kustomization before
+                                    building
+                                  items:
+                                    type: string
+                                  type: array
+                                forceCommonAnnotations:
+                                  description: ForceCommonAnnotations specifies whether
+                                    to force applying common annotations to resources
+                                    for Kustomize apps
+                                  type: boolean
+                                forceCommonLabels:
+                                  description: ForceCommonLabels specifies whether
+                                    to force applying common labels to resources for
+                                    Kustomize apps
+                                  type: boolean
+                                ignoreMissingComponents:
+                                  description: IgnoreMissingComponents prevents kustomize
+                                    from failing when components do not exist locally
+                                    by not appending them to kustomization file
+                                  type: boolean
+                                images:
+                                  description: Images is a list of Kustomize image
+                                    override specifications
+                                  items:
+                                    description: KustomizeImage represents a Kustomize
+                                      image definition in the format [old_image_name=]<image_name>:<image_tag>
+                                    type: string
+                                  type: array
+                                kubeVersion:
+                                  description: |-
+                                    KubeVersion specifies the Kubernetes API version to pass to Helm when templating manifests. By default, Argo CD
+                                    uses the Kubernetes version of the target cluster.
+                                  type: string
+                                labelIncludeTemplates:
+                                  description: LabelIncludeTemplates specifies whether
+                                    to apply common labels to resource templates or
+                                    not
+                                  type: boolean
+                                labelWithoutSelector:
+                                  description: LabelWithoutSelector specifies whether
+                                    to apply common labels to resource selectors or
+                                    not
+                                  type: boolean
+                                namePrefix:
+                                  description: NamePrefix overrides the namePrefix
+                                    in the kustomization.yaml for Kustomize apps
+                                  type: string
+                                nameSuffix:
+                                  description: NameSuffix overrides the nameSuffix
+                                    in the kustomization.yaml for Kustomize apps
+                                  type: string
+                                namespace:
+                                  description: Namespace sets the namespace that Kustomize
+                                    adds to all resources
+                                  type: string
+                                patches:
+                                  description: Patches is a list of Kustomize patches
+                                  items:
+                                    properties:
+                                      options:
+                                        additionalProperties:
+                                          type: boolean
+                                        type: object
+                                      patch:
+                                        type: string
+                                      path:
+                                        type: string
+                                      target:
+                                        properties:
+                                          annotationSelector:
+                                            type: string
+                                          group:
+                                            type: string
+                                          kind:
+                                            type: string
+                                          labelSelector:
+                                            type: string
+                                          name:
+                                            type: string
+                                          namespace:
+                                            type: string
+                                          version:
+                                            type: string
+                                        type: object
+                                    type: object
+                                  type: array
+                                replicas:
+                                  description: Replicas is a list of Kustomize Replicas
+                                    override specifications
+                                  items:
+                                    properties:
+                                      count:
+                                        anyOf:
+                                        - type: integer
+                                        - type: string
+                                        description: Number of replicas
+                                        x-kubernetes-int-or-string: true
+                                      name:
+                                        description: Name of Deployment or StatefulSet
+                                        type: string
+                                    required:
+                                    - count
+                                    - name
+                                    type: object
+                                  type: array
+                                version:
+                                  description: Version controls which version of Kustomize
+                                    to use for rendering manifests
+                                  type: string
+                              type: object
+                            name:
+                              description: Name is used to refer to a source and is
+                                displayed in the UI. It is used in multi-source Applications.
+                              type: string
+                            path:
+                              description: Path is a directory path within the Git
+                                repository, and is only valid for applications sourced
+                                from Git.
+                              type: string
+                            plugin:
+                              description: Plugin holds config management plugin specific
+                                options
+                              properties:
+                                env:
+                                  description: Env is a list of environment variable
+                                    entries
+                                  items:
+                                    description: EnvEntry represents an entry in the
+                                      application's environment
+                                    properties:
+                                      name:
+                                        description: Name is the name of the variable,
+                                          usually expressed in uppercase
+                                        type: string
+                                      value:
+                                        description: Value is the value of the variable
+                                        type: string
+                                    required:
+                                    - name
+                                    - value
+                                    type: object
+                                  type: array
+                                name:
+                                  type: string
+                                parameters:
+                                  items:
+                                    properties:
+                                      array:
+                                        description: Array is the value of an array
+                                          type parameter.
+                                        items:
+                                          type: string
+                                        type: array
+                                      map:
+                                        additionalProperties:
+                                          type: string
+                                        description: Map is the value of a map type
+                                          parameter.
+                                        type: object
+                                      name:
+                                        description: Name is the name identifying
+                                          a parameter.
+                                        type: string
+                                      string:
+                                        description: String_ is the value of a string
+                                          type parameter.
+                                        type: string
+                                    type: object
+                                  type: array
+                              type: object
+                            ref:
+                              description: Ref is reference to another source within
+                                sources field. This field will not be used if used
+                                with a `source` tag.
+                              type: string
+                            repoURL:
+                              description: RepoURL is the URL to the repository (Git
+                                or Helm) that contains the application manifests
+                              type: string
+                            tagPrefix:
+                              description: |-
+                                TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                                The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                                For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                                "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
+                              type: string
+                            targetRevision:
+                              description: |-
+                                TargetRevision defines the revision of the source to sync the application to.
+                                In case of Git, this can be commit, tag, or branch. If omitted, will equal to HEAD.
+                                In case of Helm, this is a semver tag for the Chart's version.
+                              type: string
+                          required:
+                          - repoURL
+                          type: object
+                        type: array
+                      syncOptions:
+                        description: SyncOptions provide per-sync sync-options, e.g.
+                          Validate=false
+                        items:
+                          type: string
+                        type: array
+                      syncStrategy:
+                        description: SyncStrategy describes how to perform the sync
+                        properties:
+                          apply:
+                            description: Apply will perform a `kubectl apply` to perform
+                              the sync.
+                            properties:
+                              force:
+                                description: |-
+                                  Force indicates whether or not to supply the --force flag to `kubectl apply`.
+                                  The --force flag deletes and re-create the resource, when PATCH encounters conflict and has
+                                  retried for 5 times.
+                                type: boolean
+                            type: object
+                          hook:
+                            description: Hook will submit any referenced resources
+                              to perform the sync. This is the default strategy
+                            properties:
+                              force:
+                                description: |-
+                                  Force indicates whether or not to supply the --force flag to `kubectl apply`.
+                                  The --force flag deletes and re-create the resource, when PATCH encounters conflict and has
+                                  retried for 5 times.
+                                type: boolean
+                            type: object
+                        type: object
+                    type: object
+                type: object
               operationState:
                 description: OperationState contains information about any ongoing
                   operations, such as a sync
@@ -10519,6 +10683,13 @@ spec:
                                 description: RepoURL is the URL to the repository
                                   (Git or Helm) that contains the application manifests
                                 type: string
+                              tagPrefix:
+                                description: |-
+                                  TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                                  The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                                  For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                                  "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
+                                type: string
                               targetRevision:
                                 description: |-
                                   TargetRevision defines the revision of the source to sync the application to.
@@ -10933,6 +11104,13 @@ spec:
                                 repoURL:
                                   description: RepoURL is the URL to the repository
                                     (Git or Helm) that contains the application manifests
+                                  type: string
+                                tagPrefix:
+                                  description: |-
+                                    TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                                    The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                                    For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                                    "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
                                   type: string
                                 targetRevision:
                                   description: |-
@@ -11460,6 +11638,13 @@ spec:
                             description: RepoURL is the URL to the repository (Git
                               or Helm) that contains the application manifests
                             type: string
+                          tagPrefix:
+                            description: |-
+                              TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                              The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                              For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                              "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
+                            type: string
                           targetRevision:
                             description: |-
                               TargetRevision defines the revision of the source to sync the application to.
@@ -11864,6 +12049,13 @@ spec:
                             repoURL:
                               description: RepoURL is the URL to the repository (Git
                                 or Helm) that contains the application manifests
+                              type: string
+                            tagPrefix:
+                              description: |-
+                                TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                                The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                                For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                                "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
                               type: string
                             targetRevision:
                               description: |-
@@ -12922,6 +13114,10 @@ spec:
                     items:
                       type: string
                     type: array
+                  isAppOfApps:
+                    description: IsAppOfApps holds true if the application has any
+                      application for child resource.
+                    type: boolean
                 type: object
               sync:
                 description: Sync contains information about the application's current
@@ -13370,6 +13566,13 @@ spec:
                             description: RepoURL is the URL to the repository (Git
                               or Helm) that contains the application manifests
                             type: string
+                          tagPrefix:
+                            description: |-
+                              TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                              The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                              For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                              "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
+                            type: string
                           targetRevision:
                             description: |-
                               TargetRevision defines the revision of the source to sync the application to.
@@ -13774,6 +13977,13 @@ spec:
                             repoURL:
                               description: RepoURL is the URL to the repository (Git
                                 or Helm) that contains the application manifests
+                              type: string
+                            tagPrefix:
+                              description: |-
+                                TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                                The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                                For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                                "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
                               type: string
                             targetRevision:
                               description: |-
@@ -14195,6 +14405,8 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    tagPrefix:
+                                      type: string
                                     targetRevision:
                                       type: string
                                   required:
@@ -14696,6 +14908,8 @@ spec:
                                       ref:
                                         type: string
                                       repoURL:
+                                        type: string
+                                      tagPrefix:
                                         type: string
                                       targetRevision:
                                         type: string
@@ -15105,6 +15319,8 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    tagPrefix:
+                                      type: string
                                     targetRevision:
                                       type: string
                                   required:
@@ -15606,6 +15822,8 @@ spec:
                                       ref:
                                         type: string
                                       repoURL:
+                                        type: string
+                                      tagPrefix:
                                         type: string
                                       targetRevision:
                                         type: string
@@ -16016,6 +16234,8 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    tagPrefix:
+                                      type: string
                                     targetRevision:
                                       type: string
                                   required:
@@ -16517,6 +16737,8 @@ spec:
                                       ref:
                                         type: string
                                       repoURL:
+                                        type: string
+                                      tagPrefix:
                                         type: string
                                       targetRevision:
                                         type: string
@@ -16905,6 +17127,8 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    tagPrefix:
+                                      type: string
                                     targetRevision:
                                       type: string
                                   required:
@@ -17406,6 +17630,8 @@ spec:
                                       ref:
                                         type: string
                                       repoURL:
+                                        type: string
+                                      tagPrefix:
                                         type: string
                                       targetRevision:
                                         type: string
@@ -17819,6 +18045,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -18320,6 +18548,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -18729,6 +18959,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -19230,6 +19462,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -19640,6 +19874,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -20141,6 +20377,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -20529,6 +20767,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -21030,6 +21270,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -21426,6 +21668,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -21927,6 +22171,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -22550,6 +22796,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -23051,6 +23299,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -23671,6 +23921,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -24173,6 +24425,8 @@ spec:
                                                   type: string
                                                 repoURL:
                                                   type: string
+                                                tagPrefix:
+                                                  type: string
                                                 targetRevision:
                                                   type: string
                                               required:
@@ -24576,6 +24830,8 @@ spec:
                                     ref:
                                       type: string
                                     repoURL:
+                                      type: string
+                                    tagPrefix:
                                       type: string
                                     targetRevision:
                                       type: string
@@ -25078,6 +25334,8 @@ spec:
                                       ref:
                                         type: string
                                       repoURL:
+                                        type: string
+                                      tagPrefix:
                                         type: string
                                       targetRevision:
                                         type: string
@@ -25493,6 +25751,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -25994,6 +26254,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -26403,6 +26665,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -26904,6 +27168,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -27314,6 +27580,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -27815,6 +28083,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -28203,6 +28473,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -28704,6 +28976,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -29100,6 +29374,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -29601,6 +29877,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -30224,6 +30502,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -30725,6 +31005,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -31345,6 +31627,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -31847,6 +32131,8 @@ spec:
                                                   type: string
                                                 repoURL:
                                                   type: string
+                                                tagPrefix:
+                                                  type: string
                                                 targetRevision:
                                                   type: string
                                               required:
@@ -32255,6 +32541,8 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    tagPrefix:
+                                      type: string
                                     targetRevision:
                                       type: string
                                   required:
@@ -32756,6 +33044,8 @@ spec:
                                       ref:
                                         type: string
                                       repoURL:
+                                        type: string
+                                      tagPrefix:
                                         type: string
                                       targetRevision:
                                         type: string
@@ -33151,6 +33441,8 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    tagPrefix:
+                                      type: string
                                     targetRevision:
                                       type: string
                                   required:
@@ -33652,6 +33944,8 @@ spec:
                                       ref:
                                         type: string
                                       repoURL:
+                                        type: string
+                                      tagPrefix:
                                         type: string
                                       targetRevision:
                                         type: string
@@ -34275,6 +34569,8 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    tagPrefix:
+                                      type: string
                                     targetRevision:
                                       type: string
                                   required:
@@ -34776,6 +35072,8 @@ spec:
                                       ref:
                                         type: string
                                       repoURL:
+                                        type: string
+                                      tagPrefix:
                                         type: string
                                       targetRevision:
                                         type: string
@@ -35396,6 +35694,8 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    tagPrefix:
+                                      type: string
                                     targetRevision:
                                       type: string
                                   required:
@@ -35898,6 +36198,8 @@ spec:
                                         type: string
                                       repoURL:
                                         type: string
+                                      tagPrefix:
+                                        type: string
                                       targetRevision:
                                         type: string
                                     required:
@@ -36378,6 +36680,8 @@ spec:
                           ref:
                             type: string
                           repoURL:
+                            type: string
+                          tagPrefix:
                             type: string
                           targetRevision:
                             type: string
@@ -36880,6 +37184,8 @@ spec:
                             ref:
                               type: string
                             repoURL:
+                              type: string
+                            tagPrefix:
                               type: string
                             targetRevision:
                               type: string
@@ -37959,6 +38265,12 @@ rules:
   - get
   - patch
 - apiGroups:
+  - '*'
+  resources:
+  - '*/finalizers'
+  verbs:
+  - update
+- apiGroups:
   - ""
   resources:
   - events
@@ -38820,6 +39132,24 @@ spec:
               key: applicationsetcontroller.repo.server.strict.tls
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_CA_CERT_PATH
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.repo.server.ca.cert.path
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_CLIENT_CERT_PATH
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.repo.server.client.cert.path
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_CLIENT_CERT_KEY_PATH
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.repo.server.client.cert.key.path
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS
           valueFrom:
             configMapKeyRef:
@@ -38910,6 +39240,8 @@ spec:
           name: tmp
         - mountPath: /app/config/reposerver/tls
           name: argocd-repo-server-tls
+        - mountPath: /app/config/reposerver/mtls
+          name: argocd-repo-server-mtls
         - mountPath: /home/argocd/params
           name: argocd-cmd-params-cm
       nodeSelector:
@@ -38940,6 +39272,17 @@ spec:
             path: ca.crt
           optional: true
           secretName: argocd-repo-server-tls
+      - name: argocd-repo-server-mtls
+        secret:
+          items:
+          - key: client.crt
+            path: client.crt
+          - key: client.key
+            path: client.key
+          - key: server-ca.crt
+            path: server-ca.crt
+          optional: true
+          secretName: argocd-repo-server-mtls
       - configMap:
           items:
           - key: applicationsetcontroller.profile.enabled
@@ -39281,6 +39624,24 @@ spec:
               key: notificationscontroller.repo.server.plaintext
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_NOTIFICATION_CONTROLLER_REPO_SERVER_CA_CERT_PATH
+          valueFrom:
+            configMapKeyRef:
+              key: notificationscontroller.repo.server.ca.cert.path
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_NOTIFICATION_CONTROLLER_REPO_SERVER_CLIENT_CERT_PATH
+          valueFrom:
+            configMapKeyRef:
+              key: notificationscontroller.repo.server.client.cert.path
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_NOTIFICATION_CONTROLLER_REPO_SERVER_CLIENT_CERT_KEY_PATH
+          valueFrom:
+            configMapKeyRef:
+              key: notificationscontroller.repo.server.client.cert.key.path
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
@@ -39298,6 +39659,8 @@ spec:
           name: tls-certs
         - mountPath: /app/config/reposerver/tls
           name: argocd-repo-server-tls
+        - mountPath: /app/config/reposerver/mtls
+          name: argocd-repo-server-mtls
         workingDir: /app
       nodeSelector:
         kubernetes.io/os: linux
@@ -39321,6 +39684,17 @@ spec:
             path: ca.crt
           optional: true
           secretName: argocd-repo-server-tls
+      - name: argocd-repo-server-mtls
+        secret:
+          items:
+          - key: client.crt
+            path: client.crt
+          - key: client.key
+            path: client.key
+          - key: server-ca.crt
+            path: server-ca.crt
+          optional: true
+          secretName: argocd-repo-server-mtls
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -39367,7 +39741,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:8.2.3-alpine
+        image: public.ecr.aws/docker/library/redis:8.6.4-alpine
         imagePullPolicy: Always
         name: redis
         ports:
@@ -39518,6 +39892,12 @@ spec:
               key: reposerver.tls.ciphers
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_REPO_SERVER_CLIENT_CA_PATH
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.client.ca.path
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_REPO_CACHE_EXPIRATION
           valueFrom:
             configMapKeyRef:
@@ -39530,6 +39910,18 @@ spec:
               key: redis.server
               name: argocd-cmd-params-cm
               optional: true
+        - name: REDIS_SENTINEL_HOSTS
+          valueFrom:
+            configMapKeyRef:
+              key: redis.sentinel.hosts
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: REDIS_SENTINEL_MASTER
+          valueFrom:
+            configMapKeyRef:
+              key: redis.sentinel.master
+              name: argocd-cmd-params-cm
+              optional: true
         - name: REDIS_COMPRESSION
           valueFrom:
             configMapKeyRef:
@@ -39540,6 +39932,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: redis.db
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REDIS_KEY_PREFIX
+          valueFrom:
+            configMapKeyRef:
+              key: redis.key.prefix
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_DEFAULT_CACHE_EXPIRATION
@@ -39570,6 +39968,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: otlp.attrs
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REPO_SERVER_OTLP_SAMPLE_RATIO
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.sample.ratio
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE
@@ -39732,6 +40136,8 @@ spec:
           name: gpg-keyring
         - mountPath: /app/config/reposerver/tls
           name: argocd-repo-server-tls
+        - mountPath: /app/config/reposerver/mtls
+          name: argocd-repo-server-mtls
         - mountPath: /tmp
           name: tmp
         - mountPath: /helm-working-dir
@@ -39789,6 +40195,13 @@ spec:
             path: ca.crt
           optional: true
           secretName: argocd-repo-server-tls
+      - name: argocd-repo-server-mtls
+        secret:
+          items:
+          - key: client-ca.crt
+            path: client-ca.crt
+          optional: true
+          secretName: argocd-repo-server-mtls
       - emptyDir: {}
         name: var-files
       - emptyDir: {}
@@ -39974,6 +40387,24 @@ spec:
               key: server.repo.server.strict.tls
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_SERVER_REPO_SERVER_CA_CERT_PATH
+          valueFrom:
+            configMapKeyRef:
+              key: server.repo.server.ca.cert.path
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_SERVER_REPO_SERVER_CLIENT_CERT_PATH
+          valueFrom:
+            configMapKeyRef:
+              key: server.repo.server.client.cert.path
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_SERVER_REPO_SERVER_CLIENT_CERT_KEY_PATH
+          valueFrom:
+            configMapKeyRef:
+              key: server.repo.server.client.cert.key.path
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_SERVER_DEX_SERVER_PLAINTEXT
           valueFrom:
             configMapKeyRef:
@@ -40034,6 +40465,18 @@ spec:
               key: redis.server
               name: argocd-cmd-params-cm
               optional: true
+        - name: REDIS_SENTINEL_HOSTS
+          valueFrom:
+            configMapKeyRef:
+              key: redis.sentinel.hosts
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: REDIS_SENTINEL_MASTER
+          valueFrom:
+            configMapKeyRef:
+              key: redis.sentinel.master
+              name: argocd-cmd-params-cm
+              optional: true
         - name: REDIS_COMPRESSION
           valueFrom:
             configMapKeyRef:
@@ -40044,6 +40487,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: redis.db
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REDIS_KEY_PREFIX
+          valueFrom:
+            configMapKeyRef:
+              key: redis.key.prefix
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_DEFAULT_CACHE_EXPIRATION
@@ -40094,6 +40543,12 @@ spec:
               key: otlp.attrs
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_SERVER_OTLP_SAMPLE_RATIO
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.sample.ratio
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATION_NAMESPACES
           valueFrom:
             configMapKeyRef:
@@ -40134,6 +40589,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: server.glob.cache.size
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_SERVER_WEBHOOK_REFRESH_WORKERS
+          valueFrom:
+            configMapKeyRef:
+              key: server.webhook.refresh.workers
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_GIT_FILE_GLOBBING
@@ -40213,6 +40674,8 @@ spec:
           name: tls-certs
         - mountPath: /app/config/server/tls
           name: argocd-repo-server-tls
+        - mountPath: /app/config/reposerver/mtls
+          name: argocd-repo-server-mtls
         - mountPath: /app/config/dex/tls
           name: argocd-dex-server-tls
         - mountPath: /home/argocd
@@ -40255,6 +40718,17 @@ spec:
             path: ca.crt
           optional: true
           secretName: argocd-dex-server-tls
+      - name: argocd-repo-server-mtls
+        secret:
+          items:
+          - key: client.crt
+            path: client.crt
+          - key: client.key
+            path: client.key
+          - key: server-ca.crt
+            path: server-ca.crt
+          optional: true
+          secretName: argocd-repo-server-mtls
       - configMap:
           items:
           - key: server.profile.enabled
@@ -40362,6 +40836,12 @@ spec:
               key: controller.operation.processors
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_HYDRATION_PROCESSORS
+          valueFrom:
+            configMapKeyRef:
+              key: controller.hydration.processors
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_LOGFORMAT
           valueFrom:
             configMapKeyRef:
@@ -40428,6 +40908,24 @@ spec:
               key: controller.metrics.cache.expiration
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_METRICS_APPLICATION_LABELS
+          valueFrom:
+            configMapKeyRef:
+              key: controller.metrics.application.labels
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_METRICS_APPLICATION_CONDITIONS
+          valueFrom:
+            configMapKeyRef:
+              key: controller.metrics.application.conditions
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_METRICS_CLUSTER_LABELS
+          valueFrom:
+            configMapKeyRef:
+              key: controller.metrics.cluster.labels
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_TIMEOUT_SECONDS
           valueFrom:
             configMapKeyRef:
@@ -40482,6 +40980,24 @@ spec:
               key: controller.repo.server.strict.tls
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_CA_CERT_PATH
+          valueFrom:
+            configMapKeyRef:
+              key: controller.repo.server.ca.cert.path
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_CLIENT_CERT_PATH
+          valueFrom:
+            configMapKeyRef:
+              key: controller.repo.server.client.cert.path
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_CLIENT_CERT_KEY_PATH
+          valueFrom:
+            configMapKeyRef:
+              key: controller.repo.server.client.cert.key.path
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_PERSIST_RESOURCE_HEALTH
           valueFrom:
             configMapKeyRef:
@@ -40500,6 +41016,18 @@ spec:
               key: redis.server
               name: argocd-cmd-params-cm
               optional: true
+        - name: REDIS_SENTINEL_HOSTS
+          valueFrom:
+            configMapKeyRef:
+              key: redis.sentinel.hosts
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: REDIS_SENTINEL_MASTER
+          valueFrom:
+            configMapKeyRef:
+              key: redis.sentinel.master
+              name: argocd-cmd-params-cm
+              optional: true
         - name: REDIS_COMPRESSION
           valueFrom:
             configMapKeyRef:
@@ -40510,6 +41038,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: redis.db
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REDIS_KEY_PREFIX
+          valueFrom:
+            configMapKeyRef:
+              key: redis.key.prefix
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_DEFAULT_CACHE_EXPIRATION
@@ -40540,6 +41074,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: otlp.attrs
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_OTLP_SAMPLE_RATIO
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.sample.ratio
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATION_NAMESPACES
@@ -40633,6 +41173,8 @@ spec:
         volumeMounts:
         - mountPath: /app/config/controller/tls
           name: argocd-repo-server-tls
+        - mountPath: /app/config/reposerver/mtls
+          name: argocd-repo-server-mtls
         - mountPath: /home/argocd
           name: argocd-home
         - mountPath: /home/argocd/params
@@ -40659,6 +41201,17 @@ spec:
             path: ca.crt
           optional: true
           secretName: argocd-repo-server-tls
+      - name: argocd-repo-server-mtls
+        secret:
+          items:
+          - key: client.crt
+            path: client.crt
+          - key: client.key
+            path: client.key
+          - key: server-ca.crt
+            path: server-ca.crt
+          optional: true
+          secretName: argocd-repo-server-mtls
       - configMap:
           items:
           - key: controller.profile.enabled

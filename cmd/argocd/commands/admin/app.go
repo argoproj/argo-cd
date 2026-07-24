@@ -10,8 +10,8 @@ import (
 	"sort"
 	"time"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -21,6 +21,8 @@ import (
 	kubecache "k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/yaml"
+
+	"github.com/argoproj/argo-cd/v3/util/tls"
 
 	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
 	"github.com/argoproj/argo-cd/v3/common"
@@ -298,7 +300,7 @@ func NewReconcileCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 					errors.CheckError(err)
 					repoServerAddress = fmt.Sprintf("localhost:%d", repoServerPort)
 				}
-				repoServerClient := reposerverclient.NewRepoServerClientset(repoServerAddress, 60, reposerverclient.TLSConfiguration{DisableTLS: false, StrictValidation: false})
+				repoServerClient := reposerverclient.NewRepoServerClientset(repoServerAddress, 60, tls.Configuration{DisableTLS: false, StrictValidation: false})
 				result, err = reconcileApplications(ctx, kubeClientset, appClientset, namespace, repoServerClient, selector, newLiveStateCache, serverSideDiff, ignoreNormalizerOpts)
 				errors.CheckError(err)
 			} else {
@@ -463,7 +465,7 @@ func reconcileApplications(
 		sources = append(sources, app.Spec.GetSource())
 		revisions = append(revisions, app.Spec.GetSource().TargetRevision)
 
-		res, err := appStateManager.CompareAppState(&app, proj, revisions, sources, false, false, nil, false)
+		res, err := appStateManager.CompareAppState(ctx, &app, proj, revisions, sources, false, false, nil, false)
 		if err != nil {
 			return nil, fmt.Errorf("error comparing app states: %w", err)
 		}

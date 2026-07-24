@@ -63,8 +63,9 @@ func NewCommand() *cobra.Command {
 				fmt.Sprintf("%s.%s.svc.cluster.local", serviceName, namespace),
 			}
 
-			// Create TLS config (will generate self-signed cert if not provided)
-			tlsConfig, err := tlsutil.CreateTLSConfig(tlsCertPath, tlsKeyPath, hosts, true)
+			// Create TLS config (will generate self-signed cert if not provided). The
+			// webhook only presents a server certificate, so no client-CA path is needed.
+			tlsConfig, err := tlsutil.CreateTLSConfig(tlsCertPath, tlsKeyPath, hosts, true, "")
 			if err != nil {
 				return fmt.Errorf("failed to create TLS config: %w", err)
 			}

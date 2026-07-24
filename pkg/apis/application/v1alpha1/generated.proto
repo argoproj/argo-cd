@@ -33,8 +33,6 @@ message AppHealthStatus {
   optional string status = 1;
 
   // Message is a human-readable informational message describing the health status
-  //
-  // Deprecated: this field is not used and will be removed in a future release.
   optional string message = 2;
 
   // LastTransitionTime is the time the HealthStatus was set or updated
@@ -514,6 +512,12 @@ message ApplicationSource {
 
   // Name is used to refer to a source and is displayed in the UI. It is used in multi-source Applications.
   optional string name = 14;
+
+  // TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+  // The prefix is stripped from tag names before comparison and re-added to the resolved version.
+  // For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+  // "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
+  optional string tagPrefix = 15;
 }
 
 // ApplicationSourceDirectory holds options for applications of type plain YAML or Jsonnet
@@ -774,6 +778,9 @@ message ApplicationSummary {
 
   // Images holds all images of application child resources.
   repeated string images = 2;
+
+  // IsAppOfApps holds true if the application has any application for child resource.
+  optional bool isAppOfApps = 3;
 }
 
 // ApplicationTree represents the hierarchical structure of resources associated with an Argo CD application.

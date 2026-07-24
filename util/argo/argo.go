@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/cache"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	"github.com/r3labs/diff/v3"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -24,11 +24,11 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/typed/application/v1alpha1"
 	applicationsv1 "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v3/util/db"
+	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/glob"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/settings"
@@ -569,7 +569,7 @@ func GetRefSources(ctx context.Context, sources argoappv1.ApplicationSources, pr
 
 			repo, err := getRepository(ctx, source.RepoURL, project)
 			if err != nil {
-				return nil, fmt.Errorf("failed to get repository %s: %w", source.RepoURL, err)
+				return nil, fmt.Errorf("failed to get repository %s: %w", git.SanitizeRepoURL(source.RepoURL), err)
 			}
 			refKey := "$" + source.Ref
 			revision := source.TargetRevision
@@ -949,41 +949,29 @@ func verifyGenerateManifests(
 // a prior operation) yields a Conflict and we re-read and re-check rather than
 // clobbering it. This closes the window the previous two-call form left open, where
 // the operation was set but operationState not yet cleared.
-func SetAppOperation(clientset appclientset.Interface, appName, appNs string, op *argoappv1.Operation) (*argoappv1.Application, error) {
-	if op.Sync == nil {
-		return nil, status.Errorf(codes.InvalidArgument, "Operation unspecified")
-	}
-
-	appIf := clientset.ArgoprojV1alpha1().Applications(appNs)
-
+func SetAppOperation(appIf v1alpha1.ApplicationInterface, appName string, op *argoappv1.Operation) (*argoappv1.Application, error) {
 	for {
 		a, err := appIf.Get(context.Background(), appName, metav1.GetOptions{})
 		if err != nil {
 			return nil, fmt.Errorf("error getting application %q: %w", appName, err)
 		}
+		a = a.DeepCopy()
 		if a.Operation != nil {
 			return nil, ErrAnotherOperationInProgress
 		}
-
-		patch, err := json.Marshal(map[string]any{
-			"metadata":  map[string]any{"resourceVersion": a.ResourceVersion},
-			"operation": op,
-			"status":    map[string]any{"operationState": nil},
-		})
-		if err != nil {
-			return nil, fmt.Errorf("error marshaling operation patch: %w", err)
+		a.Operation = op
+		a.Status.OperationState = nil
+		a, err = appIf.Update(context.Background(), a, metav1.UpdateOptions{})
+		if op.Sync == nil {
+			return nil, status.Errorf(codes.InvalidArgument, "Operation unspecified")
 		}
-
-		patchedApp, err := appIf.Patch(context.Background(), appName, types.MergePatchType, patch, metav1.PatchOptions{})
-		if err != nil {
-			if !apierrors.IsConflict(err) {
-				return nil, fmt.Errorf("error setting operation on application %q: %w", appName, err)
-			}
-			log.Warnf("Failed to set operation for app '%s' due to update conflict. Retrying again...", appName)
-			continue
+		if err == nil {
+			return a, nil
 		}
-
-		return patchedApp, nil
+		if !apierrors.IsConflict(err) {
+			return nil, fmt.Errorf("error updating application %q: %w", appName, err)
+		}
+		log.Warnf("Failed to set operation for app '%s' due to update conflict. Retrying again...", appName)
 	}
 }
 

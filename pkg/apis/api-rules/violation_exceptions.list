@@ -1,4 +1,0 @@
-API rule violation: list_type_missing,github.com/argoproj/argo-cd/v3/pkg/apis/application/v1beta1,ApplicationSpec,Info
-API rule violation: names_match,github.com/argoproj/argo-cd/v3/pkg/apis/application/v1beta1,Application,ObjectMeta
-API rule violation: names_match,github.com/argoproj/argo-cd/v3/pkg/apis/application/v1beta1,ApplicationList,ListMeta
-API rule violation: streaming_list_type_json_tags,github.com/argoproj/argo-cd/v3/pkg/apis/application/v1beta1,ApplicationList,ListMeta
