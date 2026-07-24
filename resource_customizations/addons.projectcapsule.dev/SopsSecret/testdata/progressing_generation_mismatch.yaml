@@ -1,0 +1,19 @@
+apiVersion: addons.projectcapsule.dev/v1alpha1
+kind: SopsSecret
+metadata:
+  name: solar-db-credentials
+  namespace: solar-production
+  generation: 2
+spec:
+  secretTemplates:
+    - name: db-password
+      stringData:
+        password: ENC[AES256_GCM,data:encrypted==,tag:tag==,type:str]
+status:
+  observedGeneration: 1
+  conditions:
+    - type: Ready
+      status: "True"
+      lastTransitionTime: "2024-01-01T00:00:00Z"
+      message: All managed secrets have been successfully decrypted and replicated
+      reason: Ready
