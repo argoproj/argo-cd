@@ -43,7 +43,7 @@ RUN  apt-get update && apt-get install --fix-missing --no-install-recommends -y 
     unzip \
     zip && \
     if [ "$(uname -m)" = "aarch64" ]; then \
-       apt-get install --fix-missing -y binutils-gold; \
+    apt-get install --fix-missing -y binutils-gold; \
     fi && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*

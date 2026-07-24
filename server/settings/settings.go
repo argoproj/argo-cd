@@ -141,6 +141,10 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 		var cfg settingspkg.DexConfig
 		err = yaml.Unmarshal([]byte(argoCDSettings.DexConfig), &cfg)
 		if err == nil {
+			// DexAuthConnectorID, when set, tells the login screen to redirect directly to the
+			// given connector, bypassing Dex's connector selection screen. It is only populated
+			// with a connector ID that exists in dex.config (validated in the settings manager).
+			cfg.DexAuthConnectorID = argoCDSettings.DexAuthConnectorID
 			set.DexConfig = &cfg
 		}
 	}
