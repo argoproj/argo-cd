@@ -1753,6 +1753,7 @@ func TestListApps(t *testing.T) {
 		"helm-with-local-dependency":        "Helm",
 		"simple-chart":                      "Helm",
 		"broken-schema-verification":        "Helm",
+		"kustomize-helm-oci":                "Kustomize",
 	}
 	assert.Equal(t, expectedApps, res.Apps)
 }
@@ -6048,4 +6049,110 @@ func TestGetHelmRepos_InsecureOCIForceHttpPropagatedFromRepoCreds(t *testing.T) 
 
 	require.Len(t, helmRepos, 1)
 	assert.True(t, helmRepos[0].InsecureOCIForceHttp)
+}
+
+func TestGetKustomizeHelmRepos_OCIHelmChartsWithHelmRepoCreds(t *testing.T) {
+	q := apiclient.ManifestRequest{Repos: []*v1alpha1.Repository{}, HelmRepoCreds: []*v1alpha1.RepoCreds{
+		{URL: "example.com", Username: "test", Password: "test", EnableOCI: true},
+	}}
+
+	helmRepos := getKustomizeHelmRepos("./testdata/kustomize-helm-oci", q.Repos, q.HelmRepoCreds)
+
+	require.Len(t, helmRepos, 1)
+	assert.Equal(t, "test", helmRepos[0].GetUsername())
+	assert.True(t, helmRepos[0].EnableOci)
+	assert.Equal(t, "example.com/myrepo/my-chart", helmRepos[0].Repo)
+}
+
+func TestGetKustomizeHelmRepos_OCIHelmChartsWithRepo(t *testing.T) {
+	q := apiclient.ManifestRequest{Repos: []*v1alpha1.Repository{{Repo: "example.com", Username: "test", Password: "test", EnableOCI: true}}, HelmRepoCreds: []*v1alpha1.RepoCreds{}}
+
+	helmRepos := getKustomizeHelmRepos("./testdata/kustomize-helm-oci", q.Repos, q.HelmRepoCreds)
+
+	require.Len(t, helmRepos, 1)
+	assert.Equal(t, "test", helmRepos[0].GetUsername())
+	assert.True(t, helmRepos[0].EnableOci)
+	assert.Equal(t, "example.com/myrepo/my-chart", helmRepos[0].Repo)
+}
+
+func TestGetKustomizeHelmRepos_OCIHelmChartsWithOCITypedHelmRepoCreds(t *testing.T) {
+	q := apiclient.ManifestRequest{Repos: []*v1alpha1.Repository{}, HelmRepoCreds: []*v1alpha1.RepoCreds{
+		{URL: "oci://example.com", Username: "test", Password: "test", Type: "oci"},
+	}}
+
+	helmRepos := getKustomizeHelmRepos("./testdata/kustomize-helm-oci", q.Repos, q.HelmRepoCreds)
+
+	require.Len(t, helmRepos, 1)
+	assert.Equal(t, "test", helmRepos[0].GetUsername())
+	assert.True(t, helmRepos[0].EnableOci)
+	assert.Equal(t, "example.com/myrepo/my-chart", helmRepos[0].Repo)
+}
+
+func TestGetKustomizeHelmRepos_OCIHelmChartsWithOCITypedRepo(t *testing.T) {
+	q := apiclient.ManifestRequest{Repos: []*v1alpha1.Repository{{Repo: "oci://example.com", Username: "test", Password: "test", Type: "oci"}}, HelmRepoCreds: []*v1alpha1.RepoCreds{}}
+
+	helmRepos := getKustomizeHelmRepos("./testdata/kustomize-helm-oci", q.Repos, q.HelmRepoCreds)
+
+	require.Len(t, helmRepos, 1)
+	assert.Equal(t, "test", helmRepos[0].GetUsername())
+	assert.True(t, helmRepos[0].EnableOci)
+	assert.Equal(t, "example.com/myrepo/my-chart", helmRepos[0].Repo)
+}
+
+func TestGetKustomizeHelmRepos_InsecureOCIForceHttpPropagatedFromRepo(t *testing.T) {
+	q := apiclient.ManifestRequest{
+		Repos: []*v1alpha1.Repository{{
+			Repo:                 "oci://example.com",
+			Username:             "test",
+			Password:             "test",
+			Type:                 "oci",
+			InsecureOCIForceHttp: true,
+		}},
+		HelmRepoCreds: []*v1alpha1.RepoCreds{},
+	}
+
+	helmRepos := getKustomizeHelmRepos("./testdata/kustomize-helm-oci", q.Repos, q.HelmRepoCreds)
+
+	require.Len(t, helmRepos, 1)
+	assert.True(t, helmRepos[0].InsecureOCIForceHttp)
+}
+
+func TestGetKustomizeHelmRepos_InsecureOCIForceHttpPropagatedFromRepoCreds(t *testing.T) {
+	q := apiclient.ManifestRequest{
+		Repos: []*v1alpha1.Repository{},
+		HelmRepoCreds: []*v1alpha1.RepoCreds{{
+			URL:                  "oci://example.com",
+			Username:             "test",
+			Password:             "test",
+			Type:                 "oci",
+			InsecureOCIForceHttp: true,
+		}},
+	}
+
+	helmRepos := getKustomizeHelmRepos("./testdata/kustomize-helm-oci", q.Repos, q.HelmRepoCreds)
+
+	require.Len(t, helmRepos, 1)
+	assert.True(t, helmRepos[0].InsecureOCIForceHttp)
+}
+
+func TestGetKustomizeHelmRepos_IgnoresDiscoveryErrors(t *testing.T) {
+	t.Parallel()
+
+	for _, test := range []struct {
+		name                string
+		kustomizationSource string
+	}{
+		{name: "missing kustomization file"},
+		{name: "malformed kustomization file", kustomizationSource: "helmCharts: ["},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			appPath := t.TempDir()
+			if test.kustomizationSource != "" {
+				require.NoError(t, os.WriteFile(filepath.Join(appPath, "kustomization.yaml"), []byte(test.kustomizationSource), 0o644))
+			}
+
+			assert.Empty(t, getKustomizeHelmRepos(appPath, nil, nil))
+		})
+	}
 }

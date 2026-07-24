@@ -1144,6 +1144,13 @@ func getHelmRepos(appPath string, repositories []*v1alpha1.Repository, helmRepoC
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving helm dependency repos: %w", err)
 	}
+	return resolveHelmRepoCredentials(dependencies, repositories, helmRepoCreds), nil
+}
+
+// resolveHelmRepoCredentials matches dependency repositories against configured credentials.
+// This is the shared credential resolution logic used by both getHelmRepos (for Chart.yaml
+// dependencies) and getKustomizeHelmRepos (for kustomization.yaml helmCharts).
+func resolveHelmRepoCredentials(dependencies []*v1alpha1.Repository, repositories []*v1alpha1.Repository, helmRepoCreds []*v1alpha1.RepoCreds) []helm.HelmRepository {
 	reposByName := make(map[string]*v1alpha1.Repository)
 	reposByURL := make(map[string]*v1alpha1.Repository)
 	for _, repo := range repositories {
@@ -1176,7 +1183,7 @@ func getHelmRepos(appPath string, repositories []*v1alpha1.Repository, helmRepoC
 				// finally if repo is OCI and no credentials found, use the first OCI credential matching by hostname
 				// see https://github.com/argoproj/argo-cd/issues/14636
 				for _, cred := range repositories {
-					if _, err = url.Parse("oci://" + dep.Repo); err != nil {
+					if _, err := url.Parse("oci://" + dep.Repo); err != nil {
 						continue
 					}
 					// if the repo is OCI, don't match the repository URL exactly, but only as a dependent repository prefix just like in the getRepoCredential function
@@ -1194,7 +1201,7 @@ func getHelmRepos(appPath string, repositories []*v1alpha1.Repository, helmRepoC
 		}
 		repos = append(repos, helm.HelmRepository{Name: repo.Name, Repo: repo.Repo, Creds: repo.GetHelmCreds(), EnableOci: repo.EnableOCI || repo.Type == "oci", InsecureOCIForceHttp: repo.InsecureOCIForceHttp})
 	}
-	return repos, nil
+	return repos
 }
 
 type dependencies struct {
@@ -1242,6 +1249,63 @@ func getHelmDependencyRepos(appPath string) ([]*v1alpha1.Repository, error) {
 
 func sanitizeRepoName(repoName string) string {
 	return strings.ReplaceAll(repoName, "/", "-")
+}
+
+type kustomizationFile struct {
+	HelmCharts []kustomizeHelmChart `yaml:"helmCharts"`
+}
+
+type kustomizeHelmChart struct {
+	Name string `yaml:"name"`
+	Repo string `yaml:"repo"`
+}
+
+// getKustomizeHelmRepos parses a kustomization.yaml for helmCharts entries and resolves
+// their repository credentials. This is the Kustomize equivalent of getHelmRepos, which
+// does the same for Chart.yaml dependencies. Discovery is best-effort so that Kustomize
+// remains responsible for reporting errors reading or parsing the kustomization file.
+func getKustomizeHelmRepos(appPath string, repositories []*v1alpha1.Repository, helmRepoCreds []*v1alpha1.RepoCreds) []helm.HelmRepository {
+	dependencies, err := getKustomizeHelmChartRepos(appPath)
+	if err != nil {
+		return nil
+	}
+	return resolveHelmRepoCredentials(dependencies, repositories, helmRepoCreds)
+}
+
+// getKustomizeHelmChartRepos parses a kustomization.yaml and returns Repository entries
+// for any helmCharts that reference OCI registries. This is analogous to getHelmDependencyRepos
+// which does the same for Chart.yaml dependencies.
+func getKustomizeHelmChartRepos(appPath string) ([]*v1alpha1.Repository, error) {
+	var f []byte
+	var err error
+	for _, name := range kustomize.KustomizationNames {
+		f, err = os.ReadFile(filepath.Join(appPath, name))
+		if err == nil {
+			break
+		}
+	}
+	if err != nil {
+		return nil, fmt.Errorf("error reading kustomization file from %s: %w", appPath, err)
+	}
+
+	k := &kustomizationFile{}
+	if err = yaml.Unmarshal(f, k); err != nil {
+		return nil, fmt.Errorf("error unmarshalling kustomization file: %w", err)
+	}
+
+	repos := make([]*v1alpha1.Repository, 0)
+	for _, chart := range k.HelmCharts {
+		u, err := url.Parse(chart.Repo)
+		if err != nil || u.Scheme != "oci" {
+			continue
+		}
+		repos = append(repos, &v1alpha1.Repository{
+			Repo:      strings.TrimPrefix(chart.Repo, ociPrefix),
+			Name:      sanitizeRepoName(chart.Repo),
+			EnableOCI: true,
+		})
+	}
+	return repos, nil
 }
 
 // runHelmBuild executes `helm dependency build` in a given path and ensures that it is executed only once
@@ -1783,11 +1847,34 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 		if err != nil {
 			return nil, fmt.Errorf("could not parse kubernetes version %s: %w", q.ApplicationSource.GetKubeVersionOrDefault(q.KubeVersion), err)
 		}
-		k := kustomize.NewKustomizeApp(repoRoot, appPath, q.Repo.GetGitCreds(gitCredsStore), repoURL, kustomizeBinary, q.Repo.Proxy, q.Repo.NoProxy)
-		targetObjs, _, commands, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions, env, &kustomize.BuildOpts{
+
+		buildOpts := &kustomize.BuildOpts{
 			KubeVersion: kubeVersion,
 			APIVersions: q.ApplicationSource.GetAPIVersionsOrDefault(q.ApiVersions),
-		})
+		}
+
+		// If kustomize is configured with --enable-helm, prepare Helm OCI
+		// registry credentials so that kustomize can pull charts from private
+		// OCI registries. This mirrors the auth setup done for direct Helm
+		// rendering in helmTemplate / helm.DependencyBuild.
+		if q.KustomizeOptions != nil && kustomize.IsHelmEnabled(q.KustomizeOptions.BuildOptions) {
+			helmRepos := getKustomizeHelmRepos(appPath, q.Repos, q.HelmRepoCreds)
+			if len(helmRepos) > 0 {
+				var h helm.Helm
+				h, err = helm.NewHelmApp(appPath, helmRepos, false, "", q.Repo.Proxy, q.Repo.NoProxy, false, false)
+				if err != nil {
+					return nil, fmt.Errorf("error initializing helm app for kustomize OCI auth: %w", err)
+				}
+				defer h.Dispose()
+				if err = h.RegistryLoginOCI(ctx); err != nil {
+					return nil, fmt.Errorf("error logging into OCI registries: %w", err)
+				}
+				buildOpts.HelmEnvVars = h.Environ()
+			}
+		}
+
+		k := kustomize.NewKustomizeApp(repoRoot, appPath, q.Repo.GetGitCreds(gitCredsStore), repoURL, kustomizeBinary, q.Repo.Proxy, q.Repo.NoProxy)
+		targetObjs, _, commands, err = k.Build(q.ApplicationSource.Kustomize, q.KustomizeOptions, env, buildOpts)
 		if err != nil {
 			return nil, err
 		}

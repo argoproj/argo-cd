@@ -1,6 +1,8 @@
 package helm
 
 import (
+	"context"
+	"fmt"
 	"os/exec"
 	"path/filepath"
 	"slices"
@@ -8,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/util/io/path"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
@@ -290,6 +293,99 @@ func TestSkipTests(t *testing.T) {
 	objs, err = template(h, &TemplateOpts{SkipTests: true})
 	require.NoError(t, err)
 	require.Empty(t, objs)
+}
+
+func TestRegistryLoginOCI(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name           string
+		repos          []HelmRepository
+		expectedLogins []string // registry hosts that should be logged into
+	}{
+		{
+			name: "OCI repo with credentials is logged in",
+			repos: []HelmRepository{
+				{Repo: "example.com/myrepo", EnableOci: true, Creds: HelmCreds{Username: "user", Password: "pass"}},
+			},
+			expectedLogins: []string{"example.com"},
+		},
+		{
+			name: "non-OCI repo is skipped",
+			repos: []HelmRepository{
+				{Repo: "https://charts.example.com", EnableOci: false, Creds: HelmCreds{Username: "user", Password: "pass"}},
+			},
+			expectedLogins: nil,
+		},
+		{
+			name: "OCI repo without credentials is skipped",
+			repos: []HelmRepository{
+				{Repo: "example.com/myrepo", EnableOci: true, Creds: HelmCreds{}},
+			},
+			expectedLogins: nil,
+		},
+		{
+			name: "mixed repos — only OCI with credentials",
+			repos: []HelmRepository{
+				{Repo: "example.com/myrepo", EnableOci: true, Creds: HelmCreds{Username: "user", Password: "pass"}},
+				{Repo: "https://charts.example.com", EnableOci: false, Creds: HelmCreds{Username: "user", Password: "pass"}},
+				{Repo: "other.io/repo", EnableOci: true, Creds: HelmCreds{}},
+			},
+			expectedLogins: []string{"example.com"},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			var loggedInRegistries []string
+			c, err := newCmdWithVersion(".", false, "", "", func(cmd *exec.Cmd, _ func(string) string) (string, error) {
+				// capture the registry host from the login command args
+				if len(cmd.Args) >= 3 && cmd.Args[1] == "registry" && cmd.Args[2] == "login" {
+					loggedInRegistries = append(loggedInRegistries, cmd.Args[3])
+				}
+				return "", nil
+			})
+			require.NoError(t, err)
+
+			h := &helm{cmd: *c, repos: tc.repos}
+			err = h.RegistryLoginOCI(t.Context())
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedLogins, loggedInRegistries)
+		})
+	}
+}
+
+func TestRegistryLoginOCI_UsesProvidedContext(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	c, err := newCmdWithVersion(".", false, "", "", func(cmd *exec.Cmd, _ func(string) string) (string, error) {
+		return "", cmd.Run()
+	})
+	require.NoError(t, err)
+
+	h := &helm{cmd: *c, repos: []HelmRepository{{Repo: "example.com/myrepo", EnableOci: true, Creds: HelmCreds{Username: "user", Password: "pass"}}}}
+	err = h.RegistryLoginOCI(ctx)
+	require.ErrorIs(t, err, context.Canceled)
+}
+
+func TestHelmEnviron_IncludesOCIRegistryCAs(t *testing.T) {
+	tlsDataPath := t.TempDir()
+	t.Setenv(common.EnvVarTLSDataPath, tlsDataPath)
+
+	c, err := NewCmd(".", "", "", "")
+	require.NoError(t, err)
+	defer c.Close()
+
+	h := &helm{cmd: *c, repos: []HelmRepository{
+		{Repo: "one.example.com/chart", EnableOci: true, Creds: HelmCreds{CAPath: filepath.Join(tlsDataPath, "one.example.com")}},
+		{Repo: "two.example.com/chart", EnableOci: true, Creds: HelmCreds{CAPath: filepath.Join(tlsDataPath, "two.example.com")}},
+	}}
+	env := h.Environ()
+
+	registryConfig := fmt.Sprintf("HELM_REGISTRY_CONFIG=%s/config/registry/config.json", c.helmHome)
+	assert.Contains(t, env, registryConfig)
+	assert.Len(t, env, 2)
+	assert.Contains(t, env, "SSL_CERT_DIR="+tlsDataPath)
 }
 
 func TestDependencyBuild_PlainHTTPFromDependencyRepo(t *testing.T) {
