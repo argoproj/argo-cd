@@ -349,7 +349,7 @@ func PushChartToTLSAuthenticatedOCIRegistry(t *testing.T, chartPathName, chartNa
 		"--ca-file", "../fixture/certs/argocd-test-ca.crt",
 		"--username", fixture.GitUsername,
 		"--password", fixture.GitPassword,
-		"localhost:5002",
+		fixture.HelmTLSAuthenticatedOCIHostURL,
 	))
 
 	errors.NewHandler(t).FailOnErr(fixture.Run(
@@ -361,7 +361,7 @@ func PushChartToTLSAuthenticatedOCIRegistry(t *testing.T, chartPathName, chartNa
 		"oci://"+fixture.HelmTLSAuthenticatedOCIRegistryURL,
 	))
 
-	errors.NewHandler(t).FailOnErr(fixture.Run("", "helm", "registry", "logout", "localhost:5002"))
+	errors.NewHandler(t).FailOnErr(fixture.Run("", "helm", "registry", "logout", fixture.HelmTLSAuthenticatedOCIHostURL))
 }
 
 // PushImageToOCIRegistry adds a helm chart to helm OCI registry
