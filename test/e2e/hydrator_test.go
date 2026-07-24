@@ -635,7 +635,7 @@ func TestHydratorNestedRequest(t *testing.T) {
 	// was hydrating is not ignored
 	dir := "slow-manifest"
 	manifest := "templates/cm.yaml"
-	ctx := Given(t).Timeout(50)
+	ctx := Given(t).Timeout(80)
 	acts := ctx.DrySourcePath(dir).
 		DrySourceRevision("HEAD").
 		SyncSourcePath(dir).

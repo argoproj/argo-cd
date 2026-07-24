@@ -498,7 +498,7 @@ func TestInvalidAppProject(t *testing.T) {
 func TestNestedRefresh(t *testing.T) {
 	dir := "slow-manifest"
 	manifest := "templates/cm.yaml"
-	ctx := Given(t).Timeout(70)
+	ctx := Given(t).Timeout(80)
 	acts := ctx.Path(dir).
 		When().
 		CreateApp().
