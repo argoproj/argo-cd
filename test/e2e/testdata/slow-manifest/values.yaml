@@ -5,4 +5,4 @@
 # Rough guide (varies by machine):
 #   400  -> ~20-30s
 #   800  -> ~40-60s
-iterations: 200
+iterations: 100
