@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
@@ -181,5 +182,12 @@ func SetBatchEventsProcessing(batchProcessing bool) UpdateSettingsFunc {
 func SetEventProcessingInterval(interval time.Duration) UpdateSettingsFunc {
 	return func(cache *clusterCache) {
 		cache.eventProcessingInterval = interval
+	}
+}
+
+// SetClientset allows overriding the kubernetes clientset built from config (injectable for tests/SSAR).
+func SetClientset(cs kubernetes.Interface) UpdateSettingsFunc {
+	return func(cache *clusterCache) {
+		cache.clientset = cs
 	}
 }

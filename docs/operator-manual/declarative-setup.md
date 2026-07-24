@@ -604,6 +604,13 @@ disableCompression: boolean
 > To resolve this issue, you can increase the `ARGOCD_K8S_CLIENT_MAX_IDLE_CONNECTIONS` environment variable in the
 > Application controller.
 
+> [!NOTE]
+> If a namespace listed in `namespaces` is deleted or has restricted RBAC, cluster cache sync is not blocked.
+> Argo CD uses a SelfSubjectAccessReview (SSAR) to confirm whether a `list` operation on a specific resource is
+> denied before skipping that `(resource, namespace)` pair. Skipped pairs surface as a warning on the cluster's
+> connection message (`argocd cluster list` → `MESSAGE` column). Other namespaces and resource types continue
+> syncing normally. The skip is not persisted — the pair is retried on the next full cluster cache resync (not on incremental watch restarts).
+
 > [!IMPORTANT]
 > Note that if you specify a command to run under `execProviderConfig`, that command must be available in the Argo CD image. See [BYOI (Build Your Own Image)](custom_tools.md#byoi-build-your-own-image).
 
