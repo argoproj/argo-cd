@@ -1,0 +1,23 @@
+apiVersion: eventing.knative.dev/v1
+kind: Trigger
+metadata:
+  name: my-service-trigger
+  namespace: events
+spec:
+  broker: default
+  subscriber:
+    ref:
+      apiVersion: v1
+      kind: Service
+      name: my-service
+status:
+  conditions:
+  - type: BrokerReady
+    status: "True"
+  - type: DependencyReady
+    status: "True"
+  - type: Ready
+    status: "True"
+    message: Trigger is ready
+  - type: SubscriberResolved
+    status: "True"
