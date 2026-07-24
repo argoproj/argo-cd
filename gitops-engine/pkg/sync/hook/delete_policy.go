@@ -3,9 +3,9 @@ package hook
 import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
-	helmhook "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/hook/helm"
-	resourceutil "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/resource"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	helmhook "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/hook/helm"
+	resourceutil "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/resource"
 )
 
 func DeletePolicies(obj *unstructured.Unstructured) []common.HookDeletePolicy {

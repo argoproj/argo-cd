@@ -1,5 +1,5 @@
 import * as React from 'react';
-import * as renderer from 'react-test-renderer';
+import {render} from '@testing-library/react';
 import {ApplicationOperationState} from './application-operation-state';
 
 jest.mock('../../../shared/services', () => ({
@@ -63,17 +63,15 @@ const baseOperationStateWithResources: any = {
     }
 };
 
-const treeText = (json: renderer.ReactTestRendererJSON | renderer.ReactTestRendererJSON[]): string => JSON.stringify(json);
-
 describe('ApplicationOperationState', () => {
     it('renders sync details (MESSAGE, REVISION, INITIATED BY) when not deleting', () => {
-        const component = renderer.create(<ApplicationOperationState application={baseApp} operationState={baseOperationState} />);
-        const text = treeText(component.toJSON());
-        expect(text).toContain('"MESSAGE"');
+        const {container} = render(<ApplicationOperationState application={baseApp} operationState={baseOperationState} />);
+        const text = container.textContent || '';
+        expect(text).toContain('MESSAGE');
         expect(text).toContain('successfully synced (all tasks run)');
-        expect(text).toContain('"FINISHED AT"');
-        expect(text).toContain('"REVISION"');
-        expect(text).toContain('"INITIATED BY"');
+        expect(text).toContain('FINISHED AT');
+        expect(text).toContain('REVISION');
+        expect(text).toContain('INITIATED BY');
         expect(text).toContain('automated sync policy');
     });
 
@@ -86,8 +84,8 @@ describe('ApplicationOperationState', () => {
                 deletionTimestamp
             }
         };
-        const component = renderer.create(<ApplicationOperationState application={deletingApp} operationState={baseOperationStateWithResources} />);
-        const text = treeText(component.toJSON());
+        const {container} = render(<ApplicationOperationState application={deletingApp} operationState={baseOperationStateWithResources} />);
+        const text = container.textContent || '';
 
         expect(text).toContain('OPERATION');
         expect(text).toContain('Delete');
@@ -97,9 +95,9 @@ describe('ApplicationOperationState', () => {
         expect(text).not.toContain('automated sync policy');
         expect(text).not.toContain('abc1234567890');
         expect(text).not.toContain('service/guestbook-ui created');
-        expect(text).not.toContain('"FINISHED AT"');
-        expect(text).not.toContain('"REVISION"');
-        expect(text).not.toContain('"INITIATED BY"');
-        expect(text).not.toContain('"RESULT"');
+        expect(text).not.toContain('FINISHED AT');
+        expect(text).not.toContain('REVISION');
+        expect(text).not.toContain('INITIATED BY');
+        expect(text).not.toContain('RESULT');
     });
 });

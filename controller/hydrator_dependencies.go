@@ -60,7 +60,7 @@ func (ctrl *ApplicationController) GetRepoObjs(ctx context.Context, app *appv1.A
 	}
 
 	// FIXME: use cache and revision cache
-	objs, resp, _, err := ctrl.appStateManager.GetRepoObjs(ctx, app, drySources, appLabelKey, dryRevisions, true, true, nil, project, false)
+	objs, resp, _, err := ctrl.appStateManager.GetRepoObjs(ctx, app, drySources, appLabelKey, dryRevisions, true, true, project.EffectiveSourceIntegrity(), project, false)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get repo objects: %w", err)
 	}
@@ -105,7 +105,8 @@ func (ctrl *ApplicationController) PersistHydrationStatus(orig *appv1.Applicatio
 	delete(newAnnotations, appv1.AnnotationKeyHydrate)
 	status := orig.Status.DeepCopy()
 	status.SourceHydrator = *newStatus
-	ctrl.persistAppStatus(orig, status, newAnnotations)
+	// PersistHydrationStatus has no request context; the status write roots its own trace.
+	ctrl.persistAppStatus(context.Background(), orig, status, newAnnotations)
 }
 
 func (ctrl *ApplicationController) AddHydrationQueueItem(key types.HydrationQueueKey) {
@@ -119,6 +120,15 @@ func (ctrl *ApplicationController) GetHydratorCommitMessageTemplate() (string, e
 	}
 
 	return sourceHydratorCommitMessageKey, nil
+}
+
+func (ctrl *ApplicationController) GetHydratorReadmeMessageTemplate() (string, error) {
+	readmeTemplate, err := ctrl.settingsMgr.GetHydratorReadmeTemplate()
+	if err != nil {
+		return "", fmt.Errorf("failed to get sourceHydrator README message template: %w", err)
+	}
+
+	return readmeTemplate, nil
 }
 
 func (ctrl *ApplicationController) GetCommitAuthorName() (string, error) {

@@ -1,28 +1,36 @@
 package progressivesync
 
 import (
+	"context"
 	"testing"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func TestBuildAppDependencyList(t *testing.T) {
+	t.Parallel()
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
 	for _, cc := range []struct {
-		name            string
-		appSet          v1alpha1.ApplicationSet
-		apps            []v1alpha1.Application
-		expectedList    [][]string
-		expectedStepMap map[string]int
+		name                     string
+		appSet                   v1alpha1.ApplicationSet
+		apps                     []v1alpha1.Application
+		expectedList             [][]string
+		expectedStepMap          map[string]int
+		expectedValidationIssues *ValidationIssues
 	}{
 		{
 			name: "handles an empty set of applications and no strategy",
@@ -33,9 +41,10 @@ func TestBuildAppDependencyList(t *testing.T) {
 				},
 				Spec: v1alpha1.ApplicationSetSpec{},
 			},
-			apps:            []v1alpha1.Application{},
-			expectedList:    [][]string{},
-			expectedStepMap: map[string]int{},
+			apps:                     []v1alpha1.Application{},
+			expectedList:             [][]string{},
+			expectedStepMap:          map[string]int{},
+			expectedValidationIssues: &ValidationIssues{},
 		},
 		{
 			name: "handles an empty set of applications and ignores AllAtOnce strategy",
@@ -50,9 +59,10 @@ func TestBuildAppDependencyList(t *testing.T) {
 					},
 				},
 			},
-			apps:            []v1alpha1.Application{},
-			expectedList:    [][]string{},
-			expectedStepMap: map[string]int{},
+			apps:                     []v1alpha1.Application{},
+			expectedList:             [][]string{},
+			expectedStepMap:          map[string]int{},
+			expectedValidationIssues: &ValidationIssues{},
 		},
 		{
 			name: "handles an empty set of applications with good 'In' selectors",
@@ -87,6 +97,9 @@ func TestBuildAppDependencyList(t *testing.T) {
 				{},
 			},
 			expectedStepMap: map[string]int{},
+			expectedValidationIssues: &ValidationIssues{
+				EmptySteps: []int{0},
+			},
 		},
 		{
 			name: "handles selecting 1 application with 1 'In' selector",
@@ -132,6 +145,7 @@ func TestBuildAppDependencyList(t *testing.T) {
 			expectedStepMap: map[string]int{
 				"app-dev": 0,
 			},
+			expectedValidationIssues: &ValidationIssues{},
 		},
 		{
 			name: "handles 'In' selectors that select no applications",
@@ -210,6 +224,9 @@ func TestBuildAppDependencyList(t *testing.T) {
 				"app-qa":   1,
 				"app-prod": 2,
 			},
+			expectedValidationIssues: &ValidationIssues{
+				EmptySteps: []int{0},
+			},
 		},
 		{
 			name: "multiple 'In' selectors in the same matchExpression only select Applications that match all selectors",
@@ -271,6 +288,8 @@ func TestBuildAppDependencyList(t *testing.T) {
 			expectedStepMap: map[string]int{
 				"app-qa2": 0,
 			},
+			// TO-DO: app-qa1 is not selected by any step but is generated - should be validationIssue
+			expectedValidationIssues: &ValidationIssues{},
 		},
 		{
 			name: "multiple values in the same 'In' matchExpression can match on any value",
@@ -335,6 +354,7 @@ func TestBuildAppDependencyList(t *testing.T) {
 				"app-qa":   0,
 				"app-prod": 0,
 			},
+			expectedValidationIssues: &ValidationIssues{},
 		},
 		{
 			name: "handles an empty set of applications with good 'NotIn' selectors",
@@ -352,7 +372,7 @@ func TestBuildAppDependencyList(t *testing.T) {
 									MatchExpressions: []v1alpha1.ApplicationMatchExpression{
 										{
 											Key:      "env",
-											Operator: "In",
+											Operator: "NotIn",
 											Values: []string{
 												"dev",
 											},
@@ -369,6 +389,9 @@ func TestBuildAppDependencyList(t *testing.T) {
 				{},
 			},
 			expectedStepMap: map[string]int{},
+			expectedValidationIssues: &ValidationIssues{
+				EmptySteps: []int{0},
+			},
 		},
 		{
 			name: "selects 1 application with 1 'NotIn' selector",
@@ -414,6 +437,7 @@ func TestBuildAppDependencyList(t *testing.T) {
 			expectedStepMap: map[string]int{
 				"app-dev": 0,
 			},
+			expectedValidationIssues: &ValidationIssues{},
 		},
 		{
 			name: "'NotIn' selectors that select no applications",
@@ -433,7 +457,7 @@ func TestBuildAppDependencyList(t *testing.T) {
 											Key:      "env",
 											Operator: "NotIn",
 											Values: []string{
-												"dev",
+												"qa", "prod",
 											},
 										},
 									},
@@ -461,12 +485,10 @@ func TestBuildAppDependencyList(t *testing.T) {
 					},
 				},
 			},
-			expectedList: [][]string{
-				{"app-qa", "app-prod"},
-			},
-			expectedStepMap: map[string]int{
-				"app-qa":   0,
-				"app-prod": 0,
+			expectedList:    [][]string{{}},
+			expectedStepMap: map[string]int{},
+			expectedValidationIssues: &ValidationIssues{
+				EmptySteps: []int{0},
 			},
 		},
 		{
@@ -527,6 +549,9 @@ func TestBuildAppDependencyList(t *testing.T) {
 				{},
 			},
 			expectedStepMap: map[string]int{},
+			expectedValidationIssues: &ValidationIssues{
+				EmptySteps: []int{0},
+			},
 		},
 		{
 			name: "multiple 'NotIn' selectors filter all matching Applications",
@@ -607,6 +632,7 @@ func TestBuildAppDependencyList(t *testing.T) {
 			expectedStepMap: map[string]int{
 				"app-prod1": 0,
 			},
+			expectedValidationIssues: &ValidationIssues{},
 		},
 		{
 			name: "multiple values in the same 'NotIn' matchExpression exclude a match from any value",
@@ -670,6 +696,7 @@ func TestBuildAppDependencyList(t *testing.T) {
 			expectedStepMap: map[string]int{
 				"app-dev": 0,
 			},
+			expectedValidationIssues: &ValidationIssues{},
 		},
 		{
 			name: "in a mix of 'In' and 'NotIn' selectors, 'NotIn' takes precedence",
@@ -741,17 +768,159 @@ func TestBuildAppDependencyList(t *testing.T) {
 			expectedStepMap: map[string]int{
 				"app-qa2": 0,
 			},
+			expectedValidationIssues: &ValidationIssues{},
+		},
+		{
+			name: "app selected in multiple steps is captured as validation issue",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "app-matches-multiple-steps",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{
+										{
+											Key:      "env",
+											Operator: "In",
+											Values: []string{
+												"dev",
+											},
+										},
+									},
+								},
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{
+										{
+											Key:      "region",
+											Operator: "In",
+											Values: []string{
+												"us-west-2",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			apps: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app-dev",
+						Labels: map[string]string{
+							"env":    "dev",
+							"region": "us-west-2",
+						},
+					},
+				},
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app-qa",
+						Labels: map[string]string{
+							"region": "us-west-2",
+						},
+					},
+				},
+			},
+			expectedList: [][]string{
+				{"app-dev"},
+				{"app-dev", "app-qa"},
+			},
+			expectedStepMap: map[string]int{
+				"app-dev": 0,
+				"app-qa":  1,
+			},
+			expectedValidationIssues: &ValidationIssues{
+				DuplicateAppSelections: map[string][]int{
+					"app-dev": {0, 1},
+				},
+			},
+		},
+		{
+			name: "Invalid Operator in MatchExpression is captured as validationIssue",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "invalid-match-expression",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{
+										{
+											Key:      "env",
+											Operator: "Invalid",
+											Values: []string{
+												"dev",
+											},
+										},
+									},
+								},
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{
+										{
+											Key:      "env",
+											Operator: "In",
+											Values: []string{
+												"dev",
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			apps: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "app-dev",
+						Labels: map[string]string{
+							"env": "dev",
+						},
+					},
+				},
+			},
+			expectedList: [][]string{
+				{},
+				{"app-dev"},
+			},
+			expectedStepMap: map[string]int{
+				"app-dev": 1,
+			},
+			expectedValidationIssues: &ValidationIssues{
+				EmptySteps: []int{0},
+				InvalidMatchExpressions: []InvalidMatchExpression{
+					{
+						StepIndex: 0,
+						Operator:  "Invalid",
+					},
+				},
+			},
 		},
 	} {
 		t.Run(cc.name, func(t *testing.T) {
-			appDependencyList, appStepMap := buildAppDependencyList(log.NewEntry(log.StandardLogger()), cc.appSet, cc.apps)
+			t.Parallel()
+			appDependencyList, appStepMap, validationIssues := buildAppDependencyList(log.NewEntry(log.StandardLogger()), cc.appSet, cc.apps)
 			assert.Equal(t, cc.expectedList, appDependencyList, "expected appDependencyList did not match actual")
 			assert.Equal(t, cc.expectedStepMap, appStepMap, "expected appStepMap did not match actual")
+			assert.Equal(t, cc.expectedValidationIssues, validationIssues, "expected validationIssues did not match actual")
 		})
 	}
 }
 
 func TestGetAppsToSync(t *testing.T) {
+	t.Parallel()
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
@@ -1162,6 +1331,7 @@ func TestGetAppsToSync(t *testing.T) {
 		},
 	} {
 		t.Run(cc.name, func(t *testing.T) {
+			t.Parallel()
 			appsToSync := getAppsToSync(cc.appSet, cc.appDependencyList, cc.currentApps)
 			assert.Equal(t, cc.expectedMap, appsToSync, "expected map did not match actual")
 		})
@@ -1169,6 +1339,7 @@ func TestGetAppsToSync(t *testing.T) {
 }
 
 func TestIsRollingSyncStrategy(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		appset   *v1alpha1.ApplicationSet
@@ -1221,6 +1392,7 @@ func TestIsRollingSyncStrategy(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := IsRollingSyncStrategy(tt.appset)
 			assert.Equal(t, tt.expected, result)
 		})
@@ -1228,6 +1400,7 @@ func TestIsRollingSyncStrategy(t *testing.T) {
 }
 
 func TestSyncApplication(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    v1alpha1.Application
@@ -1309,6 +1482,7 @@ func TestSyncApplication(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := syncApplication(tt.input, tt.prune)
 			assert.Equal(t, tt.expected, result)
 		})
@@ -1316,6 +1490,7 @@ func TestSyncApplication(t *testing.T) {
 }
 
 func TestIsRollingSyncDeletionReversed(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		appset   *v1alpha1.ApplicationSet
@@ -1416,8 +1591,82 @@ func TestIsRollingSyncDeletionReversed(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := IsDeletionOrderReversed(tt.appset)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+// TestPerformReverseDeletionStaleCache reproduces the "ApplicationSet stuck in Deleting" bug.
+//
+// When an ApplicationSet with deletionOrder: Reverse is deleted, the controller reads the child
+// Applications from its (cache-backed) client to decide when they are gone. If the informer cache
+// is stale — it still lists Applications that were already removed from the API server — then the
+// per-app Get returns the ghost object while the subsequent Delete hits the API and returns
+// NotFound. The old code treated that NotFound as a fatal error and returned it, so the reconcile
+// error-looped forever and the ResourcesFinalizer was never removed. The only known recovery was
+// restarting the controller (which rebuilds the cache from a fresh LIST).
+//
+// This test simulates the stale cache with an interceptor: Get succeeds (object present in the
+// fake store) but Delete returns NotFound. PerformReverseDeletion must treat that as
+// "already deleted" and converge to (0, nil) so the finalizer can be removed.
+func TestPerformReverseDeletionStaleCache(t *testing.T) {
+	t.Parallel()
+
+	scheme := runtime.NewScheme()
+	require.NoError(t, v1alpha1.AddToScheme(scheme))
+
+	appSet := v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{Name: "appset", Namespace: "argocd"},
+		Spec: v1alpha1.ApplicationSetSpec{
+			Strategy: &v1alpha1.ApplicationSetStrategy{
+				Type:          "RollingSync",
+				DeletionOrder: ReverseDeletionOrder,
+				RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+					Steps: []v1alpha1.ApplicationSetRolloutStep{
+						{MatchExpressions: []v1alpha1.ApplicationMatchExpression{{Key: "stage", Operator: "In", Values: []string{"0"}}}},
+						{MatchExpressions: []v1alpha1.ApplicationMatchExpression{{Key: "stage", Operator: "In", Values: []string{"1"}}}},
+					},
+				},
+			},
+		},
+	}
+
+	newApp := func(name, stage string) v1alpha1.Application {
+		return v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "argocd", Labels: map[string]string{"stage": stage}},
+		}
+	}
+	// currentApps mirrors what getCurrentApplications() returns from the stale cache: both apps
+	// still appear to exist even though they have already been deleted from the API server.
+	app0 := newApp("appset-stage0", "0")
+	app1 := newApp("appset-stage1", "1")
+	currentApps := []v1alpha1.Application{app0, app1}
+
+	deleteAttempts := map[string]int{}
+	fakeClient := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(&app0, &app1). // Get returns the ghost objects (stale cache)
+		WithInterceptorFuncs(interceptor.Funcs{
+			// The objects are already gone on the API server: every Delete 404s.
+			Delete: func(_ context.Context, _ client.WithWatch, obj client.Object, _ ...client.DeleteOption) error {
+				deleteAttempts[obj.GetName()]++
+				return apierrors.NewNotFound(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, obj.GetName())
+			},
+		}).
+		Build()
+
+	m := NewManager(fakeClient, nil)
+	logCtx := log.NewEntry(log.New())
+
+	requeue, err := m.PerformReverseDeletion(context.Background(), logCtx, appSet, currentApps)
+
+	// With the fix, an already-deleted Application is treated as success: reverse deletion
+	// converges in a single pass so the caller can remove the finalizer instead of looping.
+	require.NoError(t, err, "already-deleted Application must not surface as a hard error")
+	assert.Zero(t, requeue, "deletion should be complete, not requeued")
+	// Both steps should have been visited and their (already-gone) deletion attempted.
+	assert.Equal(t, 1, deleteAttempts["appset-stage0"])
+	assert.Equal(t, 1, deleteAttempts["appset-stage1"])
 }

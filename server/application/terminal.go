@@ -7,17 +7,17 @@ import (
 	"slices"
 	"time"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/httpstream"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/remotecommand"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/streaming/pkg/httpstream"
 
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	applisters "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
@@ -231,12 +231,12 @@ func (s *terminalHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	if slices.Contains(s.allowedShells, shell) {
 		cmd := []string{shell}
-		err = startProcess(kubeClientset, config, namespace, podName, container, cmd, session)
+		err = startProcess(ctx, kubeClientset, config, namespace, podName, container, cmd, session)
 	} else {
 		// No shell given or the given shell was not allowed: try the configured shells until one succeeds or all fail.
 		for _, testShell := range s.allowedShells {
 			cmd := []string{testShell}
-			if err = startProcess(kubeClientset, config, namespace, podName, container, cmd, session); err == nil {
+			if err = startProcess(ctx, kubeClientset, config, namespace, podName, container, cmd, session); err == nil {
 				break
 			}
 		}
@@ -298,7 +298,7 @@ type TerminalCommand struct {
 }
 
 // startProcess executes specified commands in the container and connects it up with the ptyHandler (a session)
-func startProcess(k8sClient kubernetes.Interface, cfg *rest.Config, namespace, podName, containerName string, cmd []string, ptyHandler PtyHandler) error {
+func startProcess(ctx context.Context, k8sClient kubernetes.Interface, cfg *rest.Config, namespace, podName, containerName string, cmd []string, ptyHandler PtyHandler) error {
 	req := k8sClient.CoreV1().RESTClient().Post().
 		Resource("pods").
 		Name(podName).
@@ -332,7 +332,7 @@ func startProcess(k8sClient kubernetes.Interface, cfg *rest.Config, namespace, p
 			return err
 		}
 	}
-	return exec.StreamWithContext(context.Background(), remotecommand.StreamOptions{
+	return exec.StreamWithContext(ctx, remotecommand.StreamOptions{
 		Stdin:             ptyHandler,
 		Stdout:            ptyHandler,
 		Stderr:            ptyHandler,

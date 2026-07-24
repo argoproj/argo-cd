@@ -10,9 +10,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/cache"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	"github.com/r3labs/diff/v3"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -28,6 +28,7 @@ import (
 	applicationsv1 "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v3/util/db"
+	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/glob"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/settings"
@@ -568,7 +569,7 @@ func GetRefSources(ctx context.Context, sources argoappv1.ApplicationSources, pr
 
 			repo, err := getRepository(ctx, source.RepoURL, project)
 			if err != nil {
-				return nil, fmt.Errorf("failed to get repository %s: %w", source.RepoURL, err)
+				return nil, fmt.Errorf("failed to get repository %s: %w", git.SanitizeRepoURL(source.RepoURL), err)
 			}
 			refKey := "$" + source.Ref
 			revision := source.TargetRevision
@@ -632,7 +633,7 @@ func validateSourceHydrator(hydrator *argoappv1.SourceHydrator) []argoappv1.Appl
 	if hydrator.HydrateTo != nil && hydrator.HydrateTo.TargetBranch == "" {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
-			Message: "when spec.sourceHydrator.hydrateTo is set, spec.sourceHydrator.hydrateTo.path is required",
+			Message: "when spec.sourceHydrator.hydrateTo is set, spec.sourceHydrator.hydrateTo.targetBranch is required",
 		})
 	}
 	return conditions
@@ -653,6 +654,13 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 			conditions = append(conditions, argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,
 				Message: fmt.Sprintf("application repo %s is not permitted in project '%s'", spec.SourceHydrator.GetDrySource().RepoURL, proj.Name),
+			})
+		}
+		syncSource := spec.SourceHydrator.GetSyncSource()
+		if syncSource.RepoURL != spec.SourceHydrator.DrySource.RepoURL && !proj.IsSourcePermitted(syncSource) {
+			conditions = append(conditions, argoappv1.ApplicationCondition{
+				Type:    argoappv1.ApplicationConditionInvalidSpecError,
+				Message: fmt.Sprintf("sync source repo %s is not permitted in project '%s'", syncSource.RepoURL, proj.Name),
 			})
 		}
 	case spec.HasMultipleSources():

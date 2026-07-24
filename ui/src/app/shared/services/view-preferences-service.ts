@@ -84,6 +84,7 @@ export class AbstractAppsListPreferences {
     public statusBarView: HealthStatusBarPreferences;
     public showFavorites: boolean;
     public favoritesAppList: string[];
+    public searchRegex: boolean;
 }
 
 export class AppsListPreferences extends AbstractAppsListPreferences {
@@ -175,6 +176,7 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         hideFilters: false,
         showFavorites: false,
         favoritesAppList: new Array<string>(),
+        searchRegex: false,
         statusBarView: {
             showHealthStatusBar: true
         }
@@ -220,7 +222,7 @@ export class ViewPreferencesService {
         if (preferencesStr) {
             try {
                 preferences = JSON.parse(preferencesStr);
-            } catch (e) {
+            } catch {
                 preferences = DEFAULT_PREFERENCES;
             }
             if (!preferences.version || preferences.version < minVer) {

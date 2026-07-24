@@ -118,3 +118,20 @@ data:
 ```
 
 ![banner with link](../assets/banner.png)
+
+## Login Button Text
+
+By default, the SSO login button label is derived from the OIDC provider or Dex connector name (e.g. "Log in via Azure"). You can override this text using the `ui.loginButtonText` field in the `argocd-cm` ConfigMap.
+
+### argocd-cm
+```yaml
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+data:
+  ui.loginButtonText: "SSO Login"
+```
+
+If `ui.loginButtonText` is set, it takes precedence over the provider-derived label. If not set, the default behavior is preserved.

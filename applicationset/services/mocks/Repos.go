@@ -78,7 +78,7 @@ type Repos_GetDirectories_Call struct {
 //   - project string
 //   - noRevisionCache bool
 //   - sourceIntegrity *v1alpha1.SourceIntegrity
-func (_e *Repos_Expecter) GetDirectories(ctx interface{}, repoURL interface{}, revision interface{}, project interface{}, noRevisionCache interface{}, sourceIntegrity interface{}) *Repos_GetDirectories_Call {
+func (_e *Repos_Expecter) GetDirectories(ctx any, repoURL any, revision any, project any, noRevisionCache any, sourceIntegrity any) *Repos_GetDirectories_Call {
 	return &Repos_GetDirectories_Call{Call: _e.mock.On("GetDirectories", ctx, repoURL, revision, project, noRevisionCache, sourceIntegrity)}
 }
 
@@ -171,7 +171,7 @@ type Repos_GetFiles_Call struct {
 //   - pattern string
 //   - noRevisionCache bool
 //   - sourceIntegrity *v1alpha1.SourceIntegrity
-func (_e *Repos_Expecter) GetFiles(ctx interface{}, repoURL interface{}, revision interface{}, project interface{}, pattern interface{}, noRevisionCache interface{}, sourceIntegrity interface{}) *Repos_GetFiles_Call {
+func (_e *Repos_Expecter) GetFiles(ctx any, repoURL any, revision any, project any, pattern any, noRevisionCache any, sourceIntegrity any) *Repos_GetFiles_Call {
 	return &Repos_GetFiles_Call{Call: _e.mock.On("GetFiles", ctx, repoURL, revision, project, pattern, noRevisionCache, sourceIntegrity)}
 }
 

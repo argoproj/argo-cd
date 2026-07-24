@@ -1,10 +1,9 @@
 import {Checkbox, DropDown, Duration, NotificationType, Ticker, HelpIcon, Tooltip} from 'argo-ui';
 import * as moment from 'moment';
-import * as PropTypes from 'prop-types';
 import * as React from 'react';
 
 import {ErrorNotification, Revision, Timestamp} from '../../../shared/components';
-import {AppContext} from '../../../shared/context';
+import {Context} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import * as utils from '../utils';
@@ -150,8 +149,9 @@ const Filter = (props: {filters: string[]; setFilters: (f: string[]) => void; op
     );
 };
 
-export const ApplicationOperationState: React.StatelessComponent<Props> = ({application, operationState}, ctx: AppContext) => {
-    const [messageFilters, setMessageFilters] = React.useState([]);
+export const ApplicationOperationState: React.FC<Props> = ({application, operationState}) => {
+    const ctx = React.useContext(Context);
+    const [messageFilters, setMessageFilters] = React.useState<string[]>([]);
 
     // Argo CD does not record cascading deletion as an Operation in `status.operationState`,
     // so during a stuck delete the panel would otherwise render the previous sync's data.
@@ -214,12 +214,12 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
                     <button
                         className='argo-button argo-button--base'
                         onClick={async () => {
-                            const confirmed = await ctx.apis.popup.confirm('Terminate operation', 'Are you sure you want to terminate operation?');
+                            const confirmed = await ctx.popup.confirm('Terminate operation', 'Are you sure you want to terminate operation?');
                             if (confirmed) {
                                 try {
                                     await services.applications.terminateOperation(application.metadata.name, application.metadata.namespace);
                                 } catch (e) {
-                                    ctx.apis.notifications.show({
+                                    ctx.notifications.show({
                                         content: <ErrorNotification title='Unable to terminate operation' e={e} />,
                                         type: NotificationType.Error
                                     });
@@ -265,8 +265,8 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
             });
         }
     }
-    const [filters, setFilters] = React.useState([]);
-    const [healthFilters, setHealthFilters] = React.useState([]);
+    const [filters, setFilters] = React.useState<string[]>([]);
+    const [healthFilters, setHealthFilters] = React.useState<string[]>([]);
 
     const Healths = Object.keys(models.HealthStatuses);
     const Statuses = Object.keys(models.ResultCodes);
@@ -274,7 +274,7 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
     // const syncPhases = ['PreSync', 'Sync', 'PostSync', 'SyncFail'];
     // const hookPhases = ['Running', 'Terminating', 'Failed', 'Error', 'Succeeded'];
     const resourceHealth = application.status.resources.reduce(
-        (acc, res) => {
+        (acc, res: models.ResourceStatus) => {
             acc[buildResourceUniqueId(res)] = {
                 health: res.health,
                 syncWave: res.syncWave
@@ -291,7 +291,7 @@ export const ApplicationOperationState: React.StatelessComponent<Props> = ({appl
         >
     );
 
-    const combinedHealthSyncResult: models.SyncResourceResult[] = syncResult?.resources?.map(syncResultItem => {
+    const combinedHealthSyncResult: models.SyncResourceResult[] = syncResult?.resources?.map((syncResultItem: models.SyncResourceResult) => {
         const uniqueResourceName = buildResourceUniqueId(syncResultItem);
 
         const healthStatus = resourceHealth[uniqueResourceName];
@@ -470,8 +470,4 @@ const getKind = (resource: models.ResourceResult): string => {
 
 const getStatus = (resource: models.ResourceResult): string => {
     return resource.hookType ? resource.hookPhase : resource.status;
-};
-
-ApplicationOperationState.contextTypes = {
-    apis: PropTypes.object
 };

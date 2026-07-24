@@ -1,11 +1,11 @@
-import {Autocomplete, ErrorNotification, MockupList, NotificationType, SlidingPanel} from 'argo-ui';
+import {ErrorNotification, MockupList, NotificationType, SlidingPanel, Tooltip} from 'argo-ui';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
-import {Key, KeybindingContext, KeybindingProvider} from 'argo-ui/v2';
+import {KeybindingProvider} from 'argo-ui/v2';
 import {RouteComponentProps} from 'react-router';
 import {combineLatest, from, merge, Observable} from 'rxjs';
 import {bufferTime, delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
-import {ClusterCtx, DataLoader, EmptyState, Page, Paginate, Spinner} from '../../../shared/components';
+import {ClusterCtx, DataLoader, EmptyState, Page, Paginate, SearchBar, Spinner} from '../../../shared/components';
 import {AuthSettingsCtx, Consumer, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {AppsListPreferences, AppsListViewKey, AppsListViewType, HealthStatusBarPreferences, services} from '../../../shared/services';
@@ -14,15 +14,17 @@ import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-p
 import {ApplicationsSyncPanel} from '../applications-sync-panel/applications-sync-panel';
 import * as AppUtils from '../utils';
 import {ApplicationsFilter, FilteredApp, getAppFilterResults} from './applications-filter';
+import {createMatcher} from './applications-list-search';
 import {AppsStatusBar} from './applications-status-bar';
 import {ApplicationsSummary} from './applications-summary';
 import {ApplicationsTable} from './applications-table';
 import {ApplicationTiles} from './applications-tiles';
 import {ApplicationsRefreshPanel} from '../applications-refresh-panel/applications-refresh-panel';
-import {FlexTopBar} from './flex-top-bar';
+import {FlexTopBar} from '../../../shared/components';
 import {ViewTypeSwitcher} from './view-type-switcher';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 import {useQuery, useObservableQuery} from '../../../shared/hooks/query';
+import {isInvalidRegex} from '../../../shared/utils';
 
 import './applications-list.scss';
 
@@ -38,17 +40,21 @@ const APP_FIELDS = [
     'metadata.labels',
     'metadata.creationTimestamp',
     'metadata.deletionTimestamp',
-    'spec',
+    'spec.destination',
+    'spec.project',
+    'spec.source',
+    'spec.sources',
+    'spec.sourceHydrator',
+    'spec.syncPolicy',
     'operation.sync',
     'status.sourceHydrator',
+    'status.summary',
     'status.sync.status',
     'status.sync.revision',
     'status.health',
     'status.operationState.phase',
-    'status.operationState.finishedAt',
-    'status.operationState.operation.sync',
-    'status.summary',
-    'status.resources'
+    'status.operationState.startedAt',
+    'status.operationState.finishedAt'
 ];
 const APP_LIST_FIELDS = ['metadata.resourceVersion', ...APP_FIELDS.map(field => `items.${field}`)];
 const APP_WATCH_FIELDS = ['result.type', ...APP_FIELDS.map(field => `result.application.${field}`)];
@@ -180,7 +186,11 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
                                 .map(decodeURIComponent)
                                 .filter(item => !!item);
                         }
-                        return {...viewPref, page: parseInt(params.get('page') || '0', 10), search: params.get('search') || ''};
+                        return {
+                            ...viewPref,
+                            page: parseInt(params.get('page') || '0', 10),
+                            search: params.get('search') || ''
+                        };
                     })
                 )
             }>
@@ -189,26 +199,25 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
     );
 };
 
-function filterApplications(applications: models.Application[], pref: AppsListPreferences, search: string): {filteredApps: models.Application[]; filterResults: FilteredApp[]} {
+function filterApplications(
+    applications: models.Application[],
+    pref: AppsListPreferences,
+    search: string,
+    searchRegex: boolean
+): {filteredApps: models.Application[]; filterResults: FilteredApp[]} {
     const processedApps = applications.map(app => {
         let isAppOfAppsPattern = false;
-        if (app.status?.resources) {
-            for (const resource of app.status.resources) {
-                if (resource.kind === 'Application') {
-                    isAppOfAppsPattern = true;
-                    break;
-                }
-            }
+        if (app.status.summary?.isAppOfApps === true) {
+            isAppOfAppsPattern = true;
         }
         return {...app, isAppOfAppsPattern};
     });
     const filterResults = getAppFilterResults(processedApps, pref);
+    const matchesSearch = createMatcher(search, searchRegex);
 
     return {
         filterResults,
-        filteredApps: filterResults.filter(
-            app => (search === '' || app.metadata.name.includes(search) || app.metadata.namespace.includes(search)) && Object.values(app.filterResult).every(val => val)
-        )
+        filteredApps: filterResults.filter(app => matchesSearch(app.metadata.name, app.metadata.namespace) && Object.values(app.filterResult).every(val => val))
     };
 }
 
@@ -220,92 +229,38 @@ function tryJsonParse(input: string) {
     }
 }
 
-const SearchBar = (props: {content: string; ctx: ContextApis; apps: models.Application[]}) => {
-    const {content, ctx, apps} = {...props};
-
-    const searchBar = React.useRef<HTMLDivElement>(null);
+const ApplicationsListSearchBar = (props: {content: string; searchRegex: boolean; ctx: ContextApis; apps: models.Application[]}) => {
+    const {content, searchRegex, ctx, apps} = props;
+    const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
 
     const query = new URLSearchParams(window.location.search);
     const appInput = tryJsonParse(query.get('new'));
 
-    const {useKeybinding} = React.useContext(KeybindingContext);
-    const [isFocused, setFocus] = React.useState(false);
-    const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
-
-    useKeybinding({
-        keys: Key.SLASH,
-        action: () => {
-            if (searchBar.current && !appInput) {
-                searchBar.current.querySelector('input').focus();
-                setFocus(true);
-                return true;
-            }
-            return false;
-        }
-    });
-
-    useKeybinding({
-        keys: Key.ESCAPE,
-        action: () => {
-            if (searchBar.current && !appInput && isFocused) {
-                searchBar.current.querySelector('input').blur();
-                setFocus(false);
-                return true;
-            }
-            return false;
-        }
-    });
-
     return (
-        <Autocomplete
-            filterSuggestions={true}
-            renderInput={inputProps => (
-                <div className='applications-list__search' ref={searchBar}>
-                    <i
-                        className='fa fa-search'
-                        style={{marginRight: '9px', cursor: 'pointer'}}
-                        onClick={() => {
-                            if (searchBar.current) {
-                                searchBar.current.querySelector('input').focus();
-                            }
-                        }}
-                    />
-                    <input
-                        {...inputProps}
-                        onFocus={e => {
-                            e.target.select();
-                            if (inputProps.onFocus) {
-                                inputProps.onFocus(e);
-                            }
-                        }}
-                        style={{fontSize: '14px'}}
-                        className='argo-field'
-                        placeholder='Search applications...'
-                    />
-                    <div className='keyboard-hint'>/</div>
-                    {content && (
-                        <i className='fa fa-times' onClick={() => ctx.navigation.goto('.', {search: null}, {replace: true})} style={{cursor: 'pointer', marginLeft: '5px'}} />
-                    )}
-                </div>
-            )}
-            wrapperProps={{className: 'applications-list__search-wrapper'}}
-            renderItem={item => (
-                <React.Fragment>
-                    <i className='icon argo-icon-application' /> {item.label}
-                </React.Fragment>
-            )}
-            onSelect={val => {
-                const selectedApp = apps?.find(app => {
-                    const qualifiedName = AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled);
-                    return qualifiedName === val;
-                });
-                if (selectedApp) {
-                    ctx.navigation.goto(`/${AppUtils.getAppUrl(selectedApp)}`);
-                }
-            }}
-            onChange={e => ctx.navigation.goto('.', {search: e.target.value}, {replace: true})}
+        <SearchBar
             value={content || ''}
-            items={apps.map(app => AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled))}
+            onChange={value => ctx.navigation.goto('.', {search: value}, {replace: true})}
+            placeholder={searchRegex ? 'Regex search (e.g. ^foo-.*-prod$)' : 'Search applications...'}
+            disableKeyboardShortcuts={!!appInput}
+            regexEnabled={searchRegex}
+            autocomplete={{
+                items: apps.map(app => AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)),
+                filterSuggestions: true,
+                onSelect: val => {
+                    const selectedApp = apps?.find(app => {
+                        const qualifiedName = AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled);
+                        return qualifiedName === val;
+                    });
+                    if (selectedApp) {
+                        ctx.navigation.goto(`/${AppUtils.getAppUrl(selectedApp)}`);
+                    }
+                },
+                renderItem: item => (
+                    <React.Fragment>
+                        <i className='icon argo-icon-application' /> {item.label}
+                    </React.Fragment>
+                )
+            }}
         />
     );
 };
@@ -318,13 +273,49 @@ interface ApplicationsToolbarProps {
 }
 
 const ApplicationsToolbar: React.FC<ApplicationsToolbarProps> = ({applications, pref, ctx, healthBarPrefs}) => {
-    const query = useQuery();
+    const regexInvalid = pref.searchRegex && isInvalidRegex(pref.search);
+
+    const regexToggleClass = `applications-list__regex-toggle argo-button argo-button--base${pref.searchRegex ? '' : '-o'}${
+        regexInvalid ? ' applications-list__regex-toggle--invalid' : ''
+    }`;
 
     return (
-        <React.Fragment key='app-list-tools'>
-            <SearchBar content={query.get('search')} apps={applications} ctx={ctx} />
-            <ViewTypeSwitcher pref={pref} ctx={ctx} healthBarPrefs={healthBarPrefs} />
-        </React.Fragment>
+        <div className='applications-list__toolbar-controls' key='app-list-tools'>
+            <ApplicationsListSearchBar content={pref.search} searchRegex={pref.searchRegex} apps={applications} ctx={ctx} />
+            <Tooltip content={pref.searchRegex ? (regexInvalid ? 'Invalid regex pattern' : 'Regex search enabled, click to switch to plain text') : 'Click to enable regex search'}>
+                <button
+                    type='button'
+                    aria-label='Toggle regex search'
+                    aria-pressed={pref.searchRegex}
+                    className={regexToggleClass}
+                    onClick={() => {
+                        services.viewPreferences.updatePreferences({
+                            appList: {...pref, searchRegex: !pref.searchRegex}
+                        });
+                    }}>
+                    .*
+                </button>
+            </Tooltip>
+            <Tooltip content='Toggle Health Status Bar'>
+                <button
+                    className={`applications-list__accordion argo-button argo-button--base${healthBarPrefs.showHealthStatusBar ? '-o' : ''}`}
+                    style={{border: 'none'}}
+                    onClick={() => {
+                        const showHealthStatusBar = !healthBarPrefs.showHealthStatusBar;
+                        services.viewPreferences.updatePreferences({
+                            appList: {
+                                ...pref,
+                                statusBarView: {
+                                    ...healthBarPrefs,
+                                    showHealthStatusBar
+                                }
+                            }
+                        });
+                    }}>
+                    <i className='fas fa-ruler-horizontal' />
+                </button>
+            </Tooltip>
+        </div>
     );
 };
 
@@ -337,7 +328,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
     const [createApi, setCreateApi] = React.useState(null);
     const clusters = React.useMemo(() => services.clusters.list(), []);
     const [isAppCreatePending, setAppCreatePending] = React.useState(false);
-    const loaderRef = React.useRef<DataLoader>();
+    const loaderRef = React.useRef<DataLoader | null>(null);
     const {List, Summary, Tiles} = AppsListViewKey;
 
     function refreshApp(appName: string, appNamespace: string) {
@@ -409,8 +400,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                 path: props.match.url
                                             }
                                         ]
-                                    }}
-                                    hideAuth={true}>
+                                    }}>
                                     <DataLoader
                                         input={pref.projectsFilter?.join(',')}
                                         ref={loaderRef}
@@ -438,13 +428,14 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                             };
 
                                             const apps = applications as models.Application[];
-                                            const {filteredApps, filterResults} = filterApplications(apps, pref, pref.search);
+                                            const {filteredApps, filterResults} = filterApplications(apps, pref, pref.search, pref.searchRegex);
 
                                             return (
                                                 <React.Fragment>
                                                     <FlexTopBar
                                                         toolbar={{
                                                             tools: <ApplicationsToolbar applications={applications} pref={pref} ctx={ctx} healthBarPrefs={healthBarPrefs} />,
+                                                            options: <ViewTypeSwitcher pref={pref} ctx={ctx} />,
                                                             actionMenu: {
                                                                 items: [
                                                                     {

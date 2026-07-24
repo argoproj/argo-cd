@@ -2,7 +2,7 @@
 import {AutocompleteField, Checkbox, DataLoader, DropDownMenu, FormField, HelpIcon, Select} from 'argo-ui';
 import * as deepMerge from 'deepmerge';
 import * as React from 'react';
-import {FieldApi, Form, FormApi, FormField as ReactFormField, Text} from 'react-form';
+import {FieldApi, Form, FormApi, FormFieldHOC as ReactFormField, Text} from 'argo-ui';
 import {cloneDeep, debounce} from 'lodash-es';
 import {YamlEditor} from '../../../shared/components';
 import * as models from '../../../shared/models';
@@ -113,7 +113,7 @@ export const ApplicationCreatePanel = (props: {
     const app = deepMerge(DEFAULT_APP, props.app || {});
     const debouncedOnAppChanged = debounce(props.onAppChanged, 800);
     const [destinationFieldChanges, setDestinationFieldChanges] = React.useState({destFormat: 'URL', destFormatChanged: null});
-    const comboSwitchedFromPanel = React.useRef(false);
+    const [comboSwitchedFromPanel, setComboSwitchedFromPanel] = React.useState(false);
     const currentRepoType = React.useRef(undefined);
     const lastGitOrHelmUrl = React.useRef('');
     const lastOciUrl = React.useRef('');
@@ -125,10 +125,6 @@ export const ApplicationCreatePanel = (props: {
     const [multiSourceMode, setMultiSourceMode] = React.useState(() => (app.spec?.sources?.length ?? 0) >= 2);
 
     React.useEffect(() => {
-        comboSwitchedFromPanel.current = false;
-    }, []);
-
-    React.useEffect(() => {
         return () => {
             debouncedOnAppChanged.cancel();
         };
@@ -138,7 +134,7 @@ export const ApplicationCreatePanel = (props: {
     const currentServer = app.spec.destination.server;
     if (destinationFieldChanges.destFormatChanged !== null) {
         if (destinationComboValue == 'NAME') {
-            if (currentName === undefined && currentServer !== undefined && comboSwitchedFromPanel.current === false) {
+            if (currentName === undefined && currentServer !== undefined && comboSwitchedFromPanel === false) {
                 destinationComboValue = 'URL';
             } else {
                 delete app.spec.destination.server;
@@ -147,7 +143,7 @@ export const ApplicationCreatePanel = (props: {
                 }
             }
         } else {
-            if (currentServer === undefined && currentName !== undefined && comboSwitchedFromPanel.current === false) {
+            if (currentServer === undefined && currentName !== undefined && comboSwitchedFromPanel === false) {
                 destinationComboValue = 'NAME';
             } else {
                 delete app.spec.destination.name;
@@ -503,7 +499,7 @@ export const ApplicationCreatePanel = (props: {
                                                                 action: () => {
                                                                     if (destinationComboValue !== type) {
                                                                         destinationComboValue = type;
-                                                                        comboSwitchedFromPanel.current = true;
+                                                                        setComboSwitchedFromPanel(true);
                                                                         setDestinationFieldChanges({destFormat: type, destFormatChanged: 'changed'});
                                                                     }
                                                                 }

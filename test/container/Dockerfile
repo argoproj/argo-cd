@@ -1,4 +1,4 @@
-FROM docker.io/library/redis:8.8.0@sha256:25e102bdf0bd1ea1f5840ce8873275ba12dc544740a1c9bda9fc71001f5c7190 AS redis
+FROM docker.io/library/redis:8.8.0@sha256:0a972391db0b24ec336e35d1bc98b237237e26f82bf5120cf2f6b1688d1df973 AS redis
 
 # There are libraries we will want to copy from here in the final stage of the
 # build, but the COPY directive does not have a way to determine system
@@ -6,17 +6,20 @@ FROM docker.io/library/redis:8.8.0@sha256:25e102bdf0bd1ea1f5840ce8873275ba12dc54
 RUN ln -s /usr/lib/$(uname -m)-linux-gnu /usr/lib/linux-gnu
 
 # Please make sure to also check the contained yarn version and update the references below when upgrading this image's version
-FROM docker.io/library/node:22.9.0@sha256:8398ea18b8b72817c84af283f72daed9629af2958c4f618fe6db4f453c5c9328 AS node
+FROM docker.io/library/node:24.17.0@sha256:032e78d7e54e352129831743737e3a83171d9cc5b5896f411649c597ce0b11ea AS node
 
-FROM docker.io/library/golang:1.26.3@sha256:2d6c80227255c3112a4d08e67ba98e58efd3846daf15d9d7d4c389565d881b1a AS golang
+FROM docker.io/library/golang:1.26.5@sha256:63f132d58c1f589f0dcda584933a9bb44bfda1150f1506377f5a902f34d86033 AS golang
 
 FROM docker.io/library/registry:3.1@sha256:85347ed2ecde64161c7a4788a4d7d3dcc9d6f86f7be95834022e3c6a423a945a AS registry
 
-FROM docker.io/bitnamilegacy/kubectl:1.32@sha256:9524faf8e3cefb47fa28244a5d15f95ec21a73d963273798e593e61f80712333 AS kubectl
+FROM docker.io/bitnamilegacy/kubectl:1.33@sha256:cd354d5b25562b195b277125439c23e4046902d7f1abc0dc3c75aad04d298c17 AS kubectl
 
-FROM docker.io/library/ubuntu:26.04@sha256:f3d28607ddd78734bb7f71f117f3c6706c666b8b76cbff7c9ff6e5718d46ff64
+FROM docker.io/library/ubuntu:26.04@sha256:53958ec7b67c2c9355df922dd08dbf0360611f8c3cdb656875e81873db9ffdba
 
 ENV DEBIAN_FRONTEND=noninteractive
+
+# renovate: datasource=deb depName=git registryUrl=https://archive.ubuntu.com/ubuntu?suite=resolute&components=main,security&binaryArch=amd64
+ARG GIT_APT_VERSION=1:2.53.0-1ubuntu1
 
 # NOTE: binutils-gold contains the gold linker, which was recently removed
 #       from binutils, but is still nesessary for building lint-tools on arm64 only
@@ -27,7 +30,7 @@ RUN  apt-get update && apt-get install --fix-missing --no-install-recommends -y 
     openssh-server \
     nginx \
     fcgiwrap \
-    git \
+    git=${GIT_APT_VERSION} \
     gpg \
     gpg-agent \
     jq \
