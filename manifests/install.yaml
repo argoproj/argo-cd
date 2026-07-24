@@ -31331,6 +31331,12 @@ rules:
   verbs:
   - get
 - apiGroups:
+  - ""
+  resources:
+  - pods/attach
+  verbs:
+  - create
+- apiGroups:
   - argoproj.io
   resources:
   - applications

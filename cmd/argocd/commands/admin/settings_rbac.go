@@ -97,6 +97,7 @@ var accountsActions = actionTraitMap{
 
 var execActions = actionTraitMap{
 	rbac.ActionCreate: rbacTrait{},
+	rbac.ActionDebug:  rbacTrait{allowPath: true},
 }
 
 var logsActions = actionTraitMap{

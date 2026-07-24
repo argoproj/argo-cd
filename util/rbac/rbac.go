@@ -79,6 +79,7 @@ const (
 	ActionOverride = "override"
 	ActionAction   = "action"
 	ActionInvoke   = "invoke"
+	ActionDebug    = "debug"
 )
 
 var (
@@ -106,6 +107,7 @@ var (
 		ActionOverride,
 		ActionAction,
 		ActionInvoke,
+		ActionDebug,
 	}
 )
 

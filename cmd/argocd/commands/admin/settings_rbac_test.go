@@ -85,6 +85,30 @@ func Test_validateRBACResourceAction(t *testing.T) {
 			valid: false,
 		},
 		{
+			name: "Test valid exec debug action",
+			args: args{
+				resource: rbac.ResourceExec,
+				action:   rbac.ActionDebug,
+			},
+			valid: true,
+		},
+		{
+			name: "Test valid exec debug action with image path",
+			args: args{
+				resource: rbac.ResourceExec,
+				action:   rbac.ActionDebug + "/docker.io/library/busybox:*",
+			},
+			valid: true,
+		},
+		{
+			name: "Test invalid exec get action",
+			args: args{
+				resource: rbac.ResourceExec,
+				action:   rbac.ActionGet,
+			},
+			valid: false,
+		},
+		{
 			name: "Test valid action with path",
 			args: args{
 				resource: rbac.ResourceApplications,
