@@ -13,17 +13,21 @@ PATH="${PROJECT_ROOT}/dist:${PATH}"
 GOPATH=$(go env GOPATH)
 GOPATH_PROJECT_ROOT="${GOPATH}/src/github.com/argoproj/argo-cd"
 
-VERSION="v1alpha1"
+# Both served API versions get OpenAPI definitions. v1alpha1 is generated first so
+# that v1beta1 (which embeds/references v1alpha1 types) can $ref its definitions.
+VERSIONS="v1alpha1 v1beta1"
 
 [ -e ./v3 ] || ln -s . v3
 [ -e "${GOPATH_PROJECT_ROOT}" ] || (mkdir -p "$(dirname "${GOPATH_PROJECT_ROOT}")" && ln -s "${PROJECT_ROOT}" "${GOPATH_PROJECT_ROOT}")
 
-openapi-gen \
-  --go-header-file "${PROJECT_ROOT}/hack/custom-boilerplate.go.txt" \
-  --output-pkg github.com/argoproj/argo-cd/v3/pkg/apis/application/${VERSION} \
-  --report-filename pkg/apis/api-rules/violation_exceptions.list \
-  --output-dir "${GOPATH}/src" \
-  "$@"
+for VERSION in ${VERSIONS}; do
+  openapi-gen \
+    --go-header-file "${PROJECT_ROOT}/hack/custom-boilerplate.go.txt" \
+    --output-pkg github.com/argoproj/argo-cd/v3/pkg/apis/application/${VERSION} \
+    --report-filename pkg/apis/api-rules/violation_exceptions.list \
+    --output-dir "${GOPATH}/src" \
+    "$@"
+done
 
 [ -L "${GOPATH_PROJECT_ROOT}" ] && rm -rf "${GOPATH_PROJECT_ROOT}"
 [ -L ./v3 ] && rm -rf v3

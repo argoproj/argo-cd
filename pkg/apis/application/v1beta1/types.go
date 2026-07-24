@@ -18,9 +18,28 @@ import (
 type Application struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
-	Spec              ApplicationSpec            `json:"spec" protobuf:"bytes,2,opt,name=spec"`
-	Status            v1alpha1.ApplicationStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
-	Operation         *v1alpha1.Operation        `json:"operation,omitempty" protobuf:"bytes,4,opt,name=operation"`
+	Spec              ApplicationSpec   `json:"spec" protobuf:"bytes,2,opt,name=spec"`
+	Status            ApplicationStatus `json:"status,omitempty" protobuf:"bytes,3,opt,name=status"`
+}
+
+// ApplicationStatus is the v1beta1 application status. It embeds the shared
+// v1alpha1 status verbatim and relocates the imperative `operation` trigger
+// from the top level (where v1alpha1 keeps it) into status. Because v1beta1
+// serves status via the `status` subresource, this makes requesting a sync a
+// status-subresource write gated by `applications/status` RBAC rather than a
+// spec write: manual syncs go through the API/UI/CLI, and setting `operation`
+// and clearing `operationState` become a single atomic status update.
+// The embedded v1alpha1.ApplicationStatus flattens for JSON (`,inline`) and for
+// the CRD OpenAPI schema (controller-gen). For protobuf, go-to-protobuf treats
+// the anonymous field as an embedded message occupying its own field number
+// (embed=true, nullable=false) — the same pattern metav1.ObjectMeta uses when
+// embedded cross-package — so the shared status lives at field 1 and Operation
+// at field 2 without their field numbers colliding.
+type ApplicationStatus struct {
+	v1alpha1.ApplicationStatus `json:",inline" protobuf:"bytes,1,opt,name=status"`
+	// Operation contains information about a requested or running operation.
+	// +optional
+	Operation *v1alpha1.Operation `json:"operation,omitempty" protobuf:"bytes,2,opt,name=operation"`
 }
 
 // ApplicationSpec represents desired application state. Contains link to repository with application definition and additional parameters link definition revision.

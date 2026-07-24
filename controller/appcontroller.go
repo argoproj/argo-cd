@@ -1606,12 +1606,20 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 	// the cached app — admission-webhook normalization that bumped the
 	// generation post-read converges on the next reconcile, which is cheaper
 	// than an extra GET on every operation-state update.
-	statusPatch := map[string]any{
-		"status": map[string]any{
-			"operationState":     state,
-			"observedGeneration": app.Generation,
-		},
+	//
+	// In v1beta1 `operation` lives under status next to `operationState`, so on
+	// completion we clear it in the same status-subresource write instead of a
+	// separate spec patch. That makes "record terminal state + clear operation"
+	// a single atomic update, removing the window where the two could diverge.
+	status := map[string]any{
+		"operationState":     state,
+		"observedGeneration": app.Generation,
 	}
+	if state.Phase.Completed() {
+		// Clearing the operation signals no operation is in progress.
+		status["operation"] = nil
+	}
+	statusPatch := map[string]any{"status": status}
 	statusPatchJSON, err := json.Marshal(statusPatch)
 	if err != nil {
 		logCtx.WithError(err).Error("error marshaling status json")
@@ -1638,26 +1646,6 @@ func (ctrl *ApplicationController) setOperationState(app *appv1.Application, sta
 		}
 		return nil
 	})
-
-	// If operation is completed, clear the operation field (spec) in a separate patch
-	if state.Phase.Completed() {
-		specPatch, err := json.Marshal(map[string]any{"operation": nil})
-		if err != nil {
-			logCtx.WithError(err).Error("error marshaling operation clear patch")
-		} else {
-			kube.RetryUntilSucceed(context.Background(), updateOperationStateTimeout, "Clear application operation", logutils.NewLogrusLogger(logutils.NewWithCurrentConfig()), func() error {
-				_, err := ctrl.PatchAppWithWriteBack(context.Background(), app.Name, app.Namespace, types.MergePatchType, specPatch, metav1.PatchOptions{})
-				if err != nil {
-					if apierrors.IsNotFound(err) {
-						return nil
-					}
-					logCtx.WithError(err).Warn("error clearing application operation field")
-					return fmt.Errorf("error clearing application operation field: %w", err)
-				}
-				return nil
-			})
-		}
-	}
 
 	logCtx.Infof("updated '%s' operation (phase: %s)", app.QualifiedName(), state.Phase)
 	if state.Phase.Completed() {

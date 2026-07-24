@@ -591,10 +591,12 @@ func TestConvertStatus_ObservedGeneration(t *testing.T) {
 					{RepoURL: "https://github.com/example/repo"},
 				},
 			},
-			Status: v1alpha1.ApplicationStatus{
-				ObservedGeneration: 3,
-				Sync: v1alpha1.SyncStatus{
-					Status: v1alpha1.SyncStatusCodeSynced,
+			Status: ApplicationStatus{
+				ApplicationStatus: v1alpha1.ApplicationStatus{
+					ObservedGeneration: 3,
+					Sync: v1alpha1.SyncStatus{
+						Status: v1alpha1.SyncStatusCodeSynced,
+					},
 				},
 			},
 		}
@@ -625,10 +627,12 @@ func TestConvertStatus_ObservedGeneration(t *testing.T) {
 					{RepoURL: "https://github.com/example/repo"},
 				},
 			},
-			Status: v1alpha1.ApplicationStatus{
-				ObservedGeneration: 3,
-				Sync: v1alpha1.SyncStatus{
-					Status: v1alpha1.SyncStatusCodeSynced,
+			Status: ApplicationStatus{
+				ApplicationStatus: v1alpha1.ApplicationStatus{
+					ObservedGeneration: 3,
+					Sync: v1alpha1.SyncStatus{
+						Status: v1alpha1.SyncStatusCodeSynced,
+					},
 				},
 			},
 		}
@@ -641,6 +645,64 @@ func TestConvertStatus_ObservedGeneration(t *testing.T) {
 		assert.Equal(t, int64(3), roundTripped.Status.ObservedGeneration)
 		// Other status fields should be preserved
 		assert.Equal(t, v1alpha1.SyncStatusCodeSynced, roundTripped.Status.Sync.Status)
+	})
+}
+
+func TestConvertOperation_RelocatedUnderStatus(t *testing.T) {
+	// In v1alpha1 `operation` is a top-level field; in v1beta1 it is relocated
+	// under status (so requesting a sync is gated by the status subresource). The
+	// conversion must move it between the two locations without altering its value.
+	op := &v1alpha1.Operation{
+		Sync: &v1alpha1.SyncOperation{Revision: "abc123", Prune: true},
+	}
+
+	t.Run("v1alpha1 top-level operation -> v1beta1 status.operation", func(t *testing.T) {
+		src := &v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{Name: "test-app", Namespace: "argocd"},
+			Spec: v1alpha1.ApplicationSpec{
+				Project:     "default",
+				Destination: v1alpha1.ApplicationDestination{Server: "https://kubernetes.default.svc"},
+				Source:      &v1alpha1.ApplicationSource{RepoURL: "https://github.com/example/repo"},
+			},
+			Operation: op,
+		}
+
+		dst := ConvertFromV1alpha1(src)
+
+		require.NotNil(t, dst.Status.Operation, "operation must land under status in v1beta1")
+		assert.Equal(t, op, dst.Status.Operation)
+	})
+
+	t.Run("v1beta1 status.operation -> v1alpha1 top-level operation", func(t *testing.T) {
+		src := &Application{
+			ObjectMeta: metav1.ObjectMeta{Name: "test-app", Namespace: "argocd"},
+			Spec: ApplicationSpec{
+				Project:     "default",
+				Destination: v1alpha1.ApplicationDestination{Server: "https://kubernetes.default.svc"},
+				Sources:     ApplicationSources{{RepoURL: "https://github.com/example/repo"}},
+			},
+			Status: ApplicationStatus{Operation: op},
+		}
+
+		dst := ConvertToV1alpha1(src)
+
+		require.NotNil(t, dst.Operation, "operation must land top-level in v1alpha1")
+		assert.Equal(t, op, dst.Operation)
+	})
+
+	t.Run("nil operation round-trips as nil", func(t *testing.T) {
+		src := &v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{Name: "test-app", Namespace: "argocd"},
+			Spec: v1alpha1.ApplicationSpec{
+				Project:     "default",
+				Destination: v1alpha1.ApplicationDestination{Server: "https://kubernetes.default.svc"},
+				Source:      &v1alpha1.ApplicationSource{RepoURL: "https://github.com/example/repo"},
+			},
+		}
+
+		roundTripped := ConvertToV1alpha1(ConvertFromV1alpha1(src))
+
+		assert.Nil(t, roundTripped.Operation)
 	})
 }
 

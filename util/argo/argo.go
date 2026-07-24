@@ -24,7 +24,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1beta1"
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/typed/application/v1alpha1"
 	applicationsv1 "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
@@ -937,8 +936,19 @@ func verifyGenerateManifests(
 	return conditions
 }
 
-// SetAppOperation updates an application with the specified operation, retrying conflict errors.
-// It uses the v1beta1 status subresource to clear operationState separately from the spec update.
+// SetAppOperation requests an operation (sync) on an application, retrying conflict errors.
+//
+// In v1beta1 the imperative `operation` trigger lives under status alongside
+// `operationState`, so the served API gates requesting a sync behind the status
+// subresource (applications/status RBAC) — manual syncs go through the UI/CLI.
+// Internally the server persists storage-native against v1alpha1, where `operation`
+// is top-level and there is no status subresource, so a single merge patch sets the
+// operation and clears any stale operationState atomically. The resourceVersion
+// precondition ties the write to the object the in-progress guard was checked
+// against, so a concurrent writer (another sync request, or the controller finishing
+// a prior operation) yields a Conflict and we re-read and re-check rather than
+// clobbering it. This closes the window the previous two-call form left open, where
+// the operation was set but operationState not yet cleared.
 func SetAppOperation(clientset appclientset.Interface, appName, appNs string, op *argoappv1.Operation) (*argoappv1.Application, error) {
 	if op.Sync == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "Operation unspecified")
@@ -955,38 +965,25 @@ func SetAppOperation(clientset appclientset.Interface, appName, appNs string, op
 			return nil, ErrAnotherOperationInProgress
 		}
 
-		// Step 1: Update the operation field (spec) via v1alpha1
-		a = a.DeepCopy()
-		a.Operation = op
-		a, err = appIf.Update(context.Background(), a, metav1.UpdateOptions{})
+		patch, err := json.Marshal(map[string]any{
+			"metadata":  map[string]any{"resourceVersion": a.ResourceVersion},
+			"operation": op,
+			"status":    map[string]any{"operationState": nil},
+		})
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling operation patch: %w", err)
+		}
+
+		patchedApp, err := appIf.Patch(context.Background(), appName, types.MergePatchType, patch, metav1.PatchOptions{})
 		if err != nil {
 			if !apierrors.IsConflict(err) {
-				return nil, fmt.Errorf("error updating application %q: %w", appName, err)
+				return nil, fmt.Errorf("error setting operation on application %q: %w", appName, err)
 			}
 			log.Warnf("Failed to set operation for app '%s' due to update conflict. Retrying again...", appName)
 			continue
 		}
 
-		// Step 2: Clear operationState via v1beta1 status subresource
-		statusPatch, err := json.Marshal(map[string]any{
-			"status": map[string]any{
-				"operationState": nil,
-			},
-		})
-		if err != nil {
-			return nil, fmt.Errorf("error marshaling status patch: %w", err)
-		}
-
-		patchedApp, err := clientset.ArgoprojV1beta1().Applications(appNs).Patch(
-			context.Background(), appName, types.MergePatchType, statusPatch, metav1.PatchOptions{}, "status")
-		if err != nil {
-			// If status patch fails, the operation is still set - log warning but don't fail
-			log.Warnf("Failed to clear operationState for app '%s': %v", appName, err)
-			return a, nil
-		}
-
-		// Convert back to v1alpha1 for return type consistency
-		return v1beta1.ConvertToV1alpha1(patchedApp), nil
+		return patchedApp, nil
 	}
 }
 

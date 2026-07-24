@@ -16,8 +16,12 @@ func ConvertFromV1alpha1(src *v1alpha1.Application) *Application {
 	dst := &Application{
 		TypeMeta:   src.TypeMeta,
 		ObjectMeta: src.ObjectMeta,
-		Operation:  src.Operation,
-		Status:     src.Status, // Same type, no conversion needed
+		// v1alpha1 keeps `operation` at the top level; v1beta1 relocates it under
+		// status. The embedded status is otherwise the same type, no conversion needed.
+		Status: ApplicationStatus{
+			ApplicationStatus: src.Status,
+			Operation:         src.Operation,
+		},
 	}
 
 	// Update API version and Kind
@@ -189,8 +193,9 @@ func ConvertToV1alpha1(src *Application) *v1alpha1.Application {
 	dst := &v1alpha1.Application{
 		TypeMeta:   src.TypeMeta,
 		ObjectMeta: src.ObjectMeta,
-		Operation:  src.Operation,
-		Status:     src.Status, // Same type, no conversion needed
+		// Move `operation` back to the top level for the v1alpha1 storage form.
+		Operation: src.Status.Operation,
+		Status:    src.Status.ApplicationStatus,
 	}
 
 	// Update API version
