@@ -22,6 +22,8 @@
 - [batch/Job/resume](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/batch/Job/actions/resume/action.lua)
 - [batch/Job/suspend](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/batch/Job/actions/suspend/action.lua)
 - [batch/Job/terminate](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/batch/Job/actions/terminate/action.lua)
+- [capsule.clastix.io/Tenant/cordon](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/capsule.clastix.io/Tenant/actions/cordon/action.lua)
+- [capsule.clastix.io/Tenant/uncordon](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/capsule.clastix.io/Tenant/actions/uncordon/action.lua)
 - [core.strimzi.io/StrimziPodSet/rolling-update](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/core.strimzi.io/StrimziPodSet/actions/rolling-update/action.lua)
 - [external-secrets.io/ExternalSecret/refresh](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/external-secrets.io/ExternalSecret/actions/refresh/action.lua)
 - [external-secrets.io/PushSecret/push](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/external-secrets.io/PushSecret/actions/push/action.lua)
