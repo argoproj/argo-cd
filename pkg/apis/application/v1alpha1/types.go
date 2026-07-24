@@ -334,8 +334,33 @@ func (source *ApplicationSource) AllowsConcurrentProcessing() bool {
 	return true
 }
 
+const ociPrefix = "oci://"
+
+// IsOCIURL returns true if the URL is an OCI registry URL
+func IsOCIURL(url string) bool {
+	return strings.HasPrefix(url, ociPrefix)
+}
+
+// NormalizeOCIURL returns a canonical representation of an OCI repository URL, suitable
+// for map keys and equality checks. The scheme and host are case-insensitive (RFC 3986)
+// and are lowercased; the repository path is preserved as-is because OCI repository
+// names are case-sensitive. The oci:// prefix is kept to avoid collisions with Git
+// repository URLs. Non-OCI URLs are returned unchanged.
+func NormalizeOCIURL(repoURL string) string {
+	trimmed := strings.TrimSpace(repoURL)
+	if len(trimmed) < len(ociPrefix) || !strings.EqualFold(trimmed[:len(ociPrefix)], ociPrefix) {
+		return repoURL
+	}
+	host, repoPath, hasPath := strings.Cut(trimmed[len(ociPrefix):], "/")
+	normalized := ociPrefix + strings.ToLower(host)
+	if hasPath {
+		normalized += "/" + repoPath
+	}
+	return normalized
+}
+
 func (source *ApplicationSource) IsOCI() bool {
-	return strings.HasPrefix(source.RepoURL, "oci://")
+	return IsOCIURL(source.RepoURL)
 }
 
 // IsRef returns true when the application source is of type Ref
