@@ -144,6 +144,6 @@ func (ctrl *ApplicationController) GetCommitAuthorEmail() (string, error) {
 
 func (ctrl *ApplicationController) RemoveHydrationAnnotations(app *appv1.Application) {
 	// Remove the nil check in handleRefreshAnnotation when hydrator gets tracing support
-	//lint:ignore SA1012 nil context is intentional here
+	//nolint:staticcheck // nil context is intentional here
 	ctrl.handleRefreshAnnotation(nil, app, appv1.AnnotationKeyHydrate, appv1.AnnotationKeyHydrateTimestamp)
 }
