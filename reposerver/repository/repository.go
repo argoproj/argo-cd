@@ -1407,7 +1407,13 @@ func helmTemplate(ctx context.Context, appPath string, repoRoot string, env *v1a
 
 	defer h.Dispose()
 
-	out, command, err := h.Template(templateOpts)
+	// The first attempt is expected to fail with a "missing dependency" error whenever the chart's
+	// dependencies have not been built yet; that case is detected and handled below by running
+	// `helm dependency build` and retrying. Skip the default error-level exec log for this attempt so
+	// it doesn't spam the logs with an error that isn't actually a problem.
+	firstAttemptOpts := *templateOpts
+	firstAttemptOpts.SkipErrorLogging = true
+	out, command, err := h.Template(&firstAttemptOpts)
 	if err != nil {
 		if !helm.IsMissingDependencyErr(err) {
 			return nil, "", err
