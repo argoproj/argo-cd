@@ -88,7 +88,7 @@ func TestRefreshRetries(t *testing.T) {
 	appIf := appClientset.ArgoprojV1alpha1().Applications("default")
 	_, err := RefreshApp(appIf, "test-app", argoappv1.RefreshTypeNormal, nil)
 	require.Error(t, err)
-	assert.Equal(t, numCalls, 5)
+	assert.Equal(t, 5, numCalls)
 }
 
 func TestGetAppProjectWithNoProjDefined(t *testing.T) {
