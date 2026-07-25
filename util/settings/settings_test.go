@@ -303,9 +303,14 @@ func TestGetIsIgnoreResourceUpdatesEnabledFalse(t *testing.T) {
 }
 
 func TestGetResourceOverrides(t *testing.T) {
-	ignoreStatus := v1alpha1.ResourceOverride{IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
-		JSONPointers: []string{"/status"},
-	}}
+	ignoreStatus := v1alpha1.ResourceOverride{
+		IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
+			JSONPointers: []string{"/status"},
+		},
+		IgnoreResourceUpdates: v1alpha1.OverrideIgnoreDiff{
+			JSONPointers: []string{"/status"},
+		},
+	}
 	crdGK := "apiextensions.k8s.io/CustomResourceDefinition"
 
 	_, settingsManager := fixtures(t.Context(), map[string]string{
@@ -398,7 +403,9 @@ func TestGetResourceOverrides(t *testing.T) {
 	})
 	overrides, err = settingsManager.GetResourceOverrides()
 	require.NoError(t, err)
-	assert.Empty(t, overrides)
+	for _, o := range overrides {
+		assert.Empty(t, o.IgnoreDifferences)
+	}
 
 	// with value non-string false, status of no objects should be ignored
 	_, settingsManager = fixtures(t.Context(), map[string]string{
@@ -407,7 +414,9 @@ func TestGetResourceOverrides(t *testing.T) {
 	})
 	overrides, err = settingsManager.GetResourceOverrides()
 	require.NoError(t, err)
-	assert.Empty(t, overrides)
+	for _, o := range overrides {
+		assert.Empty(t, o.IgnoreDifferences)
+	}
 
 	// with value none, status of no objects should be ignored
 	_, settingsManager = fixtures(t.Context(), map[string]string{
@@ -416,7 +425,9 @@ func TestGetResourceOverrides(t *testing.T) {
 	})
 	overrides, err = settingsManager.GetResourceOverrides()
 	require.NoError(t, err)
-	assert.Empty(t, overrides)
+	for _, o := range overrides {
+		assert.Empty(t, o.IgnoreDifferences)
+	}
 }
 
 func TestGetResourceOverridesHealthWithWildcard(t *testing.T) {
@@ -432,7 +443,8 @@ func TestGetResourceOverridesHealthWithWildcard(t *testing.T) {
 
 		overrides, err := settingsManager.GetResourceOverrides()
 		require.NoError(t, err)
-		assert.Len(t, overrides, 2)
+		// Nine default overrides + one from the test
+		assert.Len(t, overrides, 9)
 		assert.Equal(t, "foo", overrides["*.aws.crossplane.io/*"].HealthLua)
 	})
 }
@@ -444,7 +456,7 @@ func TestSettingsManager_GetResourceOverrides_with_empty_string(t *testing.T) {
 	overrides, err := settingsManager.GetResourceOverrides()
 	require.NoError(t, err)
 
-	assert.Len(t, overrides, 1)
+	assert.Len(t, overrides, len(defaultIgnoreResourceUpdates))
 }
 
 func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
@@ -476,7 +488,7 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 
 		overrides, err := settingsManager.GetResourceOverrides()
 		require.NoError(t, err)
-		assert.Len(t, overrides, 4)
+		assert.Len(t, overrides, len(defaultIgnoreResourceUpdates)+4)
 		assert.Len(t, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers, 1)
 		assert.Equal(t, "foo", overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers[0])
 		assert.Len(t, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreResourceUpdates.JSONPointers, 1)
@@ -525,7 +537,7 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 
 		overrides, err := settingsManager.GetResourceOverrides()
 		require.NoError(t, err)
-		assert.Len(t, overrides, 8)
+		assert.Len(t, overrides, 15)
 		assert.Len(t, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers, 1)
 		assert.Equal(t, "bar", overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers[0])
 		assert.Len(t, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreResourceUpdates.JSONPointers, 1)
@@ -560,9 +572,8 @@ func mergemaps(mapA map[string]string, mapB map[string]string) map[string]string
 
 func TestGetIgnoreResourceUpdatesOverrides(t *testing.T) {
 	allDefault := v1alpha1.ResourceOverride{IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{
-		JSONPointers: []string{"/metadata/resourceVersion", "/metadata/generation", "/metadata/managedFields"},
+		JSONPointers: []string{"/status", "/metadata/resourceVersion", "/metadata/generation", "/metadata/managedFields"},
 	}}
-	allGK := "*/*"
 
 	testCustomizations := map[string]string{
 		"resource.compareoptions": `
@@ -588,7 +599,7 @@ func TestGetIgnoreResourceUpdatesOverrides(t *testing.T) {
 	require.NoError(t, err)
 
 	// default overrides should always be present
-	allOverrides := overrides[allGK]
+	allOverrides := overrides["*/*"]
 	assert.NotNil(t, allOverrides)
 	assert.Equal(t, allDefault, allOverrides)
 
