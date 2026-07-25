@@ -24,7 +24,6 @@ import (
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	appsettemplate "github.com/argoproj/argo-cd/v3/applicationset/controllers/template"
@@ -686,23 +685,7 @@ func (s *Server) Refresh(ctx context.Context, q *applicationset.ApplicationSetGe
 }
 
 func (s *Server) refreshAppSet(ctx context.Context, appset *v1alpha1.ApplicationSet) (*v1alpha1.ApplicationSet, error) {
-	var updated *v1alpha1.ApplicationSet
-	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		current, err := s.appclientset.ArgoprojV1alpha1().ApplicationSets(appset.Namespace).Get(ctx, appset.Name, metav1.GetOptions{})
-		if err != nil {
-			return fmt.Errorf("error getting ApplicationSet: %w", err)
-		}
-		if current.Annotations == nil {
-			current.Annotations = map[string]string{}
-		}
-		current.Annotations[argocommon.AnnotationApplicationSetRefresh] = "true"
-		res, err := s.appclientset.ArgoprojV1alpha1().ApplicationSets(appset.Namespace).Update(ctx, current, metav1.UpdateOptions{})
-		if err != nil {
-			return err
-		}
-		updated = res
-		return nil
-	})
+	updated, err := appsetutils.RequestRefresh(ctx, s.client, appset.DeepCopy())
 	if err != nil {
 		return nil, fmt.Errorf("error updating ApplicationSet: %w", err)
 	}

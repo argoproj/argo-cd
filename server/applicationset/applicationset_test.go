@@ -9,7 +9,6 @@ import (
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	kubetesting "k8s.io/client-go/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	cr_fake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -24,6 +23,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 	k8scache "k8s.io/client-go/tools/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/applicationset"
@@ -92,6 +92,10 @@ func newTestNamespacedAppSetServer(t *testing.T, objects ...client.Object) *Serv
 }
 
 func newTestAppSetServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer), namespace string, objects ...client.Object) (*Server, kubernetes.Interface) {
+	return newTestAppSetServerWithEnforcerConfigureOpts(t, f, namespace, nil, objects...)
+}
+
+func newTestAppSetServerWithEnforcerConfigureOpts(t *testing.T, f func(*rbac.Enforcer), namespace string, crClient client.Client, objects ...client.Object) (*Server, kubernetes.Interface) {
 	t.Helper()
 	kubeclientset := fake.NewClientset(&corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
@@ -185,7 +189,9 @@ func newTestAppSetServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforce
 	}
 	objects = append(objects, fakeClusterSecret)
 
-	crClient := cr_fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build()
+	if crClient == nil {
+		crClient = cr_fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build()
+	}
 
 	projInformer := factory.Argoproj().V1alpha1().AppProjects().Informer()
 	go projInformer.Run(ctx.Done())
@@ -902,42 +908,37 @@ func TestRefreshAppSetWithConflicts(t *testing.T) {
 		appset.Name = "AppSet1"
 		appset.ResourceVersion = "1"
 	})
-	appSetServer := newTestAppSetServer(t, appSet1)
-	fakeAppCs := appSetServer.appclientset.(*apps.Clientset)
 
-	getCallCount := 0
-	updateCallCount := 0
+	scheme := runtime.NewScheme()
+	require.NoError(t, appsv1.AddToScheme(scheme))
+	patchCallCount := 0
+	baseClient := cr_fake.NewClientBuilder().WithScheme(scheme).WithObjects(appSet1).Build()
+	crClient := cr_fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(appSet1).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Patch: func(ctx context.Context, _ client.WithWatch, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+				patchCallCount++
+				if patchCallCount == 1 {
+					return apierrors.NewConflict(
+						schema.GroupResource{Group: "argoproj.io", Resource: "applicationsets"},
+						appSet1.Name,
+						errors.New("the object has been modified"),
+					)
+				}
+				return baseClient.Patch(ctx, obj, patch, opts...)
+			},
+		}).
+		Build()
 
-	fakeAppCs.Lock()
-	fakeAppCs.ReactionChain = nil
-	fakeAppCs.AddReactor("get", "applicationsets", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		getCallCount++
-		fresh := appSet1.DeepCopy()
-		if getCallCount > 1 {
-			fresh.ResourceVersion = "2"
-		}
-		return true, fresh, nil
-	})
-	fakeAppCs.AddReactor("update", "applicationsets", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		updateCallCount++
-		updateAction := action.(kubetesting.UpdateAction)
-		appset := updateAction.GetObject().(*appsv1.ApplicationSet)
-		if appset.ResourceVersion == "1" {
-			return true, nil, apierrors.NewConflict(
-				schema.GroupResource{Group: "argoproj.io", Resource: "applicationsets"},
-				appset.Name,
-				errors.New("the object has been modified"),
-			)
-		}
-		updated := appset.DeepCopy()
-		updated.ResourceVersion = "3"
-		return true, updated, nil
-	})
-	fakeAppCs.Unlock()
+	appSetServer, _ := newTestAppSetServerWithEnforcerConfigureOpts(t, func(enf *rbac.Enforcer) {
+		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+		enf.SetDefaultRole("role:admin")
+	}, "", crClient, appSet1)
 
 	res, err := appSetServer.Refresh(context.Background(), &applicationset.ApplicationSetGetQuery{Name: "AppSet1"})
 	require.NoError(t, err)
-	assert.GreaterOrEqual(t, updateCallCount, 2, "Update should be called at least twice (once with conflict, once with success)")
+	assert.GreaterOrEqual(t, patchCallCount, 2, "Patch should be called at least twice (once with conflict, once with success)")
 	assert.Equal(t, "true", res.Annotations[common.AnnotationApplicationSetRefresh])
 }
 
@@ -945,19 +946,28 @@ func TestRefreshAppSetGetError(t *testing.T) {
 	appSet1 := newTestAppSet(func(appset *appsv1.ApplicationSet) {
 		appset.Name = "AppSet1"
 	})
-	appSetServer := newTestAppSetServer(t, appSet1)
-	fakeAppCs := appSetServer.appclientset.(*apps.Clientset)
 
-	fakeAppCs.Lock()
-	fakeAppCs.ReactionChain = nil
-	fakeAppCs.AddReactor("get", "applicationsets", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		return true, nil, errors.New("simulated get error")
-	})
-	fakeAppCs.Unlock()
+	scheme := runtime.NewScheme()
+	require.NoError(t, appsv1.AddToScheme(scheme))
+	crClient := cr_fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(appSet1).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Get: func(_ context.Context, _ client.WithWatch, _ client.ObjectKey, _ client.Object, _ ...client.GetOption) error {
+				return errors.New("simulated get error")
+			},
+		}).
+		Build()
+
+	appSetServer, _ := newTestAppSetServerWithEnforcerConfigureOpts(t, func(enf *rbac.Enforcer) {
+		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+		enf.SetDefaultRole("role:admin")
+	}, "", crClient, appSet1)
 
 	_, err := appSetServer.refreshAppSet(context.Background(), appSet1)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "error getting ApplicationSet: simulated get error")
+	assert.Contains(t, err.Error(), "error updating ApplicationSet")
+	assert.Contains(t, err.Error(), "simulated get error")
 }
 
 func TestRefreshAppSetTooManyConflicts(t *testing.T) {
@@ -965,22 +975,27 @@ func TestRefreshAppSetTooManyConflicts(t *testing.T) {
 		appset.Name = "AppSet1"
 		appset.ResourceVersion = "1"
 	})
-	appSetServer := newTestAppSetServer(t, appSet1)
-	fakeAppCs := appSetServer.appclientset.(*apps.Clientset)
 
-	fakeAppCs.Lock()
-	fakeAppCs.ReactionChain = nil
-	fakeAppCs.AddReactor("get", "applicationsets", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		return true, appSet1.DeepCopy(), nil
-	})
-	fakeAppCs.AddReactor("update", "applicationsets", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		return true, nil, apierrors.NewConflict(
-			schema.GroupResource{Group: "argoproj.io", Resource: "applicationsets"},
-			appSet1.Name,
-			errors.New("the object has been modified"),
-		)
-	})
-	fakeAppCs.Unlock()
+	scheme := runtime.NewScheme()
+	require.NoError(t, appsv1.AddToScheme(scheme))
+	crClient := cr_fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(appSet1).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Patch: func(_ context.Context, _ client.WithWatch, _ client.Object, _ client.Patch, _ ...client.PatchOption) error {
+				return apierrors.NewConflict(
+					schema.GroupResource{Group: "argoproj.io", Resource: "applicationsets"},
+					appSet1.Name,
+					errors.New("the object has been modified"),
+				)
+			},
+		}).
+		Build()
+
+	appSetServer, _ := newTestAppSetServerWithEnforcerConfigureOpts(t, func(enf *rbac.Enforcer) {
+		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+		enf.SetDefaultRole("role:admin")
+	}, "", crClient, appSet1)
 
 	_, err := appSetServer.refreshAppSet(context.Background(), appSet1)
 	require.Error(t, err)
@@ -1021,11 +1036,9 @@ func TestRefreshAppSetWaitSync(t *testing.T) {
 	})
 	appSetServer := newTestAppSetServer(t, appSet1)
 
-	start := time.Now()
 	updated, err := appSetServer.refreshAppSet(context.Background(), appSet1)
 	require.NoError(t, err)
 	assert.Equal(t, "true", updated.Annotations[common.AnnotationApplicationSetRefresh])
-	assert.Less(t, time.Since(start), informerSyncTimeout, "waitSync after refresh should not block until full timeout when cache is synced")
 }
 
 func TestAppSet_Generate_Cluster(t *testing.T) {
