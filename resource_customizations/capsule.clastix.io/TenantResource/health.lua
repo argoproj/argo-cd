@@ -5,10 +5,17 @@
 --   https://projectcapsule.dev/
 --
 -- ArgoCD health mapping:
---   Ready=True  => Healthy
---   Ready=False => Degraded
---   No status   => Progressing
+--   spec.cordoned=true => Suspended (replication intentionally paused)
+--   Ready=True         => Healthy
+--   Ready=False        => Degraded
+--   No status          => Progressing
 local hs = {}
+if obj.spec ~= nil and obj.spec.cordoned ~= nil and obj.spec.cordoned then
+  hs.status = "Suspended"
+  hs.message = "Replication is cordoned"
+  return hs
+end
+
 if obj.status == nil or obj.status.conditions == nil then
   hs.status = "Progressing"
   hs.message = "Waiting for status"

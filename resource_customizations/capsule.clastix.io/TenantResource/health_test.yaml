@@ -8,6 +8,10 @@ tests:
     message: "Waiting for reconciliation (generation mismatch)"
   inputPath: testdata/progressing_generation_mismatch.yaml
 - healthStatus:
+    status: Suspended
+    message: "Replication is cordoned"
+  inputPath: testdata/suspended_cordoned.yaml
+- healthStatus:
     status: Healthy
     message: "Resources have been successfully replicated into the target namespaces"
   inputPath: testdata/healthy.yaml
