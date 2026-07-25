@@ -349,8 +349,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
         if (loaderRef.current) {
             const applications = loaderRef.current.getData() as models.AbstractApplication[];
             const appSet = applications.find(item => !AppUtils.isApp(item) && item.metadata.name === appSetName && item.metadata.namespace === appSetNamespace) as
-                | models.ApplicationSet
-                | undefined;
+                models.ApplicationSet | undefined;
             if (appSet) {
                 AppUtils.setAppSetRefreshing(appSet);
                 loaderRef.current.setData(applications);

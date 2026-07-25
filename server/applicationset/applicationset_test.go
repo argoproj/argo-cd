@@ -92,6 +92,7 @@ func newTestNamespacedAppSetServer(t *testing.T, objects ...client.Object) *Serv
 }
 
 func newTestAppSetServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer), namespace string, objects ...client.Object) (*Server, kubernetes.Interface) {
+	t.Helper()
 	return newTestAppSetServerWithEnforcerConfigureOpts(t, f, namespace, nil, objects...)
 }
 
