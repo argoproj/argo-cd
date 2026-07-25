@@ -1640,7 +1640,7 @@ spec:
 	}
 
 	// when
-	result, err := serverSideDiff(t.Context(), config, live, opts...)
+	result, err := serverSideDiff(config, live, opts...)
 
 	// then
 	require.NoError(t, err)
