@@ -33,6 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	statecache "github.com/argoproj/argo-cd/v3/controller/cache"
@@ -1294,8 +1295,15 @@ func (m *appStateManager) persistRevisionHistory(
 	if err != nil {
 		return fmt.Errorf("error marshaling revision history patch: %w", err)
 	}
-	_, err = m.appclientset.ArgoprojV1alpha1().Applications(app.Namespace).Patch(context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
-	return err
+	// Write history via the v1beta1 status subresource so the write doesn't bump
+	// metadata.generation (v1alpha1 has no status subresource, so a main-resource
+	// patch would). Retried on transient errors: the v1beta1 endpoint depends on
+	// the conversion webhook, and a failure here is recorded as an OperationError
+	// on an otherwise-successful sync.
+	return retry.OnError(statusPatchBackoff, isTransientAPIError, func() error {
+		_, err := m.appclientset.ArgoprojV1beta1().Applications(app.Namespace).Patch(context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{}, "status")
+		return err
+	})
 }
 
 // NewAppStateManager creates new instance of AppStateManager

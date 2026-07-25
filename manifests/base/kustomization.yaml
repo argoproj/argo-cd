@@ -8,6 +8,7 @@ images:
   newTag: latest
 resources:
 - ./application-controller
+- ./conversion-webhook
 - ./dex
 - ./repo-server
 - ./server

@@ -11,3 +11,15 @@ stringData:
   admin.password: $2a$10$RncPyHW/B5ll2Z3J8s.IBOnbZ9uoJ4JhHLKzj5lzG/kU1KN1Oj3/K
   admin.passwordMtime: 2019-03-20T17:54:53Z
 type: Opaque
+---
+# Patch conversion webhook for e2e testing with locally-loaded image
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-conversion-webhook
+spec:
+  template:
+    spec:
+      containers:
+      - name: argocd-conversion-webhook
+        imagePullPolicy: IfNotPresent

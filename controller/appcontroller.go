@@ -43,6 +43,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/client-go/util/workqueue"
 
 	commitclient "github.com/argoproj/argo-cd/v3/commitserver/apiclient"
@@ -54,6 +55,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/controller/sharding"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	appv1beta1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1beta1"
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v3/pkg/client/informers/externalversions/application/v1alpha1"
 	applisters "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
@@ -1468,7 +1470,11 @@ func (ctrl *ApplicationController) setAppCondition(app *appv1.Application, condi
 		},
 	})
 	if err == nil {
-		_, err = ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Patch(context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
+		// Use direct patch without writeBackToInformer since this can be called from the indexer.
+		// Writing back to the informer from within the indexer causes a deadlock because
+		// the indexer runs during store.Update() and writeBackToInformer calls store.Update() again.
+		_, err = ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Patch(
+			context.Background(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
 	}
 	if err != nil {
 		logCtx.WithError(err).Error("Unable to set application condition")
@@ -1693,15 +1699,21 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 		now := metav1.Now()
 		state.FinishedAt = &now
 	}
-	patch := map[string]any{
-		"status": map[string]any{
-			"operationState": state,
-		},
+	statusPatch := map[string]any{
+		"operationState": state,
 	}
 	if state.Phase.Completed() {
-		// If operation is completed, clear the operation field to indicate no operation is
-		// in progress.
-		patch["operation"] = nil
+		// If operation is completed, clear the operation field to indicate no
+		// operation is in progress. v1beta1 relocates `operation` under status,
+		// so the set + clear stay a single atomic status-subresource patch —
+		// and unlike a v1alpha1 main-resource patch (no status subresource
+		// there), the write does not bump metadata.generation, which would
+		// push generation ahead of status.observedGeneration on every
+		// operation phase change.
+		statusPatch["operation"] = nil
+	}
+	patch := map[string]any{
+		"status": statusPatch,
 	}
 	if reflect.DeepEqual(app.Status.OperationState, state) {
 		logCtx.Infof("No operation updates necessary to '%s'. Skipping patch", app.QualifiedName())
@@ -1721,7 +1733,7 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 	}
 
 	kube.RetryUntilSucceed(ctx, updateOperationStateTimeout, "Update application operation state", logutils.NewLogrusLogger(logutils.NewWithCurrentConfig()), func() error {
-		_, err := ctrl.PatchAppWithWriteBack(ctx, app.Name, app.Namespace, types.MergePatchType, patchJSON, metav1.PatchOptions{})
+		_, err := ctrl.PatchAppStatusWithWriteBack(ctx, app.Name, app.Namespace, types.MergePatchType, patchJSON, metav1.PatchOptions{})
 		if err != nil {
 			// Stop retrying updating deleted application
 			if apierrors.IsNotFound(err) {
@@ -1788,6 +1800,50 @@ func (ctrl *ApplicationController) PatchAppWithWriteBack(ctx context.Context, na
 	}
 	ctrl.writeBackToInformer(patchedApp)
 	return patchedApp, err
+}
+
+// statusPatchBackoff paces retries of v1beta1 status writes on transient
+// apiserver errors. Total wait is a few seconds — enough to ride out a
+// conversion webhook pod restart without stalling the reconcile loop for long.
+var statusPatchBackoff = wait.Backoff{
+	Duration: 100 * time.Millisecond,
+	Factor:   3.0,
+	Jitter:   0.1,
+	Steps:    5,
+}
+
+// isTransientAPIError reports whether err is a transient apiserver failure
+// worth retrying. v1beta1 requests are served by converting from the v1alpha1
+// storage version through the conversion webhook, so a webhook pod restart or
+// rolling update surfaces to clients as a transient internal error or
+// unavailable service; without a retry, the status write is lost until the
+// next reconcile.
+func isTransientAPIError(err error) bool {
+	return apierrors.IsInternalError(err) ||
+		apierrors.IsServiceUnavailable(err) ||
+		apierrors.IsServerTimeout(err) ||
+		apierrors.IsTooManyRequests(err) ||
+		apierrors.IsTimeout(err)
+}
+
+// PatchAppStatusWithWriteBack patches an application's status via the v1beta1
+// status subresource and writes the result back to the informer cache. Status
+// subresource writes do not bump metadata.generation, which is what allows
+// status.observedGeneration to converge with metadata.generation.
+func (ctrl *ApplicationController) PatchAppStatusWithWriteBack(ctx context.Context, name, ns string, pt types.PatchType, data []byte, opts metav1.PatchOptions) (result *appv1.Application, err error) {
+	var patchedApp *appv1beta1.Application
+	err = retry.OnError(statusPatchBackoff, isTransientAPIError, func() error {
+		var err error
+		patchedApp, err = ctrl.applicationClientset.ArgoprojV1beta1().Applications(ns).Patch(ctx, name, pt, data, opts, "status")
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	// Convert v1beta1 back to v1alpha1 for the informer cache
+	v1alpha1App := appv1beta1.ConvertToV1alpha1(patchedApp)
+	ctrl.writeBackToInformer(v1alpha1App)
+	return v1alpha1App, err
 }
 
 func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext bool) {
@@ -1892,6 +1948,9 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		app.Status.Sync.Status = appv1.SyncStatusCodeUnknown
 		app.Status.Health.Status = health.HealthStatusUnknown
 		app.Status.Health.Message = ""
+		// ReconciledAt is deliberately left stale here: a fresh stamp would defeat
+		// needRefreshAppStatus's expiry check, delaying recovery (e.g. after a
+		// missing AppProject is created) until a full statusRefreshTimeout.
 		patchDuration = ctrl.persistReconciliationStatus(ctx, origApp, &app.Status)
 
 		if err := ctrl.cache.SetAppResourcesTree(app.InstanceName(ctrl.namespace), &appv1.ApplicationTree{}); err != nil {
@@ -2237,6 +2296,12 @@ func (ctrl *ApplicationController) persistReconciliationStatus(ctx context.Conte
 	newAnnotations := make(map[string]string)
 	maps.Copy(newAnnotations, orig.GetAnnotations())
 	delete(newAnnotations, appv1.AnnotationKeyRefresh)
+	// Record the generation that was just reconciled. Stamped here rather than in
+	// persistAppStatus so hydration-only writes don't claim a generation the
+	// reconciler hasn't processed yet. The status write goes through the v1beta1
+	// status subresource, which does not bump metadata.generation, so
+	// observedGeneration can converge with generation.
+	newStatus.ObservedGeneration = orig.Generation
 	return ctrl.persistAppStatus(ctx, orig, newStatus, newAnnotations)
 }
 
@@ -2278,68 +2343,101 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 			newStatus.Health.Message = orig.Status.Health.Message
 		}
 	}
-	patch, modified, err := createMergePatch(
-		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: orig.GetAnnotations()}, Status: orig.Status},
-		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: newAnnotations}, Status: *newStatus})
+
+	// calculate time for patch calls
+	start := time.Now()
+	defer func() {
+		patchDuration = time.Since(start)
+	}()
+
+	// Status goes through the v1beta1 status subresource (which does not bump
+	// metadata.generation); annotation changes cannot ride along on a status
+	// subresource write, so they are applied in a separate metadata patch below.
+	statusPatch, statusModified, err := createMergePatch(
+		&appv1.Application{Status: orig.Status},
+		&appv1.Application{Status: *newStatus})
 	if err != nil {
 		spanErr = err
 		logCtx.WithError(err).Error("Error constructing app status patch")
 		return patchDuration
 	}
-	if !modified {
-		logCtx.Infof("No status changes. Skipping patch")
-		return patchDuration
+	// statusPersisted tracks whether the computed status (or its size-limit
+	// fallback) made it to the API server. Annotation consumption below is
+	// gated on it.
+	statusPersisted := true
+	if statusModified {
+		_, err = ctrl.PatchAppStatusWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, statusPatch, metav1.PatchOptions{})
+		if err != nil {
+			spanErr = err
+			statusPersisted = false
+			if apierrors.IsRequestEntityTooLargeError(err) {
+				logCtx.WithError(err).Warn("Application status exceeds the Kubernetes resource size limit; falling back to error condition only")
+				fallbackStatus := orig.Status.DeepCopy()
+				fallbackStatus.SetConditions([]appv1.ApplicationCondition{
+					{
+						Type:    appv1.ApplicationConditionUnknownError,
+						Message: "Application status exceeds the Kubernetes resource size limit and could not be persisted. The displayed status may be stale. Reduce the number of managed resources, set ApplyOutOfSyncOnly=true, lower spec.revisionHistoryLimit, or split the Application.",
+					},
+				},
+					map[appv1.ApplicationConditionType]bool{
+						appv1.ApplicationConditionUnknownError: true,
+					})
+
+				fallbackPatch, modified, mpErr := createMergePatch(
+					&appv1.Application{Status: orig.Status},
+					&appv1.Application{Status: *fallbackStatus},
+				)
+				if mpErr != nil {
+					logCtx.WithError(mpErr).Error("Error constructing fallback status patch")
+					return patchDuration
+				}
+				if modified {
+					if _, fbErr := ctrl.PatchAppStatusWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, fallbackPatch, metav1.PatchOptions{}); fbErr != nil {
+						logCtx.WithError(fbErr).Error("Error persisting fallback status with error condition")
+					} else {
+						// The fallback error condition is the deliberate persisted
+						// outcome for an oversized status. Treat it as success so the
+						// refresh annotation is consumed below — leaving it in place
+						// would hard-refresh an app that can never persist its full
+						// status in a tight loop.
+						statusPersisted = true
+					}
+				}
+			} else {
+				logCtx.WithError(err).Warn("Error updating application status")
+			}
+		} else {
+			logCtx.Infof("Status update successful")
+		}
 	}
-	// calculate time for patch call
-	start := time.Now()
-	defer func() {
-		patchDuration = time.Since(start)
-	}()
-	_, err = ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, patch, metav1.PatchOptions{})
+
+	// Apply annotation changes (e.g. consuming the refresh/hydrate annotations)
+	// via a metadata-only merge patch on the main resource — annotations cannot
+	// ride along on a status-subresource write. Consume them only once the
+	// status actually persisted: before the status/annotation split this was a
+	// single atomic patch, so a failed write left the annotation in place and
+	// the next reconcile redid the refresh. Consuming it after a failed write
+	// would silently discard the refresh result and leave the app stale until
+	// statusRefreshTimeout.
+	annotationPatch, annotationsModified, err := createMergePatch(
+		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: orig.GetAnnotations()}},
+		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: newAnnotations}})
 	if err != nil {
 		spanErr = err
-		if apierrors.IsRequestEntityTooLargeError(err) {
-			logCtx.WithError(err).Warn("Application status exceeds the Kubernetes resource size limit; falling back to error condition only")
-			fallbackStatus := orig.Status.DeepCopy()
-			fallbackStatus.SetConditions([]appv1.ApplicationCondition{
-				{
-					Type:    appv1.ApplicationConditionUnknownError,
-					Message: "Application status exceeds the Kubernetes resource size limit and could not be persisted. The displayed status may be stale. Reduce the number of managed resources, set ApplyOutOfSyncOnly=true, lower spec.revisionHistoryLimit, or split the Application.",
-				},
-			},
-				map[appv1.ApplicationConditionType]bool{
-					appv1.ApplicationConditionUnknownError: true,
-				})
-
-			fallbackPatch, modified, mpErr := createMergePatch(
-				&appv1.Application{
-					ObjectMeta: metav1.ObjectMeta{
-						Annotations: orig.GetAnnotations(),
-					},
-					Status: orig.Status,
-				},
-				&appv1.Application{
-					ObjectMeta: metav1.ObjectMeta{
-						Annotations: newAnnotations,
-					},
-					Status: *fallbackStatus,
-				},
-			)
-			if mpErr != nil {
-				logCtx.WithError(mpErr).Error("Error constructing fallback status patch")
-				return patchDuration
-			}
-			if !modified {
-				return patchDuration
-			}
-			if _, fbErr := ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, fallbackPatch, metav1.PatchOptions{}); fbErr != nil {
-				logCtx.WithError(fbErr).Error("Error persisting fallback status with error condition")
-			}
-			return patchDuration
+		logCtx.WithError(err).Error("Error constructing app annotation patch")
+		return patchDuration
+	}
+	if annotationsModified {
+		if !statusPersisted {
+			logCtx.Info("Skipping annotation consumption because the status write failed; the refresh will be retried")
+		} else if _, err := ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, annotationPatch, metav1.PatchOptions{}); err != nil {
+			spanErr = err
+			logCtx.WithError(err).Warn("Error updating application annotations")
 		}
-		logCtx.WithError(err).Warn("Error updating application")
-	} else {
-		logCtx.Infof("Update successful")
+	}
+
+	if !statusModified && !annotationsModified {
+		logCtx.Infof("No status changes. Skipping patch")
 	}
 	return patchDuration
 }
@@ -2471,10 +2569,9 @@ func (ctrl *ApplicationController) autoSync(ctx context.Context, app *appv1.Appl
 		}
 	}
 
-	appIf := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace)
 	ts.AddCheckpoint("get_applications_ms")
 	start := time.Now()
-	updatedApp, err := argo.SetAppOperation(appIf, app.Name, &op)
+	updatedApp, err := argo.SetAppOperation(ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace), app.Name, &op)
 	ts.AddCheckpoint("set_app_operation_ms")
 	setOpTime := time.Since(start)
 	if err != nil {

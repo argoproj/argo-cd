@@ -20,6 +20,7 @@ rules:
   - argoproj.io
   resources:
   - applications
+  - applications/status
   - applicationsets
   - appprojects
   verbs:
