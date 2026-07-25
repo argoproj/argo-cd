@@ -33,6 +33,7 @@ func InitCommand(cmd *cobra.Command) *cobra.Command {
 		"as-group",
 		"as-uid",
 		"tls-server-name",
+		"request-timeout",
 	}
 
 	flags.VisitAll(func(flag *pflag.Flag) {
