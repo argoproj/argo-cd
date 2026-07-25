@@ -13,6 +13,7 @@ import (
 	"golang.org/x/sync/semaphore"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
 
+	"github.com/go-logr/logr"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -3035,12 +3036,12 @@ func TestHandleNamespacedListError(t *testing.T) {
 		wantSSARCall   bool
 	}{
 		{
-			name:                "forbidden + SSAR denied → skip namespace with warning",
-			listErr:             forbiddenErr,
-			ssarAllowed:         false,
-			wantErr:             errSkipNamespace,
-			wantWarning: "cannot list",
-			wantSSARCall:        true,
+			name:         "forbidden + SSAR denied → skip namespace with warning",
+			listErr:      forbiddenErr,
+			ssarAllowed:  false,
+			wantErr:      errSkipNamespace,
+			wantWarning:  "cannot list",
+			wantSSARCall: true,
 		},
 		{
 			name:         "forbidden + SSAR allowed → propagate original (genuine 403)",
@@ -3082,7 +3083,10 @@ func TestHandleNamespacedListError(t *testing.T) {
 				return true, sar, nil
 			})
 
-			c := &clusterCache{}
+			c := &clusterCache{
+				log:           logr.Discard(),
+				syncSkippedNs: make(map[string]map[schema.GroupKind]struct{}),
+			}
 
 			got := c.handleNamespacedListError(
 				context.Background(),
@@ -3095,12 +3099,10 @@ func TestHandleNamespacedListError(t *testing.T) {
 			assert.ErrorIs(t, got, tc.wantErr)
 
 			if tc.wantWarning != "" {
-				require.NotEmpty(t, c.syncWarnings, "expected a warning to be recorded")
-				warning := c.syncWarnings[0]
-				assert.Contains(t, warning, namespace)
-				assert.Contains(t, warning, tc.wantWarning)
+				require.Contains(t, c.syncSkippedNs, namespace, "expected namespace to be recorded as skipped")
+				assert.NotEmpty(t, c.syncSkippedNs[namespace], "expected at least one denied GroupKind")
 			} else {
-				assert.Empty(t, c.syncWarnings)
+				assert.Empty(t, c.syncSkippedNs)
 			}
 
 			ssarCalled := false
@@ -3168,8 +3170,8 @@ func TestSync_RestrictedGVK_SkipsOnlyThatPair(t *testing.T) {
 
 	joined := strings.Join(cluster.GetClusterInfo().SyncWarnings, "; ")
 	assert.Contains(t, joined, "restricted-ns", "warning must mention the restricted namespace")
-	assert.Contains(t, joined, "Deployment", "warning must mention the restricted resource kind")
-	assert.Contains(t, joined, "cannot list Deployment.apps (skipped)", "warning must use the operator-facing wording (Kind.group)")
+	assert.Contains(t, joined, "Deployment.apps", "warning must mention the denied GroupKind")
+	assert.Contains(t, joined, "inaccessible", "warning must indicate the namespace was inaccessible")
 
 	_, defaultDeployCached := cluster.resources[getResourceKey(t, defaultDeploy)]
 	assert.True(t, defaultDeployCached, "Deployment in default must still be cached as skip is per-(GVK,namespace) pair, not cluster-wide")
@@ -3408,6 +3410,99 @@ func TestCheckNamespacePermission_SSARIsGVKSpecific(t *testing.T) {
 			assert.Equal(t, tc.gvr.Resource, captured.Resource, "SSAR must carry the api's Resource")
 			assert.Equal(t, tc.ns, captured.Namespace, "SSAR must carry the given Namespace")
 			assert.Equal(t, "list", captured.Verb, "SSAR Verb must be \"list\"")
+		})
+	}
+}
+
+func TestRenderSkippedNamespaces(t *testing.T) {
+	gk := func(group, kind string) schema.GroupKind {
+		return schema.GroupKind{Group: group, Kind: kind}
+	}
+
+	tests := []struct {
+		name  string
+		input map[string]map[schema.GroupKind]struct{}
+		want  []string
+	}{
+		{
+			name:  "nil map",
+			input: nil,
+			want:  nil,
+		},
+		{
+			name:  "empty map",
+			input: map[string]map[schema.GroupKind]struct{}{},
+			want:  nil,
+		},
+		{
+			name: "empty inner map skipped",
+			input: map[string]map[schema.GroupKind]struct{}{
+				"ns1": {},
+			},
+			want: []string{},
+		},
+		{
+			name: "1 GVK — lists name",
+			input: map[string]map[schema.GroupKind]struct{}{
+				"ns1": {gk("apps", "Deployment"): {}},
+			},
+			want: []string{`namespace "ns1": skipped, inaccessible (Deployment.apps)`},
+		},
+		{
+			name: "3 GVKs — names sorted",
+			input: map[string]map[schema.GroupKind]struct{}{
+				"ns1": {
+					gk("", "Secret"):         {},
+					gk("apps", "Deployment"): {},
+					gk("", "ConfigMap"):      {},
+				},
+			},
+			want: []string{`namespace "ns1": skipped, inaccessible (ConfigMap, Deployment.apps, Secret)`},
+		},
+		{
+			name: "5 GVKs — still lists names",
+			input: map[string]map[schema.GroupKind]struct{}{
+				"ns1": {
+					gk("apps", "Deployment"): {},
+					gk("", "Pod"):            {},
+					gk("", "Service"):        {},
+					gk("", "ConfigMap"):      {},
+					gk("", "Secret"):         {},
+				},
+			},
+			want: []string{`namespace "ns1": skipped, inaccessible (ConfigMap, Deployment.apps, Pod, Secret, Service)`},
+		},
+		{
+			name: "6 GVKs — count with action hint",
+			input: map[string]map[schema.GroupKind]struct{}{
+				"ns1": {
+					gk("apps", "Deployment"): {},
+					gk("", "Pod"):            {},
+					gk("", "Service"):        {},
+					gk("", "ConfigMap"):      {},
+					gk("", "Secret"):         {},
+					gk("batch", "Job"):       {},
+				},
+			},
+			want: []string{`namespace "ns1": skipped, inaccessible (6 resource types). If deleted, remove from cluster secret.`},
+		},
+		{
+			name: "multiple namespaces sorted",
+			input: map[string]map[schema.GroupKind]struct{}{
+				"z-ns": {gk("", "Pod"): {}},
+				"a-ns": {gk("apps", "Deployment"): {}},
+			},
+			want: []string{
+				`namespace "a-ns": skipped, inaccessible (Deployment.apps)`,
+				`namespace "z-ns": skipped, inaccessible (Pod)`,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := renderSkippedNamespaces(tc.input)
+			assert.Equal(t, tc.want, got)
 		})
 	}
 }

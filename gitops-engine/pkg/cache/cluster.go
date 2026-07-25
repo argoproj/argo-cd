@@ -30,6 +30,7 @@ import (
 	"fmt"
 	"runtime/debug"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -296,10 +297,11 @@ type clusterCache struct {
 	// Used for cross-namespace hierarchy traversal; namespaced traversal still builds a graph
 	parentUIDToChildren map[types.UID]map[kube.ResourceKey]struct{}
 
-	// syncWarnings accumulates per-sync, operator-facing warnings (e.g. skipped inaccessible (GVK,ns) pairs).
-	// Reset at the start of each sync; written concurrently by GVK goroutines, so guarded by syncWarningsLock.
-	syncWarnings     []string
-	syncWarningsLock sync.Mutex
+	// syncSkippedNs tracks namespaces where resource listing was denied during sync.
+	// Idempotent: re-skipping the same (GVK, ns) is a no-op.
+	// Reset at the start of each sync; written concurrently by GVK goroutines, so guarded by syncSkippedNsLock.
+	syncSkippedNs     map[string]map[schema.GroupKind]struct{}
+	syncSkippedNsLock sync.Mutex
 }
 
 type clusterCacheSync struct {
@@ -1138,10 +1140,47 @@ func (c *clusterCache) checkNamespacePermission(ctx context.Context, reviewInter
 	return resp != nil && resp.Status.Allowed, nil
 }
 
-func (c *clusterCache) recordSyncWarning(msg string) {
-	c.syncWarningsLock.Lock()
-	defer c.syncWarningsLock.Unlock()
-	c.syncWarnings = append(c.syncWarnings, msg)
+func (c *clusterCache) recordSkippedNamespace(ns string, gk schema.GroupKind) {
+	c.syncSkippedNsLock.Lock()
+	defer c.syncSkippedNsLock.Unlock()
+	if c.syncSkippedNs[ns] == nil {
+		c.syncSkippedNs[ns] = make(map[schema.GroupKind]struct{})
+	}
+	c.syncSkippedNs[ns][gk] = struct{}{}
+}
+
+// renderSkippedNamespaces collapses the per-(namespace, GroupKind) skip set into
+// one warning string per namespace, sorted deterministically.
+func renderSkippedNamespaces(skipped map[string]map[schema.GroupKind]struct{}) []string {
+	if len(skipped) == 0 {
+		return nil
+	}
+	namespaces := make([]string, 0, len(skipped))
+	for ns := range skipped {
+		namespaces = append(namespaces, ns)
+	}
+	slices.Sort(namespaces)
+
+	warnings := make([]string, 0, len(namespaces))
+	for _, ns := range namespaces {
+		gks := skipped[ns]
+		count := len(gks)
+		if count == 0 {
+			continue
+		}
+
+		if count <= 5 {
+			names := make([]string, 0, count)
+			for gk := range gks {
+				names = append(names, gk.String())
+			}
+			slices.Sort(names)
+			warnings = append(warnings, fmt.Sprintf("namespace %q: skipped, inaccessible (%s)", ns, strings.Join(names, ", ")))
+		} else {
+			warnings = append(warnings, fmt.Sprintf("namespace %q: skipped, inaccessible (%d resource types). If deleted, remove from cluster secret.", ns, count))
+		}
+	}
+	return warnings
 }
 
 // handleNamespacedListError classifies a list error for a (GVK, namespace) pair.
@@ -1158,7 +1197,8 @@ func (c *clusterCache) handleNamespacedListError(ctx context.Context, reviewInte
 	if allowed {
 		return listErr
 	}
-	c.recordSyncWarning(fmt.Sprintf("namespace %q: cannot list %s (skipped): %v", namespace, api.GroupKind, listErr))
+	c.log.V(1).Info("Skipping inaccessible resource in namespace", "namespace", namespace, "groupKind", api.GroupKind, "error", listErr)
+	c.recordSkippedNamespace(namespace, api.GroupKind)
 	return errSkipNamespace
 }
 
@@ -1224,7 +1264,9 @@ func (c *clusterCache) sync() (err error) {
 	c.namespacedResources = make(map[schema.GroupKind]bool)
 	c.parentUIDToChildren = make(map[types.UID]map[kube.ResourceKey]struct{})
 	syncLock.Unlock()
-	c.syncWarnings = nil
+	c.syncSkippedNsLock.Lock()
+	c.syncSkippedNs = make(map[string]map[schema.GroupKind]struct{})
+	c.syncSkippedNsLock.Unlock()
 	config := c.config
 	version, err := c.kubectl.GetServerVersion(config)
 	if err != nil {
@@ -1882,9 +1924,9 @@ func (c *clusterCache) GetClusterInfo() ClusterInfo {
 	c.lock.RLock()
 	defer c.lock.RUnlock()
 
-	c.syncWarningsLock.Lock()
-	warnings := append([]string(nil), c.syncWarnings...)
-	c.syncWarningsLock.Unlock()
+	c.syncSkippedNsLock.Lock()
+	warnings := renderSkippedNamespaces(c.syncSkippedNs)
+	c.syncSkippedNsLock.Unlock()
 
 	c.syncStatus.lock.Lock()
 	defer c.syncStatus.lock.Unlock()
