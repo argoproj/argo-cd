@@ -2367,10 +2367,15 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 		logCtx.WithError(err).Error("Error constructing app status patch")
 		return patchDuration
 	}
+	// statusPersisted tracks whether the computed status (or its size-limit
+	// fallback) made it to the API server. Annotation consumption below is
+	// gated on it.
+	statusPersisted := true
 	if statusModified {
 		_, err = ctrl.PatchAppStatusWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, statusPatch, metav1.PatchOptions{})
 		if err != nil {
 			spanErr = err
+			statusPersisted = false
 			if apierrors.IsRequestEntityTooLargeError(err) {
 				logCtx.WithError(err).Warn("Application status exceeds the Kubernetes resource size limit; falling back to error condition only")
 				fallbackStatus := orig.Status.DeepCopy()
@@ -2395,6 +2400,13 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 				if modified {
 					if _, fbErr := ctrl.PatchAppStatusWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, fallbackPatch, metav1.PatchOptions{}); fbErr != nil {
 						logCtx.WithError(fbErr).Error("Error persisting fallback status with error condition")
+					} else {
+						// The fallback error condition is the deliberate persisted
+						// outcome for an oversized status. Treat it as success so the
+						// refresh annotation is consumed below — leaving it in place
+						// would hard-refresh an app that can never persist its full
+						// status in a tight loop.
+						statusPersisted = true
 					}
 				}
 			} else {
@@ -2406,9 +2418,13 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 	}
 
 	// Apply annotation changes (e.g. consuming the refresh/hydrate annotations)
-	// via a metadata-only merge patch on the main resource. This is attempted
-	// regardless of the status write's outcome so a consumed annotation doesn't
-	// keep retriggering work.
+	// via a metadata-only merge patch on the main resource — annotations cannot
+	// ride along on a status-subresource write. Consume them only once the
+	// status actually persisted: before the status/annotation split this was a
+	// single atomic patch, so a failed write left the annotation in place and
+	// the next reconcile redid the refresh. Consuming it after a failed write
+	// would silently discard the refresh result and leave the app stale until
+	// statusRefreshTimeout.
 	annotationPatch, annotationsModified, err := createMergePatch(
 		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: orig.GetAnnotations()}},
 		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: newAnnotations}})
@@ -2418,7 +2434,9 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 		return patchDuration
 	}
 	if annotationsModified {
-		if _, err := ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, annotationPatch, metav1.PatchOptions{}); err != nil {
+		if !statusPersisted {
+			logCtx.Info("Skipping annotation consumption because the status write failed; the refresh will be retried")
+		} else if _, err := ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, annotationPatch, metav1.PatchOptions{}); err != nil {
 			spanErr = err
 			logCtx.WithError(err).Warn("Error updating application annotations")
 		}

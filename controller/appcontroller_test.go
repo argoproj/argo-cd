@@ -4505,3 +4505,71 @@ func TestPatchAppStatusWithWriteBack_DoesNotRetryPermanentErrors(t *testing.T) {
 	require.Error(t, err)
 	assert.Equal(t, 1, attempts, "permanent errors must not be retried")
 }
+
+func TestPersistAppStatus_AnnotationConsumptionGatedOnStatusWrite(t *testing.T) {
+	newAppWithRefresh := func() *v1alpha1.Application {
+		app := newFakeApp()
+		app.Annotations = map[string]string{
+			v1alpha1.AnnotationKeyRefresh: string(v1alpha1.RefreshTypeNormal),
+		}
+		app.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
+		app.Status.Health.Status = health.HealthStatusHealthy
+		return app
+	}
+
+	t.Run("failed status write does not consume the refresh annotation", func(t *testing.T) {
+		app := newAppWithRefresh()
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+
+		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+		fakeAppCs.PrependReactor("patch", "applications", func(action kubetesting.Action) (bool, runtime.Object, error) {
+			if action.GetResource().Version != "v1beta1" {
+				return false, nil, nil
+			}
+			// Permanent (non-transient) failure so the retry wrapper gives up immediately.
+			return true, nil, apierrors.NewBadRequest("status write rejected")
+		})
+
+		origApp := app.DeepCopy()
+		newStatus := app.Status.DeepCopy()
+		newStatus.Sync.Status = v1alpha1.SyncStatusCodeOutOfSync
+
+		ctrl.persistReconciliationStatus(t.Context(), origApp, newStatus)
+
+		liveApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+		require.NoError(t, err)
+		refreshValue, hasRefresh := liveApp.Annotations[v1alpha1.AnnotationKeyRefresh]
+		assert.True(t, hasRefresh, "a failed status write must leave the refresh annotation in place so the next reconcile retries the refresh")
+		assert.Equal(t, string(v1alpha1.RefreshTypeNormal), refreshValue)
+	})
+
+	t.Run("successful size-limit fallback still consumes the refresh annotation", func(t *testing.T) {
+		app := newAppWithRefresh()
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+
+		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+		failedOnce := false
+		fakeAppCs.PrependReactor("patch", "applications", func(action kubetesting.Action) (bool, runtime.Object, error) {
+			if action.GetResource().Version != "v1beta1" {
+				return false, nil, nil
+			}
+			if !failedOnce {
+				failedOnce = true
+				return true, nil, apierrors.NewRequestEntityTooLargeError("status too large")
+			}
+			// Fall through to the standard v1beta1 conversion reactor for the fallback write.
+			return false, nil, nil
+		})
+
+		origApp := app.DeepCopy()
+		newStatus := app.Status.DeepCopy()
+		newStatus.Sync.Status = v1alpha1.SyncStatusCodeOutOfSync
+
+		ctrl.persistReconciliationStatus(t.Context(), origApp, newStatus)
+
+		liveApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+		require.NoError(t, err)
+		_, hasRefresh := liveApp.Annotations[v1alpha1.AnnotationKeyRefresh]
+		assert.False(t, hasRefresh, "a persisted fallback is the deliberate outcome for an oversized status; leaving the annotation would hard-refresh in a loop")
+	})
+}
