@@ -54,13 +54,19 @@ func NewCommand() *cobra.Command {
 			cli.SetLogFormat(cmdutil.LogFormat)
 			cli.SetLogLevel(cmdutil.LogLevel)
 
-			// Build list of hosts for self-signed cert generation
-			hosts := []string{
-				"localhost",
-				serviceName,
-				fmt.Sprintf("%s.%s", serviceName, namespace),
-				fmt.Sprintf("%s.%s.svc", serviceName, namespace),
-				fmt.Sprintf("%s.%s.svc.cluster.local", serviceName, namespace),
+			// Build list of hosts for self-signed cert generation. Service-derived
+			// SANs are only added when both parts are set: empty values would
+			// produce invalid DNS SANs (e.g. ".argocd.svc"), which the Secret-backed
+			// certificate would then fail host verification against, forcing a
+			// pointless regeneration on every pod start.
+			hosts := []string{"localhost"}
+			if serviceName != "" && namespace != "" {
+				hosts = append(hosts,
+					serviceName,
+					fmt.Sprintf("%s.%s", serviceName, namespace),
+					fmt.Sprintf("%s.%s.svc", serviceName, namespace),
+					fmt.Sprintf("%s.%s.svc.cluster.local", serviceName, namespace),
+				)
 			}
 
 			// Set up in-cluster config for TLS secret access and CA bundle injection

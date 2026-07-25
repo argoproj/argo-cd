@@ -942,14 +942,17 @@ func verifyGenerateManifests(
 // `operationState`, so the served API gates requesting a sync behind the status
 // subresource (applications/status RBAC) — manual syncs go through the UI/CLI.
 // Internally the server persists storage-native against v1alpha1, where `operation`
-// is top-level and there is no status subresource, so a single merge patch sets the
-// operation and clears any stale operationState atomically. The resourceVersion
-// precondition ties the write to the object the in-progress guard was checked
-// against, so a concurrent writer (another sync request, or the controller finishing
-// a prior operation) yields a Conflict and we re-read and re-check rather than
-// clobbering it. This closes the window the previous two-call form left open, where
-// the operation was set but operationState not yet cleared.
+// is top-level and there is no status subresource, so a single Update call sets the
+// operation and clears any stale operationState atomically. The Update carries the
+// resourceVersion of the object the in-progress guard was checked against, so a
+// concurrent writer (another sync request, or the controller finishing a prior
+// operation) yields a Conflict and we re-read and re-check rather than clobbering
+// it. This closes the window the previous two-call form left open, where the
+// operation was set but operationState not yet cleared.
 func SetAppOperation(appIf v1alpha1.ApplicationInterface, appName string, op *argoappv1.Operation) (*argoappv1.Application, error) {
+	if op.Sync == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "Operation unspecified")
+	}
 	for {
 		a, err := appIf.Get(context.Background(), appName, metav1.GetOptions{})
 		if err != nil {
@@ -962,9 +965,6 @@ func SetAppOperation(appIf v1alpha1.ApplicationInterface, appName string, op *ar
 		a.Operation = op
 		a.Status.OperationState = nil
 		a, err = appIf.Update(context.Background(), a, metav1.UpdateOptions{})
-		if op.Sync == nil {
-			return nil, status.Errorf(codes.InvalidArgument, "Operation unspecified")
-		}
 		if err == nil {
 			return a, nil
 		}
