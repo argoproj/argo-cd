@@ -95,18 +95,23 @@ func addV1beta1Reactors(clientset *appclientset.Clientset) {
 			return true, nil, err
 		}
 		app := obj.(*v1alpha1.Application)
-		// Apply the JSON merge patch to the app
+		// Apply the JSON merge patch the way the real apiserver would: convert
+		// the stored v1alpha1 object to the request version (v1beta1), patch
+		// that representation, and convert back for storage. Patching the
+		// v1alpha1 JSON directly would silently no-op on v1beta1-shaped paths
+		// like status.operation (top-level `operation` in v1alpha1).
 		patchedBytes, err := jsonpatch.MergePatch(
-			mustMarshalJSON(app),
+			mustMarshalJSON(v1beta1.ConvertFromV1alpha1(app)),
 			patchAction.GetPatch(),
 		)
 		if err != nil {
 			return true, nil, err
 		}
-		patchedApp := &v1alpha1.Application{}
-		if err := json.Unmarshal(patchedBytes, patchedApp); err != nil {
+		patchedBetaApp := &v1beta1.Application{}
+		if err := json.Unmarshal(patchedBytes, patchedBetaApp); err != nil {
 			return true, nil, err
 		}
+		patchedApp := v1beta1.ConvertToV1alpha1(patchedBetaApp)
 		// Update the tracker
 		if err := clientset.Tracker().Update(
 			v1alpha1.SchemeGroupVersion.WithResource("applications"),
@@ -341,18 +346,23 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 			app = obj.(*v1alpha1.Application)
 		}
 
-		// Apply the JSON merge patch to the app
+		// Apply the JSON merge patch the way the real apiserver would: convert
+		// the stored v1alpha1 object to the request version (v1beta1), patch
+		// that representation, and convert back for storage. Patching the
+		// v1alpha1 JSON directly would silently no-op on v1beta1-shaped paths
+		// like status.operation (top-level `operation` in v1alpha1).
 		patchedBytes, err := jsonpatch.MergePatch(
-			mustMarshalJSON(app),
+			mustMarshalJSON(v1beta1.ConvertFromV1alpha1(app)),
 			patchAction.GetPatch(),
 		)
 		if err != nil {
 			return true, nil, err
 		}
-		patchedApp := &v1alpha1.Application{}
-		if err := json.Unmarshal(patchedBytes, patchedApp); err != nil {
+		patchedBetaApp := &v1beta1.Application{}
+		if err := json.Unmarshal(patchedBytes, patchedBetaApp); err != nil {
 			return true, nil, err
 		}
+		patchedApp := v1beta1.ConvertToV1alpha1(patchedBetaApp)
 
 		// Store in our map (for fallback during sync)
 		appStore.Store(key, patchedApp.DeepCopy())
@@ -2150,7 +2160,9 @@ func TestSetOperationStateOnDeletedApp(t *testing.T) {
 	patched := false
 	fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		patched = true
-		return true, &v1alpha1.Application{}, apierrors.NewNotFound(schema.GroupResource{}, "my-app")
+		// The op-state patch goes through the v1beta1 status subresource, so
+		// the reactor must return a v1beta1 object the fake client can type-assert.
+		return true, &v1beta1.Application{}, apierrors.NewNotFound(schema.GroupResource{}, "my-app")
 	})
 	ctrl.setOperationState(t.Context(), newFakeApp(), &v1alpha1.OperationState{Phase: synccommon.OperationSucceeded})
 	assert.True(t, patched)
@@ -2168,9 +2180,9 @@ func TestSetOperationStateLogRetries(t *testing.T) {
 	fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		if !patched {
 			patched = true
-			return true, &v1alpha1.Application{}, errors.New("fake error")
+			return true, &v1beta1.Application{}, errors.New("fake error")
 		}
-		return true, &v1alpha1.Application{}, nil
+		return true, &v1beta1.Application{}, nil
 	})
 	ctrl.setOperationState(t.Context(), newFakeApp(), &v1alpha1.OperationState{Phase: synccommon.OperationSucceeded})
 	assert.True(t, patched)
@@ -3176,6 +3188,11 @@ func TestProcessRequestedAppOperation_InvalidDestination(t *testing.T) {
 		fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 			if patchAction, ok := action.(kubetesting.PatchAction); ok {
 				require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+			}
+			// The op-state patch goes through the v1beta1 status subresource, so
+			// the reactor must return a v1beta1 object the fake client can type-assert.
+			if action.GetResource().Version == "v1beta1" {
+				return true, &v1beta1.Application{}, nil
 			}
 			return true, &v1alpha1.Application{}, nil
 		})

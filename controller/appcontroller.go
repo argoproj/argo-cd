@@ -1699,15 +1699,21 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 		now := metav1.Now()
 		state.FinishedAt = &now
 	}
-	patch := map[string]any{
-		"status": map[string]any{
-			"operationState": state,
-		},
+	statusPatch := map[string]any{
+		"operationState": state,
 	}
 	if state.Phase.Completed() {
-		// If operation is completed, clear the operation field to indicate no operation is
-		// in progress.
-		patch["operation"] = nil
+		// If operation is completed, clear the operation field to indicate no
+		// operation is in progress. v1beta1 relocates `operation` under status,
+		// so the set + clear stay a single atomic status-subresource patch —
+		// and unlike a v1alpha1 main-resource patch (no status subresource
+		// there), the write does not bump metadata.generation, which would
+		// push generation ahead of status.observedGeneration on every
+		// operation phase change.
+		statusPatch["operation"] = nil
+	}
+	patch := map[string]any{
+		"status": statusPatch,
 	}
 	if reflect.DeepEqual(app.Status.OperationState, state) {
 		logCtx.Infof("No operation updates necessary to '%s'. Skipping patch", app.QualifiedName())
@@ -1727,7 +1733,7 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 	}
 
 	kube.RetryUntilSucceed(ctx, updateOperationStateTimeout, "Update application operation state", logutils.NewLogrusLogger(logutils.NewWithCurrentConfig()), func() error {
-		_, err := ctrl.PatchAppWithWriteBack(ctx, app.Name, app.Namespace, types.MergePatchType, patchJSON, metav1.PatchOptions{})
+		_, err := ctrl.PatchAppStatusWithWriteBack(ctx, app.Name, app.Namespace, types.MergePatchType, patchJSON, metav1.PatchOptions{})
 		if err != nil {
 			// Stop retrying updating deleted application
 			if apierrors.IsNotFound(err) {
