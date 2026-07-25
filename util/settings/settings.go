@@ -1761,6 +1761,53 @@ func ValidateExternalURL(u string) error {
 	return nil
 }
 
+// ValidateArgoCDServerAddress rejects URL schemes and paths from an Argo CD API server address.
+// Its errors identify the equivalent CLI flags for HTTP and gRPC-web subpath settings.
+func ValidateArgoCDServerAddress(server string) error {
+	lowerServer := strings.ToLower(server)
+	if strings.HasPrefix(lowerServer, "http://") || strings.HasPrefix(lowerServer, "https://") {
+		parsed, err := url.Parse(server)
+		if err != nil || parsed.Host == "" {
+			return fmt.Errorf("server address %q must be a host and optional port without http:// or https://", server)
+		}
+
+		isHTTP := strings.EqualFold(parsed.Scheme, "http")
+		rootPath := strings.TrimRight(parsed.Path, "/")
+
+		invalidParts := "a URL scheme"
+		if rootPath != "" {
+			invalidParts = "a URL scheme or path"
+		}
+
+		guidance := fmt.Sprintf("use %q", parsed.Host)
+		switch {
+		case isHTTP && rootPath != "":
+			guidance += fmt.Sprintf(" with --plaintext --grpc-web-root-path %q", rootPath)
+		case isHTTP:
+			guidance += " with --plaintext"
+		case rootPath != "":
+			guidance += fmt.Sprintf(" with --grpc-web-root-path %q", rootPath)
+		}
+		return fmt.Errorf("server address %q must not include %s; %s instead", server, invalidParts, guidance)
+	}
+	if strings.Contains(server, "://") {
+		return fmt.Errorf("server address %q must be a host and optional port without a URL scheme", server)
+	}
+
+	if host, path, found := strings.Cut(server, "/"); found {
+		rootPath := strings.TrimRight("/"+strings.TrimLeft(path, "/"), "/")
+		if host == "" {
+			return fmt.Errorf("server address %q must be a host and optional port", server)
+		}
+		if rootPath == "" {
+			return fmt.Errorf("server address %q must not include a path; use %q instead", server, host)
+		}
+		return fmt.Errorf("server address %q must not include a path; use %q with --grpc-web-root-path %q instead", server, host, rootPath)
+	}
+
+	return nil
+}
+
 // updateSettingsFromSecret transfers settings from a Kubernetes secret into an ArgoCDSettings struct.
 func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, argoCDSecret *corev1.Secret, secrets []*corev1.Secret) error {
 	var errs []error

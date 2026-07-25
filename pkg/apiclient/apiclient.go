@@ -53,6 +53,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/kube"
 	"github.com/argoproj/argo-cd/v3/util/localconfig"
 	oidcutil "github.com/argoproj/argo-cd/v3/util/oidc"
+	settings_util "github.com/argoproj/argo-cd/v3/util/settings"
 	tls_util "github.com/argoproj/argo-cd/v3/util/tls"
 )
 
@@ -226,7 +227,7 @@ func NewClient(opts *ClientOptions) (Client, error) {
 		//nolint:staticcheck // First letter of error is intentionally capitalized.
 		return nil, errors.New("Argo CD server address unspecified")
 	}
-	if err := ValidateServerAddress(c.ServerAddr); err != nil {
+	if err := settings_util.ValidateArgoCDServerAddress(c.ServerAddr); err != nil {
 		return nil, err
 	}
 	// Override auth-token if specified in env variable or CLI flag

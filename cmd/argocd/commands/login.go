@@ -32,7 +32,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/localconfig"
 	oidcutil "github.com/argoproj/argo-cd/v3/util/oidc"
 	"github.com/argoproj/argo-cd/v3/util/rand"
-	oidcconfig "github.com/argoproj/argo-cd/v3/util/settings"
+	settings_util "github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 // NewLoginCommand returns a new instance of `argocd login` command
@@ -58,10 +58,18 @@ argocd login cd.argoproj.io
 argocd login cd.argoproj.io --sso
 
 # Configure direct access using Kubernetes API server
-argocd login cd.argoproj.io --core`,
+argocd login cd.argoproj.io --core
+
+# Do not include a URL scheme in the server address
+# Incorrect: argocd login https://cd.argoproj.io
+argocd login cd.argoproj.io
+
+# Do not include a path in the server address
+# Incorrect: argocd login cd.argoproj.io/argocd
+argocd login cd.argoproj.io --grpc-web-root-path /argocd`,
 		PreRunE: func(_ *cobra.Command, args []string) error {
 			if len(args) == 1 && !clientOpts.PortForward && !clientOpts.Core {
-				return argocdclient.ValidateServerAddress(args[0])
+				return settings_util.ValidateArgoCDServerAddress(args[0])
 			}
 			return nil
 		},
@@ -323,7 +331,7 @@ func oauth2Login(
 
 	// Redirect user to login & consent page to ask for permission for the scopes specified above.
 	var url string
-	var oidcconfig oidcconfig.OIDCConfig
+	var oidcConfig settings_util.OIDCConfig
 	grantType := oidcutil.InferGrantType(oidcConf)
 	opts := []oauth2.AuthCodeOption{oauth2.AccessTypeOffline}
 	if claimsRequested := oidcSettings.GetIDTokenClaims(); claimsRequested != nil {
@@ -334,8 +342,8 @@ func oauth2Login(
 	case oidcutil.GrantTypeAuthorizationCode:
 		opts = append(opts, oauth2.SetAuthURLParam("code_challenge", codeChallenge))
 		opts = append(opts, oauth2.SetAuthURLParam("code_challenge_method", "S256"))
-		if oidcconfig.DomainHint != "" {
-			opts = append(opts, oauth2.SetAuthURLParam("domain_hint", oidcconfig.DomainHint))
+		if oidcConfig.DomainHint != "" {
+			opts = append(opts, oauth2.SetAuthURLParam("domain_hint", oidcConfig.DomainHint))
 		}
 		url = oauth2conf.AuthCodeURL(stateNonce, opts...)
 	case oidcutil.GrantTypeImplicit:
