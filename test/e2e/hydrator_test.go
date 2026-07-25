@@ -634,8 +634,8 @@ func TestHydratorNestedRequest(t *testing.T) {
 	// Test that hydration request that arrived when application
 	// was hydrating is not ignored
 	dir := "slow-manifest"
-	manifest := "templates/cm.yaml"
-	ctx := Given(t).Timeout(120)
+	valuesFile := "values.yaml"
+	ctx := Given(t)
 	acts := ctx.DrySourcePath(dir).
 		DrySourceRevision("HEAD").
 		SyncSourcePath(dir).
@@ -645,21 +645,24 @@ func TestHydratorNestedRequest(t *testing.T) {
 		Wait("--hydrated").
 		Sync().
 		Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(All(OperationPhaseIs(OperationSucceeded), SyncStatusIs(SyncStatusCodeSynced))).
 		When().
-		PatchDrySourceFile(manifest, `[{"op": "add", "path": "/metadata/labels/test-label", "value": "test-value"}]`)
+		// set long delay for the next helm template invocation
+		PatchDrySourceFile(valuesFile, `[{"op": "replace", "path": "/iterations", "value": 400}]`)
 
 	// runs app get --refresh asynchronously, so we do not wait for hydration to finish
 	go ctx.When().Refresh(RefreshTypeNormal)
+
 	// wait until Hydration actually runs `helm template`.  We can
 	// catch it because the template is really nasty and
 	// `helm template` rendering takes tens of seconds
 	acts.Then().Expect(HelmTemplateRuns())
 	// ps output line containing helm PID and command line
 	helmProcessData := acts.GetLastOutput()
-	// make another change
-	acts = acts.PatchDrySourceFile(manifest, `[{"op": "add", "path": "/metadata/labels/test-label", "value": "test-value2"}]`)
+
+	// make another change: removing the long delay: we do not need it for the second template invocation,
+	// so the test will run faster
+	acts = acts.PatchDrySourceFile(valuesFile, `[{"op": "replace", "path": "/iterations", "value": 1}]`)
 	// get last revision after the change
 	revision := acts.GitRevList("HEAD", "-1").GetLastOutput()
 
@@ -668,9 +671,9 @@ func TestHydratorNestedRequest(t *testing.T) {
 
 	// get process one more time and ensure the same helm process
 	// still running, so the second refresh was nested
-	acts.Then().Expect(HelmTemplateRuns()).Expect(Success(helmProcessData))
+	acts.Then().Expect(All(HelmTemplateRuns(), Success(helmProcessData)))
 
 	// in the end hydrated to the last committed revision - the second refresh worked
-	acts.Then().Expect(HydrationPhaseIs(HydrateOperationPhaseHydrated)).
-		Expect(DryRevisionIs(revision))
+	// it is expected to take a long time if runner is slow
+	acts.ThenWithTimeout(80).Expect(All(HydrationPhaseIs(HydrateOperationPhaseHydrated), DryRevisionIs(revision)))
 }

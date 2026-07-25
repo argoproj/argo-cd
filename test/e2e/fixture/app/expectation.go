@@ -48,6 +48,40 @@ func Or(e1 Expectation, e2 Expectation) Expectation {
 	}
 }
 
+func All(es ...Expectation) Expectation {
+	return func(c *Consequences) (state, string) {
+		pendingExps := []string{}
+		failedExps := []string{}
+		succeededExps := []string{}
+		for _, e := range es {
+			s, m := e(c)
+			if s == failed {
+				failedExps = append(failedExps, m)
+			}
+			if s == pending {
+				pendingExps = append(pendingExps, m)
+			}
+			if s == succeeded {
+				succeededExps = append(succeededExps, m)
+			}
+		}
+		result := succeeded
+		msg := "expectations statuses:"
+		if len(pendingExps) > 0 {
+			result = pending
+			msg += fmt.Sprintf(" pending: %v", pendingExps)
+		}
+		if len(failedExps) > 0 {
+			result = failed
+			msg += fmt.Sprintf(" failed: %v", failedExps)
+		}
+		if len(succeededExps) > 0 {
+			msg += fmt.Sprintf(" succeeded: %v", succeededExps)
+		}
+		return result, msg
+	}
+}
+
 func OperationPhaseIs(expected common.OperationPhase) Expectation {
 	return func(c *Consequences) (state, string) {
 		operationState := c.app().Status.OperationState

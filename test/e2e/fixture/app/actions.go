@@ -550,6 +550,11 @@ func (a *Actions) Then() *Consequences {
 	return &Consequences{a.context, a, 25}
 }
 
+func (a *Actions) ThenWithTimeout(timeout int) *Consequences {
+	a.context.T().Helper()
+	return &Consequences{a.context, a, timeout}
+}
+
 func (a *Actions) runCli(args ...string) {
 	a.context.T().Helper()
 	a.lastOutput, a.lastError = fixture.RunCli(args...)
