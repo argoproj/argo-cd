@@ -84,6 +84,19 @@ func TestCache_ListApps(t *testing.T) {
 	mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 1, ExternalGets: 4})
 }
 
+// Test_sparseAwareKeys_LegacyShapeWithoutSparsePaths pins the on-the-wire key
+// shape: when no sparse paths are configured, every sparse-aware key must keep
+// its pre-sparse-checkout form (no trailing "|") so that existing cache entries
+// and mixed-version deployments keep hitting during an upgrade.
+func Test_sparseAwareKeys_LegacyShapeWithoutSparsePaths(t *testing.T) {
+	assert.Equal(t, "ldir|my-repo|my-rev", listApps("my-repo", "my-rev", ""))
+	assert.Equal(t, "ldir|my-repo|my-rev|abc123", listApps("my-repo", "my-rev", "abc123"))
+	assert.Equal(t, "gitdirs|my-repo|my-rev", gitDirectoriesKey("my-repo", "my-rev", ""))
+	assert.Equal(t, "gitdirs|my-repo|my-rev|abc123", gitDirectoriesKey("my-repo", "my-rev", "abc123"))
+	assert.Equal(t, "gitfiles|my-repo|my-rev|*.yaml", gitFilesKey("my-repo", "my-rev", "", "*.yaml"))
+	assert.Equal(t, "gitfiles|my-repo|my-rev|*.yaml|abc123", gitFilesKey("my-repo", "my-rev", "abc123", "*.yaml"))
+}
+
 func TestCache_GetManifests(t *testing.T) {
 	fixtures := newFixtures()
 	t.Cleanup(fixtures.mockCache.StopRedisCallback)

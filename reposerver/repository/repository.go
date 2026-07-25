@@ -3111,6 +3111,15 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 			log.Infof("Using partial clone with %d sparse paths for revision %s", len(sparsePaths), revision)
 			if revision != "" {
 				err = gitClient.Fetch(revision, depth, true)
+				if err != nil {
+					// Some git servers reject fetches for unadvertised objects
+					// (uploadpack.allowReachableSHA1InWant disabled), so an explicit
+					// fetch of a resolved SHA can fail where a default-refspec fetch
+					// succeeds — the same reason the non-sparse path fetches "" by
+					// default (see #8845). Fall back rather than failing permanently.
+					log.Infof("Failed to fetch revision %s explicitly, falling back to default refspec fetch: %v", revision, err)
+					err = gitClient.Fetch("", depth, true)
+				}
 			} else {
 				err = gitClient.Fetch("", depth, true)
 			}

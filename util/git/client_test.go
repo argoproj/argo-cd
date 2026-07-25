@@ -1966,6 +1966,30 @@ func Test_nativeGitClient_Init_IdempotentAfterSparseCheckoutInit(t *testing.T) {
 		"Init must remain idempotent after sparse-checkout init writes extensions.worktreeConfig=true")
 }
 
+// A partial-clone default-refspec fetch must prune stale remote-tracking refs.
+// Without --prune, a branch hierarchy replaced on the remote ("feature" deleted,
+// "feature/sub" created) produces a directory/file ref conflict that permanently
+// wedges every subsequent default fetch for the workdir.
+func Test_nativeGitClient_Fetch_PartialClone_PrunesStaleRefs(t *testing.T) {
+	ctx := t.Context()
+	remoteDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+	require.NoError(t, runCmd(ctx, remoteDir, "git", "branch", "feature"))
+
+	localDir := t.TempDir()
+	client, err := NewClientExt("file://"+remoteDir, localDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	require.NoError(t, client.Init())
+	require.NoError(t, client.Fetch("", 0, true))
+
+	// Replace the branch with a conflicting hierarchy on the remote.
+	require.NoError(t, runCmd(ctx, remoteDir, "git", "branch", "-D", "feature"))
+	require.NoError(t, runCmd(ctx, remoteDir, "git", "branch", "feature/sub"))
+
+	require.NoError(t, client.Fetch("", 0, true),
+		"default-refspec partial fetch must prune the stale ref instead of wedging on the directory/file conflict")
+}
+
 // A corrupt or half-created .git directory (e.g. a repo-server pod killed
 // mid-init) must self-heal via RemoveAll+re-init. A bare .git existence probe
 // would return nil here and permanently wedge the workdir: every subsequent

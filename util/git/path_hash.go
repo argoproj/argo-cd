@@ -3,6 +3,7 @@ package git
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"path"
 	"sort"
 	"strings"
 )
@@ -28,10 +29,13 @@ func ComputePathHash(paths []string) string {
 }
 
 // normalizeSparsePaths returns a canonical, hash-stable form of the input:
+//   - lexically cleans each entry (path.Clean), so "./charts", "charts/./sub",
+//     and "charts//sub" hash identically to git's canonical "charts" /
+//     "charts/sub" as printed by `git sparse-checkout list`
 //   - strips leading and trailing '/' (git cone-mode strips trailing slashes
 //     and rejects leading slashes; stripping both lets a user's "/charts" or
 //     "charts/" hash identically to git's stored "charts")
-//   - drops empty entries (post-strip)
+//   - drops empty and "." entries (post-clean)
 //   - removes exact duplicates
 //   - sorts alphabetically
 func normalizeSparsePaths(paths []string) []string {
@@ -41,8 +45,8 @@ func normalizeSparsePaths(paths []string) []string {
 	seen := make(map[string]struct{}, len(paths))
 	out := make([]string, 0, len(paths))
 	for _, p := range paths {
-		p = strings.Trim(p, "/")
-		if p == "" {
+		p = strings.Trim(path.Clean(p), "/")
+		if p == "" || p == "." {
 			continue
 		}
 		if _, ok := seen[p]; ok {

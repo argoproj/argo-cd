@@ -156,6 +156,11 @@ func clusterRuntimeInfoKeyUnhashed(info ClusterRuntimeInfo) string {
 }
 
 func listApps(repoURL, revision, pathsSHA string) string {
+	// Preserve the legacy key shape when no sparse paths are configured so that
+	// existing cache entries (and mixed-version deployments) keep hitting.
+	if pathsSHA == "" {
+		return fmt.Sprintf("ldir|%s|%s", repoURL, revision)
+	}
 	return fmt.Sprintf("ldir|%s|%s|%s", repoURL, revision, pathsSHA)
 }
 
@@ -540,6 +545,11 @@ func (c *Cache) GetGitFiles(repoURL, revision, pathsSHA, pattern string) (map[st
 }
 
 func gitDirectoriesKey(repoURL, revision, pathsSHA string) string {
+	// Preserve the legacy key shape when no sparse paths are configured so that
+	// existing cache entries (and mixed-version deployments) keep hitting.
+	if pathsSHA == "" {
+		return fmt.Sprintf("gitdirs|%s|%s", repoURL, revision)
+	}
 	return fmt.Sprintf("gitdirs|%s|%s|%s", repoURL, revision, pathsSHA)
 }
 

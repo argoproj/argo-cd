@@ -596,11 +596,15 @@ func (m *nativeGitClient) fetch(ctx context.Context, revision string, depth int6
 
 	args = append(args, "--force")
 
-	// Skip --prune for partial clone fetches. When fetching a specific SHA with
-	// --filter=blob:none, --prune forces a full ref advertisement from the remote
-	// to determine which local refs to remove. This is unnecessary and can take
-	// 30-60s on repos with thousands of tags/branches.
-	if !usePartialClone {
+	// Skip --prune only for explicit-revision partial-clone fetches: fetching a
+	// specific SHA updates FETCH_HEAD without touching remote-tracking refs, and
+	// --prune would force a full ref advertisement that can take 30-60s on repos
+	// with thousands of tags/branches. Default-refspec fetches must keep --prune
+	// even for partial clones — they already require the full advertisement, and
+	// without pruning a deleted-then-recreated branch hierarchy (e.g. "feature"
+	// deleted, "feature/sub" created) permanently wedges every subsequent default
+	// fetch with a "cannot lock ref" directory/file conflict.
+	if !usePartialClone || revision == "" {
 		args = append(args, "--prune")
 	}
 
@@ -1443,6 +1447,18 @@ func (m *nativeGitClient) LsSignatures(unresolvedRevision string, deep bool) ([]
 		}
 	}
 
+	// Partial-clone fetches omit --tags, so an annotated-tag revision may have no
+	// local ref here: VerifyCommitSignature would run against an unknown name and
+	// IsAnnotatedTag would return false, silently verifying the commit's signature
+	// instead of the tag's. When the name doesn't resolve locally, fault the tag
+	// ref in before either check. Failure is non-fatal: for branch/SHA revisions
+	// there is no such tag and the checks below behave as before.
+	if m.isPartialClone() && !m.resolvesLocally(unresolvedRevision) {
+		if err := m.ensureLocalTagRef(context.Background(), unresolvedRevision); err != nil {
+			log.Debugf("failed to fault-in tag ref %q before signature verification: %v", unresolvedRevision, err)
+		}
+	}
+
 	legacyVerification, err := m.VerifyCommitSignature(unresolvedRevision)
 	if err != nil {
 		return nil, "", err
@@ -1607,9 +1623,23 @@ func (m *nativeGitClient) getSealRevListFilter(revision string, sealCommitsRawOu
 	return append([]string{"--boundary", revision, "--not"}, sealCommits...), nil
 }
 
+// resolvesLocally reports whether the revision resolves to an object already
+// present in the local repository. GIT_NO_LAZY_FETCH=1 prevents partial clone
+// repos from triggering an uncredentialed network round-trip to the promisor
+// remote, which can hang or time out.
+func (m *nativeGitClient) resolvesLocally(revision string) bool {
+	cmd := exec.CommandContext(context.Background(), "git", "cat-file", "-t", revision)
+	cmd.Env = append(cmd.Env, "GIT_NO_LAZY_FETCH=1")
+	_, err := m.runCmdOutput(cmd, runOpts{SkipErrorLogging: true})
+	return err == nil
+}
+
 // IsAnnotatedTag returns true if the revision is an annotated tag existing in the repository, and false for everything else.
+// GIT_NO_LAZY_FETCH=1 prevents partial clone repos from triggering an
+// uncredentialed lazy fetch when the object is not present locally.
 func (m *nativeGitClient) IsAnnotatedTag(revision string) bool {
 	cmd := exec.CommandContext(context.Background(), "git", "cat-file", "-t", revision)
+	cmd.Env = append(cmd.Env, "GIT_NO_LAZY_FETCH=1")
 	out, err := m.runCmdOutput(cmd, runOpts{SkipErrorLogging: true})
 	// a lightweight tag returns "commit" - makes sense in the git world
 	if err == nil && out == "tag" {

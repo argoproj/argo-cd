@@ -63,8 +63,7 @@ will not save meaningful bandwidth or disk space.
 
 ### Enabling
 
-You can configure sparse paths through the CLI, the UI, the `Repository` CRD,
-or a Repository secret.
+You can configure sparse paths through the CLI, the UI, or a Repository secret.
 
 **CLI:**
 
@@ -80,7 +79,7 @@ that a partial clone will be used for this repository.
 **UI:** the *Sparse paths (optional, comma-separated)* field on the
 *Connect Repo* form (Git type only) accepts a comma-separated list of paths.
 
-**Repository secret:** add a `sparsePaths` data key with a newline-separated
+**Repository secret:** add a `sparsePaths` data key with a comma-separated
 list of paths:
 
 ```yaml
@@ -93,12 +92,11 @@ metadata:
     argocd.argoproj.io/secret-type: repository
 stringData:
   url: https://github.com/example/mono-repo.git
-  sparsePaths: |
-    charts/my-app
-    environments/production
+  sparsePaths: charts/my-app,environments/production
 ```
 
-Paths can be absolute (`/charts`) or relative to the repository root. Cone mode
+Paths must be directories relative to the repository root (e.g. `charts` or
+`apps/foo`); leading slashes are rejected by git's cone-mode parser. Cone mode
 (`git sparse-checkout init --cone --sparse-index`) is used, so each entry must
 be a directory rather than a glob.
 

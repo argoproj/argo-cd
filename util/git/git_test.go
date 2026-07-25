@@ -961,6 +961,13 @@ func TestComputePathHashNormalization(t *testing.T) {
 		{"empty entry alongside", []string{"app-a", ""}},
 		{"slash-only entry alongside", []string{"app-a", "/"}},
 		{"duplicate after stripping", []string{"app-a", "app-a/"}},
+		// `git sparse-checkout set -- ./app-a` stores canonical "app-a"; the
+		// user-supplied form must hash identically or restart recovery rebuilds
+		// a different key and orphans the warm workdir.
+		{"dot-slash prefix", []string{"./app-a"}},
+		{"interior dot segment", []string{"app-a/."}},
+		{"doubled slash", []string{"app-a//"}},
+		{"dot entry alongside", []string{"app-a", "."}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -980,6 +987,7 @@ func TestComputePathHashNormalization(t *testing.T) {
 		assert.Empty(t, ComputePathHash([]string{""}))
 		assert.Empty(t, ComputePathHash([]string{"/"}))
 		assert.Empty(t, ComputePathHash([]string{"", "/", ""}))
+		assert.Empty(t, ComputePathHash([]string{".", "./"}))
 	})
 
 	t.Run("distinct paths still produce distinct hashes", func(t *testing.T) {

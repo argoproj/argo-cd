@@ -3362,6 +3362,28 @@ func TestCheckoutRevisionConfigureSparseFailureFallsBackToFullFetch(t *testing.T
 	require.NoError(t, err)
 }
 
+// TestCheckoutRevisionSparseExplicitFetchFallsBackToDefaultRefspec verifies
+// that when a git server rejects an explicit-SHA fetch (e.g.
+// uploadpack.allowReachableSHA1InWant disabled), the sparse path falls back to
+// a default-refspec partial fetch instead of failing permanently — mirroring
+// the non-sparse default behavior (#8845).
+func TestCheckoutRevisionSparseExplicitFetchFallsBackToDefaultRefspec(t *testing.T) {
+	revision := "0123456789012345678901234567890123456789"
+	sparsePaths := []string{"charts"}
+
+	gitClient := &gitmocks.Client{}
+	gitClient.EXPECT().Init().Return(nil)
+	gitClient.EXPECT().IsRevisionPresent(revision).Return(false)
+	gitClient.EXPECT().ConfigureSparseCheckout(sparsePaths).Return(nil).Once()
+	gitClient.EXPECT().Fetch(revision, int64(0), true).Return(errors.New("Server does not allow request for unadvertised object")).Once()
+	gitClient.EXPECT().Fetch("", int64(0), true).Return(nil).Once()
+	gitClient.EXPECT().FetchSparseBlobs(revision, sparsePaths).Return(nil).Maybe()
+	gitClient.EXPECT().Checkout(revision, mock.Anything, mock.Anything).Return("", nil)
+
+	err := checkoutRevision(gitClient, revision, false, 0, sparsePaths, true)
+	require.NoError(t, err)
+}
+
 // TestCheckoutRevisionSparseFallbackPreservesDepth is a regression test for the
 // previous fallback behavior where, after a Checkout failure on a sparse repo,
 // `Fetch(revision, 0, true)` was issued — silently defeating the caller's Depth
