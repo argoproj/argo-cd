@@ -2278,40 +2278,45 @@ func (ctrl *ApplicationController) handleRefreshAnnotation(ctx context.Context, 
 	patchDuration, err := ctrl.removeRefreshAnnotationCombo(orig, annotation, timestampAnnotation)
 	if err != nil {
 		var status apierrors.APIStatus
-		// ensure that the error comes from the timestamp annotation that was modified during
-		// refresh.
-		origTimestamp, hasTimestamp := origAnnotations[timestampAnnotation]
-		if hasTimestamp && stderrors.As(err, &status) &&
-			status.Status().Code == http.StatusUnprocessableEntity {
-			// If the JSONPatch test operation fails the API server returns status code 422 -
-			// Unprocessable entity, but there is no way to be 100% sure from the error only
-			// that it happened because of the timestamp value mismatch in test, so we get the
-			// value from the Application manifest and compare.
-			// We fetch from k8s directly, because Informer might still have the old version
-			newApp, getErr := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(orig.GetNamespace()).Get(context.Background(), orig.GetName(), metav1.GetOptions{})
-			if getErr != nil {
-				spanErr = getErr
-				logCtx.Errorf("Unexpected error getting application: %v", getErr)
-				return
-			}
-			newAnnotations := newApp.GetAnnotations()
-			if newAnnotations != nil {
-				newTimestamp, hasNewTimestamp := newAnnotations[timestampAnnotation]
-				_, hasAnnotation := newAnnotations[annotation]
-				if hasAnnotation && hasNewTimestamp && newTimestamp != origTimestamp {
-					// there is refresh set and refresh timestamp changed,
-					// new refresh was requested while the old one was running
-					logCtx.Infof("New request arrived while processing: %s changed from %s to %s", timestampAnnotation, origTimestamp, newTimestamp)
-				} else {
-					// there was some other change (like deleted refresh annotation)
-					// retry the operation with the updated annotations
-					retryDuration, retryErr := ctrl.removeRefreshAnnotationCombo(newApp, annotation, timestampAnnotation)
-					if retryErr != nil {
-						spanErr = retryErr
-						logCtx.Errorf("Unexpected error retrying removal of annotations %s, %s, %v", annotation, timestampAnnotation, retryErr)
-					}
-					patchDuration += retryDuration
+		if stderrors.As(err, &status) && status.Status().Code == http.StatusUnprocessableEntity {
+			// ensure that the error comes from the timestamp annotation that was modified during
+			// refresh.
+
+			origTimestamp, hasTimestamp := origAnnotations[timestampAnnotation]
+			if hasTimestamp {
+				// If the JSONPatch test operation fails the API server returns status code 422 -
+				// Unprocessable entity, but there is no way to be 100% sure from the error only
+				// that it happened because of the timestamp value mismatch in test, so we get the
+				// value from the Application manifest and compare.
+				// We fetch from k8s directly, because Informer might still have the old version
+				newApp, getErr := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(orig.GetNamespace()).Get(context.Background(), orig.GetName(), metav1.GetOptions{})
+				if getErr != nil {
+					spanErr = getErr
+					logCtx.Errorf("Unexpected error getting application: %v", getErr)
+					return
 				}
+				newAnnotations := newApp.GetAnnotations()
+				if newAnnotations != nil {
+					newTimestamp, hasNewTimestamp := newAnnotations[timestampAnnotation]
+					_, hasAnnotation := newAnnotations[annotation]
+					if hasAnnotation && hasNewTimestamp && newTimestamp != origTimestamp {
+						// there is refresh set and refresh timestamp changed,
+						// new refresh was requested while the old one was running
+						logCtx.Infof("New request arrived while processing: %s changed from %s to %s", timestampAnnotation, origTimestamp, newTimestamp)
+					} else {
+						// there was some other change (like deleted refresh annotation)
+						// retry the operation with the updated annotations
+						retryDuration, retryErr := ctrl.removeRefreshAnnotationCombo(newApp, annotation, timestampAnnotation)
+						if retryErr != nil {
+							spanErr = retryErr
+							logCtx.Errorf("Unexpected error retrying removal of annotations %s, %s, %v", annotation, timestampAnnotation, retryErr)
+						}
+						patchDuration += retryDuration
+					}
+				}
+			} else {
+				// probably externally removed refresh/hydrate annotation
+				logCtx.Infof("Failed to remove annotation %s (removed externally?): %v", annotation, err)
 			}
 		} else {
 			spanErr = err
