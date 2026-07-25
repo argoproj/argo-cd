@@ -1,7 +1,9 @@
 package v1beta1
 
 import (
+	"encoding/json"
 	"fmt"
+	"reflect"
 	"strings"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -22,6 +24,21 @@ const (
 	// SourceFormatBoth means the v1alpha1 object set both `source` and `sources`.
 	SourceFormatBoth = "both"
 )
+
+// SyncOptionsAnnotation records, on a converted v1beta1 Application, the
+// original v1alpha1 syncOptions string list verbatim (JSON-encoded). v1alpha1
+// stores syncOptions as an ordered []string while v1beta1 models them as a
+// structured object, so the structured form remembers neither the original
+// ordering nor strings it has no field for. Without the marker, the reverse
+// conversion would emit a fixed canonical order and drop unknown strings —
+// and because the apiserver round-trips the whole object through conversion
+// on every v1beta1 write (v1alpha1 is the storage version), a status-only
+// write would then rewrite the stored spec, bump metadata.generation, and
+// show up as permanent drift vs git. The reverse conversion replays the
+// recorded list only while it still parses to the object's structured
+// syncOptions (i.e. no v1beta1 client edited them) and always strips the
+// annotation again.
+const SyncOptionsAnnotation = "argocd.argoproj.io/v1alpha1-sync-options"
 
 // ConvertFromV1alpha1 converts a v1alpha1.Application to a v1beta1.Application.
 // This is used by the conversion webhook when serving v1beta1 API requests.
@@ -51,21 +68,30 @@ func ConvertFromV1alpha1(src *v1alpha1.Application) *Application {
 	// exactly (see SourceFormatAnnotation).
 	switch {
 	case src.Spec.Source != nil && len(src.Spec.Sources) > 0:
-		setSourceFormat(dst, SourceFormatBoth)
+		setConversionAnnotation(dst, SourceFormatAnnotation, SourceFormatBoth)
 	case src.Spec.Source != nil:
-		setSourceFormat(dst, SourceFormatSingular)
+		setConversionAnnotation(dst, SourceFormatAnnotation, SourceFormatSingular)
 	default:
 		delete(dst.Annotations, SourceFormatAnnotation)
+	}
+
+	// Record the original syncOptions strings so ConvertToV1alpha1 can restore
+	// them verbatim (see SyncOptionsAnnotation).
+	delete(dst.Annotations, SyncOptionsAnnotation)
+	if src.Spec.SyncPolicy != nil && len(src.Spec.SyncPolicy.SyncOptions) > 0 {
+		// json.Marshal cannot fail on a []string.
+		encoded, _ := json.Marshal([]string(src.Spec.SyncPolicy.SyncOptions))
+		setConversionAnnotation(dst, SyncOptionsAnnotation, string(encoded))
 	}
 
 	return dst
 }
 
-func setSourceFormat(app *Application, format string) {
+func setConversionAnnotation(app *Application, key, value string) {
 	if app.Annotations == nil {
 		app.Annotations = map[string]string{}
 	}
-	app.Annotations[SourceFormatAnnotation] = format
+	app.Annotations[key] = value
 }
 
 func convertSpecFromV1alpha1(src *v1alpha1.ApplicationSpec) ApplicationSpec {
@@ -215,12 +241,13 @@ func convertSyncOptionsFromStrings(opts v1alpha1.SyncOptions) *SyncOptions {
 			if after, ok := strings.CutPrefix(opt, "PrunePropagationPolicy="); ok {
 				dst.PrunePropagationPolicy = new(PrunePropagationPolicy(after))
 			}
-			// Any other unrecognized option string is dropped. New sync options are
-			// added to this structured type (and given a case above) — they are not
-			// backported to v1alpha1's string list — so an unknown string in a
-			// v1alpha1 object is a typo or dead data, and dropping it on conversion
-			// is deliberate normalization. TestConvertSyncOptions_AllKnownOptionsRoundTrip
-			// guards against an option being added without a matching case here.
+			// Any other unrecognized option string has no structured field here.
+			// It is not lost on a storage round-trip, though: ConvertFromV1alpha1
+			// records the original string list in SyncOptionsAnnotation and the
+			// reverse conversion replays it verbatim, so unknown strings survive
+			// conversion even without a structured representation.
+			// TestConvertSyncOptions_AllKnownOptionsRoundTrip guards against an
+			// option being added without a matching case here.
 		}
 	}
 
@@ -245,11 +272,13 @@ func ConvertToV1alpha1(src *Application) *v1alpha1.Application {
 	// Update API version
 	dst.APIVersion = v1alpha1.SchemeGroupVersion.String()
 
-	// The source-format marker is conversion metadata, not user data: consume it
-	// and strip it from the v1alpha1 object. dst shares the deep-copied
-	// ObjectMeta, so deleting from dst.Annotations is safe.
+	// The source-format and sync-options markers are conversion metadata, not
+	// user data: consume them and strip them from the v1alpha1 object. dst
+	// shares the deep-copied ObjectMeta, so deleting from dst.Annotations is safe.
 	sourceFormat := src.Annotations[SourceFormatAnnotation]
+	recordedSyncOptions := src.Annotations[SyncOptionsAnnotation]
 	delete(dst.Annotations, SourceFormatAnnotation)
+	delete(dst.Annotations, SyncOptionsAnnotation)
 	if len(dst.Annotations) == 0 {
 		// Keep nil-vs-empty stable across a round-trip.
 		dst.Annotations = nil
@@ -257,8 +286,34 @@ func ConvertToV1alpha1(src *Application) *v1alpha1.Application {
 
 	// Convert spec
 	dst.Spec = convertSpecToV1alpha1(&src.Spec, sourceFormat)
+	restoreSyncOptions(dst, src, recordedSyncOptions)
 
 	return dst
+}
+
+// restoreSyncOptions replays the original v1alpha1 syncOptions strings
+// (recorded in SyncOptionsAnnotation) over the canonical emission when they
+// still represent the object's structured syncOptions. This makes the
+// round-trip the identity for whatever v1alpha1 already stores: original
+// ordering and strings with no structured field survive instead of being
+// canonicalized away on a status-only write. When the structured options no
+// longer parse back to the recorded list, a v1beta1 client made a real edit,
+// and the canonical strings already emitted stand.
+func restoreSyncOptions(dst *v1alpha1.Application, src *Application, recorded string) {
+	if recorded == "" || dst.Spec.SyncPolicy == nil {
+		return
+	}
+	if src.Spec.SyncPolicy == nil || src.Spec.SyncPolicy.SyncOptions == nil {
+		return
+	}
+	var original []string
+	if err := json.Unmarshal([]byte(recorded), &original); err != nil || len(original) == 0 {
+		return
+	}
+	if !reflect.DeepEqual(convertSyncOptionsFromStrings(original), src.Spec.SyncPolicy.SyncOptions) {
+		return
+	}
+	dst.Spec.SyncPolicy.SyncOptions = original
 }
 
 func convertSpecToV1alpha1(src *ApplicationSpec, sourceFormat string) v1alpha1.ApplicationSpec {

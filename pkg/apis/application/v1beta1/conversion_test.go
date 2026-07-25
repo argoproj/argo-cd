@@ -896,9 +896,11 @@ func TestConvertSyncOptions_AllKnownOptionsRoundTrip(t *testing.T) {
 }
 
 // TestConvertSyncOptions_UnknownOptionsDropped documents that option strings without a
-// structured field are dropped on conversion. This is deliberate: new sync options are
-// added to the v1beta1 structured type and are not backported to v1alpha1's string
-// list, so an unknown string in a v1alpha1 object is a typo or dead data.
+// structured field are dropped at the structured level: they have no v1beta1
+// representation. They are not lost on a full object round-trip, though —
+// ConvertFromV1alpha1 records the original list in SyncOptionsAnnotation and
+// ConvertToV1alpha1 replays it verbatim (see
+// TestConvertRoundTrip_SyncOptionsPreservedVerbatim).
 func TestConvertSyncOptions_UnknownOptionsDropped(t *testing.T) {
 	structured := convertSyncOptionsFromStrings(v1alpha1.SyncOptions{"NotARealOption=42", "Validate=true"})
 
@@ -960,5 +962,84 @@ func TestConvertRoundTrip_SourceFormPreserved(t *testing.T) {
 		assert.Equal(t, SourceFormatSingular, converted.Annotations[SourceFormatAnnotation])
 		roundTripped := ConvertToV1alpha1(converted)
 		assert.NotContains(t, roundTripped.Annotations, SourceFormatAnnotation)
+	})
+}
+
+// TestConvertRoundTrip_SyncOptionsPreservedVerbatim verifies that whatever
+// syncOptions strings a v1alpha1 object stores survive a v1alpha1 -> v1beta1
+// -> v1alpha1 round trip byte-for-byte: original ordering, strings with no
+// structured field, and duplicates. Anything else rewrites stored specs on
+// status-only writes (the apiserver round-trips the whole object through
+// conversion), bumping metadata.generation and showing up as permanent drift
+// vs git for app-of-apps parents.
+func TestConvertRoundTrip_SyncOptionsPreservedVerbatim(t *testing.T) {
+	newApp := func(opts ...string) *v1alpha1.Application {
+		return &v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{Name: "test-app", Namespace: "argocd"},
+			Spec: v1alpha1.ApplicationSpec{
+				Project:     "default",
+				Destination: v1alpha1.ApplicationDestination{Server: "https://kubernetes.default.svc"},
+				SyncPolicy:  &v1alpha1.SyncPolicy{SyncOptions: opts},
+			},
+		}
+	}
+
+	t.Run("non-canonical order is preserved", func(t *testing.T) {
+		original := newApp("PruneLast=true", "Validate=false", "CreateNamespace=true")
+		roundTripped := ConvertToV1alpha1(ConvertFromV1alpha1(original))
+		assert.Equal(t, original.Spec.SyncPolicy.SyncOptions, roundTripped.Spec.SyncPolicy.SyncOptions)
+	})
+
+	t.Run("unknown strings are preserved", func(t *testing.T) {
+		original := newApp("NotARealOption=42", "Validate=true")
+		roundTripped := ConvertToV1alpha1(ConvertFromV1alpha1(original))
+		assert.Equal(t, original.Spec.SyncPolicy.SyncOptions, roundTripped.Spec.SyncPolicy.SyncOptions)
+	})
+
+	t.Run("only unknown strings are preserved", func(t *testing.T) {
+		original := newApp("NotARealOption=42")
+		roundTripped := ConvertToV1alpha1(ConvertFromV1alpha1(original))
+		assert.Equal(t, original.Spec.SyncPolicy.SyncOptions, roundTripped.Spec.SyncPolicy.SyncOptions)
+	})
+
+	t.Run("duplicates are preserved", func(t *testing.T) {
+		original := newApp("Prune=false", "Prune=confirm")
+		roundTripped := ConvertToV1alpha1(ConvertFromV1alpha1(original))
+		assert.Equal(t, original.Spec.SyncPolicy.SyncOptions, roundTripped.Spec.SyncPolicy.SyncOptions)
+	})
+
+	t.Run("marker annotation is set on v1beta1 and stripped from v1alpha1", func(t *testing.T) {
+		original := newApp("PruneLast=true")
+		converted := ConvertFromV1alpha1(original)
+		assert.JSONEq(t, `["PruneLast=true"]`, converted.Annotations[SyncOptionsAnnotation])
+		roundTripped := ConvertToV1alpha1(converted)
+		assert.NotContains(t, roundTripped.Annotations, SyncOptionsAnnotation)
+	})
+
+	t.Run("no syncOptions means no marker annotation", func(t *testing.T) {
+		original := newApp()
+		original.Spec.SyncPolicy.SyncOptions = nil
+		converted := ConvertFromV1alpha1(original)
+		assert.NotContains(t, converted.Annotations, SyncOptionsAnnotation)
+	})
+
+	t.Run("v1beta1 edit wins over the recorded list", func(t *testing.T) {
+		converted := ConvertFromV1alpha1(newApp("PruneLast=true"))
+		converted.Spec.SyncPolicy.SyncOptions.Force = new(true)
+
+		roundTripped := ConvertToV1alpha1(converted)
+
+		assert.ElementsMatch(t, v1alpha1.SyncOptions{"PruneLast=true", "Force=true"}, roundTripped.Spec.SyncPolicy.SyncOptions,
+			"an edit made through v1beta1 must be emitted canonically, not overwritten by the recorded list")
+		assert.NotContains(t, roundTripped.Annotations, SyncOptionsAnnotation)
+	})
+
+	t.Run("v1beta1 removal of options wins over the recorded list", func(t *testing.T) {
+		converted := ConvertFromV1alpha1(newApp("PruneLast=true"))
+		converted.Spec.SyncPolicy.SyncOptions = nil
+
+		roundTripped := ConvertToV1alpha1(converted)
+
+		assert.Empty(t, roundTripped.Spec.SyncPolicy.SyncOptions)
 	})
 }
