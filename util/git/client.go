@@ -662,6 +662,15 @@ func (m *nativeGitClient) ConfigureSparseCheckout(paths []string) error {
 
 	ctx := context.Background()
 
+	// go-git's PlainInit (used by Init()) writes a config without
+	// core.repositoryformatversion. When that key is absent, git ignores
+	// extensions.worktreeConfig — where sparse-checkout state is stored — so the
+	// configuration below would be written but silently never honored, and
+	// checkouts would produce a full working tree ("this worktree is not sparse").
+	if _, err := m.runCmd(ctx, "config", "core.repositoryformatversion", "0"); err != nil {
+		return fmt.Errorf("failed to set core.repositoryformatversion: %w", err)
+	}
+
 	// Initialize sparse-checkout with cone mode and sparse index.
 	// --sparse-index collapses out-of-cone directories to single index entries,
 	// dramatically reducing index size and speeding up git status/checkout/diff operations.
@@ -682,10 +691,19 @@ func (m *nativeGitClient) ConfigureSparseCheckout(paths []string) error {
 }
 
 // DisableSparseCheckout disables sparse-checkout so that the full working tree
-// is restored. This is used when sparse-checkout configuration fails partway
-// through and the caller needs to fall back to a full checkout.
+// is restored. It is a no-op when sparse-checkout is not currently enabled, so
+// callers can invoke it unconditionally to reconcile stale on-disk sparse state
+// (e.g. a workdir poisoned by a previous sparse checkout).
 func (m *nativeGitClient) DisableSparseCheckout() error {
 	ctx := context.Background()
+	// core.sparseCheckout is the authoritative marker: "git sparse-checkout disable"
+	// sets it to false but leaves .git/info/sparse-checkout on disk, so the config
+	// value (not file presence) distinguishes an active sparse checkout. The --get
+	// exits non-zero when the key is unset (never-sparse workdir); skip in that case.
+	probe := exec.CommandContext(ctx, "git", "config", "--bool", "--get", "core.sparseCheckout")
+	if out, err := m.runCmdOutput(probe, runOpts{SkipErrorLogging: true}); err != nil || strings.TrimSpace(out) != "true" {
+		return nil
+	}
 	if _, err := m.runCmd(ctx, "sparse-checkout", "disable"); err != nil {
 		return fmt.Errorf("failed to disable sparse-checkout: %w", err)
 	}

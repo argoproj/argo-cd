@@ -159,6 +159,7 @@ func newServiceWithMocks(t *testing.T, root string) (*Service, *gitmocks.Client,
 		gitClient.EXPECT().IsRevisionPresent(mock.Anything).Return(false)
 		gitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		gitClient.EXPECT().FetchSparseBlobs(mock.Anything, mock.Anything).Maybe().Return(nil)
+		gitClient.EXPECT().DisableSparseCheckout().Maybe().Return(nil)
 		gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything).Return("", nil)
 		gitClient.EXPECT().LsRemote(mock.Anything).Return(mock.Anything, nil)
 		gitClient.EXPECT().CommitSHA().Return(mock.Anything, nil)
@@ -237,6 +238,7 @@ func newServiceWithCommitSHA(t *testing.T, root, revision string) *Service {
 		gitClient.EXPECT().Init().Return(nil)
 		gitClient.EXPECT().IsRevisionPresent(mock.Anything).Return(false)
 		gitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		gitClient.EXPECT().DisableSparseCheckout().Maybe().Return(nil)
 		gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything).Return("", nil)
 		gitClient.EXPECT().LsRemote(revision).Return(revision, revisionErr)
 		gitClient.EXPECT().IsAnnotatedTag(revision).Return(revisionErr != nil)
@@ -3278,6 +3280,7 @@ func TestCheckoutRevisionPresentSkipFetch(t *testing.T) {
 	gitClient := &gitmocks.Client{}
 	gitClient.EXPECT().Init().Return(nil)
 	gitClient.EXPECT().IsRevisionPresent(revision).Return(true)
+	gitClient.EXPECT().DisableSparseCheckout().Return(nil).Once()
 	gitClient.EXPECT().Checkout(revision, mock.Anything, mock.Anything).Return("", nil)
 
 	err := checkoutRevision(gitClient, revision, false, 0, nil, true)
@@ -3296,6 +3299,7 @@ func TestCheckoutRevisionReconfiguresSparseOnEveryCall(t *testing.T) {
 
 	gitClient := &gitmocks.Client{}
 	gitClient.EXPECT().Init().Return(nil)
+	gitClient.EXPECT().DisableSparseCheckout().Maybe().Return(nil)
 	gitClient.EXPECT().IsRevisionPresent(revision).Return(true)
 	gitClient.EXPECT().ConfigureSparseCheckout(sparsePaths).Return(nil).Once()
 	gitClient.EXPECT().FetchSparseBlobs(revision, sparsePaths).Return(nil).Maybe()
@@ -3339,6 +3343,7 @@ func TestCheckoutRevisionSparseFallbackPreservesDepth(t *testing.T) {
 
 	gitClient := &gitmocks.Client{}
 	gitClient.EXPECT().Init().Return(nil)
+	gitClient.EXPECT().DisableSparseCheckout().Maybe().Return(nil)
 	gitClient.EXPECT().IsRevisionPresent(revision).Return(false)
 	gitClient.EXPECT().ConfigureSparseCheckout(sparsePaths).Return(nil).Once()
 	// Both the initial sparse fetch AND the post-Checkout-failure fallback must
@@ -3360,6 +3365,7 @@ func TestCheckoutRevisionNotPresentCallFetch(t *testing.T) {
 	gitClient := &gitmocks.Client{}
 	gitClient.EXPECT().Init().Return(nil)
 	gitClient.EXPECT().IsRevisionPresent(revision).Return(false)
+	gitClient.EXPECT().DisableSparseCheckout().Return(nil).Once()
 	gitClient.EXPECT().Fetch("", mock.Anything, mock.Anything).Return(nil)
 	gitClient.EXPECT().Checkout(revision, mock.Anything, mock.Anything).Return("", nil)
 
@@ -3373,6 +3379,7 @@ func TestFetch(t *testing.T) {
 
 	gitClient := &gitmocks.Client{}
 	gitClient.EXPECT().Init().Return(nil)
+	gitClient.EXPECT().DisableSparseCheckout().Maybe().Return(nil)
 	gitClient.EXPECT().IsRevisionPresent(revision1).Once().Return(true)
 	gitClient.EXPECT().IsRevisionPresent(revision2).Once().Return(false)
 	gitClient.EXPECT().Fetch("", mock.Anything, mock.Anything).Return(nil)
@@ -3585,6 +3592,7 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 				client.EXPECT().Root().Return(refRoot)
 				client.EXPECT().Init().Return(nil)
 				client.EXPECT().IsRevisionPresent(refSha).Return(true)
+				client.EXPECT().DisableSparseCheckout().Maybe().Return(nil)
 				client.EXPECT().Checkout(refSha, false, true).Return("", nil)
 				return &client, nil
 			},
@@ -3614,6 +3622,7 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 				client.EXPECT().Root().Return(refRoot)
 				client.EXPECT().Init().Return(nil)
 				client.EXPECT().IsRevisionPresent(refSha).Return(true)
+				client.EXPECT().DisableSparseCheckout().Maybe().Return(nil)
 				client.EXPECT().Checkout(refSha, false, true).Return("", fmt.Errorf("%s", dummyErrMsg))
 				// one error is not enough: checkout falls back to fetch specific revision
 				client.EXPECT().Fetch(refSha, int64(0), false).Return(fmt.Errorf("%s", dummyErrMsg))
@@ -3695,6 +3704,7 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 				client.EXPECT().Init().Return(nil)
 				client.EXPECT().IsRevisionPresent(refSha).Return(true)
 				client.EXPECT().IsRevisionPresent(refSha2).Return(true)
+				client.EXPECT().DisableSparseCheckout().Maybe().Return(nil)
 				client.EXPECT().Checkout(refSha, false, true).Return("", nil)
 				client.EXPECT().Checkout(refSha2, false, true).Return("", nil)
 				return &client, nil
@@ -3800,6 +3810,7 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 				client.EXPECT().Root().Return(refRoot)
 				client.EXPECT().Init().Return(nil)
 				client.EXPECT().IsRevisionPresent(refSha).Return(true)
+				client.EXPECT().DisableSparseCheckout().Maybe().Return(nil)
 				client.EXPECT().Checkout(refSha, false, true).Return("", nil)
 				return &client, nil
 			},
@@ -4737,6 +4748,7 @@ func TestGetGitDirectories(t *testing.T) {
 		gitClient.EXPECT().Init().Return(nil)
 		gitClient.EXPECT().IsRevisionPresent(mock.Anything).Return(false)
 		gitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		gitClient.EXPECT().DisableSparseCheckout().Maybe().Return(nil)
 		gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything).Once().Return("", nil)
 		gitClient.EXPECT().LsRemote("HEAD").Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
 		gitClient.EXPECT().Root().Return(root)
@@ -4770,6 +4782,7 @@ func TestGetGitDirectoriesWithHiddenDirSupported(t *testing.T) {
 		gitClient.EXPECT().Init().Return(nil)
 		gitClient.EXPECT().IsRevisionPresent(mock.Anything).Return(false)
 		gitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		gitClient.EXPECT().DisableSparseCheckout().Maybe().Return(nil)
 		gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything).Once().Return("", nil)
 		gitClient.EXPECT().LsRemote("HEAD").Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
 		gitClient.EXPECT().Root().Return(root)
@@ -4864,6 +4877,7 @@ func TestGetGitFiles(t *testing.T) {
 		gitClient.EXPECT().Init().Return(nil)
 		gitClient.EXPECT().IsRevisionPresent(mock.Anything).Return(false)
 		gitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		gitClient.EXPECT().DisableSparseCheckout().Maybe().Return(nil)
 		gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything).Once().Return("", nil)
 		gitClient.EXPECT().LsRemote("HEAD").Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
 		gitClient.EXPECT().Root().Return(root)
@@ -5046,6 +5060,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 		{name: "ChangedFilesDoNothing", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 				gitClient.EXPECT().Init().Return(nil)
+				gitClient.EXPECT().DisableSparseCheckout().Maybe().Return(nil)
 				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Once().Return(nil)
 				gitClient.EXPECT().IsRevisionPresent("632039659e542ed7de0c170a4fcc1c571b288fc0").Once().Return(false)
 				gitClient.EXPECT().Checkout("632039659e542ed7de0c170a4fcc1c571b288fc0", mock.Anything, mock.Anything).Once().Return("", nil)
@@ -5083,6 +5098,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 		{name: "NoChangesUpdateCache", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 				gitClient.EXPECT().Init().Return(nil)
+				gitClient.EXPECT().DisableSparseCheckout().Maybe().Return(nil)
 				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Once().Return(nil)
 				gitClient.EXPECT().IsRevisionPresent("632039659e542ed7de0c170a4fcc1c571b288fc0").Once().Return(false)
 				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything).Return("", nil)
@@ -5129,6 +5145,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 		{name: "NoChangesHelmMultiSourceUpdateCache", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 				gitClient.EXPECT().Init().Return(nil)
+				gitClient.EXPECT().DisableSparseCheckout().Maybe().Return(nil)
 				gitClient.EXPECT().IsRevisionPresent("632039659e542ed7de0c170a4fcc1c571b288fc0").Once().Return(false)
 				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Once().Return(nil)
 				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything).Return("", nil)
@@ -5175,6 +5192,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 		{name: "NoChangesHelmWithRefMultiSourceUpdateCache", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 				gitClient.EXPECT().Init().Return(nil)
+				gitClient.EXPECT().DisableSparseCheckout().Maybe().Return(nil)
 				gitClient.EXPECT().IsRevisionPresent("632039659e542ed7de0c170a4fcc1c571b288fc0").Once().Return(false)
 				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Once().Return(nil)
 				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything).Return("", nil)
@@ -5232,6 +5250,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 		{name: "NoChangesHelmWithRefMultiSource_IgnoreUnusedRef", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 				gitClient.EXPECT().Init().Return(nil)
+				gitClient.EXPECT().DisableSparseCheckout().Maybe().Return(nil)
 				gitClient.EXPECT().IsRevisionPresent("632039659e542ed7de0c170a4fcc1c571b288fc0").Once().Return(false)
 				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Once().Return(nil)
 				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything).Return("", nil)
@@ -5287,6 +5306,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 		{name: "NoChangesHelmWithRefMultiSource_UndefinedRef", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 				gitClient.EXPECT().Init().Return(nil)
+				gitClient.EXPECT().DisableSparseCheckout().Maybe().Return(nil)
 				gitClient.EXPECT().IsRevisionPresent("632039659e542ed7de0c170a4fcc1c571b288fc0").Once().Return(false)
 				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Once().Return(nil)
 				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything).Return("", nil)
@@ -5335,6 +5355,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 		{name: "IgnoreRefSourcesForGitSource", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 				gitClient.EXPECT().Init().Return(nil)
+				gitClient.EXPECT().DisableSparseCheckout().Maybe().Return(nil)
 				gitClient.EXPECT().IsRevisionPresent("632039659e542ed7de0c170a4fcc1c571b288fc0").Once().Return(false)
 				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Once().Return(nil)
 				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything).Return("", nil)
@@ -5425,6 +5446,7 @@ func TestUpdateRevisionForPaths_CallerMustPersistResolvedRevision(t *testing.T) 
 
 	s, _, cacheMocks := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 		gitClient.EXPECT().Init().Return(nil)
+		gitClient.EXPECT().DisableSparseCheckout().Maybe().Return(nil)
 		gitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		gitClient.EXPECT().IsRevisionPresent(mock.Anything).Return(false)
 		gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything).Return("", nil)
@@ -5981,6 +6003,7 @@ func TestGenerateManifest_OCISourceSkipsGitClient(t *testing.T) {
 func Test_checkoutRevision_PartialClone_UsesFilteredFetch(t *testing.T) {
 	gitClient := &gitmocks.Client{}
 	gitClient.EXPECT().Init().Return(nil)
+	gitClient.EXPECT().DisableSparseCheckout().Maybe().Return(nil)
 	gitClient.EXPECT().IsRevisionPresent("abc123").Return(false)
 	gitClient.EXPECT().ConfigureSparseCheckout([]string{"./mypath"}).Return(nil)
 
@@ -6000,6 +6023,7 @@ func Test_checkoutRevision_NonPartialClone_UsesFullFetch(t *testing.T) {
 	gitClient := &gitmocks.Client{}
 	gitClient.EXPECT().Init().Return(nil)
 	gitClient.EXPECT().IsRevisionPresent("abc123").Return(false)
+	gitClient.EXPECT().DisableSparseCheckout().Return(nil).Once()
 
 	// Full fetch: usePartialClone=false
 	gitClient.EXPECT().Fetch("", int64(0), false).Return(nil)
@@ -6014,6 +6038,7 @@ func Test_checkoutRevision_PartialClone_PrefetchesSparseBlobs(t *testing.T) {
 	// Verify that FetchSparseBlobs is called before Checkout for partial clone repos
 	gitClient := &gitmocks.Client{}
 	gitClient.EXPECT().Init().Return(nil)
+	gitClient.EXPECT().DisableSparseCheckout().Maybe().Return(nil)
 	gitClient.EXPECT().IsRevisionPresent("abc123").Return(false)
 	gitClient.EXPECT().ConfigureSparseCheckout([]string{"./app1", "./app2"}).Return(nil)
 	gitClient.EXPECT().Fetch("abc123", int64(0), true).Return(nil)
@@ -6030,6 +6055,7 @@ func Test_checkoutRevision_NonPartialClone_SkipsPrefetch(t *testing.T) {
 	gitClient := &gitmocks.Client{}
 	gitClient.EXPECT().Init().Return(nil)
 	gitClient.EXPECT().IsRevisionPresent("abc123").Return(false)
+	gitClient.EXPECT().DisableSparseCheckout().Return(nil).Once()
 	gitClient.EXPECT().Fetch("", int64(0), false).Return(nil)
 	gitClient.EXPECT().Checkout("abc123", false, true).Return("", nil)
 	// FetchSparseBlobs should NOT be called — no expectation set

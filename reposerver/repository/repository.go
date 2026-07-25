@@ -926,7 +926,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 							return
 						}
 						closer, err := s.repoLock.Lock(gitClient.Root(), referencedCommitSHA, true, func(clean bool) (goio.Closer, error) {
-							return s.checkoutRevision(gitClient, referencedCommitSHA, s.initConstants.SubmoduleEnabled, q.Repo.Depth, q.Repo.SparsePaths, clean)
+							return s.checkoutRevision(gitClient, referencedCommitSHA, s.initConstants.SubmoduleEnabled, refSourceMapping.Repo.Depth, refSourceMapping.Repo.SparsePaths, clean)
 						})
 						if err != nil {
 							log.Errorf("failed to acquire lock for referenced source %s", normalizedRepoURL)
@@ -3063,15 +3063,16 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 		"sparsePathsCount": len(sparsePaths),
 	}).Debugf("Checking out revision %v", revision)
 
-	// Reconcile sparse-checkout state on every invocation, not just when
-	// revisionPresent==false. Two scenarios depend on this:
+	// Reconcile sparse-checkout state on every invocation, in both directions,
+	// not just when revisionPresent==false. Scenarios that depend on this:
 	//   1. A previous run hit the ConfigureSparseCheckout-failure fallback below,
 	//      which calls DisableSparseCheckout(). If we only re-applied the sparse
 	//      config inside the !revisionPresent branch, subsequent checkouts of the
 	//      same revision would silently produce a full working tree.
 	//   2. A workdir may be re-used (e.g. after an Init() recovery hash mismatch
 	//      between user-supplied and git-normalized paths) with stale on-disk
-	//      sparse state.
+	//      sparse state. Without the disable below, a non-sparse checkout would
+	//      silently generate manifests from the leftover truncated tree.
 	useSparse := len(sparsePaths) > 0
 	if useSparse {
 		if cfgErr := gitClient.ConfigureSparseCheckout(sparsePaths); cfgErr != nil {
@@ -3081,6 +3082,10 @@ func checkoutRevision(gitClient git.Client, revision string, submoduleEnabled bo
 			_ = gitClient.DisableSparseCheckout()
 			useSparse = false
 		}
+	} else if err := gitClient.DisableSparseCheckout(); err != nil {
+		// Failing open here would silently generate manifests from a truncated tree,
+		// which with auto-sync + prune deletes live resources.
+		return status.Errorf(codes.Internal, "Failed to disable stale sparse-checkout state: %v", err)
 	}
 
 	// Fetching can be skipped if the revision is already present locally.

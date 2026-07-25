@@ -1966,6 +1966,58 @@ func Test_nativeGitClient_Init_IdempotentAfterSparseCheckoutInit(t *testing.T) {
 		"Init must remain idempotent after sparse-checkout init writes extensions.worktreeConfig=true")
 }
 
+// DisableSparseCheckout is called unconditionally by checkoutRevision for
+// non-sparse repos to reconcile stale on-disk sparse state, so it must be a
+// safe no-op on never-sparse workdirs and must actually restore the full
+// working tree on sparse ones.
+func Test_nativeGitClient_DisableSparseCheckout(t *testing.T) {
+	ctx := t.Context()
+	remoteDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+	require.NoError(t, os.MkdirAll(filepath.Join(remoteDir, "subdir"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(remoteDir, "subdir", "f.txt"), []byte("x"), 0o644))
+	// Out-of-cone marker must live in a directory: cone mode always includes
+	// files at the repository root, so a top-level file would not be excluded.
+	require.NoError(t, os.MkdirAll(filepath.Join(remoteDir, "other"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(remoteDir, "other", "o.txt"), []byte("y"), 0o644))
+	require.NoError(t, runCmd(ctx, remoteDir, "git", "add", "-A"))
+	require.NoError(t, runCmd(ctx, remoteDir, "git", "commit", "-m", "with subdir"))
+
+	localDir := t.TempDir()
+	client, err := NewClientExt("file://"+remoteDir, localDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	require.NoError(t, client.Init())
+	require.NoError(t, client.Fetch("", 0, false))
+
+	// No-op on a never-sparse workdir: must not error and must not enable
+	// sparse-checkout as a side effect.
+	require.NoError(t, client.DisableSparseCheckout())
+	cfg, err := os.ReadFile(filepath.Join(localDir, ".git", "config"))
+	require.NoError(t, err)
+	require.NotContains(t, string(cfg), "sparseCheckout")
+
+	// Make the workdir sparse and verify the cone actually excludes other/.
+	// The exclusion check doubles as a regression test for the missing
+	// core.repositoryformatversion key: without it git silently ignores the
+	// worktree config where sparse-checkout state lives, and the checkout
+	// produces a full working tree.
+	require.NoError(t, client.ConfigureSparseCheckout([]string{"subdir"}))
+	commitSHA, err := client.LsRemote("HEAD")
+	require.NoError(t, err)
+	_, err = client.Checkout(commitSHA, false, true)
+	require.NoError(t, err)
+	require.NoFileExists(t, filepath.Join(localDir, "other", "o.txt"))
+
+	// Disabling must restore the full working tree.
+	require.NoError(t, client.DisableSparseCheckout())
+	require.FileExists(t, filepath.Join(localDir, "other", "o.txt"))
+	require.FileExists(t, filepath.Join(localDir, "subdir", "f.txt"))
+
+	// Idempotent: git leaves .git/info/sparse-checkout on disk after disable, so a
+	// second call exercises the core.sparseCheckout=false guard path.
+	require.NoError(t, client.DisableSparseCheckout())
+}
+
 func Test_nativeGitClient_HasLocalRef(t *testing.T) {
 	ctx := t.Context()
 	remoteDir, err := _createEmptyGitRepo(ctx)
