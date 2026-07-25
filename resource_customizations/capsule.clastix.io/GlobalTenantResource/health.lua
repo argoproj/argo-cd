@@ -2,7 +2,9 @@
 -- to replicate resources across all namespaces of all Capsule Tenants.
 --
 -- Documentation:
---   https://projectcapsule.dev/
+--   API types:       https://github.com/projectcapsule/capsule/blob/main/api/v1beta2/tenantresource_types.go
+--   Controller:      https://github.com/projectcapsule/capsule/blob/main/internal/controllers/resources/global.go
+--   Condition types: https://github.com/projectcapsule/capsule/blob/main/pkg/api/meta/conditions.go
 --
 -- ArgoCD health mapping:
 --   spec.cordoned=true => Suspended (replication intentionally paused)

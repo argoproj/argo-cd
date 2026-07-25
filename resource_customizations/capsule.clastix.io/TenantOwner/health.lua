@@ -2,7 +2,9 @@
 -- or group to a Capsule Tenant as an owner.
 --
 -- Documentation:
---   https://projectcapsule.dev/
+--   API types:       https://github.com/projectcapsule/capsule/blob/main/api/v1beta2/tenantowner_types.go
+--   Controller:      https://github.com/projectcapsule/capsule/blob/main/internal/controllers/tenantowner/manager.go
+--   Condition types: https://github.com/projectcapsule/capsule/blob/main/pkg/api/meta/conditions.go
 --
 -- ArgoCD health mapping:
 --   Ready=True  => Healthy

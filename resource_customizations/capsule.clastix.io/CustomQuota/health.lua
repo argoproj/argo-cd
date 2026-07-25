@@ -2,7 +2,9 @@
 -- quota for the namespaces belonging to a Capsule Tenant.
 --
 -- Documentation:
---   https://projectcapsule.dev/
+--   API types:       https://github.com/projectcapsule/capsule/blob/main/api/v1beta2/customquota_types.go
+--   Controller:      https://github.com/projectcapsule/capsule/blob/main/internal/controllers/customquotas/custom_quota_controller.go
+--   Condition types: https://github.com/projectcapsule/capsule/blob/main/pkg/api/meta/conditions.go
 --
 -- ArgoCD health mapping:
 --   Ready=True  => Healthy

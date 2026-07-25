@@ -2,7 +2,8 @@
 -- (e.g. AWS KMS, GCP KMS, age) for the SOPS Operator.
 --
 -- Documentation:
---   https://github.com/peak-scale/sops-operator
+--   API types:  https://github.com/peak-scale/sops-operator/blob/main/api/v1alpha1/sopsprovider_types.go
+--   Controller: https://github.com/peak-scale/sops-operator/blob/main/internal/controllers/sopsprovider_controller.go
 --
 -- ArgoCD health mapping:
 --   Ready=True    => Healthy

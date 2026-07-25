@@ -3,7 +3,8 @@
 -- one or more Kubernetes Secrets.
 --
 -- Documentation:
---   https://github.com/peak-scale/sops-operator
+--   API types:  https://github.com/peak-scale/sops-operator/blob/main/api/v1alpha1/sopssecret_types.go
+--   Controller: https://github.com/peak-scale/sops-operator/blob/main/internal/controllers/sopssecret_controller.go
 --
 -- ArgoCD health mapping:
 --   Ready=True    => Healthy

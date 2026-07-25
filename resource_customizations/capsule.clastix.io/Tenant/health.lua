@@ -2,7 +2,9 @@
 -- of namespaces owned by one or more owners (users, service accounts, groups).
 --
 -- Documentation:
---   https://projectcapsule.dev/
+--   API types:       https://github.com/projectcapsule/capsule/blob/main/api/v1beta2/tenant_types.go
+--   Controller:      https://github.com/projectcapsule/capsule/blob/main/internal/controllers/tenant/status.go
+--   Condition types: https://github.com/projectcapsule/capsule/blob/main/pkg/api/meta/conditions.go
 --   https://github.com/projectcapsule/capsule
 --
 -- Condition types:

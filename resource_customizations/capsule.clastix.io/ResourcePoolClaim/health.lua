@@ -2,7 +2,9 @@
 -- to claim a portion of the quota from a ResourcePool.
 --
 -- Documentation:
---   https://projectcapsule.dev/
+--   API types:       https://github.com/projectcapsule/capsule/blob/main/api/v1beta2/resourcepoolclaim_types.go
+--   Controller:      https://github.com/projectcapsule/capsule/blob/main/internal/controllers/resourcepools/claim_controller.go
+--   Condition types: https://github.com/projectcapsule/capsule/blob/main/pkg/api/meta/conditions.go
 --
 -- ArgoCD health mapping:
 --   Bound=False => Suspended  (waiting for a pool to accept the claim)

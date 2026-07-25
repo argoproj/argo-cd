@@ -2,7 +2,8 @@
 -- and replicates the decrypted result into namespaces across multiple tenants.
 --
 -- Documentation:
---   https://github.com/peak-scale/sops-operator
+--   API types:  https://github.com/peak-scale/sops-operator/blob/main/api/v1alpha1/globalsopssecret_types.go
+--   Controller: https://github.com/peak-scale/sops-operator/blob/main/internal/controllers/globalsopssecret_controller.go
 --
 -- ArgoCD health mapping:
 --   Ready=True    => Healthy

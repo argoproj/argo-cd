@@ -2,7 +2,9 @@
 -- resource quotas that can be claimed by tenant namespaces.
 --
 -- Documentation:
---   https://projectcapsule.dev/
+--   API types:       https://github.com/projectcapsule/capsule/blob/main/api/v1beta2/resourcepool_types.go
+--   Controller:      https://github.com/projectcapsule/capsule/blob/main/internal/controllers/resourcepools/pool_controller.go
+--   Condition types: https://github.com/projectcapsule/capsule/blob/main/pkg/api/meta/conditions.go
 --
 -- ArgoCD health mapping:
 --   exhaustions set => Degraded  (one or more resources are exhausted)

@@ -2,7 +2,9 @@
 -- configuration for the Capsule operator.
 --
 -- Documentation:
---   https://projectcapsule.dev/
+--   API types:       https://github.com/projectcapsule/capsule/blob/main/api/v1beta2/capsuleconfiguration_types.go
+--   Controller:      https://github.com/projectcapsule/capsule/blob/main/internal/controllers/cfg/status/manager.go
+--   Condition types: https://github.com/projectcapsule/capsule/blob/main/pkg/api/meta/conditions.go
 --
 -- ArgoCD health mapping:
 --   Ready=True  => Healthy

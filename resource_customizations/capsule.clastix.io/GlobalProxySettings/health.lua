@@ -2,7 +2,9 @@
 -- proxy rules for Capsule Proxy.
 --
 -- Documentation:
---   https://github.com/projectcapsule/capsule-proxy
+--   API types:       https://github.com/projectcapsule/capsule-proxy/blob/main/api/v1beta1/globalproxysettings_types.go
+--   Indexer:         https://github.com/projectcapsule/capsule-proxy/blob/main/internal/indexer/global_proxy_setting.go
+--   Condition types: https://github.com/projectcapsule/capsule/blob/main/pkg/api/meta/conditions.go
 --
 -- ArgoCD health mapping:
 --   Ready=True  => Healthy
