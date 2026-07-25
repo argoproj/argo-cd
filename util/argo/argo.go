@@ -242,14 +242,11 @@ func FilterByNameP(apps []*argoappv1.Application, name string) []*argoappv1.Appl
 // arrived during an ongoing refresh. Optionally, if hydrateType is provided, it also sets the hydrate
 // and hydrate-timestamp annotations.
 func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType argoappv1.RefreshType, hydrateType *argoappv1.HydrateType) (*argoappv1.Application, error) {
-	timestamp := time.Now().Format(time.RFC3339Nano)
 	annotations := map[string]string{
-		argoappv1.AnnotationKeyRefresh:          string(refreshType),
-		argoappv1.AnnotationKeyRefreshTimestamp: timestamp,
+		argoappv1.AnnotationKeyRefresh: string(refreshType),
 	}
 	if hydrateType != nil {
 		annotations[argoappv1.AnnotationKeyHydrate] = string(*hydrateType)
-		annotations[argoappv1.AnnotationKeyHydrateTimestamp] = timestamp
 	}
 	metadata := map[string]any{
 		"metadata": map[string]any{
@@ -257,12 +254,19 @@ func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType ar
 		},
 	}
 	var err error
-	patch, err := json.Marshal(metadata)
-	if err != nil {
-		return nil, fmt.Errorf("error marshaling metadata: %w", err)
-	}
 	for range 5 {
-		app, err := appIf.Patch(context.Background(), name, types.MergePatchType, patch, metav1.PatchOptions{})
+		timestamp := time.Now().Format(time.RFC3339Nano)
+		annotations[argoappv1.AnnotationKeyRefreshTimestamp] = timestamp
+		if hydrateType != nil {
+			annotations[argoappv1.AnnotationKeyHydrateTimestamp] = timestamp
+		}
+		var patch []byte
+		patch, err = json.Marshal(metadata)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling metadata: %w", err)
+		}
+		var app *argoappv1.Application
+		app, err = appIf.Patch(context.Background(), name, types.MergePatchType, patch, metav1.PatchOptions{})
 		if err == nil {
 			log.Infof("Requested app '%s' refresh", name)
 			return app.DeepCopy(), nil

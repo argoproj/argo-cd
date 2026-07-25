@@ -15,10 +15,13 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/fake"
+	kubetesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
@@ -43,12 +46,49 @@ func TestRefreshApp(t *testing.T) {
 	appClientset := appclientset.NewSimpleClientset(&testApp)
 	appIf := appClientset.ArgoprojV1alpha1().Applications("default")
 	ht := argoappv1.HydrateTypeNormal
-	_, err := RefreshApp(appIf, "test-app", argoappv1.RefreshTypeNormal, &ht)
+	newApp, err := RefreshApp(appIf, "test-app", argoappv1.RefreshTypeNormal, &ht)
 	require.NoError(t, err)
-	// For some reason, the fake Application interface doesn't reflect the patch status after Patch(),
-	// so can't verify it was set in unit tests.
-	// _, ok := newApp.Annotations[common.AnnotationKeyRefresh]
-	// assert.True(t, ok)
+	_, ok := newApp.Annotations[argoappv1.AnnotationKeyRefresh]
+	assert.True(t, ok)
+	_, ok = newApp.Annotations[argoappv1.AnnotationKeyRefreshTimestamp]
+	assert.True(t, ok)
+}
+
+func TestRefreshAppNoHydrate(t *testing.T) {
+	t.Parallel()
+	var testApp argoappv1.Application
+	testApp.Name = "test-app"
+	testApp.Namespace = "default"
+	appClientset := appclientset.NewSimpleClientset(&testApp)
+	appIf := appClientset.ArgoprojV1alpha1().Applications("default")
+	newApp, err := RefreshApp(appIf, "test-app", argoappv1.RefreshTypeNormal, nil)
+	require.NoError(t, err)
+	_, ok := newApp.Annotations[argoappv1.AnnotationKeyRefresh]
+	assert.True(t, ok)
+	_, ok = newApp.Annotations[argoappv1.AnnotationKeyRefreshTimestamp]
+	assert.True(t, ok)
+	_, ok = newApp.Annotations[argoappv1.AnnotationKeyHydrate]
+	assert.False(t, ok)
+	_, ok = newApp.Annotations[argoappv1.AnnotationKeyHydrateTimestamp]
+	assert.False(t, ok)
+}
+
+func TestRefreshRetries(t *testing.T) {
+	t.Parallel()
+	var testApp argoappv1.Application
+	testApp.Name = "test-app"
+	testApp.Namespace = "default"
+	appClientset := appclientset.NewSimpleClientset(&testApp)
+	appClientset.ReactionChain = nil
+	numCalls := 0
+	appClientset.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		numCalls++
+		return true, &testApp, apierrors.NewConflict(schema.GroupResource{}, "", nil)
+	})
+	appIf := appClientset.ArgoprojV1alpha1().Applications("default")
+	_, err := RefreshApp(appIf, "test-app", argoappv1.RefreshTypeNormal, nil)
+	require.Error(t, err)
+	assert.Equal(t, numCalls, 5)
 }
 
 func TestGetAppProjectWithNoProjDefined(t *testing.T) {
