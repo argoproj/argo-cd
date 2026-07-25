@@ -43,6 +43,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/client-go/util/workqueue"
 
 	commitclient "github.com/argoproj/argo-cd/v3/commitserver/apiclient"
@@ -1795,12 +1796,41 @@ func (ctrl *ApplicationController) PatchAppWithWriteBack(ctx context.Context, na
 	return patchedApp, err
 }
 
+// statusPatchBackoff paces retries of v1beta1 status writes on transient
+// apiserver errors. Total wait is a few seconds — enough to ride out a
+// conversion webhook pod restart without stalling the reconcile loop for long.
+var statusPatchBackoff = wait.Backoff{
+	Duration: 100 * time.Millisecond,
+	Factor:   3.0,
+	Jitter:   0.1,
+	Steps:    5,
+}
+
+// isTransientAPIError reports whether err is a transient apiserver failure
+// worth retrying. v1beta1 requests are served by converting from the v1alpha1
+// storage version through the conversion webhook, so a webhook pod restart or
+// rolling update surfaces to clients as a transient internal error or
+// unavailable service; without a retry, the status write is lost until the
+// next reconcile.
+func isTransientAPIError(err error) bool {
+	return apierrors.IsInternalError(err) ||
+		apierrors.IsServiceUnavailable(err) ||
+		apierrors.IsServerTimeout(err) ||
+		apierrors.IsTooManyRequests(err) ||
+		apierrors.IsTimeout(err)
+}
+
 // PatchAppStatusWithWriteBack patches an application's status via the v1beta1
 // status subresource and writes the result back to the informer cache. Status
 // subresource writes do not bump metadata.generation, which is what allows
 // status.observedGeneration to converge with metadata.generation.
 func (ctrl *ApplicationController) PatchAppStatusWithWriteBack(ctx context.Context, name, ns string, pt types.PatchType, data []byte, opts metav1.PatchOptions) (result *appv1.Application, err error) {
-	patchedApp, err := ctrl.applicationClientset.ArgoprojV1beta1().Applications(ns).Patch(ctx, name, pt, data, opts, "status")
+	var patchedApp *appv1beta1.Application
+	err = retry.OnError(statusPatchBackoff, isTransientAPIError, func() error {
+		var err error
+		patchedApp, err = ctrl.applicationClientset.ArgoprojV1beta1().Applications(ns).Patch(ctx, name, pt, data, opts, "status")
+		return err
+	})
 	if err != nil {
 		return nil, err
 	}

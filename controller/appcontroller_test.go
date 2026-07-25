@@ -41,6 +41,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/fake"
 	kubetesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
@@ -4441,4 +4442,49 @@ func TestPersistAppStatus_AnnotationManagement(t *testing.T) {
 		assert.True(t, hasOther, "other annotations should be preserved")
 		assert.Equal(t, "other-value", otherValue)
 	})
+}
+
+func TestPatchAppStatusWithWriteBack_RetriesTransientErrors(t *testing.T) {
+	app := newFakeApp()
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app, &defaultProj}}, nil)
+
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	attempts := 0
+	fakeAppCs.PrependReactor("patch", "applications", func(action kubetesting.Action) (bool, runtime.Object, error) {
+		if action.GetResource().Version != "v1beta1" {
+			return false, nil, nil
+		}
+		attempts++
+		if attempts <= 2 {
+			// What a conversion webhook outage looks like to the client.
+			return true, nil, apierrors.NewInternalError(errors.New("conversion webhook for argoproj.io/v1alpha1, Kind=Application failed"))
+		}
+		// Fall through to the standard v1beta1 conversion reactor.
+		return false, nil, nil
+	})
+
+	patch := []byte(`{"status":{"summary":{"externalURLs":["http://example.com"]}}}`)
+	_, err := ctrl.PatchAppStatusWithWriteBack(t.Context(), app.Name, app.Namespace, types.MergePatchType, patch, metav1.PatchOptions{})
+	require.NoError(t, err, "transient conversion failures must be retried away")
+	assert.Equal(t, 3, attempts)
+}
+
+func TestPatchAppStatusWithWriteBack_DoesNotRetryPermanentErrors(t *testing.T) {
+	app := newFakeApp()
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app, &defaultProj}}, nil)
+
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	attempts := 0
+	fakeAppCs.PrependReactor("patch", "applications", func(action kubetesting.Action) (bool, runtime.Object, error) {
+		if action.GetResource().Version != "v1beta1" {
+			return false, nil, nil
+		}
+		attempts++
+		return true, nil, apierrors.NewBadRequest("malformed patch")
+	})
+
+	patch := []byte(`{"status":{}}`)
+	_, err := ctrl.PatchAppStatusWithWriteBack(t.Context(), app.Name, app.Namespace, types.MergePatchType, patch, metav1.PatchOptions{})
+	require.Error(t, err)
+	assert.Equal(t, 1, attempts, "permanent errors must not be retried")
 }

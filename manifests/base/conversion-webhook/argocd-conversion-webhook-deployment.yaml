@@ -7,7 +7,12 @@ metadata:
     app.kubernetes.io/component: conversion-webhook
   name: argocd-conversion-webhook
 spec:
-  replicas: 1
+  # Two replicas because the webhook is in the storage path of every v1beta1
+  # request (v1alpha1 is the storage version): with the controller writing
+  # status through v1beta1, webhook unavailability fails status persistence
+  # for every application in the cluster. Both replicas serve the same
+  # certificate, persisted in the argocd-conversion-webhook-tls Secret.
+  replicas: 2
   selector:
     matchLabels:
       app.kubernetes.io/name: argocd-conversion-webhook

@@ -1889,7 +1889,7 @@ metadata:
   name: argocd-conversion-webhook
   namespace: argocd
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app.kubernetes.io/name: argocd-conversion-webhook
@@ -4574,6 +4574,21 @@ spec:
         name: data
   updateStrategy:
     type: RollingUpdate
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  labels:
+    app.kubernetes.io/component: conversion-webhook
+    app.kubernetes.io/name: argocd-conversion-webhook
+    app.kubernetes.io/part-of: argocd
+  name: argocd-conversion-webhook
+  namespace: argocd
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-conversion-webhook
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy

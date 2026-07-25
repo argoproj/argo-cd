@@ -4,6 +4,7 @@ namespace: argocd
 
 resources:
 - argocd-conversion-webhook-deployment.yaml
+- argocd-conversion-webhook-pdb.yaml
 - argocd-conversion-webhook-service.yaml
 - argocd-conversion-webhook-sa.yaml
 - argocd-conversion-webhook-role.yaml
