@@ -88,18 +88,21 @@ func NewCommand() *cobra.Command {
 			}
 			tlsConfig := &tls.Config{Certificates: []tls.Certificate{*cert}}
 
-			// Inject CA bundle into the CRD BEFORE the server starts listening.
-			// Until this completes, the CRD's caBundle does not match the cert
-			// we'll serve with, so any conversion request kube-apiserver routes
-			// to us would fail x509 verification. Bounding pod-ready on a
-			// successful inject (the server is what /readyz responds on, and
-			// it does not bind its port until after this returns) eliminates
-			// that startup window. Retry with exponential backoff so a
-			// transient apiserver hiccup doesn't leave the pod broken until
-			// restart. On final failure we still proceed in case the caBundle
-			// was provisioned externally (cert-manager, manual setup).
+			// Reconcile the CRD's conversion config (service reference + CA
+			// bundle) BEFORE the server starts listening. The shipped CRD
+			// hardcodes codegen-time service defaults, so a non-default-
+			// namespace install points at a nonexistent service until this
+			// runs; and until the caBundle matches the cert we'll serve with,
+			// any conversion request kube-apiserver routes to us would fail
+			// x509 verification. Bounding pod-ready on a successful reconcile
+			// (the server is what /readyz responds on, and it does not bind
+			// its port until after this returns) eliminates that startup
+			// window. Retry with exponential backoff so a transient apiserver
+			// hiccup doesn't leave the pod broken until restart. On final
+			// failure we still proceed in case the config is provisioned
+			// externally (cert-manager, manual setup).
 			if restConfig != nil && cert != nil {
-				injectCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
+				reconcileCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 				backoff := wait.Backoff{
 					Duration: 500 * time.Millisecond,
 					Factor:   2.0,
@@ -107,16 +110,16 @@ func NewCommand() *cobra.Command {
 					Steps:    7,
 					Cap:      10 * time.Second,
 				}
-				err := wait.ExponentialBackoffWithContext(injectCtx, backoff, func(ctx context.Context) (bool, error) {
-					if err := conversion.InjectCABundle(ctx, restConfig, cert); err != nil {
-						log.WithError(err).Warn("CA bundle injection attempt failed, retrying")
+				err := wait.ExponentialBackoffWithContext(reconcileCtx, backoff, func(ctx context.Context) (bool, error) {
+					if err := conversion.ReconcileCRDConversionConfig(ctx, restConfig, cert, serviceName, namespace); err != nil {
+						log.WithError(err).Warn("CRD conversion config reconciliation attempt failed, retrying")
 						return false, nil
 					}
 					return true, nil
 				})
 				cancel()
 				if err != nil {
-					log.Warnf("Failed to inject CA bundle into Application CRD after retries (continuing — assume external injection): %v", err)
+					log.Warnf("Failed to reconcile Application CRD conversion config after retries (continuing — assume external management): %v", err)
 				}
 			}
 

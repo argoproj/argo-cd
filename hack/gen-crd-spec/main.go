@@ -148,7 +148,10 @@ func main() {
 // and ARGOCD_CONVERSION_WEBHOOK_NAMESPACE (the same variables the conversion-webhook command
 // reads for its cert SANs) so distributions that install Argo CD
 // into a non-default namespace can regenerate the CRD without a manual patch.
-// Operators who don't regenerate are expected to patch the CRD post-deploy.
+// The values baked in here are only a starting point either way: at startup
+// the webhook reconciles the CRD's service reference (and CA bundle) to its
+// actual service name and namespace, so non-default-namespace installs heal
+// without regeneration (see server/conversion.ReconcileCRDConversionConfig).
 func addConversionWebhook(crd *apiextensionsv1.CustomResourceDefinition) {
 	if crd.Annotations == nil {
 		crd.Annotations = make(map[string]string)
