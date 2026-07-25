@@ -1966,6 +1966,28 @@ func Test_nativeGitClient_Init_IdempotentAfterSparseCheckoutInit(t *testing.T) {
 		"Init must remain idempotent after sparse-checkout init writes extensions.worktreeConfig=true")
 }
 
+// A corrupt or half-created .git directory (e.g. a repo-server pod killed
+// mid-init) must self-heal via RemoveAll+re-init. A bare .git existence probe
+// would return nil here and permanently wedge the workdir: every subsequent
+// fetch/checkout fails with "not a git repository" and no code path ever
+// re-initializes an existing .git dir.
+func Test_nativeGitClient_Init_SelfHealsCorruptRepo(t *testing.T) {
+	ctx := t.Context()
+	remoteDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+
+	localDir := t.TempDir()
+	client, err := NewClientExt("file://"+remoteDir, localDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	require.NoError(t, client.Init())
+
+	// Simulate the pod dying mid-init: .git exists but HEAD is missing.
+	require.NoError(t, os.Remove(filepath.Join(localDir, ".git", "HEAD")))
+
+	require.NoError(t, client.Init(), "Init must re-initialize a corrupt workdir")
+	require.NoError(t, client.Fetch("", 0, false), "workdir must be usable after self-heal")
+}
+
 // DisableSparseCheckout is called unconditionally by checkoutRevision for
 // non-sparse repos to reconcile stale on-disk sparse state, so it must be a
 // safe no-op on never-sparse workdirs and must actually restore the full

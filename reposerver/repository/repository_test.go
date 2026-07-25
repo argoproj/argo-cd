@@ -3238,6 +3238,37 @@ func TestInit(t *testing.T) {
 	initGitRepo(t, newGitRepoOptions{path: path.Join(dir, "repo2"), remote: "https://github.com/argo-cd/test-repo2", createPath: true, addEmptyCommit: false})
 }
 
+// TestInit_RegistersSparseWorkdir verifies that the restart-recovery loop in
+// Service.Init registers sparse-checkout workdirs under the sparse-aware path
+// key. go-git's PlainOpen rejects these repos (extensions.worktreeConfig at
+// repositoryformatversion 0), so a PlainOpen-gated loop would silently orphan
+// every sparse workdir on restart and re-clone from scratch.
+func TestInit_RegistersSparseWorkdir(t *testing.T) {
+	dir := t.TempDir()
+
+	// service.Init sets permission to 0300. Restore permissions when the test
+	// finishes so dir can be removed properly.
+	t.Cleanup(func() {
+		require.NoError(t, os.Chmod(dir, 0o777))
+	})
+
+	repoPath := path.Join(dir, "repo1")
+	// initGitRepo points the origin remote at the local repo path.
+	initGitRepo(t, newGitRepoOptions{path: repoPath, remote: repoPath, createPath: true, addEmptyCommit: true})
+	runGit(t, repoPath, "sparse-checkout", "init", "--cone", "--sparse-index")
+	runGit(t, repoPath, "sparse-checkout", "set", "--", "charts")
+
+	service := newService(t, ".")
+	service.rootDir = dir
+	paths := &iomocks.TempPaths{}
+	expectedKey := repoPathKey(v1alpha1.Repository{Repo: repoPath, SparsePaths: []string{"charts"}})
+	paths.EXPECT().Add(expectedKey, repoPath).Return().Once()
+	service.gitRepoPaths = paths
+
+	require.NoError(t, service.Init())
+	paths.AssertExpectations(t)
+}
+
 // TestCheckoutRevisionCanGetNonstandardRefs shows that we can fetch a revision that points to a non-standard ref. In
 // other words, we haven't regressed and caused this issue again: https://github.com/argoproj/argo-cd/issues/4935
 func TestCheckoutRevisionCanGetNonstandardRefs(t *testing.T) {

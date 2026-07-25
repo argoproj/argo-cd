@@ -33,7 +33,6 @@ import (
 	textutils "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/text"
 	"github.com/argoproj/pkg/v2/sync"
 	jsonpatch "github.com/evanphx/json-patch"
-	gogit "github.com/go-git/go-git/v5"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/go-jsonnet"
 	"github.com/google/uuid"
@@ -191,21 +190,35 @@ func (s *Service) Init() error {
 		}
 		fullPath := filepath.Join(s.rootDir, file.Name())
 		closer := s.gitRepoInitializer(fullPath)
-		if repo, err := gogit.PlainOpen(fullPath); err == nil {
-			if remotes, err := repo.Remotes(); err == nil && len(remotes) > 0 && len(remotes[0].Config().URLs) > 0 {
-				sparsePaths, err := getSparseCheckoutPathsFromRepo(context.Background(), fullPath)
-				if err != nil {
-					// Non-sparse repos will fail here; that's normal, not worth a warning.
-					log.Debugf("No sparse checkout configured for %s: %v", fullPath, err)
-				}
-				key := repoPathKey(v1alpha1.Repository{Repo: remotes[0].Config().URLs[0], SparsePaths: sparsePaths})
-				s.gitRepoPaths.Add(key, fullPath)
+		// Read the remote URL with the git CLI rather than go-git's PlainOpen:
+		// PlainOpen rejects the sparse-checkout workdirs this loop must recover
+		// (extensions.worktreeConfig at repositoryformatversion 0), which would
+		// orphan them on every restart and force a fresh clone per repo.
+		if remoteURL, err := getRemoteURLFromRepo(context.Background(), fullPath); err == nil && remoteURL != "" {
+			sparsePaths, err := getSparseCheckoutPathsFromRepo(context.Background(), fullPath)
+			if err != nil {
+				// Non-sparse repos will fail here; that's normal, not worth a warning.
+				log.Debugf("No sparse checkout configured for %s: %v", fullPath, err)
 			}
+			key := repoPathKey(v1alpha1.Repository{Repo: remoteURL, SparsePaths: sparsePaths})
+			s.gitRepoPaths.Add(key, fullPath)
 		}
 		utilio.Close(closer)
 	}
 	// remove read permissions since no-one should be able to list the directories
 	return os.Chmod(s.rootDir, 0o300)
+}
+
+// getRemoteURLFromRepo reads the origin remote URL from a git repository's config file.
+// Reading the file directly (--file) avoids git's repository discovery, which would walk
+// up to a parent repository when the directory is not a valid repo.
+func getRemoteURLFromRepo(ctx context.Context, repoPath string) (string, error) {
+	cmd := exec.CommandContext(ctx, "git", "config", "--file", filepath.Join(repoPath, ".git", "config"), "--get", "remote.origin.url")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(output)), nil
 }
 
 // getSparseCheckoutPathsFromRepo reads the sparse checkout configuration from a git repository

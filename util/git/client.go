@@ -525,15 +525,24 @@ func (m *nativeGitClient) RepoURL() string {
 
 // Init initializes a local git repository and sets the remote origin
 func (m *nativeGitClient) Init() error {
-	// Probe with a filesystem check instead of go-git's PlainOpen. After
+	// Probe with the git CLI instead of go-git's PlainOpen. After
 	// `git sparse-checkout init --cone` runs, git writes
 	// `extensions.worktreeConfig = true` even at `core.repositoryformatversion = 0`.
 	// The git CLI tolerates this combination, but go-git enforces the spec strictly
 	// and PlainOpen fails with "core.repositoryformatversion does not support extension:
 	// worktreeconfig", causing the subsequent Init() call to return an error and the
-	// whole sync to fail.
-	if info, err := os.Stat(filepath.Join(m.root, ".git")); err == nil && info.IsDir() {
-		return nil
+	// whole sync to fail. A bare existence check is not enough either: a corrupt or
+	// half-created .git dir (e.g. from a pod killed mid-init) must fall through to
+	// the RemoveAll+re-init below so the workdir self-heals instead of wedging every
+	// subsequent operation. --resolve-git-dir validates exactly this .git directory
+	// without walking up to a parent repository.
+	gitDir := filepath.Join(m.root, ".git")
+	if info, err := os.Stat(gitDir); err == nil && info.IsDir() {
+		probe := exec.CommandContext(context.Background(), "git", "rev-parse", "--resolve-git-dir", gitDir)
+		if _, err := m.runCmdOutput(probe, runOpts{SkipErrorLogging: true}); err == nil {
+			return nil
+		}
+		log.Warnf("Repository at %s is corrupt or incomplete; reinitializing", m.root)
 	}
 	log.Infof("Initializing %s to %s", m.repoURL, m.root)
 	err := os.RemoveAll(m.root)
