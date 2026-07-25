@@ -335,7 +335,7 @@ func (source *ApplicationSource) AllowsConcurrentProcessing() bool {
 }
 
 func (source *ApplicationSource) IsOCI() bool {
-	return strings.HasPrefix(source.RepoURL, "oci://")
+	return strings.HasPrefix(source.RepoURL, "oci://") && !source.IsHelm()
 }
 
 // IsRef returns true when the application source is of type Ref
