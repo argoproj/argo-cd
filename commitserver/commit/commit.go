@@ -11,6 +11,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"
 	"github.com/argoproj/argo-cd/v3/commitserver/metrics"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/io/files"
@@ -85,27 +86,72 @@ func (s *Service) CommitHydratedManifests(ctx context.Context, r *apiclient.Comm
 	}, nil
 }
 
+// AdvanceHydratorNote advances the hydrator git note without performing
+// a full hydration.
+func (s *Service) AdvanceHydratorNote(
+	ctx context.Context,
+	r *apiclient.AdvanceHydratorNoteRequest,
+) (*apiclient.AdvanceHydratorNoteResponse, error) {
+	if err := validateRepoAndBranches(r.Repo, r.TargetBranch, r.SyncBranch); err != nil {
+		return nil, err
+	}
+
+	logCtx := log.WithFields(log.Fields{"branch": r.TargetBranch, "drySHA": r.DrySha})
+	logCtx.Debug("Initiating git client for hydrator note update")
+	gitClient, _, cleanup, err := s.initGitClient(ctx, logCtx, r.Repo, "", "")
+	if err != nil {
+		return nil, fmt.Errorf("failed to init git client: %w", err)
+	}
+	defer cleanup()
+
+	logCtx.Debugf("Checking out sync branch %s", r.SyncBranch)
+	out, err := gitClient.CheckoutOrOrphan(ctx, r.SyncBranch, false)
+	if err != nil {
+		return nil, fmt.Errorf("failed to checkout sync branch: %w", err)
+	}
+	_ = out
+
+	logCtx.Debugf("Checking out target branch %s", r.TargetBranch)
+	out, err = gitClient.CheckoutOrNew(ctx, r.TargetBranch, r.SyncBranch, false)
+	if err != nil {
+		return nil, fmt.Errorf("failed to checkout target branch: %w", err)
+	}
+	_ = out
+
+	hydratedSha, err := gitClient.CommitSHA(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get commit SHA: %w", err)
+	}
+
+	isHydrated, err := IsHydrated(ctx, gitClient, r.DrySha, hydratedSha)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get notes from git: %w", err)
+	}
+	if isHydrated {
+		logCtx.Debugf("this dry sha %s is already hydrated", r.DrySha)
+		return &apiclient.AdvanceHydratorNoteResponse{HydratedSha: hydratedSha}, nil
+	}
+
+	logCtx.Debug("Adding commit note")
+	err = AddNote(ctx, gitClient, r.DrySha, hydratedSha)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add commit note: %w", err)
+	}
+
+	return &apiclient.AdvanceHydratorNoteResponse{HydratedSha: hydratedSha, NoteAdvanced: true}, nil
+}
+
 // handleCommitRequest handles the commit request. It clones the repository, checks out the sync branch, checks out the
 // target branch, clears the repository contents, writes the manifests to the repository, commits the changes, and pushes
 // the changes. It returns the output of the git commands and an error if one occurred.
 func (s *Service) handleCommitRequest(ctx context.Context, logCtx *log.Entry, r *apiclient.CommitHydratedManifestsRequest) (string, string, error) {
-	if r.Repo == nil {
-		return "", "", errors.New("repo is required")
-	}
-
-	if r.Repo.Repo == "" {
-		return "", "", errors.New("repo URL is required")
-	}
-	if r.TargetBranch == "" {
-		return "", "", errors.New("target branch is required")
-	}
-	if r.SyncBranch == "" {
-		return "", "", errors.New("sync branch is required")
+	if err := validateRepoAndBranches(r.Repo, r.TargetBranch, r.SyncBranch); err != nil {
+		return "", "", err
 	}
 
 	logCtx = logCtx.WithField("repo", r.Repo.Repo)
 	logCtx.Debug("Initiating git client")
-	gitClient, dirPath, cleanup, err := s.initGitClient(ctx, logCtx, r)
+	gitClient, dirPath, cleanup, err := s.initGitClient(ctx, logCtx, r.Repo, r.AuthorName, r.AuthorEmail)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to init git client: %w", err)
 	}
@@ -188,10 +234,26 @@ func (s *Service) handleCommitRequest(ctx context.Context, logCtx *log.Entry, r 
 	return "", sha, nil
 }
 
+func validateRepoAndBranches(repo *v1alpha1.Repository, targetBranch, syncBranch string) error {
+	if repo == nil {
+		return errors.New("repo is required")
+	}
+	if repo.Repo == "" {
+		return errors.New("repo URL is required")
+	}
+	if targetBranch == "" {
+		return errors.New("target branch is required")
+	}
+	if syncBranch == "" {
+		return errors.New("sync branch is required")
+	}
+	return nil
+}
+
 // initGitClient initializes a git client for the given repository and returns the client, the path to the directory where
 // the repository is cloned, a cleanup function that should be called when the directory is no longer needed, and an error
 // if one occurred.
-func (s *Service) initGitClient(ctx context.Context, logCtx *log.Entry, r *apiclient.CommitHydratedManifestsRequest) (git.Client, string, func(), error) {
+func (s *Service) initGitClient(ctx context.Context, logCtx *log.Entry, repo *v1alpha1.Repository, authorName, authorEmail string) (git.Client, string, func(), error) {
 	dirPath, err := files.CreateTempDir("/tmp/_commit-service")
 	if err != nil {
 		return nil, "", nil, fmt.Errorf("failed to create temp dir: %w", err)
@@ -204,20 +266,20 @@ func (s *Service) initGitClient(ctx context.Context, logCtx *log.Entry, r *apicl
 		}
 	}
 
-	gitClient, err := s.repoClientFactory.NewClient(r.Repo, dirPath)
+	gitClient, err := s.repoClientFactory.NewClient(repo, dirPath)
 	if err != nil {
 		cleanupOrLog()
 		return nil, "", nil, fmt.Errorf("failed to create git client: %w", err)
 	}
 
-	logCtx.Debugf("Initializing repo %s", r.Repo.Repo)
+	logCtx.Debugf("Initializing repo %s", repo.Repo)
 	err = gitClient.Init()
 	if err != nil {
 		cleanupOrLog()
 		return nil, "", nil, fmt.Errorf("failed to init git client: %w", err)
 	}
 
-	logCtx.Debugf("Fetching repo %s", r.Repo.Repo)
+	logCtx.Debugf("Fetching repo %s", repo.Repo)
 	err = gitClient.Fetch(ctx, "", 0)
 	if err != nil {
 		cleanupOrLog()
@@ -235,17 +297,15 @@ func (s *Service) initGitClient(ctx context.Context, logCtx *log.Entry, r *apicl
 	//	 return nil, "", nil, fmt.Errorf("failed to get github app info: %w", err)
 	// }
 	// Use author name and email from request, defaulting to "Argo CD" if not provided
-	authorName := r.AuthorName
 	if authorName == "" {
 		authorName = "Argo CD"
 	}
-	authorEmail := r.AuthorEmail
 	if authorEmail == "" {
 		authorEmail = "argo-cd@example.com"
 	}
 
 	logCtx.Debugf("Author config: request name='%s', request email='%s', final name='%s', final email='%s'",
-		r.AuthorName, r.AuthorEmail, authorName, authorEmail)
+		authorName, authorEmail, authorName, authorEmail)
 
 	logCtx.Debugf("Setting author %s <%s>", authorName, authorEmail)
 	_, err = gitClient.SetAuthor(ctx, authorName, authorEmail)

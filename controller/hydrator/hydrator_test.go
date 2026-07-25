@@ -1893,3 +1893,280 @@ func TestProcessHydrationQueueItem_LargeGroupAllAppsPersisted(t *testing.T) {
 
 	require.Len(t, hydrated, totalApps, "every app in the group must end up persisted as Hydrated")
 }
+
+// --- Phase 1 controller-integration tests for issue #28556 ---
+//
+// When appNeedsHydration() returns !needsHydration but the resolvedDryRevision has moved past
+// LastSuccessfulOperation.DrySHA, ProcessAppHydrateQueueItem must call AdvanceHydratorNote on the
+// commit-server so the existing hydrated commit is associated with the new dry SHA without performing
+// a full hydration.
+
+// TestProcessAppHydrateQueueItem_AdvancesNote_WhenDrySHAMovedButNoManifestChange verifies the primary
+// "note advanced" scenario: manifest-generate-paths reports no changes, but the dry SHA is newer than
+// what was last successfully hydrated.  The controller must call AdvanceHydratorNote and persist the
+// updated status without calling AddHydrationQueueItem or RequestAppRefresh.
+func TestProcessAppHydrateQueueItem_AdvancesNote_WhenDrySHAMovedButNoManifestChange(t *testing.T) {
+	t.Parallel()
+
+	d := mocks.NewDependencies(t)
+	cc := commitservermocks.NewCommitServiceClient(t)
+	proj := newTestProject()
+	app := newTestApp("test-app")
+
+	// App has a prior successful hydration at "old-dry-sha" → "old-hydrated-sha".
+	app.Status.SourceHydrator.LastSuccessfulOperation = &v1alpha1.SuccessfulHydrateOperation{
+		DrySHA:         "old-dry-sha",
+		HydratedSHA:    "old-hydrated-sha",
+		SourceHydrator: *app.Spec.SourceHydrator,
+	}
+	app.Status.SourceHydrator.CurrentOperation = &v1alpha1.HydrateOperation{
+		Phase:          v1alpha1.HydrateOperationPhaseHydrated,
+		DrySHA:         "old-dry-sha",
+		HydratedSHA:    "old-hydrated-sha",
+		SourceHydrator: *app.Spec.SourceHydrator,
+	}
+	// LastComparedDryRevision already updated in a previous ProcessAppHydrateQueueItem pass.
+	app.Status.SourceHydrator.LastComparedDryRevision = "new-dry-sha"
+
+	// EvaluateAppRevisionsChanges says: no changes, resolved revision = "new-dry-sha".
+	d.EXPECT().GetProcessableAppProj(mock.Anything).Return(proj, nil).Once()
+	drySource := app.Spec.SourceHydrator.GetDrySource()
+	d.EXPECT().EvaluateAppRevisionsChanges(mock.Anything, app, drySource, drySource.TargetRevision, proj, mock.Anything).
+		Return(false, "new-dry-sha", nil).Once()
+
+	// The controller must fetch write credentials for the destination repo.
+	destRepo := &v1alpha1.Repository{Repo: app.Spec.GetHydrateToSource().RepoURL}
+	d.EXPECT().GetWriteCredentials(mock.Anything, app.Spec.GetHydrateToSource().RepoURL, app.Spec.Project).
+		Return(destRepo, nil).Once()
+
+	// The commit-server note advance returns the existing hydrated SHA with NoteAdvanced=true.
+	cc.EXPECT().AdvanceHydratorNote(mock.Anything, mock.MatchedBy(func(req *commitclient.AdvanceHydratorNoteRequest) bool {
+		return req.DrySha == "new-dry-sha" &&
+			req.SyncBranch == app.Spec.SourceHydrator.SyncSource.TargetBranch &&
+			req.TargetBranch == app.Spec.GetHydrateToSource().TargetRevision
+	})).Return(&commitclient.AdvanceHydratorNoteResponse{
+		HydratedSha:  "old-hydrated-sha",
+		NoteAdvanced: true,
+	}, nil).Once()
+
+	// PersistHydrationStatus is called twice:
+	//   1. The baseline persist in ProcessAppHydrateQueueItem (consuming any annotation).
+	//   2. The status update inside advanceHydratorNote.
+	var persistCount int
+	var finalStatus *v1alpha1.SourceHydratorStatus
+	d.EXPECT().PersistHydrationStatus(mock.Anything, mock.Anything).
+		Run(func(_ *v1alpha1.Application, st *v1alpha1.SourceHydratorStatus) {
+			persistCount++
+			finalStatus = st
+		}).Return()
+
+	h := &Hydrator{
+		dependencies:         d,
+		statusRefreshTimeout: time.Minute,
+		commitClientset:      &commitservermocks.Clientset{CommitServiceClient: cc},
+	}
+	h.ProcessAppHydrateQueueItem(app)
+
+	// Must NOT enqueue a full hydration or request an app refresh.
+	d.AssertNotCalled(t, "AddHydrationQueueItem", mock.Anything)
+	d.AssertNotCalled(t, "RequestAppRefresh", mock.Anything, mock.Anything)
+
+	require.GreaterOrEqual(t, persistCount, 1, "expected PersistHydrationStatus to be called")
+	require.NotNil(t, finalStatus)
+
+	// CurrentOperation must reflect the advanced note.
+	require.NotNil(t, finalStatus.CurrentOperation)
+	assert.Equal(t, v1alpha1.HydrateOperationPhaseHydrated, finalStatus.CurrentOperation.Phase)
+	assert.Equal(t, "new-dry-sha", finalStatus.CurrentOperation.DrySHA)
+	assert.Equal(t, "old-hydrated-sha", finalStatus.CurrentOperation.HydratedSHA)
+	assert.NotNil(t, finalStatus.CurrentOperation.FinishedAt)
+
+	// LastSuccessfulOperation must be updated.
+	require.NotNil(t, finalStatus.LastSuccessfulOperation)
+	assert.Equal(t, "new-dry-sha", finalStatus.LastSuccessfulOperation.DrySHA)
+	assert.Equal(t, "old-hydrated-sha", finalStatus.LastSuccessfulOperation.HydratedSHA)
+
+	// LastComparedDryRevision must match the new revision.
+	assert.Equal(t, "new-dry-sha", finalStatus.LastComparedDryRevision)
+}
+
+// TestProcessAppHydrateQueueItem_SkipsNoteAdvance_WhenSHAMatches verifies that AdvanceHydratorNote is
+// NOT called when the resolved dry revision already matches LastSuccessfulOperation.DrySHA (i.e. the
+// note is already up-to-date).
+func TestProcessAppHydrateQueueItem_SkipsNoteAdvance_WhenSHAMatches(t *testing.T) {
+	t.Parallel()
+
+	d := mocks.NewDependencies(t)
+	proj := newTestProject()
+	app := newTestApp("test-app")
+
+	// Same SHA everywhere – nothing has changed.
+	app.Status.SourceHydrator.LastSuccessfulOperation = &v1alpha1.SuccessfulHydrateOperation{
+		DrySHA:         "same-sha",
+		HydratedSHA:    "hydrated-sha",
+		SourceHydrator: *app.Spec.SourceHydrator,
+	}
+	app.Status.SourceHydrator.CurrentOperation = &v1alpha1.HydrateOperation{
+		Phase:          v1alpha1.HydrateOperationPhaseHydrated,
+		DrySHA:         "same-sha",
+		SourceHydrator: *app.Spec.SourceHydrator,
+	}
+	app.Status.SourceHydrator.LastComparedDryRevision = "same-sha"
+
+	d.EXPECT().GetProcessableAppProj(mock.Anything).Return(proj, nil).Once()
+	drySource := app.Spec.SourceHydrator.GetDrySource()
+	d.EXPECT().EvaluateAppRevisionsChanges(mock.Anything, app, drySource, drySource.TargetRevision, proj, mock.Anything).
+		Return(false, "same-sha", nil).Once()
+
+	var persistedStatus *v1alpha1.SourceHydratorStatus
+	d.EXPECT().PersistHydrationStatus(mock.Anything, mock.Anything).
+		Run(func(_ *v1alpha1.Application, st *v1alpha1.SourceHydratorStatus) {
+			persistedStatus = st
+		}).Return().Once() // Only the baseline persist; no advanceHydratorNote persist.
+
+	h := &Hydrator{
+		dependencies:         d,
+		statusRefreshTimeout: time.Minute,
+		// commitClientset intentionally nil – it must not be used.
+	}
+	h.ProcessAppHydrateQueueItem(app)
+
+	d.AssertNotCalled(t, "AddHydrationQueueItem", mock.Anything)
+	d.AssertNotCalled(t, "GetWriteCredentials", mock.Anything, mock.Anything, mock.Anything)
+	d.AssertNotCalled(t, "RequestAppRefresh", mock.Anything, mock.Anything)
+	require.NotNil(t, persistedStatus)
+	// LastComparedDryRevision must still be "same-sha" (unchanged).
+	assert.Equal(t, "same-sha", persistedStatus.LastComparedDryRevision)
+}
+
+// TestProcessAppHydrateQueueItem_NoteAdvance_NoCommitCreated verifies that the note-advance path does
+// not call CommitHydratedManifests, does not call AddHydrationQueueItem, and does not call
+// RequestAppRefresh – confirming that no new hydrated commit is created.
+func TestProcessAppHydrateQueueItem_NoteAdvance_NoCommitCreated(t *testing.T) {
+	t.Parallel()
+
+	d := mocks.NewDependencies(t)
+	cc := commitservermocks.NewCommitServiceClient(t)
+	proj := newTestProject()
+	app := newTestApp("test-app")
+
+	app.Status.SourceHydrator.LastSuccessfulOperation = &v1alpha1.SuccessfulHydrateOperation{
+		DrySHA:         "old-sha",
+		HydratedSHA:    "hydrated-sha",
+		SourceHydrator: *app.Spec.SourceHydrator,
+	}
+	app.Status.SourceHydrator.CurrentOperation = &v1alpha1.HydrateOperation{
+		Phase:          v1alpha1.HydrateOperationPhaseHydrated,
+		DrySHA:         "old-sha",
+		SourceHydrator: *app.Spec.SourceHydrator,
+	}
+	app.Status.SourceHydrator.LastComparedDryRevision = "new-sha"
+
+	d.EXPECT().GetProcessableAppProj(mock.Anything).Return(proj, nil).Once()
+	drySource := app.Spec.SourceHydrator.GetDrySource()
+	d.EXPECT().EvaluateAppRevisionsChanges(mock.Anything, app, drySource, drySource.TargetRevision, proj, mock.Anything).
+		Return(false, "new-sha", nil).Once()
+
+	destRepo := &v1alpha1.Repository{Repo: app.Spec.GetHydrateToSource().RepoURL}
+	d.EXPECT().GetWriteCredentials(mock.Anything, app.Spec.GetHydrateToSource().RepoURL, app.Spec.Project).
+		Return(destRepo, nil).Once()
+
+	cc.EXPECT().AdvanceHydratorNote(mock.Anything, mock.Anything).
+		Return(&commitclient.AdvanceHydratorNoteResponse{
+			HydratedSha:  "hydrated-sha",
+			NoteAdvanced: true,
+		}, nil).Once()
+
+	d.EXPECT().PersistHydrationStatus(mock.Anything, mock.Anything).Return()
+
+	h := &Hydrator{
+		dependencies:         d,
+		statusRefreshTimeout: time.Minute,
+		commitClientset:      &commitservermocks.Clientset{CommitServiceClient: cc},
+	}
+	h.ProcessAppHydrateQueueItem(app)
+
+	// Must never call CommitHydratedManifests (that creates a new commit).
+	cc.AssertNotCalled(t, "CommitHydratedManifests", mock.Anything, mock.Anything)
+	// Must never enqueue full hydration.
+	d.AssertNotCalled(t, "AddHydrationQueueItem", mock.Anything)
+	// Must never trigger a refresh (no new commit).
+	d.AssertNotCalled(t, "RequestAppRefresh", mock.Anything, mock.Anything)
+}
+
+// TestProcessAppHydrateQueueItem_NoteAdvance_StatusUpdatedCorrectly is a detailed field-level check that
+// CurrentOperation, LastSuccessfulOperation and LastComparedDryRevision are all set correctly after a
+// successful AdvanceHydratorNote call.
+func TestProcessAppHydrateQueueItem_NoteAdvance_StatusUpdatedCorrectly(t *testing.T) {
+	t.Parallel()
+
+	d := mocks.NewDependencies(t)
+	cc := commitservermocks.NewCommitServiceClient(t)
+	proj := newTestProject()
+	app := newTestApp("test-app")
+
+	oldStartedAt := metav1.NewTime(time.Now().Add(-5 * time.Minute))
+	app.Status.SourceHydrator.LastSuccessfulOperation = &v1alpha1.SuccessfulHydrateOperation{
+		DrySHA:         "dry-v1",
+		HydratedSHA:    "hydrated-v1",
+		SourceHydrator: *app.Spec.SourceHydrator,
+	}
+	app.Status.SourceHydrator.CurrentOperation = &v1alpha1.HydrateOperation{
+		StartedAt:      oldStartedAt,
+		Phase:          v1alpha1.HydrateOperationPhaseHydrated,
+		DrySHA:         "dry-v1",
+		HydratedSHA:    "hydrated-v1",
+		SourceHydrator: *app.Spec.SourceHydrator,
+	}
+	app.Status.SourceHydrator.LastComparedDryRevision = "dry-v2"
+
+	d.EXPECT().GetProcessableAppProj(mock.Anything).Return(proj, nil).Once()
+	drySource := app.Spec.SourceHydrator.GetDrySource()
+	d.EXPECT().EvaluateAppRevisionsChanges(mock.Anything, app, drySource, drySource.TargetRevision, proj, mock.Anything).
+		Return(false, "dry-v2", nil).Once()
+
+	destRepo := &v1alpha1.Repository{Repo: app.Spec.GetHydrateToSource().RepoURL}
+	d.EXPECT().GetWriteCredentials(mock.Anything, app.Spec.GetHydrateToSource().RepoURL, app.Spec.Project).
+		Return(destRepo, nil).Once()
+
+	cc.EXPECT().AdvanceHydratorNote(mock.Anything, mock.MatchedBy(func(req *commitclient.AdvanceHydratorNoteRequest) bool {
+		return req.DrySha == "dry-v2"
+	})).Return(&commitclient.AdvanceHydratorNoteResponse{
+		HydratedSha:  "hydrated-v1", // same hydrated commit – note is just updated
+		NoteAdvanced: true,
+	}, nil).Once()
+
+	// Capture the final PersistHydrationStatus call (the one from advanceHydratorNote).
+	var noteAdvanceStatus *v1alpha1.SourceHydratorStatus
+	d.EXPECT().PersistHydrationStatus(mock.Anything, mock.Anything).
+		Run(func(_ *v1alpha1.Application, st *v1alpha1.SourceHydratorStatus) {
+			noteAdvanceStatus = st
+		}).Return()
+
+	h := &Hydrator{
+		dependencies:         d,
+		statusRefreshTimeout: time.Minute,
+		commitClientset:      &commitservermocks.Clientset{CommitServiceClient: cc},
+	}
+	h.ProcessAppHydrateQueueItem(app)
+
+	require.NotNil(t, noteAdvanceStatus, "advanceHydratorNote must call PersistHydrationStatus")
+
+	// CurrentOperation
+	require.NotNil(t, noteAdvanceStatus.CurrentOperation)
+	assert.Equal(t, v1alpha1.HydrateOperationPhaseHydrated, noteAdvanceStatus.CurrentOperation.Phase)
+	assert.Equal(t, "dry-v2", noteAdvanceStatus.CurrentOperation.DrySHA)
+	assert.Equal(t, "hydrated-v1", noteAdvanceStatus.CurrentOperation.HydratedSHA)
+	assert.Equal(t, oldStartedAt, noteAdvanceStatus.CurrentOperation.StartedAt,
+		"StartedAt must be preserved from the previous CurrentOperation")
+	assert.NotNil(t, noteAdvanceStatus.CurrentOperation.FinishedAt)
+	assert.Empty(t, noteAdvanceStatus.CurrentOperation.Message)
+
+	// LastSuccessfulOperation
+	require.NotNil(t, noteAdvanceStatus.LastSuccessfulOperation)
+	assert.Equal(t, "dry-v2", noteAdvanceStatus.LastSuccessfulOperation.DrySHA)
+	assert.Equal(t, "hydrated-v1", noteAdvanceStatus.LastSuccessfulOperation.HydratedSHA)
+
+	// LastComparedDryRevision
+	assert.Equal(t, "dry-v2", noteAdvanceStatus.LastComparedDryRevision)
+}
