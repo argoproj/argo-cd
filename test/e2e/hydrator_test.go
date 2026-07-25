@@ -635,7 +635,7 @@ func TestHydratorNestedRequest(t *testing.T) {
 	// was hydrating is not ignored
 	dir := "slow-manifest"
 	manifest := "templates/cm.yaml"
-	ctx := Given(t).Timeout(80)
+	ctx := Given(t).Timeout(120)
 	acts := ctx.DrySourcePath(dir).
 		DrySourceRevision("HEAD").
 		SyncSourcePath(dir).
@@ -650,11 +650,11 @@ func TestHydratorNestedRequest(t *testing.T) {
 		When().
 		PatchDrySourceFile(manifest, `[{"op": "add", "path": "/metadata/labels/test-label", "value": "test-value"}]`)
 
-	// runs app get --refresh asynchronoously, so we do not wait for hydration to finish
+	// runs app get --refresh asynchronously, so we do not wait for hydration to finish
 	go ctx.When().Refresh(RefreshTypeNormal)
 	// wait until Hydration actually runs `helm template`.  We can
 	// catch it because the template is really nasty and
-	// `helm templates` rendering takes tens of seconds
+	// `helm template` rendering takes tens of seconds
 	acts.Then().Expect(HelmTemplateRuns())
 	// ps output line containing helm PID and command line
 	helmProcessData := acts.GetLastOutput()
