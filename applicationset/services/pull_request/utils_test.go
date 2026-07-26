@@ -10,6 +10,7 @@ import (
 )
 
 func TestFilterBranchMatchBadRegexp(t *testing.T) {
+	t.Parallel()
 	provider, _ := NewFakeService(
 		t.Context(),
 		[]*PullRequest{
@@ -34,6 +35,7 @@ func TestFilterBranchMatchBadRegexp(t *testing.T) {
 }
 
 func TestFilterBranchMatch(t *testing.T) {
+	t.Parallel()
 	provider, _ := NewFakeService(
 		t.Context(),
 		[]*PullRequest{
@@ -84,6 +86,7 @@ func TestFilterBranchMatch(t *testing.T) {
 }
 
 func TestFilterTargetBranchMatch(t *testing.T) {
+	t.Parallel()
 	provider, _ := NewFakeService(
 		t.Context(),
 		[]*PullRequest{
@@ -134,6 +137,7 @@ func TestFilterTargetBranchMatch(t *testing.T) {
 }
 
 func TestFilterTitleMatch(t *testing.T) {
+	t.Parallel()
 	provider, _ := NewFakeService(
 		t.Context(),
 		[]*PullRequest{
@@ -184,6 +188,7 @@ func TestFilterTitleMatch(t *testing.T) {
 }
 
 func TestMultiFilterOrWithTitle(t *testing.T) {
+	t.Parallel()
 	provider, _ := NewFakeService(
 		t.Context(),
 		[]*PullRequest{
@@ -238,6 +243,7 @@ func TestMultiFilterOrWithTitle(t *testing.T) {
 }
 
 func TestMultiFilterOr(t *testing.T) {
+	t.Parallel()
 	provider, _ := NewFakeService(
 		t.Context(),
 		[]*PullRequest{
@@ -293,6 +299,7 @@ func TestMultiFilterOr(t *testing.T) {
 }
 
 func TestMultiFilterOrWithTargetBranchFilterOrWithTitleFilter(t *testing.T) {
+	t.Parallel()
 	provider, _ := NewFakeService(
 		t.Context(),
 		[]*PullRequest{
@@ -366,6 +373,7 @@ func TestMultiFilterOrWithTargetBranchFilterOrWithTitleFilter(t *testing.T) {
 }
 
 func TestNoFilters(t *testing.T) {
+	t.Parallel()
 	provider, _ := NewFakeService(
 		t.Context(),
 		[]*PullRequest{

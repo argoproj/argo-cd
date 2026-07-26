@@ -24,7 +24,8 @@ to indicate their stability and maturity. These are the statuses of non-stable f
 | [Dynamic Cluster Distribution][7]         | v2.9.0     | Alpha  |
 | [Cluster Sharding: consistent-hashing][9] | v2.12.0    | Alpha  |
 | [Service Account Impersonation][10]       | v2.13.0    | Beta   |
-| [Source Hydrator][11]                     | v2.14.0    | Alpha  |
+| [Source Hydrator][11]                     | v2.14.0    | Beta   |
+| [ApplicationSet Web UI][12]               | v3.5.0     | Alpha  |
 
 ## Unstable Configurations
 
@@ -33,6 +34,7 @@ to indicate their stability and maturity. These are the statuses of non-stable f
 | Feature                         | Property                                                                                | Status |
 | ------------------------------- | --------------------------------------------------------------------------------------- | ------ |
 | [Skip Application Reconcile][4] | `metadata.annotations[argocd.argoproj.io/skip-reconcile]`                               | Alpha  |
+| [Source Hydrator][11]           | `spec.sourceHydrator.*`                                                                 | Beta   |
 
 ### AppProject CRD
 
@@ -63,6 +65,9 @@ to indicate their stability and maturity. These are the statuses of non-stable f
 | [Cluster Sharding: consistent-hashing][9] | `ConfigMap/argocd-cmd-params-cm`              | `controller.sharding.algorithm: consistent-hashing`         | Alpha  |
 | [Cluster Sharding: consistent-hashing][9] | `StatefulSet/argocd-application-controller`   | `ARGOCD_CONTROLLER_SHARDING_ALGORITHM=consistent-hashing`   | Alpha  |
 | [Service Account Impersonation][10]       | `ConfigMap/argocd-cm`                         | `application.sync.impersonation.enabled`                    | Beta   |
+| [Source Hydrator][11]                     | `ConfigMap/argocd-cmd-params-cm`              | `hydrator.enabled`                                          | Beta   |
+| [Source Hydrator][11]                     | `Deployment/argocd-application-controller`    | `ARGOCD_HYDRATOR_ENABLED`                                   | Beta   |
+| [Source Hydrator][11]                     | `Deployment/argocd-server`                    | `ARGOCD_HYDRATOR_ENABLED`                                   | Beta   |
 
 [2]: applicationset/Progressive-Syncs.md
 [3]: ../developer-guide/extensions/proxy-extensions.md
@@ -73,3 +78,4 @@ to indicate their stability and maturity. These are the statuses of non-stable f
 [9]: ./high_availability.md#argocd-application-controller
 [10]: app-sync-using-impersonation.md
 [11]: ../user-guide/source-hydrator.md
+[12]: ../user-guide/application-set-ui.md

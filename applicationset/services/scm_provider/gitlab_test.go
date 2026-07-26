@@ -1402,6 +1402,7 @@ func gitlabMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 }
 
 func TestGitlabListRepos(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name, proto, topic                                                                             string
 		hasError, allBranches, includeSubgroups, includeSharedProjects, includeArchivedRepos, insecure bool
@@ -1632,6 +1633,7 @@ func TestGitlabListRepos(t *testing.T) {
 	}))
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
 			provider, _ := NewGitlabProvider("test-argocd-proton", "", ts.URL, c.allBranches, c.includeSubgroups, c.includeSharedProjects, c.includeArchivedRepos, c.insecure, "", c.topic, nil, "", "")
 			rawRepos, err := ListRepos(t.Context(), provider, c.filters, c.proto)
 			if c.hasError {
@@ -1666,6 +1668,7 @@ func TestGitlabListRepos(t *testing.T) {
 }
 
 func TestGitlabHasPath(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gitlabMockHandler(t)(w, r)
 	}))
@@ -1714,6 +1717,7 @@ func TestGitlabHasPath(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
 			ok, err := host.RepoHasPath(t.Context(), repo, c.path)
 			require.NoError(t, err)
 			assert.Equal(t, c.exists, ok)
@@ -1722,6 +1726,7 @@ func TestGitlabHasPath(t *testing.T) {
 }
 
 func TestGitlabGetBranches(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gitlabMockHandler(t)(w, r)
 	}))
@@ -1732,6 +1737,7 @@ func TestGitlabGetBranches(t *testing.T) {
 		Branch:       "master",
 	}
 	t.Run("branch exists", func(t *testing.T) {
+		t.Parallel()
 		repos, err := host.GetBranches(t.Context(), repo)
 		require.NoError(t, err)
 		assert.Equal(t, "master", repos[0].Branch)
@@ -1742,12 +1748,14 @@ func TestGitlabGetBranches(t *testing.T) {
 		Branch:       "foo",
 	}
 	t.Run("unknown branch", func(t *testing.T) {
+		t.Parallel()
 		_, err := host.GetBranches(t.Context(), repo2)
 		require.NoError(t, err)
 	})
 }
 
 func TestGetBranchesTLS(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		tlsInsecure bool
@@ -1782,6 +1790,7 @@ func TestGetBranchesTLS(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				gitlabMockHandler(t)(w, r)
 			}))
@@ -1818,6 +1827,7 @@ func TestGetBranchesTLS(t *testing.T) {
 }
 
 func TestNewGitlabProvider_Proxy(t *testing.T) {
+	t.Parallel()
 	targetTS := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		if r.URL.Path == "/api/v4" || r.URL.Path == "/api/v4/" {

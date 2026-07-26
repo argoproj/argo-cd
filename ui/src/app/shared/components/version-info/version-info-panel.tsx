@@ -79,7 +79,7 @@ export function VersionPanel({isShown, onClose, version}: VersionPanelProps) {
         try {
             await navigator.clipboard.writeText(stringifiedVersion);
             setCopyState('success');
-        } catch (err) {
+        } catch {
             setCopyState('failed');
         }
         setTimeout(() => {

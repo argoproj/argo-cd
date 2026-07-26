@@ -174,6 +174,7 @@ func TestSanitizedRepository(t *testing.T) {
 	assert.Equal(t, repo.Repo, sanitized.Repo)
 	assert.Equal(t, repo.Type, sanitized.Type)
 	assert.Equal(t, repo.Name, sanitized.Name)
+	assert.Equal(t, repo.Username, sanitized.Username)
 	assert.True(t, sanitized.Insecure)
 	assert.Equal(t, repo.EnableLFS, sanitized.EnableLFS)
 	assert.Equal(t, repo.EnableOCI, sanitized.EnableOCI)
@@ -191,7 +192,6 @@ func TestSanitizedRepository(t *testing.T) {
 	assert.Equal(t, repo.Depth, sanitized.Depth)
 
 	// Sensitive fields must be stripped
-	assert.Empty(t, sanitized.Username)
 	assert.Empty(t, sanitized.Password)
 	assert.Empty(t, sanitized.SSHPrivateKey)
 	assert.Empty(t, sanitized.BearerToken)

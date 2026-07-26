@@ -1,8 +1,9 @@
-FROM docker.io/library/golang:1.26.3@sha256:2d6c80227255c3112a4d08e67ba98e58efd3846daf15d9d7d4c389565d881b1a
+FROM docker.io/library/golang:1.26.5@sha256:63f132d58c1f589f0dcda584933a9bb44bfda1150f1506377f5a902f34d86033
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN echo 'deb http://archive.debian.org/debian buster-backports main' >> /etc/apt/sources.list
+# renovate: datasource=deb depName=git registryUrl=https://deb.debian.org/debian?suite=trixie&components=main,security&binaryArch=amd64
+ARG GIT_APT_VERSION=1:2.47.3-0+deb13u1
 
 RUN apt-get update && apt-get install --no-install-recommends -y \
     curl \
@@ -10,7 +11,7 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     nginx \
     unzip \
     fcgiwrap \
-    git \
+    git=${GIT_APT_VERSION} \
     make \
     wget \
     gcc \

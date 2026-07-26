@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -13,7 +14,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/kubectl/pkg/util/slice"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/account"
@@ -122,10 +122,10 @@ func (s *Server) UpdatePassword(ctx context.Context, q *account.UpdatePasswordRe
 
 // CanI checks if the current account has permission to perform an action
 func (s *Server) CanI(ctx context.Context, r *account.CanIRequest) (*account.CanIResponse, error) {
-	if !slice.ContainsString(rbac.Actions, r.Action, nil) {
+	if !slices.Contains(rbac.Actions, r.Action) {
 		return nil, status.Errorf(codes.InvalidArgument, "%v does not contain %s", rbac.Actions, r.Action)
 	}
-	if !slice.ContainsString(rbac.Resources, r.Resource, nil) {
+	if !slices.Contains(rbac.Resources, r.Resource) {
 		return nil, status.Errorf(codes.InvalidArgument, "%v does not contain %s", rbac.Resources, r.Resource)
 	}
 

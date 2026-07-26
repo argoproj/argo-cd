@@ -58,6 +58,7 @@ func defaultHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 }
 
 func TestListPullRequestNoAuth(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Empty(t, r.Header.Get("Authorization"))
 		defaultHandler(t)(w, r)
@@ -77,6 +78,7 @@ func TestListPullRequestNoAuth(t *testing.T) {
 }
 
 func TestListPullRequestPagination(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		var err error
@@ -199,6 +201,7 @@ func TestListPullRequestPagination(t *testing.T) {
 }
 
 func TestListPullRequestBasicAuth(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// base64(user:password)
 		assert.Equal(t, "Basic dXNlcjpwYXNzd29yZA==", r.Header.Get("Authorization"))
@@ -217,6 +220,7 @@ func TestListPullRequestBasicAuth(t *testing.T) {
 }
 
 func TestListPullRequestBearerAuth(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "Bearer tolkien", r.Header.Get("Authorization"))
 		assert.Equal(t, "no-check", r.Header.Get("X-Atlassian-Token"))
@@ -235,6 +239,7 @@ func TestListPullRequestBearerAuth(t *testing.T) {
 }
 
 func TestListPullRequestTLS(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		tlsInsecure bool
@@ -269,6 +274,7 @@ func TestListPullRequestTLS(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				defaultHandler(t)(w, r)
 			}))
@@ -301,6 +307,7 @@ func TestListPullRequestTLS(t *testing.T) {
 }
 
 func TestListResponseError(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 	}))
@@ -311,6 +318,7 @@ func TestListResponseError(t *testing.T) {
 }
 
 func TestListResponseMalformed(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.RequestURI {
@@ -336,6 +344,7 @@ func TestListResponseMalformed(t *testing.T) {
 }
 
 func TestListResponseEmpty(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.RequestURI {
@@ -363,6 +372,7 @@ func TestListResponseEmpty(t *testing.T) {
 }
 
 func TestListPullRequestBranchMatch(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		var err error
@@ -511,6 +521,7 @@ func TestListPullRequestBranchMatch(t *testing.T) {
 }
 
 func TestBitbucketServerListReturnsRepositoryNotFoundError(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	defer server.Close()

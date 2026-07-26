@@ -97,6 +97,7 @@ func verifyDefaultRepo(t *testing.T, err error, repos []*Repository) {
 }
 
 func TestListReposNoAuth(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Empty(t, r.Header.Get("Authorization"))
 		defaultHandler(t)(w, r)
@@ -109,6 +110,7 @@ func TestListReposNoAuth(t *testing.T) {
 }
 
 func TestListReposPagination(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Empty(t, r.Header.Get("Authorization"))
 		var err error
@@ -221,6 +223,7 @@ func TestListReposPagination(t *testing.T) {
 }
 
 func TestGetBranchesBranchPagination(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Empty(t, r.Header.Get("Authorization"))
 		switch r.RequestURI {
@@ -304,6 +307,7 @@ func TestGetBranchesBranchPagination(t *testing.T) {
 }
 
 func TestGetBranchesDefaultOnly(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Empty(t, r.Header.Get("Authorization"))
 		if r.RequestURI == "/rest/api/1.0/projects/PROJECT/repos/REPO/branches/default" {
@@ -346,6 +350,7 @@ func TestGetBranchesDefaultOnly(t *testing.T) {
 }
 
 func TestGetBranchesMissingDefault(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Empty(t, r.Header.Get("Authorization"))
 		if r.RequestURI == "/rest/api/1.0/projects/PROJECT/repos/REPO/branches/default" {
@@ -369,6 +374,7 @@ func TestGetBranchesMissingDefault(t *testing.T) {
 }
 
 func TestGetBranchesEmptyRepo(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		assert.Empty(t, r.Header.Get("Authorization"))
 		if r.RequestURI == "/rest/api/1.0/projects/PROJECT/repos/REPO/branches/default" {
@@ -390,6 +396,7 @@ func TestGetBranchesEmptyRepo(t *testing.T) {
 }
 
 func TestGetBranchesErrorDefaultBranch(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Empty(t, r.Header.Get("Authorization"))
 		if r.RequestURI == "/rest/api/1.0/projects/PROJECT/repos/REPO/branches/default" {
@@ -412,6 +419,7 @@ func TestGetBranchesErrorDefaultBranch(t *testing.T) {
 }
 
 func TestListReposTLS(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		tlsInsecure bool
@@ -446,6 +454,7 @@ func TestListReposTLS(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				defaultHandler(t)(w, r)
 			}))
@@ -478,6 +487,7 @@ func TestListReposTLS(t *testing.T) {
 }
 
 func TestListReposBasicAuth(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "Basic dXNlcjpwYXNzd29yZA==", r.Header.Get("Authorization"))
 		assert.Equal(t, "no-check", r.Header.Get("X-Atlassian-Token"))
@@ -491,6 +501,7 @@ func TestListReposBasicAuth(t *testing.T) {
 }
 
 func TestListReposBearerAuth(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "Bearer tolkien", r.Header.Get("Authorization"))
 		assert.Equal(t, "no-check", r.Header.Get("X-Atlassian-Token"))
@@ -504,6 +515,7 @@ func TestListReposBearerAuth(t *testing.T) {
 }
 
 func TestListReposDefaultBranch(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Empty(t, r.Header.Get("Authorization"))
 		if r.RequestURI == "/rest/api/1.0/projects/PROJECT/repos/REPO/branches/default" {
@@ -540,6 +552,7 @@ func TestListReposDefaultBranch(t *testing.T) {
 }
 
 func TestListReposMissingDefaultBranch(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Empty(t, r.Header.Get("Authorization"))
 		if r.RequestURI == "/rest/api/1.0/projects/PROJECT/repos/REPO/branches/default" {
@@ -557,6 +570,7 @@ func TestListReposMissingDefaultBranch(t *testing.T) {
 }
 
 func TestListReposErrorDefaultBranch(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Empty(t, r.Header.Get("Authorization"))
 		if r.RequestURI == "/rest/api/1.0/projects/PROJECT/repos/REPO/branches/default" {
@@ -573,6 +587,7 @@ func TestListReposErrorDefaultBranch(t *testing.T) {
 }
 
 func TestListReposCloneProtocol(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Empty(t, r.Header.Get("Authorization"))
 		defaultHandler(t)(w, r)
@@ -595,6 +610,7 @@ func TestListReposCloneProtocol(t *testing.T) {
 }
 
 func TestListReposUnknownProtocol(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Empty(t, r.Header.Get("Authorization"))
 		defaultHandler(t)(w, r)
@@ -607,6 +623,7 @@ func TestListReposUnknownProtocol(t *testing.T) {
 }
 
 func TestBitbucketServerHasPath(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var err error
 		switch r.RequestURI {

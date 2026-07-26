@@ -785,6 +785,7 @@ func newEnforcer(kubeclientset *fake.Clientset) *rbac.Enforcer {
 }
 
 func TestListEvents(t *testing.T) {
+	t.Parallel()
 	existingProj := &v1alpha1.AppProject{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-project",
@@ -798,6 +799,7 @@ func TestListEvents(t *testing.T) {
 	}
 
 	t.Run("ListEvents returns empty list for project without events", func(t *testing.T) {
+		t.Parallel()
 		kubeclientset := fake.NewClientset(&corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: testNamespace,
@@ -827,6 +829,7 @@ func TestListEvents(t *testing.T) {
 
 	t.Run("ListEvents returns events for project", func(t *testing.T) {
 		// Create events associated with the project
+		t.Parallel()
 		event1 := &corev1.Event{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "test-event-1",
@@ -894,6 +897,7 @@ func TestListEvents(t *testing.T) {
 	})
 
 	t.Run("ListEvents returns error for non-existent project", func(t *testing.T) {
+		t.Parallel()
 		kubeclientset := fake.NewClientset(&corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: testNamespace,
@@ -921,6 +925,7 @@ func TestListEvents(t *testing.T) {
 	})
 
 	t.Run("ListEvents denied without permission", func(t *testing.T) {
+		t.Parallel()
 		kubeclientset := fake.NewClientset(&corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
 				Namespace: testNamespace,

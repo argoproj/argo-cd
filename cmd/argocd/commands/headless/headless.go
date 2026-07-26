@@ -23,6 +23,8 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/argoproj/argo-cd/v3/util/tls"
+
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/initialize"
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient"
@@ -143,7 +145,7 @@ func (c *forwardRepoClientset) NewRepoServerClient() (utilio.Closer, repoapiclie
 			c.err = err
 			return
 		}
-		c.repoClientset = repoapiclient.NewRepoServerClientset(fmt.Sprintf("localhost:%d", repoServerPort), 60, repoapiclient.TLSConfiguration{
+		c.repoClientset = repoapiclient.NewRepoServerClientset(fmt.Sprintf("localhost:%d", repoServerPort), 60, tls.Configuration{
 			DisableTLS: false, StrictValidation: false,
 		})
 	})
@@ -284,6 +286,7 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 		ListenHost:              *address,
 		RepoClientset:           &forwardRepoClientset{namespace: namespace, context: ctxStr, repoServerName: clientOpts.RepoServerName, kubeClientset: kubeClientset},
 		EnableProxyExtension:    false,
+		SyncWithReplaceAllowed:  true,
 	}, server.ApplicationSetOpts{})
 	srv.Init(ctx)
 

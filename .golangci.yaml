@@ -18,7 +18,7 @@ linters:
     - errorlint
     - exptostd
     - gocritic
-    - gomodguard
+    - gomodguard_v2
     - govet
     - importas
     - misspell
@@ -68,21 +68,18 @@ linters:
         - unnamedResult
         - whyNoLint
 
-    gomodguard:
+    gomodguard_v2:
       blocked:
-        modules:
-          - github.com/golang-jwt/jwt/v4:
-              recommendations:
-                - github.com/golang-jwt/jwt/v5
-
-          - github.com/imdario/mergo:
-              recommendations:
-                - dario.cat/mergo
-              reason: '`github.com/imdario/mergo` has been renamed.'
-
-          - github.com/pkg/errors:
-              recommendations:
-                - errors
+        - module: github.com/golang-jwt/jwt/v4
+          recommendations:
+            - github.com/golang-jwt/jwt/v5
+        - module: github.com/imdario/mergo
+          recommendations:
+            - dario.cat/mergo
+          reason: '`github.com/imdario/mergo` has been renamed.'
+        - module: github.com/pkg/errors
+          recommendations:
+            - errors
 
     govet:
       disable:

@@ -110,7 +110,7 @@ export const Banner = (props: React.PropsWithChildren<{}>) => {
                     try {
                         const externalLink = new ExternalLink(chatUrl);
                         chatUrl = externalLink.ref;
-                    } catch (InvalidExternalLinkError) {
+                    } catch {
                         chatUrl = 'invalid-url';
                     }
                 }

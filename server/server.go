@@ -180,6 +180,7 @@ func init() {
 	}
 	enableGRPCTimeHistogram = env.ParseBoolFromEnv(common.EnvEnableGRPCTimeHistogramEnv, false)
 	tracer = otel.Tracer("github.com/argoproj/argo-cd/v3/server")
+	settings_util.ConfigureGoClientFeatures()
 }
 
 // ArgoCDServer is the API server for Argo CD
@@ -248,9 +249,11 @@ type ArgoCDServerOpts struct {
 	ApplicationNamespaces   []string
 	EnableProxyExtension    bool
 	WebhookParallelism      int
+	WebhookRefreshWorkers   int
 	EnableK8sEvent          []string
 	HydratorEnabled         bool
 	SyncWithReplaceAllowed  bool
+	DisableSwaggerUI        bool
 }
 
 type ApplicationSetOpts struct {
@@ -1164,6 +1167,17 @@ func compressHandler(handler http.Handler) http.Handler {
 	})
 }
 
+// registerSwaggerUI registers the Swagger UI and OpenAPI spec handlers on mux, unless disableSwaggerUI
+// is set. The endpoint serves API documentation and is unauthenticated by design, since the docs are
+// static and identical across Argo CD instances. Some environments (e.g. those fronted by OpenShift
+// Routes, which unlike Ingress cannot block specific paths via annotations) still want the ability to
+// disable it. See https://github.com/argoproj/argo-cd/issues/19780.
+func registerSwaggerUI(mux *http.ServeMux, rootPath string, disableSwaggerUI bool) {
+	if !disableSwaggerUI {
+		swagger.ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui", rootPath)
+	}
+}
+
 // newHTTPServer returns the HTTP server to serve HTTP/HTTPS requests. This is implemented
 // using grpc-gateway as a proxy to the gRPC server.
 func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandler http.Handler, appResourceTreeFn application.AppResourceTreeFn, conn *grpc.ClientConn, metricsReg HTTPMetricsRegistry) *http.Server {
@@ -1245,8 +1259,7 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 	mustRegisterGWHandler(ctx, certificatepkg.RegisterCertificateServiceHandler, gwmux, conn)
 	mustRegisterGWHandler(ctx, gpgkeypkg.RegisterGPGKeyServiceHandler, gwmux, conn)
 
-	// Swagger UI
-	swagger.ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui", server.RootPath)
+	registerSwaggerUI(mux, server.RootPath, server.DisableSwaggerUI)
 	healthz.ServeHealthCheck(mux, server.healthCheck)
 
 	// Dex reverse proxy and OAuth2 login/callback
@@ -1254,7 +1267,7 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 
 	// Webhook handler for git events (Note: cache timeouts are hardcoded because API server does not write to cache and not really using them)
 	argoDB := db.NewDB(server.Namespace, server.settingsMgr, server.KubeClientset)
-	acdWebhookHandler := webhook.NewHandler(server.Namespace, server.ApplicationNamespaces, server.WebhookParallelism, server.AppClientset, server.appLister, server.settings, server.settingsMgr, server.RepoServerCache, server.Cache, argoDB, server.settingsMgr.GetMaxWebhookPayloadSize())
+	acdWebhookHandler := webhook.NewHandler(server.Namespace, server.ApplicationNamespaces, server.WebhookParallelism, server.WebhookRefreshWorkers, server.AppClientset, server.appLister, server.settings, server.settingsMgr, server.RepoServerCache, server.Cache, argoDB, server.settingsMgr.GetMaxWebhookPayloadSize(), server.settingsMgr.GetWebhookRefreshJitter(), server.settingsMgr.GetWebhookRefreshJitterThreshold())
 
 	mux.HandleFunc("/api/webhook", acdWebhookHandler.Handler)
 
@@ -1414,9 +1427,15 @@ func registerDownloadHandlers(mux *http.ServeMux, base string) {
 	if err != nil {
 		log.Warnf("argocd not in PATH")
 	} else {
-		mux.HandleFunc(base+"/argocd-linux-"+go_runtime.GOARCH, func(w http.ResponseWriter, r *http.Request) {
+		serveBinary := func(w http.ResponseWriter, r *http.Request) {
 			http.ServeFile(w, r, linuxPath)
-		})
+		}
+		// Arch-suffixed route, kept for backward compatibility with existing links/scripts.
+		mux.HandleFunc(base+"/argocd-linux-"+go_runtime.GOARCH, serveBinary)
+		// Arch-agnostic route: each server serves its own embedded binary, so the UI can link here
+		// without knowing the server's architecture. This keeps the UI bundle architecture-independent
+		// (the bundle no longer needs the arch baked in) and avoids 404s on mixed-arch clusters.
+		mux.HandleFunc(base+"/argocd-linux", serveBinary)
 	}
 }
 
@@ -1472,6 +1491,8 @@ func (server *ArgoCDServer) newStaticAssetsHandler() func(http.ResponseWriter, *
 			w.Header().Set("Content-Security-Policy", server.ContentSecurityPolicy)
 		}
 		w.Header().Set("X-XSS-Protection", "1")
+		// Prevent search engines from indexing the Argo CD UI.
+		w.Header().Set("X-Robots-Tag", "noindex, nofollow")
 
 		// serve index.html for non file requests to support HTML5 History API
 		if acceptHTML && !fileRequest && (r.Method == http.MethodGet || r.Method == http.MethodHead) {
@@ -1581,17 +1602,36 @@ func (server *ArgoCDServer) getClaims(ctx context.Context) (jwt.Claims, string, 
 		return nil, "", ErrNoSession
 	}
 	// A valid argocd-issued token is automatically refreshed here prior to expiration.
-	// OIDC tokens will be verified but will not be refreshed here.
+	// OIDC tokens will be verified and reactively refreshed here if the ID token has expired.
 	claims, newToken, err := server.sessionMgr.VerifyToken(ctx, tokenString)
+	oidcConfig := server.settings.OIDCConfig()
+	if err != nil && claims != nil && oidcConfig != nil {
+		// VerifyToken returns claims without sub/sid on expiry, parse JWT directly to recover sub/sid for refresh token cache lookup
+		expiredClaims := jwt.MapClaims{}
+		if _, _, parseErr := jwt.NewParser().ParseUnverified(tokenString, expiredClaims); parseErr != nil {
+			log.Warnf("failed to parse expired token for refresh: %v", parseErr)
+		} else {
+			refreshedToken, refreshErr := server.ssoClientApp.CheckAndRefreshToken(ctx, expiredClaims, server.settings.RefreshTokenThresholdWithConfig(oidcConfig))
+			if refreshErr != nil {
+				log.Warnf("failed to refresh token: %v", refreshErr)
+			} else if refreshedToken != "" {
+				if refreshedClaims, _, vErr := server.sessionMgr.VerifyToken(ctx, refreshedToken); vErr != nil {
+					log.Warnf("failed to verify refreshed token: %v", vErr)
+				} else {
+					claims, newToken, err = refreshedClaims, refreshedToken, nil
+					log.Infof("refreshed token for subject: %v", jwtutil.StringField(expiredClaims, "sub"))
+				}
+			}
+		}
+	}
 	if err != nil {
 		span.SetStatus(otel_codes.Error, err.Error())
 		return claims, "", status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
 	}
 
 	finalClaims := claims
-	oidcConfig := server.settings.OIDCConfig()
 	if oidcConfig != nil || server.settings.IsDexConfigured() {
-		updatedClaims, err := server.ssoClientApp.SetGroupsFromUserInfo(ctx, claims, util_session.SessionManagerClaimsIssuer)
+		updatedClaims, err := server.ssoClientApp.SetGroupsClaimFromEndpoint(ctx, claims, util_session.SessionManagerClaimsIssuer)
 		if err != nil {
 			return claims, "", status.Errorf(codes.Unauthenticated, "invalid session: %v", err)
 		}

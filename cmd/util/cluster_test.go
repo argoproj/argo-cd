@@ -92,6 +92,7 @@ func Test_newCluster(t *testing.T) {
 }
 
 func TestGetKubePublicEndpoint(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name             string
 		clusterInfo      *corev1.ConfigMap
@@ -174,6 +175,7 @@ func TestGetKubePublicEndpoint(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			objects := []runtime.Object{}
 			if tc.clusterInfo != nil {
 				objects = append(objects, tc.clusterInfo)

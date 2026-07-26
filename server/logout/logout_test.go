@@ -43,6 +43,7 @@ var (
 )
 
 func TestConstructLogoutURL(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name              string
 		logoutURL         string
@@ -81,6 +82,7 @@ func TestConstructLogoutURL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			constructedLogoutURL := constructLogoutURL(tt.logoutURL, tt.token, tt.logoutRedirectURL)
 			require.Equal(t, tt.expectedLogoutURL, constructedLogoutURL)
 		})
@@ -88,6 +90,7 @@ func TestConstructLogoutURL(t *testing.T) {
 }
 
 func TestHandlerConstructLogoutURL(t *testing.T) {
+	t.Parallel()
 	kubeClientWithDexConfig := fake.NewClientset(
 		&corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
@@ -281,7 +284,7 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 	settingsManagerWithOIDCConfigButNoURL := settings.NewSettingsManager(t.Context(), kubeClientWithOIDCConfigButNoURL, "default")
 
 	redisClient, closer := test.NewInMemoryRedis()
-	defer closer()
+	t.Cleanup(closer)
 	sessionManager := session.NewSessionManager(settingsManagerWithOIDCConfig, test.NewFakeProjLister(), "", nil, session.NewUserStateStorage(redisClient))
 
 	dexHandler := NewHandler(settingsManagerWithDexConfig, sessionManager, rootPath, baseHRef)
@@ -455,6 +458,7 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			tt.handler.ServeHTTP(tt.responseRecorder, tt.request)
 			if status := tt.responseRecorder.Code; status != http.StatusSeeOther {
 				if !tt.wantErr {
@@ -473,6 +477,7 @@ func TestHandlerConstructLogoutURL(t *testing.T) {
 }
 
 func TestHandlerRevokeToken(t *testing.T) {
+	t.Parallel()
 	kubeClient := fake.NewClientset(
 		&corev1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
@@ -503,10 +508,11 @@ func TestHandlerRevokeToken(t *testing.T) {
 
 	settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, "default")
 	redisClient, closer := test.NewInMemoryRedis()
-	defer closer()
+	t.Cleanup(closer)
 	sessionMgr := session.NewSessionManager(settingsMgr, test.NewFakeProjLister(), "", nil, session.NewUserStateStorage(redisClient))
 
 	t.Run("Token with jti calls revokeToken with jti value", func(t *testing.T) {
+		t.Parallel()
 		var revokedID string
 		var revokeCalled bool
 
@@ -537,6 +543,7 @@ func TestHandlerRevokeToken(t *testing.T) {
 	})
 
 	t.Run("Dex token without jti uses at_hash as fallback", func(t *testing.T) {
+		t.Parallel()
 		var revokedID string
 		var revokeCalled bool
 
@@ -566,6 +573,7 @@ func TestHandlerRevokeToken(t *testing.T) {
 	})
 
 	t.Run("Token with both jti and at_hash uses jti", func(t *testing.T) {
+		t.Parallel()
 		var revokedID string
 
 		handler := NewHandler(settingsMgr, sessionMgr, "", baseHRef)
@@ -593,6 +601,7 @@ func TestHandlerRevokeToken(t *testing.T) {
 	})
 
 	t.Run("Token with neither jti nor at_hash does not call revokeToken", func(t *testing.T) {
+		t.Parallel()
 		revokeCalled := false
 
 		handler := NewHandler(settingsMgr, sessionMgr, "", baseHRef)
@@ -619,6 +628,7 @@ func TestHandlerRevokeToken(t *testing.T) {
 	})
 
 	t.Run("Expired token skips revocation", func(t *testing.T) {
+		t.Parallel()
 		revokeCalled := false
 
 		handler := NewHandler(settingsMgr, sessionMgr, "", baseHRef)
@@ -646,6 +656,7 @@ func TestHandlerRevokeToken(t *testing.T) {
 	})
 
 	t.Run("Revocation timeout does not block logout", func(t *testing.T) {
+		t.Parallel()
 		handler := NewHandler(settingsMgr, sessionMgr, "", baseHRef)
 		handler.verifyToken = func(_ context.Context, _ string) (jwt.Claims, string, error) {
 			return jwt.MapClaims{
@@ -675,6 +686,7 @@ func TestHandlerRevokeToken(t *testing.T) {
 	})
 
 	t.Run("revokeToken error does not prevent redirect", func(t *testing.T) {
+		t.Parallel()
 		handler := NewHandler(settingsMgr, sessionMgr, "", baseHRef)
 		handler.verifyToken = func(_ context.Context, _ string) (jwt.Claims, string, error) {
 			return jwt.MapClaims{
