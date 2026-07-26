@@ -601,6 +601,44 @@ func TestGetPodInfo(t *testing.T) {
 		assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{Labels: map[string]string{"app": "guestbook"}}, info.NetworkingInfo)
 	})
 
+	t.Run("TestGetPodWithImageVolumeInfo", func(t *testing.T) {
+		t.Parallel()
+
+		pod := strToUnstructured(`
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    name: helm-guestbook-pod
+    namespace: default
+    ownerReferences:
+    - apiVersion: extensions/v1beta1
+      kind: ReplicaSet
+      name: helm-guestbook-rs
+    resourceVersion: "123"
+    labels:
+      app: guestbook
+  spec:
+    nodeName: minikube
+    containers:
+    - image: bar
+      resources:
+        requests:
+          memory: 128Mi
+      volumeMounts:
+      - name: artifact
+        mountPath: /artifact
+    volumes:
+    - name: artifact
+      image:
+        reference: quay.io/example/artifact:1.0.0
+        pullPolicy: IfNotPresent
+`)
+
+		info := &ResourceInfo{}
+		populateNodeInfo(pod, info, []string{})
+		assert.ElementsMatch(t, []string{"bar", "quay.io/example/artifact:1.0.0"}, info.Images)
+	})
+
 	t.Run("TestGetPodWithInitialContainerInfo", func(t *testing.T) {
 		t.Parallel()
 		pod := strToUnstructured(`
