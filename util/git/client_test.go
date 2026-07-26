@@ -327,7 +327,7 @@ func Test_nativeGitClient_Fetch_cleansOrphanedTempPacksOnError(t *testing.T) {
 
 	client := &nativeGitClient{root: root, repoURL: "file://" + badRemote, creds: NopCreds{}}
 
-	err := client.Fetch(t.Context(), "", 0)
+	err := client.Fetch(ctx, "", 0, false)
 	require.Error(t, err, "fetch against a missing remote must fail")
 	assert.NoFileExists(t, orphanPack, "orphaned temp pack should be cleaned up after a failed fetch")
 	assert.NoFileExists(t, orphanIdx, "orphaned temp index should be cleaned up after a failed fetch")
@@ -940,18 +940,18 @@ func Test_IsRevisionPresent_NoLazyFetch(t *testing.T) {
 	t.Cleanup(func() { os.RemoveAll(client.Root()) })
 
 	require.NoError(t, client.Init())
-	require.NoError(t, client.Fetch(revision, 0, false))
+	require.NoError(t, client.Fetch(ctx, revision, 0, false))
 
 	simulatePartialClone(ctx, t, client.Root(), revision)
 
 	// Commit objects are kept locally in partial clones, so this should be true
 	// without triggering any network request.
-	assert.True(t, client.IsRevisionPresent(revision))
+	assert.True(t, client.IsRevisionPresent(ctx, revision))
 
 	// Blob objects are removed in partial clones. Without GIT_NO_LAZY_FETCH=1,
 	// git cat-file would attempt a lazy-fetch from the promisor remote (which
 	// could hang without credentials). With the env var set, it returns immediately.
-	assert.False(t, client.IsRevisionPresent(blobSHA))
+	assert.False(t, client.IsRevisionPresent(ctx, blobSHA))
 }
 
 func Test_nativeGitClient_RevisionMetadata(t *testing.T) {
@@ -2218,7 +2218,7 @@ func Test_fetch_authPromptRewrite(t *testing.T) {
 	// NopCreds => no credentials injected, exactly like a repo URL that matched no secret.
 	client := &nativeGitClient{repoURL: srv.URL, root: tmp, creds: NopCreds{}}
 
-	err := client.fetch(ctx, "", 0)
+	err := client.fetch(ctx, "", 0, false)
 	require.Error(t, err)
 	// The raw git failure really happened (reproduction) ...
 	assert.Contains(t, err.Error(), "terminal prompts disabled", "expected to reproduce the raw git auth-prompt failure")
@@ -2252,7 +2252,7 @@ func checkoutCredsTestRepo(t *testing.T) (Client, string, *mockCreds) {
 	t.Cleanup(func() { os.RemoveAll(client.Root()) })
 
 	require.NoError(t, client.Init())
-	require.NoError(t, client.Fetch(revision, 0, false))
+	require.NoError(t, client.Fetch(ctx, revision, 0, false))
 
 	return client, revision, creds
 }
@@ -2268,7 +2268,7 @@ func Test_nativeGitClient_Checkout_NonPartialClone_SkipsCredentials(t *testing.T
 	// Reset after Init/Fetch so we measure only Checkout.
 	creds.environCalls = 0
 
-	_, err := client.Checkout(revision, false, true)
+	_, err := client.Checkout(t.Context(), revision, false, true)
 	require.NoError(t, err)
 
 	assert.Zero(t, creds.environCalls, "non-partial-clone Checkout must not invoke creds.Environ()")
@@ -2287,7 +2287,7 @@ func Test_nativeGitClient_Checkout_PartialClone_UsesCredentials(t *testing.T) {
 
 	creds.environCalls = 0
 
-	_, err := client.Checkout(revision, false, true)
+	_, err := client.Checkout(t.Context(), revision, false, true)
 	require.NoError(t, err)
 
 	assert.Positive(t, creds.environCalls, "partial-clone Checkout must call creds.Environ() so lazy blob fetches can authenticate")
@@ -2321,7 +2321,7 @@ func Test_nativeGitClient_FetchSparseBlobs(t *testing.T) {
 
 	err = client.Init()
 	require.NoError(t, err)
-	err = client.Fetch(revision, 0, false)
+	err = client.Fetch(t.Context(), revision, 0, false)
 	require.NoError(t, err)
 
 	// Simulate a partial clone (--filter=blob:none) state on disk.
@@ -2357,7 +2357,7 @@ func Test_nativeGitClient_FetchSparseBlobs(t *testing.T) {
 	}
 
 	// Checkout should work without needing lazy fetches
-	_, err = client.Checkout(revision, false, true)
+	_, err = client.Checkout(ctx, revision, false, true)
 	require.NoError(t, err)
 
 	// Verify the files exist in the working directory
@@ -2478,7 +2478,7 @@ func Test_nativeGitClient_Init_IdempotentAfterSparseCheckoutInit(t *testing.T) {
 	client, err := NewClientExt("file://"+remoteDir, localDir, NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 	require.NoError(t, client.Init())
-	require.NoError(t, client.Fetch("", 0, false))
+	require.NoError(t, client.Fetch(ctx, "", 0, false))
 
 	require.NoError(t, client.ConfigureSparseCheckout([]string{"subdir"}))
 
@@ -2505,13 +2505,13 @@ func Test_nativeGitClient_Fetch_PartialClone_PrunesStaleRefs(t *testing.T) {
 	client, err := NewClientExt("file://"+remoteDir, localDir, NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 	require.NoError(t, client.Init())
-	require.NoError(t, client.Fetch("", 0, true))
+	require.NoError(t, client.Fetch(ctx, "", 0, true))
 
 	// Replace the branch with a conflicting hierarchy on the remote.
 	require.NoError(t, runCmd(ctx, remoteDir, "git", "branch", "-D", "feature"))
 	require.NoError(t, runCmd(ctx, remoteDir, "git", "branch", "feature/sub"))
 
-	require.NoError(t, client.Fetch("", 0, true),
+	require.NoError(t, client.Fetch(ctx, "", 0, true),
 		"default-refspec partial fetch must prune the stale ref instead of wedging on the directory/file conflict")
 }
 
@@ -2534,7 +2534,7 @@ func Test_nativeGitClient_Init_SelfHealsCorruptRepo(t *testing.T) {
 	require.NoError(t, os.Remove(filepath.Join(localDir, ".git", "HEAD")))
 
 	require.NoError(t, client.Init(), "Init must re-initialize a corrupt workdir")
-	require.NoError(t, client.Fetch("", 0, false), "workdir must be usable after self-heal")
+	require.NoError(t, client.Fetch(ctx, "", 0, false), "workdir must be usable after self-heal")
 }
 
 // DisableSparseCheckout is called unconditionally by checkoutRevision for
@@ -2558,7 +2558,7 @@ func Test_nativeGitClient_DisableSparseCheckout(t *testing.T) {
 	client, err := NewClientExt("file://"+remoteDir, localDir, NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 	require.NoError(t, client.Init())
-	require.NoError(t, client.Fetch("", 0, false))
+	require.NoError(t, client.Fetch(ctx, "", 0, false))
 
 	// No-op on a never-sparse workdir: must not error and must not enable
 	// sparse-checkout as a side effect.
@@ -2575,7 +2575,7 @@ func Test_nativeGitClient_DisableSparseCheckout(t *testing.T) {
 	require.NoError(t, client.ConfigureSparseCheckout([]string{"subdir"}))
 	commitSHA, err := client.LsRemote("HEAD")
 	require.NoError(t, err)
-	_, err = client.Checkout(commitSHA, false, true)
+	_, err = client.Checkout(ctx, commitSHA, false, true)
 	require.NoError(t, err)
 	require.NoFileExists(t, filepath.Join(localDir, "other", "o.txt"))
 
@@ -2599,7 +2599,7 @@ func Test_nativeGitClient_HasLocalRef(t *testing.T) {
 	client, err := NewClientExt("file://"+remoteDir, localDir, NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 	require.NoError(t, client.Init())
-	require.NoError(t, client.Fetch("", 0, false))
+	require.NoError(t, client.Fetch(ctx, "", 0, false))
 
 	native := client.(*nativeGitClient)
 	assert.True(t, native.hasLocalRef(ctx, "refs/tags/v1.0.0"), "tag fetched with --tags should be locally present")
@@ -2639,7 +2639,7 @@ func Test_nativeGitClient_EnsureLocalTagRef_NoopWhenPresent(t *testing.T) {
 	client, err := NewClientExt("file://"+remoteDir, localDir, NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 	require.NoError(t, client.Init())
-	require.NoError(t, client.Fetch("", 0, false)) // brings the tag in
+	require.NoError(t, client.Fetch(ctx, "", 0, false)) // brings the tag in
 
 	native := client.(*nativeGitClient)
 	require.True(t, native.hasLocalRef(ctx, "refs/tags/v1.0.0"), "precondition: tag must be present")

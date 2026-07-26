@@ -128,7 +128,8 @@ export const RepoDetails = (props: {item: UnifiedRepo; save?: (params: NewHTTPSR
         username,
         password: '',
         bearerToken: repository?.bearerToken || '',
-        depth: repository?.depth || 0
+        depth: repository?.depth || 0,
+        sparsePaths: repository?.sparsePaths ? repository.sparsePaths.join(',') : ''
     };
 
     const baseUpdateParams = repository && {
@@ -150,7 +151,7 @@ export const RepoDetails = (props: {item: UnifiedRepo; save?: (params: NewHTTPSR
         useAzureWorkloadIdentity: repository.useAzureWorkloadIdentity || false,
         insecureOCIForceHttp: repository.insecureOCIForceHttp || false,
         depth: repository.depth || 0,
-        sparsePaths: repo.sparsePaths ? repo.sparsePaths.join(',') : ''
+        sparsePaths: repository.sparsePaths ? repository.sparsePaths.join(',') : ''
     };
 
     return (

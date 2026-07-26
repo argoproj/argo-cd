@@ -1180,7 +1180,7 @@ func TestPartialCloneFetch(t *testing.T) {
 	require.NoError(t, err)
 
 	// Perform partial fetch using consolidated Fetch method
-	err = client.Fetch("HEAD", 0, true)
+	err = client.Fetch(ctx, "HEAD", 0, true)
 	require.NoError(t, err)
 
 	// Verify that the repo was cloned with partial clone
@@ -1337,7 +1337,7 @@ func Test_nativeGitClient_Fetch_Combinations(t *testing.T) {
 			require.NoError(t, err)
 
 			// Perform fetch with specified parameters
-			err = client.Fetch("", tt.depth, tt.usePartialClone)
+			err = client.Fetch(ctx, "", tt.depth, tt.usePartialClone)
 			require.NoError(t, err, tt.description)
 
 			// Verify fetch succeeded by checking we can get HEAD
@@ -1391,14 +1391,14 @@ func Test_nativeGitClient_Fetch_PartialClone_WithCheckout(t *testing.T) {
 	require.NoError(t, err)
 
 	// Fetch with partial clone
-	err = client.Fetch("", 0, true)
+	err = client.Fetch(ctx, "", 0, true)
 	require.NoError(t, err)
 
 	// Checkout should trigger blob download on demand
 	commitSHA, err := client.LsRemote("HEAD")
 	require.NoError(t, err)
 
-	_, err = client.Checkout(commitSHA, false, true)
+	_, err = client.Checkout(ctx, commitSHA, false, true)
 	require.NoError(t, err)
 
 	// Verify file was checked out (blob downloaded on demand)
@@ -1437,7 +1437,7 @@ func Test_nativeGitClient_Fetch_ShallowAndPartial_Together(t *testing.T) {
 
 	// Fetch with both depth and partial clone
 	depth := int64(5)
-	err = client.Fetch("", depth, true)
+	err = client.Fetch(ctx, "", depth, true)
 	require.NoError(t, err)
 
 	// Verify it's both shallow and partial
@@ -1454,7 +1454,7 @@ func Test_nativeGitClient_Fetch_ShallowAndPartial_Together(t *testing.T) {
 	commitSHA, err := client.LsRemote("HEAD")
 	require.NoError(t, err)
 
-	_, err = client.Checkout(commitSHA, false, true)
+	_, err = client.Checkout(ctx, commitSHA, false, true)
 	require.NoError(t, err)
 
 	// Latest file should exist

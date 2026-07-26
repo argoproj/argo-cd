@@ -316,7 +316,6 @@ require (
 )
 
 require (
-	github.com/argoproj/argo-cd/gitops-engine v0.0.0-20260708145834-74d0f9207b67
 	github.com/go-openapi/runtime/server-middleware v0.32.6
 	k8s.io/streaming v0.36.1
 )
