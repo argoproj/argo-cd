@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/fake"
@@ -17,6 +18,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient/mocks"
 	service "github.com/argoproj/argo-cd/v3/util/notification/argocd"
+	servicemocks "github.com/argoproj/argo-cd/v3/util/notification/argocd/mocks"
 )
 
 const (
@@ -73,7 +75,7 @@ func TestInitGetVars(t *testing.T) {
 	}
 	emptyAppData := map[string]any{}
 
-	varsProvider, _ := initGetVars(argocdService, &config, &notificationsCm, &notificationsSecret)
+	varsProvider, _ := initGetVars(argocdService, nil, &config, &notificationsCm, &notificationsSecret)
 
 	t.Run("Vars provider serves Application data on app key", func(t *testing.T) {
 		t.Parallel()
@@ -154,7 +156,7 @@ func TestInitGetVarsAppProject(t *testing.T) {
 
 	config := api.Config{}
 	testDestination := services.Destination{Service: "webhook"}
-	varsProvider, _ := initGetVars(argocdService, &config, &notificationsCm, &notificationsSecret)
+	varsProvider, _ := initGetVars(argocdService, nil, &config, &notificationsCm, &notificationsSecret)
 
 	appData := map[string]any{
 		"spec": map[string]any{
@@ -185,4 +187,78 @@ func TestInitGetVarsAppProject(t *testing.T) {
 		_, exists := result["appProject"]
 		assert.True(t, exists)
 	})
+}
+
+// TestGetAppProjectForTemplateUsesCache proves that when an AppProjectGetter is
+// provided, the AppProject is read from the cache and no live API call is made.
+// The mock Service has no GetAppProject expectation configured, so it would
+// panic if getAppProjectForTemplate fell back to the live lookup.
+func TestGetAppProjectForTemplateUsesCache(t *testing.T) {
+	t.Parallel()
+
+	appData := map[string]any{
+		"spec": map[string]any{
+			"project": "my-project",
+		},
+		"metadata": map[string]any{
+			"namespace": testNamespace,
+			"name":      "my-app",
+		},
+	}
+
+	cachedProject := &unstructured.Unstructured{
+		Object: map[string]any{
+			"metadata": map[string]any{
+				"name":      "my-project",
+				"namespace": testNamespace,
+			},
+		},
+	}
+
+	var gotNamespace, gotName string
+	getter := func(namespace, name string) (*unstructured.Unstructured, error) {
+		gotNamespace, gotName = namespace, name
+		return cachedProject, nil
+	}
+
+	// A mock with no expectations: any live GetAppProject call fails the test.
+	mockService := servicemocks.NewService(t)
+
+	result := getAppProjectForTemplate(mockService, getter, appData)
+
+	require.NotNil(t, result)
+	assert.Equal(t, testNamespace, gotNamespace)
+	assert.Equal(t, "my-project", gotName)
+	projMeta, ok := result["metadata"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "my-project", projMeta["name"])
+	assert.Equal(t, testNamespace, projMeta["namespace"])
+	mockService.AssertNotCalled(t, "GetAppProject")
+}
+
+// TestGetAppProjectForTemplateCacheMiss proves that a cache miss returns nil
+// without falling back to a live API call.
+func TestGetAppProjectForTemplateCacheMiss(t *testing.T) {
+	t.Parallel()
+
+	appData := map[string]any{
+		"spec": map[string]any{
+			"project": "missing-project",
+		},
+		"metadata": map[string]any{
+			"namespace": testNamespace,
+			"name":      "my-app",
+		},
+	}
+
+	getter := func(_, _ string) (*unstructured.Unstructured, error) {
+		return nil, nil
+	}
+
+	mockService := servicemocks.NewService(t)
+
+	result := getAppProjectForTemplate(mockService, getter, appData)
+
+	assert.Nil(t, result)
+	mockService.AssertNotCalled(t, "GetAppProject")
 }

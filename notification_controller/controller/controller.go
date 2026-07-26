@@ -92,7 +92,8 @@ func NewController(
 	}
 	secretInformer := k8s.NewSecretInformer(k8sClient, notificationConfigNamespace, secretName)
 	configMapInformer := k8s.NewConfigMapInformer(k8sClient, notificationConfigNamespace, configMapName)
-	apiFactory := api.NewFactory(settings.GetFactorySettings(argocdService, secretName, configMapName, selfServiceNotificationEnabled), namespace, secretInformer, configMapInformer)
+	appProjectGetter := newAppProjectGetter(appProjInformer)
+	apiFactory := api.NewFactory(settings.GetFactorySettings(argocdService, appProjectGetter, secretName, configMapName, selfServiceNotificationEnabled), namespace, secretInformer, configMapInformer)
 
 	res := &notificationController{
 		secretInformer:    secretInformer,
@@ -196,6 +197,27 @@ func (c *notificationController) Init(ctx context.Context) error {
 
 func (c *notificationController) Run(ctx context.Context, processors int) {
 	c.ctrl.Run(processors, ctx.Done())
+}
+
+// newAppProjectGetter returns a settings.AppProjectGetter backed by the
+// AppProject informer cache so that notification template evaluation reads the
+// AppProject from the local cache instead of making a live API call on every
+// trigger evaluation.
+func newAppProjectGetter(appProjInformer cache.SharedIndexInformer) settings.AppProjectGetter {
+	return func(namespace, name string) (*unstructured.Unstructured, error) {
+		projObj, exists, err := appProjInformer.GetIndexer().GetByKey(fmt.Sprintf("%s/%s", namespace, name))
+		if err != nil {
+			return nil, err
+		}
+		if !exists {
+			return nil, nil
+		}
+		proj, ok := projObj.(*unstructured.Unstructured)
+		if !ok {
+			return nil, nil
+		}
+		return proj, nil
+	}
 }
 
 func getAppProj(app *unstructured.Unstructured, appProjInformer cache.SharedIndexInformer) *unstructured.Unstructured {
