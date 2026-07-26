@@ -4208,7 +4208,7 @@ func TestHandleRefreshAnnotation(t *testing.T) {
 		}
 		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
 
-		duration := ctrl.handleRefreshAnnotation(t.Context(), app.DeepCopy(), v1alpha1.AnnotationKeyRefresh, v1alpha1.AnnotationKeyRefreshTimestamp)
+		ctrl.handleRefreshAnnotation(t.Context(), app.DeepCopy(), v1alpha1.AnnotationKeyRefresh, v1alpha1.AnnotationKeyRefreshTimestamp)
 
 		patched, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
 		require.NoError(t, err)
@@ -4217,7 +4217,6 @@ func TestHandleRefreshAnnotation(t *testing.T) {
 		_, hasTS := patched.Annotations[v1alpha1.AnnotationKeyRefreshTimestamp]
 		assert.False(t, hasTS, "refresh-timestamp annotation should be removed")
 		assert.Equal(t, "value", patched.Annotations["other"], "unrelated annotations should be preserved")
-		assert.Positive(t, duration, "duration should reflect the patch call time")
 	})
 
 	t.Run("removes both hydrate annotations on success", func(t *testing.T) {
@@ -4229,7 +4228,7 @@ func TestHandleRefreshAnnotation(t *testing.T) {
 		}
 		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
 
-		duration := ctrl.handleRefreshAnnotation(t.Context(), app.DeepCopy(), v1alpha1.AnnotationKeyHydrate, v1alpha1.AnnotationKeyHydrateTimestamp)
+		ctrl.handleRefreshAnnotation(t.Context(), app.DeepCopy(), v1alpha1.AnnotationKeyHydrate, v1alpha1.AnnotationKeyHydrateTimestamp)
 
 		patched, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
 		require.NoError(t, err)
@@ -4238,7 +4237,6 @@ func TestHandleRefreshAnnotation(t *testing.T) {
 		_, hasTS := patched.Annotations[v1alpha1.AnnotationKeyHydrateTimestamp]
 		assert.False(t, hasTS, "hydrate-timestamp annotation should be removed")
 		assert.Equal(t, "value", patched.Annotations["other"], "unrelated annotations should be preserved")
-		assert.Positive(t, duration, "duration should reflect the patch call time")
 	})
 
 	t.Run("removes main annotation when timestamp annotation is absent", func(t *testing.T) {
@@ -4248,13 +4246,12 @@ func TestHandleRefreshAnnotation(t *testing.T) {
 		}
 		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
 
-		duration := ctrl.handleRefreshAnnotation(t.Context(), app.DeepCopy(), v1alpha1.AnnotationKeyRefresh, v1alpha1.AnnotationKeyRefreshTimestamp)
+		ctrl.handleRefreshAnnotation(t.Context(), app.DeepCopy(), v1alpha1.AnnotationKeyRefresh, v1alpha1.AnnotationKeyRefreshTimestamp)
 
 		patched, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
 		require.NoError(t, err)
 		_, hasRefresh := patched.Annotations[v1alpha1.AnnotationKeyRefresh]
 		assert.False(t, hasRefresh, "refresh annotation should be removed even without a timestamp companion")
-		assert.Positive(t, duration, "duration should reflect the patch call time")
 	})
 
 	t.Run("no-op when neither annotation is present", func(t *testing.T) {
@@ -4263,6 +4260,7 @@ func TestHandleRefreshAnnotation(t *testing.T) {
 		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 		var patchCalls int
 		fakeAppCs.PrependReactor("patch", "*", func(_ kubetesting.Action) (bool, runtime.Object, error) {
+			time.Sleep(1 * time.Millisecond)
 			patchCalls++
 			return false, nil, nil
 		})
@@ -4294,6 +4292,7 @@ func TestHandleRefreshAnnotation(t *testing.T) {
 			return true, appWithNewTimestamp, nil
 		})
 		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (bool, runtime.Object, error) {
+			time.Sleep(time.Millisecond)
 			patchCalls++
 			capturedPatches = append(capturedPatches, parsePatch(t, action))
 			return true, nil, unprocessableErr(app.Name)
@@ -4303,7 +4302,7 @@ func TestHandleRefreshAnnotation(t *testing.T) {
 
 		assert.Equal(t, 1, patchCalls, "should attempt the patch exactly once")
 		assert.Equal(t, 1, getCalls, "should read current app state to verify the timestamp change")
-		assert.Positive(t, duration, "duration should reflect the single (failed) patch call time")
+		assert.GreaterOrEqual(t, duration, time.Millisecond, "duration should reflect the single (failed) patch call time")
 		require.Len(t, capturedPatches, 1)
 		assert.Equal(t, []patchOp{
 			{Op: "test", Path: refreshTSPath, Value: ts1},
@@ -4330,6 +4329,7 @@ func TestHandleRefreshAnnotation(t *testing.T) {
 			return true, app.DeepCopy(), nil
 		})
 		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (bool, runtime.Object, error) {
+			time.Sleep(time.Millisecond)
 			patchCalls++
 			capturedPatches = append(capturedPatches, parsePatch(t, action))
 			if patchCalls == 1 {
@@ -4342,7 +4342,7 @@ func TestHandleRefreshAnnotation(t *testing.T) {
 
 		assert.Equal(t, 2, patchCalls, "should retry the cleanup patch once after a spurious 422")
 		assert.Equal(t, 1, getCalls, "should read current app state once to check the timestamp")
-		assert.Positive(t, duration, "duration should accumulate time from both patch calls")
+		assert.GreaterOrEqual(t, duration, 2*time.Millisecond, "duration should accumulate time from both patch calls")
 		require.Len(t, capturedPatches, 2)
 		expectedOps := []patchOp{
 			{Op: "test", Path: refreshTSPath, Value: ts1},
@@ -4370,6 +4370,7 @@ func TestHandleRefreshAnnotation(t *testing.T) {
 			return true, nil, errors.New("get failed")
 		})
 		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (bool, runtime.Object, error) {
+			time.Sleep(time.Millisecond)
 			patchCalls++
 			capturedPatches = append(capturedPatches, parsePatch(t, action))
 			return true, nil, unprocessableErr(app.Name)
@@ -4381,7 +4382,7 @@ func TestHandleRefreshAnnotation(t *testing.T) {
 		})
 		assert.Equal(t, 1, patchCalls, "should not retry after Get failure")
 		assert.Equal(t, 1, getCalls, "should have attempted Get once")
-		assert.Positive(t, duration, "duration should reflect the single (failed) patch call time")
+		assert.GreaterOrEqual(t, duration, time.Millisecond, "duration should reflect the single (failed) patch call time")
 		require.Len(t, capturedPatches, 1)
 		assert.Equal(t, []patchOp{
 			{Op: "test", Path: refreshTSPath, Value: ts1},
@@ -4407,6 +4408,7 @@ func TestHandleRefreshAnnotation(t *testing.T) {
 			return true, app, nil
 		})
 		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (bool, runtime.Object, error) {
+			time.Sleep(time.Millisecond)
 			patchCalls++
 			capturedPatches = append(capturedPatches, parsePatch(t, action))
 			return true, nil, errors.New("internal server error")
@@ -4416,7 +4418,7 @@ func TestHandleRefreshAnnotation(t *testing.T) {
 
 		assert.Equal(t, 1, patchCalls, "should not retry on a non-422 error")
 		assert.Equal(t, 0, getCalls, "should not Get on a non-422 error")
-		assert.Positive(t, duration, "duration should reflect the single (failed) patch call time")
+		assert.GreaterOrEqual(t, duration, time.Millisecond, "duration should reflect the single (failed) patch call time")
 		require.Len(t, capturedPatches, 1)
 		assert.Equal(t, []patchOp{
 			{Op: "test", Path: refreshTSPath, Value: ts1},
@@ -4442,6 +4444,7 @@ func TestHandleRefreshAnnotation(t *testing.T) {
 			return true, app, nil
 		})
 		fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (bool, runtime.Object, error) {
+			time.Sleep(time.Millisecond)
 			patchCalls++
 			capturedPatches = append(capturedPatches, parsePatch(t, action))
 			return true, nil, unprocessableErr(app.Name)
@@ -4451,7 +4454,7 @@ func TestHandleRefreshAnnotation(t *testing.T) {
 
 		assert.Equal(t, 1, patchCalls, "should not retry when orig had no timestamp annotation")
 		assert.Equal(t, 0, getCalls, "should not Get when the hasTimestamp guard is false")
-		assert.Positive(t, duration, "duration should reflect the single (failed) patch call time")
+		assert.GreaterOrEqual(t, duration, time.Millisecond, "duration should reflect the single (failed) patch call time")
 		require.Len(t, capturedPatches, 1)
 		assert.Equal(t, []patchOp{
 			{Op: "remove", Path: refreshPath},
