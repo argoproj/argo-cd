@@ -241,7 +241,8 @@ func TestTransForm(t *testing.T) {
 				},
 				testGenerators,
 				emptyTemplate(),
-				&applicationSetInfo, nil, nil)
+				&applicationSetInfo, nil, nil,
+			)
 
 			require.NoError(t, err)
 			assert.ElementsMatch(t, testCase.expected, results[0].Params)
@@ -466,7 +467,8 @@ func TestTransFormGoTemplate(t *testing.T) {
 				},
 				testGenerators,
 				emptyTemplate(),
-				&applicationSetInfo, nil, nil)
+				&applicationSetInfo, nil, nil,
+			)
 
 			require.NoError(t, err)
 			assert.ElementsMatch(t, testCase.expected, results[0].Params)
@@ -790,10 +792,10 @@ func TestInterpolateGeneratorValuesHandling(t *testing.T) {
 			Finalizers:  []string{},
 		},
 		Spec: argov1alpha1.ApplicationSpec{
-			IgnoreDifferences:      argov1alpha1.IgnoreDifferences{},
+			IgnoreDifferences:        argov1alpha1.IgnoreDifferences{},
 			IgnoreDuplicateResources: argov1alpha1.IgnoreDuplicateResources{},
-			Info:                   []argov1alpha1.Info{},
-			Sources:                argov1alpha1.ApplicationSources{},
+			Info:                     []argov1alpha1.Info{},
+			Sources:                  argov1alpha1.ApplicationSources{},
 		},
 	}
 	type args struct {
