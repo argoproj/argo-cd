@@ -649,6 +649,7 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	for image := range imagesSet {
 		res.Images = append(res.Images, image)
 	}
+	slices.Sort(res.Images)
 
 	// If the Pod carries {type:PodScheduled, reason:SchedulingGated}, set reason to 'SchedulingGated'.
 	for _, condition := range pod.Status.Conditions {
