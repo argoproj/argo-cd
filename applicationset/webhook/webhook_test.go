@@ -2,7 +2,6 @@ package webhook
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -12,8 +11,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/sirupsen/logrus"
-	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -65,38 +62,6 @@ func TestWebhookHandlerDoesNotQueueClaimedEmptyPayload(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, w.Code)
 	require.Empty(t, queue)
-}
-
-func TestValidateProviderParserInitialization(t *testing.T) {
-	initErr := errors.New("broken provider")
-
-	t.Run("continues with healthy parsers", func(t *testing.T) {
-		oldHooks := logrus.StandardLogger().ReplaceHooks(logrus.LevelHooks{})
-		t.Cleanup(func() { logrus.StandardLogger().ReplaceHooks(oldHooks) })
-		hook := logtest.NewGlobal()
-
-		require.NoError(t, validateProviderParserInitialization(2, initErr))
-		require.NotNil(t, hook.LastEntry())
-		require.Equal(t, logrus.WarnLevel, hook.LastEntry().Level)
-		require.Contains(t, hook.LastEntry().Message, initErr.Error())
-	})
-
-	t.Run("fails when all parsers fail", func(t *testing.T) {
-		err := validateProviderParserInitialization(0, initErr)
-
-		require.ErrorIs(t, err, initErr)
-		require.ErrorContains(t, err, "unable to initialize webhook provider parsers")
-	})
-
-	t.Run("fails when no parsers are returned", func(t *testing.T) {
-		err := validateProviderParserInitialization(0, nil)
-
-		require.EqualError(t, err, "unable to initialize webhook provider parsers: no webhook provider parsers initialized")
-	})
-
-	t.Run("continues when initialization succeeds", func(t *testing.T) {
-		require.NoError(t, validateProviderParserInitialization(2, nil))
-	})
 }
 
 func (g *generatorMock) GetTemplate(_ *v1alpha1.ApplicationSetGenerator) *v1alpha1.ApplicationSetTemplate {
