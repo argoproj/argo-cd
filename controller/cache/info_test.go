@@ -636,7 +636,7 @@ func TestGetPodInfo(t *testing.T) {
 
 		info := &ResourceInfo{}
 		populateNodeInfo(pod, info, []string{})
-		assert.ElementsMatch(t, []string{"bar", "quay.io/example/artifact:1.0.0"}, info.Images)
+		assert.Equal(t, []string{"bar", "quay.io/example/artifact:1.0.0"}, info.Images)
 	})
 
 	t.Run("TestGetPodWithInitialContainerInfo", func(t *testing.T) {
