@@ -272,6 +272,14 @@ func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkPa
 	// Remove fields from predicted live that are not managed by the provided manager
 	nonArgoFieldsSet := predictedLiveFieldSet.Difference(managerFieldsSet)
 
+	// Some ancestor paths in nonArgoFieldsSet may have manager-owned descendants
+	// that are absent from the set (e.g. fields under x-kubernetes-preserve-unknown-fields,
+	// where Kubernetes records only the leaf paths owned by a manager, not every
+	// intermediate container path). RemoveItems deletes a path's entire subtree
+	// once the path itself is present, so such ancestors must be excluded here to
+	// avoid deleting the manager-owned descendants along with them.
+	nonArgoFieldsSet = excludeManagerOwnedAncestors(nonArgoFieldsSet, managerFieldsSet)
+
 	// Compare the predicted live with the live resource
 	comparison, err := typedLive.Compare(typedPredictedLive)
 	if err != nil {
@@ -304,6 +312,32 @@ func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkPa
 		return nil, fmt.Errorf("error converting live typedValue: expected map got %T", plu)
 	}
 	return &unstructured.Unstructured{Object: pl}, nil
+}
+
+// excludeManagerOwnedAncestors removes any path from toRemove that has at
+// least one strict descendant present in managerFieldsSet, i.e. owned by the
+// manager. This is needed because a *fieldpath.Set can contain a path as a
+// member of an ancestor's set even when a descendant of that path is a
+// separate, distinct member of the manager's set: removing the ancestor would
+// otherwise drop the manager-owned descendant too. Paths in toRemove are
+// assumed to already exclude exact matches in managerFieldsSet (the caller
+// builds toRemove via Difference(managerFieldsSet)), so only strict
+// descendants need to be considered here.
+func excludeManagerOwnedAncestors(toRemove, managerFieldsSet *fieldpath.Set) *fieldpath.Set {
+	filtered := fieldpath.NewSet()
+	toRemove.Iterate(func(path fieldpath.Path) {
+		ownedSubtree := managerFieldsSet
+		for _, pe := range path {
+			ownedSubtree = ownedSubtree.WithPrefix(pe)
+			if ownedSubtree.Empty() {
+				break
+			}
+		}
+		if ownedSubtree.Empty() {
+			filtered.Insert(path)
+		}
+	})
+	return filtered
 }
 
 // filterOutCompositeKeyFields filters out fields that are part of composite keys in associative lists.
