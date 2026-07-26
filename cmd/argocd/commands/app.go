@@ -2326,14 +2326,7 @@ func checkAppWaitConditions(app *argoappv1.Application, watch watchOpts, selecte
 		}
 	}
 
-	// LastSuccessfulOperation is only populated after a successful hydration,
-	// so it can be nil while CurrentOperation is set. Guard against the nil
-	// dereference before comparing the two.
-	hydrationFinished := app.Status.SourceHydrator.CurrentOperation != nil &&
-		app.Status.SourceHydrator.LastSuccessfulOperation != nil &&
-		app.Status.SourceHydrator.CurrentOperation.Phase == argoappv1.HydrateOperationPhaseHydrated &&
-		app.Status.SourceHydrator.CurrentOperation.SourceHydrator.DeepEquals(app.Status.SourceHydrator.LastSuccessfulOperation.SourceHydrator) &&
-		app.Status.SourceHydrator.CurrentOperation.DrySHA == app.Status.SourceHydrator.LastSuccessfulOperation.DrySHA
+	hydrationFinished := appHydrationFinished(app)
 
 	if len(selectedResources) > 0 {
 		ready = true
@@ -2536,36 +2529,60 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 	app = appWithLock.GetApp()
 	_ = printFinalStatus(app)
 
-	// collect resources that have not yet reached the desired state to provide
-	// actionable information in the timeout error message
-	var pending []string
+	// Collect the state that kept the wait from completing so the timeout
+	// error carries actionable information.
+	hydrationFinished := appHydrationFinished(app)
 	if len(selectedResources) > 0 {
+		var pending []string
 		for _, state := range getResourceStates(app, selectedResources) {
-			if !checkResourceStatus(watch, state.Health, state.Status, app.Operation, false) {
-				pending = append(pending, fmt.Sprintf("%s/%s/%s (sync: %s, health: %s)", state.Group, state.Kind, state.Name, state.Status, state.Health))
+			if !checkResourceStatus(watch, state.Health, state.Status, app.Operation, hydrationFinished) {
+				pending = append(pending, fmt.Sprintf("%s (sync: %s, health: %s)", state.Key(), state.Status, state.Health))
 			}
 		}
-	} else {
-		for _, res := range app.Status.Resources {
-			healthStatus := ""
-			if res.Health != nil {
-				healthStatus = string(res.Health.Status)
-			}
-			if !checkResourceStatus(watch, healthStatus, string(res.Status), app.Operation, false) {
-				pending = append(pending, fmt.Sprintf("%s/%s/%s (sync: %s, health: %s)", res.Group, res.Kind, res.Name, res.Status, healthStatus))
-			}
+		if len(pending) > 0 {
+			return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q match desired state. resources not ready: %s", timeout, appName, formatPendingResources(pending))
 		}
+		return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q match desired state", timeout, appName)
 	}
 
-	if len(pending) > 0 {
-		const maxPending = 10
-		summary := strings.Join(pending, ", ")
-		if len(pending) > maxPending {
-			summary = strings.Join(pending[:maxPending], ", ") + fmt.Sprintf(", ... and %d more", len(pending)-maxPending)
+	// Without selected resources the wait condition is evaluated against the
+	// app-level aggregate status, which can differ from the individual
+	// resource statuses. Report the aggregate and list any not-ready
+	// resources (including hooks) as a hint.
+	detail := fmt.Sprintf("app sync status: %s, health status: %s", app.Status.Sync.Status, app.Status.Health.Status)
+	var pending []string
+	for _, state := range getResourceStates(app, nil) {
+		if !checkResourceStatus(watch, state.Health, state.Status, app.Operation, hydrationFinished) {
+			pending = append(pending, fmt.Sprintf("%s (sync: %s, health: %s)", state.Key(), state.Status, state.Health))
 		}
-		return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q match desired state. resources not ready: %s", timeout, appName, summary)
 	}
-	return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q match desired state", timeout, appName)
+	if len(pending) > 0 {
+		detail += ", resources not ready: " + formatPendingResources(pending)
+	}
+	return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q match desired state. %s", timeout, appName, detail)
+}
+
+// appHydrationFinished reports whether the app's current hydration operation
+// has completed successfully. LastSuccessfulOperation is only populated after
+// a successful hydration, so it can be nil while CurrentOperation is set.
+func appHydrationFinished(app *argoappv1.Application) bool {
+	return app.Status.SourceHydrator.CurrentOperation != nil &&
+		app.Status.SourceHydrator.LastSuccessfulOperation != nil &&
+		app.Status.SourceHydrator.CurrentOperation.Phase == argoappv1.HydrateOperationPhaseHydrated &&
+		app.Status.SourceHydrator.CurrentOperation.SourceHydrator.DeepEquals(app.Status.SourceHydrator.LastSuccessfulOperation.SourceHydrator) &&
+		app.Status.SourceHydrator.CurrentOperation.DrySHA == app.Status.SourceHydrator.LastSuccessfulOperation.DrySHA
+}
+
+// formatPendingResources builds a summary string for resources that have not
+// reached the desired state. If there are more than maxPending entries the
+// list is truncated and a count of the remaining items is appended.
+func formatPendingResources(pending []string) string {
+	// TODO: make the limit configurable via a command flag
+	const maxPending = 10
+	if len(pending) > maxPending {
+		return strings.Join(pending[:maxPending], ", ") + fmt.Sprintf(", ... and %d more", len(pending)-maxPending)
+	}
+	return strings.Join(pending, ", ")
 }
 
 // isContextCanceledErr returns true if the error is a context cancellation or deadline exceeded,

@@ -2302,45 +2302,206 @@ func (c *readyFakeAppServiceClient) Get(_ context.Context, _ *applicationpkg.App
 			Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
 		},
 	}, nil
-
-func TestWaitOnApplicationStatus_TimeoutErrorIncludesPendingResources(t *testing.T) {
-	// the fake app has resources that are Synced/Healthy but app-level sync is OutOfSync,
-	// so when watching for sync the timeout error should mention that the app hasn't synced
-	acdClient := &customAcdClient{&fakeAcdClient{}}
-	ctx := t.Context()
-	var selectResource []*v1alpha1.SyncOperationResource
-	watch := watchOpts{
-		sync:   true,
-		health: true,
-	}
-	watch = getWatchOpts(watch)
-
-	// channel closes immediately so waitOnApplicationStatus returns the timeout error
-	_, _, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "wide")
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "timed out")
-	// the individual resources are Synced/Healthy so they should not appear as pending,
-	// but the app-level sync status is OutOfSync so the error should still fire
 }
 
-func TestWaitOnApplicationStatus_TimeoutErrorListsNotReadyResources(t *testing.T) {
-	// the fake app has OutOfSync status at app level, individual resources are Synced/Healthy
-	// when we watch for sync with no selected resources, the error should fire because
-	// the app-level check fails (OutOfSync), even though individual resources look fine
-	acdClient := &customAcdClient{&fakeAcdClient{}}
-	ctx := t.Context()
-	watch := watchOpts{
-		sync: true,
-	}
-	watch = getWatchOpts(watch)
+// pendingAcdClient returns an application that is OutOfSync at the app level
+// with one not-ready resource, so wait timeouts exercise the pending-resource
+// reporting.
+type pendingAcdClient struct {
+	*fakeAcdClient
+}
 
-	_, _, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, nil, "wide")
+func (c *pendingAcdClient) WatchApplicationWithRetry(_ context.Context, _ string, _ string) chan *v1alpha1.ApplicationWatchEvent {
+	appEventsCh := make(chan *v1alpha1.ApplicationWatchEvent)
+	close(appEventsCh)
+	return appEventsCh
+}
+
+func (c *pendingAcdClient) NewApplicationClientOrDie() (io.Closer, applicationpkg.ApplicationServiceClient) {
+	return &fakeConnection{}, &pendingFakeAppServiceClient{}
+}
+
+func (c *pendingAcdClient) NewSettingsClientOrDie() (io.Closer, settingspkg.SettingsServiceClient) {
+	return &fakeConnection{}, &fakeSettingsServiceClient{}
+}
+
+type pendingFakeAppServiceClient struct {
+	fakeAppServiceClient
+}
+
+func (c *pendingFakeAppServiceClient) Get(_ context.Context, _ *applicationpkg.ApplicationQuery, _ ...grpc.CallOption) (*v1alpha1.Application, error) {
+	return &v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: "argocd",
+		},
+		Spec: v1alpha1.ApplicationSpec{
+			Project:     "default",
+			Destination: v1alpha1.ApplicationDestination{Server: "local", Namespace: "argocd"},
+			Source:      &v1alpha1.ApplicationSource{RepoURL: "test", TargetRevision: "master", Path: "/test"},
+		},
+		Status: v1alpha1.ApplicationStatus{
+			Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeOutOfSync},
+			Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusProgressing},
+			Resources: []v1alpha1.ResourceStatus{
+				{
+					Group:     "apps",
+					Kind:      "Deployment",
+					Namespace: "prod",
+					Name:      "api",
+					Status:    v1alpha1.SyncStatusCodeOutOfSync,
+					Health:    &v1alpha1.HealthStatus{Status: health.HealthStatusDegraded},
+				},
+				{
+					Kind:      "Service",
+					Namespace: "prod",
+					Name:      "web",
+					Status:    v1alpha1.SyncStatusCodeSynced,
+					Health:    &v1alpha1.HealthStatus{Status: health.HealthStatusHealthy},
+				},
+			},
+		},
+	}, nil
+}
+
+func TestWaitOnApplicationStatus_TimeoutErrorListsPendingResources(t *testing.T) {
+	// The app-level status is OutOfSync and one resource is
+	// OutOfSync/Degraded: the timeout error must report the aggregate status
+	// and list only the not-ready resource.
+	acdClient := &pendingAcdClient{&fakeAcdClient{}}
+	watch := getWatchOpts(watchOpts{sync: true, health: true})
+
+	_, _, err := waitOnApplicationStatus(t.Context(), acdClient, "app-name", 0, watch, nil, "wide")
 	require.Error(t, err)
 	errMsg := err.Error()
 	assert.Contains(t, errMsg, "timed out")
-	// since we check app-level sync (OutOfSync) but individual resources are Synced,
-	// no individual resources should appear as "not ready" in the error
+	assert.Contains(t, errMsg, "app sync status: OutOfSync, health status: Progressing")
+	assert.Contains(t, errMsg, "resources not ready: apps/Deployment/prod/api (sync: OutOfSync, health: Degraded)")
+	assert.NotContains(t, errMsg, "prod/web")
+}
+
+func TestWaitOnApplicationStatus_TimeoutErrorSelectedResources(t *testing.T) {
+	// With selected resources only the matching not-ready resources are
+	// reported; the app-level aggregate is not included.
+	acdClient := &pendingAcdClient{&fakeAcdClient{}}
+	selected := []*v1alpha1.SyncOperationResource{
+		{Group: "apps", Kind: "Deployment", Name: "api"},
+	}
+	watch := getWatchOpts(watchOpts{sync: true, health: true})
+
+	_, _, err := waitOnApplicationStatus(t.Context(), acdClient, "app-name", 0, watch, selected, "wide")
+	require.Error(t, err)
+	errMsg := err.Error()
+	assert.Contains(t, errMsg, "resources not ready: apps/Deployment/prod/api (sync: OutOfSync, health: Degraded)")
+	assert.NotContains(t, errMsg, "app sync status")
+}
+
+func TestWaitOnApplicationStatus_TimeoutErrorAppLevelWithoutPendingResources(t *testing.T) {
+	// The aggregate status can differ from the individual resource statuses
+	// (e.g. right after a spec change): the timeout error must still report
+	// the aggregate even when no individual resource is pending.
+	acdClient := &aggregatePendingAcdClient{&fakeAcdClient{}}
+	watch := getWatchOpts(watchOpts{sync: true})
+
+	_, _, err := waitOnApplicationStatus(t.Context(), acdClient, "app-name", 0, watch, nil, "wide")
+	require.Error(t, err)
+	errMsg := err.Error()
+	assert.Contains(t, errMsg, "app sync status: OutOfSync")
 	assert.NotContains(t, errMsg, "resources not ready")
+}
+
+// aggregatePendingAcdClient returns an application that is OutOfSync at the
+// app level while all individual resources are Synced/Healthy.
+type aggregatePendingAcdClient struct {
+	*fakeAcdClient
+}
+
+func (c *aggregatePendingAcdClient) WatchApplicationWithRetry(_ context.Context, _ string, _ string) chan *v1alpha1.ApplicationWatchEvent {
+	appEventsCh := make(chan *v1alpha1.ApplicationWatchEvent)
+	close(appEventsCh)
+	return appEventsCh
+}
+
+func (c *aggregatePendingAcdClient) NewApplicationClientOrDie() (io.Closer, applicationpkg.ApplicationServiceClient) {
+	return &fakeConnection{}, &aggregatePendingFakeAppServiceClient{}
+}
+
+func (c *aggregatePendingAcdClient) NewSettingsClientOrDie() (io.Closer, settingspkg.SettingsServiceClient) {
+	return &fakeConnection{}, &fakeSettingsServiceClient{}
+}
+
+type aggregatePendingFakeAppServiceClient struct {
+	fakeAppServiceClient
+}
+
+func (c *aggregatePendingFakeAppServiceClient) Get(_ context.Context, _ *applicationpkg.ApplicationQuery, _ ...grpc.CallOption) (*v1alpha1.Application, error) {
+	return &v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test",
+			Namespace: "argocd",
+		},
+		Spec: v1alpha1.ApplicationSpec{
+			Project:     "default",
+			Destination: v1alpha1.ApplicationDestination{Server: "local", Namespace: "argocd"},
+			Source:      &v1alpha1.ApplicationSource{RepoURL: "test", TargetRevision: "master", Path: "/test"},
+		},
+		Status: v1alpha1.ApplicationStatus{
+			Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeOutOfSync},
+			Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
+			Resources: []v1alpha1.ResourceStatus{
+				{
+					Kind:      "Service",
+					Namespace: "prod",
+					Name:      "web",
+					Status:    v1alpha1.SyncStatusCodeSynced,
+					Health:    &v1alpha1.HealthStatus{Status: health.HealthStatusHealthy},
+				},
+			},
+		},
+	}, nil
+}
+
+func TestFormatPendingResources(t *testing.T) {
+	tests := []struct {
+		name     string
+		pending  []string
+		expected string
+	}{
+		{
+			name:     "empty",
+			pending:  nil,
+			expected: "",
+		},
+		{
+			name:     "single resource",
+			pending:  []string{"apps/Deployment/prod/api (sync: OutOfSync, health: Degraded)"},
+			expected: "apps/Deployment/prod/api (sync: OutOfSync, health: Degraded)",
+		},
+		{
+			name:     "exactly ten resources",
+			pending:  makePendingResources(10),
+			expected: strings.Join(makePendingResources(10), ", "),
+		},
+		{
+			name:     "more than ten resources",
+			pending:  makePendingResources(13),
+			expected: strings.Join(makePendingResources(10), ", ") + ", ... and 3 more",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, formatPendingResources(tt.pending))
+		})
+	}
+}
+
+func makePendingResources(n int) []string {
+	res := make([]string, n)
+	for i := range res {
+		res[i] = fmt.Sprintf("apps/Deployment/ns/app-%d (sync: OutOfSync, health: Missing)", i)
+	}
+	return res
 }
 
 type customAcdClient struct {
