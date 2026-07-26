@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	httputil "github.com/argoproj/argo-cd/v3/util/http"
+	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 	util_session "github.com/argoproj/argo-cd/v3/util/session"
 
@@ -46,10 +48,30 @@ type terminalSession struct {
 	terminalOpts   *TerminalOptions
 }
 
-// getToken get auth token from web socket request
+// getToken extracts the auth token from a websocket request. Consistent with
+// the rest of the API server, a bearer token provided in the Authorization
+// header is preferred over the auth cookie when it passes jwtutil.IsValid.
+// This allows clients that authenticate with a bearer token (rather than a
+// cookie) to use the terminal endpoint.
 func getToken(r *http.Request) (string, error) {
-	cookies := r.Cookies()
-	return httputil.JoinCookies(common.AuthCookieName, cookies)
+	// Prefer the bearer token from the Authorization header, matching the
+	// behavior of the main API server. Only accept tokens that pass
+	// jwtutil.IsValid, consistent with server.getToken.
+	if auth := r.Header.Get("Authorization"); strings.HasPrefix(auth, "Bearer ") {
+		token := strings.TrimPrefix(auth, "Bearer ")
+		if jwtutil.IsValid(token) {
+			return token, nil
+		}
+	}
+	// Fall back to the auth cookie.
+	token, err := httputil.JoinCookies(common.AuthCookieName, r.Cookies())
+	if err == nil && jwtutil.IsValid(token) {
+		return token, nil
+	}
+	if err != nil {
+		return "", err
+	}
+	return "", fmt.Errorf("failed to retrieve cookie %s", common.AuthCookieName)
 }
 
 // newTerminalSession create terminalSession

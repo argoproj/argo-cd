@@ -88,6 +88,11 @@ export const SpinningIcon = ({color, qeId}: {color: string; qeId: string}) => {
     );
 };
 
+export function nameConfirmationError(entered: string, expected: string, emptyMessage: string, mismatchMessage: string): string | false {
+    if (entered === expected) return false;
+    return !entered ? emptyMessage : mismatchMessage;
+}
+
 export async function deleteApplication(appName: string, appNamespace: string, apis: ContextApis, application?: appModels.Application): Promise<boolean> {
     let confirmed = false;
 
@@ -163,7 +168,7 @@ export async function deleteApplication(appName: string, appNamespace: string, a
         ),
         {
             validate: vals => ({
-                applicationName: vals.applicationName !== appName && 'Enter the application name to confirm the deletion'
+                applicationName: nameConfirmationError(vals.applicationName, appName, 'Enter the application name to confirm the deletion', 'Application name does not match')
             }),
             submit: async (vals, _, close) => {
                 try {
@@ -210,7 +215,7 @@ export async function confirmSyncingAppOfApps(apps: appModels.Application[], api
         ),
         {
             validate: vals => ({
-                applicationName: vals.applicationName !== appNameList && 'Enter the application name(s) to confirm syncing'
+                applicationName: nameConfirmationError(vals.applicationName, appNameList, 'Enter the application name(s) to confirm syncing', 'Application name does not match')
             }),
             submit: async (_vals, _, close) => {
                 try {
@@ -604,7 +609,7 @@ export const deletePopup = async (
         {
             validate: vals =>
                 isManaged && {
-                    resourceName: vals.resourceName !== resource.name && 'Enter the resource name to confirm the deletion'
+                    resourceName: nameConfirmationError(vals.resourceName, resource.name, 'Enter the resource name to confirm the deletion', 'Resource name does not match')
                 },
             submit: async (vals, _, close) => {
                 const force = deleteOptions.option === 'force';
@@ -1937,6 +1942,35 @@ export function getAppUrl(app: appModels.AbstractApplication): string {
         return `${basePath}/${app.metadata.name}`;
     }
     return `${basePath}/${app.metadata.namespace}/${app.metadata.name}`;
+}
+
+export interface AppListLink {
+    /** Relative path for in-app navigation via ctx.navigation.goto. */
+    path: string;
+    /** Full base-href-prefixed href so native middle-click / right-click / status-bar URL preview work. */
+    href: string;
+    /** SPA navigation on a plain click; modifier-clicks fall through to the browser (open in new tab/window). */
+    onClick: (e: React.MouseEvent<HTMLAnchorElement>) => void;
+}
+
+// Builds the link target shared by every application / applicationset list row and tile.
+// `view` is the Application details view (e.g. 'tree'); AppSet pages don't support it, so
+// callers omit it there and the URL stays view-less.
+export function getAppListLink(ctx: ContextApis, app: appModels.AbstractApplication, view?: string): AppListLink {
+    const url = getAppUrl(app);
+    const path = `/${url}`;
+    const query = view ? {view} : {};
+    return {
+        path,
+        href: `${ctx.baseHref}${url}${view ? `?view=${encodeURIComponent(view)}` : ''}`,
+        onClick: (e: React.MouseEvent<HTMLAnchorElement>) => {
+            if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) {
+                return;
+            }
+            e.preventDefault();
+            ctx.navigation.goto(path, query, {event: e});
+        }
+    };
 }
 
 /** RollingSync step for display; backend uses -1 when no step matches the app's labels. */

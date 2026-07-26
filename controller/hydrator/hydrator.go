@@ -375,7 +375,7 @@ func (h *Hydrator) validateApplications(apps []*appv1.Application) (map[string]*
 		}
 		drySource := app.Spec.SourceHydrator.GetDrySource()
 		if !proj.IsSourcePermitted(drySource) {
-			errors[app.QualifiedName()] = fmt.Errorf("application repo %s is not permitted in project '%s'", drySource.RepoURL, proj.Name)
+			errors[app.QualifiedName()] = fmt.Errorf("application repo %s is not permitted in project '%s'", git.SanitizeRepoURL(drySource.RepoURL), proj.Name)
 			continue
 		}
 		projects[app.Spec.Project] = proj
@@ -392,7 +392,7 @@ func (h *Hydrator) validateApplications(apps []*appv1.Application) (map[string]*
 		}
 
 		if !proj.IsSourcePermitted(hydrateToSource) {
-			errors[app.QualifiedName()] = fmt.Errorf("destination repo %s is not permitted in project '%s'", hydrateToSource.RepoURL, proj.Name)
+			errors[app.QualifiedName()] = fmt.Errorf("destination repo %s is not permitted in project '%s'", git.SanitizeRepoURL(hydrateToSource.RepoURL), proj.Name)
 			continue
 		}
 
@@ -400,8 +400,8 @@ func (h *Hydrator) validateApplications(apps []*appv1.Application) (map[string]*
 		// TODO: normalize the path to avoid "path/.." from being treated as different from "."
 		destKey := hydrationDestKey{repoURL: hydrateToSource.RepoURL, path: destPath}
 		if appName, ok := uniquePaths[destKey]; ok {
-			errors[app.QualifiedName()] = fmt.Errorf("app %s hydrator uses the same destination: repo=%s, path=%s", appName, destKey.repoURL, destKey.path)
-			errors[appName] = fmt.Errorf("app %s hydrator uses the same destination: repo=%s, path=%s", app.QualifiedName(), destKey.repoURL, destKey.path)
+			errors[app.QualifiedName()] = fmt.Errorf("app %s hydrator uses the same destination: repo=%s, path=%s", appName, git.SanitizeRepoURL(destKey.repoURL), destKey.path)
+			errors[appName] = fmt.Errorf("app %s hydrator uses the same destination: repo=%s, path=%s", app.QualifiedName(), git.SanitizeRepoURL(destKey.repoURL), destKey.path)
 			continue
 		}
 		uniquePaths[destKey] = app.QualifiedName()
@@ -596,7 +596,7 @@ func (h *Hydrator) getManifests(ctx context.Context, app *appv1.Application, tar
 func (h *Hydrator) getRevisionMetadata(ctx context.Context, repoURL, project, revision string) (*appv1.RevisionMetadata, error) {
 	repo, err := h.repoGetter.GetRepository(ctx, repoURL, project)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get repository %q: %w", repoURL, err)
+		return nil, fmt.Errorf("failed to get repository %q: %w", git.SanitizeRepoURL(repoURL), err)
 	}
 
 	closer, repoService, err := h.repoClientset.NewRepoServerClient()

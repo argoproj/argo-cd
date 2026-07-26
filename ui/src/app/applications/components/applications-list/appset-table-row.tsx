@@ -1,13 +1,14 @@
 import {NotificationType, Tooltip} from 'argo-ui';
 import * as React from 'react';
 import Moment from 'react-moment';
-import {ContextApis} from '../../../shared/context';
+import {AuthSettingsCtx, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import * as AppUtils from '../utils';
 import {getApplicationLinkURL, getManagedByURL, getAppSetHealthStatus, MANAGED_BY_URL_INVALID_TEXT, MANAGED_BY_URL_INVALID_TOOLTIP} from '../utils';
 import {services} from '../../../shared/services';
 import {ViewPreferences} from '../../../shared/services';
 import {isValidManagedByURL} from '../../../shared/utils';
+import {CellLink} from './cell-link';
 
 export interface AppSetTableRowProps {
     appSet: models.ApplicationSet;
@@ -17,11 +18,15 @@ export interface AppSetTableRowProps {
 }
 
 export const AppSetTableRow = ({appSet, selected, pref, ctx}: AppSetTableRowProps) => {
+    const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
     const favList = pref.appList.favoritesAppList || [];
     const healthStatus = getAppSetHealthStatus(appSet);
     const linkInfo = getApplicationLinkURL(appSet, ctx.baseHref);
     const managedByURL = getManagedByURL(appSet);
     const managedByURLInvalid = !!managedByURL && !isValidManagedByURL(managedByURL);
+
+    // AppSet pages don't support the Application details `view` param, so the link is view-less.
+    const appSetLink = AppUtils.getAppListLink(ctx, appSet);
 
     const handleFavoriteToggle = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -50,13 +55,23 @@ export const AppSetTableRow = ({appSet, selected, pref, ctx}: AppSetTableRowProp
         if (linkInfo.isExternal) {
             window.open(linkInfo.url, '_blank', 'noopener,noreferrer');
         } else {
-            ctx.navigation.goto(`/${AppUtils.getAppUrl(appSet)}`);
+            ctx.navigation.goto(appSetLink.path);
         }
     };
 
     return (
         <div className={`argo-table-list__row applications-list__entry applications-list__entry--health-${healthStatus} ${selected ? 'applications-tiles__selected' : ''}`}>
-            <div className='row applications-list__table-row' onClick={e => ctx.navigation.goto(`/${AppUtils.getAppUrl(appSet)}`, {}, {event: e})}>
+            <div className='row applications-list__table-row'>
+                {/* The overlay anchor is the row's accessible link: a real link in tab order with an
+                    aria-label so screen readers announce the appset name once per row. It sits
+                    behind the row's interactive children (lifted via z-index in the SCSS) so the
+                    visible buttons and dropdowns still receive their own clicks. */}
+                <a
+                    className='applications-list__table-row__overlay-link'
+                    href={appSetLink.href}
+                    onClick={appSetLink.onClick}
+                    aria-label={AppUtils.appQualifiedName(appSet, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)}
+                />
                 {/* First column: Favorite, Kind, Name */}
                 <div className='columns small-4'>
                     <div className='applications-list__meta-column'>
@@ -91,7 +106,9 @@ export const AppSetTableRow = ({appSet, selected, pref, ctx}: AppSetTableRowProp
                                                 </Moment>
                                             </>
                                         }>
-                                        <span>{appSet.metadata.name}</span>
+                                        <a className='applications-list__table-row-name' href={appSetLink.href} onClick={appSetLink.onClick} tabIndex={-1}>
+                                            {appSet.metadata.name}
+                                        </a>
                                     </Tooltip>
                                     <button
                                         type='button'
@@ -107,9 +124,13 @@ export const AppSetTableRow = ({appSet, selected, pref, ctx}: AppSetTableRowProp
                     </div>
                 </div>
 
-                {/* Status column (takes remaining space since no Source/Destination for AppSets) */}
+                {/* Status column (takes remaining space since no Source/Destination for AppSets) —
+                    wrapped in CellLink so the status icon (which carries a `title` and is lifted
+                    above the overlay) navigates on click instead of being a dead zone. */}
                 <div className='columns small-8'>
-                    <AppUtils.HealthStatusIcon state={{status: healthStatus, message: ''}} /> <span>{healthStatus}</span>
+                    <CellLink href={appSetLink.href} onClick={appSetLink.onClick}>
+                        <AppUtils.HealthStatusIcon state={{status: healthStatus, message: ''}} /> <span>{healthStatus}</span>
+                    </CellLink>
                 </div>
             </div>
         </div>

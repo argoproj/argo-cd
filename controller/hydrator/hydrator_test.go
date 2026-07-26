@@ -17,7 +17,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 
 	commitclient "github.com/argoproj/argo-cd/v3/commitserver/apiclient"
 	commitservermocks "github.com/argoproj/argo-cd/v3/commitserver/apiclient/mocks"
