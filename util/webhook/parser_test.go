@@ -87,7 +87,7 @@ func TestDispatch(t *testing.T) {
 
 	assert.Equal(t, "payload", payload)
 	assert.Equal(t, WebhookProviderGitHub, provider)
-	assert.ErrorIs(t, err, expectedErr)
+	require.ErrorIs(t, err, expectedErr)
 	first.AssertExpectations(t)
 	first.AssertNotCalled(t, "Parse", mock.Anything, mock.Anything)
 	matching.AssertExpectations(t)
@@ -162,7 +162,7 @@ func TestNewProviderParsersContinuesAfterFailure(t *testing.T) {
 
 	parsers, err := newProviderParsers(WebhookConsumerApplication, factories)
 
-	assert.ErrorIs(t, err, expectedErr)
+	require.ErrorIs(t, err, expectedErr)
 	assert.Equal(t, []ProviderParser{healthy}, parsers)
 }
 
