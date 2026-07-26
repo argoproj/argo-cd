@@ -13,6 +13,7 @@ import (
 	"github.com/go-playground/webhooks/v6/gitlab"
 	gogsclient "github.com/gogits/go-gogs-client"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v3/util/settings"
@@ -52,60 +53,60 @@ func TestDispatchApplicationPushEvents(t *testing.T) {
 	}
 }
 
-type fakeProviderParser struct {
-	name       WebhookProvider
-	match      bool
-	payload    any
-	err        error
-	canCalls   int
-	parseCalls int
+type providerParserMock struct {
+	mock.Mock
 }
 
-func (p *fakeProviderParser) CanHandle(_ *http.Request) bool {
-	p.canCalls++
-	return p.match
+func (p *providerParserMock) CanHandle(r *http.Request) bool {
+	args := p.Called(r)
+	return args.Bool(0)
 }
 
-func (p *fakeProviderParser) Parse(_ *http.Request, _ WebhookConsumer) (any, error) {
-	p.parseCalls++
-	return p.payload, p.err
+func (p *providerParserMock) Parse(r *http.Request, consumer WebhookConsumer) (any, error) {
+	args := p.Called(r, consumer)
+	return args.Get(0), args.Error(1)
 }
 
-func (p *fakeProviderParser) Name() WebhookProvider {
-	return p.name
+func (p *providerParserMock) Name() WebhookProvider {
+	args := p.Called()
+	return args.Get(0).(WebhookProvider)
 }
 
 func TestDispatch(t *testing.T) {
 	expectedErr := errors.New("parse failed")
-	first := &fakeProviderParser{name: WebhookProviderGitLab}
-	matching := &fakeProviderParser{name: WebhookProviderGitHub, match: true, payload: "payload", err: expectedErr}
-	unreached := &fakeProviderParser{name: WebhookProviderGogs, match: true}
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", http.NoBody)
+	first := &providerParserMock{}
+	first.On("CanHandle", req).Return(false).Once()
+	matching := &providerParserMock{}
+	matching.On("CanHandle", req).Return(true).Once()
+	matching.On("Parse", req, WebhookConsumerApplication).Return("payload", expectedErr).Once()
+	matching.On("Name").Return(WebhookProviderGitHub).Once()
+	unreached := &providerParserMock{}
 
 	payload, provider, err := Dispatch([]ProviderParser{first, matching, unreached}, req, WebhookConsumerApplication)
 
 	assert.Equal(t, "payload", payload)
 	assert.Equal(t, WebhookProviderGitHub, provider)
 	assert.ErrorIs(t, err, expectedErr)
-	assert.Equal(t, 1, first.canCalls)
-	assert.Zero(t, first.parseCalls)
-	assert.Equal(t, 1, matching.canCalls)
-	assert.Equal(t, 1, matching.parseCalls)
-	assert.Zero(t, unreached.canCalls)
-	assert.Zero(t, unreached.parseCalls)
+	first.AssertExpectations(t)
+	first.AssertNotCalled(t, "Parse", mock.Anything, mock.Anything)
+	matching.AssertExpectations(t)
+	unreached.AssertNotCalled(t, "CanHandle", mock.Anything)
+	unreached.AssertNotCalled(t, "Parse", mock.Anything, mock.Anything)
 }
 
 func TestDispatchNoMatch(t *testing.T) {
-	parser := &fakeProviderParser{name: WebhookProviderGitHub}
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", http.NoBody)
+	parser := &providerParserMock{}
+	parser.On("CanHandle", req).Return(false).Once()
 
 	payload, provider, err := Dispatch([]ProviderParser{parser}, req, WebhookConsumerApplication)
 
 	require.NoError(t, err)
 	assert.Nil(t, payload)
 	assert.Empty(t, provider)
-	assert.Equal(t, 1, parser.canCalls)
-	assert.Zero(t, parser.parseCalls)
+	parser.AssertExpectations(t)
+	parser.AssertNotCalled(t, "Parse", mock.Anything, mock.Anything)
 }
 
 func TestNewProviderParsers(t *testing.T) {
@@ -141,7 +142,7 @@ func TestNewProviderParsers(t *testing.T) {
 
 func TestNewProviderParsersContinuesAfterFailure(t *testing.T) {
 	expectedErr := errors.New("broken provider")
-	healthy := &fakeProviderParser{name: WebhookProviderGitHub}
+	healthy := &providerParserMock{}
 	factories := []providerFactory{
 		{
 			name:      WebhookProviderGitLab,
@@ -167,7 +168,7 @@ func TestNewProviderParsersContinuesAfterFailure(t *testing.T) {
 
 func TestNewProviderParsersSkipsUnsupportedFactories(t *testing.T) {
 	unsupportedCalled := false
-	healthy := &fakeProviderParser{name: WebhookProviderGitHub}
+	healthy := &providerParserMock{}
 	factories := []providerFactory{
 		{
 			name:      WebhookProviderGogs,
