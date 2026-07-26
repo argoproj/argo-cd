@@ -4,7 +4,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestStartWorkerPoolProcessesAfterPanicAndShutsDown(t *testing.T) {
@@ -28,5 +28,5 @@ func TestStartWorkerPoolProcessesAfterPanicAndShutsDown(t *testing.T) {
 	})
 
 	waitGroup.Wait()
-	require.Equal(t, []string{"first", "last"}, processed)
+	assert.Equal(t, []string{"first", "last"}, processed)
 }

@@ -156,20 +156,20 @@ func TestGetPushEventInfo(t *testing.T) {
 			require.NoError(t, err)
 			require.NoError(t, json.Unmarshal(data, tt.payload))
 
-			require.Equal(t, &tt.expected, GetPushEventInfo(derefPushPayload(tt.payload)))
+			assert.Equal(t, &tt.expected, GetPushEventInfo(derefPushPayload(tt.payload)))
 		})
 	}
 }
 
 func TestGetPushEventInfoUnsupportedPayload(t *testing.T) {
-	require.Nil(t, GetPushEventInfo(struct{}{}))
+	assert.Nil(t, GetPushEventInfo(struct{}{}))
 }
 
 func TestGetPushEventInfoAzureDevOpsWithoutRefUpdates(t *testing.T) {
 	payload := azuredevops.GitPushEvent{}
 	payload.Resource.Repository.RemoteURL = "https://dev.azure.com/example/project/_git/repo"
 
-	require.Equal(t, &PushEventInfo{RepositoryURLs: []string{payload.Resource.Repository.RemoteURL}}, GetPushEventInfo(payload))
+	assert.Equal(t, &PushEventInfo{RepositoryURLs: []string{payload.Resource.Repository.RemoteURL}}, GetPushEventInfo(payload))
 }
 
 func derefPushPayload(payload any) any {

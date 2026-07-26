@@ -60,8 +60,8 @@ func TestWebhookHandlerDoesNotQueueClaimedEmptyPayload(t *testing.T) {
 
 	handler.Handler(w, req)
 
-	require.Equal(t, http.StatusOK, w.Code)
-	require.Empty(t, queue)
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Empty(t, queue)
 }
 
 func (g *generatorMock) GetTemplate(_ *v1alpha1.ApplicationSetGenerator) *v1alpha1.ApplicationSetTemplate {

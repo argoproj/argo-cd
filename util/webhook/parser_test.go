@@ -12,6 +12,7 @@ import (
 	"github.com/go-playground/webhooks/v6/github"
 	"github.com/go-playground/webhooks/v6/gitlab"
 	gogsclient "github.com/gogits/go-gogs-client"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v3/util/settings"
@@ -45,8 +46,8 @@ func TestDispatchApplicationPushEvents(t *testing.T) {
 
 			payload, provider, err := Dispatch(parsers, req, WebhookConsumerApplication)
 			require.NoError(t, err)
-			require.Equal(t, tt.provider, provider)
-			require.IsType(t, tt.payloadType, payload)
+			assert.Equal(t, tt.provider, provider)
+			assert.IsType(t, tt.payloadType, payload)
 		})
 	}
 }
@@ -83,15 +84,15 @@ func TestDispatch(t *testing.T) {
 
 	payload, provider, err := Dispatch([]ProviderParser{first, matching, unreached}, req, WebhookConsumerApplication)
 
-	require.Equal(t, "payload", payload)
-	require.Equal(t, WebhookProviderGitHub, provider)
-	require.ErrorIs(t, err, expectedErr)
-	require.Equal(t, 1, first.canCalls)
-	require.Zero(t, first.parseCalls)
-	require.Equal(t, 1, matching.canCalls)
-	require.Equal(t, 1, matching.parseCalls)
-	require.Zero(t, unreached.canCalls)
-	require.Zero(t, unreached.parseCalls)
+	assert.Equal(t, "payload", payload)
+	assert.Equal(t, WebhookProviderGitHub, provider)
+	assert.ErrorIs(t, err, expectedErr)
+	assert.Equal(t, 1, first.canCalls)
+	assert.Zero(t, first.parseCalls)
+	assert.Equal(t, 1, matching.canCalls)
+	assert.Equal(t, 1, matching.parseCalls)
+	assert.Zero(t, unreached.canCalls)
+	assert.Zero(t, unreached.parseCalls)
 }
 
 func TestDispatchNoMatch(t *testing.T) {
@@ -101,10 +102,10 @@ func TestDispatchNoMatch(t *testing.T) {
 	payload, provider, err := Dispatch([]ProviderParser{parser}, req, WebhookConsumerApplication)
 
 	require.NoError(t, err)
-	require.Nil(t, payload)
-	require.Empty(t, provider)
-	require.Equal(t, 1, parser.canCalls)
-	require.Zero(t, parser.parseCalls)
+	assert.Nil(t, payload)
+	assert.Empty(t, provider)
+	assert.Equal(t, 1, parser.canCalls)
+	assert.Zero(t, parser.parseCalls)
 }
 
 func TestNewProviderParsers(t *testing.T) {
@@ -133,7 +134,7 @@ func TestNewProviderParsers(t *testing.T) {
 			for _, parser := range parsers {
 				names = append(names, parser.Name())
 			}
-			require.Equal(t, tt.expected, names)
+			assert.Equal(t, tt.expected, names)
 		})
 	}
 }
@@ -160,8 +161,8 @@ func TestNewProviderParsersContinuesAfterFailure(t *testing.T) {
 
 	parsers, err := newProviderParsers(WebhookConsumerApplication, factories)
 
-	require.ErrorIs(t, err, expectedErr)
-	require.Equal(t, []ProviderParser{healthy}, parsers)
+	assert.ErrorIs(t, err, expectedErr)
+	assert.Equal(t, []ProviderParser{healthy}, parsers)
 }
 
 func TestNewProviderParsersSkipsUnsupportedFactories(t *testing.T) {
@@ -188,8 +189,8 @@ func TestNewProviderParsersSkipsUnsupportedFactories(t *testing.T) {
 	parsers, err := newProviderParsers(WebhookConsumerApplicationSet, factories)
 
 	require.NoError(t, err)
-	require.False(t, unsupportedCalled)
-	require.Equal(t, []ProviderParser{healthy}, parsers)
+	assert.False(t, unsupportedCalled)
+	assert.Equal(t, []ProviderParser{healthy}, parsers)
 }
 
 func TestProviderDisambiguation(t *testing.T) {
@@ -205,7 +206,7 @@ func TestProviderDisambiguation(t *testing.T) {
 		_, provider, err := Dispatch(parsers, req, WebhookConsumerApplication)
 
 		require.NoError(t, err)
-		require.Equal(t, WebhookProviderGogs, provider)
+		assert.Equal(t, WebhookProviderGogs, provider)
 	})
 
 	t.Run("Gogs is unknown for ApplicationSet", func(t *testing.T) {
@@ -218,8 +219,8 @@ func TestProviderDisambiguation(t *testing.T) {
 		payload, provider, err := Dispatch(parsers, req, WebhookConsumerApplicationSet)
 
 		require.NoError(t, err)
-		require.Nil(t, payload)
-		require.Empty(t, provider)
+		assert.Nil(t, payload)
+		assert.Empty(t, provider)
 	})
 
 	t.Run("GHCR package is not GitHub", func(t *testing.T) {
@@ -233,6 +234,6 @@ func TestProviderDisambiguation(t *testing.T) {
 		_, provider, err := Dispatch(parsers, req, WebhookConsumerApplication)
 
 		require.NoError(t, err)
-		require.Equal(t, WebhookProviderGHCR, provider)
+		assert.Equal(t, WebhookProviderGHCR, provider)
 	})
 }
