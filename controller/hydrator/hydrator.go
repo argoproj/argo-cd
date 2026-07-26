@@ -68,6 +68,9 @@ type Dependencies interface {
 	// PersistHydrationStatus persists the application status for the source hydrator.
 	PersistHydrationStatus(orig *appv1.Application, newStatus *appv1.SourceHydratorStatus)
 
+	// RemoveHydrationAnnotations removes the hydrate and hydrate-timestamp annotations.
+	RemoveHydrationAnnotations(orig *appv1.Application)
+
 	// AddHydrationQueueItem adds a hydration queue item to the queue. This is used to trigger the hydration process for
 	// a group of applications which are hydrating to the same repo and target branch.
 	AddHydrationQueueItem(key types.HydrationQueueKey)
@@ -111,6 +114,9 @@ func NewHydrator(dependencies Dependencies, statusRefreshTimeout time.Duration, 
 // ProcessAppHydrateQueueItem processes an application hydrate queue item. It checks whether the
 // application needs hydration and, if so, enqueues the deduped hydration key.
 //
+// The hydrate and hydrate-timestamp annotations are removed here only if hydration is not needed,
+// otherwise the annotations are removed after hydration process has finished.
+//
 // The per-app status update that marks the application as Hydrating is deliberately NOT done here.
 // It is performed by ProcessHydrationQueueItem, which gathers every application sharing the
 // hydration key and updates them together. Because the hydration workqueue dedups by key and never
@@ -138,10 +144,9 @@ func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 		// If the app is currently hydrating, we should not have a resolvedDryRevision
 		app.Status.SourceHydrator.LastComparedDryRevision = resolvedDryRevision
 		logCtx.WithField("lastComparedDryRevision", resolvedDryRevision).Debug("Updated last compared dry revision")
+		// Persist the only status change we might do here
+		h.dependencies.PersistHydrationStatus(origApp, &app.Status.SourceHydrator)
 	}
-
-	// Always persist to consume the hydrate annotation, even if hydration is not needed.
-	h.dependencies.PersistHydrationStatus(origApp, &app.Status.SourceHydrator)
 
 	// needsRefresh re-enqueues the hydration key for an app that was marked Hydrating on an earlier
 	// pass but whose StartedAt has aged past statusRefreshTimeout (typically because the hydration
@@ -155,6 +160,11 @@ func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 		h.dependencies.AddHydrationQueueItem(getHydrationQueueKey(app))
 	} else {
 		logCtx.WithField("reason", reason).Debug("Skipping hydration")
+		// Consume the hydrate annotation when hydration is not needed.
+		if reason != reasonHydrationOperationAlreadyInProgress {
+			// annotations are removed at the end of the running hydration
+			h.dependencies.RemoveHydrationAnnotations(origApp)
+		}
 	}
 
 	logCtx.Debug("Successfully processed app hydrate queue item")
@@ -223,6 +233,7 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKe
 			} else {
 				h.setAppHydratorError(app, genericError)
 			}
+			h.dependencies.RemoveHydrationAnnotations(app)
 		}
 		return
 	}
@@ -257,6 +268,7 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKe
 			} else {
 				h.setAppHydratorError(app, genericError)
 			}
+			h.dependencies.RemoveHydrationAnnotations(app)
 		}
 		return
 	}
@@ -282,6 +294,7 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKe
 			SourceHydrator: app.Status.SourceHydrator.CurrentOperation.SourceHydrator,
 		}
 		h.dependencies.PersistHydrationStatus(origApp, &app.Status.SourceHydrator)
+		h.dependencies.RemoveHydrationAnnotations(origApp)
 
 		// Request a refresh since we pushed a new commit.
 		err := h.dependencies.RequestAppRefresh(app.Name, app.Namespace)
@@ -638,6 +651,8 @@ func (h *Hydrator) newRevisionHasChanges(ctx context.Context, app *appv1.Applica
 	return hasChanges, resolvedRev, nil
 }
 
+const reasonHydrationOperationAlreadyInProgress = "hydration operation already in progress"
+
 // appNeedsHydration answers if application needs manifests hydrated. The third return value is the resolved dry
 // source revision from revision evaluation (empty if evaluation was skipped or failed).
 func (h *Hydrator) appNeedsHydration(ctx context.Context, app *appv1.Application) (needsHydration bool, reason string, resolvedDryRevision string) {
@@ -650,7 +665,7 @@ func (h *Hydrator) appNeedsHydration(ctx context.Context, app *appv1.Application
 	case app.Status.SourceHydrator.CurrentOperation == nil:
 		return true, "no previous hydrate operation", ""
 	case app.Status.SourceHydrator.CurrentOperation.Phase == appv1.HydrateOperationPhaseHydrating:
-		return false, "hydration operation already in progress", ""
+		return false, reasonHydrationOperationAlreadyInProgress, ""
 	case requested && hydrateType == appv1.HydrateTypeHard:
 		return true, "hard hydrate requested", ""
 	case !app.Spec.SourceHydrator.DeepEquals(app.Status.SourceHydrator.CurrentOperation.SourceHydrator):
