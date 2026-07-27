@@ -14,6 +14,7 @@ import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-p
 import {ApplicationsSyncPanel} from '../applications-sync-panel/applications-sync-panel';
 import * as AppUtils from '../utils';
 import {ApplicationsFilter, FilteredApp, getAppFilterResults} from './applications-filter';
+import {createMatcher} from './applications-list-search';
 import {AppsStatusBar} from './applications-status-bar';
 import {ApplicationsSummary} from './applications-summary';
 import {ApplicationsTable} from './applications-table';
@@ -23,6 +24,7 @@ import {FlexTopBar} from '../../../shared/components';
 import {ViewTypeSwitcher} from './view-type-switcher';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 import {useQuery, useObservableQuery} from '../../../shared/hooks/query';
+import {isInvalidRegex} from '../../../shared/utils';
 
 import './applications-list.scss';
 
@@ -184,7 +186,11 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
                                 .map(decodeURIComponent)
                                 .filter(item => !!item);
                         }
-                        return {...viewPref, page: parseInt(params.get('page') || '0', 10), search: params.get('search') || ''};
+                        return {
+                            ...viewPref,
+                            page: parseInt(params.get('page') || '0', 10),
+                            search: params.get('search') || ''
+                        };
                     })
                 )
             }>
@@ -193,7 +199,12 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
     );
 };
 
-function filterApplications(applications: models.Application[], pref: AppsListPreferences, search: string): {filteredApps: models.Application[]; filterResults: FilteredApp[]} {
+function filterApplications(
+    applications: models.Application[],
+    pref: AppsListPreferences,
+    search: string,
+    searchRegex: boolean
+): {filteredApps: models.Application[]; filterResults: FilteredApp[]} {
     const processedApps = applications.map(app => {
         let isAppOfAppsPattern = false;
         if (app.status.summary?.isAppOfApps === true) {
@@ -202,12 +213,11 @@ function filterApplications(applications: models.Application[], pref: AppsListPr
         return {...app, isAppOfAppsPattern};
     });
     const filterResults = getAppFilterResults(processedApps, pref);
+    const matchesSearch = createMatcher(search, searchRegex);
 
     return {
         filterResults,
-        filteredApps: filterResults.filter(
-            app => (search === '' || app.metadata.name.includes(search) || app.metadata.namespace.includes(search)) && Object.values(app.filterResult).every(val => val)
-        )
+        filteredApps: filterResults.filter(app => matchesSearch(app.metadata.name, app.metadata.namespace) && Object.values(app.filterResult).every(val => val))
     };
 }
 
@@ -219,8 +229,8 @@ function tryJsonParse(input: string) {
     }
 }
 
-const ApplicationsListSearchBar = (props: {content: string; ctx: ContextApis; apps: models.Application[]}) => {
-    const {content, ctx, apps} = {...props};
+const ApplicationsListSearchBar = (props: {content: string; searchRegex: boolean; ctx: ContextApis; apps: models.Application[]}) => {
+    const {content, searchRegex, ctx, apps} = props;
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
 
     const query = new URLSearchParams(window.location.search);
@@ -230,8 +240,9 @@ const ApplicationsListSearchBar = (props: {content: string; ctx: ContextApis; ap
         <SearchBar
             value={content || ''}
             onChange={value => ctx.navigation.goto('.', {search: value}, {replace: true})}
-            placeholder='Search applications...'
+            placeholder={searchRegex ? 'Regex search (e.g. ^foo-.*-prod$)' : 'Search applications...'}
             disableKeyboardShortcuts={!!appInput}
+            regexEnabled={searchRegex}
             autocomplete={{
                 items: apps.map(app => AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)),
                 filterSuggestions: true,
@@ -262,11 +273,29 @@ interface ApplicationsToolbarProps {
 }
 
 const ApplicationsToolbar: React.FC<ApplicationsToolbarProps> = ({applications, pref, ctx, healthBarPrefs}) => {
-    const query = useQuery();
+    const regexInvalid = pref.searchRegex && isInvalidRegex(pref.search);
+
+    const regexToggleClass = `applications-list__regex-toggle argo-button argo-button--base${pref.searchRegex ? '' : '-o'}${
+        regexInvalid ? ' applications-list__regex-toggle--invalid' : ''
+    }`;
 
     return (
-        <React.Fragment key='app-list-tools'>
-            <ApplicationsListSearchBar content={query.get('search')} apps={applications} ctx={ctx} />
+        <div className='applications-list__toolbar-controls' key='app-list-tools'>
+            <ApplicationsListSearchBar content={pref.search} searchRegex={pref.searchRegex} apps={applications} ctx={ctx} />
+            <Tooltip content={pref.searchRegex ? (regexInvalid ? 'Invalid regex pattern' : 'Regex search enabled, click to switch to plain text') : 'Click to enable regex search'}>
+                <button
+                    type='button'
+                    aria-label='Toggle regex search'
+                    aria-pressed={pref.searchRegex}
+                    className={regexToggleClass}
+                    onClick={() => {
+                        services.viewPreferences.updatePreferences({
+                            appList: {...pref, searchRegex: !pref.searchRegex}
+                        });
+                    }}>
+                    .*
+                </button>
+            </Tooltip>
             <Tooltip content='Toggle Health Status Bar'>
                 <button
                     className={`applications-list__accordion argo-button argo-button--base${healthBarPrefs.showHealthStatusBar ? '-o' : ''}`}
@@ -286,7 +315,7 @@ const ApplicationsToolbar: React.FC<ApplicationsToolbarProps> = ({applications, 
                     <i className='fas fa-ruler-horizontal' />
                 </button>
             </Tooltip>
-        </React.Fragment>
+        </div>
     );
 };
 
@@ -399,7 +428,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                             };
 
                                             const apps = applications as models.Application[];
-                                            const {filteredApps, filterResults} = filterApplications(apps, pref, pref.search);
+                                            const {filteredApps, filterResults} = filterApplications(apps, pref, pref.search, pref.searchRegex);
 
                                             return (
                                                 <React.Fragment>

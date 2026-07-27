@@ -91,5 +91,11 @@
                 color: $argo-color-gray-6;
             }
         }
+        &--regex {
+            border-color: $argo-color-teal-5 !important;
+        }
+        &--regex-invalid {
+            border-color: $argo-failed-color !important;
+        }
     }
 }

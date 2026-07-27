@@ -20,8 +20,8 @@ concurrency:
 jobs:
   validate:
     permissions:
-      contents: read
-      pull-requests: read
+      contents: read # to check out the repo
+      pull-requests: read # to read PR title
     name: Validate PR Title
     runs-on: ubuntu-24.04
     steps:

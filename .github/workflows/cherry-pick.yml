@@ -6,10 +6,12 @@ on:
       - master
     types: ["labeled", "closed"]
 
+permissions: {}
+
 env:
   # a workaround to disable harden runner
   STEP_SECURITY_HARDEN_RUNNER: ${{ vars.disable_harden_runner }}
-    
+
 jobs:
   find-labels:
     name: Find Cherry Pick Labels
@@ -31,18 +33,22 @@ jobs:
       - name: Extract cherry-pick labels
         id: extract-labels
         run: |
-          if [[ "${{ github.event.action }}" == "labeled" ]]; then
+          if [[ "${GITHUB_EVENT_ACTION}" == "labeled" ]]; then
             # Label was just added - use it directly
-            LABEL_NAME="${{ github.event.label.name }}"
+            LABEL_NAME="${GITHUB_EVENT_LABEL_NAME}"
             VERSION="${LABEL_NAME#cherry-pick/}"
             CHERRY_PICK_DATA='[{"label":"'$LABEL_NAME'","version":"'$VERSION'"}]'
           else
             # PR was closed - find all cherry-pick labels
-            CHERRY_PICK_DATA=$(echo '${{ toJSON(github.event.pull_request.labels) }}' | jq -c '[.[] | select(.name | startswith("cherry-pick/")) | {label: .name, version: (.name | sub("cherry-pick/"; ""))}]')
+            CHERRY_PICK_DATA=$(echo "${PR_LABELS_JSON}" | jq -c '[.[] | select(.name | startswith("cherry-pick/")) | {label: .name, version: (.name | sub("cherry-pick/"; ""))}]')
           fi
 
           echo "labels=$CHERRY_PICK_DATA" >> "$GITHUB_OUTPUT"
           echo "Found cherry-pick data: $CHERRY_PICK_DATA"
+        env:
+          GITHUB_EVENT_ACTION: ${{ github.event.action }}
+          GITHUB_EVENT_LABEL_NAME: ${{ github.event.label.name }}
+          PR_LABELS_JSON: ${{ toJSON(github.event.pull_request.labels) }}
 
   cherry-pick:
     name: Cherry Pick
