@@ -1341,6 +1341,33 @@ func TestGetPodInfo(t *testing.T) {
 			{Name: common.PodRequestsMEM, Value: "0"},
 		}, info.Info)
 	})
+
+	t.Run("TestGetPodInfoWithImageVolume", func(t *testing.T) {
+		t.Parallel()
+		pod := strToUnstructured(`
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    name: pod-with-image-volume
+    namespace: default
+    labels:
+      app: guestbook
+  spec:
+    nodeName: minikube
+    containers:
+    - name: app
+      image: nginx:latest
+    volumes:
+    - name: data
+      image:
+        reference: registry.example.com/data-image:v1
+`)
+		info := &ResourceInfo{}
+		populateNodeInfo(pod, info, []string{})
+		assert.Contains(t, info.Images, "nginx:latest")
+		assert.Contains(t, info.Images, "registry.example.com/data-image:v1")
+		assert.Len(t, info.Images, 2)
+	})
 }
 
 func TestGetNodeInfo(t *testing.T) {
