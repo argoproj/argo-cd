@@ -675,6 +675,8 @@ kubectl -n argocd annotate secret mycluster-secret argocd.argoproj.io/skip-recon
 
 ### EKS
 
+`argocd-k8s-auth` accepts a `--verbose` flag that writes auth-flow troubleshooting details to stderr while keeping the JSON token on stdout. Verbose output may include internal details such as cluster names and role names. Full IAM role ARNs are redacted to the role path/name. Avoid enabling `--verbose` in environments where stderr is broadly collected if those details must stay private.
+
 EKS cluster secret example using argocd-k8s-auth and [IRSA](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html) and [Pod Identity](https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html):
 
 ```yaml

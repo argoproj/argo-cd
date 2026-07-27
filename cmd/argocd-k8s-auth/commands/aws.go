@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"os"
 	"strconv"
 	"time"
 
@@ -44,16 +43,16 @@ func newAWSCommand() *cobra.Command {
 	command := &cobra.Command{
 		Use: "aws",
 		Run: func(c *cobra.Command, _ []string) {
-			verbose, _ := c.Flags().GetBool("verbose")
-			ctx := contextWithVerbose(c.Context(), verbose)
-			verboseLog(ctx, "argocd-k8s-auth aws: cluster-name=%q role-arn=%q profile=%q", clusterName, roleARN, profile)
+			ctx, err := contextWithVerboseFromCmd(c)
+			errors.CheckError(err)
+			verboseLog(ctx, "argocd-k8s-auth aws: cluster-name=%q role-arn=%q profile=%q", clusterName, redactARN(roleARN), profile)
 
 			presignedURLString, err := getSignedRequestWithRetry(ctx, time.Minute, 5*time.Second, clusterName, roleARN, profile, getSignedRequest)
 			errors.CheckError(err)
 			token := v1Prefix + base64.RawURLEncoding.EncodeToString([]byte(presignedURLString))
 			// Set token expiration to 1 minute before the presigned URL expires for some cushion
 			tokenExpiration := time.Now().Local().Add(presignedURLExpiration - 1*time.Minute)
-			_, _ = fmt.Fprint(os.Stdout, formatJSON(token, tokenExpiration))
+			_, _ = fmt.Fprint(c.OutOrStdout(), formatJSON(token, tokenExpiration))
 		},
 	}
 	command.Flags().StringVar(&clusterName, "cluster-name", "", "AWS Cluster name")
@@ -111,7 +110,7 @@ func getSignedRequestWithConfig(ctx context.Context, clusterName, roleARN string
 	// See kubernetes-sigs/aws-iam-authenticator pkg/token/token.go GetWithSTS().
 	client := sts.NewFromConfig(cfg)
 	if roleARN != "" {
-		verboseLog(ctx, "argocd-k8s-auth aws: assuming role %q", roleARN)
+		verboseLog(ctx, "argocd-k8s-auth aws: assuming role %q", redactARN(roleARN))
 		appCreds := stscreds.NewAssumeRoleProvider(client, roleARN)
 		cfg.Credentials = aws.NewCredentialsCache(appCreds)
 		client = sts.NewFromConfig(cfg)
