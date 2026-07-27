@@ -59,6 +59,18 @@ func (s *SourceIntegrity) CacheKey() string {
 	return s.String()
 }
 
+// ConfiguredMethods returns the list of names of methods that are configured for the SourceIntegrity.
+func (s *SourceIntegrity) ConfiguredMethods() []string {
+	methods := make([]string, 0)
+	if s == nil {
+		return methods
+	}
+	if s.Git != nil {
+		methods = append(methods, "GIT/GPG")
+	}
+	return methods
+}
+
 // SourceIntegrityCheckResult represents a conclusion of the SourceIntegrity evaluation.
 // Each check performed on a source(es), holds a check item representing all checks performed.
 type SourceIntegrityCheckResult struct {

@@ -2,7 +2,10 @@ package commands
 
 import (
 	"bytes"
+	"fmt"
 	"io"
+	"regexp"
+	"strings"
 	"testing"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -12,6 +15,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
+	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
 	projectpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
 	projectmocks "github.com/argoproj/argo-cd/v3/pkg/apiclient/project/mocks"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -251,6 +255,110 @@ func Test_modifyAllowClusterResourceList(t *testing.T) {
 			result, _ := modifyClusterResourcesList(&list, tt.add, "", tt.group, tt.kind, tt.resourceName)
 			assert.Equal(t, tt.expectedResult, result)
 			assert.Equal(t, tt.expectedList, list)
+		})
+	}
+}
+
+func dummySIProject(name string, si *v1alpha1.SourceIntegrity, sk []v1alpha1.SignatureKey) v1alpha1.AppProject { // nolint:staticcheck
+	return v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+		},
+		Spec: v1alpha1.AppProjectSpec{
+			Description:     "No description",
+			SourceIntegrity: si,
+			SignatureKeys:   sk,
+		},
+	}
+}
+
+func Test_projList_SignatureKeyWarnings(t *testing.T) {
+	policy := &v1alpha1.SourceIntegrityGitPolicy{
+		Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{
+			{
+				URL: "*",
+			},
+		},
+		GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
+			Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead,
+			Keys: []string{"ABCD1234ABCD1234"},
+		},
+	}
+
+	sourceIntegrity := &v1alpha1.SourceIntegrity{
+		Git: &v1alpha1.SourceIntegrityGit{
+			Policies: []*v1alpha1.SourceIntegrityGitPolicy{
+				policy,
+			},
+		},
+	}
+
+	signatureKeys := []v1alpha1.SignatureKey{ // nolint:staticcheck
+		{
+			KeyID: "ABCD1234ABCD1234",
+		},
+	}
+
+	getExpectedOutput := func(projectName string, description string, expectedSourceIntegrity string) string {
+		header := "NAME\tDESCRIPTION\tDESTINATIONS\tSOURCES\tCLUSTER-RESOURCE-WHITELIST\tNAMESPACE-RESOURCE-BLACKLIST\tSOURCE-INTEGRITY\tORPHANED-RESOURCES\tDESTINATION-SERVICE-ACCOUNTS"
+		content := fmt.Sprintf("%s\t%s\t<none>\t<none>\t<none>\t<none>\t%s\tdisabled\t<none>", projectName, description, expectedSourceIntegrity)
+		return fmt.Sprintf("%s\n%s\n", header, content)
+	}
+
+	tests := []struct {
+		name             string
+		projects         []v1alpha1.AppProject
+		expectedOutput   string
+		expectedWarnings []string
+	}{
+		{
+			name:             "SourceIntegrity is empty, no warnings",
+			projects:         []v1alpha1.AppProject{dummySIProject("empty-si", nil, []v1alpha1.SignatureKey{})}, // nolint:staticcheck
+			expectedOutput:   getExpectedOutput("empty-si", "No description", "<none>"),
+			expectedWarnings: []string{},
+		},
+		{
+			name:             "Project has Git SourceIntegrity, no warnings",
+			projects:         []v1alpha1.AppProject{dummySIProject("git-si", sourceIntegrity, []v1alpha1.SignatureKey{})}, // nolint:staticcheck
+			expectedOutput:   getExpectedOutput("git-si", "No description", "GIT/GPG"),
+			expectedWarnings: []string{},
+		},
+		{
+			name:           "Project has SignatureKeys, warning",
+			projects:       []v1alpha1.AppProject{dummySIProject("signature-keys", nil, signatureKeys)},
+			expectedOutput: getExpectedOutput("signature-keys", "No description", "GIT/GPG"), // SignatureKeys are effectively Git + GPG
+			expectedWarnings: []string{
+				"Warning: Project signature-keys uses deprecated SignatureKeys. Use SourceIntegrity instead.\n",
+			},
+		},
+		{
+			name:           "Project has both Git SourceIntegrity and SignatureKeys, warning",
+			projects:       []v1alpha1.AppProject{dummySIProject("git-si", sourceIntegrity, signatureKeys)},
+			expectedOutput: getExpectedOutput("git-si", "No description", "GIT/GPG"),
+			expectedWarnings: []string{
+				"Warning: Project git-si uses deprecated SignatureKeys. Use SourceIntegrity instead.\n",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			projects := mockProjectClient(t)
+			projects.On("List", mock.Anything, mock.Anything).Return(&v1alpha1.AppProjectList{Items: tt.projects}, nil)
+
+			var errOutput string // captured via cobra.Command.ErrOrStderr()
+			out, err := captureOutput(func() error {
+				cmd := NewProjectListCommand(&argocdclient.ClientOptions{})
+				_, errOut, err := runCmd(t, cmd)
+				errOutput = errOut
+				return err
+			})
+			require.NoError(t, err)
+
+			tabbedOut := regexp.MustCompile(" {2,}").ReplaceAllString(out, "\t")
+
+			assert.Equal(t, tt.expectedOutput, tabbedOut)
+			assert.Equal(t, strings.Join(tt.expectedWarnings, "\n"), errOutput)
 		})
 	}
 }

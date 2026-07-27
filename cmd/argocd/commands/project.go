@@ -874,7 +874,7 @@ func printProjectNames(projects []v1alpha1.AppProject) {
 // Print table of project info
 func printProjectTable(projects []v1alpha1.AppProject) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprint(w, "NAME\tDESCRIPTION\tDESTINATIONS\tSOURCES\tCLUSTER-RESOURCE-WHITELIST\tNAMESPACE-RESOURCE-BLACKLIST\tSIGNATURE-KEYS\tORPHANED-RESOURCES\tDESTINATION-SERVICE-ACCOUNTS\n")
+	fmt.Fprint(w, "NAME\tDESCRIPTION\tDESTINATIONS\tSOURCES\tCLUSTER-RESOURCE-WHITELIST\tNAMESPACE-RESOURCE-BLACKLIST\tSOURCE-INTEGRITY\tORPHANED-RESOURCES\tDESTINATION-SERVICE-ACCOUNTS\n")
 	for _, p := range projects {
 		printProjectLine(w, &p)
 	}
@@ -897,10 +897,11 @@ func NewProjectListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 		Run: func(c *cobra.Command, _ []string) {
 			ctx := c.Context()
 
-			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
+			conn, projIf := newProjectClient(clientOpts, c)
 			defer utilio.Close(conn)
 			projects, err := projIf.List(ctx, &projectpkg.ProjectQuery{})
 			errors.CheckError(err)
+			warnDeprecatedSignatureKeys(projects.Items, c.ErrOrStderr())
 			switch output {
 			case "yaml", "json":
 				err := PrintResourceList(projects.Items, output, false)
@@ -918,6 +919,14 @@ func NewProjectListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 	return command
 }
 
+func warnDeprecatedSignatureKeys(projects []v1alpha1.AppProject, w io.Writer) {
+	for _, p := range projects {
+		if len(p.Spec.SignatureKeys) > 0 { // nolint:staticcheck
+			fmt.Fprintf(w, "Warning: Project %s uses deprecated SignatureKeys. Use SourceIntegrity instead.\n", p.Name)
+		}
+	}
+}
+
 func formatOrphanedResources(p *v1alpha1.AppProject) string {
 	if p.Spec.OrphanedResources == nil {
 		return "disabled"
@@ -930,7 +939,7 @@ func formatOrphanedResources(p *v1alpha1.AppProject) string {
 }
 
 func printProjectLine(w io.Writer, p *v1alpha1.AppProject) {
-	var destinations, destinationServiceAccounts, sourceRepos, clusterWhitelist, namespaceBlacklist, signatureKeys string
+	var destinations, destinationServiceAccounts, sourceRepos, clusterWhitelist, namespaceBlacklist, sourceIntegrity string
 	switch len(p.Spec.Destinations) {
 	case 0:
 		destinations = "<none>"
@@ -969,13 +978,12 @@ func printProjectLine(w io.Writer, p *v1alpha1.AppProject) {
 	default:
 		namespaceBlacklist = fmt.Sprintf("%d resources", len(p.Spec.NamespaceResourceBlacklist))
 	}
-	switch len(p.Spec.SignatureKeys) { // nolint:staticcheck
-	case 0:
-		signatureKeys = "<none>"
-	default:
-		signatureKeys = fmt.Sprintf("%d key(s)", len(p.Spec.SignatureKeys)) // nolint:staticcheck
+	if sourceIntegrityMethods := p.EffectiveSourceIntegrity().ConfiguredMethods(); len(sourceIntegrityMethods) > 0 {
+		sourceIntegrity = strings.Join(sourceIntegrityMethods, ", ")
+	} else {
+		sourceIntegrity = "<none>"
 	}
-	fmt.Fprintf(w, "%s\t%s\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n", p.Name, p.Spec.Description, destinations, sourceRepos, clusterWhitelist, namespaceBlacklist, signatureKeys, formatOrphanedResources(p), destinationServiceAccounts)
+	fmt.Fprintf(w, "%s\t%s\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n", p.Name, p.Spec.Description, destinations, sourceRepos, clusterWhitelist, namespaceBlacklist, sourceIntegrity, formatOrphanedResources(p), destinationServiceAccounts)
 }
 
 func printProject(p *v1alpha1.AppProject, scopedRepositories []*v1alpha1.Repository, scopedClusters []*v1alpha1.Cluster) {
