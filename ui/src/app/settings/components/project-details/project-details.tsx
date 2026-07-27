@@ -400,7 +400,7 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                                                     formApi={formApi}
                                                     field={`spec.sourceRepos[${i}]`}
                                                     component={AutocompleteField}
-                                                    componentProps={{items: repos.map(repo => repo.repo)}}
+                                                    componentProps={{items: repos.map(repo => repo.repo), filterSuggestions: true}}
                                                 />
                                                 <i className='fa fa-times' onClick={() => formApi.setValue('spec.sourceRepos', removeEl(formApi.values.spec.sourceRepos, i))} />
                                             </div>
