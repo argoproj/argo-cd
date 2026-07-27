@@ -345,7 +345,7 @@ func TestDependencyBuild_PlainHTTPFromDependencyRepo(t *testing.T) {
 				repos: repos,
 			}
 
-			err = h.DependencyBuild()
+			err = h.DependencyBuild(t.Context())
 			require.NoError(t, err)
 
 			require.Equal(t, tc.expectPlainHTTP, slices.Contains(capturedArgs, "--plain-http"))

@@ -88,11 +88,22 @@ func (a *ArgoCDWebhookHandler) HandleRegistryEvent(event *RegistryEvent) {
 		}
 
 		for _, source := range sources {
-			if normalizeOCI(source.RepoURL) != normalizedRepoURL {
-				log.WithFields(log.Fields{
+			normalizedSourceURL := normalizeOCI(source.RepoURL)
+			// For Helm OCI sources, repoURL is the registry+project and chart is the chart name.
+			// The effective full OCI URL is repoURL/chart, so also try that when chart is set.
+			normalizedSourceURLWithChart := normalizedSourceURL
+			if source.Chart != "" {
+				normalizedSourceURLWithChart = normalizeOCI(strings.TrimRight(source.RepoURL, "/") + "/" + source.Chart)
+			}
+			if normalizedSourceURL != normalizedRepoURL && normalizedSourceURLWithChart != normalizedRepoURL {
+				fields := log.Fields{
 					"sourceRepoURL": source.RepoURL,
 					"eventRepoURL":  repoURL,
-				}).Debug("Skipping app: OCI repository URLs do not match")
+				}
+				if source.Chart != "" {
+					fields["sourceChart"] = source.Chart
+				}
+				log.WithFields(fields).Debug("Skipping app: OCI repository URLs do not match")
 				continue
 			}
 			if !compareRevisions(revision, source.TargetRevision) {

@@ -118,6 +118,39 @@ func TestNewCommand_StrictTLSWithoutCACertGuardIsAbsent(t *testing.T) {
 	assert.Equal(t, "true", strictFlag.Value.String())
 }
 
+func TestNewCommand_DisableSwaggerUIFlagDefault(t *testing.T) {
+	cmd := NewCommand()
+
+	f := cmd.Flags().Lookup("disable-swagger-ui")
+	require.NotNil(t, f, "flag \"disable-swagger-ui\" must be registered on argocd-server")
+	assert.Equal(t, "false", f.DefValue, "disable-swagger-ui must default to false to preserve existing behavior")
+
+	disableSwaggerUI, err := cmd.Flags().GetBool("disable-swagger-ui")
+	require.NoError(t, err)
+	assert.False(t, disableSwaggerUI)
+}
+
+func TestNewCommand_DisableSwaggerUIFlagCanBeSetExplicitly(t *testing.T) {
+	cmd := NewCommand()
+
+	require.NoError(t, cmd.Flags().Set("disable-swagger-ui", "true"))
+
+	disableSwaggerUI, err := cmd.Flags().GetBool("disable-swagger-ui")
+	require.NoError(t, err)
+	assert.True(t, disableSwaggerUI)
+}
+
+func TestNewCommand_DisableSwaggerUIEnvVar(t *testing.T) {
+	t.Setenv("ARGOCD_SERVER_DISABLE_SWAGGER_UI", "true")
+
+	// NewCommand reads env vars at flag-definition time.
+	cmd := NewCommand()
+
+	disableSwaggerUI, err := cmd.Flags().GetBool("disable-swagger-ui")
+	require.NoError(t, err)
+	assert.True(t, disableSwaggerUI, "ARGOCD_SERVER_DISABLE_SWAGGER_UI=true must set the disable-swagger-ui flag default")
+}
+
 func TestNewCommand_CACertFlagRegistrationAndDefault(t *testing.T) {
 	cmd := NewCommand()
 
