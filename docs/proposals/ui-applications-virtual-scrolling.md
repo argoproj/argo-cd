@@ -26,7 +26,6 @@ This proposal improves how the Applications list behaves when someone wants to s
 * Prefer reusing the existing `react-virtualized` dependency, or adopt a smaller modern library (`react-window` ~6 KB gzipped, `@tanstack/react-virtual` ~3 KB gzipped)?
 * Should tiles and table ship in the same PR, or land tiles first and table second?
 * Should overscan buffer size be fixed or configurable?
-* Do we need a temporary feature flag, or is All-only virtualization low enough risk to ship directly?
 
 ## Summary
 
@@ -67,9 +66,6 @@ Primary tools and KPIs:
 
 * Chrome Lighthouse Performance diagnostics for **DOM size**, **Total Blocking Time (TBT)**, **JavaScript execution**, and **main-thread work**
 * Chrome DevTools **live LCP** (and interaction feel) for paint
-
-We intentionally do **not** treat Lighthouse Performance score or Lighthouse LCP on this SPA/webpack-dev setup as primary KPIs; those signals can be misleading here.
-Numbers below are relative A/B results from the same lab machine and protocol, not absolute production SLOs.
 
 | Scale | Without virtual scrolling | With virtual scrolling | What it means |
 |-------|---------------------------|------------------------|---------------|
@@ -212,14 +208,13 @@ Autocomplete still contributes about 2k hidden children.
 ## Alternatives
 
 1. **Do nothing / tell users not to use All** — leaves a supported workflow broken at scale.
-2. **Remove the All page size** — breaks existing preferences; removes the capability instead of fixing it.
-3. **Wait only for server-side pagination** — right long-term direction, but a larger effort.
+2. **Wait only for server-side pagination** — right long-term direction, but a larger effort.
    Progressive UI wins can ship sooner in parallel ([#17222](https://github.com/argoproj/argo-cd/pull/17222)).
-4. **Replace All with infinite scroll** — bigger UX change than needed to fix the All bottleneck.
-5. **Virtualize even page size 10** — unnecessary complexity where slicing already keeps DOM small.
+3. **Replace All with infinite scroll** — bigger UX change than needed to fix the All bottleneck.
 
 ## Related work
 
 * UI scalability / server-side pagination tracking: [#14947](https://github.com/argoproj/argo-cd/issues/14947), related filter work [#15087](https://github.com/argoproj/argo-cd/issues/15087)
 * Server-side pagination: [server-side-pagination.md](./server-side-pagination.md), [#17222](https://github.com/argoproj/argo-cd/pull/17222)
 * Earlier UI render improvement: [#25201](https://github.com/argoproj/argo-cd/pull/25201)
+* Prior work on the All page-size performance risk: [#25325](https://github.com/argoproj/argo-cd/issues/25325), [#25436](https://github.com/argoproj/argo-cd/pull/25436) (disable All via config; closed in favor of CSS), [#25929](https://github.com/argoproj/argo-cd/pull/25929) (paginate `qeId`s so All can be hidden via custom CSS). Virtual scrolling complements that by keeping All usable at scale.
