@@ -5238,3 +5238,113 @@ func TestGetUnstructuredLiveResourceOrAppWithImpersonation(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "system:serviceaccount:"+test.FakeDestNamespace+":test-sa", config.Impersonate.UserName)
 }
+
+func TestRollbackRBACPermissions(t *testing.T) {
+	newTestAppWithRollbackHistory := func() *v1alpha1.Application {
+		app := newTestApp()
+		app.Spec.Project = "default"
+		app.Status.History = []v1alpha1.RevisionHistory{{
+			ID:        1,
+			Revision:  "abc",
+			Revisions: []string{"abc"},
+			Source:    *app.Spec.Source.DeepCopy(),
+			Sources:   []v1alpha1.ApplicationSource{*app.Spec.Source.DeepCopy()},
+		}}
+		return app
+	}
+
+	setupServer := func(t *testing.T, testApp *v1alpha1.Application) *Server {
+		t.Helper()
+		f := func(enf *rbac.Enforcer) {
+			_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+			enf.SetDefaultRole("role:readonly")
+		}
+		return newTestAppServerWithEnforcerConfigure(t, f, map[string]string{}, testApp)
+	}
+
+	t.Run("rollback permission allows rollback when feature flag enabled", func(t *testing.T) {
+		testApp := newTestAppWithRollbackHistory()
+		appServer := setupServer(t, testApp)
+		appServer.enf.SetSeparateRollbackPermissionEnabled(true)
+
+		//nolint:staticcheck
+		userCtx := context.WithValue(t.Context(), "claims", &jwt.MapClaims{"sub": "user1"})
+		require.NoError(t, appServer.enf.SetUserPolicy("p, user1, applications, rollback, default/test-app, allow"))
+
+		updatedApp, err := appServer.Rollback(userCtx, &application.ApplicationRollbackRequest{
+			Name: &testApp.Name,
+			Id:   new(int64(1)),
+		})
+		require.NoError(t, err)
+		assert.NotNil(t, updatedApp.Operation)
+	})
+
+	t.Run("rollback permission denied without sync when feature flag disabled", func(t *testing.T) {
+		testApp := newTestAppWithRollbackHistory()
+		appServer := setupServer(t, testApp)
+		// flag=false (default): server checks sync, not rollback
+
+		//nolint:staticcheck
+		userCtx := context.WithValue(t.Context(), "claims", &jwt.MapClaims{"sub": "user1"})
+		require.NoError(t, appServer.enf.SetUserPolicy("p, user1, applications, rollback, default/test-app, allow"))
+
+		_, err := appServer.Rollback(userCtx, &application.ApplicationRollbackRequest{
+			Name: &testApp.Name,
+			Id:   new(int64(1)),
+		})
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "permission denied")
+	})
+
+	t.Run("sync permission allows rollback for backwards compatibility", func(t *testing.T) {
+		testApp := newTestAppWithRollbackHistory()
+		appServer := setupServer(t, testApp)
+		// flag=false (default): sync permission is sufficient for rollback
+
+		//nolint:staticcheck
+		userCtx := context.WithValue(t.Context(), "claims", &jwt.MapClaims{"sub": "user1"})
+		require.NoError(t, appServer.enf.SetUserPolicy("p, user1, applications, sync, default/test-app, allow"))
+
+		updatedApp, err := appServer.Rollback(userCtx, &application.ApplicationRollbackRequest{
+			Name: &testApp.Name,
+			Id:   new(int64(1)),
+		})
+		require.NoError(t, err)
+		assert.NotNil(t, updatedApp.Operation)
+	})
+
+	t.Run("rollback denied when feature flag enabled and only sync granted", func(t *testing.T) {
+		testApp := newTestAppWithRollbackHistory()
+		appServer := setupServer(t, testApp)
+		appServer.enf.SetSeparateRollbackPermissionEnabled(true)
+
+		//nolint:staticcheck
+		userCtx := context.WithValue(t.Context(), "claims", &jwt.MapClaims{"sub": "user1"})
+		// user has sync but NOT rollback — with flag enabled, rollback is required
+		require.NoError(t, appServer.enf.SetUserPolicy("p, user1, applications, sync, default/test-app, allow"))
+
+		_, err := appServer.Rollback(userCtx, &application.ApplicationRollbackRequest{
+			Name: &testApp.Name,
+			Id:   new(int64(1)),
+		})
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "permission denied")
+	})
+
+	t.Run("no rollback or sync permission is denied", func(t *testing.T) {
+		testApp := newTestAppWithRollbackHistory()
+		appServer := setupServer(t, testApp)
+		appServer.enf.SetSeparateRollbackPermissionEnabled(true)
+
+		//nolint:staticcheck
+		userCtx := context.WithValue(t.Context(), "claims", &jwt.MapClaims{"sub": "user1"})
+		require.NoError(t, appServer.enf.SetUserPolicy("p, user1, applications, get, default/test-app, allow"))
+
+		_, err := appServer.Rollback(userCtx, &application.ApplicationRollbackRequest{
+			Name: &testApp.Name,
+			Id:   new(int64(1)),
+		})
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "permission denied")
+	})
+}

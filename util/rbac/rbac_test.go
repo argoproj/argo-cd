@@ -124,6 +124,7 @@ func TestBuiltinPolicyEnforcer(t *testing.T) {
 		{"role:readonly", "applications", "get", "foo/bar"},
 		{"role:admin", "applications", "get", "foo/bar"},
 		{"role:admin", "applications", "delete", "foo/bar"},
+		{"role:admin", "applications", "rollback", "foo/bar"},
 	}
 	for _, a := range allowed {
 		if !assert.True(t, enf.Enforce(a...)) {
@@ -134,6 +135,7 @@ func TestBuiltinPolicyEnforcer(t *testing.T) {
 	disallowed := [][]any{
 		{"role:readonly", "applications", "create", "foo/bar"},
 		{"role:readonly", "applications", "delete", "foo/bar"},
+		{"role:readonly", "applications", "rollback", "foo/bar"},
 	}
 	for _, a := range disallowed {
 		if !assert.False(t, enf.Enforce(a...)) {
@@ -189,6 +191,51 @@ func TestDefaultRole(t *testing.T) {
 	// after setting the default role to be the read-only role, this should now pass
 	enf.SetDefaultRole("role:readonly")
 	assert.True(t, enf.Enforce("bob", "applications", "get", "foo/bar"))
+}
+
+func TestEnableSeparateRollbackPermission(t *testing.T) {
+	kubeclientset := fake.NewClientset()
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
+
+	t.Run("defaults to false", func(t *testing.T) {
+		assert.False(t, enf.IsSeparateRollbackPermissionEnabled())
+	})
+
+	t.Run("set and get round-trip", func(t *testing.T) {
+		enf.SetSeparateRollbackPermissionEnabled(true)
+		assert.True(t, enf.IsSeparateRollbackPermissionEnabled())
+
+		enf.SetSeparateRollbackPermissionEnabled(false)
+		assert.False(t, enf.IsSeparateRollbackPermissionEnabled())
+	})
+
+	t.Run("syncUpdate parses 'true'", func(t *testing.T) {
+		cm := fakeConfigMap()
+		cm.Data[ConfigMapEnableSeparateRollbackPermissionKey] = "true"
+		require.NoError(t, enf.syncUpdate(cm, noOpUpdate))
+		assert.True(t, enf.IsSeparateRollbackPermissionEnabled())
+	})
+
+	t.Run("syncUpdate parses 'false'", func(t *testing.T) {
+		cm := fakeConfigMap()
+		cm.Data[ConfigMapEnableSeparateRollbackPermissionKey] = "false"
+		require.NoError(t, enf.syncUpdate(cm, noOpUpdate))
+		assert.False(t, enf.IsSeparateRollbackPermissionEnabled())
+	})
+
+	t.Run("syncUpdate treats absent key as false", func(t *testing.T) {
+		enf.SetSeparateRollbackPermissionEnabled(true)
+		require.NoError(t, enf.syncUpdate(fakeConfigMap(), noOpUpdate))
+		assert.False(t, enf.IsSeparateRollbackPermissionEnabled())
+	})
+
+	t.Run("syncUpdate treats invalid value as false", func(t *testing.T) {
+		enf.SetSeparateRollbackPermissionEnabled(true)
+		cm := fakeConfigMap()
+		cm.Data[ConfigMapEnableSeparateRollbackPermissionKey] = "not-a-bool"
+		require.NoError(t, enf.syncUpdate(cm, noOpUpdate))
+		assert.False(t, enf.IsSeparateRollbackPermissionEnabled())
+	})
 }
 
 // TestConcurrentEnforceAndSyncUpdate exercises the same access pattern that produced

@@ -71,19 +71,19 @@ Syntax: `p, <role/user/group>, <resource>, <action>, <object>, <effect>`
 
 Below is a table that summarizes all possible resources and which actions are valid for each of them.
 
-| Resource\Action     | get | create | update | delete | sync | action | override | invoke |
-| :------------------ | :-: | :----: | :----: | :----: | :--: | :----: | :------: | :----: |
-| **applications**    | ✅  |   ✅   |   ✅   |   ✅   |  ✅  |   ✅   |    ✅    |   ❌   |
-| **applicationsets** | ✅  |   ✅   |   ✅   |   ✅   |  ❌  |   ❌   |    ❌    |   ❌   |
-| **clusters**        | ✅  |   ✅   |   ✅   |   ✅   |  ❌  |   ❌   |    ❌    |   ❌   |
-| **projects**        | ✅  |   ✅   |   ✅   |   ✅   |  ❌  |   ❌   |    ❌    |   ❌   |
-| **repositories**    | ✅  |   ✅   |   ✅   |   ✅   |  ❌  |   ❌   |    ❌    |   ❌   |
-| **accounts**        | ✅  |   ❌   |   ✅   |   ❌   |  ❌  |   ❌   |    ❌    |   ❌   |
-| **certificates**    | ✅  |   ✅   |   ❌   |   ✅   |  ❌  |   ❌   |    ❌    |   ❌   |
-| **gpgkeys**         | ✅  |   ✅   |   ❌   |   ✅   |  ❌  |   ❌   |    ❌    |   ❌   |
-| **logs**            | ✅  |   ❌   |   ❌   |   ❌   |  ❌  |   ❌   |    ❌    |   ❌   |
-| **exec**            | ❌  |   ✅   |   ❌   |   ❌   |  ❌  |   ❌   |    ❌    |   ❌   |
-| **extensions**      | ❌  |   ❌   |   ❌   |   ❌   |  ❌  |   ❌   |    ❌    |   ✅   |
+| Resource\Action     | get | create | update | delete | sync | rollback | action | override | invoke |
+| :------------------ | :-: | :----: | :----: | :----: | :--: | :------: | :----: | :------: | :----: |
+| **applications**    | ✅  |   ✅   |   ✅   |   ✅   |  ✅  |    ✅    |   ✅   |    ✅    |   ❌   |
+| **applicationsets** | ✅  |   ✅   |   ✅   |   ✅   |  ❌  |    ❌    |   ❌   |    ❌    |   ❌   |
+| **clusters**        | ✅  |   ✅   |   ✅   |   ✅   |  ❌  |    ❌    |   ❌   |    ❌    |   ❌   |
+| **projects**        | ✅  |   ✅   |   ✅   |   ✅   |  ❌  |    ❌    |   ❌   |    ❌    |   ❌   |
+| **repositories**    | ✅  |   ✅   |   ✅   |   ✅   |  ❌  |    ❌    |   ❌   |    ❌    |   ❌   |
+| **accounts**        | ✅  |   ❌   |   ✅   |   ❌   |  ❌  |    ❌    |   ❌   |    ❌    |   ❌   |
+| **certificates**    | ✅  |   ✅   |   ❌   |   ✅   |  ❌  |    ❌    |   ❌   |    ❌    |   ❌   |
+| **gpgkeys**         | ✅  |   ✅   |   ❌   |   ✅   |  ❌  |    ❌    |   ❌   |    ❌    |   ❌   |
+| **logs**            | ✅  |   ❌   |   ❌   |   ❌   |  ❌  |    ❌    |   ❌   |    ❌    |   ❌   |
+| **exec**            | ❌  |   ✅   |   ❌   |   ❌   |  ❌  |    ❌    |   ❌   |    ❌    |   ❌   |
+| **extensions**      | ❌  |   ❌   |   ❌   |   ❌   |  ❌  |    ❌    |   ❌   |    ❌    |   ✅   |
 
 ### Application-Specific Policy
 
@@ -208,6 +208,43 @@ To allow the user to perform any actions:
 
 ```csv
 p, example-user, applications, action/*, default/*, allow
+```
+
+#### The `rollback` action
+
+The `rollback` action allows rolling back applications to previously synced revisions. This is a restricted operation compared to the `sync` action with the following constraints:
+
+* Can only rollback to revisions in the application's revision history (up to the configured `revisionHistoryLimit`)
+* Cannot rollback when auto-sync is enabled
+* Uses the application's configured sync options (cannot override with custom options)
+* Cannot use partial sync on specific resources
+
+#### Enabling Separate Rollback Permission
+
+The `rollback` action is **opt-in** and disabled by default for backwards compatibility. To enable it, set the following in `argocd-rbac-cm`:
+
+```yaml
+policy.enableSeparateRollbackPermission: 'true'
+```
+
+When disabled (the default), rollback operations continue to use the `sync` permission check, so existing RBAC policies continue to work without changes.
+
+> [!NOTE]
+> Once enabled, users who previously relied on `sync` permission to perform rollbacks will need to be explicitly granted the `rollback` permission.
+
+**Examples:**
+
+Allow a developer to rollback applications in the dev project:
+
+```csv
+p, developer, applications, rollback, dev-project/*, allow
+```
+
+Allow a team to rollback specific applications:
+
+```csv
+p, release-team, applications, rollback, prod-project/critical-app, allow
+p, release-team, applications, rollback, prod-project/api-service, allow
 ```
 
 #### The `override` action
