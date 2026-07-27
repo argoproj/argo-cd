@@ -65,12 +65,10 @@ export const SourcePanel = (props: SourcePanelProps) => {
                         field={fieldPath(idx, 'repoURL')}
                         component={AutocompleteField}
                         componentProps={{
-                            items: props.repos.map(
-                                (r): AutocompleteOption => ({
-                                    value: r.repo,
-                                    label: r.name ? `${r.repo} -- ${r.name}` : r.repo
-                                })
-                            ),
+                            items: props.repos.map((r): AutocompleteOption => ({
+                                value: r.repo,
+                                label: r.name ? `${r.repo} -- ${r.name}` : r.repo
+                            })),
                             filterSuggestions: true
                         }}
                     />
