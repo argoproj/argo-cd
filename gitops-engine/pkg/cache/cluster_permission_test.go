@@ -167,3 +167,96 @@ func (n *nsAwareSSAR) Create(ctx context.Context, sar *authorizationv1.SelfSubje
 }
 
 var _ authType1.SelfSubjectAccessReviewInterface = (*nsAwareSSAR)(nil)
+
+func TestVerbsRequiredForWatch_ReturnsFreshSlice(t *testing.T) {
+	a := verbsRequiredForWatch()
+	b := verbsRequiredForWatch()
+	require.Equal(t, []string{"list", "watch"}, a)
+	require.Equal(t, []string{"list", "watch"}, b)
+
+	// Mutating one result must not affect a later call.
+	a[0] = "get"
+	c := verbsRequiredForWatch()
+	require.Equal(t, []string{"list", "watch"}, c)
+}
+
+func TestCheckPermission_PropagatesSSARError(t *testing.T) {
+	cluster := &clusterCache{}
+	ssar := &errorSSAR{err: assert.AnError}
+	keep, err := cluster.checkPermission(context.Background(), ssar, storageClassAPI())
+	require.Error(t, err)
+	assert.False(t, keep)
+	assert.ErrorContains(t, err, "failed to create self subject access review")
+}
+
+func TestCheckPermission_StopsAfterFirstDeniedVerb(t *testing.T) {
+	cluster := &clusterCache{}
+	ssar := &recordingSSAR{allowed: map[string]bool{"list": false, "watch": true}}
+	keep, err := cluster.checkPermission(context.Background(), ssar, storageClassAPI())
+	require.NoError(t, err)
+	assert.False(t, keep)
+	// list is checked first; once denied, watch is not required.
+	assert.Equal(t, []string{"list"}, ssar.verbs)
+}
+
+func TestIsAllowed_PropagatesSSARError(t *testing.T) {
+	cluster := &clusterCache{}
+	ssar := &errorSSAR{err: assert.AnError}
+	allowed, err := cluster.isAllowed(context.Background(), ssar, storageClassAPI(), "watch")
+	require.Error(t, err)
+	assert.False(t, allowed)
+}
+
+func TestIsAllowed_ClusterScopedWithClusterResources(t *testing.T) {
+	// namespaces set, but resource is cluster-scoped and clusterResources is on
+	// → still uses the cluster-wide SSAR path (Namespace: "*").
+	cluster := &clusterCache{namespaces: []string{"app-ns"}, clusterResources: true}
+	var got *authorizationv1.ResourceAttributes
+	ssar := &captureSSAR{onCreate: func(sar *authorizationv1.SelfSubjectAccessReview) {
+		got = sar.Spec.ResourceAttributes.DeepCopy()
+		sar.Status.Allowed = true
+	}}
+
+	allowed, err := cluster.isAllowed(context.Background(), ssar, storageClassAPI(), "list")
+	require.NoError(t, err)
+	assert.True(t, allowed)
+	require.NotNil(t, got)
+	assert.Equal(t, "*", got.Namespace)
+}
+
+func TestIsAllowed_NotWatchedScopeReturnsTrue(t *testing.T) {
+	// namespaced=false, namespaces non-empty, clusterResources=false:
+	// processApi would not watch this resource, so isAllowed returns true.
+	cluster := &clusterCache{namespaces: []string{"app-ns"}, clusterResources: false}
+	ssar := &recordingSSAR{allowed: map[string]bool{}}
+	allowed, err := cluster.isAllowed(context.Background(), ssar, storageClassAPI(), "watch")
+	require.NoError(t, err)
+	assert.True(t, allowed)
+	assert.Empty(t, ssar.verbs, "no SSAR should be issued for unwatched scopes")
+}
+
+func TestIsAllowed_NamespacedPropagatesSSARError(t *testing.T) {
+	cluster := &clusterCache{namespaces: []string{"app-ns"}}
+	api := kube.APIResourceInfo{
+		GroupKind: schema.GroupKind{Group: "", Kind: "Secret"},
+		GroupVersionResource: schema.GroupVersionResource{
+			Group: "", Version: "v1", Resource: "secrets",
+		},
+		Meta: metav1.APIResource{Name: "secrets", Namespaced: true, Kind: "Secret", Version: "v1"},
+	}
+	ssar := &errorSSAR{err: assert.AnError}
+	allowed, err := cluster.isAllowed(context.Background(), ssar, api, "watch")
+	require.Error(t, err)
+	assert.False(t, allowed)
+}
+
+// errorSSAR always returns an error from Create.
+type errorSSAR struct {
+	err error
+}
+
+func (e *errorSSAR) Create(ctx context.Context, sar *authorizationv1.SelfSubjectAccessReview, opts metav1.CreateOptions) (*authorizationv1.SelfSubjectAccessReview, error) {
+	return nil, e.err
+}
+
+var _ authType1.SelfSubjectAccessReviewInterface = (*errorSSAR)(nil)
