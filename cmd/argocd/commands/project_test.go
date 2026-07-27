@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"regexp"
-	"strings"
 	"testing"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -15,10 +14,13 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
+	log "github.com/sirupsen/logrus"
+
 	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
 	projectpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
 	projectmocks "github.com/argoproj/argo-cd/v3/pkg/apiclient/project/mocks"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/test"
 )
 
 func TestModifyResourceListCmd_AddClusterAllowItemWithName(t *testing.T) {
@@ -272,7 +274,7 @@ func dummySIProject(name string, si *v1alpha1.SourceIntegrity, sk []v1alpha1.Sig
 	}
 }
 
-func Test_projList_SignatureKeyWarnings(t *testing.T) {
+func Test_projList_SourceIntegrity(t *testing.T) {
 	policy := &v1alpha1.SourceIntegrityGitPolicy{
 		Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{
 			{
@@ -312,48 +314,52 @@ func Test_projList_SignatureKeyWarnings(t *testing.T) {
 		expectedWarnings []string
 	}{
 		{
-			name:             "SourceIntegrity is empty, no warnings",
+			name:             "SourceIntegrity is empty no warnings",
 			projects:         []v1alpha1.AppProject{dummySIProject("empty-si", nil, []v1alpha1.SignatureKey{})}, // nolint:staticcheck
 			expectedOutput:   getExpectedOutput("empty-si", "No description", "<none>"),
 			expectedWarnings: []string{},
 		},
 		{
-			name:             "Project has Git SourceIntegrity, no warnings",
+			name:             "Project has Git SourceIntegrity no warnings",
 			projects:         []v1alpha1.AppProject{dummySIProject("git-si", sourceIntegrity, []v1alpha1.SignatureKey{})}, // nolint:staticcheck
 			expectedOutput:   getExpectedOutput("git-si", "No description", "GIT/GPG"),
 			expectedWarnings: []string{},
 		},
 		{
-			name:           "Project has SignatureKeys, warning",
+			name:           "Project has SignatureKeys warning",
 			projects:       []v1alpha1.AppProject{dummySIProject("signature-keys", nil, signatureKeys)},
 			expectedOutput: getExpectedOutput("signature-keys", "No description", "GIT/GPG"), // SignatureKeys are effectively Git + GPG
 			expectedWarnings: []string{
-				"Warning: Project signature-keys uses deprecated SignatureKeys. Use SourceIntegrity instead.\n",
+				"Creating project SourceIntegrity from legacy SignatureKeys specified in signature-keys AppProject. Migrate them to SourceIntegrity.",
 			},
 		},
 		{
-			name:           "Project has both Git SourceIntegrity and SignatureKeys, warning",
+			name:           "Project has both Git SourceIntegrity and SignatureKeys warning",
 			projects:       []v1alpha1.AppProject{dummySIProject("git-si", sourceIntegrity, signatureKeys)},
 			expectedOutput: getExpectedOutput("git-si", "No description", "GIT/GPG"),
 			expectedWarnings: []string{
-				"Warning: Project git-si uses deprecated SignatureKeys. Use SourceIntegrity instead.\n",
+				"Both SourceIntegrity and SignatureKeys specified in git-si AppProject. Ignoring SignatureKeys. Migrate them to SourceIntegrity.",
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			hook := test.NewLogHook(log.WarnLevel)
+			log.AddHook(hook)
+			t.Cleanup(hook.CleanupHook)
+
 			projects := mockProjectClient(t)
 			projects.On("List", mock.Anything, mock.Anything).Return(&v1alpha1.AppProjectList{Items: tt.projects}, nil)
 
 			cmd := NewProjectListCommand(&argocdclient.ClientOptions{})
-			out, errOut, err := runCmd(t, cmd)
+			out, _, err := runCmd(t, cmd)
 			require.NoError(t, err)
 
 			tabbedOut := regexp.MustCompile(" {2,}").ReplaceAllString(out, "\t")
 
 			assert.Equal(t, tt.expectedOutput, tabbedOut)
-			assert.Equal(t, strings.Join(tt.expectedWarnings, "\n"), errOut)
+			assert.Equal(t, tt.expectedWarnings, hook.GetEntries())
 		})
 	}
 }

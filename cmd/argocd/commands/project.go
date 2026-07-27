@@ -901,7 +901,6 @@ func NewProjectListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 			defer utilio.Close(conn)
 			projects, err := projIf.List(ctx, &projectpkg.ProjectQuery{})
 			errors.CheckError(err)
-			warnDeprecatedSignatureKeys(projects.Items, c.ErrOrStderr())
 			switch output {
 			case "yaml", "json":
 				err := PrintResourceList(projects.Items, output, false)
@@ -917,14 +916,6 @@ func NewProjectListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|name")
 	return command
-}
-
-func warnDeprecatedSignatureKeys(projects []v1alpha1.AppProject, w io.Writer) {
-	for _, p := range projects {
-		if len(p.Spec.SignatureKeys) > 0 { // nolint:staticcheck
-			fmt.Fprintf(w, "Warning: Project %s uses deprecated SignatureKeys. Use SourceIntegrity instead.\n", p.Name)
-		}
-	}
 }
 
 func formatOrphanedResources(p *v1alpha1.AppProject) string {
