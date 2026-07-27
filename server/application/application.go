@@ -3358,4 +3358,3 @@ func (s *Server) BatchManagedResourcesHandler(w http.ResponseWriter, r *http.Req
 		log.Errorf("failed to encode batch managed resources response: %v", err)
 	}
 }
-

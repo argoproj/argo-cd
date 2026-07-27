@@ -1,9 +1,11 @@
 import * as React from 'react';
+import {RouteComponentProps} from 'react-router';
 import * as models from '../../../shared/models';
-import { services } from '../../../shared/services';
-import { Page, Spinner } from '../../../shared/components';
-import { ApplicationResourcesDiff } from '../application-resources-diff/application-resources-diff';
-import { ComparisonStatusIcon, HealthStatusIcon } from '../utils';
+import {services} from '../../../shared/services';
+import {Page, Spinner} from '../../../shared/components';
+import {ApplicationResourcesDiff} from '../application-resources-diff/application-resources-diff';
+import {ComparisonStatusIcon, HealthStatusIcon} from '../utils';
+
 import './global-diffs-view.scss';
 
 // Helper to create a namespace-qualified identifier for an Application
@@ -20,14 +22,18 @@ const parseAppId = (appId: string): string => {
 interface GlobalDiffsViewState {
     loading: boolean;
     apps: models.Application[];
-    checkedApps: Set<string>;          // now stores qualified IDs (namespace/name)
-    diffs: { [appId: string]: models.ResourceDiff[] }; // keyed by qualified ID
+    checkedApps: Set<string>; // namespace/name qualified IDs
+    diffs: {[appId: string]: models.ResourceDiff[]}; // keyed by namespace/name
     error: Error | null;
     selectedKinds: Set<string>;
-    expandedApps: Set<string>;         // now stores qualified IDs
+    expandedApps: Set<string>; // namespace/name qualified IDs
 }
 
-export const GlobalDiffsView = (props: any) => {
+type GlobalDiffsViewProps = RouteComponentProps<any> & {
+    apps?: models.Application[];
+};
+
+export const GlobalDiffsView = (props: GlobalDiffsViewProps) => {
     const [state, setState] = React.useState<GlobalDiffsViewState>({
         loading: true,
         apps: [],
@@ -54,32 +60,25 @@ export const GlobalDiffsView = (props: any) => {
     // Step 2: Fetch batch diffs for checked applications
     const fetchDiffsForApps = (checked: Set<string>) => {
         if (checked.size === 0) {
-            setState(prev => ({ ...prev, diffs: {}, selectedKinds: new Set(), loading: false }));
+            setState(prev => ({...prev, diffs: {}, selectedKinds: new Set(), loading: false}));
             return;
         }
 
-        setState(prev => ({ ...prev, loading: true }));
+        setState(prev => ({...prev, loading: true}));
 
-        // When sending to backend, we need to send either names or qualified IDs
-        // For backward compatibility, we'll send both formats if needed
         const backendNames = new Set<string>();
         checked.forEach(id => {
-            // For qualified IDs, extract just the name part for backward compatibility
-            const name = parseAppId(id);
-            backendNames.add(name);
+            backendNames.add(parseAppId(id));
         });
 
         services.applications
-            .batchManagedResources({ applicationNames: Array.from(backendNames) })
+            .batchManagedResources({applicationNames: Array.from(backendNames)})
             .then(batchItems => {
-                const diffsMap: { [appId: string]: models.ResourceDiff[] } = {};
-                const kinds = new Set<string>;
+                const diffsMap: {[appId: string]: models.ResourceDiff[]} = {};
+                const kinds = new Set<string>();
 
                 batchItems.forEach(item => {
-                    // The applicationName field now contains the qualified ID (namespace/name)
-                    // since we updated the server to return it in that format
-                    const qualifiedId = item.applicationName;
-                    diffsMap[qualifiedId] = item.items || [];
+                    diffsMap[item.applicationName] = item.items || [];
                     (item.items || []).forEach(diffItem => {
                         if (diffItem.kind) {
                             kinds.add(diffItem.kind);
@@ -90,51 +89,42 @@ export const GlobalDiffsView = (props: any) => {
                 setState(prev => ({
                     ...prev,
                     diffs: diffsMap,
-                    selectedKinds: kinds, // select all kinds by default
+                    selectedKinds: kinds,
                     loading: false
                 }));
             })
             .catch(err => {
-                setState(prev => ({ ...prev, loading: false, error: err }));
+                setState(prev => ({...prev, loading: false, error: err}));
             });
     };
 
     // Step 1: Fetch matching applications on mount
     React.useEffect(() => {
-        // If test-provided apps are passed in props, skip fetching and use them directly
         if (props.apps) {
-            setState(prev => ({ ...prev, apps: props.apps as models.Application[], loading: false }));
+            setState(prev => ({...prev, apps: props.apps as models.Application[], loading: false}));
             return;
         }
+
         let isMounted = true;
 
         services.applications
-            .list(projects, 'application', { selector, fields: appFields })
+            .list(projects, 'application', {selector, fields: appFields})
             .then(appList => {
                 if (!isMounted) return;
 
-                // Filter to OutOfSync applications
                 let filteredApps = (appList.items || []) as models.Application[];
-                filteredApps = filteredApps.filter(app =>
-                    app.status.sync.status === 'OutOfSync' &&
-                    applicationMatchesNamespaceFilter(app)
-                );
+                filteredApps = filteredApps.filter(app => app.status.sync.status === 'OutOfSync' && applicationMatchesNamespaceFilter(app));
 
-                // Filter by app names if explicitly specified in query parameters
                 if (nameFilter.length > 0) {
                     const nameSet = new Set(nameFilter);
-                    filteredApps = filteredApps.filter(app =>
-                        nameSet.has(app.metadata.name)
-                    );
+                    filteredApps = filteredApps.filter(app => nameSet.has(app.metadata.name));
                 }
 
-                // Initial selection: check the first 10 apps to avoid performance overload
                 const initialChecked = new Set<string>();
                 filteredApps.slice(0, 10).forEach(app => {
                     initialChecked.add(getAppInstanceId(app));
                 });
 
-                // Initially expand all checked apps
                 const initialExpanded = new Set<string>(initialChecked);
 
                 setState(prev => ({
@@ -151,13 +141,14 @@ export const GlobalDiffsView = (props: any) => {
             })
             .catch(err => {
                 if (!isMounted) return;
-                setState(prev => ({ ...prev, loading: false, error: err }));
+                setState(prev => ({...prev, loading: false, error: err}));
             });
 
         return () => {
             isMounted = false;
         };
-    }, [props.location.search, destNamespaceFilter, nameFilter, props.apps]); // Added dependencies
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally keyed on URL/query-driven inputs
+    }, [props.location.search, destNamespaceFilter, nameFilter, props.apps]);
 
     const handleCheckboxChange = (appId: string) => {
         const newChecked = new Set(state.checkedApps);
@@ -167,7 +158,6 @@ export const GlobalDiffsView = (props: any) => {
             newChecked.add(appId);
         }
 
-        // Keep expanded state in sync with checking/unchecking
         const newExpanded = new Set(state.expandedApps);
         if (newChecked.has(appId)) {
             newExpanded.add(appId);
@@ -175,7 +165,7 @@ export const GlobalDiffsView = (props: any) => {
             newExpanded.delete(appId);
         }
 
-        setState(prev => ({ ...prev, checkedApps: newChecked, expandedApps: newExpanded }));
+        setState(prev => ({...prev, checkedApps: newChecked, expandedApps: newExpanded}));
         fetchDiffsForApps(newChecked);
     };
 
@@ -183,15 +173,13 @@ export const GlobalDiffsView = (props: any) => {
         const newChecked = new Set<string>();
         const newExpanded = new Set<string>();
         if (select) {
-            // Use the current apps in state to select up to 15
-            const appsToSelect = [...state.apps].slice(0, 15);
-            appsToSelect.forEach(app => {
+            state.apps.slice(0, 15).forEach(app => {
                 const appId = getAppInstanceId(app);
                 newChecked.add(appId);
                 newExpanded.add(appId);
             });
         }
-        setState(prev => ({ ...prev, checkedApps: newChecked, expandedApps: newExpanded }));
+        setState(prev => ({...prev, checkedApps: newChecked, expandedApps: newExpanded}));
         fetchDiffsForApps(newChecked);
     };
 
@@ -202,7 +190,7 @@ export const GlobalDiffsView = (props: any) => {
         } else {
             newKinds.add(kind);
         }
-        setState(prev => ({ ...prev, selectedKinds: newKinds }));
+        setState(prev => ({...prev, selectedKinds: newKinds}));
     };
 
     const handleSelectAllKinds = (select: boolean) => {
@@ -214,7 +202,7 @@ export const GlobalDiffsView = (props: any) => {
                 });
             });
         }
-        setState(prev => ({ ...prev, selectedKinds: allKinds }));
+        setState(prev => ({...prev, selectedKinds: allKinds}));
     };
 
     const handleToggleExpandApp = (appId: string) => {
@@ -224,7 +212,7 @@ export const GlobalDiffsView = (props: any) => {
         } else {
             newExpanded.add(appId);
         }
-        setState(prev => ({ ...prev, expandedApps: newExpanded }));
+        setState(prev => ({...prev, expandedApps: newExpanded}));
     };
 
     const handleExpandAllApps = (expand: boolean) => {
@@ -237,12 +225,11 @@ export const GlobalDiffsView = (props: any) => {
                 }
             });
         }
-        setState(prev => ({ ...prev, expandedApps: newExpanded }));
+        setState(prev => ({...prev, expandedApps: newExpanded}));
     };
 
-    // Calculate unique kinds currently available in loaded diffs
     const availableKinds = React.useMemo(() => {
-        const kindsMap: { [kind: string]: number } = {};
+        const kindsMap: {[kind: string]: number} = {};
         Object.entries(state.diffs).forEach(([appId, items]) => {
             if (!state.checkedApps.has(appId)) return;
             items.forEach(item => {
@@ -258,10 +245,9 @@ export const GlobalDiffsView = (props: any) => {
         <Page
             title='Global Diffs'
             toolbar={{
-                breadcrumbs: [{ title: 'Applications', path: '/applications' }, { title: 'Global Diffs' }]
+                breadcrumbs: [{title: 'Applications', path: '/applications'}, {title: 'Global Diffs'}]
             }}>
             <div className='global-diffs-container'>
-                {/* Active Filters Summary */}
                 <div className='global-diffs-card filter-summary-card'>
                     <div className='filter-summary-title'>
                         <i className='fa fa-filter' /> Active Filters
@@ -293,9 +279,7 @@ export const GlobalDiffsView = (props: any) => {
                     </div>
                 </div>
 
-                {/* Main Controls Grid */}
                 <div className='global-diffs-grid'>
-                    {/* Left: Applications Selector Panel */}
                     <div className='global-diffs-card apps-selector-card'>
                         <div className='card-header-bar'>
                             <h3>Applications ({state.apps.length})</h3>
@@ -337,9 +321,7 @@ export const GlobalDiffsView = (props: any) => {
                         )}
                     </div>
 
-                    {/* Right: Diffs Viewer Panel */}
                     <div className='global-diffs-main-panel'>
-                        {/* Resource Kinds Filter & Global Collapse/Expand */}
                         {state.checkedApps.size > 0 && Object.keys(availableKinds).length > 0 && (
                             <div className='global-diffs-card kinds-filter-card'>
                                 <div className='kinds-filter-title'>
@@ -380,7 +362,6 @@ export const GlobalDiffsView = (props: any) => {
                             </div>
                         )}
 
-                        {/* Spinner for Loading */}
                         {state.loading && (
                             <div className='loading-overlay'>
                                 <Spinner show={true} />
@@ -388,7 +369,6 @@ export const GlobalDiffsView = (props: any) => {
                             </div>
                         )}
 
-                        {/* Diffs List */}
                         {!state.loading && !state.error && state.checkedApps.size === 0 && (
                             <div className='empty-diffs-state'>
                                 <i className='fa fa-check-circle' />
