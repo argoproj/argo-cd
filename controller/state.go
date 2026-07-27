@@ -946,7 +946,7 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 	diffConfigBuilder.WithServerSideDiff(serverSideDiff)
 
 	if serverSideDiff {
-		applier, cleanup, err := m.getServerSideDiffDryRunApplier(destCluster)
+		applier, cleanup, err := m.getServerSideDiffDryRunApplier(destCluster, project, app)
 		if err != nil {
 			log.Errorf("CompareAppState error getting server side diff dry run applier: %s", err)
 			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionUnknownError, Message: err.Error(), LastTransitionTime: &now})
