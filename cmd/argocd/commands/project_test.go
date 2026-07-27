@@ -346,19 +346,14 @@ func Test_projList_SignatureKeyWarnings(t *testing.T) {
 			projects := mockProjectClient(t)
 			projects.On("List", mock.Anything, mock.Anything).Return(&v1alpha1.AppProjectList{Items: tt.projects}, nil)
 
-			var errOutput string // captured via cobra.Command.ErrOrStderr()
-			out, err := captureOutput(func() error {
-				cmd := NewProjectListCommand(&argocdclient.ClientOptions{})
-				_, errOut, err := runCmd(t, cmd)
-				errOutput = errOut
-				return err
-			})
+			cmd := NewProjectListCommand(&argocdclient.ClientOptions{})
+			out, errOut, err := runCmd(t, cmd)
 			require.NoError(t, err)
 
 			tabbedOut := regexp.MustCompile(" {2,}").ReplaceAllString(out, "\t")
 
 			assert.Equal(t, tt.expectedOutput, tabbedOut)
-			assert.Equal(t, strings.Join(tt.expectedWarnings, "\n"), errOutput)
+			assert.Equal(t, strings.Join(tt.expectedWarnings, "\n"), errOut)
 		})
 	}
 }

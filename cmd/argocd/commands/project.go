@@ -872,8 +872,8 @@ func printProjectNames(projects []v1alpha1.AppProject) {
 }
 
 // Print table of project info
-func printProjectTable(projects []v1alpha1.AppProject) {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+func printProjectTable(projects []v1alpha1.AppProject, outWriter io.Writer) {
+	w := tabwriter.NewWriter(outWriter, 0, 0, 2, ' ', 0)
 	fmt.Fprint(w, "NAME\tDESCRIPTION\tDESTINATIONS\tSOURCES\tCLUSTER-RESOURCE-WHITELIST\tNAMESPACE-RESOURCE-BLACKLIST\tSOURCE-INTEGRITY\tORPHANED-RESOURCES\tDESTINATION-SERVICE-ACCOUNTS\n")
 	for _, p := range projects {
 		printProjectLine(w, &p)
@@ -909,7 +909,7 @@ func NewProjectListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 			case "name":
 				printProjectNames(projects.Items)
 			case "wide", "":
-				printProjectTable(projects.Items)
+				printProjectTable(projects.Items, c.OutOrStdout())
 			default:
 				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 			}
