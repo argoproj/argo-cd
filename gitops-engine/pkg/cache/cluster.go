@@ -1073,10 +1073,13 @@ func (c *clusterCache) isRestrictedResource(err error) bool {
 	return c.respectRBAC != RespectRbacDisabled && (apierrors.IsForbidden(err) || apierrors.IsUnauthorized(err))
 }
 
-// verbsRequiredForWatch are the RBAC verbs the controller needs in order to
-// maintain a cache informer for a resource. list alone is not enough: without
-// watch the informer fails and retries forever (see #28744).
-var verbsRequiredForWatch = []string{"list", "watch"}
+// verbsRequiredForWatch returns the RBAC verbs the controller needs in order
+// to maintain a cache informer for a resource. list alone is not enough:
+// without watch the informer fails and retries forever (see #28744).
+// Returned as a fresh slice so callers cannot mutate shared package state.
+func verbsRequiredForWatch() []string {
+	return []string{"list", "watch"}
+}
 
 // checkPermission runs self subject access reviews to check if the controller
 // has permissions to list and watch the resource. Both verbs are required
@@ -1085,7 +1088,7 @@ var verbsRequiredForWatch = []string{"list", "watch"}
 // resources like storageclasses) would otherwise leave the informer retrying
 // a forbidden watch indefinitely.
 func (c *clusterCache) checkPermission(ctx context.Context, reviewInterface authType1.SelfSubjectAccessReviewInterface, api kube.APIResourceInfo) (keep bool, err error) {
-	for _, verb := range verbsRequiredForWatch {
+	for _, verb := range verbsRequiredForWatch() {
 		allowed, err := c.isAllowed(ctx, reviewInterface, api, verb)
 		if err != nil {
 			return false, err
