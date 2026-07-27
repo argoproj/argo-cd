@@ -525,7 +525,7 @@ func (a *ArgoCDServer) ensureConfigProvider() {
 // current struct fields. Tests that mutate deprecated fields after NewServer
 // must call this so StaticProvider sees the updated values.
 func (a *ArgoCDServer) rebuildConfigProviderFromFields() {
-	settingsMgr, _ := a.configProvider.SettingsManager(context.Background())
+	settingsMgr := a.settingsMgr
 	dexPlaintext, dexStrictTLS := false, false
 	if a.DexTLSConfig != nil {
 		dexPlaintext = a.DexTLSConfig.DisableTLS

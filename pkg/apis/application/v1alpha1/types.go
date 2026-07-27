@@ -2568,6 +2568,8 @@ type TLSClientConfig struct {
 type KnownTypeField struct {
 	// Field represents the JSON path to the specific field in the CRD that requires type conversion.
 	// Example: "spec.resources.requests.cpu"
+	// Default empty string keeps this valid as an ArgoCDConfiguration listMapKey.
+	// +kubebuilder:default=""
 	Field string `json:"field,omitempty" protobuf:"bytes,1,opt,name=field"`
 	// Type specifies the expected Kubernetes type for the field, such as "cpu" or "memory".
 	// This helps in converting values between different formats (e.g., "0.1" to "100m" for CPU).

@@ -7,6 +7,9 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
@@ -37,6 +40,15 @@ type CRDChangeNotifier interface {
 func NewInformerCRDSource(ctx context.Context, client appclientset.Interface, namespace string) (*InformerCRDSource, error) {
 	if client == nil {
 		return nil, fmt.Errorf("config: application clientset is nil")
+	}
+	// Fail fast when the CRD is not installed. Without this probe, WaitForCacheSync
+	// blocks indefinitely while the reflector retries list/watch failures.
+	if _, err := client.ArgoprojV1alpha1().ArgoCDConfigurations(namespace).List(ctx, metav1.ListOptions{Limit: 1}); err != nil {
+		if meta.IsNoMatchError(err) || apierrors.IsNotFound(err) {
+			return nil, fmt.Errorf("config: ArgoCDConfiguration CRD unavailable: %w", err)
+		}
+		// Other errors (RBAC, connectivity) still attempt the informer path below.
+		log.WithError(err).Debug("ArgoCDConfiguration list probe failed; continuing to informer sync")
 	}
 	src := &InformerCRDSource{}
 	factory := appinformer.NewSharedInformerFactoryWithOptions(

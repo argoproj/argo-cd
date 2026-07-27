@@ -69,12 +69,12 @@ spec:
                       (cmd-params: applicationsetcontroller.allowed.scm.providers).
                       Migration: if present, takes precedence over argocd-cmd-params-cm applicationsetcontroller.allowed.scm.providers; replaces the whole collection.
                     items:
+                      maxLength: 2048
+                      pattern: ^https?://.+
                       type: string
+                    maxItems: 64
                     type: array
-                    x-kubernetes-validations:
-                    - message: each entry must be an absolute http(s) URL
-                      rule: self.all(u, isURL(u) && url(u).getScheme() in ['http',
-                        'https'])
+                    x-kubernetes-list-type: atomic
                   dryRun:
                     description: |-
                       DryRun runs ApplicationSet reconciliation without writing Applications
@@ -685,9 +685,12 @@ spec:
                         projectName:
                           description: |-
                             ProjectName is the name of the global AppProject to apply
-                            (legacy: globalProjects[].projectName).
-                          pattern: ^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
+                            (legacy: globalProjects[].projectName). Required as a listMapKey.
+                          minLength: 1
+                          pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
                           type: string
+                      required:
+                      - projectName
                       type: object
                     type: array
                     x-kubernetes-list-map-keys:
@@ -1010,8 +1013,10 @@ spec:
                                 (and optional disabled flags) for the resource (legacy: discovery.lua).
                               type: string
                             group:
-                              description: Group is the API group ("" for core, "*"
-                                for wildcard).
+                              default: ""
+                              description: |-
+                                Group is the API group ("" for core, "*" for wildcard).
+                                Default empty string is required because group is a listMapKey.
                               pattern: ^$|^([a-z0-9]([-a-z0-9]*[a-z0-9])?([.][a-z0-9]([-a-z0-9]*[a-z0-9])?)*|[*])$
                               type: string
                             kind:
@@ -1117,8 +1122,10 @@ spec:
                             resource.customizations.useOpenLibs.<group_kind>).
                           properties:
                             group:
-                              description: Group is the API group ("" for core, "*"
-                                for wildcard).
+                              default: ""
+                              description: |-
+                                Group is the API group ("" for core, "*" for wildcard).
+                                Default empty string is required because group is a listMapKey.
                               pattern: ^$|^([a-z0-9]([-a-z0-9]*[a-z0-9])?([.][a-z0-9]([-a-z0-9]*[a-z0-9])?)*|[*])$
                               type: string
                             healthLua:
@@ -1163,8 +1170,10 @@ spec:
                             ignoreResourceUpdates.<group_kind>).
                           properties:
                             group:
-                              description: Group is the API group ("" for core, "*"
-                                for wildcard).
+                              default: ""
+                              description: |-
+                                Group is the API group ("" for core, "*" for wildcard).
+                                Default empty string is required because group is a listMapKey.
                               pattern: ^$|^([a-z0-9]([-a-z0-9]*[a-z0-9])?([.][a-z0-9]([-a-z0-9]*[a-z0-9])?)*|[*])$
                               type: string
                             jqPathExpressions:
@@ -1211,8 +1220,10 @@ spec:
                             ignoreResourceUpdates.<group_kind>).
                           properties:
                             group:
-                              description: Group is the API group ("" for core, "*"
-                                for wildcard).
+                              default: ""
+                              description: |-
+                                Group is the API group ("" for core, "*" for wildcard).
+                                Default empty string is required because group is a listMapKey.
                               pattern: ^$|^([a-z0-9]([-a-z0-9]*[a-z0-9])?([.][a-z0-9]([-a-z0-9]*[a-z0-9])?)*|[*])$
                               type: string
                             jqPathExpressions:
@@ -1307,9 +1318,11 @@ spec:
                                   in resources where the type is not explicitly defined (e.g., converting "0.1" to "100m" for CPU requests).
                                 properties:
                                   field:
+                                    default: ""
                                     description: |-
                                       Field represents the JSON path to the specific field in the CRD that requires type conversion.
                                       Example: "spec.resources.requests.cpu"
+                                      Default empty string keeps this valid as an ArgoCDConfiguration listMapKey.
                                     type: string
                                   type:
                                     description: |-
@@ -1322,8 +1335,10 @@ spec:
                               - field
                               x-kubernetes-list-type: map
                             group:
-                              description: Group is the API group ("" for core, "*"
-                                for wildcard).
+                              default: ""
+                              description: |-
+                                Group is the API group ("" for core, "*" for wildcard).
+                                Default empty string is required because group is a listMapKey.
                               pattern: ^$|^([a-z0-9]([-a-z0-9]*[a-z0-9])?([.][a-z0-9]([-a-z0-9]*[a-z0-9])?)*|[*])$
                               type: string
                             kind:
@@ -2676,10 +2691,9 @@ spec:
                                     description: |-
                                       ServerURL is the cluster API server URL to match against Application
                                       destination.server (legacy: cluster.server).
+                                    maxLength: 2048
+                                    pattern: ^$|^[a-zA-Z][a-zA-Z0-9+.-]*:.+
                                     type: string
-                                    x-kubernetes-validations:
-                                    - message: must be an absolute URL
-                                      rule: self == '' || isURL(self)
                                 type: object
                               headers:
                                 description: |-
@@ -2713,11 +2727,9 @@ spec:
                                 description: |-
                                   URL is the upstream extension service base URL (mandatory).
                                   Legacy: extension.config ...services[].url.
+                                maxLength: 2048
+                                pattern: ^https?://.+
                                 type: string
-                                x-kubernetes-validations:
-                                - message: must be an absolute http(s) URL
-                                  rule: isURL(self) && url(self).getScheme() in ['http',
-                                    'https']
                             required:
                             - url
                             type: object
@@ -2784,11 +2796,9 @@ spec:
                             description: |-
                               URL is the support chat / community link (argocd-cm: help.chatUrl).
                               Migration: if set, takes precedence over argocd-cm help.chatUrl.
+                            maxLength: 2048
+                            pattern: ^$|^https?://.+
                             type: string
-                            x-kubernetes-validations:
-                            - message: must be an absolute http(s) URL
-                              rule: self == '' || (isURL(self) && url(self).getScheme()
-                                in ['http', 'https'])
                         type: object
                     type: object
                   httpCookieMaxNumber:
@@ -2999,11 +3009,9 @@ spec:
                               clouds (oidc.config azure.graphApiEndpoint).
                               Default https://graph.microsoft.com/v1.0.
                               Migration: composite child of oidc.config.
+                            maxLength: 2048
+                            pattern: ^$|^https?://.+
                             type: string
-                            x-kubernetes-validations:
-                            - message: must be an absolute http(s) URL
-                              rule: self == '' || (isURL(self) && url(self).getScheme()
-                                in ['http', 'https'])
                           useWorkloadIdentity:
                             description: |-
                               UseWorkloadIdentity authenticates to Azure AD using Kubernetes workload
@@ -3090,20 +3098,17 @@ spec:
                           IssuerURL is the OIDC issuer URL that must expose
                           .well-known/openid-configuration (oidc.config issuer).
                           Migration: composite child of oidc.config.
+                        maxLength: 2048
+                        pattern: ^$|^https?://.+
                         type: string
-                        x-kubernetes-validations:
-                        - message: must be an absolute http(s) URL
-                          rule: self == '' || (isURL(self) && url(self).getScheme()
-                            in ['http', 'https'])
                       logoutURL:
                         description: |-
                           LogoutURL is an optional IdP logout URL. May include {{token}} and
                           {{logoutRedirectURL}} placeholders (oidc.config logoutURL).
                           Migration: composite child of oidc.config.
+                        maxLength: 2048
+                        pattern: ^$|^[a-zA-Z][a-zA-Z0-9+.-]*:.+
                         type: string
-                        x-kubernetes-validations:
-                        - message: must be an absolute URL
-                          rule: self == '' || isURL(self)
                       name:
                         description: |-
                           Name is the provider display name shown on the SSO login button
@@ -3184,11 +3189,9 @@ spec:
                               BaseURL overrides the UserInfo endpoint base URL when it differs from the issuer
                               (oidc.config userInfoBaseURL). Empty uses the issuer URL.
                               Migration: composite child of oidc.config.
+                            maxLength: 2048
+                            pattern: ^$|^https?://.+
                             type: string
-                            x-kubernetes-validations:
-                            - message: must be an absolute http(s) URL
-                              rule: self == '' || (isURL(self) && url(self).getScheme()
-                                in ['http', 'https'])
                           cacheExpiration:
                             description: |-
                               CacheExpiration is how long cached UserInfo group results are kept
@@ -3318,11 +3321,9 @@ spec:
                           URL is an optional custom root URL for status badge links
                           (argocd-cm: statusbadge.url).
                           Migration: if set, takes precedence over argocd-cm statusbadge.url.
+                        maxLength: 2048
+                        pattern: ^$|^https?://.+
                         type: string
-                        x-kubernetes-validations:
-                        - message: must be an absolute http(s) URL
-                          rule: self == '' || (isURL(self) && url(self).getScheme()
-                            in ['http', 'https'])
                     type: object
                   syncReplaceAllowed:
                     description: |-
@@ -3404,11 +3405,9 @@ spec:
                             description: |-
                               URL is an optional link target for the banner text (argocd-cm: ui.bannerurl).
                               Migration: if set, takes precedence over argocd-cm ui.bannerurl.
+                            maxLength: 2048
+                            pattern: ^$|^https?://.+
                             type: string
-                            x-kubernetes-validations:
-                            - message: must be an absolute http(s) URL
-                              rule: self == '' || (isURL(self) && url(self).getScheme()
-                                in ['http', 'https'])
                         type: object
                       cssURL:
                         description: |-
@@ -3431,13 +3430,12 @@ spec:
                       base URLs (argocd-cm: additionalUrls).
                       Migration: if present, takes precedence over argocd-cm url and additionalUrls as a pair; replaces both.
                     items:
+                      maxLength: 2048
+                      pattern: ^https?://.+
                       type: string
+                    maxItems: 32
                     type: array
                     x-kubernetes-list-type: atomic
-                    x-kubernetes-validations:
-                    - message: each entry must be an absolute http(s) URL
-                      rule: self.all(u, isURL(u) && url(u).getScheme() in ['http',
-                        'https'])
                   users:
                     description: |-
                       Users holds anonymous access, session duration, and password policy.

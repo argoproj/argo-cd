@@ -10,7 +10,8 @@ import (
 // Validation notes:
 // - Prefer OpenAPI Pattern / items:Pattern for regexes on lists (cheap; safe for unbounded lists).
 // - Avoid CEL matches() / self.all(...matches...) for regex — list CEL has high cost and can hit the budget.
-// - URL lists may use CEL isURL (more robust than a URL regex); scalar URLs likewise.
+// - Prefer OpenAPI Pattern for URL fields too: CEL isURL()/url() is expensive and can blow the
+//   per-schema cost budget on large CRDs even with MaxLength set.
 // - Kind/APIGroup Patterns allow '*' where Argo CD wildcards are used.
 // - *Template fields (Go templates) are not validated as plain URLs/literals.
 
@@ -146,7 +147,9 @@ type ServerConfig struct {
 	// Migration: if present, takes precedence over argocd-cm url and additionalUrls as a pair; replaces both.
 	// +optional
 	// +listType=atomic
-	// +kubebuilder:validation:XValidation:rule="self.all(u, isURL(u) && url(u).getScheme() in ['http', 'https'])",message="each entry must be an absolute http(s) URL"
+	// +kubebuilder:validation:MaxItems=32
+	// +kubebuilder:validation:items:MaxLength=2048
+	// +kubebuilder:validation:items:Pattern=`^https?://.+`
 	URLs []string `json:"urls,omitempty"`
 
 	// TLSEnabled controls whether the API server serves TLS (cmd-params: server.insecure —
@@ -389,7 +392,8 @@ type OIDCConfig struct {
 	// .well-known/openid-configuration (oidc.config issuer).
 	// Migration: composite child of oidc.config.
 	// +optional
-	// +kubebuilder:validation:XValidation:rule="self == '' || (isURL(self) && url(self).getScheme() in ['http', 'https'])",message="must be an absolute http(s) URL"
+	// +kubebuilder:validation:MaxLength=2048
+	// +kubebuilder:validation:Pattern=`^$|^https?://.+`
 	IssuerURL string `json:"issuerURL,omitempty"`
 	// ClientID is the OAuth 2.0 client ID registered with the IdP for the Argo CD
 	// server callback (/auth/callback) (oidc.config clientID).
@@ -425,7 +429,8 @@ type OIDCConfig struct {
 	// {{logoutRedirectURL}} placeholders (oidc.config logoutURL).
 	// Migration: composite child of oidc.config.
 	// +optional
-	// +kubebuilder:validation:XValidation:rule="self == '' || isURL(self)",message="must be an absolute URL"
+	// +kubebuilder:validation:MaxLength=2048
+	// +kubebuilder:validation:Pattern=`^$|^[a-zA-Z][a-zA-Z0-9+.-]*:.+`
 	LogoutURL string `json:"logoutURL,omitempty"`
 	// RootCA is a PEM-encoded root CA used to verify the OIDC provider's TLS
 	// certificate when it is not signed by a well-known CA (oidc.config rootCA).
@@ -484,7 +489,8 @@ type OIDCUserInfoConfig struct {
 	// (oidc.config userInfoBaseURL). Empty uses the issuer URL.
 	// Migration: composite child of oidc.config.
 	// +optional
-	// +kubebuilder:validation:XValidation:rule="self == '' || (isURL(self) && url(self).getScheme() in ['http', 'https'])",message="must be an absolute http(s) URL"
+	// +kubebuilder:validation:MaxLength=2048
+	// +kubebuilder:validation:Pattern=`^$|^https?://.+`
 	BaseURL string `json:"baseURL,omitempty"`
 	// Path is the UserInfo path appended to BaseURL or the issuer URL
 	// (oidc.config userInfoPath). Must be set (with GroupsEnabled) to enable
@@ -535,7 +541,8 @@ type AzureOIDCConfig struct {
 	// Default https://graph.microsoft.com/v1.0.
 	// Migration: composite child of oidc.config.
 	// +optional
-	// +kubebuilder:validation:XValidation:rule="self == '' || (isURL(self) && url(self).getScheme() in ['http', 'https'])",message="must be an absolute http(s) URL"
+	// +kubebuilder:validation:MaxLength=2048
+	// +kubebuilder:validation:Pattern=`^$|^https?://.+`
 	GraphAPIEndpointURL string `json:"graphAPIEndpointURL,omitempty"`
 }
 
@@ -761,7 +768,9 @@ type CompareOptions struct {
 // resource.customizations.useOpenLibs.<group_kind>).
 type ResourceHealthCustomization struct {
 	// Group is the API group ("" for core, "*" for wildcard).
+	// Default empty string is required because group is a listMapKey.
 	// +optional
+	// +kubebuilder:default=""
 	// +kubebuilder:validation:Pattern=`^$|^([a-z0-9]([-a-z0-9]*[a-z0-9])?([.][a-z0-9]([-a-z0-9]*[a-z0-9])?)*|[*])$`
 	Group string `json:"group,omitempty"`
 	// Kind is the Kubernetes Kind ("*" for wildcard). Required.
@@ -788,7 +797,9 @@ type ResourceHealthCustomization struct {
 // named action definitions (argocd-cm: resource.customizations.actions.<group_kind>).
 type ResourceActionsCustomization struct {
 	// Group is the API group ("" for core, "*" for wildcard).
+	// Default empty string is required because group is a listMapKey.
 	// +optional
+	// +kubebuilder:default=""
 	// +kubebuilder:validation:Pattern=`^$|^([a-z0-9]([-a-z0-9]*[a-z0-9])?([.][a-z0-9]([-a-z0-9]*[a-z0-9])?)*|[*])$`
 	Group string `json:"group,omitempty"`
 	// Kind is the Kubernetes Kind ("*" for wildcard). Required.
@@ -816,7 +827,9 @@ type ResourceActionsCustomization struct {
 // ignoreResourceUpdates.<group_kind>).
 type ResourceIgnoreCustomization struct {
 	// Group is the API group ("" for core, "*" for wildcard).
+	// Default empty string is required because group is a listMapKey.
 	// +optional
+	// +kubebuilder:default=""
 	// +kubebuilder:validation:Pattern=`^$|^([a-z0-9]([-a-z0-9]*[a-z0-9])?([.][a-z0-9]([-a-z0-9]*[a-z0-9])?)*|[*])$`
 	Group string `json:"group,omitempty"`
 	// Kind is the Kubernetes Kind ("*" for wildcard). Required.
@@ -838,7 +851,9 @@ type ResourceIgnoreCustomization struct {
 // (argocd-cm: resource.customizations.knownTypeFields.<group_kind>).
 type ResourceKnownTypesCustomization struct {
 	// Group is the API group ("" for core, "*" for wildcard).
+	// Default empty string is required because group is a listMapKey.
 	// +optional
+	// +kubebuilder:default=""
 	// +kubebuilder:validation:Pattern=`^$|^([a-z0-9]([-a-z0-9]*[a-z0-9])?([.][a-z0-9]([-a-z0-9]*[a-z0-9])?)*|[*])$`
 	Group string `json:"group,omitempty"`
 	// Kind is the Kubernetes Kind ("*" for wildcard). Required.
@@ -1484,7 +1499,10 @@ type ApplicationSetConfig struct {
 	// (cmd-params: applicationsetcontroller.allowed.scm.providers).
 	// Migration: if present, takes precedence over argocd-cmd-params-cm applicationsetcontroller.allowed.scm.providers; replaces the whole collection.
 	// +optional
-	// +kubebuilder:validation:XValidation:rule="self.all(u, isURL(u) && url(u).getScheme() in ['http', 'https'])",message="each entry must be an absolute http(s) URL"
+	// +listType=atomic
+	// +kubebuilder:validation:MaxItems=64
+	// +kubebuilder:validation:items:MaxLength=2048
+	// +kubebuilder:validation:items:Pattern=`^https?://.+`
 	AllowedSCMProviderURLs []string `json:"allowedSCMProviderURLs,omitempty"`
 	// GlobalPreserved holds annotation and label keys preserved on generated Applications.
 	// Migration: if non-nil, takes precedence over argocd-cmd-params-cm applicationsetcontroller.global.preserved.* as a group.
@@ -1822,7 +1840,8 @@ type UIBannerConfig struct {
 	// URL is an optional link target for the banner text (argocd-cm: ui.bannerurl).
 	// Migration: if set, takes precedence over argocd-cm ui.bannerurl.
 	// +optional
-	// +kubebuilder:validation:XValidation:rule="self == '' || (isURL(self) && url(self).getScheme() in ['http', 'https'])",message="must be an absolute http(s) URL"
+	// +kubebuilder:validation:MaxLength=2048
+	// +kubebuilder:validation:Pattern=`^$|^https?://.+`
 	URL string `json:"url,omitempty"`
 	// Permanent makes the banner non-dismissible (argocd-cm: ui.bannerpermanent).
 	// Migration: if set, takes precedence over argocd-cm ui.bannerpermanent.
@@ -1900,7 +1919,8 @@ type ExtensionService struct {
 	// URL is the upstream extension service base URL (mandatory).
 	// Legacy: extension.config ...services[].url.
 	// +kubebuilder:validation:Required
-	// +kubebuilder:validation:XValidation:rule="isURL(self) && url(self).getScheme() in ['http', 'https']",message="must be an absolute http(s) URL"
+	// +kubebuilder:validation:MaxLength=2048
+	// +kubebuilder:validation:Pattern=`^https?://.+`
 	URL string `json:"url"`
 	// Cluster optionally restricts this backend to Applications whose destination
 	// matches. Required when multiple services are configured; ignored when only
@@ -1922,7 +1942,8 @@ type ExtensionCluster struct {
 	// ServerURL is the cluster API server URL to match against Application
 	// destination.server (legacy: cluster.server).
 	// +optional
-	// +kubebuilder:validation:XValidation:rule="self == '' || isURL(self)",message="must be an absolute URL"
+	// +kubebuilder:validation:MaxLength=2048
+	// +kubebuilder:validation:Pattern=`^$|^[a-zA-Z][a-zA-Z0-9+.-]*:.+`
 	ServerURL string `json:"serverURL,omitempty"`
 	// Name is the Argo CD cluster name to match against Application
 	// destination.name (legacy: cluster.name).
@@ -1948,10 +1969,11 @@ type ExtensionHeader struct {
 // destinationServiceAccounts.
 type GlobalProjectConfig struct {
 	// ProjectName is the name of the global AppProject to apply
-	// (legacy: globalProjects[].projectName).
-	// +optional
-	// +kubebuilder:validation:Pattern=`^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`
-	ProjectName string `json:"projectName,omitempty"`
+	// (legacy: globalProjects[].projectName). Required as a listMapKey.
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:MinLength=1
+	// +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`
+	ProjectName string `json:"projectName"`
 	// LabelSelector selects which AppProjects receive this global project's settings
 	// (In, NotIn, Exists, DoesNotExist). Legacy: globalProjects[].labelSelector.
 	// +optional
@@ -2033,7 +2055,8 @@ type HelpChatConfig struct {
 	// URL is the support chat / community link (argocd-cm: help.chatUrl).
 	// Migration: if set, takes precedence over argocd-cm help.chatUrl.
 	// +optional
-	// +kubebuilder:validation:XValidation:rule="self == '' || (isURL(self) && url(self).getScheme() in ['http', 'https'])",message="must be an absolute http(s) URL"
+	// +kubebuilder:validation:MaxLength=2048
+	// +kubebuilder:validation:Pattern=`^$|^https?://.+`
 	URL string `json:"url,omitempty"`
 	// Text is the display text for URL (argocd-cm: help.chatText).
 	// Migration: if set, takes precedence over argocd-cm help.chatText.
@@ -2191,7 +2214,8 @@ type StatusBadgeConfig struct {
 	// (argocd-cm: statusbadge.url).
 	// Migration: if set, takes precedence over argocd-cm statusbadge.url.
 	// +optional
-	// +kubebuilder:validation:XValidation:rule="self == '' || (isURL(self) && url(self).getScheme() in ['http', 'https'])",message="must be an absolute http(s) URL"
+	// +kubebuilder:validation:MaxLength=2048
+	// +kubebuilder:validation:Pattern=`^$|^https?://.+`
 	URL string `json:"url,omitempty"`
 }
 

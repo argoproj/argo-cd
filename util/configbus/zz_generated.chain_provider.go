@@ -38,9 +38,21 @@ func (c *ChainProvider) Subscribe(subCh chan<- *settings.ArgoCDSettings) {
 	}
 }
 
+func (c *ChainProvider) SubscribeCRD(subCh chan<- struct{}) {
+	for _, l := range c.links {
+		l.SubscribeCRD(subCh)
+	}
+}
+
 func (c *ChainProvider) Unsubscribe(subCh chan<- *settings.ArgoCDSettings) {
 	for _, l := range c.links {
 		l.Unsubscribe(subCh)
+	}
+}
+
+func (c *ChainProvider) UnsubscribeCRD(subCh chan<- struct{}) {
+	for _, l := range c.links {
+		l.UnsubscribeCRD(subCh)
 	}
 }
 
