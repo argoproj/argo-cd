@@ -453,6 +453,23 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                         title: 'Refresh Apps',
                                                                         iconClassName: 'fa fa-redo',
                                                                         action: () => ctx.navigation.goto('.', {refreshApps: true}, {replace: true})
+                                                                    },
+                                                                    {
+                                                                        title: 'View Diffs',
+                                                                        iconClassName: 'fa fa-file-medical',
+                                                                        action: () => {
+                                                                            const params: any = {};
+                                                                            if (pref.projectsFilter && pref.projectsFilter.length > 0) {
+                                                                                params.proj = pref.projectsFilter.join(',');
+                                                                            }
+                                                                            if (pref.labelsFilter && pref.labelsFilter.length > 0) {
+                                                                                params.labels = pref.labelsFilter.join(',');
+                                                                            }
+                                                                            if (pref.namespacesFilter && pref.namespacesFilter.length > 0) {
+                                                                                params.namespace = pref.namespacesFilter.join(',');
+                                                                            }
+                                                                            ctx.navigation.goto('/applications/diffs', params);
+                                                                        }
                                                                     }
                                                                 ]
                                                             }

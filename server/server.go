@@ -1227,6 +1227,9 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 	} else {
 		log.WithField(common.SecurityField, common.SecurityHigh).Warnf("Content-Type enforcement is disabled, which may make your API vulnerable to CSRF attacks")
 	}
+	batchDiffHandler := util_session.WithAuthMiddleware(server.DisableAuth, server.settings.IsSSOConfigured(), server.ssoClientApp, server.sessionMgr, http.HandlerFunc(applicationService.BatchManagedResourcesHandler))
+	mux.Handle("/api/v1/applications/managed-resources", batchDiffHandler)
+
 	mux.Handle("/api/", handler)
 
 	terminalOpts := application.TerminalOptions{DisableAuth: server.DisableAuth, Enf: server.enf}

@@ -1,0 +1,419 @@
+import * as React from 'react';
+import {RouteComponentProps} from 'react-router';
+import * as models from '../../../shared/models';
+import {services} from '../../../shared/services';
+import {Page, Spinner} from '../../../shared/components';
+import {ApplicationResourcesDiff} from '../application-resources-diff/application-resources-diff';
+import {ComparisonStatusIcon, HealthStatusIcon} from '../utils';
+
+import './global-diffs-view.scss';
+
+interface GlobalDiffsViewState {
+    loading: boolean;
+    apps: models.Application[];
+    checkedApps: Set<string>;
+    diffs: {[appName: string]: models.ResourceDiff[]};
+    error: Error | null;
+    selectedKinds: Set<string>;
+    expandedApps: Set<string>;
+}
+
+export const GlobalDiffsView = (props: RouteComponentProps<any>) => {
+    const [state, setState] = React.useState<GlobalDiffsViewState>({
+        loading: true,
+        apps: [],
+        checkedApps: new Set(),
+        diffs: {},
+        error: null,
+        selectedKinds: new Set(),
+        expandedApps: new Set()
+    });
+
+    const query = new URLSearchParams(props.location.search);
+    const projects = query.get('proj')?.split(',').filter(Boolean) || [];
+    const selector = query.get('labels') || '';
+    const appNamespace = query.get('namespace') || '';
+    const nameFilter = query.get('apps')?.split(',').filter(Boolean) || [];
+
+    const appFields = ['items.metadata.name', 'items.metadata.namespace', 'items.spec.project', 'items.spec.destination', 'items.status.sync.status', 'items.status.health'];
+
+    // Step 2: Fetch batch diffs for checked applications
+    const fetchDiffsForApps = (checked: Set<string>) => {
+        if (checked.size === 0) {
+            setState(prev => ({...prev, diffs: {}, selectedKinds: new Set(), loading: false}));
+            return;
+        }
+
+        setState(prev => ({...prev, loading: true}));
+
+        services.applications
+            .batchManagedResources({applicationNames: Array.from(checked)})
+            .then(batchItems => {
+                const diffsMap: {[appName: string]: models.ResourceDiff[]} = {};
+                const kinds = new Set<string>();
+
+                batchItems.forEach(item => {
+                    diffsMap[item.applicationName] = item.items || [];
+                    (item.items || []).forEach(diffItem => {
+                        if (diffItem.kind) {
+                            kinds.add(diffItem.kind);
+                        }
+                    });
+                });
+
+                setState(prev => ({
+                    ...prev,
+                    diffs: diffsMap,
+                    selectedKinds: kinds, // select all kinds by default
+                    loading: false
+                }));
+            })
+            .catch(err => {
+                setState(prev => ({...prev, loading: false, error: err}));
+            });
+    };
+
+    // Step 1: Fetch matching applications on mount
+    React.useEffect(() => {
+        let isMounted = true;
+
+        services.applications
+            .list(projects, 'application', {selector, appNamespace, fields: appFields})
+            .then(appList => {
+                if (!isMounted) return;
+
+                // Filter to OutOfSync applications
+                let filteredApps = (appList.items || []) as models.Application[];
+                filteredApps = filteredApps.filter(app => app.status.sync.status === 'OutOfSync');
+
+                // Filter by app names if explicitly specified in query parameters
+                if (nameFilter.length > 0) {
+                    const nameSet = new Set(nameFilter);
+                    filteredApps = filteredApps.filter(app => nameSet.has(app.metadata.name));
+                }
+
+                // Initial selection: check the first 10 apps to avoid performance overload
+                const initialChecked = new Set<string>();
+                filteredApps.slice(0, 10).forEach(app => initialChecked.add(app.metadata.name));
+
+                // Initially expand all checked apps
+                const initialExpanded = new Set<string>(initialChecked);
+
+                setState(prev => ({
+                    ...prev,
+                    apps: filteredApps,
+                    checkedApps: initialChecked,
+                    expandedApps: initialExpanded,
+                    loading: filteredApps.length === 0 ? false : prev.loading
+                }));
+
+                if (filteredApps.length > 0) {
+                    fetchDiffsForApps(initialChecked);
+                }
+            })
+            .catch(err => {
+                if (!isMounted) return;
+                setState(prev => ({...prev, loading: false, error: err}));
+            });
+
+        return () => {
+            isMounted = false;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [props.location.search]);
+
+    const handleCheckboxChange = (appName: string) => {
+        const newChecked = new Set(state.checkedApps);
+        if (newChecked.has(appName)) {
+            newChecked.delete(appName);
+        } else {
+            newChecked.add(appName);
+        }
+
+        // Keep expanded state in sync with checking/unchecking
+        const newExpanded = new Set(state.expandedApps);
+        if (newChecked.has(appName)) {
+            newExpanded.add(appName);
+        } else {
+            newExpanded.delete(appName);
+        }
+
+        setState(prev => ({...prev, checkedApps: newChecked, expandedApps: newExpanded}));
+        fetchDiffsForApps(newChecked);
+    };
+
+    const handleSelectAllApps = (select: boolean) => {
+        const newChecked = new Set<string>();
+        const newExpanded = new Set<string>();
+        if (select) {
+            // Select up to 15 apps on "all" select to avoid severe browser performance degradation
+            state.apps.slice(0, 15).forEach(app => {
+                newChecked.add(app.metadata.name);
+                newExpanded.add(app.metadata.name);
+            });
+        }
+        setState(prev => ({...prev, checkedApps: newChecked, expandedApps: newExpanded}));
+        fetchDiffsForApps(newChecked);
+    };
+
+    const handleToggleKind = (kind: string) => {
+        const newKinds = new Set(state.selectedKinds);
+        if (newKinds.has(kind)) {
+            newKinds.delete(kind);
+        } else {
+            newKinds.add(kind);
+        }
+        setState(prev => ({...prev, selectedKinds: newKinds}));
+    };
+
+    const handleSelectAllKinds = (select: boolean) => {
+        const allKinds = new Set<string>();
+        if (select) {
+            Object.values(state.diffs).forEach(items => {
+                items.forEach(item => {
+                    if (item.kind) allKinds.add(item.kind);
+                });
+            });
+        }
+        setState(prev => ({...prev, selectedKinds: allKinds}));
+    };
+
+    const handleToggleExpandApp = (appName: string) => {
+        const newExpanded = new Set(state.expandedApps);
+        if (newExpanded.has(appName)) {
+            newExpanded.delete(appName);
+        } else {
+            newExpanded.add(appName);
+        }
+        setState(prev => ({...prev, expandedApps: newExpanded}));
+    };
+
+    const handleExpandAllApps = (expand: boolean) => {
+        const newExpanded = new Set<string>();
+        if (expand) {
+            state.apps.forEach(app => {
+                if (state.checkedApps.has(app.metadata.name)) {
+                    newExpanded.add(app.metadata.name);
+                }
+            });
+        }
+        setState(prev => ({...prev, expandedApps: newExpanded}));
+    };
+
+    // Calculate unique kinds currently available in loaded diffs
+    const availableKinds = React.useMemo(() => {
+        const kindsMap: {[kind: string]: number} = {};
+        Object.entries(state.diffs).forEach(([appName, items]) => {
+            if (!state.checkedApps.has(appName)) return;
+            items.forEach(item => {
+                if (item.kind) {
+                    kindsMap[item.kind] = (kindsMap[item.kind] || 0) + 1;
+                }
+            });
+        });
+        return kindsMap;
+    }, [state.diffs, state.checkedApps]);
+
+    return (
+        <Page
+            title='Global Diffs'
+            toolbar={{
+                breadcrumbs: [{title: 'Applications', path: '/applications'}, {title: 'Global Diffs'}]
+            }}>
+            <div className='global-diffs-container'>
+                {/* Active Filters Summary */}
+                <div className='global-diffs-card filter-summary-card'>
+                    <div className='filter-summary-title'>
+                        <i className='fa fa-filter' /> Active Filters
+                    </div>
+                    <div className='filter-pills-list'>
+                        {projects.length > 0 && (
+                            <span className='filter-pill'>
+                                <strong>Projects:</strong> {projects.join(', ')}
+                            </span>
+                        )}
+                        {selector && (
+                            <span className='filter-pill'>
+                                <strong>Labels:</strong> {selector}
+                            </span>
+                        )}
+                        {appNamespace && (
+                            <span className='filter-pill'>
+                                <strong>Namespace:</strong> {appNamespace}
+                            </span>
+                        )}
+                        {nameFilter.length > 0 && (
+                            <span className='filter-pill'>
+                                <strong>Selected Apps:</strong> {nameFilter.join(', ')}
+                            </span>
+                        )}
+                        {projects.length === 0 && !selector && !appNamespace && nameFilter.length === 0 && (
+                            <span className='filter-pill filter-pill--all'>Showing all applications in cluster</span>
+                        )}
+                    </div>
+                </div>
+
+                {/* Main Controls Grid */}
+                <div className='global-diffs-grid'>
+                    {/* Left: Applications Selector Panel */}
+                    <div className='global-diffs-card apps-selector-card'>
+                        <div className='card-header-bar'>
+                            <h3>Applications ({state.apps.length})</h3>
+                            <div className='quick-actions'>
+                                <button id='btn-select-all' className='action-link' onClick={() => handleSelectAllApps(true)}>
+                                    Select First 15
+                                </button>
+                                <span>/</span>
+                                <button id='btn-select-none' className='action-link' onClick={() => handleSelectAllApps(false)}>
+                                    Clear
+                                </button>
+                            </div>
+                        </div>
+
+                        {state.apps.length === 0 ? (
+                            <div className='no-apps-message'>No OutOfSync applications match the current filter.</div>
+                        ) : (
+                            <div className='apps-list-checkboxes'>
+                                {state.apps.length > 10 && (
+                                    <div className='warning-banner'>
+                                        <i className='fa fa-exclamation-triangle' /> Only showing first 10 apps by default to protect browser performance.
+                                    </div>
+                                )}
+                                {state.apps.map(app => {
+                                    const appName = app.metadata.name;
+                                    const isChecked = state.checkedApps.has(appName);
+                                    return (
+                                        <label key={appName} className={`app-checkbox-label ${isChecked ? 'checked' : ''}`}>
+                                            <input type='checkbox' id={`chk-${appName}`} checked={isChecked} onChange={() => handleCheckboxChange(appName)} />
+                                            <span className='app-status-icons'>
+                                                <ComparisonStatusIcon status={app.status.sync.status} />
+                                                <HealthStatusIcon state={app.status.health} />
+                                            </span>
+                                            <span className='app-checkbox-text'>{appName}</span>
+                                        </label>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Right: Diffs Viewer Panel */}
+                    <div className='global-diffs-main-panel'>
+                        {/* Resource Kinds Filter & Global Collapse/Expand */}
+                        {state.checkedApps.size > 0 && Object.keys(availableKinds).length > 0 && (
+                            <div className='global-diffs-card kinds-filter-card'>
+                                <div className='kinds-filter-title'>
+                                    <span>Filter by Resource Kind</span>
+                                    <div className='quick-actions'>
+                                        <button id='btn-kinds-all' className='action-link' onClick={() => handleSelectAllKinds(true)}>
+                                            All
+                                        </button>
+                                        <span>/</span>
+                                        <button id='btn-kinds-none' className='action-link' onClick={() => handleSelectAllKinds(false)}>
+                                            None
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className='kinds-pills-list'>
+                                    {Object.entries(availableKinds).map(([kind, count]) => {
+                                        const isSelected = state.selectedKinds.has(kind);
+                                        return (
+                                            <button
+                                                key={kind}
+                                                id={`btn-kind-${kind}`}
+                                                className={`kind-pill ${isSelected ? 'selected' : ''}`}
+                                                onClick={() => handleToggleKind(kind)}>
+                                                {kind} <span className='kind-count'>{count}</span>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+
+                                <div className='diff-layout-actions'>
+                                    <button id='btn-expand-all' className='argo-button argo-button--base-o' onClick={() => handleExpandAllApps(true)}>
+                                        <i className='fa fa-chevron-down' /> Expand Checked
+                                    </button>
+                                    <button id='btn-collapse-all' className='argo-button argo-button--base-o' onClick={() => handleExpandAllApps(false)}>
+                                        <i className='fa fa-chevron-right' /> Collapse All
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Spinner for Loading */}
+                        {state.loading && (
+                            <div className='loading-overlay'>
+                                <Spinner show={true} />
+                                <span className='loading-text'>Loading diff state from API server...</span>
+                            </div>
+                        )}
+
+                        {/* Diffs List */}
+                        {!state.loading && !state.error && state.checkedApps.size === 0 && (
+                            <div className='empty-diffs-state'>
+                                <i className='fa fa-check-circle' />
+                                <h3>No applications selected</h3>
+                                <p>Check one or more applications from the left panel to load and view their drift manifests.</p>
+                            </div>
+                        )}
+
+                        {state.error && (
+                            <div className='error-banner-global'>
+                                <i className='fa fa-exclamation-circle' />
+                                <h3>Failed to load managed resource diffs</h3>
+                                <p>{state.error.message || 'An unexpected error occurred.'}</p>
+                            </div>
+                        )}
+
+                        {!state.loading && !state.error && state.checkedApps.size > 0 && (
+                            <div className='apps-diffs-list'>
+                                {Array.from(state.checkedApps).map(appName => {
+                                    const app = state.apps.find(a => a.metadata.name === appName);
+                                    const rawDiffs = state.diffs[appName] || [];
+                                    const filteredDiffs = rawDiffs.filter(d => state.selectedKinds.has(d.kind));
+                                    const isExpanded = state.expandedApps.has(appName);
+
+                                    if (!app) return null;
+
+                                    return (
+                                        <div key={appName} className={`global-diffs-card app-diff-section-card ${isExpanded ? 'expanded' : ''}`}>
+                                            <div className='app-diff-header' onClick={() => handleToggleExpandApp(appName)}>
+                                                <div className='app-diff-header-left'>
+                                                    <i className={`fa fa-chevron-${isExpanded ? 'down' : 'right'} toggle-arrow`} />
+                                                    <span className='app-name-title'>{appName}</span>
+                                                    <span className='app-meta-badge proj-badge'>{app.spec.project}</span>
+                                                    <span className='app-meta-badge ns-badge'>{app.spec.destination.namespace || 'default'}</span>
+                                                </div>
+                                                <div className='app-diff-header-right'>
+                                                    <span className='diff-count-badge'>
+                                                        {filteredDiffs.length} / {rawDiffs.length} diffs
+                                                    </span>
+                                                    <ComparisonStatusIcon status={app.status.sync.status} />
+                                                    <HealthStatusIcon state={app.status.health} />
+                                                </div>
+                                            </div>
+
+                                            {isExpanded && (
+                                                <div className='app-diff-body'>
+                                                    {filteredDiffs.length === 0 ? (
+                                                        <div className='no-diffs-detail'>
+                                                            {rawDiffs.length === 0
+                                                                ? 'No drift detected in the managed resources.'
+                                                                : 'All diffs are filtered out by current resource kind filters.'}
+                                                        </div>
+                                                    ) : (
+                                                        <ApplicationResourcesDiff states={filteredDiffs} />
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </Page>
+    );
+};

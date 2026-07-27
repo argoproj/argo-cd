@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"maps"
 	"math"
+	"net/http"
 	"reflect"
 	"slices"
 	"sort"
@@ -3211,3 +3212,110 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 		Modified: &modified,
 	}, nil
 }
+
+type ApplicationManagedResources struct {
+	ApplicationName string                   `json:"applicationName"`
+	Items           []*v1alpha1.ResourceDiff `json:"items"`
+}
+
+type BatchManagedResourcesResponse struct {
+	Items []ApplicationManagedResources `json:"items"`
+}
+
+func (s *Server) BatchManagedResourcesHandler(w http.ResponseWriter, r *http.Request) {
+	selector, err := labels.Parse(r.URL.Query().Get("selector"))
+	if err != nil {
+		http.Error(w, fmt.Sprintf("invalid selector: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	var apps []*v1alpha1.Application
+	appNamespace := r.URL.Query().Get("appNamespace")
+	if appNamespace == "" {
+		apps, err = s.appLister.List(selector)
+	} else {
+		apps, err = s.appLister.Applications(appNamespace).List(selector)
+	}
+	if err != nil {
+		http.Error(w, fmt.Sprintf("failed to list applications: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	names := r.URL.Query()["applicationNames"]
+	if len(names) == 1 && strings.Contains(names[0], ",") {
+		names = strings.Split(names[0], ",")
+	}
+
+	if len(names) > 0 {
+		nameMap := make(map[string]bool)
+		for _, name := range names {
+			if name != "" {
+				nameMap[name] = true
+			}
+		}
+		if len(nameMap) > 0 {
+			var filtered []*v1alpha1.Application
+			for _, a := range apps {
+				if nameMap[a.Name] {
+					filtered = append(filtered, a)
+				}
+			}
+			apps = filtered
+		}
+	}
+
+	project := r.URL.Query().Get("project")
+	if project != "" {
+		apps = argo.FilterByProjectsP(apps, []string{project})
+	}
+
+	ctx := r.Context()
+	claims := ctx.Value("claims")
+
+	var authorizedApps []*v1alpha1.Application
+	for _, a := range apps {
+		if !s.isNamespaceEnabled(a.Namespace) {
+			continue
+		}
+		if s.enf.Enforce(claims, rbac.ResourceApplications, rbac.ActionGet, a.RBACName(s.ns)) {
+			authorizedApps = append(authorizedApps, a)
+		}
+	}
+
+	resp := BatchManagedResourcesResponse{
+		Items: []ApplicationManagedResources{},
+	}
+
+	for _, a := range authorizedApps {
+		if a.Status.Sync.Status != v1alpha1.SyncStatusCodeOutOfSync {
+			continue
+		}
+
+		var items []*v1alpha1.ResourceDiff
+		err = s.getCachedAppState(ctx, a, func() error {
+			return s.cache.GetAppManagedResources(a.InstanceName(s.ns), &items)
+		})
+		if err != nil {
+			log.Warnf("failed to get cached app managed resources for %s: %v", a.Name, err)
+			continue
+		}
+
+		var filteredItems []*v1alpha1.ResourceDiff
+		for _, item := range items {
+			if !item.Hook {
+				filteredItems = append(filteredItems, item)
+			}
+		}
+
+		resp.Items = append(resp.Items, ApplicationManagedResources{
+			ApplicationName: a.Name,
+			Items:           filteredItems,
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		log.Errorf("failed to encode batch managed resources response: %v", err)
+	}
+}
+

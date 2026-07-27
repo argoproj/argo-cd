@@ -173,6 +173,50 @@ export class ApplicationsService {
             });
     }
 
+    public batchManagedResources(options: {
+        applicationNames?: string[];
+        project?: string;
+        selector?: string;
+        appNamespace?: string;
+    }): Promise<{applicationName: string; items: models.ResourceDiff[]}[]> {
+        const req = requests.get('/applications/managed-resources');
+        if (options.applicationNames && options.applicationNames.length > 0) {
+            options.applicationNames.forEach(name => req.query(`applicationNames=${name}`));
+        }
+        if (options.project) {
+            req.query(`project=${options.project}`);
+        }
+        if (options.selector) {
+            req.query(`selector=${options.selector}`);
+        }
+        if (options.appNamespace) {
+            req.query(`appNamespace=${options.appNamespace}`);
+        }
+        return req
+            .then(res => (res.body.items as any[]) || [])
+            .then(items => {
+                items.forEach(appItem => {
+                    if (appItem.items) {
+                        appItem.items.forEach((item: any) => {
+                            if (item.liveState) {
+                                item.liveState = JSON.parse(item.liveState);
+                            }
+                            if (item.targetState) {
+                                item.targetState = JSON.parse(item.targetState);
+                            }
+                            if (item.predictedLiveState) {
+                                item.predictedLiveState = JSON.parse(item.predictedLiveState);
+                            }
+                            if (item.normalizedLiveState) {
+                                item.normalizedLiveState = JSON.parse(item.normalizedLiveState);
+                            }
+                        });
+                    }
+                });
+                return items;
+            });
+    }
+
     public getManifest(name: string, appNamespace: string, revision: string): Promise<models.ManifestResponse> {
         return requests
             .get(`/applications/${name}/manifests`)
