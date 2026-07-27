@@ -15,6 +15,39 @@ func TestSourceIntegrity_ConfiguredMethods(t *testing.T) {
 		assert.Empty(t, methods)
 	})
 
+	t.Run("source integrity with empty policies", func(t *testing.T) {
+		sourceIntegrity := &SourceIntegrity{
+			Git: &SourceIntegrityGit{
+				Policies: []*SourceIntegrityGitPolicy{},
+			},
+		}
+
+		methods := sourceIntegrity.ConfiguredMethods()
+
+		assert.Empty(t, methods)
+	})
+
+	t.Run("source integrity with no GPG policy", func(t *testing.T) {
+		sourceIntegrity := &SourceIntegrity{
+			Git: &SourceIntegrityGit{
+				Policies: []*SourceIntegrityGitPolicy{
+					{
+						Repos: []SourceIntegrityGitPolicyRepo{
+							{
+								URL: "*",
+							},
+						},
+						GPG: nil,
+					},
+				},
+			},
+		}
+
+		methods := sourceIntegrity.ConfiguredMethods()
+
+		assert.Empty(t, methods)
+	})
+
 	t.Run("source integrity with GIT + GPG", func(t *testing.T) {
 		sourceIntegrity := &SourceIntegrity{
 			Git: &SourceIntegrityGit{
@@ -37,6 +70,6 @@ func TestSourceIntegrity_ConfiguredMethods(t *testing.T) {
 		methods := sourceIntegrity.ConfiguredMethods()
 
 		assert.Len(t, methods, 1)
-		assert.Equal(t, "GIT/GPG", methods[0])
+		assert.Equal(t, SourceIntegrityMethodNameGitGPG, methods[0])
 	})
 }

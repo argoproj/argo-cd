@@ -3,6 +3,11 @@ package v1alpha1
 import (
 	"errors"
 	"fmt"
+	"slices"
+)
+
+const (
+	SourceIntegrityMethodNameGitGPG = "GIT/GPG"
 )
 
 type SourceIntegrity struct {
@@ -66,7 +71,21 @@ func (s *SourceIntegrity) ConfiguredMethods() []string {
 		return methods
 	}
 	if s.Git != nil {
-		methods = append(methods, "GIT/GPG")
+		methods = append(methods, getGitSourceIntegrityMethods(s.Git.Policies)...)
+	}
+	return methods
+}
+
+func getGitSourceIntegrityMethods(policies []*SourceIntegrityGitPolicy) []string {
+	methods := make([]string, 0)
+	for _, policy := range policies {
+		if policy == nil {
+			continue
+		}
+
+		if policy.GPG != nil && !slices.Contains(methods, SourceIntegrityMethodNameGitGPG) {
+			methods = append(methods, SourceIntegrityMethodNameGitGPG)
+		}
 	}
 	return methods
 }
