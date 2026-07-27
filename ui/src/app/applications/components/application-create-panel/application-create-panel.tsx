@@ -434,7 +434,7 @@ export const ApplicationCreatePanel = (props: {
                                                     </div>
                                                 )}
                                                 {isHydratorEnabled ? (
-                                                    <HydratorSourcePanel formApi={api} repos={repos} />
+                                                    <HydratorSourcePanel formApi={api} repos={repos.map(repo => repo.repo)} />
                                                 ) : (
                                                     <React.Fragment>
                                                         <SourcePanel
