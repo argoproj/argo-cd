@@ -3,6 +3,8 @@ package v1alpha1
 import (
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
 )
 
 const (
@@ -82,16 +84,12 @@ func getGitSourceIntegrityMethods(policies []*SourceIntegrityGitPolicy) []string
 			continue
 		}
 
-		if _, exists := methods[SourceIntegrityMethodNameGitGPG]; !exists && policy.GPG != nil {
+		if policy.GPG != nil {
 			methods[SourceIntegrityMethodNameGitGPG] = nil
 		}
 	}
 
-	ret := make([]string, 0, len(methods))
-	for method := range methods {
-		ret = append(ret, method)
-	}
-	return ret
+	return slices.Sorted(maps.Keys(methods))
 }
 
 // SourceIntegrityCheckResult represents a conclusion of the SourceIntegrity evaluation.
