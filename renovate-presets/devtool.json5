@@ -52,7 +52,35 @@
       ],
       "matchPackageNames": [
         "docker.io/library/node",
-        "docker.io/library/golang"
+        "docker.io/library/golang",
+        "docker.io/library/redis",
+        "docker.io/library/registry",
+        "docker.io/library/ubuntu",
+        "docker.io/bitnamilegacy/kubectl",
+        "docker.io/library/busybox"
+      ],
+      "enabled": true
+    },
+    {
+      "description": "Disable digest-only docker updates; refresh digests when the image tag changes",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchUpdateTypes": [
+        "digest"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "Allow digest updates for tagless busybox pin",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "docker.io/library/busybox"
+      ],
+      "matchUpdateTypes": [
+        "digest"
       ],
       "enabled": true
     },
@@ -68,17 +96,35 @@
       ]
     },
     {
-      "description": "Group node-version packages",
+      "description": "Group node-version packages across production, CI, and test-tools image",
       "groupName": "group node",
       "matchDatasources": [
         "docker",
         "node-version"
+      ],
+      "matchFileNames": [
+        "Dockerfile",
+        "Dockerfile.ui.tilt",
+        "Dockerfile.tilt",
+        "test/container/Dockerfile",
+        ".github/workflows/**",
+        "ui/.nvmrc"
       ],
       "matchPackageNames": [
         "/(?:^|/)node$/",
         "!calico/node",
         "!docker.io/calico/node",
         "!kindest/node"
+      ]
+    },
+    {
+      "description": "Group ubuntu docker images",
+      "groupName": "group ubuntu",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "docker.io/library/ubuntu"
       ]
     },
     {

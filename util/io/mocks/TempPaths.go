@@ -49,7 +49,7 @@ type TempPaths_Add_Call struct {
 // Add is a helper method to define mock.On call
 //   - key string
 //   - value string
-func (_e *TempPaths_Expecter) Add(key interface{}, value interface{}) *TempPaths_Add_Call {
+func (_e *TempPaths_Expecter) Add(key any, value any) *TempPaths_Add_Call {
 	return &TempPaths_Add_Call{Call: _e.mock.On("Add", key, value)}
 }
 
@@ -114,7 +114,7 @@ type TempPaths_GetPath_Call struct {
 
 // GetPath is a helper method to define mock.On call
 //   - key string
-func (_e *TempPaths_Expecter) GetPath(key interface{}) *TempPaths_GetPath_Call {
+func (_e *TempPaths_Expecter) GetPath(key any) *TempPaths_GetPath_Call {
 	return &TempPaths_GetPath_Call{Call: _e.mock.On("GetPath", key)}
 }
 
@@ -165,7 +165,7 @@ type TempPaths_GetPathIfExists_Call struct {
 
 // GetPathIfExists is a helper method to define mock.On call
 //   - key string
-func (_e *TempPaths_Expecter) GetPathIfExists(key interface{}) *TempPaths_GetPathIfExists_Call {
+func (_e *TempPaths_Expecter) GetPathIfExists(key any) *TempPaths_GetPathIfExists_Call {
 	return &TempPaths_GetPathIfExists_Call{Call: _e.mock.On("GetPathIfExists", key)}
 }
 

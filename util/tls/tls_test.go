@@ -9,10 +9,13 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"path"
 	"strings"
 	"testing"
 	"time"
 
+	logtest "github.com/sirupsen/logrus/hooks/test"
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -396,7 +399,7 @@ func TestCreateServerTLSConfig(t *testing.T) {
 	t.Parallel()
 	t.Run("Configuration from a valid key/cert pair", func(t *testing.T) {
 		t.Parallel()
-		tlsc, err := CreateServerTLSConfig("testdata/valid_tls.crt", "testdata/valid_tls.key", []string{"localhost", "argocd-repo-server"})
+		tlsc, err := CreateServerTLSConfig("testdata/valid_tls.crt", "testdata/valid_tls.key", []string{"localhost", "argocd-repo-server"}, "")
 		require.NoError(t, err)
 		assert.Len(t, tlsc.Certificates, 1)
 		c, err := x509.ParseCertificate(tlsc.Certificates[0].Certificate[0])
@@ -406,26 +409,66 @@ func TestCreateServerTLSConfig(t *testing.T) {
 
 	t.Run("Self-signed creation due to non-existing cert", func(t *testing.T) {
 		t.Parallel()
-		tlsc, err := CreateServerTLSConfig("testdata/invvalid_tls.crt", "testdata/invalid_tls.key", []string{"localhost", "argocd-repo-server"})
+		tlsc, err := CreateServerTLSConfig("testdata/invvalid_tls.crt", "testdata/invalid_tls.key", []string{"localhost", "argocd-repo-server"}, "")
 		require.NoError(t, err)
 		assert.Len(t, tlsc.Certificates, 1)
 		c, err := x509.ParseCertificate(tlsc.Certificates[0].Certificate[0])
 		require.NoError(t, err)
 		assert.Equal(t, []string{"Argo CD"}, c.Subject.Organization)
+		assert.Equal(t, tls.NoClientCert, tlsc.ClientAuth)
 	})
 
 	t.Run("Self-signed creation fails due to hosts being nil", func(t *testing.T) {
 		t.Parallel()
-		tlsc, err := CreateServerTLSConfig("testdata/invvalid_tls.crt", "testdata/invalid_tls.key", nil)
+		tlsc, err := CreateServerTLSConfig("testdata/invvalid_tls.crt", "testdata/invalid_tls.key", nil, "")
 		require.Error(t, err)
 		assert.Nil(t, tlsc)
 	})
 
 	t.Run("Self-signed creation fails due to invalid certificates", func(t *testing.T) {
 		t.Parallel()
-		tlsc, err := CreateServerTLSConfig("testdata/empty_tls.crt", "testdata/empty_tls.key", nil)
+		tlsc, err := CreateServerTLSConfig("testdata/empty_tls.crt", "testdata/empty_tls.key", nil, "")
 		require.Error(t, err)
 		assert.Nil(t, tlsc)
+	})
+
+	t.Run("Configuration with client CA", func(t *testing.T) {
+		hook := logtest.NewGlobal()
+		defer hook.Reset()
+
+		tlsc, err := CreateServerTLSConfig("testdata/valid_tls.crt", "testdata/valid_tls.key", []string{"localhost"}, "testdata/valid_tls.crt")
+		require.NoError(t, err)
+		assert.NotNil(t, tlsc.ClientCAs)
+		assert.Equal(t, tls.RequireAndVerifyClientCert, tlsc.ClientAuth)
+		require.NotNil(t, hook.LastEntry())
+		assert.Contains(t, hook.LastEntry().Message, "mTLS enabled for repo-server: requiring client certificates from CA=testdata/valid_tls.crt")
+	})
+
+	t.Run("Self-signed creation with NoClientCert when no ClientCA", func(t *testing.T) {
+		tlsc, err := CreateServerTLSConfig("testdata/nonexistent.crt", "testdata/nonexistent.key", []string{"localhost"}, "")
+		require.NoError(t, err)
+		assert.Equal(t, tls.NoClientCert, tlsc.ClientAuth)
+		assert.Nil(t, tlsc.ClientCAs)
+	})
+
+	t.Run("ClientCA path specified but file does not exist — mTLS skipped", func(t *testing.T) {
+		tlsc, err := CreateServerTLSConfig("testdata/valid_tls.crt", "testdata/valid_tls.key", []string{"localhost"}, "testdata/nonexistent_ca.crt")
+		require.NoError(t, err)
+		assert.NotNil(t, tlsc)
+		assert.Equal(t, tls.NoClientCert, tlsc.ClientAuth)
+		assert.Nil(t, tlsc.ClientCAs)
+	})
+
+	t.Run("ClientCA path specified but stat returns non-ErrNotExist error", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, os.Chmod(dir, 0o000))
+		t.Cleanup(func() { _ = os.Chmod(dir, 0o700) })
+		caPath := path.Join(dir, "ca.crt")
+
+		tlsc, err := CreateServerTLSConfig("testdata/valid_tls.crt", "testdata/valid_tls.key", []string{"localhost"}, caPath)
+		require.Error(t, err)
+		assert.Nil(t, tlsc)
+		assert.Contains(t, err.Error(), "could not stat client CA file")
 	})
 }
 
@@ -498,6 +541,120 @@ func TestLoadX509CertPool(t *testing.T) {
 		p, err := LoadX509CertPool("testdata/empty_tls.crt", "testdata/valid_tls2.crt")
 		require.Error(t, err)
 		require.Nil(t, p)
+	})
+}
+
+func TestAddTLSFlagsToCmdWithPrefix(t *testing.T) {
+	t.Run("Empty prefix uses standard environment variables", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		t.Setenv("ARGOCD_TLS_MIN_VERSION", "1.1")
+		AddTLSFlagsToCmdWithPrefix(cmd, "")
+
+		minVersion, err := cmd.Flags().GetString("tlsminversion")
+		require.NoError(t, err)
+		assert.Equal(t, "1.1", minVersion)
+	})
+
+	t.Run("Prefix is used for flag names and environment variables", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		t.Setenv("ARGOCD_SERVER_TLS_MIN_VERSION", "1.1")
+		AddTLSFlagsToCmdWithPrefix(cmd, "server")
+
+		minVersion, err := cmd.Flags().GetString("server-tlsminversion")
+		require.NoError(t, err)
+		assert.Equal(t, "1.1", minVersion)
+	})
+}
+
+func TestAddClientTLSFlagsToCmdWithPrefix(t *testing.T) {
+	t.Run("Empty prefix uses standard environment variables", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		t.Setenv("ARGOCD_REPO_SERVER_CA_CERT_PATH", "test-ca-cert")
+		AddClientTLSFlagsToCmdWithPrefix(cmd, "")
+
+		caCert, err := cmd.Flags().GetString("repo-server-ca-cert-path")
+		require.NoError(t, err)
+		assert.Equal(t, "test-ca-cert", caCert)
+	})
+
+	t.Run("Prefix is used for flag names and environment variables", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		t.Setenv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_CA_CERT_PATH", "test-ca-cert-prefixed")
+		AddClientTLSFlagsToCmdWithPrefix(cmd, "APPLICATION_CONTROLLER")
+
+		caCert, err := cmd.Flags().GetString("repo-server-ca-cert-path")
+		require.NoError(t, err)
+		assert.Equal(t, "test-ca-cert-prefixed", caCert)
+	})
+
+	t.Run("mTLS client certificate is configured only by explicit flags", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		configSrc := AddClientTLSFlagsToCmdWithPrefix(cmd, "")
+		err := cmd.Flags().Set("repo-server-client-cert-path", "test-client-cert")
+		require.NoError(t, err)
+		err = cmd.Flags().Set("repo-server-client-cert-key-path", "test-client-cert-key")
+		require.NoError(t, err)
+
+		config, err := configSrc()
+		require.NoError(t, err)
+		assert.Empty(t, config.ClientCertificates)
+		assert.Equal(t, "test-client-cert", config.ClientCertFile)
+		assert.Equal(t, "test-client-cert-key", config.ClientCertKeyFile)
+	})
+
+	t.Run("Error when client cert is explicitly cleared but key is still set", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		configSrc := AddClientTLSFlagsToCmdWithPrefix(cmd, "")
+		// Explicitly override cert to empty while key retains its default
+		err := cmd.Flags().Set("repo-server-client-cert-path", "")
+		require.NoError(t, err)
+
+		_, err = configSrc()
+		require.ErrorContains(t, err, "--repo-server-client-cert-path is required when --repo-server-client-cert-key-path is specified")
+	})
+
+	t.Run("Error when client cert key is explicitly cleared but cert is still set", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		configSrc := AddClientTLSFlagsToCmdWithPrefix(cmd, "")
+		// Explicitly override key to empty while cert retains its default
+		err := cmd.Flags().Set("repo-server-client-cert-key-path", "")
+		require.NoError(t, err)
+
+		_, err = configSrc()
+		require.ErrorContains(t, err, "--repo-server-client-cert-key-path is required when --repo-server-client-cert-path is specified")
+	})
+
+	t.Run("Default mTLS client cert paths point to auto-mounted Secret", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		configSrc := AddClientTLSFlagsToCmdWithPrefix(cmd, "")
+
+		config, err := configSrc()
+		require.NoError(t, err)
+		assert.Empty(t, config.ClientCertificates)
+		assert.Equal(t, "/app/config/reposerver/mtls/client.crt", config.ClientCertFile)
+		assert.Equal(t, "/app/config/reposerver/mtls/client.key", config.ClientCertKeyFile)
+	})
+
+	t.Run("Repeated invocations do not leak strict validation state", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		configSrc := AddClientTLSFlagsToCmdWithPrefix(cmd, "")
+
+		certFile := path.Join("testdata", "single.pem")
+		err := cmd.Flags().Set("repo-server-ca-cert-path", certFile)
+		require.NoError(t, err)
+
+		configWithCA, err := configSrc()
+		require.NoError(t, err)
+		assert.True(t, configWithCA.StrictValidation)
+		assert.NotNil(t, configWithCA.Certificates)
+
+		err = cmd.Flags().Set("repo-server-ca-cert-path", "")
+		require.NoError(t, err)
+
+		configWithoutCA, err := configSrc()
+		require.NoError(t, err)
+		assert.False(t, configWithoutCA.StrictValidation)
+		assert.Nil(t, configWithoutCA.Certificates)
 	})
 }
 
@@ -575,5 +732,176 @@ func TestEncodeX509KeyPair_InvalidRSAKey(t *testing.T) {
 		assert.NotEmpty(t, keyPEM)
 		assert.Contains(t, string(keyPEM), "-----BEGIN RSA PRIVATE KEY-----")
 		assert.Contains(t, string(keyPEM), "-----END RSA PRIVATE KEY-----")
+	})
+}
+
+func TestGenerateHealthCheckClientCert(t *testing.T) {
+	cert, err := GenerateHealthCheckClientCert()
+	require.NoError(t, err)
+	require.NotNil(t, cert)
+	require.NotEmpty(t, cert.Certificate)
+
+	parsed, err := x509.ParseCertificate(cert.Certificate[0])
+	require.NoError(t, err)
+
+	assert.Equal(t, parsed.Subject.String(), parsed.Issuer.String(), "health-check cert must be self-signed")
+	assert.True(t, parsed.IsCA, "health-check cert must have IsCA=true to be usable in a ClientCAs pool")
+	require.Len(t, parsed.ExtKeyUsage, 1)
+	assert.Equal(t, x509.ExtKeyUsageClientAuth, parsed.ExtKeyUsage[0], "health-check cert must only carry ExtKeyUsageClientAuth, not ExtKeyUsageServerAuth")
+
+	assert.NotNil(t, cert.Leaf)
+}
+
+func TestGenerateHealthCheckClientCert_IsRegistrableAsClientCA(t *testing.T) {
+	cert, err := GenerateHealthCheckClientCert()
+	require.NoError(t, err)
+
+	parsed, err := x509.ParseCertificate(cert.Certificate[0])
+	require.NoError(t, err)
+
+	pool := x509.NewCertPool()
+	assert.NotPanics(t, func() { pool.AddCert(parsed) })
+}
+
+func TestAddClientTLSFlagsToCmdWithPrefix_NoCACert_StrictValidationIsFalse(t *testing.T) {
+	cmd := &cobra.Command{}
+	src := AddClientTLSFlagsToCmdWithPrefix(cmd, "")
+
+	cfg, err := src()
+	require.NoError(t, err)
+	assert.False(t, cfg.StrictValidation)
+	assert.Nil(t, cfg.Certificates)
+}
+
+func TestAddClientTLSFlagsToCmdWithPrefix_CACertSetsStrictValidation(t *testing.T) {
+	cmd := &cobra.Command{}
+	src := AddClientTLSFlagsToCmdWithPrefix(cmd, "")
+
+	require.NoError(t, cmd.Flags().Set("repo-server-ca-cert-path", "testdata/single.pem"))
+
+	cfg, err := src()
+	require.NoError(t, err)
+
+	assert.True(t, cfg.StrictValidation,
+		"providing --repo-server-ca-cert must imply StrictValidation=true")
+	assert.NotNil(t, cfg.Certificates,
+		"CA cert pool must be populated when --repo-server-ca-cert is set")
+}
+
+func TestStrictValidationOverride_ORSemantics(t *testing.T) {
+	cases := []struct {
+		name            string
+		setCACert       bool // simulate --repo-server-ca-cert being provided
+		legacyFlagValue bool // value of --repo-server-strict-tls
+		wantStrict      bool
+		wantPoolNonNil  bool
+	}{
+		{
+			name:            "no CA cert, legacy flag false → insecure",
+			setCACert:       false,
+			legacyFlagValue: false,
+			wantStrict:      false,
+			wantPoolNonNil:  false,
+		},
+		{
+			name:            "no CA cert, legacy flag true → strict via legacy path",
+			setCACert:       false,
+			legacyFlagValue: true,
+			wantStrict:      true,
+			wantPoolNonNil:  false, // pool populated by component's legacy block, not here
+		},
+		{
+			name:            "CA cert set, legacy flag false → strict because CA cert implies it",
+			setCACert:       true,
+			legacyFlagValue: false,
+			wantStrict:      true, // THE BUG: was false before the fix
+			wantPoolNonNil:  true,
+		},
+		{
+			name:            "CA cert set, legacy flag true → strict (both agree)",
+			setCACert:       true,
+			legacyFlagValue: true,
+			wantStrict:      true,
+			wantPoolNonNil:  true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			cmd := &cobra.Command{}
+			src := AddClientTLSFlagsToCmdWithPrefix(cmd, "")
+
+			if tc.setCACert {
+				require.NoError(t, cmd.Flags().Set("repo-server-ca-cert-path", "testdata/single.pem"))
+			}
+
+			// Step 1: get config from the new flag helper (Layer 1).
+			cfg, err := src()
+			require.NoError(t, err)
+
+			// Step 2: simulate the component's RunE override using OR semantics (the fix).
+			cfg.StrictValidation = cfg.StrictValidation || tc.legacyFlagValue
+
+			assert.Equal(t, tc.wantStrict, cfg.StrictValidation,
+				"StrictValidation after OR-based override")
+			if tc.wantPoolNonNil {
+				assert.NotNil(t, cfg.Certificates,
+					"Certificates pool must be populated when CA cert was provided")
+			}
+		})
+	}
+}
+
+func TestStrictValidationOverride_OldAssignmentSemantics_DocumentsBug(t *testing.T) {
+	cmd := &cobra.Command{}
+	src := AddClientTLSFlagsToCmdWithPrefix(cmd, "")
+	require.NoError(t, cmd.Flags().Set("repo-server-ca-cert-path", "testdata/single.pem"))
+
+	cfg, err := src()
+	require.NoError(t, err)
+
+	require.True(t, cfg.StrictValidation, "pre-condition: CA cert must set StrictValidation=true")
+
+	legacyFlag := false
+	cfg.StrictValidation = legacyFlag // old code: = not ||
+
+	assert.False(t, cfg.StrictValidation,
+		"BUG REPRODUCED: old = semantics silently discard StrictValidation=true set by CA cert flag")
+	assert.NotNil(t, cfg.Certificates,
+		"pool is non-nil but StrictValidation=false → buildTLSClientConfig's fallback saves us,"+
+			" but the struct state is incoherent")
+}
+
+func TestClientCertFlags_BothRequiredOrNeither(t *testing.T) {
+	t.Run("cert explicitly cleared while key retains default returns error", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		src := AddClientTLSFlagsToCmdWithPrefix(cmd, "")
+		// Clear cert so that key (default) is set but cert is empty
+		require.NoError(t, cmd.Flags().Set("repo-server-client-cert-path", ""))
+
+		_, err := src()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "--repo-server-client-cert-path is required")
+	})
+
+	t.Run("key explicitly cleared while cert retains default returns error", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		src := AddClientTLSFlagsToCmdWithPrefix(cmd, "")
+		// Clear key so that cert (default) is set but key is empty
+		require.NoError(t, cmd.Flags().Set("repo-server-client-cert-key-path", ""))
+
+		_, err := src()
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "--repo-server-client-cert-key-path is required")
+	})
+
+	t.Run("default cert and key paths point to auto-mounted Secret", func(t *testing.T) {
+		cmd := &cobra.Command{}
+		src := AddClientTLSFlagsToCmdWithPrefix(cmd, "")
+
+		cfg, err := src()
+		require.NoError(t, err)
+		assert.Equal(t, "/app/config/reposerver/mtls/client.crt", cfg.ClientCertFile)
+		assert.Equal(t, "/app/config/reposerver/mtls/client.key", cfg.ClientCertKeyFile)
 	})
 }

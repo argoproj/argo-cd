@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/text"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/text"
 	"github.com/go-git/go-git/v5/plumbing"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -34,6 +34,11 @@ type Cache struct {
 	repoCacheExpiration      time.Duration
 	revisionCacheExpiration  time.Duration
 	revisionCacheLockTimeout time.Duration
+}
+
+// GetRepoCacheExpiration returns the repository cache expiration duration.
+func (c *Cache) GetRepoCacheExpiration() time.Duration {
+	return c.repoCacheExpiration
 }
 
 // ClusterRuntimeInfo holds cluster runtime information

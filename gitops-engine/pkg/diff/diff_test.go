@@ -26,10 +26,11 @@ import (
 	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/klog/v2/textlogger"
 	openapiproto "k8s.io/kube-openapi/pkg/util/proto"
+	"sigs.k8s.io/structured-merge-diff/v6/fieldpath"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff/mocks"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff/testdata"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff/mocks"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff/testdata"
 )
 
 func printDiff(ctx context.Context, result *DiffResult) (string, error) {
@@ -158,7 +159,7 @@ func newDeployment() *appsv1.Deployment {
 
 func diff(t *testing.T, config, live *unstructured.Unstructured, options ...Option) *DiffResult {
 	t.Helper()
-	res, err := Diff(config, live, options...)
+	res, err := Diff(t.Context(), config, live, options...)
 	assert.NoError(t, err)
 	return res
 }
@@ -241,7 +242,7 @@ func TestDiffArraySame(t *testing.T) {
 
 	left := []*unstructured.Unstructured{leftUn}
 	right := []*unstructured.Unstructured{rightUn}
-	diffResList, err := DiffArray(left, right, diffOptionsForTest()...)
+	diffResList, err := DiffArray(t.Context(), left, right, diffOptionsForTest()...)
 	require.NoError(t, err)
 	assert.False(t, diffResList.Modified)
 }
@@ -256,7 +257,7 @@ func TestDiffArrayAdditions(t *testing.T) {
 
 	left := []*unstructured.Unstructured{leftUn}
 	right := []*unstructured.Unstructured{rightUn}
-	diffResList, err := DiffArray(left, right, diffOptionsForTest()...)
+	diffResList, err := DiffArray(t.Context(), left, right, diffOptionsForTest()...)
 	require.NoError(t, err)
 	assert.False(t, diffResList.Modified)
 }
@@ -272,7 +273,7 @@ func TestDiffArrayModification(t *testing.T) {
 
 	left := []*unstructured.Unstructured{leftUn}
 	right := []*unstructured.Unstructured{rightUn}
-	diffResList, err := DiffArray(left, right, diffOptionsForTest()...)
+	diffResList, err := DiffArray(t.Context(), left, right, diffOptionsForTest()...)
 	require.NoError(t, err)
 	assert.True(t, diffResList.Modified)
 }
@@ -916,7 +917,7 @@ func TestServerSideDiff(t *testing.T) {
 		opts := buildOpts(testdata.ServicePredictedLiveJSONSSD)
 
 		// when
-		result, err := serverSideDiff(desiredState, liveState, opts...)
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
 
 		// then
 		require.NoError(t, err)
@@ -941,7 +942,7 @@ func TestServerSideDiff(t *testing.T) {
 		opts := buildOpts(testdata.Deployment2PredictedLiveJSONSSD)
 
 		// when
-		result, err := serverSideDiff(desiredState, liveState, opts...)
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
 
 		// then
 		require.NoError(t, err)
@@ -966,7 +967,7 @@ func TestServerSideDiff(t *testing.T) {
 		opts = append(opts, WithIgnoreMutationWebhook(false))
 
 		// when
-		result, err := serverSideDiff(desiredState, liveState, opts...)
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
 
 		// then
 		require.NoError(t, err)
@@ -991,7 +992,7 @@ func TestServerSideDiff(t *testing.T) {
 		opts := buildOpts(testdata.DeploymentNestedPredictedLiveJSONSSD)
 
 		// when
-		result, err := serverSideDiff(desiredState, liveState, opts...)
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
 
 		// then
 		require.NoError(t, err)
@@ -1022,7 +1023,7 @@ func TestServerSideDiff(t *testing.T) {
 		opts := buildOpts(testdata.DeploymentApplyPredictedLiveJSONSSD)
 
 		// when
-		result, err := serverSideDiff(desiredState, liveState, opts...)
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
 
 		// then
 		require.NoError(t, err)
@@ -1049,7 +1050,7 @@ func TestServerSideDiff(t *testing.T) {
 		opts := buildOpts(testdata.ServicePredictedLiveNoLabelJSONSSD)
 
 		// when
-		result, err := serverSideDiff(desiredState, liveState, opts...)
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
 
 		// then
 		require.NoError(t, err)
@@ -1082,7 +1083,7 @@ func TestServerSideDiff(t *testing.T) {
 		opts := buildOptsWithNormalizer(testdata.ServicePredictedLiveJSONSSD, normalizer)
 
 		// when
-		result, err := serverSideDiff(desiredState, liveState, opts...)
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
 
 		// then
 		require.NoError(t, err)
@@ -1114,7 +1115,7 @@ func TestServerSideDiff(t *testing.T) {
 		opts := buildOpts(testdata.DeploymentCompositeKeyPredictedLiveJSONSSD)
 
 		// when
-		result, err := serverSideDiff(desiredState, liveState, opts...)
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
 
 		// then
 		require.NoError(t, err)
@@ -1204,7 +1205,7 @@ func TestServerSideDiff(t *testing.T) {
 		opts = append(opts, WithIgnoreMutationWebhook(false))
 
 		// when
-		result, err := serverSideDiff(desiredState, liveState, opts...)
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
 
 		// then
 		require.NoError(t, err)
@@ -1222,7 +1223,7 @@ func TestServerSideDiff(t *testing.T) {
 		opts := buildOpts(testdata.ConfigMapPredictedLiveJSONSSD)
 
 		// when
-		result, err := serverSideDiff(desiredState, liveState, opts...)
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
 
 		// then
 		require.NoError(t, err)
@@ -1263,7 +1264,7 @@ func TestServerSideDiff(t *testing.T) {
 		predictedLiveJSON := mustMarshalJSON(t, buildSecret("test-secret", "default", map[string]string{"password": "injected-by-webhook"}, nil))
 
 		opts := append(buildOpts(predictedLiveJSON), WithIgnoreMutationWebhook(false))
-		result, err := serverSideDiff(desired, live, opts...)
+		result, err := serverSideDiff(t.Context(), desired, live, opts...)
 		require.NoError(t, err)
 		require.NotNil(t, result)
 
@@ -1283,7 +1284,7 @@ func TestServerSideDiff(t *testing.T) {
 		predictedLiveJSON := mustMarshalJSON(t, buildSecret("test-secret", "default", map[string]string{"password": "new-value"}, nil))
 
 		opts := append(buildOpts(predictedLiveJSON), WithIgnoreMutationWebhook(false))
-		result, err := serverSideDiff(desired, live, opts...)
+		result, err := serverSideDiff(t.Context(), desired, live, opts...)
 		require.NoError(t, err)
 		require.NotNil(t, result)
 
@@ -1306,7 +1307,7 @@ func TestServerSideDiff(t *testing.T) {
 		predictedLiveJSON := mustMarshalJSON(t, buildSecret("test-secret", "default", map[string]string{"password": "x", "token": "y"}, nil))
 
 		opts := append(buildOpts(predictedLiveJSON), WithIgnoreMutationWebhook(false))
-		result, err := serverSideDiff(desired, live, opts...)
+		result, err := serverSideDiff(t.Context(), desired, live, opts...)
 		require.NoError(t, err)
 		require.NotNil(t, result)
 
@@ -1325,7 +1326,7 @@ func TestServerSideDiff(t *testing.T) {
 		predictedLiveJSON := mustMarshalJSON(t, desired)
 
 		opts := append(buildOpts(predictedLiveJSON), WithIgnoreMutationWebhook(false))
-		result, err := serverSideDiff(desired, live, opts...)
+		result, err := serverSideDiff(t.Context(), desired, live, opts...)
 		require.NoError(t, err)
 		require.NotNil(t, result)
 
@@ -1388,7 +1389,7 @@ func TestServerSideDiff(t *testing.T) {
 		opts = append(opts, WithIgnoreMutationWebhook(false))
 
 		// when
-		result, err := serverSideDiff(desiredState, liveState, opts...)
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
 
 		// then
 		require.NoError(t, err)
@@ -1483,6 +1484,184 @@ var (
 	replacement2 = strings.Repeat("+", 12)
 	replacement3 = strings.Repeat("+", 16)
 )
+
+// TestExcludeManagerOwnedAncestors covers a CRD field with
+// x-kubernetes-preserve-unknown-fields that can produce a predicted field set
+// where a manager-owned leaf (e.g. .spec.configuration.value) is a distinct
+// member from its ancestor containers (.spec, .spec.configuration), because
+// Kubernetes only records the leaf path in managedFields. Removing those
+// ancestors wholesale would also remove the manager-owned leaf.
+func TestExcludeManagerOwnedAncestors(t *testing.T) {
+	t.Run("excludes ancestors of a manager-owned descendant", func(t *testing.T) {
+		toRemove := fieldpath.NewSet(
+			fieldpath.MakePathOrDie("spec"),
+			fieldpath.MakePathOrDie("spec", "configuration"),
+		)
+		managerFieldsSet := fieldpath.NewSet(
+			fieldpath.MakePathOrDie("spec", "configuration", "value"),
+		)
+
+		result := excludeManagerOwnedAncestors(toRemove, managerFieldsSet)
+
+		assert.True(t, result.Empty(), "expected ancestors of a manager-owned field to be excluded from removal, got: %s", result.String())
+	})
+
+	t.Run("keeps paths with no manager-owned descendants", func(t *testing.T) {
+		toRemove := fieldpath.NewSet(
+			fieldpath.MakePathOrDie("spec"),
+			fieldpath.MakePathOrDie("spec", "configuration"),
+			fieldpath.MakePathOrDie("spec", "configuration", "other"),
+		)
+		managerFieldsSet := fieldpath.NewSet(
+			fieldpath.MakePathOrDie("spec", "configuration", "value"),
+		)
+
+		result := excludeManagerOwnedAncestors(toRemove, managerFieldsSet)
+
+		assert.False(t, result.Has(fieldpath.MakePathOrDie("spec")))
+		assert.False(t, result.Has(fieldpath.MakePathOrDie("spec", "configuration")))
+		assert.True(t, result.Has(fieldpath.MakePathOrDie("spec", "configuration", "other")))
+	})
+
+	t.Run("strips a genuinely non-owned sibling while sparing the owned subtree in the same call", func(t *testing.T) {
+		// Mirrors the real webhook scenario: a webhook injects .spec.unrelated,
+		// while argocd owns .spec.configuration.value. Both the ancestor
+		// protection and the removal of unrelated webhook mutations must hold
+		// at once.
+		toRemove := fieldpath.NewSet(
+			fieldpath.MakePathOrDie("spec"),
+			fieldpath.MakePathOrDie("spec", "configuration"),
+			fieldpath.MakePathOrDie("spec", "unrelated"),
+		)
+		managerFieldsSet := fieldpath.NewSet(
+			fieldpath.MakePathOrDie("spec", "configuration", "value"),
+		)
+
+		result := excludeManagerOwnedAncestors(toRemove, managerFieldsSet)
+
+		assert.False(t, result.Has(fieldpath.MakePathOrDie("spec")), "ancestor of owned descendant must stay excluded")
+		assert.False(t, result.Has(fieldpath.MakePathOrDie("spec", "configuration")), "ancestor of owned descendant must stay excluded")
+		assert.True(t, result.Has(fieldpath.MakePathOrDie("spec", "unrelated")), "unrelated webhook-injected sibling must still be removed")
+	})
+}
+
+// preserveUnknownFieldsWidgetSwagger defines a CRD whose .spec is
+// x-kubernetes-preserve-unknown-fields. Under such a schema the merge field set
+// represents .spec and .spec.configuration as granular members, distinct from
+// the manager-owned leaf .spec.configuration.value — the exact shape that lets a
+// wholesale ancestor removal drop the owned descendant.
+const preserveUnknownFieldsWidgetSwagger = `{
+  "swagger": "2.0",
+  "info": {"title": "test", "version": "v1.0"},
+  "paths": {},
+  "definitions": {
+    "com.example.v1.Widget": {
+      "type": "object",
+      "x-kubernetes-group-version-kind": [
+        {"group": "example.com", "version": "v1", "kind": "Widget"}
+      ],
+      "properties": {
+        "apiVersion": {"type": "string"},
+        "kind": {"type": "string"},
+        "metadata": {"type": "object", "x-kubernetes-preserve-unknown-fields": true},
+        "spec": {"type": "object", "x-kubernetes-preserve-unknown-fields": true}
+      }
+    }
+  }
+}`
+
+func buildPreserveUnknownFieldsGVKParser(t *testing.T) *managedfields.GvkParser {
+	t.Helper()
+	doc, err := openapi_v2.ParseDocument([]byte(preserveUnknownFieldsWidgetSwagger))
+	require.NoError(t, err, "error parsing widget swagger")
+	models, err := openapiproto.NewOpenAPIData(doc)
+	require.NoErrorf(t, err, "error building openapi data: %s", err)
+	gvkParser, err := managedfields.NewGVKParser(models, false)
+	require.NoErrorf(t, err, "error building gvkParser: %s", err)
+	return gvkParser
+}
+
+// TestServerSideDiffPreservesManagerOwnedFieldUnderWebhookMutation drives the
+// full serverSideDiff path (not just the excludeManagerOwnedAncestors unit) for
+// the real webhook scenario: a manager owns a deep leaf under a
+// preserve-unknown-fields subtree (.spec.configuration.value) while a mutation
+// webhook injects a sibling (.spec.unrelated). The desired value must survive
+// the diff while the webhook mutation is stripped. Without the ancestor
+// protection the owned value is reverted to its live state, so this guards
+// against a refactor of removeWebhookMutation silently reintroducing the bug.
+func TestServerSideDiffPreservesManagerOwnedFieldUnderWebhookMutation(t *testing.T) {
+	manager := "argocd-controller"
+	gvkParser := buildPreserveUnknownFieldsGVKParser(t)
+
+	live := StrToUnstructured(`
+apiVersion: example.com/v1
+kind: Widget
+metadata:
+  name: test-widget
+spec:
+  configuration:
+    value: old
+`)
+	config := StrToUnstructured(`
+apiVersion: example.com/v1
+kind: Widget
+metadata:
+  name: test-widget
+spec:
+  configuration:
+    value: new
+`)
+	// Dry-run apply result: argocd's desired value plus a webhook-injected
+	// sibling. managedFields records ONLY the owned leaf, mirroring how
+	// Kubernetes records leaf paths under x-kubernetes-preserve-unknown-fields.
+	predictedLive := `{
+  "apiVersion": "example.com/v1",
+  "kind": "Widget",
+  "metadata": {
+    "name": "test-widget",
+    "managedFields": [
+      {"manager": "argocd-controller", "operation": "Apply", "apiVersion": "example.com/v1",
+       "fieldsType": "FieldsV1",
+       "fieldsV1": {"f:spec": {"f:configuration": {"f:value": {}}}}}
+    ]
+  },
+  "spec": {
+    "configuration": {"value": "new"},
+    "unrelated": "injected-by-webhook"
+  }
+}`
+
+	dryRunner := mocks.NewServerSideDryRunner(t)
+	dryRunner.EXPECT().Run(mock.Anything, mock.AnythingOfType("*unstructured.Unstructured"), manager).
+		Return(predictedLive, nil)
+
+	opts := []Option{
+		WithGVKParser(gvkParser),
+		WithManager(manager),
+		WithServerSideDryRunner(dryRunner),
+	}
+
+	// when
+	result, err := serverSideDiff(t.Context(), config, live, opts...)
+
+	// then
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	var predicted map[string]any
+	require.NoError(t, json.Unmarshal(result.PredictedLive, &predicted))
+
+	value, found, err := unstructured.NestedString(predicted, "spec", "configuration", "value")
+	require.NoError(t, err)
+	assert.True(t, found, "manager-owned .spec.configuration.value must survive the diff")
+	assert.Equal(t, "new", value, "owned value must be the desired value, not reverted to the live state")
+
+	_, unrelatedFound, err := unstructured.NestedFieldNoCopy(predicted, "spec", "unrelated")
+	require.NoError(t, err)
+	assert.False(t, unrelatedFound, "webhook-injected .spec.unrelated must be stripped from the diff")
+
+	assert.True(t, result.Modified, "the desired value change must be reflected in the diff")
+}
 
 func TestHideSecretDataSameKeysDifferentValues(t *testing.T) {
 	target, live, err := HideSecretData(
@@ -2035,7 +2214,7 @@ spec:
 `), &liveResource); err != nil {
 		panic(err)
 	}
-	diff, err := Diff(&expectedResource, &liveResource, diffOptionsForTest()...)
+	diff, err := Diff(context.Background(), &expectedResource, &liveResource, diffOptionsForTest()...)
 	if err != nil {
 		panic(err)
 	}
@@ -2121,7 +2300,7 @@ spec:
 		}
 
 		// when
-		result, err := Diff(desiredService, liveService, opts...)
+		result, err := Diff(t.Context(), desiredService, liveService, opts...)
 		require.NoError(t, err)
 
 		// then
@@ -2189,7 +2368,7 @@ spec:
 		}
 
 		// when
-		result, err := Diff(configService, liveService, opts...)
+		result, err := Diff(t.Context(), configService, liveService, opts...)
 		require.NoError(t, err)
 
 		// then
@@ -2207,4 +2386,152 @@ spec:
 		assert.Contains(t, predictedLiveStr, "sessionAffinity", "sessionAffinity should still appear in output (no output normalization)")
 		assert.Contains(t, normalizedLiveStr, "sessionAffinity", "sessionAffinity should still appear in output (no output normalization)")
 	})
+}
+
+func TestStructuredMergeDiff_HPAv2ToV1Conversion(t *testing.T) {
+	// Reproduces https://github.com/argoproj/argo-cd/issues/17795
+	gvkParser := buildGVKParser(t)
+
+	config := StrToUnstructured(`
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: test-hpa
+  namespace: default
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: test-deploy
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50
+`)
+
+	live := StrToUnstructured(`
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: test-hpa
+  namespace: default
+  managedFields:
+  - apiVersion: autoscaling/v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:spec:
+        f:maxReplicas: {}
+        f:minReplicas: {}
+        f:scaleTargetRef: {}
+    manager: helm
+    operation: Apply
+    time: "2024-01-01T00:00:00Z"
+  - apiVersion: autoscaling/v2
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:spec:
+        f:metrics: {}
+    manager: argocd-controller
+    operation: Apply
+    time: "2024-01-02T00:00:00Z"
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: test-deploy
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50
+`)
+
+	// Identical config and live should not be modified
+	result, err := StructuredMergeDiff(config, live, gvkParser, "argocd-controller")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.False(t, result.Modified, "identical config and live should not show as modified")
+}
+
+func TestStructuredMergeDiff_HPAv2ToV1Conversion_Modified(t *testing.T) {
+	// Verifies that a real change is detected when config differs from live
+	// with cross-version managed fields
+	gvkParser := buildGVKParser(t)
+
+	config := StrToUnstructured(`
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: test-hpa
+  namespace: default
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: test-deploy
+  minReplicas: 2
+  maxReplicas: 20
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 80
+`)
+
+	live := StrToUnstructured(`
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: test-hpa
+  namespace: default
+  managedFields:
+  - apiVersion: autoscaling/v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:spec:
+        f:maxReplicas: {}
+        f:minReplicas: {}
+        f:scaleTargetRef: {}
+    manager: helm
+    operation: Apply
+    time: "2024-01-01T00:00:00Z"
+  - apiVersion: autoscaling/v2
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:spec:
+        f:metrics: {}
+    manager: argocd-controller
+    operation: Apply
+    time: "2024-01-02T00:00:00Z"
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: test-deploy
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 50
+`)
+
+	result, err := StructuredMergeDiff(config, live, gvkParser, "argocd-controller")
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.True(t, result.Modified, "different config and live should show as modified")
 }

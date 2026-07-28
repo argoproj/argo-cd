@@ -97,9 +97,11 @@ Dependencies are also scheduled for removal if the project has been deprecated o
 CVEs in dependencies will be patched for all supported versions if the CVE is applicable and is assessed by Snyk to be
 of high or critical severity. Automation generates a [new Snyk scan weekly](../snyk/index.md).
 
-### Upgrading Helm and Kustomize
+### Upgrading Helm, Kustomize, git-lfs, and git
 
-When starting to work on a new Argo CD minor release, the bundled Helm and Kustomize need to be [upgraded](https://github.com/argoproj/argo-cd/blob/master/hack/tool-versions.sh) to the latest available version. Please note that sometimes an upgrade to those versions results in breaking changes that need to be addressed on Argo CD side and documented in this [Argo CD version upgrade instructions](../operator-manual/upgrading/overview.md).
+Production runtime binaries (Helm, Kustomize, git-lfs) are pinned in [`hack/tool-versions.sh`](https://github.com/argoproj/argo-cd/blob/master/hack/tool-versions.sh). The git package is pinned in Dockerfiles via apt. Renovate opens PRs labeled `production-binary` when newer versions are available; checksum files for downloaded binaries are refreshed automatically in those PRs.
+
+Before each minor release, review and merge any open Renovate PRs for these dependencies. Please note that sometimes an upgrade results in breaking changes that need to be addressed on the Argo CD side and documented in the [Argo CD version upgrade instructions](../operator-manual/upgrading/overview.md).
 
 ### Upgrading Go version that Argo CD uses
 

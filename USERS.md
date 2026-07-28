@@ -273,6 +273,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Omni](https://omni.se/)
 1. [Oncourse Home Solutions](https://oncoursehome.com/)
 1. [Open Analytics](https://openanalytics.eu)
+1. [OpenChoreo](https://openchoreo.dev/)
 1. [openEuler](https://openeuler.org)
 1. [openGauss](https://opengauss.org/)
 1. [OpenGov](https://opengov.com)
@@ -327,6 +328,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Reenigne Cloud](https://reenigne.ca)
 1. [reev.com](https://www.reev.com/)
 1. [Relex Solutions](https://www.relexsolutions.com/)
+1. [remberg](https://remberg.com/)
 1. [RightRev](https://rightrev.com/)
 1. [Rijkswaterstaat](https://www.rijkswaterstaat.nl/en)
 1. Rise

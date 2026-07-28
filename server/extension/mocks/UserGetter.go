@@ -63,7 +63,7 @@ type UserGetter_GetGroups_Call struct {
 
 // GetGroups is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *UserGetter_Expecter) GetGroups(ctx interface{}) *UserGetter_GetGroups_Call {
+func (_e *UserGetter_Expecter) GetGroups(ctx any) *UserGetter_GetGroups_Call {
 	return &UserGetter_GetGroups_Call{Call: _e.mock.On("GetGroups", ctx)}
 }
 
@@ -114,7 +114,7 @@ type UserGetter_GetUserId_Call struct {
 
 // GetUserId is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *UserGetter_Expecter) GetUserId(ctx interface{}) *UserGetter_GetUserId_Call {
+func (_e *UserGetter_Expecter) GetUserId(ctx any) *UserGetter_GetUserId_Call {
 	return &UserGetter_GetUserId_Call{Call: _e.mock.On("GetUserId", ctx)}
 }
 
@@ -165,7 +165,7 @@ type UserGetter_GetUsername_Call struct {
 
 // GetUsername is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *UserGetter_Expecter) GetUsername(ctx interface{}) *UserGetter_GetUsername_Call {
+func (_e *UserGetter_Expecter) GetUsername(ctx any) *UserGetter_GetUsername_Call {
 	return &UserGetter_GetUsername_Call{Call: _e.mock.On("GetUsername", ctx)}
 }
 

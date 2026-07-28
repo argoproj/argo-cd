@@ -275,6 +275,22 @@ connectors:
     - name: your-github-org
 `
 
+var goodDexConfigOIDCWithEnvVarReference = `
+connectors:
+- type: oidc
+  id: authentik
+  name: Authentik
+  config:
+    issuer: https://sso.example.com/
+    clientID: $AUTHENTIK_CLIENT_ID
+    clientSecret: $AUTHENTIK_CLIENT_SECRET
+    redirectURI: http://localhost/callback
+    scopes:
+    - openid
+    - profile
+    - email
+`
+
 var goodSecrets = map[string]string{
 	"dex.github.clientSecret": "foobar",
 	"dex.acme.clientSecret":   "barfoo",
@@ -652,6 +668,20 @@ func Test_GenerateDexConfigYAML(t *testing.T) {
 			field:     "bindPW",
 			expected:  "pässwörð£€",
 		},
+		{
+			name:      "unresolved environment variable reference is NOT escaped (allows Dex env expansion)",
+			secrets:   map[string]string{},
+			dexConfig: goodDexConfigOIDCWithEnvVarReference,
+			field:     "clientID",
+			expected:  "$AUTHENTIK_CLIENT_ID",
+		},
+		{
+			name:      "unresolved clientSecret environment variable reference is NOT escaped",
+			secrets:   map[string]string{},
+			dexConfig: goodDexConfigOIDCWithEnvVarReference,
+			field:     "clientSecret",
+			expected:  "$AUTHENTIK_CLIENT_SECRET",
+		},
 	}
 
 	for _, tc := range tt {
@@ -759,4 +789,73 @@ func Test_DexReverseProxy(t *testing.T) {
 		assert.Equal(t, req.Host, target.Host)
 		require.NoError(t, req.Body.Close())
 	})
+}
+
+func Test_GenerateDexConfigYAML_WebTLSMinVersion(t *testing.T) {
+	tests := []struct {
+		name           string
+		dexConfig      string
+		expectMin      string
+		expectMinFound bool
+	}{
+		{
+			name: "TLS 1.2",
+			dexConfig: `
+connectors: []
+web:
+  tlsMinVersion: "1.2"
+`,
+			expectMin:      "1.2",
+			expectMinFound: true,
+		},
+		{
+			name: "TLS 1.3",
+			dexConfig: `
+connectors: []
+web:
+  tlsMinVersion: "1.3"
+`,
+			expectMin:      "1.3",
+			expectMinFound: true,
+		},
+		{
+			name: "empty TLS version",
+			dexConfig: `
+connectors: []
+web:
+  tlsMinVersion: ""
+`,
+			expectMinFound: false,
+		},
+		{
+			name: "no web section",
+			dexConfig: `
+connectors: []
+`,
+			expectMinFound: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			settings := &settings.ArgoCDSettings{
+				URL:       "https://argocd.example.com",
+				DexConfig: tt.dexConfig,
+			}
+			out, err := GenerateDexConfigYAML(settings, false)
+			require.NoError(t, err)
+			var cfg map[string]any
+			require.NoError(t, yaml.Unmarshal(out, &cfg))
+			webCfg, ok := cfg["web"].(map[string]any)
+			require.True(t, ok)
+			assert.Equal(t, "0.0.0.0:5556", webCfg["https"])
+			assert.Equal(t, "/tmp/tls.crt", webCfg["tlsCert"])
+			assert.Equal(t, "/tmp/tls.key", webCfg["tlsKey"])
+			got, found := webCfg["tlsMinVersion"]
+			assert.Equal(t, tt.expectMinFound, found)
+			if tt.expectMinFound {
+				assert.Equal(t, tt.expectMin, got)
+			}
+		})
+	}
 }

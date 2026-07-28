@@ -45,11 +45,11 @@ func (_m *ApplicationServiceClient) EXPECT() *ApplicationServiceClient_Expecter 
 // Create provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) Create(ctx context.Context, in *application.ApplicationCreateRequest, opts ...grpc.CallOption) (*v1alpha1.Application, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -87,9 +87,9 @@ type ApplicationServiceClient_Create_Call struct {
 //   - ctx context.Context
 //   - in *application.ApplicationCreateRequest
 //   - opts ...grpc.CallOption
-func (_e *ApplicationServiceClient_Expecter) Create(ctx interface{}, in interface{}, opts ...interface{}) *ApplicationServiceClient_Create_Call {
+func (_e *ApplicationServiceClient_Expecter) Create(ctx any, in any, opts ...any) *ApplicationServiceClient_Create_Call {
 	return &ApplicationServiceClient_Create_Call{Call: _e.mock.On("Create",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ApplicationServiceClient_Create_Call) Run(run func(ctx context.Context, in *application.ApplicationCreateRequest, opts ...grpc.CallOption)) *ApplicationServiceClient_Create_Call {
@@ -132,11 +132,11 @@ func (_c *ApplicationServiceClient_Create_Call) RunAndReturn(run func(ctx contex
 // Delete provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) Delete(ctx context.Context, in *application.ApplicationDeleteRequest, opts ...grpc.CallOption) (*application.ApplicationResponse, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -174,9 +174,9 @@ type ApplicationServiceClient_Delete_Call struct {
 //   - ctx context.Context
 //   - in *application.ApplicationDeleteRequest
 //   - opts ...grpc.CallOption
-func (_e *ApplicationServiceClient_Expecter) Delete(ctx interface{}, in interface{}, opts ...interface{}) *ApplicationServiceClient_Delete_Call {
+func (_e *ApplicationServiceClient_Expecter) Delete(ctx any, in any, opts ...any) *ApplicationServiceClient_Delete_Call {
 	return &ApplicationServiceClient_Delete_Call{Call: _e.mock.On("Delete",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ApplicationServiceClient_Delete_Call) Run(run func(ctx context.Context, in *application.ApplicationDeleteRequest, opts ...grpc.CallOption)) *ApplicationServiceClient_Delete_Call {
@@ -219,11 +219,11 @@ func (_c *ApplicationServiceClient_Delete_Call) RunAndReturn(run func(ctx contex
 // DeleteResource provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) DeleteResource(ctx context.Context, in *application.ApplicationResourceDeleteRequest, opts ...grpc.CallOption) (*application.ApplicationResponse, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -261,9 +261,9 @@ type ApplicationServiceClient_DeleteResource_Call struct {
 //   - ctx context.Context
 //   - in *application.ApplicationResourceDeleteRequest
 //   - opts ...grpc.CallOption
-func (_e *ApplicationServiceClient_Expecter) DeleteResource(ctx interface{}, in interface{}, opts ...interface{}) *ApplicationServiceClient_DeleteResource_Call {
+func (_e *ApplicationServiceClient_Expecter) DeleteResource(ctx any, in any, opts ...any) *ApplicationServiceClient_DeleteResource_Call {
 	return &ApplicationServiceClient_DeleteResource_Call{Call: _e.mock.On("DeleteResource",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ApplicationServiceClient_DeleteResource_Call) Run(run func(ctx context.Context, in *application.ApplicationResourceDeleteRequest, opts ...grpc.CallOption)) *ApplicationServiceClient_DeleteResource_Call {
@@ -306,11 +306,11 @@ func (_c *ApplicationServiceClient_DeleteResource_Call) RunAndReturn(run func(ct
 // Get provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) Get(ctx context.Context, in *application.ApplicationQuery, opts ...grpc.CallOption) (*v1alpha1.Application, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -348,9 +348,9 @@ type ApplicationServiceClient_Get_Call struct {
 //   - ctx context.Context
 //   - in *application.ApplicationQuery
 //   - opts ...grpc.CallOption
-func (_e *ApplicationServiceClient_Expecter) Get(ctx interface{}, in interface{}, opts ...interface{}) *ApplicationServiceClient_Get_Call {
+func (_e *ApplicationServiceClient_Expecter) Get(ctx any, in any, opts ...any) *ApplicationServiceClient_Get_Call {
 	return &ApplicationServiceClient_Get_Call{Call: _e.mock.On("Get",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ApplicationServiceClient_Get_Call) Run(run func(ctx context.Context, in *application.ApplicationQuery, opts ...grpc.CallOption)) *ApplicationServiceClient_Get_Call {
@@ -393,11 +393,11 @@ func (_c *ApplicationServiceClient_Get_Call) RunAndReturn(run func(ctx context.C
 // GetApplicationSyncWindows provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) GetApplicationSyncWindows(ctx context.Context, in *application.ApplicationSyncWindowsQuery, opts ...grpc.CallOption) (*application.ApplicationSyncWindowsResponse, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -435,9 +435,9 @@ type ApplicationServiceClient_GetApplicationSyncWindows_Call struct {
 //   - ctx context.Context
 //   - in *application.ApplicationSyncWindowsQuery
 //   - opts ...grpc.CallOption
-func (_e *ApplicationServiceClient_Expecter) GetApplicationSyncWindows(ctx interface{}, in interface{}, opts ...interface{}) *ApplicationServiceClient_GetApplicationSyncWindows_Call {
+func (_e *ApplicationServiceClient_Expecter) GetApplicationSyncWindows(ctx any, in any, opts ...any) *ApplicationServiceClient_GetApplicationSyncWindows_Call {
 	return &ApplicationServiceClient_GetApplicationSyncWindows_Call{Call: _e.mock.On("GetApplicationSyncWindows",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ApplicationServiceClient_GetApplicationSyncWindows_Call) Run(run func(ctx context.Context, in *application.ApplicationSyncWindowsQuery, opts ...grpc.CallOption)) *ApplicationServiceClient_GetApplicationSyncWindows_Call {
@@ -480,11 +480,11 @@ func (_c *ApplicationServiceClient_GetApplicationSyncWindows_Call) RunAndReturn(
 // GetManifests provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) GetManifests(ctx context.Context, in *application.ApplicationManifestQuery, opts ...grpc.CallOption) (*apiclient.ManifestResponse, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -522,9 +522,9 @@ type ApplicationServiceClient_GetManifests_Call struct {
 //   - ctx context.Context
 //   - in *application.ApplicationManifestQuery
 //   - opts ...grpc.CallOption
-func (_e *ApplicationServiceClient_Expecter) GetManifests(ctx interface{}, in interface{}, opts ...interface{}) *ApplicationServiceClient_GetManifests_Call {
+func (_e *ApplicationServiceClient_Expecter) GetManifests(ctx any, in any, opts ...any) *ApplicationServiceClient_GetManifests_Call {
 	return &ApplicationServiceClient_GetManifests_Call{Call: _e.mock.On("GetManifests",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ApplicationServiceClient_GetManifests_Call) Run(run func(ctx context.Context, in *application.ApplicationManifestQuery, opts ...grpc.CallOption)) *ApplicationServiceClient_GetManifests_Call {
@@ -567,11 +567,11 @@ func (_c *ApplicationServiceClient_GetManifests_Call) RunAndReturn(run func(ctx 
 // GetManifestsWithFiles provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) GetManifestsWithFiles(ctx context.Context, opts ...grpc.CallOption) (application.ApplicationService_GetManifestsWithFilesClient, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -608,9 +608,9 @@ type ApplicationServiceClient_GetManifestsWithFiles_Call struct {
 // GetManifestsWithFiles is a helper method to define mock.On call
 //   - ctx context.Context
 //   - opts ...grpc.CallOption
-func (_e *ApplicationServiceClient_Expecter) GetManifestsWithFiles(ctx interface{}, opts ...interface{}) *ApplicationServiceClient_GetManifestsWithFiles_Call {
+func (_e *ApplicationServiceClient_Expecter) GetManifestsWithFiles(ctx any, opts ...any) *ApplicationServiceClient_GetManifestsWithFiles_Call {
 	return &ApplicationServiceClient_GetManifestsWithFiles_Call{Call: _e.mock.On("GetManifestsWithFiles",
-		append([]interface{}{ctx}, opts...)...)}
+		append([]any{ctx}, opts...)...)}
 }
 
 func (_c *ApplicationServiceClient_GetManifestsWithFiles_Call) Run(run func(ctx context.Context, opts ...grpc.CallOption)) *ApplicationServiceClient_GetManifestsWithFiles_Call {
@@ -648,11 +648,11 @@ func (_c *ApplicationServiceClient_GetManifestsWithFiles_Call) RunAndReturn(run 
 // GetOCIMetadata provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) GetOCIMetadata(ctx context.Context, in *application.RevisionMetadataQuery, opts ...grpc.CallOption) (*v1alpha1.OCIMetadata, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -690,9 +690,9 @@ type ApplicationServiceClient_GetOCIMetadata_Call struct {
 //   - ctx context.Context
 //   - in *application.RevisionMetadataQuery
 //   - opts ...grpc.CallOption
-func (_e *ApplicationServiceClient_Expecter) GetOCIMetadata(ctx interface{}, in interface{}, opts ...interface{}) *ApplicationServiceClient_GetOCIMetadata_Call {
+func (_e *ApplicationServiceClient_Expecter) GetOCIMetadata(ctx any, in any, opts ...any) *ApplicationServiceClient_GetOCIMetadata_Call {
 	return &ApplicationServiceClient_GetOCIMetadata_Call{Call: _e.mock.On("GetOCIMetadata",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ApplicationServiceClient_GetOCIMetadata_Call) Run(run func(ctx context.Context, in *application.RevisionMetadataQuery, opts ...grpc.CallOption)) *ApplicationServiceClient_GetOCIMetadata_Call {
@@ -735,11 +735,11 @@ func (_c *ApplicationServiceClient_GetOCIMetadata_Call) RunAndReturn(run func(ct
 // GetResource provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) GetResource(ctx context.Context, in *application.ApplicationResourceRequest, opts ...grpc.CallOption) (*application.ApplicationResourceResponse, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -777,9 +777,9 @@ type ApplicationServiceClient_GetResource_Call struct {
 //   - ctx context.Context
 //   - in *application.ApplicationResourceRequest
 //   - opts ...grpc.CallOption
-func (_e *ApplicationServiceClient_Expecter) GetResource(ctx interface{}, in interface{}, opts ...interface{}) *ApplicationServiceClient_GetResource_Call {
+func (_e *ApplicationServiceClient_Expecter) GetResource(ctx any, in any, opts ...any) *ApplicationServiceClient_GetResource_Call {
 	return &ApplicationServiceClient_GetResource_Call{Call: _e.mock.On("GetResource",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ApplicationServiceClient_GetResource_Call) Run(run func(ctx context.Context, in *application.ApplicationResourceRequest, opts ...grpc.CallOption)) *ApplicationServiceClient_GetResource_Call {
@@ -822,11 +822,11 @@ func (_c *ApplicationServiceClient_GetResource_Call) RunAndReturn(run func(ctx c
 // List provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) List(ctx context.Context, in *application.ApplicationQuery, opts ...grpc.CallOption) (*v1alpha1.ApplicationList, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -864,9 +864,9 @@ type ApplicationServiceClient_List_Call struct {
 //   - ctx context.Context
 //   - in *application.ApplicationQuery
 //   - opts ...grpc.CallOption
-func (_e *ApplicationServiceClient_Expecter) List(ctx interface{}, in interface{}, opts ...interface{}) *ApplicationServiceClient_List_Call {
+func (_e *ApplicationServiceClient_Expecter) List(ctx any, in any, opts ...any) *ApplicationServiceClient_List_Call {
 	return &ApplicationServiceClient_List_Call{Call: _e.mock.On("List",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ApplicationServiceClient_List_Call) Run(run func(ctx context.Context, in *application.ApplicationQuery, opts ...grpc.CallOption)) *ApplicationServiceClient_List_Call {
@@ -909,11 +909,11 @@ func (_c *ApplicationServiceClient_List_Call) RunAndReturn(run func(ctx context.
 // ListLinks provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) ListLinks(ctx context.Context, in *application.ListAppLinksRequest, opts ...grpc.CallOption) (*application.LinksResponse, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -951,9 +951,9 @@ type ApplicationServiceClient_ListLinks_Call struct {
 //   - ctx context.Context
 //   - in *application.ListAppLinksRequest
 //   - opts ...grpc.CallOption
-func (_e *ApplicationServiceClient_Expecter) ListLinks(ctx interface{}, in interface{}, opts ...interface{}) *ApplicationServiceClient_ListLinks_Call {
+func (_e *ApplicationServiceClient_Expecter) ListLinks(ctx any, in any, opts ...any) *ApplicationServiceClient_ListLinks_Call {
 	return &ApplicationServiceClient_ListLinks_Call{Call: _e.mock.On("ListLinks",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ApplicationServiceClient_ListLinks_Call) Run(run func(ctx context.Context, in *application.ListAppLinksRequest, opts ...grpc.CallOption)) *ApplicationServiceClient_ListLinks_Call {
@@ -996,11 +996,11 @@ func (_c *ApplicationServiceClient_ListLinks_Call) RunAndReturn(run func(ctx con
 // ListResourceActions provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) ListResourceActions(ctx context.Context, in *application.ApplicationResourceRequest, opts ...grpc.CallOption) (*application.ResourceActionsListResponse, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -1038,9 +1038,9 @@ type ApplicationServiceClient_ListResourceActions_Call struct {
 //   - ctx context.Context
 //   - in *application.ApplicationResourceRequest
 //   - opts ...grpc.CallOption
-func (_e *ApplicationServiceClient_Expecter) ListResourceActions(ctx interface{}, in interface{}, opts ...interface{}) *ApplicationServiceClient_ListResourceActions_Call {
+func (_e *ApplicationServiceClient_Expecter) ListResourceActions(ctx any, in any, opts ...any) *ApplicationServiceClient_ListResourceActions_Call {
 	return &ApplicationServiceClient_ListResourceActions_Call{Call: _e.mock.On("ListResourceActions",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ApplicationServiceClient_ListResourceActions_Call) Run(run func(ctx context.Context, in *application.ApplicationResourceRequest, opts ...grpc.CallOption)) *ApplicationServiceClient_ListResourceActions_Call {
@@ -1083,11 +1083,11 @@ func (_c *ApplicationServiceClient_ListResourceActions_Call) RunAndReturn(run fu
 // ListResourceEvents provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) ListResourceEvents(ctx context.Context, in *application.ApplicationResourceEventsQuery, opts ...grpc.CallOption) (*events.EventList, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -1125,9 +1125,9 @@ type ApplicationServiceClient_ListResourceEvents_Call struct {
 //   - ctx context.Context
 //   - in *application.ApplicationResourceEventsQuery
 //   - opts ...grpc.CallOption
-func (_e *ApplicationServiceClient_Expecter) ListResourceEvents(ctx interface{}, in interface{}, opts ...interface{}) *ApplicationServiceClient_ListResourceEvents_Call {
+func (_e *ApplicationServiceClient_Expecter) ListResourceEvents(ctx any, in any, opts ...any) *ApplicationServiceClient_ListResourceEvents_Call {
 	return &ApplicationServiceClient_ListResourceEvents_Call{Call: _e.mock.On("ListResourceEvents",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ApplicationServiceClient_ListResourceEvents_Call) Run(run func(ctx context.Context, in *application.ApplicationResourceEventsQuery, opts ...grpc.CallOption)) *ApplicationServiceClient_ListResourceEvents_Call {
@@ -1170,11 +1170,11 @@ func (_c *ApplicationServiceClient_ListResourceEvents_Call) RunAndReturn(run fun
 // ListResourceLinks provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) ListResourceLinks(ctx context.Context, in *application.ApplicationResourceRequest, opts ...grpc.CallOption) (*application.LinksResponse, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -1212,9 +1212,9 @@ type ApplicationServiceClient_ListResourceLinks_Call struct {
 //   - ctx context.Context
 //   - in *application.ApplicationResourceRequest
 //   - opts ...grpc.CallOption
-func (_e *ApplicationServiceClient_Expecter) ListResourceLinks(ctx interface{}, in interface{}, opts ...interface{}) *ApplicationServiceClient_ListResourceLinks_Call {
+func (_e *ApplicationServiceClient_Expecter) ListResourceLinks(ctx any, in any, opts ...any) *ApplicationServiceClient_ListResourceLinks_Call {
 	return &ApplicationServiceClient_ListResourceLinks_Call{Call: _e.mock.On("ListResourceLinks",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ApplicationServiceClient_ListResourceLinks_Call) Run(run func(ctx context.Context, in *application.ApplicationResourceRequest, opts ...grpc.CallOption)) *ApplicationServiceClient_ListResourceLinks_Call {
@@ -1257,11 +1257,11 @@ func (_c *ApplicationServiceClient_ListResourceLinks_Call) RunAndReturn(run func
 // ManagedResources provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) ManagedResources(ctx context.Context, in *application.ResourcesQuery, opts ...grpc.CallOption) (*application.ManagedResourcesResponse, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -1299,9 +1299,9 @@ type ApplicationServiceClient_ManagedResources_Call struct {
 //   - ctx context.Context
 //   - in *application.ResourcesQuery
 //   - opts ...grpc.CallOption
-func (_e *ApplicationServiceClient_Expecter) ManagedResources(ctx interface{}, in interface{}, opts ...interface{}) *ApplicationServiceClient_ManagedResources_Call {
+func (_e *ApplicationServiceClient_Expecter) ManagedResources(ctx any, in any, opts ...any) *ApplicationServiceClient_ManagedResources_Call {
 	return &ApplicationServiceClient_ManagedResources_Call{Call: _e.mock.On("ManagedResources",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ApplicationServiceClient_ManagedResources_Call) Run(run func(ctx context.Context, in *application.ResourcesQuery, opts ...grpc.CallOption)) *ApplicationServiceClient_ManagedResources_Call {
@@ -1344,11 +1344,11 @@ func (_c *ApplicationServiceClient_ManagedResources_Call) RunAndReturn(run func(
 // Patch provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) Patch(ctx context.Context, in *application.ApplicationPatchRequest, opts ...grpc.CallOption) (*v1alpha1.Application, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -1386,9 +1386,9 @@ type ApplicationServiceClient_Patch_Call struct {
 //   - ctx context.Context
 //   - in *application.ApplicationPatchRequest
 //   - opts ...grpc.CallOption
-func (_e *ApplicationServiceClient_Expecter) Patch(ctx interface{}, in interface{}, opts ...interface{}) *ApplicationServiceClient_Patch_Call {
+func (_e *ApplicationServiceClient_Expecter) Patch(ctx any, in any, opts ...any) *ApplicationServiceClient_Patch_Call {
 	return &ApplicationServiceClient_Patch_Call{Call: _e.mock.On("Patch",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ApplicationServiceClient_Patch_Call) Run(run func(ctx context.Context, in *application.ApplicationPatchRequest, opts ...grpc.CallOption)) *ApplicationServiceClient_Patch_Call {
@@ -1431,11 +1431,11 @@ func (_c *ApplicationServiceClient_Patch_Call) RunAndReturn(run func(ctx context
 // PatchResource provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) PatchResource(ctx context.Context, in *application.ApplicationResourcePatchRequest, opts ...grpc.CallOption) (*application.ApplicationResourceResponse, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -1473,9 +1473,9 @@ type ApplicationServiceClient_PatchResource_Call struct {
 //   - ctx context.Context
 //   - in *application.ApplicationResourcePatchRequest
 //   - opts ...grpc.CallOption
-func (_e *ApplicationServiceClient_Expecter) PatchResource(ctx interface{}, in interface{}, opts ...interface{}) *ApplicationServiceClient_PatchResource_Call {
+func (_e *ApplicationServiceClient_Expecter) PatchResource(ctx any, in any, opts ...any) *ApplicationServiceClient_PatchResource_Call {
 	return &ApplicationServiceClient_PatchResource_Call{Call: _e.mock.On("PatchResource",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ApplicationServiceClient_PatchResource_Call) Run(run func(ctx context.Context, in *application.ApplicationResourcePatchRequest, opts ...grpc.CallOption)) *ApplicationServiceClient_PatchResource_Call {
@@ -1518,11 +1518,11 @@ func (_c *ApplicationServiceClient_PatchResource_Call) RunAndReturn(run func(ctx
 // PodLogs provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) PodLogs(ctx context.Context, in *application.ApplicationPodLogsQuery, opts ...grpc.CallOption) (application.ApplicationService_PodLogsClient, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -1560,9 +1560,9 @@ type ApplicationServiceClient_PodLogs_Call struct {
 //   - ctx context.Context
 //   - in *application.ApplicationPodLogsQuery
 //   - opts ...grpc.CallOption
-func (_e *ApplicationServiceClient_Expecter) PodLogs(ctx interface{}, in interface{}, opts ...interface{}) *ApplicationServiceClient_PodLogs_Call {
+func (_e *ApplicationServiceClient_Expecter) PodLogs(ctx any, in any, opts ...any) *ApplicationServiceClient_PodLogs_Call {
 	return &ApplicationServiceClient_PodLogs_Call{Call: _e.mock.On("PodLogs",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ApplicationServiceClient_PodLogs_Call) Run(run func(ctx context.Context, in *application.ApplicationPodLogsQuery, opts ...grpc.CallOption)) *ApplicationServiceClient_PodLogs_Call {
@@ -1605,11 +1605,11 @@ func (_c *ApplicationServiceClient_PodLogs_Call) RunAndReturn(run func(ctx conte
 // ResourceTree provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) ResourceTree(ctx context.Context, in *application.ResourcesQuery, opts ...grpc.CallOption) (*v1alpha1.ApplicationTree, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -1647,9 +1647,9 @@ type ApplicationServiceClient_ResourceTree_Call struct {
 //   - ctx context.Context
 //   - in *application.ResourcesQuery
 //   - opts ...grpc.CallOption
-func (_e *ApplicationServiceClient_Expecter) ResourceTree(ctx interface{}, in interface{}, opts ...interface{}) *ApplicationServiceClient_ResourceTree_Call {
+func (_e *ApplicationServiceClient_Expecter) ResourceTree(ctx any, in any, opts ...any) *ApplicationServiceClient_ResourceTree_Call {
 	return &ApplicationServiceClient_ResourceTree_Call{Call: _e.mock.On("ResourceTree",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ApplicationServiceClient_ResourceTree_Call) Run(run func(ctx context.Context, in *application.ResourcesQuery, opts ...grpc.CallOption)) *ApplicationServiceClient_ResourceTree_Call {
@@ -1692,11 +1692,11 @@ func (_c *ApplicationServiceClient_ResourceTree_Call) RunAndReturn(run func(ctx 
 // RevisionChartDetails provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) RevisionChartDetails(ctx context.Context, in *application.RevisionMetadataQuery, opts ...grpc.CallOption) (*v1alpha1.ChartDetails, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -1734,9 +1734,9 @@ type ApplicationServiceClient_RevisionChartDetails_Call struct {
 //   - ctx context.Context
 //   - in *application.RevisionMetadataQuery
 //   - opts ...grpc.CallOption
-func (_e *ApplicationServiceClient_Expecter) RevisionChartDetails(ctx interface{}, in interface{}, opts ...interface{}) *ApplicationServiceClient_RevisionChartDetails_Call {
+func (_e *ApplicationServiceClient_Expecter) RevisionChartDetails(ctx any, in any, opts ...any) *ApplicationServiceClient_RevisionChartDetails_Call {
 	return &ApplicationServiceClient_RevisionChartDetails_Call{Call: _e.mock.On("RevisionChartDetails",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ApplicationServiceClient_RevisionChartDetails_Call) Run(run func(ctx context.Context, in *application.RevisionMetadataQuery, opts ...grpc.CallOption)) *ApplicationServiceClient_RevisionChartDetails_Call {
@@ -1779,11 +1779,11 @@ func (_c *ApplicationServiceClient_RevisionChartDetails_Call) RunAndReturn(run f
 // RevisionMetadata provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) RevisionMetadata(ctx context.Context, in *application.RevisionMetadataQuery, opts ...grpc.CallOption) (*v1alpha1.RevisionMetadata, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -1821,9 +1821,9 @@ type ApplicationServiceClient_RevisionMetadata_Call struct {
 //   - ctx context.Context
 //   - in *application.RevisionMetadataQuery
 //   - opts ...grpc.CallOption
-func (_e *ApplicationServiceClient_Expecter) RevisionMetadata(ctx interface{}, in interface{}, opts ...interface{}) *ApplicationServiceClient_RevisionMetadata_Call {
+func (_e *ApplicationServiceClient_Expecter) RevisionMetadata(ctx any, in any, opts ...any) *ApplicationServiceClient_RevisionMetadata_Call {
 	return &ApplicationServiceClient_RevisionMetadata_Call{Call: _e.mock.On("RevisionMetadata",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ApplicationServiceClient_RevisionMetadata_Call) Run(run func(ctx context.Context, in *application.RevisionMetadataQuery, opts ...grpc.CallOption)) *ApplicationServiceClient_RevisionMetadata_Call {
@@ -1866,11 +1866,11 @@ func (_c *ApplicationServiceClient_RevisionMetadata_Call) RunAndReturn(run func(
 // Rollback provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) Rollback(ctx context.Context, in *application.ApplicationRollbackRequest, opts ...grpc.CallOption) (*v1alpha1.Application, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -1908,9 +1908,9 @@ type ApplicationServiceClient_Rollback_Call struct {
 //   - ctx context.Context
 //   - in *application.ApplicationRollbackRequest
 //   - opts ...grpc.CallOption
-func (_e *ApplicationServiceClient_Expecter) Rollback(ctx interface{}, in interface{}, opts ...interface{}) *ApplicationServiceClient_Rollback_Call {
+func (_e *ApplicationServiceClient_Expecter) Rollback(ctx any, in any, opts ...any) *ApplicationServiceClient_Rollback_Call {
 	return &ApplicationServiceClient_Rollback_Call{Call: _e.mock.On("Rollback",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ApplicationServiceClient_Rollback_Call) Run(run func(ctx context.Context, in *application.ApplicationRollbackRequest, opts ...grpc.CallOption)) *ApplicationServiceClient_Rollback_Call {
@@ -1953,11 +1953,11 @@ func (_c *ApplicationServiceClient_Rollback_Call) RunAndReturn(run func(ctx cont
 // RunResourceAction provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) RunResourceAction(ctx context.Context, in *application.ResourceActionRunRequest, opts ...grpc.CallOption) (*application.ApplicationResponse, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -1995,9 +1995,9 @@ type ApplicationServiceClient_RunResourceAction_Call struct {
 //   - ctx context.Context
 //   - in *application.ResourceActionRunRequest
 //   - opts ...grpc.CallOption
-func (_e *ApplicationServiceClient_Expecter) RunResourceAction(ctx interface{}, in interface{}, opts ...interface{}) *ApplicationServiceClient_RunResourceAction_Call {
+func (_e *ApplicationServiceClient_Expecter) RunResourceAction(ctx any, in any, opts ...any) *ApplicationServiceClient_RunResourceAction_Call {
 	return &ApplicationServiceClient_RunResourceAction_Call{Call: _e.mock.On("RunResourceAction",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ApplicationServiceClient_RunResourceAction_Call) Run(run func(ctx context.Context, in *application.ResourceActionRunRequest, opts ...grpc.CallOption)) *ApplicationServiceClient_RunResourceAction_Call {
@@ -2040,11 +2040,11 @@ func (_c *ApplicationServiceClient_RunResourceAction_Call) RunAndReturn(run func
 // RunResourceActionV2 provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) RunResourceActionV2(ctx context.Context, in *application.ResourceActionRunRequestV2, opts ...grpc.CallOption) (*application.ApplicationResponse, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -2082,9 +2082,9 @@ type ApplicationServiceClient_RunResourceActionV2_Call struct {
 //   - ctx context.Context
 //   - in *application.ResourceActionRunRequestV2
 //   - opts ...grpc.CallOption
-func (_e *ApplicationServiceClient_Expecter) RunResourceActionV2(ctx interface{}, in interface{}, opts ...interface{}) *ApplicationServiceClient_RunResourceActionV2_Call {
+func (_e *ApplicationServiceClient_Expecter) RunResourceActionV2(ctx any, in any, opts ...any) *ApplicationServiceClient_RunResourceActionV2_Call {
 	return &ApplicationServiceClient_RunResourceActionV2_Call{Call: _e.mock.On("RunResourceActionV2",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ApplicationServiceClient_RunResourceActionV2_Call) Run(run func(ctx context.Context, in *application.ResourceActionRunRequestV2, opts ...grpc.CallOption)) *ApplicationServiceClient_RunResourceActionV2_Call {
@@ -2127,11 +2127,11 @@ func (_c *ApplicationServiceClient_RunResourceActionV2_Call) RunAndReturn(run fu
 // ServerSideDiff provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) ServerSideDiff(ctx context.Context, in *application.ApplicationServerSideDiffQuery, opts ...grpc.CallOption) (*application.ApplicationServerSideDiffResponse, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -2169,9 +2169,9 @@ type ApplicationServiceClient_ServerSideDiff_Call struct {
 //   - ctx context.Context
 //   - in *application.ApplicationServerSideDiffQuery
 //   - opts ...grpc.CallOption
-func (_e *ApplicationServiceClient_Expecter) ServerSideDiff(ctx interface{}, in interface{}, opts ...interface{}) *ApplicationServiceClient_ServerSideDiff_Call {
+func (_e *ApplicationServiceClient_Expecter) ServerSideDiff(ctx any, in any, opts ...any) *ApplicationServiceClient_ServerSideDiff_Call {
 	return &ApplicationServiceClient_ServerSideDiff_Call{Call: _e.mock.On("ServerSideDiff",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ApplicationServiceClient_ServerSideDiff_Call) Run(run func(ctx context.Context, in *application.ApplicationServerSideDiffQuery, opts ...grpc.CallOption)) *ApplicationServiceClient_ServerSideDiff_Call {
@@ -2214,11 +2214,11 @@ func (_c *ApplicationServiceClient_ServerSideDiff_Call) RunAndReturn(run func(ct
 // Sync provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) Sync(ctx context.Context, in *application.ApplicationSyncRequest, opts ...grpc.CallOption) (*v1alpha1.Application, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -2256,9 +2256,9 @@ type ApplicationServiceClient_Sync_Call struct {
 //   - ctx context.Context
 //   - in *application.ApplicationSyncRequest
 //   - opts ...grpc.CallOption
-func (_e *ApplicationServiceClient_Expecter) Sync(ctx interface{}, in interface{}, opts ...interface{}) *ApplicationServiceClient_Sync_Call {
+func (_e *ApplicationServiceClient_Expecter) Sync(ctx any, in any, opts ...any) *ApplicationServiceClient_Sync_Call {
 	return &ApplicationServiceClient_Sync_Call{Call: _e.mock.On("Sync",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ApplicationServiceClient_Sync_Call) Run(run func(ctx context.Context, in *application.ApplicationSyncRequest, opts ...grpc.CallOption)) *ApplicationServiceClient_Sync_Call {
@@ -2301,11 +2301,11 @@ func (_c *ApplicationServiceClient_Sync_Call) RunAndReturn(run func(ctx context.
 // TerminateOperation provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) TerminateOperation(ctx context.Context, in *application.OperationTerminateRequest, opts ...grpc.CallOption) (*application.OperationTerminateResponse, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -2343,9 +2343,9 @@ type ApplicationServiceClient_TerminateOperation_Call struct {
 //   - ctx context.Context
 //   - in *application.OperationTerminateRequest
 //   - opts ...grpc.CallOption
-func (_e *ApplicationServiceClient_Expecter) TerminateOperation(ctx interface{}, in interface{}, opts ...interface{}) *ApplicationServiceClient_TerminateOperation_Call {
+func (_e *ApplicationServiceClient_Expecter) TerminateOperation(ctx any, in any, opts ...any) *ApplicationServiceClient_TerminateOperation_Call {
 	return &ApplicationServiceClient_TerminateOperation_Call{Call: _e.mock.On("TerminateOperation",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ApplicationServiceClient_TerminateOperation_Call) Run(run func(ctx context.Context, in *application.OperationTerminateRequest, opts ...grpc.CallOption)) *ApplicationServiceClient_TerminateOperation_Call {
@@ -2388,11 +2388,11 @@ func (_c *ApplicationServiceClient_TerminateOperation_Call) RunAndReturn(run fun
 // Update provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) Update(ctx context.Context, in *application.ApplicationUpdateRequest, opts ...grpc.CallOption) (*v1alpha1.Application, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -2430,9 +2430,9 @@ type ApplicationServiceClient_Update_Call struct {
 //   - ctx context.Context
 //   - in *application.ApplicationUpdateRequest
 //   - opts ...grpc.CallOption
-func (_e *ApplicationServiceClient_Expecter) Update(ctx interface{}, in interface{}, opts ...interface{}) *ApplicationServiceClient_Update_Call {
+func (_e *ApplicationServiceClient_Expecter) Update(ctx any, in any, opts ...any) *ApplicationServiceClient_Update_Call {
 	return &ApplicationServiceClient_Update_Call{Call: _e.mock.On("Update",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ApplicationServiceClient_Update_Call) Run(run func(ctx context.Context, in *application.ApplicationUpdateRequest, opts ...grpc.CallOption)) *ApplicationServiceClient_Update_Call {
@@ -2475,11 +2475,11 @@ func (_c *ApplicationServiceClient_Update_Call) RunAndReturn(run func(ctx contex
 // UpdateSpec provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) UpdateSpec(ctx context.Context, in *application.ApplicationUpdateSpecRequest, opts ...grpc.CallOption) (*v1alpha1.ApplicationSpec, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -2517,9 +2517,9 @@ type ApplicationServiceClient_UpdateSpec_Call struct {
 //   - ctx context.Context
 //   - in *application.ApplicationUpdateSpecRequest
 //   - opts ...grpc.CallOption
-func (_e *ApplicationServiceClient_Expecter) UpdateSpec(ctx interface{}, in interface{}, opts ...interface{}) *ApplicationServiceClient_UpdateSpec_Call {
+func (_e *ApplicationServiceClient_Expecter) UpdateSpec(ctx any, in any, opts ...any) *ApplicationServiceClient_UpdateSpec_Call {
 	return &ApplicationServiceClient_UpdateSpec_Call{Call: _e.mock.On("UpdateSpec",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ApplicationServiceClient_UpdateSpec_Call) Run(run func(ctx context.Context, in *application.ApplicationUpdateSpecRequest, opts ...grpc.CallOption)) *ApplicationServiceClient_UpdateSpec_Call {
@@ -2562,11 +2562,11 @@ func (_c *ApplicationServiceClient_UpdateSpec_Call) RunAndReturn(run func(ctx co
 // Watch provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) Watch(ctx context.Context, in *application.ApplicationQuery, opts ...grpc.CallOption) (application.ApplicationService_WatchClient, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -2604,9 +2604,9 @@ type ApplicationServiceClient_Watch_Call struct {
 //   - ctx context.Context
 //   - in *application.ApplicationQuery
 //   - opts ...grpc.CallOption
-func (_e *ApplicationServiceClient_Expecter) Watch(ctx interface{}, in interface{}, opts ...interface{}) *ApplicationServiceClient_Watch_Call {
+func (_e *ApplicationServiceClient_Expecter) Watch(ctx any, in any, opts ...any) *ApplicationServiceClient_Watch_Call {
 	return &ApplicationServiceClient_Watch_Call{Call: _e.mock.On("Watch",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ApplicationServiceClient_Watch_Call) Run(run func(ctx context.Context, in *application.ApplicationQuery, opts ...grpc.CallOption)) *ApplicationServiceClient_Watch_Call {
@@ -2649,11 +2649,11 @@ func (_c *ApplicationServiceClient_Watch_Call) RunAndReturn(run func(ctx context
 // WatchResourceTree provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) WatchResourceTree(ctx context.Context, in *application.ResourcesQuery, opts ...grpc.CallOption) (application.ApplicationService_WatchResourceTreeClient, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -2691,9 +2691,9 @@ type ApplicationServiceClient_WatchResourceTree_Call struct {
 //   - ctx context.Context
 //   - in *application.ResourcesQuery
 //   - opts ...grpc.CallOption
-func (_e *ApplicationServiceClient_Expecter) WatchResourceTree(ctx interface{}, in interface{}, opts ...interface{}) *ApplicationServiceClient_WatchResourceTree_Call {
+func (_e *ApplicationServiceClient_Expecter) WatchResourceTree(ctx any, in any, opts ...any) *ApplicationServiceClient_WatchResourceTree_Call {
 	return &ApplicationServiceClient_WatchResourceTree_Call{Call: _e.mock.On("WatchResourceTree",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *ApplicationServiceClient_WatchResourceTree_Call) Run(run func(ctx context.Context, in *application.ResourcesQuery, opts ...grpc.CallOption)) *ApplicationServiceClient_WatchResourceTree_Call {
