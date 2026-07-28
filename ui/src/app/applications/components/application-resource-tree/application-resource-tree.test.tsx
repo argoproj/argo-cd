@@ -21,10 +21,10 @@ describe('getPodGroupHeight', () => {
     });
 
     test('counts pod rows per bucket, since each bucket is drawn in its own container', () => {
-        expect(getPodGroupHeight(pods('Healthy', 8), false)).toBe(POD_NODE_HEIGHT + 30);
-        expect(getPodGroupHeight(pods('Healthy', 9), false)).toBe(POD_NODE_HEIGHT + 60);
+        expect(getPodGroupHeight(pods('Healthy', 8), false)).toBe(POD_NODE_HEIGHT + 31);
+        expect(getPodGroupHeight(pods('Healthy', 9), false)).toBe(POD_NODE_HEIGHT + 62);
         // Two half-full buckets occupy two rows, not ceil(8 / 8) = 1.
-        expect(getPodGroupHeight([...pods('Healthy', 4), ...pods('Degraded', 4)], false)).toBe(POD_NODE_HEIGHT + 60);
+        expect(getPodGroupHeight([...pods('Healthy', 4), ...pods('Degraded', 4)], false)).toBe(POD_NODE_HEIGHT + 62);
     });
 });
 

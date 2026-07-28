@@ -92,7 +92,8 @@ const NODE_WIDTH = 282;
 export const NODE_HEIGHT = 52;
 const POD_NODE_HEIGHT = 136;
 const POD_GROUP_STATUS_ROW_HEIGHT = 20;
-const POD_GROUP_POD_ROW_HEIGHT = 30;
+// Keep in sync with `$pod-size + 2 * $gutter` in `application-resource-tree.scss`.
+const POD_GROUP_POD_ROW_HEIGHT = 31;
 // Keep in sync with `$pods-per-row` in `application-resource-tree.scss`.
 const POD_GROUP_PODS_PER_ROW = 8;
 const FILTERED_INDICATOR_NODE = '__filtered_indicator__';
@@ -408,7 +409,7 @@ function processPodGroup(targetPodGroup: ResourceTreeNode, child: ResourceTreeNo
 }
 
 // Pods in other health states are not rendered, so they are dropped here.
-function groupPodsByHealth(pods: models.Pod[]): models.Pod[][] {
+function groupPodsByHealth(pods: models.Pod[] | undefined): models.Pod[][] {
     const healthy: models.Pod[] = [];
     const degraded: models.Pod[] = [];
     const progressing: models.Pod[] = [];
@@ -430,7 +431,7 @@ function groupPodsByHealth(pods: models.Pod[]): models.Pod[][] {
 
 // Mirrors what renderPodGroup draws: one container per non-empty health bucket, holding either a
 // single summary row or the bucket's pods at POD_GROUP_PODS_PER_ROW per row.
-export function getPodGroupHeight(pods: models.Pod[], showPodGroupByStatus: boolean): number {
+export function getPodGroupHeight(pods: models.Pod[] | undefined, showPodGroupByStatus: boolean): number {
     const buckets = groupPodsByHealth(pods).filter(bucket => bucket.length > 0);
     if (showPodGroupByStatus) {
         return POD_NODE_HEIGHT + POD_GROUP_STATUS_ROW_HEIGHT * buckets.length;
