@@ -13,7 +13,7 @@ on:
   roles: all # ***** argo-cd specific: make sure the workflow will be executed for issue of any author, as by default it gets executed only for issue authors who are maintainers of the repo *****
 
 permissions:
-   # ***** argo-cd specific: instead of the default read-all, giving explicit permissions to placate Zizmor. With copilot-requests: write, the org level Coilot seat, billed from CNCF, will be used. 
+    # ***** argo-cd specific: instead of the default read-all, giving explicit permissions to placate Zizmor. With copilot-requests: write, the org level Copilot seat, billed from CNCF, will be used.
    # *****
   issues: read
   contents: read
