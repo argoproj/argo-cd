@@ -23,7 +23,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/codecommit v1.36.0
 	github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi v1.35.0
 	github.com/aws/aws-sdk-go-v2/service/sts v1.45.0
-	github.com/aws/smithy-go v1.27.4
+	github.com/aws/smithy-go v1.27.5
 	github.com/bmatcuk/doublestar/v4 v4.10.0
 	github.com/bombsimon/logrusr/v4 v4.1.0
 	github.com/bradleyfalzon/ghinstallation/v2 v2.19.0
@@ -316,7 +316,7 @@ require (
 )
 
 require (
-	github.com/go-openapi/runtime/server-middleware v0.32.6
+	github.com/go-openapi/runtime/server-middleware v0.33.0
 	k8s.io/streaming v0.36.1
 )
 
