@@ -298,6 +298,9 @@ func supportedFileMode(fi os.FileInfo) bool {
 // If the final component does not exist yet, ancestors are still resolved so the
 // returned path is suitable for Inbound checks against EvalSymlinks'd targets.
 func resolveSymlinks(path string) (string, error) {
+	// Clean the path to make sure it has no trailing slashes which would cause
+	// the last component to get duplicated in the resolved path if it does not
+	// exist yet (e.g. /foo/bar/baz/ -> /foo/bar/baz/baz).
 	path = filepath.Clean(path)
 	resolved, err := filepath.EvalSymlinks(path)
 	if err == nil {
