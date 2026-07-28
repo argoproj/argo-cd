@@ -100,10 +100,11 @@ func untar(dstPath string, r io.Reader, preserveFileMode bool) error {
 	}
 	// Make sure the destination path is resolved to the real path
 	// so that the inbound checks using EvalSymlinks compare the same path.
-	dstPath, err := resolveSymlinks(dstPath)
+	resolvedPath, err := resolveSymlinks(dstPath)
 	if err != nil {
-		return fmt.Errorf("error evaluating symlinks: %w", err)
+		return fmt.Errorf("error evaluating symlinks for %s: %w", dstPath, err)
 	}
+	dstPath = resolvedPath
 	tr := tar.NewReader(r)
 
 	for {
