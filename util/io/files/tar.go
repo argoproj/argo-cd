@@ -72,10 +72,6 @@ func writeFile(srcPath string, inclusions []string, exclusions []string, writer 
 //   - points to an empty directory or
 //   - points to a non-existing directory
 func Untgz(dstPath string, r io.Reader, maxSize int64, preserveFileMode bool) error {
-	if !filepath.IsAbs(dstPath) {
-		return fmt.Errorf("dstPath points to a relative path: %s", dstPath)
-	}
-
 	gzr, err := gzip.NewReader(r)
 	if err != nil {
 		return fmt.Errorf("error reading file: %w", err)
@@ -90,10 +86,6 @@ func Untgz(dstPath string, r io.Reader, maxSize int64, preserveFileMode bool) er
 //   - points to an empty directory or
 //   - points to a non-existing directory
 func Untar(dstPath string, r io.Reader, maxSize int64, preserveFileMode bool) error {
-	if !filepath.IsAbs(dstPath) {
-		return fmt.Errorf("dstPath points to a relative path: %s", dstPath)
-	}
-
 	return untar(dstPath, io.LimitReader(r, maxSize), preserveFileMode)
 }
 
@@ -103,6 +95,9 @@ func Untar(dstPath string, r io.Reader, maxSize int64, preserveFileMode bool) er
 //   - points to an empty directory or
 //   - points to a non existing directory
 func untar(dstPath string, r io.Reader, preserveFileMode bool) error {
+	if !filepath.IsAbs(dstPath) {
+		return fmt.Errorf("dstPath points to a relative path: %s", dstPath)
+	}
 	// Make sure the destination path is resolved to the real path
 	// so that the inbound checks using EvalSymlinks compare the same path.
 	dstPath, err := resolveSymlinks(dstPath)
