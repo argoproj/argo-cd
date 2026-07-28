@@ -275,6 +275,47 @@ func TestUntgz(t *testing.T) {
 		assert.Contains(t, names, "applicationset/readme-symlink")
 		assert.Equal(t, "../README.md", names["applicationset/readme-symlink"])
 	})
+	t.Run("resolves symlinks for non-existent final component", func(t *testing.T) {
+		// given
+
+		// tmpdir/link -> tmpdir/dest
+		tmpDir := createTmpDir(t)
+		defer deleteTmpDir(t, tmpDir)
+
+		realDest := filepath.Join(tmpDir, "dest")
+		require.NoError(t, os.MkdirAll(realDest, 0o755))
+
+		linkDest := filepath.Join(tmpDir, "link")
+		require.NoError(t, os.Symlink(realDest, linkDest))
+
+		realTarget := filepath.Join(realDest, "non-existent")
+		linkTarget := filepath.Join(linkDest, "non-existent")
+
+		tgzFile := createTgz(t, getTestAppDir(t), tmpDir)
+		defer tgzFile.Close()
+
+		// when
+		err := files.Untgz(linkTarget, tgzFile, math.MaxInt64, false)
+
+		// then
+		require.NoError(t, err)
+
+		names := readFiles(t, realTarget)
+		assert.Len(t, names, 8)
+		assert.Contains(t, names, "README.md")
+		assert.Contains(t, names, "applicationset/latest/kustomization.yaml")
+		assert.Contains(t, names, "applicationset/stable/kustomization.yaml")
+		assert.Contains(t, names, "applicationset/readme-symlink")
+		assert.Equal(t, "../README.md", names["applicationset/readme-symlink"])
+
+		names = readFiles(t, linkTarget)
+		assert.Len(t, names, 8)
+		assert.Contains(t, names, "README.md")
+		assert.Contains(t, names, "applicationset/latest/kustomization.yaml")
+		assert.Contains(t, names, "applicationset/stable/kustomization.yaml")
+		assert.Contains(t, names, "applicationset/readme-symlink")
+		assert.Equal(t, "../README.md", names["applicationset/readme-symlink"])
+	})
 }
 
 // read returns a map with the filename as key. In case
