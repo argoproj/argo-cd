@@ -5,12 +5,15 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
+
+	"github.com/argoproj/argo-cd/v3/common"
 )
 
 // ghcrParser parses webhook payloads sent by GitHub Container Registry (GHCR).
@@ -60,6 +63,10 @@ func (p *ghcrParser) CanHandle(r *http.Request) bool {
 	return r.Header.Get("X-GitHub-Event") == "package"
 }
 
+func (p *ghcrParser) Name() WebhookProvider {
+	return WebhookProviderGHCR
+}
+
 // Parse validates the request signature and extracts container publication
 // details from a GHCR webhook payload.
 //
@@ -69,12 +76,18 @@ func (p *ghcrParser) CanHandle(r *http.Request) bool {
 // intentionally skipped (unsupported actions, non-container packages, or
 // missing tags). Only returns an error for genuinely malformed payloads or
 // signature verification failures.
-func (p *ghcrParser) Parse(r *http.Request) (any, error) {
+func (p *ghcrParser) Parse(r *http.Request, consumer WebhookConsumer) (any, error) {
+	if consumer != WebhookConsumerApplication {
+		return nil, fmt.Errorf("unsupported webhook consumer: %s", consumer)
+	}
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		return nil, err
 	}
 	if err := p.validateSignature(r, body); err != nil {
+		if errors.Is(err, ErrHMACVerificationFailed) {
+			log.WithField(common.SecurityField, common.SecurityHigh).Infof("Registry webhook HMAC verification failed")
+		}
 		return nil, err
 	}
 	var payload GHCRPayload

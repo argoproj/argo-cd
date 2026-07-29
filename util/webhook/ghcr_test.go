@@ -97,7 +97,7 @@ func TestGHCRParser_Parse(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", strings.NewReader(tt.body))
-			event, err := parser.Parse(req)
+			event, err := parser.Parse(req, WebhookConsumerApplication)
 
 			if tt.expectErr {
 				require.Error(t, err)
