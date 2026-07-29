@@ -85,6 +85,9 @@ type fakeData struct {
 	// time GenerateManifest is called. Useful for asserting fields that the
 	// controller derives, like SourceIntegrity.
 	onGenerateManifest func(req *apiclient.ManifestRequest)
+	// onUpdateRevisionForPaths, if set, is invoked with each UpdateRevisionForPaths request, for
+	// asserting fields the controller derives such as LastSyncedRevision.
+	onUpdateRevisionForPaths func(req *apiclient.UpdateRevisionForPathsRequest)
 	// persistResourceHealth controls whether managed resource health is stored
 	// inline on the Application. When nil it defaults to true.
 	persistResourceHealth *bool
@@ -163,19 +166,25 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 		}
 	}
 
+	captureUpdateRevisionForPaths := func(_ context.Context, req *apiclient.UpdateRevisionForPathsRequest, _ ...grpc.CallOption) {
+		if data.onUpdateRevisionForPaths != nil {
+			data.onUpdateRevisionForPaths(req)
+		}
+	}
+
 	if len(data.updateRevisionForPathsResponses) > 0 {
 		for _, response := range data.updateRevisionForPathsResponses {
 			if revisionPathsErr != nil {
-				mockRepoClient.EXPECT().UpdateRevisionForPaths(mock.Anything, mock.Anything).Return(response, revisionPathsErr)
+				mockRepoClient.EXPECT().UpdateRevisionForPaths(mock.Anything, mock.Anything).Run(captureUpdateRevisionForPaths).Return(response, revisionPathsErr)
 			} else {
-				mockRepoClient.EXPECT().UpdateRevisionForPaths(mock.Anything, mock.Anything).Return(response, nil)
+				mockRepoClient.EXPECT().UpdateRevisionForPaths(mock.Anything, mock.Anything).Run(captureUpdateRevisionForPaths).Return(response, nil)
 			}
 		}
 	} else {
 		if revisionPathsErr != nil {
-			mockRepoClient.EXPECT().UpdateRevisionForPaths(mock.Anything, mock.Anything).Return(nil, revisionPathsErr)
+			mockRepoClient.EXPECT().UpdateRevisionForPaths(mock.Anything, mock.Anything).Run(captureUpdateRevisionForPaths).Return(nil, revisionPathsErr)
 		} else if data.updateRevisionForPathsResponse != nil {
-			mockRepoClient.EXPECT().UpdateRevisionForPaths(mock.Anything, mock.Anything).Return(data.updateRevisionForPathsResponse, nil)
+			mockRepoClient.EXPECT().UpdateRevisionForPaths(mock.Anything, mock.Anything).Run(captureUpdateRevisionForPaths).Return(data.updateRevisionForPathsResponse, nil)
 		}
 	}
 
@@ -760,6 +769,74 @@ func TestAutoSyncMultiSourceWithoutSelfHeal(t *testing.T) {
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
 		require.NoError(t, err)
 		assert.NotNil(t, app.Operation)
+	})
+}
+
+func TestAutoSyncManifestGeneratePathsNewCommit(t *testing.T) {
+	// Regression for #27875 and #28227: revisionsMayHaveChanges is based on the last sync attempt (see
+	// lastAttemptedSyncRevisions in state.go). A newer commit with relevant changes must auto-sync
+	// (#27875); cluster drift plus commits without relevant changes must not (#28227).
+	revA := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	revB := "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+
+	t.Run("NewCommitWithChangesSinceLastSyncTriggersAutoSync", func(t *testing.T) {
+		app := newFakeApp()
+		app.Annotations = map[string]string{v1alpha1.AnnotationKeyManifestGeneratePaths: "."}
+		app.Spec.SyncPolicy.Automated.SelfHeal = new(false)
+		app.Status.OperationState.SyncResult.Revision = revA
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+		syncStatus := v1alpha1.SyncStatus{
+			Status:   v1alpha1.SyncStatusCodeOutOfSync,
+			Revision: revB,
+		}
+		// revB touched files under the app's manifest-generate-paths relative to revA.
+		revisionsMayHaveChanges := true
+		cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, revisionsMayHaveChanges)
+		assert.Nil(t, cond)
+		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
+		require.NoError(t, err)
+		require.NotNil(t, app.Operation)
+		require.NotNil(t, app.Operation.Sync)
+		assert.Equal(t, revB, app.Operation.Sync.Revision)
+		assert.Empty(t, app.Operation.Sync.Resources)
+	})
+
+	t.Run("DriftWithoutChangesSinceLastSyncDoesNotTriggerAutoSync", func(t *testing.T) {
+		app := newFakeApp()
+		app.Annotations = map[string]string{v1alpha1.AnnotationKeyManifestGeneratePaths: "."}
+		app.Spec.SyncPolicy.Automated.SelfHeal = new(false)
+		app.Status.OperationState.SyncResult.Revision = revA
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+		syncStatus := v1alpha1.SyncStatus{
+			Status:   v1alpha1.SyncStatusCodeOutOfSync,
+			Revision: revB,
+		}
+		// revB has no relevant changes since revA; the OutOfSync status stems from cluster drift.
+		// Without self-heal, no new sync (and no new history entry) may be triggered.
+		revisionsMayHaveChanges := false
+		cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, revisionsMayHaveChanges)
+		assert.Nil(t, cond)
+		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.Nil(t, app.Operation)
+	})
+
+	t.Run("SameRevisionDriftDoesNotTriggerAutoSync", func(t *testing.T) {
+		app := newFakeApp()
+		app.Annotations = map[string]string{v1alpha1.AnnotationKeyManifestGeneratePaths: "."}
+		app.Spec.SyncPolicy.Automated.SelfHeal = new(false)
+		app.Status.OperationState.SyncResult.Revision = revB
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+		syncStatus := v1alpha1.SyncStatus{
+			Status:   v1alpha1.SyncStatusCodeOutOfSync,
+			Revision: revB,
+		}
+		revisionsMayHaveChanges := false
+		cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, revisionsMayHaveChanges)
+		assert.Nil(t, cond)
+		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.Nil(t, app.Operation)
 	})
 }
 

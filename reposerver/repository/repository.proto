@@ -300,12 +300,22 @@ message UpdateRevisionForPathsRequest {
     string installationID = 15;
 
     map<string, github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.RefTarget> syncedRefSources = 16;
+
+    // lastSyncedRevision is the revision of the most recent sync attempt. When set, `changes` is computed against it
+    // instead of syncedRevision, answering "changed since the last sync?" rather than "since the last comparison?".
+    // syncedRevision stays the base for the manifest cache transfer. When empty, it is the base for both (legacy).
+    string lastSyncedRevision = 17;
+
+    // lastSyncedRefSources are the ref sources resolved at the revisions of the most recent sync attempt. Only
+    // consulted when lastSyncedRevision is set.
+    map<string, github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.RefTarget> lastSyncedRefSources = 18;
 }
 
 message UpdateRevisionForPathsResponse {
-    // Changes indicates whether any changes were detected in the provided paths. If false, it means that the manifest
-    // cache was updated to the new revision. If true, it means that there are relevant changes in the repo files and
-    // that new manifests should be generated.
+    // Changes indicates whether any changes were detected in the provided paths since the base revision (the request's
+    // lastSyncedRevision when set, otherwise its syncedRevision). If false and the revision advanced from
+    // syncedRevision, the manifest cache was updated to the new revision. If true, it means that there are relevant
+    // changes in the repo files and that new manifests should be generated.
     bool changes = 1;
     string revision = 2;
 }

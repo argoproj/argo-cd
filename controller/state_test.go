@@ -1286,6 +1286,45 @@ func TestValidSourceIntegrity(t *testing.T) {
 	}
 }
 
+func Test_usableSyncBaseRevision(t *testing.T) {
+	gitSource := v1alpha1.ApplicationSource{RepoURL: "https://example.com/repo.git"}
+	chartSource := v1alpha1.ApplicationSource{RepoURL: "https://charts.example.com", Chart: "test"}
+	ociSource := v1alpha1.ApplicationSource{RepoURL: "oci://registry.example.com/chart"}
+	sha := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+
+	assert.True(t, usableSyncBaseRevision(gitSource, sha))
+	assert.False(t, usableSyncBaseRevision(gitSource, "HEAD"), "ambiguous refs are not a usable diff base")
+	assert.False(t, usableSyncBaseRevision(gitSource, "main"), "branch names are not a usable diff base")
+	assert.False(t, usableSyncBaseRevision(gitSource, ""))
+	assert.True(t, usableSyncBaseRevision(chartSource, "1.2.3"), "chart versions are compared as opaque strings")
+	assert.False(t, usableSyncBaseRevision(chartSource, ""))
+	assert.True(t, usableSyncBaseRevision(ociSource, "1.2.3"))
+}
+
+func TestCompareAppStateLocalManifestsForceRevisionComparison(t *testing.T) {
+	// Change detection never runs for a local-manifest comparison, so a "no changes" claim would
+	// let alreadyAttemptedSync suppress auto-sync of new commits forever after a local sync.
+	app := newFakeApp()
+	app.SetAnnotations(map[string]string{v1alpha1.AnnotationKeyManifestGeneratePaths: "."})
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+	}
+	ctrl := newFakeController(t.Context(), &data, nil)
+	sources := []v1alpha1.ApplicationSource{app.Spec.GetSource()}
+	revisions := []string{"abc123"}
+
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, []string{PodManifest}, false)
+	require.NoError(t, err)
+	require.NotNil(t, compRes)
+	assert.True(t, compRes.revisionsMayHaveChanges, "a local-manifest comparison must not report 'no changes' to the auto-sync gate")
+}
+
 func TestComparisonResult_GetHealthStatus(t *testing.T) {
 	status := health.HealthStatusMissing
 	res := comparisonResult{
@@ -2066,6 +2105,213 @@ func TestGetRepoObjs_CallUpdateRevisionForPaths_ForMultiSource(t *testing.T) {
 	_, _, revisionsMayHaveChanges, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, sources, "0.0.1", revisions, false, false, defaultProj.EffectiveSourceIntegrity(), &defaultProj, false)
 	require.NoError(t, err)
 	require.False(t, revisionsMayHaveChanges)
+}
+
+func TestGetRepoObjs_ChangeDetectionUsesLastSyncedBase(t *testing.T) {
+	// revisionsMayHaveChanges must answer "changed since the last sync attempt?", so the base is the
+	// revision in OperationState.SyncResult, not the compared revision in Status.Sync (#27875, #28227).
+	revA := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	revB := "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+
+	newApp := func() *v1alpha1.Application {
+		app := newFakeApp()
+		app.SetAnnotations(map[string]string{v1alpha1.AnnotationKeyManifestGeneratePaths: "."})
+		app.Status.Sync = v1alpha1.SyncStatus{Revision: revB, Status: v1alpha1.SyncStatusCodeSynced}
+		// The fakeApp fixture's SyncResult already uses revA with a source equal to the spec source.
+		return app
+	}
+	manifestResponse := &apiclient.ManifestResponse{
+		Manifests: []string{},
+		Namespace: test.FakeDestNamespace,
+		Server:    test.FakeClusterURL,
+		Revision:  revB,
+	}
+
+	t.Run("last synced revision is the change detection base", func(t *testing.T) {
+		app := newApp()
+		var req *apiclient.UpdateRevisionForPathsRequest
+		data := fakeData{
+			manifestResponse:               manifestResponse,
+			updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{Changes: true, Revision: revB},
+			onUpdateRevisionForPaths:       func(r *apiclient.UpdateRevisionForPathsRequest) { req = r },
+		}
+		ctrl := newFakeController(t.Context(), &data, nil)
+
+		_, _, revisionsMayHaveChanges, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, []v1alpha1.ApplicationSource{app.Spec.GetSource()}, "", []string{"HEAD"}, false, false, defaultProj.EffectiveSourceIntegrity(), &defaultProj, false)
+		require.NoError(t, err)
+		require.NotNil(t, req)
+		assert.Equal(t, revA, req.LastSyncedRevision)
+		assert.Equal(t, revB, req.SyncedRevision)
+		assert.True(t, revisionsMayHaveChanges)
+	})
+
+	t.Run("compared revision caught up but last synced lags: change detection still runs", func(t *testing.T) {
+		// The #27875 shape: a newer commit was compared while the sync to the previous commit was
+		// still running. Status.Sync.Revision equals the desired revision, so the old early-return
+		// would have skipped change detection and reported no changes.
+		app := newApp()
+		var req *apiclient.UpdateRevisionForPathsRequest
+		data := fakeData{
+			manifestResponse:               manifestResponse,
+			updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{Changes: true, Revision: revB},
+			onUpdateRevisionForPaths:       func(r *apiclient.UpdateRevisionForPathsRequest) { req = r },
+		}
+		ctrl := newFakeController(t.Context(), &data, nil)
+
+		_, _, revisionsMayHaveChanges, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, []v1alpha1.ApplicationSource{app.Spec.GetSource()}, "", []string{revB}, false, false, defaultProj.EffectiveSourceIntegrity(), &defaultProj, false)
+		require.NoError(t, err)
+		require.NotNil(t, req, "UpdateRevisionForPaths must be called when the last synced revision lags behind the desired revision")
+		assert.Equal(t, revA, req.LastSyncedRevision)
+		assert.True(t, revisionsMayHaveChanges)
+	})
+
+	t.Run("revision equal to both bases skips the repo call", func(t *testing.T) {
+		app := newApp()
+		app.Status.OperationState.SyncResult.Revision = revB
+		data := fakeData{manifestResponse: manifestResponse}
+		ctrl := newFakeController(t.Context(), &data, nil)
+
+		_, _, revisionsMayHaveChanges, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, []v1alpha1.ApplicationSource{app.Spec.GetSource()}, "", []string{revB}, false, false, defaultProj.EffectiveSourceIntegrity(), &defaultProj, false)
+		require.NoError(t, err)
+		assert.False(t, revisionsMayHaveChanges)
+	})
+
+	t.Run("no prior sync attempt falls back to the compared base", func(t *testing.T) {
+		app := newApp()
+		app.Status.OperationState = nil
+		var req *apiclient.UpdateRevisionForPathsRequest
+		data := fakeData{
+			manifestResponse:               manifestResponse,
+			updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{Changes: false, Revision: revB},
+			onUpdateRevisionForPaths:       func(r *apiclient.UpdateRevisionForPathsRequest) { req = r },
+		}
+		ctrl := newFakeController(t.Context(), &data, nil)
+
+		_, _, _, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, []v1alpha1.ApplicationSource{app.Spec.GetSource()}, "", []string{"HEAD"}, false, false, defaultProj.EffectiveSourceIntegrity(), &defaultProj, false)
+		require.NoError(t, err)
+		require.NotNil(t, req)
+		assert.Empty(t, req.LastSyncedRevision)
+	})
+
+	t.Run("source changed since last sync falls back to the compared base", func(t *testing.T) {
+		app := newApp()
+		app.Status.OperationState.SyncResult.Source.Path = "some/other/path"
+		var req *apiclient.UpdateRevisionForPathsRequest
+		data := fakeData{
+			manifestResponse:               manifestResponse,
+			updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{Changes: false, Revision: revB},
+			onUpdateRevisionForPaths:       func(r *apiclient.UpdateRevisionForPathsRequest) { req = r },
+		}
+		ctrl := newFakeController(t.Context(), &data, nil)
+
+		_, _, _, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, []v1alpha1.ApplicationSource{app.Spec.GetSource()}, "", []string{"HEAD"}, false, false, defaultProj.EffectiveSourceIntegrity(), &defaultProj, false)
+		require.NoError(t, err)
+		require.NotNil(t, req)
+		assert.Empty(t, req.LastSyncedRevision)
+	})
+
+	t.Run("multi-source: last synced revisions and ref sources aligned per source", func(t *testing.T) {
+		app := newFakeMultiSourceApp()
+		app.SetAnnotations(map[string]string{v1alpha1.AnnotationKeyManifestGeneratePaths: "."})
+		// Compared revisions moved ahead of the last synced revisions (fixture: revA, revB, revC).
+		app.Status.Sync = v1alpha1.SyncStatus{
+			Status:    v1alpha1.SyncStatusCodeSynced,
+			Revisions: []string{"dddddddddddddddddddddddddddddddddddddddd", "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", "ffffffffffffffffffffffffffffffffffffffff"},
+		}
+		var reqs []*apiclient.UpdateRevisionForPathsRequest
+		data := fakeData{
+			manifestResponses: []*apiclient.ManifestResponse{
+				{Manifests: []string{}, Namespace: test.FakeDestNamespace, Server: test.FakeClusterURL, Revision: "HEAD"},
+				{Manifests: []string{}, Namespace: test.FakeDestNamespace, Server: test.FakeClusterURL, Revision: "HEAD"},
+				{Manifests: []string{}, Namespace: test.FakeDestNamespace, Server: test.FakeClusterURL, Revision: "HEAD"},
+			},
+			updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{Changes: true},
+			onUpdateRevisionForPaths:       func(r *apiclient.UpdateRevisionForPathsRequest) { reqs = append(reqs, r) },
+		}
+		ctrl := newFakeController(t.Context(), &data, nil)
+
+		_, _, _, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, app.Spec.Sources, "", []string{"HEAD", "HEAD", "HEAD"}, false, false, defaultProj.EffectiveSourceIntegrity(), &defaultProj, false)
+		require.NoError(t, err)
+		// The third source is a ref source and is evaluated as part of the first one.
+		require.Len(t, reqs, 2)
+		syncResult := app.Status.OperationState.SyncResult
+		assert.Equal(t, syncResult.Revisions[0], reqs[0].LastSyncedRevision)
+		assert.Equal(t, syncResult.Revisions[1], reqs[1].LastSyncedRevision)
+		require.Contains(t, reqs[0].LastSyncedRefSources, "$values_test")
+		assert.Equal(t, syncResult.Revisions[2], reqs[0].LastSyncedRefSources["$values_test"].TargetRevision)
+	})
+
+	t.Run("no-changes verdict against the last-synced base is trusted", func(t *testing.T) {
+		app := newApp()
+		data := fakeData{
+			manifestResponse:               manifestResponse,
+			updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{Changes: false, Revision: revB},
+		}
+		ctrl := newFakeController(t.Context(), &data, nil)
+
+		_, _, revisionsMayHaveChanges, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, []v1alpha1.ApplicationSource{app.Spec.GetSource()}, "", []string{"HEAD"}, false, false, defaultProj.EffectiveSourceIntegrity(), &defaultProj, false)
+		require.NoError(t, err)
+		assert.False(t, revisionsMayHaveChanges)
+	})
+
+	t.Run("ambiguous last-synced revision forces the revision comparison", func(t *testing.T) {
+		// A sync that errored before revision resolution can leave SyncResult.Revision as "HEAD".
+		// Diffing against it is meaningless (and skipped when it string-equals the requested revision),
+		// yet alreadyAttemptedSync would still trust a no-changes flag.
+		app := newApp()
+		app.Status.OperationState.SyncResult.Revision = "HEAD"
+		var req *apiclient.UpdateRevisionForPathsRequest
+		data := fakeData{
+			manifestResponse:               manifestResponse,
+			updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{Changes: false, Revision: revB},
+			onUpdateRevisionForPaths:       func(r *apiclient.UpdateRevisionForPathsRequest) { req = r },
+		}
+		ctrl := newFakeController(t.Context(), &data, nil)
+
+		_, _, revisionsMayHaveChanges, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, []v1alpha1.ApplicationSource{app.Spec.GetSource()}, "", []string{"HEAD"}, false, false, defaultProj.EffectiveSourceIntegrity(), &defaultProj, false)
+		require.NoError(t, err)
+		require.NotNil(t, req)
+		assert.Empty(t, req.LastSyncedRevision, "an unusable base must not be sent to the repo-server")
+		assert.True(t, revisionsMayHaveChanges)
+	})
+
+	t.Run("empty last-synced revision forces the revision comparison", func(t *testing.T) {
+		app := newApp()
+		app.Status.OperationState.SyncResult.Revision = ""
+		data := fakeData{
+			manifestResponse:               manifestResponse,
+			updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{Changes: false, Revision: revB},
+		}
+		ctrl := newFakeController(t.Context(), &data, nil)
+
+		_, _, revisionsMayHaveChanges, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, []v1alpha1.ApplicationSource{app.Spec.GetSource()}, "", []string{"HEAD"}, false, false, defaultProj.EffectiveSourceIntegrity(), &defaultProj, false)
+		require.NoError(t, err)
+		assert.True(t, revisionsMayHaveChanges)
+	})
+
+	t.Run("multi-source: one empty last-synced revision element forces the revision comparison", func(t *testing.T) {
+		app := newFakeMultiSourceApp()
+		app.SetAnnotations(map[string]string{v1alpha1.AnnotationKeyManifestGeneratePaths: "."})
+		app.Status.OperationState.SyncResult.Revisions[1] = ""
+		var reqs []*apiclient.UpdateRevisionForPathsRequest
+		data := fakeData{
+			manifestResponses: []*apiclient.ManifestResponse{
+				{Manifests: []string{}, Namespace: test.FakeDestNamespace, Server: test.FakeClusterURL, Revision: "HEAD"},
+				{Manifests: []string{}, Namespace: test.FakeDestNamespace, Server: test.FakeClusterURL, Revision: "HEAD"},
+				{Manifests: []string{}, Namespace: test.FakeDestNamespace, Server: test.FakeClusterURL, Revision: "HEAD"},
+			},
+			updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{Changes: false, Revision: "HEAD"},
+			onUpdateRevisionForPaths:       func(r *apiclient.UpdateRevisionForPathsRequest) { reqs = append(reqs, r) },
+		}
+		ctrl := newFakeController(t.Context(), &data, nil)
+
+		_, _, revisionsMayHaveChanges, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, app.Spec.Sources, "", []string{"HEAD", "HEAD", "HEAD"}, false, false, defaultProj.EffectiveSourceIntegrity(), &defaultProj, false)
+		require.NoError(t, err)
+		for _, req := range reqs {
+			assert.Empty(t, req.LastSyncedRevision, "a partially unusable base must not be sent for any source")
+		}
+		assert.True(t, revisionsMayHaveChanges)
+	})
 }
 
 func Test_GetRepoObjs_HydrateToAppPathNotExist(t *testing.T) {
