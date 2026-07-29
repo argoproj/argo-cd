@@ -556,10 +556,10 @@ func (e *Enforcer) syncUpdate(cm *corev1.ConfigMap, onUpdated func(cm *corev1.Co
 	e.SetMatchMode(cm.Data[ConfigMapMatchModeKey])
 	e.preventLoginWithoutPermissions.Store(cm.Data[ConfigMapPreventLoginWithoutPermissions] == "true")
 	policyCSV := PolicyCSV(cm.Data)
-	if err := onUpdated(cm); err != nil {
-		return fmt.Errorf("error running policy update callback: %w", err)
+	if err := e.SetUserPolicy(policyCSV); err != nil {
+		return err
 	}
-	return e.SetUserPolicy(policyCSV)
+	return onUpdated(cm)
 }
 
 func (e *Enforcer) GetDefaultRole() string {

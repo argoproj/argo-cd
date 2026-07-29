@@ -12,6 +12,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
+	"k8s.io/apimachinery/pkg/labels"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -60,6 +61,16 @@ func (p *Enforcer) SetPermCheckCache(c *cacheutil.Cache) {
 
 // FlushPermCheckCache invalidates all cached permission-check results by advancing
 // the policy epoch. Call this whenever the RBAC policy changes.
+//
+// NOTE — policyEpoch is a per-instance atomic counter that starts at 0 after every restart. In a multi-instance
+// deployment each instance maintains its own independent counter, so two or more instances can have identical epoch
+// values at different points in time.
+// If a Redis entry written by a previous epoch happens to share the same numeric value as the current epoch,
+// the stale entry will be served as a cache hit until it expires.
+// The 60-second TTL (PermCheckCacheTTL) is the safety net that bounds the maximum window during which a stale
+// result could be returned. This is an intentional and accepted trade-off: the collision window is short and bounded.
+// The other options would be a persistent counter, which is considered overengineering for such a case, or a global
+// cache flush on startup, which is also considered a complex approach.
 func (p *Enforcer) FlushPermCheckCache() {
 	p.policyEpoch.Add(1)
 }
@@ -183,7 +194,46 @@ func (p *Enforcer) userHasAnyPermissionUncached(username string, groups []string
 	if p.enf.HasAnyAllowPermission(username) {
 		return true
 	}
-	return slices.ContainsFunc(groups, p.enf.HasAnyAllowPermission)
+	if slices.ContainsFunc(groups, p.enf.HasAnyAllowPermission) {
+		return true
+	}
+	// AppProject runtime policies are not part of the base enforcer, so a user whose only
+	// permissions come from a project role would be incorrectly blocked without this check.
+	return p.hasAnyProjectPermission(username, groups)
+}
+
+// hasAnyProjectPermission returns true if the user or any of their groups has at least one
+// allow permission in any AppProject's runtime policy.
+func (p *Enforcer) hasAnyProjectPermission(username string, groups []string) bool {
+	if p.projLister == nil {
+		return false
+	}
+	projects, err := p.projLister.List(labels.Everything())
+	if err != nil {
+		return false
+	}
+	subjects := make([]string, 1+len(groups))
+	subjects[0] = username
+	copy(subjects[1:], groups)
+	for _, proj := range projects {
+		policy := proj.ProjectPoliciesString()
+		if policy == "" {
+			continue
+		}
+		enf := p.enf.CreateEnforcerWithRuntimePolicy(proj.Name, policy)
+		for _, subject := range subjects {
+			perms, err := enf.GetImplicitPermissionsForUser(subject)
+			if err != nil {
+				continue
+			}
+			for _, row := range perms {
+				if len(row) > 0 && strings.EqualFold(row[len(row)-1], "allow") {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
 
 // permCheckCacheKey builds a deterministic Redis key for a (username, groups) pair.
