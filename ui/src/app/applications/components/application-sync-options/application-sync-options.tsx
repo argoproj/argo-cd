@@ -136,7 +136,7 @@ export const ApplicationSyncOptions = (props: ApplicationSyncOptionProps) => (
                 key={i}
                 style={optionStyle}
                 className={classNames('small-12', {
-                    'large-6': i < syncOptions.length - 1
+                    'large-6': i < syncOptions.length - 3
                 })}>
                 {render(props)}
             </div>
