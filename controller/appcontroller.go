@@ -2173,8 +2173,13 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 }
 
 // comparisonExpiry reports whether soft/hard comparison windows have expired.
-// A timeout <= 0 disables that expiry check (e.g. timeout.reconciliation=0s or timeout.hard.reconciliation=0s).
+// A nil ReconciledAt means the app has never been reconciled: soft expiry always
+// applies so it gets a first compare; hard expiry applies only when hard timeout is enabled.
+// A timeout <= 0 disables time-based expiry only (e.g. timeout.reconciliation=0s).
 func comparisonExpiry(status appv1.ApplicationStatus, statusRefreshTimeout, statusHardRefreshTimeout time.Duration) (softExpired, hardExpired bool) {
+	if status.ReconciledAt == nil {
+		return true, statusHardRefreshTimeout > 0
+	}
 	softExpired = statusRefreshTimeout > 0 && status.Expired(statusRefreshTimeout)
 	hardExpired = statusHardRefreshTimeout > 0 && status.Expired(statusHardRefreshTimeout)
 	return softExpired, hardExpired

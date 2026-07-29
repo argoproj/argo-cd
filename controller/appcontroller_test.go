@@ -2190,12 +2190,20 @@ func TestComparisonExpiry(t *testing.T) {
 		assert.True(t, hardExpired)
 	})
 
-	t.Run("nil ReconciledAt is not expired when timeout is zero", func(t *testing.T) {
+	t.Run("nil ReconciledAt soft-expires even when soft timeout is zero", func(t *testing.T) {
 		app := newFakeApp()
 		app.Status.ReconciledAt = nil
 		softExpired, hardExpired := comparisonExpiry(app.Status, 0, 0)
-		assert.False(t, softExpired)
+		assert.True(t, softExpired)
 		assert.False(t, hardExpired)
+	})
+
+	t.Run("nil ReconciledAt hard-expires only when hard timeout is configured", func(t *testing.T) {
+		app := newFakeApp()
+		app.Status.ReconciledAt = nil
+		softExpired, hardExpired := comparisonExpiry(app.Status, 0, time.Hour)
+		assert.True(t, softExpired)
+		assert.True(t, hardExpired)
 	})
 }
 
