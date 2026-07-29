@@ -33,7 +33,8 @@ import {
     getAppDefaultSource,
     getAppSpecDefaultSource,
     getHydratorSyncSourceRepoURL,
-    appRBACName
+    appRBACName,
+    getAppParentName
 } from '../utils';
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
 import {ApplicationRetryView} from '../application-retry-view/application-retry-view';
@@ -91,6 +92,8 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
     const isHydrator = isHydratorEnabled;
     const repoType = source.repoURL.startsWith('oci://') ? 'oci' : (source.hasOwnProperty('chart') && 'helm') || 'git';
 
+    const directParentName = getAppParentName(app);
+
     const attributes = [
         {
             title: 'PROJECT',
@@ -101,6 +104,64 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                 </DataLoader>
             )
         },
+        ...(directParentName
+            ? [
+                  {
+                      title: 'PARENT APP',
+                      view: (
+                          <DataLoader
+                              input={`${app.metadata.name}/${app.metadata.namespace}`}
+                              load={async () => {
+                                  const ancestors: Array<{name: string; namespace: string}> = [];
+                                  let currentName = directParentName;
+                                  let currentNamespace = app.metadata.namespace;
+                                  const visited = new Set<string>([app.metadata.name]);
+                                  for (let i = 0; i < 10; i++) {
+                                      if (!currentName || visited.has(currentName)) break;
+                                      ancestors.unshift({name: currentName, namespace: currentNamespace});
+                                      visited.add(currentName);
+                                      try {
+                                          const parentApp = (await services.applications.get(currentName, currentNamespace, 'application')) as models.Application;
+                                          currentName = getAppParentName(parentApp);
+                                          currentNamespace = parentApp.metadata.namespace;
+                                      } catch {
+                                          break;
+                                      }
+                                  }
+                                  return ancestors;
+                              }}>
+                              {(ancestors: Array<{name: string; namespace: string}>) => {
+                                  const chain = ancestors.filter(a => a.name !== app.metadata.name);
+                                  if (chain.length === 0) return null;
+                                  const directParent = chain[chain.length - 1];
+                                  const higher = chain.slice(0, chain.length - 1);
+                                  return (
+                                      <span style={{display: 'flex', alignItems: 'center', gap: '4px'}}>
+                                          {higher.length > 0 && (
+                                              <React.Fragment>
+                                                  <DropDownMenu
+                                                      anchor={() => (
+                                                          <a style={{cursor: 'pointer'}}>
+                                                              +{higher.length}
+                                                          </a>
+                                                      )}
+                                                      items={higher.map(a => ({
+                                                          title: <Link to={`/applications/${a.namespace}/${a.name}`}>{a.name}</Link>,
+                                                          action: () => {}
+                                                      }))}
+                                                  />
+                                                  <span style={{opacity: 0.5}}>›</span>
+                                              </React.Fragment>
+                                          )}
+                                          <Link to={`/applications/${directParent.namespace}/${directParent.name}`}>{directParent.name}</Link>
+                                      </span>
+                                  );
+                              }}
+                          </DataLoader>
+                      )
+                  }
+              ]
+            : []),
         {
             title: 'LABELS',
             view: Object.keys(app.metadata.labels || {})
