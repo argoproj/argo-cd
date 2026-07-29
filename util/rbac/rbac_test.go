@@ -572,53 +572,69 @@ func TestLoadPolicyLine(t *testing.T) {
 
 func TestHasAnyAllowPermission(t *testing.T) {
 	tests := []struct {
-		name     string
-		policy   string
-		subject  string
-		expected bool
+		name          string
+		builtinPolicy string
+		userPolicy    string
+		subject       string
+		expected      bool
 	}{
 		{
 			name:     "no policy — denied",
-			policy:   "",
 			subject:  "alice",
 			expected: false,
 		},
 		{
-			name:     "direct allow rule",
-			policy:   "p, alice, applications, get, *, allow",
-			subject:  "alice",
-			expected: true,
+			name:       "direct allow rule",
+			userPolicy: "p, alice, applications, get, *, allow",
+			subject:    "alice",
+			expected:   true,
 		},
 		{
-			name:     "deny-only rule",
-			policy:   "p, alice, applications, get, *, deny",
-			subject:  "alice",
-			expected: false,
+			name:       "deny-only rule",
+			userPolicy: "p, alice, applications, get, *, deny",
+			subject:    "alice",
+			expected:   false,
 		},
 		{
-			name:     "case-insensitive ALLOW",
-			policy:   "p, alice, applications, get, *, ALLOW",
-			subject:  "alice",
-			expected: true,
+			name:       "case-insensitive ALLOW",
+			userPolicy: "p, alice, applications, get, *, ALLOW",
+			subject:    "alice",
+			expected:   true,
 		},
 		{
-			name:     "rule for different subject — denied",
-			policy:   "p, bob, applications, get, *, allow",
-			subject:  "alice",
-			expected: false,
+			name:       "rule for different subject — denied",
+			userPolicy: "p, bob, applications, get, *, allow",
+			subject:    "alice",
+			expected:   false,
 		},
 		{
-			name:     "allow via inherited role",
-			policy:   "p, role:viewer, applications, get, *, allow\ng, alice, role:viewer",
-			subject:  "alice",
-			expected: true,
+			name:       "allow via inherited role",
+			userPolicy: "p, role:viewer, applications, get, *, allow\ng, alice, role:viewer",
+			subject:    "alice",
+			expected:   true,
+		},
+		{
+			name:          "admin inherits allow permissions from built-in role:admin",
+			builtinPolicy: assets.BuiltinPolicyCSV,
+			subject:       "admin",
+			expected:      true,
+		},
+		{
+			name:          "user bound to built-in role:readonly via user policy",
+			builtinPolicy: assets.BuiltinPolicyCSV,
+			userPolicy:    "g, alice, role:readonly",
+			subject:       "alice",
+			expected:      true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			enf := NewEnforcer(fake.NewClientset(), fakeNamespace, fakeConfigMapName, nil)
-			require.NoError(t, enf.SetUserPolicy(tt.policy))
+			if tt.builtinPolicy != "" {
+				require.NoError(t, enf.SetBuiltinPolicy(tt.builtinPolicy))
+			}
+			require.NoError(t, enf.SetUserPolicy(tt.userPolicy))
 			assert.Equal(t, tt.expected, enf.HasAnyAllowPermission(tt.subject))
 		})
 	}
