@@ -61,7 +61,7 @@
     "@types/react": "^16.9.3",
     "@types/react-dom": "^16.8.2",
     "normalize-url": "4.5.1",
-    "redoc/dompurify": "^3.4.0",
+    "redoc/dompurify": "3.4.7",
     "rxjs": "6.6.7",
     "form-data": "4.0.6"
   },
@@ -126,5 +126,6 @@
     "webpack-cli": "^4.9.2",
     "webpack-dev-server": "^4.7.4",
     "yarn": "^1.22.22"
-  }
+  },
+  "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }
