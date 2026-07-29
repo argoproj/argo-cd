@@ -114,7 +114,7 @@ argocd-server [flags]
       --sync-with-replace-allowed                       Whether to allow users to select replace for syncs from UI/CLI (default true)
       --tls-server-name string                          If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
       --tlsciphers string                               The list of acceptable ciphers to be used when establishing TLS connections. Use 'list' to list available ciphers. (default "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384")
-      --tlscurvepreferences string                      The Colon-separated list of TLS curve preferences to be used when establishing TLS connections (e.g. X25519:CurveP256) (default "")
+      --tlscurvepreferences string                      Colon-separated list of TLS curve preferences to be used when establishing TLS connections (e.g. X25519:CurveP256).
       --tlsmaxversion string                            The maximum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3) (default "1.3")
       --tlsminversion string                            The minimum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3) (default "1.2")
       --token string                                    Bearer token for authentication to the API server
