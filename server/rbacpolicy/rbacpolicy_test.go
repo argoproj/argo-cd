@@ -250,6 +250,44 @@ func TestUserHasAnyPermission_DefaultRole(t *testing.T) {
 	assert.True(t, rbacEnf.UserHasAnyPermission("alice", nil))
 }
 
+func TestUserHasAnyPermission_NilProjLister(t *testing.T) {
+	kubeclientset := fake.NewClientset(test.NewFakeConfigMap())
+	enf := rbac.NewEnforcer(kubeclientset, test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
+	rbacEnf := NewRBACPolicyEnforcer(enf, nil)
+
+	assert.False(t, rbacEnf.UserHasAnyPermission("alice", nil),
+		"nil projLister should not panic and should return false")
+}
+
+func TestUserHasAnyPermission_ProjectScope(t *testing.T) {
+	proj := &argoappv1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-project",
+			Namespace: test.FakeArgoCDNamespace,
+		},
+		Spec: argoappv1.AppProjectSpec{
+			Roles: []argoappv1.ProjectRole{
+				{
+					Name:     "developer",
+					Policies: []string{"p, proj:my-project:developer, applications, sync, my-project/*, allow"},
+					Groups:   []string{"dev-team"},
+				},
+			},
+		},
+	}
+
+	kubeclientset := fake.NewClientset(test.NewFakeConfigMap())
+	projLister := test.NewFakeProjLister(proj)
+	enf := rbac.NewEnforcer(kubeclientset, test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
+	rbacEnf := NewRBACPolicyEnforcer(enf, projLister)
+
+	assert.True(t, rbacEnf.UserHasAnyPermission("alice", []string{"dev-team"}),
+		"user bound only to a project role should pass the permission gate")
+
+	assert.False(t, rbacEnf.UserHasAnyPermission("bob", nil),
+		"user with no global or project permissions should be blocked")
+}
+
 func newEnforcerWithInMemoryCache(t *testing.T) (*rbac.Enforcer, *Enforcer) {
 	t.Helper()
 	enf := rbac.NewEnforcer(fake.NewClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)

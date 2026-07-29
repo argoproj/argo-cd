@@ -16,6 +16,7 @@ import (
 	sessionpb "github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v3/test"
+	"github.com/argoproj/argo-cd/v3/util/assets"
 	"github.com/argoproj/argo-cd/v3/util/password"
 	utilrbac "github.com/argoproj/argo-cd/v3/util/rbac"
 	sessionmgr "github.com/argoproj/argo-cd/v3/util/session"
@@ -64,6 +65,7 @@ func newTestKubeClient(t *testing.T) *fake.Clientset {
 func newTestEnforcer(t *testing.T, preventLogin bool, userPolicy string) *rbacpolicy.Enforcer {
 	t.Helper()
 	enf := utilrbac.NewEnforcer(fake.NewClientset(), testNamespace, testRBACCMName, nil)
+	require.NoError(t, enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV))
 	enf.SetPreventLoginWithoutPermissions(preventLogin)
 	if userPolicy != "" {
 		require.NoError(t, enf.SetUserPolicy(userPolicy))
