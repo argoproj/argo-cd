@@ -3,6 +3,7 @@ package rbacpolicy
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
@@ -13,6 +14,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test"
+	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 	settings_util "github.com/argoproj/argo-cd/v3/util/settings"
 )
@@ -177,6 +179,182 @@ func TestInvalidatedCache(t *testing.T) {
 	assert.False(t, enf.Enforce(claims, "applications", "create", "my-proj/my-app"))
 	assert.False(t, enf.Enforce(claims, "logs", "get", "my-proj/my-app"))
 	assert.False(t, enf.Enforce(claims, "exec", "create", "my-proj/my-app"))
+}
+
+func TestUserHasAnyPermission(t *testing.T) {
+	kubeclientset := fake.NewClientset(test.NewFakeConfigMap())
+	projLister := test.NewFakeProjLister()
+	enf := rbac.NewEnforcer(kubeclientset, test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
+	rbacEnf := NewRBACPolicyEnforcer(enf, projLister)
+
+	tests := []struct {
+		name     string
+		policy   string
+		username string
+		groups   []string
+		expected bool
+	}{
+		{
+			name:     "user with direct allow permission",
+			policy:   "p, alice, applications, get, *, allow",
+			username: "alice",
+			expected: true,
+		},
+		{
+			name:     "user with no permissions",
+			policy:   "p, bob, applications, get, *, allow",
+			username: "alice",
+			expected: false,
+		},
+		{
+			name:     "user with only deny",
+			policy:   "p, alice, applications, get, *, deny",
+			username: "alice",
+			expected: false,
+		},
+		{
+			name:     "permission via group membership",
+			policy:   "p, my-group, applications, get, *, allow",
+			username: "alice",
+			groups:   []string{"my-group"},
+			expected: true,
+		},
+		{
+			name:     "no match on wrong group",
+			policy:   "p, other-group, applications, get, *, allow",
+			username: "alice",
+			groups:   []string{"my-group"},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.NoError(t, enf.SetUserPolicy(tt.policy))
+			enf.SetDefaultRole("")
+			assert.Equal(t, tt.expected, rbacEnf.UserHasAnyPermission(tt.username, tt.groups))
+		})
+	}
+}
+
+func TestUserHasAnyPermission_DefaultRole(t *testing.T) {
+	kubeclientset := fake.NewClientset(test.NewFakeConfigMap())
+	projLister := test.NewFakeProjLister()
+	enf := rbac.NewEnforcer(kubeclientset, test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
+	rbacEnf := NewRBACPolicyEnforcer(enf, projLister)
+
+	require.NoError(t, enf.SetBuiltinPolicy("p, role:readonly, applications, get, *, allow"))
+	enf.SetDefaultRole("role:readonly")
+
+	// user with no direct policy still has permission via the default role
+	assert.True(t, rbacEnf.UserHasAnyPermission("alice", nil))
+}
+
+func newEnforcerWithInMemoryCache(t *testing.T) (*rbac.Enforcer, *Enforcer) {
+	t.Helper()
+	enf := rbac.NewEnforcer(fake.NewClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
+	rbacEnf := NewRBACPolicyEnforcer(enf, test.NewFakeProjLister())
+	rbacEnf.SetPermCheckCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Hour)))
+	return enf, rbacEnf
+}
+
+// TestUserHasAnyPermission_CacheHit verifies that after the first call the result
+// is served from cache: a subsequent policy change is NOT reflected until the
+// cache is flushed.
+func TestUserHasAnyPermission_CacheHit(t *testing.T) {
+	enf, rbacEnf := newEnforcerWithInMemoryCache(t)
+	require.NoError(t, enf.SetUserPolicy("p, alice, applications, get, *, allow"))
+
+	// First call — populates the cache with "allowed".
+	assert.True(t, rbacEnf.UserHasAnyPermission("alice", nil))
+
+	// Remove alice's permission without flushing the cache.
+	require.NoError(t, enf.SetUserPolicy(""))
+
+	// Second call — still returns the cached "allowed" result.
+	assert.True(t, rbacEnf.UserHasAnyPermission("alice", nil))
+}
+
+// TestUserHasAnyPermission_FlushInvalidatesCache verifies that FlushPermCheckCache
+// causes the next call to re-run the live Casbin lookup and pick up the new policy.
+func TestUserHasAnyPermission_FlushInvalidatesCache(t *testing.T) {
+	enf, rbacEnf := newEnforcerWithInMemoryCache(t)
+	require.NoError(t, enf.SetUserPolicy("p, alice, applications, get, *, allow"))
+
+	// Populate cache with "allowed".
+	assert.True(t, rbacEnf.UserHasAnyPermission("alice", nil))
+
+	// Remove alice's permission and invalidate the cache.
+	require.NoError(t, enf.SetUserPolicy(""))
+	rbacEnf.FlushPermCheckCache()
+
+	// Next call re-runs Casbin and reflects the revocation.
+	assert.False(t, rbacEnf.UserHasAnyPermission("alice", nil))
+}
+
+// TestUserHasAnyPermission_FlushAllowsGrant verifies the symmetric case: a user
+// that was denied gets access after a grant + flush.
+func TestUserHasAnyPermission_FlushAllowsGrant(t *testing.T) {
+	enf, rbacEnf := newEnforcerWithInMemoryCache(t)
+	require.NoError(t, enf.SetUserPolicy(""))
+
+	// Populate cache with "denied".
+	assert.False(t, rbacEnf.UserHasAnyPermission("alice", nil))
+
+	// Grant a permission and invalidate the cache.
+	require.NoError(t, enf.SetUserPolicy("p, alice, applications, get, *, allow"))
+	rbacEnf.FlushPermCheckCache()
+
+	// Next call picks up the new grant.
+	assert.True(t, rbacEnf.UserHasAnyPermission("alice", nil))
+}
+
+// TestPermCheckCacheKey verifies that the cache key is stable and group-order independent.
+func TestPermCheckCacheKey(t *testing.T) {
+	tests := []struct {
+		name        string
+		username    string
+		groups      []string
+		sameAsKey   string
+		sameGroups  []string
+		expectEqual bool
+	}{
+		{
+			name:        "same groups different order produce equal key",
+			username:    "alice",
+			groups:      []string{"b", "a", "c"},
+			sameAsKey:   "alice",
+			sameGroups:  []string{"a", "b", "c"},
+			expectEqual: true,
+		},
+		{
+			name:        "different users produce different keys",
+			username:    "alice",
+			groups:      nil,
+			sameAsKey:   "bob",
+			sameGroups:  nil,
+			expectEqual: false,
+		},
+		{
+			name:        "different groups produce different keys",
+			username:    "alice",
+			groups:      []string{"group-a"},
+			sameAsKey:   "alice",
+			sameGroups:  []string{"group-b"},
+			expectEqual: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			k1 := permCheckCacheKey(tt.username, tt.groups)
+			k2 := permCheckCacheKey(tt.sameAsKey, tt.sameGroups)
+			if tt.expectEqual {
+				assert.Equal(t, k1, k2)
+			} else {
+				assert.NotEqual(t, k1, k2)
+			}
+		})
+	}
 }
 
 func TestGetScopes_DefaultScopes(t *testing.T) {
