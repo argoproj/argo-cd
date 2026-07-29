@@ -196,7 +196,7 @@ type ArgoCDServer struct {
 	enf             *rbac.Enforcer
 	projInformer    cache.SharedIndexInformer
 	projLister      applisters.AppProjectNamespaceLister
-	policyEnforcer  *rbacpolicy.RBACPolicyEnforcer
+	policyEnforcer  *rbacpolicy.Enforcer
 	clusterInformer *settings_util.ClusterInformer
 	appInformer     cache.SharedIndexInformer
 	appLister       applisters.ApplicationLister
@@ -358,6 +358,10 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 
 	policyEnf := rbacpolicy.NewRBACPolicyEnforcer(enf, projLister)
 	enf.SetClaimsEnforcerFunc(policyEnf.EnforceClaims)
+	if opts.RedisClient != nil {
+		permCache := cacheutil.NewCache(cacheutil.NewRedisCache(opts.RedisClient, rbacpolicy.PermCheckCacheTTL, cacheutil.RedisCompressionNone))
+		policyEnf.SetPermCheckCache(permCache)
+	}
 
 	staticFS, err := fs.Sub(ui.Embedded, "dist/app")
 	errorsutil.CheckError(err)
@@ -902,6 +906,7 @@ func (server *ArgoCDServer) rbacPolicyLoader(ctx context.Context) {
 		}
 
 		server.policyEnforcer.SetScopes(scopes)
+		server.policyEnforcer.FlushPermCheckCache()
 		return nil
 	})
 	errorsutil.CheckError(err)

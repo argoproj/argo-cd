@@ -1,40 +1,70 @@
 package rbacpolicy
 
 import (
+	"slices"
+	"sort"
 	"strings"
+	"sync/atomic"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	applister "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
+	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 )
 
-// RBACPolicyEnforcer provides an RBAC Claims Enforcer which additionally consults AppProject
-// roles, jwt tokens, and groups. It is backed by a AppProject informer/lister cache and does not
+// PermCheckCacheTTL is how long a cached permission-check result is valid.
+// On RBAC policy changes the cache is invalidated immediately via FlushPermCheckCache;
+// TTL is a safety net for cases where the flush is missed (e.g., Redis unavailable).
+const PermCheckCacheTTL = 60 * time.Second
+
+// permCheckEntry is the value stored in the permission-check Redis cache.
+type permCheckEntry struct {
+	Epoch   uint64 `json:"e"`
+	Allowed bool   `json:"a"`
+}
+
+// Enforcer provides an RBAC Claims Enforcer which additionally consults AppProject
+// roles, jwt tokens, and groups. It is backed by an AppProject informer /lister cache and does not
 // make any API calls during enforcement.
-type RBACPolicyEnforcer struct {
-	enf        *rbac.Enforcer
-	projLister applister.AppProjectNamespaceLister
-	scopes     []string
+type Enforcer struct {
+	enf         *rbac.Enforcer
+	projLister  applister.AppProjectNamespaceLister
+	scopes      []string
+	permCache   *cacheutil.Cache
+	policyEpoch atomic.Uint64
 }
 
 // NewRBACPolicyEnforcer returns a new RBAC Enforcer for the Argo CD API Server
-func NewRBACPolicyEnforcer(enf *rbac.Enforcer, projLister applister.AppProjectNamespaceLister) *RBACPolicyEnforcer {
-	return &RBACPolicyEnforcer{
+func NewRBACPolicyEnforcer(enf *rbac.Enforcer, projLister applister.AppProjectNamespaceLister) *Enforcer {
+	return &Enforcer{
 		enf:        enf,
 		projLister: projLister,
 		scopes:     nil,
 	}
 }
 
-func (p *RBACPolicyEnforcer) SetScopes(scopes []string) {
+// SetPermCheckCache wires up a Redis-backed cache for UserHasAnyPermission results.
+// If not called, every call falls through to a live Casbin lookup.
+func (p *Enforcer) SetPermCheckCache(c *cacheutil.Cache) {
+	p.permCache = c
+}
+
+// FlushPermCheckCache invalidates all cached permission-check results by advancing
+// the policy epoch. Call this whenever the RBAC policy changes.
+func (p *Enforcer) FlushPermCheckCache() {
+	p.policyEpoch.Add(1)
+}
+
+func (p *Enforcer) SetScopes(scopes []string) {
 	p.scopes = scopes
 }
 
-func (p *RBACPolicyEnforcer) GetScopes() []string {
+func (p *Enforcer) GetScopes() []string {
 	scopes := p.scopes
 	if scopes == nil {
 		scopes = rbac.DefaultScopes
@@ -56,7 +86,7 @@ func GetProjectRoleFromSubject(subject string) (string, string, bool) {
 }
 
 // EnforceClaims is an RBAC claims enforcer specific to the Argo CD API server
-func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, rvals ...any) bool {
+func (p *Enforcer) EnforceClaims(claims jwt.Claims, rvals ...any) bool {
 	mapClaims, err := jwtutil.MapClaims(claims)
 	if err != nil {
 		return false
@@ -116,9 +146,54 @@ func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, rvals ...any) bool
 	return false
 }
 
+// UserHasAnyPermission returns true if the user (or any of their groups) has at least one 'allow' permission granted
+// by the current policy or the default role.
+// Results are cached in Redis (keyed by username+groups+policy epoch) to avoid a Casbin lookup on every GetUserInfo
+// call for SSO users.
+func (p *Enforcer) UserHasAnyPermission(username string, groups []string) bool {
+	if p.permCache != nil {
+		epoch := p.policyEpoch.Load()
+		key := permCheckCacheKey(username, groups)
+		var entry permCheckEntry
+		if err := p.permCache.GetItem(key, &entry); err == nil && entry.Epoch == epoch {
+			return entry.Allowed
+		}
+		allowed := p.userHasAnyPermissionUncached(username, groups)
+		_ = p.permCache.SetItem(key, &permCheckEntry{Epoch: epoch, Allowed: allowed},
+			&cacheutil.CacheActionOpts{Expiration: PermCheckCacheTTL})
+		return allowed
+	}
+	return p.userHasAnyPermissionUncached(username, groups)
+}
+
+func (p *Enforcer) userHasAnyPermissionUncached(username string, groups []string) bool {
+	if defaultRole := p.enf.GetDefaultRole(); defaultRole != "" {
+		if p.enf.HasAnyAllowPermission(defaultRole) {
+			return true
+		}
+	}
+	if p.enf.HasAnyAllowPermission(username) {
+		return true
+	}
+	return slices.ContainsFunc(groups, p.enf.HasAnyAllowPermission)
+}
+
+// permCheckCacheKey builds a deterministic Redis key for a (username, groups) pair.
+func permCheckCacheKey(username string, groups []string) string {
+	sorted := make([]string, len(groups))
+	copy(sorted, groups)
+	sort.Strings(sorted)
+	return "rbac|perm-check|" + username + "|" + strings.Join(sorted, ",")
+}
+
+// GetPreventLoginWithoutPermissions returns the flag value from the RBAC configmap.
+func (p *Enforcer) GetPreventLoginWithoutPermissions() bool {
+	return p.enf.GetPreventLoginWithoutPermissions()
+}
+
 // getProjectFromRequest parses the project name from the RBAC request and returns the associated
 // project (if it exists)
-func (p *RBACPolicyEnforcer) getProjectFromRequest(rvals ...any) *v1alpha1.AppProject {
+func (p *Enforcer) getProjectFromRequest(rvals ...any) *v1alpha1.AppProject {
 	if len(rvals) != 4 {
 		return nil
 	}
@@ -146,7 +221,7 @@ func (p *RBACPolicyEnforcer) getProjectFromRequest(rvals ...any) *v1alpha1.AppPr
 }
 
 // enforceProjectToken will check to see the valid token has not yet been revoked in the project
-func (p *RBACPolicyEnforcer) enforceProjectToken(subject string, proj *v1alpha1.AppProject, rvals ...any) bool {
+func (p *Enforcer) enforceProjectToken(subject string, proj *v1alpha1.AppProject, rvals ...any) bool {
 	subjectSplit := strings.Split(subject, ":")
 	if len(subjectSplit) != 3 {
 		return false

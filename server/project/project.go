@@ -47,7 +47,7 @@ const (
 type Server struct {
 	ns            string
 	enf           *rbac.Enforcer
-	policyEnf     *rbacpolicy.RBACPolicyEnforcer
+	policyEnf     *rbacpolicy.Enforcer
 	appclientset  appclientset.Interface
 	kubeclientset kubernetes.Interface
 	auditLogger   *argo.AuditLogger
@@ -59,7 +59,7 @@ type Server struct {
 }
 
 // NewServer returns a new instance of the Project service
-func NewServer(ns string, kubeclientset kubernetes.Interface, appclientset appclientset.Interface, enf *rbac.Enforcer, projectLock sync.KeyLock, sessionMgr *session.SessionManager, policyEnf *rbacpolicy.RBACPolicyEnforcer,
+func NewServer(ns string, kubeclientset kubernetes.Interface, appclientset appclientset.Interface, enf *rbac.Enforcer, projectLock sync.KeyLock, sessionMgr *session.SessionManager, policyEnf *rbacpolicy.Enforcer,
 	projInformer cache.SharedIndexInformer, settingsMgr *settings.SettingsManager, db db.ArgoDB, enableK8sEvent []string,
 ) *Server {
 	auditLogger := argo.NewAuditLogger(kubeclientset, ns, "argocd-server", enableK8sEvent)

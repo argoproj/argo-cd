@@ -295,11 +295,11 @@ type UserGetter interface {
 
 // DefaultUserGetter is the main UserGetter implementation.
 type DefaultUserGetter struct {
-	policyEnf *rbacpolicy.RBACPolicyEnforcer
+	policyEnf *rbacpolicy.Enforcer
 }
 
 // NewDefaultUserGetter return a new default UserGetter
-func NewDefaultUserGetter(policyEnf *rbacpolicy.RBACPolicyEnforcer) *DefaultUserGetter {
+func NewDefaultUserGetter(policyEnf *rbacpolicy.Enforcer) *DefaultUserGetter {
 	return &DefaultUserGetter{
 		policyEnf: policyEnf,
 	}

@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/argoproj/argo-cd/v3/util/assets"
@@ -33,12 +34,13 @@ import (
 )
 
 const (
-	ConfigMapPolicyCSVKey     = "policy.csv"
-	ConfigMapPolicyDefaultKey = "policy.default"
-	ConfigMapScopesKey        = "scopes"
-	ConfigMapMatchModeKey     = "policy.matchMode"
-	GlobMatchMode             = "glob"
-	RegexMatchMode            = "regex"
+	ConfigMapPolicyCSVKey                   = "policy.csv"
+	ConfigMapPolicyDefaultKey               = "policy.default"
+	ConfigMapScopesKey                      = "scopes"
+	ConfigMapMatchModeKey                   = "policy.matchMode"
+	ConfigMapPreventLoginWithoutPermissions = "policy.prevent-login-without-permissions"
+	GlobMatchMode                           = "glob"
+	RegexMatchMode                          = "regex"
 
 	defaultRBACSyncPeriod = 10 * time.Minute
 )
@@ -125,18 +127,19 @@ var ProjectScoped = map[string]bool{
 // * supports a user-defined policy
 // * supports a custom JWT claims enforce function
 type Enforcer struct {
-	lock               sync.Mutex
-	enforcerCache      *gocache.Cache
-	adapter            *argocdAdapter
-	enableLog          bool
-	enabled            bool
-	clientset          kubernetes.Interface
-	namespace          string
-	configmap          string
-	claimsEnforcerFunc ClaimsEnforcerFunc
-	model              model.Model
-	defaultRole        string
-	matchMode          string
+	lock                           sync.Mutex
+	enforcerCache                  *gocache.Cache
+	adapter                        *argocdAdapter
+	enableLog                      bool
+	enabled                        bool
+	clientset                      kubernetes.Interface
+	namespace                      string
+	configmap                      string
+	claimsEnforcerFunc             ClaimsEnforcerFunc
+	model                          model.Model
+	defaultRole                    string
+	matchMode                      string
+	preventLoginWithoutPermissions atomic.Bool
 }
 
 // cachedEnforcer holds the Casbin enforcer instances and optional custom project policy
@@ -551,11 +554,50 @@ func PolicyCSV(data map[string]string) string {
 func (e *Enforcer) syncUpdate(cm *corev1.ConfigMap, onUpdated func(cm *corev1.ConfigMap) error) error {
 	e.SetDefaultRole(cm.Data[ConfigMapPolicyDefaultKey])
 	e.SetMatchMode(cm.Data[ConfigMapMatchModeKey])
+	e.preventLoginWithoutPermissions.Store(cm.Data[ConfigMapPreventLoginWithoutPermissions] == "true")
 	policyCSV := PolicyCSV(cm.Data)
 	if err := onUpdated(cm); err != nil {
 		return fmt.Errorf("error running policy update callback: %w", err)
 	}
 	return e.SetUserPolicy(policyCSV)
+}
+
+func (e *Enforcer) GetDefaultRole() string {
+	e.lock.Lock()
+	defer e.lock.Unlock()
+	return e.defaultRole
+}
+
+func (e *Enforcer) GetPreventLoginWithoutPermissions() bool {
+	return e.preventLoginWithoutPermissions.Load()
+}
+
+func (e *Enforcer) SetPreventLoginWithoutPermissions(v bool) {
+	e.preventLoginWithoutPermissions.Store(v)
+}
+
+// GetImplicitPermissionsForUser returns all permissions for a user,
+// including those inherited transitively through role assignments (g policies).
+// Each entry is a policy row without the subject field: [resource, action, object, effect].
+func (e *Enforcer) GetImplicitPermissionsForUser(user string) ([][]string, error) {
+	return e.getCasbinEnforcer("", "").GetImplicitPermissionsForUser(user)
+}
+
+// HasAnyAllowPermission reports whether a subject has at least one "allow" rule in the current
+// policy, including permissions inherited transitively from roles. This is the standard way to
+// check if a "user has any permission at all" — it avoids callers having to parse Casbin's raw
+// policy rows and know the field layout.
+func (e *Enforcer) HasAnyAllowPermission(subject string) bool {
+	perms, err := e.GetImplicitPermissionsForUser(subject)
+	if err != nil {
+		return false
+	}
+	for _, row := range perms {
+		if len(row) > 0 && strings.EqualFold(row[len(row)-1], "allow") {
+			return true
+		}
+	}
+	return false
 }
 
 // ValidatePolicy verifies a policy string is acceptable to casbin
