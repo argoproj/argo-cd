@@ -317,6 +317,9 @@ require (
 
 require (
 	github.com/go-openapi/runtime/server-middleware v0.33.0
+	go.opentelemetry.io/contrib/bridges/prometheus v0.69.0
+	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v1.44.0
+	go.opentelemetry.io/otel/sdk/metric v1.44.0
 	k8s.io/streaming v0.36.1
 )
 
