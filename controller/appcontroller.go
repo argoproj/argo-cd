@@ -42,6 +42,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/retry"
 	"k8s.io/client-go/util/workqueue"
 
 	commitclient "github.com/argoproj/argo-cd/v3/commitserver/apiclient"
@@ -1562,7 +1563,11 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 			state.Phase = synccommon.OperationTerminating
 			state.Message = "operation is terminating due to timeout"
 			terminatingCause = "controller sync timeout"
-			ctrl.setOperationState(ctx, app, state)
+			if !ctrl.setOperationState(ctx, app, state) {
+				// A concurrent writer moved the operation on (e.g. completed it);
+				// re-observe on the next cycle instead of acting on a stale state.
+				return
+			}
 			logCtx.Infof("Terminating in-progress operation due to timeout. Started at: %v, timeout: %v", state.StartedAt, ctrl.syncTimeout)
 		case state.Phase == synccommon.OperationRunning && state.FinishedAt != nil:
 			// Failed operation with retry strategy might be in-progress and has completion time
@@ -1595,14 +1600,22 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 			state.Message = fmt.Sprintf("Retrying operation%s. Attempt #%d", extraMsg, state.RetryCount)
 			state.FinishedAt = nil
 			state.SyncResult = nil
-			ctrl.setOperationState(ctx, app, state)
+			if !ctrl.setOperationState(ctx, app, state) {
+				// A concurrent writer moved the operation on (e.g. completed it); do not
+				// run the retry attempt against a stale state — the final write at the
+				// end of this pass would clobber whatever won the race.
+				return
+			}
 			logCtx.Infof("Retrying operation%s. Attempt #%d", extraMsg, state.RetryCount)
 		default:
 			logCtx.Infof("Resuming in-progress operation. phase: %s, message: %s", state.Phase, state.Message)
 		}
 	} else {
 		state = NewOperationState(*app.Operation)
-		ctrl.setOperationState(ctx, app, state)
+		if !ctrl.setOperationState(ctx, app, state) {
+			// The app is gone or the write did not land; re-observe on the next cycle.
+			return
+		}
 		logCtx.Infof("Initialized new operation: %v", *app.Operation)
 	}
 	ts.AddCheckpoint("initial_operation_stage_ms")
@@ -1628,6 +1641,11 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 			if freshApp.Status.OperationState != nil && freshApp.Status.OperationState.Phase == synccommon.OperationTerminating {
 				state.Phase = synccommon.OperationTerminating
 				state.Message = "operation is terminating"
+				// Adopt the fresh observation wholesale so the final write is pinned to the
+				// revision just read and observes the live Terminating value, instead of
+				// conflicting against the stale snapshot and being dropped as stale.
+				app.ResourceVersion = freshApp.ResourceVersion
+				app.Status.OperationState = freshApp.Status.OperationState.DeepCopy()
 				// after this, we will get requeued to the workqueue, but next time the
 				// SyncAppState will operate in a Terminating phase, allowing the worker to perform
 				// cleanup (e.g. delete jobs, workflows, etc...)
@@ -1657,9 +1675,9 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		}
 	}
 
-	ctrl.setOperationState(ctx, app, state)
+	written := ctrl.setOperationState(ctx, app, state)
 	ts.AddCheckpoint("final_set_operation_state_ms")
-	if state.Phase.Completed() && (app.Operation.Sync != nil && !app.Operation.Sync.DryRun) {
+	if written && state.Phase.Completed() && (app.Operation.Sync != nil && !app.Operation.Sync.DryRun) {
 		// if we just completed an operation, force a refresh so that UI will report up-to-date
 		// sync/health information
 		if _, err := cache.MetaNamespaceKeyFunc(app); err == nil {
@@ -1682,7 +1700,36 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	ts.AddCheckpoint("request_app_refresh_ms")
 }
 
-func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *appv1.Application, state *appv1.OperationState) {
+// buildOperationStatePatch returns a JSON Patch (RFC 6902) replacing the whole
+// status.operationState and, when the state is final, clearing spec.operation.
+// metadata.resourceVersion pins it to the revision the caller observed, so the API server
+// answers 409 if anything wrote in between and a delayed write cannot revert a newer one.
+func buildOperationStatePatch(state *appv1.OperationState, resourceVersion string) []byte {
+	patchOps := []map[string]any{
+		{"op": "add", "path": "/metadata/resourceVersion", "value": resourceVersion},
+		// Whole-value replace, so omitted fields are cleared rather than inherited (#26530).
+		//
+		// `add` does not create missing parents, so this 422s while the stored object has no
+		// `status` key at all (a never-reconciled app, e.g. created declaratively with an
+		// operation set). Self-resolving: the refresh worker's merge patch creates `status`
+		// within a cycle and the retry then lands. Not worth a second patch shape.
+		{"op": "add", "path": "/status/operationState", "value": state},
+	}
+	if state.Phase.Completed() {
+		// Clear spec.operation to indicate no operation is in progress. `add` of null rather
+		// than `remove` stays idempotent when re-sent; the CRD prunes the null before storing.
+		patchOps = append(patchOps, map[string]any{"op": "add", "path": "/operation", "value": nil})
+	}
+	// Marshaling cannot fail: the operands are API structs and plain strings.
+	patchJSON, _ := json.Marshal(patchOps)
+	return patchJSON
+}
+
+// setOperationState persists the given operation state. It reports whether the state was
+// persisted: false means it was dropped as stale (a newer write won), the app is gone, or
+// persisting failed — the caller must re-observe the app next cycle instead of proceeding as
+// if its state landed.
+func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *appv1.Application, state *appv1.OperationState) bool {
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 	if state.Phase == "" {
 		// expose any bugs where we neglect to set phase
@@ -1695,36 +1742,109 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 	clearOperation := state.Phase.Completed() && app.Operation != nil
 	if reflect.DeepEqual(app.Status.OperationState, state) && !clearOperation {
 		logCtx.Infof("No operation updates necessary to '%s'. Skipping patch", app.QualifiedName())
-		return
+		return true
 	}
-	// Replace the whole operationState since we re-evaluated the whole object
-	patchOps := []map[string]any{
-		{"op": "add", "path": "/status/operationState", "value": state},
-	}
-	if state.Phase.Completed() {
-		// If operation is completed, clear the operation field to indicate no operation is in progress.
-		patchOps = append(patchOps, map[string]any{"op": "add", "path": "/operation", "value": nil})
-	}
-	patchJSON, err := json.Marshal(patchOps)
-	if err != nil {
-		logCtx.WithError(err).Error("error marshaling json")
-		return
-	}
+	// Pin the write to the revision this pass observed. An unconditional write can revert a
+	// newer one: a delayed in-flight "Running" progress write can land AFTER the final
+	// write (apiserver load, controller restart, flaky client<->apiserver link) and resurrect
+	// a completed operation. spec.operation is already consumed by then, so nothing
+	// re-enqueues the app and it stays "Running" forever (#18613, #23765).
+	observed := app.Status.OperationState
+	reporting := app.Operation
+	resourceVersion := app.ResourceVersion
+	patchJSON := buildOperationStatePatch(state, resourceVersion)
 
+	var persisted *appv1.Application
 	kube.RetryUntilSucceed(ctx, updateOperationStateTimeout, "Update application operation state", logutils.NewLogrusLogger(logutils.NewWithCurrentConfig()), func() error {
-		_, err := ctrl.PatchAppWithWriteBack(ctx, app.Name, app.Namespace, types.JSONPatchType, patchJSON, metav1.PatchOptions{})
-		if err != nil {
-			// Stop retrying updating deleted application
-			if apierrors.IsNotFound(err) {
+		// Conflicts are expected (the refresh worker writes the same app's status) and cheap to
+		// resolve, so they get their own fast bounded backoff. Everything else is left to the
+		// outer loop, which keeps retrying because the caller needs this write to be durable.
+		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			// context.Background() so a canceled reconcile ctx never aborts the write
+			// mid-flight; the retry loops still honor ctx.
+			patchedApp, err := ctrl.PatchAppWithWriteBack(context.Background(), app.Name, app.Namespace, types.JSONPatchType, patchJSON, metav1.PatchOptions{})
+			switch {
+			case err == nil:
+				persisted = patchedApp
+				return nil
+			case apierrors.IsNotFound(err):
+				// Stop retrying updating deleted application
+				return nil
+			case !apierrors.IsConflict(err):
+				// kube.RetryUntilSucceed logs retries at debug, but we want to know about these.
+				logCtx.WithError(err).Warn("error patching application with operation state")
+				return fmt.Errorf("error patching application with operation state: %w", err)
+			}
+			// The precondition rejected the patch, so nothing was applied. Re-read to decide
+			// whether this state still describes the live operation.
+			live, getErr := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(context.Background(), app.Name, metav1.GetOptions{})
+			if getErr != nil {
+				if apierrors.IsNotFound(getErr) {
+					return nil
+				}
+				logCtx.WithError(getErr).Warn("error fetching application after a conflicting operation state patch")
+				return fmt.Errorf("error fetching application after a conflicting operation state patch: %w", getErr)
+			}
+
+			// An empty phase means no operation state at all (a real one always has a phase):
+			// what argo.SetAppOperation leaves behind, i.e. where every operation starts.
+			var observedPhase, livePhase synccommon.OperationPhase
+			if observed != nil {
+				observedPhase = observed.Phase
+			}
+			if live.Status.OperationState != nil {
+				livePhase = live.Status.OperationState.Phase
+			}
+			switch {
+			// A final write must win over concurrent progress writes — recording the outcome
+			// is what consumes spec.operation — so it is abandoned only when the operation it
+			// completes is gone. It still lands when the live phase merely moved on, e.g. a user
+			// terminated the sync as it was finishing.
+			case state.Phase.Completed() && livePhase.Completed():
+				// Typically a copy of this write whose response was lost.
+				logCtx.Infof("Not re-sending operation state update (phase: %s): the operation is already completed as %s", state.Phase, livePhase)
+				persisted = live
+				return nil
+			case state.Phase.Completed() && !reflect.DeepEqual(live.Operation, reporting):
+				// A different operation is pending, only possible because the completion already
+				// cleared this one (SetAppOperation refuses while spec.operation is set).
+				// Re-sending would clear that request without ever running it.
+				logCtx.Infof("Discarding stale operation state update (phase: %s): a different operation is now pending", state.Phase)
+				return nil
+			// A non-final write only describes progress of the state it observed. If that
+			// changed, another writer moved the operation on (completed or terminated it) and
+			// this write must not overwrite it.
+			case !state.Phase.Completed() && livePhase != observedPhase:
+				logCtx.Infof("Discarding stale operation state update (phase: %s): observed operation state %q, live is %q", state.Phase, observedPhase, livePhase)
 				return nil
 			}
-			// kube.RetryUntilSucceed logs failed attempts at "debug" level, but we want to know if this fails. Log a
-			// warning.
-			logCtx.WithError(err).Warn("error patching application with operation state")
-			return fmt.Errorf("error patching application with operation state: %w", err)
+
+			// Rebase onto the live revision and let RetryOnConflict re-send. `observed` stays as
+			// it was: refreshing it would defeat the staleness check above on the next conflict.
+			resourceVersion = live.ResourceVersion
+			patchJSON = buildOperationStatePatch(state, resourceVersion)
+			return err
+		})
+		if err != nil && apierrors.IsConflict(err) {
+			// The outer loop keeps going, but contention heavy enough to exhaust the conflict
+			// retries is worth knowing about.
+			logCtx.WithError(err).Warn("operation state patch keeps losing races; retrying")
 		}
-		return nil
+		return err
 	})
+
+	if persisted == nil {
+		// Dropped as stale, or the app is gone; whoever landed the newer write owns the
+		// completion event and metrics.
+		return false
+	}
+
+	// Keep the snapshot in step with the server, so a later write in this same pass (e.g. the
+	// final one after the initial "Running") is pinned to this revision and observes this
+	// state instead of conflicting against the pre-operation one. app.Operation is left alone:
+	// callers still dereference it after a completed write.
+	app.ResourceVersion = persisted.ResourceVersion
+	app.Status.OperationState = persisted.Status.OperationState.DeepCopy()
 
 	logCtx.Infof("updated '%s' operation (phase: %s)", app.QualifiedName(), state.Phase)
 	if state.Phase.Completed() {
@@ -1758,6 +1878,7 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 		ctrl.metricsServer.IncSync(app, destServer, state)
 		ctrl.metricsServer.IncAppSyncDuration(app, destServer, state)
 	}
+	return true
 }
 
 // writeBackToInformer writes a just recently updated App back into the informer cache.
