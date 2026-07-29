@@ -357,7 +357,7 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 			defer func() { traceutil.EndSpan(srcSpan, retErr) }()
 
 			// Use evaluateRevisionChanges to check for changes and get resolved revision
-			resolvedRevision, hasChanges, err := m.evaluateRevisionChanges(srcCtx, app, source, i, revision, refSources, syncedRefSources, noRevisionCache, trackingMethod, appLabelKey, installationID, serverVersion, apiVersions, proj, repoClient)
+			resolvedRevision, hasChanges, err := m.evaluateRevisionChanges(srcCtx, app, source, i, revision, refSources, syncedRefSources, noRevisionCache, trackingMethod, appLabelKey, installationID, serverVersion, apiVersions, proj, repoClient, sourceIntegrity)
 			if err != nil {
 				return fmt.Errorf("failed to evaluate revision changes for source %d of %d: %w", i+1, len(sources), err)
 			}
