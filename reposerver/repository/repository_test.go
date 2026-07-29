@@ -1939,6 +1939,7 @@ func TestGetRevisionMetadata(t *testing.T) {
 	service, gitClient, _ := newServiceWithMocks(t, "../..")
 	now := time.Now()
 
+	gitClient.EXPECT().IsShallowRepo(mock.Anything).Return(false, nil)
 	gitClient.EXPECT().LsSignatures(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(LsSignaturesMockOk)
 	gitClient.EXPECT().RevisionMetadata(mock.Anything, mock.Anything).Return(&git.RevisionMetadata{
 		Message: "test",
@@ -2031,6 +2032,7 @@ func TestGetSignatureVerificationResult(t *testing.T) {
 	// Commit with signature and verification requested
 	{
 		service, gitClient, _ := newServiceWithMocks(t, "../../manifests/base")
+		gitClient.EXPECT().IsShallowRepo(mock.Anything).Return(false, nil)
 		gitClient.EXPECT().LsSignatures(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(LsSignaturesMockOk)
 
 		src := v1alpha1.ApplicationSource{Path: "."}
@@ -2051,6 +2053,7 @@ func TestGetSignatureVerificationResult(t *testing.T) {
 	// Commit with signature and verification not requested
 	{
 		service, gitClient, _ := newServiceWithMocks(t, "../../manifests/base")
+		gitClient.EXPECT().IsShallowRepo(mock.Anything).Return(false, nil)
 		gitClient.EXPECT().LsSignatures(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(LsSignaturesMockOk)
 
 		src := v1alpha1.ApplicationSource{Path: "."}
@@ -2071,6 +2074,7 @@ func TestGetSignatureVerificationResult(t *testing.T) {
 	// Commit without signature and verification requested
 	{
 		service, gitClient, _ := newServiceWithMocks(t, "../../manifests/base")
+		gitClient.EXPECT().IsShallowRepo(mock.Anything).Return(false, nil)
 		gitClient.EXPECT().LsSignatures(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(LsSignaturesMockGitError)
 
 		src := v1alpha1.ApplicationSource{Path: "."}
@@ -4746,6 +4750,7 @@ func TestErrorGetGitDirectories(t *testing.T) {
 			s, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
 				gitClient.EXPECT().LsRemote(mock.Anything).Return("", errors.New("ah error"))
+				gitClient.EXPECT().IsShallowRepo(mock.Anything).Return(false, nil)
 				gitClient.EXPECT().LsSignatures(mock.Anything, mock.Anything, mock.Anything).Return([]git.RevisionSignatureInfo{}, "", errors.New("the thing have exploded"))
 				gitClient.EXPECT().Root().Return(root)
 				paths.EXPECT().GetPath(mock.Anything).Return(".", nil)

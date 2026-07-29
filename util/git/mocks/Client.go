@@ -900,6 +900,66 @@ func (_c *Client_IsRevisionPresent_Call) RunAndReturn(run func(ctx context.Conte
 	return _c
 }
 
+// IsShallowRepo provides a mock function for the type Client
+func (_mock *Client) IsShallowRepo(ctx context.Context) (bool, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for IsShallowRepo")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (bool, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) bool); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Client_IsShallowRepo_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IsShallowRepo'
+type Client_IsShallowRepo_Call struct {
+	*mock.Call
+}
+
+// IsShallowRepo is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Client_Expecter) IsShallowRepo(ctx any) *Client_IsShallowRepo_Call {
+	return &Client_IsShallowRepo_Call{Call: _e.mock.On("IsShallowRepo", ctx)}
+}
+
+func (_c *Client_IsShallowRepo_Call) Run(run func(ctx context.Context)) *Client_IsShallowRepo_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Client_IsShallowRepo_Call) Return(b bool, err error) *Client_IsShallowRepo_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *Client_IsShallowRepo_Call) RunAndReturn(run func(ctx context.Context) (bool, error)) *Client_IsShallowRepo_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // LsFiles provides a mock function for the type Client
 func (_mock *Client) LsFiles(ctx context.Context, path string, enableNewGitFileGlobbing bool) ([]string, error) {
 	ret := _mock.Called(ctx, path, enableNewGitFileGlobbing)
