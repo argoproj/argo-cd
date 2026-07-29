@@ -1413,6 +1413,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		appNamespace string
 		cluster      string
 		path         string
+		files        []string
 	)
 	command := &cobra.Command{
 		Use:   "list",
@@ -1425,7 +1426,10 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
   argocd app list -l app.kubernetes.io/instance!=my-app
   argocd app list -l app.kubernetes.io/instance
   argocd app list -l '!app.kubernetes.io/instance'
-  argocd app list -l 'app.kubernetes.io/instance notin (my-app,other-app)'`,
+  argocd app list -l 'app.kubernetes.io/instance notin (my-app,other-app)'
+
+  # List apps affected by a set of changed files, e.g. to find which apps a pull request impacts in a monorepo
+  argocd app list --file path/to/changed/file.yaml --file another/changed/file.yaml`,
 		Run: func(c *cobra.Command, _ []string) {
 			ctx := c.Context()
 
@@ -1451,6 +1455,9 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			if path != "" {
 				appList = argo.FilterByPath(appList, path)
 			}
+			if len(files) != 0 {
+				appList = argo.FilterByFiles(appList, files)
+			}
 
 			switch output {
 			case "yaml", "json":
@@ -1472,6 +1479,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only list applications in namespace")
 	command.Flags().StringVarP(&cluster, "cluster", "c", "", "List apps by cluster name or url")
 	command.Flags().StringVarP(&path, "path", "P", "", "List apps by path")
+	command.Flags().StringArrayVar(&files, "file", []string{}, "List apps affected by the given changed files, using the same matching as the 'argocd.argoproj.io/manifest-generate-paths' annotation. Can be specified multiple times.")
 	return command
 }
 

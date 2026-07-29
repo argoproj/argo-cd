@@ -20,6 +20,9 @@ argocd app list [flags]
   argocd app list -l app.kubernetes.io/instance
   argocd app list -l '!app.kubernetes.io/instance'
   argocd app list -l 'app.kubernetes.io/instance notin (my-app,other-app)'
+
+  # List apps affected by a set of changed files, e.g. to find which apps a pull request impacts in a monorepo
+  argocd app list --file path/to/changed/file.yaml --file another/changed/file.yaml
 ```
 
 ### Options
@@ -27,6 +30,7 @@ argocd app list [flags]
 ```
   -N, --app-namespace string   Only list applications in namespace
   -c, --cluster string         List apps by cluster name or url
+      --file stringArray       List apps affected by the given changed files, using the same matching as the 'argocd.argoproj.io/manifest-generate-paths' annotation. Can be specified multiple times.
   -h, --help                   help for list
   -o, --output string          Output format. One of: wide|name|json|yaml (default "wide")
   -P, --path string            List apps by path

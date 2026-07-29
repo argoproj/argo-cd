@@ -27,6 +27,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/typed/application/v1alpha1"
 	applicationsv1 "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/util/app/path"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/glob"
@@ -187,6 +188,42 @@ func FilterByPath(apps []argoappv1.Application, path string) []argoappv1.Applica
 	for i := range apps {
 		if apps[i].Spec.GetSource().Path == path {
 			items = append(items, apps[i])
+		}
+	}
+	return items
+}
+
+// FilterByFiles returns the applications affected by the given list of changed files.
+// It reuses the same manifest-generate-paths matching that the webhook uses to decide
+// which applications to refresh when files change in a repository, which makes it useful
+// for finding the applications impacted by a set of changed files in a monorepo.
+//
+// When an application defines the manifest-generate-paths annotation, its refresh paths
+// are derived from that annotation. Otherwise the application's source path is used as the
+// refresh path, so that the filter matches only files under the application's own path
+// instead of matching every application unconditionally.
+func FilterByFiles(apps []argoappv1.Application, files []string) []argoappv1.Application {
+	if len(files) == 0 {
+		return apps
+	}
+	items := []argoappv1.Application{}
+	for i := range apps {
+		app := apps[i]
+		sources := app.Spec.GetSources()
+		if app.Spec.SourceHydrator != nil {
+			sources = append(sources, app.Spec.SourceHydrator.GetDrySource())
+		}
+		for _, source := range sources {
+			refreshPaths := path.GetSourceRefreshPaths(&app, source)
+			if len(refreshPaths) == 0 && source.Path != "" {
+				// Without a manifest-generate-paths annotation, fall back to the source
+				// path so an unannotated app matches only files under its own path.
+				refreshPaths = []string{source.Path}
+			}
+			if path.AppFilesHaveChanged(refreshPaths, files) {
+				items = append(items, app)
+				break
+			}
 		}
 	}
 	return items

@@ -873,6 +873,76 @@ func TestFilterByPath(t *testing.T) {
 	})
 }
 
+func TestFilterByFiles(t *testing.T) {
+	t.Parallel()
+	// annotated app: refresh paths derived from the manifest-generate-paths annotation.
+	// "." resolves to the source path and "../shared" to a sibling directory.
+	annotated := argoappv1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "annotated",
+			Annotations: map[string]string{
+				argoappv1.AnnotationKeyManifestGeneratePaths: ".; ../shared",
+			},
+		},
+		Spec: argoappv1.ApplicationSpec{
+			Source: &argoappv1.ApplicationSource{Path: "apps/foo"},
+		},
+	}
+	// unannotated app: without the annotation the source path is used as the refresh path,
+	// so the filter matches only files under the app's own path.
+	unannotated := argoappv1.Application{
+		ObjectMeta: metav1.ObjectMeta{Name: "unannotated"},
+		Spec: argoappv1.ApplicationSpec{
+			Source: &argoappv1.ApplicationSource{Path: "apps/bar"},
+		},
+	}
+	apps := []argoappv1.Application{annotated, unannotated}
+
+	names := func(res []argoappv1.Application) []string {
+		out := make([]string, 0, len(res))
+		for _, a := range res {
+			out = append(out, a.Name)
+		}
+		return out
+	}
+
+	t.Run("Empty filter returns all apps", func(t *testing.T) {
+		t.Parallel()
+		res := FilterByFiles(apps, nil)
+		assert.Len(t, res, 2)
+	})
+
+	t.Run("File under annotated source path matches", func(t *testing.T) {
+		t.Parallel()
+		res := FilterByFiles(apps, []string{"apps/foo/deployment.yaml"})
+		assert.Equal(t, []string{"annotated"}, names(res))
+	})
+
+	t.Run("File under annotation relative path matches", func(t *testing.T) {
+		t.Parallel()
+		res := FilterByFiles(apps, []string{"apps/shared/config.yaml"})
+		assert.Equal(t, []string{"annotated"}, names(res))
+	})
+
+	t.Run("Unannotated app matches files under its source path", func(t *testing.T) {
+		t.Parallel()
+		res := FilterByFiles(apps, []string{"apps/bar/values.yaml"})
+		assert.Equal(t, []string{"unannotated"}, names(res))
+	})
+
+	t.Run("Multiple files match multiple apps", func(t *testing.T) {
+		t.Parallel()
+		res := FilterByFiles(apps, []string{"apps/foo/x.yaml", "apps/bar/y.yaml"})
+		assert.Equal(t, []string{"annotated", "unannotated"}, names(res))
+	})
+
+	t.Run("No match returns empty", func(t *testing.T) {
+		t.Parallel()
+		res := FilterByFiles(apps, []string{"apps/other/x.yaml"})
+		assert.Empty(t, res)
+	})
+}
+
 func TestValidatePermissions(t *testing.T) {
 	t.Parallel()
 	t.Run("Empty Repo URL result in condition", func(t *testing.T) {
