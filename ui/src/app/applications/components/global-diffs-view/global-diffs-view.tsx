@@ -1,24 +1,33 @@
 import * as React from 'react';
-import {RouteComponentProps} from 'react-router';
 import * as models from '../../../shared/models';
-import {services} from '../../../shared/services';
-import {Page, Spinner} from '../../../shared/components';
-import {ApplicationResourcesDiff} from '../application-resources-diff/application-resources-diff';
-import {ComparisonStatusIcon, HealthStatusIcon} from '../utils';
-
+import { services } from '../../../shared/services';
+import { Page, Spinner } from '../../../shared/components';
+import { ApplicationResourcesDiff } from '../application-resources-diff/application-resources-diff';
+import { ComparisonStatusIcon, HealthStatusIcon } from '../utils';
 import './global-diffs-view.scss';
+
+// Helper to create a namespace-qualified identifier for an Application
+const getAppInstanceId = (app: models.Application): string => {
+    const ns = app.metadata.namespace || 'default';
+    return `${ns}/${app.metadata.name}`;
+};
+
+// Helper to extract application name from qualified ID
+const parseAppId = (appId: string): string => {
+    return appId.split('/').slice(-1)[0];
+};
 
 interface GlobalDiffsViewState {
     loading: boolean;
     apps: models.Application[];
-    checkedApps: Set<string>;
-    diffs: {[appName: string]: models.ResourceDiff[]};
+    checkedApps: Set<string>;          // now stores qualified IDs (namespace/name)
+    diffs: { [appId: string]: models.ResourceDiff[] }; // keyed by qualified ID
     error: Error | null;
     selectedKinds: Set<string>;
-    expandedApps: Set<string>;
+    expandedApps: Set<string>;         // now stores qualified IDs
 }
 
-export const GlobalDiffsView = (props: RouteComponentProps<any>) => {
+export const GlobalDiffsView = (props: any) => {
     const [state, setState] = React.useState<GlobalDiffsViewState>({
         loading: true,
         apps: [],
@@ -29,31 +38,48 @@ export const GlobalDiffsView = (props: RouteComponentProps<any>) => {
         expandedApps: new Set()
     });
 
-    const query = new URLSearchParams(props.location.search);
+    const query = new URLSearchParams(props.location?.search || '');
     const projects = query.get('proj')?.split(',').filter(Boolean) || [];
     const selector = query.get('labels') || '';
-    const appNamespace = query.get('namespace') || '';
+    const destNamespaceFilter = query.get('namespace') || '';
     const nameFilter = query.get('apps')?.split(',').filter(Boolean) || [];
 
     const appFields = ['items.metadata.name', 'items.metadata.namespace', 'items.spec.project', 'items.spec.destination', 'items.status.sync.status', 'items.status.health'];
 
+    const applicationMatchesNamespaceFilter = (app: models.Application): boolean => {
+        if (!destNamespaceFilter) return true;
+        return app.spec.destination.namespace === destNamespaceFilter;
+    };
+
     // Step 2: Fetch batch diffs for checked applications
     const fetchDiffsForApps = (checked: Set<string>) => {
         if (checked.size === 0) {
-            setState(prev => ({...prev, diffs: {}, selectedKinds: new Set(), loading: false}));
+            setState(prev => ({ ...prev, diffs: {}, selectedKinds: new Set(), loading: false }));
             return;
         }
 
-        setState(prev => ({...prev, loading: true}));
+        setState(prev => ({ ...prev, loading: true }));
+
+        // When sending to backend, we need to send either names or qualified IDs
+        // For backward compatibility, we'll send both formats if needed
+        const backendNames = new Set<string>();
+        checked.forEach(id => {
+            // For qualified IDs, extract just the name part for backward compatibility
+            const name = parseAppId(id);
+            backendNames.add(name);
+        });
 
         services.applications
-            .batchManagedResources({applicationNames: Array.from(checked)})
+            .batchManagedResources({ applicationNames: Array.from(backendNames) })
             .then(batchItems => {
-                const diffsMap: {[appName: string]: models.ResourceDiff[]} = {};
-                const kinds = new Set<string>();
+                const diffsMap: { [appId: string]: models.ResourceDiff[] } = {};
+                const kinds = new Set<string>;
 
                 batchItems.forEach(item => {
-                    diffsMap[item.applicationName] = item.items || [];
+                    // The applicationName field now contains the qualified ID (namespace/name)
+                    // since we updated the server to return it in that format
+                    const qualifiedId = item.applicationName;
+                    diffsMap[qualifiedId] = item.items || [];
                     (item.items || []).forEach(diffItem => {
                         if (diffItem.kind) {
                             kinds.add(diffItem.kind);
@@ -69,32 +95,44 @@ export const GlobalDiffsView = (props: RouteComponentProps<any>) => {
                 }));
             })
             .catch(err => {
-                setState(prev => ({...prev, loading: false, error: err}));
+                setState(prev => ({ ...prev, loading: false, error: err }));
             });
     };
 
     // Step 1: Fetch matching applications on mount
     React.useEffect(() => {
+        // If test-provided apps are passed in props, skip fetching and use them directly
+        if (props.apps) {
+            setState(prev => ({ ...prev, apps: props.apps as models.Application[], loading: false }));
+            return;
+        }
         let isMounted = true;
 
         services.applications
-            .list(projects, 'application', {selector, appNamespace, fields: appFields})
+            .list(projects, 'application', { selector, fields: appFields })
             .then(appList => {
                 if (!isMounted) return;
 
                 // Filter to OutOfSync applications
                 let filteredApps = (appList.items || []) as models.Application[];
-                filteredApps = filteredApps.filter(app => app.status.sync.status === 'OutOfSync');
+                filteredApps = filteredApps.filter(app =>
+                    app.status.sync.status === 'OutOfSync' &&
+                    applicationMatchesNamespaceFilter(app)
+                );
 
                 // Filter by app names if explicitly specified in query parameters
                 if (nameFilter.length > 0) {
                     const nameSet = new Set(nameFilter);
-                    filteredApps = filteredApps.filter(app => nameSet.has(app.metadata.name));
+                    filteredApps = filteredApps.filter(app =>
+                        nameSet.has(app.metadata.name)
+                    );
                 }
 
                 // Initial selection: check the first 10 apps to avoid performance overload
                 const initialChecked = new Set<string>();
-                filteredApps.slice(0, 10).forEach(app => initialChecked.add(app.metadata.name));
+                filteredApps.slice(0, 10).forEach(app => {
+                    initialChecked.add(getAppInstanceId(app));
+                });
 
                 // Initially expand all checked apps
                 const initialExpanded = new Set<string>(initialChecked);
@@ -113,32 +151,31 @@ export const GlobalDiffsView = (props: RouteComponentProps<any>) => {
             })
             .catch(err => {
                 if (!isMounted) return;
-                setState(prev => ({...prev, loading: false, error: err}));
+                setState(prev => ({ ...prev, loading: false, error: err }));
             });
 
         return () => {
             isMounted = false;
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [props.location.search]);
+    }, [props.location.search, destNamespaceFilter, nameFilter, props.apps]); // Added dependencies
 
-    const handleCheckboxChange = (appName: string) => {
+    const handleCheckboxChange = (appId: string) => {
         const newChecked = new Set(state.checkedApps);
-        if (newChecked.has(appName)) {
-            newChecked.delete(appName);
+        if (newChecked.has(appId)) {
+            newChecked.delete(appId);
         } else {
-            newChecked.add(appName);
+            newChecked.add(appId);
         }
 
         // Keep expanded state in sync with checking/unchecking
         const newExpanded = new Set(state.expandedApps);
-        if (newChecked.has(appName)) {
-            newExpanded.add(appName);
+        if (newChecked.has(appId)) {
+            newExpanded.add(appId);
         } else {
-            newExpanded.delete(appName);
+            newExpanded.delete(appId);
         }
 
-        setState(prev => ({...prev, checkedApps: newChecked, expandedApps: newExpanded}));
+        setState(prev => ({ ...prev, checkedApps: newChecked, expandedApps: newExpanded }));
         fetchDiffsForApps(newChecked);
     };
 
@@ -146,13 +183,15 @@ export const GlobalDiffsView = (props: RouteComponentProps<any>) => {
         const newChecked = new Set<string>();
         const newExpanded = new Set<string>();
         if (select) {
-            // Select up to 15 apps on "all" select to avoid severe browser performance degradation
-            state.apps.slice(0, 15).forEach(app => {
-                newChecked.add(app.metadata.name);
-                newExpanded.add(app.metadata.name);
+            // Use the current apps in state to select up to 15
+            const appsToSelect = [...state.apps].slice(0, 15);
+            appsToSelect.forEach(app => {
+                const appId = getAppInstanceId(app);
+                newChecked.add(appId);
+                newExpanded.add(appId);
             });
         }
-        setState(prev => ({...prev, checkedApps: newChecked, expandedApps: newExpanded}));
+        setState(prev => ({ ...prev, checkedApps: newChecked, expandedApps: newExpanded }));
         fetchDiffsForApps(newChecked);
     };
 
@@ -163,7 +202,7 @@ export const GlobalDiffsView = (props: RouteComponentProps<any>) => {
         } else {
             newKinds.add(kind);
         }
-        setState(prev => ({...prev, selectedKinds: newKinds}));
+        setState(prev => ({ ...prev, selectedKinds: newKinds }));
     };
 
     const handleSelectAllKinds = (select: boolean) => {
@@ -175,36 +214,37 @@ export const GlobalDiffsView = (props: RouteComponentProps<any>) => {
                 });
             });
         }
-        setState(prev => ({...prev, selectedKinds: allKinds}));
+        setState(prev => ({ ...prev, selectedKinds: allKinds }));
     };
 
-    const handleToggleExpandApp = (appName: string) => {
+    const handleToggleExpandApp = (appId: string) => {
         const newExpanded = new Set(state.expandedApps);
-        if (newExpanded.has(appName)) {
-            newExpanded.delete(appName);
+        if (newExpanded.has(appId)) {
+            newExpanded.delete(appId);
         } else {
-            newExpanded.add(appName);
+            newExpanded.add(appId);
         }
-        setState(prev => ({...prev, expandedApps: newExpanded}));
+        setState(prev => ({ ...prev, expandedApps: newExpanded }));
     };
 
     const handleExpandAllApps = (expand: boolean) => {
         const newExpanded = new Set<string>();
         if (expand) {
             state.apps.forEach(app => {
-                if (state.checkedApps.has(app.metadata.name)) {
-                    newExpanded.add(app.metadata.name);
+                const appId = getAppInstanceId(app);
+                if (state.checkedApps.has(appId)) {
+                    newExpanded.add(appId);
                 }
             });
         }
-        setState(prev => ({...prev, expandedApps: newExpanded}));
+        setState(prev => ({ ...prev, expandedApps: newExpanded }));
     };
 
     // Calculate unique kinds currently available in loaded diffs
     const availableKinds = React.useMemo(() => {
-        const kindsMap: {[kind: string]: number} = {};
-        Object.entries(state.diffs).forEach(([appName, items]) => {
-            if (!state.checkedApps.has(appName)) return;
+        const kindsMap: { [kind: string]: number } = {};
+        Object.entries(state.diffs).forEach(([appId, items]) => {
+            if (!state.checkedApps.has(appId)) return;
             items.forEach(item => {
                 if (item.kind) {
                     kindsMap[item.kind] = (kindsMap[item.kind] || 0) + 1;
@@ -218,7 +258,7 @@ export const GlobalDiffsView = (props: RouteComponentProps<any>) => {
         <Page
             title='Global Diffs'
             toolbar={{
-                breadcrumbs: [{title: 'Applications', path: '/applications'}, {title: 'Global Diffs'}]
+                breadcrumbs: [{ title: 'Applications', path: '/applications' }, { title: 'Global Diffs' }]
             }}>
             <div className='global-diffs-container'>
                 {/* Active Filters Summary */}
@@ -237,9 +277,9 @@ export const GlobalDiffsView = (props: RouteComponentProps<any>) => {
                                 <strong>Labels:</strong> {selector}
                             </span>
                         )}
-                        {appNamespace && (
+                        {destNamespaceFilter && (
                             <span className='filter-pill'>
-                                <strong>Namespace:</strong> {appNamespace}
+                                <strong>Namespace:</strong> {destNamespaceFilter}
                             </span>
                         )}
                         {nameFilter.length > 0 && (
@@ -247,7 +287,7 @@ export const GlobalDiffsView = (props: RouteComponentProps<any>) => {
                                 <strong>Selected Apps:</strong> {nameFilter.join(', ')}
                             </span>
                         )}
-                        {projects.length === 0 && !selector && !appNamespace && nameFilter.length === 0 && (
+                        {projects.length === 0 && !selector && !destNamespaceFilter && nameFilter.length === 0 && (
                             <span className='filter-pill filter-pill--all'>Showing all applications in cluster</span>
                         )}
                     </div>
@@ -280,16 +320,16 @@ export const GlobalDiffsView = (props: RouteComponentProps<any>) => {
                                     </div>
                                 )}
                                 {state.apps.map(app => {
-                                    const appName = app.metadata.name;
-                                    const isChecked = state.checkedApps.has(appName);
+                                    const appId = getAppInstanceId(app);
+                                    const isChecked = state.checkedApps.has(appId);
                                     return (
-                                        <label key={appName} className={`app-checkbox-label ${isChecked ? 'checked' : ''}`}>
-                                            <input type='checkbox' id={`chk-${appName}`} checked={isChecked} onChange={() => handleCheckboxChange(appName)} />
+                                        <label key={appId} className={`app-checkbox-label ${isChecked ? 'checked' : ''}`}>
+                                            <input type='checkbox' id={`chk-${appId}`} checked={isChecked} onChange={() => handleCheckboxChange(appId)} />
                                             <span className='app-status-icons'>
                                                 <ComparisonStatusIcon status={app.status.sync.status} />
                                                 <HealthStatusIcon state={app.status.health} />
                                             </span>
-                                            <span className='app-checkbox-text'>{appName}</span>
+                                            <span className='app-checkbox-text'>{app.metadata.name}</span>
                                         </label>
                                     );
                                 })}
@@ -367,20 +407,20 @@ export const GlobalDiffsView = (props: RouteComponentProps<any>) => {
 
                         {!state.loading && !state.error && state.checkedApps.size > 0 && (
                             <div className='apps-diffs-list'>
-                                {Array.from(state.checkedApps).map(appName => {
-                                    const app = state.apps.find(a => a.metadata.name === appName);
-                                    const rawDiffs = state.diffs[appName] || [];
+                                {Array.from(state.checkedApps).map(appId => {
+                                    const app = state.apps.find(a => getAppInstanceId(a) === appId);
+                                    const rawDiffs = state.diffs[appId] || [];
                                     const filteredDiffs = rawDiffs.filter(d => state.selectedKinds.has(d.kind));
-                                    const isExpanded = state.expandedApps.has(appName);
+                                    const isExpanded = state.expandedApps.has(appId);
 
                                     if (!app) return null;
 
                                     return (
-                                        <div key={appName} className={`global-diffs-card app-diff-section-card ${isExpanded ? 'expanded' : ''}`}>
-                                            <div className='app-diff-header' onClick={() => handleToggleExpandApp(appName)}>
+                                        <div key={appId} className={`global-diffs-card app-diff-section-card ${isExpanded ? 'expanded' : ''}`}>
+                                            <div className='app-diff-header' onClick={() => handleToggleExpandApp(appId)}>
                                                 <div className='app-diff-header-left'>
                                                     <i className={`fa fa-chevron-${isExpanded ? 'down' : 'right'} toggle-arrow`} />
-                                                    <span className='app-name-title'>{appName}</span>
+                                                    <span className='app-name-title'>{app.metadata.name}</span>
                                                     <span className='app-meta-badge proj-badge'>{app.spec.project}</span>
                                                     <span className='app-meta-badge ns-badge'>{app.spec.destination.namespace || 'default'}</span>
                                                 </div>

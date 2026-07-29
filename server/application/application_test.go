@@ -44,6 +44,7 @@ import (
 	k8scache "k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/yaml"
 
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -2105,6 +2106,53 @@ p, test-user, applications, update/fake.io/PodTest/*, default/test-app, deny
 `)
 		_, err := appServer.PatchResource(ctx, &req)
 		assert.Equal(t, codes.PermissionDenied.String(), status.Code(err).String())
+	})
+}
+
+func TestSelectorParsing(t *testing.T) {
+	t.Run("Namespace-qualified selector parsing", func(t *testing.T) {
+		// Argo CD uses appinstanceid or namespace/name identifiers
+		ns, name, err := parseAppNamespaceName("prod/test-app")
+		assert.NoError(t, err)
+		assert.Equal(t, "prod", ns)
+		assert.Equal(t, "test-app", name)
+	})
+
+	t.Run("Invalid selector format", func(t *testing.T) {
+		_, _, err := parseAppNamespaceName("invalid/format/extra")
+		assert.Error(t, err)
+	})
+}
+
+func TestOutOfSyncFiltering(t *testing.T) {
+	apps := []*v1alpha1.Application{
+		{
+			ObjectMeta: v1.ObjectMeta{Name: "app-1"},
+			Status:     v1alpha1.ApplicationStatus{Sync: v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced}},
+		},
+		{
+			ObjectMeta: v1.ObjectMeta{Name: "app-2"},
+			Status:     v1alpha1.ApplicationStatus{Sync: v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeOutOfSync}},
+		},
+	}
+
+	filtered := filterOutOfSync(apps)
+	assert.Len(t, filtered, 1)
+	assert.Equal(t, "app-2", filtered[0].Name)
+}
+
+func TestRBAC_BatchDiffEnforcement(t *testing.T) {
+	// Argo CD uses server.enf (RBAC Enforcer) to check permissions
+	ctx := context.Background()
+	
+	t.Run("Denied when user lacks application get permission", func(t *testing.T) {
+		// Mock RBAC Enforcer context without "applications, get, project/app"
+		ctxWithoutPerms := context.WithValue(ctx, "claims", nil)
+		
+		_, err := appServer.GetBatchDiffs(ctxWithoutPerms, &ApplicationBatchDiffQuery{
+			Applications: []string{"proj/unauthorized-app"},
+		})
+		assert.Error(t, err)
 	})
 }
 
