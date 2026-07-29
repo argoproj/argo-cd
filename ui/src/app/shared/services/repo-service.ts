@@ -1,6 +1,14 @@
 import * as models from '../models';
 import requests from './requests';
 
+const parseSparsePaths = (input?: string): string[] =>
+    input
+        ? input
+              .split(',')
+              .map(p => p.trim())
+              .filter(p => p.length > 0)
+        : [];
+
 export interface HTTPSQuery {
     type: string;
     name: string;
@@ -20,6 +28,7 @@ export interface HTTPSQuery {
     useAzureWorkloadIdentity: boolean;
     insecureOCIForceHttp: boolean;
     depth?: number;
+    sparsePaths?: string;
 }
 
 export interface SSHQuery {
@@ -33,6 +42,7 @@ export interface SSHQuery {
     noProxy: string;
     project?: string;
     depth?: number;
+    sparsePaths?: string;
 }
 
 export interface GitHubAppQuery {
@@ -51,6 +61,7 @@ export interface GitHubAppQuery {
     noProxy: string;
     project?: string;
     depth?: number;
+    sparsePaths?: string;
 }
 
 export interface GoogleCloudSourceQuery {
@@ -127,7 +138,8 @@ export class RepositoriesService {
                 enableOCI: q.enableOCI,
                 useAzureWorkloadIdentity: q.useAzureWorkloadIdentity,
                 insecureOCIForceHttp: q.insecureOCIForceHttp,
-                depth: q.depth
+                depth: q.depth,
+                sparsePaths: parseSparsePaths(q.sparsePaths)
             })
             .then(res => res.body as models.Repository);
     }
@@ -152,8 +164,9 @@ export class RepositoriesService {
                 forceHttpBasicAuth: q.forceHttpBasicAuth,
                 enableOCI: q.enableOCI,
                 useAzureWorkloadIdentity: q.useAzureWorkloadIdentity,
+                depth: q.depth,
                 insecureOCIForceHttp: q.insecureOCIForceHttp,
-                depth: q.depth
+                sparsePaths: parseSparsePaths(q.sparsePaths)
             })
             .then(res => res.body as models.Repository);
     }
@@ -179,7 +192,8 @@ export class RepositoriesService {
                 enableOCI: q.enableOCI,
                 useAzureWorkloadIdentity: q.useAzureWorkloadIdentity,
                 insecureOCIForceHttp: q.insecureOCIForceHttp,
-                depth: q.depth
+                depth: q.depth,
+                sparsePaths: parseSparsePaths(q.sparsePaths)
             })
             .then(res => res.body as models.Repository);
     }
@@ -205,7 +219,8 @@ export class RepositoriesService {
                 enableOCI: q.enableOCI,
                 useAzureWorkloadIdentity: q.useAzureWorkloadIdentity,
                 insecureOCIForceHttp: q.insecureOCIForceHttp,
-                depth: q.depth
+                depth: q.depth,
+                sparsePaths: parseSparsePaths(q.sparsePaths)
             })
             .then(res => res.body as models.Repository);
     }
@@ -223,7 +238,8 @@ export class RepositoriesService {
                 proxy: q.proxy,
                 noProxy: q.noProxy,
                 project: q.project,
-                depth: q.depth
+                depth: q.depth,
+                sparsePaths: parseSparsePaths(q.sparsePaths)
             })
             .then(res => res.body as models.Repository);
     }
@@ -241,7 +257,8 @@ export class RepositoriesService {
                 proxy: q.proxy,
                 noProxy: q.noProxy,
                 project: q.project,
-                depth: q.depth
+                depth: q.depth,
+                sparsePaths: parseSparsePaths(q.sparsePaths)
             })
             .then(res => res.body as models.Repository);
     }
@@ -264,7 +281,8 @@ export class RepositoriesService {
                 proxy: q.proxy,
                 noProxy: q.noProxy,
                 project: q.project,
-                depth: q.depth
+                depth: q.depth,
+                sparsePaths: parseSparsePaths(q.sparsePaths)
             })
             .then(res => res.body as models.Repository);
     }
@@ -287,7 +305,8 @@ export class RepositoriesService {
                 proxy: q.proxy,
                 noProxy: q.noProxy,
                 project: q.project,
-                depth: q.depth
+                depth: q.depth,
+                sparsePaths: parseSparsePaths(q.sparsePaths)
             })
             .then(res => res.body as models.Repository);
     }

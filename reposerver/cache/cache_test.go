@@ -68,22 +68,35 @@ func TestCache_ListApps(t *testing.T) {
 	cache := fixtures.cache
 	mockCache := fixtures.mockCache
 	// cache miss
-	_, err := cache.ListApps("my-repo-url", "my-revision")
+	_, err := cache.ListApps("my-repo-url", "my-revision", "")
 	require.ErrorIs(t, err, ErrCacheMiss)
 	// populate cache
-	err = cache.SetApps("my-repo-url", "my-revision", map[string]string{"foo": "bar"})
+	err = cache.SetApps("my-repo-url", "my-revision", "", map[string]string{"foo": "bar"})
 	require.NoError(t, err)
 	// cache miss
-	_, err = cache.ListApps("other-repo-url", "my-revision")
+	_, err = cache.ListApps("other-repo-url", "my-revision", "")
 	require.ErrorIs(t, err, ErrCacheMiss)
 	// cache miss
-	_, err = cache.ListApps("my-repo-url", "other-revision")
+	_, err = cache.ListApps("my-repo-url", "other-revision", "")
 	require.ErrorIs(t, err, ErrCacheMiss)
 	// cache hit
-	value, err := cache.ListApps("my-repo-url", "my-revision")
+	value, err := cache.ListApps("my-repo-url", "my-revision", "")
 	require.NoError(t, err)
 	assert.Equal(t, map[string]string{"foo": "bar"}, value)
 	mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 1, ExternalGets: 4})
+}
+
+// Test_sparseAwareKeys_LegacyShapeWithoutSparsePaths pins the on-the-wire key
+// shape: when no sparse paths are configured, every sparse-aware key must keep
+// its pre-sparse-checkout form (no trailing "|") so that existing cache entries
+// and mixed-version deployments keep hitting during an upgrade.
+func Test_sparseAwareKeys_LegacyShapeWithoutSparsePaths(t *testing.T) {
+	assert.Equal(t, "ldir|my-repo|my-rev", listApps("my-repo", "my-rev", ""))
+	assert.Equal(t, "ldir|my-repo|my-rev|abc123", listApps("my-repo", "my-rev", "abc123"))
+	assert.Equal(t, "gitdirs|my-repo|my-rev", gitDirectoriesKey("my-repo", "my-rev", ""))
+	assert.Equal(t, "gitdirs|my-repo|my-rev|abc123", gitDirectoriesKey("my-repo", "my-rev", "abc123"))
+	assert.Equal(t, "gitfiles|my-repo|my-rev|*.yaml", gitFilesKey("my-repo", "my-rev", "", "*.yaml"))
+	assert.Equal(t, "gitfiles|my-repo|my-rev|*.yaml|abc123", gitFilesKey("my-repo", "my-rev", "abc123", "*.yaml"))
 }
 
 func TestCache_GetManifests(t *testing.T) {
@@ -149,6 +162,48 @@ func TestCache_GetManifests(t *testing.T) {
 		assert.Equal(t, "my-revision1", value.ManifestResponse.Revision)
 	})
 	mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 2, ExternalGets: 8})
+}
+
+// TestManifestKey_String_SparsePaths verifies that the SparsePaths field flows
+// into the cache key suffix so two requests at the same revision but different
+// sparse cones do NOT share a cache entry (which would serve manifests rendered
+// against the wrong file subset). Empty SparsePaths must produce the legacy key
+// shape so post-upgrade caches remain readable.
+func TestManifestKey_String_SparsePaths(t *testing.T) {
+	base := ManifestKey{
+		Revision:       "abc123",
+		AppSource:      &v1alpha1.ApplicationSource{},
+		Namespace:      "ns",
+		TrackingMethod: "label",
+		AppLabelKey:    "app.kubernetes.io/instance",
+		AppName:        "my-app",
+	}
+
+	t.Run("empty SparsePaths preserves legacy key shape (no sparse suffix)", func(t *testing.T) {
+		assert.NotContains(t, base.String(), "|sparse:")
+	})
+
+	t.Run("non-empty SparsePaths appends sparse suffix", func(t *testing.T) {
+		withSparse := base
+		withSparse.SparsePaths = []string{"charts"}
+		got := withSparse.String()
+		assert.Contains(t, got, "|sparse:")
+		assert.NotEqual(t, base.String(), got)
+	})
+
+	t.Run("different sparse cones produce different keys", func(t *testing.T) {
+		a, b := base, base
+		a.SparsePaths = []string{"charts"}
+		b.SparsePaths = []string{"manifests"}
+		assert.NotEqual(t, a.String(), b.String())
+	})
+
+	t.Run("equivalent sparse cones produce identical keys", func(t *testing.T) {
+		a, b := base, base
+		a.SparsePaths = []string{"charts/", "manifests"}
+		b.SparsePaths = []string{"manifests/", "charts"} // trailing-slash + reorder normalize to same hash
+		assert.Equal(t, a.String(), b.String())
+	})
 }
 
 func TestCache_GetAppDetails(t *testing.T) {
@@ -750,7 +805,7 @@ func TestGetGitDirectories(t *testing.T) {
 		t.Parallel()
 		fixtures := newFixtures()
 		t.Cleanup(fixtures.mockCache.StopRedisCallback)
-		directories, err := fixtures.cache.GetGitDirectories("test-repo", "test-revision")
+		directories, err := fixtures.cache.GetGitDirectories("test-repo", "test-revision", "")
 		require.ErrorIs(t, err, ErrCacheMiss)
 		assert.Empty(t, directories)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1})
@@ -762,11 +817,11 @@ func TestGetGitDirectories(t *testing.T) {
 		cache := fixtures.cache
 		expectedItem := []string{"test/dir", "test/dir2"}
 		err := cache.cache.SetItem(
-			gitDirectoriesKey("test-repo", "test-revision"),
+			gitDirectoriesKey("test-repo", "test-revision", ""),
 			expectedItem,
 			&cacheutil.CacheActionOpts{Expiration: 30 * time.Second})
 		require.NoError(t, err)
-		directories, err := fixtures.cache.GetGitDirectories("test-repo", "test-revision")
+		directories, err := fixtures.cache.GetGitDirectories("test-repo", "test-revision", "")
 		require.NoError(t, err)
 		assert.Equal(t, expectedItem, directories)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1, ExternalSets: 1})
@@ -779,11 +834,11 @@ func TestGetGitDirectories(t *testing.T) {
 		cache := fixtures.cache
 		expectedItem := []string{"test/dir", "test/dir2"}
 		err := cache.cache.SetItem(
-			gitDirectoriesKey("test-repo", "test-revision"),
+			gitDirectoriesKey("test-repo", "test-revision", ""),
 			expectedItem,
 			&cacheutil.CacheActionOpts{Expiration: 30 * time.Second})
 		require.NoError(t, err)
-		directories, err := fixtures.cache.GetGitDirectories("test-repo", "test-revision")
+		directories, err := fixtures.cache.GetGitDirectories("test-repo", "test-revision", "")
 		require.NoError(t, err)
 		assert.Equal(t, expectedItem, directories)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1, ExternalSets: 1})
@@ -794,9 +849,9 @@ func TestGetGitDirectories(t *testing.T) {
 		fixtures := newFixtures()
 		t.Cleanup(fixtures.mockCache.StopRedisCallback)
 		expectedItem := []string{"test/dir", "test/dir2"}
-		err := fixtures.cache.SetGitDirectories("test-repo", "test-revision", expectedItem)
+		err := fixtures.cache.SetGitDirectories("test-repo", "test-revision", "", expectedItem)
 		require.NoError(t, err)
-		directories, err := fixtures.cache.GetGitDirectories("test-repo", "test-revision")
+		directories, err := fixtures.cache.GetGitDirectories("test-repo", "test-revision", "")
 		require.NoError(t, err)
 		assert.Equal(t, expectedItem, directories)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1, ExternalSets: 1})
@@ -809,7 +864,7 @@ func TestGetGitFiles(t *testing.T) {
 		t.Parallel()
 		fixtures := newFixtures()
 		t.Cleanup(fixtures.mockCache.StopRedisCallback)
-		directories, err := fixtures.cache.GetGitFiles("test-repo", "test-revision", "*.json")
+		directories, err := fixtures.cache.GetGitFiles("test-repo", "test-revision", "", "*.json")
 		require.ErrorIs(t, err, ErrCacheMiss)
 		assert.Empty(t, directories)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1})
@@ -821,11 +876,11 @@ func TestGetGitFiles(t *testing.T) {
 		cache := fixtures.cache
 		expectedItem := map[string][]byte{"test/file.json": []byte("\"test\":\"contents\""), "test/file1.json": []byte("\"test1\":\"contents1\"")}
 		err := cache.cache.SetItem(
-			gitFilesKey("test-repo", "test-revision", "*.json"),
+			gitFilesKey("test-repo", "test-revision", "", "*.json"),
 			expectedItem,
 			&cacheutil.CacheActionOpts{Expiration: 30 * time.Second})
 		require.NoError(t, err)
-		files, err := fixtures.cache.GetGitFiles("test-repo", "test-revision", "*.json")
+		files, err := fixtures.cache.GetGitFiles("test-repo", "test-revision", "", "*.json")
 		require.NoError(t, err)
 		assert.Equal(t, expectedItem, files)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1, ExternalSets: 1})
@@ -836,9 +891,9 @@ func TestGetGitFiles(t *testing.T) {
 		fixtures := newFixtures()
 		t.Cleanup(fixtures.mockCache.StopRedisCallback)
 		expectedItem := map[string][]byte{"test/file.json": []byte("\"test\":\"contents\""), "test/file1.json": []byte("\"test1\":\"contents1\"")}
-		err := fixtures.cache.SetGitFiles("test-repo", "test-revision", "*.json", expectedItem)
+		err := fixtures.cache.SetGitFiles("test-repo", "test-revision", "", "*.json", expectedItem)
 		require.NoError(t, err)
-		files, err := fixtures.cache.GetGitFiles("test-repo", "test-revision", "*.json")
+		files, err := fixtures.cache.GetGitFiles("test-repo", "test-revision", "", "*.json")
 		require.NoError(t, err)
 		assert.Equal(t, expectedItem, files)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1, ExternalSets: 1})

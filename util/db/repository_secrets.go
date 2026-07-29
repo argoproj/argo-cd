@@ -417,6 +417,8 @@ func secretToRepository(secret *corev1.Secret) (*appsv1.Repository, error) {
 	}
 	repository.WebhookManifestCacheWarmDisabled = webhookManifestCacheWarmDisabled
 
+	repository.SparsePaths = stringArrayOrEmpty(secret, "sparsePaths")
+
 	return repository, nil
 }
 
@@ -459,6 +461,7 @@ func (s *secretsRepositoryBackend) repositoryToSecret(repository *appsv1.Reposit
 	updateSecretString(secretCopy, "azureServicePrincipalClientSecret", repository.AzureServicePrincipalClientSecret)
 	updateSecretString(secretCopy, "azureServicePrincipalTenantId", repository.AzureServicePrincipalTenantId)
 	updateSecretString(secretCopy, "azureActiveDirectoryEndpoint", repository.AzureActiveDirectoryEndpoint)
+	updateSecretStringArray(secretCopy, "sparsePaths", repository.SparsePaths)
 	addSecretMetadata(secretCopy, s.getSecretType())
 
 	return secretCopy

@@ -60,6 +60,7 @@ interface NewSSHRepoParams {
     depth?: number;
     // write should be true if saving as a write credential.
     write: boolean;
+    sparsePaths: string;
 }
 
 export interface NewHTTPSRepoParams {
@@ -83,6 +84,7 @@ export interface NewHTTPSRepoParams {
     // write should be true if saving as a write credential.
     write: boolean;
     useAzureWorkloadIdentity: boolean;
+    sparsePaths: string;
 }
 
 interface NewGitHubAppRepoParams {
@@ -103,6 +105,7 @@ interface NewGitHubAppRepoParams {
     depth?: number;
     // write should be true if saving as a write credential.
     write: boolean;
+    sparsePaths: string;
 }
 
 interface NewGoogleCloudSourceRepoParams {
@@ -138,6 +141,7 @@ interface NewSSHRepoCredsParams {
     sshPrivateKey: string;
     // write should be true if saving as a write credential.
     write: boolean;
+    sparsePaths?: string;
 }
 
 interface NewHTTPSRepoCredsParams {
@@ -156,6 +160,7 @@ interface NewHTTPSRepoCredsParams {
     // write should be true if saving as a write credential.
     write: boolean;
     useAzureWorkloadIdentity: boolean;
+    sparsePaths?: string;
 }
 
 interface NewGitHubAppRepoCredsParams {
@@ -324,7 +329,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
     }, []);
 
     const onChooseDefaultValues = (): FormValues => {
-        return {type: 'git', ghType: 'GitHub', azureType: 'Azure Public Cloud', write: false};
+        return {type: 'git', ghType: 'GitHub', azureType: 'Azure Public Cloud', write: false, sparsePaths: ''};
     };
 
     const onValidateErrors = (params: FormValues): FormErrors => {
@@ -464,7 +469,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
     // Connect a new repository or create a repository credentials for SSH repositories
     const connectSSHRepo = async (params: NewSSHRepoParams) => {
         if (credsTemplate.current) {
-            createSSHCreds({url: params.url, sshPrivateKey: params.sshPrivateKey, write: params.write});
+            createSSHCreds({url: params.url, sshPrivateKey: params.sshPrivateKey, write: params.write, sparsePaths: params.sparsePaths});
         } else {
             setConnecting(true);
             try {
@@ -503,7 +508,8 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                 enableOCI: params.enableOCI,
                 write: params.write,
                 useAzureWorkloadIdentity: params.useAzureWorkloadIdentity,
-                insecureOCIForceHttp: params.insecureOCIForceHttp
+                insecureOCIForceHttp: params.insecureOCIForceHttp,
+                sparsePaths: params.sparsePaths
             });
         } else {
             setConnecting(true);
@@ -1114,6 +1120,12 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                     <FormField formApi={formApi} label='Depth (optional)' field='depth' component={NumberField} />
                                                     <HelpIcon title='Depth for shallow clones. Leave empty or 0 for a full clone.' />
                                                 </div>
+                                                {formApi.getFormState().values.write === false && (
+                                                    <div className='argo-form-row'>
+                                                        <FormField formApi={formApi} label='Sparse paths (optional, comma-separated)' field='sparsePaths' component={Text} />
+                                                        <HelpIcon title='Specify paths for sparse checkout (comma-separated). Only specified paths will be checked out.' />
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
                                         {method === ConnectionMethod.HTTPS && (
@@ -1218,6 +1230,12 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                         <HelpIcon title='Depth for shallow clones. Leave empty or 0 for a full clone.' />
                                                     </div>
                                                 )}
+                                                {formApi.getFormState().values.type === 'git' && formApi.getFormState().values.write === false && (
+                                                    <div className='argo-form-row'>
+                                                        <FormField formApi={formApi} label='Sparse paths (optional, comma-separated)' field='sparsePaths' component={Text} />
+                                                        <HelpIcon title='Specify paths for sparse checkout (comma-separated). Only specified paths will be checked out.' />
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
                                         {method === ConnectionMethod.GITHUBAPP && (
@@ -1290,6 +1308,12 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                     <FormField formApi={formApi} label='Depth (optional)' field='depth' component={NumberField} />
                                                     <HelpIcon title='Depth for shallow clones. Leave empty or 0 for a full clone.' />
                                                 </div>
+                                                {formApi.getFormState().values.write === false && (
+                                                    <div className='argo-form-row'>
+                                                        <FormField formApi={formApi} label='Sparse paths (comma-separated)' field='sparsePaths' component={Text} />
+                                                        <HelpIcon title='Specify paths for sparse checkout (comma-separated). Only specified paths will be checked out.' />
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
                                         {method === ConnectionMethod.GOOGLECLOUD && (

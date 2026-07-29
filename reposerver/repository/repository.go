@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"net/url"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -32,7 +33,6 @@ import (
 	textutils "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/text"
 	"github.com/argoproj/pkg/v2/sync"
 	jsonpatch "github.com/evanphx/json-patch"
-	gogit "github.com/go-git/go-git/v5"
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/go-jsonnet"
 	"github.com/google/uuid"
@@ -197,15 +197,61 @@ func (s *Service) Init() error {
 		}
 		fullPath := filepath.Join(s.rootDir, file.Name())
 		closer := s.gitRepoInitializer(fullPath)
-		if repo, err := gogit.PlainOpen(fullPath); err == nil {
-			if remotes, err := repo.Remotes(); err == nil && len(remotes) > 0 && len(remotes[0].Config().URLs) > 0 {
-				s.gitRepoPaths.Add(git.NormalizeGitURL(remotes[0].Config().URLs[0]), fullPath)
+		// Read the remote URL with the git CLI rather than go-git's PlainOpen:
+		// PlainOpen rejects the sparse-checkout workdirs this loop must recover
+		// (extensions.worktreeConfig at repositoryformatversion 0), which would
+		// orphan them on every restart and force a fresh clone per repo.
+		if remoteURL, err := getRemoteURLFromRepo(context.Background(), fullPath); err == nil && remoteURL != "" {
+			sparsePaths, err := getSparseCheckoutPathsFromRepo(context.Background(), fullPath)
+			if err != nil {
+				// Non-sparse repos will fail here; that's normal, not worth a warning.
+				log.Debugf("No sparse checkout configured for %s: %v", fullPath, err)
 			}
+			key := repoPathKey(v1alpha1.Repository{Repo: remoteURL, SparsePaths: sparsePaths})
+			s.gitRepoPaths.Add(key, fullPath)
 		}
 		utilio.Close(closer)
 	}
 	// remove read permissions since no-one should be able to list the directories
 	return os.Chmod(s.rootDir, 0o300)
+}
+
+// getRemoteURLFromRepo reads the origin remote URL from a git repository's config file.
+// Reading the file directly (--file) avoids git's repository discovery, which would walk
+// up to a parent repository when the directory is not a valid repo.
+func getRemoteURLFromRepo(ctx context.Context, repoPath string) (string, error) {
+	cmd := exec.CommandContext(ctx, "git", "config", "--file", filepath.Join(repoPath, ".git", "config"), "--get", "remote.origin.url")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(output)), nil
+}
+
+// getSparseCheckoutPathsFromRepo reads the sparse checkout configuration from a git repository
+func getSparseCheckoutPathsFromRepo(ctx context.Context, repoPath string) ([]string, error) {
+	// Use git sparse-checkout list command to get the configured paths
+	// This is more robust than parsing the file directly as it handles all git's internal logic
+	cmd := exec.CommandContext(ctx, "git", "-C", repoPath, "sparse-checkout", "list")
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	output, err := cmd.Output()
+	if err != nil {
+		if msg := strings.TrimSpace(stderr.String()); msg != "" {
+			return nil, fmt.Errorf("%w: %s", err, msg)
+		}
+		return nil, err
+	}
+
+	var paths []string
+	for line := range strings.SplitSeq(string(output), "\n") {
+		line = strings.TrimSpace(line)
+		if line != "" {
+			paths = append(paths, line)
+		}
+	}
+
+	return paths, nil
 }
 
 // ListOCITags List a subset of the refs (currently, branches and tags) of a git repo
@@ -260,13 +306,19 @@ func (s *Service) ListRefs(_ context.Context, q *apiclient.ListRefsRequest) (*ap
 	return &res, nil
 }
 
-// ListApps lists the contents of a GitHub repo
+// ListApps lists the contents of a Git repo
 func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*apiclient.AppList, error) {
 	gitClient, commitSHA, err := s.newClientResolveRevision(q.Repo, q.Revision)
 	if err != nil {
 		return nil, fmt.Errorf("error setting up git client and resolving given revision: %w", err)
 	}
-	if apps, err := s.cache.ListApps(q.Repo.Repo, commitSHA); err == nil {
+
+	var pathsSHA string
+	if len(q.Repo.SparsePaths) > 0 {
+		pathsSHA = git.ComputePathHash(q.Repo.SparsePaths)
+	}
+
+	if apps, err := s.cache.ListApps(q.Repo.Repo, commitSHA, pathsSHA); err == nil {
 		log.Infof("cache hit: %s/%s", q.Repo.Repo, q.Revision)
 		return &apiclient.AppList{Apps: apps}, nil
 	}
@@ -275,7 +327,7 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
 
 	closer, err := s.repoLock.Lock(gitClient.Root(), commitSHA, true, func(clean bool) (goio.Closer, error) {
-		return s.checkoutRevision(ctx, gitClient, commitSHA, s.initConstants.SubmoduleEnabled, q.Repo.Depth, clean)
+		return s.checkoutRevision(ctx, gitClient, commitSHA, s.initConstants.SubmoduleEnabled, q.Repo.Depth, q.Repo.SparsePaths, clean)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error acquiring repository lock: %w", err)
@@ -286,7 +338,7 @@ func (s *Service) ListApps(ctx context.Context, q *apiclient.ListAppsRequest) (*
 	if err != nil {
 		return nil, fmt.Errorf("error discovering applications: %w", err)
 	}
-	err = s.cache.SetApps(q.Repo.Repo, commitSHA, apps)
+	err = s.cache.SetApps(q.Repo.Repo, commitSHA, pathsSHA, apps)
 	if err != nil {
 		log.Warnf("cache set error %s/%s: %v", q.Repo.Repo, commitSHA, err)
 	}
@@ -481,7 +533,7 @@ func (s *Service) runRepoOperation(
 		})
 	}
 	closer, err := s.repoLock.Lock(gitClient.Root(), revision, settings.allowConcurrent, func(clean bool) (goio.Closer, error) {
-		return s.checkoutRevision(ctx, gitClient, revision, s.initConstants.SubmoduleEnabled, repo.Depth, clean)
+		return s.checkoutRevision(ctx, gitClient, revision, s.initConstants.SubmoduleEnabled, repo.Depth, repo.SparsePaths, clean)
 	})
 	if err != nil {
 		return err
@@ -918,7 +970,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 							// For multi-source Applications where the primary source is a Helm/OCI artifact,
 							// q.Repo.Depth is unset (0), which would otherwise force a full fetch of the
 							// referenced git repository regardless of its configured depth.
-							return s.checkoutRevision(ctx, gitClient, referencedCommitSHA, s.initConstants.SubmoduleEnabled, refSourceMapping.Repo.Depth, clean)
+							return s.checkoutRevision(ctx, gitClient, referencedCommitSHA, s.initConstants.SubmoduleEnabled, refSourceMapping.Repo.Depth, refSourceMapping.Repo.SparsePaths, clean)
 						})
 						if err != nil {
 							log.Errorf("failed to acquire lock for referenced source %s", normalizedRepoURL)
@@ -1032,7 +1084,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 }
 
 func getManifestCacheKey(revision string, appSource *v1alpha1.ApplicationSource, q *apiclient.ManifestRequest, refSourceCommitSHAs cache.ResolvedRevisions) cache.ManifestKey {
-	return cache.ManifestKey{
+	key := cache.ManifestKey{
 		Revision:            revision,
 		AppSource:           appSource,
 		RefSources:          q.RefSources,
@@ -1045,6 +1097,10 @@ func getManifestCacheKey(revision string, appSource *v1alpha1.ApplicationSource,
 		InstallationID:      q.InstallationID,
 		SourceIntegrity:     q.SourceIntegrity,
 	}
+	if q.Repo != nil {
+		key.SparsePaths = q.Repo.SparsePaths
+	}
+	return key
 }
 
 // getManifestCacheEntry returns false if the 'generate manifests' operation should be run by runRepoOperation, e.g.:
@@ -1363,7 +1419,7 @@ func helmTemplate(ctx context.Context, appPath string, repoRoot string, env *v1a
 			referencedSource := getReferencedSource(p.Path, q.RefSources)
 			if referencedSource != nil {
 				// If the $-prefixed path appears to reference another source, do env substitution _after_ resolving the source
-				resolvedPath, err = getResolvedRefValueFile(p.Path, env, q.GetValuesFileSchemes(), referencedSource.Repo.Repo, gitRepoPaths)
+				resolvedPath, err = getResolvedRefValueFile(p.Path, env, q.GetValuesFileSchemes(), referencedSource.Repo, gitRepoPaths)
 				if err != nil {
 					return nil, "", fmt.Errorf("error resolving set-file path: %w", err)
 				}
@@ -1485,7 +1541,7 @@ func getResolvedValueFiles(
 		var resolved pathutil.ResolvedFilePath
 		var err error
 		if referencedSource != nil {
-			resolved, err = getResolvedRefValueFile(rawValueFile, env, allowedValueFilesSchemas, referencedSource.Repo.Repo, gitRepoPaths)
+			resolved, err = getResolvedRefValueFile(rawValueFile, env, allowedValueFilesSchemas, referencedSource.Repo, gitRepoPaths)
 		} else {
 			resolved, _, err = pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, env.Envsubst(rawValueFile), allowedValueFilesSchemas)
 		}
@@ -1517,11 +1573,12 @@ func getResolvedValueFiles(
 		effectiveRoot := repoRoot
 		if referencedSource != nil {
 			// If the $-prefixed path appears to reference another source, do env substitution _after_ resolving that source.
-			resolvedPath, err = getResolvedRefValueFile(rawValueFile, env, allowedValueFilesSchemas, referencedSource.Repo.Repo, gitRepoPaths)
+			resolvedPath, err = getResolvedRefValueFile(rawValueFile, env, allowedValueFilesSchemas, referencedSource.Repo, gitRepoPaths)
 			if err != nil {
 				return nil, fmt.Errorf("error resolving value file path: %w", err)
 			}
-			if refRepoPath := gitRepoPaths.GetPathIfExists(git.NormalizeGitURL(referencedSource.Repo.Repo)); refRepoPath != "" {
+			refRepoKey := repoPathKey(referencedSource.Repo)
+			if refRepoPath := gitRepoPaths.GetPathIfExists(refRepoKey); refRepoPath != "" {
 				effectiveRoot = refRepoPath
 			}
 		} else {
@@ -1580,17 +1637,13 @@ func getResolvedValueFiles(
 	return resolvedValueFiles, nil
 }
 
-func getResolvedRefValueFile(
-	rawValueFile string,
-	env *v1alpha1.Env,
-	allowedValueFilesSchemas []string,
-	refSourceRepo string,
-	gitRepoPaths utilio.TempPaths,
-) (pathutil.ResolvedFilePath, error) {
+func getResolvedRefValueFile(rawValueFile string, env *v1alpha1.Env, allowedValueFilesSchemas []string, repo v1alpha1.Repository, gitRepoPaths utilio.TempPaths) (pathutil.ResolvedFilePath, error) {
 	pathStrings := strings.Split(rawValueFile, "/")
-	repoPath := gitRepoPaths.GetPathIfExists(git.NormalizeGitURL(refSourceRepo))
+
+	repoPath := gitRepoPaths.GetPathIfExists(repoPathKey(repo))
+
 	if repoPath == "" {
-		return "", fmt.Errorf("failed to find repo %q", refSourceRepo)
+		return "", fmt.Errorf("failed to find repo %q", repo.Repo)
 	}
 	pathStrings[0] = "" // Remove first segment. It will be inserted by pathutil.ResolveValueFilePathOrUrl.
 	substitutedPath := strings.Join(pathStrings, "/")
@@ -2575,7 +2628,7 @@ func (s *Service) populateHelmAppDetails(ctx context.Context, res *apiclient.Rep
 				}
 			}
 			closer, err := s.repoLock.Lock(gitClient.Root(), refSHA, true, func(clean bool) (goio.Closer, error) {
-				return s.checkoutRevision(ctx, gitClient, refSHA, s.initConstants.SubmoduleEnabled, refSource.Repo.Depth, clean)
+				return s.checkoutRevision(ctx, gitClient, refSHA, s.initConstants.SubmoduleEnabled, refSource.Repo.Depth, refSource.Repo.SparsePaths, clean)
 			})
 			if err != nil {
 				return fmt.Errorf("failed to acquire lock for referenced repo %q: %w", refSource.Repo.Repo, err)
@@ -2759,7 +2812,7 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 	defer s.metricsServer.DecPendingRepoRequest(q.Repo.Repo)
 
 	closer, err := s.repoLock.Lock(gitClient.Root(), q.Revision, true, func(clean bool) (goio.Closer, error) {
-		return s.checkoutRevision(ctx, gitClient, q.Revision, s.initConstants.SubmoduleEnabled, q.Repo.Depth, clean)
+		return s.checkoutRevision(ctx, gitClient, q.Revision, s.initConstants.SubmoduleEnabled, q.Repo.Depth, q.Repo.SparsePaths, clean)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error acquiring repo lock: %w", err)
@@ -2891,8 +2944,19 @@ func fileParameters(q *apiclient.RepoServerAppDetailsQuery) []v1alpha1.HelmFileP
 	return q.Source.Helm.FileParameters
 }
 
+// repoPathKey builds the cache key used to look up repository checkout paths.
+// The key encodes both the normalized URL and (when sparse paths are configured) a
+// hash of those paths so that each sparse-path permutation gets its own checkout.
+func repoPathKey(repo v1alpha1.Repository) string {
+	var pathsSHA string
+	if len(repo.SparsePaths) > 0 {
+		pathsSHA = git.ComputePathHash(repo.SparsePaths)
+	}
+	return git.NormalizeGitURL(repo.Repo) + "|" + pathsSHA
+}
+
 func (s *Service) newClient(repo *v1alpha1.Repository, opts ...git.ClientOpts) (git.Client, error) {
-	repoPath, err := s.gitRepoPaths.GetPath(git.NormalizeGitURL(repo.Repo))
+	repoPath, err := s.gitRepoPaths.GetPath(repoPathKey(*repo))
 	if err != nil {
 		return nil, err
 	}
@@ -2994,12 +3058,12 @@ func directoryPermissionInitializer(rootPath string) goio.Closer {
 
 // checkoutRevision is a convenience function to initialize a repo, fetch, and checkout a revision
 // Returns the 40 character commit SHA after the checkout has been performed
-func (s *Service) checkoutRevision(ctx context.Context, gitClient git.Client, revision string, submoduleEnabled bool, depth int64, clean bool) (_ goio.Closer, retErr error) {
+func (s *Service) checkoutRevision(ctx context.Context, gitClient git.Client, revision string, submoduleEnabled bool, depth int64, paths []string, clean bool) (_ goio.Closer, retErr error) {
 	ctx, span := tracer.Start(ctx, "reposerver.checkoutRevision")
 	span.SetAttributes(attribute.String("argocd.revision", revision))
 	defer func() { traceutil.EndSpan(span, retErr) }()
 	closer := s.gitRepoInitializer(gitClient.Root())
-	err := checkoutRevision(ctx, gitClient, revision, submoduleEnabled, depth, clean)
+	err := checkoutRevision(ctx, gitClient, revision, submoduleEnabled, depth, paths, clean)
 	if err != nil {
 		s.metricsServer.IncGitFetchFail(gitClient.Root(), revision)
 	}
@@ -3008,8 +3072,8 @@ func (s *Service) checkoutRevision(ctx context.Context, gitClient git.Client, re
 
 // fetch is a convenience function to fetch revisions
 // We assumed that the caller has already initialized the git repo, i.e. gitClient.Init() has been called
-func (s *Service) fetch(ctx context.Context, gitClient git.Client, targetRevisions []string, depth int64) error {
-	err := fetch(ctx, gitClient, targetRevisions, depth)
+func (s *Service) fetch(ctx context.Context, gitClient git.Client, targetRevisions []string, depth int64, usePartialClone bool) error {
+	err := fetch(ctx, gitClient, targetRevisions, depth, usePartialClone)
 	if err != nil {
 		for _, revision := range targetRevisions {
 			s.metricsServer.IncGitFetchFail(gitClient.Root(), revision)
@@ -3018,7 +3082,7 @@ func (s *Service) fetch(ctx context.Context, gitClient git.Client, targetRevisio
 	return err
 }
 
-func fetch(ctx context.Context, gitClient git.Client, targetRevisions []string, depth int64) error {
+func fetch(ctx context.Context, gitClient git.Client, targetRevisions []string, depth int64, usePartialClone bool) error {
 	revisionPresent := true
 	for _, revision := range targetRevisions {
 		revisionPresent = gitClient.IsRevisionPresent(ctx, revision)
@@ -3033,7 +3097,7 @@ func fetch(ctx context.Context, gitClient git.Client, targetRevisions []string, 
 	if depth > 0 {
 		for _, revision := range targetRevisions {
 			if !gitClient.IsRevisionPresent(ctx, revision) {
-				if err := gitClient.Fetch(ctx, revision, depth); err != nil {
+				if err := gitClient.Fetch(ctx, revision, depth, usePartialClone); err != nil {
 					return status.Errorf(codes.Internal, "Failed to fetch revision %s: %v", revision, err)
 				}
 			}
@@ -3041,18 +3105,17 @@ func fetch(ctx context.Context, gitClient git.Client, targetRevisions []string, 
 		return nil
 	}
 	// Fetching with no revision first. Fetching with an explicit version can cause repo bloat. https://github.com/argoproj/argo-cd/issues/8845
-	err := gitClient.Fetch(ctx, "", 0)
+	err := gitClient.Fetch(ctx, "", 0, usePartialClone)
 	if err != nil {
 		return err
 	}
 	for _, revision := range targetRevisions {
 		if !gitClient.IsRevisionPresent(ctx, revision) {
-			// When fetching with no revision, only refs/heads/* and refs/remotes/origin/* are fetched. If fetch fails
-			// for the given revision, try explicitly fetching it.
-			log.Infof("Failed to fetch revision %s: %v", revision, err)
-			log.Infof("Fallback to fetching specific revision %s. ref might not have been in the default refspec fetched.", revision)
+			// When fetching with no revision, only refs/heads/* and refs/remotes/origin/* are fetched. If the
+			// revision is not present after the default fetch, try explicitly fetching it.
+			log.Infof("Revision %s not found after default fetch, fetching explicitly. Ref might not have been in the default refspec.", revision)
 
-			if err := gitClient.Fetch(ctx, revision, 0); err != nil {
+			if err := gitClient.Fetch(ctx, revision, 0, usePartialClone); err != nil {
 				return status.Errorf(codes.Internal, "Failed to fetch revision %s: %v", revision, err)
 			}
 		}
@@ -3060,7 +3123,7 @@ func fetch(ctx context.Context, gitClient git.Client, targetRevisions []string, 
 	return nil
 }
 
-func checkoutRevision(ctx context.Context, gitClient git.Client, revision string, submoduleEnabled bool, depth int64, cleanState bool) error {
+func checkoutRevision(ctx context.Context, gitClient git.Client, revision string, submoduleEnabled bool, depth int64, sparsePaths []string, cleanState bool) error {
 	err := gitClient.Init()
 	if err != nil {
 		return status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
@@ -3069,20 +3132,84 @@ func checkoutRevision(ctx context.Context, gitClient git.Client, revision string
 	revisionPresent := gitClient.IsRevisionPresent(ctx, revision)
 
 	log.WithFields(map[string]any{
-		"skipFetch": revisionPresent,
+		"skipFetch":        revisionPresent,
+		"sparseCheckout":   len(sparsePaths) > 0,
+		"sparsePathsCount": len(sparsePaths),
 	}).Debugf("Checking out revision %v", revision)
+
+	// Reconcile sparse-checkout state on every invocation, in both directions,
+	// not just when revisionPresent==false. Scenarios that depend on this:
+	//   1. A previous run hit the ConfigureSparseCheckout-failure fallback below,
+	//      which calls DisableSparseCheckout(). If we only re-applied the sparse
+	//      config inside the !revisionPresent branch, subsequent checkouts of the
+	//      same revision would silently produce a full working tree.
+	//   2. A workdir may be re-used (e.g. after an Init() recovery hash mismatch
+	//      between user-supplied and git-normalized paths) with stale on-disk
+	//      sparse state. Without the disable below, a non-sparse checkout would
+	//      silently generate manifests from the leftover truncated tree.
+	useSparse := len(sparsePaths) > 0
+	if useSparse {
+		if cfgErr := gitClient.ConfigureSparseCheckout(sparsePaths); cfgErr != nil {
+			log.Warnf("Failed to configure sparse checkout, falling back to full checkout: %v", cfgErr)
+			// Disable sparse-checkout so the fallback full fetch isn't constrained by
+			// a partially-configured sparse-checkout that would produce an incomplete tree.
+			_ = gitClient.DisableSparseCheckout()
+			useSparse = false
+		}
+	} else if err := gitClient.DisableSparseCheckout(); err != nil {
+		// Failing open here would silently generate manifests from a truncated tree,
+		// which with auto-sync + prune deletes live resources.
+		return status.Errorf(codes.Internal, "Failed to disable stale sparse-checkout state: %v", err)
+	}
 
 	// Fetching can be skipped if the revision is already present locally.
 	if !revisionPresent {
-		if depth > 0 {
-			err = gitClient.Fetch(ctx, revision, depth)
-		} else {
+		switch {
+		case useSparse:
+			// Use partial clone (--filter=blob:none) for minimal network transfer.
+			// When depth > 0, both flags are combined for maximum bandwidth savings
+			// (no blobs + limited history).
+			log.Infof("Using partial clone with %d sparse paths for revision %s", len(sparsePaths), revision)
+			if revision != "" {
+				err = gitClient.Fetch(ctx, revision, depth, true)
+				if err != nil {
+					// Some git servers reject fetches for unadvertised objects
+					// (uploadpack.allowReachableSHA1InWant disabled), so an explicit
+					// fetch of a resolved SHA can fail where a default-refspec fetch
+					// succeeds — the same reason the non-sparse path fetches "" by
+					// default (see #8845). Fall back rather than failing permanently.
+					log.Infof("Failed to fetch revision %s explicitly, falling back to default refspec fetch: %v", revision, err)
+					err = gitClient.Fetch(ctx, "", depth, true)
+				}
+			} else {
+				err = gitClient.Fetch(ctx, "", depth, true)
+			}
+		case len(sparsePaths) > 0:
+			// Sparse paths were requested but ConfigureSparseCheckout failed above.
+			// Fall back to a regular fetch so the working tree is still populated.
+			if depth > 0 {
+				err = gitClient.Fetch(ctx, revision, depth, false)
+			} else {
+				err = gitClient.Fetch(ctx, "", depth, false)
+			}
+		case depth > 0:
+			err = gitClient.Fetch(ctx, revision, depth, false)
+		default:
 			// Fetching with no revision first. Fetching with an explicit version can cause repo bloat. https://github.com/argoproj/argo-cd/issues/8845
-			err = gitClient.Fetch(ctx, "", depth)
+			err = gitClient.Fetch(ctx, "", depth, false)
 		}
 
 		if err != nil {
 			return status.Errorf(codes.Internal, "Failed to fetch default: %v", err)
+		}
+	}
+
+	// For partial clone repos, pre-fetch blobs for sparse paths in a single batch request
+	// before checkout. Without this, git checkout lazy-fetches blobs individually which is
+	// extremely slow (100+ seconds for directories with many files).
+	if useSparse {
+		if prefetchErr := gitClient.FetchSparseBlobs(revision, sparsePaths); prefetchErr != nil {
+			log.Warnf("Sparse blob pre-fetch failed (checkout will still work via lazy fetch): %v", prefetchErr)
 		}
 	}
 
@@ -3092,7 +3219,12 @@ func checkoutRevision(ctx context.Context, gitClient git.Client, revision string
 		// for the given revision, try explicitly fetching it.
 		log.Infof("Failed to checkout revision %s: %v", revision, err)
 		log.Infof("Fallback to fetching specific revision %s. ref might not have been in the default refspec fetched.", revision)
-		err = gitClient.Fetch(ctx, revision, depth)
+
+		if useSparse {
+			err = gitClient.Fetch(ctx, revision, depth, true)
+		} else {
+			err = gitClient.Fetch(ctx, revision, depth, false)
+		}
 		if err != nil {
 			return status.Errorf(codes.Internal, "Failed to checkout revision %s: %v", revision, err)
 		}
@@ -3225,8 +3357,13 @@ func (s *Service) GetGitFiles(ctx context.Context, request *apiclient.GitFilesRe
 		return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
 	}
 
+	var pathsSHA string
+	if len(repo.SparsePaths) > 0 {
+		pathsSHA = git.ComputePathHash(repo.SparsePaths)
+	}
+
 	// check the cache and return the results if present
-	if cachedFiles, err := s.cache.GetGitFiles(repo.Repo, revision, gitPath); err == nil {
+	if cachedFiles, err := s.cache.GetGitFiles(repo.Repo, revision, pathsSHA, gitPath); err == nil {
 		log.Debugf("cache hit for repo: %s revision: %s pattern: %s", repo.Repo, revision, gitPath)
 		return &apiclient.GitFilesResponse{
 			Map: cachedFiles,
@@ -3238,7 +3375,7 @@ func (s *Service) GetGitFiles(ctx context.Context, request *apiclient.GitFilesRe
 
 	// cache miss, generate the results
 	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func(clean bool) (goio.Closer, error) {
-		return s.checkoutRevision(ctx, gitClient, revision, request.GetSubmoduleEnabled(), repo.Depth, clean)
+		return s.checkoutRevision(ctx, gitClient, revision, request.GetSubmoduleEnabled(), repo.Depth, repo.SparsePaths, clean)
 	})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s pattern %s: %v", repo.Repo, revision, gitPath, err)
@@ -3274,7 +3411,7 @@ func (s *Service) GetGitFiles(ctx context.Context, request *apiclient.GitFilesRe
 		res[filePath] = fileContents
 	}
 
-	err = s.cache.SetGitFiles(repo.Repo, revision, gitPath, res)
+	err = s.cache.SetGitFiles(repo.Repo, revision, pathsSHA, gitPath, res)
 	if err != nil {
 		log.Warnf("error caching git files for repo %s with revision %s pattern %s: %v", repo.Repo, revision, gitPath, err)
 	}
@@ -3297,8 +3434,13 @@ func (s *Service) GetGitDirectories(ctx context.Context, request *apiclient.GitD
 		return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
 	}
 
+	var pathsSHA string
+	if len(repo.SparsePaths) > 0 {
+		pathsSHA = git.ComputePathHash(repo.SparsePaths)
+	}
+
 	// check the cache and return the results if present
-	if cachedPaths, err := s.cache.GetGitDirectories(repo.Repo, revision); err == nil {
+	if cachedPaths, err := s.cache.GetGitDirectories(repo.Repo, revision, pathsSHA); err == nil {
 		log.Debugf("cache hit for repo: %s revision: %s", repo.Repo, revision)
 		return &apiclient.GitDirectoriesResponse{
 			Paths: cachedPaths,
@@ -3310,7 +3452,7 @@ func (s *Service) GetGitDirectories(ctx context.Context, request *apiclient.GitD
 
 	// cache miss, generate the results
 	closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func(clean bool) (goio.Closer, error) {
-		return s.checkoutRevision(ctx, gitClient, revision, request.GetSubmoduleEnabled(), repo.Depth, clean)
+		return s.checkoutRevision(ctx, gitClient, revision, request.GetSubmoduleEnabled(), repo.Depth, repo.SparsePaths, clean)
 	})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
@@ -3362,7 +3504,7 @@ func (s *Service) GetGitDirectories(ctx context.Context, request *apiclient.GitD
 	}
 
 	log.Debugf("found %d git paths from %s", len(paths), repo.Repo)
-	err = s.cache.SetGitDirectories(repo.Repo, revision, paths)
+	err = s.cache.SetGitDirectories(repo.Repo, revision, pathsSHA, paths)
 	if err != nil {
 		log.Warnf("error caching git directories for repo %s with revision %s: %v", repo.Repo, revision, err)
 	}
@@ -3405,14 +3547,14 @@ func (s *Service) gitSourceHasChanges(ctx context.Context, repo *v1alpha1.Reposi
 		defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
 
 		closer, err := s.repoLock.Lock(gitClient.Root(), revision, true, func(clean bool) (goio.Closer, error) {
-			return s.checkoutRevision(ctx, gitClient, revision, false, repo.Depth, clean)
+			return s.checkoutRevision(ctx, gitClient, revision, false, repo.Depth, repo.SparsePaths, clean)
 		})
 		if err != nil {
 			return files, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
 		}
 		defer utilio.Close(closer)
 
-		if err := s.fetch(ctx, gitClient, []string{syncedRevision}, repo.Depth); err != nil {
+		if err := s.fetch(ctx, gitClient, []string{syncedRevision}, repo.Depth, len(repo.SparsePaths) > 0); err != nil {
 			return files, status.Errorf(codes.Internal, "unable to fetch git repo %s with syncedRevisions %s: %v", repo.Repo, syncedRevision, err)
 		}
 
@@ -3607,7 +3749,7 @@ func (s *Service) updateCachedRevision(logCtx *log.Entry, oldRev string, newRev 
 }
 
 func getManifestCacheKeyFromUpdateRevisionRequest(request *apiclient.UpdateRevisionForPathsRequest, revision string, refSourceCommitSHAs cache.ResolvedRevisions) cache.ManifestKey {
-	return cache.ManifestKey{
+	key := cache.ManifestKey{
 		Revision:            revision,
 		AppSource:           request.ApplicationSource,
 		RefSources:          request.RefSources,
@@ -3619,6 +3761,10 @@ func getManifestCacheKeyFromUpdateRevisionRequest(request *apiclient.UpdateRevis
 		RefSourceCommitSHAs: refSourceCommitSHAs,
 		InstallationID:      request.InstallationID,
 	}
+	if repo := request.GetRepo(); repo != nil {
+		key.SparsePaths = repo.SparsePaths
+	}
+	return key
 }
 
 func (s *Service) ociClientStandardOpts() []oci.ClientOpts {
