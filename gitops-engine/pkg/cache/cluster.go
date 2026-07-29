@@ -1137,7 +1137,13 @@ func (c *clusterCache) checkNamespacePermission(ctx context.Context, reviewInter
 	if err != nil {
 		return false, fmt.Errorf("failed to create self subject access review: %w", err)
 	}
-	return resp != nil && resp.Status.Allowed, nil
+	if resp == nil {
+		return false, fmt.Errorf("SSAR returned nil response for %s in namespace %q", api.GroupKind, namespace)
+	}
+	if resp.Status.Allowed {
+		return true, nil
+	}
+	return false, nil
 }
 
 func (c *clusterCache) recordSkippedNamespace(ns string, gk schema.GroupKind) {
