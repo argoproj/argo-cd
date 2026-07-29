@@ -74,7 +74,7 @@ func (s *Server) Create(_ context.Context, q *session.SessionCreateRequest) (*se
 		s.mgr.IncLoginRequestCounter(failure)
 		return nil, err
 	}
-	if s.policyEnf.GetPreventLoginWithoutPermissions() {
+	if s.policyEnf != nil && s.policyEnf.GetPreventLoginWithoutPermissions() {
 		if !s.policyEnf.UserHasAnyPermission(q.Username, nil) {
 			s.mgr.IncLoginRequestCounter(failure)
 			return nil, status.Errorf(codes.PermissionDenied,
@@ -113,13 +113,17 @@ func (s *Server) GetUserInfo(ctx context.Context, _ *session.GetUserInfoRequest)
 	loggedIn := sessionmgr.LoggedIn(ctx)
 	username := sessionmgr.Username(ctx)
 	iss := sessionmgr.Iss(ctx)
-	groups := sessionmgr.Groups(ctx, s.policyEnf.GetScopes())
+	var scopes []string
+	if s.policyEnf != nil {
+		scopes = s.policyEnf.GetScopes()
+	}
+	groups := sessionmgr.Groups(ctx, scopes)
 
 	// For SSO users the permission check cannot happen at login time (there is no
 	// local Create call), so enforce it here on every request.  Local users are
 	// already checked once inside Create, so skipping here avoids the casbin
 	// lookup on every page navigation for the common case.
-	if loggedIn && iss != sessionmgr.SessionManagerClaimsIssuer {
+	if loggedIn && iss != sessionmgr.SessionManagerClaimsIssuer && s.policyEnf != nil {
 		if s.policyEnf.GetPreventLoginWithoutPermissions() {
 			if !s.policyEnf.UserHasAnyPermission(username, groups) {
 				return nil, status.Errorf(codes.PermissionDenied,
