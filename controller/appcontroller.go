@@ -1588,6 +1588,17 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 				extraMsg += " with latest revisions"
 				state.Operation.Sync.Revision = ""
 				state.Operation.Sync.Revisions = nil
+				// The source captured when the original sync started can be stale by the time we
+				// retry (e.g. an app-of-apps parent updated this Application's spec.source in the
+				// meantime). Reload it the same way autoSync does, so the retry doesn't reapply
+				// values that no longer match the current spec.
+				if state.Operation.Sync.Source != nil {
+					source := app.Spec.GetSource()
+					state.Operation.Sync.Source = &source
+				}
+				if state.Operation.Sync.Sources != nil {
+					state.Operation.Sync.Sources = app.Spec.Sources
+				}
 			}
 
 			// Get rid of sync results and null out previous operation completion time

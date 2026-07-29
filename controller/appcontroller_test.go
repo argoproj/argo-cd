@@ -2878,6 +2878,47 @@ func TestProcessRequestedAppOperation_FailedHasRetries(t *testing.T) {
 	assert.EqualValues(t, 1, patchedApp.Status.OperationState.RetryCount)
 }
 
+func TestProcessRequestedAppOperation_RetryRefreshUpdatesStaleSource(t *testing.T) {
+	failedAttemptFinisedAt := time.Now().Add(-time.Minute * 5)
+	app := newFakeApp()
+	staleSource := app.Spec.Source.DeepCopy()
+	staleSource.Helm = &v1alpha1.ApplicationSourceHelm{ReleaseName: "stale-release"}
+	app.Operation = &v1alpha1.Operation{
+		Sync: &v1alpha1.SyncOperation{
+			Source:   staleSource,
+			Revision: "stale-revision",
+		},
+		Retry: v1alpha1.RetryStrategy{Limit: 1, Refresh: true},
+	}
+	app.Status.OperationState.Operation = *app.Operation
+	app.Status.OperationState.Phase = synccommon.OperationRunning
+	app.Status.OperationState.RetryCount = 0
+	app.Status.OperationState.FinishedAt = &metav1.Time{Time: failedAttemptFinisedAt}
+	app.Status.OperationState.SyncResult.Resources = []*v1alpha1.ResourceResult{{
+		Name:   "guestbook",
+		Kind:   "Deployment",
+		Group:  "apps",
+		Status: synccommon.ResultCodeSyncFailed,
+	}}
+
+	// The parent Application updated this child's spec.source (e.g. a new Helm release name)
+	// after the original sync operation started but before the retry fires.
+	app.Spec.Source.Helm = &v1alpha1.ApplicationSourceHelm{ReleaseName: "current-release"}
+
+	data := &fakeData{apps: []runtime.Object{app, &defaultProj}}
+	ctrl := newFakeController(t.Context(), data, nil)
+
+	ctrl.processRequestedAppOperation(app)
+
+	patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, patchedApp.Status.OperationState)
+	require.NotNil(t, patchedApp.Status.OperationState.Operation.Sync)
+	assert.Empty(t, patchedApp.Status.OperationState.Operation.Sync.Revision, "revision should be cleared so the latest one is used")
+	require.NotNil(t, patchedApp.Status.OperationState.Operation.Sync.Source, "source should not be dropped")
+	assert.Equal(t, "current-release", patchedApp.Status.OperationState.Operation.Sync.Source.Helm.ReleaseName, "retry with refresh must reload the current spec.source, not reuse the stale one captured at the original sync")
+}
+
 func TestProcessRequestedAppOperation_RunningPreviouslyFailed(t *testing.T) {
 	failedAttemptFinisedAt := time.Now().Add(-time.Minute * 5)
 	app := newFakeApp()
