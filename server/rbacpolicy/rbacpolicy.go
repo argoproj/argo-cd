@@ -1,6 +1,9 @@
 package rbacpolicy
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
 	"slices"
 	"sort"
 	"strings"
@@ -10,6 +13,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	applister "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
@@ -167,6 +171,10 @@ func (p *Enforcer) UserHasAnyPermission(username string, groups []string) bool {
 }
 
 func (p *Enforcer) userHasAnyPermissionUncached(username string, groups []string) bool {
+	// The built-in admin is a superuser and is never subject to this check.
+	if username == common.ArgoCDAdminUsername {
+		return true
+	}
 	if defaultRole := p.enf.GetDefaultRole(); defaultRole != "" {
 		if p.enf.HasAnyAllowPermission(defaultRole) {
 			return true
@@ -183,7 +191,10 @@ func permCheckCacheKey(username string, groups []string) string {
 	sorted := make([]string, len(groups))
 	copy(sorted, groups)
 	sort.Strings(sorted)
-	return "rbac|perm-check|" + username + "|" + strings.Join(sorted, ",")
+
+	h := sha256.New()
+	fmt.Fprintf(h, "%q", append([]string{username}, sorted...))
+	return "rbac|perm-check|" + hex.EncodeToString(h.Sum(nil))
 }
 
 // GetPreventLoginWithoutPermissions returns the flag value from the RBAC configmap.

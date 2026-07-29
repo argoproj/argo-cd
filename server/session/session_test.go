@@ -85,13 +85,13 @@ func TestCreate_PreventLoginWithoutPermissions(t *testing.T) {
 			wantCode:     codes.OK,
 		},
 		{
-			name:         "flag enabled, no permissions — login blocked",
+			name:         "flag enabled, admin no explicit policy — login allowed (admin is superuser)",
 			preventLogin: true,
 			userPolicy:   "",
-			wantCode:     codes.PermissionDenied,
+			wantCode:     codes.OK,
 		},
 		{
-			name:         "flag enabled, user has permissions — login allowed",
+			name:         "flag enabled, admin has explicit permissions — login allowed",
 			preventLogin: true,
 			userPolicy:   "p, admin, applications, get, *, allow",
 			wantCode:     codes.OK,
