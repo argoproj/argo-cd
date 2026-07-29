@@ -96,6 +96,7 @@ type ArgoCDWebhookHandler struct {
 	appNs                         []string
 	appClientset                  appclientset.Interface
 	appsLister                    alpha1.ApplicationLister
+	appProjectsLister             alpha1.AppProjectNamespaceLister
 	parsers                       []Extractor
 	settings                      *settings.ArgoCDSettings
 	settingsSrc                   settingsSource
@@ -106,7 +107,7 @@ type ArgoCDWebhookHandler struct {
 	webhookRefreshJitterThreshold int
 }
 
-func NewHandler(namespace string, applicationNamespaces []string, webhookParallelism int, webhookRefreshWorkers int, appClientset appclientset.Interface, appsLister alpha1.ApplicationLister, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB, maxWebhookPayloadSizeB int64, webhookRefreshJitter time.Duration, webhookRefreshJitterThreshold int) *ArgoCDWebhookHandler {
+func NewHandler(namespace string, applicationNamespaces []string, webhookParallelism int, webhookRefreshWorkers int, appClientset appclientset.Interface, appsLister alpha1.ApplicationLister, set *settings.ArgoCDSettings, settingsSrc settingsSource, repoCache *cache.Cache, serverCache *servercache.Cache, argoDB db.ArgoDB, maxWebhookPayloadSizeB int64, webhookRefreshJitter time.Duration, webhookRefreshJitterThreshold int, appProjectsLister alpha1.AppProjectNamespaceLister) *ArgoCDWebhookHandler {
 	githubWebhook, err := github.New(github.Options.Secret(set.GetWebhookGitHubSecret()))
 	if err != nil {
 		log.Warnf("Unable to init the GitHub webhook")
@@ -172,6 +173,7 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 		refreshQueue:                  workqueue.NewTypedDelayingQueue[*appRefreshRequest](),
 		maxWebhookPayloadSizeB:        maxWebhookPayloadSizeB,
 		appsLister:                    appsLister,
+		appProjectsLister:             appProjectsLister,
 		webhookRefreshJitter:          webhookRefreshJitter,
 		webhookRefreshJitterThreshold: webhookRefreshJitterThreshold,
 	}
@@ -589,6 +591,16 @@ func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Appl
 		return fmt.Errorf("error validating destination: %w", err)
 	}
 
+	var sourceIntegrity *v1alpha1.SourceIntegrity
+
+	if app.Spec.Project != "" {
+		proj, err := a.appProjectsLister.Get(app.Spec.Project)
+		if err != nil {
+			return err
+		}
+		sourceIntegrity = proj.EffectiveSourceIntegrity()
+	}
+
 	var clusterInfo v1alpha1.ClusterInfo
 	err = a.serverCache.GetClusterInfo(destCluster.Server, &clusterInfo)
 	if err != nil {
@@ -607,17 +619,24 @@ func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Appl
 		return fmt.Errorf("error getting ref sources: %w", err)
 	}
 
-	oldManifestKey := cache.ManifestKey{
-		Revision:       change.shaBefore,
-		AppSource:      &source,
-		RefSources:     refSources,
-		ClusterInfo:    &clusterInfo,
-		Namespace:      app.Spec.Destination.Namespace,
-		TrackingMethod: trackingMethod,
-		AppLabelKey:    appInstanceLabelKey,
-		AppName:        app.Name,
-		InstallationID: installationID,
+	if len(refSources) != 0 {
+		// TODO: need to support multi source (calculate refSourceCommitSHAs for SetNewRevisionManifests)
+		return errors.New("moving manifest cache is currently not supported for multi-source applications")
 	}
+
+	oldManifestKey := cache.NewManifestKey(
+		change.shaBefore,
+		&source,
+		refSources,
+		app.Spec.Destination.Namespace,
+		trackingMethod,
+		appInstanceLabelKey,
+		app.Name,
+		installationID,
+		sourceIntegrity,
+		&clusterInfo,
+		nil,
+	)
 	cache.LogDebugManifestCacheKeyFields("moving manifests cache", "webhook app revision changed", oldManifestKey)
 
 	newManifestKey := oldManifestKey
