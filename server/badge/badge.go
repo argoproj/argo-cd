@@ -136,14 +136,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			health = app.Status.Health.Status
 			status = app.Status.Sync.Status
 			applicationName = name[0]
-			if app.Status.OperationState != nil {
+			if app.Status.OperationState != nil && app.Status.OperationState.SyncResult != nil {
 				syncFinishedAt = app.Status.OperationState.FinishedAt
-				if app.Status.OperationState.SyncResult != nil {
-					if len(app.Status.OperationState.SyncResult.Revisions) > 0 {
-						revision = app.Status.OperationState.SyncResult.Revisions[0]
-					} else {
-						revision = app.Status.OperationState.SyncResult.Revision
-					}
+				if len(app.Status.OperationState.SyncResult.Revisions) > 0 {
+					revision = app.Status.OperationState.SyncResult.Revisions[0]
+				} else {
+					revision = app.Status.OperationState.SyncResult.Revision
 				}
 			}
 		} else if errors.IsNotFound(err) {

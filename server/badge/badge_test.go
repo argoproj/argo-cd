@@ -572,6 +572,27 @@ func TestHandlerShowLastSyncTimeIsEnabledNoOperationState(t *testing.T) {
 	assert.Equal(t, strconv.Itoa(svgWidthWithoutRevision), svgWidthPattern.FindStringSubmatch(response)[1])
 }
 
+func TestHandlerShowLastSyncTimeIsEnabledNoSyncResult(t *testing.T) {
+	t.Parallel()
+	finishedAt := metav1.NewTime(time.Now().Add(-2 * time.Hour))
+	app := testApp()
+	app.Status.OperationState.SyncResult = nil
+	app.Status.OperationState.FinishedAt = &finishedAt
+
+	settingsMgr := settings.NewSettingsManager(t.Context(), fake.NewClientset(argoCDCm(), argoCDSecret()), "default")
+	handler := NewHandler(appclientset.NewSimpleClientset(app), settingsMgr, "default", []string{})
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/api/badge?name=test-app&showLastSyncTime=true", http.NoBody)
+	require.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	// An operation that finished without producing a sync result must not show a sync time
+	response := rr.Body.String()
+	assert.Equal(t, "Synced", rightTextPattern.FindStringSubmatch(response)[1])
+	assert.Equal(t, strconv.Itoa(svgWidthWithoutRevision), svgWidthPattern.FindStringSubmatch(response)[1])
+}
+
 func TestHandlerRevisionIsEnabledShortCommitSHA(t *testing.T) {
 	t.Parallel()
 	app := testApp()
