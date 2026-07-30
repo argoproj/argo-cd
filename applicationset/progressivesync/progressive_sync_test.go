@@ -1604,7 +1604,6 @@ func TestIsRollingSyncDeletionReversed(t *testing.T) {
 	}
 }
 
-
 func TestGetLatestWaitingTransitionTimeOfAppset(t *testing.T) {
 	now := metav1.Now()
 	earlierTime := metav1.NewTime(now.Add(-5 * time.Minute))
@@ -2285,6 +2284,7 @@ func TestAddRefreshAnnotationToApplications(t *testing.T) {
 			}
 		})
 	}
+}
 
 // TestPerformReverseDeletionStaleCache reproduces the "ApplicationSet stuck in Deleting" bug.
 //

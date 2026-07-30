@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 	argoutil "github.com/argoproj/argo-cd/v3/util/argo"
 
@@ -664,13 +663,14 @@ func (m *Manager) ensureApplicationsReconciled(logCtx *log.Entry, appset *argov1
 	}
 
 	// add refresh annotations to trigger reconciliation
-	logCtx.Info("Applications have pending changes, adding refresh annotations to Applications to trigger reconciliation")
 	err := m.addRefreshAnnotationToApplications(logCtx, appsNeedReconcile)
 	if err != nil {
 		return false, fmt.Errorf("failed to add refresh annotations: %w", err)
 	}
 
-	logCtx.Info("Refresh annotations added to all applications, waiting for application controller to reconcile them")
+	if len(appsNeedReconcile) > 0 {
+		logCtx.Info(fmt.Sprintf("Finished adding refresh annotations to %s, waiting for application controller to reconcile them", appsNeedReconcile))
+	}
 	return false, nil
 }
 

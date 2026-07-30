@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"k8s.io/utils/ptr"
 	"os"
 	"testing"
 	"time"
@@ -546,12 +547,11 @@ func TestProgressiveSyncRefreshAnnotationOnRevisionChange(t *testing.T) {
 		Expect(ApplicationsExist(expectedApps)).
 		// Wait for all apps Synced on revisionA
 		ExpectWithDuration(CheckProgressiveSyncStatusCodeOfApplications(expectAllHealthy), TransitionTimeout*3).
-		Expect(ApplicationsLastTransitionTime(expectedOrder)).
+		Expect(ApplicationsTransitionInOrder(expectedOrder)).
 		When().
 		AddAppAnnotation("refresh-dev-app1", common.AnnotationKeyAppSkipReconcile, "true").
 		And(func() {
-			now := metav1.Now()
-			changeTime = &now
+			changeTime = ptr.To(metav1.Now())
 			t.Log("Updating targetRevision to new revision by patching git")
 			fixture.Patch(t, "progressive-sync/updateRevision/deployment.yaml", `[{"op": "replace", "path": "/spec/replicas", "value": 3}]`)
 			t.Log("Git revision changed to revisionB")
@@ -560,7 +560,7 @@ func TestProgressiveSyncRefreshAnnotationOnRevisionChange(t *testing.T) {
 		// Since applications were already healthy, before checking the progressive sync status of all applications, check if all applications were reconciled after changeTime
 		// ensureApplicationsReconciled adds refresh annotations to applications, but processing that annotation happens asynchronously by app controller and thus difficult to check deterministically in e2e tests
 		ExpectWithDuration(CheckApplicationsReconciledAfter([]string{"refresh-prod-app3", "refresh-staging-app2"}, changeTime), TransitionTimeout*4).
-		Expect(CheckApplicationsNotReconciledAfter([]string{"refresh-dev-app1"}, changeTime)).                               // Check application with skip-reconcile was not reconciled
+		Expect(CheckApplicationsNotReconciledAfter([]string{"refresh-dev-app1"}, changeTime)). // Check application with skip-reconcile was not reconciled
 		ExpectWithDuration(CheckProgressiveSyncStatusCodeOfApplications(expectProgressiveSyncBlocked), TransitionTimeout*3). // This ensures that applications do not sync out of order
 		Expect(AppsTransitionedAfter([]string{"refresh-prod-app3", "refresh-staging-app2"}, changeTime)).
 		// removing the skip reconcile, apps allowed to sync
@@ -573,7 +573,7 @@ func TestProgressiveSyncRefreshAnnotationOnRevisionChange(t *testing.T) {
 		Then().
 		ExpectWithDuration(CheckProgressiveSyncStatusCodeOfApplications(expectAllHealthy), TransitionTimeout*3).
 		Expect(AppsTransitionedAfter([]string{"refresh-dev-app1", "refresh-prod-app3", "refresh-staging-app2"}, changeTime)).
-		Expect(ApplicationsLastTransitionTime(expectedOrder)).
+		Expect(ApplicationsTransitionInOrder(expectedOrder)).
 		// Cleanup
 		When().
 		Delete(metav1.DeletePropagationForeground).

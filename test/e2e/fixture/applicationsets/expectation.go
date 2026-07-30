@@ -151,24 +151,12 @@ func ApplicationsDoNotExist(expectedApps []v1alpha1.Application) Expectation {
 	}
 }
 
-// ApplicationsLastTransitionTime sorts the application in appset's ApplicationSetApplicationStatus by LastTransitionTime and compares it to be in expectedOrder
-func ApplicationsLastTransitionTime(expectedOrderApps []string) Expectation {
+// ApplicationsTransitionInOrder sorts the application in appset's ApplicationSetApplicationStatus by LastTransitionTime and compares it to be in expectedOrder
+func ApplicationsTransitionInOrder(expectedOrderApps []string) Expectation {
 	return func(c *Consequences) (state, string) {
 		foundAppsetStatus := c.applicationSet(c.context.GetName()).Status.ApplicationStatus
 		slices.SortFunc(foundAppsetStatus, func(a, b v1alpha1.ApplicationSetApplicationStatus) int {
-			//-1 if a less than b
-			if a.LastTransitionTime.Before(b.LastTransitionTime) {
-				return -1
-			}
-			if a.LastTransitionTime.Equal(b.LastTransitionTime) {
-				return 0
-			}
-			// note the parameters are reversed here, this checks if a is after b ; After() has a different syntax, does not expect a pointer
-			if b.LastTransitionTime.Before(a.LastTransitionTime) {
-				return 1
-			}
-			// SortFunc requires to return zero for incomparable items
-			return 0
+			return a.LastTransitionTime.Compare(b.LastTransitionTime.Time)
 		})
 		for i, expectedappName := range expectedOrderApps {
 			appName := foundAppsetStatus[i].Application
