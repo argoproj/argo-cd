@@ -3459,21 +3459,28 @@ func (s *Service) UpdateRevisionForPaths(ctx context.Context, request *apiclient
 	if repo == nil {
 		return nil, status.Error(codes.InvalidArgument, "must pass a valid repo")
 	}
-	// Normalize the repository in the request to ensure all fields are correctly set
-	repo = repo.Normalize()
+	// Determine whether the main source is a git source. An unset repository type must
+	// not be assumed to be git: an untyped Helm or OCI chart source would then have its
+	// revision resolved against the chart repository URL as if it were a git repo and
+	// fail with "repository not found" (issue #28890). When the type is unset, fall back
+	// to the application source type.
+	isGitSource := repo.Type == "git"
+	if repo.Type == "" {
+		isGitSource = request.ApplicationSource == nil || (!request.ApplicationSource.IsHelm() && !request.ApplicationSource.IsOCI())
+	}
 
 	if len(refreshPaths) == 0 {
 		// Always refresh if path is not specified
 		return &apiclient.UpdateRevisionForPathsResponse{Changes: true}, nil
 	}
 
-	if repo.Type != "git" && len(request.RefSources) == 0 {
+	if !isGitSource && len(request.RefSources) == 0 {
 		return &apiclient.UpdateRevisionForPathsResponse{}, nil
 	}
 
 	gitClientOpts := git.WithCache(s.cache, !request.NoRevisionCache)
 
-	if repo.Type == "git" {
+	if isGitSource {
 		if request.SyncedRevision != request.Revision {
 			resolvedRevision, syncedRevision, sourceHasChanges, err := s.gitSourceHasChanges(ctx, request.Repo, request.Revision, request.SyncedRevision, refreshPaths, gitClientOpts)
 			if err != nil {
