@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"math"
 	"slices"
 	"sort"
 	"strings"
@@ -219,14 +218,7 @@ func (p *Enforcer) hasAnyProjectPermission(username string, groups []string) boo
 	if err != nil {
 		return false
 	}
-	// Guard against integer overflow: in practice groups will never be near math.MaxInt,
-	// but CodeQL flags unchecked additions used in allocation sizes.
-	if len(groups) == math.MaxInt {
-		return false
-	}
-	subjects := make([]string, 1+len(groups))
-	subjects[0] = username
-	copy(subjects[1:], groups)
+	subjects := append([]string{username}, groups...)
 	for _, proj := range projects {
 		policy := proj.ProjectPoliciesString()
 		if policy == "" {
