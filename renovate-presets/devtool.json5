@@ -63,6 +63,16 @@
       "enabled": true
     },
     {
+      "description": "Enable updates of the Renovate action itself. Every other GitHub action is left to dependabot, which ignores this one (see .github/dependabot.yml), so that the action and the Renovate image it runs are bumped by the same tool.",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchPackageNames": [
+        "renovatebot/github-action"
+      ],
+      "enabled": true
+    },
+    {
       "description": "Disable digest-only docker updates; refresh digests when the image tag changes",
       "matchDatasources": [
         "docker"
@@ -127,6 +137,15 @@
       "matchPackageNames": [
         "docker.io/library/ubuntu"
       ]
+    },
+    {
+      "description": "Group the Renovate action with the Renovate image it runs, so the pair is not split across two PRs. `separateMajorMinor` is off to keep it a single PR even when one of them has a major update available and the second does not.",
+      "groupName": "group renovate",
+      "matchPackageNames": [
+        "renovatebot/github-action",
+        "ghcr.io/renovatebot/renovate"
+      ],
+      "separateMajorMinor": false
     },
     {
       "description": "Example to reduce noise with the automerge features.",

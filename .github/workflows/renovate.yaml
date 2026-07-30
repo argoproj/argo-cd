@@ -66,17 +66,21 @@ jobs:
         with:
           persist-credentials: false
 
-      # The action runs `docker run <renovate-image>:<renovate-version>`, so pinning
-      # `renovate-version` to `<tag>@sha256:<digest>` gives a fully pinned image
-      # reference instead of the floating major tag the action defaults to.
-      # Both the tag and the digest are kept up to date by the custom manager in
-      # renovate-presets/custom-managers/renovate-action.json5, which expects
-      # `renovate-image` and `renovate-version` to stay on adjacent lines.
+      # Unlike every other action here, the `uses:` pin below is managed by Renovate
+      # rather than dependabot, so its update will be grouped into the same PR
+      # as the image (below).
       - name: Self-hosted Renovate
         uses: renovatebot/github-action@1a96852b0384df1837619d04c60b2d10d1f9ff08 # v46.1.21
         with:
           configurationFile: .github/configs/renovate-config.js
           token: '${{ steps.get_token.outputs.token }}'
+          # The action runs `docker run <renovate-image>:<renovate-version>`, so pinning
+          # `renovate-version` to `<tag>@sha256:<digest>` gives a fully pinned image
+          # reference instead of the floating major tag the action defaults to.
+          #
+          # Both the tag and the digest are kept up to date by the custom manager in
+          # renovate-presets/custom-managers/renovate-action.json5, which expects
+          # `renovate-image` and `renovate-version` to stay on adjacent lines.
           renovate-image: "ghcr.io/renovatebot/renovate"
           renovate-version: "43.91.5@sha256:5dfeab680f40edd2713b8fcae574824e60d2c831b8d89cc965e51621894c7084"
         env:
