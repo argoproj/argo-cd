@@ -5527,6 +5527,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 			},
 		}, want: &apiclient.UpdateRevisionForPathsResponse{
 			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0",
+			Changes:  false,
 		}, wantErr: assert.NoError, cacheCallCount: &repositorymocks.CacheCallCounts{
 			ExternalRenames: 0,
 			ExternalGets:    0,
