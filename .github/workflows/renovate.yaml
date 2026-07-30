@@ -15,7 +15,7 @@ jobs:
   renovate:
     name: Run Renovate
     runs-on: ubuntu-24.04
-    if: github.repository == 'argoproj/argo-cd'
+    if: github.repository == 'dudinea/argo-cd'
     steps:
       - name: Harden the runner (Block unknown outbound calls)
         if: ${{ vars.disable_harden_runner != 'true' }}
