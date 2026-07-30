@@ -57,7 +57,8 @@
         "docker.io/library/registry",
         "docker.io/library/ubuntu",
         "docker.io/bitnamilegacy/kubectl",
-        "docker.io/library/busybox"
+        "docker.io/library/busybox",
+        "ghcr.io/renovatebot/renovate"
       ],
       "enabled": true
     },
