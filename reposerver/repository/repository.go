@@ -3466,7 +3466,8 @@ func (s *Service) UpdateRevisionForPaths(ctx context.Context, request *apiclient
 	// to the application source type.
 	isGitSource := repo.Type == "git"
 	if repo.Type == "" {
-		isGitSource = request.ApplicationSource == nil || (!request.ApplicationSource.IsHelm() && !request.ApplicationSource.IsOCI())
+		repoIsOCI := strings.HasPrefix(repo.Repo, ociPrefix)
+		isGitSource = !repoIsOCI && (request.ApplicationSource == nil || (!request.ApplicationSource.IsHelm() && !request.ApplicationSource.IsOCI()))
 	}
 
 	if len(refreshPaths) == 0 {
