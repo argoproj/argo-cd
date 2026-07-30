@@ -916,7 +916,7 @@ func (server *ArgoCDServer) rbacPolicyLoader(ctx context.Context) {
 		}
 
 		server.policyEnforcer.SetScopes(scopes)
-		server.policyEnforcer.FlushPermCheckCache()
+		server.policyEnforcer.FlushPermCheckCache(cm.ResourceVersion)
 		return nil
 	})
 	errorsutil.CheckError(err)

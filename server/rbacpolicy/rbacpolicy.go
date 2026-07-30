@@ -4,11 +4,14 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"math"
 	"slices"
 	"sort"
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
@@ -29,7 +32,7 @@ const PermCheckCacheTTL = 60 * time.Second
 
 // permCheckEntry is the value stored in the permission-check Redis cache.
 type permCheckEntry struct {
-	Epoch   uint64 `json:"e"`
+	Epoch   string `json:"e"`
 	Allowed bool   `json:"a"`
 }
 
@@ -41,16 +44,21 @@ type Enforcer struct {
 	projLister  applister.AppProjectNamespaceLister
 	scopes      []string
 	permCache   *cacheutil.Cache
-	policyEpoch atomic.Uint64
+	policyEpoch atomic.Value // stores a string: the RBAC ConfigMap resourceVersion (or a boot UUID before the first CM load)
 }
 
 // NewRBACPolicyEnforcer returns a new RBAC Enforcer for the Argo CD API Server
 func NewRBACPolicyEnforcer(enf *rbac.Enforcer, projLister applister.AppProjectNamespaceLister) *Enforcer {
-	return &Enforcer{
+	e := &Enforcer{
 		enf:        enf,
 		projLister: projLister,
 		scopes:     nil,
 	}
+	// Seed the epoch with a random boot-unique value so that Redis entries written by a
+	// previous process instance are never treated as valid cache hits on restart, even
+	// before the first ConfigMap load supplies a resourceVersion.
+	e.policyEpoch.Store(uuid.New().String())
+	return e
 }
 
 // SetPermCheckCache wires up a Redis-backed cache for UserHasAnyPermission results.
@@ -59,20 +67,18 @@ func (p *Enforcer) SetPermCheckCache(c *cacheutil.Cache) {
 	p.permCache = c
 }
 
-// FlushPermCheckCache invalidates all cached permission-check results by advancing
-// the policy epoch. Call this whenever the RBAC policy changes.
+// FlushPermCheckCache invalidates all cached permission-check results by updating the policy epoch
+// to the RBAC ConfigMap's resourceVersion. Call this whenever the RBAC policy changes.
 //
-// NOTE — policyEpoch is a per-instance atomic counter that starts at 0 after every restart. In a multi-instance
-// deployment each instance maintains its own independent counter, so two or more instances can have identical epoch
-// values at different points in time.
-// If a Redis entry written by a previous epoch happens to share the same numeric value as the current epoch,
-// the stale entry will be served as a cache hit until it expires.
-// The 60-second TTL (PermCheckCacheTTL) is the safety net that bounds the maximum window during which a stale
-// result could be returned. This is an intentional and accepted trade-off: the collision window is short and bounded.
-// The other options would be a persistent counter, which is considered overengineering for such a case, or a global
-// cache flush on startup, which is also considered a complex approach.
-func (p *Enforcer) FlushPermCheckCache() {
-	p.policyEpoch.Add(1)
+// Using the ConfigMap's resourceVersion as the epoch makes the value globally unique across process
+// restarts and consistent across replicas: all instances converge to the same string as soon as they
+// observe the same ConfigMap version, so there is no epoch-collision window after a restart.
+// Before the first ConfigMap load the epoch is seeded with a per-process UUID (set in
+// NewRBACPolicyEnforcer) so that Redis entries from any previous process are immediately stale.
+func (p *Enforcer) FlushPermCheckCache(resourceVersion string) {
+	if resourceVersion != "" {
+		p.policyEpoch.Store(resourceVersion)
+	}
 }
 
 func (p *Enforcer) SetScopes(scopes []string) {
@@ -163,11 +169,12 @@ func (p *Enforcer) EnforceClaims(claims jwt.Claims, rvals ...any) bool {
 
 // UserHasAnyPermission returns true if the user (or any of their groups) has at least one 'allow' permission granted
 // by the current policy or the default role.
-// Results are cached in Redis (keyed by username+groups+policy epoch) to avoid a Casbin lookup on every GetUserInfo
-// call for SSO users.
+// Results are cached in Redis (keyed by username+groups) to avoid a Casbin lookup on every GetUserInfo
+// call for SSO users. Cache entries are validated against the current policy epoch (the RBAC ConfigMap
+// resourceVersion) stored inside the entry; a stale epoch causes a cache miss and a fresh Casbin lookup.
 func (p *Enforcer) UserHasAnyPermission(username string, groups []string) bool {
 	if p.permCache != nil {
-		epoch := p.policyEpoch.Load()
+		epoch, _ := p.policyEpoch.Load().(string)
 		key := permCheckCacheKey(username, groups)
 		var entry permCheckEntry
 		if err := p.permCache.GetItem(key, &entry); err == nil && entry.Epoch == epoch {
@@ -210,6 +217,11 @@ func (p *Enforcer) hasAnyProjectPermission(username string, groups []string) boo
 	}
 	projects, err := p.projLister.List(labels.Everything())
 	if err != nil {
+		return false
+	}
+	// Guard against integer overflow: in practice groups will never be near math.MaxInt,
+	// but CodeQL flags unchecked additions used in allocation sizes.
+	if len(groups) == math.MaxInt {
 		return false
 	}
 	subjects := make([]string, 1+len(groups))

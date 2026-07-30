@@ -125,7 +125,12 @@ func (s *Server) GetUserInfo(ctx context.Context, _ *session.GetUserInfoRequest)
 	// lookup on every page navigation for the common case.
 	if loggedIn && iss != sessionmgr.SessionManagerClaimsIssuer && s.policyEnf != nil {
 		if s.policyEnf.GetPreventLoginWithoutPermissions() {
-			if !s.policyEnf.UserHasAnyPermission(username, groups) {
+			// Use GetUserIdentifier instead of Username so that the subject passed to
+			// RBAC matches the identifier used by EnforceClaims (sub / federated_claims.user_id).
+			// Username() returns the email claim for SSO users, which can differ from the
+			// RBAC subject and would cause the check to incorrectly block or allow access.
+			rbacSubject := sessionmgr.GetUserIdentifier(ctx)
+			if !s.policyEnf.UserHasAnyPermission(rbacSubject, groups) {
 				return nil, status.Errorf(codes.PermissionDenied,
 					"account has no permissions. Contact your administrator.")
 			}
