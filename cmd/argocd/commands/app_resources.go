@@ -69,7 +69,7 @@ func NewApplicationGetResourceCommand(clientOpts *argocdclient.ClientOptions) *c
     argocd app get-resource my-app --kind Pod --resource-name my-app-pod --filter-fields status.podIP,status.hostIP`,
 	}
 
-	command.Run = func(c *cobra.Command, args []string) {
+	command.Run = cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 		ctx := c.Context()
 
 		if len(args) != 1 {
@@ -127,7 +127,7 @@ func NewApplicationGetResourceCommand(clientOpts *argocdclient.ClientOptions) *c
 		fetchedStr := strings.Join(resourceNames, ", ")
 		printManifests(&resources, len(filteredFields) > 0, resourceName == "", output)
 		log.Infof("Resources '%s' fetched", fetchedStr)
-	}
+	})
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Namespace of the application")
 	command.Flags().StringVar(&resourceName, "resource-name", "", "Name of resource, if none is included will output details of all resources with specified kind")
 	command.Flags().StringVar(&kind, "kind", "", "Kind of resource [REQUIRED]")
@@ -316,7 +316,7 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 	command.Flags().StringVar(&namespace, "namespace", "", "Namespace")
 	command.Flags().BoolVar(&all, "all", false, "Indicates whether to patch multiple matching of resources")
 	command.Flags().StringVar(&project, "project", "", `The name of the application's project - specifying this allows the command to report "not found" instead of "permission denied" if the app does not exist`)
-	command.Run = func(c *cobra.Command, args []string) {
+	command.Run = cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 		ctx := c.Context()
 
 		if len(args) != 1 {
@@ -352,7 +352,7 @@ func NewApplicationPatchResourceCommand(clientOpts *argocdclient.ClientOptions) 
 			errors.CheckError(err)
 			log.Infof("Resource '%s' patched", obj.GetName())
 		}
-	}
+	})
 
 	return command
 }
@@ -385,7 +385,7 @@ func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions)
 	command.Flags().BoolVar(&orphan, "orphan", false, "Indicates whether to orphan the dependents of the deleted resource")
 	command.Flags().BoolVar(&all, "all", false, "Indicates whether to patch multiple matching of resources")
 	command.Flags().StringVar(&project, "project", "", `The name of the application's project - specifying this allows the command to report "not found" instead of "permission denied" if the app does not exist`)
-	command.Run = func(c *cobra.Command, args []string) {
+	command.Run = cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 		ctx := c.Context()
 
 		if len(args) != 1 {
@@ -430,7 +430,7 @@ func NewApplicationDeleteResourceCommand(clientOpts *argocdclient.ClientOptions)
 				fmt.Printf("The command to delete %s/%s %s/%s was cancelled.\n", gvk.Group, gvk.Kind, obj.GetNamespace(), obj.GetName())
 			}
 		}
-	}
+	})
 
 	return command
 }
@@ -552,8 +552,7 @@ func NewApplicationListResourcesCommand(clientOpts *argocdclient.ClientOptions) 
   # Shows resource hierarchy with parent-child relationships including information about age, health and reason
   argocd app resources my-app --output tree=detailed
   		`),
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)

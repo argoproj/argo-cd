@@ -60,8 +60,7 @@ func newProjectWindowsToggleCommand(clientOpts *argocdclient.ClientOptions, use,
 		Short:   short,
 		Long:    long,
 		Example: example,
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) != 2 {
@@ -214,8 +213,7 @@ argocd proj windows add PROJECT \
     --manual-sync \
     --sync-overrun \
     --description "Ticket 123"`,
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) != 1 {
@@ -262,8 +260,7 @@ argocd proj windows delete default 0
 
 #Delete a sync window from a project (new-project) with ID 1
 argocd proj windows delete new-project 1`,
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) != 2 {
@@ -316,8 +313,7 @@ func NewProjectWindowsUpdateCommand(clientOpts *argocdclient.ClientOptions) *cob
 argocd proj windows update PROJECT ID \
     --schedule "0 20 * * *"
 `,
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) != 2 {
@@ -373,8 +369,7 @@ argocd proj windows list PROJECT -o yaml
 
 #List project windows info for a project name (test-project)
 argocd proj windows list test-project`,
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) != 1 {

@@ -59,8 +59,7 @@ argocd login cd.argoproj.io --sso
 
 # Configure direct access using Kubernetes API server
 argocd login cd.argoproj.io --core`,
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			var server string
