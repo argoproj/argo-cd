@@ -28,7 +28,7 @@ jobs:
           # still exits 0. The errors are supposed to be logged in the Renovate Dashboard.
           #
           # The apt mirrors are on port 80 on purpose: that is what
-          # the distro sources inside the Renovate image use, and apt
+          # the distro sources inside the Renovate image have, and apt
           # authenticates packages with GPG rather than TLS.
           allowed-endpoints: >
             github.com:443
@@ -47,8 +47,11 @@ jobs:
             get.helm.sh:443
             registry.npmjs.org:443
             archive.ubuntu.com:80
+            archive.ubuntu.com:443
             security.ubuntu.com:80
+            security.ubuntu.com:443
             deb.debian.org:80
+            deb.debian.org:443
 
       - name: Get token
         id: get_token
