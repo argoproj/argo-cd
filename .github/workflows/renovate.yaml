@@ -52,6 +52,7 @@ jobs:
             security.ubuntu.com:443
             deb.debian.org:80
             deb.debian.org:443
+            production.cloudfront.docker.com:443
 
       - name: Get token
         id: get_token
