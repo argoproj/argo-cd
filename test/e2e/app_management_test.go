@@ -583,6 +583,21 @@ func TestAppLabels(t *testing.T) {
 		Sync("-l", label)
 }
 
+func TestAppListFilterByChangedFiles(t *testing.T) {
+	ctx := Given(t)
+	ctx.
+		Path(guestbookPath).
+		When().
+		CreateApp().
+		Then().
+		And(func(_ *Application) {
+			// A changed file under the app's source path matches the app.
+			assert.Contains(t, errors.NewHandler(t).FailOnErr(fixture.RunCli("app", "list", "--file", guestbookPath+"/guestbook-ui-deployment.yaml")), ctx.GetName())
+			// A changed file outside the app's source path does not.
+			assert.NotContains(t, errors.NewHandler(t).FailOnErr(fixture.RunCli("app", "list", "--file", "some-other-path/deployment.yaml")), ctx.GetName())
+		})
+}
+
 func TestTrackAppStateAndSyncApp(t *testing.T) {
 	ctx := Given(t)
 	ctx.Path(guestbookPath).
