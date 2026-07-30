@@ -643,7 +643,7 @@ Supported values for `storage.type` in `dex.config`:
 #
 # Apply this manifest only when using:
 #
-#   dex.config:
+#   dex.config: |
 #     storage:
 #       type: kubernetes
 #
