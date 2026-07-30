@@ -1087,18 +1087,30 @@ func CreateTwoWayMergePatch(orig, new, dataStruct any) ([]byte, bool, error) {
 	return patch, string(patch) != "{}", nil
 }
 
-// HideSecretData replaces secret data & optional annotations values in specified target, live secrets and in last applied configuration of live secret with plus(+). Also preserves differences between
+// HideSecretData replaces secret data & optional annotations values in specified target, live secrets and in the last
+// applied configuration annotation of both the target and live secrets with plus(+). Also preserves differences between
 // target, live and last applied config values. E.g. if all three are equal the values would be replaced with same number of plus(+). If all are different then number of plus(+)
 // in replacement should be different.
+// If the last-applied-configuration annotation is present but cannot be parsed as JSON, its raw value may still embed
+// sensitive Secret material, so the whole annotation value is replaced with the placeholder (fail closed).
 func HideSecretData(target *unstructured.Unstructured, live *unstructured.Unstructured, hideAnnotations map[string]bool) (*unstructured.Unstructured, *unstructured.Unstructured, error) {
 	var liveLastAppliedAnnotation *unstructured.Unstructured
 	var targetLastAppliedAnnotation *unstructured.Unstructured
+	// liveLastAppliedInvalid/targetLastAppliedInvalid track the case where the
+	// last-applied-configuration annotation is present but cannot be parsed as JSON.
+	// The raw annotation may still embed sensitive Secret material, so it must be
+	// masked rather than left untouched (fail closed).
+	var liveLastAppliedInvalid, targetLastAppliedInvalid bool
 	if live != nil {
-		liveLastAppliedAnnotation, _ = GetLastAppliedConfigAnnotation(live)
+		var err error
+		liveLastAppliedAnnotation, err = GetLastAppliedConfigAnnotation(live)
+		liveLastAppliedInvalid = err != nil
 		live = live.DeepCopy()
 	}
 	if target != nil {
-		targetLastAppliedAnnotation, _ = GetLastAppliedConfigAnnotation(target)
+		var err error
+		targetLastAppliedAnnotation, err = GetLastAppliedConfigAnnotation(target)
+		targetLastAppliedInvalid = err != nil
 		target = target.DeepCopy()
 	}
 
@@ -1126,13 +1138,15 @@ func HideSecretData(target *unstructured.Unstructured, live *unstructured.Unstru
 		return nil, nil, err
 	}
 
-	if live != nil && liveLastAppliedAnnotation != nil {
+	if live != nil && (liveLastAppliedAnnotation != nil || liveLastAppliedInvalid) {
 		annotations := live.GetAnnotations()
 		if annotations == nil {
 			annotations = make(map[string]string)
 		}
-		// special case: hide "kubectl.kubernetes.io/last-applied-configuration" annotation
-		if _, ok := hideAnnotations[corev1.LastAppliedConfigAnnotation]; ok {
+		// special case: hide "kubectl.kubernetes.io/last-applied-configuration" annotation.
+		// When the annotation is explicitly hidden, or its value could not be parsed as JSON
+		// (and may therefore embed raw Secret material), replace the whole value with the placeholder.
+		if _, ok := hideAnnotations[corev1.LastAppliedConfigAnnotation]; ok || liveLastAppliedInvalid {
 			annotations[corev1.LastAppliedConfigAnnotation] = replacement
 		} else {
 			lastAppliedData, err := json.Marshal(liveLastAppliedAnnotation)
@@ -1143,13 +1157,15 @@ func HideSecretData(target *unstructured.Unstructured, live *unstructured.Unstru
 		}
 		live.SetAnnotations(annotations)
 	}
-	if target != nil && targetLastAppliedAnnotation != nil {
+	if target != nil && (targetLastAppliedAnnotation != nil || targetLastAppliedInvalid) {
 		annotations := target.GetAnnotations()
 		if annotations == nil {
 			annotations = make(map[string]string)
 		}
-		// special case: hide "kubectl.kubernetes.io/last-applied-configuration" annotation
-		if _, ok := hideAnnotations[corev1.LastAppliedConfigAnnotation]; ok {
+		// special case: hide "kubectl.kubernetes.io/last-applied-configuration" annotation.
+		// When the annotation is explicitly hidden, or its value could not be parsed as JSON
+		// (and may therefore embed raw Secret material), replace the whole value with the placeholder.
+		if _, ok := hideAnnotations[corev1.LastAppliedConfigAnnotation]; ok || targetLastAppliedInvalid {
 			annotations[corev1.LastAppliedConfigAnnotation] = replacement
 		} else {
 			lastAppliedData, err := json.Marshal(targetLastAppliedAnnotation)

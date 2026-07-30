@@ -1254,6 +1254,93 @@ func TestServerSideDiff(t *testing.T) {
 		assert.Contains(t, liveData, "key2")
 		assert.Contains(t, liveData, "key3", "key3 should still be in live state")
 	})
+
+	t.Run("will strip last-applied-configuration annotation from a non-Secret resource on both sides", func(t *testing.T) {
+		// given
+		t.Parallel()
+		const lastApplied = `{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"my-cm","namespace":"default"},"data":{"key1":"value1"}}`
+		liveState := StrToUnstructured(`{
+			"apiVersion": "v1",
+			"kind": "ConfigMap",
+			"metadata": {"name": "my-cm", "namespace": "default"}
+		}`)
+		liveState.SetAnnotations(map[string]string{AnnotationLastAppliedConfig: lastApplied})
+		desiredState := StrToUnstructured(`{
+			"apiVersion": "v1",
+			"kind": "ConfigMap",
+			"metadata": {"name": "my-cm", "namespace": "default"},
+			"data": {"key1": "value1"}
+		}`)
+		predictedLiveObj := desiredState.DeepCopy()
+		predictedLiveObj.SetAnnotations(map[string]string{AnnotationLastAppliedConfig: lastApplied})
+		predictedLiveJSON := mustMarshalUnstructured(t, predictedLiveObj)
+		opts := buildOpts(predictedLiveJSON)
+		opts = append(opts, WithIgnoreMutationWebhook(false))
+
+		// when
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
+
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.NotContains(t, string(result.PredictedLive), AnnotationLastAppliedConfig,
+			"PredictedLive must not contain the last-applied-configuration annotation")
+		assert.NotContains(t, string(result.NormalizedLive), AnnotationLastAppliedConfig,
+			"NormalizedLive must not contain the last-applied-configuration annotation")
+	})
+
+	t.Run("will strip last-applied-configuration annotation from a Secret resource on both sides", func(t *testing.T) {
+		// given
+		t.Parallel()
+		// The annotation embeds a secret value that does not otherwise appear in the object,
+		// so we can assert the annotation (and its contents) is stripped. Masking of the Secret
+		// data field itself is the caller's responsibility and is covered by TestHideSecretData.
+		const annotationOnlySecret = "QU5OT1RBVElPTk9OTFk="
+		lastApplied := `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"my-secret","namespace":"default"},"data":{"password":"` + annotationOnlySecret + `"}}`
+		liveState := StrToUnstructured(`{
+			"apiVersion": "v1",
+			"kind": "Secret",
+			"metadata": {"name": "my-secret", "namespace": "default"},
+			"type": "Opaque",
+			"data": {"password": "U0VDUkVUVkFM"}
+		}`)
+		liveState.SetAnnotations(map[string]string{AnnotationLastAppliedConfig: lastApplied})
+		desiredState := StrToUnstructured(`{
+			"apiVersion": "v1",
+			"kind": "Secret",
+			"metadata": {"name": "my-secret", "namespace": "default"},
+			"type": "Opaque",
+			"data": {"password": "U0VDUkVUVkFM"}
+		}`)
+		predictedLiveObj := desiredState.DeepCopy()
+		predictedLiveObj.SetAnnotations(map[string]string{AnnotationLastAppliedConfig: lastApplied})
+		predictedLiveJSON := mustMarshalUnstructured(t, predictedLiveObj)
+		opts := buildOpts(predictedLiveJSON)
+		opts = append(opts, WithIgnoreMutationWebhook(false))
+
+		// when
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
+
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.NotContains(t, string(result.PredictedLive), AnnotationLastAppliedConfig,
+			"PredictedLive must not contain the last-applied-configuration annotation")
+		assert.NotContains(t, string(result.NormalizedLive), AnnotationLastAppliedConfig,
+			"NormalizedLive must not contain the last-applied-configuration annotation")
+		assert.NotContains(t, string(result.PredictedLive), annotationOnlySecret,
+			"PredictedLive must not contain secret values embedded only in last-applied-configuration")
+		assert.NotContains(t, string(result.NormalizedLive), annotationOnlySecret,
+			"NormalizedLive must not contain secret values embedded only in last-applied-configuration")
+	})
+}
+
+// mustMarshalUnstructured marshals an unstructured object to a JSON string, failing the test on error.
+func mustMarshalUnstructured(t *testing.T, obj *unstructured.Unstructured) string {
+	t.Helper()
+	data, err := json.Marshal(obj)
+	require.NoError(t, err)
+	return string(data)
 }
 
 // testIgnoreDifferencesNormalizer implements a simple normalizer that removes specified fields
@@ -1630,6 +1717,37 @@ func TestHideSecretData(t *testing.T) {
 		assert.Equal(t, map[string]any{"key1": replacement2}, secretData(live))
 		assert.Equal(t, map[string]any{"key1": replacement1, "key2": replacement1}, secretData(targetLastAppliedSecret))
 		assert.Equal(t, map[string]any{"key1": replacement2}, secretData(liveLastAppliedSecret))
+	})
+
+	t.Run("malformed live last applied config is masked (fail closed)", func(t *testing.T) {
+		// A last-applied-configuration annotation that is not valid JSON may still embed raw
+		// Secret material. It must be replaced with the placeholder rather than left untouched.
+		const malformed = `{"data":{"password":"U0VDUkVUVkFM"` // truncated JSON, unparseable
+		targetSecret := createSecret(map[string]string{"key1": "test1"})
+		liveSecret := createSecret(map[string]string{"key1": "test1"})
+		liveSecret.SetAnnotations(map[string]string{corev1.LastAppliedConfigAnnotation: malformed})
+
+		_, live, err := HideSecretData(targetSecret, liveSecret, nil)
+		require.NoError(t, err)
+
+		annotation := live.GetAnnotations()[corev1.LastAppliedConfigAnnotation]
+		assert.Equal(t, replacement, annotation, "malformed live annotation must be fully masked")
+		assert.NotContains(t, annotation, "U0VDUkVUVkFM", "raw secret material must not survive")
+	})
+
+	t.Run("malformed target last applied config is masked (fail closed)", func(t *testing.T) {
+		// Same as above, but for the target object (e.g. a predictedLive from a server-side dry-run).
+		const malformed = `{"data":{"password":"U0VDUkVUVkFM"` // truncated JSON, unparseable
+		targetSecret := createSecret(map[string]string{"key1": "test1"})
+		targetSecret.SetAnnotations(map[string]string{corev1.LastAppliedConfigAnnotation: malformed})
+		liveSecret := createSecret(map[string]string{"key1": "test1"})
+
+		target, _, err := HideSecretData(targetSecret, liveSecret, nil)
+		require.NoError(t, err)
+
+		annotation := target.GetAnnotations()[corev1.LastAppliedConfigAnnotation]
+		assert.Equal(t, replacement, annotation, "malformed target annotation must be fully masked")
+		assert.NotContains(t, annotation, "U0VDUkVUVkFM", "raw secret material must not survive")
 	})
 
 	t.Run("invalid secret", func(t *testing.T) {
