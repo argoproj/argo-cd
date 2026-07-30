@@ -17,7 +17,7 @@ import {
     RevisionHelpIcon
 } from '../../../shared/components';
 import {BadgePanel} from '../../../shared/components';
-import {AuthSettingsCtx, Consumer, ContextApis} from '../../../shared/context';
+import {AuthSettingsCtx, Consumer, Context, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {isValidURL} from '../../../shared/utils';
@@ -34,7 +34,8 @@ import {
     getAppSpecDefaultSource,
     getHydratorSyncSourceRepoURL,
     appRBACName,
-    getAppParentName
+    getAppParentName,
+    loadAppAncestors
 } from '../utils';
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
 import {ApplicationRetryView} from '../application-retry-view/application-retry-view';
@@ -77,6 +78,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
     const [isHydratorEnabled, setIsHydratorEnabled] = React.useState(!!app.spec.sourceHydrator);
     const [savedSyncSource, setSavedSyncSource] = React.useState(app.spec.sourceHydrator?.syncSource || {targetBranch: '', path: ''});
 
+    const ctx = React.useContext(Context);
     const notificationSubscriptions = useEditNotificationSubscriptions(app.metadata.annotations || {});
     const updateApp = notificationSubscriptions.withNotificationSubscriptions(props.updateApp);
 
@@ -111,25 +113,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                       view: (
                           <DataLoader
                               input={`${app.metadata.name}/${app.metadata.namespace}`}
-                              load={async () => {
-                                  const ancestors: Array<{name: string; namespace: string}> = [];
-                                  let currentName = directParentName;
-                                  let currentNamespace = app.metadata.namespace;
-                                  const visited = new Set<string>([app.metadata.name]);
-                                  for (let i = 0; i < 10; i++) {
-                                      if (!currentName || visited.has(currentName)) break;
-                                      ancestors.unshift({name: currentName, namespace: currentNamespace});
-                                      visited.add(currentName);
-                                      try {
-                                          const parentApp = (await services.applications.get(currentName, currentNamespace, 'application')) as models.Application;
-                                          currentName = getAppParentName(parentApp);
-                                          currentNamespace = parentApp.metadata.namespace;
-                                      } catch {
-                                          break;
-                                      }
-                                  }
-                                  return ancestors;
-                              }}>
+                              load={() => loadAppAncestors(app, directParentName)}>
                               {(ancestors: Array<{name: string; namespace: string}>) => {
                                   const chain = ancestors.filter(a => a.name !== app.metadata.name);
                                   if (chain.length === 0) return null;
@@ -146,8 +130,8 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                                           </a>
                                                       )}
                                                       items={higher.map(a => ({
-                                                          title: <Link to={`/applications/${a.namespace}/${a.name}`}>{a.name}</Link>,
-                                                          action: () => {}
+                                                          title: a.name,
+                                                          action: () => ctx.navigation.goto(`/applications/${a.namespace}/${a.name}`)
                                                       }))}
                                                   />
                                                   <span style={{opacity: 0.5}}>›</span>
