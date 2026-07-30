@@ -45,7 +45,9 @@ data:
   # policy.prevent-login-without-permissions controls whether a user must have at least one allow
   # permission before they can log in. When set to "true":
   #   - Local users are blocked at login time if they have no matching allow rule.
-  #   - SSO users are blocked on every request until an allow rule is granted.
+  #   - SSO users are checked on each user-info fetch (UI page navigation); permission changes
+  #     take effect as soon as argocd-rbac-cm is saved (the 60-second cache TTL is only a
+  #     fallback safety net in case the cache flush is missed).
   # Defaults to "false" (users can log in even with no permissions).
   # policy.prevent-login-without-permissions: "false"
 

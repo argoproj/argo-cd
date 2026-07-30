@@ -552,14 +552,14 @@ func PolicyCSV(data map[string]string) string {
 
 // syncUpdate updates the enforcer
 func (e *Enforcer) syncUpdate(cm *corev1.ConfigMap, onUpdated func(cm *corev1.ConfigMap) error) error {
+	if err := onUpdated(cm); err != nil {
+		return err
+	}
 	e.SetDefaultRole(cm.Data[ConfigMapPolicyDefaultKey])
 	e.SetMatchMode(cm.Data[ConfigMapMatchModeKey])
 	e.preventLoginWithoutPermissions.Store(cm.Data[ConfigMapPreventLoginWithoutPermissions] == "true")
 	policyCSV := PolicyCSV(cm.Data)
-	if err := e.SetUserPolicy(policyCSV); err != nil {
-		return err
-	}
-	return onUpdated(cm)
+	return e.SetUserPolicy(policyCSV)
 }
 
 func (e *Enforcer) GetDefaultRole() string {

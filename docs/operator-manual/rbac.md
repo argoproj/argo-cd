@@ -47,7 +47,7 @@ data:
 When the flag is enabled:
 
 - **Local users** — the check runs once at login time (`argocd login` / the UI login form). A user with no matching `allow` rule receives a `PermissionDenied` error and no token is issued.
-- **SSO users** — because SSO authentication is handled externally, there is no local login step. Instead, the check runs on each API request. Permission changes (grants and revocations) may take up to 60 seconds to propagate after `argocd-rbac-cm` is updated.
+- **SSO users** — because SSO authentication is handled externally, there is no local login step. Instead, the check runs on each user-info fetch (i.e., each UI page navigation). Permission changes (grants and revocations) take effect as soon as `argocd-rbac-cm` is saved; the 60-second TTL on the cached result is only a safety net for cases where the cache flush is missed (e.g., if Redis is temporarily unavailable).
 
 > [!NOTE]
 > `admin` is a built-in superuser and is never affected by this flag.

@@ -324,7 +324,7 @@ func TestUserHasAnyPermission_FlushInvalidatesCache(t *testing.T) {
 
 	// Remove alice's permission and invalidate the cache.
 	require.NoError(t, enf.SetUserPolicy(""))
-	rbacEnf.FlushPermCheckCache()
+	rbacEnf.FlushPermCheckCache("rv-2")
 
 	// Next call re-runs Casbin and reflects the revocation.
 	assert.False(t, rbacEnf.UserHasAnyPermission("alice", nil))
@@ -341,10 +341,32 @@ func TestUserHasAnyPermission_FlushAllowsGrant(t *testing.T) {
 
 	// Grant a permission and invalidate the cache.
 	require.NoError(t, enf.SetUserPolicy("p, alice, applications, get, *, allow"))
-	rbacEnf.FlushPermCheckCache()
+	rbacEnf.FlushPermCheckCache("rv-2")
 
 	// Next call picks up the new grant.
 	assert.True(t, rbacEnf.UserHasAnyPermission("alice", nil))
+}
+
+// TestUserHasAnyPermission_StaleEpochIsRejected simulates a process restart: a new enforcer
+// instance is created (different boot UUID) but shares the same in-memory cache as the old one,
+// which represents stale Redis entries from a previous process. The new instance must not serve
+// the stale "allowed" result because its epoch differs from the one stored in the cache entry.
+func TestUserHasAnyPermission_StaleEpochIsRejected(t *testing.T) {
+	enf1 := rbac.NewEnforcer(fake.NewClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
+	require.NoError(t, enf1.SetUserPolicy("p, alice, applications, get, *, allow"))
+	sharedCache := cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Hour))
+	rbacEnf1 := NewRBACPolicyEnforcer(enf1, test.NewFakeProjLister())
+	rbacEnf1.SetPermCheckCache(sharedCache)
+
+	rbacEnf1.FlushPermCheckCache("rv-1")
+	assert.True(t, rbacEnf1.UserHasAnyPermission("alice", nil))
+
+	enf2 := rbac.NewEnforcer(fake.NewClientset(test.NewFakeConfigMap()), test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
+	require.NoError(t, enf2.SetUserPolicy(""))
+	rbacEnf2 := NewRBACPolicyEnforcer(enf2, test.NewFakeProjLister())
+	rbacEnf2.SetPermCheckCache(sharedCache)
+	assert.False(t, rbacEnf2.UserHasAnyPermission("alice", nil),
+		"stale cache entry from previous process epoch must not be served")
 }
 
 // TestPermCheckCacheKey verifies that the cache key is stable and group-order independent.
