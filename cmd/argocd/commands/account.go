@@ -88,8 +88,7 @@ has appropriate RBAC permissions to change other accounts.
 	# Update the password for user foobar
 	argocd account update-password --account foobar
 `,
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) != 0 {
@@ -169,8 +168,7 @@ func NewAccountGetUserInfoCommand(clientOpts *argocdclient.ClientOptions) *cobra
 			# Get User information in yaml format
 			argocd account get-user-info -o yaml
 		`),
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) != 0 {
@@ -226,8 +224,7 @@ argocd account can-i create clusters '*'
 Actions: %v
 Resources: %v
 `, rbac.Actions, rbac.Resources),
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) != 3 {
@@ -270,8 +267,7 @@ func NewAccountListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 		Use:     "list",
 		Short:   "List accounts",
 		Example: "argocd account list",
-		Run: cli.WithSignalContext(func(c *cobra.Command, _ []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, _ []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			conn, client := headless.NewClientOrDie(clientOpts, c).NewAccountClientOrDieWithContext(ctx)
@@ -318,8 +314,7 @@ argocd account get
 
 # Get details for an account by name
 argocd account get --account <account-name>`,
-		Run: cli.WithSignalContext(func(c *cobra.Command, _ []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, _ []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			clientset := headless.NewClientOrDie(clientOpts, c)
@@ -392,8 +387,7 @@ argocd account generate-token
 
 # Generate token for the account with the specified name
 argocd account generate-token --account <account-name>`,
-		Run: cli.WithSignalContext(func(c *cobra.Command, _ []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, _ []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			clientset := headless.NewClientOrDie(clientOpts, c)
@@ -429,8 +423,7 @@ argocd account delete-token ID
 
 # Delete token of the account with the specified name
 argocd account delete-token --account <account-name> ID`,
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) != 1 {
@@ -477,8 +470,7 @@ argocd account session-token -o json
 # Use in scripts
 export ARGOCD_AUTH_TOKEN=$(argocd account session-token)
 curl -H "Authorization: Bearer $ARGOCD_AUTH_TOKEN" $ARGOCD_SERVER/api/v1/applications`,
-		Run: cli.WithSignalContext(func(c *cobra.Command, _ []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, _ []string, _ context.CancelFunc) {
 			// Create client first - this handles token refresh automatically
 			_, err := argocdclient.NewClientWithContext(c.Context(), clientOpts)
 			if err != nil {

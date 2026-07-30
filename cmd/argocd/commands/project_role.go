@@ -98,8 +98,7 @@ JWT Tokens:
 ID          ISSUED-AT                                EXPIRES-AT
 1696759698  2023-10-08T11:08:18+01:00 (3 hours ago)  <none>
 `,
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) != 2 || !rbac.ProjectScoped[opts.resource] {
@@ -174,8 +173,7 @@ JWT Tokens:
 ID          ISSUED-AT                                EXPIRES-AT
 1696759698  2023-10-08T11:08:18+01:00 (4 hours ago)  <none>
 `,
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) != 2 || !rbac.ProjectScoped[opts.resource] {
@@ -232,8 +230,7 @@ func NewProjectRoleCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
   argocd proj role create my-project my-role --description "My project role description"
   		`),
 
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) != 2 {
@@ -270,8 +267,7 @@ func NewProjectRoleDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 		Use:     "delete PROJECT ROLE-NAME",
 		Short:   "Delete a project role",
 		Example: `$ argocd proj role delete test-project test-role`,
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) != 2 {
@@ -335,8 +331,7 @@ Create token succeeded for proj:test-project:test-role.
   Token: xxx
 `,
 		Aliases: []string{"token-create"},
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) != 2 {
@@ -404,8 +399,7 @@ f316c466-40bd-4cfd-8a8c-1392e92255d4    2023-10-08T15:21:40+01:00    Never
 fa9d3517-c52d-434c-9bff-215b38508842    2023-10-08T11:08:18+01:00    Never
 `,
 		Aliases: []string{"list-token", "token-list"},
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) != 2 {
@@ -483,8 +477,7 @@ ID          ISSUED-AT                                  EXPIRES-AT
 $ argocd proj role delete-token test-project test-role 1696769937
 `,
 		Aliases: []string{"token-delete", "remove-token"},
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) != 3 {
@@ -546,8 +539,7 @@ func NewProjectRoleListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
   		`),
 
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) != 1 {
@@ -592,8 +584,7 @@ ID          ISSUED-AT                                  EXPIRES-AT
 1696774900  2023-10-08T15:21:40+01:00 (4 minutes ago)  <none>
 1696759698  2023-10-08T11:08:18+01:00 (4 hours ago)    <none>
 `,
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) != 2 {
@@ -647,8 +638,7 @@ func NewProjectRoleAddGroupCommand(clientOpts *argocdclient.ClientOptions) *cobr
 	command := &cobra.Command{
 		Use:   "add-group PROJECT ROLE-NAME GROUP-CLAIM",
 		Short: "Add a group claim to a project role",
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) != 3 {
@@ -679,8 +669,7 @@ func NewProjectRoleRemoveGroupCommand(clientOpts *argocdclient.ClientOptions) *c
 	command := &cobra.Command{
 		Use:   "remove-group PROJECT ROLE-NAME GROUP-CLAIM",
 		Short: "Remove a group claim from a role within a project",
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) != 3 {

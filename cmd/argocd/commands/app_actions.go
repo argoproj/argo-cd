@@ -20,6 +20,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/grpc"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
@@ -74,7 +75,7 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 	argocd app actions list APPNAME
 	`),
 	}
-	command.Run = func(c *cobra.Command, args []string) {
+	command.Run = cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 		ctx := c.Context()
 
 		if len(args) != 1 {
@@ -131,7 +132,7 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 			}
 			_ = w.Flush()
 		}
-	}
+	})
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Namespace of the application")
 	command.Flags().StringVar(&resourceName, "resource-name", "", "Name of resource")
 	command.Flags().StringVar(&kind, "kind", "", "Kind")
@@ -168,7 +169,7 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 	errors.CheckError(command.MarkFlagRequired("kind"))
 	command.Flags().BoolVar(&all, "all", false, "Indicates whether to run the action on multiple matching resources")
 
-	command.Run = func(c *cobra.Command, args []string) {
+	command.Run = cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 		ctx := c.Context()
 
 		if len(args) != 2 {
@@ -226,7 +227,7 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 			})
 			errors.CheckError(err)
 		}
-	}
+	})
 	return command
 }
 

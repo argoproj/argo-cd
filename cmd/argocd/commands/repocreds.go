@@ -96,8 +96,7 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 		Use:     "add REPOURL",
 		Short:   "Add git repository connection parameters",
 		Example: repocredsAddExamples,
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) != 1 {
@@ -229,8 +228,7 @@ func NewRepoCredsRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			# Remove credentials for the repositories with URL https://git.example.com/repos
 			argocd repocreds rm https://git.example.com/repos/
 		`),
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) == 0 {
@@ -296,8 +294,7 @@ func NewRepoCredsListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 			# List all repo urls in url format
 			argocd repocreds list -o url
 		`),
-		Run: cli.WithSignalContext(func(c *cobra.Command, _ []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, _ []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoCredsClientOrDieWithContext(ctx)

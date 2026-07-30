@@ -70,8 +70,7 @@ func NewCertAddTLSCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 	command := &cobra.Command{
 		Use:   "add-tls SERVERNAME",
 		Short: "Add TLS certificate data for connecting to repository server SERVERNAME",
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			conn, certIf := headless.NewClientOrDie(clientOpts, c).NewCertClientOrDieWithContext(ctx)
@@ -188,8 +187,7 @@ func NewCertAddSSHCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 	command := &cobra.Command{
 		Use:   "add-ssh --batch",
 		Short: "Add SSH known host entries for repository servers",
-		Run: cli.WithSignalContext(func(c *cobra.Command, _ []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, _ []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			conn, certIf := headless.NewClientOrDie(clientOpts, c).NewCertClientOrDieWithContext(ctx)
@@ -259,8 +257,7 @@ func NewCertRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 	command := &cobra.Command{
 		Use:   "rm REPOSERVER",
 		Short: "Remove certificate of TYPE for REPOSERVER",
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) < 1 {
@@ -317,8 +314,7 @@ func NewCertListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "list",
 		Short: "List configured certificates",
-		Run: cli.WithSignalContext(func(c *cobra.Command, _ []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, _ []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if certType != "" {

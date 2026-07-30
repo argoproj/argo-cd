@@ -115,8 +115,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		Use:     "add REPOURL",
 		Short:   "Add git, oci or helm repository connection parameters",
 		Example: repoAddExamples,
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) != 1 {
@@ -303,8 +302,7 @@ func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
   # Remove repository using SSH URL
   argocd repo rm git@github.com:yourusername/your-repo.git
 `,
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) == 0 {
@@ -383,8 +381,7 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
   # Force refresh of cached repository connection status
   argocd repo list --refresh hard
 `,
-		Run: cli.WithSignalContext(func(c *cobra.Command, _ []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, _ []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDieWithContext(ctx)
@@ -449,8 +446,7 @@ func NewRepoGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		Use:     "get REPO",
 		Short:   "Get a configured repository by URL",
 		Example: repoGetExamples,
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) != 1 {

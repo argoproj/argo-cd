@@ -37,17 +37,27 @@ import (
 )
 
 func WithSignalContext(run func(c *cobra.Command, args []string, stop context.CancelFunc)) func(c *cobra.Command, args []string) {
-	return func(c *cobra.Command, args []string) {
-		ctx, stop := signal.NotifyContext(c.Context(), syscall.SIGINT, syscall.SIGTERM)
-		c.SetContext(ctx)
+	runE := WithSignalContextE(func(c *cobra.Command, args []string, stop context.CancelFunc) error {
 		run(c, args, stop)
+		return nil
+	})
+	return func(c *cobra.Command, args []string) {
+		_ = runE(c, args)
 	}
 }
 
 func WithSignalContextE(run func(c *cobra.Command, args []string, stop context.CancelFunc) error) func(c *cobra.Command, args []string) error {
 	return func(c *cobra.Command, args []string) error {
 		ctx, stop := signal.NotifyContext(c.Context(), syscall.SIGINT, syscall.SIGTERM)
+		defer stop()
 		c.SetContext(ctx)
+
+		// after the first signal, unregister so a second Ctrl+C falls through to the default handler and kills the process
+		go func() {
+			<-ctx.Done()
+			stop()
+		}()
+
 		return run(c, args, stop)
 	}
 }

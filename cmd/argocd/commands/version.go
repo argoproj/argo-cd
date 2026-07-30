@@ -40,8 +40,7 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions, serverVersion *versio
   # Print only client and server core version strings in YAML format
   argocd version --short -o yaml
 `,
-		Run: cli.WithSignalContext(func(cmd *cobra.Command, _ []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(cmd *cobra.Command, _ []string, _ context.CancelFunc) {
 			ctx := cmd.Context()
 
 			cv := common.GetVersion()

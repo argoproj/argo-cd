@@ -147,8 +147,7 @@ func NewApplicationCreateCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 
   # Create a app using a custom tool:
   argocd app create kasane --repo https://github.com/argoproj/argocd-example-apps.git --path plugins/kasane --dest-namespace default --dest-server https://kubernetes.default.svc --config-management-plugin kasane`,
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			argocdClient := headless.NewClientOrDie(clientOpts, c)
@@ -380,8 +379,7 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
   argocd app get my-app --output tree=detailed
   		`),
 
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx, cancel := context.WithCancelCause(c.Context())
 			defer cancel(nil)
 			if len(args) == 0 {
@@ -575,8 +573,7 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
   argocd app logs my-app -p
   		`),
 
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) == 0 {
@@ -866,8 +863,7 @@ func NewApplicationSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
   argocd app set my-app --parameter key1=value1 --parameter key2=value2 --namespace my-namespace
   		`),
 
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) != 1 {
@@ -982,8 +978,7 @@ func NewApplicationUnsetCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
   # Unset parameter override
   argocd app unset my-app -p COMPONENT=PARAM`,
 
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) != 1 {
@@ -1289,8 +1284,7 @@ func NewApplicationDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.
   argocd app delete -l app.kubernetes.io/instance
   argocd app delete -l '!app.kubernetes.io/instance'
   argocd app delete -l 'app.kubernetes.io/instance notin (my-app,other-app)'`,
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) == 0 && selector == "" {
@@ -1433,8 +1427,7 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
   argocd app list -l app.kubernetes.io/instance
   argocd app list -l '!app.kubernetes.io/instance'
   argocd app list -l 'app.kubernetes.io/instance notin (my-app,other-app)'`,
-		Run: cli.WithSignalContext(func(c *cobra.Command, _ []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, _ []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDieWithContext(ctx)
@@ -1626,8 +1619,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
   argocd app wait -l app.kubernetes.io/instance
   argocd app wait -l '!app.kubernetes.io/instance'
   argocd app wait -l 'app.kubernetes.io/instance notin (my-app,other-app)'`,
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) == 0 && selector == "" {
@@ -1769,8 +1761,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
   argocd app sync my-app --resource '!*:Service:*'
   # Specify namespace if the application has resources with the same name in different namespaces
   argocd app sync my-app --resource argoproj.io:Rollout:my-namespace/my-rollout`,
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 			if len(args) == 0 && selector == "" && len(projects) == 0 {
 				c.HelpFunc()(c, args)
@@ -2670,8 +2661,7 @@ func NewApplicationHistoryCommand(clientOpts *argocdclient.ClientOptions) *cobra
 	command := &cobra.Command{
 		Use:   "history APPNAME",
 		Short: "Show application deployment history",
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) != 1 {
@@ -2727,8 +2717,7 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 	command := &cobra.Command{
 		Use:   "rollback APPNAME [ID]",
 		Short: "Rollback application to a previous deployed version by History ID, omitted will Rollback to the previous version",
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
@@ -2834,8 +2823,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
   # Get manifests for a multi-source application at specific revisions for specific sources
   argocd app manifests my-app --revisions 0.0.1 --source-positions 1 --revisions 0.0.2 --source-positions 2
   		`),
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) != 1 {
@@ -2974,8 +2962,7 @@ func NewApplicationTerminateOpCommand(clientOpts *argocdclient.ClientOptions) *c
 	command := &cobra.Command{
 		Use:   "terminate-op APPNAME",
 		Short: "Terminate running operation of an application",
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) != 1 {
@@ -3002,8 +2989,7 @@ func NewApplicationEditCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command := &cobra.Command{
 		Use:   "edit APPNAME",
 		Short: "Edit application",
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) != 1 {
@@ -3074,8 +3060,7 @@ func NewApplicationPatchCommand(clientOpts *argocdclient.ClientOptions) *cobra.C
 
   # Update an application's repository target revision using merge patch
   argocd app patch myapplication --patch '{"spec": { "source": { "targetRevision": "master" } }}' --type merge`,
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) != 1 {
@@ -3117,8 +3102,7 @@ func NewApplicationAddSourceCommand(clientOpts *argocdclient.ClientOptions) *cob
 		Short: "Adds a source to the list of sources in the application",
 		Example: `  # Append a source to the list of sources in the application
   argocd app add-source guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path guestbook --source-name guestbook`,
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 			if len(args) != 1 {
 				c.HelpFunc()(c, args)
@@ -3186,8 +3170,7 @@ func NewApplicationRemoveSourceCommand(clientOpts *argocdclient.ClientOptions) *
 
   # Remove the source named "test" from application's sources.
   argocd app remove-source myapplication --source-name test`,
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) != 1 {
@@ -3266,8 +3249,7 @@ func NewApplicationConfirmDeletionCommand(clientOpts *argocdclient.ClientOptions
 	command := &cobra.Command{
 		Use:   "confirm-deletion APPNAME",
 		Short: "Confirms deletion/pruning of an application resources",
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) != 1 {

@@ -110,8 +110,7 @@ func NewProjectSourceIntegrityGitPoliciesListCommand(clientOpts *argocdclient.Cl
 			# List all git policies for project PROJECT.
 			argocd proj source-integrity git policies list PROJECT
 		`),
-		RunE: cli.WithSignalContextE(func(c *cobra.Command, args []string, stop context.CancelFunc) error {
-			defer stop()
+		RunE: cli.WithSignalContextE(func(c *cobra.Command, args []string, _ context.CancelFunc) error {
 			ctx := c.Context()
 
 			if len(args) != 1 {
@@ -175,8 +174,7 @@ func NewProjectSourceIntegrityGitPoliciesDeleteCommand(clientOpts *argocdclient.
 			# Delete git policy at index 1 and 3 from project named PROJECT
 			argocd proj source-integrity git policies delete PROJECT 1 3
 		`),
-		RunE: cli.WithSignalContextE(func(c *cobra.Command, args []string, stop context.CancelFunc) error {
-			defer stop()
+		RunE: cli.WithSignalContextE(func(c *cobra.Command, args []string, _ context.CancelFunc) error {
 			ctx := c.Context()
 
 			if len(args) < 2 {
@@ -273,8 +271,7 @@ func NewProjectSourceIntegrityGitPoliciesAddCommand(clientOpts *argocdclient.Cli
 				--gpg-mode strict \
 				--gpg-key D56C4FCA57A46444
 		`),
-		RunE: cli.WithSignalContextE(func(c *cobra.Command, args []string, stop context.CancelFunc) error {
-			defer stop()
+		RunE: cli.WithSignalContextE(func(c *cobra.Command, args []string, _ context.CancelFunc) error {
 			ctx := c.Context()
 
 			if len(args) != 1 {
@@ -379,8 +376,7 @@ func NewProjectSourceIntegrityGitPoliciesUpdateCommand(clientOpts *argocdclient.
 				--gpg-mode strict \
 				--add-gpg-key D56C4FCA57A46444
 		`),
-		RunE: cli.WithSignalContextE(func(c *cobra.Command, args []string, stop context.CancelFunc) error {
-			defer stop()
+		RunE: cli.WithSignalContextE(func(c *cobra.Command, args []string, _ context.CancelFunc) error {
 			ctx := c.Context()
 
 			if len(args) != 2 {

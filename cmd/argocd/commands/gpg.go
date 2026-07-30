@@ -56,8 +56,7 @@ func NewGPGListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
   argocd gpg list -o yaml
   		`),
 
-		Run: cli.WithSignalContext(func(c *cobra.Command, _ []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, _ []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			conn, gpgIf := headless.NewClientOrDie(clientOpts, c).NewGPGKeyClientOrDieWithContext(ctx)
@@ -96,8 +95,7 @@ func NewGPGGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
   argocd gpg get KEYID -o yaml
   		`),
 
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) != 1 {
@@ -137,8 +135,7 @@ func NewGPGAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
   argocd gpg add --from /path/to/keyfile
   		`),
 
-		Run: cli.WithSignalContext(func(c *cobra.Command, _ []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, _ []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if fromFile == "" {
@@ -168,8 +165,7 @@ func NewGPGDeleteCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 	command := &cobra.Command{
 		Use:   "rm KEYID",
 		Short: "Removes a GPG public key from the server's keyring",
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) != 1 {

@@ -32,8 +32,7 @@ func NewReloginCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		Use:   "relogin",
 		Short: "Refresh an expired authenticate token",
 		Long:  "Refresh an expired authenticate token",
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) != 0 {

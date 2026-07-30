@@ -87,8 +87,7 @@ func NewApplicationSetGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 	argocd appset get --appset-namespace=APPSET_NAMESPACE APPSETNAME
 
 		`),
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) == 0 {
@@ -151,8 +150,7 @@ func NewApplicationSetCreateCommand(clientOpts *argocdclient.ClientOptions) *cob
 	# Dry-run AppSet creation to see what applications would be managed
 	argocd appset create --dry-run <filename or URL> -o json | jq -r '.status.resources[].name' 
 		`),
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) == 0 {
@@ -261,8 +259,7 @@ func NewApplicationSetGenerateCommand(clientOpts *argocdclient.ClientOptions) *c
 	# Generate apps of ApplicationSet rendered templates in a specific namespace
 	argocd appset generate --appset-namespace=APPSET_NAMESPACE <filename or URL> (<filename or URL>...)
 `),
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) == 0 {
@@ -341,8 +338,7 @@ func NewApplicationSetListCommand(clientOpts *argocdclient.ClientOptions) *cobra
 	# List all ApplicationSets
 	argocd appset list
 		`),
-		Run: cli.WithSignalContext(func(c *cobra.Command, _ []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, _ []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationSetClientOrDieWithContext(ctx)
@@ -393,8 +389,7 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 	# Delete ApplicationSet in a specific namespace using --appset-namespace flag
 	argocd appset delete --appset-namespace=APPSET_NAMESPACE APPSETNAME
 		`),
-		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, stop context.CancelFunc) {
-			defer stop()
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) == 0 {
