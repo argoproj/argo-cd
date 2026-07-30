@@ -16,9 +16,8 @@
         line-height: 16px;
         display: inline-block;
         vertical-align: middle;
-        overflow-y: hidden;
-        overflow-x: auto;
-        width: calc(100%);
+        overflow-wrap: break-word;
+        width: 100%;
     }
 
     &__images-count {
