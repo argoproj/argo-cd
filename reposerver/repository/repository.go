@@ -966,7 +966,10 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 			refSourceCommitSHAs[normalizedURL] = repoRef.commitSHA
 		}
 	}
-	manifestKey := getManifestCacheKey(revision, appSourceCopy, q, refSourceCommitSHAs)
+	manifestKey := cache.NewManifestKey(revision, appSourceCopy, q.GetRefSources(), q.GetNamespace(), q.GetTrackingMethod(),
+		q.GetAppLabelKey(), q.GetAppName(), q.GetInstallationID(), q.GetSourceIntegrity(), q, refSourceCommitSHAs,
+	)
+
 	if err != nil {
 		logCtx := log.WithFields(log.Fields{
 			"application":  q.AppName,
@@ -1031,22 +1034,6 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 	ch.responseCh <- manifestGenCacheEntry.ManifestResponse
 }
 
-func getManifestCacheKey(revision string, appSource *v1alpha1.ApplicationSource, q *apiclient.ManifestRequest, refSourceCommitSHAs cache.ResolvedRevisions) cache.ManifestKey {
-	return cache.ManifestKey{
-		Revision:            revision,
-		AppSource:           appSource,
-		RefSources:          q.RefSources,
-		ClusterInfo:         q,
-		Namespace:           q.Namespace,
-		TrackingMethod:      q.TrackingMethod,
-		AppLabelKey:         q.AppLabelKey,
-		AppName:             q.AppName,
-		RefSourceCommitSHAs: refSourceCommitSHAs,
-		InstallationID:      q.InstallationID,
-		SourceIntegrity:     q.SourceIntegrity,
-	}
-}
-
 // getManifestCacheEntry returns false if the 'generate manifests' operation should be run by runRepoOperation, e.g.:
 // - If the cache result is empty for the requested key
 // - If the cache is not empty, but the cached value is a manifest generation error AND we have not yet met the failure threshold (e.g. res.NumberOfConsecutiveFailures > 0 && res.NumberOfConsecutiveFailures <  s.initConstants.PauseGenerationAfterFailedGenerationAttempts)
@@ -1054,7 +1041,9 @@ func getManifestCacheKey(revision string, appSource *v1alpha1.ApplicationSource,
 // and returns true otherwise.
 // If true is returned, either the second or third parameter (but not both) will contain a value from the cache (a ManifestResponse, or error, respectively)
 func (s *Service) getManifestCacheEntry(revision string, q *apiclient.ManifestRequest, refSourceCommitSHAs cache.ResolvedRevisions, firstInvocation bool) (bool, *apiclient.ManifestResponse, error) {
-	cacheKey := getManifestCacheKey(revision, q.ApplicationSource, q, refSourceCommitSHAs)
+	cacheKey := cache.NewManifestKey(revision, q.ApplicationSource, q.GetRefSources(), q.GetNamespace(), q.GetTrackingMethod(),
+		q.GetAppLabelKey(), q.GetAppName(), q.GetInstallationID(), q.GetSourceIntegrity(), q, refSourceCommitSHAs,
+	)
 	cache.LogDebugManifestCacheKeyFields("getting manifests cache", "GenerateManifest API call", cacheKey)
 
 	res := cache.CachedManifestResponse{}
@@ -3470,21 +3459,36 @@ func (s *Service) UpdateRevisionForPaths(ctx context.Context, request *apiclient
 	if repo == nil {
 		return nil, status.Error(codes.InvalidArgument, "must pass a valid repo")
 	}
+	// Remember whether the type was set by the caller before normalizing: Normalize
+	// infers oci from an oci:// URL and otherwise defaults the type to git, so after the
+	// call an empty type is indistinguishable from an explicit git type.
+	typeWasUnset := repo.Type == ""
 	// Normalize the repository in the request to ensure all fields are correctly set
 	repo = repo.Normalize()
+
+	// Determine whether the main source is a git source. A type that Normalize defaulted
+	// to git must not be trusted on its own: an untyped Helm chart source would then have
+	// its revision resolved against the chart repository URL as if it were a git repo and
+	// fail with "repository not found" (issue #28890). In that case fall back to the
+	// application source type.
+	isGitSource := repo.Type == "git"
+	if isGitSource && typeWasUnset && request.ApplicationSource != nil &&
+		(request.ApplicationSource.IsHelm() || request.ApplicationSource.IsOCI()) {
+		isGitSource = false
+	}
 
 	if len(refreshPaths) == 0 {
 		// Always refresh if path is not specified
 		return &apiclient.UpdateRevisionForPathsResponse{Changes: true}, nil
 	}
 
-	if repo.Type != "git" && len(request.RefSources) == 0 {
+	if !isGitSource && len(request.RefSources) == 0 {
 		return &apiclient.UpdateRevisionForPathsResponse{}, nil
 	}
 
 	gitClientOpts := git.WithCache(s.cache, !request.NoRevisionCache)
 
-	if repo.Type == "git" {
+	if isGitSource {
 		if request.SyncedRevision != request.Revision {
 			resolvedRevision, syncedRevision, sourceHasChanges, err := s.gitSourceHasChanges(ctx, request.Repo, request.Revision, request.SyncedRevision, refreshPaths, gitClientOpts)
 			if err != nil {
@@ -3591,8 +3595,12 @@ func (s *Service) UpdateRevisionForPaths(ctx context.Context, request *apiclient
 
 func (s *Service) updateCachedRevision(logCtx *log.Entry, oldRev string, newRev string, request *apiclient.UpdateRevisionForPathsRequest, oldRepoRefs map[string]string, newRepoRefs map[string]string) error {
 	err := s.cache.SetNewRevisionManifests(
-		getManifestCacheKeyFromUpdateRevisionRequest(request, oldRev, oldRepoRefs),
-		getManifestCacheKeyFromUpdateRevisionRequest(request, newRev, newRepoRefs),
+		cache.NewManifestKey(oldRev, request.ApplicationSource, request.GetRefSources(), request.GetNamespace(),
+			request.GetTrackingMethod(), request.GetAppLabelKey(), request.GetAppName(), request.GetInstallationID(),
+			request.GetSourceIntegrity(), request, oldRepoRefs),
+		cache.NewManifestKey(newRev, request.ApplicationSource, request.GetRefSources(), request.GetNamespace(),
+			request.GetTrackingMethod(), request.GetAppLabelKey(), request.GetAppName(), request.GetInstallationID(),
+			request.GetSourceIntegrity(), request, newRepoRefs),
 	)
 	if err != nil {
 		if errors.Is(err, cache.ErrCacheMiss) {
@@ -3604,21 +3612,6 @@ func (s *Service) updateCachedRevision(logCtx *log.Entry, oldRev string, newRev 
 
 	logCtx.Debugf("manifest cache updated for application %s in repo %s from revision %s to revision %s", request.AppName, request.GetRepo().Repo, oldRev, newRev)
 	return nil
-}
-
-func getManifestCacheKeyFromUpdateRevisionRequest(request *apiclient.UpdateRevisionForPathsRequest, revision string, refSourceCommitSHAs cache.ResolvedRevisions) cache.ManifestKey {
-	return cache.ManifestKey{
-		Revision:            revision,
-		AppSource:           request.ApplicationSource,
-		RefSources:          request.RefSources,
-		ClusterInfo:         request,
-		Namespace:           request.Namespace,
-		TrackingMethod:      request.TrackingMethod,
-		AppLabelKey:         request.AppLabelKey,
-		AppName:             request.AppName,
-		RefSourceCommitSHAs: refSourceCommitSHAs,
-		InstallationID:      request.InstallationID,
-	}
 }
 
 func (s *Service) ociClientStandardOpts() []oci.ClientOpts {
