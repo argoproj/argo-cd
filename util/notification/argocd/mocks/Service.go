@@ -76,7 +76,7 @@ type Service_GetAppDetails_Call struct {
 // GetAppDetails is a helper method to define mock.On call
 //   - ctx context.Context
 //   - app *v1alpha1.Application
-func (_e *Service_Expecter) GetAppDetails(ctx interface{}, app interface{}) *Service_GetAppDetails_Call {
+func (_e *Service_Expecter) GetAppDetails(ctx any, app any) *Service_GetAppDetails_Call {
 	return &Service_GetAppDetails_Call{Call: _e.mock.On("GetAppDetails", ctx, app)}
 }
 
@@ -145,7 +145,7 @@ type Service_GetAppProject_Call struct {
 //   - ctx context.Context
 //   - projectName string
 //   - namespace string
-func (_e *Service_Expecter) GetAppProject(ctx interface{}, projectName interface{}, namespace interface{}) *Service_GetAppProject_Call {
+func (_e *Service_Expecter) GetAppProject(ctx any, projectName any, namespace any) *Service_GetAppProject_Call {
 	return &Service_GetAppProject_Call{Call: _e.mock.On("GetAppProject", ctx, projectName, namespace)}
 }
 
@@ -220,7 +220,7 @@ type Service_GetCommitMetadata_Call struct {
 //   - repoURL string
 //   - commitSHA string
 //   - project string
-func (_e *Service_Expecter) GetCommitMetadata(ctx interface{}, repoURL interface{}, commitSHA interface{}, project interface{}) *Service_GetCommitMetadata_Call {
+func (_e *Service_Expecter) GetCommitMetadata(ctx any, repoURL any, commitSHA any, project any) *Service_GetCommitMetadata_Call {
 	return &Service_GetCommitMetadata_Call{Call: _e.mock.On("GetCommitMetadata", ctx, repoURL, commitSHA, project)}
 }
 

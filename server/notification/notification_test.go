@@ -26,6 +26,7 @@ import (
 const testNamespace = "default"
 
 func TestNotificationServer(t *testing.T) {
+	t.Parallel()
 	// catalogPath := path.Join(paths[1], "config", "notifications-catalog")
 	b, err := os.ReadFile("../../notifications_catalog/install.yaml")
 	require.NoError(t, err)
@@ -70,10 +71,11 @@ func TestNotificationServer(t *testing.T) {
 	dynamicClient := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
 	argocdService, err := service.NewArgoCDService(kubeclientset, dynamicClient, testNamespace, mockRepoClient)
 	require.NoError(t, err)
-	defer argocdService.Close()
+	t.Cleanup(argocdService.Close)
 	apiFactory := api.NewFactory(settings.GetFactorySettings(argocdService, "argocd-notifications-secret", "argocd-notifications-cm", false), testNamespace, secretInformer, configMapInformer)
 
 	t.Run("TestListServices", func(t *testing.T) {
+		t.Parallel()
 		server := NewServer(apiFactory)
 		services, err := server.ListServices(ctx, &notification.ServicesListRequest{})
 		require.NoError(t, err)
@@ -82,6 +84,7 @@ func TestNotificationServer(t *testing.T) {
 		assert.NotEmpty(t, services.Items[0])
 	})
 	t.Run("TestListTriggers", func(t *testing.T) {
+		t.Parallel()
 		server := NewServer(apiFactory)
 		triggers, err := server.ListTriggers(ctx, &notification.TriggersListRequest{})
 		require.NoError(t, err)
@@ -90,6 +93,7 @@ func TestNotificationServer(t *testing.T) {
 		assert.NotEmpty(t, triggers.Items[0])
 	})
 	t.Run("TestListTemplates", func(t *testing.T) {
+		t.Parallel()
 		server := NewServer(apiFactory)
 		templates, err := server.ListTemplates(ctx, &notification.TemplatesListRequest{})
 		require.NoError(t, err)

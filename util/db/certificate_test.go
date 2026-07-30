@@ -286,6 +286,7 @@ func getCertClientset() *fake.Clientset {
 }
 
 func TestListCertificate(t *testing.T) {
+	t.Parallel()
 	clientset := getCertClientset()
 	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
 	assert.NotNil(t, db)
@@ -357,6 +358,7 @@ func TestListCertificate(t *testing.T) {
 }
 
 func TestCreateSSHKnownHostEntries(t *testing.T) {
+	t.Parallel()
 	clientset := getCertClientset()
 	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
 	assert.NotNil(t, db)
@@ -486,6 +488,7 @@ func TestCreateSSHKnownHostEntries(t *testing.T) {
 }
 
 func TestCreateTLSCertificates(t *testing.T) {
+	t.Parallel()
 	clientset := getCertClientset()
 	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
 	assert.NotNil(t, db)
@@ -670,6 +673,7 @@ func TestCreateTLSCertificates(t *testing.T) {
 }
 
 func TestRemoveSSHKnownHosts(t *testing.T) {
+	t.Parallel()
 	clientset := getCertClientset()
 	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
 	assert.NotNil(t, db)
@@ -734,6 +738,7 @@ func TestRemoveSSHKnownHosts(t *testing.T) {
 }
 
 func TestRemoveTLSCertificates(t *testing.T) {
+	t.Parallel()
 	clientset := getCertClientset()
 	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
 	assert.NotNil(t, db)

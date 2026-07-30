@@ -63,7 +63,7 @@ type Client_CleanCache_Call struct {
 
 // CleanCache is a helper method to define mock.On call
 //   - revision string
-func (_e *Client_Expecter) CleanCache(revision interface{}) *Client_CleanCache_Call {
+func (_e *Client_Expecter) CleanCache(revision any) *Client_CleanCache_Call {
 	return &Client_CleanCache_Call{Call: _e.mock.On("CleanCache", revision)}
 }
 
@@ -126,7 +126,7 @@ type Client_DigestMetadata_Call struct {
 // DigestMetadata is a helper method to define mock.On call
 //   - ctx context.Context
 //   - digest string
-func (_e *Client_Expecter) DigestMetadata(ctx interface{}, digest interface{}) *Client_DigestMetadata_Call {
+func (_e *Client_Expecter) DigestMetadata(ctx any, digest any) *Client_DigestMetadata_Call {
 	return &Client_DigestMetadata_Call{Call: _e.mock.On("DigestMetadata", ctx, digest)}
 }
 
@@ -200,7 +200,7 @@ type Client_Extract_Call struct {
 // Extract is a helper method to define mock.On call
 //   - ctx context.Context
 //   - revision string
-func (_e *Client_Expecter) Extract(ctx interface{}, revision interface{}) *Client_Extract_Call {
+func (_e *Client_Expecter) Extract(ctx any, revision any) *Client_Extract_Call {
 	return &Client_Extract_Call{Call: _e.mock.On("Extract", ctx, revision)}
 }
 
@@ -268,7 +268,7 @@ type Client_GetTags_Call struct {
 // GetTags is a helper method to define mock.On call
 //   - ctx context.Context
 //   - noCache bool
-func (_e *Client_Expecter) GetTags(ctx interface{}, noCache interface{}) *Client_GetTags_Call {
+func (_e *Client_Expecter) GetTags(ctx any, noCache any) *Client_GetTags_Call {
 	return &Client_GetTags_Call{Call: _e.mock.On("GetTags", ctx, noCache)}
 }
 
@@ -335,7 +335,7 @@ type Client_ResolveRevision_Call struct {
 //   - ctx context.Context
 //   - revision string
 //   - noCache bool
-func (_e *Client_Expecter) ResolveRevision(ctx interface{}, revision interface{}, noCache interface{}) *Client_ResolveRevision_Call {
+func (_e *Client_Expecter) ResolveRevision(ctx any, revision any, noCache any) *Client_ResolveRevision_Call {
 	return &Client_ResolveRevision_Call{Call: _e.mock.On("ResolveRevision", ctx, revision, noCache)}
 }
 
@@ -405,7 +405,7 @@ type Client_TestRepo_Call struct {
 
 // TestRepo is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Client_Expecter) TestRepo(ctx interface{}) *Client_TestRepo_Call {
+func (_e *Client_Expecter) TestRepo(ctx any) *Client_TestRepo_Call {
 	return &Client_TestRepo_Call{Call: _e.mock.On("TestRepo", ctx)}
 }
 

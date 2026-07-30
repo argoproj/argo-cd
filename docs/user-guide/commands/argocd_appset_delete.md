@@ -13,14 +13,21 @@ argocd appset delete [flags]
 ```
   # Delete an applicationset
   argocd appset delete APPSETNAME (APPSETNAME...)
+  
+  # Delete ApplicationSet in a specific namespace using qualified name (namespace/name)
+  argocd appset delete APPSET_NAMESPACE/APPSETNAME
+  
+  # Delete ApplicationSet in a specific namespace using --appset-namespace flag
+  argocd appset delete --appset-namespace=APPSET_NAMESPACE APPSETNAME
 ```
 
 ### Options
 
 ```
-  -h, --help   help for delete
-      --wait   Wait until deletion of the applicationset(s) completes
-  -y, --yes    Turn off prompting to confirm cascaded deletion of Application resources
+  -N, --appset-namespace string   Namespace where the ApplicationSet will be deleted from (ignored when qualified name is provided)
+  -h, --help                      help for delete
+      --wait                      Wait until deletion of the applicationset(s) completes
+  -y, --yes                       Turn off prompting to confirm cascaded deletion of Application resources
 ```
 
 ### Options inherited from parent commands

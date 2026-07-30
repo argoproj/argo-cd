@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"regexp"
 	"slices"
 	"strconv"
 	"time"
@@ -43,9 +44,25 @@ func (a *Actions) DoNotIgnoreErrors() *Actions {
 	return a
 }
 
+func (a *Actions) GetLastOutput() string {
+	return a.lastOutput
+}
+
 func (a *Actions) PatchFile(file string, jsonPatch string) *Actions {
 	a.context.T().Helper()
 	fixture.Patch(a.context.T(), a.context.path+"/"+file, jsonPatch)
+	return a
+}
+
+func (a *Actions) PatchDrySourceFile(file string, jsonPatch string) *Actions {
+	a.context.T().Helper()
+	fixture.Patch(a.context.T(), a.context.drySourcePath+"/"+file, jsonPatch)
+	return a
+}
+
+func (a *Actions) GitRevList(args ...string) *Actions {
+	a.context.T().Helper()
+	a.lastOutput = fixture.GitRevList(a.context.T(), args)
 	return a
 }
 
@@ -183,8 +200,15 @@ func (a *Actions) CreateFromFile(handler func(app *v1alpha1.Application), flags 
 	return a
 }
 
-func (a *Actions) CreateMultiSourceAppFromFile(flags ...string) *Actions {
+func (a *Actions) CreateMultiSourceApp(flags ...string) *Actions {
 	a.context.T().Helper()
+
+	return a.CreateMultiSourceAppFromFile(func(_ *v1alpha1.Application) {}, flags...)
+}
+
+func (a *Actions) CreateMultiSourceAppFromFile(handler func(app *v1alpha1.Application), flags ...string) *Actions {
+	a.context.T().Helper()
+
 	app := &v1alpha1.Application{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      a.context.AppName(),
@@ -199,11 +223,13 @@ func (a *Actions) CreateMultiSourceAppFromFile(flags ...string) *Actions {
 			},
 			SyncPolicy: &v1alpha1.SyncPolicy{
 				Automated: &v1alpha1.SyncPolicyAutomated{
-					SelfHeal: true,
+					SelfHeal: new(true),
 				},
 			},
 		},
 	}
+
+	handler(app)
 
 	data := grpc.MustMarshal(app)
 	tmpFile, err := os.CreateTemp("", "")
@@ -312,6 +338,9 @@ func (a *Actions) prepareCreateAppArgs(args []string) []string {
 
 	if a.context.revision != "" {
 		args = append(args, "--revision", a.context.revision)
+	}
+	if a.context.tagPrefix != "" {
+		args = append(args, "--tag-prefix", a.context.tagPrefix)
 	}
 	if a.context.helmPassCredentials {
 		args = append(args, "--helm-pass-credentials")
@@ -443,9 +472,10 @@ func (a *Actions) ConfirmDeletion() *Actions {
 
 	a.runCli("app", "confirm-deletion", a.context.AppQualifiedName())
 
-	// Always sleep more than a second after the confirmation so the timestamp
-	// is not valid for immediate subsequent operations
-	time.Sleep(1500 * time.Millisecond)
+	// Always sleep a few seconds after the confirmation so the timestamp
+	// is not valid for immediate subsequent operations.
+	// Kubernetes containers may have clocks with a few seconds difference, and we want to avoid race conditions.
+	time.Sleep(3 * time.Second)
 
 	return a
 }
@@ -517,7 +547,12 @@ func (a *Actions) And(block func()) *Actions {
 
 func (a *Actions) Then() *Consequences {
 	a.context.T().Helper()
-	return &Consequences{a.context, a, 15}
+	return &Consequences{a.context, a, 25}
+}
+
+func (a *Actions) ThenWithTimeout(timeout int) *Consequences {
+	a.context.T().Helper()
+	return &Consequences{a.context, a, timeout}
 }
 
 func (a *Actions) runCli(args ...string) {
@@ -564,6 +599,31 @@ func (a *Actions) WithImpersonationEnabled(serviceAccountName string, policyRule
 func (a *Actions) WithImpersonationDisabled() *Actions {
 	a.context.T().Helper()
 	require.NoError(a.context.T(), fixture.SetImpersonationEnabled("false"))
+	return a
+}
+
+func (a *Actions) WithImpersonationEnforcementDisabled() *Actions {
+	a.context.T().Helper()
+	require.NoError(a.context.T(), fixture.SetImpersonationEnforcement("false"))
+	return a
+}
+
+func (a *Actions) GetHelmTemplateProcess() *Actions {
+	a.context.T().Helper()
+	cwd, err := os.Getwd()
+	require.NoError(a.context.T(), err)
+
+	// use BSD style ps(1) options and field names so it can be run
+	// on both linux and MacOS: the first column will be PID,
+	// the rest - commandline starting with the executable name
+	output, err := fixture.Run(cwd, "ps", "xao", "pid=,command=")
+	require.NoError(a.context.T(), err)
+
+	appName := regexp.QuoteMeta(a.context.AppName())
+	regexStr := "(?m)^.* helm template \\. --name-template " + appName + " .*$"
+	regex := regexp.MustCompile(regexStr)
+	a.lastOutput = regex.FindString(output)
+	a.lastError = nil
 	return a
 }
 

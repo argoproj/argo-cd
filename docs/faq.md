@@ -83,6 +83,26 @@ or a randomly generated password stored in a secret (Argo CD 1.9 and later).
 Add `admin.enabled: "false"` to the `argocd-cm` ConfigMap
 (see [user management](./operator-manual/user-management/index.md)).
 
+## How to view orphaned resources?
+
+Orphaned Kubernetes resources are top-level namespaced resources that do not belong to any Argo CD Application. For more information, see [Orphaned Resources Monitoring](./user-guide/orphaned-resources.md).
+
+!!! warning
+    Enabling orphaned resource monitoring has performance implications. If an AppProject monitors a namespace containing many resources not managed by Argo CD (e.g. `kube-system`), it can significantly impact your Argo CD instance. Enable this feature only on projects with well-scoped namespaces.
+
+To view orphaned resources in the Argo CD UI:
+
+1. Click on **Settings** in the sidebar.
+2. Click on **Projects**.
+3. Select the desired project.
+4. Scroll down to the **RESOURCE MONITORING** section.
+5. Click **Edit** and enable the monitoring feature.
+6. Check **Enable application warning conditions?** to enable warnings.
+7. Click **Save**.
+8. Navigate back to **Applications** and select an application under the configured project.
+9. In the **Sync Panel**, under **APP CONDITIONS**, you will see the orphaned resources warning.
+10. Click **Show Orphaned** below the **HEALTH STATUS** filters to display orphaned resources.
+
 ## Argo CD cannot deploy Helm Chart based applications without internet access, how can I solve it?
 
 Argo CD might fail to generate Helm chart manifests if the chart has dependencies located in external repositories. To

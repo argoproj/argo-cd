@@ -19,7 +19,7 @@ import (
 )
 
 // NewReloginCommand returns a new instance of `argocd relogin` command
-func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Command {
+func NewReloginCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		password         string
 		callback         string
@@ -37,28 +37,33 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			localCfg, err := localconfig.ReadLocalConfig(globalClientOpts.ConfigPath)
+			localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
 			errors.CheckError(err)
 			if localCfg == nil {
-				log.Fatalf("No context found. Login using `argocd login`")
+				log.Fatal("No context found. Login using `argocd login`")
 			}
-			configCtx, err := localCfg.ResolveContext(localCfg.CurrentContext)
+			// Use --argocd-context if specified, otherwise fall back to the current context.
+			configCtxName := localCfg.CurrentContext
+			if clientOpts.Context != "" {
+				configCtxName = clientOpts.Context
+			}
+			configCtx, err := localCfg.ResolveContext(configCtxName)
 			errors.CheckError(err)
 
 			var tokenString string
 			var refreshToken string
-			clientOpts := argocdclient.ClientOptions{
+			reloginOpts := argocdclient.ClientOptions{
 				ConfigPath:        "",
 				ServerAddr:        configCtx.Server.Server,
 				Insecure:          configCtx.Server.Insecure,
-				ClientCertFile:    globalClientOpts.ClientCertFile,
-				ClientCertKeyFile: globalClientOpts.ClientCertKeyFile,
-				GRPCWeb:           globalClientOpts.GRPCWeb,
-				GRPCWebRootPath:   globalClientOpts.GRPCWebRootPath,
+				ClientCertFile:    clientOpts.ClientCertFile,
+				ClientCertKeyFile: clientOpts.ClientCertKeyFile,
+				GRPCWeb:           clientOpts.GRPCWeb,
+				GRPCWebRootPath:   clientOpts.GRPCWebRootPath,
 				PlainText:         configCtx.Server.PlainText,
-				Headers:           globalClientOpts.Headers,
+				Headers:           clientOpts.Headers,
 			}
-			acdClient := headless.NewClientOrDie(&clientOpts, c)
+			acdClient := headless.NewClientOrDie(&reloginOpts, c)
 			claims, err := configCtx.User.Claims()
 			errors.CheckError(err)
 			if jwtutil.StringField(claims, "iss") == session.SessionManagerClaimsIssuer {
@@ -79,13 +84,13 @@ func NewReloginCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Comm
 			}
 
 			localCfg.UpsertUser(localconfig.User{
-				Name:         localCfg.CurrentContext,
+				Name:         configCtxName,
 				AuthToken:    tokenString,
 				RefreshToken: refreshToken,
 			})
-			err = localconfig.WriteLocalConfig(*localCfg, globalClientOpts.ConfigPath)
+			err = localconfig.WriteLocalConfig(*localCfg, clientOpts.ConfigPath)
 			errors.CheckError(err)
-			fmt.Printf("Context '%s' updated\n", localCfg.CurrentContext)
+			fmt.Printf("Context '%s' updated\n", configCtxName)
 		},
 		Example: `
 # Reinitiates the login with previous contexts

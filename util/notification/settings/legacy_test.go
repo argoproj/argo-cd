@@ -14,6 +14,7 @@ import (
 )
 
 func TestMergeLegacyConfig_DefaultTriggers(t *testing.T) {
+	t.Parallel()
 	cfg := api.Config{
 		Services: map[string]api.ServiceFactory{},
 		Triggers: map[string][]triggers.Condition{
@@ -44,6 +45,7 @@ triggers:
 }
 
 func TestMergeLegacyConfig(t *testing.T) {
+	t.Parallel()
 	cfg := api.Config{
 		Templates: map[string]services.Notification{"my-template1": {Message: "foo"}},
 		Triggers: map[string][]triggers.Condition{
@@ -110,6 +112,7 @@ slack:
 }
 
 func TestGetDestinations(t *testing.T) {
+	t.Parallel()
 	res := GetLegacyDestinations(map[string]string{
 		"my-trigger.recipients.argocd-notifications.argoproj.io": "slack:my-channel",
 	}, []string{}, nil)
@@ -124,6 +127,7 @@ func TestGetDestinations(t *testing.T) {
 }
 
 func TestGetDestinations_DefaultTrigger(t *testing.T) {
+	t.Parallel()
 	res := GetLegacyDestinations(map[string]string{
 		annotationKey: "slack:my-channel",
 	}, []string{"my-trigger"}, nil)
@@ -136,6 +140,7 @@ func TestGetDestinations_DefaultTrigger(t *testing.T) {
 }
 
 func TestGetDestinations_ServiceDefaultTriggers(t *testing.T) {
+	t.Parallel()
 	res := GetLegacyDestinations(map[string]string{
 		annotationKey: "slack:my-channel",
 	}, []string{}, map[string][]string{

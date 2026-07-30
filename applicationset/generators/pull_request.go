@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"strconv"
 	"time"
 
@@ -153,7 +152,7 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Secret token: %w", err)
 		}
-		return pullrequest.NewGitLabService(token, providerConfig.API, providerConfig.Project, providerConfig.Labels, providerConfig.PullRequestState, g.scmRootCAPath, providerConfig.Insecure, caCerts)
+		return pullrequest.NewGitLabService(token, providerConfig.API, providerConfig.Project, providerConfig.Labels, providerConfig.PullRequestState, g.scmRootCAPath, providerConfig.Insecure, caCerts, g.scmProxyURL, g.scmNoProxy)
 	}
 	if generatorConfig.Gitea != nil {
 		providerConfig := generatorConfig.Gitea
@@ -162,7 +161,7 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 			return nil, fmt.Errorf("error fetching Secret token: %w", err)
 		}
 
-		return pullrequest.NewGiteaService(token, providerConfig.API, providerConfig.Owner, providerConfig.Repo, providerConfig.Labels, providerConfig.Insecure)
+		return pullrequest.NewGiteaService(token, providerConfig.API, providerConfig.Owner, providerConfig.Repo, providerConfig.Labels, providerConfig.Insecure, g.scmProxyURL, g.scmNoProxy)
 	}
 	if generatorConfig.BitbucketServer != nil {
 		providerConfig := generatorConfig.BitbucketServer
@@ -179,15 +178,15 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 			if err != nil {
 				return nil, fmt.Errorf("error fetching Secret Bearer token: %w", err)
 			}
-			return pullrequest.NewBitbucketServiceBearerToken(ctx, appToken, providerConfig.API, providerConfig.Project, providerConfig.Repo, g.scmRootCAPath, providerConfig.Insecure, caCerts)
+			return pullrequest.NewBitbucketServiceBearerToken(ctx, appToken, providerConfig.API, providerConfig.Project, providerConfig.Repo, g.scmRootCAPath, providerConfig.Insecure, caCerts, g.scmProxyURL, g.scmNoProxy)
 		} else if providerConfig.BasicAuth != nil {
 			password, err := utils.GetSecretRef(ctx, g.client, providerConfig.BasicAuth.PasswordRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
 			if err != nil {
 				return nil, fmt.Errorf("error fetching Secret token: %w", err)
 			}
-			return pullrequest.NewBitbucketServiceBasicAuth(ctx, providerConfig.BasicAuth.Username, password, providerConfig.API, providerConfig.Project, providerConfig.Repo, g.scmRootCAPath, providerConfig.Insecure, caCerts)
+			return pullrequest.NewBitbucketServiceBasicAuth(ctx, providerConfig.BasicAuth.Username, password, providerConfig.API, providerConfig.Project, providerConfig.Repo, g.scmRootCAPath, providerConfig.Insecure, caCerts, g.scmProxyURL, g.scmNoProxy)
 		}
-		return pullrequest.NewBitbucketServiceNoAuth(ctx, providerConfig.API, providerConfig.Project, providerConfig.Repo, g.scmRootCAPath, providerConfig.Insecure, caCerts)
+		return pullrequest.NewBitbucketServiceNoAuth(ctx, providerConfig.API, providerConfig.Project, providerConfig.Repo, g.scmRootCAPath, providerConfig.Insecure, caCerts, g.scmProxyURL, g.scmNoProxy)
 	}
 	if generatorConfig.Bitbucket != nil {
 		providerConfig := generatorConfig.Bitbucket
@@ -218,15 +217,13 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 }
 
 func (g *PullRequestGenerator) github(ctx context.Context, cfg *argoprojiov1alpha1.PullRequestGeneratorGithub, applicationSetInfo *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error) {
-	var metricsCtx *services.MetricsContext
-	var httpClient *http.Client
-
+	httpClient := g.newSCMHTTPClient()
 	if g.enableGitHubAPIMetrics {
-		metricsCtx = &services.MetricsContext{
+		metricsCtx := &services.MetricsContext{
 			AppSetNamespace: applicationSetInfo.Namespace,
 			AppSetName:      applicationSetInfo.Name,
 		}
-		httpClient = services.NewGitHubMetricsClient(metricsCtx)
+		httpClient = services.NewGitHubMetricsClientFrom(httpClient, metricsCtx)
 	}
 
 	// use an app if it was configured
@@ -235,11 +232,7 @@ func (g *PullRequestGenerator) github(ctx context.Context, cfg *argoprojiov1alph
 		if err != nil {
 			return nil, fmt.Errorf("error getting GitHub App secret: %w", err)
 		}
-
-		if g.enableGitHubAPIMetrics {
-			return pullrequest.NewGithubAppService(ctx, *auth, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels, httpClient)
-		}
-		return pullrequest.NewGithubAppService(ctx, *auth, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels)
+		return pullrequest.NewGithubAppService(ctx, *auth, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels, httpClient)
 	}
 
 	// always default to token, even if not set (public access)
@@ -247,9 +240,5 @@ func (g *PullRequestGenerator) github(ctx context.Context, cfg *argoprojiov1alph
 	if err != nil {
 		return nil, fmt.Errorf("error fetching Secret token: %w", err)
 	}
-
-	if g.enableGitHubAPIMetrics {
-		return pullrequest.NewGithubService(token, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels, httpClient)
-	}
-	return pullrequest.NewGithubService(token, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels)
+	return pullrequest.NewGithubService(token, cfg.API, cfg.Owner, cfg.Repo, cfg.Labels, httpClient)
 }

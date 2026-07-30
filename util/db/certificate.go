@@ -16,7 +16,7 @@ import (
 	certutil "github.com/argoproj/argo-cd/v3/util/cert"
 )
 
-// A struct representing an entry in the list of SSH known hosts.
+// SSHKnownHostsEntry represents an entry in the list of SSH known hosts.
 type SSHKnownHostsEntry struct {
 	// Hostname the key is for
 	Host string
@@ -28,7 +28,7 @@ type SSHKnownHostsEntry struct {
 	Fingerprint string
 }
 
-// A representation of a TLS certificate
+// TLSCertificate represents a TLS certificate.
 type TLSCertificate struct {
 	// Subject of the certificate
 	Subject string
@@ -38,7 +38,7 @@ type TLSCertificate struct {
 	Data string
 }
 
-// Helper struct for certificate selection
+// CertificateListSelector is a helper struct for certificate selection.
 type CertificateListSelector struct {
 	// Pattern to match the hostname with
 	HostNamePattern string
@@ -48,7 +48,7 @@ type CertificateListSelector struct {
 	CertSubType string
 }
 
-// Get a list of all configured repository certificates matching the given
+// ListRepoCertificates returns a list of all configured repository certificates matching the given
 // selector. The list of certificates explicitly excludes the CertData of
 // the certificates, and only returns the metadata including CertInfo field.
 //
@@ -57,7 +57,7 @@ type CertificateListSelector struct {
 //     the string "SHA256:"
 //   - For TLS certs, the Subject of the X509 cert as a string in DN notation
 func (db *db) ListRepoCertificates(_ context.Context, selector *CertificateListSelector) (*appsv1.RepositoryCertificateList, error) {
-	// selector may be given as nil, but we need at least an empty data structure
+	// selector may be given as nil, but we need at least an empty data structure,
 	// so we create it if necessary.
 	if selector == nil {
 		selector = &CertificateListSelector{}
@@ -122,7 +122,7 @@ func (db *db) ListRepoCertificates(_ context.Context, selector *CertificateListS
 	}, nil
 }
 
-// Get a single certificate from the datastore
+// GetRepoCertificate returns a single certificate from the datastore
 func (db *db) GetRepoCertificate(_ context.Context, serverType string, serverName string) (*appsv1.RepositoryCertificate, error) {
 	if serverType == "ssh" {
 		sshKnownHostsList, err := db.getSSHKnownHostsData()
@@ -147,7 +147,7 @@ func (db *db) GetRepoCertificate(_ context.Context, serverType string, serverNam
 	return nil, nil
 }
 
-// Create one or more repository certificates and returns a list of certificates
+// CreateRepoCertificate creates one or more repository certificates and returns a list of certificates
 // actually created.
 func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.RepositoryCertificateList, upsert bool) (*appsv1.RepositoryCertificateList, error) {
 	var (
@@ -178,7 +178,7 @@ func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.Re
 			return nil, fmt.Errorf("invalid hostname in request: %s", certificate.ServerName)
 		} else if certificate.CertType == "ssh" {
 			// Matches "[hostname]:port" format
-			reExtract := regexp.MustCompile(`^\[(.*)\]:\d+$`)
+			reExtract := regexp.MustCompile(`^\[(.*)]:\d+$`)
 			matches := reExtract.FindStringSubmatch(certificate.ServerName)
 			var hostnameToCheck string
 			if len(matches) == 0 {
@@ -206,7 +206,7 @@ func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.Re
 					if !upsert && entry.Data != string(certificate.CertData) {
 						return nil, fmt.Errorf("key for '%s' (subtype: '%s') already exists, and upsert was not specified", entry.Host, entry.SubType)
 					}
-					// Do not add an entry on upsert, but remember if we actual did an
+					// Do not add an entry on upsert, but remember if we actually did an
 					// upsert.
 					newEntry = false
 					if entry.Data != string(certificate.CertData) {
@@ -332,7 +332,7 @@ func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.Re
 	return &appsv1.RepositoryCertificateList{Items: created}, nil
 }
 
-// Batch remove configured certificates according to the selector query
+// RemoveRepoCertificates removes configured certificates according to the selector query
 func (db *db) RemoveRepoCertificates(ctx context.Context, selector *CertificateListSelector) (*appsv1.RepositoryCertificateList, error) {
 	var (
 		knownHostsOld      []*SSHKnownHostsEntry
@@ -376,7 +376,7 @@ func (db *db) RemoveRepoCertificates(ctx context.Context, selector *CertificateL
 		for _, entry := range tlsCertificatesOld {
 			if certutil.MatchHostName(entry.Subject, selector.HostNamePattern) {
 				// Wrap each PEM certificate into its own RepositoryCertificate object
-				// so the caller knows what has been removed actually.
+				// so the caller knows what has actually been removed.
 				//
 				// The downside of this is, only valid data can be removed from the CM,
 				// so if the data somehow got corrupted, it can only be removed by

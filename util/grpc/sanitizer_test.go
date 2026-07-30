@@ -12,6 +12,7 @@ import (
 )
 
 func TestSanitizer(t *testing.T) {
+	t.Parallel()
 	s := NewSanitizer()
 
 	ctx := ContextWithSanitizer(t.Context(), s)
@@ -25,6 +26,7 @@ func TestSanitizer(t *testing.T) {
 }
 
 func TestSanitizer_RegexReplacement(t *testing.T) {
+	t.Parallel()
 	s := NewSanitizer()
 
 	ctx := ContextWithSanitizer(t.Context(), s)
@@ -38,6 +40,7 @@ func TestSanitizer_RegexReplacement(t *testing.T) {
 }
 
 func TestErrorSanitizerUnaryServerInterceptor(t *testing.T) {
+	t.Parallel()
 	interceptor := ErrorSanitizerUnaryServerInterceptor()
 
 	_, err := interceptor(t.Context(), nil, nil, func(ctx context.Context, _ any) (any, error) {

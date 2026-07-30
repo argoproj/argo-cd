@@ -49,6 +49,65 @@ func setupAzureIdentity(t *testing.T) {
 	t.Setenv("AZURE_FEDERATED_TOKEN_FILE", tokenFilePath)
 }
 
+func TestGetDomainHint(t *testing.T) {
+	t.Run("Returns domain hint when OIDC config is set", func(t *testing.T) {
+		settings := &settings.ArgoCDSettings{
+			OIDCConfigRAW: `
+name: Test OIDC
+issuer: https://example.com
+clientID: test-client
+clientSecret: test-secret
+domainHint: example.com
+`,
+		}
+		domainHint := getDomainHint(settings)
+		assert.Equal(t, "example.com", domainHint)
+	})
+
+	t.Run("Returns empty string when domain hint is not set", func(t *testing.T) {
+		settings := &settings.ArgoCDSettings{
+			OIDCConfigRAW: `
+name: Test OIDC
+issuer: https://example.com
+clientID: test-client
+clientSecret: test-secret
+`,
+		}
+		domainHint := getDomainHint(settings)
+		assert.Empty(t, domainHint)
+	})
+
+	t.Run("Returns empty string when OIDC config is nil", func(t *testing.T) {
+		settings := &settings.ArgoCDSettings{
+			OIDCConfigRAW: "",
+		}
+		domainHint := getDomainHint(settings)
+		assert.Empty(t, domainHint)
+	})
+
+	t.Run("Returns empty string when YAML is malformed", func(t *testing.T) {
+		settings := &settings.ArgoCDSettings{
+			OIDCConfigRAW: `{this is not valid yaml at all]`,
+		}
+		domainHint := getDomainHint(settings)
+		assert.Empty(t, domainHint)
+	})
+
+	t.Run("Trims whitespaces from domain hint", func(t *testing.T) {
+		settings := &settings.ArgoCDSettings{
+			OIDCConfigRAW: `
+name: Test OIDC
+issuer: https://example.com
+clientID: test-client
+clientSecret: test-secret
+domainHint: "  example.com  "
+`,
+		}
+		domainHint := getDomainHint(settings)
+		assert.Equal(t, "example.com", domainHint)
+	})
+}
+
 func TestInferGrantType(t *testing.T) {
 	for _, path := range []string{"dex", "okta", "auth0", "onelogin"} {
 		t.Run(path, func(t *testing.T) {
@@ -100,6 +159,33 @@ func TestIDTokenClaims(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.JSONEq(t, "{\"id_token\":{\"groups\":{\"essential\":true}}}", values.Get("claims"))
+}
+
+func TestHandleLogin_IncludesDomainHint(t *testing.T) {
+	oidcTestServer := test.GetOIDCTestServer(t, nil)
+	t.Cleanup(oidcTestServer.Close)
+
+	cdSettings := &settings.ArgoCDSettings{
+		URL:                       "https://argocd.example.com",
+		OIDCTLSInsecureSkipVerify: true,
+		OIDCConfigRAW: fmt.Sprintf(`
+name: Test
+issuer: %s
+clientID: test-client-id
+clientSecret: test-client-secret
+domainHint: example.com
+requestedScopes: ["openid", "profile", "email", "groups"]`, oidcTestServer.URL),
+	}
+	app, err := NewClientApp(cdSettings, "", nil, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
+	require.NoError(t, err)
+
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://argocd.example.com/auth/login", http.NoBody)
+	w := httptest.NewRecorder()
+	app.HandleLogin(w, req)
+
+	assert.Equal(t, http.StatusSeeOther, w.Code)
+	location := w.Header().Get("Location")
+	assert.Contains(t, location, "domain_hint=example.com")
 }
 
 type fakeProvider struct {
@@ -931,10 +1017,11 @@ func TestGetUserInfo(t *testing.T) {
 			expectEncrypted bool
 			expectError     bool
 		}
-		idpHandler func(w http.ResponseWriter, r *http.Request)
-		idpClaims  jwt.MapClaims // as per specification sub and exp are REQUIRED fields
-		cache      cache.CacheClient
-		cacheItems []struct { // items to put in cache before execution
+		idpHandler         func(w http.ResponseWriter, r *http.Request)
+		idpHandlerUserInfo func(w http.ResponseWriter, r *http.Request) // same as idpHandler but listening on userInfoBaseURL instead of issuerURL
+		idpClaims          jwt.MapClaims                                // as per specification sub and exp are REQUIRED fields
+		cache              cache.CacheClient
+		cacheItems         []struct { // items to put in cache before execution
 			key     string
 			value   string
 			encrypt bool
@@ -1129,10 +1216,76 @@ func TestGetUserInfo(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:                  "call UserInfo on separate endpoint",
+			userInfoPath:          "/user-info",
+			expectedOutput:        jwt.MapClaims{"groups": []any{"githubOrg:developers"}}, // response from separate idpHandlerUserInfo expected
+			expectError:           false,
+			expectUnauthenticated: false,
+			expectedCacheItems: []struct {
+				key             string
+				value           string
+				expectEncrypted bool
+				expectError     bool
+			}{
+				{
+					key:             FormatUserInfoResponseCacheKey("randomUser"),
+					value:           "{\"groups\":[\"githubOrg:developers\"]}",
+					expectEncrypted: true,
+					expectError:     false,
+				},
+			},
+			idpClaims: jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(5 * time.Minute).Unix())},
+			idpHandler: func(w http.ResponseWriter, _ *http.Request) {
+				userInfoBytes := `
+				{
+					"groups":["githubOrg:engineers"]
+				}`
+				w.Header().Set("content-type", "application/json")
+				_, err := w.Write([]byte(userInfoBytes))
+				if err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+				w.WriteHeader(http.StatusOK)
+			},
+			idpHandlerUserInfo: func(w http.ResponseWriter, _ *http.Request) {
+				userInfoBytes := `
+				{
+					"groups":["githubOrg:developers"]
+				}`
+				w.Header().Set("content-type", "application/json")
+				_, err := w.Write([]byte(userInfoBytes))
+				if err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					return
+				}
+				w.WriteHeader(http.StatusOK)
+			},
+			cache: cache.NewInMemoryCache(24 * time.Hour),
+			cacheItems: []struct {
+				key     string
+				value   string
+				encrypt bool
+			}{
+				{
+					key:     FormatAccessTokenCacheKey("randomUser"),
+					value:   "FakeAccessToken",
+					encrypt: true,
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			var tsUserInfo *httptest.Server
+			if tt.idpHandlerUserInfo != nil {
+				tsUserInfo = httptest.NewServer(http.HandlerFunc(tt.idpHandlerUserInfo))
+			} else {
+				tsUserInfo = httptest.NewServer(http.HandlerFunc(tt.idpHandler))
+			}
+
 			ts := httptest.NewServer(http.HandlerFunc(tt.idpHandler))
 			defer ts.Close()
 
@@ -1157,7 +1310,7 @@ func TestGetUserInfo(t *testing.T) {
 				require.NoError(t, err)
 			}
 
-			got, unauthenticated, err := a.GetUserInfo(t.Context(), tt.idpClaims, ts.URL, tt.userInfoPath)
+			got, unauthenticated, err := a.GetUserInfo(t.Context(), tt.idpClaims, ts.URL, tsUserInfo.URL, tt.userInfoPath)
 			assert.Equal(t, tt.expectedOutput, got)
 			assert.Equal(t, tt.expectUnauthenticated, unauthenticated)
 			if tt.expectError {
@@ -1183,7 +1336,7 @@ func TestGetUserInfo(t *testing.T) {
 	}
 }
 
-func TestSetGroupsFromUserInfo(t *testing.T) {
+func TestSetGroupsClaimFromEndpoint(t *testing.T) {
 	tests := []struct {
 		name           string
 		inputClaims    jwt.MapClaims // function input
@@ -1237,7 +1390,7 @@ userInfoPath: /`,
 			a, err := NewClientApp(cdSettings, "", nil, "/argo-cd", userInfoCache)
 			require.NoError(t, err, "failed creating clientapp")
 
-			// prepoluate cache to predict what the GetUserInfo function will return to the SetGroupsFromUserInfo function (without having to mock the userinfo response)
+			// prepoluate cache to predict what the GetUserInfo function will return to the SetGroupsClaimFromEndpoint function (without having to mock the userinfo response)
 			encryptionKey, err := cdSettings.GetServerEncryptionKey()
 			require.NoError(t, err, "failed obtaining encryption key from settings")
 
@@ -1263,7 +1416,7 @@ userInfoPath: /`,
 				require.NoError(t, err, "failed setting item to in-memory cache")
 			}
 
-			receivedClaims, err := a.SetGroupsFromUserInfo(t.Context(), tt.inputClaims, "argocd")
+			receivedClaims, err := a.SetGroupsClaimFromEndpoint(t.Context(), tt.inputClaims, "argocd")
 			if tt.expectError {
 				require.Error(t, err)
 			} else {
@@ -1295,7 +1448,7 @@ func TestGetOidcTokenCacheFromJSON(t *testing.T) {
 		},
 		{
 			name:           "simple",
-			oidcTokenCache: NewOidcTokenCache("", (&oauth2.Token{}).WithExtra(map[string]any{"id_token": "simple"})),
+			oidcTokenCache: NewOidcTokenCache("", (&oauth2.Token{}).WithExtra(map[string]any{"id_token": "simple"}), time.Time{}),
 			expectIdToken:  "simple",
 		},
 	}
@@ -1338,7 +1491,7 @@ func TestClientApp_GetTokenSourceFromCache(t *testing.T) {
 		},
 		{
 			name:           "simple",
-			oidcTokenCache: NewOidcTokenCache("", (&oauth2.Token{}).WithExtra(map[string]any{"id_token": "simple"})),
+			oidcTokenCache: NewOidcTokenCache("", (&oauth2.Token{}).WithExtra(map[string]any{"id_token": "simple"}), time.Time{}),
 			provider:       &fakeProvider{},
 		},
 	}
@@ -1412,6 +1565,7 @@ clientID: test-client-id
 clientSecret: test-client-secret
 requestedScopes: ["oidc"]`, oidcTestServer.URL),
 				OIDCTLSInsecureSkipVerify: true,
+				UserSessionDuration:       24 * time.Hour,
 			}
 			app, err := NewClientApp(cdSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
 			require.NoError(t, err)
@@ -1431,6 +1585,115 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 			}
 		})
 	}
+}
+
+func TestSessionRemainingTTL(t *testing.T) {
+	const dur = 10 * time.Minute
+
+	t.Run("zero session start returns original full duration", func(t *testing.T) {
+		ttl := sessionRemainingTTL(time.Time{}, dur)
+		assert.Equal(t, dur, ttl)
+	})
+
+	t.Run("active session returns remaining time", func(t *testing.T) {
+		sessionStart := time.Now().Add(-4 * time.Minute)
+		ttl := sessionRemainingTTL(sessionStart, dur)
+		// ~6 min remaining; accept ±5s of test jitter
+		assert.InDelta(t, (6 * time.Minute).Seconds(), ttl.Seconds(), 5)
+	})
+
+	t.Run("expired session returns zero", func(t *testing.T) {
+		sessionStart := time.Now().Add(-11 * time.Minute)
+		ttl := sessionRemainingTTL(sessionStart, dur)
+		assert.Equal(t, time.Duration(0), ttl)
+	})
+}
+
+func TestClientApp_GetUpdatedOidcTokenFromCache_SessionCeiling(t *testing.T) {
+	// 10 minute UserSessionDuration, 9 minutes of current session already passed
+	const sessionDuration = 10 * time.Minute
+	sessionStart := time.Now().Add(-9 * time.Minute)
+
+	oidcTestServer := test.GetOIDCTestServer(t, nil)
+	t.Cleanup(oidcTestServer.Close)
+
+	cdSettings := &settings.ArgoCDSettings{
+		URL: "https://argocd.example.com",
+		OIDCConfigRAW: fmt.Sprintf(`
+name: Test
+issuer: %s
+clientID: test-client-id
+clientSecret: test-client-secret
+requestedScopes: ["oidc"]`, oidcTestServer.URL),
+		OIDCTLSInsecureSkipVerify: true,
+		UserSessionDuration:       sessionDuration,
+	}
+	app, err := NewClientApp(cdSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
+	require.NoError(t, err)
+
+	sub, sid := "alice", "s1"
+	oidcTokenCacheJSON, err := json.Marshal(&OidcTokenCache{
+		Token:        &oauth2.Token{RefreshToken: "not empty"},
+		SessionStart: sessionStart,
+	})
+	require.NoError(t, err)
+	require.NoError(t, app.SetValueInEncryptedCache(t.Context(), formatOidcTokenCacheKey(sub, sid), oidcTokenCacheJSON, sessionDuration))
+
+	_, err = app.GetUpdatedOidcTokenFromCache(t.Context(), sub, sid)
+	require.NoError(t, err)
+
+	// Retrieve the updated entry and confirm SessionStart was not reset to now.
+	updatedJSON, err := app.GetValueFromEncryptedCache(t.Context(), formatOidcTokenCacheKey(sub, sid))
+	require.NoError(t, err)
+	require.NotNil(t, updatedJSON, "cache entry should exist after refresh")
+
+	updatedCache, err := GetOidcTokenCacheFromJSON(updatedJSON)
+	require.NoError(t, err)
+
+	// TTL should be less than 1 minute after token refresh
+	assert.WithinDuration(t, sessionStart, updatedCache.SessionStart, 5*time.Second,
+		"SessionStart must be preserved across token refreshes")
+}
+
+func TestClientApp_GetUpdatedOidcTokenFromCache_SessionCeilingExceeded(t *testing.T) {
+	const sessionDuration = 10 * time.Minute
+	sessionStart := time.Now().Add(-11 * time.Minute)
+
+	oidcTestServer := test.GetOIDCTestServer(t, nil)
+	t.Cleanup(oidcTestServer.Close)
+
+	cdSettings := &settings.ArgoCDSettings{
+		URL: "https://argocd.example.com",
+		OIDCConfigRAW: fmt.Sprintf(`
+name: Test
+issuer: %s
+clientID: test-client-id
+clientSecret: test-client-secret
+requestedScopes: ["oidc"]`, oidcTestServer.URL),
+		OIDCTLSInsecureSkipVerify: true,
+		UserSessionDuration:       sessionDuration,
+	}
+	app, err := NewClientApp(cdSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
+	require.NoError(t, err)
+
+	sub, sid := "alice", "s1"
+	cacheKey := formatOidcTokenCacheKey(sub, sid)
+	originalJSON, err := json.Marshal(&OidcTokenCache{
+		Token:        &oauth2.Token{RefreshToken: "not empty"},
+		SessionStart: sessionStart,
+	})
+	require.NoError(t, err)
+	require.NoError(t, app.SetValueInEncryptedCache(t.Context(), cacheKey, originalJSON, time.Minute))
+
+	token, err := app.GetUpdatedOidcTokenFromCache(t.Context(), sub, sid)
+	require.NoError(t, err)
+	assert.Nil(t, token, "expired session must not yield a refreshed token")
+
+	// The refreshed token must not overwrite the cache entry with the default TTL
+	cachedValue, err := app.GetValueFromEncryptedCache(t.Context(), cacheKey)
+	require.NoError(t, err)
+	assert.JSONEq(t, string(originalJSON), string(cachedValue),
+		"expired session must not be re-cached with the cache's default TTL")
 }
 
 func TestClientApp_CheckAndGetRefreshToken(t *testing.T) {
@@ -1496,6 +1759,7 @@ clientSecret: test-client-secret
 refreshTokenThreshold: %s
 requestedScopes: ["oidc"]`, oidcTestServer.URL, tt.refreshTokenThreshold),
 				OIDCTLSInsecureSkipVerify: true,
+				UserSessionDuration:       24 * time.Hour,
 			}
 			// The base href (the last argument for NewClientApp) is what HandleLogin will fall back to when no explicit
 			// redirect URL is given.

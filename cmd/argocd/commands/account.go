@@ -127,7 +127,7 @@ has appropriate RBAC permissions to change other accounts.
 
 			_, err := usrIf.UpdatePassword(ctx, &updatePasswordRequest)
 			errors.CheckError(err)
-			fmt.Printf("Password updated\n")
+			fmt.Print("Password updated\n")
 
 			if account == "" || account == userInfo.Username {
 				// Get a new JWT token after updating the password
@@ -254,7 +254,7 @@ func printAccountNames(accounts []*accountpkg.Account) {
 
 func printAccountsTable(items []*accountpkg.Account) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(w, "NAME\tENABLED\tCAPABILITIES\n")
+	fmt.Fprint(w, "NAME\tENABLED\tCAPABILITIES\n")
 	for _, a := range items {
 		fmt.Fprintf(w, "%s\t%v\t%s\n", a.Name, a.Enabled, strings.Join(a.Capabilities, ", "))
 	}
@@ -356,7 +356,7 @@ func printAccountDetails(acc *accountpkg.Account) {
 		fmt.Println("NONE")
 	} else {
 		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		fmt.Fprintf(w, "ID\tISSUED AT\tEXPIRING AT\n")
+		fmt.Fprint(w, "ID\tISSUED AT\tEXPIRING AT\n")
 		for _, t := range acc.Tokens {
 			expiresAtFormatted := "never"
 			if t.ExpiresAt > 0 {

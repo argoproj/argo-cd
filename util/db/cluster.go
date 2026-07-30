@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -21,12 +22,15 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/common"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/settings"
+)
+
+const (
+	errCheckingInClusterEnabled = "%s: error checking if in-cluster is enabled: %v"
 )
 
 var (
 	localCluster = appv1.Cluster{
-		Name:   "in-cluster",
+		Name:   appv1.KubernetesInClusterName,
 		Server: appv1.KubernetesInternalAPIServerAddr,
 		Info: appv1.ClusterInfo{
 			ConnectionState: appv1.ConnectionState{Status: appv1.ConnectionStatusSuccessful},
@@ -61,25 +65,23 @@ func (db *db) getLocalCluster() *appv1.Cluster {
 
 // ListClusters returns list of clusters
 func (db *db) ListClusters(_ context.Context) (*appv1.ClusterList, error) {
-	clusterSecrets, err := db.listSecretsByType(common.LabelValueSecretTypeCluster)
+	informer, err := db.settingsMgr.GetClusterInformer()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get cluster informer: %w", err)
+	}
+	clusters, err := informer.ListAvailableClusters()
 	if err != nil {
 		return nil, err
 	}
 	clusterList := appv1.ClusterList{
 		Items: make([]appv1.Cluster, 0),
 	}
-	settings, err := db.settingsMgr.GetSettings()
+	inClusterEnabled, err := db.settingsMgr.IsInClusterEnabled()
 	if err != nil {
-		return nil, err
+		log.Warnf(errCheckingInClusterEnabled, "ListClusters", err)
 	}
-	inClusterEnabled := settings.InClusterEnabled
 	hasInClusterCredentials := false
-	for _, clusterSecret := range clusterSecrets {
-		cluster, err := SecretToCluster(clusterSecret)
-		if err != nil {
-			log.Errorf("could not unmarshal cluster secret %s", clusterSecret.Name)
-			continue
-		}
+	for _, cluster := range clusters {
 		if cluster.Server == appv1.KubernetesInternalAPIServerAddr {
 			if inClusterEnabled {
 				hasInClusterCredentials = true
@@ -98,11 +100,11 @@ func (db *db) ListClusters(_ context.Context) (*appv1.ClusterList, error) {
 // CreateCluster creates a cluster
 func (db *db) CreateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Cluster, error) {
 	if c.Server == appv1.KubernetesInternalAPIServerAddr {
-		settings, err := db.settingsMgr.GetSettings()
+		inClusterEnabled, err := db.settingsMgr.IsInClusterEnabled()
 		if err != nil {
-			return nil, err
+			log.Warnf(errCheckingInClusterEnabled, "CreateCluster", err)
 		}
-		if !settings.InClusterEnabled {
+		if !inClusterEnabled {
 			return nil, status.Errorf(codes.InvalidArgument, "cannot register cluster: in-cluster has been disabled")
 		}
 	}
@@ -148,13 +150,12 @@ func (db *db) WatchClusters(ctx context.Context,
 	handleModEvent func(oldCluster *appv1.Cluster, newCluster *appv1.Cluster),
 	handleDeleteEvent func(clusterServer string),
 ) error {
-	argoSettings, err := db.settingsMgr.GetSettings()
+	inClusterEnabled, err := db.settingsMgr.IsInClusterEnabled()
 	if err != nil {
-		return err
+		log.Warnf(errCheckingInClusterEnabled, "WatchClusters", err)
 	}
-
 	localCls := db.getLocalCluster()
-	if argoSettings.InClusterEnabled {
+	if inClusterEnabled {
 		localCls, err = db.GetCluster(ctx, appv1.KubernetesInternalAPIServerAddr)
 		if err != nil {
 			return fmt.Errorf("could not get local cluster: %w", err)
@@ -173,7 +174,7 @@ func (db *db) WatchClusters(ctx context.Context,
 				return
 			}
 			if cluster.Server == appv1.KubernetesInternalAPIServerAddr {
-				if argoSettings.InClusterEnabled {
+				if inClusterEnabled {
 					// change local cluster event to modified, since it cannot be added at runtime
 					handleModEvent(localCls, cluster)
 					localCls = cluster
@@ -201,7 +202,7 @@ func (db *db) WatchClusters(ctx context.Context,
 		},
 
 		func(secret *corev1.Secret) {
-			if string(secret.Data["server"]) == appv1.KubernetesInternalAPIServerAddr && argoSettings.InClusterEnabled {
+			if string(secret.Data["server"]) == appv1.KubernetesInternalAPIServerAddr && inClusterEnabled {
 				// change local cluster event to modified, since it cannot be deleted at runtime, unless disabled.
 				newLocalCls := db.getLocalCluster()
 				handleModEvent(localCls, newLocalCls)
@@ -215,29 +216,41 @@ func (db *db) WatchClusters(ctx context.Context,
 	return err
 }
 
-func (db *db) getClusterSecret(server string) (*corev1.Secret, error) {
-	clusterSecrets, err := db.listSecretsByType(common.LabelValueSecretTypeCluster)
+func (db *db) getClusterSecret(ctx context.Context, server string) (*corev1.Secret, error) {
+	informer, err := db.settingsMgr.GetClusterInformer()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get cluster informer: %w", err)
 	}
-	srv := strings.TrimRight(server, "/")
-	for _, clusterSecret := range clusterSecrets {
-		if strings.TrimRight(string(clusterSecret.Data["server"]), "/") == srv {
-			return clusterSecret, nil
+	cluster, err := informer.GetClusterByURL(server)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, status.Errorf(codes.NotFound, "cluster %q not found", server)
 		}
+		return nil, status.Errorf(codes.Internal, "failed to get cluster %q from informer: %v", server, err)
 	}
-	return nil, status.Errorf(codes.NotFound, "cluster %q not found", server)
+	secretName := cluster.ObjectMeta.Name
+	secret, err := db.kubeclientset.CoreV1().Secrets(db.ns).Get(ctx, secretName, metav1.GetOptions{})
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, status.Errorf(codes.NotFound, "cluster %q not found", server)
+		}
+		return nil, status.Errorf(codes.Internal, "failed to get cluster secret %s: %v", secretName, err)
+	}
+	return secret, nil
 }
 
 // GetCluster returns a cluster from a query
 func (db *db) GetCluster(_ context.Context, server string) (*appv1.Cluster, error) {
-	informer := db.settingsMgr.GetClusterInformer()
+	informer, err := db.settingsMgr.GetClusterInformer()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get cluster informer: %w", err)
+	}
 	if server == appv1.KubernetesInternalAPIServerAddr {
-		argoSettings, err := db.settingsMgr.GetSettings()
+		inClusterEnabled, err := db.settingsMgr.IsInClusterEnabled()
 		if err != nil {
-			return nil, err
+			log.Warnf(errCheckingInClusterEnabled, "GetCluster", err)
 		}
-		if !argoSettings.InClusterEnabled {
+		if !inClusterEnabled {
 			return nil, status.Errorf(codes.NotFound, "cluster %q is disabled", server)
 		}
 
@@ -247,6 +260,9 @@ func (db *db) GetCluster(_ context.Context, server string) (*appv1.Cluster, erro
 		if err == nil {
 			return cluster, nil
 		}
+		if !apierrors.IsNotFound(err) {
+			return nil, status.Errorf(codes.Internal, "failed to get cluster %q: %v", server, err)
+		}
 
 		// Fall back to the hardcoded local cluster if no secret is configured
 		return db.getLocalCluster(), nil
@@ -254,7 +270,10 @@ func (db *db) GetCluster(_ context.Context, server string) (*appv1.Cluster, erro
 
 	cluster, err := informer.GetClusterByURL(server)
 	if err != nil {
-		return nil, status.Errorf(codes.NotFound, "cluster %q not found", server)
+		if apierrors.IsNotFound(err) {
+			return nil, status.Errorf(codes.NotFound, "cluster %q not found", server)
+		}
+		return nil, status.Errorf(codes.Internal, "failed to get cluster %q: %v", server, err)
 	}
 
 	return cluster, nil
@@ -262,44 +281,44 @@ func (db *db) GetCluster(_ context.Context, server string) (*appv1.Cluster, erro
 
 // GetProjectClusters return project scoped clusters by given project name
 func (db *db) GetProjectClusters(_ context.Context, project string) ([]*appv1.Cluster, error) {
-	informer, err := db.settingsMgr.GetSecretsInformer()
+	informer, err := db.settingsMgr.GetClusterInformer()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get secrets informer: %w", err)
+		return nil, fmt.Errorf("failed to get cluster informer: %w", err)
 	}
-	secrets, err := informer.GetIndexer().ByIndex(settings.ByProjectClusterIndexer, project)
+	clusters, err := informer.GetAvailableProjectClusters(project)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get index by project cluster indexer for project %q: %w", project, err)
+		return nil, fmt.Errorf("failed to get index by project clusters for project %q: %w", project, err)
 	}
-	var res []*appv1.Cluster
-	for i := range secrets {
-		cluster, err := SecretToCluster(secrets[i].(*corev1.Secret))
-		if err != nil {
-			return nil, fmt.Errorf("failed to convert secret to cluster: %w", err)
-		}
-		res = append(res, cluster)
-	}
-	return res, nil
+	return clusters, nil
 }
 
 func (db *db) GetClusterServersByName(_ context.Context, name string) ([]string, error) {
-	argoSettings, err := db.settingsMgr.GetSettings()
+	informer, err := db.settingsMgr.GetClusterInformer()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get cluster informer: %w", err)
 	}
-
-	informer := db.settingsMgr.GetClusterInformer()
 	servers, err := informer.GetClusterServersByName(name)
 	if err != nil {
 		return nil, err
 	}
 
+	// attempt to short circuit if the in-cluster name is not involved
+	if name != appv1.KubernetesInClusterName && !slices.Contains(servers, appv1.KubernetesInternalAPIServerAddr) {
+		return servers, nil
+	}
+
+	inClusterEnabled, err := db.settingsMgr.IsInClusterEnabled()
+	if err != nil {
+		return nil, fmt.Errorf(errCheckingInClusterEnabled, "GetClusterServersByName", err)
+	}
+
 	// Handle local cluster special case
-	if len(servers) == 0 && name == "in-cluster" && argoSettings.InClusterEnabled {
+	if len(servers) == 0 && name == appv1.KubernetesInClusterName && inClusterEnabled {
 		return []string{appv1.KubernetesInternalAPIServerAddr}, nil
 	}
 
 	// Filter out disabled in-cluster
-	if !argoSettings.InClusterEnabled {
+	if !inClusterEnabled {
 		filtered := make([]string, 0, len(servers))
 		for _, s := range servers {
 			if s != appv1.KubernetesInternalAPIServerAddr {
@@ -314,7 +333,7 @@ func (db *db) GetClusterServersByName(_ context.Context, name string) ([]string,
 
 // UpdateCluster updates a cluster
 func (db *db) UpdateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Cluster, error) {
-	clusterSecret, err := db.getClusterSecret(c.Server)
+	clusterSecret, err := db.getClusterSecret(ctx, c.Server)
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
 			return db.CreateCluster(ctx, c)
@@ -339,7 +358,7 @@ func (db *db) UpdateCluster(ctx context.Context, c *appv1.Cluster) (*appv1.Clust
 
 // DeleteCluster deletes a cluster by name
 func (db *db) DeleteCluster(ctx context.Context, server string) error {
-	secret, err := db.getClusterSecret(server)
+	secret, err := db.getClusterSecret(ctx, server)
 	if err != nil {
 		return err
 	}

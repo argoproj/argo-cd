@@ -249,6 +249,11 @@ data:
           clientSecret: $dex.oidc.clientSecret
 ```
 
+> [!NOTE]
+> Argo CD's OIDC token refresh (see `refreshTokenThreshold` in [Existing OIDC Provider](#existing-oidc-provider))
+> does not apply to Dex's embedded web login flow. Once a Dex-issued ID token expires, the user
+> must log in again, regardless of `refreshTokenThreshold` being set.
+
 ### Requesting additional ID token claims
 
 By default Dex only retrieves the profile and email scopes. In order to retrieve more claims you
@@ -351,6 +356,12 @@ data:
     # Make sure the identity provider supports it and that it is activated for Argo CD OIDC client.
     # Default is false.
     enablePKCEAuthentication: true
+
+    # Optional. Argo CD uses this threshold to refresh an OIDC ID token before it expires, using the
+    # cached refresh token, so the session isn't interrupted. Must be shorter than the ID
+    # token's lifetime, or a new token will be requested on every request.
+    # Default is 0s.
+    refreshTokenThreshold: 30s
 ```
 
 > [!NOTE]
@@ -397,6 +408,7 @@ Some OIDC providers don't return the group information for a user in the ID toke
 oidc.config: |
     enableUserInfoGroups: true
     userInfoPath: /userinfo
+    userInfoURL: "https://users.example.com"
     userInfoCacheExpiration: "5m"
 ```
 
@@ -428,6 +440,41 @@ You are not required to specify a logoutRedirectURL as this is automatically gen
 
 > [!NOTE]
 > The post logout redirect URI may need to be whitelisted against your OIDC provider's client settings for ArgoCD.
+
+### Token Revocation and Session Management
+
+Argo CD implements server-side token revocation to enhance security when users log out. This is particularly important for SSO configurations using Dex or other OIDC providers.
+
+#### How Token Revocation Works
+
+When a user logs out (either via the UI or CLI using `argocd logout`), Argo CD:
+
+1. **Invalidates the token on the server**: The token is added to a revocation list stored in Redis
+2. **Removes the token locally**: The token is removed from the local configuration
+3. **Redirects to OIDC provider** (if configured): The user is redirected to the OIDC provider's logout URL to terminate the SSO session
+
+Revoked tokens cannot be used for API calls, even if they haven't expired yet. This prevents:
+- Unauthorized access after logout
+- Token reuse if a token is compromised
+- Security gaps with Dex SSO where tokens are not automatically invalidated
+
+#### Graceful Degradation
+
+The `argocd logout` command will gracefully handle scenarios where the server is unreachable:
+
+```bash
+$ argocd logout my-argocd-server
+WARN[0000] Failed to invalidate token on server: connection refused. Proceeding with local logout.
+Logged out from 'my-argocd-server'
+```
+
+This allows users to logout locally even if the server is down, though the token will not be revoked server-side until it expires naturally.
+
+#### Security Best Practices
+
+1.**Use short-lived tokens**: Configure reasonable token expiration times in the OIDC provider to limit the window of exposure
+2.**Enable logout URLs**: Configure `logoutURL` in `oidc.config` for your OIDC provider to ensure SSO sessions are also terminated
+3.**Monitor token usage**: Use Argo CD's audit logging to track token creation and revocation events
 
 ### Configuring a custom root CA certificate for communicating with the OIDC provider
 

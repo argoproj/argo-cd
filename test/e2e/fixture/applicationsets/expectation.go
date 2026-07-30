@@ -3,12 +3,13 @@ package applicationsets
 import (
 	"fmt"
 	"reflect"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -24,7 +25,7 @@ const (
 	succeeded = "succeeded"
 )
 
-// Expectation returns succeeded on succes condition, or pending/failed on failure, along with
+// Expectation returns succeeded on success condition, or pending/failed on failure, along with
 // a message to describe the success/failure condition.
 type Expectation func(c *Consequences) (state state, message string)
 
@@ -116,6 +117,23 @@ func ApplicationSetHasConditions(expectedConditions []v1alpha1.ApplicationSetCon
 			return pending, fmt.Sprintf("application set conditions are not equal: '%s', diff: %s\n", expectedConditions, diff)
 		}
 		return succeeded, "application set successfully found"
+	}
+}
+
+func ApplicationSetHasCondition(expType v1alpha1.ApplicationSetConditionType, expStatus v1alpha1.ApplicationSetConditionStatus, expMessage *regexp.Regexp, expReason string) Expectation {
+	return func(c *Consequences) (state, string) {
+		foundApplicationSet := c.applicationSet(c.context.GetName())
+		if foundApplicationSet == nil {
+			return pending, fmt.Sprintf("application set '%s' not found", c.context.GetName())
+		}
+		got := foundApplicationSet.Status.Conditions
+		message := fmt.Sprintf("condition {%s %s %s %s} in %v", expType, expMessage, expStatus, expReason, got)
+		for _, condition := range got {
+			if expType == condition.Type && expStatus == condition.Status && expReason == condition.Reason && expMessage.MatchString(condition.Message) {
+				return succeeded, message
+			}
+		}
+		return pending, message
 	}
 }
 
@@ -334,5 +352,43 @@ func ApplicationSetHasApplicationStatus(expectedApplicationStatusLength int) Exp
 			}
 		}
 		return succeeded, fmt.Sprintf("All Applications in ApplicationSet: '%s' are Healthy ", c.context.GetName())
+	}
+}
+
+// ApplicationDeletionStarted verifies at least one application from provided list of appNames has DeletionTimestamp set,
+// indicating deletion has begun for this step. Returns failed if any application doesn't exist, does not expect completion of deletion.
+func ApplicationDeletionStarted(appNames []string) Expectation {
+	return func(c *Consequences) (state, string) {
+		anyapp := false
+		for _, appName := range appNames {
+			app := c.app(appName)
+			if app == nil {
+				// with test finalizer explicitly added, application should not be deleted
+				return failed, fmt.Sprintf("no application found with name '%s'", c.context.GetName())
+			}
+			if app.DeletionTimestamp != nil {
+				anyapp = true
+			}
+		}
+		if !anyapp {
+			return pending, "no app in this step is being deleted yet"
+		}
+		return succeeded, fmt.Sprintf("at least one app in %v is being deleted or gone", appNames)
+	}
+}
+
+// ApplicationsExistAndNotBeingDeleted checks that specified apps exist and do NOT have DeletionTimestamp set
+func ApplicationsExistAndNotBeingDeleted(appNames []string) Expectation {
+	return func(c *Consequences) (state, string) {
+		for _, appName := range appNames {
+			app := c.app(appName)
+			if app == nil {
+				return failed, fmt.Sprintf("app '%s' does not exist but should", appName)
+			}
+			if app.DeletionTimestamp != nil {
+				return failed, fmt.Sprintf("app '%s' is being deleted but should not be yet", appName)
+			}
+		}
+		return succeeded, fmt.Sprintf("all apps %v exist and are not being deleted", appNames)
 	}
 }

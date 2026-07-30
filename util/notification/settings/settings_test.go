@@ -26,6 +26,7 @@ const (
 )
 
 func TestInitGetVars(t *testing.T) {
+	t.Parallel()
 	notificationsCm := corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,
@@ -65,7 +66,7 @@ func TestInitGetVars(t *testing.T) {
 	dynamicClient := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
 	argocdService, err := service.NewArgoCDService(kubeclientset, dynamicClient, testNamespace, mockRepoClient)
 	require.NoError(t, err)
-	defer argocdService.Close()
+	t.Cleanup(argocdService.Close)
 	config := api.Config{}
 	testDestination := services.Destination{
 		Service: "webhook",
@@ -75,6 +76,7 @@ func TestInitGetVars(t *testing.T) {
 	varsProvider, _ := initGetVars(argocdService, &config, &notificationsCm, &notificationsSecret)
 
 	t.Run("Vars provider serves Application data on app key", func(t *testing.T) {
+		t.Parallel()
 		appData := map[string]any{
 			"name": "app-name",
 		}
@@ -83,6 +85,7 @@ func TestInitGetVars(t *testing.T) {
 		assert.Equal(t, result["app"], appData)
 	})
 	t.Run("Vars provider serves notification context data on context key", func(t *testing.T) {
+		t.Parallel()
 		expectedContext := map[string]string{
 			testContextKey:     testContextKeyValue,
 			"notificationType": testDestination.Service,
@@ -92,11 +95,13 @@ func TestInitGetVars(t *testing.T) {
 		assert.Equal(t, expectedContext, result["context"])
 	})
 	t.Run("Vars provider serves notification secrets on secrets key", func(t *testing.T) {
+		t.Parallel()
 		result := varsProvider(emptyAppData, testDestination)
 		assert.NotNil(t, result["secrets"])
 		assert.Equal(t, result["secrets"], notificationsSecret.Data)
 	})
 	t.Run("Vars provider serves empty appProject when AppProject not found", func(t *testing.T) {
+		t.Parallel()
 		appData := map[string]any{
 			"spec": map[string]any{
 				"project": "nonexistent-project",
@@ -113,6 +118,7 @@ func TestInitGetVars(t *testing.T) {
 }
 
 func TestInitGetVarsAppProject(t *testing.T) {
+	t.Parallel()
 	notificationsCm := corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: testNamespace,
@@ -144,7 +150,7 @@ func TestInitGetVarsAppProject(t *testing.T) {
 	dynamicClient := dynamicfake.NewSimpleDynamicClient(scheme, appProject)
 	argocdService, err := service.NewArgoCDService(kubeclientset, dynamicClient, testNamespace, mockRepoClient)
 	require.NoError(t, err)
-	defer argocdService.Close()
+	t.Cleanup(argocdService.Close)
 
 	config := api.Config{}
 	testDestination := services.Destination{Service: "webhook"}
@@ -161,6 +167,7 @@ func TestInitGetVarsAppProject(t *testing.T) {
 	}
 
 	t.Run("Vars provider serves AppProject data on appProject key", func(t *testing.T) {
+		t.Parallel()
 		result := varsProvider(appData, testDestination)
 		assert.NotNil(t, result["appProject"])
 		proj, ok := result["appProject"].(map[string]any)
@@ -173,6 +180,7 @@ func TestInitGetVarsAppProject(t *testing.T) {
 
 	t.Run("Vars provider appProject key is always present", func(t *testing.T) {
 		// Even with empty app data, appProject key always be set
+		t.Parallel()
 		result := varsProvider(map[string]any{}, testDestination)
 		_, exists := result["appProject"]
 		assert.True(t, exists)

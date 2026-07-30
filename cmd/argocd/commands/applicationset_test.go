@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"errors"
 	"io"
 	"os"
@@ -42,7 +41,7 @@ func TestAppSetDeleteWaitFlow(t *testing.T) {
 // waits for ResourcesUpToDate from the watch before completing.
 func TestAppSetCreateWaitFlow(t *testing.T) {
 	fakeClient := &fakeAcdClient{}
-	ctx := context.Background()
+	ctx := t.Context()
 
 	err := waitForApplicationSetResourcesUpToDate(ctx, fakeClient, "test-appset")
 	require.NoError(t, err)
@@ -260,7 +259,7 @@ func TestPrintAppSetSummaryTable(t *testing.T) {
 	appSetTemplateSpecSyncPolicy := baseAppSet.DeepCopy()
 	appSetTemplateSpecSyncPolicy.Spec.Template.Spec.SyncPolicy = &v1alpha1.SyncPolicy{
 		Automated: &v1alpha1.SyncPolicyAutomated{
-			SelfHeal: true,
+			SelfHeal: new(true),
 		},
 	}
 
@@ -270,7 +269,7 @@ func TestPrintAppSetSummaryTable(t *testing.T) {
 	}
 	appSetBothSyncPolicies.Spec.Template.Spec.SyncPolicy = &v1alpha1.SyncPolicy{
 		Automated: &v1alpha1.SyncPolicyAutomated{
-			SelfHeal: true,
+			SelfHeal: new(true),
 		},
 	}
 
