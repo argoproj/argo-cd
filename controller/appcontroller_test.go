@@ -2296,6 +2296,48 @@ func TestSetOperationStateFinalWriteRetryDoesNotConsumeNewOperation(t *testing.T
 	assert.Nil(t, got.Status.OperationState, "the new operation's pristine state must not be overwritten")
 }
 
+// TestSetOperationStateFinalWriteRetryDoesNotConsumeIdenticalNewOperation is the same race with
+// the re-requested operation identical to the one that just completed — a user re-syncing with
+// unchanged params. Comparing operation payloads cannot tell the two apart, so the reset
+// operation state is what identifies the request.
+func TestSetOperationStateFinalWriteRetryDoesNotConsumeIdenticalNewOperation(t *testing.T) {
+	completed := v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{Revision: "abc123"}}
+	app := newFakeApp()
+	app.ResourceVersion = "100"
+	app.Operation = &completed
+	app.Status.OperationState = &v1alpha1.OperationState{
+		Phase:     synccommon.OperationRunning,
+		Message:   "one or more tasks are running",
+		StartedAt: metav1.Now(),
+		Operation: completed,
+	}
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	stats := realisticPatchReactor(t, fakeAppCs)
+	requested := v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{Revision: "abc123"}}
+	concurrentWriteBeforeNextPatch(t, fakeAppCs, func(live *v1alpha1.Application) {
+		live.Operation = &requested
+		live.Status.OperationState = nil
+	})
+
+	written := ctrl.setOperationState(t.Context(), app, &v1alpha1.OperationState{
+		Phase:     synccommon.OperationSucceeded,
+		Message:   "successfully synced (all tasks run)",
+		StartedAt: app.Status.OperationState.StartedAt,
+		Operation: completed,
+	})
+
+	assert.False(t, written, "the caller must learn the final write did not land")
+	assert.Equal(t, 1, stats.conflicts)
+	assert.Equal(t, 0, stats.applied, "the final patch must not be re-sent while a new operation is pending")
+	got, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, got.Operation, "the newly requested operation must survive the retry")
+	require.NotNil(t, got.Operation.Sync)
+	assert.Equal(t, "abc123", got.Operation.Sync.Revision)
+	assert.Nil(t, got.Status.OperationState, "the new operation's pristine state must not be overwritten")
+}
+
 // TestSetOperationStateFinalWriteRetryAcceptsAlreadyCompletedWrite is the other half of the
 // lost-response case: with nothing else claiming the operation, the retry must recognize its
 // durable write and report success from the live object instead of re-sending.
@@ -2338,6 +2380,62 @@ func TestSetOperationStateFinalWriteRetryAcceptsAlreadyCompletedWrite(t *testing
 	require.NotNil(t, app.Status.OperationState)
 	assert.Equal(t, synccommon.OperationSucceeded, app.Status.OperationState.Phase, "the in-memory snapshot must adopt the live final state")
 	assert.Equal(t, "101", app.ResourceVersion, "the in-memory snapshot must adopt the live revision")
+}
+
+// TestSetOperationStateAdoptedOutcomeDrivesEventAndMetrics covers the divergent half of
+// adopting a live completion: the event and sync metrics must describe the outcome that is
+// stored, not the one this pass attempted, or they contradict the object they report on.
+func TestSetOperationStateAdoptedOutcomeDrivesEventAndMetrics(t *testing.T) {
+	operation := v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{Revision: "abc123"}}
+	app := newFakeApp()
+	app.ResourceVersion = "100"
+	app.Operation = &operation
+	app.Status.OperationState = &v1alpha1.OperationState{
+		Phase:     synccommon.OperationRunning,
+		Message:   "one or more tasks are running",
+		StartedAt: metav1.Now(),
+		Operation: operation,
+	}
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	stats := realisticPatchReactor(t, fakeAppCs)
+	// Another writer completed the same operation with a different outcome (e.g. a second
+	// controller replica mid shard rebalance) and won the race.
+	finishedAt := metav1.Now()
+	concurrentWriteBeforeNextPatch(t, fakeAppCs, func(live *v1alpha1.Application) {
+		live.Operation = nil
+		live.Status.OperationState = &v1alpha1.OperationState{
+			Phase:      synccommon.OperationFailed,
+			Message:    "one or more objects failed to apply",
+			StartedAt:  app.Status.OperationState.StartedAt,
+			FinishedAt: &finishedAt,
+			Operation:  operation,
+		}
+	})
+
+	written := ctrl.setOperationState(t.Context(), app, &v1alpha1.OperationState{
+		Phase:     synccommon.OperationSucceeded,
+		Message:   "successfully synced (all tasks run)",
+		StartedAt: app.Status.OperationState.StartedAt,
+		Operation: operation,
+	})
+
+	assert.True(t, written, "the outcome is durable, whoever wrote it")
+	assert.Equal(t, 0, stats.applied, "an already-completed operation must not be patched again")
+	require.NotNil(t, app.Status.OperationState)
+	assert.Equal(t, synccommon.OperationFailed, app.Status.OperationState.Phase)
+
+	events, err := ctrl.kubeClientset.CoreV1().Events(test.FakeArgoCDNamespace).List(t.Context(), metav1.ListOptions{})
+	require.NoError(t, err)
+	var messages []string
+	for _, event := range events.Items {
+		if event.Reason == argo.EventReasonOperationCompleted {
+			messages = append(messages, event.Message)
+		}
+	}
+	require.Len(t, messages, 1)
+	assert.Contains(t, messages[0], "failed: one or more objects failed to apply",
+		"the event must report the persisted outcome, not the attempted one")
 }
 
 // TestSetOperationStateFinalWriteBeatsConcurrentTerminate pins the rule separating final

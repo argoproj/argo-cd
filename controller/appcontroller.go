@@ -1805,11 +1805,14 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 				logCtx.Infof("Not re-sending operation state update (phase: %s): the operation is already completed as %s", state.Phase, livePhase)
 				persisted = live
 				return nil
-			case state.Phase.Completed() && !reflect.DeepEqual(live.Operation, reporting):
-				// A different operation is pending, only possible because the completion already
-				// cleared this one (SetAppOperation refuses while spec.operation is set).
-				// Re-sending would clear that request without ever running it.
-				logCtx.Infof("Discarding stale operation state update (phase: %s): a different operation is now pending", state.Phase)
+			// A newly requested operation is pending, only possible because the completion
+			// already cleared this one (SetAppOperation refuses while spec.operation is set).
+			// Re-sending would clear that request without ever running it. The request is
+			// recognized either by a different payload or, when it is identical to the one just
+			// completed (a user re-syncing with unchanged params), by the operation state having
+			// been nilled out: argo.SetAppOperation is the only writer that does that.
+			case state.Phase.Completed() && (!reflect.DeepEqual(live.Operation, reporting) || (observed != nil && live.Status.OperationState == nil)):
+				logCtx.Infof("Discarding stale operation state update (phase: %s): a new operation is now pending", state.Phase)
 				return nil
 			// A non-final write only describes progress of the state it observed. If that
 			// changed, another writer moved the operation on (completed or terminated it) and
@@ -1846,24 +1849,32 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 	app.ResourceVersion = persisted.ResourceVersion
 	app.Status.OperationState = persisted.Status.OperationState.DeepCopy()
 
-	logCtx.Infof("updated '%s' operation (phase: %s)", app.QualifiedName(), state.Phase)
-	if state.Phase.Completed() {
+	// Report the outcome that is actually stored, not the one attempted: a conflicting final
+	// write can adopt a live completion instead of applying its own, and events and metrics
+	// claiming a different phase than the object holds are worse than useless.
+	effective := state
+	if persisted.Status.OperationState != nil {
+		effective = persisted.Status.OperationState
+	}
+
+	logCtx.Infof("updated '%s' operation (phase: %s)", app.QualifiedName(), effective.Phase)
+	if effective.Phase.Completed() {
 		eventInfo := argo.EventInfo{Reason: argo.EventReasonOperationCompleted}
 		var messages []string
-		if state.Operation.Sync != nil && len(state.Operation.Sync.Resources) > 0 {
+		if effective.Operation.Sync != nil && len(effective.Operation.Sync.Resources) > 0 {
 			messages = []string{"Partial sync operation"}
 		} else {
 			messages = []string{"Sync operation"}
 		}
-		if state.SyncResult != nil {
-			messages = append(messages, "to", state.SyncResult.Revision)
+		if effective.SyncResult != nil {
+			messages = append(messages, "to", effective.SyncResult.Revision)
 		}
-		if state.Phase.Successful() {
+		if effective.Phase.Successful() {
 			eventInfo.Type = corev1.EventTypeNormal
 			messages = append(messages, "succeeded")
 		} else {
 			eventInfo.Type = corev1.EventTypeWarning
-			messages = append(messages, "failed:", state.Message)
+			messages = append(messages, "failed:", effective.Message)
 		}
 		ctrl.logAppEvent(ctx, app, eventInfo, strings.Join(messages, " "))
 
@@ -1875,8 +1886,8 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 		if destCluster != nil {
 			destServer = destCluster.Server
 		}
-		ctrl.metricsServer.IncSync(app, destServer, state)
-		ctrl.metricsServer.IncAppSyncDuration(app, destServer, state)
+		ctrl.metricsServer.IncSync(app, destServer, effective)
+		ctrl.metricsServer.IncAppSyncDuration(app, destServer, effective)
 	}
 	return true
 }
