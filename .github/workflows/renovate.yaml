@@ -23,6 +23,13 @@ jobs:
         with:
           egress-policy: block
           disable-sudo-and-containers: "false" # renovatebot runs in `docker run`
+          # Blocked egress does not fail this job: harden-runner only reports it, and
+          # Renovate treats an unreachable datasource as a per-dependency warning and
+          # still exits 0. The errors are supposed to be logged in the Renovate Dashboard.
+          #
+          # The apt mirrors are on port 80 on purpose: that is what
+          # the distro sources inside the Renovate image use, and apt
+          # authenticates packages with GPG rather than TLS.
           allowed-endpoints: >
             github.com:443
             api.github.com:443
@@ -31,11 +38,17 @@ jobs:
             ghcr.io:443
             pkg-containers.githubusercontent.com:443
             hub.docker.com:443
+            index.docker.io:443
+            registry-1.docker.io:443
+            auth.docker.io:443
             proxy.golang.org:443
             nodejs.org:443
             pypi.org:443
-            get.helm.sh
-            registry.npmjs.org
+            get.helm.sh:443
+            registry.npmjs.org:443
+            archive.ubuntu.com:80
+            security.ubuntu.com:80
+            deb.debian.org:80
 
       - name: Get token
         id: get_token
