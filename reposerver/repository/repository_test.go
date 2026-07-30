@@ -5499,6 +5499,39 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 			ExternalGets:    0,
 			ExternalSets:    0,
 		}},
+		{name: "ExplicitGitTypeWithHelmSourceStillTreatedAsGit", fields: func() fields {
+			// A repository with an explicitly configured git type must keep using the git
+			// path even when the application source carries a chart name. Only a type that
+			// Normalize defaulted to git may be overridden by the application source type,
+			// otherwise a multi source app whose git repo also sets a chart would stop
+			// having its git revision resolved at all.
+			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+				gitClient.EXPECT().LsRemote("HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
+				gitClient.EXPECT().LsRemote("SYNCEDHEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
+				paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+				paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+			}, ".")
+			return fields{
+				service: s,
+				cache:   c,
+			}
+		}(), args: args{
+			ctx: t.Context(),
+			request: &apiclient.UpdateRevisionForPathsRequest{
+				Repo:              &v1alpha1.Repository{Repo: "a-url.com", Type: "git"},
+				Revision:          "HEAD",
+				SyncedRevision:    "SYNCEDHEAD",
+				Paths:             []string{"."},
+				ApplicationSource: &v1alpha1.ApplicationSource{Chart: "my-chart"},
+			},
+		}, want: &apiclient.UpdateRevisionForPathsResponse{
+			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0",
+		}, wantErr: assert.NoError, cacheCallCount: &repositorymocks.CacheCallCounts{
+			ExternalRenames: 0,
+			ExternalGets:    0,
+			ExternalSets:    0,
+		}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
