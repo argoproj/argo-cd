@@ -28,7 +28,7 @@ import {AppSetResourceDetails} from '../resource-details/appset-resource-details
 import * as AppUtils from '../utils';
 import {ApplicationResourceList, ApplicationResourceParentRef} from './application-resource-list';
 import {Filters, FiltersProps} from './application-resource-filter';
-import {getAppDefaultSource, getAppCurrentVersion, urlPattern, getAppParentName} from '../utils';
+import {getAppDefaultSource, getAppCurrentVersion, urlPattern, getAppParentName, loadAppAncestors} from '../utils';
 import {ChartDetails, OCIMetadata} from '../../../shared/models';
 import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
@@ -83,31 +83,14 @@ export const SelectNode = (fullName: string, containerIndex = 0, tab: string = n
 };
 
 const AppBreadcrumb = ({app, appName, objectListKind}: {app: appModels.Application; appName: string; objectListKind: string}) => {
+    const ctx = useContext(Context);
     const directParentName = getAppParentName(app);
     const appDropdown = <ApplicationsDetailsAppDropdown appName={appName} objectListKind={objectListKind} />;
     if (!directParentName) return appDropdown;
     return (
         <DataLoader
             input={`${app.metadata.name}/${app.metadata.namespace}`}
-            load={async () => {
-                const ancestors: Array<{name: string; namespace: string}> = [];
-                let currentName = directParentName;
-                let currentNamespace = app.metadata.namespace;
-                const visited = new Set<string>([app.metadata.name]);
-                for (let i = 0; i < 10; i++) {
-                    if (!currentName || visited.has(currentName)) break;
-                    ancestors.unshift({name: currentName, namespace: currentNamespace});
-                    visited.add(currentName);
-                    try {
-                        const parentApp = (await services.applications.get(currentName, currentNamespace, 'application')) as appModels.Application;
-                        currentName = getAppParentName(parentApp);
-                        currentNamespace = parentApp.metadata.namespace;
-                    } catch {
-                        break;
-                    }
-                }
-                return ancestors;
-            }}>
+            load={() => loadAppAncestors(app, directParentName)}>
             {(ancestors: Array<{name: string; namespace: string}>) => {
                 const chain = ancestors.filter(a => a.name !== app.metadata.name);
                 if (chain.length === 0) return appDropdown;
@@ -120,8 +103,8 @@ const AppBreadcrumb = ({app, appName, objectListKind}: {app: appModels.Applicati
                                 <DropDownMenu
                                     anchor={() => <a style={{cursor: 'pointer'}}>+{higher.length}</a>}
                                     items={higher.map(a => ({
-                                        title: <Link to={`/applications/${a.namespace}/${a.name}`}>{a.name}</Link>,
-                                        action: () => {}
+                                        title: a.name,
+                                        action: () => ctx.navigation.goto(`/applications/${a.namespace}/${a.name}`)
                                     }))}
                                 />
                                 <span style={{opacity: 0.5}}>›</span>
