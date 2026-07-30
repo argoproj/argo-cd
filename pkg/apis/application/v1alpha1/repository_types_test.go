@@ -236,3 +236,26 @@ func TestGetGitCreds_GitHubApp_OrgExtractionFails(t *testing.T) {
 	assert.Contains(t, err.Error(), "failed to extract organization")
 	assert.Contains(t, err.Error(), "invalid-url-format")
 }
+
+func TestGetOCICreds(t *testing.T) {
+	t.Run("Standard Username and Password", func(t *testing.T) {
+		repo := &Repository{
+			Username: "testuser",
+			Password: "testpassword",
+		}
+		creds := repo.GetOCICreds()
+		assert.Equal(t, "testuser", creds.Username)
+		assert.Equal(t, "testpassword", creds.Password)
+	})
+
+	t.Run("Invalid GCPServiceAccountKey falls back to standard credentials", func(t *testing.T) {
+		repo := &Repository{
+			Username:             "user",
+			Password:             "pass",
+			GCPServiceAccountKey: "invalid-json",
+		}
+		creds := repo.GetOCICreds()
+		assert.Equal(t, "user", creds.Username)
+		assert.Equal(t, "pass", creds.Password)
+	})
+}
