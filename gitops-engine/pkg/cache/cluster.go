@@ -296,6 +296,8 @@ type clusterCacheSync struct {
 	syncTime      *time.Time
 	syncError     error
 	resyncTimeout time.Duration
+	syncing       bool
+	syncCond      *sync.Cond
 }
 
 // ListRetryFuncNever never retries on errors
@@ -1095,8 +1097,6 @@ func (c *clusterCache) sync() (err error) {
 	c.log.Info("Start syncing cluster")
 
 	start := time.Now()
-	syncLock := sync.Mutex{}
-
 	var discoveryEnd time.Time
 	defer func() {
 		end := time.Now()
@@ -1115,22 +1115,11 @@ func (c *clusterCache) sync() (err error) {
 		}
 	}()
 
-	for i := range c.apisMeta {
-		c.apisMeta[i].watchCancel()
-	}
-
 	if c.batchEventsProcessing {
 		c.invalidateEventMeta()
 		c.eventMetaCh = make(chan eventMeta)
 	}
 
-	syncLock.Lock()
-	c.apisMeta = make(map[schema.GroupKind]*apiMeta)
-	c.resources = make(map[kube.ResourceKey]*Resource)
-	c.nsIndex = make(map[string]map[kube.ResourceKey]*Resource)
-	c.namespacedResources = make(map[schema.GroupKind]bool)
-	c.parentUIDToChildren = make(map[types.UID]map[kube.ResourceKey]struct{})
-	syncLock.Unlock()
 	config := c.config
 	version, err := c.kubectl.GetServerVersion(config)
 	if err != nil {
@@ -1171,16 +1160,33 @@ func (c *clusterCache) sync() (err error) {
 		go c.processEvents()
 	}
 
+	buildLock := sync.Mutex{}
+	newApisMeta := make(map[schema.GroupKind]*apiMeta)
+	newResources := make(map[kube.ResourceKey]*Resource)
+	newNsIndex := make(map[string]map[kube.ResourceKey]*Resource)
+	newNamespacedResources := make(map[schema.GroupKind]bool)
+	newParentUIDToChildren := make(map[types.UID]map[kube.ResourceKey]struct{})
+
+	buildCache := &clusterCache{
+		apisMeta:            newApisMeta,
+		resources:           newResources,
+		nsIndex:             newNsIndex,
+		namespacedResources: newNamespacedResources,
+		parentUIDToChildren: newParentUIDToChildren,
+		log:                 c.log,
+		settings:            c.settings,
+	}
+
 	discoveryEnd = time.Now()
 	err = kube.RunAllAsync(len(apis), func(i int) error {
 		api := apis[i]
 
 		ctx, cancel := context.WithCancel(context.Background())
 		info := &apiMeta{namespaced: api.Meta.Namespaced, watchCancel: cancel}
-		syncLock.Lock()
-		c.apisMeta[api.GroupKind] = info
-		c.namespacedResources[api.GroupKind] = api.Meta.Namespaced
-		syncLock.Unlock()
+		buildLock.Lock()
+		newApisMeta[api.GroupKind] = info
+		newNamespacedResources[api.GroupKind] = api.Meta.Namespaced
+		buildLock.Unlock()
 
 		return c.processApi(client, api, func(resClient dynamic.ResourceInterface, ns string) error {
 			resourceVersion, err := c.listResources(ctx, resClient, func(listPager *pager.ListPager) error {
@@ -1189,9 +1195,9 @@ func (c *clusterCache) sync() (err error) {
 						return fmt.Errorf("object %s/%s has an unexpected type", un.GroupVersionKind().String(), un.GetName())
 					} else {
 						newRes := c.newResource(un)
-						syncLock.Lock()
-						c.setNode(newRes)
-						syncLock.Unlock()
+						buildLock.Lock()
+						buildCache.setNode(newRes)
+						buildLock.Unlock()
 					}
 					return nil
 				})
@@ -1208,10 +1214,10 @@ func (c *clusterCache) sync() (err error) {
 					}
 					// if we are not allowed to list the resource, remove it from the watch list
 					if !keep {
-						syncLock.Lock()
-						delete(c.apisMeta, api.GroupKind)
-						delete(c.namespacedResources, api.GroupKind)
-						syncLock.Unlock()
+						buildLock.Lock()
+						delete(newApisMeta, api.GroupKind)
+						delete(newNamespacedResources, api.GroupKind)
+						buildLock.Unlock()
 						return nil
 					}
 				}
@@ -1226,6 +1232,19 @@ func (c *clusterCache) sync() (err error) {
 	if err != nil {
 		return fmt.Errorf("failed to sync cluster %s: %w", c.config.Host, err)
 	}
+
+	c.lock.Lock()
+	for i := range c.apisMeta {
+		if c.apisMeta[i] != nil && c.apisMeta[i].watchCancel != nil {
+			c.apisMeta[i].watchCancel()
+		}
+	}
+	c.apisMeta = newApisMeta
+	c.resources = newResources
+	c.nsIndex = newNsIndex
+	c.namespacedResources = newNamespacedResources
+	c.parentUIDToChildren = newParentUIDToChildren
+	c.lock.Unlock()
 	return nil
 }
 
@@ -1241,30 +1260,39 @@ func (c *clusterCache) invalidateEventMeta() {
 func (c *clusterCache) EnsureSynced() error {
 	syncStatus := &c.syncStatus
 
-	// first check if cluster is synced *without acquiring the full clusterCache lock*
 	syncStatus.lock.Lock()
-	if syncStatus.synced(c.clusterSyncRetryTimeout) {
-		syncError := syncStatus.syncError
-		syncStatus.lock.Unlock()
-		return syncError
-	}
-	syncStatus.lock.Unlock() // release the lock, so that we can acquire the parent lock (see struct comment re: lock acquisition ordering)
+	for {
+		if syncStatus.synced(c.clusterSyncRetryTimeout) {
+			syncError := syncStatus.syncError
+			syncStatus.lock.Unlock()
+			return syncError
+		}
 
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	syncStatus.lock.Lock()
-	defer syncStatus.lock.Unlock()
+		if !syncStatus.syncing {
+			syncStatus.syncing = true
+			syncStatus.lock.Unlock()
+			break
+		}
 
-	// before doing any work, check once again now that we have the lock, to see if it got
-	// synced between the first check and now
-	if syncStatus.synced(c.clusterSyncRetryTimeout) {
-		return syncStatus.syncError
+		if syncStatus.syncCond == nil {
+			syncStatus.syncCond = sync.NewCond(&syncStatus.lock)
+		}
+		syncStatus.syncCond.Wait()
 	}
+
 	err := c.sync()
+
+	syncStatus.lock.Lock()
 	syncTime := time.Now()
 	syncStatus.syncTime = &syncTime
 	syncStatus.syncError = err
-	return syncStatus.syncError
+	syncStatus.syncing = false
+	if syncStatus.syncCond != nil {
+		syncStatus.syncCond.Broadcast()
+	}
+	syncStatus.lock.Unlock()
+
+	return err
 }
 
 func (c *clusterCache) FindResources(namespace string, predicates ...func(r *Resource) bool) map[kube.ResourceKey]*Resource {
