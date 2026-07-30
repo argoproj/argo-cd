@@ -5,8 +5,12 @@ import (
 	"image/color"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
+
+	humanize "github.com/dustin/go-humanize"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
@@ -444,6 +448,74 @@ func TestHandlerRevisionIsEnabledNoOperationState(t *testing.T) {
 	assert.Equal(t, "Synced", rightTextPattern.FindStringSubmatch(response)[1])
 	assert.NotContains(t, response, "test-app")
 	assert.NotContains(t, response, "(aa29b85)")
+}
+
+func TestHandlerShowLastSyncTimeIsEnabled(t *testing.T) {
+	t.Parallel()
+	finishedAt := metav1.NewTime(time.Now().Add(-2 * time.Hour))
+	app := testApp()
+	app.Status.OperationState.FinishedAt = &finishedAt
+
+	settingsMgr := settings.NewSettingsManager(t.Context(), fake.NewClientset(argoCDCm(), argoCDSecret()), "default")
+	handler := NewHandler(appclientset.NewSimpleClientset(app), settingsMgr, "default", []string{})
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/api/badge?name=test-app&showLastSyncTime=true", http.NoBody)
+	require.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	response := rr.Body.String()
+	displayedSyncTime := humanize.Time(finishedAt.Time)
+	expectedWidth := svgWidthWithoutRevision + (len(displayedSyncTime)+1)*widthPerChar
+	assert.Equal(t, toRGBString(Green), leftRectColorPattern.FindStringSubmatch(response)[1])
+	assert.Equal(t, toRGBString(Green), rightRectColorPattern.FindStringSubmatch(response)[1])
+	assert.Equal(t, "Healthy", leftTextPattern.FindStringSubmatch(response)[1])
+	assert.Equal(t, "Synced "+displayedSyncTime, rightTextPattern.FindStringSubmatch(response)[1])
+	assert.Equal(t, strconv.Itoa(expectedWidth), svgWidthPattern.FindStringSubmatch(response)[1])
+	assert.Equal(t, fmt.Sprintf("\"%d\"", expectedWidth-leftRectWidth), rightRectWidthPattern.FindStringSubmatch(response)[2])
+	assert.NotContains(t, response, "(aa29b85)")
+}
+
+func TestHandlerShowLastSyncTimeAndRevisionAreEnabled(t *testing.T) {
+	t.Parallel()
+	finishedAt := metav1.NewTime(time.Now().Add(-2 * time.Hour))
+	app := testApp()
+	app.Status.OperationState.FinishedAt = &finishedAt
+
+	settingsMgr := settings.NewSettingsManager(t.Context(), fake.NewClientset(argoCDCm(), argoCDSecret()), "default")
+	handler := NewHandler(appclientset.NewSimpleClientset(app), settingsMgr, "default", []string{})
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/api/badge?name=test-app&revision=true&showLastSyncTime=true", http.NoBody)
+	require.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	response := rr.Body.String()
+	displayedSyncTime := humanize.Time(finishedAt.Time)
+	lastSyncOffset := (len(displayedSyncTime) + 1) * widthPerChar
+	assert.Equal(t, "Synced "+displayedSyncTime, rightTextPattern.FindStringSubmatch(response)[1])
+	assert.Contains(t, response, "(aa29b85)")
+	assert.Equal(t, strconv.Itoa(svgWidthWithFullRevision+lastSyncOffset), svgWidthPattern.FindStringSubmatch(response)[1])
+	// The revision section must be shifted right by the space taken by the sync time
+	assert.Equal(t, fmt.Sprintf("\"%d\"", svgWidthWithoutRevision+lastSyncOffset), revisionRectXCoodPattern.FindStringSubmatch(response)[2])
+}
+
+func TestHandlerShowLastSyncTimeIsEnabledNoOperationState(t *testing.T) {
+	t.Parallel()
+	app := testApp()
+	app.Status.OperationState = nil
+
+	settingsMgr := settings.NewSettingsManager(t.Context(), fake.NewClientset(argoCDCm(), argoCDSecret()), "default")
+	handler := NewHandler(appclientset.NewSimpleClientset(app), settingsMgr, "default", []string{})
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/api/badge?name=test-app&showLastSyncTime=true", http.NoBody)
+	require.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	response := rr.Body.String()
+	assert.Equal(t, "Synced", rightTextPattern.FindStringSubmatch(response)[1])
+	assert.Equal(t, strconv.Itoa(svgWidthWithoutRevision), svgWidthPattern.FindStringSubmatch(response)[1])
 }
 
 func TestHandlerRevisionIsEnabledShortCommitSHA(t *testing.T) {

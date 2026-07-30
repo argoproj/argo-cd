@@ -30,6 +30,20 @@ Default value: `false`
 
 Example: `&showAppName=true`
 
+### showLastSyncTime
+
+Display how long ago the last sync operation finished, next to the sync status (e.g. `Synced 2 hours ago`).
+
+![healthy and synced with last sync time](../assets/status-badge-last-sync-time.png)
+
+The badge width is extended automatically to fit the displayed time.
+
+Available values: `true/false`
+
+Default value: `false`
+
+Example: `&showLastSyncTime=true`
+
 ### revision
 
 Display revision targeted by the application.

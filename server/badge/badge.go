@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	healthutil "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	humanize "github.com/dustin/go-humanize"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/validation"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -53,6 +54,8 @@ var (
 	rightTextYCoodPattern    = regexp.MustCompile(`(id="rightText" .* y=)("\d*")`)
 	revisionTextYCoodPattern = regexp.MustCompile(`(id="revisionText" .* y=)("\d*")`)
 	revisionTextXCoodPattern = regexp.MustCompile(`(id="revisionText" x=)("\d*")`)
+	rightTextXCoodPattern    = regexp.MustCompile(`(id="rightText" x=)("\d*")`)
+	revisionRectXCoodPattern = regexp.MustCompile(`(id="revisionRect" fill="[^"]*"\s+x=)("\d*")`)
 	svgHeightPattern         = regexp.MustCompile(`^(<svg .* height=)("\d*")`)
 	logoYCoodPattern         = regexp.MustCompile(`(<image .* y=)("\d*")`)
 )
@@ -98,6 +101,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	revisionEnabled := false
 	enabled := false
 	displayAppName := false
+	showLastSyncTime := false
+	lastSyncOffset := 0
+	var syncFinishedAt *metav1.Time
 	notFound := false
 	adjustWidth := false
 	svgWidth := svgWidthWithoutRevision
@@ -130,11 +136,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			health = app.Status.Health.Status
 			status = app.Status.Sync.Status
 			applicationName = name[0]
-			if app.Status.OperationState != nil && app.Status.OperationState.SyncResult != nil {
-				if len(app.Status.OperationState.SyncResult.Revisions) > 0 {
-					revision = app.Status.OperationState.SyncResult.Revisions[0]
-				} else {
-					revision = app.Status.OperationState.SyncResult.Revision
+			if app.Status.OperationState != nil {
+				syncFinishedAt = app.Status.OperationState.FinishedAt
+				if app.Status.OperationState.SyncResult != nil {
+					if len(app.Status.OperationState.SyncResult.Revisions) > 0 {
+						revision = app.Status.OperationState.SyncResult.Revisions[0]
+					} else {
+						revision = app.Status.OperationState.SyncResult.Revision
+					}
 				}
 			}
 		} else if errors.IsNotFound(err) {
@@ -171,6 +180,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if revisionParam, ok := r.URL.Query()["revision"]; ok && enabled && strings.EqualFold(revisionParam[0], "true") {
 		revisionEnabled = true
 	}
+	// Sample url: http://localhost:8080/api/badge?name=123&showLastSyncTime=true
+	if lastSyncParam, ok := r.URL.Query()["showLastSyncTime"]; ok && enabled && strings.EqualFold(lastSyncParam[0], "true") {
+		showLastSyncTime = true
+	}
 
 	leftColorString := ""
 	if leftColor, ok := HealthStatusColors[health]; ok {
@@ -194,6 +207,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		rightText = ""
 	}
 
+	if !notFound && showLastSyncTime && syncFinishedAt != nil {
+		displayedSyncTime := humanize.Time(syncFinishedAt.Time)
+		rightText = fmt.Sprintf("%s %s", rightText, displayedSyncTime)
+		lastSyncOffset = (len(displayedSyncTime) + 1) * widthPerChar
+	}
+
 	badge := assets.BadgeSVG
 	badge = leftRectColorPattern.ReplaceAllString(badge, fmt.Sprintf(`id="leftRect" fill=%q $2`, leftColorString))
 	badge = rightRectColorPattern.ReplaceAllString(badge, fmt.Sprintf(`id="rightRect" fill=%q $2`, rightColorString))
@@ -209,12 +228,24 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		displayedRevision = revision
 		if keepFullRevisionParam, ok := r.URL.Query()["keepFullRevision"]; (!ok || !strings.EqualFold(keepFullRevisionParam[0], "true")) && len(revision) > 7 {
 			displayedRevision = revision[:7]
-			svgWidth = svgWidthWithRevision
+			svgWidth = svgWidthWithRevision + lastSyncOffset
 		} else {
-			svgWidth = svgWidthWithFullRevision
+			svgWidth = svgWidthWithFullRevision + lastSyncOffset
 		}
 
 		badge = replaceFirstGroupSubMatch(revisionTextPattern, badge, fmt.Sprintf("(%s)", displayedRevision))
+	}
+
+	if lastSyncOffset > 0 {
+		adjustWidth = true
+		if displayedRevision == "" {
+			svgWidth += lastSyncOffset
+		}
+		// Widen the sync status rectangle to fit the appended sync time and keep its text centered
+		rightRectWidth := svgWidthWithoutRevision - leftRectWidth + lastSyncOffset
+		badge = rightRectWidthPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, rightRectWidth))
+		badge = rightTextXCoodPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, (leftRectWidth+rightRectWidth/2)*10))
+		badge = revisionRectXCoodPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, svgWidthWithoutRevision+lastSyncOffset))
 	}
 
 	if widthParam, ok := r.URL.Query()["width"]; ok && enabled {
@@ -229,8 +260,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if adjustWidth {
 		badge = svgWidthPattern.ReplaceAllString(badge, fmt.Sprintf(`<svg width="%d" $2`, svgWidth))
 		if revisionEnabled {
-			xpos := (svgWidthWithoutRevision)*10 + (len(displayedRevision)+1)*textPositionWidthPerChar/2
-			badge = revisionRectWidthPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, svgWidth-svgWidthWithoutRevision))
+			xpos := (svgWidthWithoutRevision+lastSyncOffset)*10 + (len(displayedRevision)+1)*textPositionWidthPerChar/2
+			badge = revisionRectWidthPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, svgWidth-svgWidthWithoutRevision-lastSyncOffset))
 			badge = revisionTextXCoodPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, xpos))
 		} else {
 			badge = rightRectWidthPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, svgWidth-leftRectWidth))
