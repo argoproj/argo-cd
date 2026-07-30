@@ -500,6 +500,54 @@ func TestHandlerShowLastSyncTimeAndRevisionAreEnabled(t *testing.T) {
 	assert.Equal(t, fmt.Sprintf("\"%d\"", svgWidthWithoutRevision+lastSyncOffset), revisionRectXCoodPattern.FindStringSubmatch(response)[2])
 }
 
+func TestHandlerShowLastSyncTimeAndWidthAreEnabled(t *testing.T) {
+	t.Parallel()
+	finishedAt := metav1.NewTime(time.Now().Add(-2 * time.Hour))
+	app := testApp()
+	app.Status.OperationState.FinishedAt = &finishedAt
+
+	settingsMgr := settings.NewSettingsManager(t.Context(), fake.NewClientset(argoCDCm(), argoCDSecret()), "default")
+	handler := NewHandler(appclientset.NewSimpleClientset(app), settingsMgr, "default", []string{})
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/api/badge?name=test-app&showLastSyncTime=true&width=500", http.NoBody)
+	require.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	response := rr.Body.String()
+	displayedSyncTime := humanize.Time(finishedAt.Time)
+	rightRectWidth := 500 - leftRectWidth
+	assert.Equal(t, "Synced "+displayedSyncTime, rightTextPattern.FindStringSubmatch(response)[1])
+	assert.Equal(t, "500", svgWidthPattern.FindStringSubmatch(response)[1])
+	assert.Equal(t, fmt.Sprintf("\"%d\"", rightRectWidth), rightRectWidthPattern.FindStringSubmatch(response)[2])
+	// The status text must be centered in the final rectangle width
+	assert.Equal(t, fmt.Sprintf("\"%d\"", (leftRectWidth+rightRectWidth/2)*10), rightTextXCoodPattern.FindStringSubmatch(response)[2])
+}
+
+func TestHandlerShowLastSyncTimeAndAppNameAreEnabled(t *testing.T) {
+	t.Parallel()
+	finishedAt := metav1.NewTime(time.Now().Add(-2 * time.Hour))
+	app := testApp()
+	app.Status.OperationState.FinishedAt = &finishedAt
+
+	settingsMgr := settings.NewSettingsManager(t.Context(), fake.NewClientset(argoCDCm(), argoCDSecret()), "default")
+	handler := NewHandler(appclientset.NewSimpleClientset(app), settingsMgr, "default", []string{})
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/api/badge?name=test-app&showLastSyncTime=true&showAppName=true", http.NoBody)
+	require.NoError(t, err)
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	response := rr.Body.String()
+	displayedSyncTime := humanize.Time(finishedAt.Time)
+	rightRectWidth := svgWidthWithoutRevision - leftRectWidth + (len(displayedSyncTime)+1)*widthPerChar
+	assert.Equal(t, "Synced "+displayedSyncTime, rightTextPattern.FindStringSubmatch(response)[1])
+	assert.Equal(t, "test-app", titleTextPattern.FindStringSubmatch(response)[1])
+	assert.Equal(t, fmt.Sprintf("\"%d\"", rightRectWidth), rightRectWidthPattern.FindStringSubmatch(response)[2])
+	// The status text must be centered in the final rectangle width
+	assert.Equal(t, fmt.Sprintf("\"%d\"", (leftRectWidth+rightRectWidth/2)*10), rightTextXCoodPattern.FindStringSubmatch(response)[2])
+}
+
 func TestHandlerShowLastSyncTimeIsEnabledNoOperationState(t *testing.T) {
 	t.Parallel()
 	app := testApp()

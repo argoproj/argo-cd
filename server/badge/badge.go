@@ -103,6 +103,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	displayAppName := false
 	showLastSyncTime := false
 	lastSyncOffset := 0
+	rightRectWidth := svgWidthWithoutRevision - leftRectWidth
 	var syncFinishedAt *metav1.Time
 	notFound := false
 	adjustWidth := false
@@ -241,10 +242,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if displayedRevision == "" {
 			svgWidth += lastSyncOffset
 		}
-		// Widen the sync status rectangle to fit the appended sync time and keep its text centered
-		rightRectWidth := svgWidthWithoutRevision - leftRectWidth + lastSyncOffset
+		// Widen the sync status rectangle to fit the appended sync time
+		rightRectWidth += lastSyncOffset
 		badge = rightRectWidthPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, rightRectWidth))
-		badge = rightTextXCoodPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, (leftRectWidth+rightRectWidth/2)*10))
 		badge = revisionRectXCoodPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, svgWidthWithoutRevision+lastSyncOffset))
 	}
 
@@ -264,7 +264,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			badge = revisionRectWidthPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, svgWidth-svgWidthWithoutRevision-lastSyncOffset))
 			badge = revisionTextXCoodPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, xpos))
 		} else {
-			badge = rightRectWidthPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, svgWidth-leftRectWidth))
+			rightRectWidth = svgWidth - leftRectWidth
+			badge = rightRectWidthPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, rightRectWidth))
 		}
 	}
 
@@ -275,9 +276,11 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if displayAppName && applicationName != "" {
 		titleRectWidth := len(applicationName) * widthPerChar
 		longerWidth := max(titleRectWidth, svgWidth)
-		rightRectWidth := longerWidth - leftRectWidth
+		if displayedRevision == "" {
+			rightRectWidth = longerWidth - leftRectWidth
+		}
 		badge = titleRectWidthPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, longerWidth))
-		badge = rightRectWidthPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, rightRectWidth))
+		badge = rightRectWidthPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, longerWidth-leftRectWidth))
 		badge = replaceFirstGroupSubMatch(titleTextPattern, badge, applicationName)
 		badge = leftRectYCoodPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, badgeRowHeight))
 		badge = rightRectYCoodPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, badgeRowHeight))
@@ -288,6 +291,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		badge = svgHeightPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, svgHeightWithAppName))
 		badge = logoYCoodPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, logoYCoodWithAppName))
 		badge = svgWidthPattern.ReplaceAllString(badge, fmt.Sprintf(`<svg width="%d" $2`, longerWidth))
+	}
+
+	// Re-center the sync status text once the final width of its rectangle is known,
+	// after all width-affecting options (revision, width, showAppName) are applied
+	if lastSyncOffset > 0 {
+		badge = rightTextXCoodPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, (leftRectWidth+rightRectWidth/2)*10))
 	}
 
 	w.Header().Set("Content-Type", "image/svg+xml")
