@@ -417,12 +417,17 @@ func TestHandlerFeatureIsEnabledRevisionIsEnabled(t *testing.T) {
 	assert.Equal(t, "*", rr.Header().Get("Access-Control-Allow-Origin"))
 
 	response := rr.Body.String()
+	revisionSectionWidth := (len("aa29b85")+1)*textPositionWidthPerChar/10 + revisionSectionPadding
 	assert.Equal(t, toRGBString(Green), leftRectColorPattern.FindStringSubmatch(response)[1])
 	assert.Equal(t, toRGBString(Green), rightRectColorPattern.FindStringSubmatch(response)[1])
 	assert.Equal(t, "Healthy", leftTextPattern.FindStringSubmatch(response)[1])
 	assert.Equal(t, "Synced", rightTextPattern.FindStringSubmatch(response)[1])
 	assert.NotContains(t, response, "test-app")
 	assert.Contains(t, response, "(aa29b85)")
+	// The revision section is sized to fit the revision and its text is centered within it
+	assert.Equal(t, strconv.Itoa(svgWidthWithoutRevision+revisionSectionWidth), svgWidthPattern.FindStringSubmatch(response)[1])
+	assert.Equal(t, fmt.Sprintf("\"%d\"", revisionSectionWidth), revisionRectWidthPattern.FindStringSubmatch(response)[2])
+	assert.Equal(t, fmt.Sprintf("\"%d\"", svgWidthWithoutRevision*10+revisionSectionWidth*5), revisionTextXCoodPattern.FindStringSubmatch(response)[2])
 }
 
 func TestHandlerRevisionIsEnabledNoOperationState(t *testing.T) {
@@ -493,9 +498,10 @@ func TestHandlerShowLastSyncTimeAndRevisionAreEnabled(t *testing.T) {
 	response := rr.Body.String()
 	displayedSyncTime := humanize.Time(finishedAt.Time)
 	lastSyncOffset := (len(displayedSyncTime) + 1) * widthPerChar
+	revisionSectionWidth := (len("aa29b85")+1)*textPositionWidthPerChar/10 + revisionSectionPadding
 	assert.Equal(t, "Synced "+displayedSyncTime, rightTextPattern.FindStringSubmatch(response)[1])
 	assert.Contains(t, response, "(aa29b85)")
-	assert.Equal(t, strconv.Itoa(svgWidthWithFullRevision+lastSyncOffset), svgWidthPattern.FindStringSubmatch(response)[1])
+	assert.Equal(t, strconv.Itoa(svgWidthWithoutRevision+lastSyncOffset+revisionSectionWidth), svgWidthPattern.FindStringSubmatch(response)[1])
 	// The revision section must be shifted right by the space taken by the sync time
 	assert.Equal(t, fmt.Sprintf("\"%d\"", svgWidthWithoutRevision+lastSyncOffset), revisionRectXCoodPattern.FindStringSubmatch(response)[2])
 }

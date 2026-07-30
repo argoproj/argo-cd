@@ -61,9 +61,8 @@ var (
 )
 
 const (
-	svgWidthWithRevision      = 192
-	svgWidthWithFullRevision  = 400
 	svgWidthWithoutRevision   = 131
+	revisionSectionPadding    = 12
 	svgHeightWithAppName      = 40
 	badgeRowHeight            = 20
 	statusRowYCoodWithAppName = 330
@@ -229,10 +228,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		displayedRevision = revision
 		if keepFullRevisionParam, ok := r.URL.Query()["keepFullRevision"]; (!ok || !strings.EqualFold(keepFullRevisionParam[0], "true")) && len(revision) > 7 {
 			displayedRevision = revision[:7]
-			svgWidth = svgWidthWithRevision + lastSyncOffset
-		} else {
-			svgWidth = svgWidthWithFullRevision + lastSyncOffset
 		}
+		// Size the revision section to fit the displayed revision text
+		revisionSectionWidth := (len(displayedRevision)+1)*textPositionWidthPerChar/10 + revisionSectionPadding
+		svgWidth = svgWidthWithoutRevision + lastSyncOffset + revisionSectionWidth
 
 		badge = replaceFirstGroupSubMatch(revisionTextPattern, badge, fmt.Sprintf("(%s)", displayedRevision))
 	}
@@ -260,8 +259,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if adjustWidth {
 		badge = svgWidthPattern.ReplaceAllString(badge, fmt.Sprintf(`<svg width="%d" $2`, svgWidth))
 		if revisionEnabled {
-			xpos := (svgWidthWithoutRevision+lastSyncOffset)*10 + (len(displayedRevision)+1)*textPositionWidthPerChar/2
-			badge = revisionRectWidthPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, svgWidth-svgWidthWithoutRevision-lastSyncOffset))
+			// Center the revision text within the revision section
+			revisionRectWidth := svgWidth - svgWidthWithoutRevision - lastSyncOffset
+			xpos := (svgWidthWithoutRevision+lastSyncOffset)*10 + revisionRectWidth*5
+			badge = revisionRectWidthPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, revisionRectWidth))
 			badge = revisionTextXCoodPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, xpos))
 		} else {
 			rightRectWidth = svgWidth - leftRectWidth
