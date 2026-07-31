@@ -1672,15 +1672,11 @@ func TestPerformReverseDeletionStaleCache(t *testing.T) {
 	assert.Equal(t, 1, deleteAttempts["appset-stage1"])
 }
 
-// TestPerformReverseDeletionTerminatingApp covers an Application whose deletion is still pending,
-// here past the two minute threshold. Two things must hold:
-//
-//   - No error: the threshold check sits on the only code path that reaches RemoveFinalizer, so
-//     returning an error from it leaves the ApplicationSet in Terminating permanently — the age it
-//     measures only grows, so every retry fails identically.
-//   - No second Delete: a redundant Delete on a terminating object is a no-op success, and
-//     cacheSyncingClient.Delete evicts the object from the informer store on success. The next Get
-//     would then 404 on a still-existing Application and the finalizer would be released early.
+// TestPerformReverseDeletionTerminatingApp covers an Application whose deletion is still pending.
+// Whichever side of the two minute threshold it falls on, no second Delete may be issued: a
+// redundant Delete on a terminating object is a no-op success, and cacheSyncingClient.Delete evicts
+// the object from the informer store on success. The next Get would then 404 on a still-existing
+// Application and the finalizer would be released early.
 func TestPerformReverseDeletionTerminatingApp(t *testing.T) {
 	t.Parallel()
 
@@ -1702,37 +1698,61 @@ func TestPerformReverseDeletionTerminatingApp(t *testing.T) {
 		},
 	}
 
-	// Deletion was requested well beyond the two minute threshold.
-	newApp := func() v1alpha1.Application {
-		deletionTimestamp := metav1.NewTime(time.Now().Add(-5 * time.Minute))
-		return v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:              "appset-stage0",
-				Namespace:         "argocd",
-				Labels:            map[string]string{"stage": "0"},
-				DeletionTimestamp: &deletionTimestamp,
-				Finalizers:        []string{v1alpha1.ResourcesFinalizerName},
-			},
-		}
+	for _, tc := range []struct {
+		name          string
+		deletionAge   time.Duration
+		expectedErr   string
+		expectRequeue time.Duration
+	}{
+		{
+			name:          "within threshold",
+			deletionAge:   30 * time.Second,
+			expectRequeue: 10 * time.Second,
+		},
+		{
+			// Past the threshold the reconcile fails, so the ApplicationSet finalizer stays put and
+			// controller-runtime retries with backoff.
+			name:        "past threshold",
+			deletionAge: 5 * time.Minute,
+			expectedErr: "application has not been deleted in over 2 minutes",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			deletionTimestamp := metav1.NewTime(time.Now().Add(-tc.deletionAge))
+			app := v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "appset-stage0",
+					Namespace:         "argocd",
+					Labels:            map[string]string{"stage": "0"},
+					DeletionTimestamp: &deletionTimestamp,
+					Finalizers:        []string{v1alpha1.ResourcesFinalizerName},
+				},
+			}
+
+			deleteAttempts := 0
+			fakeClient := fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(&app).
+				WithInterceptorFuncs(interceptor.Funcs{
+					Delete: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.DeleteOption) error {
+						deleteAttempts++
+						return c.Delete(ctx, obj, opts...)
+					},
+				}).
+				Build()
+
+			m := NewManager(fakeClient, nil)
+			requeue, err := m.PerformReverseDeletion(context.Background(), log.NewEntry(log.New()), appSet, []v1alpha1.Application{app})
+
+			if tc.expectedErr != "" {
+				require.EqualError(t, err, tc.expectedErr)
+			} else {
+				require.NoError(t, err)
+			}
+			assert.Equal(t, tc.expectRequeue, requeue)
+			assert.Zero(t, deleteAttempts, "must not re-Delete an already terminating Application")
+		})
 	}
-
-	app := newApp()
-	deleteAttempts := 0
-	fakeClient := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithObjects(&app).
-		WithInterceptorFuncs(interceptor.Funcs{
-			Delete: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.DeleteOption) error {
-				deleteAttempts++
-				return c.Delete(ctx, obj, opts...)
-			},
-		}).
-		Build()
-
-	m := NewManager(fakeClient, nil)
-	requeue, err := m.PerformReverseDeletion(context.Background(), log.NewEntry(log.New()), appSet, []v1alpha1.Application{app})
-
-	require.NoError(t, err, "a pending teardown must not surface as a hard error")
-	assert.Equal(t, 10*time.Second, requeue, "should requeue and keep waiting for the child")
-	assert.Zero(t, deleteAttempts, "must not re-Delete an already terminating Application")
 }
