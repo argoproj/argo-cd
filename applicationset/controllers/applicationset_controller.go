@@ -16,7 +16,6 @@ package controllers
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"reflect"
 	"runtime/debug"
@@ -455,12 +454,18 @@ func (r *ApplicationSetReconciler) performReverseDeletion(ctx context.Context, l
 				continue
 			}
 		}
-		// Check if the application is already being deleted
+		// The application is already terminating: wait for the object to disappear instead of
+		// re-issuing a Delete. A redundant Delete on a terminating object succeeds as a no-op,
+		// and cacheSyncingClient.Delete evicts the object from the informer store on success
+		// (see applicationset/utils/client.go). The next Get would then return NotFound for an
+		// Application that still exists, and we would release the ApplicationSet finalizer
+		// while the child is still being torn down.
 		if retrievedApp.DeletionTimestamp != nil {
 			logCtx.Infof("application %s has been marked for deletion, but object not removed yet", step.AppName)
 			if time.Since(retrievedApp.DeletionTimestamp.Time) > 2*time.Minute {
-				return 0, errors.New("application has not been deleted in over 2 minutes")
+				logCtx.Warnf("application %s has not been deleted in over 2 minutes; continuing to wait for it to be removed", step.AppName)
 			}
+			return requeueTime, nil
 		}
 		// The application has not been deleted yet, trigger its deletion
 		if err := r.Delete(ctx, &retrievedApp); err != nil {
