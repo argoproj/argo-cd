@@ -6,4 +6,6 @@ interface ClearLogsButtonProps {
     onClear: () => void;
 }
 
-export const ClearLogsButton = ({disabled, onClear}: ClearLogsButtonProps) => <Button title='Clear displayed logs' icon='eraser' onClick={onClear} disabled={disabled} />;
+export const ClearLogsButton = ({disabled, onClear}: ClearLogsButtonProps) => (
+    <Button title='Clear displayed logs' icon='eraser' onClick={() => !disabled && onClear()} disabled={disabled} />
+);
