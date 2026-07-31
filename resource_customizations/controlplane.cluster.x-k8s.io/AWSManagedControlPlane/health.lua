@@ -8,6 +8,20 @@ if obj.status == nil then
     return health_status
 end
 
+-- The provider only records .status.observedGeneration on a reconcile that returned no error, so a
+-- value behind .metadata.generation means the rest of .status still describes the previous spec and
+-- must not be trusted. Reporting Progressing here also covers the spec change that corrects a
+-- terminal .status.failureMessage, which would otherwise keep being surfaced until the next
+-- successful reconcile. The field was added in CAPA v2.12.0 and is absent before it, so it is only
+-- compared when actually present.
+-- https://github.com/kubernetes-sigs/cluster-api-provider-aws/blob/v2.12.0/controlplane/eks/controllers/awsmanagedcontrolplane_controller.go#L291-L294
+if obj.metadata.generation ~= nil and obj.status.observedGeneration ~= nil
+    and obj.status.observedGeneration ~= obj.metadata.generation then
+    health_status.status = "Progressing"
+    health_status.message = "Waiting for the control plane spec to be reconciled"
+    return health_status
+end
+
 -- A problem reported through .status.failureMessage is terminal and will not clear by waiting,
 -- so surface it rather than reporting Progressing indefinitely. This covers a cluster in the
 -- FAILED state as well as one that EKS auto-upgraded out of standard support, which stays

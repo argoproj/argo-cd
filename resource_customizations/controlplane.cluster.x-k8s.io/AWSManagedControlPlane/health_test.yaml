@@ -4,9 +4,17 @@ tests:
     message: 'Control plane is ready'
   inputPath: testdata/healthy.yaml
 - healthStatus:
+    status: Healthy
+    message: 'Control plane is ready'
+  inputPath: testdata/healthy_no_observed_generation.yaml
+- healthStatus:
     status: Progressing
     message: 'Control plane is not ready (.status.ready is false)'
   inputPath: testdata/progressing_ready_false.yaml
+- healthStatus:
+    status: Progressing
+    message: 'Waiting for the control plane spec to be reconciled'
+  inputPath: testdata/progressing_stale_generation.yaml
 - healthStatus:
     status: Progressing
     message: 'Control plane is not ready'
