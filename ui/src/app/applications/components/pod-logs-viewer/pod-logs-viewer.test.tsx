@@ -6,12 +6,13 @@ import {LogEntry} from '../../../shared/models';
 import {PodsLogsViewer} from './pod-logs-viewer';
 
 const mockGetContainerLogs = jest.fn();
+const mockCopyLogsButton = jest.fn();
 
 jest.mock('argo-ui', () => ({
     DataLoader: ({children}: {children: (data: any) => React.ReactNode}) => children({appDetails: {darkMode: false, wrapLines: false}}),
-    Tooltip: ({children}: {children: React.ReactNode}) => {
+    Tooltip: ({children, content}: {children: React.ReactNode; content: string}) => {
         const React = require('react');
-        return React.createElement(React.Fragment, null, children);
+        return React.createElement('span', {'data-tooltip-content': content}, children);
     }
 }));
 
@@ -39,7 +40,12 @@ jest.mock('../../../shared/services', () => ({
     }
 }));
 
-jest.mock('./copy-logs-button', () => ({CopyLogsButton: () => null}));
+jest.mock('./copy-logs-button', () => ({
+    CopyLogsButton: ({logs}: {logs: LogEntry[]}) => {
+        mockCopyLogsButton(logs);
+        return null;
+    }
+}));
 jest.mock('./download-logs-button', () => ({DownloadLogsButton: () => null}));
 jest.mock('./container-selector', () => ({ContainerSelector: () => null}));
 jest.mock('./follow-toggle-button', () => ({FollowToggleButton: () => null}));
@@ -119,7 +125,9 @@ describe('PodsLogsViewer clear logs button', () => {
         renderComponent();
 
         const clearButton = getClearButton();
-        expect(clearButton.disabled).toBe(true);
+        expect(clearButton).toHaveClass('disabled');
+        expect(clearButton).not.toBeDisabled();
+        expect(clearButton.closest('[data-tooltip-content]')).toHaveAttribute('data-tooltip-content', 'Clear displayed logs');
 
         const beforeClick = container.textContent;
         act(() => {
@@ -129,7 +137,7 @@ describe('PodsLogsViewer clear logs button', () => {
         expect(container.textContent).toBe(beforeClick);
     });
 
-    it('clears displayed logs when the clear button is clicked', () => {
+    it('clears displayed logs but keeps received logs available for copying', () => {
         mockGetContainerLogs.mockReturnValue(of(...logsFixture));
 
         renderComponent();
@@ -139,7 +147,7 @@ describe('PodsLogsViewer clear logs button', () => {
         expect(beforeClear).toContain('INFO  Listening on :8080');
 
         const clearButton = getClearButton();
-        expect(clearButton.disabled).toBe(false);
+        expect(clearButton).not.toHaveClass('disabled');
 
         act(() => {
             clearButton.click();
@@ -150,6 +158,7 @@ describe('PodsLogsViewer clear logs button', () => {
         expect(afterClear).not.toContain('INFO  Listening on :8080');
 
         const disabledClearButton = getClearButton();
-        expect(disabledClearButton.disabled).toBe(true);
+        expect(disabledClearButton).toHaveClass('disabled');
+        expect(mockCopyLogsButton).toHaveBeenLastCalledWith(logsFixture);
     });
 });
