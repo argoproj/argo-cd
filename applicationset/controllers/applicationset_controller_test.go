@@ -15,8 +15,10 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	kubefake "k8s.io/client-go/kubernetes/fake"
@@ -25,6 +27,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	crtclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
@@ -7927,6 +7930,139 @@ func TestReconcileAddsFinalizer_WhenDeletionOrderReverse(t *testing.T) {
 				"finalizers should match expected value")
 		})
 	}
+}
+
+// TestPerformReverseDeletionStaleCache reproduces the "ApplicationSet stuck in Deleting" bug.
+//
+// When an ApplicationSet with deletionOrder: Reverse is deleted, the controller reads the child
+// Applications from its (cache-backed) client to decide when they are gone. If the informer cache
+// is stale — it still lists Applications that were already removed from the API server — then the
+// per-app Get returns the ghost object while the subsequent Delete hits the API and returns
+// NotFound. The old code treated that NotFound as a fatal error and returned it, so the reconcile
+// error-looped forever and the ResourcesFinalizer was never removed. The only known recovery was
+// restarting the controller (which rebuilds the cache from a fresh LIST).
+//
+// This test simulates the stale cache with an interceptor: Get succeeds (object present in the
+// fake store) but Delete returns NotFound. performReverseDeletion must treat that as
+// "already deleted" and converge to (0, nil) so the finalizer can be removed.
+func TestPerformReverseDeletionStaleCache(t *testing.T) {
+	t.Parallel()
+
+	scheme := runtime.NewScheme()
+	require.NoError(t, v1alpha1.AddToScheme(scheme))
+
+	appSet := v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{Name: "appset", Namespace: "argocd"},
+		Spec: v1alpha1.ApplicationSetSpec{
+			Strategy: &v1alpha1.ApplicationSetStrategy{
+				Type:          "RollingSync",
+				DeletionOrder: ReverseDeletionOrder,
+				RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+					Steps: []v1alpha1.ApplicationSetRolloutStep{
+						{MatchExpressions: []v1alpha1.ApplicationMatchExpression{{Key: "stage", Operator: "In", Values: []string{"0"}}}},
+						{MatchExpressions: []v1alpha1.ApplicationMatchExpression{{Key: "stage", Operator: "In", Values: []string{"1"}}}},
+					},
+				},
+			},
+		},
+	}
+
+	newApp := func(name, stage string) v1alpha1.Application {
+		return v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "argocd", Labels: map[string]string{"stage": stage}},
+		}
+	}
+	// currentApps mirrors what getCurrentApplications() returns from the stale cache: both apps
+	// still appear to exist even though they have already been deleted from the API server.
+	app0 := newApp("appset-stage0", "0")
+	app1 := newApp("appset-stage1", "1")
+	currentApps := []v1alpha1.Application{app0, app1}
+
+	deleteAttempts := map[string]int{}
+	fakeClient := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(&app0, &app1). // Get returns the ghost objects (stale cache)
+		WithInterceptorFuncs(interceptor.Funcs{
+			// The objects are already gone on the API server: every Delete 404s.
+			Delete: func(_ context.Context, _ crtclient.WithWatch, obj crtclient.Object, _ ...crtclient.DeleteOption) error {
+				deleteAttempts[obj.GetName()]++
+				return apierrors.NewNotFound(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, obj.GetName())
+			},
+		}).
+		Build()
+
+	r := ApplicationSetReconciler{Client: fakeClient, Scheme: scheme, Metrics: appsetmetrics.NewFakeAppsetMetrics()}
+	requeue, err := r.performReverseDeletion(t.Context(), log.NewEntry(log.New()), appSet, currentApps)
+
+	// With the fix, an already-deleted Application is treated as success: reverse deletion
+	// converges in a single pass so the caller can remove the finalizer instead of looping.
+	require.NoError(t, err, "already-deleted Application must not surface as a hard error")
+	assert.Zero(t, requeue, "deletion should be complete, not requeued")
+	// Both steps should have been visited and their (already-gone) deletion attempted.
+	assert.Equal(t, 1, deleteAttempts["appset-stage0"])
+	assert.Equal(t, 1, deleteAttempts["appset-stage1"])
+}
+
+// TestPerformReverseDeletionTerminatingApp covers an Application whose deletion is still pending,
+// here past the two minute threshold. Two things must hold:
+//
+//   - No error: the threshold check sits on the only code path that reaches RemoveFinalizer, so
+//     returning an error from it leaves the ApplicationSet in Terminating permanently — the age it
+//     measures only grows, so every retry fails identically.
+//   - No second Delete: a redundant Delete on a terminating object is a no-op success, and
+//     cacheSyncingClient.Delete evicts the object from the informer store on success. The next Get
+//     would then 404 on a still-existing Application and the finalizer would be released early.
+func TestPerformReverseDeletionTerminatingApp(t *testing.T) {
+	t.Parallel()
+
+	scheme := runtime.NewScheme()
+	require.NoError(t, v1alpha1.AddToScheme(scheme))
+
+	appSet := v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{Name: "appset", Namespace: "argocd"},
+		Spec: v1alpha1.ApplicationSetSpec{
+			Strategy: &v1alpha1.ApplicationSetStrategy{
+				Type:          "RollingSync",
+				DeletionOrder: ReverseDeletionOrder,
+				RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+					Steps: []v1alpha1.ApplicationSetRolloutStep{
+						{MatchExpressions: []v1alpha1.ApplicationMatchExpression{{Key: "stage", Operator: "In", Values: []string{"0"}}}},
+					},
+				},
+			},
+		},
+	}
+
+	// Deletion was requested well beyond the two minute threshold.
+	deletionTimestamp := metav1.NewTime(time.Now().Add(-5 * time.Minute))
+	app := v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              "appset-stage0",
+			Namespace:         "argocd",
+			Labels:            map[string]string{"stage": "0"},
+			DeletionTimestamp: &deletionTimestamp,
+			Finalizers:        []string{v1alpha1.ResourcesFinalizerName},
+		},
+	}
+
+	deleteAttempts := 0
+	fakeClient := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(&app).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Delete: func(ctx context.Context, c crtclient.WithWatch, obj crtclient.Object, opts ...crtclient.DeleteOption) error {
+				deleteAttempts++
+				return c.Delete(ctx, obj, opts...)
+			},
+		}).
+		Build()
+
+	r := ApplicationSetReconciler{Client: fakeClient, Scheme: scheme, Metrics: appsetmetrics.NewFakeAppsetMetrics()}
+	requeue, err := r.performReverseDeletion(t.Context(), log.NewEntry(log.New()), appSet, []v1alpha1.Application{app})
+
+	require.NoError(t, err, "a pending teardown must not surface as a hard error")
+	assert.Equal(t, 10*time.Second, requeue, "should requeue and keep waiting for the child")
+	assert.Zero(t, deleteAttempts, "must not re-Delete an already terminating Application")
 }
 
 func TestReconcileProgressiveSyncDisabled(t *testing.T) {
