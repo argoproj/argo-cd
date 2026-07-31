@@ -2,6 +2,7 @@ package progressivesync
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"slices"
@@ -152,7 +153,7 @@ func (m *Manager) PerformReverseDeletion(ctx context.Context, logCtx *log.Entry,
 		if retrievedApp.DeletionTimestamp != nil {
 			logCtx.Infof("application %s has been marked for deletion, but object not removed yet", step.AppName)
 			if time.Since(retrievedApp.DeletionTimestamp.Time) > 2*time.Minute {
-				logCtx.Warnf("application %s has not been deleted in over 2 minutes; continuing to wait for it to be removed", step.AppName)
+				return 0, errors.New("application has not been deleted in over 2 minutes")
 			}
 			return requeueTime, nil
 		}
