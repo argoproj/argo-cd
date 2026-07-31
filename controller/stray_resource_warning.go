@@ -43,16 +43,29 @@ func isPruningDisabledForObj(obj *unstructured.Unstructured, defaultPruneOption 
 	return pruneOptionValue != nil && *pruneOptionValue == synccommon.SyncValueFalse
 }
 
+func objRequiresPruneConfirmation(obj *unstructured.Unstructured, defaultPruneOption *string) bool {
+	var pruneOptionValue *string
+	if obj != nil {
+		pruneOptionValue = resourceutil.GetAnnotationOptionValue(obj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionPrune)
+	}
+	if pruneOptionValue == nil {
+		pruneOptionValue = defaultPruneOption
+	}
+	return pruneOptionValue != nil && *pruneOptionValue == synccommon.SyncValueConfirm
+}
+
 func (m *appStateManager) warnUnprotectedStrayResources(
 	ctx context.Context,
 	app *appv1.Application,
 	logEntry *log.Entry,
 	reconciliationResult sync.ReconciliationResult,
 	defaultPruneOption *string,
+	pruneConfirmed bool,
 ) {
-	if m.auditLogger == nil {
+	if m.auditLogger == nil || m.projLister == nil {
 		return
 	}
+	eventLabels := argo.GetAppEventLabels(ctx, app, m.projLister, m.namespace, m.settingsMgr, m.db)
 	for i, liveObj := range reconciliationResult.Live {
 		if liveObj == nil {
 			continue
@@ -70,6 +83,9 @@ func (m *appStateManager) warnUnprotectedStrayResources(
 		if liveObjHasExplicitSyncProtection(liveObj) {
 			continue
 		}
+		if objRequiresPruneConfirmation(liveObj, defaultPruneOption) && !pruneConfirmed {
+			continue
+		}
 
 		gvk := liveObj.GroupVersionKind()
 		message := fmt.Sprintf(
@@ -78,7 +94,6 @@ func (m *appStateManager) warnUnprotectedStrayResources(
 			gvk.Group, gvk.Kind, fmt.Sprintf("%s/%s", liveObj.GetNamespace(), liveObj.GetName()),
 		)
 		logEntry.Warn(message)
-		eventLabels := argo.GetAppEventLabels(ctx, app, nil, m.namespace, m.settingsMgr, m.db)
 		m.auditLogger.LogAppEvent(
 			app,
 			argo.EventInfo{Reason: argo.EventReasonResourceDeleted, Type: corev1.EventTypeWarning},

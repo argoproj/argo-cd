@@ -40,6 +40,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/controller/metrics"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
+	applisters "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	applog "github.com/argoproj/argo-cd/v3/util/app/log"
 	"github.com/argoproj/argo-cd/v3/util/app/path"
@@ -149,6 +150,7 @@ type appStateManager struct {
 	serverSideDiff        bool
 	ignoreNormalizerOpts  normalizers.IgnoreNormalizerOpts
 	auditLogger           *argo.AuditLogger
+	projLister            applisters.AppProjectLister
 }
 
 // EvaluateAppRevisionsChanges checks if any source revisions have changes without generating manifests.
@@ -1332,6 +1334,7 @@ func NewAppStateManager(
 	serverSideDiff bool,
 	ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts,
 	auditLogger *argo.AuditLogger,
+	projLister applisters.AppProjectLister,
 ) AppStateManager {
 	return &appStateManager{
 		liveStateCache:        liveStateCache,
@@ -1351,6 +1354,7 @@ func NewAppStateManager(
 		serverSideDiff:        serverSideDiff,
 		ignoreNormalizerOpts:  ignoreNormalizerOpts,
 		auditLogger:           auditLogger,
+		projLister:            projLister,
 	}
 }
 

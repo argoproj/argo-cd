@@ -77,6 +77,35 @@ func TestIsPruningDisabledForObj(t *testing.T) {
 	}}, nil))
 }
 
+func TestObjRequiresPruneConfirmation(t *testing.T) {
+	t.Parallel()
+
+	pruneConfirm := synccommon.SyncValueConfirm
+	pruneFalse := synccommon.SyncValueFalse
+
+	t.Run("object annotation confirm", func(t *testing.T) {
+		t.Parallel()
+		obj := &unstructured.Unstructured{Object: map[string]any{
+			"metadata": map[string]any{
+				"annotations": map[string]any{
+					synccommon.AnnotationSyncOptions: "Prune=confirm",
+				},
+			},
+		}}
+		assert.True(t, objRequiresPruneConfirmation(obj, nil))
+	})
+
+	t.Run("default confirm", func(t *testing.T) {
+		t.Parallel()
+		assert.True(t, objRequiresPruneConfirmation(&unstructured.Unstructured{}, &pruneConfirm))
+	})
+
+	t.Run("default false", func(t *testing.T) {
+		t.Parallel()
+		assert.False(t, objRequiresPruneConfirmation(&unstructured.Unstructured{}, &pruneFalse))
+	})
+}
+
 func TestWarnUnprotectedStrayResources_emitsForStrayWithoutAnnotation(t *testing.T) {
 	t.Parallel()
 
