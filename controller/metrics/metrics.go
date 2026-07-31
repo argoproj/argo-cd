@@ -78,7 +78,7 @@ var (
 
 	descAppSyncBlocked = prometheus.NewDesc(
 		"argocd_app_sync_blocked",
-		"Whether automatic syncs of the application are currently blocked by its project's sync windows. Emitted as a 0/1 gauge: 1 means an automatic sync attempt right now would be rejected (an active deny window applies, or only allow windows are configured and none is active). Reports 0 when no sync windows are configured, distinguishing that case from \"allow=0, deny=0\" caused by inactive allow windows.",
+		"Whether automatic syncs of the application are currently blocked by its project's sync windows. Emitted as a 0/1 gauge: 1 means an automatic sync attempt right now would be rejected (an active deny window applies, or only allow windows are configured and none is active). Reports 0 when no sync windows are configured, distinguishing that case from \"allow=0, deny=0\" caused by inactive allow windows. Reports 1 when the project cannot be resolved or its sync windows cannot be evaluated, because a real sync attempt would fail in the same state.",
 		descAppDefaultLabels,
 		nil,
 	)
@@ -508,19 +508,17 @@ func (c *appCollector) collectApps(ch chan<- prometheus.Metric, app *argoappv1.A
 // argocd_app_sync_window (allow, deny) and argocd_app_sync_blocked series of
 // the given application. allow and deny are each 1 if at least one matching
 // sync window of that kind is currently active, otherwise 0. blocked is 1 if
-// an automatic sync attempt right now would be rejected by the window
-// evaluator (active deny window, or only allow windows are configured and none
-// is active), otherwise 0; when no sync windows are configured blocked is 0,
-// which distinguishes that case from "allow=0, deny=0" caused by inactive
-// allow windows. Errors resolving the project or evaluating window schedules
-// are logged and treated as "no active window" so all three series still
-// report a value for the application; this keeps `unless on(...)`-style alert
-// queries well-defined across application/project configurations.
+// an automatic sync attempt right now would be rejected: an active deny
+// window applies, or matching allow windows are configured and none is
+// currently active. When no sync windows are configured, or only deny windows
+// are configured and none is active, blocked is 0. Errors resolving the
+// project or evaluating window schedules are logged and reported as
+// blocked=1, because a real sync attempt would fail in the same state.
 func syncWindowMetricValues(getAppProject AppProjectGetter, app *argoappv1.Application) (allow, deny, blocked float64) {
 	proj, err := getAppProject(app)
 	if err != nil {
-		log.Warnf("Failed to get AppProject for application %s/%s: %v", app.Namespace, app.Name, err)
-		return 0, 0, 0
+		log.Warnf("Failed to get AppProject for application %s/%s, reporting its sync as blocked: %v", app.Namespace, app.Name, err)
+		return 0, 0, 1
 	}
 	if proj == nil {
 		return 0, 0, 0
@@ -528,8 +526,8 @@ func syncWindowMetricValues(getAppProject AppProjectGetter, app *argoappv1.Appli
 	matched := proj.Spec.SyncWindows.Matches(app)
 	active, err := matched.Active()
 	if err != nil {
-		log.Warnf("Failed to evaluate sync windows for application %s/%s: %v", app.Namespace, app.Name, err)
-		return 0, 0, 0
+		log.Warnf("Failed to evaluate sync windows for application %s/%s, reporting its sync as blocked: %v", app.Namespace, app.Name, err)
+		return 0, 0, 1
 	}
 	if active.HasWindows() {
 		for _, w := range *active {
@@ -541,13 +539,15 @@ func syncWindowMetricValues(getAppProject AppProjectGetter, app *argoappv1.Appli
 			}
 		}
 	}
-	canSync, err := matched.CanSync(false, nil)
-	if err != nil {
-		log.Warnf("Failed to evaluate sync window state for application %s/%s: %v", app.Namespace, app.Name, err)
-		return allow, deny, 0
+	if deny == 1 {
+		return allow, deny, 1
 	}
-	if !canSync {
-		blocked = 1
+	if allow == 0 && matched.HasWindows() {
+		for _, w := range *matched {
+			if w.Kind == "allow" {
+				return allow, deny, 1
+			}
+		}
 	}
-	return allow, deny, blocked
+	return allow, deny, 0
 }

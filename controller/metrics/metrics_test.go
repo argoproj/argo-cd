@@ -660,7 +660,7 @@ func TestSyncWindowMetric(t *testing.T) {
 	const helpAndType = `
 # HELP argocd_app_sync_window Whether a sync window of the given kind is currently active for the application. Emitted as a 0/1 gauge per window_kind ("allow", "deny"); 1 means at least one matching window of that kind is currently active.
 # TYPE argocd_app_sync_window gauge
-# HELP argocd_app_sync_blocked Whether automatic syncs of the application are currently blocked by its project's sync windows. Emitted as a 0/1 gauge: 1 means an automatic sync attempt right now would be rejected (an active deny window applies, or only allow windows are configured and none is active). Reports 0 when no sync windows are configured, distinguishing that case from "allow=0, deny=0" caused by inactive allow windows.
+# HELP argocd_app_sync_blocked Whether automatic syncs of the application are currently blocked by its project's sync windows. Emitted as a 0/1 gauge: 1 means an automatic sync attempt right now would be rejected (an active deny window applies, or only allow windows are configured and none is active). Reports 0 when no sync windows are configured, distinguishing that case from "allow=0, deny=0" caused by inactive allow windows. Reports 1 when the project cannot be resolved or its sync windows cannot be evaluated, because a real sync attempt would fail in the same state.
 # TYPE argocd_app_sync_blocked gauge
 `
 	gauge := func(kind string, value int) string {
@@ -718,11 +718,11 @@ func TestSyncWindowMetric(t *testing.T) {
 			expectedResponse: helpAndType + gauge("allow", 0) + gauge("deny", 0) + blockedGauge(1),
 		},
 		{
-			description: "getAppProject error still emits 0/0 and blocked=0",
+			description: "getAppProject error emits 0/0 and blocked=1 (fail-closed: a real sync would fail here too)",
 			getAppProject: func(_ *argoappv1.Application) (*argoappv1.AppProject, error) {
 				return nil, errors.New("project not found")
 			},
-			expectedResponse: helpAndType + gauge("allow", 0) + gauge("deny", 0) + blockedGauge(0),
+			expectedResponse: helpAndType + gauge("allow", 0) + gauge("deny", 0) + blockedGauge(1),
 		},
 	}
 
