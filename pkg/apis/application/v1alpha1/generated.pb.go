@@ -6,8 +6,8 @@ package v1alpha1
 import (
 	fmt "fmt"
 
-	github_com_argoproj_argo_cd_gitops_engine_pkg_health "github.com/argoproj/argo-cd/gitops-engine/pkg/health"
-	github_com_argoproj_argo_cd_gitops_engine_pkg_sync_common "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+	github_com_argoproj_argo_cd_gitops_engine_v3_pkg_health "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	github_com_argoproj_argo_cd_gitops_engine_v3_pkg_sync_common "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 
 	io "io"
 
@@ -24216,7 +24216,7 @@ func (m *AppHealthStatus) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Status = github_com_argoproj_argo_cd_gitops_engine_pkg_health.HealthStatusCode(dAtA[iNdEx:postIndex])
+			m.Status = github_com_argoproj_argo_cd_gitops_engine_v3_pkg_health.HealthStatusCode(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 2:
 			if wireType != 2 {
@@ -39243,7 +39243,7 @@ func (m *HealthStatus) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Status = github_com_argoproj_argo_cd_gitops_engine_pkg_health.HealthStatusCode(dAtA[iNdEx:postIndex])
+			m.Status = github_com_argoproj_argo_cd_gitops_engine_v3_pkg_health.HealthStatusCode(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 2:
 			if wireType != 2 {
@@ -43808,7 +43808,7 @@ func (m *OperationState) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Phase = github_com_argoproj_argo_cd_gitops_engine_pkg_sync_common.OperationPhase(dAtA[iNdEx:postIndex])
+			m.Phase = github_com_argoproj_argo_cd_gitops_engine_v3_pkg_sync_common.OperationPhase(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 3:
 			if wireType != 2 {
@@ -52558,7 +52558,7 @@ func (m *ResourceResult) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Status = github_com_argoproj_argo_cd_gitops_engine_pkg_sync_common.ResultCode(dAtA[iNdEx:postIndex])
+			m.Status = github_com_argoproj_argo_cd_gitops_engine_v3_pkg_sync_common.ResultCode(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 7:
 			if wireType != 2 {
@@ -52622,7 +52622,7 @@ func (m *ResourceResult) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.HookType = github_com_argoproj_argo_cd_gitops_engine_pkg_sync_common.HookType(dAtA[iNdEx:postIndex])
+			m.HookType = github_com_argoproj_argo_cd_gitops_engine_v3_pkg_sync_common.HookType(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 9:
 			if wireType != 2 {
@@ -52654,7 +52654,7 @@ func (m *ResourceResult) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.HookPhase = github_com_argoproj_argo_cd_gitops_engine_pkg_sync_common.OperationPhase(dAtA[iNdEx:postIndex])
+			m.HookPhase = github_com_argoproj_argo_cd_gitops_engine_v3_pkg_sync_common.OperationPhase(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 10:
 			if wireType != 2 {
@@ -52686,7 +52686,7 @@ func (m *ResourceResult) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.SyncPhase = github_com_argoproj_argo_cd_gitops_engine_pkg_sync_common.SyncPhase(dAtA[iNdEx:postIndex])
+			m.SyncPhase = github_com_argoproj_argo_cd_gitops_engine_v3_pkg_sync_common.SyncPhase(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 11:
 			if wireType != 2 {

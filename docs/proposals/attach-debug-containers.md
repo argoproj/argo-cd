@@ -99,7 +99,7 @@ see [PR](https://github.com/argoproj/argo-cd/pull/27124/changes)
 
 ## Drawbacks
 
-ArgoCD might consider limiting attack surface that can be presented with with debug container (which are more powerful then exec'ing into a pod)
+Argo CD might consider limiting the attack surface that can be presented with the debug container (which is more powerful than exec'ing into a pod)
 
 ## Alternatives
 

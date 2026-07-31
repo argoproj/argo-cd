@@ -441,7 +441,11 @@ func (repo *Repository) depthCopy() *int64 {
 
 func (repo *Repository) Normalize() *Repository {
 	if repo.Type == "" {
-		repo.Type = common.DefaultRepoType
+		if strings.HasPrefix(repo.Repo, "oci://") {
+			repo.Type = "oci"
+		} else {
+			repo.Type = common.DefaultRepoType
+		}
 	}
 	return repo
 }

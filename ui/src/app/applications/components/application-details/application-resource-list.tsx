@@ -226,7 +226,7 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                                                                         e.stopPropagation();
                                                                     }}
                                                                     title={`Open application\n${MANAGED_BY_URL_INVALID_TEXT}`}>
-                                                                    <i className='fa fa-external-link-alt' style={{color: MANAGED_BY_URL_INVALID_COLOR}} />
+                                                                    <i className='fa fa-window-maximize' style={{color: MANAGED_BY_URL_INVALID_COLOR}} />
                                                                 </span>
                                                             );
                                                         }
@@ -238,7 +238,7 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                                                                     rel={linkInfo.isExternal ? 'noopener noreferrer' : undefined}
                                                                     onClick={e => e.stopPropagation()}
                                                                     title={managedByURL ? `Open application\nmanaged-by-url: ${managedByURL}` : 'Open application'}>
-                                                                    <i className='fa fa-external-link-alt' />
+                                                                    <i className='fa fa-window-maximize' />
                                                                 </a>
                                                             </span>
                                                         );

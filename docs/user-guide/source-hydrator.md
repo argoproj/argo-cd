@@ -551,6 +551,10 @@ On each run, the hydrator:
 
 This improves efficiency and reduces commit noise in your repository.
 
+If external tooling reads git notes for promotion or coordination (for example, to gate on which dry SHAs
+have been processed), be aware that `manifest-generate-paths` can prevent note advancement when hydration
+is skipped. See [Git note attestation and manifest-generate-paths](#git-note-attestation-and-manifest-generate-paths).
+
 ## Hydration failures and retries
 
 When hydration fails, the application remains in the `Failed` phase and the error message is kept on
@@ -589,7 +593,14 @@ The annotation takes one of two values:
 > [!NOTE]
 > Only the exact value `hard` is special-cased. Any other value is treated as `normal`.
 
-Argo CD sets this annotation automatically in a few situations:
+Whenever Argo CD sets this annotation itself (see the triggers below), it also sets the companion
+`argocd.argoproj.io/hydrate-timestamp` annotation to a unique timestamp identifying that specific
+hydration request. When the controller finishes hydrating, it removes both annotations together, but only
+if `hydrate-timestamp` still has the value it had when hydration started. If a new hydration request
+arrived while the previous one was being processed, `hydrate-timestamp` will have a newer value, removal is
+skipped, and the request is processed instead of being silently dropped.
+
+Argo CD sets these annotations automatically in a few situations:
 
 * **Manual or API refresh.** `argocd app get <app> --refresh` (and the equivalent API call) sets it to `normal`;
   `argocd app get <app> --hard-refresh` sets it to `hard`.
@@ -615,6 +626,11 @@ The source hydrator honors the [`manifest-generate-paths` annotation](../operato
 to avoid unnecessary hydration. When the annotation is set, a new dry-source commit that does not touch the annotated
 paths (resolved relative to the `drySource` path) does not trigger re-hydration.
 
+The annotation controls **whether hydration is triggered**, not merely whether hydrated manifests would change.
+When hydration is skipped, the hydrator does not run and the `hydrator.metadata` git note on the hydrated branch
+is not advanced. See [Git note attestation and manifest-generate-paths](#git-note-attestation-and-manifest-generate-paths)
+for implications when external tooling reads git notes.
+
 This applies to both webhook-driven and periodically-reconciled refreshes:
 
 * A webhook for the **dry source** triggers hydration only when the changed files match the annotated paths.
@@ -625,6 +641,25 @@ The annotation's path filtering applies to the dry source. The sync source is al
 `syncSource.path`; the annotation value is not applied to the sync source.
 
 ## Limitations
+
+### Git note attestation and manifest-generate-paths
+
+The hydrator records which dry SHAs it has processed in a git note (`refs/notes/hydrator.metadata`) on the
+hydrated branch. The note is written by commit-server when hydration runs — including the case where manifests
+are unchanged and no new hydrated commit is created.
+
+When `manifest-generate-paths` causes hydration to be skipped (because changed files fall outside the annotated
+paths), commit-server is never called and the git note is **not** advanced. Application status may still record
+that the dry revision was compared, but the note's `drySha` will lag behind. In other words, the note attests only
+the dry commits for which the hydrator actually ran; it does not advance for dry commits filtered out by
+`manifest-generate-paths`, even though those commits would produce no manifest change.
+
+If you consume `hydrator.metadata` notes, account for this: only dry commits that match an Application's
+`manifest-generate-paths` (or all dry commits, when the annotation is unset) are attested on its hydrated branch.
+
+A planned enhancement ([#28556](https://github.com/argoproj/argo-cd/issues/28556)) will add a lightweight
+commit-server endpoint to advance the git note without a full hydration run (no repo-server render or manifest
+disk compare).
 
 ### Signature Verification
 
