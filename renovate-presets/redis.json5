@@ -38,7 +38,7 @@
         "description": "Regenerate the install manifests and the rendered redis-ha chart.",
         "commands": [
           "env INSTALL_SUDO=env BIN=./dist ./hack/install.sh kustomize helm",
-	  "sh -c PATH=`pwd`/dist:$PATH;./hack/update-manifests.sh"
+          "sh -c PATH=`pwd`/dist:$PATH;./hack/update-manifests.sh"
         ],
         "fileFilters": [
           "manifests/**"
