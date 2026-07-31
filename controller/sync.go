@@ -431,7 +431,7 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 	defer cleanup()
 
 	if syncOp.Prune && !syncOp.DryRun {
-		m.warnUnprotectedStrayResources(ctx, app, logEntry, reconciliationResult, syncOp.SyncOptions.GetOptionValue(common.SyncOptionPrune), app.IsDeletionConfirmed(state.StartedAt.Time))
+		m.warnUnprotectedStrayResources(ctx, app, logEntry, reconciliationResult, syncOp.SyncOptions.GetOptionValue(common.SyncOptionPrune), app.IsDeletionConfirmed(state.StartedAt.Time), syncOp.Resources)
 	}
 
 	start := time.Now()
