@@ -23,3 +23,7 @@ tests:
     status: Degraded
     message: 'EKS control plane test was automatically upgraded to version 1.30.0 because 1.29.0 is out of standard support. This can be fixed by changing to the version of the AWSManagedControlPlane to the one reported in the status'
   inputPath: testdata/degraded_failure_message.yaml
+- healthStatus:
+    status: Degraded
+    message: 'EKS cluster in unexpected FAILED state'
+  inputPath: testdata/degraded_failure_message_no_conditions.yaml
