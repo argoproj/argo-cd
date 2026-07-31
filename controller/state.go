@@ -148,6 +148,7 @@ type appStateManager struct {
 	repoErrorGracePeriod  time.Duration
 	serverSideDiff        bool
 	ignoreNormalizerOpts  normalizers.IgnoreNormalizerOpts
+	auditLogger           *argo.AuditLogger
 }
 
 // EvaluateAppRevisionsChanges checks if any source revisions have changes without generating manifests.
@@ -1330,6 +1331,7 @@ func NewAppStateManager(
 	repoErrorGracePeriod time.Duration,
 	serverSideDiff bool,
 	ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts,
+	auditLogger *argo.AuditLogger,
 ) AppStateManager {
 	return &appStateManager{
 		liveStateCache:        liveStateCache,
@@ -1348,6 +1350,7 @@ func NewAppStateManager(
 		repoErrorGracePeriod:  repoErrorGracePeriod,
 		serverSideDiff:        serverSideDiff,
 		ignoreNormalizerOpts:  ignoreNormalizerOpts,
+		auditLogger:           auditLogger,
 	}
 }
 
