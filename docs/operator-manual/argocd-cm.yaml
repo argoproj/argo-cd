@@ -373,6 +373,11 @@ data:
   # This is to prevent the UI from becoming unresponsive when rendering a large number of logs. Default is 10.
   server.maxPodLogsToRender: "10"
 
+  # server.rbac.rollback.enforce.enable enables a dedicated 'rollback' RBAC action for applications.
+  # When set to 'true', users must be explicitly granted the 'rollback' action to perform rollbacks.
+  # When omitted or 'false' (the default), rollback uses the 'sync' permission for backwards compatibility.
+  server.rbac.rollback.enforce.enable: "false"
+
   # exec.enabled indicates whether the UI exec feature is enabled. It is disabled by default.
   exec.enabled: "false"
 

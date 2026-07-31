@@ -221,10 +221,10 @@ The `rollback` action allows rolling back applications to previously synced revi
 
 #### Enabling Separate Rollback Permission
 
-The `rollback` action is **opt-in** and disabled by default for backwards compatibility. To enable it, set the following in `argocd-rbac-cm`:
+The `rollback` action is **opt-in** and disabled by default for backwards compatibility. To enable it, set the following in `argocd-cm`:
 
 ```yaml
-policy.enableSeparateRollbackPermission: 'true'
+server.rbac.rollback.enforce.enable: 'true'
 ```
 
 When disabled (the default), rollback operations continue to use the `sync` permission check, so existing RBAC policies continue to work without changes.

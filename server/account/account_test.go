@@ -352,6 +352,60 @@ func TestCanI_GetLogsDeny(t *testing.T) {
 	assert.Equal(t, "no", resp.Value)
 }
 
+func TestCanI_RollbackFlagDisabled_ChecksSyncPermission(t *testing.T) {
+	t.Parallel()
+	t.Run("denied when no sync permission", func(t *testing.T) {
+		t.Parallel()
+		enforcer := func(_ jwt.Claims, _ ...any) bool { return false }
+		accountServer, _ := newTestAccountServerExt(t, t.Context(), enforcer, func(_ *corev1.ConfigMap, _ *corev1.Secret) {
+			// flag not set → defaults to false
+		})
+		ctx := projTokenContext(t.Context())
+		resp, err := accountServer.CanI(ctx, &account.CanIRequest{Resource: "applications", Action: "rollback", Subresource: "*"})
+		require.NoError(t, err)
+		assert.Equal(t, "no", resp.Value)
+	})
+
+	t.Run("allowed when sync permission granted", func(t *testing.T) {
+		t.Parallel()
+		enforcer := func(_ jwt.Claims, _ ...any) bool { return true }
+		accountServer, _ := newTestAccountServerExt(t, t.Context(), enforcer, func(_ *corev1.ConfigMap, _ *corev1.Secret) {
+			// flag not set → defaults to false
+		})
+		ctx := projTokenContext(t.Context())
+		resp, err := accountServer.CanI(ctx, &account.CanIRequest{Resource: "applications", Action: "rollback", Subresource: "*"})
+		require.NoError(t, err)
+		assert.Equal(t, "yes", resp.Value)
+	})
+}
+
+func TestCanI_RollbackFlagEnabled_EnforcesRBAC(t *testing.T) {
+	t.Parallel()
+	t.Run("allowed", func(t *testing.T) {
+		t.Parallel()
+		enforcer := func(_ jwt.Claims, _ ...any) bool { return true }
+		accountServer, _ := newTestAccountServerExt(t, t.Context(), enforcer, func(cm *corev1.ConfigMap, _ *corev1.Secret) {
+			cm.Data["server.rbac.rollback.enforce.enable"] = "true"
+		})
+		ctx := projTokenContext(t.Context())
+		resp, err := accountServer.CanI(ctx, &account.CanIRequest{Resource: "applications", Action: "rollback", Subresource: "*"})
+		require.NoError(t, err)
+		assert.Equal(t, "yes", resp.Value)
+	})
+
+	t.Run("denied", func(t *testing.T) {
+		t.Parallel()
+		enforcer := func(_ jwt.Claims, _ ...any) bool { return false }
+		accountServer, _ := newTestAccountServerExt(t, t.Context(), enforcer, func(cm *corev1.ConfigMap, _ *corev1.Secret) {
+			cm.Data["server.rbac.rollback.enforce.enable"] = "true"
+		})
+		ctx := projTokenContext(t.Context())
+		resp, err := accountServer.CanI(ctx, &account.CanIRequest{Resource: "applications", Action: "rollback", Subresource: "*"})
+		require.NoError(t, err)
+		assert.Equal(t, "no", resp.Value)
+	})
+}
+
 func TestCanI_RBACPolicyMatchingWithNormalizedSubresource(t *testing.T) {
 	t.Parallel()
 	tests := []struct {

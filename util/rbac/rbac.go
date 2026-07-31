@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -34,13 +33,12 @@ import (
 )
 
 const (
-	ConfigMapPolicyCSVKey                        = "policy.csv"
-	ConfigMapPolicyDefaultKey                    = "policy.default"
-	ConfigMapScopesKey                           = "scopes"
-	ConfigMapMatchModeKey                        = "policy.matchMode"
-	ConfigMapEnableSeparateRollbackPermissionKey = "policy.enableSeparateRollbackPermission"
-	GlobMatchMode                                = "glob"
-	RegexMatchMode                               = "regex"
+	ConfigMapPolicyCSVKey     = "policy.csv"
+	ConfigMapPolicyDefaultKey = "policy.default"
+	ConfigMapScopesKey        = "scopes"
+	ConfigMapMatchModeKey     = "policy.matchMode"
+	GlobMatchMode             = "glob"
+	RegexMatchMode            = "regex"
 
 	defaultRBACSyncPeriod = 10 * time.Minute
 )
@@ -129,19 +127,18 @@ var ProjectScoped = map[string]bool{
 // * supports a user-defined policy
 // * supports a custom JWT claims enforce function
 type Enforcer struct {
-	lock                             sync.Mutex
-	enforcerCache                    *gocache.Cache
-	adapter                          *argocdAdapter
-	enableLog                        bool
-	enabled                          bool
-	clientset                        kubernetes.Interface
-	namespace                        string
-	configmap                        string
-	claimsEnforcerFunc               ClaimsEnforcerFunc
-	model                            model.Model
-	defaultRole                      string
-	matchMode                        string
-	enableSeparateRollbackPermission bool
+	lock               sync.Mutex
+	enforcerCache      *gocache.Cache
+	adapter            *argocdAdapter
+	enableLog          bool
+	enabled            bool
+	clientset          kubernetes.Interface
+	namespace          string
+	configmap          string
+	claimsEnforcerFunc ClaimsEnforcerFunc
+	model              model.Model
+	defaultRole        string
+	matchMode          string
 }
 
 // cachedEnforcer holds the Casbin enforcer instances and optional custom project policy
@@ -552,31 +549,10 @@ func PolicyCSV(data map[string]string) string {
 	return strBuilder.String()
 }
 
-// SetSeparateRollbackPermissionEnabled enables or disables separate rollback RBAC permission.
-// When enabled, rollback operations require the `rollback` action instead of `sync`.
-func (e *Enforcer) SetSeparateRollbackPermissionEnabled(enable bool) {
-	e.lock.Lock()
-	defer e.lock.Unlock()
-	e.enableSeparateRollbackPermission = enable
-}
-
-// IsSeparateRollbackPermissionEnabled returns whether a separate rollback permission is enabled.
-func (e *Enforcer) IsSeparateRollbackPermissionEnabled() bool {
-	e.lock.Lock()
-	defer e.lock.Unlock()
-	return e.enableSeparateRollbackPermission
-}
-
 // syncUpdate updates the enforcer
 func (e *Enforcer) syncUpdate(cm *corev1.ConfigMap, onUpdated func(cm *corev1.ConfigMap) error) error {
 	e.SetDefaultRole(cm.Data[ConfigMapPolicyDefaultKey])
 	e.SetMatchMode(cm.Data[ConfigMapMatchModeKey])
-	enableSeparateRollbackStr := cm.Data[ConfigMapEnableSeparateRollbackPermissionKey]
-	enableSeparateRollback, err := strconv.ParseBool(enableSeparateRollbackStr)
-	if err != nil && enableSeparateRollbackStr != "" {
-		log.Warnf("Invalid value for %q in RBAC ConfigMap '%s': %v", ConfigMapEnableSeparateRollbackPermissionKey, e.configmap, err)
-	}
-	e.SetSeparateRollbackPermissionEnabled(enableSeparateRollback)
 	policyCSV := PolicyCSV(cm.Data)
 	if err := onUpdated(cm); err != nil {
 		return fmt.Errorf("error running policy update callback: %w", err)

@@ -2264,8 +2264,12 @@ func (s *Server) resolveSourceRevisions(ctx context.Context, a *v1alpha1.Applica
 }
 
 func (s *Server) Rollback(ctx context.Context, rollbackReq *application.ApplicationRollbackRequest) (*v1alpha1.Application, error) {
+	rollbackEnforceEnable, err := s.settingsMgr.GetServerRBACRollbackEnforceEnable()
+	if err != nil {
+		return nil, fmt.Errorf("error getting server.rbac.rollback.enforce.enable config: %w", err)
+	}
 	action := rbac.ActionSync
-	if s.enf.IsSeparateRollbackPermissionEnabled() {
+	if rollbackEnforceEnable {
 		action = rbac.ActionRollback
 	}
 	a, _, err := s.getApplicationEnforceRBACClient(ctx, action, rollbackReq.GetProject(), rollbackReq.GetAppNamespace(), rollbackReq.GetName(), "")

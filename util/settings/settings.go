@@ -545,6 +545,8 @@ const (
 	inClusterEnabledKey = "cluster.inClusterEnabled"
 	// settingsServerRBACEDisableFineGrainedInheritance is the key to configure find-grained RBAC inheritance
 	settingsServerRBACDisableFineGrainedInheritance = "server.rbac.disableApplicationFineGrainedRBACInheritance"
+	// settingsServerRBACRollbackEnforceEnableKey enables the dedicated rollback RBAC action in argocd-cm
+	settingsServerRBACRollbackEnforceEnableKey = "server.rbac.rollback.enforce.enable"
 	// MaxPodLogsToRender the maximum number of pod logs to render
 	settingsMaxPodLogsToRender = "server.maxPodLogsToRender"
 	// helmValuesFileSchemesKey is the key to configure the list of supported helm values file schemas
@@ -948,6 +950,19 @@ func (mgr *SettingsManager) ApplicationFineGrainedRBACInheritanceDisabled() (boo
 	}
 
 	return strconv.ParseBool(argoCDCM.Data[settingsServerRBACDisableFineGrainedInheritance])
+}
+
+func (mgr *SettingsManager) GetServerRBACRollbackEnforceEnable() (bool, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return false, err
+	}
+
+	if argoCDCM.Data[settingsServerRBACRollbackEnforceEnableKey] == "" {
+		return false, nil
+	}
+
+	return strconv.ParseBool(argoCDCM.Data[settingsServerRBACRollbackEnforceEnableKey])
 }
 
 func (mgr *SettingsManager) GetMaxPodLogsToRender() (int64, error) {

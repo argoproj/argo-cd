@@ -193,51 +193,6 @@ func TestDefaultRole(t *testing.T) {
 	assert.True(t, enf.Enforce("bob", "applications", "get", "foo/bar"))
 }
 
-func TestEnableSeparateRollbackPermission(t *testing.T) {
-	kubeclientset := fake.NewClientset()
-	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
-
-	t.Run("defaults to false", func(t *testing.T) {
-		assert.False(t, enf.IsSeparateRollbackPermissionEnabled())
-	})
-
-	t.Run("set and get round-trip", func(t *testing.T) {
-		enf.SetSeparateRollbackPermissionEnabled(true)
-		assert.True(t, enf.IsSeparateRollbackPermissionEnabled())
-
-		enf.SetSeparateRollbackPermissionEnabled(false)
-		assert.False(t, enf.IsSeparateRollbackPermissionEnabled())
-	})
-
-	t.Run("syncUpdate parses 'true'", func(t *testing.T) {
-		cm := fakeConfigMap()
-		cm.Data[ConfigMapEnableSeparateRollbackPermissionKey] = "true"
-		require.NoError(t, enf.syncUpdate(cm, noOpUpdate))
-		assert.True(t, enf.IsSeparateRollbackPermissionEnabled())
-	})
-
-	t.Run("syncUpdate parses 'false'", func(t *testing.T) {
-		cm := fakeConfigMap()
-		cm.Data[ConfigMapEnableSeparateRollbackPermissionKey] = "false"
-		require.NoError(t, enf.syncUpdate(cm, noOpUpdate))
-		assert.False(t, enf.IsSeparateRollbackPermissionEnabled())
-	})
-
-	t.Run("syncUpdate treats absent key as false", func(t *testing.T) {
-		enf.SetSeparateRollbackPermissionEnabled(true)
-		require.NoError(t, enf.syncUpdate(fakeConfigMap(), noOpUpdate))
-		assert.False(t, enf.IsSeparateRollbackPermissionEnabled())
-	})
-
-	t.Run("syncUpdate treats invalid value as false", func(t *testing.T) {
-		enf.SetSeparateRollbackPermissionEnabled(true)
-		cm := fakeConfigMap()
-		cm.Data[ConfigMapEnableSeparateRollbackPermissionKey] = "not-a-bool"
-		require.NoError(t, enf.syncUpdate(cm, noOpUpdate))
-		assert.False(t, enf.IsSeparateRollbackPermissionEnabled())
-	})
-}
-
 // TestConcurrentEnforceAndSyncUpdate exercises the same access pattern that produced
 // a -race failure on the 3.2 branch: gRPC handler goroutines calling Enforce while the
 // RBAC configmap informer goroutine drives SetDefaultRole via syncUpdate, alongside

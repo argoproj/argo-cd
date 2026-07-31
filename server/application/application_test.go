@@ -5253,19 +5253,22 @@ func TestRollbackRBACPermissions(t *testing.T) {
 		return app
 	}
 
-	setupServer := func(t *testing.T, testApp *v1alpha1.Application) *Server {
+	setupServer := func(t *testing.T, testApp *v1alpha1.Application, rollbackEnforce bool) *Server {
 		t.Helper()
 		f := func(enf *rbac.Enforcer) {
 			_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 			enf.SetDefaultRole("role:readonly")
 		}
-		return newTestAppServerWithEnforcerConfigure(t, f, map[string]string{}, testApp)
+		additionalConfig := map[string]string{}
+		if rollbackEnforce {
+			additionalConfig["server.rbac.rollback.enforce.enable"] = "true"
+		}
+		return newTestAppServerWithEnforcerConfigure(t, f, additionalConfig, testApp)
 	}
 
 	t.Run("rollback permission allows rollback when feature flag enabled", func(t *testing.T) {
 		testApp := newTestAppWithRollbackHistory()
-		appServer := setupServer(t, testApp)
-		appServer.enf.SetSeparateRollbackPermissionEnabled(true)
+		appServer := setupServer(t, testApp, true)
 
 		//nolint:staticcheck
 		userCtx := context.WithValue(t.Context(), "claims", &jwt.MapClaims{"sub": "user1"})
@@ -5281,7 +5284,7 @@ func TestRollbackRBACPermissions(t *testing.T) {
 
 	t.Run("rollback permission denied without sync when feature flag disabled", func(t *testing.T) {
 		testApp := newTestAppWithRollbackHistory()
-		appServer := setupServer(t, testApp)
+		appServer := setupServer(t, testApp, false)
 		// flag=false (default): server checks sync, not rollback
 
 		//nolint:staticcheck
@@ -5298,7 +5301,7 @@ func TestRollbackRBACPermissions(t *testing.T) {
 
 	t.Run("sync permission allows rollback for backwards compatibility", func(t *testing.T) {
 		testApp := newTestAppWithRollbackHistory()
-		appServer := setupServer(t, testApp)
+		appServer := setupServer(t, testApp, false)
 		// flag=false (default): sync permission is sufficient for rollback
 
 		//nolint:staticcheck
@@ -5315,8 +5318,7 @@ func TestRollbackRBACPermissions(t *testing.T) {
 
 	t.Run("rollback denied when feature flag enabled and only sync granted", func(t *testing.T) {
 		testApp := newTestAppWithRollbackHistory()
-		appServer := setupServer(t, testApp)
-		appServer.enf.SetSeparateRollbackPermissionEnabled(true)
+		appServer := setupServer(t, testApp, true)
 
 		//nolint:staticcheck
 		userCtx := context.WithValue(t.Context(), "claims", &jwt.MapClaims{"sub": "user1"})
@@ -5333,8 +5335,7 @@ func TestRollbackRBACPermissions(t *testing.T) {
 
 	t.Run("no rollback or sync permission is denied", func(t *testing.T) {
 		testApp := newTestAppWithRollbackHistory()
-		appServer := setupServer(t, testApp)
-		appServer.enf.SetSeparateRollbackPermissionEnabled(true)
+		appServer := setupServer(t, testApp, true)
 
 		//nolint:staticcheck
 		userCtx := context.WithValue(t.Context(), "claims", &jwt.MapClaims{"sub": "user1"})

@@ -42,8 +42,4 @@ data:
   # will be set to 'glob' as default.
   policy.matchMode: 'glob'
 
-  # policy.enableSeparateRollbackPermission enables a dedicated 'rollback' RBAC action for applications.
-  # When set to 'true', users must be explicitly granted the 'rollback' action to perform rollbacks.
-  # When omitted or 'false' (the default), rollback uses the 'sync' permission for backwards compatibility.
-  # policy.enableSeparateRollbackPermission: 'true'
 
