@@ -1,8 +1,13 @@
-import {DataLoader} from 'argo-ui';
+import {DataLoader, Tooltip} from 'argo-ui';
 import * as React from 'react';
 import {Timestamp} from '../../../shared/components';
 import {ApplicationSource, RevisionMetadata, ChartDetails, OCIMetadata} from '../../../shared/models';
 import {services} from '../../../shared/services';
+
+export const truncateRevisionMessage = (message: string, maxLength?: number): string => {
+    const firstLine = message.split('\n')[0];
+    return maxLength === undefined ? firstLine : firstLine.slice(0, maxLength);
+};
 
 export const RevisionMetadataRows = (props: {applicationName: string; applicationNamespace: string; source: ApplicationSource; index: number; versionId: number | null}) => {
     if (props?.source?.repoURL?.startsWith('oci://')) {
@@ -88,7 +93,21 @@ export const RevisionMetadataRows = (props: {applicationName: string; applicatio
                     {m.message && (
                         <div className='row'>
                             <div className='columns small-3' />
-                            <div className='columns small-9'>{m.message?.split('\n')[0].slice(0, 64)}</div>
+                            <div className='columns small-9'>
+                                <Tooltip
+                                    popperOptions={{
+                                        modifiers: {
+                                            preventOverflow: {enabled: false},
+                                            hide: {enabled: false},
+                                            flip: {enabled: false}
+                                        }
+                                    }}
+                                    content={<span style={{whiteSpace: 'pre-wrap', wordBreak: 'break-word'}}>{truncateRevisionMessage(m.message)}</span>}
+                                    placement='bottom'
+                                    allowHTML={true}>
+                                    <div>{truncateRevisionMessage(m.message, 64)}</div>
+                                </Tooltip>
+                            </div>
                         </div>
                     )}
                     <div className='row'>
