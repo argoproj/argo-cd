@@ -19,6 +19,7 @@ module.exports = {
         "github>argoproj/argo-cd//renovate-presets/devtool.json5",
         "github>argoproj/argo-cd//renovate-presets/production-binaries.json5",
         "github>argoproj/argo-cd//renovate-presets/dex.json5",
+        "github>argoproj/argo-cd//renovate-presets/redis.json5",
         "github>argoproj/argo-cd//renovate-presets/docs.json5",
         "group:aws-sdk-go-v2Monorepo",
         "github>argoproj/argo-cd//renovate-presets/fix/ignore-paths.json5"

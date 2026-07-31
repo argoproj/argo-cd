@@ -27,6 +27,7 @@ redis-ha:
     serviceAccount:
       automountToken: true
   image:
+    # renovate: datasource=docker packageName=docker.io/library/redis
     tag: 8.6.4-alpine
   sentinel:
     bind: '0.0.0.0'

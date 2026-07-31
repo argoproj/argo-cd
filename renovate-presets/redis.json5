@@ -1,0 +1,49 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Redis image bundled with Argo CD",
+  "customManagers": [
+    {
+      "description": "Track the bundled Redis image version.",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "manifests/base/redis/argocd-redis-deployment.yaml",
+        "manifests/ha/base/redis-ha/chart/values.yaml",
+        ".github/workflows/ci-build.yaml"
+      ],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>docker) packageName=(?<packageName>docker\\.io/library/redis)\\s+image: redis:(?<currentValue>\\S+)",
+        "# renovate: datasource=(?<datasource>docker) packageName=(?<packageName>docker\\.io/library/redis)\\s+tag: (?<currentValue>\\S+)",
+        "# renovate: datasource=(?<datasource>docker) packageName=(?<packageName>docker\\.io/library/redis)\\s+docker pull redis:(?<currentValue>\\S+)"
+      ],
+      "datasourceTemplate": "docker",
+      "packageNameTemplate": "docker.io/library/redis"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "Update all redis references in one PR: the image tags in the manifests, the redis-ha chart values,yaml and the image in the e2e tests server.",
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "docker.io/library/redis"
+      ],
+      "enabled": true,
+      "automerge": false,
+      "groupName": "redis",
+      "addLabels": [
+        "production-image"
+      ],
+      "postUpgradeTasks": {
+        "description": "Regenerate the install manifests and the rendered redis-ha chart.",
+        "commands": [
+          "./hack/install.sh kustomize && make manifests-local"
+        ],
+        "fileFilters": [
+          "manifests/**"
+        ],
+        "executionMode": "branch"
+      }
+    }
+  ]
+}
