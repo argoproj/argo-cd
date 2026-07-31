@@ -153,6 +153,60 @@ func TestChallengeAzureContainerRegistryNonBearer(t *testing.T) {
 	assert.ErrorContains(t, err, "does not allow 'Bearer' authentication")
 }
 
+func TestChallengeAzureContainerRegistryNoParameters(t *testing.T) {
+	t.Parallel()
+	// A challenge with no parameters at all, so there is nothing after "Bearer"
+	mockServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/v2/", r.URL.Path)
+		w.Header().Set("Www-Authenticate", "Bearer")
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer mockServer.Close()
+
+	workloadIdentityMock := &mocks.TokenProvider{}
+	creds := NewAzureWorkloadIdentityCreds(mockServer.URL[8:], "", nil, nil, true, workloadIdentityMock)
+
+	_, err := creds.challengeAzureContainerRegistry(t.Context(), creds.repoURL)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "without any parameters")
+}
+
+func TestChallengeAzureContainerRegistryMalformedParameter(t *testing.T) {
+	t.Parallel()
+	// A challenge parameter with no '=' in it
+	mockServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/v2/", r.URL.Path)
+		w.Header().Set("Www-Authenticate", "Bearer realm")
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer mockServer.Close()
+
+	workloadIdentityMock := &mocks.TokenProvider{}
+	creds := NewAzureWorkloadIdentityCreds(mockServer.URL[8:], "", nil, nil, true, workloadIdentityMock)
+
+	_, err := creds.challengeAzureContainerRegistry(t.Context(), creds.repoURL)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "malformed challenge parameter")
+}
+
+func TestChallengeAzureContainerRegistryValueWithEquals(t *testing.T) {
+	t.Parallel()
+	// A parameter value containing '=', which must survive intact
+	mockServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/v2/", r.URL.Path)
+		w.Header().Set("Www-Authenticate", `Bearer realm="https://login.microsoftonline.com/?a=b",service="registry.example.com"`)
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer mockServer.Close()
+
+	workloadIdentityMock := &mocks.TokenProvider{}
+	creds := NewAzureWorkloadIdentityCreds(mockServer.URL[8:], "", nil, nil, true, workloadIdentityMock)
+
+	tokenParams, err := creds.challengeAzureContainerRegistry(t.Context(), creds.repoURL)
+	require.NoError(t, err)
+	assert.Equal(t, "https://login.microsoftonline.com/?a=b", tokenParams["realm"])
+}
+
 func TestChallengeAzureContainerRegistryNoService(t *testing.T) {
 	t.Parallel()
 	// Set up the mock server with a non-Bearer Www-Authenticate header

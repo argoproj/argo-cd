@@ -275,10 +275,18 @@ func (creds AzureWorkloadIdentityCreds) challengeAzureContainerRegistry(ctx cont
 		return nil, fmt.Errorf("registry does not allow 'Bearer' authentication, got '%s'", tokens[0])
 	}
 
+	if len(tokens) < 2 {
+		return nil, fmt.Errorf("registry '%s' issued a challenge without any parameters", azureContainerRegistry)
+	}
+
 	tokenParams := make(map[string]string)
 
 	for token := range strings.SplitSeq(tokens[1], ",") {
-		kvPair := strings.Split(token, "=")
+		// SplitN keeps a value that itself contains '=' intact
+		kvPair := strings.SplitN(token, "=", 2)
+		if len(kvPair) < 2 {
+			return nil, fmt.Errorf("registry '%s' issued a malformed challenge parameter: %q", azureContainerRegistry, token)
+		}
 		tokenParams[kvPair[0]] = strings.Trim(kvPair[1], "\"")
 	}
 
