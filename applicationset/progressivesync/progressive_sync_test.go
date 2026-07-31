@@ -3,6 +3,7 @@ package progressivesync
 import (
 	"context"
 	"testing"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
@@ -1669,4 +1670,69 @@ func TestPerformReverseDeletionStaleCache(t *testing.T) {
 	// Both steps should have been visited and their (already-gone) deletion attempted.
 	assert.Equal(t, 1, deleteAttempts["appset-stage0"])
 	assert.Equal(t, 1, deleteAttempts["appset-stage1"])
+}
+
+// TestPerformReverseDeletionTerminatingApp covers an Application whose deletion is still pending,
+// here past the two minute threshold. Two things must hold:
+//
+//   - No error: the threshold check sits on the only code path that reaches RemoveFinalizer, so
+//     returning an error from it leaves the ApplicationSet in Terminating permanently — the age it
+//     measures only grows, so every retry fails identically.
+//   - No second Delete: a redundant Delete on a terminating object is a no-op success, and
+//     cacheSyncingClient.Delete evicts the object from the informer store on success. The next Get
+//     would then 404 on a still-existing Application and the finalizer would be released early.
+func TestPerformReverseDeletionTerminatingApp(t *testing.T) {
+	t.Parallel()
+
+	scheme := runtime.NewScheme()
+	require.NoError(t, v1alpha1.AddToScheme(scheme))
+
+	appSet := v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{Name: "appset", Namespace: "argocd"},
+		Spec: v1alpha1.ApplicationSetSpec{
+			Strategy: &v1alpha1.ApplicationSetStrategy{
+				Type:          "RollingSync",
+				DeletionOrder: ReverseDeletionOrder,
+				RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+					Steps: []v1alpha1.ApplicationSetRolloutStep{
+						{MatchExpressions: []v1alpha1.ApplicationMatchExpression{{Key: "stage", Operator: "In", Values: []string{"0"}}}},
+					},
+				},
+			},
+		},
+	}
+
+	// Deletion was requested well beyond the two minute threshold.
+	newApp := func() v1alpha1.Application {
+		deletionTimestamp := metav1.NewTime(time.Now().Add(-5 * time.Minute))
+		return v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              "appset-stage0",
+				Namespace:         "argocd",
+				Labels:            map[string]string{"stage": "0"},
+				DeletionTimestamp: &deletionTimestamp,
+				Finalizers:        []string{v1alpha1.ResourcesFinalizerName},
+			},
+		}
+	}
+
+	app := newApp()
+	deleteAttempts := 0
+	fakeClient := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(&app).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Delete: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.DeleteOption) error {
+				deleteAttempts++
+				return c.Delete(ctx, obj, opts...)
+			},
+		}).
+		Build()
+
+	m := NewManager(fakeClient, nil)
+	requeue, err := m.PerformReverseDeletion(context.Background(), log.NewEntry(log.New()), appSet, []v1alpha1.Application{app})
+
+	require.NoError(t, err, "a pending teardown must not surface as a hard error")
+	assert.Equal(t, 10*time.Second, requeue, "should requeue and keep waiting for the child")
+	assert.Zero(t, deleteAttempts, "must not re-Delete an already terminating Application")
 }
