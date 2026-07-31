@@ -234,3 +234,25 @@ func TestExecAndSyncCacheNotFoundHandlesDeleteError(t *testing.T) {
 		_ = c.execAndSyncCache(t.Context(), func() error { return notFound }, app, false)
 	})
 }
+
+// TestDeleteKeepsCacheEntryWhileFinalizersPending covers the premature-release defect. Deleting an
+// Application that carries finalizers does not remove it: the API server only stamps
+// deletionTimestamp and the object lives on. Evicting the store entry anyway makes the next
+// cache-backed read report the Application as gone, so reverse deletion sees an empty list, logs
+// "completed reverse deletion" and drops the ApplicationSet's finalizer while children are still
+// terminating — ordered teardown silently stops being enforced.
+func TestDeleteKeepsCacheEntryWhileFinalizersPending(t *testing.T) {
+	t.Parallel()
+	app := &application.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:       "test",
+			Namespace:  "argocd",
+			Finalizers: []string{application.ResourcesFinalizerName},
+		},
+	}
+	c, store := newClient(t, withObjects(app))
+
+	require.NoError(t, c.Delete(t.Context(), app))
+
+	require.Len(t, store.List(), 1, "an Application held by finalizers is still terminating and must stay in the cache")
+}
