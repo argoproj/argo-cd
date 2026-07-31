@@ -430,6 +430,10 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 
 	defer cleanup()
 
+	if syncOp.Prune && !syncOp.DryRun {
+		m.warnUnprotectedStrayResources(ctx, app, logEntry, reconciliationResult, syncOp.SyncOptions.GetOptionValue(common.SyncOptionPrune))
+	}
+
 	start := time.Now()
 
 	if state.Phase == common.OperationTerminating {
