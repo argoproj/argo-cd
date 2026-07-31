@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	log "github.com/sirupsen/logrus"
-	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync"
+	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 	resourceutil "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/resource"
+	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
@@ -30,28 +30,6 @@ func liveObjHasExplicitSyncProtection(obj *unstructured.Unstructured) bool {
 		return true
 	}
 	return false
-}
-
-func isPruningDisabledForObj(obj *unstructured.Unstructured, defaultPruneOption *string) bool {
-	var pruneOptionValue *string
-	if obj != nil {
-		pruneOptionValue = resourceutil.GetAnnotationOptionValue(obj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionPrune)
-	}
-	if pruneOptionValue == nil {
-		pruneOptionValue = defaultPruneOption
-	}
-	return pruneOptionValue != nil && *pruneOptionValue == synccommon.SyncValueFalse
-}
-
-func objRequiresPruneConfirmation(obj *unstructured.Unstructured, defaultPruneOption *string) bool {
-	var pruneOptionValue *string
-	if obj != nil {
-		pruneOptionValue = resourceutil.GetAnnotationOptionValue(obj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionPrune)
-	}
-	if pruneOptionValue == nil {
-		pruneOptionValue = defaultPruneOption
-	}
-	return pruneOptionValue != nil && *pruneOptionValue == synccommon.SyncValueConfirm
 }
 
 func (m *appStateManager) warnUnprotectedStrayResources(
@@ -77,13 +55,13 @@ func (m *appStateManager) warnUnprotectedStrayResources(
 		if targetObj != nil {
 			continue
 		}
-		if isPruningDisabledForObj(liveObj, defaultPruneOption) {
+		if sync.IsPruningDisabled(liveObj, defaultPruneOption) {
 			continue
 		}
 		if liveObjHasExplicitSyncProtection(liveObj) {
 			continue
 		}
-		if objRequiresPruneConfirmation(liveObj, defaultPruneOption) && !pruneConfirmed {
+		if sync.ObjRequiresPruneConfirmation(liveObj, defaultPruneOption) && !pruneConfirmed {
 			continue
 		}
 

@@ -3,6 +3,7 @@ package controller
 import (
 	"testing"
 
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync"
 	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -60,6 +61,9 @@ func TestLiveObjHasExplicitSyncProtection(t *testing.T) {
 func TestIsPruningDisabledForObj(t *testing.T) {
 	t.Parallel()
 
+	// Delegates to gitops-engine's own sync.IsPruningDisabled; this test only
+	// verifies the wiring at the controller boundary, not the annotation logic
+	// itself (covered by gitops-engine's own tests).
 	pruneFalse := synccommon.SyncValueFalse
 	obj := &unstructured.Unstructured{
 		Object: map[string]any{
@@ -70,9 +74,9 @@ func TestIsPruningDisabledForObj(t *testing.T) {
 			},
 		},
 	}
-	assert.True(t, isPruningDisabledForObj(obj, nil))
-	assert.True(t, isPruningDisabledForObj(&unstructured.Unstructured{}, &pruneFalse))
-	assert.False(t, isPruningDisabledForObj(&unstructured.Unstructured{Object: map[string]any{
+	assert.True(t, sync.IsPruningDisabled(obj, nil))
+	assert.True(t, sync.IsPruningDisabled(&unstructured.Unstructured{}, &pruneFalse))
+	assert.False(t, sync.IsPruningDisabled(&unstructured.Unstructured{Object: map[string]any{
 		"metadata": map[string]any{"name": "x", "namespace": "ns"},
 	}}, nil))
 }
@@ -80,6 +84,7 @@ func TestIsPruningDisabledForObj(t *testing.T) {
 func TestObjRequiresPruneConfirmation(t *testing.T) {
 	t.Parallel()
 
+	// Same note as TestIsPruningDisabledForObj above: wiring check only.
 	pruneConfirm := synccommon.SyncValueConfirm
 	pruneFalse := synccommon.SyncValueFalse
 
@@ -92,17 +97,17 @@ func TestObjRequiresPruneConfirmation(t *testing.T) {
 				},
 			},
 		}}
-		assert.True(t, objRequiresPruneConfirmation(obj, nil))
+		assert.True(t, sync.ObjRequiresPruneConfirmation(obj, nil))
 	})
 
 	t.Run("default confirm", func(t *testing.T) {
 		t.Parallel()
-		assert.True(t, objRequiresPruneConfirmation(&unstructured.Unstructured{}, &pruneConfirm))
+		assert.True(t, sync.ObjRequiresPruneConfirmation(&unstructured.Unstructured{}, &pruneConfirm))
 	})
 
 	t.Run("default false", func(t *testing.T) {
 		t.Parallel()
-		assert.False(t, objRequiresPruneConfirmation(&unstructured.Unstructured{}, &pruneFalse))
+		assert.False(t, sync.ObjRequiresPruneConfirmation(&unstructured.Unstructured{}, &pruneFalse))
 	})
 }
 
