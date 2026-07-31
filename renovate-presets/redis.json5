@@ -36,6 +36,9 @@
       ],
       "postUpgradeTasks": {
         "description": "Regenerate the install manifests and the rendered redis-ha chart.",
+	// NOTE: the commands aren't executed via shell!
+	// they're split by whitespace and the first string is execed with rest of the
+	// parts split into the argument list
         "commands": [
           "env INSTALL_SUDO=env BIN=./dist ./hack/install.sh kustomize helm",
           "sh -c PATH=`pwd`/dist:$PATH;./hack/update-manifests.sh"
