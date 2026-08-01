@@ -59,9 +59,11 @@ export const GlobalDiffModal = (props: GlobalDiffModalProps) => {
     const isAppExpanded = React.useCallback(
         (appName: string, appNamespace: string) => {
             const key = `${appNamespace}/${appName}`;
-            return expandedApps[key] !== false;
+            const app = appDiffs.find(a => a.appName === appName && a.appNamespace === appNamespace);
+            const defaultExpanded = app ? !app.isLazy : true;
+            return expandedApps[key] !== undefined ? expandedApps[key] : defaultExpanded;
         },
-        [expandedApps]
+        [expandedApps, appDiffs]
     );
 
     const handleToggleApp = React.useCallback(
@@ -193,13 +195,6 @@ export const GlobalDiffModal = (props: GlobalDiffModalProps) => {
 
                         setAppDiffs(processedData);
                         setLoading(false);
-
-                        processedData.forEach(app => {
-                            const key = `${app.appNamespace}/${app.appName}`;
-                            if (app.isLazy && isAppExpanded(app.appName, app.appNamespace) && !lazyData[key]) {
-                                handleExpandLazy(app.appName, app.appNamespace);
-                            }
-                        });
                     }
                 })
                 .catch(err => {
