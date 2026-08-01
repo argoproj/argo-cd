@@ -229,6 +229,13 @@ export class ApplicationsService {
             .then(() => true);
     }
 
+    public rename(name: string, appNamespace: string, project: string, newName: string): Promise<boolean> {
+        return requests
+            .post(`/applications/${name}/rename`)
+            .send({name, newName, appNamespace, project})
+            .then(() => true);
+    }
+
     public watch(
         objectListKind: string,
         query?: {name?: string; resourceVersion?: string; projects?: string[]; appNamespace?: string},

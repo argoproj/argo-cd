@@ -185,6 +185,45 @@ export async function deleteApplication(appName: string, appNamespace: string, a
     return confirmed;
 }
 
+export async function renameApplication(appName: string, appNamespace: string, project: string, apis: ContextApis): Promise<string | null> {
+    let renamedTo: string | null = null;
+    await apis.popup.prompt(
+        'Rename application',
+        api => (
+            <div>
+                <p>
+                    Rename the <strong>Application</strong> <kbd>{appName}</kbd> without recreating its managed resources.
+                </p>
+                <p>
+                    The application is recreated under the new name and its live resources are adopted in place (no rollout). The application must be <kbd>Synced</kbd> with no
+                    operation in progress.
+                </p>
+                <div className='argo-form-row'>
+                    <FormField label='New application name' formApi={api} field='newName' qeId='name-field-rename' component={Text} />
+                </div>
+            </div>
+        ),
+        {
+            validate: vals => ({
+                newName: (!vals.newName && 'Enter a new application name') || (vals.newName === appName && 'New name must be different from the current name')
+            }),
+            submit: async (vals, _, close) => {
+                try {
+                    await services.applications.rename(appName, appNamespace, project, vals.newName);
+                    renamedTo = vals.newName;
+                    close();
+                } catch (e) {
+                    apis.notifications.show({
+                        content: <ErrorNotification title='Unable to rename application' e={e} />,
+                        type: NotificationType.Error
+                    });
+                }
+            }
+        }
+    );
+    return renamedTo;
+}
+
 export async function confirmSyncingAppOfApps(apps: appModels.Application[], apis: ContextApis, form: FormApi): Promise<boolean> {
     let confirmed = false;
     const appNames: string[] = apps.map(app => app.metadata.name);

@@ -259,6 +259,17 @@ export const ApplicationDetails: FC<RouteComponentProps<{appnamespace: string; n
         await AppUtils.deleteApplication(props.match.params.name, getAppNamespace(), appContext);
     }, [props.match.params.name, getAppNamespace, appContext]);
 
+    const renameApplication = useCallback(
+        async (project: string) => {
+            const newName = await AppUtils.renameApplication(props.match.params.name, getAppNamespace(), project, appContext);
+            if (newName) {
+                appContext.notifications.show({type: NotificationType.Success, content: `Application renamed to '${newName}'`});
+                appContext.navigation.goto(`/applications/${getAppNamespace()}/${newName}`);
+            }
+        },
+        [props.match.params.name, getAppNamespace, appContext]
+    );
+
     const confirmDeletion = useCallback(
         async (app: appModels.Application, title: string, message: string) => {
             const confirmed = await appContext.popup.confirm(title, message);
@@ -1423,6 +1434,12 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                           disabled: !!app.metadata.deletionTimestamp
                       },
                 {
+                    iconClassName: 'fa fa-i-cursor',
+                    title: <ActionMenuItem actionLabel='Rename' />,
+                    action: () => renameApplication(app.spec.project),
+                    disabled: !!app.metadata.deletionTimestamp
+                },
+                {
                     iconClassName: classNames('fa fa-redo', {'status-icon--spin': !!refreshing}),
                     title: <ActionMenuItem actionLabel='Refresh' />,
                     disabled: !!refreshing,
@@ -1442,7 +1459,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                 } as SplitButtonAction
             ];
         },
-        [selectNode, appContext, confirmDeletion, setOperationStatusVisible, setRollbackPanelVisible, deleteApplication, objectListKind]
+        [selectNode, appContext, confirmDeletion, setOperationStatusVisible, setRollbackPanelVisible, deleteApplication, renameApplication, objectListKind]
     );
 
     const filterTreeNode = useCallback(
