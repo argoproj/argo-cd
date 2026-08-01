@@ -10,18 +10,26 @@ export interface ApplicationDiffAccordionProps {
     isLazy?: boolean;
     isLoadingLazy?: boolean;
     onExpand?: () => void;
+    isOpen?: boolean;
+    onToggle?: () => void;
 }
 
 export const ApplicationDiffAccordion = (props: ApplicationDiffAccordionProps) => {
-    const {appSummary, isLazy, isLoadingLazy, onExpand} = props;
-    const [isOpen, setIsOpen] = React.useState(false);
+    const {appSummary, isLazy, isLoadingLazy, onExpand, isOpen: controlledIsOpen, onToggle} = props;
+    const [localIsOpen, setLocalIsOpen] = React.useState(true);
     const [isSyncing, setIsSyncing] = React.useState(false);
 
+    const isOpen = controlledIsOpen !== undefined ? controlledIsOpen : localIsOpen;
+
     const handleHeaderClick = () => {
-        const nextOpen = !isOpen;
-        setIsOpen(nextOpen);
-        if (nextOpen && isLazy && onExpand) {
-            onExpand();
+        if (onToggle) {
+            onToggle();
+        } else {
+            const nextOpen = !localIsOpen;
+            setLocalIsOpen(nextOpen);
+            if (nextOpen && isLazy && onExpand) {
+                onExpand();
+            }
         }
     };
 

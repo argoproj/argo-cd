@@ -31,6 +31,73 @@ export const GlobalDiffModal = (props: GlobalDiffModalProps) => {
     const [lazyData, setLazyData] = React.useState<Record<string, models.ApplicationDiffSummary>>({});
     const [loadingLazy, setLoadingLazy] = React.useState<Record<string, boolean>>({});
 
+    const [expandedApps, setExpandedApps] = React.useState<Record<string, boolean>>({});
+
+    const handleExpandLazy = React.useCallback(
+        async (appName: string) => {
+            if (lazyData[appName]) {
+                return;
+            }
+            setLoadingLazy(prev => ({...prev, [appName]: true}));
+            try {
+                const result = await services.applications.getBatchApplicationDiff({
+                    appNames: [appName]
+                });
+                if (result && result.length > 0) {
+                    setLazyData(prev => ({...prev, [appName]: result[0]}));
+                }
+            } catch (err) {
+                console.error(`Failed to load lazy diff for ${appName}`, err);
+            } finally {
+                setLoadingLazy(prev => ({...prev, [appName]: false}));
+            }
+        },
+        [lazyData]
+    );
+
+    const isAppExpanded = React.useCallback(
+        (appName: string) => {
+            return expandedApps[appName] !== false;
+        },
+        [expandedApps]
+    );
+
+    const handleToggleApp = React.useCallback(
+        (appName: string) => {
+            const nextOpen = !isAppExpanded(appName);
+            setExpandedApps(prev => ({
+                ...prev,
+                [appName]: nextOpen
+            }));
+            if (nextOpen) {
+                const app = appDiffs.find(a => a.appName === appName);
+                if (app && app.isLazy && !lazyData[appName]) {
+                    handleExpandLazy(appName);
+                }
+            }
+        },
+        [isAppExpanded, appDiffs, lazyData, handleExpandLazy]
+    );
+
+    const handleExpandAll = React.useCallback(() => {
+        const nextExpanded: Record<string, boolean> = {};
+        appDiffs.forEach(app => {
+            nextExpanded[app.appName] = true;
+            if (app.isLazy && !lazyData[app.appName]) {
+                handleExpandLazy(app.appName);
+            }
+        });
+        setExpandedApps(nextExpanded);
+    }, [appDiffs, lazyData, handleExpandLazy]);
+
+    const handleCollapseAll = React.useCallback(() => {
+        const nextExpanded: Record<string, boolean> = {};
+        appDiffs.forEach(app => {
+            nextExpanded[app.appName] = false;
+        });
+        setExpandedApps(nextExpanded);
+    }, [appDiffs]);
+
     const targetApps = React.useMemo(() => {
         let list = allApps || [];
         if (appNames && appNames.length > 0) {
@@ -52,6 +119,10 @@ export const GlobalDiffModal = (props: GlobalDiffModalProps) => {
         return targetApps.slice(start, start + PAGE_SIZE);
     }, [targetApps, currentPage]);
 
+    const appNamesKey = (appNames || []).join(',');
+    const projectsKey = (projects || []).join(',');
+    const pageAppsKey = pageApps.map(app => `${app.metadata.name}/${app.metadata.namespace}`).join(',');
+
     React.useEffect(() => {
         if (isShown) {
             let active = true;
@@ -66,7 +137,7 @@ export const GlobalDiffModal = (props: GlobalDiffModalProps) => {
                 active = false;
             };
         }
-    }, [isShown, appNames, projects, selector]);
+    }, [isShown, appNamesKey, projectsKey, selector]);
 
     React.useEffect(() => {
         if (isShown && pageApps.length > 0) {
@@ -113,6 +184,12 @@ export const GlobalDiffModal = (props: GlobalDiffModalProps) => {
 
                         setAppDiffs(processedData);
                         setLoading(false);
+
+                        processedData.forEach(app => {
+                            if (app.isLazy && isAppExpanded(app.appName) && !lazyData[app.appName]) {
+                                handleExpandLazy(app.appName);
+                            }
+                        });
                     }
                 })
                 .catch(err => {
@@ -136,7 +213,8 @@ export const GlobalDiffModal = (props: GlobalDiffModalProps) => {
                 active = false;
             };
         }
-    }, [isShown, pageApps, refreshTrigger, refreshStrategy, projects, selector]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isShown, pageAppsKey, refreshTrigger, refreshStrategy, projectsKey, selector]);
 
     const handleRefresh = () => {
         setRefreshStrategy('normal');
@@ -158,25 +236,6 @@ export const GlobalDiffModal = (props: GlobalDiffModalProps) => {
             setRefreshTrigger(prev => prev + 1);
         } finally {
             setSyncingAll(false);
-        }
-    };
-
-    const handleExpandLazy = async (appName: string) => {
-        if (lazyData[appName]) {
-            return;
-        }
-        setLoadingLazy(prev => ({...prev, [appName]: true}));
-        try {
-            const result = await services.applications.getBatchApplicationDiff({
-                appNames: [appName]
-            });
-            if (result && result.length > 0) {
-                setLazyData(prev => ({...prev, [appName]: result[0]}));
-            }
-        } catch (err) {
-            console.error(`Failed to load lazy diff for ${appName}`, err);
-        } finally {
-            setLoadingLazy(prev => ({...prev, [appName]: false}));
         }
     };
 
@@ -228,15 +287,25 @@ export const GlobalDiffModal = (props: GlobalDiffModalProps) => {
                 </div>
             }>
             <div className='global-diff-container'>
-                <div className='global-diff-search'>
-                    <i className='fa fa-search global-diff-search__icon' />
-                    <input
-                        type='text'
-                        className='argo-field'
-                        placeholder='Filter by Kind, Namespace, or Application Name...'
-                        value={searchQuery}
-                        onChange={e => setSearchQuery(e.target.value)}
-                    />
+                <div style={{display: 'flex', alignItems: 'center', gap: '15px', marginBottom: '15px'}}>
+                    <div className='global-diff-search' style={{flex: 1, marginBottom: 0}}>
+                        <i className='fa fa-search global-diff-search__icon' />
+                        <input
+                            type='text'
+                            className='argo-field'
+                            placeholder='Filter by Kind, Namespace, or Application Name...'
+                            value={searchQuery}
+                            onChange={e => setSearchQuery(e.target.value)}
+                        />
+                    </div>
+                    <div style={{display: 'flex', gap: '8px'}}>
+                        <button className='argo-button argo-button--base-o argo-button--sm' onClick={handleExpandAll}>
+                            <i className='fa fa-expand-arrows-alt' style={{marginRight: '5px'}} /> Expand All
+                        </button>
+                        <button className='argo-button argo-button--base-o argo-button--sm' onClick={handleCollapseAll}>
+                            <i className='fa fa-compress-arrows-alt' style={{marginRight: '5px'}} /> Collapse All
+                        </button>
+                    </div>
                 </div>
 
                 {loading ? (
@@ -255,6 +324,8 @@ export const GlobalDiffModal = (props: GlobalDiffModalProps) => {
                                         appSummary={displaySummary}
                                         isLazy={app.isLazy && !lazyData[app.appName]}
                                         isLoadingLazy={loadingLazy[app.appName]}
+                                        isOpen={isAppExpanded(app.appName)}
+                                        onToggle={() => handleToggleApp(app.appName)}
                                         onExpand={() => handleExpandLazy(app.appName)}
                                     />
                                 );

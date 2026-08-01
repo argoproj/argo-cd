@@ -87,8 +87,33 @@ describe('GlobalDiffModal & ApplicationDiffAccordion', () => {
         expect(screen.queryByText('app-2')).not.toBeInTheDocument();
 
         const accordionHeader = screen.getByText('app-1').closest('.application-diff-accordion__header');
-        expect(screen.queryByTestId('resources-diff')).not.toBeInTheDocument();
+        expect(screen.getByTestId('resources-diff')).toBeInTheDocument();
         fireEvent.click(accordionHeader);
+        expect(screen.queryByTestId('resources-diff')).not.toBeInTheDocument();
+    });
+
+    test('verifies Expand All and Collapse All buttons functionality', async () => {
+        render(<GlobalDiffModal isShown={true} onClose={() => {}} allApps={mockAllApps} />);
+
+        await waitFor(() => {
+            expect(screen.getByText('app-1')).toBeInTheDocument();
+        });
+
+        // 1. By default, app-1 diff is visible (expanded by default)
+        expect(screen.getByTestId('resources-diff')).toBeInTheDocument();
+
+        // 2. Click Collapse All
+        const collapseAllBtn = screen.getByText('Collapse All');
+        fireEvent.click(collapseAllBtn);
+
+        // app-1 diff should be collapsed and hidden
+        expect(screen.queryByTestId('resources-diff')).not.toBeInTheDocument();
+
+        // 3. Click Expand All
+        const expandAllBtn = screen.getByText('Expand All');
+        fireEvent.click(expandAllBtn);
+
+        // app-1 diff should be expanded and visible again
         expect(screen.getByTestId('resources-diff')).toBeInTheDocument();
     });
 
@@ -137,6 +162,9 @@ describe('GlobalDiffModal & ApplicationDiffAccordion', () => {
         );
 
         const accordionHeader = screen.getByText('app-lazy').closest('.application-diff-accordion__header');
+        // Since it starts expanded by default, click once to collapse it
+        fireEvent.click(accordionHeader);
+        // Click again to expand it, triggering onExpand
         fireEvent.click(accordionHeader);
 
         expect(handleExpand).toHaveBeenCalledTimes(1);
