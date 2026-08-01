@@ -102,7 +102,7 @@ If the `path` field is set in the `$values` source, Argo CD will attempt to gene
 at that URL. If the `path` field is not set, Argo CD will use the repository solely as a source of value files.
 
 > [!NOTE]
-> Sources with the `ref` field set cannot include the `chart` field for Git repositories. However, OCI Helm charts are supported as ref sources for value files.
+> Both Git and OCI repositories are supported as `ref` sources for value files. Sources with the `ref` field set cannot include the `chart` field: ref resolution keys off the repository URL and does not incorporate `chart`. For an OCI artifact, point `repoURL` directly at the full path of the artifact holding the value files.
 
 > [!NOTE]
-> Even when the `ref` field is configured with the `path` field, `$value` still represents the root of sources with the `ref` field. Consequently, `valueFiles` must be specified as relative paths from the root of sources.
+> Even when the `ref` field is configured with the `path` field, `$values` still represents the root of sources with the `ref` field. Consequently, `valueFiles` must be specified as relative paths from the root of sources.

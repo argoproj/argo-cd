@@ -607,9 +607,11 @@ func resolveReferencedSources(ctx context.Context, hasMultipleSources bool, sour
 			return nil, fmt.Errorf("source referenced %q, which is not one of the available sources (%s)", refVar, strings.Join(refKeys, ", "))
 		}
 
-		// Allow OCI ref sources with chart field, but still restrict Git ref sources with chart field
-		if refSourceMapping.Chart != "" && !refSourceMapping.Repo.IsOCI() {
-			return nil, errors.New("source has a 'chart' field defined, but Helm charts are not yet supported for Git 'ref' sources")
+		// The 'chart' field is not honored for ref sources: ref resolution keys off the
+		// repository URL only and does not incorporate 'chart', so accepting it (for Git or
+		// OCI) would silently ignore it. Reject it instead of misleading users.
+		if refSourceMapping.Chart != "" {
+			return nil, errors.New("source has a 'chart' field defined, but Helm charts are not yet supported for 'ref' sources")
 		}
 
 		// Key must match runManifestGenAsync, which keys refSourceCommitSHAs the same way;
@@ -914,9 +916,9 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 						ch.errCh <- fmt.Errorf("source referenced %q, which is not one of the available sources (%s)", refVar, strings.Join(refKeys, ", "))
 						return
 					}
-					// Allow OCI ref sources with chart field, but still restrict Git ref sources with chart field
-					if refSourceMapping.Chart != "" && !v1alpha1.IsOCIURL(refSourceMapping.Repo.Repo) {
-						ch.errCh <- errors.New("source has a 'chart' field defined, but Helm charts are not yet supported for Git 'ref' sources")
+					// The 'chart' field is not honored for ref sources (see resolveReferencedSources).
+					if refSourceMapping.Chart != "" {
+						ch.errCh <- errors.New("source has a 'chart' field defined, but Helm charts are not yet supported for 'ref' sources")
 						return
 					}
 
