@@ -339,6 +339,11 @@ func TestRepository_Normalize(t *testing.T) {
 			repo:     Repository{Repo: "oci://example.com/foo", Type: "oci"},
 			wantType: "oci",
 		},
+		{
+			name:     "Non-canonical OCI scheme with empty type defaults to oci",
+			repo:     Repository{Repo: "  OCI://example.com/foo  "},
+			wantType: "oci",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
