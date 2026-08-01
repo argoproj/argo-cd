@@ -1432,9 +1432,9 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                 {
                     iconClassName: 'fa fa-i-cursor',
                     title: AppUtils.isManagedApplication(app) ? (
-                        <Tooltip content='This application is managed by an ApplicationSet or app-of-apps parent. Rename it in the source (generator or Git manifest) and use `argocd app rename` for a zero-downtime migration.'>
+                        <span title='This application is managed by an ApplicationSet or app-of-apps parent. Rename it in the source (generator or Git manifest) and use `argocd app rename` for a zero-downtime migration.'>
                             <ActionMenuItem actionLabel='Rename' />
-                        </Tooltip>
+                        </span>
                     ) : (
                         <ActionMenuItem actionLabel='Rename' />
                     ),
