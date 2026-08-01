@@ -62,6 +62,7 @@ func NewAppSetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command.AddCommand(NewApplicationSetListCommand(clientOpts))
 	command.AddCommand(NewApplicationSetDeleteCommand(clientOpts))
 	command.AddCommand(NewApplicationSetGenerateCommand(clientOpts))
+	command.AddCommand(NewApplicationSetRenameCommand(clientOpts))
 	return command
 }
 
@@ -453,6 +454,42 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 	command.Flags().BoolVarP(&noPrompt, "yes", "y", false, "Turn off prompting to confirm cascaded deletion of Application resources")
 	command.Flags().BoolVar(&wait, "wait", false, "Wait until deletion of the applicationset(s) completes")
 	command.Flags().StringVarP(&appSetNamespace, "appset-namespace", "N", "", "Namespace where the ApplicationSet will be deleted from (ignored when qualified name is provided)")
+	return command
+}
+
+// NewApplicationSetRenameCommand renames an ApplicationSet without recreating its
+// generated Applications.
+func NewApplicationSetRenameCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var appSetNamespace string
+	command := &cobra.Command{
+		Use:   "rename APPSETNAME NEWNAME",
+		Short: "Rename an ApplicationSet without recreating its generated Applications",
+		Example: templates.Examples(`
+	# Rename ApplicationSet 'foo' to 'bar'
+	argocd appset rename foo bar
+		`),
+		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+			if len(args) != 2 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			acdClient := headless.NewClientOrDie(clientOpts, c)
+			conn, appIf := acdClient.NewApplicationSetClientOrDie()
+			defer utilio.Close(conn)
+
+			appSetName, appSetNs := argo.ParseFromQualifiedName(args[0], appSetNamespace)
+			newName, _ := argo.ParseFromQualifiedName(args[1], appSetNamespace)
+			_, err := appIf.Rename(ctx, &applicationset.ApplicationSetRenameRequest{
+				Name:            appSetName,
+				NewName:         newName,
+				AppsetNamespace: appSetNs,
+			})
+			errors.CheckError(err)
+			fmt.Printf("applicationset '%s' renamed to '%s'\n", appSetName, newName)
+		},
+	}
+	command.Flags().StringVarP(&appSetNamespace, "appset-namespace", "N", "", "Namespace of the ApplicationSet")
 	return command
 }
 

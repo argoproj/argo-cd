@@ -1,48 +1,26 @@
-# `argocd appset` Command Reference
+# `argocd app rename` Command Reference
 
-## argocd appset
+## argocd app rename
 
-Manage ApplicationSets
+Rename an application without recreating its managed resources
 
 ```
-argocd appset [flags]
+argocd app rename APPNAME NEWNAME [flags]
 ```
 
 ### Examples
 
 ```
-  # Get an ApplicationSet.
-  argocd appset get APPSETNAME
-  
-  # List all the ApplicationSets
-  argocd appset list
-  
-  # Create an ApplicationSet from a YAML stored in a file or at given URL
-  argocd appset create <filename or URL> (<filename or URL>...)
-  
-  # Delete an ApplicationSet
-  argocd appset delete APPSETNAME (APPSETNAME...)
-  
-  # Namespace precedence for --appset-namespace (-N):
-  # - get/delete: if the argument is namespace/name, that namespace wins; -N is ignored.
-  # - create/generate: metadata.namespace in the YAML wins when set; -N applies only when the manifest omits namespace.
+  # Rename application 'foo' to 'bar'
+  argocd app rename foo bar
 ```
 
 ### Options
 
 ```
-      --cluster string             The name of the kubeconfig cluster to use
-      --context string             The name of the kubeconfig context to use
-  -h, --help                       help for appset
-      --insecure-skip-tls-verify   If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
-      --kubeconfig string          Path to a kube config. Only required if out-of-cluster
-  -n, --namespace string           If present, the namespace scope for this CLI request
-      --password string            Password for basic authentication to the API server
-      --proxy-url string           If provided, this URL will be used to connect via proxy
-      --request-timeout string     The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
-      --token string               Bearer token for authentication to the API server
-      --user string                The name of the kubeconfig user to use
-      --username string            Username for basic authentication to the API server
+  -N, --app-namespace string   Namespace of the application
+  -h, --help                   help for rename
+  -y, --yes                    Turn off prompting to confirm the rename
 ```
 
 ### Options inherited from parent commands
@@ -78,11 +56,5 @@ argocd appset [flags]
 
 ### SEE ALSO
 
-* [argocd](argocd.md)	 - argocd controls an Argo CD server
-* [argocd appset create](argocd_appset_create.md)	 - Create one or more ApplicationSets
-* [argocd appset delete](argocd_appset_delete.md)	 - Delete one or more ApplicationSets
-* [argocd appset generate](argocd_appset_generate.md)	 - Generate apps of ApplicationSet rendered templates
-* [argocd appset get](argocd_appset_get.md)	 - Get ApplicationSet details
-* [argocd appset list](argocd_appset_list.md)	 - List ApplicationSets
-* [argocd appset rename](argocd_appset_rename.md)	 - Rename an ApplicationSet without recreating its generated Applications
+* [argocd app](argocd_app.md)	 - Manage applications
 

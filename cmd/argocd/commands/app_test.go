@@ -2444,6 +2444,10 @@ func (c *fakeAppServiceClient) Create(_ context.Context, _ *applicationpkg.Appli
 	return nil, nil
 }
 
+func (c *fakeAppServiceClient) Rename(_ context.Context, _ *applicationpkg.ApplicationRenameRequest, _ ...grpc.CallOption) (*applicationpkg.ApplicationRenameResponse, error) {
+	return nil, nil
+}
+
 func (c *fakeAppServiceClient) GetApplicationSyncWindows(_ context.Context, _ *applicationpkg.ApplicationSyncWindowsQuery, _ ...grpc.CallOption) (*applicationpkg.ApplicationSyncWindowsResponse, error) {
 	return nil, nil
 }
