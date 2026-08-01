@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	log "github.com/sirupsen/logrus"
@@ -142,16 +142,31 @@ func (m *Manager) PerformReverseDeletion(ctx context.Context, logCtx *log.Entry,
 				logCtx.Infof("application %s successfully deleted", step.AppName)
 				continue
 			}
+			return 0, fmt.Errorf("error retrieving application %s: %w", step.AppName, err)
 		}
-		// Check if the application is already being deleted
+		// The application is already terminating: wait for the object to disappear instead of
+		// re-issuing a Delete. A redundant Delete on a terminating object succeeds as a no-op,
+		// and cacheSyncingClient.Delete evicts the object from the informer store on success
+		// (see applicationset/utils/client.go). The next Get would then return NotFound for an
+		// Application that still exists, and we would release the ApplicationSet finalizer
+		// while the child is still being torn down.
 		if retrievedApp.DeletionTimestamp != nil {
 			logCtx.Infof("application %s has been marked for deletion, but object not removed yet", step.AppName)
 			if time.Since(retrievedApp.DeletionTimestamp.Time) > 2*time.Minute {
 				return 0, errors.New("application has not been deleted in over 2 minutes")
 			}
+			return requeueTime, nil
 		}
-		// The application has not been deleted yet, trigger its deletion
+		// The application has not been deleted yet, trigger its deletion.
+		// A NotFound here means the object is already gone from the API server while our
+		// (cache-backed) Get above still saw it — a stale informer cache. Treat it as
+		// already deleted and move on, otherwise we would error-loop forever and never
+		// remove the ApplicationSet finalizer.
 		if err := m.Client.Delete(ctx, &retrievedApp); err != nil {
+			if apierrors.IsNotFound(err) {
+				logCtx.Infof("application %s already deleted", step.AppName)
+				continue
+			}
 			return 0, err
 		}
 		return requeueTime, nil

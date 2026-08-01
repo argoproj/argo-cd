@@ -145,24 +145,22 @@ export function Paginate<T>({page, onPageChange, children, data, emptyState, pre
     return (
         <DataLoader load={() => services.viewPreferences.getPreferences()}>
             {pref => {
-                preferencesKey = preferencesKey || 'default';
-                const pageSize = pref.pageSizes[preferencesKey] || 10;
-                const sortOption = sortOptions ? (pref.sortOptions && pref.sortOptions[preferencesKey]) || sortOptions[0].title : '';
+                const prefKey = preferencesKey || 'default';
+                const pageSize = pref.pageSizes[prefKey] || 10;
+                const sortOption = sortOptions ? (pref.sortOptions && pref.sortOptions[prefKey]) || sortOptions[0].title : '';
                 const pageCount = pageSize === -1 ? 1 : Math.ceil(data.length / pageSize);
-                if (pageCount <= page) {
-                    page = pageCount - 1;
-                }
+                const currentPage = pageCount <= page ? pageCount - 1 : page;
 
                 function paginator() {
                     const pageNumMinWidth = `${Math.max(2, String(pageCount).length)}ch`;
                     return (
                         <div style={{marginBottom: '0.5em'}}>
                             <div style={{display: 'flex', alignItems: 'center', marginBottom: '0.5em'}}>
-                                {pageCount > 1 && <Paginator page={page} pageCount={pageCount} pageNumMinWidth={pageNumMinWidth} onPageChange={onPageChange} />}
+                                {pageCount > 1 && <Paginator page={currentPage} pageCount={pageCount} pageNumMinWidth={pageNumMinWidth} onPageChange={onPageChange} />}
                                 <div className='paginate__size-menu'>
                                     {sortOptions && (
                                         <DropDownMenu
-                                            qeId={`paginate-sort-${preferencesKey}`}
+                                            qeId={`paginate-sort-${prefKey}`}
                                             anchor={() => (
                                                 <>
                                                     <a>
@@ -177,7 +175,7 @@ export function Paginate<T>({page, onPageChange, children, data, emptyState, pre
                                                     if (!pref.sortOptions) {
                                                         pref.sortOptions = {};
                                                     }
-                                                    pref.sortOptions[preferencesKey] = so.title;
+                                                    pref.sortOptions[prefKey] = so.title;
                                                     services.viewPreferences.updatePreferences(pref);
                                                 }
                                             }))}
@@ -185,7 +183,7 @@ export function Paginate<T>({page, onPageChange, children, data, emptyState, pre
                                     )}
                                     {data.length > 5 && (
                                         <DropDownMenu
-                                            qeId={`paginate-items-per-page-${preferencesKey}`}
+                                            qeId={`paginate-items-per-page-${prefKey}`}
                                             anchor={() => (
                                                 <a>
                                                     Items per page: {pageSize === -1 ? 'all' : pageSize} <i className='fa fa-caret-down' />
@@ -194,7 +192,7 @@ export function Paginate<T>({page, onPageChange, children, data, emptyState, pre
                                             items={[5, 10, 15, 20, -1].map(count => ({
                                                 title: count === -1 ? 'all' : count.toString(),
                                                 action: () => {
-                                                    pref.pageSizes[preferencesKey] = count;
+                                                    pref.pageSizes[prefKey] = count;
                                                     services.viewPreferences.updatePreferences(pref);
                                                 }
                                             }))}
@@ -216,7 +214,7 @@ export function Paginate<T>({page, onPageChange, children, data, emptyState, pre
                 return (
                     <React.Fragment>
                         <div className='paginate'>{paginator()}</div>
-                        {data.length === 0 && emptyState ? emptyState() : children(pageSize === -1 ? data : data.slice(pageSize * page, pageSize * (page + 1)))}
+                        {data.length === 0 && emptyState ? emptyState() : children(pageSize === -1 ? data : data.slice(pageSize * currentPage, pageSize * (currentPage + 1)))}
                         <div className='paginate'>{pageCount > 1 && paginator()}</div>
                     </React.Fragment>
                 );
