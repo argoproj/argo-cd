@@ -349,6 +349,24 @@ message ListAppLinksRequest {
 	optional string project = 4;
 }
 
+message ApplicationDiffRequest {
+	repeated string appNames = 1;
+	repeated string projects = 2;
+	optional string selector = 3;
+	optional string refresh = 4;
+}
+
+message ApplicationDiffSummary {
+	optional string appName = 1;
+	optional string project = 2;
+	optional string syncStatus = 3;
+	repeated github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ResourceDiff diffs = 4;
+}
+
+message ApplicationDiffResponse {
+	repeated ApplicationDiffSummary items = 1;
+}
+
 
 // ApplicationService
 service ApplicationService {
@@ -356,6 +374,11 @@ service ApplicationService {
 	// List returns list of applications
 	rpc List(ApplicationQuery) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ApplicationList) {
 		option (google.api.http).get = "/api/v1/applications";
+	}
+
+	// GetBatchApplicationDiff returns application diffs for a batch of applications
+	rpc GetBatchApplicationDiff(ApplicationDiffRequest) returns (ApplicationDiffResponse) {
+		option (google.api.http).get = "/api/v1/applications/diffs";
 	}
 
 	// ListResourceEvents returns a list of event resources

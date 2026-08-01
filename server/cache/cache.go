@@ -63,6 +63,10 @@ func (c *Cache) GetAppManagedResources(appName string, res *[]*appv1.ResourceDif
 	return c.cache.GetAppManagedResources(appName, res)
 }
 
+func (c *Cache) SetAppManagedResources(appName string, res []*appv1.ResourceDiff) error {
+	return c.cache.SetAppManagedResources(appName, res)
+}
+
 func (c *Cache) SetRepoConnectionState(repo string, project string, state *appv1.ConnectionState) error {
 	return c.cache.SetItem(repoConnectionStateKey(repo, project), &state, c.connectionStatusCacheExpiration, state == nil)
 }
