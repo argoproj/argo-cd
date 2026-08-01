@@ -655,7 +655,7 @@ func TestMultiAppDiff(t *testing.T) {
 	ctx.When().CreateApp()
 
 	// Create second app
-	ctx.Path("guestbook").Name("multi-app-diff2")
+	ctx.Path("config-map").Name("multi-app-diff2")
 	appName2 := ctx.AppName()
 	ctx.When().CreateApp()
 
