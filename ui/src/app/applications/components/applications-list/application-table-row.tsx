@@ -23,9 +23,11 @@ export interface ApplicationTableRowProps {
     syncApplication: (appName: string, appNamespace: string) => void;
     refreshApplication: (appName: string, appNamespace: string) => void;
     deleteApplication: (appName: string, appNamespace: string) => void;
+    isSelected?: boolean;
+    onToggleSelect?: (appName: string) => void;
 }
 
-export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, refreshApplication, deleteApplication}: ApplicationTableRowProps) => {
+export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, refreshApplication, deleteApplication, isSelected, onToggleSelect}: ApplicationTableRowProps) => {
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
     const favList = pref.appList.favoritesAppList || [];
     const healthStatus = app.status.health.status;
@@ -84,7 +86,16 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                 {/* First column: Favorite, URLs, Project, Name */}
                 <div className='columns small-4'>
                     <div className='applications-list__meta-column'>
-                        <div className='applications-list__fav-col'>
+                        <div className='applications-list__fav-col' style={{display: 'flex', alignItems: 'center', gap: '8px'}}>
+                            {onToggleSelect && (
+                                <input
+                                    type='checkbox'
+                                    checked={!!isSelected}
+                                    onClick={e => e.stopPropagation()}
+                                    onChange={() => onToggleSelect(app.metadata.name)}
+                                    style={{cursor: 'pointer', zIndex: 10}}
+                                />
+                            )}
                             <Tooltip content={favList?.includes(app.metadata.name) ? 'Remove Favorite' : 'Add Favorite'}>
                                 <button type='button' onClick={handleFavoriteToggle}>
                                     <i

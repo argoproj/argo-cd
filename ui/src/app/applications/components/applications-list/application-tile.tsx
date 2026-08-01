@@ -21,9 +21,11 @@ export interface ApplicationTileProps {
     syncApplication: (appName: string, appNamespace: string) => void;
     refreshApplication: (appName: string, appNamespace: string) => void;
     deleteApplication: (appName: string, appNamespace: string) => void;
+    isSelected?: boolean;
+    onToggleSelect?: (appName: string) => void;
 }
 
-export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplication, refreshApplication, deleteApplication}: ApplicationTileProps) => {
+export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplication, refreshApplication, deleteApplication, isSelected, onToggleSelect}: ApplicationTileProps) => {
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
     const favList = pref.appList.favoritesAppList || [];
 
@@ -234,7 +236,16 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
             </a>
 
             {/* Header buttons — sibling of the anchor (not nested) so the markup stays valid. */}
-            <div className='applications-tiles__header-buttons applications-list__external-link'>
+            <div className='applications-tiles__header-buttons applications-list__external-link' style={{display: 'flex', alignItems: 'center'}}>
+                {onToggleSelect && (
+                    <input
+                        type='checkbox'
+                        checked={!!isSelected}
+                        onClick={e => e.stopPropagation()}
+                        onChange={() => onToggleSelect(app.metadata.name)}
+                        style={{cursor: 'pointer', zIndex: 10, marginRight: '8px'}}
+                    />
+                )}
                 <ApplicationURLs urls={app.status.summary?.externalURLs} />
                 {managedByURLInvalid ? (
                     <button type='button' className='managed-by-url-invalid' onClick={handleExternalLinkClick} style={{cursor: 'not-allowed'}} title={MANAGED_BY_URL_INVALID_TEXT}>

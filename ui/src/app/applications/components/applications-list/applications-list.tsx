@@ -25,6 +25,7 @@ import {ViewTypeSwitcher} from './view-type-switcher';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 import {useQuery, useObservableQuery} from '../../../shared/hooks/query';
 import {isInvalidRegex} from '../../../shared/utils';
+import {GlobalDiffModal} from '../global-diff/GlobalDiffModal';
 
 import './applications-list.scss';
 
@@ -331,6 +332,21 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
     const loaderRef = React.useRef<DataLoader | null>(null);
     const {List, Summary, Tiles} = AppsListViewKey;
 
+    const [selectedApps, setSelectedApps] = React.useState<Set<string>>(new Set());
+    const [showGlobalDiff, setShowGlobalDiff] = React.useState(false);
+
+    const toggleAppSelection = (appName: string) => {
+        setSelectedApps(prev => {
+            const next = new Set(prev);
+            if (next.has(appName)) {
+                next.delete(appName);
+            } else {
+                next.add(appName);
+            }
+            return next;
+        });
+    };
+
     function refreshApp(appName: string, appNamespace: string) {
         // app refreshing might be done too quickly so that UI might miss it due to event batching
         // add refreshing annotation in the UI to improve user experience
@@ -429,6 +445,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
 
                                             const apps = applications as models.Application[];
                                             const {filteredApps, filterResults} = filterApplications(apps, pref, pref.search, pref.searchRegex);
+                                            const outOfSyncCount = filteredApps.filter(app => app.status.sync.status === models.SyncStatuses.OutOfSync).length;
 
                                             return (
                                                 <React.Fragment>
@@ -453,6 +470,31 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                         title: 'Refresh Apps',
                                                                         iconClassName: 'fa fa-redo',
                                                                         action: () => ctx.navigation.goto('.', {refreshApps: true}, {replace: true})
+                                                                    },
+                                                                    {
+                                                                        title: (
+                                                                            <React.Fragment>
+                                                                                View Diffs
+                                                                                {outOfSyncCount > 0 && (
+                                                                                    <span
+                                                                                        className='badge badge--danger'
+                                                                                        style={{
+                                                                                            marginLeft: '6px',
+                                                                                            backgroundColor: '#e96d76',
+                                                                                            color: '#fff',
+                                                                                            borderRadius: '10px',
+                                                                                            padding: '1px 6px',
+                                                                                            fontSize: '11px',
+                                                                                            fontWeight: 'bold',
+                                                                                            verticalAlign: 'middle'
+                                                                                        }}>
+                                                                                        {outOfSyncCount}
+                                                                                    </span>
+                                                                                )}
+                                                                            </React.Fragment>
+                                                                        ) as any,
+                                                                        iconClassName: 'fa fa-images',
+                                                                        action: () => setShowGlobalDiff(true)
                                                                     }
                                                                 ]
                                                             }
@@ -535,6 +577,8 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                                     deleteApplication={(appName, appNamespace) =>
                                                                                         AppUtils.deleteApplication(appName, appNamespace, ctx)
                                                                                     }
+                                                                                    selectedApps={selectedApps}
+                                                                                    toggleAppSelection={toggleAppSelection}
                                                                                 />
                                                                             )) || (
                                                                                 <ApplicationsTable
@@ -546,6 +590,8 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                                     deleteApplication={(appName, appNamespace) =>
                                                                                         AppUtils.deleteApplication(appName, appNamespace, ctx)
                                                                                     }
+                                                                                    selectedApps={selectedApps}
+                                                                                    toggleAppSelection={toggleAppSelection}
                                                                                 />
                                                                             )
                                                                         }
@@ -564,6 +610,13 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                             show={refreshAppsInput}
                                                             hide={() => ctx.navigation.goto('.', {refreshApps: null}, {replace: true})}
                                                             apps={filteredApps}
+                                                        />
+                                                        <GlobalDiffModal
+                                                            isShown={showGlobalDiff}
+                                                            onClose={() => setShowGlobalDiff(false)}
+                                                            appNames={selectedApps.size > 0 ? Array.from(selectedApps) : undefined}
+                                                            projects={pref.projectsFilter}
+                                                            selector={pref.labelsFilter?.join(',')}
                                                         />
                                                     </div>
                                                     <DataLoader

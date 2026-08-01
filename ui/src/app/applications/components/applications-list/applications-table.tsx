@@ -16,6 +16,8 @@ export const ApplicationsTable = (props: {
     syncApplication: (appName: string, appNamespace: string) => any;
     refreshApplication: (appName: string, appNamespace: string) => any;
     deleteApplication: (appName: string, appNamespace: string) => any;
+    selectedApps?: Set<string>;
+    toggleAppSelection?: (appName: string) => void;
 }) => {
     const [selectedApp, navApp, reset] = useNav(props.applications.length);
     const ctxh = React.useContext(Context);
@@ -59,6 +61,8 @@ export const ApplicationsTable = (props: {
                                         syncApplication={props.syncApplication}
                                         refreshApplication={props.refreshApplication}
                                         deleteApplication={props.deleteApplication}
+                                        isSelected={props.selectedApps?.has(app.metadata.name)}
+                                        onToggleSelect={props.toggleAppSelection}
                                     />
                                 ) : (
                                     <AppSetTableRow key={AppUtils.appInstanceName(app)} appSet={app as models.ApplicationSet} selected={selectedApp === i} pref={pref} ctx={ctx} />
