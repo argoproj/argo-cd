@@ -7,7 +7,7 @@ import {RouteComponentProps} from 'react-router';
 import {BehaviorSubject, combineLatest, from, merge, Observable} from 'rxjs';
 import {delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
 
-import {DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Revision, Timestamp} from '../../../shared/components';
+import {DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Revision, Timestamp, isSHA} from '../../../shared/components';
 import {AppContext, Context, ContextApis} from '../../../shared/context';
 import * as appModels from '../../../shared/models';
 import {AppDetailsPreferences, AppsDetailsViewKey, AppsDetailsViewType, services} from '../../../shared/services';
@@ -532,6 +532,17 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                     </>
                 );
             };
+            if (!isSHA(aRevision)) {
+                // The repo server rejects revision metadata lookups for revisions that haven't been resolved to a
+                // commit SHA yet (e.g. a sync/comparison error left the app pointed at an unresolved branch or tag).
+                // Skip the request so the DataLoader below doesn't surface a raw RPC error to the user.
+                return (
+                    <div key={indx} className='white-box' style={{marginTop: '1.5em'}}>
+                        {sourceHeader && sourceHeader}
+                        {showNonMetadataInfo(aSource, aRevision)}
+                    </div>
+                );
+            }
             return (
                 <DataLoader
                     key={indx}
