@@ -524,11 +524,11 @@ func (s *Server) Rename(ctx context.Context, q *applicationset.ApplicationSetRen
 		// generated Applications are not left permanently orphaned. The controller re-adopts
 		// them by name.
 		restore := appset.DeepCopy()
-		restore.ObjectMeta.UID = ""
-		restore.ObjectMeta.ResourceVersion = ""
-		restore.ObjectMeta.Generation = 0
-		restore.ObjectMeta.CreationTimestamp = metav1.Time{}
-		restore.ObjectMeta.ManagedFields = nil
+		restore.UID = ""
+		restore.ResourceVersion = ""
+		restore.Generation = 0
+		restore.CreationTimestamp = metav1.Time{}
+		restore.ManagedFields = nil
 		restore.Status = v1alpha1.ApplicationSetStatus{}
 		if _, rbErr := appsetIf.Create(ctx, restore, metav1.CreateOptions{}); rbErr != nil {
 			return nil, fmt.Errorf("error creating renamed ApplicationSet %q; original %q could NOT be restored, its generated applications are orphaned: %w", q.NewName, appset.Name, err)

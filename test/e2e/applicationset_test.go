@@ -2247,7 +2247,7 @@ func TestApplicationSetManagedChildRename(t *testing.T) {
 				},
 				Generators: []v1alpha1.ApplicationSetGenerator{{
 					List: &v1alpha1.ListGenerator{
-						Elements: []apiextensionsv1.JSON{{Raw: []byte(fmt.Sprintf(`{"name": %q}`, childName))}},
+						Elements: []apiextensionsv1.JSON{{Raw: fmt.Appendf(nil, `{"name": %q}`, childName)}},
 					},
 				}},
 			},

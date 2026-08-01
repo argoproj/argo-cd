@@ -3264,11 +3264,11 @@ func buildRenamedApp(old *v1alpha1.Application, newName string) *v1alpha1.Applic
 // It preserves the original name, spec, labels, annotations, finalizers and ownerReferences.
 func buildRestoredApp(old *v1alpha1.Application) *v1alpha1.Application {
 	restore := old.DeepCopy()
-	restore.ObjectMeta.UID = ""
-	restore.ObjectMeta.ResourceVersion = ""
-	restore.ObjectMeta.Generation = 0
-	restore.ObjectMeta.CreationTimestamp = metav1.Time{}
-	restore.ObjectMeta.ManagedFields = nil
+	restore.UID = ""
+	restore.ResourceVersion = ""
+	restore.Generation = 0
+	restore.CreationTimestamp = metav1.Time{}
+	restore.ManagedFields = nil
 	restore.Status = v1alpha1.ApplicationStatus{}
 	restore.Operation = nil
 	return restore
@@ -3586,7 +3586,7 @@ func (s *Server) freezeManagingOwner(ctx context.Context, appNs, name string, is
 // unfreezeManagingOwner removes the skip-reconcile annotation from the managing owner,
 // reverting a freeze when a rename fails partway through.
 func (s *Server) unfreezeManagingOwner(ctx context.Context, appNs, name string, isAppSet bool) error {
-	unfreeze := []byte(fmt.Sprintf(`{"metadata":{"annotations":{%q:null}}}`, argocommon.AnnotationKeyAppSkipReconcile))
+	unfreeze := fmt.Appendf(nil, `{"metadata":{"annotations":{%q:null}}}`, argocommon.AnnotationKeyAppSkipReconcile)
 	var err error
 	if isAppSet {
 		_, err = s.appclientset.ArgoprojV1alpha1().ApplicationSets(appNs).Patch(ctx, name, types.MergePatchType, unfreeze, metav1.PatchOptions{})

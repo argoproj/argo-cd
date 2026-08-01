@@ -689,7 +689,7 @@ func TestServer_Rename(t *testing.T) {
 		assert.Empty(t, renamed.GetManagingOwnerKind())
 
 		_, err = appServer.Get(ctx, &application.ApplicationQuery{Name: new("old-app")})
-		assert.Error(t, err)
+		require.Error(t, err)
 		got, err := appServer.Get(ctx, &application.ApplicationQuery{Name: new("new-app")})
 		require.NoError(t, err)
 		assert.Equal(t, "new-app", got.Name)
@@ -705,7 +705,7 @@ func TestServer_Rename(t *testing.T) {
 		_, err := appServer.Rename(ctx, &application.ApplicationRenameRequest{
 			Name: new("old-app"), NewName: new("new-app"),
 		})
-		assert.ErrorContains(t, err, "Synced")
+		require.ErrorContains(t, err, "Synced")
 		_, err = appServer.Get(ctx, &application.ApplicationQuery{Name: new("old-app")})
 		assert.NoError(t, err)
 	})
@@ -819,9 +819,9 @@ func TestServer_Rename_failureRestoresState(t *testing.T) {
 
 		_, err := appServer.Rename(ctx, &application.ApplicationRenameRequest{Name: new("old-app"), NewName: new("new-app")})
 		require.Error(t, err)
-		assert.ErrorContains(t, err, "was restored")
+		require.ErrorContains(t, err, "was restored")
 		_, gerr := cs.ArgoprojV1alpha1().Applications(testNamespace).Get(ctx, "old-app", metav1.GetOptions{})
-		assert.NoError(t, gerr, "original app must be restored")
+		require.NoError(t, gerr, "original app must be restored")
 		_, gerr = cs.ArgoprojV1alpha1().Applications(testNamespace).Get(ctx, "new-app", metav1.GetOptions{})
 		assert.Error(t, gerr, "renamed app must not exist")
 	})

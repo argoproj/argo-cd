@@ -243,8 +243,8 @@ func newTestAppSet(opts ...func(appset *appsv1.ApplicationSet)) *appsv1.Applicat
 func TestValidateAppSetRename(t *testing.T) {
 	base := newTestAppSet(func(a *appsv1.ApplicationSet) { a.Name = "old" })
 	require.NoError(t, validateAppSetRename(base, "new"))
-	assert.ErrorContains(t, validateAppSetRename(base, ""), "empty")
-	assert.ErrorContains(t, validateAppSetRename(base, "old"), "different")
+	require.ErrorContains(t, validateAppSetRename(base, ""), "empty")
+	require.ErrorContains(t, validateAppSetRename(base, "old"), "different")
 	assert.ErrorContains(t, validateAppSetRename(base, "Bad_Name"), "valid")
 }
 
@@ -277,7 +277,7 @@ func TestServer_RenameAppSet(t *testing.T) {
 			Name: "old-appset", NewName: "new-appset",
 		})
 		require.NoError(t, err)
-		assert.Error(t, getAS(appServer, "old-appset"))
+		require.Error(t, getAS(appServer, "old-appset"))
 		assert.NoError(t, getAS(appServer, "new-appset"))
 	})
 
@@ -312,8 +312,8 @@ func TestServer_RenameAppSet(t *testing.T) {
 			Name: "old-appset", NewName: "new-appset",
 		})
 		require.Error(t, err)
-		assert.ErrorContains(t, err, "was restored")
-		assert.NoError(t, getAS(appServer, "old-appset"), "original ApplicationSet must be restored")
+		require.ErrorContains(t, err, "was restored")
+		require.NoError(t, getAS(appServer, "old-appset"), "original ApplicationSet must be restored")
 		assert.Error(t, getAS(appServer, "new-appset"), "renamed ApplicationSet must not exist")
 	})
 }
