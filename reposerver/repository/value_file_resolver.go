@@ -151,7 +151,14 @@ func (r *ValueFileResolver) resolveRawPath(rawValueFile string) (*resolveRawPath
 		if err != nil {
 			return nil, err
 		}
-		if refRepoPath := r.gitRepoPaths.GetPathIfExists(git.NormalizeGitURL(referencedSource.Repo.Repo)); refRepoPath != "" {
+		// Set the effective root to the referenced source's extracted directory so the
+		// glob symlink-boundary check resolves matches against the correct root. OCI refs
+		// live under ociPaths (keyed by the normalized OCI URL); Git refs under gitRepoPaths.
+		if referencedSource.Repo.IsOCI() {
+			if ociPath := r.ociPaths.GetPathIfExists(v1alpha1.NormalizeOCIURL(referencedSource.Repo.Repo)); ociPath != "" {
+				effectiveRoot = ociPath
+			}
+		} else if refRepoPath := r.gitRepoPaths.GetPathIfExists(git.NormalizeGitURL(referencedSource.Repo.Repo)); refRepoPath != "" {
 			effectiveRoot = refRepoPath
 		}
 		return &resolveRawPathResult{

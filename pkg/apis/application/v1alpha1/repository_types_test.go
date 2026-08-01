@@ -259,6 +259,35 @@ func TestNormalizeOCIURL(t *testing.T) {
 	}
 }
 
+func TestIsOCIURL(t *testing.T) {
+	// IsOCIURL must classify the same inputs that NormalizeOCIURL treats as OCI, otherwise a
+	// repository can be routed down the Git path while being keyed as OCI (or vice versa).
+	tests := []struct {
+		name     string
+		url      string
+		expected bool
+	}{
+		{name: "canonical oci url", url: "oci://registry.example.com/chart", expected: true},
+		{name: "uppercase scheme", url: "OCI://registry.example.com/chart", expected: true},
+		{name: "mixed case scheme", url: "Oci://registry.example.com/chart", expected: true},
+		{name: "leading and trailing whitespace", url: "  oci://registry.example.com/chart  ", expected: true},
+		{name: "scheme only", url: "oci://", expected: true},
+		{name: "git https url", url: "https://github.com/argoproj/argo-cd.git", expected: false},
+		{name: "empty string", url: "", expected: false},
+		{name: "too short", url: "oci:", expected: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, IsOCIURL(tt.url))
+			// Consistency guard: whenever NormalizeOCIURL rewrites the URL (i.e. treats it
+			// as OCI), IsOCIURL must agree.
+			if NormalizeOCIURL(tt.url) != tt.url {
+				assert.True(t, IsOCIURL(tt.url), "NormalizeOCIURL normalized %q but IsOCIURL returned false", tt.url)
+			}
+		})
+	}
+}
+
 func TestNormalizeRepoURL(t *testing.T) {
 	ociRepo := Repository{Repo: "oci://REGISTRY.EXAMPLE.COM/My-Chart.git"}
 	// Host is lowercased, but the path is preserved as-is: OCI repository names are

@@ -176,6 +176,70 @@ func TestValueFileResolver_resolveRawPath_referenced(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestValueFileResolver_resolveRawPath_OCIEffectiveRoot(t *testing.T) {
+	// Regression: for an OCI $ref source, EffectiveRoot must point at the extracted OCI
+	// directory (not the main repo root), otherwise glob matches against OCI content fail
+	// the verifyGlobMatchesWithinRoot boundary check.
+	ociDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(ociDir, "values.yaml"), []byte("foo: bar"), 0o644))
+
+	ociPaths := utilio.NewRandomizedTempPaths(t.TempDir())
+	ociPaths.Add(v1alpha1.NormalizeOCIURL("oci://registry.example.com/chart"), ociDir)
+
+	resolver := NewValueFileResolver(
+		"/app",
+		"/repo",
+		&v1alpha1.Env{},
+		[]string{"https"},
+		map[string]*v1alpha1.RefTarget{
+			"$oci": {Repo: v1alpha1.Repository{Repo: "oci://registry.example.com/chart"}},
+		},
+		utilio.NewRandomizedTempPaths(t.TempDir()),
+		ociPaths,
+		false,
+	)
+
+	resolved, err := resolver.resolveRawPath("$oci/values.yaml")
+	require.NoError(t, err)
+	assert.Equal(t, ociDir, resolved.EffectiveRoot)
+}
+
+func TestValueFileResolver_ResolveValueFiles_OCIGlob(t *testing.T) {
+	// Regression: globbing over an OCI $ref source must succeed. Before the effective-root
+	// fix, matches under the extracted OCI directory were rejected as "outside repository
+	// root" because the glob was checked against the main repo root instead.
+	repoRoot := t.TempDir()
+	appPath := filepath.Join(repoRoot, "app")
+	require.NoError(t, os.MkdirAll(appPath, 0o755))
+
+	ociDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(ociDir, "a.yaml"), []byte("a: 1"), 0o644))
+	require.NoError(t, os.WriteFile(filepath.Join(ociDir, "b.yaml"), []byte("b: 2"), 0o644))
+
+	ociPaths := utilio.NewRandomizedTempPaths(t.TempDir())
+	ociPaths.Add(v1alpha1.NormalizeOCIURL("oci://registry.example.com/chart"), ociDir)
+
+	resolver := NewValueFileResolver(
+		appPath,
+		repoRoot,
+		&v1alpha1.Env{},
+		[]string{"https"},
+		map[string]*v1alpha1.RefTarget{
+			"$oci": {Repo: v1alpha1.Repository{Repo: "oci://registry.example.com/chart"}},
+		},
+		utilio.NewRandomizedTempPaths(t.TempDir()),
+		ociPaths,
+		false,
+	)
+
+	result, err := resolver.ResolveValueFiles([]string{"$oci/*.yaml"})
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []pathutil.ResolvedFilePath{
+		pathutil.ResolvedFilePath(filepath.Join(ociDir, "a.yaml")),
+		pathutil.ResolvedFilePath(filepath.Join(ociDir, "b.yaml")),
+	}, result)
+}
+
 func TestGetResolvedOCIRefValueFile_NormalizedLookup(t *testing.T) {
 	// Extracted OCI paths are registered under the normalized repo URL
 	// (Repository.NormalizeRepoURL), so a ref source whose URL differs only in

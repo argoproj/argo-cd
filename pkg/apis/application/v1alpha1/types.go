@@ -336,9 +336,12 @@ func (source *ApplicationSource) AllowsConcurrentProcessing() bool {
 
 const ociPrefix = "oci://"
 
-// IsOCIURL returns true if the URL is an OCI registry URL
+// IsOCIURL returns true if the URL is an OCI registry URL. The scheme prefix is matched
+// case-insensitively and surrounding whitespace is ignored, consistent with NormalizeOCIURL,
+// so that classification and normalization always agree.
 func IsOCIURL(url string) bool {
-	return strings.HasPrefix(url, ociPrefix)
+	trimmed := strings.TrimSpace(url)
+	return len(trimmed) >= len(ociPrefix) && strings.EqualFold(trimmed[:len(ociPrefix)], ociPrefix)
 }
 
 // NormalizeOCIURL returns a canonical representation of an OCI repository URL, suitable
