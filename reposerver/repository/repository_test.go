@@ -872,6 +872,78 @@ func TestHelmChartReferencingOCIValues_InvalidRefs(t *testing.T) {
 	assert.Nil(t, response)
 }
 
+// TestResolveReferencedSources_RejectsChartOnRefSource is a regression test for the guard
+// that rejects a 'chart' field on ref sources. The 'chart' field is not incorporated into
+// ref resolution (which keys off the repository URL only), so accepting it - for Git or OCI -
+// would silently ignore it and, for the Helm-OCI repoURL+chart pattern, extract the wrong
+// artifact. Both schemes must be rejected.
+func TestResolveReferencedSources_RejectsChartOnRefSource(t *testing.T) {
+	helmSource := &v1alpha1.ApplicationSourceHelm{ValueFiles: []string{"$ref/values.yaml"}}
+
+	tests := []struct {
+		name    string
+		refRepo v1alpha1.Repository
+	}{
+		{name: "git ref source with chart", refRepo: v1alpha1.Repository{Repo: "https://git.example.com/org/repo.git"}},
+		{name: "oci ref source with chart", refRepo: v1alpha1.Repository{Repo: "oci://registry.example.com/charts"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			refSources := map[string]*v1alpha1.RefTarget{
+				"$ref": {Repo: tt.refRepo, Chart: "my-chart", TargetRevision: "1.0.0"},
+			}
+			// The guard rejects before any client getter is invoked, so nil getters are safe.
+			_, err := resolveReferencedSources(t.Context(), true, helmSource, refSources, nil, nil, nil)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "'chart' field defined")
+		})
+	}
+}
+
+// TestResolveReferencedSources_AllowsOCIRefWithoutChart proves the rejection above is
+// specific to the 'chart' field: an OCI ref source without a chart resolves normally.
+func TestResolveReferencedSources_AllowsOCIRefWithoutChart(t *testing.T) {
+	helmSource := &v1alpha1.ApplicationSourceHelm{ValueFiles: []string{"$ref/values.yaml"}}
+	refSources := map[string]*v1alpha1.RefTarget{
+		"$ref": {Repo: v1alpha1.Repository{Repo: "oci://registry.example.com/charts"}, TargetRevision: "1.0.0"},
+	}
+	ociGetter := func(_ context.Context, _ *v1alpha1.Repository, _ string, _ bool) (oci.Client, string, error) {
+		return nil, "sha256:deadbeef", nil
+	}
+
+	repoRefs, err := resolveReferencedSources(t.Context(), true, helmSource, refSources, nil, ociGetter, nil)
+	require.NoError(t, err)
+	assert.Equal(t, "sha256:deadbeef", repoRefs[v1alpha1.NormalizeOCIURL("oci://registry.example.com/charts")])
+}
+
+// TestGenerateManifest_RejectsChartOnRefSource is the end-to-end regression: a multi-source
+// Helm app whose ref source carries a 'chart' field must fail manifest generation rather than
+// silently ignore the chart. GenerateManifest rejects at the resolveReferencedSources guard,
+// which runs before the duplicated guard in runManifestGenAsync.
+func TestGenerateManifest_RejectsChartOnRefSource(t *testing.T) {
+	service := newService(t, ".")
+	spec := v1alpha1.ApplicationSpec{
+		Sources: []v1alpha1.ApplicationSource{
+			{RepoURL: "https://helm.example.com", Chart: "my-chart", TargetRevision: ">= 1.0.0", Helm: &v1alpha1.ApplicationSourceHelm{
+				ValueFiles: []string{"$ref/testdata/oci-ref-values/values.yaml"},
+			}},
+			{Ref: "ref", RepoURL: "oci://registry.example.com/config/app-values", Chart: "app-chart"},
+		},
+	}
+	refSources, err := argo.GetRefSources(t.Context(), spec.Sources, spec.Project, func(_ context.Context, _ string, _ string) (*v1alpha1.Repository, error) {
+		return &v1alpha1.Repository{Repo: "oci://registry.example.com/config/app-values"}, nil
+	}, []string{})
+	require.NoError(t, err)
+	request := &apiclient.ManifestRequest{
+		Repo: &v1alpha1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true, ProjectName: "something",
+		ProjectSourceRepos: []string{"*"},
+	}
+	response, err := service.GenerateManifest(t.Context(), request)
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "'chart' field defined")
+	assert.Nil(t, response)
+}
+
 func TestGenerateManifestsUseExactRevision(t *testing.T) {
 	service, gitClient, _ := newServiceWithMocks(t, ".")
 
