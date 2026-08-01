@@ -204,18 +204,27 @@ export const GlobalDiffModal = (props: GlobalDiffModalProps) => {
             return app.appName.toLowerCase().includes(query) || app.diffs.length > 0;
         });
 
+    const totalOutOfSync = targetApps.filter(app => app.status.sync.status === 'OutOfSync').length;
+    const totalDriftedResources = appDiffs.reduce((sum, app) => sum + (app.diffs?.length || 0), 0);
+
     return (
         <SlidingPanel
             isShown={isShown}
             onClose={onClose}
             header={
-                <div>
-                    <button className='argo-button argo-button--base' disabled={syncingAll || loading} onClick={handleSyncAllSelected}>
-                        {syncingAll ? 'Syncing...' : 'Sync All Selected'}
-                    </button>{' '}
-                    <button className='argo-button argo-button--base-o' disabled={loading} onClick={handleRefresh}>
-                        {loading && refreshStrategy === 'normal' ? 'Refreshing...' : 'Refresh'}
-                    </button>
+                <div style={{display: 'flex', alignItems: 'center', gap: '20px'}}>
+                    <span style={{fontWeight: 'bold', fontSize: '15px', color: '#364047'}}>
+                        Out-of-Sync Apps: <span style={{color: '#e96d76'}}>{totalOutOfSync}</span> | Drifted Resources:{' '}
+                        <span style={{color: '#e96d76'}}>{totalDriftedResources}</span>
+                    </span>
+                    <div>
+                        <button className='argo-button argo-button--base' disabled={syncingAll || loading} onClick={handleSyncAllSelected}>
+                            {syncingAll ? 'Syncing...' : 'Sync All Selected'}
+                        </button>{' '}
+                        <button className='argo-button argo-button--base-o' disabled={loading} onClick={handleRefresh}>
+                            {loading && refreshStrategy === 'normal' ? 'Refreshing...' : 'Refresh'}
+                        </button>
+                    </div>
                 </div>
             }>
             <div className='global-diff-container'>
