@@ -362,6 +362,7 @@ message ApplicationDiffSummary {
 	optional string syncStatus = 3;
 	repeated github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ResourceDiff diffs = 4;
 	optional string appNamespace = 5;
+	optional string error = 6;
 }
 
 message ApplicationDiffResponse {

@@ -5218,6 +5218,9 @@
             "$ref": "#/definitions/v1alpha1ResourceDiff"
           }
         },
+        "error": {
+          "type": "string"
+        },
         "project": {
           "type": "string"
         },

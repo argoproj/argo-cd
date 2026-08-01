@@ -1204,6 +1204,7 @@ export interface ApplicationDiffSummary {
     diffs: ResourceDiff[];
     appNamespace: string;
     isLazy?: boolean;
+    error?: string;
 }
 
 export interface ApplicationDiffResponse {

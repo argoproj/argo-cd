@@ -3258,10 +3258,18 @@ func (s *Server) GetBatchApplicationDiff(ctx context.Context, q *application.App
 	}
 	apps = allowedApps
 
+	// Limit to maximum of 50 apps per batch request
+	if len(apps) > 50 {
+		return nil, status.Errorf(codes.InvalidArgument, "request exceeds maximum batch limit of 50 applications (requested %d)", len(apps))
+	}
+
 	// Bounded worker pool (max 10 concurrent requests)
 	type jobResult struct {
-		summary *application.ApplicationDiffSummary
-		err     error
+		appName      string
+		project      string
+		appNamespace string
+		summary      *application.ApplicationDiffSummary
+		err          error
 	}
 
 	sem := make(chan struct{}, 10)
@@ -3271,14 +3279,14 @@ func (s *Server) GetBatchApplicationDiff(ctx context.Context, q *application.App
 		go func(app *v1alpha1.Application) {
 			select {
 			case <-ctx.Done():
-				resultsChan <- jobResult{err: ctx.Err()}
+				resultsChan <- jobResult{appName: app.Name, project: app.Spec.GetProject(), appNamespace: app.Namespace, err: ctx.Err()}
 				return
 			case sem <- struct{}{}:
 			}
 			defer func() { <-sem }()
 
 			summary, err := s.fetchAppDiffSummary(ctx, app, q.GetRefresh())
-			resultsChan <- jobResult{summary: summary, err: err}
+			resultsChan <- jobResult{appName: app.Name, project: app.Spec.GetProject(), appNamespace: app.Namespace, summary: summary, err: err}
 		}(app)
 	}
 
@@ -3289,8 +3297,16 @@ func (s *Server) GetBatchApplicationDiff(ctx context.Context, q *application.App
 			return nil, status.Errorf(codes.DeadlineExceeded, "request timed out: %v", ctx.Err())
 		case res := <-resultsChan:
 			if res.err != nil {
-				// Log the error but don't fail the whole request
-				log.Errorf("failed to fetch diff for app: %v", res.err)
+				log.Errorf("failed to fetch diff for app %s: %v", res.appName, res.err)
+				errStr := res.err.Error()
+				syncStatus := "Unknown"
+				summaries = append(summaries, &application.ApplicationDiffSummary{
+					AppName:      &res.appName,
+					Project:      &res.project,
+					SyncStatus:   &syncStatus,
+					AppNamespace: &res.appNamespace,
+					Error:        &errStr,
+				})
 				continue
 			}
 			if res.summary != nil {
