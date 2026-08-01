@@ -12,13 +12,15 @@ Returns the following exit codes: 2 on general errors, 1 when a diff is found, a
 Kubernetes Secrets are ignored from this diff.
 
 ```
-argocd app diff APPNAME [flags]
+argocd app diff [APPNAME... | --all] [flags]
 ```
 
 ### Options
 
 ```
+      --all                                               Diff all applications
   -N, --app-namespace string                              Only render the difference in namespace
+      --concurrency int                                   Number of concurrent batch requests to process (default 10)
       --diff-exit-code int                                Return specified exit code when there is a diff. Typical error code is 20 but use another exit code if you want to differentiate from the generic exit code (20) returned by all CLI commands. (default 1)
       --exit-code                                         Return non-zero exit code when there is a diff. May also return non-zero exit code if there is an error. (default true)
       --hard-refresh                                      Refresh application data as well as target manifests cache
@@ -27,9 +29,11 @@ argocd app diff APPNAME [flags]
       --local string                                      Compare live app to a local manifests
       --local-include stringArray                         Used with --server-side-generate, specify patterns of filenames to send. Matching is based on filename and not path. (default [*.yaml,*.yml,*.json])
       --local-repo-root string                            Path to the repository root. Used together with --local allows setting the repository root (default "/")
+  -p, --project strings                                   Filter applications by project
       --refresh                                           Refresh application data when retrieving
       --revision string                                   Compare live app to a particular revision
       --revisions stringArray                             Show manifests at specific revisions for source position in source-positions
+  -l, --selector string                                   Only diff applications matching label selector
       --server-side-diff                                  Use server-side diff to calculate the diff. This will default to true if the ServerSideDiff annotation is set on the application.
       --server-side-diff-concurrency int                  Max concurrent batches for server-side diff. -1 = unlimited, 1 = sequential, 2+ = concurrent (0 = invalid) (default -1)
       --server-side-diff-max-batch-kb int                 Max batch size in KB for server-side diff. Smaller values are safer for proxies (default 250)
