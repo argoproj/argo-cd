@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"runtime/debug"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -113,6 +114,24 @@ type ApplicationSetReconciler struct {
 
 var _ progressivesync.Dependencies = (*ApplicationSetReconciler)(nil)
 
+// skipReconcileApplicationSet reports whether the ApplicationSet is paused via the
+// argocd.argoproj.io/skip-reconcile annotation set to a truthy value.
+//
+// This applies the same "the owning controller should not act on this object" contract
+// that the Application controller already honors for the identical annotation on an
+// Application (see canProcessApp in controller/appcontroller.go) and that is honored on a
+// Cluster Secret. It is not a new annotation or a new meaning — only the same skip-reconcile
+// switch extended to a third object kind, gated by that kind's controller. On an
+// ApplicationSet it stops the generated Applications from being created, updated, or pruned.
+func skipReconcileApplicationSet(appset *argov1alpha1.ApplicationSet) bool {
+	if val, ok := appset.Annotations[common.AnnotationKeyAppSkipReconcile]; ok {
+		if skip, err := strconv.ParseBool(val); err == nil {
+			return skip
+		}
+	}
+	return false
+}
+
 // +kubebuilder:rbac:groups=argoproj.io,resources=applicationsets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=argoproj.io,resources=applicationsets/status,verbs=get;update;patch
 
@@ -175,6 +194,14 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		if err := r.Update(ctx, &applicationSetInfo); err != nil {
 			return ctrl.Result{}, err
 		}
+		return ctrl.Result{}, nil
+	}
+
+	// Skip reconcile if the ApplicationSet is explicitly paused via the skip-reconcile
+	// annotation. This freezes generated-application create/update/delete (e.g. during a
+	// managed-child rename) without affecting the deletion handling above.
+	if skipReconcileApplicationSet(&applicationSetInfo) {
+		logCtx.Debugf("Skipping ApplicationSet reconcile based on annotation %s", common.AnnotationKeyAppSkipReconcile)
 		return ctrl.Result{}, nil
 	}
 

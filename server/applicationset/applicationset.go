@@ -20,6 +20,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -442,6 +443,104 @@ func (s *Server) Delete(ctx context.Context, q *applicationset.ApplicationSetDel
 	}
 	s.logAppSetEvent(ctx, appset, argo.EventReasonResourceDeleted, "deleted ApplicationSets")
 	return &applicationset.ApplicationSetResponse{}, nil
+}
+
+// validateAppSetRename ensures newName is a valid, distinct DNS-1123 name.
+func validateAppSetRename(appset *v1alpha1.ApplicationSet, newName string) error {
+	if newName == "" {
+		return status.Error(codes.InvalidArgument, "new name must not be empty")
+	}
+	if newName == appset.Name {
+		return status.Error(codes.InvalidArgument, "new name must be different from the current name")
+	}
+	if errs := validation.IsDNS1123Subdomain(newName); len(errs) > 0 {
+		return status.Errorf(codes.InvalidArgument, "new name %q is not a valid application set name: %s", newName, strings.Join(errs, ", "))
+	}
+	return nil
+}
+
+// buildRenamedAppSet returns a copy of old with the new name and cleared status,
+// ready to be created.
+func buildRenamedAppSet(old *v1alpha1.ApplicationSet, newName string) *v1alpha1.ApplicationSet {
+	renamed := old.DeepCopy()
+	renamed.ObjectMeta = metav1.ObjectMeta{
+		Name:        newName,
+		Namespace:   old.Namespace,
+		Labels:      old.DeepCopy().Labels,
+		Annotations: old.DeepCopy().Annotations,
+		Finalizers:  old.DeepCopy().Finalizers,
+	}
+	renamed.Status = v1alpha1.ApplicationSetStatus{}
+	return renamed
+}
+
+// Rename renames an ApplicationSet without recreating its generated Applications.
+// The old ApplicationSet is deleted with an Orphan propagation policy so that its
+// generated Applications keep running (their ownerReferences are stripped), and a new
+// ApplicationSet with the same spec is created. The applicationset-controller then
+// re-adopts the existing Applications by name, re-stamping their ownerReferences without
+// recreating them.
+func (s *Server) Rename(ctx context.Context, q *applicationset.ApplicationSetRenameRequest) (*applicationset.ApplicationSetResponse, error) {
+	namespace := s.appsetNamespaceOrDefault(q.AppsetNamespace)
+
+	appset, err := s.appclientset.ArgoprojV1alpha1().ApplicationSets(namespace).Get(ctx, q.Name, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("error getting ApplicationSets: %w", err)
+	}
+
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplicationSets, rbac.ActionDelete, appset.RBACName(s.ns)); err != nil {
+		return nil, err
+	}
+	newRBACName := security.RBACName(s.ns, appset.Spec.Template.Spec.GetProject(), namespace, q.NewName)
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplicationSets, rbac.ActionCreate, newRBACName); err != nil {
+		return nil, err
+	}
+
+	s.projectLock.RLock(appset.Spec.Template.Spec.Project)
+	defer s.projectLock.RUnlock(appset.Spec.Template.Spec.Project)
+
+	if err := validateAppSetRename(appset, q.NewName); err != nil {
+		return nil, err
+	}
+
+	appsetIf := s.appclientset.ArgoprojV1alpha1().ApplicationSets(namespace)
+	if _, err := appsetIf.Get(ctx, q.NewName, metav1.GetOptions{}); err == nil {
+		return nil, status.Errorf(codes.AlreadyExists, "application set %q already exists", q.NewName)
+	} else if !apierrors.IsNotFound(err) {
+		return nil, fmt.Errorf("error checking new name availability: %w", err)
+	}
+
+	renamed := buildRenamedAppSet(appset, q.NewName)
+
+	// Orphan-delete the old ApplicationSet so its generated Applications keep running.
+	orphan := metav1.DeletePropagationOrphan
+	if err := appsetIf.Delete(ctx, appset.Name, metav1.DeleteOptions{PropagationPolicy: &orphan}); err != nil && !apierrors.IsNotFound(err) {
+		return nil, fmt.Errorf("error deleting old ApplicationSet %q: %w", appset.Name, err)
+	}
+
+	created, err := appsetIf.Create(ctx, renamed, metav1.CreateOptions{})
+	if err != nil {
+		// The old ApplicationSet was already deleted; roll back by recreating it so its
+		// generated Applications are not left permanently orphaned. The controller re-adopts
+		// them by name.
+		restore := appset.DeepCopy()
+		restore.ObjectMeta.UID = ""
+		restore.ObjectMeta.ResourceVersion = ""
+		restore.ObjectMeta.Generation = 0
+		restore.ObjectMeta.CreationTimestamp = metav1.Time{}
+		restore.ObjectMeta.ManagedFields = nil
+		restore.Status = v1alpha1.ApplicationSetStatus{}
+		if _, rbErr := appsetIf.Create(ctx, restore, metav1.CreateOptions{}); rbErr != nil {
+			return nil, fmt.Errorf("error creating renamed ApplicationSet %q; original %q could NOT be restored, its generated applications are orphaned: %w", q.NewName, appset.Name, err)
+		}
+		return nil, fmt.Errorf("error creating renamed ApplicationSet %q; original %q was restored: %w", q.NewName, appset.Name, err)
+	}
+
+	s.logAppSetEvent(ctx, created, argo.EventReasonResourceUpdated, fmt.Sprintf("renamed ApplicationSet from %s to %s", appset.Name, q.NewName))
+	return &applicationset.ApplicationSetResponse{
+		Project:        created.Spec.Template.Spec.Project,
+		Applicationset: created,
+	}, nil
 }
 
 func (s *Server) ResourceTree(ctx context.Context, q *applicationset.ApplicationSetTreeQuery) (*v1alpha1.ApplicationSetTree, error) {
