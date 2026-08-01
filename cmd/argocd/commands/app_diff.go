@@ -662,6 +662,11 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				os.Exit(2)
 			}
 
+			if all && len(args) > 0 {
+				fmt.Fprintln(os.Stderr, "Error: Cannot use --all with explicit application names")
+				os.Exit(2)
+			}
+
 			if isBatchMode {
 				clientset := headless.NewClientOrDie(clientOpts, c)
 				conn, appIf := clientset.NewApplicationClientOrDie()
@@ -672,33 +677,57 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					refreshStr = *r
 				}
 
+				var appIDs []*application.ApplicationIdentifier
+				if len(args) > 0 {
+					for _, arg := range args {
+						name, ns := argo.ParseFromQualifiedName(arg, appNamespace)
+						appIDs = append(appIDs, &application.ApplicationIdentifier{
+							Name:         &name,
+							AppNamespace: &ns,
+						})
+					}
+				} else {
+					listQuery := &application.ApplicationQuery{
+						Projects: projects,
+					}
+					if selector != "" {
+						listQuery.Selector = &selector
+					}
+					if appNamespace != "" {
+						listQuery.AppNamespace = &appNamespace
+					}
+					appList, err := appIf.List(ctx, listQuery)
+					errors.CheckError(err)
+
+					for _, app := range appList.Items {
+						appName := app.Name
+						appNs := app.Namespace
+						appIDs = append(appIDs, &application.ApplicationIdentifier{
+							Name:         &appName,
+							AppNamespace: &appNs,
+						})
+					}
+				}
+
 				var allSummaries []*application.ApplicationDiffSummary
 				var mu sync.Mutex
 
-				if len(args) > 0 {
+				if len(appIDs) > 0 {
 					const chunkSize = 50
-					var chunks [][]string
-					for i := 0; i < len(args); i += chunkSize {
-						end := min(i+chunkSize, len(args))
-						chunks = append(chunks, args[i:end])
+					var chunks [][]*application.ApplicationIdentifier
+					for i := 0; i < len(appIDs); i += chunkSize {
+						end := min(i+chunkSize, len(appIDs))
+						chunks = append(chunks, appIDs[i:end])
 					}
 
 					g, errGroupCtx := errgroup.WithContext(ctx)
 					g.SetLimit(concurrency)
 
 					for _, chunk := range chunks {
-						cNames := chunk
+						cIDs := chunk
 						g.Go(func() error {
-							var appIDs []*application.ApplicationIdentifier
-							for _, arg := range cNames {
-								name, ns := argo.ParseFromQualifiedName(arg, appNamespace)
-								appIDs = append(appIDs, &application.ApplicationIdentifier{
-									Name:         &name,
-									AppNamespace: &ns,
-								})
-							}
 							req := &application.ApplicationDiffRequest{
-								Apps:     appIDs,
+								Apps:     cIDs,
 								Projects: projects,
 							}
 							if selector != "" {
@@ -719,19 +748,6 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					}
 					err := g.Wait()
 					errors.CheckError(err)
-				} else {
-					req := &application.ApplicationDiffRequest{
-						Projects: projects,
-					}
-					if selector != "" {
-						req.Selector = &selector
-					}
-					if refreshStr != "" {
-						req.Refresh = &refreshStr
-					}
-					res, err := appIf.GetBatchApplicationDiff(ctx, req)
-					errors.CheckError(err)
-					allSummaries = res.Items
 				}
 
 				sort.Slice(allSummaries, func(i, j int) bool {
