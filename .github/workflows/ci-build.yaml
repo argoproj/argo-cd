@@ -390,6 +390,8 @@ jobs:
         with:
           persist-credentials: false
       - name: Install gh aw
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: make install-gh-aw-local
       - name: Compile agentic workflows
         run: make gh-aw-compile

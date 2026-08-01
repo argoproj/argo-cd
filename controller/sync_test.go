@@ -20,6 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/rest"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/controller/testdata"
@@ -2087,6 +2088,122 @@ func TestSyncWithImpersonate(t *testing.T) {
 		// then app sync should not fail
 		assert.Equal(t, synccommon.OperationSucceeded, opState.Phase)
 		assert.Contains(t, opState.Message, opMessage)
+	})
+}
+
+// TestApplyDiffImpersonationConfig verifies that the server-side diff dry-run runs
+// as the same identity as sync: it honors the AppProject's destinationServiceAccounts
+// when impersonation is enabled, and falls back to the controller credential otherwise.
+func TestApplyDiffImpersonationConfig(t *testing.T) {
+	t.Parallel()
+
+	buildController := func(impersonationEnabled, impersonationEnforced bool) *ApplicationController {
+		app := newFakeApp()
+		project := &v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Namespace: test.FakeArgoCDNamespace, Name: "default"},
+		}
+		data := fakeData{
+			apps: []runtime.Object{app, project},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+			},
+			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{},
+			configMapData: map[string]string{
+				"application.sync.impersonation.enabled":  strconv.FormatBool(impersonationEnabled),
+				"application.sync.impersonation.enforced": strconv.FormatBool(impersonationEnforced),
+			},
+		}
+		return newFakeController(t.Context(), &data, nil)
+	}
+
+	buildApp := func(destNamespace string) *v1alpha1.Application {
+		return &v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{Namespace: test.FakeArgoCDNamespace, Name: "testApp"},
+			Spec: v1alpha1.ApplicationSpec{
+				Project: "default",
+				Destination: v1alpha1.ApplicationDestination{
+					Server:    test.FakeClusterURL,
+					Namespace: destNamespace,
+				},
+			},
+		}
+	}
+
+	projectWithSA := func(namespace, sa string) *v1alpha1.AppProject {
+		return &v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Namespace: test.FakeArgoCDNamespace, Name: "default"},
+			Spec: v1alpha1.AppProjectSpec{
+				DestinationServiceAccounts: []v1alpha1.ApplicationDestinationServiceAccount{
+					{Server: test.FakeClusterURL, Namespace: namespace, DefaultServiceAccount: sa},
+				},
+			},
+		}
+	}
+
+	cluster := &v1alpha1.Cluster{Server: test.FakeClusterURL, Name: "test-cluster"}
+
+	t.Run("impersonation disabled leaves config untouched", func(t *testing.T) {
+		t.Parallel()
+		ctrl := buildController(false, true)
+		config := &rest.Config{}
+
+		err := ctrl.appStateManager.(*appStateManager).applyDiffImpersonationConfig(config, projectWithSA(test.FakeDestNamespace, "test-sa"), buildApp(test.FakeDestNamespace), cluster)
+
+		require.NoError(t, err)
+		assert.Empty(t, config.Impersonate.UserName, "diff must not impersonate when the feature is disabled")
+	})
+
+	t.Run("impersonation enabled with matching SA impersonates that SA", func(t *testing.T) {
+		t.Parallel()
+		ctrl := buildController(true, true)
+		config := &rest.Config{}
+
+		err := ctrl.appStateManager.(*appStateManager).applyDiffImpersonationConfig(config, projectWithSA(test.FakeDestNamespace, "test-sa"), buildApp(test.FakeDestNamespace), cluster)
+
+		require.NoError(t, err)
+		assert.Equal(t, "system:serviceaccount:"+test.FakeDestNamespace+":test-sa", config.Impersonate.UserName,
+			"diff must run as the destinationServiceAccount, matching sync")
+	})
+
+	t.Run("impersonation enabled, enforcement disabled, no matching SA falls back to controller credential", func(t *testing.T) {
+		t.Parallel()
+		ctrl := buildController(true, false)
+		config := &rest.Config{}
+
+		// Project maps a different namespace, so no destinationServiceAccount matches.
+		err := ctrl.appStateManager.(*appStateManager).applyDiffImpersonationConfig(config, projectWithSA("other-ns", "test-sa"), buildApp(test.FakeDestNamespace), cluster)
+
+		require.NoError(t, err)
+		assert.Empty(t, config.Impersonate.UserName, "diff must fall back to the controller credential when no SA matches and enforcement is off, as sync does")
+	})
+
+	t.Run("impersonation enabled, enforcement enabled, no matching SA errors instead of falling back", func(t *testing.T) {
+		t.Parallel()
+		ctrl := buildController(true, true)
+		config := &rest.Config{}
+
+		// Project maps a different namespace, so no destinationServiceAccount matches.
+		// With enforcement on, the diff must refuse rather than silently run the dry-run
+		// (authorized as a patch) as the controller credential. Regression guard for #28695.
+		err := ctrl.appStateManager.(*appStateManager).applyDiffImpersonationConfig(config, projectWithSA("other-ns", "test-sa"), buildApp(test.FakeDestNamespace), cluster)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "no matching service account found")
+		assert.Empty(t, config.Impersonate.UserName, "config must be left untouched when impersonation resolution fails under enforcement")
+	})
+
+	t.Run("impersonation enabled with fully-qualified SA is used verbatim", func(t *testing.T) {
+		t.Parallel()
+		ctrl := buildController(true, true)
+		config := &rest.Config{}
+
+		err := ctrl.appStateManager.(*appStateManager).applyDiffImpersonationConfig(config, projectWithSA(test.FakeDestNamespace, "custom-ns:custom-sa"), buildApp(test.FakeDestNamespace), cluster)
+
+		require.NoError(t, err)
+		assert.Equal(t, "system:serviceaccount:custom-ns:custom-sa", config.Impersonate.UserName)
 	})
 }
 
