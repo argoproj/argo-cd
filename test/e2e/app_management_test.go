@@ -1856,8 +1856,9 @@ func TestSyncWithInfos(t *testing.T) {
 		})
 }
 
-// TestSyncWithRetryAndRefreshEnabled verifies that sync+refresh picks up new commits automatically on the original source
-// at the time the sync was triggered
+// TestSyncWithRetryAndRefreshEnabled verifies that sync+refresh reloads the current
+// Application source on retry (not only the revision). A source change made while the
+// retry is in progress (e.g. parent updating a child Application) is picked up.
 func TestSyncWithRetryAndRefreshEnabled(t *testing.T) {
 	Given(t).
 		Timeout(2). // Quick timeout since Sync operation is expected to retry forever
@@ -1891,22 +1892,19 @@ func TestSyncWithRetryAndRefreshEnabled(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		Expect(OperationRetriedMinimumTimes(1)).
 		When().
-		PatchApp(`[{"op": "add", "path": "/spec/source/path", "value": "failure-during-sync"}]`).
-		// push a fixed commit on HEAD branch
-		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": 42}]`).
+		// Parent updates child source to a different valid path while retry is in progress
+		PatchApp(`[{"op": "replace", "path": "/spec/source/path", "value": "two-nice-pods"}]`).
 		Refresh(RefreshTypeNormal).
-		IgnoreErrors().
-		Sync().
-		DoNotIgnoreErrors().
 		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(Status(func(status ApplicationStatus) (bool, string) {
-			// Validate that the history contains the sync to the previous sources
-			// The history will only contain  successful sync
-			if len(status.History) != 2 {
-				return false, "expected len to be 2"
+			if len(status.History) < 2 {
+				return false, fmt.Sprintf("expected at least 2 history entries, got %d", len(status.History))
 			}
-			if status.History[1].Source.Path != guestbookPath {
-				return false, fmt.Sprintf("expected source path to be '%s'", guestbookPath)
+			last := status.History[len(status.History)-1]
+			if last.Source.Path != "two-nice-pods" {
+				return false, fmt.Sprintf("expected latest history source path to be 'two-nice-pods', got %q", last.Source.Path)
 			}
 			return true, ""
 		}))
