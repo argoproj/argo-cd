@@ -5362,8 +5362,15 @@ func TestGetBatchApplicationDiff(t *testing.T) {
 	})
 
 	t.Run("filter by appName", func(t *testing.T) {
+		name := "app1"
+		ns := "default"
 		res, err := appServer.GetBatchApplicationDiff(ctx, &application.ApplicationDiffRequest{
-			AppNames: []string{"app1"},
+			Apps: []*application.ApplicationIdentifier{
+				{
+					Name:         &name,
+					AppNamespace: &ns,
+				},
+			},
 		})
 		require.NoError(t, err)
 		assert.Len(t, res.Items, 1)

@@ -1210,3 +1210,8 @@ export interface ApplicationDiffSummary {
 export interface ApplicationDiffResponse {
     items: ApplicationDiffSummary[];
 }
+
+export interface ApplicationIdentifier {
+    name: string;
+    appNamespace: string;
+}

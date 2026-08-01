@@ -597,7 +597,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                         <GlobalDiffModal
                                                             isShown={showGlobalDiff}
                                                             onClose={() => setShowGlobalDiff(false)}
-                                                            appNames={nonSyncedApps.map(app => app.metadata.name)}
+                                                            apps={nonSyncedApps.map(app => ({name: app.metadata.name, appNamespace: app.metadata.namespace}))}
                                                             projects={pref.projectsFilter}
                                                             selector={pref.labelsFilter?.join(',')}
                                                             allApps={applications}

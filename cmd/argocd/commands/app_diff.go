@@ -689,8 +689,16 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					for _, chunk := range chunks {
 						cNames := chunk
 						g.Go(func() error {
+							var appIDs []*application.ApplicationIdentifier
+							for _, arg := range cNames {
+								name, ns := argo.ParseFromQualifiedName(arg, appNamespace)
+								appIDs = append(appIDs, &application.ApplicationIdentifier{
+									Name:         &name,
+									AppNamespace: &ns,
+								})
+							}
 							req := &application.ApplicationDiffRequest{
-								AppNames: cNames,
+								Apps:     appIDs,
 								Projects: projects,
 							}
 							if selector != "" {

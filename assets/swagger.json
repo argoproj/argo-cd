@@ -354,15 +354,6 @@
               "type": "string"
             },
             "collectionFormat": "multi",
-            "name": "appNames",
-            "in": "query"
-          },
-          {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "collectionFormat": "multi",
             "name": "projects",
             "in": "query"
           },
@@ -5225,6 +5216,17 @@
           "type": "string"
         },
         "syncStatus": {
+          "type": "string"
+        }
+      }
+    },
+    "applicationApplicationIdentifier": {
+      "type": "object",
+      "properties": {
+        "appNamespace": {
+          "type": "string"
+        },
+        "name": {
           "type": "string"
         }
       }

@@ -10,7 +10,7 @@ import './global-diff.scss';
 export interface GlobalDiffModalProps {
     isShown: boolean;
     onClose: () => void;
-    appNames?: string[];
+    apps?: models.ApplicationIdentifier[];
     projects?: string[];
     selector?: string;
     allApps?: models.Application[];
@@ -19,7 +19,7 @@ export interface GlobalDiffModalProps {
 const PAGE_SIZE = 50;
 
 export const GlobalDiffModal = (props: GlobalDiffModalProps) => {
-    const {isShown, onClose, appNames, projects, selector, allApps} = props;
+    const {isShown, onClose, apps, projects, selector, allApps} = props;
     const [loading, setLoading] = React.useState(false);
     const [appDiffs, setAppDiffs] = React.useState<models.ApplicationDiffSummary[]>([]);
     const [searchQuery, setSearchQuery] = React.useState('');
@@ -34,45 +34,48 @@ export const GlobalDiffModal = (props: GlobalDiffModalProps) => {
     const [expandedApps, setExpandedApps] = React.useState<Record<string, boolean>>({});
 
     const handleExpandLazy = React.useCallback(
-        async (appName: string) => {
-            if (lazyData[appName]) {
+        async (appName: string, appNamespace: string) => {
+            const key = `${appNamespace}/${appName}`;
+            if (lazyData[key]) {
                 return;
             }
-            setLoadingLazy(prev => ({...prev, [appName]: true}));
+            setLoadingLazy(prev => ({...prev, [key]: true}));
             try {
                 const result = await services.applications.getBatchApplicationDiff({
-                    appNames: [appName]
+                    apps: [{name: appName, appNamespace}]
                 });
                 if (result && result.length > 0) {
-                    setLazyData(prev => ({...prev, [appName]: result[0]}));
+                    setLazyData(prev => ({...prev, [key]: result[0]}));
                 }
             } catch (err) {
-                console.error(`Failed to load lazy diff for ${appName}`, err);
+                console.error(`Failed to load lazy diff for ${key}`, err);
             } finally {
-                setLoadingLazy(prev => ({...prev, [appName]: false}));
+                setLoadingLazy(prev => ({...prev, [key]: false}));
             }
         },
         [lazyData]
     );
 
     const isAppExpanded = React.useCallback(
-        (appName: string) => {
-            return expandedApps[appName] !== false;
+        (appName: string, appNamespace: string) => {
+            const key = `${appNamespace}/${appName}`;
+            return expandedApps[key] !== false;
         },
         [expandedApps]
     );
 
     const handleToggleApp = React.useCallback(
-        (appName: string) => {
-            const nextOpen = !isAppExpanded(appName);
+        (appName: string, appNamespace: string) => {
+            const key = `${appNamespace}/${appName}`;
+            const nextOpen = !isAppExpanded(appName, appNamespace);
             setExpandedApps(prev => ({
                 ...prev,
-                [appName]: nextOpen
+                [key]: nextOpen
             }));
             if (nextOpen) {
-                const app = appDiffs.find(a => a.appName === appName);
-                if (app && app.isLazy && !lazyData[appName]) {
-                    handleExpandLazy(appName);
+                const app = appDiffs.find(a => a.appName === appName && a.appNamespace === appNamespace);
+                if (app && app.isLazy && !lazyData[key]) {
+                    handleExpandLazy(appName, appNamespace);
                 }
             }
         },
@@ -82,9 +85,10 @@ export const GlobalDiffModal = (props: GlobalDiffModalProps) => {
     const handleExpandAll = React.useCallback(() => {
         const nextExpanded: Record<string, boolean> = {};
         appDiffs.forEach(app => {
-            nextExpanded[app.appName] = true;
-            if (app.isLazy && !lazyData[app.appName]) {
-                handleExpandLazy(app.appName);
+            const key = `${app.appNamespace}/${app.appName}`;
+            nextExpanded[key] = true;
+            if (app.isLazy && !lazyData[key]) {
+                handleExpandLazy(app.appName, app.appNamespace);
             }
         });
         setExpandedApps(nextExpanded);
@@ -93,15 +97,17 @@ export const GlobalDiffModal = (props: GlobalDiffModalProps) => {
     const handleCollapseAll = React.useCallback(() => {
         const nextExpanded: Record<string, boolean> = {};
         appDiffs.forEach(app => {
-            nextExpanded[app.appName] = false;
+            const key = `${app.appNamespace}/${app.appName}`;
+            nextExpanded[key] = false;
         });
         setExpandedApps(nextExpanded);
     }, [appDiffs]);
 
     const targetApps = React.useMemo(() => {
         let list = allApps || [];
-        if (appNames && appNames.length > 0) {
-            list = list.filter(app => appNames.includes(app.metadata.name));
+        if (apps && apps.length > 0) {
+            const appKeys = new Set(apps.map(a => `${a.appNamespace}/${a.name}`));
+            list = list.filter(app => appKeys.has(`${app.metadata.namespace}/${app.metadata.name}`));
         } else {
             list = list.filter(app => {
                 if (projects && projects.length > 0 && !projects.includes(app.spec.project)) {
@@ -111,7 +117,7 @@ export const GlobalDiffModal = (props: GlobalDiffModalProps) => {
             });
         }
         return list;
-    }, [allApps, appNames, projects]);
+    }, [allApps, apps, projects]);
 
     const totalPages = Math.ceil(targetApps.length / PAGE_SIZE);
     const pageApps = React.useMemo(() => {
@@ -119,7 +125,7 @@ export const GlobalDiffModal = (props: GlobalDiffModalProps) => {
         return targetApps.slice(start, start + PAGE_SIZE);
     }, [targetApps, currentPage]);
 
-    const appNamesKey = (appNames || []).join(',');
+    const appsKey = (apps || []).map(a => `${a.appNamespace}/${a.name}`).join(',');
     const projectsKey = (projects || []).join(',');
     const pageAppsKey = pageApps.map(app => `${app.metadata.name}/${app.metadata.namespace}`).join(',');
 
@@ -137,7 +143,7 @@ export const GlobalDiffModal = (props: GlobalDiffModalProps) => {
                 active = false;
             };
         }
-    }, [isShown, appNamesKey, projectsKey, selector]);
+    }, [isShown, appsKey, projectsKey, selector]);
 
     React.useEffect(() => {
         if (isShown && pageApps.length > 0) {
@@ -148,10 +154,13 @@ export const GlobalDiffModal = (props: GlobalDiffModalProps) => {
                 }
             });
 
-            const pageAppNames = pageApps.map(app => app.metadata.name);
+            const pageAppIdentifiers = pageApps.map(app => ({
+                name: app.metadata.name,
+                appNamespace: app.metadata.namespace
+            }));
             services.applications
                 .getBatchApplicationDiff({
-                    appNames: pageAppNames,
+                    apps: pageAppIdentifiers,
                     projects,
                     selector,
                     refresh: refreshStrategy
@@ -186,8 +195,9 @@ export const GlobalDiffModal = (props: GlobalDiffModalProps) => {
                         setLoading(false);
 
                         processedData.forEach(app => {
-                            if (app.isLazy && isAppExpanded(app.appName) && !lazyData[app.appName]) {
-                                handleExpandLazy(app.appName);
+                            const key = `${app.appNamespace}/${app.appName}`;
+                            if (app.isLazy && isAppExpanded(app.appName, app.appNamespace) && !lazyData[key]) {
+                                handleExpandLazy(app.appName, app.appNamespace);
                             }
                         });
                     }
@@ -241,7 +251,8 @@ export const GlobalDiffModal = (props: GlobalDiffModalProps) => {
 
     const filteredDiffs = appDiffs
         .map(app => {
-            const displayApp = lazyData[app.appName] || app;
+            const key = `${app.appNamespace}/${app.appName}`;
+            const displayApp = lazyData[key] || app;
             const filteredResDiffs = displayApp.diffs.filter(d => {
                 const query = searchQuery.toLowerCase().trim();
                 if (!query) {
@@ -317,16 +328,17 @@ export const GlobalDiffModal = (props: GlobalDiffModalProps) => {
                     <div className='global-diff-list'>
                         {filteredDiffs.length > 0 ? (
                             filteredDiffs.map(app => {
-                                const displaySummary = lazyData[app.appName] || app;
+                                const key = `${app.appNamespace}/${app.appName}`;
+                                const displaySummary = lazyData[key] || app;
                                 return (
                                     <ApplicationDiffAccordion
-                                        key={app.appName}
+                                        key={key}
                                         appSummary={displaySummary}
-                                        isLazy={app.isLazy && !lazyData[app.appName]}
-                                        isLoadingLazy={loadingLazy[app.appName]}
-                                        isOpen={isAppExpanded(app.appName)}
-                                        onToggle={() => handleToggleApp(app.appName)}
-                                        onExpand={() => handleExpandLazy(app.appName)}
+                                        isLazy={app.isLazy && !lazyData[key]}
+                                        isLoadingLazy={loadingLazy[key]}
+                                        isOpen={isAppExpanded(app.appName, app.appNamespace)}
+                                        onToggle={() => handleToggleApp(app.appName, app.appNamespace)}
+                                        onExpand={() => handleExpandLazy(app.appName, app.appNamespace)}
                                     />
                                 );
                             })

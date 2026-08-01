@@ -349,8 +349,13 @@ message ListAppLinksRequest {
 	optional string project = 4;
 }
 
+message ApplicationIdentifier {
+	optional string name = 1;
+	optional string appNamespace = 2;
+}
+
 message ApplicationDiffRequest {
-	repeated string appNames = 1;
+	repeated ApplicationIdentifier apps = 1;
 	repeated string projects = 2;
 	optional string selector = 3;
 	optional string refresh = 4;

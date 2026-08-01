@@ -3225,15 +3225,25 @@ func (s *Server) GetBatchApplicationDiff(ctx context.Context, q *application.App
 		return nil, status.Errorf(codes.Internal, "error listing apps: %v", err)
 	}
 
-	// Filter applications by name if appNames is specified
-	if len(q.GetAppNames()) > 0 {
-		nameMap := make(map[string]bool)
-		for _, name := range q.GetAppNames() {
-			nameMap[name] = true
+	// Filter applications by name and namespace if apps is specified
+	if len(q.GetApps()) > 0 {
+		appsMap := make(map[string]bool)
+		for _, appID := range q.GetApps() {
+			ns := appID.GetAppNamespace()
+			if ns == "" {
+				ns = s.ns
+			}
+			key := ns + "/" + appID.GetName()
+			appsMap[key] = true
 		}
 		var filtered []*v1alpha1.Application
 		for _, app := range apps {
-			if nameMap[app.Name] {
+			ns := app.Namespace
+			if ns == "" {
+				ns = s.ns
+			}
+			key := ns + "/" + app.Name
+			if appsMap[key] {
 				filtered = append(filtered, app)
 			}
 		}

@@ -173,11 +173,14 @@ export class ApplicationsService {
             });
     }
 
-    public getBatchApplicationDiff(options: {appNames?: string[]; projects?: string[]; selector?: string; refresh?: string} = {}): Promise<models.ApplicationDiffSummary[]> {
+    public getBatchApplicationDiff(
+        options: {apps?: models.ApplicationIdentifier[]; projects?: string[]; selector?: string; refresh?: string} = {}
+    ): Promise<models.ApplicationDiffSummary[]> {
         let req = requests.get('/applications/diffs');
-        if (options.appNames) {
-            options.appNames.forEach(name => {
-                req = req.query(`appNames=${encodeURIComponent(name)}`);
+        if (options.apps) {
+            options.apps.forEach((app, idx) => {
+                req = req.query(`apps[${idx}].name=${encodeURIComponent(app.name)}`);
+                req = req.query(`apps[${idx}].appNamespace=${encodeURIComponent(app.appNamespace)}`);
             });
         }
         if (options.projects) {
