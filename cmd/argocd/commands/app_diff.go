@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"sync"
 
 	"golang.org/x/sync/errgroup"
 
@@ -640,18 +641,150 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		sourcePositions           []int64
 		sourceNames               []string
 		ignoreNormalizerOpts      normalizers.IgnoreNormalizerOpts
+
+		all                       bool
+		projects                  []string
+		selector                  string
+		concurrency               int
 	)
 	shortDesc := "Perform a diff against the target and live state."
 	command := &cobra.Command{
-		Use:   "diff APPNAME",
+		Use:   "diff [APPNAME... | --all]",
 		Short: shortDesc,
 		Long:  shortDesc + "\nUses 'diff' to render the difference. KUBECTL_EXTERNAL_DIFF environment variable can be used to select your own diff tool.\nReturns the following exit codes: 2 on general errors, 1 when a diff is found, and 0 when no diff is found\nKubernetes Secrets are ignored from this diff.",
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
-			if len(args) != 1 {
+			isBatchMode := len(args) > 1 || all || selector != "" || len(projects) > 0
+
+			if !isBatchMode && len(args) != 1 {
 				c.HelpFunc()(c, args)
 				os.Exit(2)
+			}
+
+			if isBatchMode {
+				clientset := headless.NewClientOrDie(clientOpts, c)
+				conn, appIf := clientset.NewApplicationClientOrDie()
+				defer io.Close(conn)
+
+				refreshStr := ""
+				if r := getRefreshType(refresh, hardRefresh); r != nil {
+					refreshStr = *r
+				}
+
+				var allSummaries []*application.ApplicationDiffSummary
+				var mu sync.Mutex
+
+				if len(args) > 0 {
+					const chunkSize = 50
+					var chunks [][]string
+					for i := 0; i < len(args); i += chunkSize {
+						end := i + chunkSize
+						if end > len(args) {
+							end = len(args)
+						}
+						chunks = append(chunks, args[i:end])
+					}
+
+					g, errGroupCtx := errgroup.WithContext(ctx)
+					g.SetLimit(concurrency)
+
+					for _, chunk := range chunks {
+						cNames := chunk
+						g.Go(func() error {
+							req := &application.ApplicationDiffRequest{
+								AppNames: cNames,
+								Projects: projects,
+							}
+							if selector != "" {
+								req.Selector = &selector
+							}
+							if refreshStr != "" {
+								req.Refresh = &refreshStr
+							}
+							res, err := appIf.GetBatchApplicationDiff(errGroupCtx, req)
+							if err != nil {
+								return err
+							}
+							mu.Lock()
+							allSummaries = append(allSummaries, res.Items...)
+							mu.Unlock()
+							return nil
+						})
+					}
+					err := g.Wait()
+					errors.CheckError(err)
+				} else {
+					req := &application.ApplicationDiffRequest{
+						Projects: projects,
+					}
+					if selector != "" {
+						req.Selector = &selector
+					}
+					if refreshStr != "" {
+						req.Refresh = &refreshStr
+					}
+					res, err := appIf.GetBatchApplicationDiff(ctx, req)
+					errors.CheckError(err)
+					allSummaries = res.Items
+				}
+
+				sort.Slice(allSummaries, func(i, j int) bool {
+					return allSummaries[i].GetAppName() < allSummaries[j].GetAppName()
+				})
+
+				totalChecked := len(allSummaries)
+				syncedCount := 0
+				outOfSyncCount := 0
+				hasAnyDiff := false
+
+				for _, appDiff := range allSummaries {
+					if appDiff.GetSyncStatus() == "Synced" {
+						syncedCount++
+					} else {
+						outOfSyncCount++
+					}
+
+					if len(appDiff.GetDiffs()) > 0 {
+						hasAnyDiff = true
+						fmt.Printf("\n=== Application: %s (Project: %s) ===\n", appDiff.GetAppName(), appDiff.GetProject())
+
+						sort.Slice(appDiff.Diffs, func(i, j int) bool {
+							keyI := fmt.Sprintf("%s/%s/%s/%s", appDiff.Diffs[i].Group, appDiff.Diffs[i].Kind, appDiff.Diffs[i].Namespace, appDiff.Diffs[i].Name)
+							keyJ := fmt.Sprintf("%s/%s/%s/%s", appDiff.Diffs[j].Group, appDiff.Diffs[j].Kind, appDiff.Diffs[j].Namespace, appDiff.Diffs[j].Name)
+							return keyI < keyJ
+						})
+
+						for _, resDiff := range appDiff.GetDiffs() {
+							var live, target *unstructured.Unstructured
+							var err error
+							if resDiff.LiveState != "" && resDiff.LiveState != "null" {
+								live, err = argoappv1.UnmarshalToUnstructured(resDiff.LiveState)
+								if err != nil {
+									log.Warnf("Failed to unmarshal live state for resource %s: %v", resDiff.Name, err)
+								}
+							}
+							if resDiff.TargetState != "" && resDiff.TargetState != "null" {
+								target, err = argoappv1.UnmarshalToUnstructured(resDiff.TargetState)
+								if err != nil {
+									log.Warnf("Failed to unmarshal target state for resource %s: %v", resDiff.Name, err)
+								}
+							}
+							printResourceDiff(resDiff.Group, resDiff.Kind, resDiff.Namespace, resDiff.Name, live, target)
+						}
+					}
+				}
+
+				fmt.Println()
+				fmt.Println("Summary:")
+				fmt.Printf("  Total Applications Checked: %d\n", totalChecked)
+				fmt.Printf("  Synced Applications:        %d\n", syncedCount)
+				fmt.Printf("  OutOfSync Applications:     %d\n", outOfSyncCount)
+
+				if hasAnyDiff && exitCode {
+					os.Exit(diffExitCode)
+				}
+				os.Exit(0)
 			}
 
 			if len(sourceNames) > 0 && len(sourcePositions) > 0 {
@@ -803,6 +936,12 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().Int64SliceVar(&sourcePositions, "source-positions", []int64{}, "List of source positions. Default is empty array. Counting start at 1.")
 	command.Flags().StringArrayVar(&sourceNames, "source-names", []string{}, "List of source names. Default is an empty array.")
 	command.Flags().DurationVar(&ignoreNormalizerOpts.JQExecutionTimeout, "ignore-normalizer-jq-execution-timeout", normalizers.DefaultJQExecutionTimeout, "Set ignore normalizer JQ execution timeout")
+
+	command.Flags().BoolVar(&all, "all", false, "Diff all applications")
+	command.Flags().StringSliceVarP(&projects, "project", "p", []string{}, "Filter applications by project")
+	command.Flags().StringVarP(&selector, "selector", "l", "", "Only diff applications matching label selector")
+	command.Flags().IntVar(&concurrency, "concurrency", 10, "Number of concurrent batch requests to process")
+
 	return command
 }
 
