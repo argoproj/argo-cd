@@ -229,11 +229,11 @@ export class ApplicationsService {
             .then(() => true);
     }
 
-    public rename(name: string, appNamespace: string, project: string, newName: string): Promise<boolean> {
+    public rename(name: string, appNamespace: string, project: string, newName: string): Promise<models.ApplicationRenameResponse> {
         return requests
             .post(`/applications/${name}/rename`)
             .send({name, newName, appNamespace, project})
-            .then(() => true);
+            .then(res => res.body as models.ApplicationRenameResponse);
     }
 
     public watch(

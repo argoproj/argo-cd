@@ -665,6 +665,23 @@ func TestBuildRenameTrackingPatch(t *testing.T) {
 		assert.Equal(t, "new-app:apps/Deployment:guestbook/guestbook-ui", trackingID(patch))
 		assert.Equal(t, "new-app", instanceLabel(patch))
 	})
+	t.Run("patches only the tracking keys, not unrelated metadata", func(t *testing.T) {
+		// The patch must not carry unrelated labels/annotations from the cached live state, which
+		// would reset them to stale values and clobber concurrent changes.
+		liveWithExtra := `{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"name":"guestbook-ui","namespace":"guestbook",` +
+			`"annotations":{"argocd.argoproj.io/tracking-id":"old-app:apps/Deployment:guestbook/guestbook-ui","other.io/keep":"x"},` +
+			`"labels":{"app.kubernetes.io/instance":"old-app","other-label":"y"}}}`
+		r := &v1alpha1.ResourceDiff{Group: "apps", Kind: "Deployment", Namespace: "guestbook", Name: "guestbook-ui", LiveState: liveWithExtra}
+		patch, _, err := buildRenameTrackingPatch("new-app", r, string(v1alpha1.TrackingMethodAnnotationAndLabel), labelKey, "")
+		require.NoError(t, err)
+		var p map[string]any
+		require.NoError(t, json.Unmarshal(patch, &p))
+		meta, _ := p["metadata"].(map[string]any)
+		anns, _ := meta["annotations"].(map[string]any)
+		labels, _ := meta["labels"].(map[string]any)
+		assert.Equal(t, map[string]any{"argocd.argoproj.io/tracking-id": "new-app:apps/Deployment:guestbook/guestbook-ui"}, anns)
+		assert.Equal(t, map[string]any{labelKey: "new-app"}, labels)
+	})
 }
 
 func TestServer_Rename(t *testing.T) {
@@ -894,6 +911,33 @@ func TestServer_Rename_failureRestoresState(t *testing.T) {
 		gotAS, gerr := cs.ArgoprojV1alpha1().ApplicationSets(testNamespace).Get(ctx, "my-appset", metav1.GetOptions{})
 		require.NoError(t, gerr)
 		assert.NotEqual(t, "true", gotAS.Annotations[common.AnnotationKeyAppSkipReconcile], "ApplicationSet must be unfrozen after failure")
+	})
+
+	t.Run("delete failure restores the original finalizers", func(t *testing.T) {
+		// Rename removes only Argo CD's cascade finalizer before deleting the old app; if the
+		// delete then fails, the user's finalizers and the original cascade finalizer must be
+		// restored rather than left stripped.
+		app := newTestApp(func(a *v1alpha1.Application) {
+			a.Name = "old-app"
+			a.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
+			a.Finalizers = []string{v1alpha1.ResourcesFinalizerName, "user.example.com/keep"}
+		})
+		appServer := newTestAppServer(t, app)
+		ctx := t.Context()
+		cs := appServer.appclientset.(*deepCopyAppClientset).GetUnderlyingClientSet().(*apps.Clientset)
+		cs.PrependReactor("delete", "applications", func(action kubetesting.Action) (bool, runtime.Object, error) {
+			if action.(kubetesting.DeleteAction).GetName() == "old-app" {
+				return true, nil, errors.New("injected delete failure")
+			}
+			return false, nil, nil
+		})
+
+		_, err := appServer.Rename(ctx, &application.ApplicationRenameRequest{Name: new("old-app"), NewName: new("new-app")})
+		require.Error(t, err)
+		got, gerr := cs.ArgoprojV1alpha1().Applications(testNamespace).Get(ctx, "old-app", metav1.GetOptions{})
+		require.NoError(t, gerr, "old app must still exist after a failed delete")
+		assert.ElementsMatch(t, []string{v1alpha1.ResourcesFinalizerName, "user.example.com/keep"}, got.Finalizers,
+			"original finalizers must be restored after a failed delete")
 	})
 }
 

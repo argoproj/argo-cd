@@ -3389,13 +3389,36 @@ func (s *Server) Rename(ctx context.Context, q *application.ApplicationRenameReq
 		}
 	}
 
-	// Delete old with cascade=false: strip finalizers so no cascade, then delete.
-	patch := []byte(`{"metadata":{"finalizers":null}}`)
-	if _, err := appIf.Patch(ctx, a.Name, types.MergePatchType, patch, metav1.PatchOptions{}); err != nil && !apierrors.IsNotFound(err) {
+	// Delete old with cascade=false: remove only Argo CD's cascade finalizers (preserving any
+	// user/third-party finalizers) so deleting the old app does not cascade to its live
+	// resources, then delete.
+	stripped := a.DeepCopy()
+	stripped.UnSetCascadedDeletion()
+	finalizerPatch, err := json.Marshal(map[string]any{"metadata": map[string]any{"finalizers": stripped.Finalizers}})
+	if err != nil {
 		unfreezeOnErr()
-		return nil, fmt.Errorf("error clearing finalizers on %q: %w", a.Name, err)
+		return nil, fmt.Errorf("error marshaling finalizers: %w", err)
+	}
+	finalizersCleared := false
+	if _, err := appIf.Patch(ctx, a.Name, types.MergePatchType, finalizerPatch, metav1.PatchOptions{}); err != nil {
+		if !apierrors.IsNotFound(err) {
+			unfreezeOnErr()
+			return nil, fmt.Errorf("error clearing finalizers on %q: %w", a.Name, err)
+		}
+	} else {
+		finalizersCleared = true
 	}
 	if err := appIf.Delete(ctx, a.Name, metav1.DeleteOptions{}); err != nil && !apierrors.IsNotFound(err) {
+		// Delete failed after we removed the cascade finalizers; restore the original finalizers
+		// so the old app is left with its original deletion semantics rather than a mutated state.
+		if finalizersCleared {
+			restorePatch, merr := json.Marshal(map[string]any{"metadata": map[string]any{"finalizers": a.Finalizers}})
+			if merr != nil {
+				log.WithFields(applog.GetAppLogFields(a)).Errorf("rename: delete failed and could not marshal finalizer restore for %q (original finalizers: %v): %v", a.Name, a.Finalizers, merr)
+			} else if _, rerr := appIf.Patch(ctx, a.Name, types.MergePatchType, restorePatch, metav1.PatchOptions{}); rerr != nil {
+				log.WithFields(applog.GetAppLogFields(a)).Errorf("rename: delete failed and could not restore finalizers on %q (restore manually to %v): %v", a.Name, a.Finalizers, rerr)
+			}
+		}
 		unfreezeOnErr()
 		return nil, fmt.Errorf("error deleting old application %q: %w", a.Name, err)
 	}
@@ -3483,13 +3506,26 @@ func buildRenameTrackingPatch(newName string, res *v1alpha1.ResourceDiff, tracki
 	if err := argo.NewResourceTracking().SetAppInstance(live, labelKey, newName, res.Namespace, v1alpha1.TrackingMethod(trackingMethod), installationID); err != nil {
 		return nil, schema.GroupVersionKind{}, err
 	}
+	// Patch only the tracking keys the configured method actually touches (the tracking-id
+	// annotation and/or the instance label), not the whole labels/annotations maps. Emitting the
+	// full maps from the cached LiveState would reset any other keys to their cached values,
+	// clobbering concurrent changes to unrelated labels/annotations.
 	meta, _ := live.Object["metadata"].(map[string]any)
+	liveLabels, _ := meta["labels"].(map[string]any)
+	liveAnns, _ := meta["annotations"].(map[string]any)
+	method := v1alpha1.TrackingMethod(trackingMethod)
+	usesAnnotation := method == v1alpha1.TrackingMethodAnnotation || method == v1alpha1.TrackingMethodAnnotationAndLabel || method == ""
+	usesLabel := method == v1alpha1.TrackingMethodLabel || method == v1alpha1.TrackingMethodAnnotationAndLabel
 	metaPatch := map[string]any{}
-	if labels, ok := meta["labels"]; ok {
-		metaPatch["labels"] = labels
+	if usesAnnotation {
+		if v, ok := liveAnns[argocommon.AnnotationKeyAppInstance]; ok {
+			metaPatch["annotations"] = map[string]any{argocommon.AnnotationKeyAppInstance: v}
+		}
 	}
-	if anns, ok := meta["annotations"]; ok {
-		metaPatch["annotations"] = anns
+	if usesLabel {
+		if v, ok := liveLabels[labelKey]; ok {
+			metaPatch["labels"] = map[string]any{labelKey: v}
+		}
 	}
 	patchBytes, err := json.Marshal(map[string]any{"metadata": metaPatch})
 	if err != nil {
