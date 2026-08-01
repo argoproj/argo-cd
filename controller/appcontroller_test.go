@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/http/httptest"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -22,9 +24,11 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/util/retry"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	statecache "github.com/argoproj/argo-cd/v3/controller/cache"
+	"github.com/argoproj/argo-cd/v3/controller/metrics"
 	"github.com/argoproj/argo-cd/v3/controller/sharding"
 
 	jsonpatch "github.com/evanphx/json-patch"
@@ -1981,6 +1985,68 @@ func bumpResourceVersion(t *testing.T, resourceVersion string) string {
 	return strconv.Itoa(version + 1)
 }
 
+// applyThenLoseResponseOnNextPatch applies the next JSON patch and then fails the call: a
+// response lost on the way back, so the write is durable but the caller never learns it. Applying
+// the controller's own bytes is what makes the stored state match what it sent.
+func applyThenLoseResponseOnNextPatch(t *testing.T, fakeAppCs *appclientset.Clientset) {
+	t.Helper()
+	gvr := v1alpha1.SchemeGroupVersion.WithResource("applications")
+	done := false
+	fakeAppCs.PrependReactor("patch", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		patchAction, ok := action.(kubetesting.PatchAction)
+		if !ok || done || patchAction.GetPatchType() != types.JSONPatchType {
+			return false, nil, nil
+		}
+		done = true
+		live, err := fakeAppCs.Tracker().Get(gvr, patchAction.GetNamespace(), patchAction.GetName())
+		require.NoError(t, err)
+		liveJSON, err := json.Marshal(live)
+		require.NoError(t, err)
+		patch, err := jsonpatch.DecodePatch(patchAction.GetPatch())
+		require.NoError(t, err)
+		patchedJSON, err := patch.Apply(liveJSON)
+		require.NoError(t, err)
+		patchedApp := &v1alpha1.Application{}
+		require.NoError(t, json.Unmarshal(patchedJSON, patchedApp))
+		patchedApp.ResourceVersion = bumpResourceVersion(t, patchedApp.ResourceVersion)
+		require.NoError(t, fakeAppCs.Tracker().Update(gvr, patchedApp, patchAction.GetNamespace()))
+		return true, nil, errors.New("etcdserver: request timed out")
+	})
+}
+
+// syncCounterFor scrapes argocd_app_sync_total for one application. The collector is a global in
+// controller/metrics, shared by every test in this process — the name label is what isolates a
+// series to one test.
+func syncCounterFor(t *testing.T, ctrl *ApplicationController, appName string) []string {
+	t.Helper()
+	recorder := httptest.NewRecorder()
+	request, err := http.NewRequestWithContext(t.Context(), http.MethodGet, metrics.MetricsPath, http.NoBody)
+	require.NoError(t, err)
+	ctrl.metricsServer.Handler.ServeHTTP(recorder, request)
+	require.Equal(t, http.StatusOK, recorder.Code)
+	var samples []string
+	for line := range strings.SplitSeq(recorder.Body.String(), "\n") {
+		if strings.HasPrefix(line, "argocd_app_sync_total{") && strings.Contains(line, `name="`+appName+`"`) {
+			samples = append(samples, line)
+		}
+	}
+	return samples
+}
+
+// completedSyncEventsFor returns the OperationCompleted event messages recorded for an app.
+func completedSyncEventsFor(t *testing.T, ctrl *ApplicationController) []string {
+	t.Helper()
+	events, err := ctrl.kubeClientset.CoreV1().Events(test.FakeArgoCDNamespace).List(t.Context(), metav1.ListOptions{})
+	require.NoError(t, err)
+	var messages []string
+	for _, event := range events.Items {
+		if event.Reason == argo.EventReasonOperationCompleted {
+			messages = append(messages, event.Message)
+		}
+	}
+	return messages
+}
+
 // concurrentWriteBeforeNextPatch mutates the tracked object and bumps its resourceVersion
 // just before the next patch is evaluated: another writer landing between the controller's
 // read and its write. The patch then conflicts as it would against a real API server.
@@ -2251,6 +2317,228 @@ func TestSetOperationStateRebasesOnUnrelatedConcurrentWrite(t *testing.T) {
 		"the concurrent writer's change must survive: the patch only replaces operationState")
 }
 
+// TestSetOperationStateDiscardsStaleProgressWithinRunningPhase covers a delayed progress write
+// racing a newer one from the same operation. Both carry the "Running" phase, so a staleness
+// check that only compares phases would re-send it and revert the newer value — which is how a
+// sync result a retry had cleared comes back (#26530).
+func TestSetOperationStateDiscardsStaleProgressWithinRunningPhase(t *testing.T) {
+	operation := v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{Revision: "abc123"}}
+	startedAt := metav1.Now()
+	// The live app: a newer progress write for the same operation already landed, resetting the
+	// sync result to start a retry attempt.
+	live := newFakeApp()
+	live.ResourceVersion = "101"
+	live.Operation = &operation
+	live.Status.OperationState = &v1alpha1.OperationState{
+		Phase:      synccommon.OperationRunning,
+		Message:    "Retrying operation. Attempt #1",
+		StartedAt:  startedAt,
+		RetryCount: 1,
+		Operation:  operation,
+	}
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{live}}, nil)
+	stats := realisticPatchReactor(t, ctrl.applicationClientset.(*appclientset.Clientset))
+
+	// The delayed write, built from the pre-retry observation it still holds.
+	snapshot := live.DeepCopy()
+	snapshot.ResourceVersion = "100"
+	snapshot.Status.OperationState = &v1alpha1.OperationState{
+		Phase:     synccommon.OperationRunning,
+		Message:   "one or more tasks are running",
+		StartedAt: startedAt,
+		Operation: operation,
+	}
+	stale := snapshot.Status.OperationState.DeepCopy()
+	stale.SyncResult = &v1alpha1.SyncOperationResult{Revision: "abc123"}
+	written := ctrl.setOperationState(t.Context(), snapshot, stale)
+
+	assert.False(t, written, "a dropped write must be reported to the caller")
+	assert.Equal(t, 1, stats.conflicts, "the stale progress write must be rejected by the precondition")
+	assert.Equal(t, 0, stats.applied, "a same-phase stale write must be dropped, not re-sent")
+	got, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), live.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, got.Status.OperationState)
+	assert.Nil(t, got.Status.OperationState.SyncResult, "the retry's cleared sync result must survive")
+	assert.Equal(t, int64(1), got.Status.OperationState.RetryCount, "the newer progress write must survive")
+}
+
+// TestSetOperationStateSeedsInformerAfterConflict covers the read that resolves a conflict: it
+// returns a revision newer than the informer's, and leaving the informer behind makes the next
+// worker redo work on a stale app.
+func TestSetOperationStateSeedsInformerAfterConflict(t *testing.T) {
+	operation := v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{Revision: "abc123"}}
+	finishedAt := metav1.Now()
+	live := newFakeApp()
+	live.ResourceVersion = "101"
+	live.Operation = nil
+	live.Status.OperationState = &v1alpha1.OperationState{
+		Phase:      synccommon.OperationSucceeded,
+		StartedAt:  metav1.NewTime(finishedAt.Add(-time.Minute)),
+		FinishedAt: &finishedAt,
+		Operation:  operation,
+	}
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{live}}, nil)
+	realisticPatchReactor(t, ctrl.applicationClientset.(*appclientset.Clientset))
+	key, err := cache.MetaNamespaceKeyFunc(live)
+	require.NoError(t, err)
+	// The informer holds the pre-completion revision, as it would while the watch event is in
+	// flight.
+	stale := live.DeepCopy()
+	stale.ResourceVersion = "100"
+	stale.Operation = &operation
+	stale.Status.OperationState = nil
+	require.NoError(t, ctrl.appInformer.GetIndexer().Add(stale))
+
+	// A delayed first write of the operation: conflicts, is read back, and is dropped.
+	written := ctrl.setOperationState(t.Context(), stale.DeepCopy(), NewOperationState(operation))
+	require.False(t, written)
+
+	obj, ok, err := ctrl.appInformer.GetIndexer().GetByKey(key)
+	require.NoError(t, err)
+	require.True(t, ok)
+	cached, ok := obj.(*v1alpha1.Application)
+	require.True(t, ok)
+	assert.Equal(t, "101", cached.ResourceVersion, "the conflict read must be written back to the informer")
+	require.NotNil(t, cached.Status.OperationState)
+	assert.Equal(t, synccommon.OperationSucceeded, cached.Status.OperationState.Phase)
+}
+
+// TestSetOperationStateGivesUpAfterBoundedRetries covers the retry budget. An unbounded loop
+// would park an operation queue worker forever: the caller never reaches its deferred
+// re-enqueue, so the app and one operation processor are out of service for good.
+func TestSetOperationStateGivesUpAfterBoundedRetries(t *testing.T) {
+	// Only the intervals are compressed: with a Cap set, or Factor left at 0, wait.Backoff yields
+	// a different attempt count than Steps advertises, so an arbitrary override would validate a
+	// budget the code never uses.
+	compress := func(b wait.Backoff) wait.Backoff {
+		b.Duration = time.Microsecond
+		return b
+	}
+	progress, final := operationStateProgressPatchBackoff, operationStateFinalPatchBackoff
+	t.Cleanup(func() {
+		operationStateProgressPatchBackoff, operationStateFinalPatchBackoff = progress, final
+	})
+	operationStateProgressPatchBackoff = compress(progress)
+	operationStateFinalPatchBackoff = compress(final)
+
+	tests := []struct {
+		name     string
+		phase    synccommon.OperationPhase
+		attempts int
+		reactor  func(kubetesting.Action) (bool, runtime.Object, error)
+	}{{
+		name:     "unrelated API errors",
+		phase:    synccommon.OperationRunning,
+		attempts: progress.Steps,
+		reactor: func(kubetesting.Action) (bool, runtime.Object, error) {
+			return true, nil, apierrors.NewInternalError(errors.New("etcdserver: request timed out"))
+		},
+	}, {
+		name:     "the write never wins the race",
+		phase:    synccommon.OperationRunning,
+		attempts: progress.Steps,
+		reactor: func(action kubetesting.Action) (bool, runtime.Object, error) {
+			return true, nil, apierrors.NewConflict(schema.GroupResource{Group: "argoproj.io", Resource: "applications"},
+				action.(kubetesting.PatchAction).GetName(), errors.New("the object has been modified"))
+		},
+	}, {
+		// Giving up on a final write costs a re-run of the operation, so it gets the longer
+		// budget.
+		name:     "final write gets the longer budget",
+		phase:    synccommon.OperationSucceeded,
+		attempts: final.Steps,
+		reactor: func(kubetesting.Action) (bool, runtime.Object, error) {
+			return true, nil, apierrors.NewInternalError(errors.New("etcdserver: request timed out"))
+		},
+	}}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := newFakeApp()
+			app.ResourceVersion = "100"
+			app.Operation = &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{Revision: "abc123"}}
+			ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+			fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+			attempts := 0
+			fakeAppCs.PrependReactor("patch", "applications", func(action kubetesting.Action) (bool, runtime.Object, error) {
+				attempts++
+				return tt.reactor(action)
+			})
+
+			state := NewOperationState(*app.Operation)
+			state.Phase = tt.phase
+			done := make(chan bool, 1)
+			go func() { done <- ctrl.setOperationState(t.Context(), app, state) }()
+			select {
+			case written := <-done:
+				assert.False(t, written, "an unpersisted write must be reported to the caller")
+			case <-time.After(30 * time.Second):
+				require.Fail(t, "setOperationState never gave up; a parked worker takes the app out of service")
+			}
+			assert.Equal(t, tt.attempts, attempts, "the write must be retried, but only within its budget")
+		})
+	}
+}
+
+// TestOperationStatePatchBackoffsSpendTheirWholeBudget guards the wait.Backoff footgun: Cap
+// zeroes the remaining Steps once the computed interval exceeds it, so a capped backoff stops
+// early and the documented budget is a fiction.
+func TestOperationStatePatchBackoffsSpendTheirWholeBudget(t *testing.T) {
+	for name, backoff := range map[string]wait.Backoff{
+		"progress": operationStateProgressPatchBackoff,
+		"final":    operationStateFinalPatchBackoff,
+	} {
+		t.Run(name, func(t *testing.T) {
+			require.Zero(t, backoff.Cap, "a Cap silently truncates Steps; express the budget with Steps alone")
+			compressed := backoff
+			compressed.Duration = time.Microsecond
+			attempts := 0
+			err := retry.OnError(compressed, func(error) bool { return true }, func() error {
+				attempts++
+				return errors.New("boom")
+			})
+			require.Error(t, err)
+			assert.Equal(t, backoff.Steps, attempts, "every advertised step must be spent")
+		})
+	}
+}
+
+// TestSetOperationStateSnapshotDrivesSyncWindowEvaluation pins a behaviour change.
+// SetAppOperation nils status.operationState when it accepts an operation, so on an operation's
+// first pass syncWindowPreventsSync — which reads it for InitiatedBy and StartedAt — has nothing
+// to read and judges the sync automated. Refreshing the snapshot from the write makes the manual
+// initiator visible to the sync that follows in the same pass.
+func TestSetOperationStateSnapshotDrivesSyncWindowEvaluation(t *testing.T) {
+	manualSync := v1alpha1.Operation{
+		Sync:        &v1alpha1.SyncOperation{Revision: "abc123"},
+		InitiatedBy: v1alpha1.OperationInitiator{Username: "admin"},
+	}
+	app := newFakeApp()
+	app.ResourceVersion = "100"
+	// What SetAppOperation leaves behind: pending operation, no operation state.
+	app.Operation = &manualSync
+	app.Status.OperationState = nil
+	// Always-active deny window that still admits manual syncs.
+	proj := &v1alpha1.AppProject{Spec: v1alpha1.AppProjectSpec{SyncWindows: v1alpha1.SyncWindows{{
+		Kind:         "deny",
+		Schedule:     "* * * * *",
+		Duration:     "24h",
+		Applications: []string{"*"},
+		ManualSync:   true,
+	}}}}
+
+	blocked, err := syncWindowPreventsSync(app, proj)
+	require.NoError(t, err)
+	require.True(t, blocked, "with no operation state, a manual sync cannot be told from an automated one")
+
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+	realisticPatchReactor(t, ctrl.applicationClientset.(*appclientset.Clientset))
+	require.True(t, ctrl.setOperationState(t.Context(), app, NewOperationState(manualSync)))
+
+	blocked, err = syncWindowPreventsSync(app, proj)
+	require.NoError(t, err)
+	assert.False(t, blocked, "the refreshed snapshot must let the manual sync through the deny window")
+}
+
 // TestSetOperationStateFinalWriteRetryDoesNotConsumeNewOperation covers a final write applied
 // server-side whose response was lost. spec.operation is already cleared, so SetAppOperation
 // can have accepted a new sync since; re-sending verbatim would wipe it with no error and
@@ -2382,12 +2670,86 @@ func TestSetOperationStateFinalWriteRetryAcceptsAlreadyCompletedWrite(t *testing
 	assert.Equal(t, "101", app.ResourceVersion, "the in-memory snapshot must adopt the live revision")
 }
 
-// TestSetOperationStateAdoptedOutcomeDrivesEventAndMetrics covers the divergent half of
-// adopting a live completion: the event and sync metrics must describe the outcome that is
-// stored, not the one this pass attempted, or they contradict the object they report on.
-func TestSetOperationStateAdoptedOutcomeDrivesEventAndMetrics(t *testing.T) {
+// TestSameStoredOperationStateComparesEveryField guards against drift: sameStoredOperationState
+// compares field by field, so a new OperationState field is silently ignored — and an ignored
+// field makes another writer's completion look like ours, double counting argocd_app_sync_total.
+func TestSameStoredOperationStateComparesEveryField(t *testing.T) {
+	handled := []string{"Operation", "Phase", "Message", "SyncResult", "StartedAt", "FinishedAt", "RetryCount"}
+	var fields []string
+	for field := range reflect.TypeFor[v1alpha1.OperationState]().Fields() {
+		fields = append(fields, field.Name)
+	}
+	assert.ElementsMatch(t, handled, fields,
+		"OperationState changed: teach sameStoredOperationState about the new field, then update this list")
+}
+
+func TestSameStoredOperationState(t *testing.T) {
+	startedAt := metav1.Now()
+	finishedAt := metav1.NewTime(startedAt.Add(time.Minute))
+	base := func() *v1alpha1.OperationState {
+		return &v1alpha1.OperationState{
+			Phase:      synccommon.OperationSucceeded,
+			Message:    "successfully synced (all tasks run)",
+			StartedAt:  startedAt,
+			FinishedAt: &finishedAt,
+			RetryCount: 2,
+			Operation:  v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{Revision: "abc123"}},
+			SyncResult: &v1alpha1.SyncOperationResult{Revision: "abc123", Resources: v1alpha1.ResourceResults{
+				{Group: "apps", Kind: "Deployment", Name: "foo", Status: synccommon.ResultCodeSynced},
+			}},
+		}
+	}
+	// What the API server gives back: RFC 3339 carries whole seconds, so the nanoseconds are gone.
+	roundTripped := base()
+	roundTripped.StartedAt = startedAt.Rfc3339Copy()
+	rfcFinished := finishedAt.Rfc3339Copy()
+	roundTripped.FinishedAt = &rfcFinished
+
+	require.NotZero(t, startedAt.Nanosecond(), "the fixture must carry sub-second precision to be meaningful")
+	assert.True(t, sameStoredOperationState(base(), roundTripped),
+		"a value and its round trip are the same stored state")
+	assert.False(t, reflect.DeepEqual(base(), roundTripped),
+		"DeepEqual cannot be used directly: the truncated timestamps make it false")
+
+	assert.True(t, sameStoredOperationState(nil, nil))
+	assert.False(t, sameStoredOperationState(base(), nil))
+	assert.False(t, sameStoredOperationState(nil, base()))
+
+	for name, mutate := range map[string]func(*v1alpha1.OperationState){
+		"phase":      func(s *v1alpha1.OperationState) { s.Phase = synccommon.OperationFailed },
+		"message":    func(s *v1alpha1.OperationState) { s.Message = "one or more objects failed to apply" },
+		"retryCount": func(s *v1alpha1.OperationState) { s.RetryCount = 3 },
+		"startedAt":  func(s *v1alpha1.OperationState) { s.StartedAt = metav1.NewTime(startedAt.Add(time.Second)) },
+		"finishedAt": func(s *v1alpha1.OperationState) {
+			later := metav1.NewTime(finishedAt.Add(time.Second))
+			s.FinishedAt = &later
+		},
+		"finishedAt cleared":    func(s *v1alpha1.OperationState) { s.FinishedAt = nil },
+		"operation":             func(s *v1alpha1.OperationState) { s.Operation.Sync.Revision = "def456" },
+		"syncResult":            func(s *v1alpha1.OperationState) { s.SyncResult.Revision = "def456" },
+		"syncResult resource":   func(s *v1alpha1.OperationState) { s.SyncResult.Resources[0].Status = synccommon.ResultCodeSyncFailed },
+		"syncResult cleared":    func(s *v1alpha1.OperationState) { s.SyncResult = nil },
+		"sub-second difference": func(s *v1alpha1.OperationState) { s.StartedAt = metav1.NewTime(startedAt.Add(time.Nanosecond)) },
+	} {
+		t.Run(name, func(t *testing.T) {
+			other := base()
+			mutate(other)
+			// A sub-second difference is invisible once stored, so it must still compare equal.
+			if name == "sub-second difference" {
+				assert.True(t, sameStoredOperationState(base(), other))
+				return
+			}
+			assert.False(t, sameStoredOperationState(base(), other), "a differing %s must not look like this call's own write", name)
+		})
+	}
+}
+
+// TestSetOperationStateDoesNotReportAnotherWritersCompletion covers adopting a completion this
+// call did not write: the writer that stored it already emitted the event and the metric.
+func TestSetOperationStateDoesNotReportAnotherWritersCompletion(t *testing.T) {
 	operation := v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{Revision: "abc123"}}
 	app := newFakeApp()
+	app.Name = "double-count-guard"
 	app.ResourceVersion = "100"
 	app.Operation = &operation
 	app.Status.OperationState = &v1alpha1.OperationState{
@@ -2399,8 +2761,8 @@ func TestSetOperationStateAdoptedOutcomeDrivesEventAndMetrics(t *testing.T) {
 	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 	stats := realisticPatchReactor(t, fakeAppCs)
-	// Another writer completed the same operation with a different outcome (e.g. a second
-	// controller replica mid shard rebalance) and won the race.
+	// Another writer completed the same operation with a different outcome (a second controller
+	// replica mid shard rebalance) and won the race.
 	finishedAt := metav1.Now()
 	concurrentWriteBeforeNextPatch(t, fakeAppCs, func(live *v1alpha1.Application) {
 		live.Operation = nil
@@ -2423,19 +2785,55 @@ func TestSetOperationStateAdoptedOutcomeDrivesEventAndMetrics(t *testing.T) {
 	assert.True(t, written, "the outcome is durable, whoever wrote it")
 	assert.Equal(t, 0, stats.applied, "an already-completed operation must not be patched again")
 	require.NotNil(t, app.Status.OperationState)
-	assert.Equal(t, synccommon.OperationFailed, app.Status.OperationState.Phase)
+	assert.Equal(t, synccommon.OperationFailed, app.Status.OperationState.Phase,
+		"the snapshot must still adopt the stored outcome")
+	assert.Empty(t, completedSyncEventsFor(t, ctrl), "the other writer's completion is not this call's to report")
+	assert.Empty(t, syncCounterFor(t, ctrl, app.Name), "argocd_app_sync_total must not count another writer's completion")
+}
 
-	events, err := ctrl.kubeClientset.CoreV1().Events(test.FakeArgoCDNamespace).List(t.Context(), metav1.ListOptions{})
-	require.NoError(t, err)
-	var messages []string
-	for _, event := range events.Items {
-		if event.Reason == argo.EventReasonOperationCompleted {
-			messages = append(messages, event.Message)
-		}
+// TestSetOperationStateReportsItsOwnLostCompletion is the other side of the double-count guard:
+// the adopted completion is this call's own lost write, so nothing has reported it yet and
+// suppressing the event and metric would lose the sync entirely.
+func TestSetOperationStateReportsItsOwnLostCompletion(t *testing.T) {
+	operation := v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{Revision: "abc123"}}
+	app := newFakeApp()
+	app.Name = "lost-response"
+	app.ResourceVersion = "100"
+	app.Operation = &operation
+	app.Status.OperationState = &v1alpha1.OperationState{
+		Phase:     synccommon.OperationRunning,
+		Message:   "one or more tasks are running",
+		StartedAt: metav1.Now(),
+		Operation: operation,
 	}
-	require.Len(t, messages, 1)
-	assert.Contains(t, messages[0], "failed: one or more objects failed to apply",
-		"the event must report the persisted outcome, not the attempted one")
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	stats := realisticPatchReactor(t, fakeAppCs)
+	applyThenLoseResponseOnNextPatch(t, fakeAppCs)
+
+	written := ctrl.setOperationState(t.Context(), app, &v1alpha1.OperationState{
+		Phase:      synccommon.OperationSucceeded,
+		Message:    "successfully synced (all tasks run)",
+		StartedAt:  app.Status.OperationState.StartedAt,
+		Operation:  operation,
+		SyncResult: &v1alpha1.SyncOperationResult{Revision: "abc123"},
+	})
+
+	assert.True(t, written, "the write is durable even though its response was lost")
+	assert.Equal(t, 1, stats.conflicts, "the re-send must be rejected by the precondition")
+	assert.Equal(t, 0, stats.applied, "the durable write must be recognized, not applied twice")
+	got, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, got.Status.OperationState)
+	assert.Equal(t, synccommon.OperationSucceeded, got.Status.OperationState.Phase)
+
+	messages := completedSyncEventsFor(t, ctrl)
+	require.Len(t, messages, 1, "this call's own completion must be reported exactly once")
+	assert.Contains(t, messages[0], "succeeded")
+	samples := syncCounterFor(t, ctrl, app.Name)
+	require.Len(t, samples, 1, "argocd_app_sync_total must count this call's own completion")
+	assert.Contains(t, samples[0], `phase="Succeeded"`)
+	assert.True(t, strings.HasSuffix(samples[0], " 1"), "counted exactly once, got %q", samples[0])
 }
 
 // TestSetOperationStateFinalWriteBeatsConcurrentTerminate pins the rule separating final

@@ -77,7 +77,6 @@ import (
 )
 
 const (
-	updateOperationStateTimeout             = 1 * time.Second
 	defaultDeploymentInformerResyncDuration = 10 * time.Second
 	// orphanedIndex contains application which monitor orphaned resources by namespace
 	orphanedIndex = "orphaned"
@@ -88,6 +87,30 @@ const (
 	// appOperationMaxRequeueInterval is the backstop interval at which an in-progress operation
 	// re-enqueues itself. It bounds how long the controller can go without polling an ongoing sync.
 	appOperationMaxRequeueInterval = 30 * time.Second
+)
+
+// Retry budgets for setOperationState. Giving up on a progress write costs nothing — the next
+// pass re-observes — but giving up on the write that records the outcome leaves spec.operation
+// set on a non-terminal phase, so the next pass re-runs the sync, hooks included. That is worth
+// waiting out an API server rollout for.
+//
+// Do not set Cap: wait.Backoff zeroes the remaining Steps once the computed interval exceeds it,
+// silently cutting the budget to a fraction of what Steps advertises.
+var (
+	// ~1.5s over 5 attempts.
+	operationStateProgressPatchBackoff = wait.Backoff{
+		Duration: 100 * time.Millisecond,
+		Factor:   2,
+		Jitter:   0.1,
+		Steps:    5,
+	}
+	// ~51s over 9 attempts.
+	operationStateFinalPatchBackoff = wait.Backoff{
+		Duration: 200 * time.Millisecond,
+		Factor:   2,
+		Jitter:   0.1,
+		Steps:    9,
+	}
 )
 
 type CompareWith int
@@ -1701,10 +1724,13 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 }
 
 // buildOperationStatePatch returns a JSON Patch (RFC 6902) replacing the whole
-// status.operationState and, when the state is final, clearing spec.operation.
+// status.operationState with stateJSON and, when final, clearing spec.operation.
 // metadata.resourceVersion pins it to the revision the caller observed, so the API server
 // answers 409 if anything wrote in between and a delayed write cannot revert a newer one.
-func buildOperationStatePatch(state *appv1.OperationState, resourceVersion string) []byte {
+//
+// stateJSON arrives pre-marshaled: it embeds SyncResult.Resources and Operation.Sync.Manifests,
+// hundreds of KB on a large app, and is identical on every attempt.
+func buildOperationStatePatch(stateJSON json.RawMessage, final bool, resourceVersion string) []byte {
 	patchOps := []map[string]any{
 		{"op": "add", "path": "/metadata/resourceVersion", "value": resourceVersion},
 		// Whole-value replace, so omitted fields are cleared rather than inherited (#26530).
@@ -1712,17 +1738,46 @@ func buildOperationStatePatch(state *appv1.OperationState, resourceVersion strin
 		// `add` does not create missing parents, so this 422s while the stored object has no
 		// `status` key at all (a never-reconciled app, e.g. created declaratively with an
 		// operation set). Self-resolving: the refresh worker's merge patch creates `status`
-		// within a cycle and the retry then lands. Not worth a second patch shape.
-		{"op": "add", "path": "/status/operationState", "value": state},
+		// within a cycle, and this write lands on a retry or on the next pass. Not worth a
+		// second patch shape.
+		{"op": "add", "path": "/status/operationState", "value": stateJSON},
 	}
-	if state.Phase.Completed() {
+	if final {
 		// Clear spec.operation to indicate no operation is in progress. `add` of null rather
 		// than `remove` stays idempotent when re-sent; the CRD prunes the null before storing.
 		patchOps = append(patchOps, map[string]any{"op": "add", "path": "/operation", "value": nil})
 	}
-	// Marshaling cannot fail: the operands are API structs and plain strings.
+	// Marshaling cannot fail: the operands are plain strings and already-valid JSON.
 	patchJSON, _ := json.Marshal(patchOps)
 	return patchJSON
+}
+
+// sameStoredTime compares timestamps at the precision RFC 3339 carries. Time.Equal is exact to
+// the nanosecond, and the nanoseconds metav1.Now() records do not survive a round trip.
+func sameStoredTime(a, b *metav1.Time) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	stored, other := a.Rfc3339Copy(), b.Rfc3339Copy()
+	return stored.Equal(&other)
+}
+
+// sameStoredOperationState reports whether two operation states are the same value as stored.
+// Field by field, not by comparing encodings: marshaling would cost on the conflict path what
+// pre-marshaling the patch saves. Nothing under Operation or SyncResult is a metav1.Time, so only
+// the two top-level timestamps need second precision; the drift guard is in
+// TestSameStoredOperationStateComparesEveryField.
+func sameStoredOperationState(a, b *appv1.OperationState) bool {
+	if a == nil || b == nil {
+		return a == nil && b == nil
+	}
+	return a.Phase == b.Phase &&
+		a.Message == b.Message &&
+		a.RetryCount == b.RetryCount &&
+		sameStoredTime(&a.StartedAt, &b.StartedAt) &&
+		sameStoredTime(a.FinishedAt, b.FinishedAt) &&
+		reflect.DeepEqual(a.Operation, b.Operation) &&
+		reflect.DeepEqual(a.SyncResult, b.SyncResult)
 }
 
 // setOperationState persists the given operation state. It reports whether the state was
@@ -1749,92 +1804,112 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 	// write (apiserver load, controller restart, flaky client<->apiserver link) and resurrect
 	// a completed operation. spec.operation is already consumed by then, so nothing
 	// re-enqueues the app and it stays "Running" forever (#18613, #23765).
+	//
+	// The pin covers the whole object, so unrelated status writes (the refresh worker's
+	// health/sync status) 409 too, costing a re-read and a re-send. A `test` op on
+	// /status/operationState/phase would be narrower but weaker: successive writes of one
+	// operation share the "Running" phase, so it cannot catch the same-phase revert the staleness
+	// check below handles, and matching that means testing the whole value — operationState sent
+	// twice per patch. It also cannot express "I observed no state at all", which is where every
+	// operation starts (SetAppOperation nils it): RFC 6902 `test` fails on a missing path.
 	observed := app.Status.OperationState
 	reporting := app.Operation
+	stateJSON, err := json.Marshal(state)
+	if err != nil {
+		// Cannot happen: state is an API struct.
+		logCtx.WithError(err).Error("error marshaling operation state")
+		return false
+	}
 	resourceVersion := app.ResourceVersion
-	patchJSON := buildOperationStatePatch(state, resourceVersion)
 
 	var persisted *appv1.Application
-	kube.RetryUntilSucceed(ctx, updateOperationStateTimeout, "Update application operation state", logutils.NewLogrusLogger(logutils.NewWithCurrentConfig()), func() error {
-		// Conflicts are expected (the refresh worker writes the same app's status) and cheap to
-		// resolve, so they get their own fast bounded backoff. Everything else is left to the
-		// outer loop, which keeps retrying because the caller needs this write to be durable.
-		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-			// context.Background() so a canceled reconcile ctx never aborts the write
-			// mid-flight; the retry loops still honor ctx.
-			patchedApp, err := ctrl.PatchAppWithWriteBack(context.Background(), app.Name, app.Namespace, types.JSONPatchType, patchJSON, metav1.PatchOptions{})
-			switch {
-			case err == nil:
-				persisted = patchedApp
-				return nil
-			case apierrors.IsNotFound(err):
-				// Stop retrying updating deleted application
-				return nil
-			case !apierrors.IsConflict(err):
-				// kube.RetryUntilSucceed logs retries at debug, but we want to know about these.
-				logCtx.WithError(err).Warn("error patching application with operation state")
-				return fmt.Errorf("error patching application with operation state: %w", err)
-			}
-			// The precondition rejected the patch, so nothing was applied. Re-read to decide
-			// whether this state still describes the live operation.
-			live, getErr := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(context.Background(), app.Name, metav1.GetOptions{})
-			if getErr != nil {
-				if apierrors.IsNotFound(getErr) {
-					return nil
-				}
-				logCtx.WithError(getErr).Warn("error fetching application after a conflicting operation state patch")
-				return fmt.Errorf("error fetching application after a conflicting operation state patch: %w", getErr)
-			}
-
-			// An empty phase means no operation state at all (a real one always has a phase):
-			// what argo.SetAppOperation leaves behind, i.e. where every operation starts.
-			var observedPhase, livePhase synccommon.OperationPhase
-			if observed != nil {
-				observedPhase = observed.Phase
-			}
-			if live.Status.OperationState != nil {
-				livePhase = live.Status.OperationState.Phase
-			}
-			switch {
-			// A final write must win over concurrent progress writes — recording the outcome
-			// is what consumes spec.operation — so it is abandoned only when the operation it
-			// completes is gone. It still lands when the live phase merely moved on, e.g. a user
-			// terminated the sync as it was finishing.
-			case state.Phase.Completed() && livePhase.Completed():
-				// Typically a copy of this write whose response was lost.
-				logCtx.Infof("Not re-sending operation state update (phase: %s): the operation is already completed as %s", state.Phase, livePhase)
-				persisted = live
-				return nil
-			// A newly requested operation is pending, only possible because the completion
-			// already cleared this one (SetAppOperation refuses while spec.operation is set).
-			// Re-sending would clear that request without ever running it. The request is
-			// recognized either by a different payload or, when it is identical to the one just
-			// completed (a user re-syncing with unchanged params), by the operation state having
-			// been nilled out: argo.SetAppOperation is the only writer that does that.
-			case state.Phase.Completed() && (!reflect.DeepEqual(live.Operation, reporting) || (observed != nil && live.Status.OperationState == nil)):
-				logCtx.Infof("Discarding stale operation state update (phase: %s): a new operation is now pending", state.Phase)
-				return nil
-			// A non-final write only describes progress of the state it observed. If that
-			// changed, another writer moved the operation on (completed or terminated it) and
-			// this write must not overwrite it.
-			case !state.Phase.Completed() && livePhase != observedPhase:
-				logCtx.Infof("Discarding stale operation state update (phase: %s): observed operation state %q, live is %q", state.Phase, observedPhase, livePhase)
-				return nil
-			}
-
-			// Rebase onto the live revision and let RetryOnConflict re-send. `observed` stays as
-			// it was: refreshing it would defeat the staleness check above on the next conflict.
-			resourceVersion = live.ResourceVersion
-			patchJSON = buildOperationStatePatch(state, resourceVersion)
-			return err
-		})
-		if err != nil && apierrors.IsConflict(err) {
-			// The outer loop keeps going, but contention heavy enough to exhaust the conflict
-			// retries is worth knowing about.
-			logCtx.WithError(err).Warn("operation state patch keeps losing races; retrying")
+	// Set when the stored completion is another writer's, i.e. not ours to report.
+	foreignCompletion := false
+	// Bounded: the caller holds an operation queue worker for this whole call and never reaches
+	// its deferred re-enqueue while parked here, so looping forever takes the app and one
+	// operation processor out of service for good.
+	backoff := operationStateProgressPatchBackoff
+	if state.Phase.Completed() {
+		backoff = operationStateFinalPatchBackoff
+	}
+	err = retry.OnError(backoff, func(error) bool { return true }, func() error {
+		patchJSON := buildOperationStatePatch(stateJSON, state.Phase.Completed(), resourceVersion)
+		// context.Background() so a canceled reconcile ctx never aborts the write mid-flight.
+		patchedApp, err := ctrl.PatchAppWithWriteBack(context.Background(), app.Name, app.Namespace, types.JSONPatchType, patchJSON, metav1.PatchOptions{})
+		switch {
+		case err == nil:
+			persisted = patchedApp
+			return nil
+		case apierrors.IsNotFound(err):
+			// Stop retrying updating deleted application
+			return nil
+		case !apierrors.IsConflict(err):
+			// retry.OnError logs nothing, and we want to know about these.
+			logCtx.WithError(err).Warn("error patching application with operation state")
+			return fmt.Errorf("error patching application with operation state: %w", err)
 		}
+		// The precondition rejected the patch, so nothing was applied. Re-read to decide
+		// whether this state still describes the live operation.
+		live, getErr := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(context.Background(), app.Name, metav1.GetOptions{})
+		if getErr != nil {
+			if apierrors.IsNotFound(getErr) {
+				return nil
+			}
+			logCtx.WithError(getErr).Warn("error fetching application after a conflicting operation state patch")
+			return fmt.Errorf("error fetching application after a conflicting operation state patch: %w", getErr)
+		}
+		// Newer than the informer's copy; seed it so other workers do not redo work on the stale one.
+		ctrl.writeBackToInformer(live)
+
+		// An empty phase means no operation state at all (a real one always has a phase):
+		// what argo.SetAppOperation leaves behind, i.e. where every operation starts.
+		var observedPhase, livePhase synccommon.OperationPhase
+		if observed != nil {
+			observedPhase = observed.Phase
+		}
+		if live.Status.OperationState != nil {
+			livePhase = live.Status.OperationState.Phase
+		}
+		switch {
+		// A final write must win over concurrent progress writes — recording the outcome
+		// is what consumes spec.operation — so it is abandoned only when the operation it
+		// completes is gone. It still lands when the live phase merely moved on, e.g. a user
+		// terminated the sync as it was finishing.
+		case state.Phase.Completed() && livePhase.Completed():
+			// A stored value equal to the one sent is this write's own, applied server-side with
+			// its response lost, so its event and metrics are still owed. Anything else was
+			// completed by another writer (a second replica mid shard rebalance) that already
+			// emitted them; emitting again double counts argocd_app_sync_total.
+			foreignCompletion = !sameStoredOperationState(live.Status.OperationState, state)
+			logCtx.Infof("Not re-sending operation state update (phase: %s): the operation is already completed as %s", state.Phase, livePhase)
+			persisted = live
+			return nil
+		// A new operation is pending, only possible because the completion already cleared this
+		// one (SetAppOperation refuses while spec.operation is set); re-sending would consume it
+		// without ever running it. Recognized by a differing payload, or — when the user re-synced
+		// with identical params — by the nilled operation state, which only SetAppOperation does.
+		case state.Phase.Completed() && (!reflect.DeepEqual(live.Operation, reporting) || (observed != nil && live.Status.OperationState == nil)):
+			logCtx.Infof("Discarding stale operation state update (phase: %s): a new operation is now pending", state.Phase)
+			return nil
+		// A non-final write describes progress of the state it observed, so it may only be
+		// re-sent while that observation holds. Whole value, not just the phase: successive
+		// writes in one operation share the "Running" phase, and re-sending over one reverts it —
+		// how a SyncResult a retry cleared comes back (#26530). Unrelated status writes leave
+		// operationState untouched, so those still fall through to a re-send.
+		case !state.Phase.Completed() && !reflect.DeepEqual(live.Status.OperationState, observed):
+			logCtx.Infof("Discarding stale operation state update (phase: %s): observed operation state %q, live is %q", state.Phase, observedPhase, livePhase)
+			return nil
+		}
+
+		// Rebase onto the live revision and re-send. `observed` stays as it was: refreshing it
+		// would defeat the staleness check above on the next conflict.
+		resourceVersion = live.ResourceVersion
 		return err
 	})
+	if err != nil {
+		logCtx.WithError(err).Error("giving up persisting operation state; it will be re-observed on the next cycle")
+		return false
+	}
 
 	if persisted == nil {
 		// Dropped as stale, or the app is gone; whoever landed the newer write owns the
@@ -1850,14 +1925,19 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 	app.Status.OperationState = persisted.Status.OperationState.DeepCopy()
 
 	// Report the outcome that is actually stored, not the one attempted: a conflicting final
-	// write can adopt a live completion instead of applying its own, and events and metrics
-	// claiming a different phase than the object holds are worse than useless.
+	// write can adopt a live completion instead of applying its own, and a log line, event or
+	// metric claiming a different phase than the object holds is worse than useless.
 	effective := state
 	if persisted.Status.OperationState != nil {
 		effective = persisted.Status.OperationState
 	}
 
 	logCtx.Infof("updated '%s' operation (phase: %s)", app.QualifiedName(), effective.Phase)
+	if foreignCompletion {
+		// The stored completion is another writer's; it emitted the event and metrics with it.
+		logCtx.Infof("Not reporting completion of '%s' (phase: %s): another writer recorded it", app.QualifiedName(), effective.Phase)
+		return true
+	}
 	if effective.Phase.Completed() {
 		eventInfo := argo.EventInfo{Reason: argo.EventReasonOperationCompleted}
 		var messages []string
