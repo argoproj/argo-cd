@@ -5357,7 +5357,7 @@ func TestGetBatchApplicationDiff(t *testing.T) {
 		assert.Equal(t, "my-proj", res.Items[1].GetProject())
 		assert.Equal(t, "Synced", res.Items[1].GetSyncStatus())
 		// svc1 (Synced and unmodified) should NOT be returned
-		assert.Len(t, res.Items[1].Diffs, 0)
+		assert.Empty(t, res.Items[1].Diffs)
 	})
 
 	t.Run("filter by appName", func(t *testing.T) {

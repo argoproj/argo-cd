@@ -2361,7 +2361,7 @@ func (f fakeSettingsServiceClient) GetPlugins(_ context.Context, _ *settingspkg.
 
 type fakeAppServiceClient struct{}
 
-func (c *fakeAppServiceClient) GetBatchApplicationDiff(ctx context.Context, in *applicationpkg.ApplicationDiffRequest, opts ...grpc.CallOption) (*applicationpkg.ApplicationDiffResponse, error) {
+func (c *fakeAppServiceClient) GetBatchApplicationDiff(_ context.Context, _ *applicationpkg.ApplicationDiffRequest, _ ...grpc.CallOption) (*applicationpkg.ApplicationDiffResponse, error) {
 	return nil, nil
 }
 

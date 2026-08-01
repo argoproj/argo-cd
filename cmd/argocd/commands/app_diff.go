@@ -642,10 +642,10 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		sourceNames               []string
 		ignoreNormalizerOpts      normalizers.IgnoreNormalizerOpts
 
-		all                       bool
-		projects                  []string
-		selector                  string
-		concurrency               int
+		all         bool
+		projects    []string
+		selector    string
+		concurrency int
 	)
 	shortDesc := "Perform a diff against the target and live state."
 	command := &cobra.Command{
@@ -679,10 +679,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					const chunkSize = 50
 					var chunks [][]string
 					for i := 0; i < len(args); i += chunkSize {
-						end := i + chunkSize
-						if end > len(args) {
-							end = len(args)
-						}
+						end := min(i+chunkSize, len(args))
 						chunks = append(chunks, args[i:end])
 					}
 
