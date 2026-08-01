@@ -1245,6 +1245,45 @@
         }
       }
     },
+    "/api/v1/applications/{name}/rename": {
+      "post": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "Rename renames an application without recreating its managed resources",
+        "operationId": "ApplicationService_Rename",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/applicationApplicationRenameRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationApplicationRenameResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications/{name}/resource": {
       "get": {
         "tags": [
@@ -2292,6 +2331,45 @@
             "description": "A successful response.",
             "schema": {
               "$ref": "#/definitions/eventsEventList"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/applicationsets/{name}/rename": {
+      "post": {
+        "tags": [
+          "ApplicationSetService"
+        ],
+        "summary": "Rename renames an application set without recreating its generated applications",
+        "operationId": "ApplicationSetService_Rename",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/applicationsetApplicationSetRenameRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationsetApplicationSetResponse"
             }
           },
           "default": {
@@ -5188,6 +5266,41 @@
         }
       }
     },
+    "applicationApplicationRenameRequest": {
+      "description": "ApplicationRenameRequest is a request to rename an application without\nrecreating its managed resources.",
+      "type": "object",
+      "properties": {
+        "appNamespace": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "newName": {
+          "type": "string"
+        },
+        "project": {
+          "type": "string"
+        }
+      }
+    },
+    "applicationApplicationRenameResponse": {
+      "description": "ApplicationRenameResponse is returned after a successful rename. It carries the\nrenamed application together with information about the resource (if any) that\nmanages it, so callers can guide the semi-automatic finalization without having\nto re-derive ownership client-side (which depends on the server's tracking method).",
+      "type": "object",
+      "properties": {
+        "application": {
+          "$ref": "#/definitions/v1alpha1Application"
+        },
+        "managingOwnerKind": {
+          "description": "managingOwnerKind is a human-readable kind for managingOwnerName, e.g.\n\"ApplicationSet\" or \"app-of-apps parent\". Empty if the app is unmanaged.",
+          "type": "string"
+        },
+        "managingOwnerName": {
+          "description": "managingOwnerName is the name of the resource that manages the application\n(an ApplicationSet or an app-of-apps parent), or empty if the app is unmanaged.",
+          "type": "string"
+        }
+      }
+    },
     "applicationApplicationResourceResponse": {
       "type": "object",
       "properties": {
@@ -5498,6 +5611,22 @@
           "items": {
             "$ref": "#/definitions/v1alpha1Application"
           }
+        }
+      }
+    },
+    "applicationsetApplicationSetRenameRequest": {
+      "description": "ApplicationSetRenameRequest is a request to rename an application set without\nrecreating its generated applications.",
+      "type": "object",
+      "properties": {
+        "appsetNamespace": {
+          "type": "string",
+          "title": "The application set namespace. Default empty is argocd control plane namespace"
+        },
+        "name": {
+          "type": "string"
+        },
+        "newName": {
+          "type": "string"
         }
       }
     },
