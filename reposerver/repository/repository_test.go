@@ -940,7 +940,7 @@ func TestGenerateManifest_RejectsChartOnRefSource(t *testing.T) {
 	}
 	response, err := service.GenerateManifest(t.Context(), request)
 	require.Error(t, err)
-	assert.ErrorContains(t, err, "'chart' field defined")
+	require.ErrorContains(t, err, "'chart' field defined")
 	assert.Nil(t, response)
 }
 
