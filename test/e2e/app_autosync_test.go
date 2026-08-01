@@ -145,7 +145,9 @@ func TestAutoSyncRetryAndRefreshEnabledChangedSource(t *testing.T) {
 		When(). // I create an app with auto-sync and Refresh
 		CreateFromFile(func(app *Application) {
 			app.Spec.SyncPolicy = &SyncPolicy{
-				Automated: &SyncPolicyAutomated{},
+				// Prune so a mid-retry path switch drops the old guestbook live objects;
+				// manual-sync retry tests inherit fixture prune via Sync(), auto-sync does not.
+				Automated: &SyncPolicyAutomated{Prune: new(true)},
 				Retry: &RetryStrategy{
 					Limit:   -1, // Repeat forever
 					Refresh: true,
