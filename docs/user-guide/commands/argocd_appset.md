@@ -84,5 +84,4 @@ argocd appset [flags]
 * [argocd appset generate](argocd_appset_generate.md)	 - Generate apps of ApplicationSet rendered templates
 * [argocd appset get](argocd_appset_get.md)	 - Get ApplicationSet details
 * [argocd appset list](argocd_appset_list.md)	 - List ApplicationSets
-* [argocd appset rename](argocd_appset_rename.md)	 - Rename an ApplicationSet without recreating its generated Applications
 

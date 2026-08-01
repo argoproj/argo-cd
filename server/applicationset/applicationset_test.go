@@ -1,7 +1,6 @@
 package applicationset
 
 import (
-	"errors"
 	"sort"
 	"testing"
 
@@ -18,7 +17,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
-	kubetesting "k8s.io/client-go/testing"
 	k8scache "k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -238,84 +236,6 @@ func newTestAppSet(opts ...func(appset *appsv1.ApplicationSet)) *appsv1.Applicat
 		opts[i](&appset)
 	}
 	return &appset
-}
-
-func TestValidateAppSetRename(t *testing.T) {
-	base := newTestAppSet(func(a *appsv1.ApplicationSet) { a.Name = "old" })
-	require.NoError(t, validateAppSetRename(base, "new"))
-	require.ErrorContains(t, validateAppSetRename(base, ""), "empty")
-	require.ErrorContains(t, validateAppSetRename(base, "old"), "different")
-	assert.ErrorContains(t, validateAppSetRename(base, "Bad_Name"), "valid")
-}
-
-func TestBuildRenamedAppSet(t *testing.T) {
-	old := newTestAppSet(func(a *appsv1.ApplicationSet) {
-		a.Name = "old"
-		a.Labels = map[string]string{"team": "x"}
-	})
-	got := buildRenamedAppSet(old, "new")
-	assert.Equal(t, "new", got.Name)
-	assert.Equal(t, old.Namespace, got.Namespace)
-	assert.Equal(t, old.Spec, got.Spec)
-	assert.Equal(t, map[string]string{"team": "x"}, got.Labels)
-	assert.Empty(t, got.ResourceVersion)
-	assert.Equal(t, appsv1.ApplicationSetStatus{}, got.Status)
-}
-
-func TestServer_RenameAppSet(t *testing.T) {
-	appsets := func(name string) *appsv1.ApplicationSet {
-		return newTestAppSet(func(a *appsv1.ApplicationSet) { a.Name = name })
-	}
-	getAS := func(s *Server, name string) error {
-		_, err := s.appclientset.ArgoprojV1alpha1().ApplicationSets(testNamespace).Get(t.Context(), name, metav1.GetOptions{})
-		return err
-	}
-
-	t.Run("renames: creates new, deletes old", func(t *testing.T) {
-		appServer := newTestAppSetServer(t, appsets("old-appset"))
-		_, err := appServer.Rename(t.Context(), &applicationset.ApplicationSetRenameRequest{
-			Name: "old-appset", NewName: "new-appset",
-		})
-		require.NoError(t, err)
-		require.Error(t, getAS(appServer, "old-appset"))
-		assert.NoError(t, getAS(appServer, "new-appset"))
-	})
-
-	t.Run("rejects when new name already exists", func(t *testing.T) {
-		appServer := newTestAppSetServer(t, appsets("old-appset"), appsets("taken"))
-		_, err := appServer.Rename(t.Context(), &applicationset.ApplicationSetRenameRequest{
-			Name: "old-appset", NewName: "taken",
-		})
-		assert.ErrorContains(t, err, "exists")
-	})
-
-	t.Run("rejects same name", func(t *testing.T) {
-		appServer := newTestAppSetServer(t, appsets("old-appset"))
-		_, err := appServer.Rename(t.Context(), &applicationset.ApplicationSetRenameRequest{
-			Name: "old-appset", NewName: "old-appset",
-		})
-		assert.ErrorContains(t, err, "different")
-	})
-
-	t.Run("create failure restores the original ApplicationSet", func(t *testing.T) {
-		appServer := newTestAppSetServer(t, appsets("old-appset"))
-		cs := appServer.appclientset.(*apps.Clientset)
-		// Fail only the create of the renamed ApplicationSet; let the rollback recreate succeed.
-		cs.PrependReactor("create", "applicationsets", func(action kubetesting.Action) (bool, runtime.Object, error) {
-			if obj, ok := action.(kubetesting.CreateAction).GetObject().(*appsv1.ApplicationSet); ok && obj.GetName() == "new-appset" {
-				return true, nil, errors.New("injected create failure")
-			}
-			return false, nil, nil
-		})
-
-		_, err := appServer.Rename(t.Context(), &applicationset.ApplicationSetRenameRequest{
-			Name: "old-appset", NewName: "new-appset",
-		})
-		require.Error(t, err)
-		require.ErrorContains(t, err, "was restored")
-		require.NoError(t, getAS(appServer, "old-appset"), "original ApplicationSet must be restored")
-		assert.Error(t, getAS(appServer, "new-appset"), "renamed ApplicationSet must not exist")
-	})
 }
 
 func testListAppsetsWithLabels(t *testing.T, appsetQuery applicationset.ApplicationSetListQuery, appServer *Server) {

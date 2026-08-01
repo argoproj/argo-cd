@@ -48,7 +48,6 @@ to indicate their stability and maturity. These are the statuses of non-stable f
 | ----------------------------- | ---------------------------- |--------|
 | [AppSet Progressive Syncs][2] | `spec.strategy.*`            | Beta   |
 | [AppSet Progressive Syncs][2] | `status.applicationStatus.*` | Beta   |
-| [Skip Application Reconcile][4] | `metadata.annotations[argocd.argoproj.io/skip-reconcile]` | Alpha  |
 
 ### Configuration
 

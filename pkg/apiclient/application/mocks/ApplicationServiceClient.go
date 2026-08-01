@@ -1603,7 +1603,7 @@ func (_c *ApplicationServiceClient_PodLogs_Call) RunAndReturn(run func(ctx conte
 }
 
 // Rename provides a mock function for the type ApplicationServiceClient
-func (_mock *ApplicationServiceClient) Rename(ctx context.Context, in *application.ApplicationRenameRequest, opts ...grpc.CallOption) (*application.ApplicationRenameResponse, error) {
+func (_mock *ApplicationServiceClient) Rename(ctx context.Context, in *application.ApplicationRenameRequest, opts ...grpc.CallOption) (*v1alpha1.Application, error) {
 	// grpc.CallOption
 	_va := make([]any, len(opts))
 	for _i := range opts {
@@ -1618,16 +1618,16 @@ func (_mock *ApplicationServiceClient) Rename(ctx context.Context, in *applicati
 		panic("no return value specified for Rename")
 	}
 
-	var r0 *application.ApplicationRenameResponse
+	var r0 *v1alpha1.Application
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *application.ApplicationRenameRequest, ...grpc.CallOption) (*application.ApplicationRenameResponse, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *application.ApplicationRenameRequest, ...grpc.CallOption) (*v1alpha1.Application, error)); ok {
 		return returnFunc(ctx, in, opts...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *application.ApplicationRenameRequest, ...grpc.CallOption) *application.ApplicationRenameResponse); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *application.ApplicationRenameRequest, ...grpc.CallOption) *v1alpha1.Application); ok {
 		r0 = returnFunc(ctx, in, opts...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*application.ApplicationRenameResponse)
+			r0 = ret.Get(0).(*v1alpha1.Application)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, *application.ApplicationRenameRequest, ...grpc.CallOption) error); ok {
@@ -1679,12 +1679,12 @@ func (_c *ApplicationServiceClient_Rename_Call) Run(run func(ctx context.Context
 	return _c
 }
 
-func (_c *ApplicationServiceClient_Rename_Call) Return(applicationRenameResponse *application.ApplicationRenameResponse, err error) *ApplicationServiceClient_Rename_Call {
-	_c.Call.Return(applicationRenameResponse, err)
+func (_c *ApplicationServiceClient_Rename_Call) Return(application1 *v1alpha1.Application, err error) *ApplicationServiceClient_Rename_Call {
+	_c.Call.Return(application1, err)
 	return _c
 }
 
-func (_c *ApplicationServiceClient_Rename_Call) RunAndReturn(run func(ctx context.Context, in *application.ApplicationRenameRequest, opts ...grpc.CallOption) (*application.ApplicationRenameResponse, error)) *ApplicationServiceClient_Rename_Call {
+func (_c *ApplicationServiceClient_Rename_Call) RunAndReturn(run func(ctx context.Context, in *application.ApplicationRenameRequest, opts ...grpc.CallOption) (*v1alpha1.Application, error)) *ApplicationServiceClient_Rename_Call {
 	_c.Call.Return(run)
 	return _c
 }

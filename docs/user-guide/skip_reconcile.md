@@ -49,33 +49,6 @@ spec:
 
 The `status` field is not present.
 
-## ApplicationSet
-
-The same `argocd.argoproj.io/skip-reconcile: "true"` annotation is honored by the
-ApplicationSet controller. When set on an ApplicationSet, the controller stops
-reconciling it: the generated Applications are not created, updated, or pruned, and the
-ApplicationSet `status` is not updated. Remove the annotation (or set it to `"false"`)
-to resume.
-
-```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: ApplicationSet
-metadata:
-  annotations:
-    argocd.argoproj.io/skip-reconcile: "true"
-  name: guestbook
-  namespace: argocd
-spec:
-  # ...
-```
-
-This is used internally by `argocd app rename` when renaming an Application that is
-managed by an ApplicationSet (or an app-of-apps parent): the managing owner is frozen
-with this annotation for the duration of the rename so it cannot recreate or prune the
-old-named child mid-swap. After updating the source of truth (the generator or the
-app-of-apps Git manifest) to the new name, remove the annotation to let the owner
-re-adopt the renamed child.
-
 ## Primary Use Case
 
 The skip reconcile option is intended to be used with third party projects that wishes 

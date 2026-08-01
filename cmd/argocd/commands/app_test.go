@@ -2444,7 +2444,7 @@ func (c *fakeAppServiceClient) Create(_ context.Context, _ *applicationpkg.Appli
 	return nil, nil
 }
 
-func (c *fakeAppServiceClient) Rename(_ context.Context, _ *applicationpkg.ApplicationRenameRequest, _ ...grpc.CallOption) (*applicationpkg.ApplicationRenameResponse, error) {
+func (c *fakeAppServiceClient) Rename(_ context.Context, _ *applicationpkg.ApplicationRenameRequest, _ ...grpc.CallOption) (*v1alpha1.Application, error) {
 	return nil, nil
 }
 

@@ -244,8 +244,7 @@ const (
 	// This only disables the default behavior of generating links based on the ingress spec, and does not disable AnnotationKeyLinkPrefix
 	AnnotationKeyIgnoreDefaultLinks = "argocd.argoproj.io/ignore-default-links"
 
-	// AnnotationKeyAppSkipReconcile tells the Application controller (for an Application) or the
-	// ApplicationSet controller (for an ApplicationSet) to skip reconciling that resource.
+	// AnnotationKeyAppSkipReconcile tells the Application to skip the Application controller reconcile.
 	// Skip reconcile when the value is "true" or any other string values that can be strconv.ParseBool() to be true.
 	AnnotationKeyAppSkipReconcile = "argocd.argoproj.io/skip-reconcile"
 

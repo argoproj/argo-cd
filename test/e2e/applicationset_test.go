@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 
@@ -2202,88 +2201,4 @@ func TestApplicationSetHealthStatusCLI(t *testing.T) {
 		Then().
 		Expect(Success("PROJECT  SYNCPOLICY  HEALTH   CONDITIONS")).
 		Expect(Success("default  nil         Healthy  "))
-}
-
-// TestApplicationSetManagedChildRename verifies that renaming an ApplicationSet-generated
-// child via `argocd app rename` freezes the ApplicationSet (skip-reconcile) and swaps the
-// child in place, so the ApplicationSet does not recreate or prune the old-named child while
-// the source of truth has not yet been updated. This is the C2 managed-child scenario that
-// fake-client unit tests cannot cover (no real orphan/cascade behavior).
-func TestApplicationSetManagedChildRename(t *testing.T) {
-	const (
-		childName    = "my-cluster-guestbook"
-		renamedChild = "my-cluster-guestbook-renamed"
-	)
-
-	childSpec := v1alpha1.ApplicationSpec{
-		Project: "default",
-		Source: &v1alpha1.ApplicationSource{
-			RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
-			TargetRevision: "HEAD",
-			Path:           "guestbook",
-		},
-		Destination: v1alpha1.ApplicationDestination{
-			Server:    "https://kubernetes.default.svc",
-			Namespace: "guestbook",
-		},
-		// Automated sync so the generated child converges to Synced on its own; rename requires
-		// a stable (Synced, idle) application.
-		SyncPolicy: &v1alpha1.SyncPolicy{Automated: &v1alpha1.SyncPolicyAutomated{}},
-	}
-	expectedChild := v1alpha1.Application{
-		TypeMeta:   metav1.TypeMeta{Kind: "Application", APIVersion: "argoproj.io/v1alpha1"},
-		ObjectMeta: metav1.ObjectMeta{Name: childName, Namespace: fixture.TestNamespace(), Finalizers: []string{v1alpha1.ResourcesFinalizerName}},
-		Spec:       childSpec,
-	}
-
-	Given(t).
-		When().
-		Create(v1alpha1.ApplicationSet{
-			Spec: v1alpha1.ApplicationSetSpec{
-				GoTemplate: true,
-				Template: v1alpha1.ApplicationSetTemplate{
-					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{.name}}"},
-					Spec:                       childSpec,
-				},
-				Generators: []v1alpha1.ApplicationSetGenerator{{
-					List: &v1alpha1.ListGenerator{
-						Elements: []apiextensionsv1.JSON{{Raw: fmt.Appendf(nil, `{"name": %q}`, childName)}},
-					},
-				}},
-			},
-		}).
-		Then().
-		Expect(ApplicationsExist([]v1alpha1.Application{expectedChild})).
-		When().
-		And(func() {
-			// Wait for the generated child to reach Synced before renaming it (rename requires
-			// a stable app).
-			require.EventuallyWithT(t, func(c *assert.CollectT) {
-				out, err := fixture.RunCli("app", "get", childName)
-				assert.NoError(c, err)
-				assert.Contains(c, out, "Synced")
-			}, 120*time.Second, 3*time.Second)
-
-			_, err := fixture.RunCli("app", "rename", childName, renamedChild)
-			require.NoError(t, err)
-		}).
-		Then().
-		// The old-named child is gone and the frozen ApplicationSet does not recreate it.
-		Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedChild})).
-		And(func() {
-			// The renamed child exists and stays Synced (re-tracked in place).
-			require.EventuallyWithT(t, func(c *assert.CollectT) {
-				out, err := fixture.RunCli("app", "get", renamedChild)
-				assert.NoError(c, err)
-				assert.Contains(c, out, "Synced")
-			}, 60*time.Second, 2*time.Second)
-
-			// The ApplicationSet (named after the test context by the fixture) was frozen via the
-			// skip-reconcile annotation for the swap. This test creates exactly one.
-			appSets, err := utils.GetE2EFixtureK8sClient(t).AppSetClientset.List(t.Context(), metav1.ListOptions{})
-			require.NoError(t, err)
-			require.Len(t, appSets.Items, 1)
-			assert.Equal(t, "true", appSets.Items[0].GetAnnotations()[common.AnnotationKeyAppSkipReconcile],
-				"ApplicationSet must be frozen (skip-reconcile) during managed-child rename")
-		})
 }

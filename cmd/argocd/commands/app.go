@@ -1292,21 +1292,13 @@ func NewApplicationRenameCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				}
 			}
 
-			resp, err := appIf.Rename(ctx, &application.ApplicationRenameRequest{
+			renamed, err := appIf.Rename(ctx, &application.ApplicationRenameRequest{
 				Name:         &appName,
 				NewName:      &newName,
 				AppNamespace: &appNs,
 			})
 			errors.CheckError(err)
-			fmt.Printf("application '%s' renamed to '%s'\n", appName, resp.GetApplication().Name)
-
-			// The server detects and reports the managing owner (app-of-apps parent or
-			// ApplicationSet) authoritatively, honoring its configured tracking method.
-			if ownerName := resp.GetManagingOwnerName(); ownerName != "" {
-				ownerKind := resp.GetManagingOwnerKind()
-				fmt.Printf("NOTE: '%s' is managed by %s '%s', which has been frozen (%s).\n", newName, ownerKind, ownerName, argocommon.AnnotationKeyAppSkipReconcile)
-				fmt.Printf("      Update the source to rename '%s' -> '%s', then remove the '%s' annotation from '%s'.\n", appName, newName, argocommon.AnnotationKeyAppSkipReconcile, ownerName)
-			}
+			fmt.Printf("application '%s' renamed to '%s'\n", appName, renamed.Name)
 		},
 	}
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Namespace of the application")

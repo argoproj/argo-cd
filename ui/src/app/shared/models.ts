@@ -174,14 +174,6 @@ export interface AbstractApplication {
     status?: any;
 }
 
-// ApplicationRenameResponse is returned by the rename API: the renamed application plus the
-// resource (if any) that manages it, so callers can guide the semi-automatic finalization.
-export interface ApplicationRenameResponse {
-    application?: Application;
-    managingOwnerName?: string;
-    managingOwnerKind?: string;
-}
-
 export interface Application extends AbstractApplication {
     spec: ApplicationSpec;
     status: ApplicationStatus;

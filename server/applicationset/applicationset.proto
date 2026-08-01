@@ -57,15 +57,6 @@ message ApplicationSetDeleteRequest {
 	string appsetNamespace = 2;
 }
 
-// ApplicationSetRenameRequest is a request to rename an application set without
-// recreating its generated applications.
-message ApplicationSetRenameRequest {
-	string name = 1;
-	string newName = 2;
-	// The application set namespace. Default empty is argocd control plane namespace
-	string appsetNamespace = 3;
-}
-
 message ApplicationSetTreeQuery {
 	string name = 1;
 	// The application set namespace. Default empty is argocd control plane namespace
@@ -114,14 +105,6 @@ service ApplicationSetService {
 	// Delete deletes an application set
 	rpc Delete(ApplicationSetDeleteRequest) returns (ApplicationSetResponse) {
 		option (google.api.http).delete = "/api/v1/applicationsets/{name}";
-	}
-
-	// Rename renames an application set without recreating its generated applications
-	rpc Rename(ApplicationSetRenameRequest) returns (ApplicationSetResponse) {
-		option (google.api.http) = {
-			post: "/api/v1/applicationsets/{name}/rename"
-			body: "*"
-		};
 	}
 
   // ResourceTree returns resource tree

@@ -2708,66 +2708,6 @@ func TestValidateGeneratedApplications(t *testing.T) {
 	}
 }
 
-func TestSkipReconcileApplicationSet(t *testing.T) {
-	mk := func(ann map[string]string) *v1alpha1.ApplicationSet {
-		return &v1alpha1.ApplicationSet{ObjectMeta: metav1.ObjectMeta{Annotations: ann}}
-	}
-	assert.False(t, skipReconcileApplicationSet(mk(nil)))
-	assert.False(t, skipReconcileApplicationSet(mk(map[string]string{argocommon.AnnotationKeyAppSkipReconcile: "false"})))
-	assert.False(t, skipReconcileApplicationSet(mk(map[string]string{argocommon.AnnotationKeyAppSkipReconcile: "not-a-bool"})))
-	assert.True(t, skipReconcileApplicationSet(mk(map[string]string{argocommon.AnnotationKeyAppSkipReconcile: "true"})))
-}
-
-func TestReconcileSkipsPausedApplicationSet(t *testing.T) {
-	scheme := runtime.NewScheme()
-	require.NoError(t, v1alpha1.AddToScheme(scheme))
-	require.NoError(t, corev1.AddToScheme(scheme))
-
-	appSet := v1alpha1.ApplicationSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        "paused",
-			Namespace:   "argocd",
-			Annotations: map[string]string{argocommon.AnnotationKeyAppSkipReconcile: "true"},
-		},
-		Spec: v1alpha1.ApplicationSetSpec{
-			Generators: []v1alpha1.ApplicationSetGenerator{
-				{List: &v1alpha1.ListGenerator{Elements: []apiextensionsv1.JSON{{Raw: []byte(`{"name": "foo"}`)}}}},
-			},
-			Template: v1alpha1.ApplicationSetTemplate{
-				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{.name}}", Namespace: "argocd"},
-				Spec: v1alpha1.ApplicationSpec{
-					Source:      &v1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argocd-example-apps", Path: "guestbook"},
-					Project:     "default",
-					Destination: v1alpha1.ApplicationDestination{Server: "https://kubernetes.default.svc"},
-				},
-			},
-		},
-	}
-
-	fakeClient := fake.NewClientBuilder().
-		WithScheme(scheme).
-		WithObjects(&appSet).
-		WithStatusSubresource(&appSet).
-		WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).
-		Build()
-
-	r := ApplicationSetReconciler{
-		Client:   fakeClient,
-		Scheme:   scheme,
-		Recorder: record.NewFakeRecorder(10),
-		Metrics:  appsetmetrics.NewFakeAppsetMetrics(),
-	}
-
-	res, err := r.Reconcile(t.Context(), ctrl.Request{NamespacedName: crtclient.ObjectKey{Namespace: "argocd", Name: "paused"}})
-	require.NoError(t, err)
-	assert.Equal(t, ctrl.Result{}, res)
-
-	// A paused ApplicationSet generates no Applications.
-	var apps v1alpha1.ApplicationList
-	require.NoError(t, fakeClient.List(t.Context(), &apps))
-	assert.Empty(t, apps.Items)
-}
-
 func TestReconcilerValidationProjectErrorBehaviour(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)

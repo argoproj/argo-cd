@@ -127,21 +127,6 @@ message ApplicationRenameRequest {
 	optional string project = 4;
 }
 
-// ApplicationRenameResponse is returned after a successful rename. It carries the
-// renamed application together with information about the resource (if any) that
-// manages it, so callers can guide the semi-automatic finalization without having
-// to re-derive ownership client-side (which depends on the server's tracking method).
-message ApplicationRenameResponse {
-	// application is the renamed application.
-	optional github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Application application = 1;
-	// managingOwnerName is the name of the resource that manages the application
-	// (an ApplicationSet or an app-of-apps parent), or empty if the app is unmanaged.
-	optional string managingOwnerName = 2;
-	// managingOwnerKind is a human-readable kind for managingOwnerName, e.g.
-	// "ApplicationSet" or "app-of-apps parent". Empty if the app is unmanaged.
-	optional string managingOwnerKind = 3;
-}
-
 message SyncOptions {
 	repeated string items = 1;
 }
@@ -468,7 +453,7 @@ service ApplicationService {
 	}
 
 	// Rename renames an application without recreating its managed resources
-	rpc Rename(ApplicationRenameRequest) returns (ApplicationRenameResponse) {
+	rpc Rename(ApplicationRenameRequest) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Application) {
 		option (google.api.http) = {
 			post: "/api/v1/applications/{name}/rename"
 			body: "*"

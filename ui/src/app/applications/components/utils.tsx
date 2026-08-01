@@ -214,8 +214,8 @@ export async function renameApplication(appName: string, appNamespace: string, p
             }),
             submit: async (vals, _, close) => {
                 try {
-                    const resp = await services.applications.rename(appName, appNamespace, project, vals.newName);
-                    renamedTo = resp.application?.metadata?.name || vals.newName;
+                    const renamed = await services.applications.rename(appName, appNamespace, project, vals.newName);
+                    renamedTo = renamed.metadata?.name || vals.newName;
                     close();
                 } catch (e) {
                     apis.notifications.show({
