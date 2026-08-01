@@ -2764,21 +2764,21 @@ func TestNewApplicationDiffCommand_BatchFormulation(t *testing.T) {
 	assert.NotNil(t, cmd)
 
 	err := cmd.ParseFlags([]string{"--all", "--project", "default", "--project", "test-proj", "--selector", "app=foo", "--concurrency", "20"})
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	allVal, err := cmd.Flags().GetBool("all")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.True(t, allVal)
 
 	projVal, err := cmd.Flags().GetStringSlice("project")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, []string{"default", "test-proj"}, projVal)
 
 	selectorVal, err := cmd.Flags().GetString("selector")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "app=foo", selectorVal)
 
 	concurrencyVal, err := cmd.Flags().GetInt("concurrency")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, 20, concurrencyVal)
 }
