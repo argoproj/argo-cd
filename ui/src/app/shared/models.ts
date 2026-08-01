@@ -1203,6 +1203,7 @@ export interface ApplicationDiffSummary {
     syncStatus: string;
     diffs: ResourceDiff[];
     appNamespace: string;
+    isLazy?: boolean;
 }
 
 export interface ApplicationDiffResponse {

@@ -617,6 +617,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                             appNames={selectedApps.size > 0 ? Array.from(selectedApps) : undefined}
                                                             projects={pref.projectsFilter}
                                                             selector={pref.labelsFilter?.join(',')}
+                                                            allApps={applications}
                                                         />
                                                     </div>
                                                     <DataLoader

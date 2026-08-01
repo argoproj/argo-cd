@@ -3,15 +3,27 @@ import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ComparisonStatusIcon} from '../utils';
 import {ApplicationResourcesDiff} from '../application-resources-diff/application-resources-diff';
+import {Spinner} from '../../../shared/components';
 
 export interface ApplicationDiffAccordionProps {
     appSummary: models.ApplicationDiffSummary;
+    isLazy?: boolean;
+    isLoadingLazy?: boolean;
+    onExpand?: () => void;
 }
 
 export const ApplicationDiffAccordion = (props: ApplicationDiffAccordionProps) => {
-    const {appSummary} = props;
+    const {appSummary, isLazy, isLoadingLazy, onExpand} = props;
     const [isOpen, setIsOpen] = React.useState(false);
     const [isSyncing, setIsSyncing] = React.useState(false);
+
+    const handleHeaderClick = () => {
+        const nextOpen = !isOpen;
+        setIsOpen(nextOpen);
+        if (nextOpen && isLazy && onExpand) {
+            onExpand();
+        }
+    };
 
     const handleSync = async (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -27,7 +39,7 @@ export const ApplicationDiffAccordion = (props: ApplicationDiffAccordionProps) =
 
     return (
         <div className={`application-diff-accordion ${isOpen ? 'application-diff-accordion--open' : ''}`}>
-            <div className='application-diff-accordion__header' onClick={() => setIsOpen(!isOpen)}>
+            <div className='application-diff-accordion__header' onClick={handleHeaderClick}>
                 <div className='application-diff-accordion__title'>
                     <i className={`fas ${isOpen ? 'fa-chevron-down' : 'fa-chevron-right'} application-diff-accordion__icon`} />
                     <span className='application-diff-accordion__name'>{appSummary.appName}</span>
@@ -45,7 +57,12 @@ export const ApplicationDiffAccordion = (props: ApplicationDiffAccordionProps) =
             </div>
             {isOpen && (
                 <div className='application-diff-accordion__content'>
-                    {appSummary.diffs.length > 0 ? (
+                    {isLoadingLazy ? (
+                        <div className='global-diff-loading'>
+                            <Spinner show={true} />
+                            <span>Loading detailed diff...</span>
+                        </div>
+                    ) : appSummary.diffs.length > 0 ? (
                         <ApplicationResourcesDiff states={appSummary.diffs} />
                     ) : (
                         <div className='application-diff-accordion__no-diff'>No manifest drift or out-of-sync resources found for this application.</div>
