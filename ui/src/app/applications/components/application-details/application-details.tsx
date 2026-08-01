@@ -116,6 +116,18 @@ export const ApplicationDetails: FC<RouteComponentProps<{appnamespace: string; n
         ...getExtensionsState()
     }));
 
+    // The instance label key is configurable server-side; load it so managed-app detection (used
+    // to gate the Rename action) does not misclassify apps under a non-default tracking config.
+    const [appLabelKey, setAppLabelKey] = useState('app.kubernetes.io/instance');
+    useEffect(() => {
+        services.authService
+            .settings()
+            .then(settings => setAppLabelKey(settings.appLabelKey || 'app.kubernetes.io/instance'))
+            .catch(() => {
+                // keep the default key if settings cannot be loaded
+            });
+    }, []);
+
     const getAppNamespace = useCallback(() => {
         if (typeof props.match.params.appnamespace === 'undefined') {
             return '';
@@ -1431,7 +1443,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                       },
                 {
                     iconClassName: 'fa fa-i-cursor',
-                    title: AppUtils.isManagedApplication(app) ? (
+                    title: AppUtils.isManagedApplication(app, appLabelKey) ? (
                         <span title='This application is managed by an ApplicationSet or app-of-apps parent. Rename it in the source (generator or Git manifest) and use `argocd app rename` for a zero-downtime migration.'>
                             <ActionMenuItem actionLabel='Rename' />
                         </span>
@@ -1439,7 +1451,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                         <ActionMenuItem actionLabel='Rename' />
                     ),
                     action: () => renameApplication(app.spec.project),
-                    disabled: !!app.metadata.deletionTimestamp || AppUtils.isManagedApplication(app)
+                    disabled: !!app.metadata.deletionTimestamp || AppUtils.isManagedApplication(app, appLabelKey)
                 },
                 {
                     iconClassName: classNames('fa fa-redo', {'status-icon--spin': !!refreshing}),
@@ -1461,7 +1473,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                 } as SplitButtonAction
             ];
         },
-        [selectNode, appContext, confirmDeletion, setOperationStatusVisible, setRollbackPanelVisible, deleteApplication, renameApplication, objectListKind, appChanged]
+        [selectNode, appContext, confirmDeletion, setOperationStatusVisible, setRollbackPanelVisible, deleteApplication, renameApplication, objectListKind, appChanged, appLabelKey]
     );
 
     const filterTreeNode = useCallback(

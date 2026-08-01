@@ -214,8 +214,8 @@ export async function renameApplication(appName: string, appNamespace: string, p
             }),
             submit: async (vals, _, close) => {
                 try {
-                    await services.applications.rename(appName, appNamespace, project, vals.newName);
-                    renamedTo = vals.newName;
+                    const resp = await services.applications.rename(appName, appNamespace, project, vals.newName);
+                    renamedTo = resp.application?.metadata?.name || vals.newName;
                     close();
                 } catch (e) {
                     apis.notifications.show({
@@ -1523,12 +1523,15 @@ export function getApplicationSetOwnerRef(application: appModels.Application) {
 // Such children must be renamed through their source of truth (the generator or the parent's
 // Git manifest); the imperative UI rename is disabled for them and offered only via the CLI,
 // which guides the required semi-automatic finalization.
-export function isManagedApplication(application: appModels.Application): boolean {
+// appLabelKey is the configured instance label key (from server settings); it defaults to the
+// standard key, but callers should pass the effective value since it is configurable.
+export function isManagedApplication(application: appModels.Application, appLabelKey = 'app.kubernetes.io/instance'): boolean {
     if (getApplicationSetOwnerRef(application)) {
         return true;
     }
-    // The tracking id / instance label encodes the managing application name; when it differs
-    // from this app's own name, the app is managed by an app-of-apps parent.
+    // The tracking-id annotation key is fixed regardless of the configured tracking method, so it
+    // is a reliable signal whenever annotation-based tracking is in use. The parent name encoded
+    // in it differs from the app's own name for a managed child.
     const trackingId = application.metadata.annotations?.['argocd.argoproj.io/tracking-id'];
     if (trackingId) {
         const parent = trackingId.split(':')[0];
@@ -1536,7 +1539,9 @@ export function isManagedApplication(application: appModels.Application): boolea
             return true;
         }
     }
-    const instanceLabel = application.metadata.labels?.['app.kubernetes.io/instance'];
+    // The instance label key is configurable; use the effective key so label-based tracking with a
+    // non-default key is not misclassified as unmanaged.
+    const instanceLabel = application.metadata.labels?.[appLabelKey];
     return !!instanceLabel && instanceLabel !== application.metadata.name;
 }
 
