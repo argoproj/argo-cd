@@ -432,7 +432,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
 
                                             const apps = applications as models.Application[];
                                             const {filteredApps, filterResults} = filterApplications(apps, pref, pref.search, pref.searchRegex);
-                                            const outOfSyncApps = filteredApps.filter(app => app.status.sync.status === models.SyncStatuses.OutOfSync);
+                                            const nonSyncedApps = filteredApps.filter(app => app.status.sync.status !== models.SyncStatuses.Synced);
 
                                             return (
                                                 <React.Fragment>
@@ -462,7 +462,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                         title: (
                                                                             <React.Fragment>
                                                                                 View Diffs
-                                                                                {outOfSyncApps.length > 0 && (
+                                                                                {nonSyncedApps.length > 0 && (
                                                                                     <span
                                                                                         className='badge badge--danger'
                                                                                         style={{
@@ -475,7 +475,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                                             fontWeight: 'bold',
                                                                                             verticalAlign: 'middle'
                                                                                         }}>
-                                                                                        {outOfSyncApps.length}
+                                                                                        {nonSyncedApps.length}
                                                                                     </span>
                                                                                 )}
                                                                             </React.Fragment>
@@ -597,7 +597,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                         <GlobalDiffModal
                                                             isShown={showGlobalDiff}
                                                             onClose={() => setShowGlobalDiff(false)}
-                                                            appNames={outOfSyncApps.map(app => app.metadata.name)}
+                                                            appNames={nonSyncedApps.map(app => app.metadata.name)}
                                                             projects={pref.projectsFilter}
                                                             selector={pref.labelsFilter?.join(',')}
                                                             allApps={applications}
