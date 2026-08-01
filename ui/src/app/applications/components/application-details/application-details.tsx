@@ -752,7 +752,6 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                     appContext: {...appContext, apis: appContext} as unknown as AppContext,
                                     nameDirection: state.truncateNameOnRight,
                                     nameWrap: state.showFullNodeName,
-                                    filters: pref.resourceFilter,
                                     updateUsrHelpTipMsgs: updateHelpTipState,
                                     setShowCompactNodes,
                                     setNodeExpansion: (node: string, isExpanded: boolean) => setNodeExpansion(node, isExpanded),
