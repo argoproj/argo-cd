@@ -332,20 +332,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
     const loaderRef = React.useRef<DataLoader | null>(null);
     const {List, Summary, Tiles} = AppsListViewKey;
 
-    const [selectedApps, setSelectedApps] = React.useState<Set<string>>(new Set());
     const [showGlobalDiff, setShowGlobalDiff] = React.useState(false);
-
-    const toggleAppSelection = (appName: string) => {
-        setSelectedApps(prev => {
-            const next = new Set(prev);
-            if (next.has(appName)) {
-                next.delete(appName);
-            } else {
-                next.add(appName);
-            }
-            return next;
-        });
-    };
 
     function refreshApp(appName: string, appNamespace: string) {
         // app refreshing might be done too quickly so that UI might miss it due to event batching
@@ -445,7 +432,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
 
                                             const apps = applications as models.Application[];
                                             const {filteredApps, filterResults} = filterApplications(apps, pref, pref.search, pref.searchRegex);
-                                            const outOfSyncCount = filteredApps.filter(app => app.status.sync.status === models.SyncStatuses.OutOfSync).length;
+                                            const outOfSyncApps = filteredApps.filter(app => app.status.sync.status === models.SyncStatuses.OutOfSync);
 
                                             return (
                                                 <React.Fragment>
@@ -475,7 +462,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                         title: (
                                                                             <React.Fragment>
                                                                                 View Diffs
-                                                                                {outOfSyncCount > 0 && (
+                                                                                {outOfSyncApps.length > 0 && (
                                                                                     <span
                                                                                         className='badge badge--danger'
                                                                                         style={{
@@ -488,12 +475,12 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                                             fontWeight: 'bold',
                                                                                             verticalAlign: 'middle'
                                                                                         }}>
-                                                                                        {outOfSyncCount}
+                                                                                        {outOfSyncApps.length}
                                                                                     </span>
                                                                                 )}
                                                                             </React.Fragment>
                                                                         ) as any,
-                                                                        iconClassName: 'fa fa-images',
+                                                                        iconClassName: 'fa fa-file-medical',
                                                                         action: () => setShowGlobalDiff(true)
                                                                     }
                                                                 ]
@@ -577,8 +564,6 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                                     deleteApplication={(appName, appNamespace) =>
                                                                                         AppUtils.deleteApplication(appName, appNamespace, ctx)
                                                                                     }
-                                                                                    selectedApps={selectedApps}
-                                                                                    toggleAppSelection={toggleAppSelection}
                                                                                 />
                                                                             )) || (
                                                                                 <ApplicationsTable
@@ -590,8 +575,6 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                                     deleteApplication={(appName, appNamespace) =>
                                                                                         AppUtils.deleteApplication(appName, appNamespace, ctx)
                                                                                     }
-                                                                                    selectedApps={selectedApps}
-                                                                                    toggleAppSelection={toggleAppSelection}
                                                                                 />
                                                                             )
                                                                         }
@@ -614,7 +597,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                         <GlobalDiffModal
                                                             isShown={showGlobalDiff}
                                                             onClose={() => setShowGlobalDiff(false)}
-                                                            appNames={selectedApps.size > 0 ? Array.from(selectedApps) : undefined}
+                                                            appNames={outOfSyncApps.map(app => app.metadata.name)}
                                                             projects={pref.projectsFilter}
                                                             selector={pref.labelsFilter?.join(',')}
                                                             allApps={applications}

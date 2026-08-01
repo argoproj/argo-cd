@@ -16,8 +16,6 @@ export interface ApplicationTilesProps {
     syncApplication: (appName: string, appNamespace: string) => any;
     refreshApplication: (appName: string, appNamespace: string) => any;
     deleteApplication: (appName: string, appNamespace: string) => any;
-    selectedApps?: Set<string>;
-    toggleAppSelection?: (appName: string) => void;
 }
 
 const useItemsPerContainer = (itemRef: any, containerRef: any): number => {
@@ -47,7 +45,7 @@ const useItemsPerContainer = (itemRef: any, containerRef: any): number => {
     return itemsPer || 1;
 };
 
-export const ApplicationTiles = ({applications, syncApplication, refreshApplication, deleteApplication, selectedApps, toggleAppSelection}: ApplicationTilesProps) => {
+export const ApplicationTiles = ({applications, syncApplication, refreshApplication, deleteApplication}: ApplicationTilesProps) => {
     const [selectedApp, navApp, reset] = useNav(applications.length);
 
     const ctxh = React.useContext(Context);
@@ -117,8 +115,6 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
                                         syncApplication={syncApplication}
                                         refreshApplication={refreshApplication}
                                         deleteApplication={deleteApplication}
-                                        isSelected={selectedApps?.has(app.metadata.name)}
-                                        onToggleSelect={toggleAppSelection}
                                     />
                                 ) : (
                                     <AppSetTile

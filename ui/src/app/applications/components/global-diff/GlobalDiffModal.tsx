@@ -204,35 +204,18 @@ export const GlobalDiffModal = (props: GlobalDiffModalProps) => {
             return app.appName.toLowerCase().includes(query) || app.diffs.length > 0;
         });
 
-    const totalOutOfSyncApps = targetApps.filter(app => app.status.sync.status === 'OutOfSync').length;
-
     return (
         <SlidingPanel
             isShown={isShown}
             onClose={onClose}
             header={
-                <div className='global-diff-header'>
-                    <div className='global-diff-header__stats'>
-                        <span className='global-diff-header__stat-item'>
-                            <strong>{totalOutOfSyncApps}</strong> Out-of-sync App{totalOutOfSyncApps !== 1 ? 's' : ''}
-                        </span>
-                        {totalPages > 1 && (
-                            <span className='global-diff-header__stat-item'>
-                                (Showing page <strong>{currentPage}</strong> of {totalPages})
-                            </span>
-                        )}
-                    </div>
-                    <div className='global-diff-header__actions'>
-                        <button className='argo-button argo-button--base' disabled={syncingAll || loading} onClick={handleSyncAllSelected}>
-                            {syncingAll ? 'Syncing...' : 'Sync All Selected'}
-                        </button>
-                        <button className='argo-button argo-button--base-o' disabled={loading} onClick={handleRefresh}>
-                            {loading && refreshStrategy === 'normal' ? 'Refreshing...' : 'Refresh'}
-                        </button>
-                        <button className='argo-button argo-button--base-o' onClick={onClose}>
-                            Close
-                        </button>
-                    </div>
+                <div>
+                    <button className='argo-button argo-button--base' disabled={syncingAll || loading} onClick={handleSyncAllSelected}>
+                        {syncingAll ? 'Syncing...' : 'Sync All Selected'}
+                    </button>{' '}
+                    <button className='argo-button argo-button--base-o' disabled={loading} onClick={handleRefresh}>
+                        {loading && refreshStrategy === 'normal' ? 'Refreshing...' : 'Refresh'}
+                    </button>
                 </div>
             }>
             <div className='global-diff-container'>
