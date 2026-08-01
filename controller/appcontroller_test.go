@@ -1998,6 +1998,11 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 				assert.True(t, needRefresh)
 				assert.Equal(t, v1alpha1.RefreshTypeNormal, refreshType)
 				assert.Equal(t, CompareWithLatest, compareWith)
+
+				now := metav1.NewTime(time.Now().UTC())
+				app.Status.ReconciledAt = &now
+				needRefresh, _, _ = ctrl.needRefreshAppStatus(app, 1*time.Minute, 2*time.Hour)
+				assert.False(t, needRefresh)
 			})
 
 			t.Run("refresh app using the 'latest' level if comparison expired for hard refresh", func(t *testing.T) {
