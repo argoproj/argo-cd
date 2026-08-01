@@ -1513,6 +1513,28 @@ export function getApplicationSetOwnerRef(application: appModels.Application) {
     return application.metadata.ownerReferences?.find(ref => ref.kind === 'ApplicationSet');
 }
 
+// isManagedApplication reports whether the application is a child managed by another resource:
+// an ApplicationSet (via ownerReference) or an app-of-apps parent (via resource tracking).
+// Such children must be renamed through their source of truth (the generator or the parent's
+// Git manifest); the imperative UI rename is disabled for them and offered only via the CLI,
+// which guides the required semi-automatic finalization.
+export function isManagedApplication(application: appModels.Application): boolean {
+    if (getApplicationSetOwnerRef(application)) {
+        return true;
+    }
+    // The tracking id / instance label encodes the managing application name; when it differs
+    // from this app's own name, the app is managed by an app-of-apps parent.
+    const trackingId = application.metadata.annotations?.['argocd.argoproj.io/tracking-id'];
+    if (trackingId) {
+        const parent = trackingId.split(':')[0];
+        if (parent && parent !== application.metadata.name) {
+            return true;
+        }
+    }
+    const instanceLabel = application.metadata.labels?.['app.kubernetes.io/instance'];
+    return !!instanceLabel && instanceLabel !== application.metadata.name;
+}
+
 export function getAppOverridesCount(app: appModels.AbstractApplication) {
     // ApplicationSets don't have overrides
     if (!isApp(app)) {

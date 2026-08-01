@@ -1435,9 +1435,15 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                       },
                 {
                     iconClassName: 'fa fa-i-cursor',
-                    title: <ActionMenuItem actionLabel='Rename' />,
+                    title: AppUtils.isManagedApplication(app) ? (
+                        <Tooltip content='This application is managed by an ApplicationSet or app-of-apps parent. Rename it in the source (generator or Git manifest) and use `argocd app rename` for a zero-downtime migration.'>
+                            <ActionMenuItem actionLabel='Rename' />
+                        </Tooltip>
+                    ) : (
+                        <ActionMenuItem actionLabel='Rename' />
+                    ),
                     action: () => renameApplication(app.spec.project),
-                    disabled: !!app.metadata.deletionTimestamp
+                    disabled: !!app.metadata.deletionTimestamp || AppUtils.isManagedApplication(app)
                 },
                 {
                     iconClassName: classNames('fa fa-redo', {'status-icon--spin': !!refreshing}),
