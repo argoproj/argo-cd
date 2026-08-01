@@ -1,0 +1,148 @@
+@import 'node_modules/argo-ui/src/styles/config';
+@import 'node_modules/argo-ui/src/styles/theme';
+
+.global-diff-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 0 1rem;
+
+    &__stats {
+        display: flex;
+        gap: 1.5rem;
+    }
+
+    &__stat-item {
+        font-size: 14px;
+        color: $argo-color-gray-8;
+        @include themify($themes) {
+            color: themed('text-2');
+        }
+    }
+
+    &__actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+}
+
+.global-diff-container {
+    padding: 1.5rem;
+}
+
+.global-diff-search {
+    position: relative;
+    margin-bottom: 1.5rem;
+
+    &__icon {
+        position: absolute;
+        left: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: $argo-color-gray-6;
+    }
+
+    input {
+        width: 100%;
+        padding-left: 35px !important;
+        font-size: 14px;
+    }
+}
+
+.global-diff-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem 0;
+    gap: 1rem;
+    color: $argo-color-gray-6;
+}
+
+.global-diff-empty {
+    text-align: center;
+    padding: 4rem 0;
+    color: $argo-color-gray-6;
+    font-size: 15px;
+}
+
+.application-diff-accordion {
+    border: 1px solid $argo-color-gray-3;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+    background-color: #fff;
+    @include themify($themes) {
+        border-color: themed('border');
+        background-color: themed('bg-1');
+    }
+
+    &__header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 1rem;
+        cursor: pointer;
+        user-select: none;
+        background-color: $argo-color-gray-1;
+        @include themify($themes) {
+            background-color: themed('bg-2');
+        }
+
+        &:hover {
+            background-color: $argo-color-gray-2;
+            @include themify($themes) {
+                background-color: themed('bg-3');
+            }
+        }
+    }
+
+    &__title {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        font-size: 15px;
+        font-weight: 500;
+    }
+
+    &__icon {
+        color: $argo-color-gray-6;
+        width: 16px;
+    }
+
+    &__name {
+        font-weight: bold;
+    }
+
+    &__project {
+        font-size: 12px;
+        color: $argo-color-gray-6;
+    }
+
+    &__badges {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    &__diff-count {
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: bold;
+    }
+
+    &__content {
+        padding: 1rem;
+        border-top: 1px solid $argo-color-gray-3;
+        @include themify($themes) {
+            border-top-color: themed('border');
+        }
+    }
+
+    &__no-diff {
+        color: $argo-color-gray-6;
+        padding: 1rem;
+        text-align: center;
+    }
+}

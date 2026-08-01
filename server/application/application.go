@@ -3346,12 +3346,14 @@ func (s *Server) fetchAppDiffSummary(ctx context.Context, app *v1alpha1.Applicat
 	appName := refreshedApp.Name
 	project := refreshedApp.Spec.GetProject()
 	syncStatus := string(refreshedApp.Status.Sync.Status)
+	appNamespace := refreshedApp.Namespace
 
 	return &application.ApplicationDiffSummary{
-		AppName:    &appName,
-		Project:    &project,
-		SyncStatus: &syncStatus,
-		Diffs:      diffs,
+		AppName:      &appName,
+		Project:      &project,
+		SyncStatus:   &syncStatus,
+		Diffs:        diffs,
+		AppNamespace: &appNamespace,
 	}, nil
 }
 

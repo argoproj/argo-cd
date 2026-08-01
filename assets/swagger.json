@@ -5209,6 +5209,9 @@
         "appName": {
           "type": "string"
         },
+        "appNamespace": {
+          "type": "string"
+        },
         "diffs": {
           "type": "array",
           "items": {
