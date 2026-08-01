@@ -87,7 +87,6 @@ export interface ApplicationResourceTreeProps {
     setShowCompactNodes: (showCompactNodes: boolean) => void;
     zoom: number;
     podGroupCount: number;
-    filters?: string[];
     nameDirection: boolean;
     nameWrap: boolean;
     setNodeExpansion: (node: string, isExpanded: boolean) => any;
