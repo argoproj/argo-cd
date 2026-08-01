@@ -645,3 +645,43 @@ func TestKnownTypesInCRDDiffing(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
+
+func TestMultiAppDiff(t *testing.T) {
+	ctx1 := Given(t)
+	ctx1.Path("guestbook").
+		Name("multi-app-diff1").
+		When().
+		CreateApp()
+
+	ctx2 := Given(t)
+	ctx2.Path("guestbook").
+		Name("multi-app-diff2").
+		When().
+		CreateApp()
+
+	// Both applications are OutOfSync by default upon creation.
+	// 1. Run diff targeting both applications explicitly.
+	diffOutput, err := fixture.RunCli("app", "diff", "multi-app-diff1", "multi-app-diff2", "--exit-code=false")
+	require.NoError(t, err)
+	assert.Contains(t, diffOutput, "=== Application: multi-app-diff1")
+	assert.Contains(t, diffOutput, "=== Application: multi-app-diff2")
+
+	// 2. Run diff with --all flag.
+	diffAllOutput, err := fixture.RunCli("app", "diff", "--all", "--exit-code=false")
+	require.NoError(t, err)
+	assert.Contains(t, diffAllOutput, "=== Application: multi-app-diff1")
+	assert.Contains(t, diffAllOutput, "=== Application: multi-app-diff2")
+
+	// 3. Test exit code 1 when diffs exist.
+	_, err = fixture.RunCli("app", "diff", "multi-app-diff1", "multi-app-diff2", "--exit-code=true")
+	require.Error(t, err)
+
+	// 4. Sync both apps to remove the diffs.
+	ctx1.When().Sync()
+	ctx2.When().Sync()
+
+	// 5. Run diff again. Diffs should be empty, and exit code should be 0.
+	diffOutputSynced, err := fixture.RunCli("app", "diff", "multi-app-diff1", "multi-app-diff2", "--exit-code=true")
+	require.NoError(t, err)
+	assert.NotContains(t, diffOutputSynced, "=== Application:")
+}
