@@ -672,6 +672,39 @@ func (m *nativeGitClient) cleanupOrphanedTempPackfiles() {
 	}
 }
 
+// cleanupOrphanedShallowLock removes a leftover .git/shallow.lock file left
+// behind by a shallow (--depth) fetch that was killed (for example by the
+// exec timeout) before it could finalize the update to .git/shallow. Git
+// refuses to create a new shallow.lock while one already exists, so without
+// this cleanup every subsequent fetch into the same cache directory fails
+// with "Unable to create '.../shallow.lock': File exists" until someone
+// removes it by hand. This is best-effort: failures are logged, not
+// returned.
+//
+// As with cleanupOrphanedTempPackfiles, only a lock file older than the
+// grace window is removed, so a lock held by a genuinely concurrent fetch
+// (in-process or from another repo-server replica sharing an RWX cache
+// volume) is never touched.
+func (m *nativeGitClient) cleanupOrphanedShallowLock() {
+	path := filepath.Join(m.root, ".git", "shallow.lock")
+	info, err := os.Stat(path)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			log.Warnf("git cleanup: cannot stat %s: %v", path, err)
+		}
+		return
+	}
+	if time.Since(info.ModTime()) < gitCleanupGracePeriod {
+		// Still within the grace window: a concurrent fetch may hold it.
+		return
+	}
+	if rerr := os.Remove(path); rerr != nil {
+		log.Warnf("git cleanup: failed to remove orphaned shallow lock %s: %v", path, rerr)
+		return
+	}
+	log.Infof("git cleanup: removed orphaned shallow lock for %s", m.repoURL)
+}
+
 // Fetch fetches latest updates from origin
 func (m *nativeGitClient) Fetch(ctx context.Context, revision string, depth int64) error {
 	if m.OnFetch != nil {
@@ -682,6 +715,9 @@ func (m *nativeGitClient) Fetch(ctx context.Context, revision string, depth int6
 	err := m.fetch(ctx, revision, depth)
 	if err != nil {
 		m.cleanupOrphanedTempPackfiles()
+		if depth > 0 {
+			m.cleanupOrphanedShallowLock()
+		}
 		return err
 	}
 
