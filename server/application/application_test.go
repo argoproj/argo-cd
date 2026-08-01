@@ -563,6 +563,415 @@ func newTestApp(opts ...func(app *v1alpha1.Application)) *v1alpha1.Application {
 	return createTestApp(fakeApp, opts...)
 }
 
+func TestValidateRenamePreconditions(t *testing.T) {
+	synced := func(app *v1alpha1.Application) {
+		app.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
+	}
+	t.Run("ok when synced and idle", func(t *testing.T) {
+		app := newTestApp(synced)
+		require.NoError(t, validateRenamePreconditions(app, "new-name"))
+	})
+	t.Run("rejects empty new name", func(t *testing.T) {
+		app := newTestApp(synced)
+		assert.ErrorContains(t, validateRenamePreconditions(app, ""), "empty")
+	})
+	t.Run("rejects same name", func(t *testing.T) {
+		app := newTestApp(synced)
+		assert.ErrorContains(t, validateRenamePreconditions(app, app.Name), "different")
+	})
+	t.Run("rejects invalid dns name", func(t *testing.T) {
+		app := newTestApp(synced)
+		assert.ErrorContains(t, validateRenamePreconditions(app, "Bad_Name"), "valid")
+	})
+	t.Run("rejects out of sync", func(t *testing.T) {
+		app := newTestApp(func(a *v1alpha1.Application) {
+			a.Status.Sync.Status = v1alpha1.SyncStatusCodeOutOfSync
+		})
+		assert.ErrorContains(t, validateRenamePreconditions(app, "new-name"), "Synced")
+	})
+	t.Run("rejects running operation", func(t *testing.T) {
+		app := newTestApp(synced)
+		app.Status.OperationState = &v1alpha1.OperationState{Phase: synccommon.OperationRunning}
+		assert.ErrorContains(t, validateRenamePreconditions(app, "new-name"), "operation")
+	})
+	t.Run("rejects app being deleted", func(t *testing.T) {
+		app := newTestApp(synced)
+		now := metav1.Now()
+		app.DeletionTimestamp = &now
+		assert.ErrorContains(t, validateRenamePreconditions(app, "new-name"), "being deleted")
+	})
+}
+
+func TestBuildRenamedApp(t *testing.T) {
+	old := newTestApp(func(a *v1alpha1.Application) {
+		a.Name = "old-name"
+		a.Labels = map[string]string{"team": "x"}
+		a.Finalizers = []string{v1alpha1.ResourcesFinalizerName}
+		a.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
+		a.Operation = &v1alpha1.Operation{}
+	})
+	got := buildRenamedApp(old, "new-name")
+
+	assert.Equal(t, "new-name", got.Name)
+	assert.Equal(t, old.Namespace, got.Namespace)
+	assert.Equal(t, old.Spec, got.Spec)
+	assert.Equal(t, map[string]string{"team": "x"}, got.Labels)
+	assert.Equal(t, []string{v1alpha1.ResourcesFinalizerName}, got.Finalizers)
+	assert.Empty(t, got.ResourceVersion)
+	assert.Nil(t, got.Operation)
+	assert.Equal(t, v1alpha1.ApplicationStatus{}, got.Status)
+}
+
+func TestBuildRenameTrackingPatch(t *testing.T) {
+	const labelKey = "app.kubernetes.io/instance"
+	liveState := `{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"name":"guestbook-ui","namespace":"guestbook",` +
+		`"annotations":{"argocd.argoproj.io/tracking-id":"old-app:apps/Deployment:guestbook/guestbook-ui"},` +
+		`"labels":{"app.kubernetes.io/instance":"old-app"}}}`
+	res := func() *v1alpha1.ResourceDiff {
+		return &v1alpha1.ResourceDiff{Group: "apps", Kind: "Deployment", Namespace: "guestbook", Name: "guestbook-ui", LiveState: liveState}
+	}
+	trackingID := func(patch []byte) string {
+		var p map[string]any
+		require.NoError(t, json.Unmarshal(patch, &p))
+		anns, _ := p["metadata"].(map[string]any)["annotations"].(map[string]any)
+		v, _ := anns["argocd.argoproj.io/tracking-id"].(string)
+		return v
+	}
+	instanceLabel := func(patch []byte) string {
+		var p map[string]any
+		require.NoError(t, json.Unmarshal(patch, &p))
+		labels, _ := p["metadata"].(map[string]any)["labels"].(map[string]any)
+		v, _ := labels[labelKey].(string)
+		return v
+	}
+
+	// The tracking-id must be single-encoded, NOT doubled (regression: passing a pre-built
+	// value to SetAppInstance produced "new-app:apps/Deployment:ns/name:apps/...").
+	t.Run("annotation method", func(t *testing.T) {
+		patch, gvk, err := buildRenameTrackingPatch("new-app", res(), string(v1alpha1.TrackingMethodAnnotation), labelKey, "")
+		require.NoError(t, err)
+		assert.Equal(t, "apps", gvk.Group)
+		assert.Equal(t, "Deployment", gvk.Kind)
+		assert.Equal(t, "new-app:apps/Deployment:guestbook/guestbook-ui", trackingID(patch))
+	})
+	t.Run("label method", func(t *testing.T) {
+		patch, _, err := buildRenameTrackingPatch("new-app", res(), string(v1alpha1.TrackingMethodLabel), labelKey, "")
+		require.NoError(t, err)
+		assert.Equal(t, "new-app", instanceLabel(patch))
+	})
+	t.Run("annotation+label method", func(t *testing.T) {
+		patch, _, err := buildRenameTrackingPatch("new-app", res(), string(v1alpha1.TrackingMethodAnnotationAndLabel), labelKey, "")
+		require.NoError(t, err)
+		assert.Equal(t, "new-app:apps/Deployment:guestbook/guestbook-ui", trackingID(patch))
+		assert.Equal(t, "new-app", instanceLabel(patch))
+	})
+}
+
+func TestServer_Rename(t *testing.T) {
+	syncedApp := func(name string) *v1alpha1.Application {
+		return newTestApp(func(a *v1alpha1.Application) {
+			a.Name = name
+			a.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
+		})
+	}
+
+	t.Run("renames a synced app: creates new, deletes old", func(t *testing.T) {
+		appServer := newTestAppServer(t, syncedApp("old-app"))
+		ctx := t.Context()
+
+		renamed, err := appServer.Rename(ctx, &application.ApplicationRenameRequest{
+			Name:    new("old-app"),
+			NewName: new("new-app"),
+		})
+		require.NoError(t, err)
+		assert.Equal(t, "new-app", renamed.GetApplication().Name)
+		assert.Empty(t, renamed.GetManagingOwnerName(), "unmanaged app has no owner")
+		assert.Empty(t, renamed.GetManagingOwnerKind())
+
+		_, err = appServer.Get(ctx, &application.ApplicationQuery{Name: new("old-app")})
+		assert.Error(t, err)
+		got, err := appServer.Get(ctx, &application.ApplicationQuery{Name: new("new-app")})
+		require.NoError(t, err)
+		assert.Equal(t, "new-app", got.Name)
+	})
+
+	t.Run("rejects out-of-sync app without changing anything", func(t *testing.T) {
+		appServer := newTestAppServer(t, newTestApp(func(a *v1alpha1.Application) {
+			a.Name = "old-app"
+			a.Status.Sync.Status = v1alpha1.SyncStatusCodeOutOfSync
+		}))
+		ctx := t.Context()
+
+		_, err := appServer.Rename(ctx, &application.ApplicationRenameRequest{
+			Name: new("old-app"), NewName: new("new-app"),
+		})
+		assert.ErrorContains(t, err, "Synced")
+		_, err = appServer.Get(ctx, &application.ApplicationQuery{Name: new("old-app")})
+		assert.NoError(t, err)
+	})
+
+	t.Run("rejects when new name already exists", func(t *testing.T) {
+		appServer := newTestAppServer(t, syncedApp("old-app"), syncedApp("taken"))
+		ctx := t.Context()
+		_, err := appServer.Rename(ctx, &application.ApplicationRenameRequest{
+			Name: new("old-app"), NewName: new("taken"),
+		})
+		assert.ErrorContains(t, err, "exists")
+	})
+
+	t.Run("managed child: freezes parent and re-tracks under new name", func(t *testing.T) {
+		parent := syncedApp("parent-app")
+		child := newTestApp(func(a *v1alpha1.Application) {
+			a.Name = "child-foo"
+			a.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
+			a.Annotations = map[string]string{
+				common.AnnotationKeyAppInstance: "parent-app:argoproj.io/Application:default/child-foo",
+			}
+		})
+		appServer := newTestAppServer(t, parent, child)
+		ctx := t.Context()
+
+		renamed, err := appServer.Rename(ctx, &application.ApplicationRenameRequest{
+			Name: new("child-foo"), NewName: new("child-bar"),
+		})
+		require.NoError(t, err)
+
+		// parent frozen via skip-reconcile
+		gotParent, err := appServer.appclientset.ArgoprojV1alpha1().Applications(testNamespace).Get(ctx, "parent-app", metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.Equal(t, "true", gotParent.Annotations[common.AnnotationKeyAppSkipReconcile])
+
+		// new child re-tracked (self-referencing) under the parent
+		assert.Equal(t, "parent-app:argoproj.io/Application:default/child-bar", renamed.GetApplication().Annotations[common.AnnotationKeyAppInstance])
+
+		// server reports the managing owner authoritatively
+		assert.Equal(t, "parent-app", renamed.GetManagingOwnerName())
+		assert.Equal(t, "app-of-apps parent", renamed.GetManagingOwnerKind())
+
+		// old child gone
+		_, err = appServer.appclientset.ArgoprojV1alpha1().Applications(testNamespace).Get(ctx, "child-foo", metav1.GetOptions{})
+		assert.Error(t, err)
+	})
+
+	t.Run("appset-managed child: freezes the ApplicationSet", func(t *testing.T) {
+		appset := &v1alpha1.ApplicationSet{
+			ObjectMeta: metav1.ObjectMeta{Name: "my-appset", Namespace: testNamespace},
+			Spec: v1alpha1.ApplicationSetSpec{
+				Template: v1alpha1.ApplicationSetTemplate{Spec: v1alpha1.ApplicationSpec{Project: "default"}},
+			},
+		}
+		child := newTestApp(func(a *v1alpha1.Application) {
+			a.Name = "appset-child"
+			a.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
+			a.OwnerReferences = []metav1.OwnerReference{{
+				APIVersion: "argoproj.io/v1alpha1", Kind: "ApplicationSet", Name: "my-appset", UID: "uid-1",
+			}}
+		})
+		appServer := newTestAppServer(t, appset, child)
+		ctx := t.Context()
+
+		renamed, err := appServer.Rename(ctx, &application.ApplicationRenameRequest{
+			Name: new("appset-child"), NewName: new("appset-child-new"),
+		})
+		require.NoError(t, err)
+
+		// ApplicationSet frozen via skip-reconcile
+		gotAS, err := appServer.appclientset.ArgoprojV1alpha1().ApplicationSets(testNamespace).Get(ctx, "my-appset", metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.Equal(t, "true", gotAS.Annotations[common.AnnotationKeyAppSkipReconcile])
+
+		// new child created without an ownerReference (controller re-adopts on unfreeze)
+		assert.Empty(t, renamed.GetApplication().OwnerReferences)
+
+		// server reports the ApplicationSet as the managing owner
+		assert.Equal(t, "my-appset", renamed.GetManagingOwnerName())
+		assert.Equal(t, "ApplicationSet", renamed.GetManagingOwnerKind())
+
+		// old child gone
+		_, err = appServer.appclientset.ArgoprojV1alpha1().Applications(testNamespace).Get(ctx, "appset-child", metav1.GetOptions{})
+		assert.Error(t, err)
+	})
+}
+
+func TestServer_Rename_failureRestoresState(t *testing.T) {
+	syncedApp := func(name string) *v1alpha1.Application {
+		return newTestApp(func(a *v1alpha1.Application) {
+			a.Name = name
+			a.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
+		})
+	}
+	// failCreateOf injects a failure for creating an application with the given name, while
+	// letting other creates (e.g. the rollback of the original) proceed.
+	failCreateOf := func(cs *apps.Clientset, name string) {
+		cs.PrependReactor("create", "applications", func(action kubetesting.Action) (bool, runtime.Object, error) {
+			if obj, ok := action.(kubetesting.CreateAction).GetObject().(*v1alpha1.Application); ok && obj.GetName() == name {
+				return true, nil, errors.New("injected create failure")
+			}
+			return false, nil, nil
+		})
+	}
+
+	t.Run("create failure restores the original application", func(t *testing.T) {
+		appServer := newTestAppServer(t, syncedApp("old-app"))
+		ctx := t.Context()
+		cs := appServer.appclientset.(*deepCopyAppClientset).GetUnderlyingClientSet().(*apps.Clientset)
+		failCreateOf(cs, "new-app")
+
+		_, err := appServer.Rename(ctx, &application.ApplicationRenameRequest{Name: new("old-app"), NewName: new("new-app")})
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "was restored")
+		_, gerr := cs.ArgoprojV1alpha1().Applications(testNamespace).Get(ctx, "old-app", metav1.GetOptions{})
+		assert.NoError(t, gerr, "original app must be restored")
+		_, gerr = cs.ArgoprojV1alpha1().Applications(testNamespace).Get(ctx, "new-app", metav1.GetOptions{})
+		assert.Error(t, gerr, "renamed app must not exist")
+	})
+
+	t.Run("managed-child rename failure unfreezes the parent", func(t *testing.T) {
+		parent := syncedApp("parent-app")
+		child := newTestApp(func(a *v1alpha1.Application) {
+			a.Name = "child-foo"
+			a.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
+			a.Annotations = map[string]string{common.AnnotationKeyAppInstance: "parent-app:argoproj.io/Application:default/child-foo"}
+		})
+		appServer := newTestAppServer(t, parent, child)
+		ctx := t.Context()
+		cs := appServer.appclientset.(*deepCopyAppClientset).GetUnderlyingClientSet().(*apps.Clientset)
+		failCreateOf(cs, "child-bar")
+
+		_, err := appServer.Rename(ctx, &application.ApplicationRenameRequest{Name: new("child-foo"), NewName: new("child-bar")})
+		require.Error(t, err)
+		gotParent, gerr := cs.ArgoprojV1alpha1().Applications(testNamespace).Get(ctx, "parent-app", metav1.GetOptions{})
+		require.NoError(t, gerr)
+		assert.NotEqual(t, "true", gotParent.Annotations[common.AnnotationKeyAppSkipReconcile], "parent must be unfrozen after failure")
+	})
+
+	t.Run("failure preserves an owner the user had already paused", func(t *testing.T) {
+		// The parent is paused by the user before any rename. A failed child rename must not
+		// remove that user-initiated pause when it reverts its own freeze.
+		parent := newTestApp(func(a *v1alpha1.Application) {
+			a.Name = "parent-app"
+			a.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
+			a.Annotations = map[string]string{common.AnnotationKeyAppSkipReconcile: "true"}
+		})
+		child := newTestApp(func(a *v1alpha1.Application) {
+			a.Name = "child-foo"
+			a.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
+			a.Annotations = map[string]string{common.AnnotationKeyAppInstance: "parent-app:argoproj.io/Application:default/child-foo"}
+		})
+		appServer := newTestAppServer(t, parent, child)
+		ctx := t.Context()
+		cs := appServer.appclientset.(*deepCopyAppClientset).GetUnderlyingClientSet().(*apps.Clientset)
+		failCreateOf(cs, "child-bar")
+
+		_, err := appServer.Rename(ctx, &application.ApplicationRenameRequest{Name: new("child-foo"), NewName: new("child-bar")})
+		require.Error(t, err)
+		gotParent, gerr := cs.ArgoprojV1alpha1().Applications(testNamespace).Get(ctx, "parent-app", metav1.GetOptions{})
+		require.NoError(t, gerr)
+		assert.Equal(t, "true", gotParent.Annotations[common.AnnotationKeyAppSkipReconcile], "user's pre-existing pause must survive a failed rename")
+	})
+
+	t.Run("appset-managed child rename failure unfreezes the ApplicationSet", func(t *testing.T) {
+		appset := &v1alpha1.ApplicationSet{
+			ObjectMeta: metav1.ObjectMeta{Name: "my-appset", Namespace: testNamespace},
+			Spec: v1alpha1.ApplicationSetSpec{
+				Template: v1alpha1.ApplicationSetTemplate{Spec: v1alpha1.ApplicationSpec{Project: "default"}},
+			},
+		}
+		child := newTestApp(func(a *v1alpha1.Application) {
+			a.Name = "appset-child"
+			a.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
+			a.OwnerReferences = []metav1.OwnerReference{{
+				APIVersion: "argoproj.io/v1alpha1", Kind: "ApplicationSet", Name: "my-appset", UID: "uid-1",
+			}}
+		})
+		appServer := newTestAppServer(t, appset, child)
+		ctx := t.Context()
+		cs := appServer.appclientset.(*deepCopyAppClientset).GetUnderlyingClientSet().(*apps.Clientset)
+		failCreateOf(cs, "appset-child-new")
+
+		_, err := appServer.Rename(ctx, &application.ApplicationRenameRequest{Name: new("appset-child"), NewName: new("appset-child-new")})
+		require.Error(t, err)
+		gotAS, gerr := cs.ArgoprojV1alpha1().ApplicationSets(testNamespace).Get(ctx, "my-appset", metav1.GetOptions{})
+		require.NoError(t, gerr)
+		assert.NotEqual(t, "true", gotAS.Annotations[common.AnnotationKeyAppSkipReconcile], "ApplicationSet must be unfrozen after failure")
+	})
+}
+
+// TestServer_Rename_RequiresUpdatePermission verifies rename requires `update` in addition
+// to `delete`/`create`: rename rewrites the tracking metadata on the app's managed resources,
+// so a caller with only delete+create must not be able to trigger it.
+func TestServer_Rename_RequiresUpdatePermission(t *testing.T) {
+	setup := func(t *testing.T, policy string) (*Server, context.Context) {
+		t.Helper()
+		//nolint:staticcheck
+		ctx := context.WithValue(t.Context(), "claims", &jwt.RegisteredClaims{Subject: "test-user"})
+		f := func(enf *rbac.Enforcer) {
+			_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+			enf.SetDefaultRole("role:admin")
+		}
+		app := newTestApp(func(a *v1alpha1.Application) {
+			a.Name = "old-app"
+			a.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
+		})
+		s := newTestAppServerWithEnforcerConfigure(t, f, map[string]string{}, app)
+		_ = s.enf.SetBuiltinPolicy(policy)
+		return s, ctx
+	}
+	base := `
+        p, test-user, applications, get, default/*, allow
+        p, test-user, applications, create, default/*, allow
+        p, test-user, applications, delete, default/*, allow`
+
+	t.Run("denied without update permission", func(t *testing.T) {
+		s, ctx := setup(t, base)
+		_, err := s.Rename(ctx, &application.ApplicationRenameRequest{Name: new("old-app"), NewName: new("new-app")})
+		assert.Equal(t, codes.PermissionDenied.String(), status.Code(err).String())
+	})
+
+	t.Run("allowed with update permission", func(t *testing.T) {
+		s, ctx := setup(t, base+"\n        p, test-user, applications, update, default/*, allow")
+		_, err := s.Rename(ctx, &application.ApplicationRenameRequest{Name: new("old-app"), NewName: new("new-app")})
+		require.NoError(t, err)
+	})
+}
+
+// TestFreezeManagingOwner_ConcurrentPausePreserved covers the optimistic-locking window:
+// a concurrent actor pauses the owner between our read and our write. The Update conflicts;
+// on retry we must observe the user's pause and report didFreeze=false, so a later rollback
+// never deletes a pause we did not set.
+func TestFreezeManagingOwner_ConcurrentPausePreserved(t *testing.T) {
+	parent := newTestApp(func(a *v1alpha1.Application) {
+		a.Name = "parent-app"
+		a.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
+	})
+	appServer := newTestAppServer(t, parent)
+	ctx := t.Context()
+	cs := appServer.appclientset.(*deepCopyAppClientset).GetUnderlyingClientSet().(*apps.Clientset)
+
+	paused := false
+	// The first Update conflicts, simulating a concurrent write landing just before ours.
+	cs.PrependReactor("update", "applications", func(_ kubetesting.Action) (bool, runtime.Object, error) {
+		if !paused {
+			paused = true
+			return true, nil, apierrors.NewConflict(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, "parent-app", errors.New("conflict"))
+		}
+		return false, nil, nil
+	})
+	// After the conflict, the owner reads back as paused (the user pinned skip-reconcile).
+	cs.PrependReactor("get", "applications", func(action kubetesting.Action) (bool, runtime.Object, error) {
+		if paused && action.(kubetesting.GetAction).GetName() == "parent-app" {
+			p := parent.DeepCopy()
+			p.Annotations = map[string]string{common.AnnotationKeyAppSkipReconcile: "true"}
+			return true, p, nil
+		}
+		return false, nil, nil
+	})
+
+	didFreeze, err := appServer.freezeManagingOwner(ctx, testNamespace, "parent-app", false)
+	require.NoError(t, err)
+	assert.False(t, didFreeze, "must not claim to have frozen an owner the user paused during the read-write window")
+}
+
 func newMultiSourceTestApp(opts ...func(app *v1alpha1.Application)) *v1alpha1.Application {
 	multiSourceApp := newTestApp(opts...)
 	multiSourceApp.Name = "multi-source-app"
