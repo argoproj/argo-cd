@@ -73,7 +73,6 @@ export interface ApplicationResourceTreeProps {
     zoom: number;
     podGroupCount: number;
     filters?: string[];
-    setTreeFilterGraph?: (filterGraph: any[]) => void;
     nameDirection: boolean;
     nameWrap: boolean;
     setNodeExpansion: (node: string, isExpanded: boolean) => any;
@@ -1081,17 +1080,6 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     const childrenByParentKey = new Map<string, ResourceTreeNode[]>();
     const nodesHavingChildren = new Map<string, number>();
     const childrenMap = new Map<string, ResourceTreeNode[]>();
-    const filtersRef = React.useRef(props.filters);
-    const filteredGraphRef = React.useRef<any[]>([]);
-    const filteredNodes: any[] = [];
-
-    React.useEffect(() => {
-        if (props.filters !== filtersRef.current) {
-            filtersRef.current = props.filters;
-            props.setTreeFilterGraph(filteredGraphRef.current);
-            filteredGraphRef.current = filteredNodes;
-        }
-    }, [props.filters]);
     const {podGroupCount, userMsgs, updateUsrHelpTipMsgs, setShowCompactNodes} = props;
     const podCount = nodes.filter(node => node.kind === 'Pod').length;
     const showPodGroupByStatus = props.tree.nodes.filter((rNode: ResourceTreeNode) => rNode.kind === 'Pod').length >= props.podGroupCount;
@@ -1135,8 +1123,6 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                         graphNodesFilter.setEdge(parentId, childId);
                     });
                 });
-            } else {
-                if (node.root != null) filteredNodes.push(node);
             }
         });
 
