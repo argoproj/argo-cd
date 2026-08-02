@@ -2,9 +2,11 @@ package swagger
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/go-openapi/loads"
@@ -15,6 +17,19 @@ import (
 
 func TestSwaggerUI(t *testing.T) {
 	t.Parallel()
+
+	// rootPath is the prefix the UI is served under, so it must appear in every generated URL
+	for _, rootPath := range []string{"", "/argocd"} {
+		t.Run(fmt.Sprintf("rootPath=%q", rootPath), func(t *testing.T) {
+			t.Parallel()
+			testSwaggerUI(t, rootPath)
+		})
+	}
+}
+
+func testSwaggerUI(t *testing.T, rootPath string) {
+	t.Helper()
+
 	lc := &net.ListenConfig{}
 	serve := func(c chan<- string) {
 		// listen on first available dynamic (unprivileged) port
@@ -27,7 +42,7 @@ func TestSwaggerUI(t *testing.T) {
 		c <- listener.Addr().String()
 
 		mux := http.NewServeMux()
-		ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui", "")
+		ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui", rootPath)
 		panic(http.Serve(listener, mux))
 	}
 
@@ -75,14 +90,17 @@ func TestSwaggerUI(t *testing.T) {
 
 	// assets must be referenced from the UI's own dist, never docui's CDN defaults, so air-gapped installs work
 	for _, asset := range []string{
-		"/assets/swagger-ui/swagger-ui-bundle.js",
-		"/assets/swagger-ui/swagger-ui-standalone-preset.js",
-		"/assets/swagger-ui/swagger-ui.css",
-		"/assets/swagger-ui/favicon-16x16.png",
-		"/assets/swagger-ui/favicon-32x32.png",
+		"swagger-ui-bundle.js",
+		"swagger-ui-standalone-preset.js",
+		"swagger-ui.css",
+		"favicon-16x16.png",
+		"favicon-32x32.png",
 	} {
-		require.Contains(t, string(uiBody), asset)
+		require.Contains(t, string(uiBody), rootPath+"/assets/swagger-ui/"+asset)
 	}
 	require.NotContains(t, string(uiBody), "unpkg.com")
 	require.NotContains(t, string(uiBody), "cdn.")
+
+	// docui escapes the spec URL for its JS string context, e.g. \/argocd\/swagger.json
+	require.Contains(t, strings.ReplaceAll(string(uiBody), `\/`, "/"), "url: '"+rootPath+"/swagger.json'")
 }
