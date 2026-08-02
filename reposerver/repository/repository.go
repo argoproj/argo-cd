@@ -611,7 +611,7 @@ func resolveReferencedSources(ctx context.Context, hasMultipleSources bool, sour
 		// repository URL only and does not incorporate 'chart', so accepting it (for Git or
 		// OCI) would silently ignore it. Reject it instead of misleading users.
 		if refSourceMapping.Chart != "" {
-			return nil, errors.New("source has a 'chart' field defined, but Helm charts are not yet supported for 'ref' sources")
+			return nil, errors.New("source has a 'chart' field defined, but the 'chart' field is not supported for 'ref' sources")
 		}
 
 		// Key must match runManifestGenAsync, which keys refSourceCommitSHAs the same way;
@@ -918,7 +918,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 					}
 					// The 'chart' field is not honored for ref sources (see resolveReferencedSources).
 					if refSourceMapping.Chart != "" {
-						ch.errCh <- errors.New("source has a 'chart' field defined, but Helm charts are not yet supported for 'ref' sources")
+						ch.errCh <- errors.New("source has a 'chart' field defined, but the 'chart' field is not supported for 'ref' sources")
 						return
 					}
 

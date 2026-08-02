@@ -3,6 +3,7 @@ package repository
 import (
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/bmatcuk/doublestar/v4"
@@ -239,22 +240,30 @@ func getResolvedOCIRefValueFile(
 ) (pathutil.ResolvedFilePath, error) {
 	// Get the OCI path from the ociPaths. Paths are keyed by the normalized repo URL,
 	// matching the key used when the extracted content was registered.
-	ociPath := ociPaths.GetPathIfExists(v1alpha1.NormalizeOCIURL(refSourceRepo))
+	normalizedKey := v1alpha1.NormalizeOCIURL(refSourceRepo)
+	ociPath := ociPaths.GetPathIfExists(normalizedKey)
 	if ociPath == "" {
-		log.Errorf("OCI repo %q not found in extracted paths. Available paths: %v", refSourceRepo, ociPaths.GetPaths())
+		// Log only the registered keys (repo URLs), not GetPaths(), which would leak the
+		// randomized temp extraction directories into logs. The keys are enough to spot a
+		// URL mismatch when debugging.
+		registered := make([]string, 0, len(ociPaths.GetPaths()))
+		for key := range ociPaths.GetPaths() {
+			registered = append(registered, key)
+		}
+		sort.Strings(registered)
+		log.Debugf("OCI ref source %q (lookup key %q) not found among registered OCI sources %v", refSourceRepo, normalizedKey, registered)
 		return "", fmt.Errorf("OCI ref source %q was not successfully extracted. Ensure the repository is accessible and properly configured", refSourceRepo)
 	}
 
-	// Remove first segment (the ref variable name) and resolve the path
+	// Remove the first segment (the ref variable name); pathutil re-inserts the OCI root.
 	pathStrings := strings.Split(rawValueFile, "/")
-	if len(pathStrings) == 0 {
-		return "", fmt.Errorf("invalid OCI value file path %q: path is empty", rawValueFile)
+	pathStrings[0] = ""
+	// Trim the leading slash (OCI paths are relative to the archive root). What remains must
+	// be a real file path - reject inputs like "$oci" or "$oci/" that have no path segment.
+	substitutedPath := strings.TrimPrefix(strings.Join(pathStrings, "/"), "/")
+	if strings.Trim(substitutedPath, "/") == "" {
+		return "", fmt.Errorf("invalid OCI value file path %q: no file path after the ref name", rawValueFile)
 	}
-	pathStrings[0] = "" // Remove first segment. It will be inserted by pathutil.ResolveValueFilePathOrUrl.
-	substitutedPath := strings.Join(pathStrings, "/")
-
-	// Remove leading slash if present (OCI paths are relative to the archive root)
-	substitutedPath = strings.TrimPrefix(substitutedPath, "/")
 
 	// Resolve the path relative to the extracted OCI content
 	resolvedPath, _, err := pathutil.ResolveValueFilePathOrUrl(ociPath, ociPath, env.Envsubst(substitutedPath), allowedValueFilesSchemas)

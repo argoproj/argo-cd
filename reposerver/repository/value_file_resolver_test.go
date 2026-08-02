@@ -261,3 +261,21 @@ func TestGetResolvedOCIRefValueFile_NormalizedLookup(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, pathutil.ResolvedFilePath(valuesPath), resolved)
 }
+
+// TestGetResolvedOCIRefValueFile_RejectsPathWithoutFile is a regression test: a $ref entry with
+// no file path after the ref name (e.g. "$oci", "$oci/") must be rejected rather than resolving
+// to the OCI extraction root. The previous len(pathStrings)==0 guard was unreachable
+// (strings.Split always returns at least one element) and did not catch these.
+func TestGetResolvedOCIRefValueFile_RejectsPathWithoutFile(t *testing.T) {
+	extractedDir := t.TempDir()
+	ociPaths := utilio.NewRandomizedTempPaths(t.TempDir())
+	ociPaths.Add(v1alpha1.NormalizeOCIURL("oci://registry.example.com/chart"), extractedDir)
+
+	for _, raw := range []string{"$oci", "$oci/", "$oci//"} {
+		t.Run(raw, func(t *testing.T) {
+			_, err := getResolvedOCIRefValueFile(raw, &v1alpha1.Env{}, []string{"https"}, "oci://registry.example.com/chart", ociPaths)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "no file path after the ref name")
+		})
+	}
+}
