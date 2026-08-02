@@ -2591,9 +2591,28 @@ func (s *Service) populateHelmAppDetails(ctx context.Context, res *apiclient.Rep
 	if err != nil {
 		return fmt.Errorf("failed to resolve value files: %w", err)
 	}
+	// Match helmTemplate precedence: valueFiles, then values/valuesObject as an
+	// extra values file, then parameters (--set) overlaying the flattened map.
+	if q.Source.Helm != nil && !q.Source.Helm.ValuesIsEmpty() {
+		rand, err := uuid.NewRandom()
+		if err != nil {
+			return fmt.Errorf("error generating random filename for Helm values file: %w", err)
+		}
+		p := path.Join(os.TempDir(), rand.String())
+		defer func() { _ = os.RemoveAll(p) }()
+		if err := os.WriteFile(p, q.Source.Helm.ValuesYAML(), 0o644); err != nil {
+			return fmt.Errorf("error writing helm values file: %w", err)
+		}
+		resolvedSelectedValueFiles = append(resolvedSelectedValueFiles, pathutil.ResolvedFilePath(p))
+	}
 	params, err := h.GetParameters(resolvedSelectedValueFiles, appPath, repoRoot)
 	if err != nil {
 		return err
+	}
+	if q.Source.Helm != nil {
+		for _, p := range q.Source.Helm.Parameters {
+			params[p.Name] = p.Value
+		}
 	}
 	for k, v := range params {
 		res.Helm.Parameters = append(res.Helm.Parameters, &v1alpha1.HelmParameter{
