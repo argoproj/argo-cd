@@ -1479,7 +1479,7 @@ func helmTemplate(ctx context.Context, appPath string, repoRoot string, env *v1a
 	out, command, err := h.Template(templateOpts)
 	if err != nil {
 		if !helm.IsMissingDependencyErr(err) {
-			return nil, "", err
+			return nil, "", redactPathsInError(err, templateOpts.ExtraValues, gitRepoPaths, ociPaths)
 		}
 
 		err = runHelmBuild(ctx, appPath, h)
@@ -1502,36 +1502,52 @@ func helmTemplate(ctx context.Context, appPath string, repoRoot string, env *v1a
 				return nil, "", status.Errorf(codes.PermissionDenied, "helm repos %s are not permitted in project '%s'", strings.Join(reposNotPermitted, ", "), q.ProjectName)
 			}
 
-			return nil, "", err
+			return nil, "", redactPathsInError(err, templateOpts.ExtraValues, gitRepoPaths, ociPaths)
 		}
 
 		out, command, err = h.Template(templateOpts)
 		if err != nil {
-			return nil, "", err
+			return nil, "", redactPathsInError(err, templateOpts.ExtraValues, gitRepoPaths, ociPaths)
 		}
 	}
 	objs, err := kube.SplitYAML([]byte(out))
 
-	redactedCommand := redactPaths(command, gitRepoPaths, templateOpts.ExtraValues)
+	// Redact both Git and OCI temp paths: value files resolved from a $ref OCI source live
+	// under ociPaths and would otherwise leak the reposerver filesystem path in the returned
+	// helm template command.
+	redactedCommand := redactPaths(command, templateOpts.ExtraValues, gitRepoPaths, ociPaths)
 
 	return objs, redactedCommand, err
 }
 
 // redactPaths removes temp repo paths, since those paths are randomized (and therefore not helpful for the user) and
 // sensitive (so not suitable for logging). It also replaces the path of the randomly-named values file which is used
-// to hold the `spec.source.helm.values` or `valuesObject` contents.
-func redactPaths(s string, paths utilio.TempPaths, extraValuesPath pathutil.ResolvedFilePath) string {
-	if paths == nil {
-		return s
-	}
-	for _, p := range paths.GetPaths() {
-		s = strings.ReplaceAll(s, p, ".")
+// to hold the `spec.source.helm.values` or `valuesObject` contents. All supplied path sets (e.g. Git checkouts and
+// extracted OCI artifacts) are redacted.
+func redactPaths(s string, extraValuesPath pathutil.ResolvedFilePath, pathSets ...utilio.TempPaths) string {
+	for _, paths := range pathSets {
+		if paths == nil {
+			continue
+		}
+		for _, p := range paths.GetPaths() {
+			s = strings.ReplaceAll(s, p, ".")
+		}
 	}
 	if extraValuesPath != "" {
 		// Replace with a placeholder so that the user knows what this values file was for.
 		s = strings.ReplaceAll(s, string(extraValuesPath), "<temp file with values from source.helm.values/valuesObject>")
 	}
 	return s
+}
+
+// redactPathsInError redacts sensitive temp paths from an error message. Helm template/build
+// failures embed the rendered command (including `--values <temp path>`), which would otherwise
+// leak randomized reposerver filesystem paths for Git checkouts and extracted OCI artifacts.
+func redactPathsInError(err error, extraValuesPath pathutil.ResolvedFilePath, pathSets ...utilio.TempPaths) error {
+	if err == nil {
+		return nil
+	}
+	return errors.New(redactPaths(err.Error(), extraValuesPath, pathSets...))
 }
 
 // getResolvedValueFiles resolves a list of raw value file paths (handling local

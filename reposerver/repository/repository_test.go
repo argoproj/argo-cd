@@ -817,7 +817,9 @@ func TestHelmChartReferencingOCIValues(t *testing.T) {
 		Server:     "",
 		Revision:   "1.1.0",
 		SourceType: "Helm",
-		Commands:   []string{`helm template . --name-template "" --values ./testdata/my-chart/testdata/oci-ref-values/values.yaml --include-crds`},
+		// The OCI-extracted directory is redacted to "." (it is a randomized temp path in
+		// production), so the value file path is shown relative to the OCI extraction root.
+		Commands: []string{`helm template . --name-template "" --values ./testdata/oci-ref-values/values.yaml --include-crds`},
 	}, response)
 }
 
@@ -942,6 +944,42 @@ func TestGenerateManifest_RejectsChartOnRefSource(t *testing.T) {
 	require.Error(t, err)
 	require.ErrorContains(t, err, "'chart' field defined")
 	assert.Nil(t, response)
+}
+
+// TestRedactPaths_RedactsGitAndOCIPaths is a regression test ensuring value files resolved
+// from a $ref OCI source (extracted under ociPaths) are redacted from the returned helm
+// template command, not just Git checkout paths. Otherwise reposerver filesystem paths leak
+// into ManifestResponse.Commands.
+func TestRedactPaths_RedactsGitAndOCIPaths(t *testing.T) {
+	gitDir := t.TempDir()
+	ociDir := t.TempDir()
+	gitPaths := utilio.NewRandomizedTempPaths(t.TempDir())
+	gitPaths.Add("git-key", gitDir)
+	ociPaths := utilio.NewRandomizedTempPaths(t.TempDir())
+	ociPaths.Add("oci-key", ociDir)
+
+	cmd := fmt.Sprintf("helm template . --values %s/values.yaml --values %s/oci-values.yaml", gitDir, ociDir)
+	got := redactPaths(cmd, "", gitPaths, ociPaths)
+
+	assert.NotContains(t, got, gitDir)
+	assert.NotContains(t, got, ociDir)
+	assert.Equal(t, "helm template . --values ./values.yaml --values ./oci-values.yaml", got)
+}
+
+// TestRedactPathsInError_RedactsOCIPath ensures helm errors (which embed the rendered command,
+// including OCI-extracted value file paths) are redacted before being returned.
+func TestRedactPathsInError_RedactsOCIPath(t *testing.T) {
+	ociDir := t.TempDir()
+	ociPaths := utilio.NewRandomizedTempPaths(t.TempDir())
+	ociPaths.Add("oci-key", ociDir)
+
+	require.NoError(t, redactPathsInError(nil, "", ociPaths))
+
+	err := fmt.Errorf("failed to render: open %s/oci-values.yaml: no such file", ociDir)
+	got := redactPathsInError(err, "", ociPaths)
+	require.Error(t, got)
+	assert.NotContains(t, got.Error(), ociDir)
+	assert.Contains(t, got.Error(), "./oci-values.yaml")
 }
 
 func TestGenerateManifestsUseExactRevision(t *testing.T) {
