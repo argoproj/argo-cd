@@ -517,7 +517,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                     <>
                         <div className='white-box__details'>
                             <div className='row white-box__details-row'>
-                                <div className='columns small-3'>SHA:</div>
+                                <div className='columns small-3'>{isSHA(aRevision) ? 'SHA:' : 'Revision:'}</div>
                                 <div className='columns small-9'>
                                     <Revision repoUrl={aSource.repoURL} revision={aRevision} />
                                 </div>
