@@ -2,6 +2,7 @@ package swagger
 
 import (
 	"encoding/json"
+	"io"
 	"net"
 	"net/http"
 	"testing"
@@ -67,5 +68,21 @@ func TestSwaggerUI(t *testing.T) {
 	require.Equalf(t, http.StatusOK, uiResp.StatusCode, "Was expecting status code 200 from swagger-ui, but got %d instead", uiResp.StatusCode)
 	require.Equal(t, "DENY", uiResp.Header.Get("X-Frame-Options"))
 	require.Equal(t, "frame-ancestors 'none'", uiResp.Header.Get("Content-Security-Policy"))
+
+	uiBody, err := io.ReadAll(uiResp.Body)
+	require.NoError(t, err)
 	require.NoError(t, uiResp.Body.Close())
+
+	// assets must be referenced from the UI's own dist, never docui's CDN defaults, so air-gapped installs work
+	for _, asset := range []string{
+		"/assets/swagger-ui/swagger-ui-bundle.js",
+		"/assets/swagger-ui/swagger-ui-standalone-preset.js",
+		"/assets/swagger-ui/swagger-ui.css",
+		"/assets/swagger-ui/favicon-16x16.png",
+		"/assets/swagger-ui/favicon-32x32.png",
+	} {
+		require.Contains(t, string(uiBody), asset)
+	}
+	require.NotContains(t, string(uiBody), "unpkg.com")
+	require.NotContains(t, string(uiBody), "cdn.")
 }
