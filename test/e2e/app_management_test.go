@@ -494,6 +494,48 @@ func TestInvalidAppProject(t *testing.T) {
 		Expect(Error("", "is not allowed"))
 }
 
+// Test a refresh request comes while a refresh is already running
+func TestNestedRefresh(t *testing.T) {
+	dir := "slow-manifest"
+	valuesFile := "values.yaml"
+	ctx := Given(t)
+	acts := ctx.Path(dir).
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(All(OperationPhaseIs(OperationSucceeded), SyncStatusIs(SyncStatusCodeSynced))).
+		When().
+		// set long delay for the next helm template invocation
+		PatchFile(valuesFile, `[{"op": "replace", "path": "/iterations", "value": 400}]`)
+
+	// runs app get --refresh asynchronously, so we do not wait for the refresh to finish
+	go ctx.When().Refresh(RefreshTypeNormal)
+
+	// wait until Refresh actually runs `helm template`. We can
+	// catch it because the template is really nasty and
+	// `helm template` rendering takes tens of seconds
+	acts.Then().Expect(HelmTemplateRuns())
+	// ps output line containing helm PID and command line
+	helmProcessData := acts.GetLastOutput()
+
+	// make another change: removing the long delay: we do not need it for the second template invocation,
+	acts = acts.PatchFile(valuesFile, `[{"op": "replace", "path": "/iterations", "value": 1}]`)
+	// get last revision
+	revision := acts.GitRevList("HEAD", "-1").GetLastOutput()
+
+	// second (nested) refresh request
+	go ctx.When().Refresh(RefreshTypeNormal)
+
+	// get process one more time and ensure the same helm process
+	// still running, so the second refresh was nested
+	acts.Then().Expect(All(HelmTemplateRuns(), Success(helmProcessData)))
+
+	// the last committed revision - the second refresh worked
+	// it is expected to take a long time if runner is slow
+	acts.ThenWithTimeout(80).Expect(SyncRevisionIs(revision))
+}
+
 func TestAppDeletion(t *testing.T) {
 	ctx := Given(t)
 	ctx.
@@ -1840,6 +1882,7 @@ func TestSyncWithRetryAndRefreshEnabled(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		When().
 		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": "badValue"}]`).
+		Refresh(RefreshTypeNormal).
 		IgnoreErrors().
 		Sync().
 		DoNotIgnoreErrors().
@@ -1851,6 +1894,7 @@ func TestSyncWithRetryAndRefreshEnabled(t *testing.T) {
 		PatchApp(`[{"op": "add", "path": "/spec/source/path", "value": "failure-during-sync"}]`).
 		// push a fixed commit on HEAD branch
 		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": 42}]`).
+		Refresh(RefreshTypeNormal).
 		IgnoreErrors().
 		Sync().
 		DoNotIgnoreErrors().
@@ -2065,6 +2109,71 @@ func TestFailedSyncWithRetry(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationFailed)).
 		Expect(OperationMessageContains("retried 1 times"))
+}
+
+// TestStaleOperationRevisionNotUsedNewSync validates new operations resolve the revision
+// and do not use the existing completed operation state.
+func TestStaleOperationRevisionNotUsedNewSync(t *testing.T) {
+	var revisionX string
+	var revisionY string
+
+	ctx := Given(t)
+	ctx.
+		Path("hook").
+		When().
+		CreateApp().
+		And(func() {
+			sha, err := fixture.Run(fixture.TmpDir()+"/testdata.git", "git", "rev-parse", "HEAD")
+			require.NoError(t, err)
+			revisionX = strings.TrimSpace(sha)
+		}).
+		// 1. Create and sync the app on revision X.
+		Sync("--revision", revisionX).
+		Then().
+		// 2. The app must be synced and healthy on X.
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		And(func(app *Application) {
+			require.NotNil(t, app.Status.OperationState)
+			require.NotNil(t, app.Status.OperationState.SyncResult)
+			require.Equal(t, revisionX, app.Status.OperationState.SyncResult.Revision)
+		}).
+		When().
+		// 3. Push an invalid commit Y (an apply-time failure only present on HEAD).
+		AddFile("failure-during-sync.yaml", `apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: failure-during-sync
+  labels:
+    my-label: has-inva/id-character!
+`).
+		And(func() {
+			sha, err := fixture.Run(fixture.TmpDir()+"/testdata.git", "git", "rev-parse", "HEAD")
+			require.NoError(t, err)
+			revisionY = strings.TrimSpace(sha)
+			require.NotEqual(t, revisionX, revisionY)
+			// 4. Add a sync Operation on HEAD (without any resolved revisions)
+			patch := fmt.Sprintf(`{
+				"operation": {
+					"initiatedBy": {"username": "e2e", "automated": true},
+					"info": [{"name": "Reason", "value": "Syncing latest without resolved revision"}],
+					"sync": {},
+					"retry": {"limit": %d, "backoff": {"duration": %q}}
+				}
+			}`, 1, "1s")
+			_, err = fixture.Run("", "kubectl", "-n", fixture.TestNamespace(), "patch", "application", ctx.AppName(), "--type", "merge", "-p", patch)
+			require.NoError(t, err)
+		}).
+		Then().
+		// 5. The sync resolves the new revision Y and fails on it
+		Expect(OperationRetriedMinimumTimes(1)).
+		Expect(OperationPhaseIs(OperationFailed)).
+		And(func(app *Application) {
+			require.NotNil(t, app.Status.OperationState.SyncResult)
+			// syncResult must record revision Y, the current broken HEAD that failed.
+			assert.Equal(t, revisionY, app.Status.OperationState.SyncResult.Revision)
+		})
 }
 
 func TestCreateDisableValidation(t *testing.T) {
