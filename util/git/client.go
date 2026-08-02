@@ -305,13 +305,24 @@ func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, en
 
 var gitClientTimeout = env.ParseDurationFromEnv("ARGOCD_GIT_REQUEST_TIMEOUT", 15*time.Second, 0, math.MaxInt64)
 
-// gitCleanupGracePeriod is the minimum age a temporary pack file must reach
-// before cleanupOrphanedTempPackfiles will remove it. A fetch is killed at
-// ARGOCD_EXEC_TIMEOUT (plus the fatal-timeout grace), so twice that comfortably
-// exceeds the longest a fetch can be in flight; anything older cannot belong to
-// a live fetch (for example a concurrent fetch from another repo-server replica
-// sharing an RWX cache volume).
-var gitCleanupGracePeriod = 2 * env.ParseDurationFromEnv("ARGOCD_EXEC_TIMEOUT", 90*time.Second, 0, math.MaxInt64)
+// minGitCleanupGracePeriod is a floor under gitCleanupGracePeriod. ARGOCD_EXEC_TIMEOUT
+// itself is allowed to be 0 (or any small value) for its own purposes, but if that were
+// used as-is for cleanup, a stale-file check of "age < gracePeriod" degrades to "always
+// true" and every cleanup pass below would delete files a genuinely concurrent fetch (in
+// this process, or another repo-server replica sharing an RWX cache volume) is still
+// writing. This floor keeps the safety margin meaningful regardless of that setting.
+const minGitCleanupGracePeriod = 5 * time.Second
+
+// gitCleanupGracePeriod is the minimum age a temporary pack file or shallow-fetch lock
+// must reach before cleanupOrphanedTempPackfiles/cleanupOrphanedShallowLock will remove
+// it. A fetch is killed at ARGOCD_EXEC_TIMEOUT (plus the fatal-timeout grace), so twice
+// that comfortably exceeds the longest a fetch can be in flight; anything older cannot
+// belong to a live fetch (for example a concurrent fetch from another repo-server
+// replica sharing an RWX cache volume).
+var gitCleanupGracePeriod = max(
+	2*env.ParseDurationFromEnv("ARGOCD_EXEC_TIMEOUT", 90*time.Second, 0, math.MaxInt64),
+	minGitCleanupGracePeriod,
+)
 
 // Returns a HTTP client object suitable for go-git to use using the following
 // pattern:

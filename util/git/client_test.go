@@ -249,9 +249,10 @@ func Test_nativeGitClient_cleanupOrphanedTempPackfiles(t *testing.T) {
 	root := t.TempDir()
 	packDir := filepath.Join(root, ".git", "objects", "pack")
 	require.NoError(t, os.MkdirAll(packDir, 0o755))
-	// gitCleanupGracePeriod defaults to 2 * 90s = 3m, so an hour-old file is
-	// safely stale and a just-written one is safely fresh.
-	old := time.Now().Add(-time.Hour)
+	// Age relative to the actual (env-dependent) gitCleanupGracePeriod, rather
+	// than a fixed duration, so this is correct regardless of what
+	// ARGOCD_EXEC_TIMEOUT happens to be set to wherever the test runs.
+	old := time.Now().Add(-2 * gitCleanupGracePeriod)
 
 	// Stale temp files git's index-pack can strand when a fetch is killed before
 	// it finalizes the pack. All must be removed once past the grace window.
@@ -317,7 +318,7 @@ func Test_nativeGitClient_Fetch_cleansOrphanedTempPacksOnError(t *testing.T) {
 	// removes them.
 	packDir := filepath.Join(root, ".git", "objects", "pack")
 	require.NoError(t, os.MkdirAll(packDir, 0o755))
-	old := time.Now().Add(-time.Hour)
+	old := time.Now().Add(-2 * gitCleanupGracePeriod)
 	orphanPack := filepath.Join(packDir, "tmp_pack_orphan")
 	orphanIdx := filepath.Join(packDir, "tmp_idx_orphan")
 	for _, p := range []string{orphanPack, orphanIdx} {
@@ -337,9 +338,10 @@ func Test_nativeGitClient_cleanupOrphanedShallowLock(t *testing.T) {
 	root := t.TempDir()
 	gitDir := filepath.Join(root, ".git")
 	require.NoError(t, os.MkdirAll(gitDir, 0o755))
-	// gitCleanupGracePeriod defaults to 2 * 90s = 3m, so an hour-old file is
-	// safely stale and a just-written one is safely fresh.
-	old := time.Now().Add(-time.Hour)
+	// Age relative to the actual (env-dependent) gitCleanupGracePeriod, rather
+	// than a fixed duration, so this is correct regardless of what
+	// ARGOCD_EXEC_TIMEOUT happens to be set to wherever the test runs.
+	old := time.Now().Add(-2 * gitCleanupGracePeriod)
 
 	lockPath := filepath.Join(gitDir, "shallow.lock")
 	require.NoError(t, os.WriteFile(lockPath, []byte(""), 0o644))
@@ -386,7 +388,7 @@ func Test_nativeGitClient_Fetch_cleansOrphanedShallowLockOnError(t *testing.T) {
 	gitDir := filepath.Join(root, ".git")
 	lockPath := filepath.Join(gitDir, "shallow.lock")
 	require.NoError(t, os.WriteFile(lockPath, []byte(""), 0o644))
-	old := time.Now().Add(-time.Hour)
+	old := time.Now().Add(-2 * gitCleanupGracePeriod)
 	require.NoError(t, os.Chtimes(lockPath, old, old))
 
 	client := &nativeGitClient{root: root, repoURL: "file://" + badRemote, creds: NopCreds{}}
@@ -409,7 +411,7 @@ func Test_nativeGitClient_Fetch_leavesShallowLockOnNonShallowFetchError(t *testi
 	gitDir := filepath.Join(root, ".git")
 	lockPath := filepath.Join(gitDir, "shallow.lock")
 	require.NoError(t, os.WriteFile(lockPath, []byte(""), 0o644))
-	old := time.Now().Add(-time.Hour)
+	old := time.Now().Add(-2 * gitCleanupGracePeriod)
 	require.NoError(t, os.Chtimes(lockPath, old, old))
 
 	client := &nativeGitClient{root: root, repoURL: "file://" + badRemote, creds: NopCreds{}}
