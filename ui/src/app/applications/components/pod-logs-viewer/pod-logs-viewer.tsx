@@ -2,10 +2,11 @@ import {DataLoader} from 'argo-ui';
 import classNames from 'classnames';
 import * as React from 'react';
 import {useEffect, useMemo, useState, useRef} from 'react';
-import {bufferTime, catchError, delay, retryWhen} from 'rxjs/operators';
+import {bufferTime, catchError} from 'rxjs/operators';
 
 import {LogEntry} from '../../../shared/models';
 import {services, ViewPreferences} from '../../../shared/services';
+import {retryWithBackoff} from '../../../shared/services/retry-backoff';
 
 import AutoSizer from 'react-virtualized/dist/commonjs/AutoSizer';
 
@@ -205,7 +206,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                         }
                     }
                 }),
-                retryWhen(errors => errors.pipe(delay(500)))
+                retryWithBackoff()
             )
             .subscribe(log => {
                 if (log.length) {
