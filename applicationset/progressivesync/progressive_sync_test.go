@@ -2428,7 +2428,7 @@ func TestPerformReverseDeletionTerminatingApp(t *testing.T) {
 				}).
 				Build()
 
-			m := NewManager(fakeClient, nil)
+			m := NewManager(fakeClient, nil, nil)
 			requeue, err := m.PerformReverseDeletion(context.Background(), log.NewEntry(log.New()), appSet, []v1alpha1.Application{app})
 
 			if tc.expectedErr != "" {
