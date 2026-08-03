@@ -198,6 +198,12 @@ Verify target revision and all its ancestors.
 This makes sure there is no unsigned change in the history as well.
 If the revision is an annotated tag, the tag's signature is verified together with the commit history, including the commit it points to.
 
+> [!WARNING]
+> **Shallow clone**
+>
+> `strict` mode requires a full git history. Repositories configured with shallow clone (`depth` > 0) cannot be verified in `strict` mode and will fail source integrity checks.
+> Make sure to use a full clone (`depth: 0` or omit `depth`) or use `head` mode.
+
 There are situations where verifying the entire history is not practical - typically in case the history contains unsigned commits, or commits signed with keys that are no longer trusted.
 This happens when GnuPG verification is introduced later to the git repository, or when formerly accepted keys get removed, revoked, or rotated.
 While this can be addressed by re-signing with git rebase, there is a better way that does not require rewriting the Git history.
