@@ -2533,6 +2533,10 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 	// error carries actionable information.
 	hydrationFinished := appHydrationFinished(app)
 	if len(selectedResources) > 0 {
+		// The selected-resources wait gate evaluates checkResourceStatus per
+		// resource state (the same states, including hooks, it gates on), so
+		// mirror that here to keep the message consistent with the condition
+		// that actually failed.
 		var pending []string
 		for _, state := range getResourceStates(app, selectedResources) {
 			if !checkResourceStatus(watch, state.Health, state.Status, app.Operation, hydrationFinished) {
@@ -2540,18 +2544,38 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 			}
 		}
 		if len(pending) > 0 {
-			return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q match desired state. resources not ready: %s", timeout, appName, formatPendingResources(pending))
+			return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q to match desired state. resources not ready: %s", timeout, appName, formatPendingResources(pending))
 		}
-		return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q match desired state", timeout, appName)
+		return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q to match desired state", timeout, appName)
 	}
 
 	// Without selected resources the wait condition is evaluated against the
-	// app-level aggregate status, which can differ from the individual
-	// resource statuses. Report the aggregate and list any not-ready
-	// resources (including hooks) as a hint.
-	detail := fmt.Sprintf("app sync status: %s, health status: %s", app.Status.Sync.Status, app.Status.Health.Status)
+	// app-level aggregate status. Report only the conditions the wait was
+	// gated on (a --operation/--hydrated wait shouldn't mention sync/health),
+	// and list any not-ready resources as a hint.
+	var conditions []string
+	if watch.sync {
+		conditions = append(conditions, fmt.Sprintf("sync status: %s", app.Status.Sync.Status))
+	}
+	if watch.health || watch.suspended || watch.degraded {
+		conditions = append(conditions, fmt.Sprintf("health status: %s", app.Status.Health.Status))
+	}
+	if watch.operation && app.Operation != nil {
+		conditions = append(conditions, "operation: still in progress")
+	}
+	if watch.hydrated {
+		conditions = append(conditions, fmt.Sprintf("hydrated: %t", hydrationFinished))
+	}
+	detail := "app " + strings.Join(conditions, ", ")
+
 	var pending []string
 	for _, state := range getResourceStates(app, nil) {
+		// A completed hook reports its hook phase (e.g. Succeeded) in Status,
+		// which checkResourceStatus treats as not-Synced. It isn't part of the
+		// desired-state wait, so don't surface it as "not ready".
+		if state.Hook != "" && state.Status == string(common.OperationSucceeded) {
+			continue
+		}
 		if !checkResourceStatus(watch, state.Health, state.Status, app.Operation, hydrationFinished) {
 			pending = append(pending, fmt.Sprintf("%s (sync: %s, health: %s)", state.Key(), state.Status, state.Health))
 		}
@@ -2559,7 +2583,7 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 	if len(pending) > 0 {
 		detail += ", resources not ready: " + formatPendingResources(pending)
 	}
-	return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q match desired state. %s", timeout, appName, detail)
+	return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q to match desired state. %s", timeout, appName, detail)
 }
 
 // appHydrationFinished reports whether the app's current hydration operation
@@ -2577,7 +2601,7 @@ func appHydrationFinished(app *argoappv1.Application) bool {
 // reached the desired state. If there are more than maxPending entries the
 // list is truncated and a count of the remaining items is appended.
 func formatPendingResources(pending []string) string {
-	// TODO: make the limit configurable via a command flag
+	// TODO(#29031): make the limit configurable via a command flag
 	const maxPending = 10
 	if len(pending) > maxPending {
 		return strings.Join(pending[:maxPending], ", ") + fmt.Sprintf(", ... and %d more", len(pending)-maxPending)
