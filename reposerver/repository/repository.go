@@ -873,10 +873,19 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 
 				// Checkout every one of the referenced sources to the target revision before generating Manifests
 				for _, valueFile := range refCandidates {
-					if !strings.HasPrefix(valueFile, "$") {
+					var refVar string
+
+					if strings.HasPrefix(valueFile, "$") {
+						refVar = strings.Split(valueFile, "/")[0]
+					}
+
+					if refVar == "" {
+						refVar = envRefByValueFile(valueFile, q.RefSources)
+					}
+
+					if refVar == "" {
 						continue
 					}
-					refVar := strings.Split(valueFile, "/")[0]
 
 					refSourceMapping, ok := q.RefSources[refVar]
 					if !ok {
@@ -1850,7 +1859,20 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 	}, nil
 }
 
+func envRefByValueFile(valueFile string, refSources map[string]*v1alpha1.RefTarget) string {
+	for k := range refSources {
+		if strings.Contains(valueFile, envByRefSourceName(k)) {
+			return k
+		}
+	}
+	return ""
+}
+
 var refEnvRe = regexp.MustCompile(`[^A-Za-z0-9]+`)
+
+func envByRefSourceName(refName string) string {
+	return "ARGOCD_APP_REF_" + refEnvRe.ReplaceAllString(strings.ToUpper(strings.TrimPrefix(refName, "$")), "_")
+}
 
 func newRefsEnv(q *apiclient.ManifestRequest, gitRepoPaths utilio.TempPaths) *v1alpha1.Env {
 	var refEnv v1alpha1.Env
@@ -1859,11 +1881,17 @@ func newRefsEnv(q *apiclient.ManifestRequest, gitRepoPaths utilio.TempPaths) *v1
 		return &refEnv
 	}
 
-	for k, v := range q.RefSources {
+	keys := make([]string, 0, len(q.RefSources))
+	for k := range q.RefSources {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, k := range keys {
+		v := q.RefSources[k]
 		path, err := gitRepoPaths.GetPath(git.NormalizeGitURL(v.Repo.Repo))
-		envName := "ARGOCD_APP_REF_" + refEnvRe.ReplaceAllString(strings.ToUpper(strings.TrimPrefix(k, "$")), "_")
 		if err == nil {
-			refEnv = append(refEnv, &v1alpha1.EnvEntry{Name: envName, Value: path})
+			refEnv = append(refEnv, &v1alpha1.EnvEntry{Name: envByRefSourceName(k), Value: path})
 		}
 	}
 	return &refEnv
