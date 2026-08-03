@@ -4,10 +4,7 @@ import {Timestamp} from '../../../shared/components';
 import {ApplicationSource, RevisionMetadata, ChartDetails, OCIMetadata} from '../../../shared/models';
 import {services} from '../../../shared/services';
 
-export const truncateRevisionMessage = (message: string, maxLength?: number): string => {
-    const firstLine = message.split('\n')[0];
-    return maxLength === undefined ? firstLine : firstLine.slice(0, maxLength);
-};
+export const truncateRevisionMessage = (message: string, maxLength: number): string => message.split('\n')[0].slice(0, maxLength);
 
 export const RevisionMetadataRows = (props: {applicationName: string; applicationNamespace: string; source: ApplicationSource; index: number; versionId: number | null}) => {
     if (props?.source?.repoURL?.startsWith('oci://')) {
@@ -80,42 +77,52 @@ export const RevisionMetadataRows = (props: {applicationName: string; applicatio
         <DataLoader
             input={props}
             load={input => services.applications.revisionMetadata(input.applicationName, input.applicationNamespace, input.source.targetRevision, input.index, input.versionId)}>
-            {(m: RevisionMetadata) => (
-                <div>
-                    <div className='row'>
-                        <div className='columns small-3'>Authored by</div>
-                        <div className='columns small-9'>
-                            {m.author || 'unknown'}
-                            <br />
-                            {m.date && <Timestamp date={m.date} />}
-                        </div>
-                    </div>
-                    {m.message && (
+            {(m: RevisionMetadata) => {
+                const preview = m.message ? truncateRevisionMessage(m.message, 64) : '';
+                // Only pay for the Tooltip/Popper when the preview actually hides
+                // something (a longer first line or additional message lines).
+                const isTruncated = !!m.message && preview !== m.message;
+                return (
+                    <div>
                         <div className='row'>
-                            <div className='columns small-3' />
+                            <div className='columns small-3'>Authored by</div>
                             <div className='columns small-9'>
-                                <Tooltip
-                                    popperOptions={{
-                                        modifiers: {
-                                            preventOverflow: {enabled: false},
-                                            hide: {enabled: false},
-                                            flip: {enabled: false}
-                                        }
-                                    }}
-                                    content={<span style={{whiteSpace: 'pre-wrap', wordBreak: 'break-word'}}>{truncateRevisionMessage(m.message)}</span>}
-                                    placement='bottom'
-                                    allowHTML={true}>
-                                    <div>{truncateRevisionMessage(m.message, 64)}</div>
-                                </Tooltip>
+                                {m.author || 'unknown'}
+                                <br />
+                                {m.date && <Timestamp date={m.date} />}
                             </div>
                         </div>
-                    )}
-                    <div className='row'>
-                        <div className='columns small-3'>GPG signature</div>
-                        <div className='columns small-9'>{m.signatureInfo || '-'}</div>
+                        {m.message && (
+                            <div className='row'>
+                                <div className='columns small-3' />
+                                <div className='columns small-9'>
+                                    {isTruncated ? (
+                                        <Tooltip
+                                            popperOptions={{
+                                                modifiers: {
+                                                    preventOverflow: {enabled: false},
+                                                    hide: {enabled: false},
+                                                    flip: {enabled: false}
+                                                }
+                                            }}
+                                            content={<span style={{whiteSpace: 'pre-wrap', wordBreak: 'break-word'}}>{m.message}</span>}
+                                            placement='bottom'
+                                            allowHTML={true}>
+                                            <div>{preview}</div>
+                                        </Tooltip>
+                                    ) : (
+                                        <div>{preview}</div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                        <div className='row'>
+                            <div className='columns small-3'>GPG signature</div>
+                            <div className='columns small-9'>{m.signatureInfo || '-'}</div>
+                        </div>
                     </div>
-                </div>
-            )}
+                );
+            }}
         </DataLoader>
     );
 };
