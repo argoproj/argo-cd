@@ -225,7 +225,6 @@ func TestComparingWithGPGFingerprint(t *testing.T) {
 	require.True(t, IsLongKeyID(fingerprint))
 
 	gitClient := &gitmocks.Client{}
-	gitClient.EXPECT().IsShallowRepo(mock.Anything).Return(false, nil)
 	gitClient.EXPECT().LsSignatures(mock.Anything, mock.Anything, mock.Anything).Return(
 		[]git.RevisionSignatureInfo{{
 			Revision: "1.0", VerificationResult: git.GPGVerificationResultGood, SignatureKeyID: shortKey, Date: "ignored", AuthorIdentity: "ignored",
@@ -274,7 +273,6 @@ func TestGPGHeadValid(t *testing.T) {
 		t.Run("verify "+test.revision, func(t *testing.T) {
 			// Given repo with a tagged commit
 			gitClient := &gitmocks.Client{}
-			gitClient.EXPECT().IsShallowRepo(mock.Anything).Return(false, nil)
 			gitClient.EXPECT().LsSignatures(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(_ context.Context, revision string, _ bool) ([]git.RevisionSignatureInfo, string, error) {
 				signatureInfos := []git.RevisionSignatureInfo{{
 					Revision: revision, VerificationResult: git.GPGVerificationResultGood, SignatureKeyID: keyId, Date: "ignored", AuthorIdentity: "ignored",
