@@ -10,6 +10,7 @@ import (
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/repos"
 )
 
 var projectWithNoKeys = AppProjectSpec{
@@ -22,6 +23,38 @@ var projectWithNoKeys = AppProjectSpec{
 				GPG: &SourceIntegrityGitPolicyGPG{
 					Keys: []string{}, // Verifying but permitting no keys
 					Mode: "head",
+				},
+			}},
+		},
+	},
+}
+
+var projectWithStrictMode = AppProjectSpec{
+	SourceRepos:  []string{"*"},
+	Destinations: []ApplicationDestination{{Namespace: "*", Server: "*"}},
+	SourceIntegrity: &SourceIntegrity{
+		Git: &SourceIntegrityGit{
+			Policies: []*SourceIntegrityGitPolicy{{
+				Repos: []SourceIntegrityGitPolicyRepo{{URL: "*"}},
+				GPG: &SourceIntegrityGitPolicyGPG{
+					Keys: []string{fixture.GpgGoodKeyID},
+					Mode: SourceIntegrityGitPolicyGPGModeStrict,
+				},
+			}},
+		},
+	},
+}
+
+var projectWithHeadMode = AppProjectSpec{
+	SourceRepos:  []string{"*"},
+	Destinations: []ApplicationDestination{{Namespace: "*", Server: "*"}},
+	SourceIntegrity: &SourceIntegrity{
+		Git: &SourceIntegrityGit{
+			Policies: []*SourceIntegrityGitPolicy{{
+				Repos: []SourceIntegrityGitPolicyRepo{{URL: "*"}},
+				GPG: &SourceIntegrityGitPolicyGPG{
+					Keys: []string{fixture.GpgGoodKeyID},
+					Mode: SourceIntegrityGitPolicyGPGModeHead,
 				},
 			}},
 		},
@@ -302,6 +335,54 @@ func TestSyncToTagBasedConstraint(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		Expect(NoConditions())
+}
+
+func TestSyncHeadModeSucceedsOnShallowRepo(t *testing.T) {
+	fixture.SkipOnEnv(t, "GPG")
+	fixture.EnsureCleanState(t)
+
+	Given(t).
+		Project("gpg").
+		ProjectSpec(projectWithHeadMode).
+		Path(guestbookPath).
+		HTTPSInsecureRepoURLAdded(true, repos.WithDepth(1)).
+		RepoURLType(fixture.RepoURLTypeHTTPS).
+		GPGPublicKeyAdded().
+		Sleep(2).
+		When().
+		AddSignedFile("test.yaml", "null").
+		IgnoreErrors().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(NoConditions())
+}
+
+func TestSyncStrictModeFailsOnShallowRepo(t *testing.T) {
+	fixture.SkipOnEnv(t, "GPG")
+	fixture.EnsureCleanState(t)
+
+	Given(t).
+		Project("gpg").
+		ProjectSpec(projectWithStrictMode).
+		Path(guestbookPath).
+		HTTPSInsecureRepoURLAdded(true, repos.WithDepth(1)).
+		RepoURLType(fixture.RepoURLTypeHTTPS).
+		GPGPublicKeyAdded().
+		Sleep(2).
+		When().
+		AddSignedFile("test.yaml", "null").
+		IgnoreErrors().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationError)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(HealthIs(health.HealthStatusMissing)).
+		Expect(Condition(ApplicationConditionComparisonError, "GIT/GPG: GPG strict mode requires deep clone of the repository, but the repository is shallow"))
 }
 
 func TestNamespacedSyncToUnsignedCommit(t *testing.T) {
