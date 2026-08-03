@@ -21,6 +21,7 @@ Metrics about applications. Scraped at the `argocd-metrics:8082/metrics` endpoin
 | `argocd_cluster_cache_age_seconds`                |   gauge   | Cluster cache age in seconds.                                                                                                               |
 | `argocd_cluster_connection_status`                |   gauge   | The k8s cluster current connection status.                                                                                                  |
 | `argocd_cluster_events_total`                     |  counter  | Number of processes k8s resource events.                                                                                                    |
+| `argocd_cluster_events_ignored_total`             |  counter  | Number of k8s resource events ignored by `ignoreResourceUpdates` rules.                                                                     |
 | `argocd_cluster_info`                             |   gauge   | Information about cluster.                                                                                                                  |
 | `argocd_redis_request_duration`                   | histogram | Redis requests duration.                                                                                                                    |
 | `argocd_redis_request_total`                      |  counter  | Number of redis requests executed during application reconciliation                                                                         |
