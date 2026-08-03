@@ -201,6 +201,10 @@ To test the implemented custom health checks, run `go test -v ./util/lua/`.
 
 The [PR#1139](https://github.com/argoproj/argo-cd/pull/1139) is an example of Cert Manager CRDs custom health check.
 
+#### Update the upgrade notes
+In your PR, if you are adding new health checks, please update the corresponding [upgrade notes](upgrading),
+under the section `Custom Healthchecks Added` with the new health check(s).
+
 #### Wildcard Support for Built-in Health Checks
 
 You can use a single health check for multiple resources by using a wildcard in the group or kind directory names.
