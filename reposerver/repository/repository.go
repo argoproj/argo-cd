@@ -1861,7 +1861,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 
 func envRefByValueFile(valueFile string, refSources map[string]*v1alpha1.RefTarget) string {
 	for k := range refSources {
-		if strings.Contains(valueFile, envByRefSourceName(k)) {
+		if strings.Contains(valueFile, "$"+envByRefSourceName(k)) {
 			return k
 		}
 	}

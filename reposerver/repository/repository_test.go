@@ -788,6 +788,67 @@ func TestHelmChartReferencingExternalValues_OutOfBounds_Symlink(t *testing.T) {
 	require.Error(t, err)
 }
 
+// TestHelmChartReferencingExternalValues_EnvRefInValueFile verifies that a valueFile path
+// containing $ARGOCD_APP_REF_* (e.g. as used by helm-secrets) triggers checkout of the
+// corresponding ref source. The path does not start with "$", so envRefByValueFile is
+// responsible for detecting the ref source.
+func TestHelmChartReferencingExternalValues_EnvRefInValueFile(t *testing.T) {
+	checkedOut := false
+	service, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+		gitClient.EXPECT().Init().Return(nil)
+		gitClient.EXPECT().IsRevisionPresent(mock.Anything, mock.Anything).Return(false)
+		gitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Return(nil)
+		gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(_ context.Context, _ string, _ bool, _ bool) (string, error) {
+			checkedOut = true
+			return "", nil
+		})
+		gitClient.EXPECT().LsRemote(mock.Anything).Return(mock.Anything, nil)
+		gitClient.EXPECT().CommitSHA(mock.Anything).Return(mock.Anything, nil)
+		gitClient.EXPECT().Root().Return(".")
+		gitClient.EXPECT().RepoURL().Return("https://git.example.com/test/repo")
+		gitClient.EXPECT().IsAnnotatedTag(mock.Anything, mock.Anything).Return(false)
+		gitClient.EXPECT().VerifyCommitSignature(mock.Anything, mock.Anything).Return("", nil)
+
+		helmClient.EXPECT().GetIndex(mock.Anything, mock.AnythingOfType("bool"), mock.Anything).Return(&helm.Index{Entries: map[string]helm.Entries{
+			"my-chart": {{Version: "1.0.0"}, {Version: "1.1.0"}},
+		}}, nil)
+		helmClient.EXPECT().GetTags(mock.Anything, mock.Anything, mock.Anything).Return(nil, nil)
+		helmClient.EXPECT().ExtractChart(mock.Anything, "my-chart", "1.1.0", false, int64(0), false).Return("./testdata/my-chart", utilio.NopCloser, nil)
+		helmClient.EXPECT().CleanChartCache("my-chart", "1.1.0").Return(nil)
+
+		paths.EXPECT().Add(mock.Anything, mock.Anything).Return()
+		paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+		paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+		paths.EXPECT().GetPaths().Return(map[string]string{"fake-nonce": "."})
+	}, ".")
+
+	spec := v1alpha1.ApplicationSpec{
+		Sources: []v1alpha1.ApplicationSource{
+			{RepoURL: "https://helm.example.com", Chart: "my-chart", TargetRevision: ">= 1.0.0", Helm: &v1alpha1.ApplicationSourceHelm{
+				// Custom scheme path with $ARGOCD_APP_REF_* — does not start with "$",
+				// so envRefByValueFile is responsible for resolving the ref source.
+				ValueFiles: []string{"secrets://$ARGOCD_APP_REF_REF/testdata/my-chart/my-chart-values.yaml"},
+			}},
+			{Ref: "ref", RepoURL: "https://git.example.com/test/repo"},
+		},
+	}
+	refSources, err := argo.GetRefSources(t.Context(), spec.Sources, spec.Project, func(_ context.Context, _ string, _ string) (*v1alpha1.Repository, error) {
+		return &v1alpha1.Repository{Repo: "https://git.example.com/test/repo"}, nil
+	}, []string{})
+	require.NoError(t, err)
+	request := &apiclient.ManifestRequest{
+		Repo: &v1alpha1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true, ProjectName: "something",
+		ProjectSourceRepos: []string{"*"},
+		HelmOptions:        &v1alpha1.HelmOptions{ValuesFileSchemes: []string{"secrets"}},
+	}
+	_, err = service.GenerateManifest(t.Context(), request)
+	// helm cannot open secrets:// paths (that's handled by an external plugin), but the
+	// important assertion is that Checkout was called — meaning the ref source was detected
+	// and checked out before manifest generation.
+	assert.True(t, checkedOut, "ref source should be checked out when referenced via $ARGOCD_APP_REF_* in a custom-scheme valueFile")
+	assert.ErrorContains(t, err, "helm")
+}
+
 func TestGenerateManifestsUseExactRevision(t *testing.T) {
 	service, gitClient, _ := newServiceWithMocks(t, ".")
 
@@ -2171,6 +2232,51 @@ func Test_newEnvWithRefs(t *testing.T) {
 			TargetRevision: "my-target-revision",
 		},
 	}, "my-revision", gitRepoPaths))
+}
+
+func Test_envByRefSourceName(t *testing.T) {
+	tests := []struct {
+		refName  string
+		expected string
+	}{
+		{"$values", "ARGOCD_APP_REF_VALUES"},
+		{"$values_src", "ARGOCD_APP_REF_VALUES_SRC"},
+		{"$super-ref", "ARGOCD_APP_REF_SUPER_REF"},
+		{"$FOO", "ARGOCD_APP_REF_FOO"},
+		{"$a-b", "ARGOCD_APP_REF_A_B"},
+		// names that collide after normalization
+		{"$a_b", "ARGOCD_APP_REF_A_B"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.refName, func(t *testing.T) {
+			assert.Equal(t, tt.expected, envByRefSourceName(tt.refName))
+		})
+	}
+}
+
+func Test_envRefByValueFile(t *testing.T) {
+	refSources := map[string]*v1alpha1.RefTarget{
+		"$values": {Repo: v1alpha1.Repository{Repo: "https://github.com/my-org/my-repo"}},
+		"$other":  {Repo: v1alpha1.Repository{Repo: "https://github.com/my-org/other-repo"}},
+	}
+
+	tests := []struct {
+		valueFile string
+		expected  string
+	}{
+		// env var reference in path → matched
+		{"secrets://$ARGOCD_APP_REF_VALUES/credentials.yaml", "$values"},
+		{"secrets://$ARGOCD_APP_REF_OTHER/credentials.yaml", "$other"},
+		// $ref syntax → not matched by envRefByValueFile
+		{"$values/credentials.yaml", ""},
+		// no ref → not matched
+		{"plain/values.yaml", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.valueFile, func(t *testing.T) {
+			assert.Equal(t, tt.expected, envRefByValueFile(tt.valueFile, refSources))
+		})
+	}
 }
 
 func TestService_newHelmClientResolveRevision(t *testing.T) {
