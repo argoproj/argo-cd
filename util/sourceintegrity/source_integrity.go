@@ -136,7 +136,7 @@ func verify(ctx context.Context, g *v1alpha1.SourceIntegrityGitPolicyGPG, gitCli
 
 		shallow, err := gitClient.IsShallowRepo(ctx)
 		if err != nil {
-			return nil, "", fmt.Errorf("failed to check if repository is shallow: %w", err)
+			return nil, "", err
 		}
 		if shallow {
 			msg := "GPG strict mode requires deep clone of the repository, but the repository is shallow"

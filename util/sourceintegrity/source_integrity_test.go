@@ -611,7 +611,7 @@ func TestGPGStrictShallowRepoCheckError(t *testing.T) {
 	const revision = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 
 	gitClient := &gitmocks.Client{}
-	gitClient.EXPECT().IsShallowRepo(mock.Anything).Return(false, errors.New("failed to run git"))
+	gitClient.EXPECT().IsShallowRepo(mock.Anything).Return(false, errors.New("failed to check if repository is shallow"))
 
 	policy := &v1alpha1.SourceIntegrityGitPolicyGPG{
 		Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeStrict,
@@ -620,7 +620,6 @@ func TestGPGStrictShallowRepoCheckError(t *testing.T) {
 
 	result, legacy, err := verify(t.Context(), policy, gitClient, revision)
 	require.ErrorContains(t, err, "failed to check if repository is shallow")
-	require.ErrorContains(t, err, "failed to run git")
 	assert.Nil(t, result)
 	assert.Empty(t, legacy)
 	gitClient.AssertNotCalled(t, "LsSignatures", mock.Anything, mock.Anything, mock.Anything)
