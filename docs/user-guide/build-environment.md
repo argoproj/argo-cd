@@ -13,11 +13,15 @@
 | `ARGOCD_APP_SOURCE_PATH`            | The path of the app within the source repo.                             |
 | `ARGOCD_APP_SOURCE_REPO_URL`        | The source repo URL.                                                    |
 | `ARGOCD_APP_SOURCE_TARGET_REVISION` | The target revision from the spec, e.g. `master`.                       |
-| `ARGOCD_APP_REF_<NAME>`             | The local checkout path of a ref source, where `<NAME>` is the ref name uppercased with non-alphanumeric characters replaced by `_`. For example, `ref: values_src` produces `ARGOCD_APP_REF_VALUES_SRC`. Only set when the application uses [multiple sources](multiple_sources.md) with a `ref` field. |
+| `ARGOCD_APP_REF_<REF_NAME>`             | The local checkout path of a ref source                           |
 | `KUBE_VERSION`                      | The semantic version of Kubernetes without trailing metadata.           |
 | `KUBE_API_VERSIONS`                 | The version of the Kubernetes API.                                      |
 
 In case you don't want a variable to be interpolated, `$` can be escaped via `$$`.
+
+> [!NOTE]
+> `<REF_NAME>` uppercased with non-alphanumeric characters replaced by `_`. For example, `ref: values_src` produces `ARGOCD_APP_REF_VALUES_SRC`. Only present for applications using [multiple sources](multiple_sources.md) with a `ref` field.
+> Ref names that differ only in case or non-alphanumeric characters (e.g. `a-b` and `a_b`) map to the same variable name — avoid such collisions.
 
 ```
 command:

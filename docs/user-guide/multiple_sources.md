@@ -89,7 +89,7 @@ at that URL. If the `path` field is not set, Argo CD will use the repository sol
 
 ## Ref source paths in build environment
 
-Each ref source's local checkout path is also available as a [build environment variable](build-environment.md) under the name `ARGOCD_APP_REF_<NAME>`, where `<NAME>` is the ref name uppercased with non-alphanumeric characters replaced by `_`.
+Each ref source's local checkout path is also available as a [build environment variable](build-environment.md) under the name `ARGOCD_APP_REF_<REF_NAME>`, where `<REF_NAME>` is the ref name uppercased with non-alphanumeric characters replaced by `_`.
 
 For example, `ref: values_src` exposes `$ARGOCD_APP_REF_VALUES_SRC`:
 
@@ -105,3 +105,4 @@ sources:
     valueFiles:
     - secrets://$ARGOCD_APP_REF_VALUES_SRC/credentials.yaml
 ```
+
