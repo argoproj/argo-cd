@@ -2188,7 +2188,7 @@ func TestAddRefreshAnnotationToApplications(t *testing.T) {
 				},
 			},
 			expectError:            false,
-			expectAnnotationLength: 1,
+			expectAnnotationLength: 2, // call to RefreshApp adds annotations refresh and refresh-timestamp
 		},
 		{
 			name: "adds annotation to applications with other existing annotations",
@@ -2204,7 +2204,7 @@ func TestAddRefreshAnnotationToApplications(t *testing.T) {
 				},
 			},
 			expectError:            false,
-			expectAnnotationLength: 2,
+			expectAnnotationLength: 3,
 		},
 		{
 			name: "skips application that already has refresh annotation",
@@ -2220,7 +2220,7 @@ func TestAddRefreshAnnotationToApplications(t *testing.T) {
 				},
 			},
 			expectError:            false,
-			expectAnnotationLength: 1,
+			expectAnnotationLength: 1, // when adding annotation is skipped, call to RefreshApp is skipped, thus refresh-timestamp annotation is not added
 		},
 		{
 			name: "adds annotation to multiple applications",
@@ -2239,7 +2239,7 @@ func TestAddRefreshAnnotationToApplications(t *testing.T) {
 				},
 			},
 			expectError:            false,
-			expectAnnotationLength: 1,
+			expectAnnotationLength: 2,
 		},
 	}
 
