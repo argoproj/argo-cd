@@ -72,3 +72,4 @@ argocd app diff APPNAME [flags]
 ### SEE ALSO
 
 * [argocd app](argocd_app.md)	 - Manage applications
+
