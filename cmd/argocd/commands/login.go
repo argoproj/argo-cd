@@ -80,7 +80,12 @@ argocd login cd.argoproj.io --core`,
 				if !skipTestTLS {
 					dialTime := 30 * time.Second
 					tlsTestResult, err := grpc_util.TestTLS(server, dialTime)
-					errors.CheckError(err)
+					if err != nil {
+						if strings.Contains(err.Error(), "context deadline exceeded") {
+							err = fmt.Errorf("failed to determine whether server uses TLS: %w\n\nThe server may be behind a reverse proxy or may not accept the TLS probe.\nTry --skip-test-tls. If the proxy requires gRPC-Web, also use --grpc-web.", err)
+						}
+						errors.CheckError(err)
+					}
 					if !tlsTestResult.TLS {
 						if !clientOpts.PlainText {
 							if !cli.AskToProceed("WARNING: server is not configured with TLS. Proceed (y/n)? ") {
