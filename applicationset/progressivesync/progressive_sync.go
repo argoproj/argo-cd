@@ -14,7 +14,7 @@ import (
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 	argoutil "github.com/argoproj/argo-cd/v3/util/argo"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	log "github.com/sirupsen/logrus"
@@ -669,7 +669,7 @@ func (m *Manager) ensureApplicationsReconciled(logCtx *log.Entry, appset *argov1
 	}
 
 	if len(appsNeedReconcile) > 0 {
-		logCtx.Info(fmt.Sprintf("Finished adding refresh annotations to %s, waiting for application controller to reconcile them", appsNeedReconcile))
+		logCtx.Info(fmt.Sprintf("Finished adding refresh annotations to %v, waiting for application controller to reconcile them", appsNeedReconcile))
 	}
 	return false, nil
 }

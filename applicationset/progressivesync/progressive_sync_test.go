@@ -7,7 +7,6 @@ import (
 
 	appfake "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
 
-	crtclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	log "github.com/sirupsen/logrus"
@@ -18,7 +17,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -2142,7 +2140,7 @@ func TestEnsureApplicationsReconciled(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			initObjs := []crtclient.Object{&tt.appset}
+			initObjs := []client.Object{&tt.appset}
 			appObjs := []runtime.Object{}
 			for i := range tt.applications {
 				initObjs = append(initObjs, &tt.applications[i])
@@ -2345,7 +2343,7 @@ func TestPerformReverseDeletionStaleCache(t *testing.T) {
 		}).
 		Build()
 
-	m := NewManager(fakeClient, nil)
+	m := NewManager(fakeClient, nil, nil)
 	logCtx := log.NewEntry(log.New())
 
 	requeue, err := m.PerformReverseDeletion(context.Background(), logCtx, appSet, currentApps)
