@@ -110,7 +110,7 @@ jobs:
           git commit --signoff -m "Bump version to ${TARGET_VERSION}"
           git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$BRANCH"
           gh pr create \
-            --title "Bump version to ${TARGET_VERSION} on ${TARGET_BRANCH} branch" \
+            --title "chore: bump version to ${TARGET_VERSION} on ${TARGET_BRANCH} branch" \
             --body "Updating VERSION and manifests to ${TARGET_VERSION}" \
             --head "$BRANCH" \
             --base "${TARGET_BRANCH}" \

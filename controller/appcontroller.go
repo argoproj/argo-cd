@@ -1692,35 +1692,27 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 		now := metav1.Now()
 		state.FinishedAt = &now
 	}
-	patch := map[string]any{
-		"status": map[string]any{
-			"operationState": state,
-		},
-	}
-	if state.Phase.Completed() {
-		// If operation is completed, clear the operation field to indicate no operation is
-		// in progress.
-		patch["operation"] = nil
-	}
-	if reflect.DeepEqual(app.Status.OperationState, state) {
+	clearOperation := state.Phase.Completed() && app.Operation != nil
+	if reflect.DeepEqual(app.Status.OperationState, state) && !clearOperation {
 		logCtx.Infof("No operation updates necessary to '%s'. Skipping patch", app.QualifiedName())
 		return
 	}
-	patchJSON, err := json.Marshal(patch)
+	// Replace the whole operationState since we re-evaluated the whole object
+	patchOps := []map[string]any{
+		{"op": "add", "path": "/status/operationState", "value": state},
+	}
+	if state.Phase.Completed() {
+		// If operation is completed, clear the operation field to indicate no operation is in progress.
+		patchOps = append(patchOps, map[string]any{"op": "add", "path": "/operation", "value": nil})
+	}
+	patchJSON, err := json.Marshal(patchOps)
 	if err != nil {
 		logCtx.WithError(err).Error("error marshaling json")
 		return
 	}
-	if app.Status.OperationState != nil && app.Status.OperationState.FinishedAt != nil && state.FinishedAt == nil {
-		patchJSON, err = jsonpatch.MergeMergePatches(patchJSON, []byte(`{"status": {"operationState": {"finishedAt": null}}}`))
-		if err != nil {
-			logCtx.WithError(err).Error("error merging operation state patch")
-			return
-		}
-	}
 
 	kube.RetryUntilSucceed(ctx, updateOperationStateTimeout, "Update application operation state", logutils.NewLogrusLogger(logutils.NewWithCurrentConfig()), func() error {
-		_, err := ctrl.PatchAppWithWriteBack(ctx, app.Name, app.Namespace, types.MergePatchType, patchJSON, metav1.PatchOptions{})
+		_, err := ctrl.PatchAppWithWriteBack(ctx, app.Name, app.Namespace, types.JSONPatchType, patchJSON, metav1.PatchOptions{})
 		if err != nil {
 			// Stop retrying updating deleted application
 			if apierrors.IsNotFound(err) {
@@ -2125,8 +2117,7 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 	compareWith := CompareWithLatest
 	refreshType := appv1.RefreshTypeNormal
 
-	softExpired := app.Status.ReconciledAt == nil || app.Status.ReconciledAt.Add(statusRefreshTimeout).Before(time.Now().UTC())
-	hardExpired := (app.Status.ReconciledAt == nil || app.Status.ReconciledAt.Add(statusHardRefreshTimeout).Before(time.Now().UTC())) && statusHardRefreshTimeout.Seconds() != 0
+	softExpired, hardExpired := comparisonExpiry(app.Status, statusRefreshTimeout, statusHardRefreshTimeout)
 
 	if requestedType, ok := app.IsRefreshRequested(); ok {
 		compareWith = CompareWithLatestForceResolve
@@ -2170,6 +2161,19 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 		return true, refreshType, compareWith
 	}
 	return false, refreshType, compareWith
+}
+
+// comparisonExpiry reports whether soft/hard comparison windows have expired.
+// A nil ReconciledAt means the app has never been reconciled: soft expiry always
+// applies so it gets a first compare; hard expiry applies only when hard timeout is enabled.
+// A timeout <= 0 disables time-based expiry only (e.g. timeout.reconciliation=0s).
+func comparisonExpiry(status appv1.ApplicationStatus, statusRefreshTimeout, statusHardRefreshTimeout time.Duration) (softExpired, hardExpired bool) {
+	if status.ReconciledAt == nil {
+		return true, statusHardRefreshTimeout > 0
+	}
+	softExpired = statusRefreshTimeout > 0 && status.Expired(statusRefreshTimeout)
+	hardExpired = statusHardRefreshTimeout > 0 && status.Expired(statusHardRefreshTimeout)
+	return softExpired, hardExpired
 }
 
 func (ctrl *ApplicationController) refreshAppConditions(ctx context.Context, app *appv1.Application) (*appv1.AppProject, bool) {
