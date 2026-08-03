@@ -117,6 +117,63 @@ func TestMultiSourceAppWithHelmExternalValueFiles(t *testing.T) {
 		})
 }
 
+func TestMultiSourceAppWithHelmExternalValueFilesAndEnvVariableToRef(t *testing.T) {
+	sources := []ApplicationSource{{
+		RepoURL: RepoURL(RepoURLTypeFile),
+		Ref:     "values",
+	}, {
+		RepoURL:        RepoURL(RepoURLTypeFile),
+		TargetRevision: "HEAD",
+		Path:           "helm-guestbook",
+		Helm: &ApplicationSourceHelm{
+			ReleaseName: "helm-guestbook",
+			ValueFiles: []string{
+				"$ARGOCD_APP_REF_VALUES/multiple-source-values/values.yaml",
+			},
+		},
+	}}
+	fmt.Printf("sources: %v\n", sources)
+	ctx := Given(t)
+	ctx.
+		Sources(sources).
+		When().
+		CreateMultiSourceApp().
+		Then().
+		And(func(app *Application) {
+			assert.Equal(t, ctx.GetName(), app.Name)
+			for i, source := range app.Spec.GetSources() {
+				assert.Equal(t, sources[i].RepoURL, source.RepoURL)
+				assert.Equal(t, sources[i].Path, source.Path)
+			}
+			assert.Equal(t, ctx.DeploymentNamespace(), app.Spec.Destination.Namespace)
+			assert.Equal(t, KubernetesInternalAPIServerAddr, app.Spec.Destination.Server)
+		}).
+		Expect(Event(EventReasonResourceCreated, "create")).
+		And(func(_ *Application) {
+			// app should be listed
+			output, err := RunCli("app", "list")
+			require.NoError(t, err)
+			assert.Contains(t, output, ctx.GetName())
+		}).
+		Expect(Success("")).
+		Given().Timeout(60).
+		When().Wait().Then().
+		Expect(Success("")).
+		And(func(app *Application) {
+			statusByName := map[string]SyncStatusCode{}
+			for _, r := range app.Status.Resources {
+				statusByName[r.Name] = r.Status
+			}
+			assert.Len(t, statusByName, 1)
+			assert.Equal(t, SyncStatusCodeSynced, statusByName["guestbook-ui"])
+
+			// Confirm that the deployment has 3 replicas.
+			output, err := Run("", "kubectl", "get", "deployment", "guestbook-ui", "-n", ctx.DeploymentNamespace(), "-o", "jsonpath={.spec.replicas}")
+			require.NoError(t, err)
+			assert.Equal(t, "3", output, "Expected 3 replicas for the helm-guestbook deployment")
+		})
+}
+
 func TestMultiSourceAppWithSourceOverride(t *testing.T) {
 	sources := []ApplicationSource{{
 		RepoURL: RepoURL(RepoURLTypeFile),

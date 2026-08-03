@@ -876,7 +876,13 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 					var refVar string
 
 					if strings.HasPrefix(valueFile, "$") {
-						refVar = strings.Split(valueFile, "/")[0]
+						candidate := strings.Split(valueFile, "/")[0]
+						// Only use the $ prefix form if it's a known ref key.
+						// Otherwise fall through to envRefByValueFile so that
+						// paths like $ARGOCD_APP_REF_VALUES/... are handled correctly.
+						if _, ok := q.RefSources[candidate]; ok {
+							refVar = candidate
+						}
 					}
 
 					if refVar == "" {
@@ -1861,7 +1867,10 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 
 func envRefByValueFile(valueFile string, refSources map[string]*v1alpha1.RefTarget) string {
 	for k := range refSources {
-		if strings.Contains(valueFile, "$"+envByRefSourceName(k)) {
+		envVar := "$" + envByRefSourceName(k)
+		// Match only when the env var token is followed by "/" or end-of-string,
+		// to avoid $ARGOCD_APP_REF_VALUES matching $ARGOCD_APP_REF_VALUES_SRC.
+		if strings.Contains(valueFile, envVar+"/") || strings.HasSuffix(valueFile, envVar) {
 			return k
 		}
 	}

@@ -2256,8 +2256,9 @@ func Test_envByRefSourceName(t *testing.T) {
 
 func Test_envRefByValueFile(t *testing.T) {
 	refSources := map[string]*v1alpha1.RefTarget{
-		"$values": {Repo: v1alpha1.Repository{Repo: "https://github.com/my-org/my-repo"}},
-		"$other":  {Repo: v1alpha1.Repository{Repo: "https://github.com/my-org/other-repo"}},
+		"$values":     {Repo: v1alpha1.Repository{Repo: "https://github.com/my-org/my-repo"}},
+		"$values_src": {Repo: v1alpha1.Repository{Repo: "https://github.com/my-org/my-repo-2"}},
+		"$other":      {Repo: v1alpha1.Repository{Repo: "https://github.com/my-org/other-repo"}},
 	}
 
 	tests := []struct {
@@ -2267,6 +2268,8 @@ func Test_envRefByValueFile(t *testing.T) {
 		// env var reference in path → matched
 		{"secrets://$ARGOCD_APP_REF_VALUES/credentials.yaml", "$values"},
 		{"secrets://$ARGOCD_APP_REF_OTHER/credentials.yaml", "$other"},
+		// must not match $values when $values_src is the actual ref (prefix collision)
+		{"secrets://$ARGOCD_APP_REF_VALUES_SRC/credentials.yaml", "$values_src"},
 		// $ref syntax → not matched by envRefByValueFile
 		{"$values/credentials.yaml", ""},
 		// no ref → not matched
