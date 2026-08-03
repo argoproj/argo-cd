@@ -589,10 +589,22 @@ func resolveReferencedSources(hasMultipleSources bool, source *v1alpha1.Applicat
 	refCandidates := append(source.ValueFiles, refFileParams...)
 
 	for _, valueFile := range refCandidates {
-		if !strings.HasPrefix(valueFile, "$") {
+		var refVar string
+
+		if strings.HasPrefix(valueFile, "$") {
+			candidate := strings.Split(valueFile, "/")[0]
+			if _, ok := refSources[candidate]; ok {
+				refVar = candidate
+			}
+		}
+
+		if refVar == "" {
+			refVar = envRefByValueFile(valueFile, refSources)
+		}
+
+		if refVar == "" {
 			continue
 		}
-		refVar := strings.Split(valueFile, "/")[0]
 
 		refSourceMapping, ok := refSources[refVar]
 		if !ok {
