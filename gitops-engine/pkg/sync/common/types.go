@@ -17,8 +17,8 @@ const (
 	// AnnotationKeyHookDeletePolicy is the policy of deleting a hook
 	AnnotationKeyHookDeletePolicy = "argocd.argoproj.io/hook-delete-policy"
 	AnnotationDeletionApproved    = "argocd.argoproj.io/deletion-approved"
-	// AnnotationIgnoreRestartPolicy forces pods with restartPolicy Never/OnFailure to be
-	// treated like pods with restartPolicy: Always (annotation is ignored when pod is a hook)
+	// AnnotationIgnoreRestartPolicy makes health assessment of Pods with restartPolicy
+	// Never/OnFailure treat them as long-running pods (ignored for hook Pods)
 	AnnotationIgnoreRestartPolicy = "argocd.argoproj.io/ignore-restart-policy"
 
 	// Sync option that disables dry run in resource is missing in the cluster
