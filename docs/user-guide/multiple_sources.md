@@ -86,3 +86,22 @@ at that URL. If the `path` field is not set, Argo CD will use the repository sol
 
 > [!NOTE]
 > Even when the `ref` field is configured with the `path` field, `$value` still represents the root of sources with the `ref` field. Consequently, `valueFiles` must be specified as relative paths from the root of sources.
+
+## Ref source paths in build environment
+
+Each ref source's local checkout path is also available as a [build environment variable](build-environment.md) under the name `ARGOCD_APP_REF_<NAME>`, where `<NAME>` is the ref name uppercased with non-alphanumeric characters replaced by `_`.
+
+For example, `ref: values_src` exposes `$ARGOCD_APP_REF_VALUES_SRC`:
+
+```yaml
+sources:
+- repoURL: 'https://github.com/my-org/my-values.git'
+  targetRevision: HEAD
+  ref: values_src
+- repoURL: 'https://prometheus-community.github.io/helm-charts'
+  chart: prometheus
+  targetRevision: 15.7.1
+  helm:
+    valueFiles:
+    - secrets://$ARGOCD_APP_REF_VALUES_SRC/credentials.yaml
+```

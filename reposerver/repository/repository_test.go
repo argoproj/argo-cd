@@ -2129,7 +2129,48 @@ func Test_newEnv(t *testing.T) {
 			Path:           "my-path",
 			TargetRevision: "my-target-revision",
 		},
-	}, "my-revision"))
+	}, "my-revision", nil))
+}
+
+func Test_newEnvWithRefs(t *testing.T) {
+	tempDir := t.TempDir()
+	gitRepoPaths := utilio.NewRandomizedTempPaths(tempDir)
+	gitRepoPaths.Add(git.NormalizeGitURL("https://github.com/my-org/my-repo"), path.Join(tempDir, "repo1"))
+	gitRepoPaths.Add(git.NormalizeGitURL("https://github.com/my-org/my-repo-2"), path.Join(tempDir, "repo2"))
+
+	refSources := map[string]*v1alpha1.RefTarget{}
+	refSources["$global"] = &v1alpha1.RefTarget{
+		Repo:           v1alpha1.Repository{Repo: "https://github.com/my-org/my-repo"},
+		TargetRevision: "HEAD",
+	}
+	refSources["$super_ref"] = &v1alpha1.RefTarget{
+		Repo:           v1alpha1.Repository{Repo: "https://github.com/my-org/my-repo-2"},
+		TargetRevision: "HEAD",
+	}
+
+	assert.Equal(t, &v1alpha1.Env{
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAME", Value: "my-app-name"},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAMESPACE", Value: "my-namespace"},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_PROJECT_NAME", Value: "my-project-name"},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION", Value: "my-revision"},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION_SHORT", Value: "my-revi"},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION_SHORT_8", Value: "my-revis"},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_REPO_URL", Value: "https://github.com/my-org/my-repo"},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_PATH", Value: "my-path"},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_TARGET_REVISION", Value: "my-target-revision"},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REF_GLOBAL", Value: path.Join(tempDir, "repo1")},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REF_SUPER_REF", Value: path.Join(tempDir, "repo2")},
+	}, newEnv(&apiclient.ManifestRequest{
+		AppName:     "my-app-name",
+		Namespace:   "my-namespace",
+		ProjectName: "my-project-name",
+		Repo:        &v1alpha1.Repository{Repo: "https://github.com/my-org/my-repo"},
+		RefSources:  refSources,
+		ApplicationSource: &v1alpha1.ApplicationSource{
+			Path:           "my-path",
+			TargetRevision: "my-target-revision",
+		},
+	}, "my-revision", gitRepoPaths))
 }
 
 func TestService_newHelmClientResolveRevision(t *testing.T) {
