@@ -78,22 +78,29 @@ argocd login cd.argoproj.io --core`,
 				server = args[0]
 
 				if !skipTestTLS {
-					dialTime := 30 * time.Second
+					dialTime := 5 * time.Second
 					tlsTestResult, err := grpc_util.TestTLS(server, dialTime)
-					errors.CheckError(err)
-					if !tlsTestResult.TLS {
-						if !clientOpts.PlainText {
-							if !cli.AskToProceed("WARNING: server is not configured with TLS. Proceed (y/n)? ") {
-								os.Exit(1)
-							}
-							clientOpts.PlainText = true
+					if err != nil {
+						if strings.Contains(err.Error(), "context deadline exceeded") {
+							log.Warn("TLS test timed out (likely behind a reverse proxy). Proceeding with login... (Use --skip-test-tls to skip this check)")
+						} else {
+							errors.CheckError(err)
 						}
-					} else if tlsTestResult.InsecureErr != nil {
-						if !clientOpts.Insecure {
-							if !cli.AskToProceed(fmt.Sprintf("WARNING: server certificate had error: %s. Proceed insecurely (y/n)? ", tlsTestResult.InsecureErr)) {
-								os.Exit(1)
+					} else {
+						if !tlsTestResult.TLS {
+							if !clientOpts.PlainText {
+								if !cli.AskToProceed("WARNING: server is not configured with TLS. Proceed (y/n)? ") {
+									os.Exit(1)
+								}
+								clientOpts.PlainText = true
 							}
-							clientOpts.Insecure = true
+						} else if tlsTestResult.InsecureErr != nil {
+							if !clientOpts.Insecure {
+								if !cli.AskToProceed(fmt.Sprintf("WARNING: server certificate had error: %s. Proceed insecurely (y/n)? ", tlsTestResult.InsecureErr)) {
+									os.Exit(1)
+								}
+								clientOpts.Insecure = true
+							}
 						}
 					}
 				}
