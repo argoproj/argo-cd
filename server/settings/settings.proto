@@ -49,6 +49,7 @@ message Settings {
     bool syncWithReplaceAllowed = 29;
     string uiLoginButtonText = 30;
     bool resourceViewEnabled = 31;
+    bool disableOfflineAccessScopeInjection = 32;
 }
 
 message GoogleAnalyticsConfig {
@@ -96,6 +97,7 @@ message OIDCConfig {
     repeated string scopes = 5;
     map<string, github.com.argoproj.argo_cd.server.settings.oidc.Claim> idTokenClaims = 6 [(gogoproto.customname) = "IDTokenClaims"];
     bool enablePKCEAuthentication = 7;
+    reserved 8;
 }
 
 // SettingsService

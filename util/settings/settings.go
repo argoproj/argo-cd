@@ -234,23 +234,24 @@ func (o *oidcConfig) toExported() *OIDCConfig {
 }
 
 type OIDCConfig struct {
-	Name                     string                 `json:"name,omitempty"`
-	Issuer                   string                 `json:"issuer,omitempty"`
-	ClientID                 string                 `json:"clientID,omitempty"`
-	ClientSecret             string                 `json:"clientSecret,omitempty"`
-	CLIClientID              string                 `json:"cliClientID,omitempty"`
-	EnableUserInfoGroups     bool                   `json:"enableUserInfoGroups,omitempty"`
-	UserInfoBaseURL          string                 `json:"userInfoBaseURL,omitempty"` // the URL (without path) where the userinfo endpoint is located
-	UserInfoPath             string                 `json:"userInfoPath,omitempty"`
-	UserInfoCacheExpiration  string                 `json:"userInfoCacheExpiration,omitempty"`
-	RequestedScopes          []string               `json:"requestedScopes,omitempty"`
-	RequestedIDTokenClaims   map[string]*oidc.Claim `json:"requestedIDTokenClaims,omitempty"`
-	LogoutURL                string                 `json:"logoutURL,omitempty"`
-	RootCA                   string                 `json:"rootCA,omitempty"`
-	EnablePKCEAuthentication bool                   `json:"enablePKCEAuthentication,omitempty"`
-	DomainHint               string                 `json:"domainHint,omitempty"`
-	Azure                    *AzureOIDCConfig       `json:"azure,omitempty"`
-	RefreshTokenThreshold    string                 `json:"refreshTokenThreshold,omitempty"`
+	Name                               string                 `json:"name,omitempty"`
+	Issuer                             string                 `json:"issuer,omitempty"`
+	ClientID                           string                 `json:"clientID,omitempty"`
+	ClientSecret                       string                 `json:"clientSecret,omitempty"`
+	CLIClientID                        string                 `json:"cliClientID,omitempty"`
+	EnableUserInfoGroups               bool                   `json:"enableUserInfoGroups,omitempty"`
+	UserInfoBaseURL                    string                 `json:"userInfoBaseURL,omitempty"` // the URL (without path) where the userinfo endpoint is located
+	UserInfoPath                       string                 `json:"userInfoPath,omitempty"`
+	UserInfoCacheExpiration            string                 `json:"userInfoCacheExpiration,omitempty"`
+	RequestedScopes                    []string               `json:"requestedScopes,omitempty"`
+	RequestedIDTokenClaims             map[string]*oidc.Claim `json:"requestedIDTokenClaims,omitempty"`
+	LogoutURL                          string                 `json:"logoutURL,omitempty"`
+	RootCA                             string                 `json:"rootCA,omitempty"`
+	EnablePKCEAuthentication           bool                   `json:"enablePKCEAuthentication,omitempty"`
+	DisableOfflineAccessScopeInjection bool                   `json:"disableOfflineAccessScopeInjection,omitempty"`
+	DomainHint                         string                 `json:"domainHint,omitempty"`
+	Azure                              *AzureOIDCConfig       `json:"azure,omitempty"`
+	RefreshTokenThreshold              string                 `json:"refreshTokenThreshold,omitempty"`
 }
 
 type AzureOIDCConfig struct {
