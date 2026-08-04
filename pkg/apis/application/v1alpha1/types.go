@@ -41,6 +41,7 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
+	"k8s.io/client-go/transport"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/util/rbac"
@@ -3900,6 +3901,10 @@ func setFinalizer(meta *metav1.ObjectMeta, name string, exist bool) {
 func SetK8SConfigDefaults(config *rest.Config) error {
 	config.QPS = K8sClientConfigQPS
 	config.Burst = K8sClientConfigBurst
+	timeoutWrapper, err := k8sRequestTimeoutWrapper(config)
+	if err != nil {
+		return err
+	}
 	tlsConfig, err := rest.TLSConfigFor(config)
 	if err != nil {
 		return err
@@ -3933,17 +3938,47 @@ func SetK8SConfigDefaults(config *rest.Config) error {
 	config.AuthProvider = nil
 	config.ExecProvider = nil
 
-	// Set server-side timeout
-	config.Timeout = K8sServerSideTimeout
-
+	// Apply the Kubernetes API request timeout at the transport layer so it can
+	// exclude long-running requests and give each retry attempt its own timeout.
+	config.Timeout = 0
 	config.Transport = tr
+	// HTTPWrappersForConfig already applied the existing wrapper to tr. Clear it
+	// before adding Argo CD wrappers so client-go does not apply it a second time.
+	config.WrapTransport = nil
+	appendTransportWrapper(config, timeoutWrapper)
 	maxRetries := env.ParseInt64FromEnv(utilhttp.EnvRetryMax, 0, 1, math.MaxInt64)
 	if maxRetries > 0 {
 		backoffDurationMS := env.ParseInt64FromEnv(utilhttp.EnvRetryBaseBackoff, 100, 1, math.MaxInt64)
 		backoffDuration := time.Duration(backoffDurationMS) * time.Millisecond
-		config.WrapTransport = utilhttp.WithRetry(maxRetries, backoffDuration)
+		// Retry is intentionally the outer wrapper. A stuck attempt times out,
+		// while the original request context remains available for the next retry.
+		appendTransportWrapper(config, utilhttp.WithRetry(maxRetries, backoffDuration))
 	}
 	return nil
+}
+
+func k8sRequestTimeoutWrapper(config *rest.Config) (transport.WrapperFunc, error) {
+	if K8sServerSideTimeout <= 0 {
+		return nil, nil
+	}
+	serverURL, _, err := rest.DefaultServerUrlFor(config)
+	if err != nil {
+		return nil, fmt.Errorf("unable to determine Kubernetes API server path prefix: %w", err)
+	}
+	return utilhttp.WithTimeoutForNonLongRunningRequests(K8sServerSideTimeout, serverURL.Path), nil
+}
+
+func appendTransportWrapper(config *rest.Config, wrapper transport.WrapperFunc) {
+	if wrapper == nil {
+		return
+	}
+	previous := config.WrapTransport
+	config.WrapTransport = func(rt http.RoundTripper) http.RoundTripper {
+		if previous != nil {
+			rt = previous(rt)
+		}
+		return wrapper(rt)
+	}
 }
 
 // ParseProxyUrl returns a parsed url and verifies that schema is correct
@@ -3960,8 +3995,7 @@ func ParseProxyUrl(proxyUrl string) (*url.URL, error) { //nolint:revive //FIXME(
 	return u, nil
 }
 
-// RawRestConfig returns a go-client REST config from cluster that might be serialized into the file using kube.WriteKubeConfig method.
-func (c *Cluster) RawRestConfig() (*rest.Config, error) {
+func (c *Cluster) rawRestConfig() (*rest.Config, error) {
 	var config *rest.Config
 	var err error
 
@@ -4069,15 +4103,29 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 		config.Proxy = http.ProxyURL(u)
 	}
 	config.DisableCompression = c.Config.DisableCompression
-	config.Timeout = K8sServerSideTimeout
+	config.Timeout = 0
 	config.QPS = K8sClientConfigQPS
 	config.Burst = K8sClientConfigBurst
 	return config, nil
 }
 
+// RawRestConfig returns a go-client REST config from cluster that might be serialized into the file using kube.WriteKubeConfig method.
+func (c *Cluster) RawRestConfig() (*rest.Config, error) {
+	config, err := c.rawRestConfig()
+	if err != nil {
+		return nil, err
+	}
+	timeoutWrapper, err := k8sRequestTimeoutWrapper(config)
+	if err != nil {
+		return nil, err
+	}
+	appendTransportWrapper(config, timeoutWrapper)
+	return config, nil
+}
+
 // RESTConfig returns a go-client REST config from cluster with tuned throttling and HTTP client settings.
 func (c *Cluster) RESTConfig() (*rest.Config, error) {
-	config, err := c.RawRestConfig()
+	config, err := c.rawRestConfig()
 	if err != nil {
 		return nil, fmt.Errorf("unable to get K8s RAW REST config: %w", err)
 	}
