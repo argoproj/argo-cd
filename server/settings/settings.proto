@@ -92,6 +92,7 @@ message OIDCConfig {
     repeated string scopes = 5;
     map<string, github.com.argoproj.argo_cd.server.settings.oidc.Claim> idTokenClaims = 6 [(gogoproto.customname) = "IDTokenClaims"];
     bool enablePKCEAuthentication = 7;
+    bool disableOfflineAccessScopeInjection = 8;
 }
 
 // SettingsService

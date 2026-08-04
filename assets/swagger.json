@@ -5656,6 +5656,9 @@
         "clientID": {
           "type": "string"
         },
+        "disableOfflineAccessScopeInjection": {
+          "type": "boolean"
+        },
         "enablePKCEAuthentication": {
           "type": "boolean"
         },
