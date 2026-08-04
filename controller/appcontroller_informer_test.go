@@ -141,6 +141,34 @@ func TestApplicationEventHandlerFuncs(t *testing.T) {
 		h.OnUpdate(old, updated)
 
 		assert.Contains(t, assertEnqueued(t, ctrl.appRefreshQueue), "my-app")
+		assertNotEnqueued(t, ctrl.appOperationQueue)
+	})
+
+	t.Run("update of an application with an ongoing operation requeues an operation", func(t *testing.T) {
+		ctrl := newFakeController(t.Context(), &fakeData{}, nil)
+		h := ctrl.applicationEventHandlerFuncs()
+
+		old := newFakeApp()
+		updated := newFakeApp()
+		updated.ResourceVersion = "2"
+		updated.Operation = &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}}
+		h.OnUpdate(old, updated)
+
+		assert.Contains(t, assertEnqueued(t, ctrl.appOperationQueue), "my-app")
+	})
+
+	t.Run("update of a terminating application requeues an operation", func(t *testing.T) {
+		ctrl := newFakeController(t.Context(), &fakeData{}, nil)
+		h := ctrl.applicationEventHandlerFuncs()
+
+		now := metav1.Now()
+		old := newFakeApp()
+		updated := newFakeApp()
+		updated.ResourceVersion = "2"
+		updated.DeletionTimestamp = &now
+		h.OnUpdate(old, updated)
+
+		assert.Contains(t, assertEnqueued(t, ctrl.appOperationQueue), "my-app")
 	})
 
 	t.Run("delete of a processable application requeues a refresh", func(t *testing.T) {
