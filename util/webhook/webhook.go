@@ -37,6 +37,7 @@ import (
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v3/reposerver/cache"
 	servercache "github.com/argoproj/argo-cd/v3/server/cache"
+	applog "github.com/argoproj/argo-cd/v3/util/app/log"
 	"github.com/argoproj/argo-cd/v3/util/app/path"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/db"
@@ -477,7 +478,7 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 		if !cacheWarmDisabled {
 			repo, err := a.lookupRepository(context.Background(), webURL)
 			if err != nil {
-				log.Debugf("Failed to look up repository for %s: %v", webURL, err)
+				log.Errorf("Failed to look up repository for %s: %v", webURL, err)
 			} else if repo != nil && repo.WebhookManifestCacheWarmDisabled {
 				cacheWarmDisabled = true
 			}
@@ -486,6 +487,7 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 		appCount := 0
 		// iterate over apps and check if any files specified in their sources have changed
 		for _, app := range filteredApps {
+			logCtx := log.WithFields(applog.GetAppLogFields(&app))
 			// get all sources, including sync source and dry source if source hydrator is configured
 			sources := app.Spec.GetSources()
 			if app.Spec.SourceHydrator != nil {
@@ -508,9 +510,9 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 						}
 
 						// refresh paths have changed, so we need to refresh the app
-						log.Infof("refreshing app '%s' from webhook", app.Name)
+						logCtx.Info("refreshing app from webhook")
 						if hydrateType != nil {
-							log.Infof("webhook trigger refresh app to hydrate '%s'", app.Name)
+							logCtx.Infof("webhook trigger refresh app to hydrate")
 						}
 						appCount++
 						req := &appRefreshRequest{
@@ -528,11 +530,10 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 						break // we don't need to check other sources
 					} else if change.shaBefore != "" && change.shaAfter != "" && !cacheWarmDisabled {
 						// update the cached manifests with the new revision cache key
-						if err := a.storePreviouslyCachedManifests(&app, change, trackingMethod, appInstanceLabelKey, installationID, source); err != nil {
-							log.Debugf("Failed to store cached manifests of previous revision for app '%s': %v", app.Name, err)
-							webhookStoreCacheAttemptsTotal.WithLabelValues(git.NormalizeGitURL(webURL), "false").Inc()
-						} else {
-							webhookStoreCacheAttemptsTotal.WithLabelValues(git.NormalizeGitURL(webURL), "true").Inc()
+						if err := a.storePreviouslyCachedManifests(logCtx, &app, change, trackingMethod, appInstanceLabelKey, installationID, source); err != nil {
+							// Errors while updating the cache are non-fatal since the manifest will simply be regenerated on
+							// the next reconciliation.
+							logCtx.Warnf("Failed to store cached manifests of previous revision: %v", err)
 						}
 					}
 				}
@@ -585,7 +586,7 @@ func getURLRegex(originalURL string, regexpFormat string) (*regexp.Regexp, error
 	return repoRegexp, nil
 }
 
-func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Application, change changeInfo, trackingMethod string, appInstanceLabelKey string, installationID string, source v1alpha1.ApplicationSource) error {
+func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(logCtx *log.Entry, app *v1alpha1.Application, change changeInfo, trackingMethod string, appInstanceLabelKey string, installationID string, source v1alpha1.ApplicationSource) error {
 	destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, a.db)
 	if err != nil {
 		return fmt.Errorf("error validating destination: %w", err)
@@ -637,15 +638,25 @@ func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(app *v1alpha1.Appl
 		&clusterInfo,
 		nil,
 	)
-	cache.LogDebugManifestCacheKeyFields("moving manifests cache", "webhook app revision changed", oldManifestKey)
-
 	newManifestKey := oldManifestKey
 	newManifestKey.Revision = change.shaAfter
 
+	logEntry := logCtx.WithFields(log.Fields{
+		"old_cacheKey": oldManifestKey.String(),
+		"new_cacheKey": newManifestKey.String(),
+	})
+
 	if err := a.repoCache.SetNewRevisionManifests(oldManifestKey, newManifestKey); err != nil {
+		webhookStoreCacheAttemptsTotal.WithLabelValues(git.NormalizeGitURL(source.RepoURL), "false").Inc()
+		if errors.Is(err, cache.ErrCacheMiss) {
+			logEntry.Info("manifest cache miss while moving manifests cache to the new revision")
+			return nil
+		}
 		return fmt.Errorf("error setting new revision manifests: %w", err)
 	}
 
+	webhookStoreCacheAttemptsTotal.WithLabelValues(git.NormalizeGitURL(source.RepoURL), "true").Inc()
+	logEntry.Info("manifests cache moved")
 	return nil
 }
 

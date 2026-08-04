@@ -6,39 +6,39 @@ Argo CD exposes different sets of Prometheus metrics per server.
 
 Metrics about applications. Scraped at the `argocd-metrics:8082/metrics` endpoint.
 
-| Metric                                            |   Type    | Description                                                                                                                                 |
-| ------------------------------------------------- | :-------: | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `argocd_app_info`                                 |   gauge   | Information about Applications. It contains labels such as `sync_status` and `health_status` that reflect the application state in Argo CD. |
-| `argocd_app_condition`                            |   gauge   | Report Applications conditions. It contains the conditions currently present in the application status.                                     |
-| `argocd_app_k8s_request_total`                    |  counter  | Number of Kubernetes requests executed during application reconciliation                                                                    |
-| `argocd_app_labels`                               |   gauge   | Argo Application labels converted to Prometheus labels. Disabled by default. See section below about how to enable it.                      |
-| `argocd_app_orphaned_resources_count`             |   gauge   | Number of orphaned resources per application.                                                                                               |
-| `argocd_app_reconcile`                            | histogram | Application reconciliation performance in seconds.                                                                                          |
-| `argocd_app_sync_total`                           |  counter  | Counter for application sync history                                                                                                        |
-| `argocd_app_sync_duration_seconds_total`          |  counter  | Application sync performance in seconds total.                                                                                                        |
-| `argocd_cluster_api_resource_objects`             |   gauge   | Number of k8s resource objects in the cache.                                                                                                |
-| `argocd_cluster_api_resources`                    |   gauge   | Number of monitored Kubernetes API resources.                                                                                               |
-| `argocd_cluster_cache_age_seconds`                |   gauge   | Cluster cache age in seconds.                                                                                                               |
-| `argocd_cluster_connection_status`                |   gauge   | The k8s cluster current connection status.                                                                                                  |
-| `argocd_cluster_events_total`                     |  counter  | Number of processes k8s resource events.                                                                                                    |
-| `argocd_cluster_info`                             |   gauge   | Information about cluster.                                                                                                                  |
-| `argocd_redis_request_duration`                   | histogram | Redis requests duration.                                                                                                                    |
-| `argocd_redis_request_total`                      |  counter  | Number of redis requests executed during application reconciliation                                                                         |
-| `argocd_resource_events_processing`               | histogram | Time to process resource events in batch in seconds                                                                                         |
-| `argocd_resource_events_processed_in_batch`       |   gauge   | Number of resource events processed in batch                                                                                                |
-| `argocd_kubectl_exec_pending`                     |   gauge   | Number of pending kubectl executions                                                                                                        |
-| `argocd_kubectl_exec_total`                       |  counter  | Number of kubectl executions                                                                                                                |
-| `argocd_kubectl_client_cert_rotation_age_seconds` |   gauge   | Age of kubectl client certificate rotation.                                                                                                 |
-| `argocd_kubectl_request_duration_seconds`         | histogram | Latency of kubectl requests.                                                                                                                |
-| `argocd_kubectl_dns_resolution_duration_seconds`  | histogram | Latency of kubectl resolver.                                                                                                                |
-| `argocd_kubectl_request_size_bytes`               | histogram | Size of kubectl requests.                                                                                                                   |
-| `argocd_kubectl_response_size_bytes`              | histogram | Size of kubectl responses.                                                                                                                  |
-| `argocd_kubectl_rate_limiter_duration_seconds`    | histogram | Latency of kubectl rate limiter.                                                                                                            |
-| `argocd_kubectl_requests_total`                   |  counter  | Result of kubectl requests.                                                                                                                 |
-| `argocd_kubectl_exec_plugin_call_total`           |  counter  | Number of kubectl exec plugin calls.                                                                                                        |
-| `argocd_kubectl_request_retries_total`            |  counter  | Number of kubectl request retries.                                                                                                          |
-| `argocd_kubectl_transport_cache_entries`          |   gauge   | Number of kubectl transport cache entries.                                                                                                  |
-| `argocd_kubectl_transport_create_calls_total`     |  counter  | Number of kubectl transport create calls.                                                                                                   |
+| Metric                                            |   Type    | Description                                                                                                                                                                                             |
+| ------------------------------------------------- | :-------: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `argocd_app_info`                                 |   gauge   | Information about Applications. It contains labels such as `sync_status` and `health_status` that reflect the application state in Argo CD.                                                             |
+| `argocd_app_condition`                            |   gauge   | Report Applications conditions. It contains the conditions currently present in the application status.                                                                                                 |
+| `argocd_app_k8s_request_total`                    |  counter  | Number of Kubernetes requests executed during application reconciliation                                                                                                                                |
+| `argocd_app_labels`                               |   gauge   | Argo Application labels converted to Prometheus labels. Disabled by default. See section below about how to enable it.                                                                                  |
+| `argocd_app_orphaned_resources_count`             |   gauge   | Number of orphaned resources per application.                                                                                                                                                           |
+| `argocd_app_reconcile`                            | histogram | Application reconciliation performance in seconds.                                                                                                                                                      |
+| `argocd_app_sync_total`                           |  counter  | Counter for application sync history                                                                                                                                                                    |
+| `argocd_app_sync_duration_seconds_total`          |  counter  | Application sync performance in seconds total.                                                                                                                                                          |
+| `argocd_cluster_api_resource_objects`             |   gauge   | Number of k8s resource objects in the cache.                                                                                                                                                            |
+| `argocd_cluster_api_resources`                    |   gauge   | Number of monitored Kubernetes API resources.                                                                                                                                                           |
+| `argocd_cluster_cache_age_seconds`                |   gauge   | Cluster cache age in seconds.                                                                                                                                                                           |
+| `argocd_cluster_connection_status`                |   gauge   | The k8s cluster current connection status.                                                                                                                                                              |
+| `argocd_cluster_events_total`                     |  counter  | Number of processes k8s resource events.                                                                                                                                                                |
+| `argocd_cluster_info`                             |   gauge   | Information about cluster.                                                                                                                                                                              |
+| `argocd_redis_request_duration`                   | histogram | Redis requests duration.                                                                                                                                                                                |
+| `argocd_redis_request_total`                      |  counter  | Number of redis requests executed during application reconciliation, labeled by `command` and `failed`. Manifest-rename cache misses are reported as `failed="false"` (treated as a normal cache miss). |
+| `argocd_resource_events_processing`               | histogram | Time to process resource events in batch in seconds                                                                                                                                                     |
+| `argocd_resource_events_processed_in_batch`       |   gauge   | Number of resource events processed in batch                                                                                                                                                            |
+| `argocd_kubectl_exec_pending`                     |   gauge   | Number of pending kubectl executions                                                                                                                                                                    |
+| `argocd_kubectl_exec_total`                       |  counter  | Number of kubectl executions                                                                                                                                                                            |
+| `argocd_kubectl_client_cert_rotation_age_seconds` |   gauge   | Age of kubectl client certificate rotation.                                                                                                                                                             |
+| `argocd_kubectl_request_duration_seconds`         | histogram | Latency of kubectl requests.                                                                                                                                                                            |
+| `argocd_kubectl_dns_resolution_duration_seconds`  | histogram | Latency of kubectl resolver.                                                                                                                                                                            |
+| `argocd_kubectl_request_size_bytes`               | histogram | Size of kubectl requests.                                                                                                                                                                               |
+| `argocd_kubectl_response_size_bytes`              | histogram | Size of kubectl responses.                                                                                                                                                                              |
+| `argocd_kubectl_rate_limiter_duration_seconds`    | histogram | Latency of kubectl rate limiter.                                                                                                                                                                        |
+| `argocd_kubectl_requests_total`                   |  counter  | Result of kubectl requests.                                                                                                                                                                             |
+| `argocd_kubectl_exec_plugin_call_total`           |  counter  | Number of kubectl exec plugin calls.                                                                                                                                                                    |
+| `argocd_kubectl_request_retries_total`            |  counter  | Number of kubectl request retries.                                                                                                                                                                      |
+| `argocd_kubectl_transport_cache_entries`          |   gauge   | Number of kubectl transport cache entries.                                                                                                                                                              |
+| `argocd_kubectl_transport_create_calls_total`     |  counter  | Number of kubectl transport create calls.                                                                                                                                                               |
 
 ### Labels
 
@@ -87,6 +87,14 @@ As the Application labels are specific to each company, this feature is disabled
 `--metrics-application-labels` flag to the Argo CD application controller.
 
 The example below will expose the Argo CD Application labels `team-name` and `business-unit` to Prometheus:
+
+    controller.metrics.application.labels: "team-name,business-unit"
+
+!!! warning
+
+    Each distinct label value becomes a separate `argocd_app_labels` time series. Exposing labels with many distinct values increases the metric's cardinality, which can degrade Prometheus performance and increase storage requirements. Prefer low-cardinality labels and add them sparingly.
+
+Alternatively, the labels can be passed as `--metrics-application-labels` flags directly to the application controller:
 
     containers:
     - command:
@@ -209,28 +217,28 @@ argocd_cluster_labels{label_environment="production",label_team_name="team3",nam
 
 Metrics about API Server API request and response activity (request totals, response codes, etc...).
 Scraped at the `argocd-server-metrics:8083/metrics` endpoint.
-For GRPC metrics to show up environment variable ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM must be set to true. 
+For GRPC metrics to show up environment variable ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM must be set to true.
 
-| Metric                                            |   Type    | Description                                                                        
-|---------------------------------------------------|:---------:|---------------------------------------------------------------------------------------------|
-| `argocd_login_request_total`                      | counter   | Number of login requests.                                                                   |
-| `argocd_redis_request_duration`                   | histogram | Redis requests duration.                                                                    |
-| `argocd_redis_request_total`                      |  counter  | Number of Kubernetes requests executed during application reconciliation.                   |
-| `grpc_server_handled_total`                       |  counter  | Total number of RPCs completed on the server, regardless of success or failure.             |
-| `grpc_server_msg_sent_total`                      |  counter  | Total number of gRPC stream messages sent by the server.                                    |
-| `argocd_proxy_extension_request_total`            |  counter  | Number of requests sent to the configured proxy extensions.                                 |
-| `argocd_proxy_extension_request_duration_seconds` | histogram | Request duration in seconds between the Argo CD API server and the proxy extension backend. |
-| `argocd_kubectl_client_cert_rotation_age_seconds` |   gauge   | Age of kubectl client certificate rotation.                                                 |
-| `argocd_kubectl_request_duration_seconds`         | histogram | Latency of kubectl requests.                                                                |
-| `argocd_kubectl_dns_resolution_duration_seconds`  | histogram | Latency of kubectl resolver.                                                                |
-| `argocd_kubectl_request_size_bytes`               | histogram | Size of kubectl requests.                                                                   |
-| `argocd_kubectl_response_size_bytes`              | histogram | Size of kubectl responses.                                                                  |
-| `argocd_kubectl_rate_limiter_duration_seconds`    | histogram | Latency of kubectl rate limiter.                                                            |
-| `argocd_kubectl_requests_total`                   |  counter  | Result of kubectl requests.                                                                 |
-| `argocd_kubectl_exec_plugin_call_total`           |  counter  | Number of kubectl exec plugin calls.                                                        |
-| `argocd_kubectl_request_retries_total`            |  counter  | Number of kubectl request retries.                                                          |
-| `argocd_kubectl_transport_cache_entries`          |   gauge   | Number of kubectl transport cache entries.                                                  |
-| `argocd_kubectl_transport_create_calls_total`     |  counter  | Number of kubectl transport create calls.                                                   |
+| Metric                                            |   Type    | Description                                                                                                                                                                                             |
+| ------------------------------------------------- | :-------: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `argocd_login_request_total`                      |  counter  | Number of login requests.                                                                                                                                                                               |
+| `argocd_redis_request_duration`                   | histogram | Redis requests duration.                                                                                                                                                                                |
+| `argocd_redis_request_total`                      |  counter  | Number of redis requests executed during application reconciliation, labeled by `command` and `failed`. Manifest-rename cache misses are reported as `failed="false"` (treated as a normal cache miss). |
+| `grpc_server_handled_total`                       |  counter  | Total number of RPCs completed on the server, regardless of success or failure.                                                                                                                         |
+| `grpc_server_msg_sent_total`                      |  counter  | Total number of gRPC stream messages sent by the server.                                                                                                                                                |
+| `argocd_proxy_extension_request_total`            |  counter  | Number of requests sent to the configured proxy extensions.                                                                                                                                             |
+| `argocd_proxy_extension_request_duration_seconds` | histogram | Request duration in seconds between the Argo CD API server and the proxy extension backend.                                                                                                             |
+| `argocd_kubectl_client_cert_rotation_age_seconds` |   gauge   | Age of kubectl client certificate rotation.                                                                                                                                                             |
+| `argocd_kubectl_request_duration_seconds`         | histogram | Latency of kubectl requests.                                                                                                                                                                            |
+| `argocd_kubectl_dns_resolution_duration_seconds`  | histogram | Latency of kubectl resolver.                                                                                                                                                                            |
+| `argocd_kubectl_request_size_bytes`               | histogram | Size of kubectl requests.                                                                                                                                                                               |
+| `argocd_kubectl_response_size_bytes`              | histogram | Size of kubectl responses.                                                                                                                                                                              |
+| `argocd_kubectl_rate_limiter_duration_seconds`    | histogram | Latency of kubectl rate limiter.                                                                                                                                                                        |
+| `argocd_kubectl_requests_total`                   |  counter  | Result of kubectl requests.                                                                                                                                                                             |
+| `argocd_kubectl_exec_plugin_call_total`           |  counter  | Number of kubectl exec plugin calls.                                                                                                                                                                    |
+| `argocd_kubectl_request_retries_total`            |  counter  | Number of kubectl request retries.                                                                                                                                                                      |
+| `argocd_kubectl_transport_cache_entries`          |   gauge   | Number of kubectl transport cache entries.                                                                                                                                                              |
+| `argocd_kubectl_transport_create_calls_total`     |  counter  | Number of kubectl transport create calls.                                                                                                                                                               |
 
 ### Labels
 
@@ -250,27 +258,26 @@ For GRPC metrics to show up environment variable ARGOCD_ENABLE_GRPC_TIME_HISTOGR
 
 ## Repo Server Metrics
 
-Metrics about the Repo Server. The gRPC metrics are not exposed by default.  Metrics can be enabled using
-`ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM=true` environment variable.  
+Metrics about the Repo Server. The gRPC metrics are not exposed by default. Metrics can be enabled using
+`ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM=true` environment variable.
 Scraped at the `argocd-repo-server:8084/metrics` endpoint.
 
-
-| Metric                                   |    Type    | Description                                                               |
-|------------------------------------------|:----------:|---------------------------------------------------------------------------|
-| `argocd_git_request_duration_seconds`    | histogram  | Git requests duration seconds.                                            |
-| `argocd_git_request_total`               |  counter   | Number of git requests performed by repo server                           |
-| `argocd_git_fetch_fail_total`            |  counter   | Number of git fetch requests failures by repo server                      |
-| `argocd_redis_request_duration_seconds`  | histogram  | Redis requests duration seconds.                                          |
-| `argocd_redis_request_total`             |  counter   | Number of Kubernetes requests executed during application reconciliation. |
-| `argocd_repo_pending_request_total`      |   gauge    | Number of pending requests requiring repository lock                      |
-| `argocd_repo_parallelism_wait_duration_seconds` | histogram  | Time spent waiting for the repo-server manifest generation parallelism semaphore (`--parallelismlimit`). Observed on every acquire attempt, including those that fail (e.g. context canceled). |
-| `argocd_oci_request_total`               |  counter   | Number of OCI requests performed by repo server                           |
-| `argocd_oci_request_duration_seconds`    | histogram  | Duration of OCI requests performed by the repo server.                      |
-| `argocd_oci_test_repo_fail_total`        |  counter   | Number of OCI test repo requests failures by repo server                  |
-| `argocd_oci_get_tags_fail_total`         |  counter   | Number of OCI get tags requests failures by repo server                   |
-| `argocd_oci_digest_metadata_fail_total`  |  counter   | Number of OCI digest metadata failures by repo server                     |
-| `argocd_oci_resolve_revision_fail_total` |  counter   | Number of OCI resolve revision failures by repo server                   |
-| `argocd_oci_extract_fail_total`          |  counter   | Number of OCI extract requests failures by repo server                    |
+| Metric                                          |   Type    | Description                                                                                                                                                                                    |
+| ----------------------------------------------- | :-------: | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `argocd_git_request_duration_seconds`           | histogram | Git requests duration seconds.                                                                                                                                                                 |
+| `argocd_git_request_total`                      |  counter  | Number of git requests performed by repo server                                                                                                                                                |
+| `argocd_git_fetch_fail_total`                   |  counter  | Number of git fetch requests failures by repo server                                                                                                                                           |
+| `argocd_redis_request_duration_seconds`         | histogram | Redis requests duration seconds.                                                                                                                                                               |
+| `argocd_redis_request_total`                    |  counter  | Number of redis requests executed during application reconciliation, labeled by `command` and `failed`.                                                                                        |
+| `argocd_repo_pending_request_total`             |   gauge   | Number of pending requests requiring repository lock                                                                                                                                           |
+| `argocd_repo_parallelism_wait_duration_seconds` | histogram | Time spent waiting for the repo-server manifest generation parallelism semaphore (`--parallelismlimit`). Observed on every acquire attempt, including those that fail (e.g. context canceled). |
+| `argocd_oci_request_total`                      |  counter  | Number of OCI requests performed by repo server                                                                                                                                                |
+| `argocd_oci_request_duration_seconds`           | histogram | Duration of OCI requests performed by the repo server.                                                                                                                                         |
+| `argocd_oci_test_repo_fail_total`               |  counter  | Number of OCI test repo requests failures by repo server                                                                                                                                       |
+| `argocd_oci_get_tags_fail_total`                |  counter  | Number of OCI get tags requests failures by repo server                                                                                                                                        |
+| `argocd_oci_digest_metadata_fail_total`         |  counter  | Number of OCI digest metadata failures by repo server                                                                                                                                          |
+| `argocd_oci_resolve_revision_fail_total`        |  counter  | Number of OCI resolve revision failures by repo server                                                                                                                                         |
+| `argocd_oci_extract_fail_total`                 |  counter  | Number of OCI extract requests failures by repo server                                                                                                                                         |
 
 ## Commit Server Metrics
 
