@@ -296,8 +296,7 @@ The `<object>` value in a `clusters` policy is derived from the cluster Secret's
 Examples:
 
 ```csv
-# Grant every authenticated user visibility of the shared in-cluster Secret
-# (which is unscoped).
+# Grant the default role visibility of the unscoped in-cluster entry
 p, role:defaultrole, clusters, get, https://kubernetes.default.svc, allow
 
 # Grant a role full access to a project-scoped external cluster.
