@@ -26,6 +26,11 @@ updates:
     # See https://github.com/argoproj/argo-cd/pull/28772
     exclude-paths:
       - ".github/workflows/*.lock.yml"
+    ignore:
+      # Renovate manages its own action, together with it's pinned docker image version.
+      # So whenever they are updated they both going to land in the same PR.
+      # See renovate-presets/devtool.json5.
+      - dependency-name: "renovatebot/github-action"
     groups:
       codeql:
         patterns:
