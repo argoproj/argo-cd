@@ -311,14 +311,16 @@ p, role:defaultrole, clusters, get, my-project/*, allow
 ```
 
 > [!NOTE]
-> **The cluster Secret's `name` is not accepted as an object**
+> **The cluster name is not accepted as the RBAC object**
 >
-> The `<object>` for a `clusters` policy must be the server URL (optionally
-> project-prefixed); the cluster Secret's `name` field is **not** an accepted
-> object shape. A policy such as `p, ..., clusters, get, my-cluster, allow`
-> will silently match nothing when `my-cluster` is not a URL. See
-> [issue #13244](https://github.com/argoproj/argo-cd/issues/13244) for tracking
-> of a feature request to also accept cluster names.
+> The `<object>` for a `clusters` policy must be the cluster server URL,
+> optionally prefixed with the project. The cluster's logical `name` field
+> (`data.name` / `stringData.name` in a declarative cluster Secret) is not an
+> accepted object format. For example, a policy such as
+> `p, ..., clusters, get, my-cluster, allow` will not match a cluster whose
+> server is a URL such as `https://api.example.com:6443`. See
+> [issue #13244](https://github.com/argoproj/argo-cd/issues/13244) for the
+> feature request to also accept cluster names.
 
 For the setup side of project-scoped clusters (how to attach a `project` to a
 cluster Secret and let developers self-register clusters into a project) see
