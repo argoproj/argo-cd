@@ -55,10 +55,11 @@ func cacheKey(pattern string, separators ...rune) globCacheKey {
 
 func tryGetFromCache(key globCacheKey) (glob.Glob, bool) {
 	globCacheLock.Lock()
-	defer globCacheLock.Unlock()
 	if cached, ok := globCache.Get(key); ok {
+		globCacheLock.Unlock()
 		return cached.(glob.Glob), true
 	}
+	globCacheLock.Unlock()
 	return nil, false
 }
 
