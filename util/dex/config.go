@@ -29,11 +29,14 @@ func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTLS b
 	dexCfg["issuer"] = argocdSettings.IssuerURL()
 	storage := map[string]any{}
 	if existingStorage, found := dexCfg["storage"].(map[string]any); found {
-		if storageType, ok := existingStorage["type"]; ok && storageType != "" {
+		if storageType, ok := existingStorage["type"].(string); ok && storageType != "" {
 			storage["type"] = storageType
-		}
-		if storageConfig, ok := existingStorage["config"].(map[string]any); ok {
-			storage["config"] = storageConfig
+			if storageConfig, ok := existingStorage["config"].(map[string]any); ok {
+				storage["config"] = storageConfig
+			}
+		} else {
+			// No type specified, default to memory and ignore any config
+			storage["type"] = "memory"
 		}
 	} else {
 		storage["type"] = "memory"

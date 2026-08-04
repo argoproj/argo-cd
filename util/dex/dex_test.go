@@ -52,6 +52,30 @@ connectors:
     - name: your-github-org
 `
 
+var goodDexConfigWithNoTypeAndConfig = `
+connectors:
+# GitHub example
+- type: github
+  id: github
+  name: GitHub
+  config:
+    clientID: aabbccddeeff00112233
+    clientSecret: $dex.github.clientSecret
+    orgs:
+    - name: your-github-org
+
+# GitHub enterprise example
+- type: github
+  id: acme-github
+  name: Acme GitHub
+  config:
+    hostName: github.acme.example.com
+    clientID: abcdefghijklmnopqrst
+    clientSecret: $dex.acme.clientSecret
+    orgs:
+    - name: your-github-org
+`
+
 var goodDexConfigWithStorageTypeKubernetes = `
 storage:
   type: kubernetes
@@ -397,10 +421,15 @@ var goodSecretswithCRLF = map[string]string{
 func Test_GenerateDexConfigYAMLStorage(t *testing.T) {
 	validateKubernetesStorage := func(t *testing.T, storage map[string]any) {
 		t.Helper()
-
 		storageConfig, ok := storage["config"].(map[string]any)
 		require.True(t, ok)
 		assert.Equal(t, true, storageConfig["inCluster"])
+	}
+
+	validateNoKubernetesStorage := func(t *testing.T, storage map[string]any) {
+		t.Helper()
+		_, ok := storage["config"].(map[string]any)
+		require.False(t, ok)
 	}
 
 	validateEtcdStorage := func(t *testing.T, storage map[string]any) {
@@ -459,6 +488,15 @@ func Test_GenerateDexConfigYAMLStorage(t *testing.T) {
 				DexConfig: goodDexConfig,
 			},
 			wantType: "memory",
+		},
+		{
+			name: "no storage type specified, but config specified, defaults to memory type but config should be ignored",
+			settings: settings.ArgoCDSettings{
+				URL:       "http://localhost",
+				DexConfig: goodDexConfigWithNoTypeAndConfig,
+			},
+			wantType: "memory",
+			validate: validateNoKubernetesStorage,
 		},
 		{
 			name: "etcd storage type, config",
