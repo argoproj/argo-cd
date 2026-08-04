@@ -282,11 +282,7 @@ p, example-user, extensions, invoke, httpbin, allow
 
 ### The `clusters` resource
 
-The `clusters` resource governs which cluster credentials a user can list, create,
-update, or delete via the Argo CD API/UI/CLI. Cluster credentials are stored as
-Kubernetes `Secret`s in the Argo CD namespace with the
-`argocd.argoproj.io/secret-type: cluster` label. Each such Secret may optionally
-carry a `project` field, which scopes the cluster to a single AppProject.
+The clusters resource controls which Argo CD cluster entries a user can list, create, update, or delete via the Argo CD API/UI/CLI. Registered cluster credentials are typically stored as Kubernetes Secrets in the Argo CD namespace with the argocd.argoproj.io/secret-type: cluster label. Such Secrets may optionally carry a project field, which scopes the cluster to a single AppProject.
 
 The `<object>` value in a `clusters` policy is derived from the cluster Secret's
 `server` (its API URL, e.g. `https://kubernetes.default.svc`) and its optional
