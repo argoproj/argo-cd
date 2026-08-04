@@ -15,14 +15,9 @@ import (
 	argov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
-// Regression tests for the progressive-sync reconcile loop.
-//
-// updateApplicationSetApplicationStatus must only report a spec change when the ApplicationSet
-// controller would actually rewrite the Application's spec. If it reports a change the write path
-// will never act on, the Application is never corrected, so the "pending change" is still there on
-// the next reconcile: status flips to Waiting, then Pending, then triggers a sync, which writes the
-// Application, which triggers another reconcile. Measured at ~137 reconciles/second for a single
-// ApplicationSet with two Applications, with no backoff.
+// Regression tests for the progressive-sync reconcile loop: updateApplicationSetApplicationStatus
+// must only report a spec change when the write path would actually rewrite the spec. See
+// utils.SpecsEquivalent for why reporting one it will not act on cannot converge.
 //
 // Both cases below place the Application in a state where it is NOT (Synced and Healthy). That
 // matters: a Synced+Healthy Application has its Waiting status immediately overwritten with Healthy,
@@ -105,9 +100,8 @@ func regressionManager(t *testing.T, appSet *argov1alpha1.ApplicationSet) *Manag
 }
 
 // Defect 1: the status path must honour ignoreApplicationDifferences, exactly as
-// createOrUpdateInCluster does when deciding whether to Patch. Here the only difference between live
-// and desired is a field the ApplicationSet explicitly ignores, so the write path will never correct
-// it — reporting a spec change is therefore a permanent, self-sustaining loop.
+// createOrUpdateInCluster does when deciding whether to Patch. Here the only difference is a field the
+// ApplicationSet explicitly ignores, so the write path will never correct it.
 //
 // Without the fix this reports "Application has pending changes (spec differs)".
 func TestSpecChangedHonoursIgnoreApplicationDifferences(t *testing.T) {
@@ -132,13 +126,9 @@ func TestSpecChangedHonoursIgnoreApplicationDifferences(t *testing.T) {
 	assert.NotContains(t, statuses[0].Message, "spec differs")
 }
 
-// Defect 2: applyRolloutStrategy sets Automated.Enabled=false on progressive-sync-managed
-// Applications, because the ApplicationSet controller drives those syncs itself. That mutation lands
-// on the copy written to the cluster, not on the freshly generated Application compared here — so the
-// live object permanently carries automated.enabled=false while the generated one leaves it unset.
-//
-// This needs no ignore rules and no unusual configuration: it applies to every ApplicationSet whose
-// template sets syncPolicy.automated, which is the common case.
+// Defect 2: the Automated.Enabled mutation lands on the written copy, not on the generated
+// Application compared here (see disableAutomatedSync). This needs no ignore rules and no unusual
+// configuration -- it applies to every ApplicationSet whose template sets syncPolicy.automated.
 //
 // Without the fix this reports "Application has pending changes (spec differs)".
 func TestSpecChangedIgnoresControllerManagedAutomatedEnabled(t *testing.T) {
@@ -164,12 +154,10 @@ func TestSpecChangedIgnoresControllerManagedAutomatedEnabled(t *testing.T) {
 
 // An invalid ignore rule must not manufacture a spec change.
 //
-// Note where such a rule actually fails. BuildIgnoreDiffConfig only validates structural invariants,
-// so an unparseable JQ expression passes it; the failure surfaces later, from applyIgnoreDifferences
-// inside SpecsEquivalent. The write path turns that into a reconcile error. The status path cannot
-// usefully do the same for a single Application, so it must at least not report a change it cannot
-// substantiate -- reporting one would trigger a sync the write path is failing to perform, which is
-// the loop this file exists to prevent.
+// Note where such a rule fails: BuildIgnoreDiffConfig validates only structural invariants, so an
+// unparseable JQ expression passes it and the failure surfaces later from applyIgnoreDifferences. The
+// write path turns that into a reconcile error; the status path cannot usefully do the same for a
+// single Application, so it must at least not report a change it cannot substantiate.
 func TestInvalidIgnoreRuleDoesNotReportSpecChange(t *testing.T) {
 	t.Parallel()
 
@@ -190,4 +178,41 @@ func TestInvalidIgnoreRuleDoesNotReportSpecChange(t *testing.T) {
 	assert.NotContains(t, statuses[0].Message, "spec differs",
 		"with an unusable ignore rule the comparison cannot be trusted, so the status must not claim "+
 			"a spec change; the write path is erroring, so a change reported here can never be acted on")
+}
+
+// disableAutomatedSync is the single definition of the rule, used by both the writer and the comparer.
+// The end state must be the same for every Enabled value, including the one the original guard skipped
+// because it was already false.
+func TestDisableAutomatedSyncIsIdempotentAcrossEnabledStates(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name       string
+		syncPolicy *argov1alpha1.SyncPolicy
+		wantNil    bool
+	}{
+		{"no sync policy", nil, true},
+		{"no automated block", &argov1alpha1.SyncPolicy{}, true},
+		{"automated, enabled unset", &argov1alpha1.SyncPolicy{Automated: &argov1alpha1.SyncPolicyAutomated{}}, false},
+		{"automated, explicitly enabled", &argov1alpha1.SyncPolicy{Automated: &argov1alpha1.SyncPolicyAutomated{Enabled: new(true)}}, false},
+		{"automated, already disabled", &argov1alpha1.SyncPolicy{Automated: &argov1alpha1.SyncPolicyAutomated{Enabled: new(false)}}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			app := &argov1alpha1.Application{Spec: argov1alpha1.ApplicationSpec{SyncPolicy: tc.syncPolicy}}
+			disableAutomatedSync(app)
+
+			if tc.wantNil {
+				if app.Spec.SyncPolicy != nil {
+					assert.Nil(t, app.Spec.SyncPolicy.Automated, "nothing to disable, so nothing should be created")
+				}
+				return
+			}
+			require.NotNil(t, app.Spec.SyncPolicy.Automated.Enabled)
+			assert.False(t, *app.Spec.SyncPolicy.Automated.Enabled,
+				"automated sync must end up disabled whatever it started as, so the writer and the "+
+					"comparer always see the same value")
+		})
+	}
 }

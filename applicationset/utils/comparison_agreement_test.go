@@ -15,18 +15,13 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 )
 
-// SpecsEquivalent and CreateOrUpdate must always agree on whether a spec has changed.
+// SpecsEquivalent and CreateOrUpdate must agree on whether the *spec* has changed: the first decides
+// whether progressive sync reports a pending change, the second whether anything is actually written.
 //
-// That agreement is the whole contract: progressive sync uses SpecsEquivalent to decide whether to
-// report a pending change, and CreateOrUpdate decides whether to actually write. If the first says
-// "changed" where the second declines to patch, the Application is never corrected, the change is
-// still pending on the next reconcile, and the ApplicationSet reconciles in a tight loop that never
-// converges. If the reverse, rollout ordering is decided from stale status.
-//
-// The case exercised here is the awkward one: a JQ ignore rule that selects on a value which only
-// exists after normalization (spec.project defaulting to "default"), against a generated Application
-// that omits it. The relative order of normalization and ignore rules is load bearing and easy to
-// change in one place only, which is why this is pinned.
+// The case exercised here is the awkward one: a JQ ignore rule selecting on a value that only exists
+// after normalization (spec.project defaulting to "default"), against a generated Application that
+// omits it. The relative order of normalization and ignore rules is load bearing and easy to change in
+// one place only, which is why this is pinned.
 func TestSpecComparisonAgreesWithWritePath(t *testing.T) {
 	t.Parallel()
 
@@ -86,7 +81,9 @@ func TestSpecComparisonAgreesWithWritePath(t *testing.T) {
 		statusPathSeesChange, writePathWouldPatch, op)
 
 	require.Equal(t, writePathWouldPatch, statusPathSeesChange,
-		"the two paths must agree. If the status path reports a change the write path will not make, "+
-			"the Application is never corrected and progressive sync loops forever; if the write path "+
-			"patches while the status path sees nothing, ordering decisions are made on stale status.")
+		"the two paths must reach the same verdict on a spec difference. If the status path reports a "+
+			"change the write path will not make, the Application is never corrected and progressive "+
+			"sync loops forever. (Metadata-only changes are out of scope here: CreateOrUpdate compares "+
+			"whole objects and will patch those without SpecsEquivalent reporting a change, which cannot "+
+			"loop.)")
 }

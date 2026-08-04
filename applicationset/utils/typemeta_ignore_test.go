@@ -10,17 +10,10 @@ import (
 )
 
 // applyIgnoreDifferences must neutralise an ignored field on BOTH the live and the generated
-// Application, regardless of the TypeMeta each happens to arrive with.
-//
-// The rules produced by ToApplicationResourceIgnoreDifferences are scoped to
-// Group=argoproj.io, Kind=Application, while appToUnstructured goes through
-// runtime.DefaultUnstructuredConverter, which does not populate apiVersion/kind. The two sides also
-// arrive inconsistently: the live Application is decoded from the API server, the generated one is
-// built in Go by the template renderer with TypeMeta zero. Unless the GVK is stamped explicitly the
-// rule matches only whichever side carries TypeMeta, leaving the field stripped on one side and
-// intact on the other, so the specs can never compare equal -- silently defeating
-// ignoreApplicationDifferences, and for progressive syncs reporting a spec change on every reconcile
-// forever.
+// Application, regardless of the TypeMeta each happens to arrive with. Its rules are GVK-scoped, but
+// the live object is decoded from the API server while the generated one is built in Go with TypeMeta
+// zero, so a rule matching one side only leaves the field stripped there and intact on the other --
+// and the specs then never compare equal. See applyIgnoreDifferences for the mechanism.
 func TestApplyIgnoreDifferencesIsTypeMetaIndependent(t *testing.T) {
 	t.Parallel()
 
