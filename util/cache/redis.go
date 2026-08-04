@@ -27,8 +27,6 @@ var (
 )
 
 const (
-	// envRedisKeyPrefix is an env variable name which stores the prefix for redis keys
-	envRedisKeyPrefix = "ARGOCD_REDIS_KEY_PREFIX"
 	// redisNoSuchKeyErr is the error string Redis returns from RENAME when the source key does not
 	// exist. It is treated as a cache miss rather than a failed request.
 	redisNoSuchKeyErr = "ERR no such key"
