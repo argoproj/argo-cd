@@ -12,8 +12,6 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
-	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	log "github.com/sirupsen/logrus"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,6 +20,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/applicationset/utils"
 	argov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -290,6 +289,20 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 		desiredAppsMap[desiredApplications[i].Name] = &desiredApplications[i]
 	}
 
+	// Built once per call, as CreateOrUpdate documents. Deciding whether a spec changed must use the
+	// same rules the write path uses when deciding whether to Patch, or the two can disagree.
+	//
+	// Failure is fatal here, matching createOrUpdateInCluster. Continuing with a nil config would
+	// skip the ignore rules entirely, so the comparison below would see exactly the differences the
+	// write path suppresses -- reintroducing the divergence this is meant to remove. Unlike the
+	// staleness check in reverse deletion, this condition is a property of the ApplicationSet spec
+	// and clears as soon as the invalid rule is corrected, so surfacing it as an error is both
+	// recoverable and the fastest way for the user to find out.
+	diffConfig, err := utils.BuildIgnoreDiffConfig(applicationSet.Spec.IgnoreApplicationDifferences, normalizers.IgnoreNormalizerOpts{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to build ignore diff config: %w", err)
+	}
+
 	for _, app := range applications {
 		appHealthStatus := app.Status.Health.Status
 		appSyncStatus := app.Status.Sync.Status
@@ -331,7 +344,31 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 		if desiredApp, ok := desiredAppsMap[app.Name]; ok {
 			// Compare the desired spec with the current spec to detect non-Git changes
 			// This will catch changes to generator parameters like image tags, helm values, etc.
-			specChanged = !cmp.Equal(desiredApp.Spec, app.Spec, cmpopts.EquateEmpty(), cmpopts.EquateComparable(argov1alpha1.ApplicationDestination{}))
+			//
+			// This must apply exactly the rules the write path applies when deciding whether to
+			// Patch. A plain comparison sees differences the write path deliberately suppresses, so
+			// the Application is never corrected while the status keeps reporting a pending change --
+			// an unbounded Waiting -> Pending -> sync -> reconcile loop.
+			//
+			// syncDesiredApplications force-disables automated sync on every managed Application
+			// (Automated.Enabled = false), because this controller drives those syncs itself. That
+			// mutation lands on the copy written to the cluster, not on the freshly generated
+			// Application compared here, so the live object always carries automated.enabled=false
+			// while the generated one leaves it unset. Mirror it, or every ApplicationSet whose
+			// template sets syncPolicy.automated reports a spec change forever.
+			desiredForCompare := desiredApp.DeepCopy()
+			if sp := desiredForCompare.Spec.SyncPolicy; sp != nil && sp.Automated != nil {
+				sp.Automated.Enabled = new(false)
+			}
+
+			equivalent, cmpErr := utils.SpecsEquivalent(diffConfig, &app, desiredForCompare)
+			if cmpErr != nil {
+				// Failures here are persistent (for example a malformed jsonPointer), so reporting
+				// "changed" would loop forever. Leave the status alone and surface it.
+				statusLogCtx.WithError(cmpErr).Warn("could not compare desired and live specs; leaving progressive sync status unchanged")
+			} else {
+				specChanged = !equivalent
+			}
 		}
 
 		if revisionsChanged || specChanged {
@@ -416,7 +453,7 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 		appStatuses = append(appStatuses, *newAppStatus)
 	}
 
-	err := m.dependencies.SetAppSetApplicationStatus(ctx, logCtx, applicationSet, appStatuses)
+	err = m.dependencies.SetAppSetApplicationStatus(ctx, logCtx, applicationSet, appStatuses)
 	if err != nil {
 		return nil, fmt.Errorf("failed to set AppSet application statuses: %w", err)
 	}
