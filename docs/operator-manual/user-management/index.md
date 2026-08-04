@@ -616,15 +616,22 @@ the exchanged token, not the `sub` claim. For an OIDC connector configured with
 platform's own identity token — the connector ID is not appended.
 
 To find the exact value for your setup, run `argocd account get-user-info` after a
-successful exchange and copy the `Username` field. Then use it in `argocd-rbac-cm`:
+successful exchange and copy the `Username` field. Then add it to `argocd-rbac-cm`:
 
 ```yaml
-configs:
-  rbac:
-    policy.csv: |
-      p, repo:myorg/myrepo:ref:refs/heads/main, applications, sync, my-project/*, allow
-      p, repo:myorg/myrepo:ref:refs/heads/main, applications, get, my-project/*, allow
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-rbac-cm
+  namespace: argocd
+data:
+  policy.csv: |
+    p, repo:myorg/myrepo:ref:refs/heads/main, applications, sync, my-project/*, allow
+    p, repo:myorg/myrepo:ref:refs/heads/main, applications, get, my-project/*, allow
 ```
+
+If you manage Argo CD with Helm, set the same policies under `configs.rbac.policy.csv` in
+your values file instead.
 
 For full worked examples see [GitHub Actions](github-actions.md) and [GitLab CI](gitlab-ci.md).
 
