@@ -49,6 +49,7 @@ argocd-applicationset-controller [flags]
       --preserved-labels strings                  Sets global preserved field values for labels
       --probe-addr string                         The address the probe endpoint binds to. (default ":8081")
       --proxy-url string                          If provided, this URL will be used to connect via proxy
+      --refresh-grace-period-seconds int          The minimum grace period before a progressive sync may start refreshing outdated applications (default 30)
       --repo-server-ca-cert-path string           Path to the repo-server CA certificate file
       --repo-server-client-cert-key-path string   Path to the client certificate key file for mTLS. Defaults to the auto-mounted Secret path; mTLS client cert is skipped if the file does not exist. (default "/app/config/reposerver/mtls/client.key")
       --repo-server-client-cert-path string       Path to the client certificate file for mTLS. Defaults to the auto-mounted Secret path; mTLS client cert is skipped if the file does not exist. (default "/app/config/reposerver/mtls/client.crt")
