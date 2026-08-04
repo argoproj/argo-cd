@@ -53,6 +53,15 @@ func cacheKey(pattern string, separators ...rune) globCacheKey {
 	return globCacheKey{Pattern: pattern, Separators: string(separators)}
 }
 
+func tryGetFromCache(key globCacheKey) (glob.Glob, bool) {
+	globCacheLock.Lock()
+	defer globCacheLock.Unlock()
+	if cached, ok := globCache.Get(key); ok {
+		return cached.(glob.Glob), true
+	}
+	return nil, false
+}
+
 // getOrCompile returns a cached compiled glob pattern, compiling and caching it if necessary.
 // Cache hits are a brief lock + map lookup. On cache miss, singleflight ensures each
 // unique pattern is compiled exactly once even under concurrent access, while unrelated
@@ -61,15 +70,15 @@ func cacheKey(pattern string, separators ...rune) globCacheKey {
 func getOrCompile(pattern string, compiler compileFn, separators ...rune) (glob.Glob, error) {
 	key := cacheKey(pattern, separators...)
 
-	globCacheLock.Lock()
-	if cached, ok := globCache.Get(key); ok {
-		globCacheLock.Unlock()
-		return cached.(glob.Glob), nil
+	if cached, ok := tryGetFromCache(key); ok {
+		return cached, nil
 	}
-	globCacheLock.Unlock()
 
 	sfKey := key.Pattern + "\x00" + key.Separators
 	v, err, _ := compileGroup.Do(sfKey, func() (any, error) {
+		if cached, ok := tryGetFromCache(key); ok {
+			return cached, nil
+		}
 		compiled, err := compiler(pattern, separators...)
 		if err != nil {
 			return nil, err
