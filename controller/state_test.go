@@ -10,6 +10,8 @@ import (
 
 	"dario.cat/mergo"
 	cachemocks "github.com/argoproj/argo-cd/gitops-engine/pkg/cache/mocks"
+	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
+	diffmocks "github.com/argoproj/argo-cd/gitops-engine/pkg/diff/mocks"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
 	synccommon "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
@@ -33,7 +35,203 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v3/test"
+	argodiff "github.com/argoproj/argo-cd/v3/util/argo/diff"
+	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 )
+
+func newSecretManagedResource(name string, targetData, liveData map[string][]byte) managedResource {
+	build := func(data map[string][]byte) *unstructured.Unstructured {
+		if data == nil {
+			return nil
+		}
+		return kube.MustToUnstructured(&corev1.Secret{
+			TypeMeta:   metav1.TypeMeta{APIVersion: "v1", Kind: kube.SecretKind},
+			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "default"},
+			Data:       data,
+		})
+	}
+	return managedResource{
+		Name:      name,
+		Namespace: "default",
+		Kind:      kube.SecretKind,
+		Group:     "",
+		Target:    build(targetData),
+		Live:      build(liveData),
+	}
+}
+
+func buildSSADiffConfig(t *testing.T) argodiff.DiffConfig {
+	t.Helper()
+	cfg, err := argodiff.NewDiffConfigBuilder().
+		WithDiffSettings(nil, nil, false, normalizers.IgnoreNormalizerOpts{}).
+		WithTracking("", "").
+		WithNoCache().
+		WithServerSideDiff(true).
+		WithServerSideDryRunner(diffmocks.NewServerSideDryRunner(t)).
+		Build()
+	require.NoError(t, err)
+	return cfg
+}
+
+// TestHideSecretData_SSDPathReusesMainDiff verifies that when the main comparison
+// used server-side diff (which removes webhook mutations in gitops-engine), the
+// cached ResourceDiff items reuse that result instead of re-running a client-side diff
+func TestHideSecretData_SSDPathReusesMainDiff(t *testing.T) {
+	app := newFakeApp()
+	ctrl := newFakeController(t.Context(), &fakeData{}, nil)
+
+	mr := newSecretManagedResource(
+		"test-secret",
+		map[string][]byte{"key": []byte("${vault:secret/foo#bar}")},
+		map[string][]byte{"key": []byte("realvalue")},
+	)
+	// cmVhbHZhbHVl is base64("realvalue"), the webhook-resolved value that server-side
+	// diff sees on both sides once the webhook mutation is removed.
+	state := `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"test-secret","namespace":"default"},"data":{"key":"cmVhbHZhbHVl"}}`
+	mr.Diff = diff.DiffResult{
+		Modified:       false,
+		NormalizedLive: []byte(state),
+		PredictedLive:  []byte(state),
+	}
+
+	compRes := &comparisonResult{
+		managedResources: []managedResource{mr},
+		diffConfig:       buildSSADiffConfig(t),
+	}
+	items, err := ctrl.hideSecretData(&v1alpha1.Cluster{Server: "test", Name: "test"}, app, compRes)
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+	assert.False(t, items[0].Modified)
+	// both sides mask to the same placeholder, so the UI shows no drift
+	assert.JSONEq(t, items[0].PredictedLiveState, items[0].NormalizedLiveState)
+	assert.Contains(t, items[0].PredictedLiveState, "++++++++")
+}
+
+// TestHideSecretData_SSDPathCreateRecomputes verifies that for Secret creation
+// (live is nil) under server-side diff, the function still falls back to the
+// client-side recompute, which masks the target state.
+func TestHideSecretData_SSDPathCreateRecomputes(t *testing.T) {
+	app := newFakeApp()
+	ctrl := newFakeController(t.Context(), &fakeData{}, nil)
+
+	mr := newSecretManagedResource(
+		"test-secret",
+		map[string][]byte{"key": []byte("valueA")},
+		nil,
+	)
+	mr.Diff = diff.DiffResult{Modified: false, NormalizedLive: []byte("null"), PredictedLive: []byte("null")}
+
+	compRes := &comparisonResult{
+		managedResources: []managedResource{mr},
+		diffConfig:       buildSSADiffConfig(t),
+	}
+	items, err := ctrl.hideSecretData(&v1alpha1.Cluster{Server: "test", Name: "test"}, app, compRes)
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+	assert.True(t, items[0].Modified)
+	assert.Contains(t, items[0].TargetState, "++++++++")
+}
+
+// TestHideSecretData_SSDPathMasksSensitiveAnnotations verifies that when SSD result
+// is reused, sensitive annotation values in PredictedLive/NormalizedLive are masked
+// via SettingsManager.GetSensitiveAnnotations. gitops-engine SSD does not mask at
+// all, so without re-masking those values would leak into the cache.
+func TestHideSecretData_SSDPathMasksSensitiveAnnotations(t *testing.T) {
+	app := newFakeApp()
+	ctrl := newFakeController(t.Context(), &fakeData{
+		configMapData: map[string]string{
+			"resource.sensitive.mask.annotations": "my-sensitive",
+		},
+	}, nil)
+
+	mr := newSecretManagedResource(
+		"test-secret",
+		map[string][]byte{"key": []byte("v")},
+		map[string][]byte{"key": []byte("v")},
+	)
+	predicted := `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"test-secret","annotations":{"my-sensitive":"topsecret"}},"data":{"key":"dg=="}}`
+	normalized := `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"test-secret","annotations":{"my-sensitive":"topsecret"}},"data":{"key":"dg=="}}`
+	mr.Diff = diff.DiffResult{
+		Modified:       false,
+		PredictedLive:  []byte(predicted),
+		NormalizedLive: []byte(normalized),
+	}
+
+	compRes := &comparisonResult{
+		managedResources: []managedResource{mr},
+		diffConfig:       buildSSADiffConfig(t),
+	}
+	items, err := ctrl.hideSecretData(&v1alpha1.Cluster{Server: "test", Name: "test"}, app, compRes)
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+	assert.False(t, items[0].Modified)
+	assert.NotContains(t, items[0].PredictedLiveState, "topsecret")
+	assert.NotContains(t, items[0].NormalizedLiveState, "topsecret")
+}
+
+// TestHideSecretData_SSDPathMasksReusedSecretData verifies that the reused SSD result
+// is masked even when no sensitive annotations are configured. gitops-engine leaves
+// Secret masking to the caller, so PredictedLive/NormalizedLive hold raw data that
+// would otherwise leak into the cache.
+func TestHideSecretData_SSDPathMasksReusedSecretData(t *testing.T) {
+	app := newFakeApp()
+	ctrl := newFakeController(t.Context(), &fakeData{}, nil)
+
+	mr := newSecretManagedResource(
+		"test-secret",
+		map[string][]byte{"key": []byte("topsecret")},
+		map[string][]byte{"key": []byte("topsecret")},
+	)
+	// dG9wc2VjcmV0 is base64("topsecret"), as it appears in an unmasked server-side diff result.
+	state := `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"test-secret"},"data":{"key":"dG9wc2VjcmV0"}}`
+	mr.Diff = diff.DiffResult{
+		Modified:       false,
+		PredictedLive:  []byte(state),
+		NormalizedLive: []byte(state),
+	}
+
+	compRes := &comparisonResult{
+		managedResources: []managedResource{mr},
+		diffConfig:       buildSSADiffConfig(t),
+	}
+	items, err := ctrl.hideSecretData(&v1alpha1.Cluster{Server: "test", Name: "test"}, app, compRes)
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+	assert.False(t, items[0].Modified)
+	assert.Contains(t, items[0].PredictedLiveState, "++++++++")
+	assert.Contains(t, items[0].NormalizedLiveState, "++++++++")
+	assert.NotContains(t, items[0].PredictedLiveState, "dG9wc2VjcmV0")
+	assert.NotContains(t, items[0].NormalizedLiveState, "dG9wc2VjcmV0")
+	// target and live states are masked as well
+	assert.NotContains(t, items[0].TargetState, "dG9wc2VjcmV0")
+	assert.NotContains(t, items[0].LiveState, "dG9wc2VjcmV0")
+}
+
+// TestHideSecretData_NonSSDRecomputes verifies that when server-side diff is not
+// in use, the existing client-side recomputation path is preserved.
+func TestHideSecretData_NonSSDRecomputes(t *testing.T) {
+	app := newFakeApp()
+	ctrl := newFakeController(t.Context(), &fakeData{}, nil)
+
+	mr := newSecretManagedResource(
+		"test-secret",
+		map[string][]byte{"key": []byte("valueA")},
+		map[string][]byte{"key": []byte("valueB")},
+	)
+	mr.Diff = diff.DiffResult{Modified: false}
+
+	compRes := &comparisonResult{
+		managedResources: []managedResource{mr},
+	}
+	items, err := ctrl.hideSecretData(&v1alpha1.Cluster{Server: "test", Name: "test"}, app, compRes)
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+	assert.True(t, items[0].Modified)
+	assert.Contains(t, items[0].LiveState, "++++++++")
+	assert.Contains(t, items[0].TargetState, "++++++++")
+	// different values must keep different placeholders
+	assert.NotEqual(t, items[0].TargetState, items[0].LiveState)
+}
 
 // TestCompareAppStateEmpty tests comparison when both git and live have no objects
 func TestCompareAppStateEmpty(t *testing.T) {
