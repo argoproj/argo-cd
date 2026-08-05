@@ -11,6 +11,7 @@ import (
 )
 
 func TestContainLabels(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		Name       string
 		Labels     []string
@@ -51,6 +52,7 @@ func TestContainLabels(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
+			t.Parallel()
 			got := containLabels(c.Labels, c.PullLabels)
 			require.Equal(t, got, c.Expect)
 		})
@@ -58,6 +60,7 @@ func TestContainLabels(t *testing.T) {
 }
 
 func TestGetGitHubPRLabelNames(t *testing.T) {
+	t.Parallel()
 	Tests := []struct {
 		Name           string
 		PullLabels     []*github.Label
@@ -80,6 +83,7 @@ func TestGetGitHubPRLabelNames(t *testing.T) {
 	}
 	for _, test := range Tests {
 		t.Run(test.Name, func(t *testing.T) {
+			t.Parallel()
 			labels := getGithubPRLabelNames(test.PullLabels)
 			require.Equal(t, test.ExpectedResult, labels)
 		})
@@ -87,11 +91,12 @@ func TestGetGitHubPRLabelNames(t *testing.T) {
 }
 
 func TestGitHubListReturnsRepositoryNotFoundError(t *testing.T) {
+	t.Parallel()
 	mux := http.NewServeMux()
 	server := httptest.NewServer(mux)
 	defer server.Close()
 
-	path := "/repos/nonexistent/nonexistent/pulls"
+	path := "/api/v3/repos/nonexistent/nonexistent/pulls"
 
 	mux.HandleFunc(path, func(w http.ResponseWriter, _ *http.Request) {
 		// Return 404 status to simulate repository not found

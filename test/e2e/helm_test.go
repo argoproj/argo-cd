@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
-	. "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	. "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 
@@ -666,6 +666,24 @@ func TestTemplatesHelmOCIWithDependencies(t *testing.T) {
 		RepoURLType(fixture.RepoURLTypeHelmOCI).
 		Chart("helm-oci-with-dependencies").
 		Revision("1.0.0").
+		When().
+		CreateApp().
+		Then().
+		When().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
+
+func TestHelmOCIRegistryWithConstraintRevision(t *testing.T) {
+	Given(t).
+		PushChartToOCIRegistry("testdata/helm-values", "helm-values", "1.0.0").
+		HelmOCIRepoAdded("myrepo").
+		RepoURLType(fixture.RepoURLTypeHelmOCI).
+		Chart("helm-values").
+		Revision(">=1.0.0").
 		When().
 		CreateApp().
 		Then().

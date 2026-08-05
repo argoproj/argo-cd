@@ -282,3 +282,20 @@ spec:
 ```
 
 The `targetRevision` field supports exact tags as well as semver constraints (e.g. `^1.0.0`, `>=1.2.0`). See the [GHCR semver constraint table](#example-application) for details and examples.
+
+## Application Annotations Used by Webhooks
+
+A webhook event triggers a refresh by setting the `argocd.argoproj.io/refresh` annotation on each matching
+Application (and, for Applications using the [source hydrator](../user-guide/source-hydrator.md), the
+`argocd.argoproj.io/hydrate` annotation as well). The application controller removes these annotations once it
+has finished processing the refresh. See [Annotations and Labels](../user-guide/annotations-and-labels.md) for
+the full list of values these annotations can take.
+
+Each refresh request also sets a companion `argocd.argoproj.io/refresh-timestamp` (and, for hydration,
+`argocd.argoproj.io/hydrate-timestamp`) annotation to a unique timestamp. Before removing the `refresh`/`hydrate`
+annotation, the controller checks that this timestamp still matches the value it observed when the refresh
+started. If another webhook event (or any other refresh trigger) arrived for the same Application while the
+first refresh was still being processed, the timestamp will have changed, so the controller leaves the
+annotations in place and processes the new request instead of dropping it. Without this check, a refresh
+request that arrives while a previous one for the same Application is still being reconciled could otherwise be
+silently lost until the next periodic poll or a manual refresh.

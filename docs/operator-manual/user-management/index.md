@@ -249,6 +249,11 @@ data:
           clientSecret: $dex.oidc.clientSecret
 ```
 
+> [!NOTE]
+> Argo CD's OIDC token refresh (see `refreshTokenThreshold` in [Existing OIDC Provider](#existing-oidc-provider))
+> does not apply to Dex's embedded web login flow. Once a Dex-issued ID token expires, the user
+> must log in again, regardless of `refreshTokenThreshold` being set.
+
 ### Requesting additional ID token claims
 
 By default Dex only retrieves the profile and email scopes. In order to retrieve more claims you
@@ -351,6 +356,12 @@ data:
     # Make sure the identity provider supports it and that it is activated for Argo CD OIDC client.
     # Default is false.
     enablePKCEAuthentication: true
+
+    # Optional. Argo CD uses this threshold to refresh an OIDC ID token before it expires, using the
+    # cached refresh token, so the session isn't interrupted. Must be shorter than the ID
+    # token's lifetime, or a new token will be requested on every request.
+    # Default is 0s.
+    refreshTokenThreshold: 30s
 ```
 
 > [!NOTE]

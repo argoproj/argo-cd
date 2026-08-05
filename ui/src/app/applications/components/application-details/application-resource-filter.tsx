@@ -37,10 +37,9 @@ export const Filters = (props: FiltersProps) => {
     const resourceFilter = pref.resourceFilter || [];
     const removePrefix = (prefix: string) => (v: string) => v.replace(prefix + ':', '');
 
-    const [groupedFilters, setGroupedFilters] = React.useState<{[key: string]: string}>({});
     const [loading, setLoading] = React.useState(true);
 
-    React.useEffect(() => {
+    const groupedFilters = React.useMemo(() => {
         const update: {[key: string]: string} = {};
         (resourceFilter || []).forEach(pair => {
             const tmp = pair.split(':');
@@ -50,8 +49,13 @@ export const Filters = (props: FiltersProps) => {
                 update[prefix] = `${cur ? cur + ',' : ''}${pair}`;
             }
         });
-        setGroupedFilters(update);
-        setLoading(false);
+        return update;
+    }, [resourceFilter]);
+
+    React.useEffect(() => {
+        if (loading) {
+            setLoading(false);
+        }
     }, [resourceFilter, loading]);
 
     const setFilters = (prefix: string, values: string[]) => {

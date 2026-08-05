@@ -1,6 +1,7 @@
 import {FormField} from 'argo-ui';
-import React, {useContext, useEffect, useState} from 'react';
-import {Form, Text} from 'react-form';
+import * as React from 'react';
+import {useContext, useEffect, useState} from 'react';
+import {Form, Text} from 'argo-ui';
 import {RouteComponentProps} from 'react-router';
 import {AuthSettings} from '../../shared/models';
 import {services} from '../../shared/services';
@@ -83,7 +84,8 @@ export function Login(props: RouteComponentProps<{}>) {
                     <div className='login__box_saml width-control'>
                         <a href={`auth/login?return_url=${encodeURIComponent(returnUrl)}`}>
                             <button className='argo-button argo-button--base argo-button--full-width argo-button--xlg'>
-                                {(authSettings.oidcConfig && <span>Log in via {authSettings.oidcConfig.name}</span>) ||
+                                {(authSettings.uiLoginButtonText && <span>{authSettings.uiLoginButtonText}</span>) ||
+                                    (authSettings.oidcConfig && <span>Log in via {authSettings.oidcConfig.name}</span>) ||
                                     (authSettings.dexConfig.connectors.length === 1 && <span>Log in via {authSettings.dexConfig.connectors[0].name}</span>) || (
                                         <span>SSO Login</span>
                                     )}

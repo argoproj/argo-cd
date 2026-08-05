@@ -79,16 +79,16 @@ func TestJob(t *testing.T) {
 	assertAppHealth(t, "./testdata/job-failed.yaml", HealthStatusDegraded)
 	assertAppHealth(t, "./testdata/job-succeeded.yaml", HealthStatusHealthy)
 	assertAppHealth(t, "./testdata/job-suspended.yaml", HealthStatusSuspended)
+	// A suspended Job should surface its Suspended condition message, not an empty string.
+	assert.Equal(t, "Job suspended", getHealthStatus(t, "./testdata/job-suspended.yaml").Message)
 }
 
 func TestHPA(t *testing.T) {
 	assertAppHealth(t, "./testdata/hpa-v2-healthy.yaml", HealthStatusHealthy)
 	assertAppHealth(t, "./testdata/hpa-v2-degraded.yaml", HealthStatusDegraded)
 	assertAppHealth(t, "./testdata/hpa-v2-progressing.yaml", HealthStatusProgressing)
-	assertAppHealth(t, "./testdata/hpa-v2beta2-healthy.yaml", HealthStatusHealthy)
-	assertAppHealth(t, "./testdata/hpa-v2beta1-healthy-disabled.yaml", HealthStatusHealthy)
-	assertAppHealth(t, "./testdata/hpa-v2beta1-healthy.yaml", HealthStatusHealthy)
 	assertAppHealth(t, "./testdata/hpa-v1-degraded.yaml", HealthStatusDegraded)
+	assertAppHealth(t, "./testdata/hpa-v1-degraded-failedgetobjectmetric.yaml", HealthStatusDegraded)
 	assertAppHealth(t, "./testdata/hpa-v1-healthy.yaml", HealthStatusHealthy)
 	assertAppHealth(t, "./testdata/hpa-v1-healthy-toofew.yaml", HealthStatusHealthy)
 	assertAppHealth(t, "./testdata/hpa-v1-progressing.yaml", HealthStatusProgressing)
@@ -103,6 +103,9 @@ func TestPod(t *testing.T) {
 	assertAppHealth(t, "./testdata/pod-error.yaml", HealthStatusDegraded)
 	assertAppHealth(t, "./testdata/pod-running-restart-always.yaml", HealthStatusHealthy)
 	assertAppHealth(t, "./testdata/pod-running-restart-never.yaml", HealthStatusProgressing)
+	assertAppHealth(t, "./testdata/pod-running-restart-never-with-ignore-annotation.yaml", HealthStatusHealthy)
+	assertAppHealth(t, "./testdata/pod-running-restart-never-hook-with-ignore-annotation.yaml", HealthStatusProgressing)
+	assertAppHealth(t, "./testdata/pod-running-restart-never-with-ignore-annotation-backoff.yaml", HealthStatusDegraded)
 	assertAppHealth(t, "./testdata/pod-running-restart-onfailure.yaml", HealthStatusProgressing)
 	assertAppHealth(t, "./testdata/pod-failed.yaml", HealthStatusDegraded)
 	assertAppHealth(t, "./testdata/pod-succeeded.yaml", HealthStatusHealthy)

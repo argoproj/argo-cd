@@ -78,6 +78,7 @@ core/v1/HostPathVolumeSource
 core/v1/ISCSIPersistentVolumeSource
 core/v1/ISCSIVolumeSource
 core/v1/ImageVolumeSource
+core/v1/ImageVolumeStatus
 core/v1/KeyToPath
 core/v1/Lifecycle
 core/v1/LifecycleHandler
@@ -101,6 +102,7 @@ core/v1/NamespaceStatus
 core/v1/Node
 core/v1/NodeAddress
 core/v1/NodeAffinity
+core/v1/NodeAllocatableResourceClaimStatus
 core/v1/NodeCondition
 core/v1/NodeConfigSource
 core/v1/NodeConfigStatus
@@ -153,6 +155,7 @@ core/v1/PodReadinessGate
 core/v1/PodResourceClaim
 core/v1/PodResourceClaimStatus
 core/v1/PodSchedulingGate
+core/v1/PodSchedulingGroup
 core/v1/PodSecurityContext
 core/v1/PodSignature
 core/v1/PodSpec
@@ -233,6 +236,7 @@ core/v1/VolumeNodeAffinity
 core/v1/VolumeProjection
 core/v1/VolumeResourceRequirements
 core/v1/VolumeSource
+core/v1/VolumeStatus
 core/v1/VsphereVirtualDiskVolumeSource
 core/v1/WeightedPodAffinityTerm
 core/v1/WindowsSecurityContextOptions

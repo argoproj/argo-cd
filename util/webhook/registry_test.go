@@ -21,6 +21,7 @@ import (
 )
 
 func TestNormalizeOCI(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		url      string
@@ -35,6 +36,7 @@ func TestNormalizeOCI(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := normalizeOCI(tt.url)
 			assert.Equal(t, tt.expected, got)
 		})
@@ -42,6 +44,7 @@ func TestNormalizeOCI(t *testing.T) {
 }
 
 func TestGHCRHandlerCanHandle(t *testing.T) {
+	t.Parallel()
 	h := newGHCRParser("")
 
 	tests := []struct {
@@ -57,6 +60,7 @@ func TestGHCRHandlerCanHandle(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", http.NoBody)
 			req.Header.Set("X-GitHub-Event", tt.event)
 			assert.Equal(t, tt.expected, h.CanHandle(req))
@@ -75,8 +79,7 @@ func TestRegistryPackageEvent(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
-	close(h.queue)
-	h.Wait()
+	h.Shutdown()
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	assertLogContains(t, hook, "Received registry webhook event")
@@ -189,6 +192,7 @@ func TestHandleRegistryEvent_RevisionMismatch(t *testing.T) {
 }
 
 func TestHandleRegistryEvent_NamespaceFiltering(t *testing.T) {
+	t.Parallel()
 	patched := []string{}
 
 	reaction := func(action kubetesting.Action) (bool, runtime.Object, error) {
@@ -234,4 +238,124 @@ func TestHandleRegistryEvent_NamespaceFiltering(t *testing.T) {
 
 	assert.Contains(t, patched, "team-a")
 	assert.NotContains(t, patched, "kube-system")
+}
+
+func TestHandleRegistryEvent_HelmOCI(t *testing.T) {
+	prev := logrus.GetLevel()
+	logrus.SetLevel(logrus.DebugLevel)
+	t.Cleanup(func() { logrus.SetLevel(prev) })
+
+	tests := []struct {
+		name        string
+		repoURL     string
+		chart       string
+		wantRefresh bool
+		wantLog     string
+	}{
+		{
+			name:        "chart name matches event repository",
+			repoURL:     "ghcr.io/myorg/charts",
+			chart:       "mychart",
+			wantRefresh: true,
+			wantLog:     "Requested app 'helm-oci-app' refresh",
+		},
+		{
+			name:        "chart name does not match event repository",
+			repoURL:     "ghcr.io/myorg/charts",
+			chart:       "other-chart",
+			wantRefresh: false,
+			wantLog:     "Skipping app: OCI repository URLs do not match",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			hook := test.NewGlobal()
+			patchedApps := []string{}
+			reaction := func(action kubetesting.Action) (bool, runtime.Object, error) {
+				patch := action.(kubetesting.PatchAction)
+				patchedApps = append(patchedApps, patch.GetName())
+				return true, nil, nil
+			}
+
+			h := NewMockHandler(
+				&reactorDef{"patch", "applications", reaction},
+				[]string{},
+				&v1alpha1.Application{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "helm-oci-app",
+						Namespace: "argocd",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Sources: v1alpha1.ApplicationSources{
+							{
+								RepoURL:        tt.repoURL,
+								Chart:          tt.chart,
+								TargetRevision: "1.2.3",
+							},
+						},
+					},
+				},
+			)
+
+			event := &RegistryEvent{
+				RegistryURL: "ghcr.io",
+				Repository:  "myorg/charts/mychart",
+				Tag:         "1.2.3",
+			}
+
+			h.HandleRegistryEvent(event)
+
+			if tt.wantRefresh {
+				assert.Contains(t, patchedApps, "helm-oci-app")
+			} else {
+				assert.NotContains(t, patchedApps, "helm-oci-app")
+			}
+			assert.Contains(t, hook.LastEntry().Message, tt.wantLog)
+		})
+	}
+}
+
+func TestHandleRegistryEvent_PlainOCI(t *testing.T) {
+	prev := logrus.GetLevel()
+	logrus.SetLevel(logrus.DebugLevel)
+	t.Cleanup(func() { logrus.SetLevel(prev) })
+
+	hook := test.NewGlobal()
+	patchedApps := []string{}
+	reaction := func(action kubetesting.Action) (bool, runtime.Object, error) {
+		patch := action.(kubetesting.PatchAction)
+		patchedApps = append(patchedApps, patch.GetName())
+		return true, nil, nil
+	}
+
+	h := NewMockHandler(
+		&reactorDef{"patch", "applications", reaction},
+		[]string{},
+		&v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "plain-oci-app",
+				Namespace: "argocd",
+			},
+			Spec: v1alpha1.ApplicationSpec{
+				Sources: v1alpha1.ApplicationSources{
+					{
+						RepoURL:        "oci://ghcr.io/myorg/charts/mychart",
+						TargetRevision: "1.2.3",
+					},
+				},
+			},
+		},
+	)
+
+	event := &RegistryEvent{
+		RegistryURL: "ghcr.io",
+		Repository:  "myorg/charts/mychart",
+		Tag:         "1.2.3",
+	}
+
+	h.HandleRegistryEvent(event)
+
+	assert.Contains(t, patchedApps, "plain-oci-app")
+	assert.Contains(t, hook.LastEntry().Message, "Requested app 'plain-oci-app' refresh")
 }

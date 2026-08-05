@@ -1,7 +1,7 @@
 import {AutocompleteField, FormField, HelpIcon, NotificationsApi, NotificationType, SlidingPanel, Tabs, Tooltip} from 'argo-ui';
 import classNames from 'classnames';
 import * as React from 'react';
-import {FormApi, Text} from 'react-form';
+import {FormApi, Text} from 'argo-ui';
 import {RouteComponentProps} from 'react-router';
 import {Link} from 'react-router-dom';
 

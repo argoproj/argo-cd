@@ -1,9 +1,8 @@
 import {models, DataLoader, FormField, MenuItem, NotificationType, Tooltip, HelpIcon} from 'argo-ui';
 import {ActionButton} from 'argo-ui/v2';
-import * as classNames from 'classnames';
+import classNames from 'classnames';
 import * as React from 'react';
-import * as ReactForm from 'react-form';
-import {FormApi, Text} from 'react-form';
+import {ReactForm, FormApi, Text} from 'argo-ui';
 import * as moment from 'moment';
 import {BehaviorSubject, combineLatest, concat, from, fromEvent, Observable, Observer, Subscription} from 'rxjs';
 import {debounceTime, map} from 'rxjs/operators';
@@ -14,7 +13,6 @@ import {ResourceTreeNode} from './application-resource-tree/application-resource
 import {CheckboxField, COLORS, ErrorNotification, Revision} from '../../shared/components';
 import * as appModels from '../../shared/models';
 import {services} from '../../shared/services';
-import {ApplicationSource} from '../../shared/models';
 
 require('./utils.scss');
 
@@ -89,6 +87,11 @@ export const SpinningIcon = ({color, qeId}: {color: string; qeId: string}) => {
         </svg>
     );
 };
+
+export function nameConfirmationError(entered: string, expected: string, emptyMessage: string, mismatchMessage: string): string | false {
+    if (entered === expected) return false;
+    return !entered ? emptyMessage : mismatchMessage;
+}
 
 export async function deleteApplication(appName: string, appNamespace: string, apis: ContextApis, application?: appModels.Application): Promise<boolean> {
     let confirmed = false;
@@ -165,7 +168,7 @@ export async function deleteApplication(appName: string, appNamespace: string, a
         ),
         {
             validate: vals => ({
-                applicationName: vals.applicationName !== appName && 'Enter the application name to confirm the deletion'
+                applicationName: nameConfirmationError(vals.applicationName, appName, 'Enter the application name to confirm the deletion', 'Application name does not match')
             }),
             submit: async (vals, _, close) => {
                 try {
@@ -212,7 +215,7 @@ export async function confirmSyncingAppOfApps(apps: appModels.Application[], api
         ),
         {
             validate: vals => ({
-                applicationName: vals.applicationName !== appNameList && 'Enter the application name(s) to confirm syncing'
+                applicationName: nameConfirmationError(vals.applicationName, appNameList, 'Enter the application name(s) to confirm syncing', 'Application name does not match')
             }),
             submit: async (_vals, _, close) => {
                 try {
@@ -606,7 +609,7 @@ export const deletePopup = async (
         {
             validate: vals =>
                 isManaged && {
-                    resourceName: vals.resourceName !== resource.name && 'Enter the resource name to confirm the deletion'
+                    resourceName: nameConfirmationError(vals.resourceName, resource.name, 'Enter the resource name to confirm the deletion', 'Resource name does not match')
                 },
             submit: async (vals, _, close) => {
                 const force = deleteOptions.option === 'force';
@@ -961,6 +964,9 @@ export function syncStatusMessage(app: appModels.Application) {
     const revision = getAppDefaultSyncRevision(app);
     const rev = app.status.sync.revision || (source ? source.targetRevision || 'HEAD' : 'Unknown');
     let message = source ? source?.targetRevision || 'HEAD' : 'Unknown';
+    if (source?.tagPrefix) {
+        message = source.tagPrefix + message;
+    }
     const suffix = revision && source ? getSyncRevisionLabelSuffix(source.repoURL, source.targetRevision, revision, source.chart) : '';
 
     if (suffix) {
@@ -994,14 +1000,10 @@ export function syncStatusMessage(app: appModels.Application) {
 }
 
 export function hydrationStatusMessage(app: appModels.Application) {
-    const drySource = app.status.sourceHydrator.currentOperation.sourceHydrator.drySource;
+    const sourceHydrator = app.status.sourceHydrator.currentOperation.sourceHydrator;
+    const drySource = sourceHydrator.drySource;
     const dryCommit = app.status.sourceHydrator.currentOperation.drySHA;
-    const syncSource: ApplicationSource = {
-        repoURL: drySource.repoURL,
-        targetRevision:
-            app.status.sourceHydrator.currentOperation.sourceHydrator.hydrateTo?.targetBranch || app.status.sourceHydrator.currentOperation.sourceHydrator.syncSource.targetBranch,
-        path: app.status.sourceHydrator.currentOperation.sourceHydrator.syncSource.path
-    };
+    const syncSource = getAppHydratorSyncSource(sourceHydrator);
     const hydratedCommit = app.status.sourceHydrator.currentOperation.hydratedSHA || '';
 
     switch (app.status.sourceHydrator.currentOperation.phase) {
@@ -1457,6 +1459,10 @@ export function getAppSetConditionCategory(condition: appModels.ApplicationSetCo
     if ((type === 'ParametersGenerated' || type === 'ResourcesUpToDate') && status === 'false') {
         return 'error';
     }
+    // InvalidRolloutConfig with status True = warning
+    if (type === 'InvalidRolloutConfig' && status === 'true') {
+        return 'warning';
+    }
     // Otherwise it's informational
     return 'info';
 }
@@ -1502,9 +1508,23 @@ export function getAppDrySource(app?: appModels.Application): appModels.Applicat
     if (!app) {
         return null;
     }
-    const {path, targetRevision, repoURL} = app.spec.sourceHydrator?.drySource || app.spec.source;
+    if (app.spec.sourceHydrator?.drySource) {
+        const {path, targetRevision, repoURL} = app.spec.sourceHydrator.drySource;
+        return {repoURL, targetRevision, path};
+    }
+    return getAppDefaultSource(app);
+}
 
-    return {repoURL, targetRevision, path};
+export function getHydratorSyncSourceRepoURL(sourceHydrator?: appModels.SourceHydrator): string {
+    return sourceHydrator?.syncSource?.repoURL || sourceHydrator?.drySource?.repoURL || '';
+}
+
+export function getAppHydratorSyncSource(sourceHydrator?: appModels.SourceHydrator): appModels.ApplicationSource {
+    return {
+        repoURL: getHydratorSyncSourceRepoURL(sourceHydrator),
+        targetRevision: sourceHydrator?.syncSource?.targetBranch || '',
+        path: sourceHydrator?.syncSource?.path || ''
+    };
 }
 
 // getAppAllSources gets all app sources as an array. For single source apps, returns [source].
@@ -1515,13 +1535,7 @@ export function getAppAllSources(app?: appModels.Application): appModels.Applica
     }
 
     if (app.spec.sourceHydrator) {
-        return [
-            {
-                repoURL: app.spec.sourceHydrator.drySource.repoURL,
-                targetRevision: app.spec.sourceHydrator.syncSource.targetBranch,
-                path: app.spec.sourceHydrator.syncSource.path
-            } as appModels.ApplicationSource
-        ];
+        return [getAppHydratorSyncSource(app.spec.sourceHydrator)];
     }
 
     if (app.spec.sources && app.spec.sources.length > 0) {
@@ -1592,11 +1606,7 @@ export function getAppDefaultOperationSyncRevisionExtra(app?: appModels.Applicat
 
 export function getAppSpecDefaultSource(spec: appModels.ApplicationSpec) {
     if (spec.sourceHydrator) {
-        return {
-            repoURL: spec.sourceHydrator.drySource.repoURL,
-            targetRevision: spec.sourceHydrator.syncSource.targetBranch,
-            path: spec.sourceHydrator.syncSource.path
-        };
+        return getAppHydratorSyncSource(spec.sourceHydrator);
     }
     return spec.sources && spec.sources.length > 0 ? spec.sources[0] : spec.source;
 }
@@ -1932,6 +1942,35 @@ export function getAppUrl(app: appModels.AbstractApplication): string {
         return `${basePath}/${app.metadata.name}`;
     }
     return `${basePath}/${app.metadata.namespace}/${app.metadata.name}`;
+}
+
+export interface AppListLink {
+    /** Relative path for in-app navigation via ctx.navigation.goto. */
+    path: string;
+    /** Full base-href-prefixed href so native middle-click / right-click / status-bar URL preview work. */
+    href: string;
+    /** SPA navigation on a plain click; modifier-clicks fall through to the browser (open in new tab/window). */
+    onClick: (e: React.MouseEvent<HTMLAnchorElement>) => void;
+}
+
+// Builds the link target shared by every application / applicationset list row and tile.
+// `view` is the Application details view (e.g. 'tree'); AppSet pages don't support it, so
+// callers omit it there and the URL stays view-less.
+export function getAppListLink(ctx: ContextApis, app: appModels.AbstractApplication, view?: string): AppListLink {
+    const url = getAppUrl(app);
+    const path = `/${url}`;
+    const query = view ? {view} : {};
+    return {
+        path,
+        href: `${ctx.baseHref}${url}${view ? `?view=${encodeURIComponent(view)}` : ''}`,
+        onClick: (e: React.MouseEvent<HTMLAnchorElement>) => {
+            if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) {
+                return;
+            }
+            e.preventDefault();
+            ctx.navigation.goto(path, query, {event: e});
+        }
+    };
 }
 
 /** RollingSync step for display; backend uses -1 when no step matches the app's labels. */

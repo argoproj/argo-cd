@@ -77,7 +77,7 @@ type Client_CreateAnnotatedTag_Call struct {
 // CreateAnnotatedTag is a helper method to define mock.On call
 //   - context1 context.Context
 //   - createAnnotatedTagArgs git.CreateAnnotatedTagArgs
-func (_e *Client_Expecter) CreateAnnotatedTag(context1 interface{}, createAnnotatedTagArgs interface{}) *Client_CreateAnnotatedTag_Call {
+func (_e *Client_Expecter) CreateAnnotatedTag(context1 any, createAnnotatedTagArgs any) *Client_CreateAnnotatedTag_Call {
 	return &Client_CreateAnnotatedTag_Call{Call: _e.mock.On("CreateAnnotatedTag", context1, createAnnotatedTagArgs)}
 }
 
@@ -145,7 +145,7 @@ type Client_CreateAttachment_Call struct {
 // CreateAttachment is a helper method to define mock.On call
 //   - context1 context.Context
 //   - createAttachmentArgs git.CreateAttachmentArgs
-func (_e *Client_Expecter) CreateAttachment(context1 interface{}, createAttachmentArgs interface{}) *Client_CreateAttachment_Call {
+func (_e *Client_Expecter) CreateAttachment(context1 any, createAttachmentArgs any) *Client_CreateAttachment_Call {
 	return &Client_CreateAttachment_Call{Call: _e.mock.On("CreateAttachment", context1, createAttachmentArgs)}
 }
 
@@ -213,7 +213,7 @@ type Client_CreateCherryPick_Call struct {
 // CreateCherryPick is a helper method to define mock.On call
 //   - context1 context.Context
 //   - createCherryPickArgs git.CreateCherryPickArgs
-func (_e *Client_Expecter) CreateCherryPick(context1 interface{}, createCherryPickArgs interface{}) *Client_CreateCherryPick_Call {
+func (_e *Client_Expecter) CreateCherryPick(context1 any, createCherryPickArgs any) *Client_CreateCherryPick_Call {
 	return &Client_CreateCherryPick_Call{Call: _e.mock.On("CreateCherryPick", context1, createCherryPickArgs)}
 }
 
@@ -281,7 +281,7 @@ type Client_CreateComment_Call struct {
 // CreateComment is a helper method to define mock.On call
 //   - context1 context.Context
 //   - createCommentArgs git.CreateCommentArgs
-func (_e *Client_Expecter) CreateComment(context1 interface{}, createCommentArgs interface{}) *Client_CreateComment_Call {
+func (_e *Client_Expecter) CreateComment(context1 any, createCommentArgs any) *Client_CreateComment_Call {
 	return &Client_CreateComment_Call{Call: _e.mock.On("CreateComment", context1, createCommentArgs)}
 }
 
@@ -349,7 +349,7 @@ type Client_CreateCommitStatus_Call struct {
 // CreateCommitStatus is a helper method to define mock.On call
 //   - context1 context.Context
 //   - createCommitStatusArgs git.CreateCommitStatusArgs
-func (_e *Client_Expecter) CreateCommitStatus(context1 interface{}, createCommitStatusArgs interface{}) *Client_CreateCommitStatus_Call {
+func (_e *Client_Expecter) CreateCommitStatus(context1 any, createCommitStatusArgs any) *Client_CreateCommitStatus_Call {
 	return &Client_CreateCommitStatus_Call{Call: _e.mock.On("CreateCommitStatus", context1, createCommitStatusArgs)}
 }
 
@@ -417,7 +417,7 @@ type Client_CreateFavorite_Call struct {
 // CreateFavorite is a helper method to define mock.On call
 //   - context1 context.Context
 //   - createFavoriteArgs git.CreateFavoriteArgs
-func (_e *Client_Expecter) CreateFavorite(context1 interface{}, createFavoriteArgs interface{}) *Client_CreateFavorite_Call {
+func (_e *Client_Expecter) CreateFavorite(context1 any, createFavoriteArgs any) *Client_CreateFavorite_Call {
 	return &Client_CreateFavorite_Call{Call: _e.mock.On("CreateFavorite", context1, createFavoriteArgs)}
 }
 
@@ -485,7 +485,7 @@ type Client_CreateForkSyncRequest_Call struct {
 // CreateForkSyncRequest is a helper method to define mock.On call
 //   - context1 context.Context
 //   - createForkSyncRequestArgs git.CreateForkSyncRequestArgs
-func (_e *Client_Expecter) CreateForkSyncRequest(context1 interface{}, createForkSyncRequestArgs interface{}) *Client_CreateForkSyncRequest_Call {
+func (_e *Client_Expecter) CreateForkSyncRequest(context1 any, createForkSyncRequestArgs any) *Client_CreateForkSyncRequest_Call {
 	return &Client_CreateForkSyncRequest_Call{Call: _e.mock.On("CreateForkSyncRequest", context1, createForkSyncRequestArgs)}
 }
 
@@ -553,7 +553,7 @@ type Client_CreateImportRequest_Call struct {
 // CreateImportRequest is a helper method to define mock.On call
 //   - context1 context.Context
 //   - createImportRequestArgs git.CreateImportRequestArgs
-func (_e *Client_Expecter) CreateImportRequest(context1 interface{}, createImportRequestArgs interface{}) *Client_CreateImportRequest_Call {
+func (_e *Client_Expecter) CreateImportRequest(context1 any, createImportRequestArgs any) *Client_CreateImportRequest_Call {
 	return &Client_CreateImportRequest_Call{Call: _e.mock.On("CreateImportRequest", context1, createImportRequestArgs)}
 }
 
@@ -610,7 +610,7 @@ type Client_CreateLike_Call struct {
 // CreateLike is a helper method to define mock.On call
 //   - context1 context.Context
 //   - createLikeArgs git.CreateLikeArgs
-func (_e *Client_Expecter) CreateLike(context1 interface{}, createLikeArgs interface{}) *Client_CreateLike_Call {
+func (_e *Client_Expecter) CreateLike(context1 any, createLikeArgs any) *Client_CreateLike_Call {
 	return &Client_CreateLike_Call{Call: _e.mock.On("CreateLike", context1, createLikeArgs)}
 }
 
@@ -678,7 +678,7 @@ type Client_CreateMergeRequest_Call struct {
 // CreateMergeRequest is a helper method to define mock.On call
 //   - context1 context.Context
 //   - createMergeRequestArgs git.CreateMergeRequestArgs
-func (_e *Client_Expecter) CreateMergeRequest(context1 interface{}, createMergeRequestArgs interface{}) *Client_CreateMergeRequest_Call {
+func (_e *Client_Expecter) CreateMergeRequest(context1 any, createMergeRequestArgs any) *Client_CreateMergeRequest_Call {
 	return &Client_CreateMergeRequest_Call{Call: _e.mock.On("CreateMergeRequest", context1, createMergeRequestArgs)}
 }
 
@@ -746,7 +746,7 @@ type Client_CreatePullRequest_Call struct {
 // CreatePullRequest is a helper method to define mock.On call
 //   - context1 context.Context
 //   - createPullRequestArgs git.CreatePullRequestArgs
-func (_e *Client_Expecter) CreatePullRequest(context1 interface{}, createPullRequestArgs interface{}) *Client_CreatePullRequest_Call {
+func (_e *Client_Expecter) CreatePullRequest(context1 any, createPullRequestArgs any) *Client_CreatePullRequest_Call {
 	return &Client_CreatePullRequest_Call{Call: _e.mock.On("CreatePullRequest", context1, createPullRequestArgs)}
 }
 
@@ -814,7 +814,7 @@ type Client_CreatePullRequestIterationStatus_Call struct {
 // CreatePullRequestIterationStatus is a helper method to define mock.On call
 //   - context1 context.Context
 //   - createPullRequestIterationStatusArgs git.CreatePullRequestIterationStatusArgs
-func (_e *Client_Expecter) CreatePullRequestIterationStatus(context1 interface{}, createPullRequestIterationStatusArgs interface{}) *Client_CreatePullRequestIterationStatus_Call {
+func (_e *Client_Expecter) CreatePullRequestIterationStatus(context1 any, createPullRequestIterationStatusArgs any) *Client_CreatePullRequestIterationStatus_Call {
 	return &Client_CreatePullRequestIterationStatus_Call{Call: _e.mock.On("CreatePullRequestIterationStatus", context1, createPullRequestIterationStatusArgs)}
 }
 
@@ -882,7 +882,7 @@ type Client_CreatePullRequestLabel_Call struct {
 // CreatePullRequestLabel is a helper method to define mock.On call
 //   - context1 context.Context
 //   - createPullRequestLabelArgs git.CreatePullRequestLabelArgs
-func (_e *Client_Expecter) CreatePullRequestLabel(context1 interface{}, createPullRequestLabelArgs interface{}) *Client_CreatePullRequestLabel_Call {
+func (_e *Client_Expecter) CreatePullRequestLabel(context1 any, createPullRequestLabelArgs any) *Client_CreatePullRequestLabel_Call {
 	return &Client_CreatePullRequestLabel_Call{Call: _e.mock.On("CreatePullRequestLabel", context1, createPullRequestLabelArgs)}
 }
 
@@ -950,7 +950,7 @@ type Client_CreatePullRequestReviewer_Call struct {
 // CreatePullRequestReviewer is a helper method to define mock.On call
 //   - context1 context.Context
 //   - createPullRequestReviewerArgs git.CreatePullRequestReviewerArgs
-func (_e *Client_Expecter) CreatePullRequestReviewer(context1 interface{}, createPullRequestReviewerArgs interface{}) *Client_CreatePullRequestReviewer_Call {
+func (_e *Client_Expecter) CreatePullRequestReviewer(context1 any, createPullRequestReviewerArgs any) *Client_CreatePullRequestReviewer_Call {
 	return &Client_CreatePullRequestReviewer_Call{Call: _e.mock.On("CreatePullRequestReviewer", context1, createPullRequestReviewerArgs)}
 }
 
@@ -1018,7 +1018,7 @@ type Client_CreatePullRequestReviewers_Call struct {
 // CreatePullRequestReviewers is a helper method to define mock.On call
 //   - context1 context.Context
 //   - createPullRequestReviewersArgs git.CreatePullRequestReviewersArgs
-func (_e *Client_Expecter) CreatePullRequestReviewers(context1 interface{}, createPullRequestReviewersArgs interface{}) *Client_CreatePullRequestReviewers_Call {
+func (_e *Client_Expecter) CreatePullRequestReviewers(context1 any, createPullRequestReviewersArgs any) *Client_CreatePullRequestReviewers_Call {
 	return &Client_CreatePullRequestReviewers_Call{Call: _e.mock.On("CreatePullRequestReviewers", context1, createPullRequestReviewersArgs)}
 }
 
@@ -1086,7 +1086,7 @@ type Client_CreatePullRequestStatus_Call struct {
 // CreatePullRequestStatus is a helper method to define mock.On call
 //   - context1 context.Context
 //   - createPullRequestStatusArgs git.CreatePullRequestStatusArgs
-func (_e *Client_Expecter) CreatePullRequestStatus(context1 interface{}, createPullRequestStatusArgs interface{}) *Client_CreatePullRequestStatus_Call {
+func (_e *Client_Expecter) CreatePullRequestStatus(context1 any, createPullRequestStatusArgs any) *Client_CreatePullRequestStatus_Call {
 	return &Client_CreatePullRequestStatus_Call{Call: _e.mock.On("CreatePullRequestStatus", context1, createPullRequestStatusArgs)}
 }
 
@@ -1154,7 +1154,7 @@ type Client_CreatePush_Call struct {
 // CreatePush is a helper method to define mock.On call
 //   - context1 context.Context
 //   - createPushArgs git.CreatePushArgs
-func (_e *Client_Expecter) CreatePush(context1 interface{}, createPushArgs interface{}) *Client_CreatePush_Call {
+func (_e *Client_Expecter) CreatePush(context1 any, createPushArgs any) *Client_CreatePush_Call {
 	return &Client_CreatePush_Call{Call: _e.mock.On("CreatePush", context1, createPushArgs)}
 }
 
@@ -1222,7 +1222,7 @@ type Client_CreateRepository_Call struct {
 // CreateRepository is a helper method to define mock.On call
 //   - context1 context.Context
 //   - createRepositoryArgs git.CreateRepositoryArgs
-func (_e *Client_Expecter) CreateRepository(context1 interface{}, createRepositoryArgs interface{}) *Client_CreateRepository_Call {
+func (_e *Client_Expecter) CreateRepository(context1 any, createRepositoryArgs any) *Client_CreateRepository_Call {
 	return &Client_CreateRepository_Call{Call: _e.mock.On("CreateRepository", context1, createRepositoryArgs)}
 }
 
@@ -1290,7 +1290,7 @@ type Client_CreateRevert_Call struct {
 // CreateRevert is a helper method to define mock.On call
 //   - context1 context.Context
 //   - createRevertArgs git.CreateRevertArgs
-func (_e *Client_Expecter) CreateRevert(context1 interface{}, createRevertArgs interface{}) *Client_CreateRevert_Call {
+func (_e *Client_Expecter) CreateRevert(context1 any, createRevertArgs any) *Client_CreateRevert_Call {
 	return &Client_CreateRevert_Call{Call: _e.mock.On("CreateRevert", context1, createRevertArgs)}
 }
 
@@ -1358,7 +1358,7 @@ type Client_CreateThread_Call struct {
 // CreateThread is a helper method to define mock.On call
 //   - context1 context.Context
 //   - createThreadArgs git.CreateThreadArgs
-func (_e *Client_Expecter) CreateThread(context1 interface{}, createThreadArgs interface{}) *Client_CreateThread_Call {
+func (_e *Client_Expecter) CreateThread(context1 any, createThreadArgs any) *Client_CreateThread_Call {
 	return &Client_CreateThread_Call{Call: _e.mock.On("CreateThread", context1, createThreadArgs)}
 }
 
@@ -1426,7 +1426,7 @@ type Client_CreateUnmaterializedPullRequestReviewer_Call struct {
 // CreateUnmaterializedPullRequestReviewer is a helper method to define mock.On call
 //   - context1 context.Context
 //   - createUnmaterializedPullRequestReviewerArgs git.CreateUnmaterializedPullRequestReviewerArgs
-func (_e *Client_Expecter) CreateUnmaterializedPullRequestReviewer(context1 interface{}, createUnmaterializedPullRequestReviewerArgs interface{}) *Client_CreateUnmaterializedPullRequestReviewer_Call {
+func (_e *Client_Expecter) CreateUnmaterializedPullRequestReviewer(context1 any, createUnmaterializedPullRequestReviewerArgs any) *Client_CreateUnmaterializedPullRequestReviewer_Call {
 	return &Client_CreateUnmaterializedPullRequestReviewer_Call{Call: _e.mock.On("CreateUnmaterializedPullRequestReviewer", context1, createUnmaterializedPullRequestReviewerArgs)}
 }
 
@@ -1483,7 +1483,7 @@ type Client_DeleteAttachment_Call struct {
 // DeleteAttachment is a helper method to define mock.On call
 //   - context1 context.Context
 //   - deleteAttachmentArgs git.DeleteAttachmentArgs
-func (_e *Client_Expecter) DeleteAttachment(context1 interface{}, deleteAttachmentArgs interface{}) *Client_DeleteAttachment_Call {
+func (_e *Client_Expecter) DeleteAttachment(context1 any, deleteAttachmentArgs any) *Client_DeleteAttachment_Call {
 	return &Client_DeleteAttachment_Call{Call: _e.mock.On("DeleteAttachment", context1, deleteAttachmentArgs)}
 }
 
@@ -1540,7 +1540,7 @@ type Client_DeleteComment_Call struct {
 // DeleteComment is a helper method to define mock.On call
 //   - context1 context.Context
 //   - deleteCommentArgs git.DeleteCommentArgs
-func (_e *Client_Expecter) DeleteComment(context1 interface{}, deleteCommentArgs interface{}) *Client_DeleteComment_Call {
+func (_e *Client_Expecter) DeleteComment(context1 any, deleteCommentArgs any) *Client_DeleteComment_Call {
 	return &Client_DeleteComment_Call{Call: _e.mock.On("DeleteComment", context1, deleteCommentArgs)}
 }
 
@@ -1597,7 +1597,7 @@ type Client_DeleteLike_Call struct {
 // DeleteLike is a helper method to define mock.On call
 //   - context1 context.Context
 //   - deleteLikeArgs git.DeleteLikeArgs
-func (_e *Client_Expecter) DeleteLike(context1 interface{}, deleteLikeArgs interface{}) *Client_DeleteLike_Call {
+func (_e *Client_Expecter) DeleteLike(context1 any, deleteLikeArgs any) *Client_DeleteLike_Call {
 	return &Client_DeleteLike_Call{Call: _e.mock.On("DeleteLike", context1, deleteLikeArgs)}
 }
 
@@ -1654,7 +1654,7 @@ type Client_DeletePullRequestIterationStatus_Call struct {
 // DeletePullRequestIterationStatus is a helper method to define mock.On call
 //   - context1 context.Context
 //   - deletePullRequestIterationStatusArgs git.DeletePullRequestIterationStatusArgs
-func (_e *Client_Expecter) DeletePullRequestIterationStatus(context1 interface{}, deletePullRequestIterationStatusArgs interface{}) *Client_DeletePullRequestIterationStatus_Call {
+func (_e *Client_Expecter) DeletePullRequestIterationStatus(context1 any, deletePullRequestIterationStatusArgs any) *Client_DeletePullRequestIterationStatus_Call {
 	return &Client_DeletePullRequestIterationStatus_Call{Call: _e.mock.On("DeletePullRequestIterationStatus", context1, deletePullRequestIterationStatusArgs)}
 }
 
@@ -1711,7 +1711,7 @@ type Client_DeletePullRequestLabels_Call struct {
 // DeletePullRequestLabels is a helper method to define mock.On call
 //   - context1 context.Context
 //   - deletePullRequestLabelsArgs git.DeletePullRequestLabelsArgs
-func (_e *Client_Expecter) DeletePullRequestLabels(context1 interface{}, deletePullRequestLabelsArgs interface{}) *Client_DeletePullRequestLabels_Call {
+func (_e *Client_Expecter) DeletePullRequestLabels(context1 any, deletePullRequestLabelsArgs any) *Client_DeletePullRequestLabels_Call {
 	return &Client_DeletePullRequestLabels_Call{Call: _e.mock.On("DeletePullRequestLabels", context1, deletePullRequestLabelsArgs)}
 }
 
@@ -1768,7 +1768,7 @@ type Client_DeletePullRequestReviewer_Call struct {
 // DeletePullRequestReviewer is a helper method to define mock.On call
 //   - context1 context.Context
 //   - deletePullRequestReviewerArgs git.DeletePullRequestReviewerArgs
-func (_e *Client_Expecter) DeletePullRequestReviewer(context1 interface{}, deletePullRequestReviewerArgs interface{}) *Client_DeletePullRequestReviewer_Call {
+func (_e *Client_Expecter) DeletePullRequestReviewer(context1 any, deletePullRequestReviewerArgs any) *Client_DeletePullRequestReviewer_Call {
 	return &Client_DeletePullRequestReviewer_Call{Call: _e.mock.On("DeletePullRequestReviewer", context1, deletePullRequestReviewerArgs)}
 }
 
@@ -1825,7 +1825,7 @@ type Client_DeletePullRequestStatus_Call struct {
 // DeletePullRequestStatus is a helper method to define mock.On call
 //   - context1 context.Context
 //   - deletePullRequestStatusArgs git.DeletePullRequestStatusArgs
-func (_e *Client_Expecter) DeletePullRequestStatus(context1 interface{}, deletePullRequestStatusArgs interface{}) *Client_DeletePullRequestStatus_Call {
+func (_e *Client_Expecter) DeletePullRequestStatus(context1 any, deletePullRequestStatusArgs any) *Client_DeletePullRequestStatus_Call {
 	return &Client_DeletePullRequestStatus_Call{Call: _e.mock.On("DeletePullRequestStatus", context1, deletePullRequestStatusArgs)}
 }
 
@@ -1882,7 +1882,7 @@ type Client_DeleteRefFavorite_Call struct {
 // DeleteRefFavorite is a helper method to define mock.On call
 //   - context1 context.Context
 //   - deleteRefFavoriteArgs git.DeleteRefFavoriteArgs
-func (_e *Client_Expecter) DeleteRefFavorite(context1 interface{}, deleteRefFavoriteArgs interface{}) *Client_DeleteRefFavorite_Call {
+func (_e *Client_Expecter) DeleteRefFavorite(context1 any, deleteRefFavoriteArgs any) *Client_DeleteRefFavorite_Call {
 	return &Client_DeleteRefFavorite_Call{Call: _e.mock.On("DeleteRefFavorite", context1, deleteRefFavoriteArgs)}
 }
 
@@ -1939,7 +1939,7 @@ type Client_DeleteRepository_Call struct {
 // DeleteRepository is a helper method to define mock.On call
 //   - context1 context.Context
 //   - deleteRepositoryArgs git.DeleteRepositoryArgs
-func (_e *Client_Expecter) DeleteRepository(context1 interface{}, deleteRepositoryArgs interface{}) *Client_DeleteRepository_Call {
+func (_e *Client_Expecter) DeleteRepository(context1 any, deleteRepositoryArgs any) *Client_DeleteRepository_Call {
 	return &Client_DeleteRepository_Call{Call: _e.mock.On("DeleteRepository", context1, deleteRepositoryArgs)}
 }
 
@@ -1996,7 +1996,7 @@ type Client_DeleteRepositoryFromRecycleBin_Call struct {
 // DeleteRepositoryFromRecycleBin is a helper method to define mock.On call
 //   - context1 context.Context
 //   - deleteRepositoryFromRecycleBinArgs git.DeleteRepositoryFromRecycleBinArgs
-func (_e *Client_Expecter) DeleteRepositoryFromRecycleBin(context1 interface{}, deleteRepositoryFromRecycleBinArgs interface{}) *Client_DeleteRepositoryFromRecycleBin_Call {
+func (_e *Client_Expecter) DeleteRepositoryFromRecycleBin(context1 any, deleteRepositoryFromRecycleBinArgs any) *Client_DeleteRepositoryFromRecycleBin_Call {
 	return &Client_DeleteRepositoryFromRecycleBin_Call{Call: _e.mock.On("DeleteRepositoryFromRecycleBin", context1, deleteRepositoryFromRecycleBinArgs)}
 }
 
@@ -2064,7 +2064,7 @@ type Client_GetAnnotatedTag_Call struct {
 // GetAnnotatedTag is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getAnnotatedTagArgs git.GetAnnotatedTagArgs
-func (_e *Client_Expecter) GetAnnotatedTag(context1 interface{}, getAnnotatedTagArgs interface{}) *Client_GetAnnotatedTag_Call {
+func (_e *Client_Expecter) GetAnnotatedTag(context1 any, getAnnotatedTagArgs any) *Client_GetAnnotatedTag_Call {
 	return &Client_GetAnnotatedTag_Call{Call: _e.mock.On("GetAnnotatedTag", context1, getAnnotatedTagArgs)}
 }
 
@@ -2132,7 +2132,7 @@ type Client_GetAttachmentContent_Call struct {
 // GetAttachmentContent is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getAttachmentContentArgs git.GetAttachmentContentArgs
-func (_e *Client_Expecter) GetAttachmentContent(context1 interface{}, getAttachmentContentArgs interface{}) *Client_GetAttachmentContent_Call {
+func (_e *Client_Expecter) GetAttachmentContent(context1 any, getAttachmentContentArgs any) *Client_GetAttachmentContent_Call {
 	return &Client_GetAttachmentContent_Call{Call: _e.mock.On("GetAttachmentContent", context1, getAttachmentContentArgs)}
 }
 
@@ -2200,7 +2200,7 @@ type Client_GetAttachmentZip_Call struct {
 // GetAttachmentZip is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getAttachmentZipArgs git.GetAttachmentZipArgs
-func (_e *Client_Expecter) GetAttachmentZip(context1 interface{}, getAttachmentZipArgs interface{}) *Client_GetAttachmentZip_Call {
+func (_e *Client_Expecter) GetAttachmentZip(context1 any, getAttachmentZipArgs any) *Client_GetAttachmentZip_Call {
 	return &Client_GetAttachmentZip_Call{Call: _e.mock.On("GetAttachmentZip", context1, getAttachmentZipArgs)}
 }
 
@@ -2268,7 +2268,7 @@ type Client_GetAttachments_Call struct {
 // GetAttachments is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getAttachmentsArgs git.GetAttachmentsArgs
-func (_e *Client_Expecter) GetAttachments(context1 interface{}, getAttachmentsArgs interface{}) *Client_GetAttachments_Call {
+func (_e *Client_Expecter) GetAttachments(context1 any, getAttachmentsArgs any) *Client_GetAttachments_Call {
 	return &Client_GetAttachments_Call{Call: _e.mock.On("GetAttachments", context1, getAttachmentsArgs)}
 }
 
@@ -2336,7 +2336,7 @@ type Client_GetBlob_Call struct {
 // GetBlob is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getBlobArgs git.GetBlobArgs
-func (_e *Client_Expecter) GetBlob(context1 interface{}, getBlobArgs interface{}) *Client_GetBlob_Call {
+func (_e *Client_Expecter) GetBlob(context1 any, getBlobArgs any) *Client_GetBlob_Call {
 	return &Client_GetBlob_Call{Call: _e.mock.On("GetBlob", context1, getBlobArgs)}
 }
 
@@ -2404,7 +2404,7 @@ type Client_GetBlobContent_Call struct {
 // GetBlobContent is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getBlobContentArgs git.GetBlobContentArgs
-func (_e *Client_Expecter) GetBlobContent(context1 interface{}, getBlobContentArgs interface{}) *Client_GetBlobContent_Call {
+func (_e *Client_Expecter) GetBlobContent(context1 any, getBlobContentArgs any) *Client_GetBlobContent_Call {
 	return &Client_GetBlobContent_Call{Call: _e.mock.On("GetBlobContent", context1, getBlobContentArgs)}
 }
 
@@ -2472,7 +2472,7 @@ type Client_GetBlobZip_Call struct {
 // GetBlobZip is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getBlobZipArgs git.GetBlobZipArgs
-func (_e *Client_Expecter) GetBlobZip(context1 interface{}, getBlobZipArgs interface{}) *Client_GetBlobZip_Call {
+func (_e *Client_Expecter) GetBlobZip(context1 any, getBlobZipArgs any) *Client_GetBlobZip_Call {
 	return &Client_GetBlobZip_Call{Call: _e.mock.On("GetBlobZip", context1, getBlobZipArgs)}
 }
 
@@ -2540,7 +2540,7 @@ type Client_GetBlobsZip_Call struct {
 // GetBlobsZip is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getBlobsZipArgs git.GetBlobsZipArgs
-func (_e *Client_Expecter) GetBlobsZip(context1 interface{}, getBlobsZipArgs interface{}) *Client_GetBlobsZip_Call {
+func (_e *Client_Expecter) GetBlobsZip(context1 any, getBlobsZipArgs any) *Client_GetBlobsZip_Call {
 	return &Client_GetBlobsZip_Call{Call: _e.mock.On("GetBlobsZip", context1, getBlobsZipArgs)}
 }
 
@@ -2608,7 +2608,7 @@ type Client_GetBranch_Call struct {
 // GetBranch is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getBranchArgs git.GetBranchArgs
-func (_e *Client_Expecter) GetBranch(context1 interface{}, getBranchArgs interface{}) *Client_GetBranch_Call {
+func (_e *Client_Expecter) GetBranch(context1 any, getBranchArgs any) *Client_GetBranch_Call {
 	return &Client_GetBranch_Call{Call: _e.mock.On("GetBranch", context1, getBranchArgs)}
 }
 
@@ -2676,7 +2676,7 @@ type Client_GetBranches_Call struct {
 // GetBranches is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getBranchesArgs git.GetBranchesArgs
-func (_e *Client_Expecter) GetBranches(context1 interface{}, getBranchesArgs interface{}) *Client_GetBranches_Call {
+func (_e *Client_Expecter) GetBranches(context1 any, getBranchesArgs any) *Client_GetBranches_Call {
 	return &Client_GetBranches_Call{Call: _e.mock.On("GetBranches", context1, getBranchesArgs)}
 }
 
@@ -2744,7 +2744,7 @@ type Client_GetChanges_Call struct {
 // GetChanges is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getChangesArgs git.GetChangesArgs
-func (_e *Client_Expecter) GetChanges(context1 interface{}, getChangesArgs interface{}) *Client_GetChanges_Call {
+func (_e *Client_Expecter) GetChanges(context1 any, getChangesArgs any) *Client_GetChanges_Call {
 	return &Client_GetChanges_Call{Call: _e.mock.On("GetChanges", context1, getChangesArgs)}
 }
 
@@ -2812,7 +2812,7 @@ type Client_GetCherryPick_Call struct {
 // GetCherryPick is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getCherryPickArgs git.GetCherryPickArgs
-func (_e *Client_Expecter) GetCherryPick(context1 interface{}, getCherryPickArgs interface{}) *Client_GetCherryPick_Call {
+func (_e *Client_Expecter) GetCherryPick(context1 any, getCherryPickArgs any) *Client_GetCherryPick_Call {
 	return &Client_GetCherryPick_Call{Call: _e.mock.On("GetCherryPick", context1, getCherryPickArgs)}
 }
 
@@ -2880,7 +2880,7 @@ type Client_GetCherryPickForRefName_Call struct {
 // GetCherryPickForRefName is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getCherryPickForRefNameArgs git.GetCherryPickForRefNameArgs
-func (_e *Client_Expecter) GetCherryPickForRefName(context1 interface{}, getCherryPickForRefNameArgs interface{}) *Client_GetCherryPickForRefName_Call {
+func (_e *Client_Expecter) GetCherryPickForRefName(context1 any, getCherryPickForRefNameArgs any) *Client_GetCherryPickForRefName_Call {
 	return &Client_GetCherryPickForRefName_Call{Call: _e.mock.On("GetCherryPickForRefName", context1, getCherryPickForRefNameArgs)}
 }
 
@@ -2948,7 +2948,7 @@ type Client_GetComment_Call struct {
 // GetComment is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getCommentArgs git.GetCommentArgs
-func (_e *Client_Expecter) GetComment(context1 interface{}, getCommentArgs interface{}) *Client_GetComment_Call {
+func (_e *Client_Expecter) GetComment(context1 any, getCommentArgs any) *Client_GetComment_Call {
 	return &Client_GetComment_Call{Call: _e.mock.On("GetComment", context1, getCommentArgs)}
 }
 
@@ -3016,7 +3016,7 @@ type Client_GetComments_Call struct {
 // GetComments is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getCommentsArgs git.GetCommentsArgs
-func (_e *Client_Expecter) GetComments(context1 interface{}, getCommentsArgs interface{}) *Client_GetComments_Call {
+func (_e *Client_Expecter) GetComments(context1 any, getCommentsArgs any) *Client_GetComments_Call {
 	return &Client_GetComments_Call{Call: _e.mock.On("GetComments", context1, getCommentsArgs)}
 }
 
@@ -3084,7 +3084,7 @@ type Client_GetCommit_Call struct {
 // GetCommit is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getCommitArgs git.GetCommitArgs
-func (_e *Client_Expecter) GetCommit(context1 interface{}, getCommitArgs interface{}) *Client_GetCommit_Call {
+func (_e *Client_Expecter) GetCommit(context1 any, getCommitArgs any) *Client_GetCommit_Call {
 	return &Client_GetCommit_Call{Call: _e.mock.On("GetCommit", context1, getCommitArgs)}
 }
 
@@ -3152,7 +3152,7 @@ type Client_GetCommitDiffs_Call struct {
 // GetCommitDiffs is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getCommitDiffsArgs git.GetCommitDiffsArgs
-func (_e *Client_Expecter) GetCommitDiffs(context1 interface{}, getCommitDiffsArgs interface{}) *Client_GetCommitDiffs_Call {
+func (_e *Client_Expecter) GetCommitDiffs(context1 any, getCommitDiffsArgs any) *Client_GetCommitDiffs_Call {
 	return &Client_GetCommitDiffs_Call{Call: _e.mock.On("GetCommitDiffs", context1, getCommitDiffsArgs)}
 }
 
@@ -3220,7 +3220,7 @@ type Client_GetCommits_Call struct {
 // GetCommits is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getCommitsArgs git.GetCommitsArgs
-func (_e *Client_Expecter) GetCommits(context1 interface{}, getCommitsArgs interface{}) *Client_GetCommits_Call {
+func (_e *Client_Expecter) GetCommits(context1 any, getCommitsArgs any) *Client_GetCommits_Call {
 	return &Client_GetCommits_Call{Call: _e.mock.On("GetCommits", context1, getCommitsArgs)}
 }
 
@@ -3288,7 +3288,7 @@ type Client_GetCommitsBatch_Call struct {
 // GetCommitsBatch is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getCommitsBatchArgs git.GetCommitsBatchArgs
-func (_e *Client_Expecter) GetCommitsBatch(context1 interface{}, getCommitsBatchArgs interface{}) *Client_GetCommitsBatch_Call {
+func (_e *Client_Expecter) GetCommitsBatch(context1 any, getCommitsBatchArgs any) *Client_GetCommitsBatch_Call {
 	return &Client_GetCommitsBatch_Call{Call: _e.mock.On("GetCommitsBatch", context1, getCommitsBatchArgs)}
 }
 
@@ -3356,7 +3356,7 @@ type Client_GetDeletedRepositories_Call struct {
 // GetDeletedRepositories is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getDeletedRepositoriesArgs git.GetDeletedRepositoriesArgs
-func (_e *Client_Expecter) GetDeletedRepositories(context1 interface{}, getDeletedRepositoriesArgs interface{}) *Client_GetDeletedRepositories_Call {
+func (_e *Client_Expecter) GetDeletedRepositories(context1 any, getDeletedRepositoriesArgs any) *Client_GetDeletedRepositories_Call {
 	return &Client_GetDeletedRepositories_Call{Call: _e.mock.On("GetDeletedRepositories", context1, getDeletedRepositoriesArgs)}
 }
 
@@ -3424,7 +3424,7 @@ type Client_GetForkSyncRequest_Call struct {
 // GetForkSyncRequest is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getForkSyncRequestArgs git.GetForkSyncRequestArgs
-func (_e *Client_Expecter) GetForkSyncRequest(context1 interface{}, getForkSyncRequestArgs interface{}) *Client_GetForkSyncRequest_Call {
+func (_e *Client_Expecter) GetForkSyncRequest(context1 any, getForkSyncRequestArgs any) *Client_GetForkSyncRequest_Call {
 	return &Client_GetForkSyncRequest_Call{Call: _e.mock.On("GetForkSyncRequest", context1, getForkSyncRequestArgs)}
 }
 
@@ -3492,7 +3492,7 @@ type Client_GetForkSyncRequests_Call struct {
 // GetForkSyncRequests is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getForkSyncRequestsArgs git.GetForkSyncRequestsArgs
-func (_e *Client_Expecter) GetForkSyncRequests(context1 interface{}, getForkSyncRequestsArgs interface{}) *Client_GetForkSyncRequests_Call {
+func (_e *Client_Expecter) GetForkSyncRequests(context1 any, getForkSyncRequestsArgs any) *Client_GetForkSyncRequests_Call {
 	return &Client_GetForkSyncRequests_Call{Call: _e.mock.On("GetForkSyncRequests", context1, getForkSyncRequestsArgs)}
 }
 
@@ -3560,7 +3560,7 @@ type Client_GetForks_Call struct {
 // GetForks is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getForksArgs git.GetForksArgs
-func (_e *Client_Expecter) GetForks(context1 interface{}, getForksArgs interface{}) *Client_GetForks_Call {
+func (_e *Client_Expecter) GetForks(context1 any, getForksArgs any) *Client_GetForks_Call {
 	return &Client_GetForks_Call{Call: _e.mock.On("GetForks", context1, getForksArgs)}
 }
 
@@ -3628,7 +3628,7 @@ type Client_GetImportRequest_Call struct {
 // GetImportRequest is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getImportRequestArgs git.GetImportRequestArgs
-func (_e *Client_Expecter) GetImportRequest(context1 interface{}, getImportRequestArgs interface{}) *Client_GetImportRequest_Call {
+func (_e *Client_Expecter) GetImportRequest(context1 any, getImportRequestArgs any) *Client_GetImportRequest_Call {
 	return &Client_GetImportRequest_Call{Call: _e.mock.On("GetImportRequest", context1, getImportRequestArgs)}
 }
 
@@ -3696,7 +3696,7 @@ type Client_GetItem_Call struct {
 // GetItem is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getItemArgs git.GetItemArgs
-func (_e *Client_Expecter) GetItem(context1 interface{}, getItemArgs interface{}) *Client_GetItem_Call {
+func (_e *Client_Expecter) GetItem(context1 any, getItemArgs any) *Client_GetItem_Call {
 	return &Client_GetItem_Call{Call: _e.mock.On("GetItem", context1, getItemArgs)}
 }
 
@@ -3764,7 +3764,7 @@ type Client_GetItemContent_Call struct {
 // GetItemContent is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getItemContentArgs git.GetItemContentArgs
-func (_e *Client_Expecter) GetItemContent(context1 interface{}, getItemContentArgs interface{}) *Client_GetItemContent_Call {
+func (_e *Client_Expecter) GetItemContent(context1 any, getItemContentArgs any) *Client_GetItemContent_Call {
 	return &Client_GetItemContent_Call{Call: _e.mock.On("GetItemContent", context1, getItemContentArgs)}
 }
 
@@ -3832,7 +3832,7 @@ type Client_GetItemText_Call struct {
 // GetItemText is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getItemTextArgs git.GetItemTextArgs
-func (_e *Client_Expecter) GetItemText(context1 interface{}, getItemTextArgs interface{}) *Client_GetItemText_Call {
+func (_e *Client_Expecter) GetItemText(context1 any, getItemTextArgs any) *Client_GetItemText_Call {
 	return &Client_GetItemText_Call{Call: _e.mock.On("GetItemText", context1, getItemTextArgs)}
 }
 
@@ -3900,7 +3900,7 @@ type Client_GetItemZip_Call struct {
 // GetItemZip is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getItemZipArgs git.GetItemZipArgs
-func (_e *Client_Expecter) GetItemZip(context1 interface{}, getItemZipArgs interface{}) *Client_GetItemZip_Call {
+func (_e *Client_Expecter) GetItemZip(context1 any, getItemZipArgs any) *Client_GetItemZip_Call {
 	return &Client_GetItemZip_Call{Call: _e.mock.On("GetItemZip", context1, getItemZipArgs)}
 }
 
@@ -3968,7 +3968,7 @@ type Client_GetItems_Call struct {
 // GetItems is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getItemsArgs git.GetItemsArgs
-func (_e *Client_Expecter) GetItems(context1 interface{}, getItemsArgs interface{}) *Client_GetItems_Call {
+func (_e *Client_Expecter) GetItems(context1 any, getItemsArgs any) *Client_GetItems_Call {
 	return &Client_GetItems_Call{Call: _e.mock.On("GetItems", context1, getItemsArgs)}
 }
 
@@ -4036,7 +4036,7 @@ type Client_GetItemsBatch_Call struct {
 // GetItemsBatch is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getItemsBatchArgs git.GetItemsBatchArgs
-func (_e *Client_Expecter) GetItemsBatch(context1 interface{}, getItemsBatchArgs interface{}) *Client_GetItemsBatch_Call {
+func (_e *Client_Expecter) GetItemsBatch(context1 any, getItemsBatchArgs any) *Client_GetItemsBatch_Call {
 	return &Client_GetItemsBatch_Call{Call: _e.mock.On("GetItemsBatch", context1, getItemsBatchArgs)}
 }
 
@@ -4104,7 +4104,7 @@ type Client_GetLikes_Call struct {
 // GetLikes is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getLikesArgs git.GetLikesArgs
-func (_e *Client_Expecter) GetLikes(context1 interface{}, getLikesArgs interface{}) *Client_GetLikes_Call {
+func (_e *Client_Expecter) GetLikes(context1 any, getLikesArgs any) *Client_GetLikes_Call {
 	return &Client_GetLikes_Call{Call: _e.mock.On("GetLikes", context1, getLikesArgs)}
 }
 
@@ -4172,7 +4172,7 @@ type Client_GetMergeBases_Call struct {
 // GetMergeBases is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getMergeBasesArgs git.GetMergeBasesArgs
-func (_e *Client_Expecter) GetMergeBases(context1 interface{}, getMergeBasesArgs interface{}) *Client_GetMergeBases_Call {
+func (_e *Client_Expecter) GetMergeBases(context1 any, getMergeBasesArgs any) *Client_GetMergeBases_Call {
 	return &Client_GetMergeBases_Call{Call: _e.mock.On("GetMergeBases", context1, getMergeBasesArgs)}
 }
 
@@ -4240,7 +4240,7 @@ type Client_GetMergeRequest_Call struct {
 // GetMergeRequest is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getMergeRequestArgs git.GetMergeRequestArgs
-func (_e *Client_Expecter) GetMergeRequest(context1 interface{}, getMergeRequestArgs interface{}) *Client_GetMergeRequest_Call {
+func (_e *Client_Expecter) GetMergeRequest(context1 any, getMergeRequestArgs any) *Client_GetMergeRequest_Call {
 	return &Client_GetMergeRequest_Call{Call: _e.mock.On("GetMergeRequest", context1, getMergeRequestArgs)}
 }
 
@@ -4308,7 +4308,7 @@ type Client_GetPermission_Call struct {
 // GetPermission is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getPermissionArgs git.GetPermissionArgs
-func (_e *Client_Expecter) GetPermission(context1 interface{}, getPermissionArgs interface{}) *Client_GetPermission_Call {
+func (_e *Client_Expecter) GetPermission(context1 any, getPermissionArgs any) *Client_GetPermission_Call {
 	return &Client_GetPermission_Call{Call: _e.mock.On("GetPermission", context1, getPermissionArgs)}
 }
 
@@ -4376,7 +4376,7 @@ type Client_GetPolicyConfigurations_Call struct {
 // GetPolicyConfigurations is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getPolicyConfigurationsArgs git.GetPolicyConfigurationsArgs
-func (_e *Client_Expecter) GetPolicyConfigurations(context1 interface{}, getPolicyConfigurationsArgs interface{}) *Client_GetPolicyConfigurations_Call {
+func (_e *Client_Expecter) GetPolicyConfigurations(context1 any, getPolicyConfigurationsArgs any) *Client_GetPolicyConfigurations_Call {
 	return &Client_GetPolicyConfigurations_Call{Call: _e.mock.On("GetPolicyConfigurations", context1, getPolicyConfigurationsArgs)}
 }
 
@@ -4444,7 +4444,7 @@ type Client_GetPullRequest_Call struct {
 // GetPullRequest is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getPullRequestArgs git.GetPullRequestArgs
-func (_e *Client_Expecter) GetPullRequest(context1 interface{}, getPullRequestArgs interface{}) *Client_GetPullRequest_Call {
+func (_e *Client_Expecter) GetPullRequest(context1 any, getPullRequestArgs any) *Client_GetPullRequest_Call {
 	return &Client_GetPullRequest_Call{Call: _e.mock.On("GetPullRequest", context1, getPullRequestArgs)}
 }
 
@@ -4512,7 +4512,7 @@ type Client_GetPullRequestById_Call struct {
 // GetPullRequestById is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getPullRequestByIdArgs git.GetPullRequestByIdArgs
-func (_e *Client_Expecter) GetPullRequestById(context1 interface{}, getPullRequestByIdArgs interface{}) *Client_GetPullRequestById_Call {
+func (_e *Client_Expecter) GetPullRequestById(context1 any, getPullRequestByIdArgs any) *Client_GetPullRequestById_Call {
 	return &Client_GetPullRequestById_Call{Call: _e.mock.On("GetPullRequestById", context1, getPullRequestByIdArgs)}
 }
 
@@ -4580,7 +4580,7 @@ type Client_GetPullRequestCommits_Call struct {
 // GetPullRequestCommits is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getPullRequestCommitsArgs git.GetPullRequestCommitsArgs
-func (_e *Client_Expecter) GetPullRequestCommits(context1 interface{}, getPullRequestCommitsArgs interface{}) *Client_GetPullRequestCommits_Call {
+func (_e *Client_Expecter) GetPullRequestCommits(context1 any, getPullRequestCommitsArgs any) *Client_GetPullRequestCommits_Call {
 	return &Client_GetPullRequestCommits_Call{Call: _e.mock.On("GetPullRequestCommits", context1, getPullRequestCommitsArgs)}
 }
 
@@ -4648,7 +4648,7 @@ type Client_GetPullRequestIteration_Call struct {
 // GetPullRequestIteration is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getPullRequestIterationArgs git.GetPullRequestIterationArgs
-func (_e *Client_Expecter) GetPullRequestIteration(context1 interface{}, getPullRequestIterationArgs interface{}) *Client_GetPullRequestIteration_Call {
+func (_e *Client_Expecter) GetPullRequestIteration(context1 any, getPullRequestIterationArgs any) *Client_GetPullRequestIteration_Call {
 	return &Client_GetPullRequestIteration_Call{Call: _e.mock.On("GetPullRequestIteration", context1, getPullRequestIterationArgs)}
 }
 
@@ -4716,7 +4716,7 @@ type Client_GetPullRequestIterationChanges_Call struct {
 // GetPullRequestIterationChanges is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getPullRequestIterationChangesArgs git.GetPullRequestIterationChangesArgs
-func (_e *Client_Expecter) GetPullRequestIterationChanges(context1 interface{}, getPullRequestIterationChangesArgs interface{}) *Client_GetPullRequestIterationChanges_Call {
+func (_e *Client_Expecter) GetPullRequestIterationChanges(context1 any, getPullRequestIterationChangesArgs any) *Client_GetPullRequestIterationChanges_Call {
 	return &Client_GetPullRequestIterationChanges_Call{Call: _e.mock.On("GetPullRequestIterationChanges", context1, getPullRequestIterationChangesArgs)}
 }
 
@@ -4784,7 +4784,7 @@ type Client_GetPullRequestIterationCommits_Call struct {
 // GetPullRequestIterationCommits is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getPullRequestIterationCommitsArgs git.GetPullRequestIterationCommitsArgs
-func (_e *Client_Expecter) GetPullRequestIterationCommits(context1 interface{}, getPullRequestIterationCommitsArgs interface{}) *Client_GetPullRequestIterationCommits_Call {
+func (_e *Client_Expecter) GetPullRequestIterationCommits(context1 any, getPullRequestIterationCommitsArgs any) *Client_GetPullRequestIterationCommits_Call {
 	return &Client_GetPullRequestIterationCommits_Call{Call: _e.mock.On("GetPullRequestIterationCommits", context1, getPullRequestIterationCommitsArgs)}
 }
 
@@ -4852,7 +4852,7 @@ type Client_GetPullRequestIterationStatus_Call struct {
 // GetPullRequestIterationStatus is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getPullRequestIterationStatusArgs git.GetPullRequestIterationStatusArgs
-func (_e *Client_Expecter) GetPullRequestIterationStatus(context1 interface{}, getPullRequestIterationStatusArgs interface{}) *Client_GetPullRequestIterationStatus_Call {
+func (_e *Client_Expecter) GetPullRequestIterationStatus(context1 any, getPullRequestIterationStatusArgs any) *Client_GetPullRequestIterationStatus_Call {
 	return &Client_GetPullRequestIterationStatus_Call{Call: _e.mock.On("GetPullRequestIterationStatus", context1, getPullRequestIterationStatusArgs)}
 }
 
@@ -4920,7 +4920,7 @@ type Client_GetPullRequestIterationStatuses_Call struct {
 // GetPullRequestIterationStatuses is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getPullRequestIterationStatusesArgs git.GetPullRequestIterationStatusesArgs
-func (_e *Client_Expecter) GetPullRequestIterationStatuses(context1 interface{}, getPullRequestIterationStatusesArgs interface{}) *Client_GetPullRequestIterationStatuses_Call {
+func (_e *Client_Expecter) GetPullRequestIterationStatuses(context1 any, getPullRequestIterationStatusesArgs any) *Client_GetPullRequestIterationStatuses_Call {
 	return &Client_GetPullRequestIterationStatuses_Call{Call: _e.mock.On("GetPullRequestIterationStatuses", context1, getPullRequestIterationStatusesArgs)}
 }
 
@@ -4988,7 +4988,7 @@ type Client_GetPullRequestIterations_Call struct {
 // GetPullRequestIterations is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getPullRequestIterationsArgs git.GetPullRequestIterationsArgs
-func (_e *Client_Expecter) GetPullRequestIterations(context1 interface{}, getPullRequestIterationsArgs interface{}) *Client_GetPullRequestIterations_Call {
+func (_e *Client_Expecter) GetPullRequestIterations(context1 any, getPullRequestIterationsArgs any) *Client_GetPullRequestIterations_Call {
 	return &Client_GetPullRequestIterations_Call{Call: _e.mock.On("GetPullRequestIterations", context1, getPullRequestIterationsArgs)}
 }
 
@@ -5056,7 +5056,7 @@ type Client_GetPullRequestLabel_Call struct {
 // GetPullRequestLabel is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getPullRequestLabelArgs git.GetPullRequestLabelArgs
-func (_e *Client_Expecter) GetPullRequestLabel(context1 interface{}, getPullRequestLabelArgs interface{}) *Client_GetPullRequestLabel_Call {
+func (_e *Client_Expecter) GetPullRequestLabel(context1 any, getPullRequestLabelArgs any) *Client_GetPullRequestLabel_Call {
 	return &Client_GetPullRequestLabel_Call{Call: _e.mock.On("GetPullRequestLabel", context1, getPullRequestLabelArgs)}
 }
 
@@ -5124,7 +5124,7 @@ type Client_GetPullRequestLabels_Call struct {
 // GetPullRequestLabels is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getPullRequestLabelsArgs git.GetPullRequestLabelsArgs
-func (_e *Client_Expecter) GetPullRequestLabels(context1 interface{}, getPullRequestLabelsArgs interface{}) *Client_GetPullRequestLabels_Call {
+func (_e *Client_Expecter) GetPullRequestLabels(context1 any, getPullRequestLabelsArgs any) *Client_GetPullRequestLabels_Call {
 	return &Client_GetPullRequestLabels_Call{Call: _e.mock.On("GetPullRequestLabels", context1, getPullRequestLabelsArgs)}
 }
 
@@ -5192,7 +5192,7 @@ type Client_GetPullRequestProperties_Call struct {
 // GetPullRequestProperties is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getPullRequestPropertiesArgs git.GetPullRequestPropertiesArgs
-func (_e *Client_Expecter) GetPullRequestProperties(context1 interface{}, getPullRequestPropertiesArgs interface{}) *Client_GetPullRequestProperties_Call {
+func (_e *Client_Expecter) GetPullRequestProperties(context1 any, getPullRequestPropertiesArgs any) *Client_GetPullRequestProperties_Call {
 	return &Client_GetPullRequestProperties_Call{Call: _e.mock.On("GetPullRequestProperties", context1, getPullRequestPropertiesArgs)}
 }
 
@@ -5260,7 +5260,7 @@ type Client_GetPullRequestQuery_Call struct {
 // GetPullRequestQuery is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getPullRequestQueryArgs git.GetPullRequestQueryArgs
-func (_e *Client_Expecter) GetPullRequestQuery(context1 interface{}, getPullRequestQueryArgs interface{}) *Client_GetPullRequestQuery_Call {
+func (_e *Client_Expecter) GetPullRequestQuery(context1 any, getPullRequestQueryArgs any) *Client_GetPullRequestQuery_Call {
 	return &Client_GetPullRequestQuery_Call{Call: _e.mock.On("GetPullRequestQuery", context1, getPullRequestQueryArgs)}
 }
 
@@ -5328,7 +5328,7 @@ type Client_GetPullRequestReviewer_Call struct {
 // GetPullRequestReviewer is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getPullRequestReviewerArgs git.GetPullRequestReviewerArgs
-func (_e *Client_Expecter) GetPullRequestReviewer(context1 interface{}, getPullRequestReviewerArgs interface{}) *Client_GetPullRequestReviewer_Call {
+func (_e *Client_Expecter) GetPullRequestReviewer(context1 any, getPullRequestReviewerArgs any) *Client_GetPullRequestReviewer_Call {
 	return &Client_GetPullRequestReviewer_Call{Call: _e.mock.On("GetPullRequestReviewer", context1, getPullRequestReviewerArgs)}
 }
 
@@ -5396,7 +5396,7 @@ type Client_GetPullRequestReviewers_Call struct {
 // GetPullRequestReviewers is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getPullRequestReviewersArgs git.GetPullRequestReviewersArgs
-func (_e *Client_Expecter) GetPullRequestReviewers(context1 interface{}, getPullRequestReviewersArgs interface{}) *Client_GetPullRequestReviewers_Call {
+func (_e *Client_Expecter) GetPullRequestReviewers(context1 any, getPullRequestReviewersArgs any) *Client_GetPullRequestReviewers_Call {
 	return &Client_GetPullRequestReviewers_Call{Call: _e.mock.On("GetPullRequestReviewers", context1, getPullRequestReviewersArgs)}
 }
 
@@ -5464,7 +5464,7 @@ type Client_GetPullRequestStatus_Call struct {
 // GetPullRequestStatus is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getPullRequestStatusArgs git.GetPullRequestStatusArgs
-func (_e *Client_Expecter) GetPullRequestStatus(context1 interface{}, getPullRequestStatusArgs interface{}) *Client_GetPullRequestStatus_Call {
+func (_e *Client_Expecter) GetPullRequestStatus(context1 any, getPullRequestStatusArgs any) *Client_GetPullRequestStatus_Call {
 	return &Client_GetPullRequestStatus_Call{Call: _e.mock.On("GetPullRequestStatus", context1, getPullRequestStatusArgs)}
 }
 
@@ -5532,7 +5532,7 @@ type Client_GetPullRequestStatuses_Call struct {
 // GetPullRequestStatuses is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getPullRequestStatusesArgs git.GetPullRequestStatusesArgs
-func (_e *Client_Expecter) GetPullRequestStatuses(context1 interface{}, getPullRequestStatusesArgs interface{}) *Client_GetPullRequestStatuses_Call {
+func (_e *Client_Expecter) GetPullRequestStatuses(context1 any, getPullRequestStatusesArgs any) *Client_GetPullRequestStatuses_Call {
 	return &Client_GetPullRequestStatuses_Call{Call: _e.mock.On("GetPullRequestStatuses", context1, getPullRequestStatusesArgs)}
 }
 
@@ -5600,7 +5600,7 @@ type Client_GetPullRequestThread_Call struct {
 // GetPullRequestThread is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getPullRequestThreadArgs git.GetPullRequestThreadArgs
-func (_e *Client_Expecter) GetPullRequestThread(context1 interface{}, getPullRequestThreadArgs interface{}) *Client_GetPullRequestThread_Call {
+func (_e *Client_Expecter) GetPullRequestThread(context1 any, getPullRequestThreadArgs any) *Client_GetPullRequestThread_Call {
 	return &Client_GetPullRequestThread_Call{Call: _e.mock.On("GetPullRequestThread", context1, getPullRequestThreadArgs)}
 }
 
@@ -5668,7 +5668,7 @@ type Client_GetPullRequestWorkItemRefs_Call struct {
 // GetPullRequestWorkItemRefs is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getPullRequestWorkItemRefsArgs git.GetPullRequestWorkItemRefsArgs
-func (_e *Client_Expecter) GetPullRequestWorkItemRefs(context1 interface{}, getPullRequestWorkItemRefsArgs interface{}) *Client_GetPullRequestWorkItemRefs_Call {
+func (_e *Client_Expecter) GetPullRequestWorkItemRefs(context1 any, getPullRequestWorkItemRefsArgs any) *Client_GetPullRequestWorkItemRefs_Call {
 	return &Client_GetPullRequestWorkItemRefs_Call{Call: _e.mock.On("GetPullRequestWorkItemRefs", context1, getPullRequestWorkItemRefsArgs)}
 }
 
@@ -5736,7 +5736,7 @@ type Client_GetPullRequests_Call struct {
 // GetPullRequests is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getPullRequestsArgs git.GetPullRequestsArgs
-func (_e *Client_Expecter) GetPullRequests(context1 interface{}, getPullRequestsArgs interface{}) *Client_GetPullRequests_Call {
+func (_e *Client_Expecter) GetPullRequests(context1 any, getPullRequestsArgs any) *Client_GetPullRequests_Call {
 	return &Client_GetPullRequests_Call{Call: _e.mock.On("GetPullRequests", context1, getPullRequestsArgs)}
 }
 
@@ -5804,7 +5804,7 @@ type Client_GetPullRequestsByProject_Call struct {
 // GetPullRequestsByProject is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getPullRequestsByProjectArgs git.GetPullRequestsByProjectArgs
-func (_e *Client_Expecter) GetPullRequestsByProject(context1 interface{}, getPullRequestsByProjectArgs interface{}) *Client_GetPullRequestsByProject_Call {
+func (_e *Client_Expecter) GetPullRequestsByProject(context1 any, getPullRequestsByProjectArgs any) *Client_GetPullRequestsByProject_Call {
 	return &Client_GetPullRequestsByProject_Call{Call: _e.mock.On("GetPullRequestsByProject", context1, getPullRequestsByProjectArgs)}
 }
 
@@ -5872,7 +5872,7 @@ type Client_GetPush_Call struct {
 // GetPush is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getPushArgs git.GetPushArgs
-func (_e *Client_Expecter) GetPush(context1 interface{}, getPushArgs interface{}) *Client_GetPush_Call {
+func (_e *Client_Expecter) GetPush(context1 any, getPushArgs any) *Client_GetPush_Call {
 	return &Client_GetPush_Call{Call: _e.mock.On("GetPush", context1, getPushArgs)}
 }
 
@@ -5940,7 +5940,7 @@ type Client_GetPushCommits_Call struct {
 // GetPushCommits is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getPushCommitsArgs git.GetPushCommitsArgs
-func (_e *Client_Expecter) GetPushCommits(context1 interface{}, getPushCommitsArgs interface{}) *Client_GetPushCommits_Call {
+func (_e *Client_Expecter) GetPushCommits(context1 any, getPushCommitsArgs any) *Client_GetPushCommits_Call {
 	return &Client_GetPushCommits_Call{Call: _e.mock.On("GetPushCommits", context1, getPushCommitsArgs)}
 }
 
@@ -6008,7 +6008,7 @@ type Client_GetPushes_Call struct {
 // GetPushes is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getPushesArgs git.GetPushesArgs
-func (_e *Client_Expecter) GetPushes(context1 interface{}, getPushesArgs interface{}) *Client_GetPushes_Call {
+func (_e *Client_Expecter) GetPushes(context1 any, getPushesArgs any) *Client_GetPushes_Call {
 	return &Client_GetPushes_Call{Call: _e.mock.On("GetPushes", context1, getPushesArgs)}
 }
 
@@ -6076,7 +6076,7 @@ type Client_GetRecycleBinRepositories_Call struct {
 // GetRecycleBinRepositories is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getRecycleBinRepositoriesArgs git.GetRecycleBinRepositoriesArgs
-func (_e *Client_Expecter) GetRecycleBinRepositories(context1 interface{}, getRecycleBinRepositoriesArgs interface{}) *Client_GetRecycleBinRepositories_Call {
+func (_e *Client_Expecter) GetRecycleBinRepositories(context1 any, getRecycleBinRepositoriesArgs any) *Client_GetRecycleBinRepositories_Call {
 	return &Client_GetRecycleBinRepositories_Call{Call: _e.mock.On("GetRecycleBinRepositories", context1, getRecycleBinRepositoriesArgs)}
 }
 
@@ -6144,7 +6144,7 @@ type Client_GetRefFavorite_Call struct {
 // GetRefFavorite is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getRefFavoriteArgs git.GetRefFavoriteArgs
-func (_e *Client_Expecter) GetRefFavorite(context1 interface{}, getRefFavoriteArgs interface{}) *Client_GetRefFavorite_Call {
+func (_e *Client_Expecter) GetRefFavorite(context1 any, getRefFavoriteArgs any) *Client_GetRefFavorite_Call {
 	return &Client_GetRefFavorite_Call{Call: _e.mock.On("GetRefFavorite", context1, getRefFavoriteArgs)}
 }
 
@@ -6212,7 +6212,7 @@ type Client_GetRefFavorites_Call struct {
 // GetRefFavorites is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getRefFavoritesArgs git.GetRefFavoritesArgs
-func (_e *Client_Expecter) GetRefFavorites(context1 interface{}, getRefFavoritesArgs interface{}) *Client_GetRefFavorites_Call {
+func (_e *Client_Expecter) GetRefFavorites(context1 any, getRefFavoritesArgs any) *Client_GetRefFavorites_Call {
 	return &Client_GetRefFavorites_Call{Call: _e.mock.On("GetRefFavorites", context1, getRefFavoritesArgs)}
 }
 
@@ -6280,7 +6280,7 @@ type Client_GetRefs_Call struct {
 // GetRefs is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getRefsArgs git.GetRefsArgs
-func (_e *Client_Expecter) GetRefs(context1 interface{}, getRefsArgs interface{}) *Client_GetRefs_Call {
+func (_e *Client_Expecter) GetRefs(context1 any, getRefsArgs any) *Client_GetRefs_Call {
 	return &Client_GetRefs_Call{Call: _e.mock.On("GetRefs", context1, getRefsArgs)}
 }
 
@@ -6348,7 +6348,7 @@ type Client_GetRepositories_Call struct {
 // GetRepositories is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getRepositoriesArgs git.GetRepositoriesArgs
-func (_e *Client_Expecter) GetRepositories(context1 interface{}, getRepositoriesArgs interface{}) *Client_GetRepositories_Call {
+func (_e *Client_Expecter) GetRepositories(context1 any, getRepositoriesArgs any) *Client_GetRepositories_Call {
 	return &Client_GetRepositories_Call{Call: _e.mock.On("GetRepositories", context1, getRepositoriesArgs)}
 }
 
@@ -6416,7 +6416,7 @@ type Client_GetRepository_Call struct {
 // GetRepository is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getRepositoryArgs git.GetRepositoryArgs
-func (_e *Client_Expecter) GetRepository(context1 interface{}, getRepositoryArgs interface{}) *Client_GetRepository_Call {
+func (_e *Client_Expecter) GetRepository(context1 any, getRepositoryArgs any) *Client_GetRepository_Call {
 	return &Client_GetRepository_Call{Call: _e.mock.On("GetRepository", context1, getRepositoryArgs)}
 }
 
@@ -6484,7 +6484,7 @@ type Client_GetRepositoryWithParent_Call struct {
 // GetRepositoryWithParent is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getRepositoryWithParentArgs git.GetRepositoryWithParentArgs
-func (_e *Client_Expecter) GetRepositoryWithParent(context1 interface{}, getRepositoryWithParentArgs interface{}) *Client_GetRepositoryWithParent_Call {
+func (_e *Client_Expecter) GetRepositoryWithParent(context1 any, getRepositoryWithParentArgs any) *Client_GetRepositoryWithParent_Call {
 	return &Client_GetRepositoryWithParent_Call{Call: _e.mock.On("GetRepositoryWithParent", context1, getRepositoryWithParentArgs)}
 }
 
@@ -6552,7 +6552,7 @@ type Client_GetRevert_Call struct {
 // GetRevert is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getRevertArgs git.GetRevertArgs
-func (_e *Client_Expecter) GetRevert(context1 interface{}, getRevertArgs interface{}) *Client_GetRevert_Call {
+func (_e *Client_Expecter) GetRevert(context1 any, getRevertArgs any) *Client_GetRevert_Call {
 	return &Client_GetRevert_Call{Call: _e.mock.On("GetRevert", context1, getRevertArgs)}
 }
 
@@ -6620,7 +6620,7 @@ type Client_GetRevertForRefName_Call struct {
 // GetRevertForRefName is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getRevertForRefNameArgs git.GetRevertForRefNameArgs
-func (_e *Client_Expecter) GetRevertForRefName(context1 interface{}, getRevertForRefNameArgs interface{}) *Client_GetRevertForRefName_Call {
+func (_e *Client_Expecter) GetRevertForRefName(context1 any, getRevertForRefNameArgs any) *Client_GetRevertForRefName_Call {
 	return &Client_GetRevertForRefName_Call{Call: _e.mock.On("GetRevertForRefName", context1, getRevertForRefNameArgs)}
 }
 
@@ -6688,7 +6688,7 @@ type Client_GetStatuses_Call struct {
 // GetStatuses is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getStatusesArgs git.GetStatusesArgs
-func (_e *Client_Expecter) GetStatuses(context1 interface{}, getStatusesArgs interface{}) *Client_GetStatuses_Call {
+func (_e *Client_Expecter) GetStatuses(context1 any, getStatusesArgs any) *Client_GetStatuses_Call {
 	return &Client_GetStatuses_Call{Call: _e.mock.On("GetStatuses", context1, getStatusesArgs)}
 }
 
@@ -6756,7 +6756,7 @@ type Client_GetSuggestions_Call struct {
 // GetSuggestions is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getSuggestionsArgs git.GetSuggestionsArgs
-func (_e *Client_Expecter) GetSuggestions(context1 interface{}, getSuggestionsArgs interface{}) *Client_GetSuggestions_Call {
+func (_e *Client_Expecter) GetSuggestions(context1 any, getSuggestionsArgs any) *Client_GetSuggestions_Call {
 	return &Client_GetSuggestions_Call{Call: _e.mock.On("GetSuggestions", context1, getSuggestionsArgs)}
 }
 
@@ -6824,7 +6824,7 @@ type Client_GetThreads_Call struct {
 // GetThreads is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getThreadsArgs git.GetThreadsArgs
-func (_e *Client_Expecter) GetThreads(context1 interface{}, getThreadsArgs interface{}) *Client_GetThreads_Call {
+func (_e *Client_Expecter) GetThreads(context1 any, getThreadsArgs any) *Client_GetThreads_Call {
 	return &Client_GetThreads_Call{Call: _e.mock.On("GetThreads", context1, getThreadsArgs)}
 }
 
@@ -6892,7 +6892,7 @@ type Client_GetTree_Call struct {
 // GetTree is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getTreeArgs git.GetTreeArgs
-func (_e *Client_Expecter) GetTree(context1 interface{}, getTreeArgs interface{}) *Client_GetTree_Call {
+func (_e *Client_Expecter) GetTree(context1 any, getTreeArgs any) *Client_GetTree_Call {
 	return &Client_GetTree_Call{Call: _e.mock.On("GetTree", context1, getTreeArgs)}
 }
 
@@ -6960,7 +6960,7 @@ type Client_GetTreeZip_Call struct {
 // GetTreeZip is a helper method to define mock.On call
 //   - context1 context.Context
 //   - getTreeZipArgs git.GetTreeZipArgs
-func (_e *Client_Expecter) GetTreeZip(context1 interface{}, getTreeZipArgs interface{}) *Client_GetTreeZip_Call {
+func (_e *Client_Expecter) GetTreeZip(context1 any, getTreeZipArgs any) *Client_GetTreeZip_Call {
 	return &Client_GetTreeZip_Call{Call: _e.mock.On("GetTreeZip", context1, getTreeZipArgs)}
 }
 
@@ -7028,7 +7028,7 @@ type Client_QueryImportRequests_Call struct {
 // QueryImportRequests is a helper method to define mock.On call
 //   - context1 context.Context
 //   - queryImportRequestsArgs git.QueryImportRequestsArgs
-func (_e *Client_Expecter) QueryImportRequests(context1 interface{}, queryImportRequestsArgs interface{}) *Client_QueryImportRequests_Call {
+func (_e *Client_Expecter) QueryImportRequests(context1 any, queryImportRequestsArgs any) *Client_QueryImportRequests_Call {
 	return &Client_QueryImportRequests_Call{Call: _e.mock.On("QueryImportRequests", context1, queryImportRequestsArgs)}
 }
 
@@ -7096,7 +7096,7 @@ type Client_RestoreRepositoryFromRecycleBin_Call struct {
 // RestoreRepositoryFromRecycleBin is a helper method to define mock.On call
 //   - context1 context.Context
 //   - restoreRepositoryFromRecycleBinArgs git.RestoreRepositoryFromRecycleBinArgs
-func (_e *Client_Expecter) RestoreRepositoryFromRecycleBin(context1 interface{}, restoreRepositoryFromRecycleBinArgs interface{}) *Client_RestoreRepositoryFromRecycleBin_Call {
+func (_e *Client_Expecter) RestoreRepositoryFromRecycleBin(context1 any, restoreRepositoryFromRecycleBinArgs any) *Client_RestoreRepositoryFromRecycleBin_Call {
 	return &Client_RestoreRepositoryFromRecycleBin_Call{Call: _e.mock.On("RestoreRepositoryFromRecycleBin", context1, restoreRepositoryFromRecycleBinArgs)}
 }
 
@@ -7153,7 +7153,7 @@ type Client_SharePullRequest_Call struct {
 // SharePullRequest is a helper method to define mock.On call
 //   - context1 context.Context
 //   - sharePullRequestArgs git.SharePullRequestArgs
-func (_e *Client_Expecter) SharePullRequest(context1 interface{}, sharePullRequestArgs interface{}) *Client_SharePullRequest_Call {
+func (_e *Client_Expecter) SharePullRequest(context1 any, sharePullRequestArgs any) *Client_SharePullRequest_Call {
 	return &Client_SharePullRequest_Call{Call: _e.mock.On("SharePullRequest", context1, sharePullRequestArgs)}
 }
 
@@ -7221,7 +7221,7 @@ type Client_UpdateComment_Call struct {
 // UpdateComment is a helper method to define mock.On call
 //   - context1 context.Context
 //   - updateCommentArgs git.UpdateCommentArgs
-func (_e *Client_Expecter) UpdateComment(context1 interface{}, updateCommentArgs interface{}) *Client_UpdateComment_Call {
+func (_e *Client_Expecter) UpdateComment(context1 any, updateCommentArgs any) *Client_UpdateComment_Call {
 	return &Client_UpdateComment_Call{Call: _e.mock.On("UpdateComment", context1, updateCommentArgs)}
 }
 
@@ -7289,7 +7289,7 @@ type Client_UpdateImportRequest_Call struct {
 // UpdateImportRequest is a helper method to define mock.On call
 //   - context1 context.Context
 //   - updateImportRequestArgs git.UpdateImportRequestArgs
-func (_e *Client_Expecter) UpdateImportRequest(context1 interface{}, updateImportRequestArgs interface{}) *Client_UpdateImportRequest_Call {
+func (_e *Client_Expecter) UpdateImportRequest(context1 any, updateImportRequestArgs any) *Client_UpdateImportRequest_Call {
 	return &Client_UpdateImportRequest_Call{Call: _e.mock.On("UpdateImportRequest", context1, updateImportRequestArgs)}
 }
 
@@ -7357,7 +7357,7 @@ type Client_UpdatePullRequest_Call struct {
 // UpdatePullRequest is a helper method to define mock.On call
 //   - context1 context.Context
 //   - updatePullRequestArgs git.UpdatePullRequestArgs
-func (_e *Client_Expecter) UpdatePullRequest(context1 interface{}, updatePullRequestArgs interface{}) *Client_UpdatePullRequest_Call {
+func (_e *Client_Expecter) UpdatePullRequest(context1 any, updatePullRequestArgs any) *Client_UpdatePullRequest_Call {
 	return &Client_UpdatePullRequest_Call{Call: _e.mock.On("UpdatePullRequest", context1, updatePullRequestArgs)}
 }
 
@@ -7414,7 +7414,7 @@ type Client_UpdatePullRequestIterationStatuses_Call struct {
 // UpdatePullRequestIterationStatuses is a helper method to define mock.On call
 //   - context1 context.Context
 //   - updatePullRequestIterationStatusesArgs git.UpdatePullRequestIterationStatusesArgs
-func (_e *Client_Expecter) UpdatePullRequestIterationStatuses(context1 interface{}, updatePullRequestIterationStatusesArgs interface{}) *Client_UpdatePullRequestIterationStatuses_Call {
+func (_e *Client_Expecter) UpdatePullRequestIterationStatuses(context1 any, updatePullRequestIterationStatusesArgs any) *Client_UpdatePullRequestIterationStatuses_Call {
 	return &Client_UpdatePullRequestIterationStatuses_Call{Call: _e.mock.On("UpdatePullRequestIterationStatuses", context1, updatePullRequestIterationStatusesArgs)}
 }
 
@@ -7482,7 +7482,7 @@ type Client_UpdatePullRequestProperties_Call struct {
 // UpdatePullRequestProperties is a helper method to define mock.On call
 //   - context1 context.Context
 //   - updatePullRequestPropertiesArgs git.UpdatePullRequestPropertiesArgs
-func (_e *Client_Expecter) UpdatePullRequestProperties(context1 interface{}, updatePullRequestPropertiesArgs interface{}) *Client_UpdatePullRequestProperties_Call {
+func (_e *Client_Expecter) UpdatePullRequestProperties(context1 any, updatePullRequestPropertiesArgs any) *Client_UpdatePullRequestProperties_Call {
 	return &Client_UpdatePullRequestProperties_Call{Call: _e.mock.On("UpdatePullRequestProperties", context1, updatePullRequestPropertiesArgs)}
 }
 
@@ -7550,7 +7550,7 @@ type Client_UpdatePullRequestReviewer_Call struct {
 // UpdatePullRequestReviewer is a helper method to define mock.On call
 //   - context1 context.Context
 //   - updatePullRequestReviewerArgs git.UpdatePullRequestReviewerArgs
-func (_e *Client_Expecter) UpdatePullRequestReviewer(context1 interface{}, updatePullRequestReviewerArgs interface{}) *Client_UpdatePullRequestReviewer_Call {
+func (_e *Client_Expecter) UpdatePullRequestReviewer(context1 any, updatePullRequestReviewerArgs any) *Client_UpdatePullRequestReviewer_Call {
 	return &Client_UpdatePullRequestReviewer_Call{Call: _e.mock.On("UpdatePullRequestReviewer", context1, updatePullRequestReviewerArgs)}
 }
 
@@ -7607,7 +7607,7 @@ type Client_UpdatePullRequestReviewers_Call struct {
 // UpdatePullRequestReviewers is a helper method to define mock.On call
 //   - context1 context.Context
 //   - updatePullRequestReviewersArgs git.UpdatePullRequestReviewersArgs
-func (_e *Client_Expecter) UpdatePullRequestReviewers(context1 interface{}, updatePullRequestReviewersArgs interface{}) *Client_UpdatePullRequestReviewers_Call {
+func (_e *Client_Expecter) UpdatePullRequestReviewers(context1 any, updatePullRequestReviewersArgs any) *Client_UpdatePullRequestReviewers_Call {
 	return &Client_UpdatePullRequestReviewers_Call{Call: _e.mock.On("UpdatePullRequestReviewers", context1, updatePullRequestReviewersArgs)}
 }
 
@@ -7664,7 +7664,7 @@ type Client_UpdatePullRequestStatuses_Call struct {
 // UpdatePullRequestStatuses is a helper method to define mock.On call
 //   - context1 context.Context
 //   - updatePullRequestStatusesArgs git.UpdatePullRequestStatusesArgs
-func (_e *Client_Expecter) UpdatePullRequestStatuses(context1 interface{}, updatePullRequestStatusesArgs interface{}) *Client_UpdatePullRequestStatuses_Call {
+func (_e *Client_Expecter) UpdatePullRequestStatuses(context1 any, updatePullRequestStatusesArgs any) *Client_UpdatePullRequestStatuses_Call {
 	return &Client_UpdatePullRequestStatuses_Call{Call: _e.mock.On("UpdatePullRequestStatuses", context1, updatePullRequestStatusesArgs)}
 }
 
@@ -7732,7 +7732,7 @@ type Client_UpdateRef_Call struct {
 // UpdateRef is a helper method to define mock.On call
 //   - context1 context.Context
 //   - updateRefArgs git.UpdateRefArgs
-func (_e *Client_Expecter) UpdateRef(context1 interface{}, updateRefArgs interface{}) *Client_UpdateRef_Call {
+func (_e *Client_Expecter) UpdateRef(context1 any, updateRefArgs any) *Client_UpdateRef_Call {
 	return &Client_UpdateRef_Call{Call: _e.mock.On("UpdateRef", context1, updateRefArgs)}
 }
 
@@ -7800,7 +7800,7 @@ type Client_UpdateRefs_Call struct {
 // UpdateRefs is a helper method to define mock.On call
 //   - context1 context.Context
 //   - updateRefsArgs git.UpdateRefsArgs
-func (_e *Client_Expecter) UpdateRefs(context1 interface{}, updateRefsArgs interface{}) *Client_UpdateRefs_Call {
+func (_e *Client_Expecter) UpdateRefs(context1 any, updateRefsArgs any) *Client_UpdateRefs_Call {
 	return &Client_UpdateRefs_Call{Call: _e.mock.On("UpdateRefs", context1, updateRefsArgs)}
 }
 
@@ -7868,7 +7868,7 @@ type Client_UpdateRepository_Call struct {
 // UpdateRepository is a helper method to define mock.On call
 //   - context1 context.Context
 //   - updateRepositoryArgs git.UpdateRepositoryArgs
-func (_e *Client_Expecter) UpdateRepository(context1 interface{}, updateRepositoryArgs interface{}) *Client_UpdateRepository_Call {
+func (_e *Client_Expecter) UpdateRepository(context1 any, updateRepositoryArgs any) *Client_UpdateRepository_Call {
 	return &Client_UpdateRepository_Call{Call: _e.mock.On("UpdateRepository", context1, updateRepositoryArgs)}
 }
 
@@ -7936,7 +7936,7 @@ type Client_UpdateThread_Call struct {
 // UpdateThread is a helper method to define mock.On call
 //   - context1 context.Context
 //   - updateThreadArgs git.UpdateThreadArgs
-func (_e *Client_Expecter) UpdateThread(context1 interface{}, updateThreadArgs interface{}) *Client_UpdateThread_Call {
+func (_e *Client_Expecter) UpdateThread(context1 any, updateThreadArgs any) *Client_UpdateThread_Call {
 	return &Client_UpdateThread_Call{Call: _e.mock.On("UpdateThread", context1, updateThreadArgs)}
 }
 

@@ -1,5 +1,5 @@
 import {DropDown, Tooltip} from 'argo-ui';
-import * as classNames from 'classnames';
+import classNames from 'classnames';
 import * as dagre from 'dagre';
 import * as React from 'react';
 import Moment from 'react-moment';
@@ -532,7 +532,7 @@ function renderPodGroup(
                                                 style={{cursor: 'not-allowed', display: 'inline-flex', alignItems: 'center'}}
                                                 onClick={e => e.stopPropagation()}
                                                 title={`Open application\n${MANAGED_BY_URL_INVALID_TEXT}`}>
-                                                <i className='fa fa-external-link-alt' style={{color: MANAGED_BY_URL_INVALID_COLOR}} />
+                                                <i className='fa fa-window-maximize' style={{color: MANAGED_BY_URL_INVALID_COLOR}} />
                                             </span>
                                         );
                                     }
@@ -545,7 +545,7 @@ function renderPodGroup(
                                                 e.stopPropagation();
                                             }}
                                             title={managedByURL ? `Open application\nmanaged-by-url: ${managedByURL}` : 'Open application'}>
-                                            <i className='fa fa-external-link-alt' />
+                                            <i className='fa fa-window-maximize' />
                                         </a>
                                     );
                                 }}
@@ -864,7 +864,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, node: ResourceT
                                             style={{cursor: 'not-allowed', display: 'inline-flex', alignItems: 'center'}}
                                             onClick={e => e.stopPropagation()}
                                             title={`Open application\n${MANAGED_BY_URL_INVALID_TEXT}`}>
-                                            <i className='fa fa-external-link-alt' style={{color: MANAGED_BY_URL_INVALID_COLOR}} />
+                                            <i className='fa fa-window-maximize' style={{color: MANAGED_BY_URL_INVALID_COLOR}} />
                                         </span>
                                     );
                                 }
@@ -877,7 +877,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, node: ResourceT
                                             e.stopPropagation();
                                         }}
                                         title={managedByURL ? `Open application\nmanaged-by-url: ${managedByURL}` : 'Open application'}>
-                                        <i className='fa fa-external-link-alt' />
+                                        <i className='fa fa-window-maximize' />
                                     </a>
                                 );
                             }}
@@ -1081,15 +1081,15 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     const childrenByParentKey = new Map<string, ResourceTreeNode[]>();
     const nodesHavingChildren = new Map<string, number>();
     const childrenMap = new Map<string, ResourceTreeNode[]>();
-    const [filters, setFilters] = React.useState(props.filters);
-    const [filteredGraph, setFilteredGraph] = React.useState([]);
+    const filtersRef = React.useRef(props.filters);
+    const filteredGraphRef = React.useRef<any[]>([]);
     const filteredNodes: any[] = [];
 
     React.useEffect(() => {
-        if (props.filters !== filters) {
-            setFilters(props.filters);
-            setFilteredGraph(filteredNodes);
-            props.setTreeFilterGraph(filteredGraph);
+        if (props.filters !== filtersRef.current) {
+            filtersRef.current = props.filters;
+            props.setTreeFilterGraph(filteredGraphRef.current);
+            filteredGraphRef.current = filteredNodes;
         }
     }, [props.filters]);
     const {podGroupCount, userMsgs, updateUsrHelpTipMsgs, setShowCompactNodes} = props;
@@ -1113,7 +1113,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         predicate: (node: ResourceTreeNode) => boolean
     ) {
         const appKey = appNodeKey(app);
-        let filtered = 0;
+        const filteredNodeIds: string[] = [];
         graphNodesFilter.nodes().forEach(nodeId => {
             const node: ResourceTreeNode = graphNodesFilter.node(nodeId) as any;
             const parentIds = graphNodesFilter.predecessors(nodeId);
@@ -1129,7 +1129,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             if (node.root != null && !shouldKeepNode() && appKey !== nodeId) {
                 const childIds = graphNodesFilter.successors(nodeId);
                 graphNodesFilter.removeNode(nodeId);
-                filtered++;
+                filteredNodeIds.push(nodeId);
                 childIds.forEach((childId: any) => {
                     parentIds.forEach((parentId: any) => {
                         graphNodesFilter.setEdge(parentId, childId);
@@ -1140,16 +1140,22 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             }
         });
 
-        if (filtered) {
+        if (filteredNodeIds.length) {
             graphNodesFilter.setNode(FILTERED_INDICATOR_NODE, {
                 height: NODE_HEIGHT,
                 width: NODE_WIDTH,
-                count: filtered,
+                count: filteredNodeIds.length,
                 type: NODE_TYPES.filteredIndicator
             });
             graphNodesFilter.setEdge(filteredIndicatorParent, FILTERED_INDICATOR_NODE);
         }
     }
+
+    // Helper to check if edge should be reversed for correct traffic flow visualization
+    // Gateway API routes reference Gateway via parentRefs, but traffic flows Gateway -> Route
+    const gatewayAPIRouteKinds = new Set(['HTTPRoute', 'GRPCRoute', 'TCPRoute', 'TLSRoute', 'UDPRoute']);
+    const shouldReverseEdge = (source: ResourceTreeNode, target: ResourceTreeNode): boolean =>
+        source.group === 'gateway.networking.k8s.io' && gatewayAPIRouteKinds.has(source.kind) && target.group === 'gateway.networking.k8s.io' && target.kind === 'Gateway';
 
     if (props.useNetworkingHierarchy) {
         // Network view
@@ -1158,24 +1164,30 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         const hiddenNodes: ResourceTreeNode[] = [];
         networkNodes.forEach(parent => {
             findNetworkTargets(networkNodes, parent.networkingInfo).forEach(child => {
-                const children = childrenByParentKey.get(treeNodeKey(parent)) || [];
-                hasParents.add(treeNodeKey(child));
-                const parentId = parent.uid;
+                // For HTTPRoute -> Gateway edges, reverse the relationship
+                // so Gateway appears as the parent (traffic flows Gateway -> HTTPRoute -> Service)
+                const reverseEdge = shouldReverseEdge(parent, child);
+                const actualParent = reverseEdge ? child : parent;
+                const actualChild = reverseEdge ? parent : child;
+
+                const children = childrenByParentKey.get(treeNodeKey(actualParent)) || [];
+                hasParents.add(treeNodeKey(actualChild));
+                const parentId = actualParent.uid;
                 if (nodesHavingChildren.has(parentId)) {
                     nodesHavingChildren.set(parentId, nodesHavingChildren.get(parentId) + children.length);
                 } else {
                     nodesHavingChildren.set(parentId, 1);
                 }
-                if (child.kind !== 'Pod' || !props.showCompactNodes) {
+                if (actualChild.kind !== 'Pod' || !props.showCompactNodes) {
                     if (props.getNodeExpansion(parentId)) {
-                        hasParents.add(treeNodeKey(child));
-                        children.push(child);
-                        childrenByParentKey.set(treeNodeKey(parent), children);
+                        hasParents.add(treeNodeKey(actualChild));
+                        children.push(actualChild);
+                        childrenByParentKey.set(treeNodeKey(actualParent), children);
                     } else {
-                        hiddenNodes.push(child);
+                        hiddenNodes.push(actualChild);
                     }
                 } else {
-                    processPodGroup(parent, child, props);
+                    processPodGroup(actualParent, actualChild, props);
                 }
             });
         });
@@ -1416,7 +1428,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     const graphNodes = graph.nodes();
     const size = getGraphSize(graphNodes.map(id => graph.node(id)));
 
-    const resourceTreeRef = React.useRef<HTMLDivElement>();
+    const resourceTreeRef = React.useRef<HTMLDivElement | null>(null);
 
     const graphMoving = React.useRef({
         enable: false,

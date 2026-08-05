@@ -10,26 +10,23 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/argoproj/argo-cd/v3/util/proxy"
-
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/test/fixture/log"
 	"github.com/argoproj/argo-cd/v3/test/fixture/path"
 	"github.com/argoproj/argo-cd/v3/test/fixture/test"
+	"github.com/argoproj/argo-cd/v3/util/proxy"
 )
 
-func TestMain(m *testing.M) {
-	// Ensure tests use non-cached proxy callback
-	proxy.UseTestingProxyCallback()
-
-	cwd, _ := os.Getwd()
-	os.Setenv("GIT_CONFIG_NOSYSTEM", "1")
-	os.Setenv("GIT_CONFIG_GLOBAL", filepath.Join(cwd, "testdata", "gitconfig"))
-
-	os.Exit(m.Run())
+func setupGitEnv(t *testing.T) {
+	t.Helper()
+	cwd, err := os.Getwd()
+	require.NoError(t, err)
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	t.Setenv("GIT_CONFIG_GLOBAL", filepath.Join(cwd, "testdata", "gitconfig"))
 }
 
 func TestIsCommitSHA(t *testing.T) {
+	t.Parallel()
 	assert.True(t, IsCommitSHA("9d921f65f3c5373b682e2eb4b37afba6592e8f8b"))
 	assert.True(t, IsCommitSHA("9D921F65F3C5373B682E2EB4B37AFBA6592E8F8B"))
 	assert.False(t, IsCommitSHA("gd921f65f3c5373b682e2eb4b37afba6592e8f8b"))
@@ -42,6 +39,7 @@ func TestIsCommitSHA(t *testing.T) {
 }
 
 func TestEnsurePrefix(t *testing.T) {
+	t.Parallel()
 	data := [][]string{
 		{"world", "hello", "helloworld"},
 		{"helloworld", "hello", "helloworld"},
@@ -59,6 +57,7 @@ func TestEnsurePrefix(t *testing.T) {
 }
 
 func TestIsSSHURL(t *testing.T) {
+	t.Parallel()
 	data := map[string]bool{
 		"git://github.com/argoproj/test.git":     false,
 		"git@GITHUB.com:argoproj/test.git":       true,
@@ -77,6 +76,7 @@ func TestIsSSHURL(t *testing.T) {
 }
 
 func TestIsSSHURLUserName(t *testing.T) {
+	t.Parallel()
 	isSSH, user := IsSSHURL("ssh://john@john-server.org:29418/project")
 	assert.True(t, isSSH)
 	assert.Equal(t, "john", user)
@@ -102,7 +102,23 @@ func TestIsSSHURLUserName(t *testing.T) {
 	assert.Equal(t, "john@doe.org", user)
 }
 
+func TestSSHHostWithPort(t *testing.T) {
+	t.Parallel()
+	data := map[string]string{
+		"git@github.com:argoproj/test.git":            "github.com:22",
+		"ssh://git@github.com/argoproj/test.git":      "github.com:22",
+		"ssh://git@github.com:2222/argoproj/test.git": "github.com:2222",
+		"ssh://john@john-server.org:29418/project":    "john-server.org:29418",
+		"https://github.com/argoproj/test":            "",
+		"":                                            "",
+	}
+	for repoURL, want := range data {
+		assert.Equal(t, want, SSHHostWithPort(repoURL), "input: %q", repoURL)
+	}
+}
+
 func TestSameURL(t *testing.T) {
+	t.Parallel()
 	data := map[string]string{
 		"git@GITHUB.com:argoproj/test":                     "git@github.com:argoproj/test.git",
 		"git@GITHUB.com:argoproj/test.git":                 "git@github.com:argoproj/test.git",
@@ -129,7 +145,31 @@ func TestSameURL(t *testing.T) {
 	}
 }
 
+func TestSanitizeRepoURL(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"no credentials", "https://github.com/argoproj/argo-cd.git", "https://github.com/argoproj/argo-cd.git"},
+		{"strips user and password", "https://user:p@ss@github.com/argoproj/argo-cd.git", "https://github.com/argoproj/argo-cd.git"},
+		{"strips token-only userinfo", "https://token@github.com/org/repo", "https://github.com/org/repo"},
+		{"scp-style ssh left unchanged", "git@github.com:argoproj/argo-cd.git", "git@github.com:argoproj/argo-cd.git"},
+		{"unparseable returned unchanged", "://not a url", "://not a url"},
+		{"empty returned unchanged", "", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, SanitizeRepoURL(tt.in))
+		})
+	}
+}
+
 func TestCustomHTTPClient(t *testing.T) {
+	proxy.UseTestingProxyCallback()
+
 	certFile, err := filepath.Abs("../../test/fixture/certs/argocd-test-client.crt")
 	require.NoError(t, err)
 	assert.NotEmpty(t, certFile)
@@ -223,6 +263,7 @@ func TestCustomHTTPClient(t *testing.T) {
 }
 
 func TestLsRemote(t *testing.T) {
+	setupGitEnv(t)
 	clnt, err := NewClientExt("https://github.com/argoproj/argo-cd.git", "/tmp", NopCreds{}, false, false, "", "")
 	require.NoError(t, err)
 
@@ -306,13 +347,15 @@ func TestLsRemote(t *testing.T) {
 
 		for _, revision := range xfail {
 			_, err := clnt.LsRemote(revision)
-			assert.ErrorContains(t, err, "unable to resolve")
+			require.ErrorContains(t, err, "unable to resolve")
+			require.ErrorIs(t, err, ErrRevisionNotFound)
 		}
 	})
 }
 
 // Running this test requires git-lfs to be installed on your machine.
 func TestLFSClient(t *testing.T) {
+	setupGitEnv(t)
 	// temporary disable LFS test
 	// TODO(alexmt): dockerize tests in and enabled it
 	t.Skip()
@@ -329,13 +372,13 @@ func TestLFSClient(t *testing.T) {
 	err = client.Init()
 	require.NoError(t, err)
 
-	err = client.Fetch("", 0)
+	err = client.Fetch(t.Context(), "", 0)
 	require.NoError(t, err)
 
-	_, err = client.Checkout(commitSHA, true, true)
+	_, err = client.Checkout(t.Context(), commitSHA, true, true)
 	require.NoError(t, err)
 
-	largeFiles, err := client.LsLargeFiles()
+	largeFiles, err := client.LsLargeFiles(t.Context())
 	require.NoError(t, err)
 	assert.Len(t, largeFiles, 3)
 
@@ -356,6 +399,7 @@ func TestLFSClient(t *testing.T) {
 }
 
 func TestVerifyCommitSignature(t *testing.T) {
+	setupGitEnv(t)
 	p := t.TempDir()
 
 	client, err := NewClientExt("https://github.com/argoproj/argocd-example-apps.git", p, NopCreds{}, false, false, "", "")
@@ -365,27 +409,27 @@ func TestVerifyCommitSignature(t *testing.T) {
 	require.NoError(t, err)
 
 	// Use shallow fetch to avoid timeout fetching the entire repo
-	err = client.Fetch("", 1)
+	err = client.Fetch(t.Context(), "", 1)
 	require.NoError(t, err)
 
 	commitSHA, err := client.LsRemote("HEAD")
 	require.NoError(t, err)
 
-	_, err = client.Checkout(commitSHA, true, true)
+	_, err = client.Checkout(t.Context(), commitSHA, true, true)
 	require.NoError(t, err)
 
 	// Fetch the specific commits needed for signature verification
 	signedCommit := "723b86e01bea11dcf72316cb172868fcbf05d69e"
 	unsignedCommit := "1ccdee0a611224ccc6b9ff7919fe7002f905436e"
-	err = client.Fetch(signedCommit, 1)
+	err = client.Fetch(t.Context(), signedCommit, 1)
 	require.NoError(t, err)
-	err = client.Fetch(unsignedCommit, 1)
+	err = client.Fetch(t.Context(), unsignedCommit, 1)
 	require.NoError(t, err)
 
 	// 28027897aad1262662096745f2ce2d4c74d02b7f is a commit that is signed in the repo
 	// It doesn't matter whether we know the key or not at this stage
 	{
-		out, err := client.VerifyCommitSignature(signedCommit)
+		out, err := client.VerifyCommitSignature(t.Context(), signedCommit)
 		require.NoError(t, err)
 		assert.NotEmpty(t, out)
 		assert.Contains(t, out, "gpg: Signature made")
@@ -393,13 +437,14 @@ func TestVerifyCommitSignature(t *testing.T) {
 
 	// 85d660f0b967960becce3d49bd51c678ba2a5d24 is a commit that is not signed
 	{
-		out, err := client.VerifyCommitSignature(unsignedCommit)
+		out, err := client.VerifyCommitSignature(t.Context(), unsignedCommit)
 		require.NoError(t, err)
 		assert.Empty(t, out)
 	}
 }
 
 func TestNewFactory(t *testing.T) {
+	setupGitEnv(t)
 	addBinDirToPath := path.NewBinDirToPath(t)
 	defer addBinDirToPath.Close()
 	closer := log.Debug()
@@ -429,17 +474,17 @@ func TestNewFactory(t *testing.T) {
 		err = client.Init()
 		require.NoError(t, err)
 
-		err = client.Fetch("", 0)
+		err = client.Fetch(t.Context(), "", 0)
 		require.NoError(t, err)
 
 		// Do a second fetch to make sure we can treat `already up-to-date` error as not an error
-		err = client.Fetch("", 0)
+		err = client.Fetch(t.Context(), "", 0)
 		require.NoError(t, err)
 
-		_, err = client.Checkout(commitSHA, true, true)
+		_, err = client.Checkout(t.Context(), commitSHA, true, true)
 		require.NoError(t, err)
 
-		revisionMetadata, err := client.RevisionMetadata(commitSHA)
+		revisionMetadata, err := client.RevisionMetadata(t.Context(), commitSHA)
 		require.NoError(t, err)
 		assert.NotNil(t, revisionMetadata)
 		assert.Regexp(t, "^.*<.*>$", revisionMetadata.Author)
@@ -447,7 +492,7 @@ func TestNewFactory(t *testing.T) {
 		assert.NotEmpty(t, revisionMetadata.Date)
 		assert.NotEmpty(t, revisionMetadata.Message)
 
-		commitSHA2, err := client.CommitSHA()
+		commitSHA2, err := client.CommitSHA(t.Context())
 		require.NoError(t, err)
 
 		assert.Equal(t, commitSHA, commitSHA2)
@@ -455,6 +500,7 @@ func TestNewFactory(t *testing.T) {
 }
 
 func TestListRevisions(t *testing.T) {
+	setupGitEnv(t)
 	dir := t.TempDir()
 
 	repoURL := "https://github.com/argoproj/argo-cd.git"
@@ -474,6 +520,7 @@ func TestListRevisions(t *testing.T) {
 }
 
 func TestLsFiles(t *testing.T) {
+	setupGitEnv(t)
 	tmpDir1 := t.TempDir()
 	tmpDir2 := t.TempDir()
 	ctx := t.Context()
@@ -524,7 +571,7 @@ func TestLsFiles(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			lsResult, err := client.LsFiles(tt.pattern, tt.safeGlobbing)
+			lsResult, err := client.LsFiles(t.Context(), tt.pattern, tt.safeGlobbing)
 			require.NoError(t, err)
 			assert.Equal(t, tt.expectedResult, lsResult)
 		})
@@ -532,6 +579,7 @@ func TestLsFiles(t *testing.T) {
 }
 
 func TestLsFilesForGitFileGeneratorGlobbingPatterns(t *testing.T) {
+	setupGitEnv(t)
 	tmpDir := t.TempDir()
 	ctx := t.Context()
 
@@ -705,7 +753,7 @@ func TestLsFilesForGitFileGeneratorGlobbingPatterns(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			lsResult, err := client.LsFiles(tt.pattern, tt.isNewGlobbingEnabled)
+			lsResult, err := client.LsFiles(t.Context(), tt.pattern, tt.isNewGlobbingEnabled)
 			require.NoError(t, err)
 			assert.ElementsMatch(t, tt.expected, lsResult)
 		})
@@ -713,6 +761,7 @@ func TestLsFilesForGitFileGeneratorGlobbingPatterns(t *testing.T) {
 }
 
 func TestAnnotatedTagHandling(t *testing.T) {
+	setupGitEnv(t)
 	dir := t.TempDir()
 
 	client, err := NewClientExt("https://github.com/argoproj/argo-cd.git", dir, NopCreds{}, false, false, "", "")
@@ -737,6 +786,7 @@ func TestAnnotatedTagHandling(t *testing.T) {
 }
 
 func TestIsShortRef(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		revision string
@@ -849,6 +899,7 @@ func TestIsShortRef(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := IsShortRef(tt.revision)
 			assert.Equal(t, tt.expected, result, "IsShortRef(%q) = %v, expected %v", tt.revision, result, tt.expected)
 		})

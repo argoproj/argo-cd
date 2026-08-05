@@ -4,6 +4,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -535,6 +536,7 @@ func giteaMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 }
 
 func TestGiteaListRepos(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		name, proto                             string
 		hasError, allBranches, includeSubgroups bool
@@ -805,10 +807,11 @@ func TestGiteaListRepos(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		giteaMockHandler(t)(w, r)
 	}))
-	defer ts.Close()
+	t.Cleanup(ts.Close)
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			provider, _ := NewGiteaProvider("test-argocd", "", ts.URL, c.allBranches, false, c.excludeArchivedRepos)
+			t.Parallel()
+			provider, _ := NewGiteaProvider("test-argocd", "", ts.URL, c.allBranches, false, c.excludeArchivedRepos, "", "")
 			rawRepos, err := ListRepos(t.Context(), provider, c.filters, c.proto)
 
 			if c.hasError {
@@ -827,11 +830,12 @@ func TestGiteaListRepos(t *testing.T) {
 }
 
 func TestGiteaHasPath(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		giteaMockHandler(t)(w, r)
 	}))
-	defer ts.Close()
-	host, _ := NewGiteaProvider("gitea", "", ts.URL, false, false, false)
+	t.Cleanup(ts.Close)
+	host, _ := NewGiteaProvider("gitea", "", ts.URL, false, false, false, "", "")
 	repo := &Repository{
 		Organization: "gitea",
 		Repository:   "go-sdk",
@@ -839,20 +843,77 @@ func TestGiteaHasPath(t *testing.T) {
 	}
 
 	t.Run("file exists", func(t *testing.T) {
+		t.Parallel()
 		ok, err := host.RepoHasPath(t.Context(), repo, "README.md")
 		require.NoError(t, err)
 		assert.True(t, ok)
 	})
 
 	t.Run("directory exists", func(t *testing.T) {
+		t.Parallel()
 		ok, err := host.RepoHasPath(t.Context(), repo, "gitea")
 		require.NoError(t, err)
 		assert.True(t, ok)
 	})
 
 	t.Run("does not exists", func(t *testing.T) {
+		t.Parallel()
 		ok, err := host.RepoHasPath(t.Context(), repo, "notathing")
 		require.NoError(t, err)
 		assert.False(t, ok)
 	})
+}
+
+func TestNewGiteaProvider_Proxy(t *testing.T) {
+	t.Parallel()
+	targetTS := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/api/v1/version" {
+			_, _ = w.Write([]byte(`{"version":"1.17.0"}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"id": 1, "name": "test-repo"}`))
+	}))
+	defer targetTS.Close()
+
+	proxyCalled := 0
+	proxyTS := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		proxyCalled++
+		r.RequestURI = ""
+		u, _ := url.Parse(targetTS.URL)
+		r.URL.Scheme = u.Scheme
+		r.URL.Host = u.Host
+		r.Host = u.Host
+
+		resp, err := http.DefaultClient.Do(r)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		defer resp.Body.Close()
+		for k, vv := range resp.Header {
+			for _, v := range vv {
+				w.Header().Add(k, v)
+			}
+		}
+		w.WriteHeader(resp.StatusCode)
+		_, _ = io.Copy(w, resp.Body)
+	}))
+	defer proxyTS.Close()
+
+	targetURL := "http://gitea.example.com"
+
+	provider, err := NewGiteaProvider("test-owner", "test-token", targetURL, false, false, false, proxyTS.URL, "")
+	require.NoError(t, err)
+	require.NotNil(t, provider)
+
+	repo := &Repository{
+		Organization: "test-owner",
+		Repository:   "test-repo",
+		Branch:       "main",
+	}
+	_, err = provider.RepoHasPath(t.Context(), repo, "README.md")
+	require.NoError(t, err)
+
+	assert.Positive(t, proxyCalled, "Proxy should have been called")
 }
