@@ -211,8 +211,9 @@ const config = {
 if (isProd) {
     config.performance = {
         hints: 'error',
-        // Max size is 6MB before gzip.
-        maxEntrypointSize: 6 * 1024 * 1024,
+        // Sizes are raw bytes before gzip. The entry chunk is ~2.3MB after route-level
+        // code splitting; the tighter cap keeps the entry-size win from regressing.
+        maxEntrypointSize: 2.5 * 1024 * 1024,
         maxAssetSize: 6 * 1024 * 1024,
     };
 }

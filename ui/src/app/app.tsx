@@ -5,6 +5,7 @@ import {Helmet} from 'react-helmet';
 import {Redirect, Route, RouteComponentProps, Router, Switch} from 'react-router';
 import {Subscription} from 'rxjs';
 import {Layout, ThemeWrapper} from './shared/components/layout/layout';
+import {ErrorBoundary} from './shared/components/error-boundary/error-boundary';
 import {Page} from './shared/components';
 import {Spinner} from './shared/components';
 import {VersionPanel} from './shared/components/version-info/version-info-panel';
@@ -24,11 +25,11 @@ requests.setBaseHRef(base);
 
 type Routes = {[path: string]: {component: React.ComponentType<RouteComponentProps<any>>; noLayout?: boolean}};
 
-const applications = React.lazy(() => import('./applications').then(m => ({default: m.default.component})));
-const help = React.lazy(() => import('./help').then(m => ({default: m.default.component})));
-const login = React.lazy(() => import('./login').then(m => ({default: m.default.component})));
-const settings = React.lazy(() => import('./settings').then(m => ({default: m.default.component})));
-const userInfo = React.lazy(() => import('./user-info').then(m => ({default: m.default.component})));
+const applications = React.lazy(() => import(/* webpackChunkName: "applications", webpackPrefetch: true */ './applications').then(m => ({default: m.default.component})));
+const help = React.lazy(() => import(/* webpackChunkName: "help" */ './help').then(m => ({default: m.default.component})));
+const login = React.lazy(() => import(/* webpackChunkName: "login", webpackPrefetch: true */ './login').then(m => ({default: m.default.component})));
+const settings = React.lazy(() => import(/* webpackChunkName: "settings" */ './settings').then(m => ({default: m.default.component})));
+const userInfo = React.lazy(() => import(/* webpackChunkName: "user-info" */ './user-info').then(m => ({default: m.default.component})));
 
 const routes: Routes = {
     '/login': {component: login as any, noLayout: true},
@@ -293,42 +294,47 @@ export class App extends React.Component<
                             </DataLoader>
                             <AuthSettingsCtx.Provider value={this.state.authSettings}>
                                 <Router history={history}>
-                                    <React.Suspense
-                                        fallback={
-                                            <div style={{display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh'}}>
-                                                <Spinner show={true} />
-                                            </div>
-                                        }>
-                                        <Switch>
-                                            <Redirect exact={true} path='/' to='/applications' />
-                                            {Object.keys(this.routes).map(path => {
-                                                const route = this.routes[path];
-                                                return (
-                                                    <Route
-                                                        key={path}
-                                                        path={path}
-                                                        render={routeProps =>
-                                                            route.noLayout ? (
-                                                                <div>
-                                                                    <route.component {...routeProps} />
-                                                                </div>
-                                                            ) : (
-                                                                <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                                                                    {pref => (
-                                                                        <Layout onVersionClick={() => this.setState({showVersionPanel: true})} navItems={this.navItems} pref={pref}>
-                                                                            <Banner>
-                                                                                <route.component {...routeProps} />
-                                                                            </Banner>
-                                                                        </Layout>
-                                                                    )}
-                                                                </DataLoader>
-                                                            )
-                                                        }
-                                                    />
-                                                );
-                                            })}
-                                        </Switch>
-                                    </React.Suspense>
+                                    <ErrorBoundary message='Failed to load this page. Please reload and try again.'>
+                                        <React.Suspense
+                                            fallback={
+                                                <div style={{display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh'}}>
+                                                    <Spinner show={true} />
+                                                </div>
+                                            }>
+                                            <Switch>
+                                                <Redirect exact={true} path='/' to='/applications' />
+                                                {Object.keys(this.routes).map(path => {
+                                                    const route = this.routes[path];
+                                                    return (
+                                                        <Route
+                                                            key={path}
+                                                            path={path}
+                                                            render={routeProps =>
+                                                                route.noLayout ? (
+                                                                    <div>
+                                                                        <route.component {...routeProps} />
+                                                                    </div>
+                                                                ) : (
+                                                                    <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                                                                        {pref => (
+                                                                            <Layout
+                                                                                onVersionClick={() => this.setState({showVersionPanel: true})}
+                                                                                navItems={this.navItems}
+                                                                                pref={pref}>
+                                                                                <Banner>
+                                                                                    <route.component {...routeProps} />
+                                                                                </Banner>
+                                                                            </Layout>
+                                                                        )}
+                                                                    </DataLoader>
+                                                                )
+                                                            }
+                                                        />
+                                                    );
+                                                })}
+                                            </Switch>
+                                        </React.Suspense>
+                                    </ErrorBoundary>
                                 </Router>
                             </AuthSettingsCtx.Provider>
                         </AppContextReact.Provider>
