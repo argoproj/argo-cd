@@ -558,7 +558,7 @@ Set the output as `ARGOCD_AUTH_TOKEN` and configure the account's RBAC in `argoc
 
 ### Dex Token Exchange
 
-If your CI platform issues OIDC tokens (GitHub Actions, GitLab CI, Kubernetes ServiceAccounts), Dex can exchange them for Argo CD tokens without any browser interaction. This uses the OAuth 2.0 Token Exchange grant (RFC 8693).
+If your CI platform issues OIDC tokens ([GitHub Actions](github-actions.md), [GitLab CI](gitlab-ci.md), [Microsoft Entra ID](microsoft.md), etc.), Dex can exchange them for Argo CD tokens without any browser interaction. This uses the OAuth 2.0 Token Exchange grant (RFC 8693).
 
 **Configure Dex**
 
@@ -694,12 +694,15 @@ argocd app wait guestbook --core
 The kubeconfig user or service account needs read/write access to Argo CD CRDs (`applications.argoproj.io`, `appprojects.argoproj.io`) in the Argo CD namespace.
 
 > [!WARNING]
-> `--core` mode bypasses Argo CD's RBAC model, not just its authentication. AppProject
-> restrictions — which clusters, namespaces, and source repos an application may target —
-> are enforced by the Argo CD server and do not apply here. A service account with CRD
-> write access in `--core` mode can create or modify applications targeting any cluster
-> Argo CD manages, regardless of project boundaries. Grant this access only to highly
-> trusted identities and prefer project role tokens or API tokens for normal CI use.
+> `--core` mode bypasses Argo CD's authentication and its RBAC policy enforcer (the
+> `p, <subject>, applications, …` rules in `argocd-rbac-cm`). AppProject source and
+> destination validation still runs in the application controller at reconcile time — an
+> `Application` that violates its project's `sourceRepos` or `destinations` will surface an
+> `InvalidSpecError` condition rather than sync. The real escalation path is different: a
+> `--core` identity with write access to `appprojects.argoproj.io` can mutate the AppProject
+> itself — widening `destinations`, relaxing `sourceRepos`, or adding a permissive role —
+> and then deploy anywhere. Grant this access only to highly trusted identities and prefer
+> project role tokens or local user tokens for normal CI use.
 > Additionally, actions taken in `--core` mode are not attributed to a named Argo CD user
 > in the audit log, which may be a compliance concern in regulated environments.
 
