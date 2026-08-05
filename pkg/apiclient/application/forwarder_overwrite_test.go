@@ -74,7 +74,11 @@ func TestProcessApplicationListField_OperationStateOperationSync(t *testing.T) {
 	list := v1alpha1.ApplicationList{
 		Items: []v1alpha1.Application{{Status: v1alpha1.ApplicationStatus{
 			OperationState: &v1alpha1.OperationState{
-				Operation:  v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{Revision: "abc"}},
+				Operation: v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{
+					Revision:  "abc",
+					Resources: []v1alpha1.SyncOperationResource{{Group: "apps", Kind: "Deployment", Name: "web"}},
+					Manifests: []string{"apiVersion: v1\nkind: ConfigMap"},
+				}},
 				SyncResult: &v1alpha1.SyncOperationResult{Revision: "def"},
 			},
 		}}},
@@ -89,10 +93,12 @@ func TestProcessApplicationListField_OperationStateOperationSync(t *testing.T) {
 	require.True(t, ok)
 	item := test.ToMap(items[0])
 
-	val, ok, err := unstructured.NestedString(item, "status", "operationState", "operation", "sync", "revision")
+	syncMap, ok, err := unstructured.NestedMap(item, "status", "operationState", "operation", "sync")
 	require.NoError(t, err)
 	require.True(t, ok)
-	require.Equal(t, "abc", val)
+	// Only the revision is projected; large fields (resources, manifests, sources)
+	// must not be included in the list payload.
+	require.Equal(t, map[string]any{"revision": "abc"}, syncMap)
 }
 
 func TestProcessApplicationListField_OperationStateOperationSyncMissing(t *testing.T) {
