@@ -31645,6 +31645,13 @@ data:
       - BackgroundScanReport
       - ClusterBackgroundScanReport
       - UpdateRequest
+    ### Crossplane internal resources excluded reduce the number of watched events, as recommended by the Crossplane docs.
+    ### Providers create one ProviderConfigUsage per managed resource purely to track the
+    ### managed resource to ProviderConfig relationship, so the wildcard apiGroup covers every provider.
+    - apiGroups:
+      - '*'
+      kinds:
+      - ProviderConfigUsage
 kind: ConfigMap
 metadata:
   labels:
