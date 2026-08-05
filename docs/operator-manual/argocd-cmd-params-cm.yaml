@@ -225,6 +225,8 @@ data:
   reposerver.enable.builtin.git.config: "true"
   # Include hidden directories from Git
   reposerver.include.hidden.directories: "false"
+  # Enables profile endpoint on the internal metrics port
+  reposerver.profile.enabled: "false"
 
   ## Commit-server properties
   # Listen on given address for incoming connections (default "0.0.0.0")

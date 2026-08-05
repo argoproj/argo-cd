@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -480,7 +479,7 @@ func TestThreeWayDiffExample2WithDifference(t *testing.T) {
 	showsMissing := 0
 	showsExtra := 0
 	showsChanged := 0
-	for _, line := range strings.Split(ascii, "\n") {
+	for line := range strings.SplitSeq(ascii, "\n") {
 		if strings.HasPrefix(line, `>     foo: bar`) {
 			showsMissing++
 		}
@@ -1214,58 +1213,66 @@ func TestServerSideDiff(t *testing.T) {
 		assert.NotContains(t, string(result.NormalizedLive), "resourceVersion")
 	})
 
-	t.Run("will strip kubectl.kubernetes.io/last-applied-configuration from both sides", func(t *testing.T) {
+	t.Run("will detect ConfigMap data key removal", func(t *testing.T) {
+		// given
 		t.Parallel()
+		liveState := StrToUnstructured(testdata.ConfigMapLiveYAMLSSD)
+		desiredState := StrToUnstructured(testdata.ConfigMapConfigYAMLSSD)
+		opts := buildOpts(testdata.ConfigMapPredictedLiveJSONSSD)
 
-		const lastAppliedRaw = `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"secret","namespace":"default","annotations":{"app":"test"}},"data":{"password":"U0VDUkVUVkFM"},"stringData":{"username":"SECRETVAL"}}`
+		// when
+		result, err := serverSideDiff(desiredState, liveState, opts...)
 
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.True(t, result.Modified, "Diff should detect key removal as a modification")
+
+		// Parse the results
+		var predictedCM map[string]any
+		err = json.Unmarshal(result.PredictedLive, &predictedCM)
+		require.NoError(t, err)
+
+		var liveCM map[string]any
+		err = json.Unmarshal(result.NormalizedLive, &liveCM)
+		require.NoError(t, err)
+
+		// Verify predicted live has only key1 and key2 (key3 removed)
+		predictedData, ok := predictedCM["data"].(map[string]any)
+		require.True(t, ok, "Predicted ConfigMap should have data field")
+		assert.Len(t, predictedData, 2, "Predicted data should have 2 keys")
+		assert.Contains(t, predictedData, "key1")
+		assert.Contains(t, predictedData, "key2")
+		assert.NotContains(t, predictedData, "key3", "key3 should be removed from predicted live")
+
+		// Verify live still has all 3 keys
+		liveData, ok := liveCM["data"].(map[string]any)
+		require.True(t, ok, "Live ConfigMap should have data field")
+		assert.Len(t, liveData, 3, "Live data should still have 3 keys")
+		assert.Contains(t, liveData, "key1")
+		assert.Contains(t, liveData, "key2")
+		assert.Contains(t, liveData, "key3", "key3 should still be in live state")
+	})
+
+	t.Run("will strip last-applied-configuration annotation from a non-Secret resource on both sides", func(t *testing.T) {
+		// given
+		t.Parallel()
+		const lastApplied = `{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"my-cm","namespace":"default"},"data":{"key1":"value1"}}`
 		liveState := StrToUnstructured(`{
 			"apiVersion": "v1",
-			"kind": "Secret",
-			"metadata": {
-				"name": "secret",
-				"namespace": "default",
-				"annotations": {
-					"app": "test",
-					"kubectl.kubernetes.io/last-applied-configuration": ` + strconv.Quote(lastAppliedRaw) + `
-				}
-			},
-			"type": "Opaque",
-			"data": {
-				"password": "U0VDUkVUVkFM"
-			}
+			"kind": "ConfigMap",
+			"metadata": {"name": "my-cm", "namespace": "default"}
 		}`)
+		liveState.SetAnnotations(map[string]string{AnnotationLastAppliedConfig: lastApplied})
 		desiredState := StrToUnstructured(`{
 			"apiVersion": "v1",
-			"kind": "Secret",
-			"metadata": {
-				"name": "secret",
-				"namespace": "default",
-				"annotations": {
-					"app": "test"
-				}
-			},
-			"type": "Opaque",
-			"data": {
-				"password": "U0VDUkVUVkFM"
-			}
+			"kind": "ConfigMap",
+			"metadata": {"name": "my-cm", "namespace": "default"},
+			"data": {"key1": "value1"}
 		}`)
-		predictedLiveJSON := `{
-			"apiVersion": "v1",
-			"kind": "Secret",
-			"metadata": {
-				"name": "secret",
-				"namespace": "default",
-				"annotations": {
-					"app": "test",
-					"kubectl.kubernetes.io/last-applied-configuration": ` + strconv.Quote(lastAppliedRaw) + `
-				}
-			},
-			"type": "Opaque",
-			"data": {
-				"password": "U0VDUkVUVkFM"
-			}
-		}`
+		predictedLiveObj := desiredState.DeepCopy()
+		predictedLiveObj.SetAnnotations(map[string]string{AnnotationLastAppliedConfig: lastApplied})
+		predictedLiveJSON := mustMarshalUnstructured(t, predictedLiveObj)
 		opts := buildOpts(predictedLiveJSON)
 		opts = append(opts, WithIgnoreMutationWebhook(false))
 
@@ -1274,13 +1281,56 @@ func TestServerSideDiff(t *testing.T) {
 
 		// then
 		require.NoError(t, err)
-		require.NotNil(t, result)
-		assert.NotContains(t, string(result.PredictedLive), "kubectl.kubernetes.io/last-applied-configuration",
+		assert.NotNil(t, result)
+		assert.NotContains(t, string(result.PredictedLive), AnnotationLastAppliedConfig,
 			"PredictedLive must not contain the last-applied-configuration annotation")
-		assert.NotContains(t, string(result.NormalizedLive), "kubectl.kubernetes.io/last-applied-configuration",
+		assert.NotContains(t, string(result.NormalizedLive), AnnotationLastAppliedConfig,
 			"NormalizedLive must not contain the last-applied-configuration annotation")
-		assert.NotContains(t, string(result.PredictedLive), "SECRETVAL",
-			"PredictedLive must not contain raw secret values from last-applied-configuration")
+	})
+
+	t.Run("will strip last-applied-configuration annotation from a Secret resource on both sides", func(t *testing.T) {
+		// given
+		t.Parallel()
+		// The annotation embeds a secret value that does not otherwise appear in the object,
+		// so we can assert the annotation (and its contents) is stripped. Masking of the Secret
+		// data field itself is the caller's responsibility and is covered by TestHideSecretData.
+		const annotationOnlySecret = "QU5OT1RBVElPTk9OTFk="
+		lastApplied := `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"my-secret","namespace":"default"},"data":{"password":"` + annotationOnlySecret + `"}}`
+		liveState := StrToUnstructured(`{
+			"apiVersion": "v1",
+			"kind": "Secret",
+			"metadata": {"name": "my-secret", "namespace": "default"},
+			"type": "Opaque",
+			"data": {"password": "U0VDUkVUVkFM"}
+		}`)
+		liveState.SetAnnotations(map[string]string{AnnotationLastAppliedConfig: lastApplied})
+		desiredState := StrToUnstructured(`{
+			"apiVersion": "v1",
+			"kind": "Secret",
+			"metadata": {"name": "my-secret", "namespace": "default"},
+			"type": "Opaque",
+			"data": {"password": "U0VDUkVUVkFM"}
+		}`)
+		predictedLiveObj := desiredState.DeepCopy()
+		predictedLiveObj.SetAnnotations(map[string]string{AnnotationLastAppliedConfig: lastApplied})
+		predictedLiveJSON := mustMarshalUnstructured(t, predictedLiveObj)
+		opts := buildOpts(predictedLiveJSON)
+		opts = append(opts, WithIgnoreMutationWebhook(false))
+
+		// when
+		result, err := serverSideDiff(desiredState, liveState, opts...)
+
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.NotContains(t, string(result.PredictedLive), AnnotationLastAppliedConfig,
+			"PredictedLive must not contain the last-applied-configuration annotation")
+		assert.NotContains(t, string(result.NormalizedLive), AnnotationLastAppliedConfig,
+			"NormalizedLive must not contain the last-applied-configuration annotation")
+		assert.NotContains(t, string(result.PredictedLive), annotationOnlySecret,
+			"PredictedLive must not contain secret values embedded only in last-applied-configuration")
+		assert.NotContains(t, string(result.NormalizedLive), annotationOnlySecret,
+			"NormalizedLive must not contain secret values embedded only in last-applied-configuration")
 	})
 	t.Run("will mask Secret data symmetrically so identical values do not produce a spurious diff", func(t *testing.T) {
 		t.Parallel()
@@ -1361,46 +1411,12 @@ func TestServerSideDiff(t *testing.T) {
 	})
 }
 
-// buildSecret returns a core/v1 Secret as an *unstructured.Unstructured.
-func buildSecret(name, namespace string, data map[string]string, annotations map[string]string) *unstructured.Unstructured {
-	dataField := make(map[string]any, len(data))
-	for k, v := range data {
-		dataField[k] = v
-	}
-	metadata := map[string]any{
-		"name":      name,
-		"namespace": namespace,
-	}
-	if len(annotations) > 0 {
-		annField := make(map[string]any, len(annotations))
-		for k, v := range annotations {
-			annField[k] = v
-		}
-		metadata["annotations"] = annField
-	}
-	return &unstructured.Unstructured{Object: map[string]any{
-		"apiVersion": "v1",
-		"kind":       "Secret",
-		"metadata":   metadata,
-		"type":       "Opaque",
-		"data":       dataField,
-	}}
-}
-
-func mustMarshalJSON(t *testing.T, obj *unstructured.Unstructured) string {
+// mustMarshalUnstructured marshals an unstructured object to a JSON string, failing the test on error.
+func mustMarshalUnstructured(t *testing.T, obj *unstructured.Unstructured) string {
 	t.Helper()
-	bytes, err := json.Marshal(obj)
+	data, err := json.Marshal(obj)
 	require.NoError(t, err)
-	return string(bytes)
-}
-
-func mustGetSecretData(t *testing.T, secretBytes []byte) map[string]any {
-	t.Helper()
-	var obj map[string]any
-	require.NoError(t, json.Unmarshal(secretBytes, &obj))
-	data, ok := obj["data"].(map[string]any)
-	require.True(t, ok, "expected data field to be a map")
-	return data
+	return string(data)
 }
 
 // testIgnoreDifferencesNormalizer implements a simple normalizer that removes specified fields
@@ -1453,73 +1469,111 @@ func TestHideSecretDataSameKeysDifferentValues(t *testing.T) {
 	assert.Equal(t, map[string]any{"key1": replacement2, "key2": replacement2}, secretData(live))
 }
 
-func TestHideSecretDataSameKeysSameValues(t *testing.T) {
-	target, live, err := HideSecretData(
-		createSecret(map[string]string{"key1": "test", "key2": "test"}),
-		createSecret(map[string]string{"key1": "test", "key2": "test"}),
-		nil,
-	)
+// TestHideSecretDataTargetLastAppliedConfig covers the case where target also has a
+// last-applied-configuration annotation with secret data. This can happen during
+// server-side diff when the dry-run returns a predictedLive with this annotation.
+func TestHideSecretDataTargetLastAppliedConfig(t *testing.T) {
+	targetLastAppliedSecret := createSecret(map[string]string{"key1": "test1"})
+	targetLastAppliedStr, err := json.Marshal(targetLastAppliedSecret)
 	require.NoError(t, err)
 
-	assert.Equal(t, map[string]any{"key1": replacement1, "key2": replacement1}, secretData(target))
-	assert.Equal(t, map[string]any{"key1": replacement1, "key2": replacement1}, secretData(live))
+	targetSecret := createSecret(map[string]string{"key1": "test1"}) // Same value as in last-applied
+	targetSecret.SetAnnotations(map[string]string{corev1.LastAppliedConfigAnnotation: string(targetLastAppliedStr)})
+
+	liveSecret := createSecret(map[string]string{"key1": "test2"})
+
+	target, live, err := HideSecretData(targetSecret, liveSecret, nil)
+	require.NoError(t, err)
+
+	// Verify target's last-applied-config is masked
+	targetLastAppliedAnnotation := target.GetAnnotations()[corev1.LastAppliedConfigAnnotation]
+	require.NotEmpty(t, targetLastAppliedAnnotation)
+	err = json.Unmarshal([]byte(targetLastAppliedAnnotation), &targetLastAppliedSecret)
+	require.NoError(t, err)
+
+	// target.key1 and targetLastApplied.key1 have the same value "test1", so they should get the same replacement
+	// live.key1 has a different value "test2", so it should get a different replacement
+	assert.Equal(t, map[string]any{"key1": replacement1}, secretData(target))
+	assert.Equal(t, map[string]any{"key1": replacement2}, secretData(live))
+	assert.Equal(t, map[string]any{"key1": replacement1}, secretData(targetLastAppliedSecret))
 }
 
-func TestHideSecretDataDifferentKeysDifferentValues(t *testing.T) {
-	target, live, err := HideSecretData(
-		createSecret(map[string]string{"key1": "test", "key2": "test"}),
-		createSecret(map[string]string{"key2": "test-1", "key3": "test-1"}),
-		nil,
-	)
+// TestHideSecretDataBothLastAppliedConfig covers the case where both target and live
+// have last-applied-configuration annotations.
+func TestHideSecretDataBothLastAppliedConfig(t *testing.T) {
+	// Use the same value "test1" in targetLastApplied.key1 and target.key1
+	// Use the same value "test2" in both target.key2 and targetLastApplied.key2
+	// Use a different value "test3" in live.key1 and liveLastApplied.key1
+	targetLastAppliedSecret := createSecret(map[string]string{"key1": "test1", "key2": "test2"})
+	targetLastAppliedStr, err := json.Marshal(targetLastAppliedSecret)
 	require.NoError(t, err)
 
+	liveLastAppliedSecret := createSecret(map[string]string{"key1": "test3"})
+	liveLastAppliedStr, err := json.Marshal(liveLastAppliedSecret)
+	require.NoError(t, err)
+
+	targetSecret := createSecret(map[string]string{"key1": "test1", "key2": "test2"})
+	targetSecret.SetAnnotations(map[string]string{corev1.LastAppliedConfigAnnotation: string(targetLastAppliedStr)})
+
+	liveSecret := createSecret(map[string]string{"key1": "test3"})
+	liveSecret.SetAnnotations(map[string]string{corev1.LastAppliedConfigAnnotation: string(liveLastAppliedStr)})
+
+	target, live, err := HideSecretData(targetSecret, liveSecret, nil)
+	require.NoError(t, err)
+
+	// Verify target's last-applied-config is masked
+	targetLastAppliedAnnotation := target.GetAnnotations()[corev1.LastAppliedConfigAnnotation]
+	require.NotEmpty(t, targetLastAppliedAnnotation)
+	err = json.Unmarshal([]byte(targetLastAppliedAnnotation), &targetLastAppliedSecret)
+	require.NoError(t, err)
+
+	// Verify live's last-applied-config is masked
+	liveLastAppliedAnnotation := live.GetAnnotations()[corev1.LastAppliedConfigAnnotation]
+	require.NotEmpty(t, liveLastAppliedAnnotation)
+	err = json.Unmarshal([]byte(liveLastAppliedAnnotation), &liveLastAppliedSecret)
+	require.NoError(t, err)
+
+	// The algorithm processes keys separately and resets valToReplacement for each key
+	// For key1: "test1" (in target and targetLastApplied) gets replacement1, "test3" (in live and liveLastApplied) gets replacement2
+	// For key2: "test2" (in target and targetLastApplied) gets replacement1 (per-key valToReplacement)
 	assert.Equal(t, map[string]any{"key1": replacement1, "key2": replacement1}, secretData(target))
-	assert.Equal(t, map[string]any{"key2": replacement2, "key3": replacement1}, secretData(live))
+	assert.Equal(t, map[string]any{"key1": replacement2}, secretData(live))
+	assert.Equal(t, map[string]any{"key1": replacement1, "key2": replacement1}, secretData(targetLastAppliedSecret))
+	assert.Equal(t, map[string]any{"key1": replacement2}, secretData(liveLastAppliedSecret))
 }
 
-func TestHideStringDataInInvalidSecret(t *testing.T) {
-	liveUn := &unstructured.Unstructured{
-		Object: map[string]any{
-			"apiVersion": "v1",
-			"kind":       "Secret",
-			"metadata": map[string]any{
-				"name": "test-secret",
-			},
-			"type": "Opaque",
-			"data": map[string]any{
-				"key1": "a2V5MQ==",
-				"key2": "a2V5MQ==",
-			},
-		},
-	}
-	targetUn := &unstructured.Unstructured{
-		Object: map[string]any{
-			"apiVersion": "v1",
-			"kind":       "Secret",
-			"metadata": map[string]any{
-				"name": "test-secret",
-			},
-			"type": "Opaque",
-			"data": map[string]any{
-				"key1": "a2V5MQ==",
-				"key2": "a2V5Mg==",
-				"key3": false,
-			},
-			"stringData": map[string]any{
-				"key4": "key4",
-				"key5": 5,
-			},
-		},
-	}
+// TestHideSecretDataMalformedLiveLastAppliedConfig verifies that a last-applied-configuration
+// annotation that is not valid JSON may still embed raw Secret material, so it must be
+// replaced with the placeholder rather than left untouched (fail closed).
+func TestHideSecretDataMalformedLiveLastAppliedConfig(t *testing.T) {
+	const malformed = `{"data":{"password":"U0VDUkVUVkFM"` // truncated JSON, unparseable
+	targetSecret := createSecret(map[string]string{"key1": "test1"})
+	liveSecret := createSecret(map[string]string{"key1": "test1"})
+	liveSecret.SetAnnotations(map[string]string{corev1.LastAppliedConfigAnnotation: malformed})
 
-	liveUn = remarshal(liveUn, applyOptions(diffOptionsForTest()))
-	targetUn = remarshal(targetUn, applyOptions(diffOptionsForTest()))
-
-	target, live, err := HideSecretData(targetUn, liveUn, nil)
+	_, live, err := HideSecretData(targetSecret, liveSecret, nil)
 	require.NoError(t, err)
 
-	assert.Equal(t, map[string]any{"key1": replacement1, "key2": replacement2}, secretData(live))
-	assert.Equal(t, map[string]any{"key1": replacement1, "key2": replacement1, "key3": replacement1, "key4": replacement1, "key5": replacement1}, secretData(target))
+	annotation := live.GetAnnotations()[corev1.LastAppliedConfigAnnotation]
+	assert.Equal(t, replacement, annotation, "malformed live annotation must be fully masked")
+	assert.NotContains(t, annotation, "U0VDUkVUVkFM", "raw secret material must not survive")
+}
+
+// TestHideSecretDataMalformedTargetLastAppliedConfig is the same as
+// TestHideSecretDataMalformedLiveLastAppliedConfig, but for the target object (e.g. a
+// predictedLive from a server-side dry-run).
+func TestHideSecretDataMalformedTargetLastAppliedConfig(t *testing.T) {
+	const malformed = `{"data":{"password":"U0VDUkVUVkFM"` // truncated JSON, unparseable
+	targetSecret := createSecret(map[string]string{"key1": "test1"})
+	targetSecret.SetAnnotations(map[string]string{corev1.LastAppliedConfigAnnotation: malformed})
+	liveSecret := createSecret(map[string]string{"key1": "test1"})
+
+	target, _, err := HideSecretData(targetSecret, liveSecret, nil)
+	require.NoError(t, err)
+
+	annotation := target.GetAnnotations()[corev1.LastAppliedConfigAnnotation]
+	assert.Equal(t, replacement, annotation, "malformed target annotation must be fully masked")
+	assert.NotContains(t, annotation, "U0VDUkVUVkFM", "raw secret material must not survive")
 }
 
 // stringData in secrets should be normalized even if it is invalid
@@ -1597,7 +1651,7 @@ func TestNormalizeSecret(t *testing.T) {
 	}
 }
 
-func TestHideSecretAnnotations(t *testing.T) {
+func TestHideSecretData_HideAnnotations(t *testing.T) {
 	tests := []struct {
 		name           string
 		hideAnnots     map[string]bool
@@ -1693,7 +1747,7 @@ func TestHideSecretAnnotations(t *testing.T) {
 	}
 }
 
-func TestHideSecretAnnotationsPreserveDifference(t *testing.T) {
+func TestHideSecretData_HideAnnotations_PreserveDifference(t *testing.T) {
 	hideAnnots := map[string]bool{"token/value": true}
 
 	liveUn := &unstructured.Unstructured{
@@ -1790,40 +1844,6 @@ func bytesToUnstructured(t *testing.T, jsonBytes []byte) *unstructured.Unstructu
 	return &unstructured.Unstructured{
 		Object: jsonMap,
 	}
-}
-
-func TestHideSecretDataHandleEmptySecret(t *testing.T) {
-	// given
-	targetSecret := bytesToUnstructured(t, getTargetSecretJsonBytes())
-	liveSecret := bytesToUnstructured(t, getLiveSecretJsonBytes())
-
-	// when
-	target, live, err := HideSecretData(targetSecret, liveSecret, nil)
-
-	// then
-	require.NoError(t, err)
-	assert.NotNil(t, target)
-	assert.NotNil(t, live)
-	assert.Nil(t, target.Object["data"])
-	assert.Equal(t, map[string]any{"namespace": "++++++++", "token": "++++++++"}, secretData(live))
-}
-
-func TestHideSecretDataLastAppliedConfig(t *testing.T) {
-	lastAppliedSecret := createSecret(map[string]string{"key1": "test1"})
-	targetSecret := createSecret(map[string]string{"key1": "test2"})
-	liveSecret := createSecret(map[string]string{"key1": "test3"})
-	lastAppliedStr, err := json.Marshal(lastAppliedSecret)
-	require.NoError(t, err)
-	liveSecret.SetAnnotations(map[string]string{corev1.LastAppliedConfigAnnotation: string(lastAppliedStr)})
-
-	target, live, err := HideSecretData(targetSecret, liveSecret, nil)
-	require.NoError(t, err)
-	err = json.Unmarshal([]byte(live.GetAnnotations()[corev1.LastAppliedConfigAnnotation]), &lastAppliedSecret)
-	require.NoError(t, err)
-
-	assert.Equal(t, map[string]any{"key1": replacement1}, secretData(target))
-	assert.Equal(t, map[string]any{"key1": replacement2}, secretData(live))
-	assert.Equal(t, map[string]any{"key1": replacement3}, secretData(lastAppliedSecret))
 }
 
 func TestRemarshal(t *testing.T) {
