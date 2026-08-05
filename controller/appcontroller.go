@@ -818,14 +818,14 @@ func (ctrl *ApplicationController) hideSecretData(ctx context.Context, destClust
 			if err != nil {
 				return nil, fmt.Errorf("error hiding secret data: %w", err)
 			}
-			// server-side diff already masks Secret data and removes webhook mutations on
-			// updates; recomputing client-side here would resurrect that drift.
+			// server-side diff removes webhook mutations on updates; recomputing
+			// client-side here would resurrect that drift.
 			useSSDResult := comparisonResult.diffConfig != nil &&
 				comparisonResult.diffConfig.ServerSideDiff() &&
 				res.Target != nil && res.Live != nil
-			// gitops-engine SSD masks Secret data with a nil hideAnnotations map, so
-			// sensitive annotation values would leak into resDiff. Re-mask as a pair.
-			if useSSDResult && len(hideAnnots) > 0 {
+			// gitops-engine SSD leaves masking to the caller, so resDiff still holds raw
+			// Secret data and annotations. Re-mask both sides as a pair.
+			if useSSDResult {
 				var predicted, normalized *unstructured.Unstructured
 				if len(resDiff.PredictedLive) > 0 && string(resDiff.PredictedLive) != "null" {
 					predicted = &unstructured.Unstructured{}

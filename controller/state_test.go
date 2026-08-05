@@ -73,10 +73,10 @@ func buildSSADiffConfig(t *testing.T) argodiff.DiffConfig {
 }
 
 // TestHideSecretData_SSDPathReusesMainDiff verifies that when the main comparison
-// used server-side diff (which already applies HideSecretData and removes webhook
-// mutations in gitops-engine), the cached ResourceDiff items reuse that result
-// instead of re-running a client-side diff that would surface false drift such as
-// the bank-vaults vault-secrets-webhook case.
+// used server-side diff (which removes webhook mutations in gitops-engine), the
+// cached ResourceDiff items reuse that result instead of re-running a client-side
+// diff that would surface false drift such as the bank-vaults
+// vault-secrets-webhook case.
 func TestHideSecretData_SSDPathReusesMainDiff(t *testing.T) {
 	app := newFakeApp()
 	ctrl := newFakeController(t.Context(), &fakeData{}, nil)
@@ -86,10 +86,13 @@ func TestHideSecretData_SSDPathReusesMainDiff(t *testing.T) {
 		map[string][]byte{"key": []byte("${vault:secret/foo#bar}")},
 		map[string][]byte{"key": []byte("realvalue")},
 	)
+	// cmVhbHZhbHVl is base64("realvalue"), the webhook-resolved value that server-side
+	// diff sees on both sides once the webhook mutation is removed.
+	state := `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"test-secret","namespace":"default"},"data":{"key":"cmVhbHZhbHVl"}}`
 	mr.Diff = diff.DiffResult{
 		Modified:       false,
-		NormalizedLive: []byte(`{"masked":"live"}`),
-		PredictedLive:  []byte(`{"masked":"live"}`),
+		NormalizedLive: []byte(state),
+		PredictedLive:  []byte(state),
 	}
 
 	compRes := &comparisonResult{
@@ -100,14 +103,14 @@ func TestHideSecretData_SSDPathReusesMainDiff(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, items, 1)
 	assert.False(t, items[0].Modified)
-	assert.JSONEq(t, `{"masked":"live"}`, items[0].PredictedLiveState)
-	assert.JSONEq(t, `{"masked":"live"}`, items[0].NormalizedLiveState)
+	// both sides mask to the same placeholder, so the UI shows no drift
+	assert.JSONEq(t, items[0].PredictedLiveState, items[0].NormalizedLiveState)
+	assert.Contains(t, items[0].PredictedLiveState, "++++++++")
 }
 
 // TestHideSecretData_SSDPathCreateRecomputes verifies that for Secret creation
 // (live is nil) under server-side diff, the function still falls back to the
-// client-side recompute. The server-side diff result for create skips
-// HideSecretData inside gitops-engine, so reusing it would leak raw secret data.
+// client-side recompute, which masks the target state.
 func TestHideSecretData_SSDPathCreateRecomputes(t *testing.T) {
 	app := newFakeApp()
 	ctrl := newFakeController(t.Context(), &fakeData{}, nil)
@@ -132,8 +135,8 @@ func TestHideSecretData_SSDPathCreateRecomputes(t *testing.T) {
 
 // TestHideSecretData_SSDPathMasksSensitiveAnnotations verifies that when SSD result
 // is reused, sensitive annotation values in PredictedLive/NormalizedLive are masked
-// via SettingsManager.GetSensitiveAnnotations. gitops-engine SSD passes a nil
-// hideAnnotations map, so without re-masking those values would leak into the cache.
+// via SettingsManager.GetSensitiveAnnotations. gitops-engine SSD does not mask at
+// all, so without re-masking those values would leak into the cache.
 func TestHideSecretData_SSDPathMasksSensitiveAnnotations(t *testing.T) {
 	app := newFakeApp()
 	ctrl := newFakeController(t.Context(), &fakeData{
@@ -147,8 +150,8 @@ func TestHideSecretData_SSDPathMasksSensitiveAnnotations(t *testing.T) {
 		map[string][]byte{"key": []byte("v")},
 		map[string][]byte{"key": []byte("v")},
 	)
-	predicted := `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"test-secret","annotations":{"my-sensitive":"topsecret"}},"data":{"key":"++++++++"}}`
-	normalized := `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"test-secret","annotations":{"my-sensitive":"topsecret"}},"data":{"key":"++++++++"}}`
+	predicted := `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"test-secret","annotations":{"my-sensitive":"topsecret"}},"data":{"key":"dg=="}}`
+	normalized := `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"test-secret","annotations":{"my-sensitive":"topsecret"}},"data":{"key":"dg=="}}`
 	mr.Diff = diff.DiffResult{
 		Modified:       false,
 		PredictedLive:  []byte(predicted),
@@ -165,6 +168,41 @@ func TestHideSecretData_SSDPathMasksSensitiveAnnotations(t *testing.T) {
 	assert.False(t, items[0].Modified)
 	assert.NotContains(t, items[0].PredictedLiveState, "topsecret")
 	assert.NotContains(t, items[0].NormalizedLiveState, "topsecret")
+}
+
+// TestHideSecretData_SSDPathMasksReusedSecretData verifies that the reused SSD result
+// is masked even when no sensitive annotations are configured. gitops-engine leaves
+// Secret masking to the caller, so PredictedLive/NormalizedLive hold raw data that
+// would otherwise leak into the cache.
+func TestHideSecretData_SSDPathMasksReusedSecretData(t *testing.T) {
+	app := newFakeApp()
+	ctrl := newFakeController(t.Context(), &fakeData{}, nil)
+
+	mr := newSecretManagedResource(
+		"test-secret",
+		map[string][]byte{"key": []byte("topsecret")},
+		map[string][]byte{"key": []byte("topsecret")},
+	)
+	// dG9wc2VjcmV0 is base64("topsecret"), as it appears in an unmasked server-side diff result.
+	state := `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"test-secret"},"data":{"key":"dG9wc2VjcmV0"}}`
+	mr.Diff = diff.DiffResult{
+		Modified:       false,
+		PredictedLive:  []byte(state),
+		NormalizedLive: []byte(state),
+	}
+
+	compRes := &comparisonResult{
+		managedResources: []managedResource{mr},
+		diffConfig:       buildSSADiffConfig(t),
+	}
+	items, err := ctrl.hideSecretData(t.Context(), &v1alpha1.Cluster{Server: "test", Name: "test"}, app, compRes)
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+	assert.False(t, items[0].Modified)
+	assert.Contains(t, items[0].PredictedLiveState, "++++++++")
+	assert.Contains(t, items[0].NormalizedLiveState, "++++++++")
+	assert.NotContains(t, items[0].PredictedLiveState, "dG9wc2VjcmV0")
+	assert.NotContains(t, items[0].NormalizedLiveState, "dG9wc2VjcmV0")
 }
 
 // TestHideSecretData_NonSSDRecomputes verifies that when server-side diff is not
