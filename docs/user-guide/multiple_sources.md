@@ -43,6 +43,19 @@ If multiple sources produce the same resource (same `group`, `kind`, `name`, and
 produce the resource will take precedence. Argo CD will produce a `RepeatedResourceWarning` in this case, but it will 
 sync the resources. This provides a convenient way to override a resource from a chart with a resource from a Git repo.
 
+If the duplication is known and intentional (for example, CRDs from Helm subchart dependencies), you can suppress the 
+`RepeatedResourceWarning` for specific resources using `ignoreDuplicateResources`:
+
+```yaml
+spec:
+  ignoreDuplicateResources:
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+      name: dnsendpoints.externaldns.k8s.io
+```
+
+Empty fields in the selector act as wildcards (e.g., specifying only `kind` will match all resources of that kind).
+
 ## Helm value files from external Git repository
 
 One of the most common scenarios for using multiple sources is the following
