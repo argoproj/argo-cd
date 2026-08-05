@@ -4,10 +4,6 @@ import * as React from 'react';
 import {Helmet} from 'react-helmet';
 import {Redirect, Route, RouteComponentProps, Router, Switch} from 'react-router';
 import {Subscription} from 'rxjs';
-import applications from './applications';
-import help from './help';
-import login from './login';
-import settings from './settings';
 import {Layout, ThemeWrapper} from './shared/components/layout/layout';
 import {Page} from './shared/components';
 import {Spinner} from './shared/components';
@@ -17,7 +13,6 @@ import {services} from './shared/services';
 import requests from './shared/services/requests';
 import {hashCode, isSSOConfigured} from './shared/utils';
 import {Banner} from './ui-banner/ui-banner';
-import userInfo from './user-info';
 import {AuthSettings, UserInfo} from './shared/models';
 import {SystemLevelExtension} from './shared/services/extensions-service';
 
@@ -29,14 +24,20 @@ requests.setBaseHRef(base);
 
 type Routes = {[path: string]: {component: React.ComponentType<RouteComponentProps<any>>; noLayout?: boolean}};
 
+const applications = React.lazy(() => import('./applications').then(m => ({default: m.default.component})));
+const help = React.lazy(() => import('./help').then(m => ({default: m.default.component})));
+const login = React.lazy(() => import('./login').then(m => ({default: m.default.component})));
+const settings = React.lazy(() => import('./settings').then(m => ({default: m.default.component})));
+const userInfo = React.lazy(() => import('./user-info').then(m => ({default: m.default.component})));
+
 const routes: Routes = {
-    '/login': {component: login.component as any, noLayout: true},
-    '/applications': {component: applications.component},
+    '/login': {component: login as any, noLayout: true},
+    '/applications': {component: applications},
     // TODO: Uncomment when ApplicationSet details page is fully implemented
-    '/applicationsets': {component: applications.component},
-    '/settings': {component: settings.component},
-    '/user-info': {component: userInfo.component},
-    '/help': {component: help.component}
+    '/applicationsets': {component: applications},
+    '/settings': {component: settings},
+    '/user-info': {component: userInfo},
+    '/help': {component: help}
 };
 
 interface NavItem {
@@ -292,35 +293,42 @@ export class App extends React.Component<
                             </DataLoader>
                             <AuthSettingsCtx.Provider value={this.state.authSettings}>
                                 <Router history={history}>
-                                    <Switch>
-                                        <Redirect exact={true} path='/' to='/applications' />
-                                        {Object.keys(this.routes).map(path => {
-                                            const route = this.routes[path];
-                                            return (
-                                                <Route
-                                                    key={path}
-                                                    path={path}
-                                                    render={routeProps =>
-                                                        route.noLayout ? (
-                                                            <div>
-                                                                <route.component {...routeProps} />
-                                                            </div>
-                                                        ) : (
-                                                            <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                                                                {pref => (
-                                                                    <Layout onVersionClick={() => this.setState({showVersionPanel: true})} navItems={this.navItems} pref={pref}>
-                                                                        <Banner>
-                                                                            <route.component {...routeProps} />
-                                                                        </Banner>
-                                                                    </Layout>
-                                                                )}
-                                                            </DataLoader>
-                                                        )
-                                                    }
-                                                />
-                                            );
-                                        })}
-                                    </Switch>
+                                    <React.Suspense
+                                        fallback={
+                                            <div style={{display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh'}}>
+                                                <Spinner show={true} />
+                                            </div>
+                                        }>
+                                        <Switch>
+                                            <Redirect exact={true} path='/' to='/applications' />
+                                            {Object.keys(this.routes).map(path => {
+                                                const route = this.routes[path];
+                                                return (
+                                                    <Route
+                                                        key={path}
+                                                        path={path}
+                                                        render={routeProps =>
+                                                            route.noLayout ? (
+                                                                <div>
+                                                                    <route.component {...routeProps} />
+                                                                </div>
+                                                            ) : (
+                                                                <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                                                                    {pref => (
+                                                                        <Layout onVersionClick={() => this.setState({showVersionPanel: true})} navItems={this.navItems} pref={pref}>
+                                                                            <Banner>
+                                                                                <route.component {...routeProps} />
+                                                                            </Banner>
+                                                                        </Layout>
+                                                                    )}
+                                                                </DataLoader>
+                                                            )
+                                                        }
+                                                    />
+                                                );
+                                            })}
+                                        </Switch>
+                                    </React.Suspense>
                                 </Router>
                             </AuthSettingsCtx.Provider>
                         </AppContextReact.Provider>
