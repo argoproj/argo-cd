@@ -124,7 +124,7 @@
     "jest-junit": "^17.0.0",
     "monaco-editor-webpack-plugin": "^7.1.0",
     "popper.js": "^1.16.1",
-    "postcss": "^8.5.18",
+    "postcss": "^8.5.23",
     "prettier": "^3.9.6",
     "raw-loader": "^0.5.1",
     "react-toastify": "11.1.0",

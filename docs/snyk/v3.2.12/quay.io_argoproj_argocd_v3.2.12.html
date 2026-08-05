@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="47 known vulnerabilities found in 54 vulnerable dependency paths.">
+  <meta name="description" content="48 known vulnerabilities found in 55 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -492,7 +492,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">July 26th 2026, 9:17:11 am (UTC+00:00)</p>
+                <p class="timestamp">August 2nd 2026, 12:51:31 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -506,8 +506,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>47</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>54 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>48</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>55 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>2326</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -1660,6 +1660,80 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMMOBYSPDYSTREAMSPDY-16304822">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Integer Overflow</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v3.2.12/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            github.com/klauspost/compress/s2
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/argoproj/argo-cd/v3@* and github.com/klauspost/compress/s2@v1.18.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/klauspost/compress/s2@v1.18.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Integer Overflow leading to an out-of-bounds write in the <code>s2.NewDict()</code> function in <code>s2/dict.go</code>, which reads a uvarint and converts it to <code>int</code> without checking whether it exceeds <code>MaxInt64</code>. An attacker can crash the process with a segmentation fault by supplying S2 dictionary data whose repeat-index uvarint exceeds <code>MaxInt64</code>, which becomes a negative <code>int</code> that bypasses the index validation and drives out-of-bounds arithmetic through <code>unsafe.Pointer</code> in <code>Dict.Encode()</code>. Exploitation requires the application to build an S2 dictionary from attacker-controlled data with <code>s2.NewDict()</code> and then call <code>Dict.Encode()</code> on input of at least 32 bytes.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>github.com/klauspost/compress/s2</code> to version 1.18.7 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/klauspost/compress/security/advisories/GHSA-259r-337f-4rfw">GitHub Advisory</a></li>
+        <li><a href="https://github.com/klauspost/compress/commit/8668e357e776d5152ed62f33c17f21b8690664fa">GitHub Commit</a></li>
+        <li><a href="https://pkg.go.dev/vuln/GO-2026-5841">Go Advisory</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMKLAUSPOSTCOMPRESSS2-18343256">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
