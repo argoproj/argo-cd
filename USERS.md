@@ -263,6 +263,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Next Fit Sistemas](https://nextfit.com.br/)
 1. [Nikkei](https://www.nikkei.co.jp/nikkeiinfo/en/)
 1. [Nitro](https://gonitro.com)
+1. [Nitrogen Wealth, Inc.](https://nitrogenwealth.com)
 1. [NYCU, CS IT Center](https://it.cs.nycu.edu.tw)
 1. [Objective](https://www.objective.com.br/)
 1. [OCCMundial](https://occ.com.mx)
