@@ -1906,6 +1906,11 @@ func (in *ComparedTo) DeepCopyInto(out *ComparedTo) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.IgnoreDuplicateResources != nil {
+		in, out := &in.IgnoreDuplicateResources, &out.IgnoreDuplicateResources
+		*out = make(IgnoreDuplicateResources, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 

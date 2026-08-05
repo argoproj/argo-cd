@@ -569,28 +569,37 @@ func unmarshalManifests(manifests []string) ([]*unstructured.Unstructured, error
 	return targetObjs, nil
 }
 
-func NormalizeTargetObjects(namespace string, objs []*unstructured.Unstructured, infoProvider kubeutil.ResourceInfoProvider, setAppInstance func(*unstructured.Unstructured) error, ignoreDuplicateResources []v1alpha1.ResourceIgnoreDuplicate) ([]*unstructured.Unstructured, []v1alpha1.ApplicationCondition, error) {
+// NormalizeTargetObjectsOpts contains options for normalizing target objects (deduplication, namespace handling).
+type NormalizeTargetObjectsOpts struct {
+	Namespace               string
+	Objs                    []*unstructured.Unstructured
+	InfoProvider            kubeutil.ResourceInfoProvider
+	SetAppInstance          func(*unstructured.Unstructured) error
+	IgnoreDuplicateResources []v1alpha1.ResourceIgnoreDuplicate
+}
+
+func NormalizeTargetObjects(opts NormalizeTargetObjectsOpts) ([]*unstructured.Unstructured, []v1alpha1.ApplicationCondition, error) {
 	targetByKey := make(map[kubeutil.ResourceKey][]*unstructured.Unstructured)
-	for i := range objs {
-		obj := objs[i]
+	for i := range opts.Objs {
+		obj := opts.Objs[i]
 		if obj == nil {
 			continue
 		}
 
 		namespaceModified := false
-		isNamespaced := kubeutil.IsNamespacedOrUnknown(infoProvider, obj.GroupVersionKind().GroupKind())
+		isNamespaced := kubeutil.IsNamespacedOrUnknown(opts.InfoProvider, obj.GroupVersionKind().GroupKind())
 		if !isNamespaced && obj.GetNamespace() != "" {
 			// If a resource is cluster scoped, set the namespace to empty.
 			obj.SetNamespace("")
 			namespaceModified = true
 		} else if isNamespaced && obj.GetNamespace() == "" {
 			// If the object does not have a namespace specified, set it to the namespace of the application.
-			obj.SetNamespace(namespace)
+			obj.SetNamespace(opts.Namespace)
 			namespaceModified = true
 		}
 
 		if namespaceModified {
-			err := setAppInstance(obj)
+			err := opts.SetAppInstance(obj)
 			if err != nil {
 				return nil, nil, fmt.Errorf("failed to set app instance label on resource %s/%s: %w", obj.GetKind(), obj.GetName(), err)
 			}
@@ -607,9 +616,9 @@ func NormalizeTargetObjects(namespace string, objs []*unstructured.Unstructured,
 	result := make([]*unstructured.Unstructured, 0)
 	for key, targets := range targetByKey {
 		if len(targets) > 1 {
-			// Check if this resource matches any ignoreDuplicateResources selector.
+			// Check if this resource matches any opts.IgnoreDuplicateResources selector.
 			ignoreWarning := false
-			for _, ignore := range ignoreDuplicateResources {
+			for _, ignore := range opts.IgnoreDuplicateResources {
 				if ignore.Matches(key) {
 					ignoreWarning = true
 					break
@@ -697,8 +706,9 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 	// Build initial sync status
 	syncStatus := &v1alpha1.SyncStatus{
 		ComparedTo: v1alpha1.ComparedTo{
-			Destination:       app.Spec.Destination,
-			IgnoreDifferences: app.Spec.IgnoreDifferences,
+			Destination:             app.Spec.Destination,
+			IgnoreDifferences:       app.Spec.IgnoreDifferences,
+			IgnoreDuplicateResources: app.Spec.IgnoreDuplicateResources,
 		},
 		Status: v1alpha1.SyncStatusCodeUnknown,
 	}
@@ -801,9 +811,15 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 		infoProvider = &resourceInfoProviderStub{}
 	}
 
-	targetObjs, dedupConditions, err := NormalizeTargetObjects(app.Spec.Destination.Namespace, targetObjs, infoProvider, func(u *unstructured.Unstructured) error {
-		return m.resourceTracking.SetAppInstance(u, appLabelKey, app.InstanceName(m.namespace), app.Spec.Destination.Namespace, v1alpha1.TrackingMethod(trackingMethod), installationID)
-	}, app.Spec.IgnoreDuplicateResources)
+	targetObjs, dedupConditions, err := NormalizeTargetObjects(NormalizeTargetObjectsOpts{
+		Namespace:               app.Spec.Destination.Namespace,
+		Objs:                    targetObjs,
+		InfoProvider:            infoProvider,
+		SetAppInstance: func(u *unstructured.Unstructured) error {
+			return m.resourceTracking.SetAppInstance(u, appLabelKey, app.InstanceName(m.namespace), app.Spec.Destination.Namespace, v1alpha1.TrackingMethod(trackingMethod), installationID)
+		},
+		IgnoreDuplicateResources: app.Spec.IgnoreDuplicateResources,
+	})
 	if err != nil {
 		msg := "Failed to normalize target state: " + err.Error()
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: msg, LastTransitionTime: &now})

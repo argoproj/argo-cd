@@ -13,6 +13,7 @@ import (
 
 	argocdcommon "github.com/argoproj/argo-cd/v3/common"
 
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -5292,6 +5293,142 @@ func TestIgnoreDifferences_Equals(t *testing.T) {
 
 	for _, testCase := range tests {
 		testCopy := testCase
+		t.Run(testCopy.name, func(t *testing.T) {
+			assert.Equal(t, testCopy.expected, testCopy.a.Equals(testCopy.b))
+		})
+	}
+}
+
+func TestResourceIgnoreDuplicate_Matches(t *testing.T) {
+	tests := []struct {
+		name     string
+		selector ResourceIgnoreDuplicate
+		key      kube.ResourceKey
+		expected bool
+	}{
+		{
+			name:     "matches when all fields match exactly",
+			selector: ResourceIgnoreDuplicate{Group: "apps", Kind: "Deployment", Name: "my-app", Namespace: "default"},
+			key:      kube.ResourceKey{Group: "apps", Kind: "Deployment", Name: "my-app", Namespace: "default"},
+			expected: true,
+		},
+		{
+			name:     "group mismatch returns false",
+			selector: ResourceIgnoreDuplicate{Group: "apps", Kind: "Deployment"},
+			key:      kube.ResourceKey{Group: "rbac.authorization.k8s.io", Kind: "Deployment"},
+			expected: false,
+		},
+		{
+			name:     "kind mismatch returns false",
+			selector: ResourceIgnoreDuplicate{Group: "apps", Kind: "Deployment"},
+			key:      kube.ResourceKey{Group: "apps", Kind: "StatefulSet"},
+			expected: false,
+		},
+		{
+			name:     "name mismatch returns false",
+			selector: ResourceIgnoreDuplicate{Kind: "Deployment", Name: "my-app"},
+			key:      kube.ResourceKey{Kind: "Deployment", Name: "other-app"},
+			expected: false,
+		},
+		{
+			name:     "namespace mismatch returns false",
+			selector: ResourceIgnoreDuplicate{Kind: "Deployment", Namespace: "default"},
+			key:      kube.ResourceKey{Kind: "Deployment", Namespace: "kube-system"},
+			expected: false,
+		},
+		{
+			name:     "empty group acts as wildcard",
+			selector: ResourceIgnoreDuplicate{Kind: "Deployment"},
+			key:      kube.ResourceKey{Group: "apps", Kind: "Deployment"},
+			expected: true,
+		},
+		{
+			name:     "empty name acts as wildcard",
+			selector: ResourceIgnoreDuplicate{Kind: "Deployment"},
+			key:      kube.ResourceKey{Kind: "Deployment", Name: "any-name"},
+			expected: true,
+		},
+		{
+			name:     "empty namespace acts as wildcard",
+			selector: ResourceIgnoreDuplicate{Kind: "Deployment"},
+			key:      kube.ResourceKey{Kind: "Deployment", Namespace: "any-ns"},
+			expected: true,
+		},
+		{
+			name:     "kind-only selector matches any resource of that kind",
+			selector: ResourceIgnoreDuplicate{Kind: "Deployment"},
+			key:      kube.ResourceKey{Group: "apps", Kind: "Deployment", Name: "guestbook", Namespace: "default"},
+			expected: true,
+		},
+		{
+			name:     "empty selector matches nothing (all empty fields act as wildcards)",
+			selector: ResourceIgnoreDuplicate{},
+			key:      kube.ResourceKey{Group: "apps", Kind: "Deployment", Name: "guestbook", Namespace: "default"},
+			expected: true,
+		},
+	}
+
+	for _, tc := range tests {
+		testCopy := tc
+		t.Run(testCopy.name, func(t *testing.T) {
+			assert.Equal(t, testCopy.expected, testCopy.selector.Matches(testCopy.key))
+		})
+	}
+}
+
+func TestIgnoreDuplicateResources_Equals(t *testing.T) {
+	tests := []struct {
+		name     string
+		a        IgnoreDuplicateResources
+		b        IgnoreDuplicateResources
+		expected bool
+	}{
+		{
+			name:     "nil and nil are equal",
+			a:        nil,
+			b:        nil,
+			expected: true,
+		},
+		{
+			name:     "nil and empty slice are equal",
+			a:        nil,
+			b:        IgnoreDuplicateResources{},
+			expected: true,
+		},
+		{
+			name:     "empty slice and nil are equal",
+			a:        IgnoreDuplicateResources{},
+			b:        nil,
+			expected: true,
+		},
+		{
+			name:     "empty slices are equal",
+			a:        IgnoreDuplicateResources{},
+			b:        IgnoreDuplicateResources{},
+			expected: true,
+		},
+		{
+			name:     "nil and non-empty slice are not equal",
+			a:        nil,
+			b:        IgnoreDuplicateResources{{Kind: "Deployment"}},
+			expected: false,
+		},
+		{
+			name:     "equal non-empty slices are equal",
+			a:        IgnoreDuplicateResources{{Kind: "Deployment", Group: "apps"}},
+			b:        IgnoreDuplicateResources{{Kind: "Deployment", Group: "apps"}},
+			expected: true,
+		},
+		{
+			name:     "different non-empty slices are not equal",
+			a:        IgnoreDuplicateResources{{Kind: "Deployment"}},
+			b:        IgnoreDuplicateResources{{Kind: "Service"}},
+			expected: false,
+		},
+	}
+
+	for _, tc := range tests {
+		testCopy := tc
 		t.Run(testCopy.name, func(t *testing.T) {
 			assert.Equal(t, testCopy.expected, testCopy.a.Equals(testCopy.b))
 		})

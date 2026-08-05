@@ -2160,6 +2160,8 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 			reason = "spec.syncPolicy.managedNamespaceMetadata differs"
 		} else if !app.Spec.IgnoreDifferences.Equals(app.Status.Sync.ComparedTo.IgnoreDifferences) {
 			reason = "spec.ignoreDifferences differs"
+		} else if !app.Spec.IgnoreDuplicateResources.Equals(app.Status.Sync.ComparedTo.IgnoreDuplicateResources) {
+			reason = "spec.ignoreDuplicateResources differs"
 		} else if requested, level := ctrl.isRefreshRequested(app.QualifiedName()); requested {
 			compareWith = level
 			reason = "controller refresh requested"

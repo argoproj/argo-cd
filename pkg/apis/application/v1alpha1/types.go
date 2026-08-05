@@ -142,7 +142,9 @@ type ResourceIgnoreDifferences struct {
 // If a resource matches the Group/Kind/Name/Namespace selector, the warning will not be
 // generated when that resource appears multiple times among application resources.
 type ResourceIgnoreDuplicate struct {
+	// +kubebuilder:validation:MinLength=1
 	Group     string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
+	// +kubebuilder:validation:MinLength=1
 	Kind      string `json:"kind" protobuf:"bytes,2,opt,name=kind"`
 	Name      string `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
 	Namespace string `json:"namespace,omitempty" protobuf:"bytes,4,opt,name=namespace"`
@@ -168,6 +170,14 @@ func (r *ResourceIgnoreDuplicate) Matches(key kube.ResourceKey) bool {
 
 // IgnoreDuplicateResources is a list of resource selectors for which RepeatedResourceWarning should be suppressed.
 type IgnoreDuplicateResources []ResourceIgnoreDuplicate
+
+func (idr IgnoreDuplicateResources) Equals(other IgnoreDuplicateResources) bool {
+	// Treat nil and empty slice as equivalent
+	if len(idr) == 0 && len(other) == 0 {
+		return true
+	}
+	return reflect.DeepEqual(idr, other)
+}
 
 // EnvEntry represents an entry in the application's environment
 type EnvEntry struct {
@@ -1356,8 +1366,9 @@ func (status *ApplicationStatus) GetRevisions() []string {
 // Application state.
 func (spec *ApplicationSpec) BuildComparedToStatus(sources []ApplicationSource) ComparedTo {
 	ct := ComparedTo{
-		Destination:       spec.Destination,
-		IgnoreDifferences: spec.IgnoreDifferences,
+		Destination:             spec.Destination,
+		IgnoreDifferences:       spec.IgnoreDifferences,
+		IgnoreDuplicateResources: spec.IgnoreDuplicateResources,
 	}
 	if spec.HasMultipleSources() {
 		ct.Sources = sources
@@ -1972,6 +1983,8 @@ type ComparedTo struct {
 	Sources ApplicationSources `json:"sources,omitempty" protobuf:"bytes,3,opt,name=sources"`
 	// IgnoreDifferences is a reference to the application's ignored differences used for comparison
 	IgnoreDifferences IgnoreDifferences `json:"ignoreDifferences,omitempty" protobuf:"bytes,4,opt,name=ignoreDifferences"`
+	// IgnoreDuplicateResources is a reference to the application's ignored duplicate resources used for comparison
+	IgnoreDuplicateResources IgnoreDuplicateResources `json:"ignoreDuplicateResources,omitempty" protobuf:"bytes,5,opt,name=ignoreDuplicateResources"`
 }
 
 // SyncStatus contains information about the currently observed live and desired states of an application

@@ -1043,6 +1043,9 @@ message ComparedTo {
 
   // IgnoreDifferences is a reference to the application's ignored differences used for comparison
   repeated ResourceIgnoreDifferences ignoreDifferences = 4;
+
+  // IgnoreDuplicateResources is a reference to the application's ignored duplicate resources used for comparison
+  repeated ResourceIgnoreDuplicate ignoreDuplicateResources = 5;
 }
 
 // ComponentParameter contains information about component parameter value

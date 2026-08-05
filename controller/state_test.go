@@ -1812,13 +1812,18 @@ func Test_NormalizeTargetObjects_ClusterScopeTracking(t *testing.T) {
 	c := &cachemocks.ClusterCache{}
 	c.EXPECT().IsNamespaced(mock.Anything).Return(false, nil)
 	var called bool
-	_, _, err := NormalizeTargetObjects(test.FakeDestNamespace, []*unstructured.Unstructured{obj}, &resourceInfoProviderStub{}, func(u *unstructured.Unstructured) error {
-		// We expect that the normalization function will call this callback with an obj that has had the namespace set
-		// to empty.
-		called = true
-		assert.Empty(t, u.GetNamespace())
-		return nil
-	}, nil)
+	_, _, err := NormalizeTargetObjects(NormalizeTargetObjectsOpts{
+		Namespace: test.FakeDestNamespace,
+		Objs:      []*unstructured.Unstructured{obj},
+		InfoProvider: &resourceInfoProviderStub{},
+		SetAppInstance: func(u *unstructured.Unstructured) error {
+			// We expect that the normalization function will call this callback with an obj that has had the namespace set
+			// to empty.
+			called = true
+			assert.Empty(t, u.GetNamespace())
+			return nil
+		},
+	})
 	require.NoError(t, err)
 	require.True(t, called, "normalization function should have called the callback function")
 }
@@ -1863,15 +1868,14 @@ func Test_NormalizeTargetObjects_Deduplication(t *testing.T) {
 		},
 	})
 
-	result, conditions, err := NormalizeTargetObjects(
-		test.FakeDestNamespace,
-		[]*unstructured.Unstructured{obj1, obj2, obj3},
-		&resourceInfoProviderStub{},
-		func(_ *unstructured.Unstructured) error {
+	result, conditions, err := NormalizeTargetObjects(NormalizeTargetObjectsOpts{
+		Namespace:    test.FakeDestNamespace,
+		Objs:         []*unstructured.Unstructured{obj1, obj2, obj3},
+		InfoProvider: &resourceInfoProviderStub{},
+		SetAppInstance: func(_ *unstructured.Unstructured) error {
 			return nil
 		},
-		nil,
-	)
+	})
 
 	require.NoError(t, err)
 	// Should only keep the last object
@@ -1915,15 +1919,14 @@ func Test_NormalizeTargetObjects_GenerateName(t *testing.T) {
 		},
 	})
 
-	result, conditions, err := NormalizeTargetObjects(
-		test.FakeDestNamespace,
-		[]*unstructured.Unstructured{obj1, obj2},
-		&resourceInfoProviderStub{},
-		func(_ *unstructured.Unstructured) error {
+	result, conditions, err := NormalizeTargetObjects(NormalizeTargetObjectsOpts{
+		Namespace:    test.FakeDestNamespace,
+		Objs:         []*unstructured.Unstructured{obj1, obj2},
+		InfoProvider: &resourceInfoProviderStub{},
+		SetAppInstance: func(_ *unstructured.Unstructured) error {
 			return nil
 		},
-		nil,
-	)
+	})
 
 	require.NoError(t, err)
 	// Both objects should be present because they get synthetic names (test-pod-0, test-pod-1)
@@ -1951,18 +1954,17 @@ func Test_NormalizeTargetObjects_NamespacedResourceWithTracking(t *testing.T) {
 	// Custom info provider that reports ConfigMaps as namespaced
 	namespacedProvider := &namespacedResourceInfoProvider{namespaced: true}
 
-	result, conditions, err := NormalizeTargetObjects(
-		expectedNamespace,
-		[]*unstructured.Unstructured{obj},
-		namespacedProvider,
-		func(u *unstructured.Unstructured) error {
+	result, conditions, err := NormalizeTargetObjects(NormalizeTargetObjectsOpts{
+		Namespace:    expectedNamespace,
+		Objs:         []*unstructured.Unstructured{obj},
+		InfoProvider: namespacedProvider,
+		SetAppInstance: func(u *unstructured.Unstructured) error {
 			// Verify namespace was set before tracking callback
 			assert.Equal(t, expectedNamespace, u.GetNamespace(), "namespace should be set before tracking callback")
 			trackingCalled = true
 			return nil
 		},
-		nil,
-	)
+	})
 
 	require.NoError(t, err)
 	assert.Empty(t, conditions, "should have no conditions")
@@ -2032,15 +2034,15 @@ func Test_NormalizeTargetObjects_IgnoreDuplicateResources(t *testing.T) {
 		},
 	}
 
-	result, conditions, err := NormalizeTargetObjects(
-		test.FakeDestNamespace,
-		[]*unstructured.Unstructured{cr1, cr2, cm1, cm2},
-		&resourceInfoProviderStub{},
-		func(_ *unstructured.Unstructured) error {
+	result, conditions, err := NormalizeTargetObjects(NormalizeTargetObjectsOpts{
+		Namespace:               test.FakeDestNamespace,
+		Objs:                    []*unstructured.Unstructured{cr1, cr2, cm1, cm2},
+		InfoProvider:            &resourceInfoProviderStub{},
+		SetAppInstance: func(_ *unstructured.Unstructured) error {
 			return nil
 		},
-		ignoreList,
-	)
+		IgnoreDuplicateResources: ignoreList,
+	})
 
 	require.NoError(t, err)
 	// Both resource types should be deduplicated to 1 each
@@ -2108,15 +2110,15 @@ func Test_NormalizeTargetObjects_IgnoreDuplicateResources_MatchByName(t *testing
 		},
 	}
 
-	result, conditions, err := NormalizeTargetObjects(
-		test.FakeDestNamespace,
-		[]*unstructured.Unstructured{cm1a, cm1b, cm2a, cm2b},
-		&resourceInfoProviderStub{},
-		func(_ *unstructured.Unstructured) error {
+	result, conditions, err := NormalizeTargetObjects(NormalizeTargetObjectsOpts{
+		Namespace:               test.FakeDestNamespace,
+		Objs:                    []*unstructured.Unstructured{cm1a, cm1b, cm2a, cm2b},
+		InfoProvider:            &resourceInfoProviderStub{},
+		SetAppInstance: func(_ *unstructured.Unstructured) error {
 			return nil
 		},
-		ignoreList,
-	)
+		IgnoreDuplicateResources: ignoreList,
+	})
 
 	require.NoError(t, err)
 	assert.Len(t, result, 2, "should deduplicate to two objects")
