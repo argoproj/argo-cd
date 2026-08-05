@@ -19,3 +19,7 @@ tests:
     status: Suspended
     message: "Cluster reconciliation is suspended"
   inputPath: testdata/cluster_reconcile_suspended.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for the CloudNativePG operator to report cluster status"
+  inputPath: testdata/cluster_no_status.yaml
