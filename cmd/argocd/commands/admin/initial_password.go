@@ -1,7 +1,6 @@
 package admin
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -21,14 +20,14 @@ func NewInitialPasswordCommand() *cobra.Command {
 	command := cobra.Command{
 		Use:   "initial-password",
 		Short: "Prints initial password to log in to Argo CD for the first time",
-		Run: func(_ *cobra.Command, _ []string) {
+		Run: func(c *cobra.Command, _ []string) {
 			config, err := clientConfig.ClientConfig()
 			errors.CheckError(err)
 			namespace, _, err := clientConfig.Namespace()
 			errors.CheckError(err)
 
 			kubeClientset := kubernetes.NewForConfigOrDie(config)
-			secret, err := kubeClientset.CoreV1().Secrets(namespace).Get(context.Background(), initialPasswordSecretName, metav1.GetOptions{})
+			secret, err := kubeClientset.CoreV1().Secrets(namespace).Get(c.Context(), initialPasswordSecretName, metav1.GetOptions{})
 			errors.CheckError(err)
 
 			if initialPass, ok := secret.Data["password"]; ok {
