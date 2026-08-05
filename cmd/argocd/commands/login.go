@@ -382,75 +382,94 @@ func oauth2LoginBrowserless(
 	oidcSettings *settingspkg.OIDCConfig,
 	oauth2conf *oauth2.Config,
 ) (string, string) {
+	// Derive the device authorization endpoint from the token endpoint.
+	// e.g. https://host/api/dex/token -> https://host/api/dex/device/code
+	// Falls back to the operator-configured DeviceURL if set.
+	deviceURL := oidcSettings.GetDeviceURL()
+	if deviceURL == "" {
+		deviceURL = strings.Replace(oauth2conf.Endpoint.TokenURL, "/token", "/device/code", 1)
+	}
+
+	tokenURL := oidcSettings.GetTokenURL()
+	if tokenURL == "" {
+		tokenURL = oauth2conf.Endpoint.TokenURL
+	}
+
 	httpClient := &http.Client{}
+
+	// Step 1: request a device code
 	data := url.Values{}
 	data.Set("client_id", oauth2conf.ClientID)
-	deviceCodeRequest, _ := http.NewRequest("POST", oidcSettings.DeviceURL, strings.NewReader(data.Encode()))
+	data.Set("scope", strings.Join(oauth2conf.Scopes, " "))
+	deviceCodeRequest, err := http.NewRequest("POST", deviceURL, strings.NewReader(data.Encode()))
+	if err != nil {
+		log.Fatalf("Failed to build device code request: %s", err.Error())
+	}
 	deviceCodeRequest.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 
 	deviceCodeResponse, err := httpClient.Do(deviceCodeRequest)
 	if err != nil {
 		log.Fatalf("Failed to get a device code: %s", err.Error())
 	}
+	defer deviceCodeResponse.Body.Close()
 
-	if deviceCodeResponse.StatusCode != 200 {
-		log.Fatalf("Failed to get a device code: %s", deviceCodeResponse.Status)
+	if deviceCodeResponse.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(deviceCodeResponse.Body)
+		log.Fatalf("Failed to get a device code: %s — %s", deviceCodeResponse.Status, string(body))
 	}
 
-	deviceCodeResponseBody := oidcutil.OIDCDeviceCodeResponseBody{}
-	decoder := json.NewDecoder(deviceCodeResponse.Body)
-	for {
-		if err := decoder.Decode(&deviceCodeResponseBody); err == io.EOF {
-			break
-		} else if err != nil {
-			log.Fatal(err)
-		}
+	var deviceCodeResponseBody oidcutil.OIDCDeviceCodeResponseBody
+	if err := json.NewDecoder(deviceCodeResponse.Body).Decode(&deviceCodeResponseBody); err != nil {
+		log.Fatalf("Failed to decode device code response: %s", err.Error())
 	}
 
-	fmt.Printf("Authenticate at the identity provider using the following URL: '%s'\nHit enter when you have authenticated.\n", deviceCodeResponseBody.VerificationUriComplete)
-	_, err = bufio.NewReader(os.Stdin).ReadBytes('\n')
-
-	if err != nil {
-		log.Fatalf("Failed to get a device code: %s", err.Error())
+	// Step 2: prompt user to authenticate in browser
+	verificationURL := deviceCodeResponseBody.VerificationUriComplete
+	if verificationURL == "" {
+		verificationURL = fmt.Sprintf("%s?user_code=%s", deviceCodeResponseBody.VerificationUri, deviceCodeResponseBody.UserCode)
 	}
+	fmt.Printf("Open the following URL in your browser to authenticate:\n\n  %s\n\nHit enter when you have authenticated.\n", verificationURL)
+	_, _ = bufio.NewReader(os.Stdin).ReadBytes('\n')
 
+	// Step 3: exchange device code for token
 	data = url.Values{}
-	grant_type := "urn:ietf:params:oauth:grant-type:device_code"
 	data.Set("client_id", oauth2conf.ClientID)
-	data.Set("grant_type", grant_type)
+	data.Set("grant_type", "urn:ietf:params:oauth:grant-type:device_code")
 	data.Set("device_code", deviceCodeResponseBody.DeviceCode)
 
-	tokenRequest, _ := http.NewRequest("POST", oidcSettings.TokenURL, strings.NewReader(data.Encode()))
+	tokenRequest, err := http.NewRequest("POST", tokenURL, strings.NewReader(data.Encode()))
+	if err != nil {
+		log.Fatalf("Failed to build token request: %s", err.Error())
+	}
 	tokenRequest.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-	tokenResponse, err := httpClient.Do(tokenRequest)
 
+	tokenResponse, err := httpClient.Do(tokenRequest)
 	if err != nil {
 		log.Fatalf("Failed to get an access token: %s", err.Error())
 	}
+	defer tokenResponse.Body.Close()
 
-	if tokenResponse.StatusCode != 200 {
-		log.Fatalf("Failed to get an access token: %s", tokenResponse.Status)
+	if tokenResponse.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(tokenResponse.Body)
+		log.Fatalf("Failed to get an access token: %s — %s", tokenResponse.Status, string(body))
 	}
 
-	tokenResponseBody := oidcutil.OIDCTokenResponseBody{}
-	decoder = json.NewDecoder(tokenResponse.Body)
-	for {
-		if err := decoder.Decode(&tokenResponseBody); err == io.EOF {
-			break
-		} else if err != nil {
-			log.Fatal(err)
-		}
+	// Decode into a generic map to extract id_token (not in OIDCTokenResponseBody)
+	var tokenMap map[string]interface{}
+	if err := json.NewDecoder(tokenResponse.Body).Decode(&tokenMap); err != nil {
+		log.Fatalf("Failed to decode token response: %s", err.Error())
 	}
 
-	tokenString := tokenResponseBody.AccessToken
-	refreshToken := tokenResponseBody.RefreshToken
+	idToken, _ := tokenMap["id_token"].(string)
+	if idToken == "" {
+		log.Fatal("no id_token in token response")
+	}
+	refreshToken, _ := tokenMap["refresh_token"].(string)
 
 	fmt.Printf("Authentication successful\n")
-	_, cancel := context.WithTimeout(ctx, 1*time.Second)
-	defer cancel()
-	log.Debugf("Token: %s", tokenString)
+	log.Debugf("Token: %s", idToken)
 	log.Debugf("Refresh Token: %s", refreshToken)
-	return tokenString, refreshToken
+	return idToken, refreshToken
 }
 
 func passwordLogin(ctx context.Context, acdClient argocdclient.Client, username, password string) string {
