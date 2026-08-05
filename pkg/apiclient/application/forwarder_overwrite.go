@@ -79,8 +79,8 @@ var appFields = map[string]func(app *v1alpha1.Application) any{
 		return nil
 	},
 	"status.operationState.operation.sync": func(app *v1alpha1.Application) any {
-		if app.Status.OperationState != nil {
-			return app.Status.OperationState.SyncResult
+		if app.Status.OperationState != nil && app.Status.OperationState.Operation.Sync != nil {
+			return app.Status.OperationState.Operation.Sync
 		}
 		return nil
 	},
