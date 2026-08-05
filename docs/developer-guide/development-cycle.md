@@ -111,6 +111,7 @@ Here are some frequently used make targets (all will run on your machine):
 ### Local Toolchain Make Targets
 
 * `make install-tools-local` - Install testing and building tools for the local toolchain 
+* `make check-tools-local` - Check that the installed tools match the versions used in CI
 * `make build-local` - Build Argo CD binaries
 * `make test-local` - Run unit tests
 * `make codegen-local` - Re-generate auto generated Swagger and Protobuf (after changing API code)
