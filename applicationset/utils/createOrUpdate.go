@@ -245,6 +245,14 @@ func applyIgnoreDifferences(diffConfig argodiff.DiffConfig, found *argov1alpha1.
 	generatedApp.Name = generatedAppCopy.Name
 	generatedApp.Namespace = generatedAppCopy.Namespace
 	generatedApp.Operation = generatedAppCopy.Operation
+
+	// Removing an ignored field can leave its parent as an empty-but-present struct (e.g.
+	// kustomize.images gone but kustomize: {} remains) that the caller's pre-normalization pass had
+	// no reason to nil out, since the field was populated at the time. Re-normalize both sides now so
+	// such leftovers collapse to nil the same way they would if the field had never been set, and
+	// don't show up as a spurious diff.
+	found.Spec = *argo.NormalizeApplicationSpec(&found.Spec)
+	generatedApp.Spec = *argo.NormalizeApplicationSpec(&generatedApp.Spec)
 	return nil
 }
 
