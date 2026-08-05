@@ -74,9 +74,7 @@ func buildSSADiffConfig(t *testing.T) argodiff.DiffConfig {
 
 // TestHideSecretData_SSDPathReusesMainDiff verifies that when the main comparison
 // used server-side diff (which removes webhook mutations in gitops-engine), the
-// cached ResourceDiff items reuse that result instead of re-running a client-side
-// diff that would surface false drift such as the bank-vaults
-// vault-secrets-webhook case.
+// cached ResourceDiff items reuse that result instead of re-running a client-side diff
 func TestHideSecretData_SSDPathReusesMainDiff(t *testing.T) {
 	app := newFakeApp()
 	ctrl := newFakeController(t.Context(), &fakeData{}, nil)
@@ -203,6 +201,9 @@ func TestHideSecretData_SSDPathMasksReusedSecretData(t *testing.T) {
 	assert.Contains(t, items[0].NormalizedLiveState, "++++++++")
 	assert.NotContains(t, items[0].PredictedLiveState, "dG9wc2VjcmV0")
 	assert.NotContains(t, items[0].NormalizedLiveState, "dG9wc2VjcmV0")
+	// target and live states are masked as well
+	assert.NotContains(t, items[0].TargetState, "dG9wc2VjcmV0")
+	assert.NotContains(t, items[0].LiveState, "dG9wc2VjcmV0")
 }
 
 // TestHideSecretData_NonSSDRecomputes verifies that when server-side diff is not
@@ -227,6 +228,8 @@ func TestHideSecretData_NonSSDRecomputes(t *testing.T) {
 	assert.True(t, items[0].Modified)
 	assert.Contains(t, items[0].LiveState, "++++++++")
 	assert.Contains(t, items[0].TargetState, "++++++++")
+	// different values must keep different placeholders
+	assert.NotEqual(t, items[0].TargetState, items[0].LiveState)
 }
 
 // TestCompareAppStateEmpty tests comparison when both git and live have no objects
