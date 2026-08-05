@@ -11,7 +11,6 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"
 	"github.com/argoproj/argo-cd/v3/commitserver/metrics"
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/io/files"
@@ -36,20 +35,6 @@ func NewService(gitCredsStore git.CredsStore, metricsServer *metrics.Server) *Se
 	}
 }
 
-type hydratorMetadataFile struct {
-	RepoURL  string   `json:"repoURL,omitempty"`
-	DrySHA   string   `json:"drySha,omitempty"`
-	Commands []string `json:"commands,omitempty"`
-	Author   string   `json:"author,omitempty"`
-	Date     string   `json:"date,omitempty"`
-	// Subject is the subject line of the DRY commit message, i.e. `git show --format=%s`.
-	Subject string `json:"subject,omitempty"`
-	// Body is the body of the DRY commit message, excluding the subject line, i.e. `git show --format=%b`.
-	// Known Argocd- trailers with valid values are removed, but all other trailers are kept.
-	Body       string                       `json:"body,omitempty"`
-	References []v1alpha1.RevisionReference `json:"references,omitempty"`
-}
-
 // CommitNote represents the structure of the git note associated with a hydrated commit.
 // This struct is used to serialize/deserialize commit metadata (such as the dry run SHA)
 // stored in the custom note namespace by the hydrator.
@@ -60,7 +45,7 @@ type CommitNote struct {
 // CommitHydratedManifests handles a commit request. It clones the repository, checks out the sync branch, checks out
 // the target branch, clears the repository contents, writes the manifests to the repository, commits the changes, and
 // pushes the changes. It returns the hydrated revision SHA and an error if one occurred.
-func (s *Service) CommitHydratedManifests(_ context.Context, r *apiclient.CommitHydratedManifestsRequest) (*apiclient.CommitHydratedManifestsResponse, error) {
+func (s *Service) CommitHydratedManifests(ctx context.Context, r *apiclient.CommitHydratedManifestsRequest) (*apiclient.CommitHydratedManifestsResponse, error) {
 	// This method is intentionally short. It's a wrapper around handleCommitRequest that adds metrics and logging.
 	// Keep logic here minimal and put most of the logic in handleCommitRequest.
 	startTime := time.Now()
@@ -86,7 +71,7 @@ func (s *Service) CommitHydratedManifests(_ context.Context, r *apiclient.Commit
 
 	logCtx := log.WithFields(log.Fields{"branch": r.TargetBranch, "drySHA": r.DrySha})
 
-	out, sha, err := s.handleCommitRequest(logCtx, r)
+	out, sha, err := s.handleCommitRequest(ctx, logCtx, r)
 	if err != nil {
 		logCtx.WithError(err).WithField("output", out).Error("failed to handle commit request")
 
@@ -103,7 +88,7 @@ func (s *Service) CommitHydratedManifests(_ context.Context, r *apiclient.Commit
 // handleCommitRequest handles the commit request. It clones the repository, checks out the sync branch, checks out the
 // target branch, clears the repository contents, writes the manifests to the repository, commits the changes, and pushes
 // the changes. It returns the output of the git commands and an error if one occurred.
-func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydratedManifestsRequest) (string, string, error) {
+func (s *Service) handleCommitRequest(ctx context.Context, logCtx *log.Entry, r *apiclient.CommitHydratedManifestsRequest) (string, string, error) {
 	if r.Repo == nil {
 		return "", "", errors.New("repo is required")
 	}
@@ -120,7 +105,7 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 
 	logCtx = logCtx.WithField("repo", r.Repo.Repo)
 	logCtx.Debug("Initiating git client")
-	gitClient, dirPath, cleanup, err := s.initGitClient(logCtx, r)
+	gitClient, dirPath, cleanup, err := s.initGitClient(ctx, logCtx, r)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to init git client: %w", err)
 	}
@@ -134,18 +119,18 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 
 	logCtx.Debugf("Checking out sync branch %s", r.SyncBranch)
 	var out string
-	out, err = gitClient.CheckoutOrOrphan(r.SyncBranch, false)
+	out, err = gitClient.CheckoutOrOrphan(ctx, r.SyncBranch, false)
 	if err != nil {
 		return out, "", fmt.Errorf("failed to checkout sync branch: %w", err)
 	}
 
 	logCtx.Debugf("Checking out target branch %s", r.TargetBranch)
-	out, err = gitClient.CheckoutOrNew(r.TargetBranch, r.SyncBranch, false)
+	out, err = gitClient.CheckoutOrNew(ctx, r.TargetBranch, r.SyncBranch, false)
 	if err != nil {
 		return out, "", fmt.Errorf("failed to checkout target branch: %w", err)
 	}
 
-	hydratedSha, err := gitClient.CommitSHA()
+	hydratedSha, err := gitClient.CommitSHA(ctx)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get commit SHA: %w", err)
 	}
@@ -158,7 +143,7 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 	3b. Else, hydrate the manifest.
 	3c. Push the updated note
 	*/
-	isHydrated, err := IsHydrated(gitClient, r.DrySha, hydratedSha)
+	isHydrated, err := IsHydrated(ctx, gitClient, r.DrySha, hydratedSha)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get notes from git %w", err)
 	}
@@ -169,7 +154,7 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 	}
 
 	logCtx.Debug("Writing manifests")
-	shouldCommit, err := WriteForPaths(root, r.Repo.Repo, r.DrySha, r.DryCommitMetadata, r.Paths, gitClient, r.ReadmeMessage)
+	shouldCommit, err := WriteForPaths(ctx, root, r.Repo.Repo, r.DrySha, r.DryCommitMetadata, r.Paths, gitClient, r.ReadmeMessage)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to write manifests: %w", err)
 	}
@@ -177,26 +162,26 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 		// Manifests did not change, so we don't need to create a new commit.
 		// Add a git note to track that this dry SHA has been processed, and return the existing hydrated SHA.
 		logCtx.Debug("Adding commit note")
-		err = AddNote(gitClient, r.DrySha, hydratedSha)
+		err = AddNote(ctx, gitClient, r.DrySha, hydratedSha)
 		if err != nil {
 			return "", "", fmt.Errorf("failed to add commit note: %w", err)
 		}
 		return "", hydratedSha, nil
 	}
 	logCtx.Debug("Committing and pushing changes")
-	out, err = gitClient.CommitAndPush(r.TargetBranch, r.CommitMessage)
+	out, err = gitClient.CommitAndPush(ctx, r.TargetBranch, r.CommitMessage)
 	if err != nil {
 		return out, "", fmt.Errorf("failed to commit and push: %w", err)
 	}
 
 	logCtx.Debug("Getting commit SHA")
-	sha, err := gitClient.CommitSHA()
+	sha, err := gitClient.CommitSHA(ctx)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get commit SHA: %w", err)
 	}
 	// add the commit note
 	logCtx.Debug("Adding commit note")
-	err = AddNote(gitClient, r.DrySha, sha)
+	err = AddNote(ctx, gitClient, r.DrySha, sha)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to add commit note: %w", err)
 	}
@@ -206,7 +191,7 @@ func (s *Service) handleCommitRequest(logCtx *log.Entry, r *apiclient.CommitHydr
 // initGitClient initializes a git client for the given repository and returns the client, the path to the directory where
 // the repository is cloned, a cleanup function that should be called when the directory is no longer needed, and an error
 // if one occurred.
-func (s *Service) initGitClient(logCtx *log.Entry, r *apiclient.CommitHydratedManifestsRequest) (git.Client, string, func(), error) {
+func (s *Service) initGitClient(ctx context.Context, logCtx *log.Entry, r *apiclient.CommitHydratedManifestsRequest) (git.Client, string, func(), error) {
 	dirPath, err := files.CreateTempDir("/tmp/_commit-service")
 	if err != nil {
 		return nil, "", nil, fmt.Errorf("failed to create temp dir: %w", err)
@@ -233,7 +218,7 @@ func (s *Service) initGitClient(logCtx *log.Entry, r *apiclient.CommitHydratedMa
 	}
 
 	logCtx.Debugf("Fetching repo %s", r.Repo.Repo)
-	err = gitClient.Fetch("", 0)
+	err = gitClient.Fetch(ctx, "", 0)
 	if err != nil {
 		cleanupOrLog()
 		return nil, "", nil, fmt.Errorf("failed to clone repo: %w", err)
@@ -263,7 +248,7 @@ func (s *Service) initGitClient(logCtx *log.Entry, r *apiclient.CommitHydratedMa
 		r.AuthorName, r.AuthorEmail, authorName, authorEmail)
 
 	logCtx.Debugf("Setting author %s <%s>", authorName, authorEmail)
-	_, err = gitClient.SetAuthor(authorName, authorEmail)
+	_, err = gitClient.SetAuthor(ctx, authorName, authorEmail)
 	if err != nil {
 		cleanupOrLog()
 		return nil, "", nil, fmt.Errorf("failed to set author: %w", err)

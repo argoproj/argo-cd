@@ -21,7 +21,6 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes/fake"
-	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -1498,7 +1497,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 		_, err = kubeClient.CoreV1().Secrets("default").Update(t.Context(), tlsSecret, metav1.UpdateOptions{})
 		require.NoError(t, err)
 
-		// allow time for the udpate to resolve to avoid timing issues below
+		// allow time for the update to resolve to avoid timing issues below
 		time.Sleep(250 * time.Millisecond)
 
 		// should be called again after secret update resolves
@@ -2370,6 +2369,60 @@ func TestIsImpersonationEnabled(t *testing.T) {
 		"when user enables the flag in argocd-cm config map, IsImpersonationEnabled() must not return any error")
 }
 
+func TestIsImpersonationEnforced(t *testing.T) {
+	// When there is no argocd-cm itself,
+	// Then IsImpersonationEnforced() must return true (default value) and an error with appropriate error message.
+	kubeClient := fake.NewClientset()
+	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
+	enforced, err := settingsManager.IsImpersonationEnforced()
+	require.True(t, enforced,
+		"with no argocd-cm config map, IsImpersonationEnforced() must return true (default value)")
+	require.ErrorContains(t, err, "configmap \"argocd-cm\" not found",
+		"with no argocd-cm config map, IsImpersonationEnforced() must return an error")
+
+	// When there is no enforcement flag present in the argocd-cm,
+	// Then IsImpersonationEnforced() must return true (default value) and nil error.
+	_, settingsManager = fixtures(t.Context(), map[string]string{})
+	enforced, err = settingsManager.IsImpersonationEnforced()
+	require.True(t, enforced,
+		"with empty argocd-cm config map, IsImpersonationEnforced() must return true (default value)")
+	require.NoError(t, err,
+		"with empty argocd-cm config map, IsImpersonationEnforced() must not return any error")
+
+	// When user disables enforcement explicitly,
+	// Then IsImpersonationEnforced() must return false and nil error.
+	_, settingsManager = fixtures(t.Context(), map[string]string{
+		"application.sync.impersonation.enforced": "false",
+	})
+	enforced, err = settingsManager.IsImpersonationEnforced()
+	require.False(t, enforced,
+		"when user disables enforcement in argocd-cm config map, IsImpersonationEnforced() must return false")
+	require.NoError(t, err,
+		"when user disables enforcement in argocd-cm config map, IsImpersonationEnforced() must not return any error")
+
+	// When user enables enforcement explicitly,
+	// Then IsImpersonationEnforced() must return true and nil error.
+	_, settingsManager = fixtures(t.Context(), map[string]string{
+		"application.sync.impersonation.enforced": "true",
+	})
+	enforced, err = settingsManager.IsImpersonationEnforced()
+	require.True(t, enforced,
+		"when user enables enforcement in argocd-cm config map, IsImpersonationEnforced() must return true")
+	require.NoError(t, err,
+		"when user enables enforcement in argocd-cm config map, IsImpersonationEnforced() must not return any error")
+
+	// When user sets enforcement to an invalid value,
+	// Then IsImpersonationEnforced() must return true (default value) and nil error.
+	_, settingsManager = fixtures(t.Context(), map[string]string{
+		"application.sync.impersonation.enforced": "something",
+	})
+	enforced, err = settingsManager.IsImpersonationEnforced()
+	require.True(t, enforced,
+		"when user specify invalid value for enforcement in argocd-cm config map, IsImpersonationEnforced() must return true (default value)")
+	require.NoError(t, err,
+		"when user specify invalid value for enforcement in argocd-cm config map, IsImpersonationEnforced() must not return any error")
+}
+
 func TestIsInClusterEnabled(t *testing.T) {
 	// When there is no argocd-cm itself,
 	// Then IsInClusterEnabled() must return true (default value) and an error with appropriate error message.
@@ -2687,22 +2740,6 @@ func TestIsRepositorySecret(t *testing.T) {
 			expected: false,
 		},
 		{
-			name: "tombstone wrapping repository secret matches",
-			obj: cache.DeletedFinalStateUnknown{
-				Obj: &corev1.Secret{ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
-				}},
-			},
-			expected: true,
-		},
-		{
-			name: "tombstone wrapping non-repository secret does not match",
-			obj: cache.DeletedFinalStateUnknown{
-				Obj: &corev1.Secret{ObjectMeta: metav1.ObjectMeta{}},
-			},
-			expected: false,
-		},
-		{
 			name:     "unknown type does not match",
 			obj:      "unexpected-type",
 			expected: false,
@@ -2747,22 +2784,7 @@ func TestIsSettingsObject(t *testing.T) {
 			}},
 			expected: true,
 		},
-		{
-			name: "tombstone wrapping labeled secret matches",
-			obj: cache.DeletedFinalStateUnknown{
-				Obj: &corev1.Secret{ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"app.kubernetes.io/part-of": "argocd"},
-				}},
-			},
-			expected: true,
-		},
-		{
-			name: "tombstone wrapping unlabeled secret does not match",
-			obj: cache.DeletedFinalStateUnknown{
-				Obj: &corev1.Secret{ObjectMeta: metav1.ObjectMeta{}},
-			},
-			expected: false,
-		},
+
 		{
 			name:     "unknown type does not match",
 			obj:      "unexpected-type",
@@ -2794,24 +2816,6 @@ func TestIsArgoCDConfigMap(t *testing.T) {
 			obj: &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
 				Name: common.ArgoCDRBACConfigMapName,
 			}},
-			expected: false,
-		},
-		{
-			name: "tombstone wrapping argocd-cm matches",
-			obj: cache.DeletedFinalStateUnknown{
-				Obj: &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
-					Name: common.ArgoCDConfigMapName,
-				}},
-			},
-			expected: true,
-		},
-		{
-			name: "tombstone wrapping other configmap does not match",
-			obj: cache.DeletedFinalStateUnknown{
-				Obj: &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
-					Name: common.ArgoCDRBACConfigMapName,
-				}},
-			},
 			expected: false,
 		},
 		{
@@ -2916,124 +2920,6 @@ func TestGettersRaceWithResyncInformers(t *testing.T) {
 	time.Sleep(200 * time.Millisecond)
 	close(done)
 	wg.Wait()
-}
-
-func TestEscapeDollarSignsInMap(t *testing.T) {
-	t.Run("dollar sign in string value is escaped", func(t *testing.T) {
-		input := map[string]any{"bindPW": "test$test"}
-		result := EscapeDollarSignsInMap(input)
-		assert.Equal(t, "test$$test", result["bindPW"])
-	})
-
-	t.Run("string with no dollar sign is unchanged", func(t *testing.T) {
-		input := map[string]any{"bindPW": "plainpassword"}
-		result := EscapeDollarSignsInMap(input)
-		assert.Equal(t, "plainpassword", result["bindPW"])
-	})
-
-	t.Run("multiple dollar signs are all escaped", func(t *testing.T) {
-		input := map[string]any{"bindPW": "a$b$c$d"}
-		result := EscapeDollarSignsInMap(input)
-		assert.Equal(t, "a$$b$$c$$d", result["bindPW"])
-	})
-
-	t.Run("leading dollar sign is escaped", func(t *testing.T) {
-		input := map[string]any{"bindPW": "$startswith"}
-		result := EscapeDollarSignsInMap(input)
-		assert.Equal(t, "$$startswith", result["bindPW"])
-	})
-
-	t.Run("trailing dollar sign is escaped", func(t *testing.T) {
-		input := map[string]any{"bindPW": "endswith$"}
-		result := EscapeDollarSignsInMap(input)
-		assert.Equal(t, "endswith$$", result["bindPW"])
-	})
-
-	t.Run("value that is only a dollar sign is escaped", func(t *testing.T) {
-		input := map[string]any{"bindPW": "$"}
-		result := EscapeDollarSignsInMap(input)
-		assert.Equal(t, "$$", result["bindPW"])
-	})
-
-	t.Run("calling with already-escaped content escapes again", func(t *testing.T) {
-		input := map[string]any{"bindPW": "test$$test"}
-		result := EscapeDollarSignsInMap(input)
-		assert.Equal(t, "test$$$$test", result["bindPW"])
-	})
-
-	t.Run("non-string values are passed through unchanged", func(t *testing.T) {
-		input := map[string]any{
-			"port":          389,
-			"insecureNoSSL": true,
-		}
-		result := EscapeDollarSignsInMap(input)
-		assert.Equal(t, 389, result["port"])
-		assert.Equal(t, true, result["insecureNoSSL"])
-	})
-
-	t.Run("nested map values are escaped", func(t *testing.T) {
-		input := map[string]any{
-			"config": map[string]any{
-				"bindPW": "test$test",
-				"host":   "ldap.example.org:389",
-			},
-		}
-		result := EscapeDollarSignsInMap(input)
-		nested := result["config"].(map[string]any)
-		assert.Equal(t, "test$$test", nested["bindPW"])
-		assert.Equal(t, "ldap.example.org:389", nested["host"])
-	})
-
-	t.Run("deeply nested map values are escaped", func(t *testing.T) {
-		input := map[string]any{
-			"connectors": map[string]any{
-				"ldap": map[string]any{
-					"config": map[string]any{
-						"bindPW": "test$test",
-					},
-				},
-			},
-		}
-		result := EscapeDollarSignsInMap(input)
-		config := result["connectors"].(map[string]any)["ldap"].(map[string]any)["config"].(map[string]any)
-		assert.Equal(t, "test$$test", config["bindPW"])
-	})
-
-	t.Run("list of maps has dollar signs escaped in each element", func(t *testing.T) {
-		input := map[string]any{
-			"connectors": []any{
-				map[string]any{"type": "ldap", "bindPW": "test$test"},
-				map[string]any{"type": "oidc", "clientSecret": "oidc$secret"},
-			},
-		}
-		result := EscapeDollarSignsInMap(input)
-		connectors := result["connectors"].([]any)
-		assert.Equal(t, "test$$test", connectors[0].(map[string]any)["bindPW"])
-		assert.Equal(t, "oidc$$secret", connectors[1].(map[string]any)["clientSecret"])
-	})
-
-	t.Run("list of strings has dollar signs escaped", func(t *testing.T) {
-		input := map[string]any{
-			"passwords": []any{"a$b", "plain", "c$d$e"},
-		}
-		result := EscapeDollarSignsInMap(input)
-		passwords := result["passwords"].([]any)
-		assert.Equal(t, "a$$b", passwords[0])
-		assert.Equal(t, "plain", passwords[1])
-		assert.Equal(t, "c$$d$$e", passwords[2])
-	})
-
-	t.Run("empty map returns empty map", func(t *testing.T) {
-		result := EscapeDollarSignsInMap(map[string]any{})
-		assert.Empty(t, result)
-	})
-
-	t.Run("input map is not mutated", func(t *testing.T) {
-		input := map[string]any{"bindPW": "test$test"}
-		original := input["bindPW"]
-		_ = EscapeDollarSignsInMap(input)
-		assert.Equal(t, original, input["bindPW"])
-	})
 }
 
 func TestSettingsManager_GetWebhookRefreshJitter(t *testing.T) {

@@ -32,8 +32,8 @@ import (
 	testcore "k8s.io/client-go/testing"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube/kubetest"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube/kubetest"
 )
 
 func init() {
@@ -933,7 +933,9 @@ func TestResyncClearsStaleNamespaceIndex(t *testing.T) {
 	))
 
 	// A full resync (periodic cluster resync or Invalidate + EnsureSynced) rebuilds the cache.
-	require.NoError(t, cluster.sync())
+	// Use this instead of directly calling cluster.sync() to avoid races.
+	cluster.Invalidate()
+	require.NoError(t, cluster.EnsureSynced())
 
 	cluster.lock.RLock()
 	_, inResources = cluster.resources[podKey]
@@ -1520,6 +1522,79 @@ func TestIterateHierarchyV2(t *testing.T) {
 			},
 			keys)
 	})
+}
+
+// TestIterateHierarchyV2_ConcurrentUIDBackfill stresses concurrent IterateHierarchyV2 calls
+// on shared cluster state with empty owner-ref UIDs. UID resolution uses local copies during
+// buildGraph and must not mutate cached OwnerRefs. Run with -race to verify:
+//
+//	go test -race -run TestIterateHierarchyV2_ConcurrentUIDBackfill ./gitops-engine/pkg/cache/
+func TestIterateHierarchyV2_ConcurrentUIDBackfill(t *testing.T) {
+	// Several pods with name-only owner refs exercise the empty-UID resolution path.
+	extraPods := make([]runtime.Object, 0, 8)
+	for i := range 8 {
+		extraPods = append(extraPods, &corev1.Pod{
+			TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: "Pod"},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:              fmt.Sprintf("helm-guestbook-pod-extra-%d", i),
+				Namespace:         "default",
+				UID:               types.UID(fmt.Sprintf("extra-pod-%d", i)),
+				ResourceVersion:   "123",
+				CreationTimestamp: metav1.NewTime(testCreationTime),
+				OwnerReferences: []metav1.OwnerReference{{
+					APIVersion: "apps/v1",
+					Kind:       "ReplicaSet",
+					Name:       "helm-guestbook-rs",
+				}},
+			},
+		})
+	}
+
+	objs := []runtime.Object{testPod1(), testPod2(), testRS(), testExtensionsRS(), testDeploy()}
+	objs = append(objs, extraPods...)
+	cluster := newCluster(t, objs...)
+	require.NoError(t, cluster.EnsureSynced())
+
+	// Empty owner-ref UIDs are resolved locally during traversal, not written to the cache.
+	for _, key := range []kube.ResourceKey{
+		kube.GetResourceKey(mustToUnstructured(testPod2())),
+		getResourceKey(t, extraPods[0]),
+	} {
+		res := cluster.resources[key]
+		require.NotNil(t, res)
+		require.Len(t, res.OwnerRefs, 1)
+		require.Empty(t, res.OwnerRefs[0].UID, "%s owner ref UID must remain empty in cache", key.Name)
+	}
+
+	// Different entry points all traverse the same namespace graph concurrently.
+	startKeys := [][]kube.ResourceKey{
+		{kube.GetResourceKey(mustToUnstructured(testDeploy()))},
+		{kube.GetResourceKey(mustToUnstructured(testRS()))},
+		{kube.GetResourceKey(mustToUnstructured(testPod2()))},
+	}
+
+	const (
+		goroutines = 64
+		iterations = 50
+	)
+
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+	for i := range goroutines {
+		go func(worker int) {
+			defer wg.Done()
+			<-start
+			keys := startKeys[worker%len(startKeys)]
+			for range iterations {
+				cluster.IterateHierarchyV2(keys, func(_ *Resource, _ map[kube.ResourceKey]*Resource) bool {
+					return true
+				})
+			}
+		}(i)
+	}
+	close(start)
+	wg.Wait()
 }
 
 func testClusterParent() *corev1.Namespace {

@@ -48,7 +48,7 @@ func TestAddNoteConcurrentStaggered(t *testing.T) {
 		go func(idx int) {
 			defer wg.Done()
 			time.Sleep(time.Duration(idx*50) * time.Millisecond)
-			errors[idx] = AddNote(cloneClients[idx], fmt.Sprintf("dry-sha-%d", idx), commitSHAs[idx])
+			errors[idx] = AddNote(t.Context(), cloneClients[idx], fmt.Sprintf("dry-sha-%d", idx), commitSHAs[idx])
 		}(i)
 	}
 	wg.Wait()
@@ -57,7 +57,7 @@ func TestAddNoteConcurrentStaggered(t *testing.T) {
 	verifyClient := getClientForClone(t, remotePath)
 
 	for i, commitSHA := range commitSHAs {
-		note, err := verifyClient.GetCommitNote(commitSHA, NoteNamespace)
+		note, err := verifyClient.GetCommitNote(t.Context(), commitSHA, NoteNamespace)
 		require.NoError(t, err, "Note should exist for commit %d", i)
 		assert.Contains(t, note, fmt.Sprintf("dry-sha-%d", i))
 	}
@@ -94,7 +94,7 @@ func TestAddNoteConcurrentSimultaneous(t *testing.T) {
 		go func(idx int) {
 			defer wg.Done()
 			<-startChan
-			_ = AddNote(cloneClients[idx], fmt.Sprintf("dry-sha-%d", idx), commitSHAs[idx])
+			_ = AddNote(t.Context(), cloneClients[idx], fmt.Sprintf("dry-sha-%d", idx), commitSHAs[idx])
 		}(i)
 	}
 
@@ -105,7 +105,7 @@ func TestAddNoteConcurrentSimultaneous(t *testing.T) {
 	verifyClient := getClientForClone(t, remotePath)
 
 	for i, commitSHA := range commitSHAs {
-		note, err := verifyClient.GetCommitNote(commitSHA, NoteNamespace)
+		note, err := verifyClient.GetCommitNote(t.Context(), commitSHA, NoteNamespace)
 		require.NoError(t, err, "Note should exist for commit %d", i)
 		assert.Contains(t, note, fmt.Sprintf("dry-sha-%d", i))
 	}
@@ -194,7 +194,7 @@ func getClientForClone(t *testing.T, remotePath string) git.Client {
 	_, err = runGitCmd(ctx, workDir, "config", "user.email", "test@example.com")
 	require.NoError(t, err)
 
-	err = client.Fetch("", 0)
+	err = client.Fetch(t.Context(), "", 0)
 	require.NoError(t, err)
 
 	return client

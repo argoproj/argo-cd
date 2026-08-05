@@ -40,11 +40,11 @@ argocd-application-controller [flags]
       --ignore-normalizer-jq-execution-timeout-seconds duration   Set ignore normalizer JQ execution timeout
       --insecure-skip-tls-verify                                  If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
       --kubeconfig string                                         Path to a kube config. Only required if out-of-cluster
-      --kubectl-parallelism-limit int                             Number of allowed concurrent kubectl fork/execs. Any value less than 1 means no limit. (default 20)
+      --kubectl-parallelism-limit int                             Maximum number of concurrent cluster operations during sync. Any value less than 1 means no limit. (default 20)
       --logformat string                                          Set the logging format. One of: json|text (default "json")
       --loglevel string                                           Set the logging level. One of: debug|info|warn|error (default "info")
-      --metrics-application-conditions strings                    List of Application conditions that will be added to the argocd_application_conditions metric
-      --metrics-application-labels strings                        List of Application labels that will be added to the argocd_application_labels metric
+      --metrics-application-conditions strings                    List of Application conditions that will be added to the argocd_app_condition metric
+      --metrics-application-labels strings                        List of Application labels that will be added to the argocd_app_labels metric
       --metrics-cache-expiration duration                         Prometheus metrics cache expiration (disabled  by default. e.g. 24h0m0s)
       --metrics-cluster-labels strings                            List of Cluster labels that will be added to the argocd_cluster_labels metric
       --metrics-port int                                          Start metrics server on given port (default 8082)
@@ -54,6 +54,7 @@ argocd-application-controller [flags]
       --otlp-attrs strings                                        List of OpenTelemetry collector extra attrs when send traces, each attribute is separated by a colon(e.g. key:value)
       --otlp-headers stringToString                               List of OpenTelemetry collector extra headers sent with traces, headers are comma-separated key-value pairs(e.g. key1=value1,key2=value2) (default [])
       --otlp-insecure                                             OpenTelemetry collector insecure mode (default true)
+      --otlp-sample-ratio float                                   Fraction of traces to sample, from 0.0 (none) to 1.0 (all). Parent-based, so downstream services honor the upstream sampling decision (default 1)
       --password string                                           Password for basic authentication to the API server
       --persist-resource-health                                   Enables storing the managed resources health in the Application CRD
       --proxy-url string                                          If provided, this URL will be used to connect via proxy

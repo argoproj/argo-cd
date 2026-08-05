@@ -4,13 +4,14 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
-	. "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	. "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -386,39 +387,60 @@ func TestImmutableChange(t *testing.T) {
 }
 
 func TestMultiSyncCRDClientSideSame(t *testing.T) {
-	testMultiSync(t, false, false, "multi-sync/crd", "crd.yaml")
+	testMultiSync(t, false, false, "multi-sync/crd", "crd.yaml", false)
 }
 
 func TestMultiSyncCRDClientSideChanged(t *testing.T) {
-	testMultiSync(t, false, true, "multi-sync/crd", "crd.yaml")
+	testMultiSync(t, false, true, "multi-sync/crd", "crd.yaml", false)
 }
 
 func TestMultiSyncCRDServerSideSame(t *testing.T) {
-	testMultiSync(t, true, false, "multi-sync/crd", "crd.yaml")
+	testMultiSync(t, true, false, "multi-sync/crd", "crd.yaml", false)
+}
+
+func TestMultiSyncCRDServerSideSameBig(t *testing.T) {
+	testMultiSync(t, true, false, "multi-sync/crd", "crd.yaml", true)
 }
 
 func TestMultiSyncCRDServerSideChanged(t *testing.T) {
-	testMultiSync(t, true, true, "multi-sync/crd", "crd.yaml")
+	testMultiSync(t, true, true, "multi-sync/crd", "crd.yaml", false)
+}
+
+func TestMultiSyncCRDServerSideChangedBig(t *testing.T) {
+	testMultiSync(t, true, true, "multi-sync/crd", "crd.yaml", true)
 }
 
 func TestMultiSyncBuiltinClientSideSame(t *testing.T) {
-	testMultiSync(t, false, false, "multi-sync/builtin", "cm.yaml")
+	testMultiSync(t, false, false, "multi-sync/builtin", "cm.yaml", false)
 }
 
 func TestMultiSyncBuiltinClientSideChanged(t *testing.T) {
-	testMultiSync(t, false, true, "multi-sync/builtin", "cm.yaml")
+	testMultiSync(t, false, true, "multi-sync/builtin", "cm.yaml", false)
 }
 
 func TestMultiSyncBuiltinServerSideSame(t *testing.T) {
-	testMultiSync(t, true, false, "multi-sync/builtin", "cm.yaml")
+	testMultiSync(t, true, false, "multi-sync/builtin", "cm.yaml", false)
+}
+
+func TestMultiSyncBuiltinServerSideSameBig(t *testing.T) {
+	testMultiSync(t, true, false, "multi-sync/builtin", "cm.yaml", true)
 }
 
 func TestMultiSyncBuiltinServerSideChanged(t *testing.T) {
-	testMultiSync(t, true, true, "multi-sync/builtin", "cm.yaml")
+	testMultiSync(t, true, true, "multi-sync/builtin", "cm.yaml", false)
 }
 
-// demostrate that Sync still works after initial Sync (create vs patch code paths)
-func testMultiSync(t *testing.T, serverSide, doChange bool, dir, manifest string) {
+func TestMultiSyncBuiltinServerSideChangedBig(t *testing.T) {
+	testMultiSync(t, true, true, "multi-sync/builtin", "cm.yaml", true)
+}
+
+// demostrate that Sync still works after initial Sync
+// several code paths are checked:
+// 1. serverSide vs Client side,
+// 2. second sync w/o change vs with change
+// 3. CRD vs builtin
+// 4  Small size vs Large size: manifests bigger than 256KiB won't fit into the last-applied-configuration annotation
+func testMultiSync(t *testing.T, serverSide, doChange bool, dir, manifest string, isBig bool) {
 	t.Helper()
 	args := []string{}
 	if serverSide {
@@ -427,8 +449,24 @@ func testMultiSync(t *testing.T, serverSide, doChange bool, dir, manifest string
 	ctx := Given(t)
 	acts := ctx.Path(dir).
 		When().
-		CreateApp().
-		Sync(args...).
+		CreateApp()
+	if isBig {
+		for i := range 16 {
+			// add some long fields so manifest size will be more that 256KiB: that would make it fail on a
+			// client-side kubectl operation because the entite manifest won't fit into the
+			// last-applied-configuration annotation
+			descr := strings.Repeat("A", 16*1024)
+			var patch string
+			if manifest == "cm.yaml" {
+				patch = fmt.Sprintf(`[{"op": "add", "path": "/data/field%d", "value": %q }]`, i, descr)
+			} else {
+				// crd
+				patch = fmt.Sprintf(`[{"op": "add", "path": "/spec/versions/0/schema/openAPIV3Schema/properties/spec/properties/field%d", "value": { "type" : "string", "description" : %q }}]`, i, descr)
+			}
+			acts = acts.PatchFile(manifest, patch)
+		}
+	}
+	acts.Sync(args...).
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
@@ -454,6 +492,48 @@ func TestInvalidAppProject(t *testing.T) {
 		// We're not allowed to infer whether the project exists based on this error message. Instead, we get a generic
 		// permission denied error.
 		Expect(Error("", "is not allowed"))
+}
+
+// Test a refresh request comes while a refresh is already running
+func TestNestedRefresh(t *testing.T) {
+	dir := "slow-manifest"
+	valuesFile := "values.yaml"
+	ctx := Given(t)
+	acts := ctx.Path(dir).
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(All(OperationPhaseIs(OperationSucceeded), SyncStatusIs(SyncStatusCodeSynced))).
+		When().
+		// set long delay for the next helm template invocation
+		PatchFile(valuesFile, `[{"op": "replace", "path": "/iterations", "value": 400}]`)
+
+	// runs app get --refresh asynchronously, so we do not wait for the refresh to finish
+	go ctx.When().Refresh(RefreshTypeNormal)
+
+	// wait until Refresh actually runs `helm template`. We can
+	// catch it because the template is really nasty and
+	// `helm template` rendering takes tens of seconds
+	acts.Then().Expect(HelmTemplateRuns())
+	// ps output line containing helm PID and command line
+	helmProcessData := acts.GetLastOutput()
+
+	// make another change: removing the long delay: we do not need it for the second template invocation,
+	acts = acts.PatchFile(valuesFile, `[{"op": "replace", "path": "/iterations", "value": 1}]`)
+	// get last revision
+	revision := acts.GitRevList("HEAD", "-1").GetLastOutput()
+
+	// second (nested) refresh request
+	go ctx.When().Refresh(RefreshTypeNormal)
+
+	// get process one more time and ensure the same helm process
+	// still running, so the second refresh was nested
+	acts.Then().Expect(All(HelmTemplateRuns(), Success(helmProcessData)))
+
+	// the last committed revision - the second refresh worked
+	// it is expected to take a long time if runner is slow
+	acts.ThenWithTimeout(80).Expect(SyncRevisionIs(revision))
 }
 
 func TestAppDeletion(t *testing.T) {
@@ -1188,6 +1268,7 @@ func TestPermissions(t *testing.T) {
 		CreateApp().
 		Sync().
 		Then().
+		Expect(HealthIs(health.HealthStatusHealthy)).
 		// make sure application resource actions are successful
 		And(func(app *Application) {
 			assertResourceActions(t, app.Name, true, appCtx.DeploymentNamespace())
@@ -1801,6 +1882,7 @@ func TestSyncWithRetryAndRefreshEnabled(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		When().
 		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": "badValue"}]`).
+		Refresh(RefreshTypeNormal).
 		IgnoreErrors().
 		Sync().
 		DoNotIgnoreErrors().
@@ -1812,6 +1894,7 @@ func TestSyncWithRetryAndRefreshEnabled(t *testing.T) {
 		PatchApp(`[{"op": "add", "path": "/spec/source/path", "value": "failure-during-sync"}]`).
 		// push a fixed commit on HEAD branch
 		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": 42}]`).
+		Refresh(RefreshTypeNormal).
 		IgnoreErrors().
 		Sync().
 		DoNotIgnoreErrors().
@@ -2026,6 +2109,71 @@ func TestFailedSyncWithRetry(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationFailed)).
 		Expect(OperationMessageContains("retried 1 times"))
+}
+
+// TestStaleOperationRevisionNotUsedNewSync validates new operations resolve the revision
+// and do not use the existing completed operation state.
+func TestStaleOperationRevisionNotUsedNewSync(t *testing.T) {
+	var revisionX string
+	var revisionY string
+
+	ctx := Given(t)
+	ctx.
+		Path("hook").
+		When().
+		CreateApp().
+		And(func() {
+			sha, err := fixture.Run(fixture.TmpDir()+"/testdata.git", "git", "rev-parse", "HEAD")
+			require.NoError(t, err)
+			revisionX = strings.TrimSpace(sha)
+		}).
+		// 1. Create and sync the app on revision X.
+		Sync("--revision", revisionX).
+		Then().
+		// 2. The app must be synced and healthy on X.
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		And(func(app *Application) {
+			require.NotNil(t, app.Status.OperationState)
+			require.NotNil(t, app.Status.OperationState.SyncResult)
+			require.Equal(t, revisionX, app.Status.OperationState.SyncResult.Revision)
+		}).
+		When().
+		// 3. Push an invalid commit Y (an apply-time failure only present on HEAD).
+		AddFile("failure-during-sync.yaml", `apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: failure-during-sync
+  labels:
+    my-label: has-inva/id-character!
+`).
+		And(func() {
+			sha, err := fixture.Run(fixture.TmpDir()+"/testdata.git", "git", "rev-parse", "HEAD")
+			require.NoError(t, err)
+			revisionY = strings.TrimSpace(sha)
+			require.NotEqual(t, revisionX, revisionY)
+			// 4. Add a sync Operation on HEAD (without any resolved revisions)
+			patch := fmt.Sprintf(`{
+				"operation": {
+					"initiatedBy": {"username": "e2e", "automated": true},
+					"info": [{"name": "Reason", "value": "Syncing latest without resolved revision"}],
+					"sync": {},
+					"retry": {"limit": %d, "backoff": {"duration": %q}}
+				}
+			}`, 1, "1s")
+			_, err = fixture.Run("", "kubectl", "-n", fixture.TestNamespace(), "patch", "application", ctx.AppName(), "--type", "merge", "-p", patch)
+			require.NoError(t, err)
+		}).
+		Then().
+		// 5. The sync resolves the new revision Y and fails on it
+		Expect(OperationRetriedMinimumTimes(1)).
+		Expect(OperationPhaseIs(OperationFailed)).
+		And(func(app *Application) {
+			require.NotNil(t, app.Status.OperationState.SyncResult)
+			// syncResult must record revision Y, the current broken HEAD that failed.
+			assert.Equal(t, revisionY, app.Status.OperationState.SyncResult.Revision)
+		})
 }
 
 func TestCreateDisableValidation(t *testing.T) {
@@ -2407,6 +2555,91 @@ func TestSwitchTrackingMethod(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		Expect(HealthIs(health.HealthStatusHealthy))
+}
+
+// TestTrackingMethodAnnotationMovedResource verifies that a resource previously
+// tracked by another application surfaces as OutOfSync and that syncing updates
+// its tracking annotation. The manifest deliberately carries a chart-rendered
+// app.kubernetes.io/instance label, which used to hide the stale tracking
+// annotation from the diff (issue #17965).
+func TestTrackingMethodAnnotationMovedResource(t *testing.T) {
+	ctx := Given(t)
+
+	ctx.
+		SetTrackingMethod(string(TrackingMethodAnnotation)).
+		Path("tracking-instance-label").
+		When().
+		CreateApp().
+		Sync().
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		And(func() {
+			// Rewrite the tracking annotation to the value a previous application
+			// (e.g. one replaced by an ApplicationSet-generated app) left behind.
+			patch := fmt.Sprintf(`{"metadata":{"annotations":{%q:%q}}}`,
+				common.AnnotationKeyAppInstance,
+				fmt.Sprintf("old-app:/ConfigMap:%s/my-map", ctx.DeploymentNamespace()))
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Patch(
+				t.Context(), "my-map", types.MergePatchType, []byte(patch), metav1.PatchOptions{}))
+		}).
+		Refresh(RefreshTypeNormal).
+		Then().
+		// The stale tracking annotation is a real difference and must show up.
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		When().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			// Syncing must repair the tracking annotation.
+			cm, err := fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Get(t.Context(), "my-map", metav1.GetOptions{})
+			require.NoError(t, err)
+			assert.Equal(t, fmt.Sprintf("%s:/ConfigMap:%s/my-map", app.Name, ctx.DeploymentNamespace()), cm.Annotations[common.AnnotationKeyAppInstance])
+			// The chart-rendered instance label is not owned by tracking and stays.
+			assert.Equal(t, "my-release", cm.Labels["app.kubernetes.io/instance"])
+		})
+}
+
+// TestTrackingMethodAnnotationMovedResourceSSA is the server-side apply variant
+// of TestTrackingMethodAnnotationMovedResource.
+func TestTrackingMethodAnnotationMovedResourceSSA(t *testing.T) {
+	ctx := Given(t)
+
+	ctx.
+		SetTrackingMethod(string(TrackingMethodAnnotation)).
+		Path("tracking-instance-label").
+		When().
+		CreateApp("--sync-option", "ServerSideApply=true").
+		Sync().
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		And(func() {
+			patch := fmt.Sprintf(`{"metadata":{"annotations":{%q:%q}}}`,
+				common.AnnotationKeyAppInstance,
+				fmt.Sprintf("old-app:/ConfigMap:%s/my-map", ctx.DeploymentNamespace()))
+			errors.NewHandler(t).FailOnErr(fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Patch(
+				t.Context(), "my-map", types.MergePatchType, []byte(patch), metav1.PatchOptions{}))
+		}).
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		When().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			cm, err := fixture.KubeClientset.CoreV1().ConfigMaps(ctx.DeploymentNamespace()).Get(t.Context(), "my-map", metav1.GetOptions{})
+			require.NoError(t, err)
+			assert.Equal(t, fmt.Sprintf("%s:/ConfigMap:%s/my-map", app.Name, ctx.DeploymentNamespace()), cm.Annotations[common.AnnotationKeyAppInstance])
+		})
 }
 
 func TestSwitchTrackingLabel(t *testing.T) {

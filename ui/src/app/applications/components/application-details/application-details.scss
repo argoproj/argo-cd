@@ -411,28 +411,3 @@ $header: 120px;
         }
     }
 }
-
-.resource-parent-node-info-title {
-    flex-direction: column;
-    color: $argo-color-gray-6;
-
-    &__label {
-        display: flex;
-        margin-bottom: 0.25em;
-        flex-shrink: 1;
-        div:first-child {
-            margin-right: 10px;
-            width: 60px;
-            text-align: right;
-        }
-        div:last-child {
-            font-weight: 500;
-            width: 100%;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            text-align: left;
-
-        }
-    }
-}
