@@ -187,6 +187,32 @@ spec:
         string: https://example.com`,
 		},
 		{
+			// For this use case: https://github.com/argoproj/argo-cd/issues/29066
+			// Removing the ignored field leaves an empty-but-present kustomize struct on the found side
+			// (the generated side never had one). It must collapse to nil like NormalizeApplicationSpec
+			// would do for a source that never had it, or DeepEqual sees a spurious diff and the write
+			// path patches "kustomize": null over the field the ignore rule was meant to protect.
+			name: "ignore kustomize images added to the found app leaves no empty struct behind",
+			ignoreDifferences: v1alpha1.ApplicationSetIgnoreDifferences{
+				{JSONPointers: []string{"/spec/source/kustomize/images"}},
+			},
+			foundApp: `
+spec:
+  source:
+    path: kustomize-guestbook
+    kustomize:
+      images:
+      - gcr.io/heptio-images/ks-guestbook-demo:0.2`,
+			generatedApp: `
+spec:
+  source:
+    path: kustomize-guestbook`,
+			expectedApp: `
+spec:
+  source:
+    path: kustomize-guestbook`,
+		},
+		{
 			// For this use case: https://github.com/argoproj/argo-cd/pull/14743#issuecomment-1761954799
 			name: "ignore parameters added to a multi-source app in the cluster",
 			ignoreDifferences: v1alpha1.ApplicationSetIgnoreDifferences{
