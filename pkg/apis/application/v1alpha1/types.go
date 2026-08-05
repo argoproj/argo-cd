@@ -143,7 +143,7 @@ type ResourceIgnoreDifferences struct {
 // generated when that resource appears multiple times among application resources.
 type ResourceIgnoreDuplicate struct {
 	// +kubebuilder:validation:MinLength=1
-	Group     string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
+	Group string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
 	// +kubebuilder:validation:MinLength=1
 	Kind      string `json:"kind" protobuf:"bytes,2,opt,name=kind"`
 	Name      string `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
@@ -1372,8 +1372,8 @@ func (status *ApplicationStatus) GetRevisions() []string {
 // Application state.
 func (spec *ApplicationSpec) BuildComparedToStatus(sources []ApplicationSource) ComparedTo {
 	ct := ComparedTo{
-		Destination:             spec.Destination,
-		IgnoreDifferences:       spec.IgnoreDifferences,
+		Destination:              spec.Destination,
+		IgnoreDifferences:        spec.IgnoreDifferences,
 		IgnoreDuplicateResources: spec.IgnoreDuplicateResources,
 	}
 	if spec.HasMultipleSources() {

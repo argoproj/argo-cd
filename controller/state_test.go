@@ -1990,8 +1990,8 @@ func Test_NormalizeTargetObjects_ClusterScopeTracking(t *testing.T) {
 	c.EXPECT().IsNamespaced(mock.Anything).Return(false, nil)
 	var called bool
 	_, _, err := NormalizeTargetObjects(NormalizeTargetObjectsOpts{
-		Namespace: test.FakeDestNamespace,
-		Objs:      []*unstructured.Unstructured{obj},
+		Namespace:    test.FakeDestNamespace,
+		Objs:         []*unstructured.Unstructured{obj},
 		InfoProvider: &resourceInfoProviderStub{},
 		SetAppInstance: func(u *unstructured.Unstructured) error {
 			// We expect that the normalization function will call this callback with an obj that has had the namespace set
@@ -2190,9 +2190,9 @@ func Test_NormalizeTargetObjects_IgnoreDuplicateResources(t *testing.T) {
 	}
 
 	result, conditions, err := NormalizeTargetObjects(NormalizeTargetObjectsOpts{
-		Namespace:               test.FakeDestNamespace,
-		Objs:                    []*unstructured.Unstructured{cr1, cr2, cm1, cm2},
-		InfoProvider:            &resourceInfoProviderStub{},
+		Namespace:    test.FakeDestNamespace,
+		Objs:         []*unstructured.Unstructured{cr1, cr2, cm1, cm2},
+		InfoProvider: &resourceInfoProviderStub{},
 		SetAppInstance: func(_ *unstructured.Unstructured) error {
 			return nil
 		},
@@ -2266,9 +2266,9 @@ func Test_NormalizeTargetObjects_IgnoreDuplicateResources_MatchByName(t *testing
 	}
 
 	result, conditions, err := NormalizeTargetObjects(NormalizeTargetObjectsOpts{
-		Namespace:               test.FakeDestNamespace,
-		Objs:                    []*unstructured.Unstructured{cm1a, cm1b, cm2a, cm2b},
-		InfoProvider:            &resourceInfoProviderStub{},
+		Namespace:    test.FakeDestNamespace,
+		Objs:         []*unstructured.Unstructured{cm1a, cm1b, cm2a, cm2b},
+		InfoProvider: &resourceInfoProviderStub{},
 		SetAppInstance: func(_ *unstructured.Unstructured) error {
 			return nil
 		},
