@@ -571,10 +571,10 @@ func unmarshalManifests(manifests []string) ([]*unstructured.Unstructured, error
 
 // NormalizeTargetObjectsOpts contains options for normalizing target objects (deduplication, namespace handling).
 type NormalizeTargetObjectsOpts struct {
-	Namespace               string
-	Objs                    []*unstructured.Unstructured
-	InfoProvider            kubeutil.ResourceInfoProvider
-	SetAppInstance          func(*unstructured.Unstructured) error
+	Namespace                string
+	Objs                     []*unstructured.Unstructured
+	InfoProvider             kubeutil.ResourceInfoProvider
+	SetAppInstance           func(*unstructured.Unstructured) error
 	IgnoreDuplicateResources []v1alpha1.ResourceIgnoreDuplicate
 }
 
@@ -706,8 +706,8 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 	// Build initial sync status
 	syncStatus := &v1alpha1.SyncStatus{
 		ComparedTo: v1alpha1.ComparedTo{
-			Destination:             app.Spec.Destination,
-			IgnoreDifferences:       app.Spec.IgnoreDifferences,
+			Destination:              app.Spec.Destination,
+			IgnoreDifferences:        app.Spec.IgnoreDifferences,
 			IgnoreDuplicateResources: app.Spec.IgnoreDuplicateResources,
 		},
 		Status: v1alpha1.SyncStatusCodeUnknown,
@@ -812,9 +812,9 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 	}
 
 	targetObjs, dedupConditions, err := NormalizeTargetObjects(NormalizeTargetObjectsOpts{
-		Namespace:               app.Spec.Destination.Namespace,
-		Objs:                    targetObjs,
-		InfoProvider:            infoProvider,
+		Namespace:    app.Spec.Destination.Namespace,
+		Objs:         targetObjs,
+		InfoProvider: infoProvider,
 		SetAppInstance: func(u *unstructured.Unstructured) error {
 			return m.resourceTracking.SetAppInstance(u, appLabelKey, app.InstanceName(m.namespace), app.Spec.Destination.Namespace, v1alpha1.TrackingMethod(trackingMethod), installationID)
 		},

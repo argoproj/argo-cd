@@ -1059,8 +1059,10 @@ spec:
                     generated when that resource appears multiple times among application resources.
                   properties:
                     group:
+                      minLength: 1
                       type: string
                     kind:
+                      minLength: 1
                       type: string
                     name:
                       type: string
@@ -6282,6 +6284,29 @@ spec:
                               items:
                                 type: string
                               type: array
+                            name:
+                              type: string
+                            namespace:
+                              type: string
+                          required:
+                          - kind
+                          type: object
+                        type: array
+                      ignoreDuplicateResources:
+                        description: IgnoreDuplicateResources is a reference to the
+                          application's ignored duplicate resources used for comparison
+                        items:
+                          description: |-
+                            ResourceIgnoreDuplicate contains resource filter for suppressing RepeatedResourceWarning.
+                            If a resource matches the Group/Kind/Name/Namespace selector, the warning will not be
+                            generated when that resource appears multiple times among application resources.
+                          properties:
+                            group:
+                              minLength: 1
+                              type: string
+                            kind:
+                              minLength: 1
+                              type: string
                             name:
                               type: string
                             namespace:

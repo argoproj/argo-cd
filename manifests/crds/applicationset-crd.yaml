@@ -132,8 +132,10 @@ spec:
                                   items:
                                     properties:
                                       group:
+                                        minLength: 1
                                         type: string
                                       kind:
+                                        minLength: 1
                                         type: string
                                       name:
                                         type: string
@@ -1061,8 +1063,10 @@ spec:
                                   items:
                                     properties:
                                       group:
+                                        minLength: 1
                                         type: string
                                       kind:
+                                        minLength: 1
                                         type: string
                                       name:
                                         type: string
@@ -1991,8 +1995,10 @@ spec:
                                   items:
                                     properties:
                                       group:
+                                        minLength: 1
                                         type: string
                                       kind:
+                                        minLength: 1
                                         type: string
                                       name:
                                         type: string
@@ -2899,8 +2905,10 @@ spec:
                                   items:
                                     properties:
                                       group:
+                                        minLength: 1
                                         type: string
                                       kind:
+                                        minLength: 1
                                         type: string
                                       name:
                                         type: string
@@ -3832,8 +3840,10 @@ spec:
                                             items:
                                               properties:
                                                 group:
+                                                  minLength: 1
                                                   type: string
                                                 kind:
+                                                  minLength: 1
                                                   type: string
                                                 name:
                                                   type: string
@@ -4761,8 +4771,10 @@ spec:
                                             items:
                                               properties:
                                                 group:
+                                                  minLength: 1
                                                   type: string
                                                 kind:
+                                                  minLength: 1
                                                   type: string
                                                 name:
                                                   type: string
@@ -5691,8 +5703,10 @@ spec:
                                             items:
                                               properties:
                                                 group:
+                                                  minLength: 1
                                                   type: string
                                                 kind:
+                                                  minLength: 1
                                                   type: string
                                                 name:
                                                   type: string
@@ -6599,8 +6613,10 @@ spec:
                                             items:
                                               properties:
                                                 group:
+                                                  minLength: 1
                                                   type: string
                                                 kind:
+                                                  minLength: 1
                                                   type: string
                                                 name:
                                                   type: string
@@ -7515,8 +7531,10 @@ spec:
                                             items:
                                               properties:
                                                 group:
+                                                  minLength: 1
                                                   type: string
                                                 kind:
+                                                  minLength: 1
                                                   type: string
                                                 name:
                                                   type: string
@@ -8658,8 +8676,10 @@ spec:
                                             items:
                                               properties:
                                                 group:
+                                                  minLength: 1
                                                   type: string
                                                 kind:
+                                                  minLength: 1
                                                   type: string
                                                 name:
                                                   type: string
@@ -9798,8 +9818,10 @@ spec:
                                             items:
                                               properties:
                                                 group:
+                                                  minLength: 1
                                                   type: string
                                                 kind:
+                                                  minLength: 1
                                                   type: string
                                                 name:
                                                   type: string
@@ -10723,8 +10745,10 @@ spec:
                                   items:
                                     properties:
                                       group:
+                                        minLength: 1
                                         type: string
                                       kind:
+                                        minLength: 1
                                         type: string
                                       name:
                                         type: string
@@ -11658,8 +11682,10 @@ spec:
                                             items:
                                               properties:
                                                 group:
+                                                  minLength: 1
                                                   type: string
                                                 kind:
+                                                  minLength: 1
                                                   type: string
                                                 name:
                                                   type: string
@@ -12587,8 +12613,10 @@ spec:
                                             items:
                                               properties:
                                                 group:
+                                                  minLength: 1
                                                   type: string
                                                 kind:
+                                                  minLength: 1
                                                   type: string
                                                 name:
                                                   type: string
@@ -13517,8 +13545,10 @@ spec:
                                             items:
                                               properties:
                                                 group:
+                                                  minLength: 1
                                                   type: string
                                                 kind:
+                                                  minLength: 1
                                                   type: string
                                                 name:
                                                   type: string
@@ -14425,8 +14455,10 @@ spec:
                                             items:
                                               properties:
                                                 group:
+                                                  minLength: 1
                                                   type: string
                                                 kind:
+                                                  minLength: 1
                                                   type: string
                                                 name:
                                                   type: string
@@ -15341,8 +15373,10 @@ spec:
                                             items:
                                               properties:
                                                 group:
+                                                  minLength: 1
                                                   type: string
                                                 kind:
+                                                  minLength: 1
                                                   type: string
                                                 name:
                                                   type: string
@@ -16484,8 +16518,10 @@ spec:
                                             items:
                                               properties:
                                                 group:
+                                                  minLength: 1
                                                   type: string
                                                 kind:
+                                                  minLength: 1
                                                   type: string
                                                 name:
                                                   type: string
@@ -17624,8 +17660,10 @@ spec:
                                             items:
                                               properties:
                                                 group:
+                                                  minLength: 1
                                                   type: string
                                                 kind:
+                                                  minLength: 1
                                                   type: string
                                                 name:
                                                   type: string
@@ -18553,8 +18591,10 @@ spec:
                                   items:
                                     properties:
                                       group:
+                                        minLength: 1
                                         type: string
                                       kind:
+                                        minLength: 1
                                         type: string
                                       name:
                                         type: string
@@ -19468,8 +19508,10 @@ spec:
                                   items:
                                     properties:
                                       group:
+                                        minLength: 1
                                         type: string
                                       kind:
+                                        minLength: 1
                                         type: string
                                       name:
                                         type: string
@@ -20611,8 +20653,10 @@ spec:
                                   items:
                                     properties:
                                       group:
+                                        minLength: 1
                                         type: string
                                       kind:
+                                        minLength: 1
                                         type: string
                                       name:
                                         type: string
@@ -21751,8 +21795,10 @@ spec:
                                   items:
                                     properties:
                                       group:
+                                        minLength: 1
                                         type: string
                                       kind:
+                                        minLength: 1
                                         type: string
                                       name:
                                         type: string
@@ -22753,8 +22799,10 @@ spec:
                         items:
                           properties:
                             group:
+                              minLength: 1
                               type: string
                             kind:
+                              minLength: 1
                               type: string
                             name:
                               type: string

@@ -524,8 +524,8 @@ func newNormalizeTargetManifestsProvider(
 		// Normalize target objects (namespace normalization, deduplication, and tracking re-application)
 		resourceTracking := argo.NewResourceTracking()
 		normalized, conditions, err := controller.NormalizeTargetObjects(controller.NormalizeTargetObjectsOpts{
-			Namespace: app.Spec.Destination.Namespace,
-			Objs:      manifests,
+			Namespace:    app.Spec.Destination.Namespace,
+			Objs:         manifests,
 			InfoProvider: infoProvider,
 			SetAppInstance: func(u *unstructured.Unstructured) error {
 				return resourceTracking.SetAppInstance(

@@ -2186,8 +2186,10 @@ message ResourceIgnoreDifferences {
 // If a resource matches the Group/Kind/Name/Namespace selector, the warning will not be
 // generated when that resource appears multiple times among application resources.
 message ResourceIgnoreDuplicate {
+  // +kubebuilder:validation:MinLength=1
   optional string group = 1;
 
+  // +kubebuilder:validation:MinLength=1
   optional string kind = 2;
 
   optional string name = 3;

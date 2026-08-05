@@ -143,7 +143,7 @@ type ResourceIgnoreDifferences struct {
 // generated when that resource appears multiple times among application resources.
 type ResourceIgnoreDuplicate struct {
 	// +kubebuilder:validation:MinLength=1
-	Group     string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
+	Group string `json:"group,omitempty" protobuf:"bytes,1,opt,name=group"`
 	// +kubebuilder:validation:MinLength=1
 	Kind      string `json:"kind" protobuf:"bytes,2,opt,name=kind"`
 	Name      string `json:"name,omitempty" protobuf:"bytes,3,opt,name=name"`
@@ -1366,8 +1366,8 @@ func (status *ApplicationStatus) GetRevisions() []string {
 // Application state.
 func (spec *ApplicationSpec) BuildComparedToStatus(sources []ApplicationSource) ComparedTo {
 	ct := ComparedTo{
-		Destination:             spec.Destination,
-		IgnoreDifferences:       spec.IgnoreDifferences,
+		Destination:              spec.Destination,
+		IgnoreDifferences:        spec.IgnoreDifferences,
 		IgnoreDuplicateResources: spec.IgnoreDuplicateResources,
 	}
 	if spec.HasMultipleSources() {
@@ -1634,7 +1634,7 @@ func (r *RetryStrategy) NextRetryAt(lastAttempt time.Time, retryCounts int64) (t
 	// Formula: timeToWait = duration * factor^retry_number
 	// Note that timeToWait should equal to duration for the first retry attempt.
 	// When timeToWait is more than maxDuration retry should be performed at maxDuration.
-	timeToWait := float64(duration) * (math.Pow(float64(factor), float64(retryCounts)))
+	timeToWait := float64(duration) * math.Pow(float64(factor), float64(retryCounts))
 	if maxDuration > 0 {
 		timeToWait = math.Min(float64(maxDuration), timeToWait)
 	}
