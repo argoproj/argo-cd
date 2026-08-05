@@ -36,6 +36,7 @@ import (
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	logutils "github.com/argoproj/argo-cd/v3/util/log"
@@ -189,7 +190,8 @@ type ResourceInfo struct {
 func NewLiveStateCache(
 	db db.ArgoDB,
 	appInformer cache.SharedIndexInformer,
-	settingsMgr *settings.SettingsManager,
+	namespace string,
+	configProvider configbus.Provider,
 	metricsServer *metrics.MetricsServer,
 	onObjectUpdated ObjectUpdatedHandler,
 	clusterSharding sharding.ClusterShardingCache,
@@ -200,7 +202,8 @@ func NewLiveStateCache(
 		db:               db,
 		clusters:         make(map[string]clustercache.ClusterCache),
 		onObjectUpdated:  onObjectUpdated,
-		settingsMgr:      settingsMgr,
+		namespace:        namespace,
+		configProvider:   configProvider,
 		metricsServer:    metricsServer,
 		clusterSharding:  clusterSharding,
 		resourceTracking: resourceTracking,
@@ -217,17 +220,21 @@ type cacheSettings struct {
 
 	// ignoreResourceUpdates is a flag to enable resource-ignore rules.
 	ignoreResourceUpdatesEnabled bool
+
+	// ignoreNormalizerJQTimeout is resolved once with other cache settings. Not hot-reloaded
+	// independently of loadCacheSettings / invalidate.
+	ignoreNormalizerJQTimeout time.Duration
 }
 
 type liveStateCache struct {
-	db                   db.ArgoDB
-	appInformer          cache.SharedIndexInformer
-	onObjectUpdated      ObjectUpdatedHandler
-	settingsMgr          *settings.SettingsManager
-	metricsServer        *metrics.MetricsServer
-	clusterSharding      sharding.ClusterShardingCache
-	resourceTracking     argo.ResourceTracking
-	ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts
+	db               db.ArgoDB
+	appInformer      cache.SharedIndexInformer
+	onObjectUpdated  ObjectUpdatedHandler
+	namespace        string
+	configProvider   configbus.Provider
+	metricsServer    *metrics.MetricsServer
+	clusterSharding  sharding.ClusterShardingCache
+	resourceTracking argo.ResourceTracking
 
 	clusters      map[string]clustercache.ClusterCache
 	cacheSettings cacheSettings
@@ -235,40 +242,52 @@ type liveStateCache struct {
 }
 
 func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
-	appInstanceLabelKey, err := c.settingsMgr.GetAppInstanceLabelKey()
+	appInstanceLabelKey, err := c.configProvider.AppInstanceLabelKey(context.Background())
 	if err != nil {
 		return nil, err
 	}
-	trackingMethod, err := c.settingsMgr.GetTrackingMethod()
+	trackingMethod, err := c.configProvider.TrackingMethod(context.Background())
 	if err != nil {
 		return nil, err
 	}
-	installationID, err := c.settingsMgr.GetInstallationID()
+	installationID, err := c.configProvider.InstallationID(context.Background())
 	if err != nil {
 		return nil, err
 	}
-	resourceUpdatesOverrides, err := c.settingsMgr.GetIgnoreResourceUpdatesOverrides()
+	resourceUpdatesOverrides, err := c.configProvider.IgnoreResourceUpdatesOverrides(context.Background())
 	if err != nil {
 		return nil, err
 	}
-	ignoreResourceUpdatesEnabled, err := c.settingsMgr.GetIsIgnoreResourceUpdatesEnabled()
+	ignoreResourceUpdatesEnabled, err := c.configProvider.IsIgnoreResourceUpdatesEnabled(context.Background())
 	if err != nil {
 		return nil, err
 	}
-	resourcesFilter, err := c.settingsMgr.GetResourcesFilter()
+	resourcesFilter, err := c.configProvider.ResourcesFilter(context.Background())
 	if err != nil {
 		return nil, err
 	}
-	resourceOverrides, err := c.settingsMgr.GetResourceOverrides()
+	resourceOverrides, err := c.configProvider.ResourceOverrides(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	ignoreNormalizerJQTimeout, err := c.configProvider.IgnoreNormalizerJQTimeout(context.Background())
 	if err != nil {
 		return nil, err
 	}
 	clusterSettings := clustercache.Settings{
 		ResourceHealthOverride: lua.ResourceHealthOverrides(resourceOverrides),
-		ResourcesFilter:        resourcesFilter,
+		ResourcesFilter:        &resourcesFilter,
 	}
 
-	return &cacheSettings{clusterSettings, appInstanceLabelKey, appv1.TrackingMethod(trackingMethod), installationID, resourceUpdatesOverrides, ignoreResourceUpdatesEnabled}, nil
+	return &cacheSettings{
+		clusterSettings:              clusterSettings,
+		appInstanceLabelKey:          appInstanceLabelKey,
+		trackingMethod:               appv1.TrackingMethod(trackingMethod),
+		installationID:               installationID,
+		resourceOverrides:            resourceUpdatesOverrides,
+		ignoreResourceUpdatesEnabled: ignoreResourceUpdatesEnabled,
+		ignoreNormalizerJQTimeout:    ignoreNormalizerJQTimeout,
+	}, nil
 }
 
 func asResourceNode(r *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) appv1.ResourceNode {
@@ -515,12 +534,12 @@ func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.Cluste
 		return nil, fmt.Errorf("controller is configured to ignore cluster %s", cluster.Server)
 	}
 
-	resourceCustomLabels, err := c.settingsMgr.GetResourceCustomLabels()
+	resourceCustomLabels, err := c.configProvider.ResourceCustomLabels(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("error getting custom label: %w", err)
 	}
 
-	respectRBAC, err := c.settingsMgr.RespectRBAC()
+	respectRBAC, err := c.configProvider.RespectRBAC(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("error getting value for %v: %w", settings.RespectRBAC, err)
 	}
@@ -569,7 +588,7 @@ func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.Cluste
 			gvk := un.GroupVersionKind()
 
 			if cacheSettings.ignoreResourceUpdatesEnabled && shouldHashManifest(appName, gvk, un) {
-				hash, err := generateManifestHash(un, nil, cacheSettings.resourceOverrides, c.ignoreNormalizerOpts)
+				hash, err := generateManifestHash(un, nil, cacheSettings.resourceOverrides, normalizers.IgnoreNormalizerOpts{JQExecutionTimeout: cacheSettings.ignoreNormalizerJQTimeout})
 				if err != nil {
 					log.Errorf("Failed to generate manifest hash: %v", err)
 				} else {
@@ -732,7 +751,7 @@ func (c *liveStateCache) GetManagedLiveObjs(destCluster *appv1.Cluster, a *appv1
 		return nil, fmt.Errorf("failed to get cluster info for %q: %w", destCluster.Server, err)
 	}
 	return clusterInfo.GetManagedLiveObjs(targetObjs, func(r *clustercache.Resource) bool {
-		return resInfo(r).AppName == a.InstanceName(c.settingsMgr.GetNamespace())
+		return resInfo(r).AppName == a.InstanceName(c.namespace)
 	})
 }
 
@@ -764,7 +783,7 @@ func (c *liveStateCache) isClusterHasApps(apps []any, cluster *appv1.Cluster) bo
 
 func (c *liveStateCache) watchSettings(ctx context.Context) {
 	updateCh := make(chan *settings.ArgoCDSettings, 1)
-	c.settingsMgr.Subscribe(updateCh)
+	c.configProvider.Subscribe(updateCh)
 
 	done := false
 	for !done {
@@ -791,7 +810,7 @@ func (c *liveStateCache) watchSettings(ctx context.Context) {
 		}
 	}
 	log.Info("shutting down settings watch")
-	c.settingsMgr.Unsubscribe(updateCh)
+	c.configProvider.Unsubscribe(updateCh)
 	close(updateCh)
 }
 

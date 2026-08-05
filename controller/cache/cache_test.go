@@ -30,6 +30,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/controller/sharding"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	dbmocks "github.com/argoproj/argo-cd/v3/util/db/mocks"
 	argosettings "github.com/argoproj/argo-cd/v3/util/settings"
 )
@@ -105,7 +106,6 @@ func TestHandleModEvent_ClusterExcluded(t *testing.T) {
 		appInformer: nil,
 		onObjectUpdated: func(_ map[string]bool, _ corev1.ObjectReference) {
 		},
-		settingsMgr:   &argosettings.SettingsManager{},
 		metricsServer: &metrics.MetricsServer{},
 		// returns a shard that never process any cluster
 		clusterSharding:  sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm),
@@ -173,15 +173,12 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 	}
 	db := &dbmocks.ArgoDB{}
 	db.EXPECT().GetApplicationControllerReplicas().Return(1)
-	fakeClient := fake.NewClientset()
-	settingsMgr := argosettings.NewSettingsManager(t.Context(), fakeClient, "argocd")
 	gitopsEngineClusterCache := &mocks.ClusterCache{}
 	clustersCache := liveStateCache{
 		clusters: map[string]cache.ClusterCache{
 			testCluster.Server: gitopsEngineClusterCache,
 		},
 		clusterSharding: sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm),
-		settingsMgr:     settingsMgr,
 		lock:            sync.RWMutex{},
 	}
 	channel := make(chan string)
@@ -813,12 +810,19 @@ func TestLoadCacheSettings(t *testing.T) {
 		"application.resourceTrackingMethod": string(appv1.TrackingMethodLabel),
 		"installationID":                     "123456789",
 	})
+	jqTimeout := 2 * time.Second
 	ch := liveStateCache{
-		settingsMgr: settingsManager,
+		namespace: "argocd",
+		configProvider: configbus.NewChainProvider(
+			&configbus.StaticProvider{Fields: configbus.StaticFields{
+				IgnoreNormalizerJQTimeout: configbus.Ptr(jqTimeout),
+			}},
+			configbus.NewSettingsManagerProvider(settingsManager),
+		),
 	}
-	label, err := settingsManager.GetAppInstanceLabelKey()
+	label, err := ch.configProvider.AppInstanceLabelKey(t.Context())
 	require.NoError(t, err)
-	trackingMethod, err := settingsManager.GetTrackingMethod()
+	trackingMethod, err := ch.configProvider.TrackingMethod(t.Context())
 	require.NoError(t, err)
 	res, err := ch.loadCacheSettings()
 	require.NoError(t, err)
@@ -826,6 +830,7 @@ func TestLoadCacheSettings(t *testing.T) {
 	assert.Equal(t, label, res.appInstanceLabelKey)
 	assert.Equal(t, string(appv1.TrackingMethodLabel), trackingMethod)
 	assert.Equal(t, "123456789", res.installationID)
+	assert.Equal(t, jqTimeout, res.ignoreNormalizerJQTimeout)
 
 	// By default the values won't be nil
 	assert.NotNil(t, res.resourceOverrides)

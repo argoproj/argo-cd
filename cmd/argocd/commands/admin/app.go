@@ -41,6 +41,7 @@ import (
 	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/config"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
@@ -365,11 +366,29 @@ func reconcileApplications(
 	namespace string,
 	repoServerClient reposerverclient.Clientset,
 	selector string,
-	createLiveStateCache func(argoDB db.ArgoDB, appInformer kubecache.SharedIndexInformer, settingsMgr *settings.SettingsManager, server *metrics.MetricsServer) cache.LiveStateCache,
+	createLiveStateCache func(argoDB db.ArgoDB, appInformer kubecache.SharedIndexInformer, namespace string, configProvider configbus.Provider, server *metrics.MetricsServer) cache.LiveStateCache,
 	serverSideDiff bool,
 	ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts,
 ) ([]appReconcileResult, error) {
 	settingsMgr := settings.NewSettingsManager(ctx, kubeClientset, namespace)
+	// CLI flags override Diff-related settings via a leading StaticProvider.
+	// Temporary: once config is fully CRD-backed these admin flags go away.
+	// Trailing Static mirrors the former admin NewAppStateManager literals
+	// (persistResourceHealth=false, statusRefreshTimeout=1s, repoErrorGracePeriod=0)
+	// so reconcile behavior matches pre-configbus admin.
+	configProvider := configbus.NewChainProvider(
+		&configbus.StaticProvider{Fields: configbus.StaticFields{
+			IgnoreNormalizerJQTimeout: configbus.Ptr(ignoreNormalizerOpts.JQExecutionTimeout),
+			ServerSideDiff:            configbus.Ptr(serverSideDiff),
+		}},
+		configbus.NewSettingsManagerProvider(settingsMgr),
+		configbus.NewEnvProvider(),
+		&configbus.StaticProvider{Fields: configbus.StaticFields{
+			PersistResourceHealth: configbus.Ptr(false),
+			ReconciliationTimeout: configbus.Ptr(time.Second),
+			RepoErrorGracePeriod:  configbus.Ptr(time.Duration(0)),
+		}},
+	)
 	argoDB := db.NewDB(namespace, settingsMgr, kubeClientset)
 	appInformerFactory := appinformers.NewSharedInformerFactoryWithOptions(
 		appClientset,
@@ -396,7 +415,7 @@ func reconcileApplications(
 	if err != nil {
 		return nil, fmt.Errorf("error starting new metrics server: %w", err)
 	}
-	stateCache := createLiveStateCache(argoDB, appInformer, settingsMgr, server)
+	stateCache := createLiveStateCache(argoDB, appInformer, namespace, configProvider, server)
 	if err := stateCache.Init(); err != nil {
 		return nil, fmt.Errorf("error initializing state cache: %w", err)
 	}
@@ -415,16 +434,11 @@ func reconcileApplications(
 		func(_ string) (kube.CleanupFunc, error) {
 			return func() {}, nil
 		},
-		settingsMgr,
+		configProvider,
 		stateCache,
 		server,
 		cache,
-		time.Second,
 		argo.NewResourceTracking(),
-		false,
-		0,
-		serverSideDiff,
-		ignoreNormalizerOpts,
 	)
 
 	appsList, err := appClientset.ArgoprojV1alpha1().Applications(namespace).List(ctx, metav1.ListOptions{LabelSelector: selector})
@@ -479,6 +493,6 @@ func reconcileApplications(
 	return items, nil
 }
 
-func newLiveStateCache(argoDB db.ArgoDB, appInformer kubecache.SharedIndexInformer, settingsMgr *settings.SettingsManager, server *metrics.MetricsServer) cache.LiveStateCache {
-	return cache.NewLiveStateCache(argoDB, appInformer, settingsMgr, server, func(_ map[string]bool, _ corev1.ObjectReference) {}, &sharding.ClusterSharding{}, argo.NewResourceTracking())
+func newLiveStateCache(argoDB db.ArgoDB, appInformer kubecache.SharedIndexInformer, namespace string, configProvider configbus.Provider, server *metrics.MetricsServer) cache.LiveStateCache {
+	return cache.NewLiveStateCache(argoDB, appInformer, namespace, configProvider, server, func(_ map[string]bool, _ corev1.ObjectReference) {}, &sharding.ClusterSharding{}, argo.NewResourceTracking())
 }
