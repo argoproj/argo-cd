@@ -70,7 +70,7 @@ jobs:
       # rather than dependabot, so its update will be grouped into the same PR
       # as the image (below).
       - name: Self-hosted Renovate
-        uses: renovatebot/github-action@973d3e5a68e735a444e8c03432b66eedb343c302 # v46.2.0
+        uses: renovatebot/github-action@316d7cd859606d6039a2182b7d69199e9b036835 # v46.2.1
         with:
           configurationFile: .github/configs/renovate-config.js
           token: '${{ steps.get_token.outputs.token }}'
@@ -82,7 +82,7 @@ jobs:
           # renovate-presets/custom-managers/renovate-action.json5, which expects
           # `renovate-image` and `renovate-version` to stay on adjacent lines.
           renovate-image: "ghcr.io/renovatebot/renovate"
-          renovate-version: "44.4.6@sha256:f977cc169a477e7b0fe0b5632eb9b9f488874448808bce1f4bc9b92fb1891b89"
+          renovate-version: "44.13.1@sha256:3e4149122921d530218a4ca809c59636faa668b330e4c9ea7f9ee1e20ea505dd"
         env:
           LOG_LEVEL: 'debug'
           RENOVATE_REPOSITORIES: '${{ github.repository }}'
