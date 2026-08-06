@@ -1,0 +1,20 @@
+apiVersion: trust.cert-manager.io/v1alpha1
+kind: Bundle
+metadata:
+  name: trust-bundle
+spec:
+  sources:
+  - configMap:
+      name: missing-cm
+      key: ca.crt
+  target:
+    configMap:
+      key: root-certs.pem
+status:
+  conditions:
+  - lastTransitionTime: "2025-05-01T10:00:00Z"
+    message: 'Bundle source was not found: configmap "missing-cm" not found'
+    observedGeneration: 1
+    reason: SourceNotFound
+    status: "False"
+    type: Synced
