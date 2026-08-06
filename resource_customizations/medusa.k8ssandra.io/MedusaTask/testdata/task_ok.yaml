@@ -1,0 +1,25 @@
+apiVersion: medusa.k8ssandra.io/v1alpha1
+kind: MedusaTask
+metadata:
+  creationTimestamp: '2026-05-03T00:00:30Z'
+  generation: 1
+  labels:
+    cassandra.datastax.com/cluster: test-cluster
+    cassandra.datastax.com/datacenter: stage0-test
+  name: test-purge-weekly-1777766400-sync
+  namespace: dbaas-ac-test
+  ownerReferences:
+    - apiVersion: cassandra.datastax.com/v1beta1
+      kind: CassandraDatacenter
+      name: stage0-test
+      uid: fcd45992-002a-4294-89cd-94d15b1ac543
+  resourceVersion: '28519097'
+  uid: 2e3163df-0b78-4daf-8a92-a296b6fa10a0
+spec:
+  cassandraDatacenter: stage0-test
+  operation: sync
+status:
+  finishTime: '2026-05-03T00:00:45Z'
+  finished:
+    - podName: test-cluster-stage0-test-default-sts-0
+  startTime: '2026-05-03T00:00:45Z'
