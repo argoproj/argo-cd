@@ -1,3 +1,4 @@
+import {Tooltip} from 'argo-ui';
 import * as moment from 'moment';
 import * as React from 'react';
 import {ago} from 'argo-ui/v2';
@@ -5,6 +6,10 @@ import {ago} from 'argo-ui/v2';
 import * as models from '../../models';
 
 require('./events-list.scss');
+
+function getEventIssuer(event: models.Event): string {
+    return event.reportingComponent || (event.source && event.source.component) || '';
+}
 
 function timestampSort(first: models.Event, second: models.Event): number {
     if (first.lastTimestamp && !second.lastTimestamp) {
@@ -44,19 +49,31 @@ export const EventsList = (props: {events: models.Event[]}) => {
                             <div className='columns small-2 xxlarge-2'>LAST OCCURRED</div>
                         </div>
                     </div>
-                    {events.map(event => (
-                        <div className={`argo-table-list__row events-list__event events-list__event--${event.type}`} key={event.metadata.uid}>
-                            <div className='row'>
-                                <div className='columns small-2 xxlarge-2'>{event.reason}</div>
-                                <div className='columns small-4 xxlarge-5' style={{whiteSpace: 'normal', lineHeight: 'normal'}}>
-                                    {event.message}
+                    {events.map(event => {
+                        const issuer = getEventIssuer(event);
+                        const reasonCell = issuer ? (
+                            <Tooltip content={`Reported by: ${issuer}`}>
+                                <span>{event.reason}</span>
+                            </Tooltip>
+                        ) : (
+                            <span>{event.reason}</span>
+                        );
+                        return (
+                            <div className={`argo-table-list__row events-list__event events-list__event--${event.type}`} key={event.metadata.uid}>
+                                <div className='row'>
+                                    <div className='columns small-2 xxlarge-2'>{reasonCell}</div>
+                                    <div className='columns small-4 xxlarge-5' style={{whiteSpace: 'normal', lineHeight: 'normal'}}>
+                                        {event.message}
+                                    </div>
+                                    <div className='columns small-2 xxlarge-1'>{event.count}</div>
+                                    <div className='columns small-2 xxlarge-2'>
+                                        {event.firstTimestamp ? getTimeElements(event.firstTimestamp) : getTimeElements(event.eventTime)}
+                                    </div>
+                                    <div className='columns small-2 xxlarge-2'>{event.lastTimestamp ? getTimeElements(event.lastTimestamp) : getTimeElements(event.eventTime)}</div>
                                 </div>
-                                <div className='columns small-2 xxlarge-1'>{event.count}</div>
-                                <div className='columns small-2 xxlarge-2'>{event.firstTimestamp ? getTimeElements(event.firstTimestamp) : getTimeElements(event.eventTime)}</div>
-                                <div className='columns small-2 xxlarge-2'>{event.lastTimestamp ? getTimeElements(event.lastTimestamp) : getTimeElements(event.eventTime)}</div>
                             </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             )}
         </div>
