@@ -1,0 +1,32 @@
+apiVersion: work.karmada.io/v1alpha2
+kind: ResourceBinding
+metadata:
+  name: nginx-configmap
+  namespace: default
+  labels:
+    propagationpolicy.karmada.io/name: nginx-policy
+    propagationpolicy.karmada.io/namespace: default
+spec:
+  # spec.clusters is intentionally absent for dependency-propagated bindings
+  # (propagateDeps=true on the parent PropagationPolicy).
+  resource:
+    apiVersion: v1
+    kind: ConfigMap
+    name: nginx-config
+    namespace: default
+    resourceVersion: "123456"
+    uid: aabbccdd-1234-5678-abcd-aabbccddeeff
+status:
+  aggregatedStatus:
+    - applied: true
+      clusterName: member1
+      health: Healthy
+    - applied: true
+      clusterName: member2
+      health: Healthy
+  conditions:
+    - lastTransitionTime: "2024-01-01T00:00:00Z"
+      message: All works have been successfully applied
+      reason: FullyAppliedSuccess
+      status: "True"
+      type: FullyApplied
