@@ -1,4 +1,4 @@
-import {DataLoader} from 'argo-ui';
+import {DataLoader, SlidingPanel} from 'argo-ui';
 import * as React from 'react';
 import {Key, KeybindingContext, NumKey, NumKeyToNumber, NumPadKey, useNav} from 'argo-ui/v2';
 import {Consumer, Context} from '../../../shared/context';
@@ -6,6 +6,7 @@ import * as models from '../../../shared/models';
 import * as AppUtils from '../utils';
 import {isApp} from '../utils';
 import {services} from '../../../shared/services';
+import {ApplicationResourcesDiff} from '../application-resources-diff/application-resources-diff';
 import {ApplicationTile} from './application-tile';
 import {AppSetTile} from './appset-tile';
 
@@ -47,6 +48,7 @@ const useItemsPerContainer = (itemRef: any, containerRef: any): number => {
 
 export const ApplicationTiles = ({applications, syncApplication, refreshApplication, deleteApplication}: ApplicationTilesProps) => {
     const [selectedApp, navApp, reset] = useNav(applications.length);
+    const [diffApp, setDiffApp] = React.useState<models.Application | null>(null);
 
     const ctxh = React.useContext(Context);
     const firstTileRef = React.useRef<HTMLDivElement>(null);
@@ -102,32 +104,51 @@ export const ApplicationTiles = ({applications, syncApplication, refreshApplicat
             {ctx => (
                 <DataLoader load={() => services.viewPreferences.getPreferences()}>
                     {pref => (
-                        <div className='applications-tiles argo-table-list argo-table-list--clickable' ref={appContainerRef}>
-                            {applications.map((app, i) =>
-                                isApp(app) ? (
-                                    <ApplicationTile
-                                        key={AppUtils.appInstanceName(app)}
-                                        app={app as models.Application}
-                                        selected={selectedApp === i}
-                                        pref={pref}
-                                        ctx={ctx}
-                                        tileRef={i === 0 ? firstTileRef : undefined}
-                                        syncApplication={syncApplication}
-                                        refreshApplication={refreshApplication}
-                                        deleteApplication={deleteApplication}
-                                    />
-                                ) : (
-                                    <AppSetTile
-                                        key={AppUtils.appInstanceName(app)}
-                                        appSet={app as models.ApplicationSet}
-                                        selected={selectedApp === i}
-                                        pref={pref}
-                                        ctx={ctx}
-                                        tileRef={i === 0 ? firstTileRef : undefined}
-                                    />
-                                )
-                            )}
-                        </div>
+                        <>
+                            <div className='applications-tiles argo-table-list argo-table-list--clickable' ref={appContainerRef}>
+                                {applications.map((app, i) =>
+                                    isApp(app) ? (
+                                        <ApplicationTile
+                                            key={AppUtils.appInstanceName(app)}
+                                            app={app as models.Application}
+                                            selected={selectedApp === i}
+                                            pref={pref}
+                                            ctx={ctx}
+                                            tileRef={i === 0 ? firstTileRef : undefined}
+                                            syncApplication={syncApplication}
+                                            refreshApplication={refreshApplication}
+                                            deleteApplication={deleteApplication}
+                                            showDiff={setDiffApp}
+                                        />
+                                    ) : (
+                                        <AppSetTile
+                                            key={AppUtils.appInstanceName(app)}
+                                            appSet={app as models.ApplicationSet}
+                                            selected={selectedApp === i}
+                                            pref={pref}
+                                            ctx={ctx}
+                                            tileRef={i === 0 ? firstTileRef : undefined}
+                                        />
+                                    )
+                                )}
+                            </div>
+                            <SlidingPanel
+                                isShown={diffApp !== null}
+                                onClose={() => setDiffApp(null)}
+                                header={<h4>{diffApp && AppUtils.appQualifiedName(diffApp, false)} — Diff</h4>}>
+                                {diffApp && (
+                                    <DataLoader
+                                        key={AppUtils.appInstanceName(diffApp)}
+                                        load={() =>
+                                            services.applications.managedResources(diffApp.metadata.name, diffApp.metadata.namespace, {
+                                                fields: ['items.normalizedLiveState', 'items.predictedLiveState', 'items.group', 'items.kind', 'items.namespace', 'items.name']
+                                            })
+                                        }>
+                                        {managedResources => <ApplicationResourcesDiff states={managedResources} />}
+                                    </DataLoader>
+                                )}
+                            </SlidingPanel>
+                        </>
                     )}
                 </DataLoader>
             )}
