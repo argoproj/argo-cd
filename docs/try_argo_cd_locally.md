@@ -6,6 +6,15 @@
 
 Follow these steps to install `Kind` for local development and set it up with Argo CD.
 
+!!! note "Windows users"
+    When running Argo CD locally on Windows:
+
+    - Ensure Docker Desktop is running with WSL 2 backend enabled.
+    - Ensure WSL 2 is enabled and set as the default version.
+
+    Local Kubernetes clusters such as kind, Minikube, or Docker Desktop require WSL 2 to run Linux containers.
+
+
 To run an Argo CD development environment review the [developer guide for running locally](./developer-guide/running-locally.md).
 
 ## Install Kind
@@ -51,6 +60,17 @@ To log in to the ArgoCD UI, you'll need the default admin password. You can retr
 ```bash
 kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d
 ```
+!!! note "PowerShell users"
+    The `base64 -d` command is not available in Windows PowerShell.
+
+    To decode the password manually, use:
+
+    ```powershell
+    [System.Text.Encoding]::UTF8.GetString(
+      [System.Convert]::FromBase64String("<BASE64_VALUE>")
+    )
+    ```
+
 Use the admin username and the retrieved password to log in.
 
 You can now move on to step #2 in the [Getting Started Guide](getting_started.md).
