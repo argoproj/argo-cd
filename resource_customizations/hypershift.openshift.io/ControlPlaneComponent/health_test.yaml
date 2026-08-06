@@ -1,0 +1,17 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: Component is available and rollout is complete
+  inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for spec update to be observed by controller"
+  inputPath: testdata/progressing_new_generation.yaml
+- healthStatus:
+    status: Progressing
+    message: "Rollout in progress: waiting for pods to become ready"
+  inputPath: testdata/progressing_rollout.yaml
+- healthStatus:
+    status: Degraded
+    message: "Dependencies are not yet available: etcd is not ready"
+  inputPath: testdata/degraded_unavailable.yaml
