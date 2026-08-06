@@ -311,6 +311,7 @@ func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer),
 		[]string{},
 		testEnableEventList,
 		true,
+		factory.Argoproj().V1alpha1().SyncWindowResources().Lister(),
 	)
 	return server.(*Server)
 }
@@ -495,6 +496,7 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(b *testing.B, f func(*rb
 		[]string{},
 		testEnableEventList,
 		true,
+		factory.Argoproj().V1alpha1().SyncWindowResources().Lister(),
 	)
 	return server.(*Server)
 }

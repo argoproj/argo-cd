@@ -196,6 +196,8 @@ type ArgoCDServer struct {
 	enf             *rbac.Enforcer
 	projInformer    cache.SharedIndexInformer
 	projLister      applisters.AppProjectNamespaceLister
+	syncWindowInformer cache.SharedIndexInformer
+	syncWindowLister   applisters.SyncWindowResourceLister
 	policyEnforcer  *rbacpolicy.RBACPolicyEnforcer
 	clusterInformer *settings_util.ClusterInformer
 	appInformer     cache.SharedIndexInformer
@@ -337,6 +339,9 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	appsetInformer := appFactory.Argoproj().V1alpha1().ApplicationSets().Informer()
 	appsetLister := appFactory.Argoproj().V1alpha1().ApplicationSets().Lister()
 
+	syncWindowInformer := projFactory.Argoproj().V1alpha1().SyncWindowResources().Informer()
+	syncWindowLister := projFactory.Argoproj().V1alpha1().SyncWindowResources().Lister()
+
 	// When watching cluster-wide (i.e. application.namespaces is configured),
 	// drop objects from namespaces that are not in the allowed list before
 	// they enter the informer cache. This avoids caching Applications and
@@ -403,6 +408,8 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 		enf:                enf,
 		projInformer:       projInformer,
 		projLister:         projLister,
+		syncWindowInformer: syncWindowInformer,
+		syncWindowLister:   syncWindowLister,
 		appInformer:        appInformer,
 		appLister:          appLister,
 		appsetInformer:     appsetInformer,
@@ -571,6 +578,7 @@ func (server *ArgoCDServer) Init(ctx context.Context) {
 	go server.clusterInformer.Run(ctx.Done())
 	go server.configMapInformer.Run(ctx.Done())
 	go server.secretInformer.Run(ctx.Done())
+	go server.syncWindowInformer.Run(ctx.Done())
 }
 
 // Run runs the API Server
@@ -676,7 +684,7 @@ func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 	go server.rbacPolicyLoader(ctx)
 	go func() { server.checkServeErr("tcpm", tcpm.Serve()) }()
 	go func() { server.checkServeErr("metrics", metricsServ.Serve(listeners.Metrics)) }()
-	if !cache.WaitForCacheSync(ctx.Done(), server.projInformer.HasSynced, server.appInformer.HasSynced, server.clusterInformer.HasSynced) {
+	if !cache.WaitForCacheSync(ctx.Done(), server.projInformer.HasSynced, server.appInformer.HasSynced, server.clusterInformer.HasSynced, server.syncWindowInformer.HasSynced) {
 		log.Fatal("Timed out waiting for project cache to sync")
 	}
 
@@ -1056,6 +1064,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 		a.ApplicationNamespaces,
 		a.EnableK8sEvent,
 		a.SyncWithReplaceAllowed,
+		a.syncWindowLister,
 	)
 
 	applicationSetService := applicationset.NewServer(
