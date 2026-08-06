@@ -12,8 +12,6 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
-	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	log "github.com/sirupsen/logrus"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,6 +20,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/applicationset/utils"
 	argov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -61,16 +60,44 @@ type Dependencies interface {
 }
 
 type Manager struct {
-	Client           client.Client
+	Client client.Client
+	// APIReader reads directly from the API server, bypassing the informer cache. Reverse deletion
+	// uses it to double-check an Application the cache has reported as terminating for an
+	// implausibly long time, since the cache alone cannot distinguish a slow teardown from a DELETED
+	// event that was never delivered. May be nil, in which case the check degrades to waiting.
+	APIReader        client.Reader
 	dependencies     Dependencies
 	validationIssues *ValidationIssues // collected during progressive sync execution
 }
 
 // NewManager creates a new manager with dependencies
-func NewManager(client client.Client, dependencies Dependencies) *Manager {
+func NewManager(client client.Client, apiReader client.Reader, dependencies Dependencies) *Manager {
 	return &Manager{
 		Client:       client,
+		APIReader:    apiReader,
 		dependencies: dependencies,
+	}
+}
+
+// staleCacheThreshold is how long an Application may appear to be terminating in the informer cache
+// before we stop trusting the cache and ask the API server directly.
+const staleCacheThreshold = 2 * time.Minute
+
+// applicationGoneFromAPIServer performs a live, non-cached read and reports whether the API server
+// says the Application no longer exists.
+func (m *Manager) applicationGoneFromAPIServer(ctx context.Context, namespace, name string) (bool, error) {
+	if m.APIReader == nil {
+		return false, errors.New("no uncached API reader is configured")
+	}
+	var live argov1alpha1.Application
+	err := m.APIReader.Get(ctx, types.NamespacedName{Name: name, Namespace: namespace}, &live)
+	switch {
+	case apierrors.IsNotFound(err):
+		return true, nil
+	case err != nil:
+		return false, err
+	default:
+		return false, nil
 	}
 }
 
@@ -144,12 +171,72 @@ func (m *Manager) PerformReverseDeletion(ctx context.Context, logCtx *log.Entry,
 			}
 			return 0, fmt.Errorf("error retrieving application %s: %w", step.AppName, err)
 		}
-		// Check if the application is already being deleted
+		// The application is already terminating: wait for the object to disappear instead of
+		// re-issuing a Delete. A redundant Delete on a terminating object succeeds as a no-op,
+		// and cacheSyncingClient.Delete evicts the object from the informer store on success
+		// (see applicationset/utils/client.go). The next Get would then return NotFound for an
+		// Application that still exists, and we would release the ApplicationSet finalizer
+		// while the child is still being torn down.
 		if retrievedApp.DeletionTimestamp != nil {
 			logCtx.Infof("application %s has been marked for deletion, but object not removed yet", step.AppName)
-			if time.Since(retrievedApp.DeletionTimestamp.Time) > 2*time.Minute {
-				return 0, errors.New("application has not been deleted in over 2 minutes")
+			if time.Since(retrievedApp.DeletionTimestamp.Time) > staleCacheThreshold {
+				// The cached read has claimed this Application is terminating for longer than any
+				// real teardown plausibly takes. Two things look identical from the cache: a child
+				// that is genuinely slow, and a child whose DELETED event was never delivered, so
+				// the entry will never be corrected. Because the age measured here only grows,
+				// trusting the cache in the second case means the ApplicationSet's finalizer can
+				// never be removed and it stays in Terminating forever.
+				//
+				// Escalate to the API server and let it decide. Only a confirmed-absent entry may
+				// proceed; every other outcome returns an error so controller-runtime applies
+				// exponential backoff rather than this polling at a fixed interval for the whole
+				// teardown. That is safe precisely because the stale-cache case now has an exit: the
+				// conditions that remain -- a child that genuinely still exists, or an API read that
+				// failed -- can both become false on a later attempt.
+				gone, err := m.applicationGoneFromAPIServer(ctx, app.Namespace, app.Name)
+				switch {
+				case err != nil:
+					return 0, fmt.Errorf("application %s has not been deleted in over %s and could not be verified against the API server: %w", step.AppName, staleCacheThreshold, err)
+				case gone:
+					logCtx.Infof("application %s is absent from the API server but still present in the informer cache; treating it as deleted and continuing", step.AppName)
+					// Skipping the entry is not enough: it stays in the informer store, and children
+					// are indexed by owner *name*, so an ApplicationSet later recreated under the
+					// same name counts the stale entry as an existing child. Under a create-only
+					// policy it is then filtered out of the create set and never recreated, and
+					// because no write is attempted nothing triggers the client's own eviction.
+					//
+					// Issue the Delete purely for that side effect: the cache-syncing client evicts
+					// on a write that returns NotFound, and swallows the NotFound for deletes.
+					//
+					// The UID precondition matters. Between the live read above and this call another
+					// Application could be created at the same name, and an unconditional delete by
+					// name would remove it. Gating on the stale entry's UID means the API server
+					// rejects the delete with a conflict in that case, leaving the new object alone;
+					// the informer's own ADDED event then corrects the cache.
+					// An object read from the API server always carries a UID; guard anyway so an
+					// empty one cannot turn into a precondition that never matches.
+					deleteOpts := []client.DeleteOption{}
+					if retrievedApp.UID != "" {
+						deleteOpts = append(deleteOpts, client.Preconditions{UID: &retrievedApp.UID})
+					}
+					if err := m.Client.Delete(ctx, &retrievedApp, deleteOpts...); err != nil {
+						switch {
+						case apierrors.IsNotFound(err):
+							// Expected: the object is gone. The eviction has already been triggered.
+						case apierrors.IsConflict(err):
+							logCtx.Infof("application %s was recreated while being confirmed as deleted; leaving the new object alone", step.AppName)
+						default:
+							logCtx.WithError(err).Warnf("could not evict stale cache entry for application %s", step.AppName)
+						}
+					}
+					continue
+				default:
+					// The Application really is still there, so it is genuinely stuck rather than a
+					// stale cache entry. Surface it and let the backoff grow.
+					return 0, errors.New("application has not been deleted in over 2 minutes")
+				}
 			}
+			return requeueTime, nil
 		}
 		// The application has not been deleted yet, trigger its deletion.
 		// A NotFound here means the object is already gone from the API server while our
@@ -284,6 +371,13 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 		desiredAppsMap[desiredApplications[i].Name] = &desiredApplications[i]
 	}
 
+	// Built once per call, as CreateOrUpdate documents. Fatal on failure, matching
+	// createOrUpdateInCluster: a nil config would skip the ignore rules entirely.
+	diffConfig, err := utils.BuildIgnoreDiffConfig(applicationSet.Spec.IgnoreApplicationDifferences, normalizers.IgnoreNormalizerOpts{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to build ignore diff config: %w", err)
+	}
+
 	for _, app := range applications {
 		appHealthStatus := app.Status.Health.Status
 		appSyncStatus := app.Status.Sync.Status
@@ -325,7 +419,20 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 		if desiredApp, ok := desiredAppsMap[app.Name]; ok {
 			// Compare the desired spec with the current spec to detect non-Git changes
 			// This will catch changes to generator parameters like image tags, helm values, etc.
-			specChanged = !cmp.Equal(desiredApp.Spec, app.Spec, cmpopts.EquateEmpty(), cmpopts.EquateComparable(argov1alpha1.ApplicationDestination{}))
+			//
+			// Via SpecsEquivalent, so this agrees with what the write path will actually do; see its
+			// doc comment for why comparing specs directly loops.
+			desiredForCompare := desiredApp.DeepCopy()
+			disableAutomatedSync(desiredForCompare)
+
+			equivalent, cmpErr := utils.SpecsEquivalent(diffConfig, &app, desiredForCompare)
+			if cmpErr != nil {
+				// Failures here are persistent (for example a malformed jsonPointer), so reporting
+				// "changed" would loop forever. Leave the status alone and surface it.
+				statusLogCtx.WithError(cmpErr).Warn("could not compare desired and live specs; leaving progressive sync status unchanged")
+			} else {
+				specChanged = !equivalent
+			}
 		}
 
 		if revisionsChanged || specChanged {
@@ -410,7 +517,7 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 		appStatuses = append(appStatuses, *newAppStatus)
 	}
 
-	err := m.dependencies.SetAppSetApplicationStatus(ctx, logCtx, applicationSet, appStatuses)
+	err = m.dependencies.SetAppSetApplicationStatus(ctx, logCtx, applicationSet, appStatuses)
 	if err != nil {
 		return nil, fmt.Errorf("failed to set AppSet application statuses: %w", err)
 	}
@@ -683,6 +790,17 @@ func (m *Manager) updateApplicationSetApplicationStatusConditions(ctx context.Co
 	return applicationSet.Status.Conditions
 }
 
+// disableAutomatedSync clears automated sync on a RollingSync-managed Application, since the
+// ApplicationSet controller triggers those syncs itself. Anything comparing a generated Application
+// against its live counterpart must apply this first: the mutation lands on the written copy, so the
+// live object carries automated.enabled=false while a freshly generated one leaves it unset.
+func disableAutomatedSync(app *argov1alpha1.Application) {
+	if app.Spec.SyncPolicy == nil || app.Spec.SyncPolicy.Automated == nil {
+		return
+	}
+	app.Spec.SyncPolicy.Automated.Enabled = new(false)
+}
+
 func (m *Manager) SyncDesiredApplications(logCtx *log.Entry, applicationSet *argov1alpha1.ApplicationSet, appsToSync map[string]bool, desiredApplications []argov1alpha1.Application) []argov1alpha1.Application {
 	rolloutApps := []argov1alpha1.Application{}
 	for i := range desiredApplications {
@@ -691,8 +809,8 @@ func (m *Manager) SyncDesiredApplications(logCtx *log.Entry, applicationSet *arg
 		// ensure that Applications generated with RollingSync do not have an automated sync policy, since the AppSet controller will handle triggering the sync operation instead
 		if desiredApplications[i].Spec.SyncPolicy != nil && desiredApplications[i].Spec.SyncPolicy.IsAutomatedSyncEnabled() {
 			pruneEnabled = desiredApplications[i].Spec.SyncPolicy.Automated.GetPrune()
-			desiredApplications[i].Spec.SyncPolicy.Automated.Enabled = new(false)
 		}
+		disableAutomatedSync(&desiredApplications[i])
 
 		appSetStatusPending := false
 		idx := utils.FindApplicationStatusIndex(applicationSet.Status.ApplicationStatus, desiredApplications[i].Name)

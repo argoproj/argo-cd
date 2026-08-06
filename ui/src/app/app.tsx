@@ -186,14 +186,14 @@ export class App extends React.Component<
         const {trackingID, anonymizeUsers} = authSettings.googleAnalytics || {trackingID: '', anonymizeUsers: true};
         const {loggedIn: userLoggedIn, username} = userInfoResult;
         if (trackingID) {
-            const ga = await import('react-ga');
+            const {default: ga} = await import('react-ga4');
             ga.initialize(trackingID);
             const trackPageView = () => {
                 if (userLoggedIn && username) {
                     const userId = !anonymizeUsers ? username : hashCode(username).toString();
                     ga.set({userId});
                 }
-                ga.pageview(location.pathname + location.search);
+                ga.send({hitType: 'pageview', page: location.pathname + location.search});
             };
             trackPageView();
             history.listen(trackPageView);

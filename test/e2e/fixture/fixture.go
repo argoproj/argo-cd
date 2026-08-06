@@ -895,9 +895,15 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 		},
 		func() error {
 			tmpDir := TmpDir()
-			err := os.RemoveAll(tmpDir)
+			entries, err := os.ReadDir(tmpDir)
 			if err != nil {
 				return err
+			}
+			for _, entry := range entries {
+				err := os.RemoveAll(filepath.Join(tmpDir, entry.Name()))
+				if err != nil {
+					return err
+				}
 			}
 			_, err = Run("", "mkdir", "-p", tmpDir)
 			if err != nil {
@@ -1108,6 +1114,16 @@ func RunCliWithConfigFile(configPath string, args ...string) (string, error) {
 // RunPluginCli executes an Argo CD CLI plugin with optional stdin input.
 func RunPluginCli(stdin string, args ...string) (string, error) {
 	return RunWithStdin(stdin, "", "../../dist/argocd", args...)
+}
+
+func GitRevList(t *testing.T, args []string) string {
+	t.Helper()
+	log.WithFields(log.Fields{"args": args}).Info("rev-list")
+	gitArgs := append([]string{"rev-list"}, args...)
+
+	result, err := Run(repoDirectory(), "git", gitArgs...)
+	errors.NewHandler(t).FailOnErr(result, err)
+	return result
 }
 
 func Patch(t *testing.T, path string, jsonPatch string) {
