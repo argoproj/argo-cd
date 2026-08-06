@@ -481,6 +481,20 @@ func TestHookDeletePolicyHookFailedHookExit1(t *testing.T) {
 		Expect(NotPod(func(p corev1.Pod) bool { return p.Name == "hook" }))
 }
 
+// make sure that we never delete the hook when the delete policy is Never
+func TestHookDeletePolicyNever(t *testing.T) {
+	Given(t).
+		Path("hook").
+		When().
+		PatchFile("hook.yaml", `[{"op": "add", "path": "/metadata/annotations/argocd.argoproj.io~1hook-delete-policy", "value": "Never"}]`).
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(ResourceResultNumbering(2)).
+		Expect(Pod(func(p corev1.Pod) bool { return p.Name == "hook" }))
+}
+
 // make sure that we can run the hook twice
 func TestHookBeforeHookCreation(t *testing.T) {
 	var creationTimestamp1 string

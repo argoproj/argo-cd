@@ -53,6 +53,9 @@ func Test_syncTask_deleteOnPhaseCompletion(t *testing.T) {
 	// must be hook
 	assert.True(t, (&syncTask{operationState: common.OperationSucceeded, liveObj: testingutils.Annotate(testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/hook", "Sync"), "argocd.argoproj.io/hook-delete-policy", "HookSucceeded")}).deleteOnPhaseCompletion())
 	assert.True(t, (&syncTask{operationState: common.OperationFailed, liveObj: testingutils.Annotate(testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/hook", "Sync"), "argocd.argoproj.io/hook-delete-policy", "HookFailed")}).deleteOnPhaseCompletion())
+	// a hook with delete policy Never is never deleted on phase completion, whether it succeeded or failed
+	assert.False(t, (&syncTask{operationState: common.OperationSucceeded, liveObj: testingutils.Annotate(testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/hook", "Sync"), "argocd.argoproj.io/hook-delete-policy", "Never")}).deleteOnPhaseCompletion())
+	assert.False(t, (&syncTask{operationState: common.OperationFailed, liveObj: testingutils.Annotate(testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/hook", "Sync"), "argocd.argoproj.io/hook-delete-policy", "Never")}).deleteOnPhaseCompletion())
 }
 
 func Test_syncTask_deleteBeforeCreation(t *testing.T) {
@@ -63,6 +66,8 @@ func Test_syncTask_deleteBeforeCreation(t *testing.T) {
 	assert.False(t, (&syncTask{targetObj: testingutils.Annotate(testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/hook", "Sync"), "argocd.argoproj.io/hook-delete-policy", "BeforeHookCreation")}).deleteBeforeCreation())
 	assert.True(t, (&syncTask{liveObj: testingutils.Annotate(testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/hook", "Sync"), "argocd.argoproj.io/hook-delete-policy", "BeforeHookCreation")}).deleteBeforeCreation())
 	assert.True(t, (&syncTask{liveObj: testingutils.Annotate(testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/hook", "Sync"), "argocd.argoproj.io/hook-delete-policy", "BeforeHookCreation")}).deleteBeforeCreation())
+	// a hook with delete policy Never is not deleted before creation, so it persists across syncs
+	assert.False(t, (&syncTask{liveObj: testingutils.Annotate(testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/hook", "Sync"), "argocd.argoproj.io/hook-delete-policy", "Never")}).deleteBeforeCreation())
 }
 
 func Test_syncTask_wave(t *testing.T) {

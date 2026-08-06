@@ -65,6 +65,7 @@ The following policies define when the hook will be deleted.
   - HookSucceeded - the hook resource is deleted if the sync succeeds
   - HookFailed - the hook resource is deleted if the sync fails.
   - BeforeHookCreation - the hook resource is deleted if it exist at the start of the sync.
+  - Never - the hook resource is applied but never deleted, so it persists across syncs.
 
 # Sync Waves
 
