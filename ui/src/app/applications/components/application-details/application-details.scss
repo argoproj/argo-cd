@@ -391,6 +391,24 @@ $header: 120px;
         }
     }
 
+    ul li.application-details-app-dropdown__section-header {
+        padding: 6px 10px 2px;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        color: #00a2b3;
+        border-bottom: none;
+        cursor: default;
+    }
+
+    ul li.application-details-app-dropdown__divider {
+        padding: 0;
+        margin: 4px 0;
+        border-top: 2px solid #00a2b3;
+        border-bottom: none;
+        list-style: none;
+    }
+
     ul li.application-details-app-dropdown__item {
         display: flex;
         align-items: center;
