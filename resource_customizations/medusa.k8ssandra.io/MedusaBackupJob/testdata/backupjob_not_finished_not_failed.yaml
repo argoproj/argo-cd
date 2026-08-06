@@ -1,0 +1,24 @@
+apiVersion: medusa.k8ssandra.io/v1alpha1
+kind: MedusaBackupJob
+metadata:
+  creationTimestamp: '2026-04-30T00:00:00Z'
+  generation: 1
+  labels:
+    cassandra.datastax.com/cluster: test-cluster
+    cassandra.datastax.com/datacenter: stage0-test
+  name: test-daily-diff-1777507200
+  namespace: dbaas-ac-test
+  ownerReferences:
+    - apiVersion: cassandra.datastax.com/v1beta1
+      kind: CassandraDatacenter
+      name: stage0-test
+      uid: fcd45992-002a-4294-89cd-94d15b1ac543
+  resourceVersion: '26761722'
+  uid: c376f9b9-ab3e-4898-bb0d-a9eddef761d9
+spec:
+  backupType: differential
+  cassandraDatacenter: stage0-test
+status:
+  finishTime: '2026-04-30T00:00:30Z'
+  startTime: '2026-04-30T00:00:15Z'
+
