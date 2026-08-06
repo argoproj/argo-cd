@@ -7,7 +7,8 @@ import {RouteComponentProps} from 'react-router';
 import {BehaviorSubject, combineLatest, from, merge, Observable} from 'rxjs';
 import {delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
 
-import {DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Revision, Timestamp} from '../../../shared/components';
+import {DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Revision, Spinner, Timestamp} from '../../../shared/components';
+import {ErrorBoundary} from '../../../shared/components/error-boundary/error-boundary';
 import {AppContext, Context, ContextApis} from '../../../shared/context';
 import * as appModels from '../../../shared/models';
 import {AppDetailsPreferences, AppsDetailsViewKey, AppsDetailsViewType, services} from '../../../shared/services';
@@ -17,7 +18,7 @@ import {NoticeBanner} from '../application-notice/notice-banner';
 import {ApplicationDeploymentHistory} from '../application-deployment-history/application-deployment-history';
 import {ApplicationOperationState} from '../application-operation-state/application-operation-state';
 import {PodGroupType, PodView} from '../application-pod-view/pod-view';
-import {ApplicationResourceTree, ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
+import type {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 import {ApplicationStatusPanel} from '../application-status-panel/application-status-panel';
 import {ApplicationSetStatusPanel} from '../application-status-panel/appset-status-panel';
 import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-panel';
@@ -35,6 +36,10 @@ import {useSidebarTarget} from '../../../sidebar/sidebar';
 import './application-details.scss';
 import {TopBarActionMenuExt, AppViewExtension, StatusPanelExtension} from '../../../shared/services/extensions-service';
 import {ApplicationHydrateOperationState} from '../application-hydrate-operation-state/application-hydrate-operation-state';
+
+const ApplicationResourceTree = React.lazy(() =>
+    import(/* webpackChunkName: "app-resource-tree" */ '../application-resource-tree/application-resource-tree').then(m => ({default: m.ApplicationResourceTree}))
+);
 
 interface ApplicationDetailsState {
     page: number;
@@ -1100,7 +1105,11 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                                 <div className={`zoom-value`}>{zoomNum}%</div>
                                                             </span>
                                                         </div>
-                                                        <ApplicationResourceTree {...getResourceTreeProps()} />
+                                                        <ErrorBoundary message='Failed to load resource tree. Please reload and try again.'>
+                                                            <React.Suspense fallback={<Spinner show={true} />}>
+                                                                <ApplicationResourceTree {...getResourceTreeProps()} />
+                                                            </React.Suspense>
+                                                        </ErrorBoundary>
                                                     </>
                                                 )) ||
                                                     (isApplication && pref.view === 'pods' && (

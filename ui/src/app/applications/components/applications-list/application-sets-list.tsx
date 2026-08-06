@@ -18,13 +18,15 @@ import {createMatcher} from './applications-list-search';
 import {AppSetsStatusBar} from './applications-status-bar';
 import {AppSetTile} from './appset-tile';
 import {AppSetTableRow} from './appset-table-row';
-import {ApplicationSetsSummary} from './application-sets-summary';
-import {FlexTopBar} from '../../../shared/components';
+import {FlexTopBar, Spinner} from '../../../shared/components';
+import {ErrorBoundary} from '../../../shared/components/error-boundary/error-boundary';
 import {ViewTypeSwitcher} from './view-type-switcher';
 
 import './applications-list.scss';
 import './applications-table.scss';
 import './applications-tiles.scss';
+
+const ApplicationSetsSummary = React.lazy(() => import(/* webpackChunkName: "apps-summary" */ './application-sets-summary').then(m => ({default: m.ApplicationSetsSummary})));
 
 const EVENTS_BUFFER_TIMEOUT = 500;
 const WATCH_RETRY_TIMEOUT = 500;
@@ -459,7 +461,11 @@ export const ApplicationSetsList = (props: RouteComponentProps<any>) => {
                                                             )}
 
                                                             {pref.view === Summary ? (
-                                                                <ApplicationSetsSummary appSets={filteredApps} />
+                                                                <ErrorBoundary message='Failed to load application sets summary. Please reload and try again.'>
+                                                                    <React.Suspense fallback={<Spinner show={true} />}>
+                                                                        <ApplicationSetsSummary appSets={filteredApps} />
+                                                                    </React.Suspense>
+                                                                </ErrorBoundary>
                                                             ) : (
                                                                 <Paginate
                                                                     header={filteredApps.length > 1 && <AppSetsStatusBar appSets={filteredApps} />}

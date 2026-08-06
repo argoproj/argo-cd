@@ -3,17 +3,21 @@ import classNames from 'classnames';
 import * as deepMerge from 'deepmerge';
 import * as React from 'react';
 
-import {ClipboardText} from '../../../shared/components';
+import {ClipboardText, Spinner} from '../../../shared/components';
 import {YamlEditor} from '../../../shared/components/yaml-editor/yaml-editor';
 import {DeepLinks} from '../../../shared/components/deep-links';
+import {ErrorBoundary} from '../../../shared/components/error-boundary/error-boundary';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
-import {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
-import {ApplicationResourcesDiff} from '../application-resources-diff/application-resources-diff';
+import type {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 import {ComparisonStatusIcon, formatCreationTimestamp, getPodReadinessGatesState, getPodStateReason, HealthStatusIcon} from '../utils';
 import './application-node-info.scss';
 import {ReadinessGatesNotPassedWarning} from './readiness-gates-not-passed-warning';
 import Moment from 'react-moment';
+
+const ApplicationResourcesDiff = React.lazy(() =>
+    import(/* webpackChunkName: "app-resources-diff" */ '../application-resources-diff/application-resources-diff').then(m => ({default: m.ApplicationResourcesDiff}))
+);
 
 const RenderContainerState = (props: {container: any}) => {
     const state = (props.container.state?.waiting && 'waiting') || (props.container.state?.terminated && 'terminated') || (props.container.state?.running && 'running');
@@ -301,7 +305,13 @@ export const ApplicationNodeInfo = (props: {
             key: 'diff',
             icon: 'fa fa-file-medical',
             title: 'Diff',
-            content: <ApplicationResourcesDiff states={[props.controlled.state]} />
+            content: (
+                <ErrorBoundary message='Failed to load diff. Please reload and try again.'>
+                    <React.Suspense fallback={<Spinner show={true} />}>
+                        <ApplicationResourcesDiff states={[props.controlled.state]} />
+                    </React.Suspense>
+                </ErrorBoundary>
+            )
         });
         tabs.push({
             key: 'desiredManifest',

@@ -9,24 +9,28 @@ import {ClusterCtx, DataLoader, EmptyState, Page, Paginate, SearchBar, Spinner} 
 import {AuthSettingsCtx, Consumer, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {AppsListPreferences, AppsListViewKey, AppsListViewType, HealthStatusBarPreferences, services} from '../../../shared/services';
-import {ApplicationCreatePanel} from '../application-create-panel/application-create-panel';
 import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-panel';
 import {ApplicationsSyncPanel} from '../applications-sync-panel/applications-sync-panel';
 import * as AppUtils from '../utils';
 import {ApplicationsFilter, FilteredApp, getAppFilterResults} from './applications-filter';
 import {createMatcher} from './applications-list-search';
 import {AppsStatusBar} from './applications-status-bar';
-import {ApplicationsSummary} from './applications-summary';
 import {ApplicationsTable} from './applications-table';
 import {ApplicationTiles} from './applications-tiles';
 import {ApplicationsRefreshPanel} from '../applications-refresh-panel/applications-refresh-panel';
 import {FlexTopBar} from '../../../shared/components';
+import {ErrorBoundary} from '../../../shared/components/error-boundary/error-boundary';
 import {ViewTypeSwitcher} from './view-type-switcher';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 import {useQuery, useObservableQuery} from '../../../shared/hooks/query';
 import {isInvalidRegex} from '../../../shared/utils';
 
 import './applications-list.scss';
+
+const ApplicationCreatePanel = React.lazy(() =>
+    import(/* webpackChunkName: "app-create-panel" */ '../application-create-panel/application-create-panel').then(m => ({default: m.ApplicationCreatePanel}))
+);
+const ApplicationsSummary = React.lazy(() => import(/* webpackChunkName: "apps-summary" */ './applications-summary').then(m => ({default: m.ApplicationsSummary})));
 
 const EVENTS_BUFFER_TIMEOUT = 500;
 const WATCH_RETRY_TIMEOUT = 500;
@@ -486,7 +490,13 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                     sidebarTarget?.current
                                                                 )}
 
-                                                                {(pref.view === 'summary' && <ApplicationsSummary applications={filteredApps} />) || (
+                                                                {(pref.view === 'summary' && (
+                                                                    <ErrorBoundary message='Failed to load applications summary. Please reload and try again.'>
+                                                                        <React.Suspense fallback={<Spinner show={true} />}>
+                                                                            <ApplicationsSummary applications={filteredApps} />
+                                                                        </React.Suspense>
+                                                                    </ErrorBoundary>
+                                                                )) || (
                                                                     <Paginate
                                                                         header={filteredApps.length > 1 && <AppsStatusBar applications={filteredApps} />}
                                                                         showHeader={healthBarPrefs.showHealthStatusBar}
@@ -607,27 +617,31 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                             </div>
                                                         }>
                                                         {appInput && (
-                                                            <ApplicationCreatePanel
-                                                                getFormApi={api => {
-                                                                    setCreateApi(api);
-                                                                }}
-                                                                createApp={async app => {
-                                                                    setAppCreatePending(true);
-                                                                    try {
-                                                                        await services.applications.create(app);
-                                                                        ctx.navigation.goto('.', {new: null}, {replace: true});
-                                                                    } catch (e) {
-                                                                        ctx.notifications.show({
-                                                                            content: <ErrorNotification title='Unable to create application' e={e} />,
-                                                                            type: NotificationType.Error
-                                                                        });
-                                                                    } finally {
-                                                                        setAppCreatePending(false);
-                                                                    }
-                                                                }}
-                                                                app={appInput}
-                                                                onAppChanged={app => ctx.navigation.goto('.', {new: JSON.stringify(app)}, {replace: true})}
-                                                            />
+                                                            <ErrorBoundary message='Failed to load application create panel. Please reload and try again.'>
+                                                                <React.Suspense fallback={<Spinner show={true} />}>
+                                                                    <ApplicationCreatePanel
+                                                                        getFormApi={api => {
+                                                                            setCreateApi(api);
+                                                                        }}
+                                                                        createApp={async app => {
+                                                                            setAppCreatePending(true);
+                                                                            try {
+                                                                                await services.applications.create(app);
+                                                                                ctx.navigation.goto('.', {new: null}, {replace: true});
+                                                                            } catch (e) {
+                                                                                ctx.notifications.show({
+                                                                                    content: <ErrorNotification title='Unable to create application' e={e} />,
+                                                                                    type: NotificationType.Error
+                                                                                });
+                                                                            } finally {
+                                                                                setAppCreatePending(false);
+                                                                            }
+                                                                        }}
+                                                                        app={appInput}
+                                                                        onAppChanged={app => ctx.navigation.goto('.', {new: JSON.stringify(app)}, {replace: true})}
+                                                                    />
+                                                                </React.Suspense>
+                                                            </ErrorBoundary>
                                                         )}
                                                     </SlidingPanel>
                                                 </React.Fragment>
