@@ -604,6 +604,12 @@ disableCompression: boolean
 > To resolve this issue, you can increase the `ARGOCD_K8S_CLIENT_MAX_IDLE_CONNECTIONS` environment variable in the
 > Application controller.
 
+> [!NOTE]
+> If a namespace listed in `namespaces` is deleted or loses its RBAC grants, cluster cache sync still succeeds.
+> Inaccessible namespaces are skipped and a warning appears on the cluster connection message
+> (`argocd cluster list` → `MESSAGE` column). The remaining namespaces keep syncing normally. Skipped
+> namespaces are retried on the next full cache resync or when the cache is manually invalidated.
+
 > [!IMPORTANT]
 > Note that if you specify a command to run under `execProviderConfig`, that command must be available in the Argo CD image. See [BYOI (Build Your Own Image)](custom_tools.md#byoi-build-your-own-image).
 
