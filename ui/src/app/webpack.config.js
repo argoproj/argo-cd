@@ -1,5 +1,6 @@
 'use strict;';
 
+const path = require('path');
 const MonacoWebpackPlugin = require('monaco-editor-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
@@ -70,6 +71,20 @@ const config = {
         clean: true
     },
     cache: { type: 'filesystem' },
+    optimization: {
+        runtimeChunk: 'single',
+        splitChunks: {
+            chunks: 'all',
+            cacheGroups: {
+                vendors: {
+                    test: /[\\/]node_modules[\\/]/,
+                    name: 'vendors',
+                    chunks: 'initial',
+                    priority: -5
+                }
+            }
+        }
+    },
 
     resolve: {
         extensions: ['.ts', '.tsx', '.js', '.json'],
@@ -138,6 +153,12 @@ const config = {
             })
         }),
         new HtmlWebpackPlugin({ template: 'src/app/index.html' }),
+        new webpack.NormalModuleReplacementPlugin(/^\.\/logs-viewer\/logs-viewer$/, resource => {
+            if (resource.context.endsWith(path.join('argo-ui', 'src', 'components'))) {
+                resource.request = path.resolve(__dirname, 'shims', 'logs-viewer.tsx');
+            }
+        }),
+        new webpack.IgnorePlugin({resourceRegExp: /^\.\/locale$/, contextRegExp: /moment$/}),
         new CopyWebpackPlugin({
             patterns: [{
                     from: 'src/assets',
@@ -211,9 +232,8 @@ const config = {
 if (isProd) {
     config.performance = {
         hints: 'error',
-        // Sizes are raw bytes before gzip. The entry chunk is ~2.3MB after route-level
-        // code splitting; the tighter cap keeps the entry-size win from regressing.
-        maxEntrypointSize: 2.5 * 1024 * 1024,
+        // Sizes are raw bytes before gzip.
+        maxEntrypointSize: 1.75 * 1024 * 1024,
         maxAssetSize: 6 * 1024 * 1024,
     };
 }

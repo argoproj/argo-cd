@@ -3,7 +3,7 @@ import * as jsYaml from 'js-yaml';
 import * as React from 'react';
 import {useEffect, useState} from 'react';
 
-import {MonacoEditor} from '../../../shared/components';
+import {MonacoEditor} from '../../../shared/components/monaco-editor';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationResourcesDiff} from '../application-resources-diff/application-resources-diff';

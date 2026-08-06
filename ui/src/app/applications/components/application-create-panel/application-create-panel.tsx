@@ -4,7 +4,7 @@ import * as deepMerge from 'deepmerge';
 import * as React from 'react';
 import {FieldApi, Form, FormApi, FormFieldHOC as ReactFormField, Text} from 'argo-ui';
 import {cloneDeep, debounce} from 'lodash-es';
-import {YamlEditor} from '../../../shared/components';
+import {YamlEditor} from '../../../shared/components/yaml-editor/yaml-editor';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {AuthSettingsCtx} from '../../../shared/context';

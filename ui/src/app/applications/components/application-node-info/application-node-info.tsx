@@ -3,7 +3,8 @@ import classNames from 'classnames';
 import * as deepMerge from 'deepmerge';
 import * as React from 'react';
 
-import {YamlEditor, ClipboardText} from '../../../shared/components';
+import {ClipboardText} from '../../../shared/components';
+import {YamlEditor} from '../../../shared/components/yaml-editor/yaml-editor';
 import {DeepLinks} from '../../../shared/components/deep-links';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';

@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import * as monacoEditor from 'monaco-editor';
+import type * as monacoEditor from 'monaco-editor';
 import {services} from '../services';
 import {getTheme, createSystemThemeListener} from '../utils';
 
