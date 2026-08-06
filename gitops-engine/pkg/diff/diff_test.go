@@ -2408,6 +2408,7 @@ spec:
 
 func TestStructuredMergeDiff_HPAv2ToV1Conversion(t *testing.T) {
 	// Reproduces https://github.com/argoproj/argo-cd/issues/17795
+	manager := "argocd-controller"
 	gvkParser := buildGVKParser(t)
 
 	config := StrToUnstructured(`
@@ -2473,8 +2474,43 @@ spec:
         averageUtilization: 50
 `)
 
+	// Dry-run apply result mirrors what the k8s API server would produce: the
+	// argocd-controller-owned fields already match config, so nothing changes.
+	predictedLive := `{
+  "apiVersion": "autoscaling/v2",
+  "kind": "HorizontalPodAutoscaler",
+  "metadata": {
+    "name": "test-hpa",
+    "namespace": "default",
+    "managedFields": [
+      {"manager": "helm", "operation": "Apply", "apiVersion": "autoscaling/v1",
+       "fieldsType": "FieldsV1",
+       "fieldsV1": {"f:spec": {"f:maxReplicas": {}, "f:minReplicas": {}, "f:scaleTargetRef": {}}}},
+      {"manager": "argocd-controller", "operation": "Apply", "apiVersion": "autoscaling/v2",
+       "fieldsType": "FieldsV1",
+       "fieldsV1": {"f:spec": {"f:metrics": {}}}}
+    ]
+  },
+  "spec": {
+    "scaleTargetRef": {"apiVersion": "apps/v1", "kind": "Deployment", "name": "test-deploy"},
+    "minReplicas": 1,
+    "maxReplicas": 10,
+    "metrics": [{"type": "Resource", "resource": {"name": "cpu", "target": {"type": "Utilization", "averageUtilization": 50}}}]
+  }
+}`
+
+	dryRunner := mocks.NewServerSideDryRunner(t)
+	dryRunner.EXPECT().Run(mock.Anything, mock.AnythingOfType("*unstructured.Unstructured"), manager).
+		Return(predictedLive, nil)
+
+	opts := []Option{
+		WithGVKParser(gvkParser),
+		WithManager(manager),
+		WithServerSideDryRunner(dryRunner),
+	}
+
 	// Identical config and live should not be modified
-	result, err := StructuredMergeDiff(config, live, gvkParser, "argocd-controller")
+	result, err := serverSideDiff(t.Context(), config, live, opts...)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.False(t, result.Modified, "identical config and live should not show as modified")
@@ -2483,6 +2519,7 @@ spec:
 func TestStructuredMergeDiff_HPAv2ToV1Conversion_Modified(t *testing.T) {
 	// Verifies that a real change is detected when config differs from live
 	// with cross-version managed fields
+	manager := "argocd-controller"
 	gvkParser := buildGVKParser(t)
 
 	config := StrToUnstructured(`
@@ -2548,7 +2585,41 @@ spec:
         averageUtilization: 50
 `)
 
-	result, err := StructuredMergeDiff(config, live, gvkParser, "argocd-controller")
+	// Dry-run apply result reflects the argocd-controller fields updated to
+	// config's new values, while the helm-owned fields (minReplicas,
+	// maxReplicas, scaleTargetRef) are also overwritten here since
+	// argocd-controller is applying the full spec via SSA.
+	predictedLive := `{
+  "apiVersion": "autoscaling/v2",
+  "kind": "HorizontalPodAutoscaler",
+  "metadata": {
+    "name": "test-hpa",
+    "namespace": "default",
+    "managedFields": [
+      {"manager": "argocd-controller", "operation": "Apply", "apiVersion": "autoscaling/v2",
+       "fieldsType": "FieldsV1",
+       "fieldsV1": {"f:spec": {"f:maxReplicas": {}, "f:minReplicas": {}, "f:scaleTargetRef": {}, "f:metrics": {}}}}
+    ]
+  },
+  "spec": {
+    "scaleTargetRef": {"apiVersion": "apps/v1", "kind": "Deployment", "name": "test-deploy"},
+    "minReplicas": 2,
+    "maxReplicas": 20,
+    "metrics": [{"type": "Resource", "resource": {"name": "cpu", "target": {"type": "Utilization", "averageUtilization": 80}}}]
+  }
+}`
+
+	dryRunner := mocks.NewServerSideDryRunner(t)
+	dryRunner.EXPECT().Run(mock.Anything, mock.AnythingOfType("*unstructured.Unstructured"), manager).
+		Return(predictedLive, nil)
+
+	opts := []Option{
+		WithGVKParser(gvkParser),
+		WithManager(manager),
+		WithServerSideDryRunner(dryRunner),
+	}
+
+	result, err := serverSideDiff(t.Context(), config, live, opts...)
 	require.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.True(t, result.Modified, "different config and live should show as modified")
