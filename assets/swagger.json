@@ -8021,7 +8021,7 @@
         },
         "sourceType": {
           "type": "string",
-          "title": "SourceType specifies the type of this application"
+          "title": "SourceType specifies the type of this application. Deprecated: Use SourceTypes instead, which supports both single and multi-source applications"
         },
         "sourceTypes": {
           "type": "array",

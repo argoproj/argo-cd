@@ -745,6 +745,8 @@ message ApplicationStatus {
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time observedAt = 8;
 
   // SourceType specifies the type of this application
+  //
+  // Deprecated: Use SourceTypes instead, which supports both single and multi-source applications
   optional string sourceType = 9;
 
   // Summary contains a list of URLs and container images used by this application
