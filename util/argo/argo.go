@@ -27,6 +27,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/typed/application/v1alpha1"
 	applicationsv1 "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/util/app/path"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/glob"
@@ -157,8 +158,11 @@ func FilterByRepo(apps []argoappv1.Application, repo string) []argoappv1.Applica
 	}
 	items := []argoappv1.Application{}
 	for i := range apps {
-		if apps[i].Spec.GetSource().RepoURL == repo {
-			items = append(items, apps[i])
+		for _, source := range apps[i].Spec.GetSources() {
+			if source.RepoURL == repo {
+				items = append(items, apps[i])
+				break
+			}
 		}
 	}
 	return items
@@ -171,21 +175,63 @@ func FilterByRepoP(apps []*argoappv1.Application, repo string) []*argoappv1.Appl
 	}
 	items := []*argoappv1.Application{}
 	for i := range apps {
-		if apps[i].Spec.GetSource().RepoURL == repo {
-			items = append(items, apps[i])
+		for _, source := range apps[i].Spec.GetSources() {
+			if source.RepoURL == repo {
+				items = append(items, apps[i])
+				break
+			}
 		}
 	}
 	return items
 }
 
 // FilterByPath returns an application
-func FilterByPath(apps []argoappv1.Application, path string) []argoappv1.Application {
-	if path == "" {
+func FilterByPath(apps []argoappv1.Application, appPath string) []argoappv1.Application {
+	if appPath == "" {
 		return apps
 	}
 	items := []argoappv1.Application{}
 	for i := range apps {
-		if apps[i].Spec.GetSource().Path == path {
+		for _, source := range apps[i].Spec.GetSources() {
+			if source.Path == appPath {
+				items = append(items, apps[i])
+				break
+			}
+		}
+	}
+	return items
+}
+
+// FilterByFiles returns applications that are affected by the given list of changed files.
+// For each application, it computes the refresh paths (source path + annotation paths) across
+// all sources (including multi-source apps) and checks whether any of the provided files
+// falls under those paths.
+func FilterByFiles(apps []argoappv1.Application, files []string) []argoappv1.Application {
+	if len(files) == 0 {
+		return apps
+	}
+	items := []argoappv1.Application{}
+	for i := range apps {
+		app := &apps[i]
+		matched := false
+		for _, source := range app.Spec.GetSources() {
+			// Skip Helm chart sources (no path) to avoid matching every file
+			// when AppFilesHaveChanged is called with an empty refreshPaths slice.
+			if source.Path == "" {
+				continue
+			}
+			refreshPaths := path.GetSourceRefreshPaths(app, source)
+			// If no annotation, fall back to the source path itself so that any
+			// file under that directory triggers a match.
+			if len(refreshPaths) == 0 {
+				refreshPaths = []string{source.Path}
+			}
+			if path.AppFilesHaveChanged(refreshPaths, files) {
+				matched = true
+				break
+			}
+		}
+		if matched {
 			items = append(items, apps[i])
 		}
 	}
