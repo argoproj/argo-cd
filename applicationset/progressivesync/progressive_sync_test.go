@@ -1658,7 +1658,7 @@ func TestPerformReverseDeletionStaleCache(t *testing.T) {
 		}).
 		Build()
 
-	m := NewManager(fakeClient, nil)
+	m := NewManager(fakeClient, fakeClient, nil)
 	logCtx := log.NewEntry(log.New())
 
 	requeue, err := m.PerformReverseDeletion(context.Background(), logCtx, appSet, currentApps)
@@ -1743,7 +1743,7 @@ func TestPerformReverseDeletionTerminatingApp(t *testing.T) {
 				}).
 				Build()
 
-			m := NewManager(fakeClient, nil)
+			m := NewManager(fakeClient, fakeClient, nil)
 			requeue, err := m.PerformReverseDeletion(context.Background(), log.NewEntry(log.New()), appSet, []v1alpha1.Application{app})
 
 			if tc.expectedErr != "" {

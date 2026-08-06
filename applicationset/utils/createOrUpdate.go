@@ -61,6 +61,32 @@ func BuildIgnoreDiffConfig(ignoreDifferences argov1alpha1.ApplicationSetIgnoreDi
 		Build()
 }
 
+// SpecsEquivalent reports whether the desired Application spec matches the live one, applying the
+// same normalization and ignoreApplicationDifferences rules CreateOrUpdate applies before deciding
+// whether to Patch. Callers asking "has the spec changed?" must use this rather than comparing specs
+// directly: a difference the write path would not act on leaves the Application uncorrected and still
+// reported as pending on every reconcile.
+//
+// Scoped to the spec. CreateOrUpdate compares whole objects, so a metadata-only change is patched
+// without being reported here; that direction cannot loop.
+//
+// Both specs are normalized here, unlike in CreateOrUpdate whose caller normalizes the generated spec
+// first. Order matters: an ignore rule selecting on a normalized value only matches once the defaults
+// are in place.
+func SpecsEquivalent(diffConfig argodiff.DiffConfig, live, desired *argov1alpha1.Application) (bool, error) {
+	normalizedLive := live.DeepCopy()
+	normalizedDesired := desired.DeepCopy()
+
+	normalizedLive.Spec = *argo.NormalizeApplicationSpec(&normalizedLive.Spec)
+	normalizedDesired.Spec = *argo.NormalizeApplicationSpec(&normalizedDesired.Spec)
+
+	if err := applyIgnoreDifferences(diffConfig, normalizedLive, normalizedDesired); err != nil {
+		return false, fmt.Errorf("failed to apply ignore differences: %w", err)
+	}
+
+	return appEquality.DeepEqual(normalizedLive.Spec, normalizedDesired.Spec), nil
+}
+
 // CreateOrUpdate overrides "sigs.k8s.io/controller-runtime" function
 // in sigs.k8s.io/controller-runtime/pkg/controller/controllerutil/controllerutil.go
 // to add equality for argov1alpha1.ApplicationDestination
@@ -163,13 +189,25 @@ func applyIgnoreDifferences(diffConfig argodiff.DiffConfig, found *argov1alpha1.
 	}
 
 	generatedAppCopy := generatedApp.DeepCopy()
-	unstructuredFound, err := appToUnstructured(found)
+	foundTypeMeta := found.TypeMeta
+
+	// diffConfig's rules are scoped to Group=argoproj.io, Kind=Application, but appToUnstructured goes
+	// through runtime.DefaultUnstructuredConverter, which does not populate apiVersion/kind -- and the
+	// live object arrives decoded from the API server while the generated one is built in Go with no
+	// TypeMeta. Without stamping the GVK the rules match one side only, so an ignored field is
+	// neutralised there and left intact on the other, and the two can never compare equal.
+	foundForDiff := found.DeepCopy()
+	foundForDiff.SetGroupVersionKind(argov1alpha1.ApplicationSchemaGroupVersionKind)
+	generatedForDiff := generatedApp.DeepCopy()
+	generatedForDiff.SetGroupVersionKind(argov1alpha1.ApplicationSchemaGroupVersionKind)
+
+	unstructuredFound, err := appToUnstructured(foundForDiff)
 	if err != nil {
 		return fmt.Errorf("failed to convert found application to unstructured: %w", err)
 	}
-	unstructuredGenerated, err := appToUnstructured(generatedApp)
+	unstructuredGenerated, err := appToUnstructured(generatedForDiff)
 	if err != nil {
-		return fmt.Errorf("failed to convert found application to unstructured: %w", err)
+		return fmt.Errorf("failed to convert generated application to unstructured: %w", err)
 	}
 	result, err := argodiff.Normalize([]*unstructured.Unstructured{unstructuredFound}, []*unstructured.Unstructured{unstructuredGenerated}, diffConfig)
 	if err != nil {
@@ -191,6 +229,7 @@ func applyIgnoreDifferences(diffConfig argodiff.DiffConfig, found *argov1alpha1.
 		return fmt.Errorf("expected 1 normalized application, got %d", len(result.Targets))
 	}
 	foundNormalized.DeepCopyInto(found)
+	found.TypeMeta = foundTypeMeta
 	generatedJSONNormalized, err := json.Marshal(result.Targets[0].Object)
 	if err != nil {
 		return fmt.Errorf("failed to marshal normalized app to json: %w", err)

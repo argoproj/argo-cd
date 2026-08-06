@@ -1227,6 +1227,7 @@ func Test_storePreviouslyCachedManifests(t *testing.T) {
 		name         string
 		app          *v1alpha1.Application
 		project      *v1alpha1.AppProject
+		seedCache    bool // seed the cache with manifests for the previous revision
 		cacheUpdated bool // cache should be updated with the new revision
 		errExpected  bool
 	}{
@@ -1273,7 +1274,45 @@ func Test_storePreviouslyCachedManifests(t *testing.T) {
 					},
 				},
 			},
+			seedCache:    true,
 			cacheUpdated: true,
+			errExpected:  false,
+		},
+		{
+			name: "single source rename cache miss is not an error",
+			app: &v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-app",
+					Namespace: "argocd",
+					Annotations: map[string]string{
+						"argocd.argoproj.io/manifest-generate-paths": "deploy",
+					},
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Project: "default",
+					Source: &v1alpha1.ApplicationSource{
+						RepoURL:        "https://github.com/test/repo",
+						TargetRevision: "main",
+					},
+				},
+			},
+			project: &v1alpha1.AppProject{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "default",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.AppProjectSpec{
+					SourceRepos: []string{"*"},
+					Destinations: []v1alpha1.ApplicationDestination{
+						{
+							Server:    "*",
+							Namespace: "*",
+						},
+					},
+				},
+			},
+			seedCache:    false,
+			cacheUpdated: false,
 			errExpected:  false,
 		},
 		{
@@ -1372,8 +1411,12 @@ func Test_storePreviouslyCachedManifests(t *testing.T) {
 				&fakeProjectNamespaceLister{clientset: appClientset, namespace: "argocd"},
 			)
 
-			setupTestCache(t, repoCache, tt.app.Name, source, tt.project.EffectiveSourceIntegrity(), []string{"test-manifest"})
-			err = h.storePreviouslyCachedManifests(tt.app, changeInfo{shaBefore: testBeforeSHA, shaAfter: testAfterSHA}, "", testAppLabelKey, "", *source)
+			if tt.seedCache {
+				setupTestCache(t, repoCache, tt.app.Name, source, tt.project.EffectiveSourceIntegrity(), []string{"test-manifest"})
+			}
+			logger, _ := test.NewNullLogger()
+			logCtx := logger.WithField("application", tt.app.Name)
+			err = h.storePreviouslyCachedManifests(logCtx, tt.app, changeInfo{shaBefore: testBeforeSHA, shaAfter: testAfterSHA}, "", testAppLabelKey, "", *source)
 
 			if tt.errExpected {
 				require.Error(t, err)
