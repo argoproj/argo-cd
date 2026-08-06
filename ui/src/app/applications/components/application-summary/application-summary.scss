@@ -21,25 +21,57 @@
         margin-right: 2px;
     }
 
-    &__sort-icon {
-        cursor: pointer;
-        position: absolute;
-        font-size: 1.3em;
-        left: -1em;
-
-        &.fa-sort-up {
-            top: 10px;
+    // Drop the value column's read-mode padding/line-height in edit mode only
+    // (the field wrapper exists only while editing) so key/value inputs align.
+    &__info-panel {
+        .white-box__details-row .columns:has(.application-summary__info-field),
+        .white-box__details-row .columns.small-9:has(.application-summary__info-field) {
+            line-height: normal;
+            vertical-align: top;
+            padding-top: 0;
+            padding-bottom: 0;
         }
 
-        &.fa-sort-down {
-            bottom: 10px;
+        .white-box__details-row .columns.small-3 .application-summary__info-field {
+            padding-right: 1em;
         }
     }
-    &__remove-icon {
+
+    // In-flow icons so they keep their own space and don't overlap the input.
+    &__info-field {
+        display: flex;
+        align-items: center;
+        width: 100%;
+
+        > div:not(.application-summary__info-sort) {
+            flex: 1 1 auto;
+            min-width: 0;
+        }
+    }
+
+    &__info-sort {
+        flex: 0 0 auto;
+        display: flex;
+        flex-direction: column;
+        line-height: 1;
+        margin-right: 0.5em;
+    }
+
+    &__sort-icon {
         cursor: pointer;
-        position: absolute;
-        top: 1em;
-        right: 1em;
+        font-size: 1.2em;
+
+        &--hidden {
+            visibility: hidden;
+            cursor: default;
+        }
+    }
+
+    &__remove-icon {
+        flex: 0 0 auto;
+        cursor: pointer;
+        font-size: 1.2em;
+        margin-left: 0.75em;
     }
 
     &__links-rows {
