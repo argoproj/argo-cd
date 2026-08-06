@@ -1548,6 +1548,43 @@ func TestRenderGeneratorParams_ValuesInterpolation(t *testing.T) {
 			useGoTemplate:     true,
 			expectErr:         `failed to pre-resolve Values key "bad": failed to execute go template`,
 		},
+		{
+			// Regression test for https://github.com/argoproj/argo-cd/issues/28546.
+			// When a Matrix has two ClusterGenerators, the second generator's Values templates
+			// that reference cluster-own metadata (metadata.annotations.*) must NOT be
+			// pre-resolved using the first cluster's params, because the keys overlap.
+			// Cross-generator values (e.g. values.* from the first cluster) may still pre-resolve.
+			name: "GoTemplate: cluster own metadata keys are not pre-resolved from cross-gen cluster params",
+			params: map[string]any{
+				"name": "DevOps",
+				"metadata": map[string]any{
+					"annotations": map[string]any{
+						"cluster_name": "DevOps",
+						"baseurl":      "devops.example.com",
+					},
+				},
+				"values": map[string]string{
+					"applicationsBranch": "main",
+				},
+			},
+			gen: &argoappsv1.ApplicationSetGenerator{
+				Clusters: &argoappsv1.ClusterGenerator{
+					Values: map[string]string{
+						// This must be deferred — 'metadata' is a cluster own key.
+						// The Develop cluster's own annotations should be used, not DevOps's.
+						"clusterName": `{{ index .metadata.annotations "cluster_name" }}`,
+						// This may be resolved — 'values' is a cross-generator key.
+						"branch": "{{.values.applicationsBranch}}",
+					},
+				},
+			},
+			goTemplateOptions: []string{"missingkey=error"},
+			useGoTemplate:     true,
+			expectedClusterValues: map[string]string{
+				"clusterName": `{{ index .metadata.annotations "cluster_name" }}`,
+				"branch":      "main",
+			},
+		},
 	}
 
 	for _, tt := range testSet {
