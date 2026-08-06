@@ -106,6 +106,12 @@
             @include themify($themes) {
                 background-color: themed('light-argo-gray-2') !important;
             }
+            background-image: linear-gradient(
+                to right,
+                $argo-status-warning-color 0,
+                $argo-status-warning-color 4px,
+                transparent 4px
+            );
         }
 
         &--grouped-node {
