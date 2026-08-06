@@ -3,13 +3,14 @@ import * as React from 'react';
 import {FormApi} from 'argo-ui';
 
 import {Spinner} from '../../../shared/components';
-import {ErrorBoundary} from '../../../shared/components/error-boundary/error-boundary';
+import {lazyWithBoundary} from '../../../shared/components/lazy-with-boundary';
 import * as models from '../../../shared/models';
 
 import './application-sync-panel.scss';
 
-const ApplicationSyncPanelBody = React.lazy(() =>
-    import(/* webpackChunkName: "app-sync-panel" */ './application-sync-panel-body').then(m => ({default: m.ApplicationSyncPanelBody}))
+const ApplicationSyncPanelBody = lazyWithBoundary(
+    React.lazy(() => import(/* webpackChunkName: "app-sync-panel" */ './application-sync-panel-body').then(m => ({default: m.ApplicationSyncPanelBody}))),
+    'Failed to load sync panel. Please reload and try again.'
 );
 
 export const ApplicationSyncPanel = ({application, selectedResource, hide}: {application: models.Application; selectedResource: string; hide: () => any}) => {
@@ -37,13 +38,7 @@ export const ApplicationSyncPanel = ({application, selectedResource, hide}: {app
                     </button>
                 </div>
             }>
-            {isVisible && (
-                <ErrorBoundary message='Failed to load sync panel. Please reload and try again.'>
-                    <React.Suspense fallback={<Spinner show={true} />}>
-                        <ApplicationSyncPanelBody application={application} selectedResource={selectedResource} hide={hide} getApi={setForm} setPending={setPending} />
-                    </React.Suspense>
-                </ErrorBoundary>
-            )}
+            {isVisible && <ApplicationSyncPanelBody application={application} selectedResource={selectedResource} hide={hide} getApi={setForm} setPending={setPending} />}
         </SlidingPanel>
     );
 };

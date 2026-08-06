@@ -3,15 +3,17 @@ import * as jsYaml from 'js-yaml';
 import * as React from 'react';
 import {useEffect, useState} from 'react';
 
-import {Spinner} from '../../../shared/components';
 import {MonacoEditor} from '../../../shared/components/monaco-editor';
-import {ErrorBoundary} from '../../../shared/components/error-boundary/error-boundary';
+import {lazyWithBoundary} from '../../../shared/components/lazy-with-boundary';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import './resource-details.scss';
 
-const ApplicationResourcesDiff = React.lazy(() =>
-    import(/* webpackChunkName: "app-resources-diff" */ '../application-resources-diff/application-resources-diff').then(m => ({default: m.ApplicationResourcesDiff}))
+const ApplicationResourcesDiff = lazyWithBoundary(
+    React.lazy(() =>
+        import(/* webpackChunkName: "app-resources-diff" */ '../application-resources-diff/application-resources-diff').then(m => ({default: m.ApplicationResourcesDiff}))
+    ),
+    'Failed to load diff. Please reload and try again.'
 );
 
 export interface AppSetGeneratedAppsDiffProps {
@@ -228,11 +230,7 @@ export const AppSetGeneratedAppsDiff = (props: AppSetGeneratedAppsDiffProps) => 
                             key: 'diff',
                             content:
                                 diffStates && diffStates.length > 0 ? (
-                                    <ErrorBoundary message='Failed to load diff. Please reload and try again.'>
-                                        <React.Suspense fallback={<Spinner show={true} />}>
-                                            <ApplicationResourcesDiff states={diffStates} />
-                                        </React.Suspense>
-                                    </ErrorBoundary>
+                                    <ApplicationResourcesDiff states={diffStates} />
                                 ) : (
                                     <div className='white-box'>
                                         <div className='white-box__details'>No changes — proposed output matches current output.</div>

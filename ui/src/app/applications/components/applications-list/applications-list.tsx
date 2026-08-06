@@ -6,6 +6,7 @@ import {RouteComponentProps} from 'react-router';
 import {combineLatest, from, merge, Observable} from 'rxjs';
 import {bufferTime, delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
 import {ClusterCtx, DataLoader, EmptyState, Page, Paginate, SearchBar, Spinner} from '../../../shared/components';
+import {lazyWithBoundary} from '../../../shared/components/lazy-with-boundary';
 import {AuthSettingsCtx, Consumer, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {AppsListPreferences, AppsListViewKey, AppsListViewType, HealthStatusBarPreferences, services} from '../../../shared/services';
@@ -19,7 +20,6 @@ import {ApplicationsTable} from './applications-table';
 import {ApplicationTiles} from './applications-tiles';
 import {ApplicationsRefreshPanel} from '../applications-refresh-panel/applications-refresh-panel';
 import {FlexTopBar} from '../../../shared/components';
-import {ErrorBoundary} from '../../../shared/components/error-boundary/error-boundary';
 import {ViewTypeSwitcher} from './view-type-switcher';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 import {useQuery, useObservableQuery} from '../../../shared/hooks/query';
@@ -27,10 +27,14 @@ import {isInvalidRegex} from '../../../shared/utils';
 
 import './applications-list.scss';
 
-const ApplicationCreatePanel = React.lazy(() =>
-    import(/* webpackChunkName: "app-create-panel" */ '../application-create-panel/application-create-panel').then(m => ({default: m.ApplicationCreatePanel}))
+const ApplicationCreatePanel = lazyWithBoundary(
+    React.lazy(() => import(/* webpackChunkName: "app-create-panel" */ '../application-create-panel/application-create-panel').then(m => ({default: m.ApplicationCreatePanel}))),
+    'Failed to load application create panel. Please reload and try again.'
 );
-const ApplicationsSummary = React.lazy(() => import(/* webpackChunkName: "apps-summary" */ './applications-summary').then(m => ({default: m.ApplicationsSummary})));
+const ApplicationsSummary = lazyWithBoundary(
+    React.lazy(() => import(/* webpackChunkName: "apps-summary" */ './applications-summary').then(m => ({default: m.ApplicationsSummary}))),
+    'Failed to load applications summary. Please reload and try again.'
+);
 
 const EVENTS_BUFFER_TIMEOUT = 500;
 const WATCH_RETRY_TIMEOUT = 500;
@@ -490,13 +494,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                     sidebarTarget?.current
                                                                 )}
 
-                                                                {(pref.view === 'summary' && (
-                                                                    <ErrorBoundary message='Failed to load applications summary. Please reload and try again.'>
-                                                                        <React.Suspense fallback={<Spinner show={true} />}>
-                                                                            <ApplicationsSummary applications={filteredApps} />
-                                                                        </React.Suspense>
-                                                                    </ErrorBoundary>
-                                                                )) || (
+                                                                {(pref.view === 'summary' && <ApplicationsSummary applications={filteredApps} />) || (
                                                                     <Paginate
                                                                         header={filteredApps.length > 1 && <AppsStatusBar applications={filteredApps} />}
                                                                         showHeader={healthBarPrefs.showHealthStatusBar}
@@ -617,31 +615,27 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                             </div>
                                                         }>
                                                         {appInput && (
-                                                            <ErrorBoundary message='Failed to load application create panel. Please reload and try again.'>
-                                                                <React.Suspense fallback={<Spinner show={true} />}>
-                                                                    <ApplicationCreatePanel
-                                                                        getFormApi={api => {
-                                                                            setCreateApi(api);
-                                                                        }}
-                                                                        createApp={async app => {
-                                                                            setAppCreatePending(true);
-                                                                            try {
-                                                                                await services.applications.create(app);
-                                                                                ctx.navigation.goto('.', {new: null}, {replace: true});
-                                                                            } catch (e) {
-                                                                                ctx.notifications.show({
-                                                                                    content: <ErrorNotification title='Unable to create application' e={e} />,
-                                                                                    type: NotificationType.Error
-                                                                                });
-                                                                            } finally {
-                                                                                setAppCreatePending(false);
-                                                                            }
-                                                                        }}
-                                                                        app={appInput}
-                                                                        onAppChanged={app => ctx.navigation.goto('.', {new: JSON.stringify(app)}, {replace: true})}
-                                                                    />
-                                                                </React.Suspense>
-                                                            </ErrorBoundary>
+                                                            <ApplicationCreatePanel
+                                                                getFormApi={api => {
+                                                                    setCreateApi(api);
+                                                                }}
+                                                                createApp={async app => {
+                                                                    setAppCreatePending(true);
+                                                                    try {
+                                                                        await services.applications.create(app);
+                                                                        ctx.navigation.goto('.', {new: null}, {replace: true});
+                                                                    } catch (e) {
+                                                                        ctx.notifications.show({
+                                                                            content: <ErrorNotification title='Unable to create application' e={e} />,
+                                                                            type: NotificationType.Error
+                                                                        });
+                                                                    } finally {
+                                                                        setAppCreatePending(false);
+                                                                    }
+                                                                }}
+                                                                app={appInput}
+                                                                onAppChanged={app => ctx.navigation.goto('.', {new: JSON.stringify(app)}, {replace: true})}
+                                                            />
                                                         )}
                                                     </SlidingPanel>
                                                 </React.Fragment>

@@ -2,10 +2,11 @@ import {DataLoader, DropDown, Tab, Tabs} from 'argo-ui';
 import * as React from 'react';
 import {useState} from 'react';
 import {BehaviorSubject} from 'rxjs';
-import {EventsList, Spinner} from '../../../shared/components';
+import {EventsList} from '../../../shared/components';
 import {YamlEditor} from '../../../shared/components/yaml-editor/yaml-editor';
 import * as models from '../../../shared/models';
 import {ErrorBoundary} from '../../../shared/components/error-boundary/error-boundary';
+import {lazyWithBoundary} from '../../../shared/components/lazy-with-boundary';
 import {AppContext, Context} from '../../../shared/context';
 import {Application, ApplicationTree, Event, ResourceNode, State, SyncStatuses} from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -22,11 +23,20 @@ import {ResourceLabel} from '../resource-label';
 import * as AppUtils from '../utils';
 import './resource-details.scss';
 
-const ApplicationResourcesDiff = React.lazy(() =>
-    import(/* webpackChunkName: "app-resources-diff" */ '../application-resources-diff/application-resources-diff').then(m => ({default: m.ApplicationResourcesDiff}))
+const ApplicationResourcesDiff = lazyWithBoundary(
+    React.lazy(() =>
+        import(/* webpackChunkName: "app-resources-diff" */ '../application-resources-diff/application-resources-diff').then(m => ({default: m.ApplicationResourcesDiff}))
+    ),
+    'Failed to load diff. Please reload and try again.'
 );
-const PodsLogsViewer = React.lazy(() => import(/* webpackChunkName: "pod-logs" */ '../pod-logs-viewer/pod-logs-viewer').then(m => ({default: m.PodsLogsViewer})));
-const PodTerminalViewer = React.lazy(() => import(/* webpackChunkName: "pod-terminal" */ '../pod-terminal-viewer/pod-terminal-viewer').then(m => ({default: m.PodTerminalViewer})));
+const PodsLogsViewer = lazyWithBoundary(
+    React.lazy(() => import(/* webpackChunkName: "pod-logs" */ '../pod-logs-viewer/pod-logs-viewer').then(m => ({default: m.PodsLogsViewer}))),
+    'Failed to load logs viewer. Please reload and try again.'
+);
+const PodTerminalViewer = lazyWithBoundary(
+    React.lazy(() => import(/* webpackChunkName: "pod-terminal" */ '../pod-terminal-viewer/pod-terminal-viewer').then(m => ({default: m.PodTerminalViewer}))),
+    'Failed to load terminal. Please reload and try again.'
+);
 
 const jsonMergePatch = require('json-merge-patch');
 
@@ -123,22 +133,18 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         title: 'LOGS',
                         content: (
                             <div className='application-details__tab-content-full-height'>
-                                <ErrorBoundary message='Failed to load logs viewer. Please reload and try again.'>
-                                    <React.Suspense fallback={<Spinner show={true} />}>
-                                        <PodsLogsViewer
-                                            podName={(state.kind === 'Pod' && state.metadata.name) || ''}
-                                            group={node.group}
-                                            kind={node.kind}
-                                            name={node.name}
-                                            namespace={podState.metadata.namespace}
-                                            applicationName={application.metadata.name}
-                                            applicationNamespace={application.metadata.namespace}
-                                            containerName={AppUtils.getContainerName(podState, activeContainer)}
-                                            containerGroups={containerGroups}
-                                            onClickContainer={onClickContainer}
-                                        />
-                                    </React.Suspense>
-                                </ErrorBoundary>
+                                <PodsLogsViewer
+                                    podName={(state.kind === 'Pod' && state.metadata.name) || ''}
+                                    group={node.group}
+                                    kind={node.kind}
+                                    name={node.name}
+                                    namespace={podState.metadata.namespace}
+                                    applicationName={application.metadata.name}
+                                    applicationNamespace={application.metadata.namespace}
+                                    containerName={AppUtils.getContainerName(podState, activeContainer)}
+                                    containerGroups={containerGroups}
+                                    onClickContainer={onClickContainer}
+                                />
                             </div>
                         )
                     }
@@ -151,19 +157,15 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         icon: 'fa fa-terminal',
                         title: 'Terminal',
                         content: (
-                            <ErrorBoundary message='Failed to load terminal. Please reload and try again.'>
-                                <React.Suspense fallback={<Spinner show={true} />}>
-                                    <PodTerminalViewer
-                                        applicationName={application.metadata.name}
-                                        applicationNamespace={application.metadata.namespace}
-                                        projectName={application.spec.project}
-                                        podState={podState}
-                                        selectedNode={selectedNode}
-                                        containerName={AppUtils.getContainerName(podState, activeContainer)}
-                                        onClickContainer={onClickContainer}
-                                    />
-                                </React.Suspense>
-                            </ErrorBoundary>
+                            <PodTerminalViewer
+                                applicationName={application.metadata.name}
+                                applicationNamespace={application.metadata.namespace}
+                                projectName={application.spec.project}
+                                podState={podState}
+                                selectedNode={selectedNode}
+                                containerName={AppUtils.getContainerName(podState, activeContainer)}
+                                onClickContainer={onClickContainer}
+                            />
                         )
                     }
                 ]);
@@ -246,13 +248,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                 fields: ['items.normalizedLiveState', 'items.predictedLiveState', 'items.group', 'items.kind', 'items.namespace', 'items.name']
                             })
                         }>
-                        {managedResources => (
-                            <ErrorBoundary message='Failed to load diff. Please reload and try again.'>
-                                <React.Suspense fallback={<Spinner show={true} />}>
-                                    <ApplicationResourcesDiff states={managedResources} />
-                                </React.Suspense>
-                            </ErrorBoundary>
-                        )}
+                        {managedResources => <ApplicationResourcesDiff states={managedResources} />}
                     </DataLoader>
                 )
             });

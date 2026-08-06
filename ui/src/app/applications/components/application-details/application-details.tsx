@@ -7,8 +7,8 @@ import {RouteComponentProps} from 'react-router';
 import {BehaviorSubject, combineLatest, from, merge, Observable} from 'rxjs';
 import {delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
 
-import {DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Revision, Spinner, Timestamp} from '../../../shared/components';
-import {ErrorBoundary} from '../../../shared/components/error-boundary/error-boundary';
+import {DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Revision, Timestamp} from '../../../shared/components';
+import {lazyWithBoundary} from '../../../shared/components/lazy-with-boundary';
 import {AppContext, Context, ContextApis} from '../../../shared/context';
 import * as appModels from '../../../shared/models';
 import {AppDetailsPreferences, AppsDetailsViewKey, AppsDetailsViewType, services} from '../../../shared/services';
@@ -37,8 +37,11 @@ import './application-details.scss';
 import {TopBarActionMenuExt, AppViewExtension, StatusPanelExtension} from '../../../shared/services/extensions-service';
 import {ApplicationHydrateOperationState} from '../application-hydrate-operation-state/application-hydrate-operation-state';
 
-const ApplicationResourceTree = React.lazy(() =>
-    import(/* webpackChunkName: "app-resource-tree" */ '../application-resource-tree/application-resource-tree').then(m => ({default: m.ApplicationResourceTree}))
+const ApplicationResourceTree = lazyWithBoundary(
+    React.lazy(() =>
+        import(/* webpackChunkName: "app-resource-tree" */ '../application-resource-tree/application-resource-tree').then(m => ({default: m.ApplicationResourceTree}))
+    ),
+    'Failed to load resource tree. Please reload and try again.'
 );
 
 interface ApplicationDetailsState {
@@ -1105,11 +1108,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                                 <div className={`zoom-value`}>{zoomNum}%</div>
                                                             </span>
                                                         </div>
-                                                        <ErrorBoundary message='Failed to load resource tree. Please reload and try again.'>
-                                                            <React.Suspense fallback={<Spinner show={true} />}>
-                                                                <ApplicationResourceTree {...getResourceTreeProps()} />
-                                                            </React.Suspense>
-                                                        </ErrorBoundary>
+                                                        <ApplicationResourceTree {...getResourceTreeProps()} />
                                                     </>
                                                 )) ||
                                                     (isApplication && pref.view === 'pods' && (

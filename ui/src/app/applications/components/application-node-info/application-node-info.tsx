@@ -3,10 +3,10 @@ import classNames from 'classnames';
 import * as deepMerge from 'deepmerge';
 import * as React from 'react';
 
-import {ClipboardText, Spinner} from '../../../shared/components';
+import {ClipboardText} from '../../../shared/components';
 import {YamlEditor} from '../../../shared/components/yaml-editor/yaml-editor';
 import {DeepLinks} from '../../../shared/components/deep-links';
-import {ErrorBoundary} from '../../../shared/components/error-boundary/error-boundary';
+import {lazyWithBoundary} from '../../../shared/components/lazy-with-boundary';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import type {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
@@ -15,8 +15,11 @@ import './application-node-info.scss';
 import {ReadinessGatesNotPassedWarning} from './readiness-gates-not-passed-warning';
 import Moment from 'react-moment';
 
-const ApplicationResourcesDiff = React.lazy(() =>
-    import(/* webpackChunkName: "app-resources-diff" */ '../application-resources-diff/application-resources-diff').then(m => ({default: m.ApplicationResourcesDiff}))
+const ApplicationResourcesDiff = lazyWithBoundary(
+    React.lazy(() =>
+        import(/* webpackChunkName: "app-resources-diff" */ '../application-resources-diff/application-resources-diff').then(m => ({default: m.ApplicationResourcesDiff}))
+    ),
+    'Failed to load diff. Please reload and try again.'
 );
 
 const RenderContainerState = (props: {container: any}) => {
@@ -305,13 +308,7 @@ export const ApplicationNodeInfo = (props: {
             key: 'diff',
             icon: 'fa fa-file-medical',
             title: 'Diff',
-            content: (
-                <ErrorBoundary message='Failed to load diff. Please reload and try again.'>
-                    <React.Suspense fallback={<Spinner show={true} />}>
-                        <ApplicationResourcesDiff states={[props.controlled.state]} />
-                    </React.Suspense>
-                </ErrorBoundary>
-            )
+            content: <ApplicationResourcesDiff states={[props.controlled.state]} />
         });
         tabs.push({
             key: 'desiredManifest',

@@ -15,17 +15,7 @@ interface Progress {
     title: string;
 }
 
-export const ApplicationsSyncPanelBody = ({
-    show,
-    apps,
-    getApi,
-    setPending
-}: {
-    show: boolean;
-    apps: models.Application[];
-    getApi: (api: FormApi) => void;
-    setPending: (pending: boolean) => void;
-}) => {
+export const ApplicationsSyncPanelBody = ({apps, getApi, setPending}: {apps: models.Application[]; getApi: (api: FormApi) => void; setPending: (pending: boolean) => void}) => {
     const [progress, setProgress] = React.useState<Progress>(null);
     const getSelectedApps = (params: any) => apps.filter((_, i) => params['app/' + i]);
     return (
@@ -111,7 +101,7 @@ export const ApplicationsSyncPanelBody = ({
 
                             <ApplicationRetryOptions id='applications-sync-panel' formApi={formApi} />
 
-                            {show && <ApplicationSelector apps={apps} formApi={formApi} />}
+                            <ApplicationSelector apps={apps} formApi={formApi} />
                         </div>
                     )}
                 </Form>

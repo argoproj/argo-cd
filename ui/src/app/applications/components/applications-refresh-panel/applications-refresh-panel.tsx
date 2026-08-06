@@ -1,12 +1,12 @@
 import {SlidingPanel} from 'argo-ui';
 import * as React from 'react';
 import {FormApi} from 'argo-ui';
-import {Spinner} from '../../../shared/components';
-import {ErrorBoundary} from '../../../shared/components/error-boundary/error-boundary';
+import {lazyWithBoundary} from '../../../shared/components/lazy-with-boundary';
 import * as models from '../../../shared/models';
 
-const ApplicationsRefreshPanelBody = React.lazy(() =>
-    import(/* webpackChunkName: "apps-refresh-panel" */ './applications-refresh-panel-body').then(m => ({default: m.ApplicationsRefreshPanelBody}))
+const ApplicationsRefreshPanelBody = lazyWithBoundary(
+    React.lazy(() => import(/* webpackChunkName: "apps-refresh-panel" */ './applications-refresh-panel-body').then(m => ({default: m.ApplicationsRefreshPanelBody}))),
+    'Failed to load refresh panel. Please reload and try again.'
 );
 
 export const ApplicationsRefreshPanel = ({show, apps, hide}: {show: boolean; apps: models.Application[]; hide: () => void}) => {
@@ -27,13 +27,7 @@ export const ApplicationsRefreshPanel = ({show, apps, hide}: {show: boolean; app
                     </button>
                 </div>
             }>
-            {show && (
-                <ErrorBoundary message='Failed to load refresh panel. Please reload and try again.'>
-                    <React.Suspense fallback={<Spinner show={true} />}>
-                        <ApplicationsRefreshPanelBody show={show} apps={apps} getApi={setForm} />
-                    </React.Suspense>
-                </ErrorBoundary>
-            )}
+            {show && <ApplicationsRefreshPanelBody apps={apps} getApi={setForm} />}
         </SlidingPanel>
     );
 };

@@ -15,7 +15,7 @@ interface Progress {
 
 const RefreshTypes = ['normal', 'hard'];
 
-export const ApplicationsRefreshPanelBody = ({show, apps, getApi}: {show: boolean; apps: models.Application[]; getApi: (api: FormApi) => void}) => {
+export const ApplicationsRefreshPanelBody = ({apps, getApi}: {apps: models.Application[]; getApi: (api: FormApi) => void}) => {
     const [progress, setProgress] = React.useState<Progress>(null);
     const getSelectedApps = (params: any) => apps.filter((_, i) => params['app/' + i]);
 
@@ -81,7 +81,7 @@ export const ApplicationsRefreshPanelBody = ({show, apps, getApi}: {show: boolea
                                     ))}
                                 </div>
                             </div>
-                            {show && <ApplicationSelector apps={apps} formApi={formApi} />}
+                            <ApplicationSelector apps={apps} formApi={formApi} />
                         </div>
                     )}
                 </Form>
