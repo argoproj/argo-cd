@@ -343,15 +343,19 @@ func TestNewSCMConfig(t *testing.T) {
 	allowedSCMProviders := []string{"github.com", "gitlab.com"}
 	enableSCMProviders := true
 	enableGitHubAPIMetrics := true
+	enableGitHubCache := false
+	gitHubCacheSize := 100
 	gitHubApps := github_app_auth.Credentials(nil)
 	tokenRefStrictMode := true
 
 	t.Run("default config", func(t *testing.T) {
-		config := NewSCMConfig(scmRootCAPath, allowedSCMProviders, enableSCMProviders, enableGitHubAPIMetrics, gitHubApps, tokenRefStrictMode)
+		config := NewSCMConfig(scmRootCAPath, allowedSCMProviders, enableSCMProviders, enableGitHubAPIMetrics, enableGitHubCache, gitHubCacheSize, gitHubApps, tokenRefStrictMode)
 		assert.Equal(t, scmRootCAPath, config.scmRootCAPath)
 		assert.Equal(t, allowedSCMProviders, config.allowedSCMProviders)
 		assert.Equal(t, enableSCMProviders, config.enableSCMProviders)
 		assert.Equal(t, enableGitHubAPIMetrics, config.enableGitHubAPIMetrics)
+		assert.Equal(t, enableGitHubCache, config.enableGitHubCache)
+		assert.Equal(t, gitHubCacheSize, config.gitHubCacheSize)
 		assert.Equal(t, gitHubApps, config.GitHubApps)
 		assert.Equal(t, tokenRefStrictMode, config.tokenRefStrictMode)
 		assert.Empty(t, config.scmProxyURL)
@@ -361,7 +365,8 @@ func TestNewSCMConfig(t *testing.T) {
 	t.Run("config with options", func(t *testing.T) {
 		proxyURL := "http://proxy.example.com"
 		noProxy := "localhost,127.0.0.1"
-		config := NewSCMConfig(scmRootCAPath, allowedSCMProviders, enableSCMProviders, enableGitHubAPIMetrics, gitHubApps, tokenRefStrictMode,
+		config := NewSCMConfig(scmRootCAPath, allowedSCMProviders, enableSCMProviders, enableGitHubAPIMetrics, enableGitHubCache, gitHubCacheSize, gitHubApps, tokenRefStrictMode,
+
 			WithProxyURL(proxyURL),
 			WithNoProxyList(noProxy),
 		)

@@ -40,18 +40,22 @@ type SCMConfig struct {
 	allowedSCMProviders    []string
 	enableSCMProviders     bool
 	enableGitHubAPIMetrics bool
+	enableGitHubCache      bool
+	gitHubCacheSize        int
 	GitHubApps             github_app_auth.Credentials
 	tokenRefStrictMode     bool
 	scmProxyURL            string
 	scmNoProxy             string
 }
 
-func NewSCMConfig(scmRootCAPath string, allowedSCMProviders []string, enableSCMProviders bool, enableGitHubAPIMetrics bool, gitHubApps github_app_auth.Credentials, tokenRefStrictMode bool, opts ...SCMConfigOpts) SCMConfig {
+func NewSCMConfig(scmRootCAPath string, allowedSCMProviders []string, enableSCMProviders bool, enableGitHubAPIMetrics bool, enableGitHubCache bool, gitHubCacheSize int, gitHubApps github_app_auth.Credentials, tokenRefStrictMode bool, opts ...SCMConfigOpts) SCMConfig {
 	c := SCMConfig{
 		scmRootCAPath:          scmRootCAPath,
 		allowedSCMProviders:    allowedSCMProviders,
 		enableSCMProviders:     enableSCMProviders,
 		enableGitHubAPIMetrics: enableGitHubAPIMetrics,
+		enableGitHubCache:      enableGitHubCache,
+		gitHubCacheSize:        gitHubCacheSize,
 		GitHubApps:             gitHubApps,
 		tokenRefStrictMode:     tokenRefStrictMode,
 	}
@@ -304,12 +308,21 @@ func (g *SCMProviderGenerator) githubProvider(ctx context.Context, github *argop
 		httpClient = services.NewGitHubMetricsClientFrom(httpClient, metricsCtx)
 	}
 
+	if g.enableGitHubCache {
+		cacheCtx := &services.GitHubCacheContext{
+			AppSecretName: github.AppSecretName,
+			TokenRef:      github.TokenRef,
+		}
+		httpClient = services.NewGitHubCacheFrom(httpClient, cacheCtx, g.gitHubCacheSize)
+		services.RegisterGitHubCacheMetrics()
+	}
+
 	if github.AppSecretName != "" {
 		auth, err := g.GitHubApps.GetAuthSecret(ctx, github.AppSecretName)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Github app secret: %w", err)
 		}
-		return scm_provider.NewGithubAppProviderFor(ctx, *auth, github.Organization, github.API, github.AllBranches, github.ExcludeArchivedRepos, httpClient)
+		return scm_provider.NewGithubAppProviderFor(ctx, *auth, github.Organization, github.API, github.AllBranches, github.ExcludeArchivedRepos, g.enableGitHubCache, httpClient)
 	}
 
 	token, err := utils.GetSecretRef(ctx, g.client, github.TokenRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
