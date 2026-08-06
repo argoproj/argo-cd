@@ -3,6 +3,7 @@ package grpc
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"net"
 	"runtime/debug"
@@ -37,24 +38,23 @@ func LoggerRecoveryHandler(log *logrus.Entry) recovery.RecoveryHandlerFunc {
 // Lifted from: https://github.com/fullstorydev/grpcurl/blob/master/grpcurl.go
 func BlockingNewClient(ctx context.Context, network, address string, creds credentials.TransportCredentials, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
 	proxyDialer := proxy.FromEnvironment()
-	rawConn, err := proxyDialer.Dial(network, address)
-	if err != nil {
-		return nil, fmt.Errorf("error dial proxy: %w", err)
-	}
 
-	if creds != nil {
-		rawConn, _, err = creds.ClientHandshake(ctx, address, rawConn)
-		if err != nil {
-			return nil, fmt.Errorf("error creating connection: %w", err)
+	// Dial fresh on every invocation so gRPC can re-establish the transport on reconnect.
+	customDialer := func(ctx context.Context, _ string) (net.Conn, error) {
+		if cd, ok := proxyDialer.(proxy.ContextDialer); ok {
+			return cd.DialContext(ctx, network, address)
 		}
-	}
-	customDialer := func(_ context.Context, _ string) (net.Conn, error) {
-		return rawConn, nil
+		return proxyDialer.Dial(network, address)
 	}
 
-	opts = append(opts,
+	if creds == nil {
+		creds = insecure.NewCredentials()
+	}
+
+	opts = append(
+		opts,
 		grpc.WithContextDialer(customDialer),
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithTransportCredentials(creds),
 		grpc.WithKeepaliveParams(keepalive.ClientParameters{Time: common.GetGRPCKeepAliveTime()}),
 	)
 
@@ -76,6 +76,9 @@ func waitForReady(ctx context.Context, conn *grpc.ClientConn) error {
 		state := conn.GetState()
 		if state == connectivity.Ready {
 			return nil
+		}
+		if state == connectivity.TransientFailure {
+			return errors.New("gRPC channel entered TRANSIENT_FAILURE state")
 		}
 		if !conn.WaitForStateChange(ctx, state) {
 			return ctx.Err() // context timeout or cancellation
