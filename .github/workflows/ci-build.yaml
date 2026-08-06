@@ -422,7 +422,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Install pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
         with:
           package_json_file: ui/package.json
       - name: Setup NodeJS
@@ -607,7 +607,7 @@ jobs:
           # renovate: datasource=node-version packageName=node versioning=node
           node-version: '24.17.0'
       - name: Install pnpm
-        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
         with:
           package_json_file: ui/package.json
       - name: GH actions workaround - Kill XSP4 process
