@@ -9,11 +9,8 @@ import (
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
-func strp(s string) *string {
-	return &s
-}
-
 func TestFilterBranchMatchBadRegexp(t *testing.T) {
+	t.Parallel()
 	provider, _ := NewFakeService(
 		t.Context(),
 		[]*PullRequest{
@@ -30,7 +27,7 @@ func TestFilterBranchMatchBadRegexp(t *testing.T) {
 	)
 	filters := []argoprojiov1alpha1.PullRequestGeneratorFilter{
 		{
-			BranchMatch: strp("("),
+			BranchMatch: new("("),
 		},
 	}
 	_, err := ListPullRequests(t.Context(), provider, filters)
@@ -38,6 +35,7 @@ func TestFilterBranchMatchBadRegexp(t *testing.T) {
 }
 
 func TestFilterBranchMatch(t *testing.T) {
+	t.Parallel()
 	provider, _ := NewFakeService(
 		t.Context(),
 		[]*PullRequest{
@@ -78,7 +76,7 @@ func TestFilterBranchMatch(t *testing.T) {
 	)
 	filters := []argoprojiov1alpha1.PullRequestGeneratorFilter{
 		{
-			BranchMatch: strp("w"),
+			BranchMatch: new("w"),
 		},
 	}
 	pullRequests, err := ListPullRequests(t.Context(), provider, filters)
@@ -88,6 +86,7 @@ func TestFilterBranchMatch(t *testing.T) {
 }
 
 func TestFilterTargetBranchMatch(t *testing.T) {
+	t.Parallel()
 	provider, _ := NewFakeService(
 		t.Context(),
 		[]*PullRequest{
@@ -128,7 +127,7 @@ func TestFilterTargetBranchMatch(t *testing.T) {
 	)
 	filters := []argoprojiov1alpha1.PullRequestGeneratorFilter{
 		{
-			TargetBranchMatch: strp("1"),
+			TargetBranchMatch: new("1"),
 		},
 	}
 	pullRequests, err := ListPullRequests(t.Context(), provider, filters)
@@ -138,6 +137,7 @@ func TestFilterTargetBranchMatch(t *testing.T) {
 }
 
 func TestFilterTitleMatch(t *testing.T) {
+	t.Parallel()
 	provider, _ := NewFakeService(
 		t.Context(),
 		[]*PullRequest{
@@ -178,7 +178,7 @@ func TestFilterTitleMatch(t *testing.T) {
 	)
 	filters := []argoprojiov1alpha1.PullRequestGeneratorFilter{
 		{
-			TitleMatch: strp("\\[filter]"),
+			TitleMatch: new("\\[filter]"),
 		},
 	}
 	pullRequests, err := ListPullRequests(t.Context(), provider, filters)
@@ -188,6 +188,7 @@ func TestFilterTitleMatch(t *testing.T) {
 }
 
 func TestMultiFilterOrWithTitle(t *testing.T) {
+	t.Parallel()
 	provider, _ := NewFakeService(
 		t.Context(),
 		[]*PullRequest{
@@ -228,10 +229,10 @@ func TestMultiFilterOrWithTitle(t *testing.T) {
 	)
 	filters := []argoprojiov1alpha1.PullRequestGeneratorFilter{
 		{
-			TitleMatch: strp("\\[filter]"),
+			TitleMatch: new("\\[filter]"),
 		},
 		{
-			TitleMatch: strp("- filter"),
+			TitleMatch: new("- filter"),
 		},
 	}
 	pullRequests, err := ListPullRequests(t.Context(), provider, filters)
@@ -242,6 +243,7 @@ func TestMultiFilterOrWithTitle(t *testing.T) {
 }
 
 func TestMultiFilterOr(t *testing.T) {
+	t.Parallel()
 	provider, _ := NewFakeService(
 		t.Context(),
 		[]*PullRequest{
@@ -282,10 +284,10 @@ func TestMultiFilterOr(t *testing.T) {
 	)
 	filters := []argoprojiov1alpha1.PullRequestGeneratorFilter{
 		{
-			BranchMatch: strp("w"),
+			BranchMatch: new("w"),
 		},
 		{
-			BranchMatch: strp("r"),
+			BranchMatch: new("r"),
 		},
 	}
 	pullRequests, err := ListPullRequests(t.Context(), provider, filters)
@@ -297,6 +299,7 @@ func TestMultiFilterOr(t *testing.T) {
 }
 
 func TestMultiFilterOrWithTargetBranchFilterOrWithTitleFilter(t *testing.T) {
+	t.Parallel()
 	provider, _ := NewFakeService(
 		t.Context(),
 		[]*PullRequest{
@@ -345,19 +348,19 @@ func TestMultiFilterOrWithTargetBranchFilterOrWithTitleFilter(t *testing.T) {
 	)
 	filters := []argoprojiov1alpha1.PullRequestGeneratorFilter{
 		{
-			BranchMatch:       strp("w"),
-			TargetBranchMatch: strp("1"),
+			BranchMatch:       new("w"),
+			TargetBranchMatch: new("1"),
 		},
 		{
-			BranchMatch:       strp("r"),
-			TargetBranchMatch: strp("3"),
+			BranchMatch:       new("r"),
+			TargetBranchMatch: new("3"),
 		},
 		{
-			TitleMatch: strp("two"),
+			TitleMatch: new("two"),
 		},
 		{
-			BranchMatch: strp("five"),
-			TitleMatch:  strp("PR title is different than branch name"),
+			BranchMatch: new("five"),
+			TitleMatch:  new("PR title is different than branch name"),
 		},
 	}
 	pullRequests, err := ListPullRequests(t.Context(), provider, filters)
@@ -370,6 +373,7 @@ func TestMultiFilterOrWithTargetBranchFilterOrWithTitleFilter(t *testing.T) {
 }
 
 func TestNoFilters(t *testing.T) {
+	t.Parallel()
 	provider, _ := NewFakeService(
 		t.Context(),
 		[]*PullRequest{

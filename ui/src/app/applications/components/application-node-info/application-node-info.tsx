@@ -196,7 +196,6 @@ export const ApplicationNodeInfo = (props: {
             } as any);
         }
     }
-    let showLiveState = true;
     if (props.links) {
         attributes.push({
             title: 'LINKS',
@@ -211,14 +210,17 @@ export const ApplicationNodeInfo = (props: {
             content: (
                 <DataLoader load={() => services.viewPreferences.getPreferences()}>
                     {pref => {
-                        const live = deepMerge(props.live, {}) as any;
-                        if (Object.keys(live).length === 0) {
-                            showLiveState = false;
-                        }
+                        const merged = deepMerge(props.live, {}) as any;
+                        const showLiveState = Object.keys(merged).length !== 0;
 
-                        if (live?.metadata?.managedFields && pref.appDetails.hideManagedFields) {
-                            delete live.metadata.managedFields;
-                        }
+                        const live =
+                            merged?.metadata?.managedFields && pref.appDetails.hideManagedFields
+                                ? (() => {
+                                      const metadata = {...merged.metadata};
+                                      delete metadata.managedFields;
+                                      return {...merged, metadata};
+                                  })()
+                                : merged;
                         return (
                             <React.Fragment>
                                 {showLiveState ? (
@@ -275,13 +277,15 @@ export const ApplicationNodeInfo = (props: {
                                         )}
                                         {`${props.node.name}`}
                                         <br />
-                                        {props?.controlled?.state?.normalizedLiveState?.apiVersion && (
-                                            <span>
-                                                Please update your resource specification to use the latest Kubernetes API resources supported by the target cluster. The
-                                                recommended syntax is{' '}
-                                                {`${props.controlled.state.normalizedLiveState.apiVersion}/${props?.controlled.state.normalizedLiveState?.kind}:${props.node.name}`}
-                                            </span>
-                                        )}
+                                        {props?.controlled?.state?.normalizedLiveState?.apiVersion &&
+                                            `${props?.controlled?.state?.targetState?.apiVersion}/${props?.controlled?.state?.targetState?.kind}:${props.node.name}` !==
+                                                `${props.controlled.state.normalizedLiveState.apiVersion}/${props?.controlled.state.normalizedLiveState?.kind}:${props.node.name}` && (
+                                                <span>
+                                                    Please update your resource specification to use the latest Kubernetes API resources supported by the target cluster. The
+                                                    recommended syntax is{' '}
+                                                    {`${props.controlled.state.normalizedLiveState.apiVersion}/${props?.controlled.state.normalizedLiveState?.kind}:${props.node.name}`}
+                                                </span>
+                                            )}
                                     </div>
                                 )}
                             </React.Fragment>

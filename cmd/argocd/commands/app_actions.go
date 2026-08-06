@@ -11,7 +11,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc/codes"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
@@ -66,6 +65,7 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 	var group string
 	var resourceName string
 	var output string
+	var appNamespace string
 	command := &cobra.Command{
 		Use:   "list APPNAME",
 		Short: "Lists available actions on a resource",
@@ -81,7 +81,7 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 			c.HelpFunc()(c, args)
 			os.Exit(1)
 		}
-		appName, appNs := argo.ParseFromQualifiedName(args[0], "")
+		appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
 		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 		defer utilio.Close(conn)
 		resources, err := getActionableResourcesForApplication(ctx, appIf, &appNs, &appName)
@@ -95,11 +95,11 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 			availActionsForResource, err := appIf.ListResourceActions(ctx, &applicationpkg.ApplicationResourceRequest{
 				Name:         &appName,
 				AppNamespace: &appNs,
-				Namespace:    ptr.To(obj.GetNamespace()),
-				ResourceName: ptr.To(obj.GetName()),
-				Group:        ptr.To(gvk.Group),
-				Kind:         ptr.To(gvk.Kind),
-				Version:      ptr.To(gvk.Version),
+				Namespace:    new(obj.GetNamespace()),
+				ResourceName: new(obj.GetName()),
+				Group:        new(gvk.Group),
+				Kind:         new(gvk.Kind),
+				Version:      new(gvk.Version),
 			})
 			errors.CheckError(err)
 			for _, action := range availActionsForResource.Actions {
@@ -125,13 +125,14 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 			fmt.Println(string(jsonBytes))
 		case "":
 			w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-			fmt.Fprintf(w, "GROUP\tKIND\tNAME\tACTION\tDISABLED\n")
+			fmt.Fprint(w, "GROUP\tKIND\tNAME\tACTION\tDISABLED\n")
 			for _, action := range availableActions {
 				fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", action.Group, action.Kind, action.Name, action.Action, strconv.FormatBool(action.Disabled))
 			}
 			_ = w.Flush()
 		}
 	}
+	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Namespace of the application")
 	command.Flags().StringVar(&resourceName, "resource-name", "", "Name of resource")
 	command.Flags().StringVar(&kind, "kind", "", "Kind")
 	command.Flags().StringVar(&group, "group", "", "Group")
@@ -144,6 +145,7 @@ func NewApplicationResourceActionsListCommand(clientOpts *argocdclient.ClientOpt
 // NewApplicationResourceActionsRunCommand returns a new instance of an `argocd app actions run` command
 func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var namespace string
+	var appNamespace string
 	var resourceName string
 	var kind string
 	var group string
@@ -159,6 +161,7 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 	}
 
 	command.Flags().StringVar(&resourceName, "resource-name", "", "Name of resource on which the action should be run")
+	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Namespace of the application")
 	command.Flags().StringVar(&namespace, "namespace", "", "Namespace of the resource on which the action should be run")
 	command.Flags().StringVar(&kind, "kind", "", "Kind of the resource on which the action should be run")
 	command.Flags().StringVar(&group, "group", "", "Group of the resource on which the action should be run")
@@ -172,7 +175,7 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 			c.HelpFunc()(c, args)
 			os.Exit(1)
 		}
-		appName, appNs := argo.ParseFromQualifiedName(args[0], "")
+		appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
 		actionName := args[1]
 
 		conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
@@ -195,12 +198,12 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 			_, err := appIf.RunResourceActionV2(ctx, &applicationpkg.ResourceActionRunRequestV2{
 				Name:         &appName,
 				AppNamespace: &appNs,
-				Namespace:    ptr.To(obj.GetNamespace()),
-				ResourceName: ptr.To(objResourceName),
-				Group:        ptr.To(gvk.Group),
-				Kind:         ptr.To(gvk.Kind),
-				Version:      ptr.To(gvk.GroupVersion().Version),
-				Action:       ptr.To(actionName),
+				Namespace:    new(obj.GetNamespace()),
+				ResourceName: new(objResourceName),
+				Group:        new(gvk.Group),
+				Kind:         new(gvk.Kind),
+				Version:      new(gvk.GroupVersion().Version),
+				Action:       new(actionName),
 				// TODO: add support for parameters
 			})
 			if err == nil {
@@ -214,12 +217,12 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 			_, err = appIf.RunResourceAction(ctx, &applicationpkg.ResourceActionRunRequest{
 				Name:         &appName,
 				AppNamespace: &appNs,
-				Namespace:    ptr.To(obj.GetNamespace()),
-				ResourceName: ptr.To(objResourceName),
-				Group:        ptr.To(gvk.Group),
-				Kind:         ptr.To(gvk.Kind),
-				Version:      ptr.To(gvk.GroupVersion().Version),
-				Action:       ptr.To(actionName),
+				Namespace:    new(obj.GetNamespace()),
+				ResourceName: new(objResourceName),
+				Group:        new(gvk.Group),
+				Kind:         new(gvk.Kind),
+				Version:      new(gvk.GroupVersion().Version),
+				Action:       new(actionName),
 			})
 			errors.CheckError(err)
 		}

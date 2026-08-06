@@ -12,6 +12,7 @@ import (
 )
 
 func TestGenerateListParams(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		elements []apiextensionsv1.JSON
 		expected []map[string]any
@@ -47,6 +48,7 @@ func TestGenerateListParams(t *testing.T) {
 }
 
 func TestGenerateListParamsGoTemplate(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		elements []apiextensionsv1.JSON
 		expected []map[string]any

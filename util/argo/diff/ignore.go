@@ -2,6 +2,7 @@ package diff
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/glob"
@@ -89,27 +90,18 @@ func resourceToIgnoreDifference(resource v1alpha1.ResourceIgnoreDifferences) *Ig
 // skipping repeated configs.
 func mergeIgnoreDifferences(from *IgnoreDifference, target *IgnoreDifference) {
 	for _, jqPath := range from.JQPathExpressions {
-		if !contains(target.JQPathExpressions, jqPath) {
+		if !slices.Contains(target.JQPathExpressions, jqPath) {
 			target.JQPathExpressions = append(target.JQPathExpressions, jqPath)
 		}
 	}
 	for _, jsonPointer := range from.JSONPointers {
-		if !contains(target.JSONPointers, jsonPointer) {
+		if !slices.Contains(target.JSONPointers, jsonPointer) {
 			target.JSONPointers = append(target.JSONPointers, jsonPointer)
 		}
 	}
 	for _, manager := range from.ManagedFieldsManagers {
-		if !contains(target.ManagedFieldsManagers, manager) {
+		if !slices.Contains(target.ManagedFieldsManagers, manager) {
 			target.ManagedFieldsManagers = append(target.ManagedFieldsManagers, manager)
 		}
 	}
-}
-
-func contains(slice []string, e string) bool {
-	for _, s := range slice {
-		if s == e {
-			return true
-		}
-	}
-	return false
 }

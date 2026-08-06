@@ -13,6 +13,11 @@ import (
 	"sync"
 	"time"
 
+	otel_codes "go.opentelemetry.io/otel/codes"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
@@ -99,6 +104,13 @@ const (
 )
 
 var InvalidLoginErr = status.Errorf(codes.Unauthenticated, invalidLoginError)
+
+// OpenTelemetry tracer for this package
+var tracer trace.Tracer
+
+func init() {
+	tracer = otel.Tracer("github.com/argoproj/argo-cd/v3/util/session")
+}
 
 // Returns the maximum cache size as number of entries
 func getMaximumCacheSize() int {
@@ -275,7 +287,10 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 		return nil, "", fmt.Errorf("account %s does not have '%s' capability", subject, capability)
 	}
 
-	if id == "" || mgr.storage.IsTokenRevoked(id) {
+	if id == "" {
+		return nil, "", errors.New("token does not have a unique identifier (jti claim) and cannot be validated")
+	}
+	if mgr.storage.IsTokenRevoked(id) {
 		return nil, "", errors.New("token is revoked, please re-login")
 	} else if capability == settings.AccountCapabilityApiKey && account.TokenIndex(id) == -1 {
 		return nil, "", fmt.Errorf("account %s does not have token with id %s", subject, id)
@@ -291,10 +306,12 @@ func (mgr *SessionManager) Parse(tokenString string) (jwt.Claims, string, error)
 		remainingDuration := time.Until(exp)
 
 		if remainingDuration < autoRegenerateTokenDuration && capability == settings.AccountCapabilityLogin {
-			if uniqueId, err := uuid.NewRandom(); err == nil {
-				if val, err := mgr.Create(fmt.Sprintf("%s:%s", subject, settings.AccountCapabilityLogin), int64(tokenExpDuration.Seconds()), uniqueId.String()); err == nil {
-					newToken = val
-				}
+			var uniqueId uuid.UUID
+			if uniqueId, err = uuid.NewRandom(); err != nil {
+				return nil, "", fmt.Errorf("could not create UUID for new JWT token: %w", err)
+			}
+			if newToken, err = mgr.Create(fmt.Sprintf("%s:%s", subject, settings.AccountCapabilityLogin), int64(tokenExpDuration.Seconds()), uniqueId.String()); err != nil {
+				return nil, "", fmt.Errorf("could not create new JWT token: %w", err)
 			}
 		}
 	}
@@ -518,7 +535,7 @@ func WithAuthMiddleware(disabled bool, isSSOConfigured bool, ssoClientApp *oidcu
 
 		finalClaims := claims
 		if isSSOConfigured {
-			finalClaims, err = ssoClientApp.SetGroupsFromUserInfo(ctx, claims, SessionManagerClaimsIssuer)
+			finalClaims, err = ssoClientApp.SetGroupsClaimFromEndpoint(ctx, claims, SessionManagerClaimsIssuer)
 			if err != nil {
 				http.Error(w, "Invalid session", http.StatusUnauthorized)
 				return
@@ -536,6 +553,9 @@ func WithAuthMiddleware(disabled bool, isSSOConfigured bool, ssoClientApp *oidcu
 // VerifyToken verifies if a token is correct. Tokens can be issued either from us or by an IDP.
 // We choose how to verify based on the issuer.
 func (mgr *SessionManager) VerifyToken(ctx context.Context, tokenString string) (jwt.Claims, string, error) {
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "session.SessionManager.VerifyToken")
+	defer span.End()
 	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
 	claims := jwt.MapClaims{}
 	_, _, err := parser.ParseUnverified(tokenString, &claims)
@@ -568,7 +588,9 @@ func (mgr *SessionManager) VerifyToken(ctx context.Context, tokenString string) 
 		// return a dummy claims only containing a value for the issuer, so the
 		// UI can handle expired tokens appropriately.
 		if err != nil {
-			log.Warnf("Failed to verify session token: %s", err)
+			errorMsg := "Failed to verify session token: " + err.Error()
+			span.SetStatus(otel_codes.Error, errorMsg)
+			log.Warn(errorMsg)
 			tokenExpiredError := &oidc.TokenExpiredError{}
 			if errors.As(err, &tokenExpiredError) {
 				claims = jwt.MapClaims{
@@ -579,6 +601,19 @@ func (mgr *SessionManager) VerifyToken(ctx context.Context, tokenString string) 
 			return nil, "", common.ErrTokenVerification
 		}
 
+		id := tokenUniqueID(claims)
+		if id == "" {
+			log.Warnf("token does not have jti or uti claim")
+		}
+		// Workaround for Dex token, because does not have jti.
+		if id == "" {
+			id = idToken.AccessTokenHash
+		}
+
+		if mgr.storage.IsTokenRevoked(id) {
+			return nil, "", errors.New("token is revoked, please re-login")
+		}
+
 		var claims jwt.MapClaims
 		err = idToken.Claims(&claims)
 		if err != nil {
@@ -586,6 +621,18 @@ func (mgr *SessionManager) VerifyToken(ctx context.Context, tokenString string) 
 		}
 		return claims, "", nil
 	}
+}
+
+// tokenUniqueID returns a unique identifier for the token, used for revocation
+// checks. It prefers the standard "jti" claim. Microsoft Entra ID does not emit
+// "jti"; it emits "uti" (unique token identifier), which Microsoft documents as
+// the equivalent, so fall back to it. Returns an empty string when neither claim
+// is present.
+func tokenUniqueID(claims jwt.MapClaims) string {
+	if id := jwtutil.StringField(claims, "jti"); id != "" {
+		return id
+	}
+	return jwtutil.StringField(claims, "uti")
 }
 
 func (mgr *SessionManager) provider() (oidcutil.Provider, error) {

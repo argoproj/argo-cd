@@ -6,12 +6,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/sts"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
+	smithyhttp "github.com/aws/smithy-go/transport/http"
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientauthv1beta1 "k8s.io/client-go/pkg/apis/clientauthentication/v1beta1"
@@ -58,13 +60,13 @@ func newAWSCommand() *cobra.Command {
 	return command
 }
 
-type getSignedRequestFunc func(clusterName, roleARN string, profile string) (string, error)
+type getSignedRequestFunc func(ctx context.Context, clusterName, roleARN string, profile string) (string, error)
 
 func getSignedRequestWithRetry(ctx context.Context, timeout, interval time.Duration, clusterName, roleARN string, profile string, fn getSignedRequestFunc) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	for {
-		signed, err := fn(clusterName, roleARN, profile)
+		signed, err := fn(ctx, clusterName, roleARN, profile)
 		if err == nil {
 			return signed, nil
 		}
@@ -76,25 +78,53 @@ func getSignedRequestWithRetry(ctx context.Context, timeout, interval time.Durat
 	}
 }
 
-func getSignedRequest(clusterName, roleARN string, profile string) (string, error) {
-	sess, err := session.NewSessionWithOptions(session.Options{
-		Profile: profile,
-	})
+func getSignedRequest(ctx context.Context, clusterName, roleARN string, profile string) (string, error) {
+	cfg, err := loadAWSConfig(ctx, profile)
 	if err != nil {
-		return "", fmt.Errorf("error creating new AWS session: %w", err)
+		return "", err
 	}
-	stsAPI := sts.New(sess)
+	return getSignedRequestWithConfig(ctx, clusterName, roleARN, cfg)
+}
+
+func loadAWSConfig(ctx context.Context, profile string) (aws.Config, error) {
+	var opts []func(*config.LoadOptions) error
+	if profile != "" {
+		opts = append(opts, config.WithSharedConfigProfile(profile))
+	}
+	cfg, err := config.LoadDefaultConfig(ctx, opts...)
+	if err != nil {
+		return aws.Config{}, fmt.Errorf("error loading AWS configuration: %w", err)
+	}
+	return cfg, nil
+}
+
+// getSignedRequestWithConfig presigns GetCallerIdentity using the given config. Used by getSignedRequest and by tests
+// that inject a config with static credentials to exercise the roleARN path without real AWS credentials.
+func getSignedRequestWithConfig(ctx context.Context, clusterName, roleARN string, cfg aws.Config) (string, error) {
+	// Use PresignOptions.ClientOptions + SetHeaderValue (same as aws-iam-authenticator) so the
+	// canonical request matches what EKS sends when validating. Build middleware can produce
+	// a different canonical form and thus an invalid signature for EKS.
+	// See kubernetes-sigs/aws-iam-authenticator pkg/token/token.go GetWithSTS().
+	client := sts.NewFromConfig(cfg)
 	if roleARN != "" {
-		creds := stscreds.NewCredentials(sess, roleARN)
-		stsAPI = sts.New(sess, &aws.Config{Credentials: creds})
+		appCreds := stscreds.NewAssumeRoleProvider(client, roleARN)
+		cfg.Credentials = aws.NewCredentialsCache(appCreds)
+		client = sts.NewFromConfig(cfg)
 	}
-	request, _ := stsAPI.GetCallerIdentityRequest(&sts.GetCallerIdentityInput{})
-	request.HTTPRequest.Header.Add(clusterIDHeader, clusterName)
-	signed, err := request.Presign(requestPresignParam)
+
+	presignClient := sts.NewPresignClient(client)
+	presigned, err := presignClient.PresignGetCallerIdentity(ctx, &sts.GetCallerIdentityInput{},
+		func(presignOptions *sts.PresignOptions) {
+			presignOptions.ClientOptions = append(presignOptions.ClientOptions, func(stsOptions *sts.Options) {
+				stsOptions.APIOptions = append(stsOptions.APIOptions,
+					smithyhttp.SetHeaderValue(clusterIDHeader, clusterName),
+					smithyhttp.SetHeaderValue("X-Amz-Expires", strconv.Itoa(requestPresignParam)))
+			})
+		})
 	if err != nil {
 		return "", fmt.Errorf("error presigning AWS request: %w", err)
 	}
-	return signed, nil
+	return presigned.URL, nil
 }
 
 func formatJSON(token string, expiration time.Time) string {

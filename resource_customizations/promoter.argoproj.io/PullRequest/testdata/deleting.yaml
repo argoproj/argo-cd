@@ -3,5 +3,8 @@ kind: PullRequest
 metadata:
   name: test
   deletionTimestamp: "2025-07-04T12:00:00Z"
+  finalizers:
+    - pullrequest.promoter.argoproj.io/finalizer
+    - changetransferpolicy.promoter.argoproj.io/pullrequest-finalizer
 status: {}
 

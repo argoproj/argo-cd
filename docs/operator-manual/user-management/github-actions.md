@@ -137,4 +137,4 @@ More info: [RBAC Configuration](../rbac.md)
 > [!NOTE]
 > Defining policies are not supported on ArgoCD v2.
 > To define policies, please [upgrade](../upgrading/overview.md)
-> to to v3.0.0 or later.
+> to v3.0.0 or later.

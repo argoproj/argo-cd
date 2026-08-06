@@ -29,7 +29,7 @@ Enable UI extensions to use a backend service.
     * [Use cases](#use-cases)
     * [Security Considerations](#security-considerations)
     * [Risks and Mitigations](#risks-and-mitigations)
-    * [Upgrade / Downgrade](#upgrade--downgrade)
+    * [Upgrade / Downgrade](#upgrade-downgrade)
 * [Drawbacks](#drawbacks)
 * [Open Questions](#open-questions)
 
@@ -50,7 +50,7 @@ backend code will live outside Argo CD main repository.
 
 The initiative to implement the anomaly detection capability in Argo CD
 highlighted the need to improve the existing UI extensions feature. The
-new capability will required the UI to have access to data that isn't
+new capability will require the UI to have access to data that isn't
 available as part of Application's owned resources. It is necessary to
 access an API defined by the extension's development team so the proper
 information can be displayed.
@@ -111,7 +111,7 @@ Example:
 apiVersion: argoproj.io/v1alpha1
 kind: ArgoCDExtension
 metadata:
-  name: my-cool-extention
+  name: my-cool-extension
   finalizers:
     - extensions-finalizer.argocd.argoproj.io
 spec:

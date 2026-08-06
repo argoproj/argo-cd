@@ -18,3 +18,28 @@
         }
     }
 }
+
+.appset-resource-node-preview__synced-icon {
+    margin-right: 6px;
+    color: $argo-success-color;
+}
+
+.appset-generated-apps-diff__manifest {
+    overflow-x: auto;
+    .tabs__content {
+        background-color: white;
+        @include themify($themes) {
+            background-color: themed('background-2');
+        }
+    }
+    .application-resources-diff__checkboxes.white-box {
+        padding: 6px 12px;
+    }
+    .custom-diff-hunk {
+        border-bottom: none;
+    }
+}
+
+.tabs .fa-stack[data-count='!']:after {
+    background: $argo-status-warning-color;
+}

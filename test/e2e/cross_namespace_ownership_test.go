@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -23,7 +22,8 @@ import (
 func TestCrossNamespaceOwnership(t *testing.T) {
 	var clusterRoleUID string
 
-	Given(t).
+	ctx := Given(t)
+	ctx.
 		Path("cross-namespace-ownership").
 		When().
 		CreateApp().
@@ -54,14 +54,14 @@ metadata:
 rules:
 - apiGroups: [""]
   resources: ["configmaps"]
-  verbs: ["get", "list"]`, DeploymentNamespace(), clusterRoleUID)
+  verbs: ["get", "list"]`, ctx.DeploymentNamespace(), clusterRoleUID)
 
 			_, err := Run("", "sh", "-c", fmt.Sprintf("echo '%s' | kubectl apply -f -", roleYaml))
 			require.NoError(t, err)
-			t.Logf("Created Role in app namespace: %s", DeploymentNamespace())
+			t.Logf("Created Role in app namespace: %s", ctx.DeploymentNamespace())
 
 			// Create another namespace for cross-namespace testing
-			otherNamespace := DeploymentNamespace() + "-other"
+			otherNamespace := ctx.DeploymentNamespace() + "-other"
 			_, err = Run("", "kubectl", "create", "namespace", otherNamespace)
 			if err != nil {
 				// Namespace might already exist, that's ok
@@ -98,7 +98,7 @@ rules:
 			defer io.Close(closer)
 
 			// Invalidate cache for the default cluster (https://kubernetes.default.svc)
-			cluster, err := clusterClient.InvalidateCache(context.Background(), &clusterpkg.ClusterQuery{
+			cluster, err := clusterClient.InvalidateCache(t.Context(), &clusterpkg.ClusterQuery{
 				Server: "https://kubernetes.default.svc",
 			})
 			if err != nil {
@@ -117,7 +117,7 @@ rules:
 			closer, cdClient := ArgoCDClientset.NewApplicationClientOrDie()
 			defer io.Close(closer)
 
-			tree, err := cdClient.ResourceTree(context.Background(), &applicationpkg.ResourcesQuery{
+			tree, err := cdClient.ResourceTree(t.Context(), &applicationpkg.ResourcesQuery{
 				ApplicationName: &app.Name,
 				AppNamespace:    &app.Namespace,
 			})
@@ -185,7 +185,8 @@ rules:
 func TestCrossNamespaceOwnershipWithRefresh(t *testing.T) {
 	var clusterRoleUID string
 
-	Given(t).
+	ctx := Given(t)
+	ctx.
 		Path("cross-namespace-ownership").
 		When().
 		CreateApp().
@@ -215,7 +216,7 @@ metadata:
 rules:
 - apiGroups: [""]
   resources: ["configmaps"]
-  verbs: ["get", "list"]`, DeploymentNamespace(), clusterRoleUID)
+  verbs: ["get", "list"]`, ctx.DeploymentNamespace(), clusterRoleUID)
 
 			_, err := Run("", "sh", "-c", fmt.Sprintf("echo '%s' | kubectl apply -f -", roleYaml))
 			require.NoError(t, err)
@@ -230,7 +231,7 @@ rules:
 			closer, cdClient := ArgoCDClientset.NewApplicationClientOrDie()
 			defer io.Close(closer)
 
-			tree, err := cdClient.ResourceTree(context.Background(), &applicationpkg.ResourcesQuery{
+			tree, err := cdClient.ResourceTree(t.Context(), &applicationpkg.ResourcesQuery{
 				ApplicationName: &app.Name,
 				AppNamespace:    &app.Namespace,
 			})

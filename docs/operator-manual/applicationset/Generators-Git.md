@@ -63,7 +63,7 @@ spec:
         syncOptions:
         - CreateNamespace=true
 ```
-(*The full example can be found [here](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/git-generator-directory).*)
+(*The [full example](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/git-generator-directory).*)
 
 The generator parameters are:
 
@@ -72,9 +72,13 @@ The generator parameters are:
 - `{{.path.basename}}`: For any directory path within the Git repository that matches the `path` wildcard, the right-most path name is extracted (e.g. `/directory/directory2` would produce `directory2`).
 - `{{.path.basenameNormalized}}`: This field is the same as `path.basename` with unsupported characters replaced with `-` (e.g. a `path` of `/directory/directory_2`, and `path.basename` of `directory_2` would produce `directory-2` here).
 
-**Note**: The right-most path name always becomes `{{.path.basename}}`. For example, for `- path: /one/two/three/four`, `{{.path.basename}}` is `four`.
+> [!NOTE]
+> The right-most path name always becomes `{{.path.basename}}`. For example, for `- path: /one/two/three/four`, `{{.path.basename}}` is `four`.
 
-**Note**: If the `pathParamPrefix` option is specified, all `path`-related parameter names above will be prefixed with the specified value and a dot separator. E.g., if `pathParamPrefix` is `myRepo`, then the generated parameter name would be `.myRepo.path` instead of `.path`. Using this option is necessary in a Matrix generator where both child generators are Git generators (to avoid conflicts when merging the child generators’ items).
+> [!NOTE]
+> If the `pathParamPrefix` option is specified, all `path`-related parameter names above will be prefixed with the specified value and a dot separator. 
+> E.g., if `pathParamPrefix` is `myRepo`, then the generated parameter name would be `.myRepo.path` instead of `.path`. Using this option is necessary 
+> in a Matrix generator where both child generators are Git generators (to avoid conflicts when merging the child generators’ items).
 
 Whenever a new Helm chart/Kustomize YAML/Application/plain subdirectory is added to the Git repository, the ApplicationSet controller will detect this change and automatically deploy the resulting manifests within new `Application` resources.
 
@@ -116,7 +120,7 @@ spec:
         server: https://kubernetes.default.svc
         namespace: '{{.path.basename}}'
 ```
-(*The full example can be found [here](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/git-generator-directory/excludes).*)
+(*The [full example](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/git-generator-directory/excludes).*)
 
 This example excludes the `exclude-helm-guestbook` directory from the list of directories scanned for this `ApplicationSet` resource.
 
@@ -320,7 +324,7 @@ spec:
         server: '{{.cluster.address}}'
         namespace: guestbook
 ```
-(*The full example can be found [here](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/git-generator-files-discovery).*)
+(*The [full example](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/git-generator-files-discovery).*)
 
 Any `config.json` files found under the `cluster-config` directory will be parameterized based on the `path` wildcard pattern specified. Within each file JSON fields are flattened into key/value pairs, with this ApplicationSet example using the `cluster.address` and `cluster.name` parameters in the template.
 
@@ -335,12 +339,18 @@ In addition to the flattened key/value pairs from the configuration file, the fo
 - `{{.path.filename}}`: The matched filename. e.g., `config.json` in the above example.
 - `{{.path.filenameNormalized}}`: The matched filename with unsupported characters replaced with `-`.
 
-**Note**: The right-most *directory* name always becomes `{{.path.basename}}`. For example, from `- path: /one/two/three/four/config.json`, `{{.path.basename}}` will be `four`. 
-The filename can always be accessed using `{{.path.filename}}`. 
+> [!NOTE]
+> The right-most *directory* name always becomes `{{.path.basename}}`. For example, from `- path: /one/two/three/four/config.json`, `{{.path.basename}}` 
+> will be `four`. The filename can always be accessed using `{{.path.filename}}`. 
 
-**Note**: If the `pathParamPrefix` option is specified, all `path`-related parameter names above will be prefixed with the specified value and a dot separator. E.g., if `pathParamPrefix` is `myRepo`, then the generated parameter name would be `myRepo.path` instead of `path`. Using this option is necessary in a Matrix generator where both child generators are Git generators (to avoid conflicts when merging the child generators’ items).
+> [!NOTE]
+> If the `pathParamPrefix` option is specified, all `path`-related parameter names above will be prefixed with the specified value and a dot separator. 
+> E.g., if `pathParamPrefix` is `myRepo`, then the generated parameter name would be `myRepo.path` instead of `path`. Using this option is necessary 
+> in a Matrix generator where both child generators are Git generators (to avoid conflicts when merging the child generators’ items).
 
-**Note**: The default behavior of the Git file generator is very greedy. Please see [Git File Generator Globbing](./Generators-Git-File-Globbing.md) for more information.
+> [!NOTE]
+> The default behavior of the Git file generator is very greedy. 
+> Please see [Git File Generator Globbing](./Generators-Git-File-Globbing.md) for more information.
 
 ### Exclude files
 
@@ -379,7 +389,7 @@ spec:
 
 This example excludes the `config.json` file in the `dev` directory from the list of files scanned for this `ApplicationSet` resource.
 
-(*The full example can be found [here](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/git-generator-files-discovery/excludes).*)
+(*The [full example](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/git-generator-files-discovery/excludes).*)
 
 ### Pass additional key-value pairs via `values` field
 
@@ -476,7 +486,7 @@ spec:
 ```
 
 > [!NOTE]
-> The ApplicationSet controller webhook does not use the same webhook as the API server as defined [here](../webhook.md). ApplicationSet exposes a webhook server as a service of type ClusterIP. An ApplicationSet specific Ingress resource needs to be created to expose this service to the webhook source.
+> The ApplicationSet controller webhook does not use the same [API server webhook](../webhook.md). ApplicationSet exposes a webhook server as a service of type ClusterIP. An ApplicationSet specific Ingress resource needs to be created to expose this service to the webhook source.
 
 ### 1. Create the webhook in the Git provider
 

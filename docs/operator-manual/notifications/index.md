@@ -70,6 +70,19 @@ data:
   notificationscontroller.selfservice.enabled: "true"
 ```
 
+Other notifications controller startup settings can be managed the same way. For notifications-heavy
+installations, `notificationscontroller.processors.count` configures the worker concurrency and maps
+to the `--processors-count` startup flag. For example:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+data:
+  notificationscontroller.processors.count: "4"
+```
+
 To use this feature, you can deploy configmap named `argocd-notifications-cm` and possibly a secret `argocd-notifications-secret` in the namespace where the Argo CD application lives.
 
 When it is configured this way the controller will send notifications using both the controller level configuration (the configmap located in the same namespaces as the controller) as well as
@@ -112,4 +125,4 @@ metadata:
 > When the same notification service and trigger are defined in controller level configuration and application level configuration,
 > both notifications will be sent according to its own configuration.
 
-[Defining and using secrets within notification templates](templates/#defining-and-using-secrets-within-notification-templates) function is not available when flag `--self-service-notification-enable` is on.
+[Defining and using secrets within notification templates](templates.md#defining-and-using-secrets-within-notification-templates) function is not available when flag `--self-service-notification-enable` is on.

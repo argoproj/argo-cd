@@ -58,10 +58,7 @@ func splitCookie(key, value, attributes string) []string {
 
 	var end int
 	for i, j := 0, 0; i < valueLength; i, j = i+maxValueLength, j+1 {
-		end = i + maxValueLength
-		if end > valueLength {
-			end = valueLength
-		}
+		end = min(i+maxValueLength, valueLength)
 
 		var cookie string
 		switch {

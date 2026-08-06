@@ -135,7 +135,7 @@ one in charge of a given resource.
 
 #### Include resource identifies in the `app.kubernetes.io/instance` annotation
 
-The `app.kubernetes.io/instance` annotation might be accidently added or copied
+The `app.kubernetes.io/instance` annotation might be accidentally added or copied
 same as label. To prevent Argo CD confusion the annotation value should include
 the identifier of the resource annotation was applied to. The resource identifier
 includes the group, kind, namespace and name of the resource. It is proposed to use `;`

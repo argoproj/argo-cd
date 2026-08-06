@@ -1,5 +1,4 @@
 //go:build !race
-// +build !race
 
 package server
 
@@ -22,6 +21,7 @@ import (
 )
 
 func TestUserAgent(t *testing.T) {
+	t.Parallel()
 	// !race:
 	// A data race in go-client's `shared_informer.go`, between `sharedProcessor.run(...)` and itself. Based on
 	// the data race, it APPEARS to be intentional, but in any case it's nothing we are doing in Argo CD
@@ -115,6 +115,7 @@ func Test_StaticHeaders(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "sameorigin", resp.Header.Get("X-Frame-Options"))
 		assert.Equal(t, "frame-ancestors 'self';", resp.Header.Get("Content-Security-Policy"))
+		assert.Equal(t, "noindex, nofollow", resp.Header.Get("X-Robots-Tag"))
 		require.NoError(t, resp.Body.Close())
 	}
 

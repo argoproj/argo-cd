@@ -1,3 +1,5 @@
+-- CRD spec: https://gitops-promoter.readthedocs.io/en/latest/crd-specs/#commitstatus
+
 local hs = {}
 hs.status = "Progressing"
 hs.message = "Initializing commit status"

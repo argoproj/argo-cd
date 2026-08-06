@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	timeutil "github.com/argoproj/pkg/time"
+	timeutil "github.com/argoproj/pkg/v2/time"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -202,7 +202,7 @@ func ParseStringToStringFromEnv(envVar string, defaultValue map[string]string, s
 	}
 
 	parsed := make(map[string]string)
-	for _, pair := range strings.Split(str, separator) {
+	for pair := range strings.SplitSeq(str, separator) {
 		keyvalue := strings.Split(pair, "=")
 		if len(keyvalue) != 2 {
 			log.Warnf("Invalid key-value pair when parsing environment '%s' as a string map", str)

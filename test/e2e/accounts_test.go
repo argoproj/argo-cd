@@ -1,6 +1,9 @@
 package e2e
 
 import (
+	"encoding/json"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -16,6 +19,7 @@ import (
 	accountFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/account"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
 )
 
 func TestCreateAndUseAccount(t *testing.T) {
@@ -137,4 +141,69 @@ func TestLoginBadCredentials(t *testing.T) {
 		assert.Equal(t, codes.Unauthenticated, errStatus.Code())
 		assert.Equal(t, "Invalid username or password", errStatus.Message())
 	}
+}
+
+func TestAccountSessionToken(t *testing.T) {
+	// Create a unique temporary config directory for this test to support parallel execution
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "config")
+
+	ctx := accountFixture.Given(t)
+	ctx.
+		Name("test").
+		ConfigPath(configPath).
+		When().
+		Create().
+		CLILogin().
+		SessionToken().
+		Then().
+		AndCLIOutput(func(output string, err error) {
+			require.NoError(t, err, "session-token command should succeed")
+
+			// Verify token is not empty and is a valid JWT format
+			token := strings.TrimSpace(output)
+			assert.NotEmpty(t, token)
+			assert.True(t, jwtutil.IsValid(token), "Token should be a valid JWT format")
+
+			// Verify the token can be used for authentication
+			clientOpts := ArgoCDClientset.ClientOptions()
+			clientOpts.AuthToken = token
+			testAccountClientset := headless.NewClientOrDie(&clientOpts, &cobra.Command{})
+
+			closer, client := testAccountClientset.NewSessionClientOrDie()
+			defer utilio.Close(closer)
+
+			info, err := client.GetUserInfo(t.Context(), &session.GetUserInfoRequest{})
+			require.NoError(t, err)
+
+			// Verify the token belongs to the test user
+			assert.Equal(t, ctx.GetName(), info.Username)
+			assert.True(t, info.LoggedIn)
+		}).
+		When().
+		SessionTokenJSON().
+		Then().
+		AndCLIOutput(func(output string, err error) {
+			require.NoError(t, err, "session-token with JSON output should succeed")
+
+			// Parse JSON output
+			var tokenInfo map[string]any
+			err = json.Unmarshal([]byte(output), &tokenInfo)
+			require.NoError(t, err, "JSON output should be valid")
+
+			// Verify JSON fields exist
+			assert.Contains(t, tokenInfo, "token")
+			assert.Contains(t, tokenInfo, "type")
+			assert.Contains(t, tokenInfo, "issuer")
+			assert.Contains(t, tokenInfo, "username")
+			assert.Contains(t, tokenInfo, "has_refresh_token")
+
+			// Verify token type is local
+			assert.Equal(t, "local", tokenInfo["type"])
+
+			// Verify username
+			username, ok := tokenInfo["username"].(string)
+			require.True(t, ok, "username should be a string")
+			assert.Equal(t, ctx.GetName(), username)
+		})
 }

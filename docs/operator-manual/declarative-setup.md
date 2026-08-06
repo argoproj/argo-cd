@@ -170,6 +170,8 @@ spec:
     - iat: 1535390316
 ```
 
+`namespaceResourceWhitelist` also determines which child resources are visible in the Application resource tree in the UI. To observe workload children such as `Pod` and `apps/ReplicaSet` under a `Deployment`, those GroupKinds must be included in the whitelist. See [Projects](../user-guide/projects.md) for details.
+
 ## Repositories
 
 > [!NOTE]
@@ -180,7 +182,7 @@ spec:
 
 Repository details are stored in secrets. To configure a repo, create a secret which contains repository details.
 Consider using [bitnami-labs/sealed-secrets](https://github.com/bitnami-labs/sealed-secrets) to store an encrypted secret definition as a Kubernetes manifest.
-Each repository must have a `url` field and, depending on whether you connect using HTTPS, SSH, or GitHub App, `username` and `password` (for HTTPS), `sshPrivateKey` (for SSH), or `githubAppPrivateKey` (for GitHub App).
+Each repository must have a `url` field and, depending on whether you connect using HTTPS, SSH, GitHub App or Azure Service Principal, `username` and `password` (for HTTPS), `sshPrivateKey` (for SSH), `githubAppPrivateKey` (for GitHub App) or `azureServicePrincipalClientSecret` (for Azure Service Principal).
 Credentials can be scoped to a project using the optional `project` field. When omitted, the credential will be used as the default for all projects without a scoped credential.
 
 > [!WARNING]
@@ -295,6 +297,39 @@ stringData:
 Example for Azure Container Registry/ Azure Devops repositories using Azure workload identity:
 
 Refer to [Azure Container Registry/Azure Repos using Azure Workload Identity](../user-guide/private-repositories.md#azure-container-registryazure-repos-using-azure-workload-identity)
+
+Example for Azure Service Principal:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: service-principal-for-azure-public-cloud
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  type: git
+  url: https://dev.azure.com/my-devops-organization/my-devops-project/_git/my-devops-repo
+  azureServicePrincipalClientId: 12345678-1234-1234-1234-123456789012
+  azureServicePrincipalTenantId: 12345678-1234-1234-1234-123456789012
+  azureServicePrincipalClientSecret: XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: service-principal-for-azure-other-cloud
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  type: git
+  url: https://dev.azure.com/my-devops-organization/my-devops-project/_git/my-devops-repo
+  azureActiveDirectoryEndpoint: https://login.microsoftonline.de
+  azureServicePrincipalClientId: 12345678-1234-1234-1234-123456789012
+  azureServicePrincipalTenantId: 12345678-1234-1234-1234-123456789012
+  azureServicePrincipalClientSecret: XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+```
 
 ### Repository Credentials
 
@@ -504,21 +539,21 @@ stringData:
   username: my-username
 ```
 
-A note on noProxy: Argo CD uses exec to interact with different tools such as helm and kustomize. Not all of these tools support the same noProxy syntax as the [httpproxy go package](https://cs.opensource.google/go/x/net/+/internal-branch.go1.21-vendor:http/httpproxy/proxy.go;l=38-50) does. In case you run in trouble with noProxy not beeing respected you might want to try using the full domain instead of a wildcard pattern or IP range to find a common syntax that all tools support.
+A note on noProxy: Argo CD uses exec to interact with different tools such as helm and kustomize. Not all of these tools support the same noProxy syntax as the [httpproxy go package](https://cs.opensource.google/go/x/net/+/internal-branch.go1.21-vendor:http/httpproxy/proxy.go;l=38-50) does. In case you run in trouble with noProxy not being respected you might want to try using the full domain instead of a wildcard pattern or IP range to find a common syntax that all tools support.
 
 ## Clusters
 
 Cluster credentials are stored in secrets same as repositories or repository credentials. Each secret must have label
 `argocd.argoproj.io/secret-type: cluster`.
 
-The secret data must include following fields:
+The secret data can include the following fields:
 
-* `name` - cluster name
-* `server` - cluster api server url
+* `name` - required, cluster name
+* `server` - required, cluster api server url
 * `namespaces` - optional comma-separated list of namespaces which are accessible in that cluster. Setting namespace values will cause cluster-level resources to be ignored unless `clusterResources` is set to `true`.
 * `clusterResources` - optional boolean string (`"true"` or `"false"`) determining whether Argo CD can manage cluster-level resources on this cluster. This setting is only used when namespaces are restricted using the `namespaces` list.
-* `project` - optional string to designate this as a project-scoped cluster.
-* `config` - JSON representation of the following data structure:
+* `project` - optional string to designate this as a project-scoped cluster. Note that defining a project-scoped cluster implicitly adds its namespaces (or a wildcard if `namespaces` is unset) to the project's destination list. See [Project-scoped repositories and clusters](../user-guide/projects.md#project-scoped-repositories-and-clusters) for more details.
+* `config` - required. JSON representation of the following data structure:
 
 ```yaml
 # Basic authentication settings
@@ -595,6 +630,49 @@ stringData:
     }
 ```
 
+### Skipping Cluster Reconciliation
+
+You can prevent the application controller from reconciling all apps targeting a cluster by annotating its
+secret with `argocd.argoproj.io/skip-reconcile: "true"`. This uses the same annotation as
+[Skip Application Reconcile](../user-guide/skip_reconcile.md), but applied at the cluster level.
+
+The cluster remains visible in API responses (`argocd cluster list`), but the controller treats it as unmanaged.
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mycluster-secret
+  labels:
+    argocd.argoproj.io/secret-type: cluster
+  annotations:
+    argocd.argoproj.io/skip-reconcile: "true"
+type: Opaque
+stringData:
+  name: mycluster.example.com
+  server: https://mycluster.example.com
+  config: |
+    {
+      "bearerToken": "<authentication token>",
+      "tlsClientConfig": {
+        "insecure": false,
+        "caData": "<base64 encoded certificate>"
+      }
+    }
+```
+
+To skip an existing cluster:
+
+```bash
+kubectl -n argocd annotate secret mycluster-secret argocd.argoproj.io/skip-reconcile=true
+```
+
+To resume reconciliation:
+
+```bash
+kubectl -n argocd annotate secret mycluster-secret argocd.argoproj.io/skip-reconcile-
+```
+
 ### EKS
 
 EKS cluster secret example using argocd-k8s-auth and [IRSA](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html) and [Pod Identity](https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html):
@@ -630,7 +708,7 @@ This setup requires:
 3. A role created for each cluster being added to Argo CD that is assumable by the Argo CD management role
 4. An [Access Entry](https://docs.aws.amazon.com/eks/latest/userguide/access-entries.html) within each EKS cluster added to Argo CD that gives the cluster's role (from point 3) RBAC permissions
 to perform actions within the cluster
-    - Or, alternatively, an entry within the `aws-auth` ConfigMap within the cluster added to Argo CD ([depreciated by EKS](https://docs.aws.amazon.com/eks/latest/userguide/auth-configmap.html))
+    - Or, alternatively, an entry within the `aws-auth` ConfigMap within the cluster added to Argo CD ([deprecated by EKS](https://docs.aws.amazon.com/eks/latest/userguide/auth-configmap.html))
 
 #### Argo CD Management Role
 
@@ -725,7 +803,7 @@ The 3 service accounts need to be modified to include an annotation with the Arg
 Here's an example service account configurations for `argocd-application-controller`, `argocd-applicationset-controller`, and `argocd-server`.
 
 > [!WARNING]
-Once the annotations has been set on the service accounts, the application controller and server pods need to be restarted.
+> Once the annotations has been set on the service accounts, the application controller and server pods need to be restarted.
 
 **for IRSA:**   
 ```yaml
@@ -880,7 +958,7 @@ associated EKS cluster.
 
 **AWS Auth (Deprecated)**
 
-Instead of using Access Entries, you may need to use the depreciated `aws-auth`.
+Instead of using Access Entries, you may need to use the deprecated `aws-auth`.
 
 If so, the `roleARN` of each managed cluster needs to be added to each respective cluster's `aws-auth` config map (see
 [Enabling IAM principal access to your cluster](https://docs.aws.amazon.com/eks/latest/userguide/add-user-role.html)), as
@@ -1098,8 +1176,11 @@ Azure cluster secret example using argocd-k8s-auth and [kubelogin](https://githu
 |AZURE_TENANT_ID|The AAD tenant ID.|
 |AZURE_AUTHORITY_HOST|Used in the WorkloadIdentityLogin flow|
 |AZURE_FEDERATED_TOKEN_FILE|Used in the WorkloadIdentityLogin flow|
+|AAD_IS_POP_TOKEN_ENABLED|Enable POP token support for SPN login method|
+|AAD_POP_TOKEN_CLAIMS|POP token claims for SPN login method|
 
-In addition to the environment variables above, argocd-k8s-auth accepts two extra environment variables to set the AAD environment, and to set the AAD server application ID.  The AAD server application ID will default to 6dae42f8-4368-4678-94ff-3960e28e3630 if not specified.  See [here](https://github.com/azure/kubelogin#exec-plugin-format) for details.
+In addition to the environment variables above, argocd-k8s-auth accepts two extra environment variables to set the AAD environment, and to set the AAD server application ID.  The AAD server application ID will default to 6dae42f8-4368-4678-94ff-3960e28e3630 if not specified.  See [Exec Plugin
+](https://github.com/Azure/kubelogin/blob/main/docs/book/src/concepts/exec-plugin.md) for details.
 
 |Variable Name|Description|
 |-------------|-----------|
@@ -1202,7 +1283,7 @@ spec:
   project: default
   source:
     chart: sealed-secrets
-    repoURL: https://bitnami-labs.github.io/sealed-secrets
+    repoURL: https://bitnami.github.io/sealed-secrets
     targetRevision: 1.16.1
     helm:
       releaseName: sealed-secrets

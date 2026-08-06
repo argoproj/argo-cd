@@ -78,6 +78,29 @@ metadata:
     notifications.argoproj.io/subscribe.<trigger-name>.<webhook-name>: ""
 ```
 
+4. TLS configuration (optional)
+
+If your webhook server uses a custom TLS certificate, you can configure the notification service to trust it by adding the certificate to the `argocd-tls-certs-cm` ConfigMap as shown below:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-tls-certs-cm
+data:
+  <hostname>: |
+    -----BEGIN CERTIFICATE-----
+    <TLS DATA>
+    -----END CERTIFICATE-----
+```
+
+*NOTE:*
+*If the custom certificate is not trusted, you may encounter errors such as:*
+```
+Put \"https://...\": x509: certificate signed by unknown authority
+```
+*Adding the server's certificate to `argocd-tls-certs-cm` resolves this issue.*
+
 ## Examples
 
 ### Set GitHub commit status

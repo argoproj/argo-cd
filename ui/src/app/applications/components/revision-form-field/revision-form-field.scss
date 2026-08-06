@@ -1,0 +1,56 @@
+@import 'node_modules/argo-ui/src/styles/theme';
+
+.revision-form-field {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+}
+
+.revision-form-field__main {
+    flex: 1;
+    min-width: 0;
+}
+
+.revision-form-field .argo-field-container {
+    display: flex;
+    flex-direction: column-reverse;
+    align-items: stretch;
+    padding-top: 0;
+    min-height: 0;
+}
+
+.revision-form-field .argo-field-container > .argo-field,
+.revision-form-field .argo-field-container > .argo-textarea {
+    grid-area: unset;
+}
+
+.revision-form-field .argo-field-container > label.argo-label-placeholder {
+    position: static;
+    grid-area: unset;
+    align-self: flex-start;
+    transform: none !important;
+    font-size: 12px;
+    line-height: 1.25;
+    margin: 0 0 2px;
+    padding: 0;
+    pointer-events: none;
+    @include themify($themes) {
+        color: themed('text-2');
+    }
+}
+
+.revision-form-field .argo-field-container > .argo-field:focus + label.argo-label-placeholder,
+.revision-form-field .argo-field-container > .argo-textarea:focus + label.argo-label-placeholder {
+    font-size: 12px;
+    transform: none !important;
+    @include themify($themes) {
+        color: themed('light-argo-teal-7');
+    }
+}
+
+.revision-form-field__dropdown {
+    align-self: flex-end;
+    padding-bottom: 2px;
+    display: flex;
+    align-items: center;
+}

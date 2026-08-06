@@ -13,6 +13,23 @@ If you're unsure about the context names, run `kubectl config get-contexts` to g
 This will connect to the cluster and install the necessary resources for ArgoCD to connect to it.
 Note that you will need privileged access to the cluster.
 
+## Skipping cluster reconciliation
+
+You can stop the controller from reconciling a cluster without removing it by annotating its secret:
+
+```bash
+kubectl -n argocd annotate secret <cluster-secret-name> argocd.argoproj.io/skip-reconcile=true
+```
+
+The cluster will still appear in `argocd cluster list` but the controller will skip reconciliation
+for all apps targeting it. To resume, remove the annotation:
+
+```bash
+kubectl -n argocd annotate secret <cluster-secret-name> argocd.argoproj.io/skip-reconcile-
+```
+
+See [Declarative Setup - Skipping Cluster Reconciliation](./declarative-setup.md#skipping-cluster-reconciliation) for details.
+
 ## Removing a cluster
 
 Run `argocd cluster rm context-name`.

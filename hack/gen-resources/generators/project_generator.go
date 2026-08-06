@@ -43,7 +43,7 @@ func (pg *ProjectGenerator) Generate(opts *util.GenerateOpts) error {
 }
 
 func (pg *ProjectGenerator) Clean(opts *util.GenerateOpts) error {
-	log.Printf("Clean projects")
+	log.Print("Clean projects")
 	projects := pg.clientSet.ArgoprojV1alpha1().AppProjects(opts.Namespace)
 	return projects.DeleteCollection(context.TODO(), metav1.DeleteOptions{}, metav1.ListOptions{
 		LabelSelector: "app.kubernetes.io/generated-by=argocd-generator",

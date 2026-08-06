@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"os"
+	"sync"
 	"testing"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -17,7 +18,12 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 )
 
+var captureStdoutMutex sync.Mutex
+
 func captureStdout(callback func()) (string, error) {
+	captureStdoutMutex.Lock()
+	defer captureStdoutMutex.Unlock()
+
 	oldStdout := os.Stdout
 	oldStderr := os.Stderr
 	r, w, err := os.Pipe()

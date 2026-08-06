@@ -7,13 +7,12 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
-	"sort"
 	"strings"
 	"time"
 
-	"github.com/argoproj/gitops-engine/pkg/cache"
-	"github.com/argoproj/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	"github.com/r3labs/diff/v3"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -24,13 +23,12 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/argoproj/argo-cd/v3/util/gpg"
-
 	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/typed/application/v1alpha1"
 	applicationsv1 "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v3/util/db"
+	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/glob"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/settings"
@@ -88,7 +86,7 @@ func getAPIResourceInfo(group, kind string, getAPIResourceInfo func() ([]kube.AP
 
 // FormatAppConditions returns string representation of give app condition list
 func FormatAppConditions(conditions []argoappv1.ApplicationCondition) string {
-	formattedConditions := make([]string, 0)
+	formattedConditions := []string{}
 	for _, condition := range conditions {
 		formattedConditions = append(formattedConditions, fmt.Sprintf("%s: %s", condition.Type, condition.Message))
 	}
@@ -104,8 +102,8 @@ func FilterByProjects(apps []argoappv1.Application, projects []string) []argoapp
 	for i := range projects {
 		projectsMap[projects[i]] = true
 	}
-	items := make([]argoappv1.Application, 0)
-	for i := 0; i < len(apps); i++ {
+	items := []argoappv1.Application{}
+	for i := range apps {
 		a := apps[i]
 		if _, ok := projectsMap[a.Spec.GetProject()]; ok {
 			items = append(items, a)
@@ -123,8 +121,8 @@ func FilterByProjectsP(apps []*argoappv1.Application, projects []string) []*argo
 	for i := range projects {
 		projectsMap[projects[i]] = true
 	}
-	items := make([]*argoappv1.Application, 0)
-	for i := 0; i < len(apps); i++ {
+	items := []*argoappv1.Application{}
+	for i := range apps {
 		a := apps[i]
 		if _, ok := projectsMap[a.Spec.GetProject()]; ok {
 			items = append(items, a)
@@ -142,8 +140,8 @@ func FilterAppSetsByProjects(appsets []argoappv1.ApplicationSet, projects []stri
 	for i := range projects {
 		projectsMap[projects[i]] = true
 	}
-	items := make([]argoappv1.ApplicationSet, 0)
-	for i := 0; i < len(appsets); i++ {
+	items := []argoappv1.ApplicationSet{}
+	for i := range appsets {
 		a := appsets[i]
 		if _, ok := projectsMap[a.Spec.Template.Spec.GetProject()]; ok {
 			items = append(items, a)
@@ -157,8 +155,8 @@ func FilterByRepo(apps []argoappv1.Application, repo string) []argoappv1.Applica
 	if repo == "" {
 		return apps
 	}
-	items := make([]argoappv1.Application, 0)
-	for i := 0; i < len(apps); i++ {
+	items := []argoappv1.Application{}
+	for i := range apps {
 		if apps[i].Spec.GetSource().RepoURL == repo {
 			items = append(items, apps[i])
 		}
@@ -171,8 +169,8 @@ func FilterByRepoP(apps []*argoappv1.Application, repo string) []*argoappv1.Appl
 	if repo == "" {
 		return apps
 	}
-	items := make([]*argoappv1.Application, 0)
-	for i := 0; i < len(apps); i++ {
+	items := []*argoappv1.Application{}
+	for i := range apps {
 		if apps[i].Spec.GetSource().RepoURL == repo {
 			items = append(items, apps[i])
 		}
@@ -185,8 +183,8 @@ func FilterByPath(apps []argoappv1.Application, path string) []argoappv1.Applica
 	if path == "" {
 		return apps
 	}
-	items := make([]argoappv1.Application, 0)
-	for i := 0; i < len(apps); i++ {
+	items := []argoappv1.Application{}
+	for i := range apps {
 		if apps[i].Spec.GetSource().Path == path {
 			items = append(items, apps[i])
 		}
@@ -199,8 +197,8 @@ func FilterByCluster(apps []argoappv1.Application, cluster string) []argoappv1.A
 	if cluster == "" {
 		return apps
 	}
-	items := make([]argoappv1.Application, 0)
-	for i := 0; i < len(apps); i++ {
+	items := []argoappv1.Application{}
+	for i := range apps {
 		if apps[i].Spec.Destination.Server == cluster || apps[i].Spec.Destination.Name == cluster {
 			items = append(items, apps[i])
 		}
@@ -213,8 +211,8 @@ func FilterByName(apps []argoappv1.Application, name string) ([]argoappv1.Applic
 	if name == "" {
 		return apps, nil
 	}
-	items := make([]argoappv1.Application, 0)
-	for i := 0; i < len(apps); i++ {
+	items := []argoappv1.Application{}
+	for i := range apps {
 		if apps[i].Name == name {
 			items = append(items, apps[i])
 			return items, nil
@@ -229,8 +227,8 @@ func FilterByNameP(apps []*argoappv1.Application, name string) []*argoappv1.Appl
 	if name == "" {
 		return apps
 	}
-	items := make([]*argoappv1.Application, 0)
-	for i := 0; i < len(apps); i++ {
+	items := []*argoappv1.Application{}
+	for i := range apps {
 		if apps[i].Name == name {
 			items = append(items, apps[i])
 			return items
@@ -240,25 +238,35 @@ func FilterByNameP(apps []*argoappv1.Application, name string) []*argoappv1.Appl
 }
 
 // RefreshApp updates the refresh annotation of an application to coerce the controller to process it
-func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType argoappv1.RefreshType, hydrate bool) (*argoappv1.Application, error) {
+// and sets the refresh-timestamp annotation, which lets the controller detect refresh requests that
+// arrived during an ongoing refresh. Optionally, if hydrateType is provided, it also sets the hydrate
+// and hydrate-timestamp annotations.
+func RefreshApp(appIf v1alpha1.ApplicationInterface, name string, refreshType argoappv1.RefreshType, hydrateType *argoappv1.HydrateType) (*argoappv1.Application, error) {
+	annotations := map[string]string{
+		argoappv1.AnnotationKeyRefresh: string(refreshType),
+	}
+	if hydrateType != nil {
+		annotations[argoappv1.AnnotationKeyHydrate] = string(*hydrateType)
+	}
 	metadata := map[string]any{
 		"metadata": map[string]any{
-			"annotations": map[string]string{
-				argoappv1.AnnotationKeyRefresh: string(refreshType),
-			},
+			"annotations": annotations,
 		},
 	}
-	if hydrate {
-		metadata["metadata"].(map[string]any)["annotations"].(map[string]string)[argoappv1.AnnotationKeyHydrate] = string(argoappv1.HydrateTypeNormal)
-	}
-
 	var err error
-	patch, err := json.Marshal(metadata)
-	if err != nil {
-		return nil, fmt.Errorf("error marshaling metadata: %w", err)
-	}
-	for attempt := 0; attempt < 5; attempt++ {
-		app, err := appIf.Patch(context.Background(), name, types.MergePatchType, patch, metav1.PatchOptions{})
+	for range 5 {
+		timestamp := time.Now().Format(time.RFC3339Nano)
+		annotations[argoappv1.AnnotationKeyRefreshTimestamp] = timestamp
+		if hydrateType != nil {
+			annotations[argoappv1.AnnotationKeyHydrateTimestamp] = timestamp
+		}
+		var patch []byte
+		patch, err = json.Marshal(metadata)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling metadata: %w", err)
+		}
+		var app *argoappv1.Application
+		app, err = appIf.Patch(context.Background(), name, types.MergePatchType, patch, metav1.PatchOptions{})
 		if err == nil {
 			log.Infof("Requested app '%s' refresh", name)
 			return app.DeepCopy(), nil
@@ -310,7 +318,7 @@ func ValidateRepo(
 ) ([]argoappv1.ApplicationCondition, error) {
 	spec := &app.Spec
 
-	conditions := make([]argoappv1.ApplicationCondition, 0)
+	conditions := []argoappv1.ApplicationCondition{}
 
 	// Test the repo
 	conn, repoClient, err := repoClientset.NewRepoServerClient()
@@ -369,8 +377,7 @@ func ValidateRepo(
 	if err != nil {
 		return nil, fmt.Errorf("error getting cluster REST config: %w", err)
 	}
-	//nolint:staticcheck
-	destCluster.ServerVersion, err = kubectl.GetServerVersion(config)
+	destCluster.Info.ServerVersion, err = kubectl.GetServerVersion(config)
 	if err != nil {
 		return nil, fmt.Errorf("error getting k8s server version: %w", err)
 	}
@@ -409,7 +416,7 @@ func ValidateRepo(
 
 // ValidateManagedByURL validates the managed-by-url annotation on applications to ensure it contains a valid URL
 func ValidateManagedByURL(app *argoappv1.Application) []argoappv1.ApplicationCondition {
-	conditions := make([]argoappv1.ApplicationCondition, 0)
+	conditions := []argoappv1.ApplicationCondition{}
 
 	if app.Annotations == nil {
 		return conditions
@@ -446,7 +453,7 @@ func validateRepo(ctx context.Context,
 	enabledSourceTypes map[string]bool,
 	settingsMgr *settings.SettingsManager,
 ) ([]argoappv1.ApplicationCondition, error) {
-	conditions := make([]argoappv1.ApplicationCondition, 0)
+	conditions := []argoappv1.ApplicationCondition{}
 	errMessage := ""
 
 	for _, source := range sources {
@@ -480,10 +487,16 @@ func validateRepo(ctx context.Context,
 		}
 	}
 
+	kubeServerVersion := cluster.Info.ServerVersion
+	apiVersions := APIResourcesToStrings(apiGroups, true)
+
 	// If using the source hydrator, check the dry source instead of the sync source, since the sync source branch may
 	// not exist yet.
 	if app.Spec.SourceHydrator != nil {
 		sources = []argoappv1.ApplicationSource{app.Spec.SourceHydrator.GetDrySource()}
+		// For the dry source, we dont want to sendRuntimeState during the generation
+		kubeServerVersion = ""
+		apiVersions = nil
 	}
 
 	refSources, err := GetRefSources(ctx, sources, app.Spec.Project, db.GetRepository, []string{})
@@ -500,9 +513,8 @@ func validateRepo(ctx context.Context,
 		proj,
 		sources,
 		repoClient,
-		//nolint:staticcheck
-		cluster.ServerVersion,
-		APIResourcesToStrings(apiGroups, true),
+		kubeServerVersion,
+		apiVersions,
 		permittedHelmCredentials,
 		permittedOCICredentials,
 		enabledSourceTypes,
@@ -512,13 +524,38 @@ func validateRepo(ctx context.Context,
 	return conditions, nil
 }
 
+// GetSyncedRefSources creates a map of ref keys (the same as GetRefSources) based on syncRevisions from Application status
+func GetSyncedRefSources(refSources argoappv1.RefTargetRevisionMapping, sources argoappv1.ApplicationSources, syncRevisions []string) argoappv1.RefTargetRevisionMapping {
+	syncedRefSources := make(argoappv1.RefTargetRevisionMapping)
+	for i, source := range sources {
+		if source.Ref == "" {
+			continue
+		}
+
+		refKey := "$" + source.Ref
+
+		revision := ""
+		if i < len(syncRevisions) {
+			revision = syncRevisions[i]
+		}
+
+		syncedRefSources[refKey] = &argoappv1.RefTarget{
+			Repo:           refSources[refKey].Repo,
+			TargetRevision: revision,
+			Chart:          refSources[refKey].Chart,
+		}
+	}
+	return syncedRefSources
+}
+
 // GetRefSources creates a map of ref keys (from the sources' 'ref' fields) to information about the referenced source.
 // This function also validates the references use allowed characters and does not define the same ref key more than
 // once (which would lead to ambiguous references).
 func GetRefSources(ctx context.Context, sources argoappv1.ApplicationSources, project string, getRepository func(ctx context.Context, url string, project string) (*argoappv1.Repository, error), revisions []string) (argoappv1.RefTargetRevisionMapping, error) {
 	refSources := make(argoappv1.RefTargetRevisionMapping)
-	if len(sources) > 1 {
-		// Validate first to avoid unnecessary DB calls.
+	if len(sources) > 0 {
+		// Validate first to avoid unnecessary DB calls. Use len(sources) > 0 (not > 1) so a sole source with ref:
+		// is populated; otherwise GetSyncedRefSources panics when spec.sources has one element (see #27759).
 		refKeys := make(map[string]bool)
 		for _, source := range sources {
 			if source.Ref == "" {
@@ -542,7 +579,7 @@ func GetRefSources(ctx context.Context, sources argoappv1.ApplicationSources, pr
 
 			repo, err := getRepository(ctx, source.RepoURL, project)
 			if err != nil {
-				return nil, fmt.Errorf("failed to get repository %s: %w", source.RepoURL, err)
+				return nil, fmt.Errorf("failed to get repository %s: %w", git.SanitizeRepoURL(source.RepoURL), err)
 			}
 			refKey := "$" + source.Ref
 			revision := source.TargetRevision
@@ -606,7 +643,7 @@ func validateSourceHydrator(hydrator *argoappv1.SourceHydrator) []argoappv1.Appl
 	if hydrator.HydrateTo != nil && hydrator.HydrateTo.TargetBranch == "" {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
-			Message: "when spec.sourceHydrator.hydrateTo is set, spec.sourceHydrator.hydrateTo.path is required",
+			Message: "when spec.sourceHydrator.hydrateTo is set, spec.sourceHydrator.hydrateTo.targetBranch is required",
 		})
 	}
 	return conditions
@@ -614,7 +651,7 @@ func validateSourceHydrator(hydrator *argoappv1.SourceHydrator) []argoappv1.Appl
 
 // ValidatePermissions ensures that the referenced cluster has been added to Argo CD and the app source repo and destination namespace/cluster are permitted in app project
 func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, proj *argoappv1.AppProject, db db.ArgoDB) ([]argoappv1.ApplicationCondition, error) {
-	conditions := make([]argoappv1.ApplicationCondition, 0)
+	conditions := []argoappv1.ApplicationCondition{}
 
 	switch {
 	case spec.SourceHydrator != nil:
@@ -627,6 +664,13 @@ func ValidatePermissions(ctx context.Context, spec *argoappv1.ApplicationSpec, p
 			conditions = append(conditions, argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,
 				Message: fmt.Sprintf("application repo %s is not permitted in project '%s'", spec.SourceHydrator.GetDrySource().RepoURL, proj.Name),
+			})
+		}
+		syncSource := spec.SourceHydrator.GetSyncSource()
+		if syncSource.RepoURL != spec.SourceHydrator.DrySource.RepoURL && !proj.IsSourcePermitted(syncSource) {
+			conditions = append(conditions, argoappv1.ApplicationCondition{
+				Type:    argoappv1.ApplicationConditionInvalidSpecError,
+				Message: fmt.Sprintf("sync source repo %s is not permitted in project '%s'", syncSource.RepoURL, proj.Name),
 			})
 		}
 	case spec.HasMultipleSources():
@@ -699,9 +743,7 @@ func APIResourcesToStrings(resources []kube.APIResourceInfo, includeKinds bool) 
 	for k := range resMap {
 		res = append(res, k)
 	}
-	sort.Slice(res, func(i, j int) bool {
-		return res[i] < res[j]
-	})
+	slices.Sort(res)
 	return res
 }
 
@@ -837,11 +879,6 @@ func verifyGenerateManifests(
 			continue
 		}
 
-		verifySignature := false
-		if len(proj.Spec.SignatureKeys) > 0 && gpg.IsGPGEnabled() {
-			verifySignature = true
-		}
-
 		repos := helmRepos
 		helmRepoCreds := repositoryCredentials
 		// If the source is OCI, there is a potential for an OCI image to be a Helm chart and that said chart in
@@ -862,7 +899,6 @@ func verifyGenerateManifests(
 				Proxy:   repoRes.Proxy,
 				NoProxy: repoRes.NoProxy,
 			},
-			VerifySignature:                 verifySignature,
 			Repos:                           repos,
 			Revision:                        source.TargetRevision,
 			AppName:                         app.Name,
@@ -873,6 +909,8 @@ func verifyGenerateManifests(
 			KubeVersion:                     kubeVersion,
 			ApiVersions:                     apiVersions,
 			HelmOptions:                     helmOptions,
+			SourceIntegrity:                 proj.EffectiveSourceIntegrity(),
+			VerifySignature:                 proj.EffectiveSourceIntegrity() != nil, // nolint:staticcheck
 			HelmRepoCreds:                   helmRepoCreds,
 			TrackingMethod:                  trackingMethod,
 			EnabledSourceTypes:              enableGenerateManifests,
@@ -891,6 +929,12 @@ func verifyGenerateManifests(
 		// and not whether it actually contains any manifests.
 		_, err = repoClient.GenerateManifest(ctx, &req)
 		if err != nil {
+			// A glob pattern matching no files is a runtime condition, not a spec error —
+			// the files may be added later. Skip adding an InvalidSpecError here and let
+			// the app controller surface it as a ComparisonError during reconciliation.
+			if status.Code(err) == codes.NotFound && strings.Contains(err.Error(), "matched no files") {
+				continue
+			}
 			errMessage := fmt.Sprintf("Unable to generate manifests in %s: %s", source.Path, err)
 			conditions = append(conditions, argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,
@@ -1049,44 +1093,56 @@ type ClusterGetter interface {
 	GetClusterServersByName(ctx context.Context, server string) ([]string, error)
 }
 
+// GetDestinationServer resolves the cluster server URL for the given destination without
+// fetching the full Cluster object. For server based destinations the URL is returned
+// directly (normalized). For name based destinations GetClusterServersByName is called.
+// An error is returned if the name is ambiguous or missing.
+func GetDestinationServer(ctx context.Context, destination argoappv1.ApplicationDestination, db ClusterGetter) (string, error) {
+	if destination.Name != "" && destination.Server != "" {
+		return "", fmt.Errorf("application destination can't have both name and server defined: %s %s", destination.Name, destination.Server)
+	}
+	if destination.Server != "" {
+		return strings.TrimRight(destination.Server, "/"), nil
+	}
+	if destination.Name != "" {
+		clusterURLs, err := db.GetClusterServersByName(ctx, destination.Name)
+		if err != nil {
+			return "", fmt.Errorf("error getting cluster by name %q: %w", destination.Name, err)
+		}
+		if len(clusterURLs) == 0 {
+			return "", fmt.Errorf("there are no clusters with this name: %s", destination.Name)
+		}
+		if len(clusterURLs) > 1 {
+			return "", fmt.Errorf("there are %d clusters with the same name: [%s]", len(clusterURLs), strings.Join(clusterURLs, " "))
+		}
+		return clusterURLs[0], nil
+	}
+	// nolint:staticcheck // Error constant is very old, shouldn't lowercase the first letter.
+	return "", errors.New(ErrDestinationMissing)
+}
+
 // GetDestinationCluster returns the cluster object based on the destination server or name. If both are provided or
 // both are empty, an error is returned. If the destination server is provided, the cluster is fetched by the server
 // URL. If the destination name is provided, the cluster is fetched by the name. If multiple clusters have the specified
 // name, an error is returned.
 func GetDestinationCluster(ctx context.Context, destination argoappv1.ApplicationDestination, db ClusterGetter) (*argoappv1.Cluster, error) {
-	if destination.Name != "" && destination.Server != "" {
-		return nil, fmt.Errorf("application destination can't have both name and server defined: %s %s", destination.Name, destination.Server)
+	server, err := GetDestinationServer(ctx, destination, db)
+	if err != nil {
+		return nil, err
 	}
-	if destination.Server != "" {
-		cluster, err := db.GetCluster(ctx, destination.Server)
-		if err != nil {
+	cluster, err := db.GetCluster(ctx, server)
+	if err != nil {
+		if destination.Server != "" {
 			return nil, fmt.Errorf("error getting cluster by server %q: %w", destination.Server, err)
 		}
-		return cluster, nil
-	} else if destination.Name != "" {
-		clusterURLs, err := db.GetClusterServersByName(ctx, destination.Name)
-		if err != nil {
-			return nil, fmt.Errorf("error getting cluster by name %q: %w", destination.Name, err)
-		}
-		if len(clusterURLs) == 0 {
-			return nil, fmt.Errorf("there are no clusters with this name: %s", destination.Name)
-		}
-		if len(clusterURLs) > 1 {
-			return nil, fmt.Errorf("there are %d clusters with the same name: [%s]", len(clusterURLs), strings.Join(clusterURLs, " "))
-		}
-		cluster, err := db.GetCluster(ctx, clusterURLs[0])
-		if err != nil {
-			return nil, fmt.Errorf("error getting cluster by URL: %w", err)
-		}
-		return cluster, nil
+		return nil, fmt.Errorf("error getting cluster by URL: %w", err)
 	}
-	// nolint:staticcheck // Error constant is very old, shouldn't lowercase the first letter.
-	return nil, errors.New(ErrDestinationMissing)
+	return cluster, nil
 }
 
 func GetGlobalProjects(proj *argoappv1.AppProject, projLister applicationsv1.AppProjectLister, settingsManager *settings.SettingsManager) []*argoappv1.AppProject {
 	gps, err := settingsManager.GetGlobalProjectsSettings()
-	globalProjects := make([]*argoappv1.AppProject, 0)
+	globalProjects := []*argoappv1.AppProject{}
 
 	if err != nil {
 		log.Warnf("Failed to get global project settings: %v", err)
@@ -1153,6 +1209,8 @@ func mergeVirtualProject(proj *argoappv1.AppProject, globalProj *argoappv1.AppPr
 	proj.Spec.SourceRepos = append(proj.Spec.SourceRepos, globalProj.Spec.SourceRepos...)
 
 	proj.Spec.Destinations = append(proj.Spec.Destinations, globalProj.Spec.Destinations...)
+
+	proj.Spec.DestinationServiceAccounts = append(proj.Spec.DestinationServiceAccounts, globalProj.Spec.DestinationServiceAccounts...)
 
 	return proj
 }

@@ -7,33 +7,82 @@ on:
 permissions:
   contents: read
 
+env:
+  # a workaround to disable harden runner
+  STEP_SECURITY_HARDEN_RUNNER: ${{ vars.disable_harden_runner }}
+  
 jobs:
   renovate:
+    name: Run Renovate
     runs-on: ubuntu-24.04
     if: github.repository == 'argoproj/argo-cd'
     steps:
+      - name: Harden the runner (Block unknown outbound calls)
+        if: ${{ vars.disable_harden_runner != 'true' }}
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: block
+          disable-sudo-and-containers: "false" # renovatebot runs in `docker run`
+          # Blocked egress does not fail this job: harden-runner only reports it, and
+          # Renovate treats an unreachable datasource as a per-dependency warning and
+          # still exits 0. The errors are supposed to be logged in the Renovate Dashboard.
+          #
+          # The apt mirrors are on port 80 on purpose: that is what
+          # the distro sources inside the Renovate image have, and apt
+          # authenticates packages with GPG rather than TLS.
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            raw.githubusercontent.com:443
+            release-assets.githubusercontent.com:443
+            ghcr.io:443
+            pkg-containers.githubusercontent.com:443
+            hub.docker.com:443
+            index.docker.io:443
+            registry-1.docker.io:443
+            auth.docker.io:443
+            proxy.golang.org:443
+            nodejs.org:443
+            pypi.org:443
+            get.helm.sh:443
+            registry.npmjs.org:443
+            archive.ubuntu.com:80
+            archive.ubuntu.com:443
+            security.ubuntu.com:80
+            security.ubuntu.com:443
+            deb.debian.org:80
+            deb.debian.org:443
+            production.cloudfront.docker.com:443
+
       - name: Get token
         id: get_token
-        uses: actions/create-github-app-token@d72941d797fd3113feb6b93fd0dec494b13a2547 # v1
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
         with:
           app-id: ${{ vars.RENOVATE_APP_ID }}
           private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
 
       - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # 6.0.1
-
-      # Some codegen commands require Go to be setup
-      - name: Setup Golang
-        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          # renovate: datasource=golang-version packageName=golang
-          go-version: 1.25.5
+          persist-credentials: false
 
+      # Unlike every other action here, the `uses:` pin below is managed by Renovate
+      # rather than dependabot, so its update will be grouped into the same PR
+      # as the image (below).
       - name: Self-hosted Renovate
-        uses: renovatebot/github-action@8b7941943a108b2cc2150730963164aa8baeab8c #44.2.2
+        uses: renovatebot/github-action@316d7cd859606d6039a2182b7d69199e9b036835 # v46.2.1
         with:
           configurationFile: .github/configs/renovate-config.js
           token: '${{ steps.get_token.outputs.token }}'
+          # The action runs `docker run <renovate-image>:<renovate-version>`, so pinning
+          # `renovate-version` to `<tag>@sha256:<digest>` gives a fully pinned image
+          # reference instead of the floating major tag the action defaults to.
+          #
+          # Both the tag and the digest are kept up to date by the custom manager in
+          # renovate-presets/custom-managers/renovate-action.json5, which expects
+          # `renovate-image` and `renovate-version` to stay on adjacent lines.
+          renovate-image: "ghcr.io/renovatebot/renovate"
+          renovate-version: "44.14.1@sha256:a34836ff19679185d51f78f84c5785c21cba57d28cdc2cd02bd88bb9024f235d"
         env:
           LOG_LEVEL: 'debug'
           RENOVATE_REPOSITORIES: '${{ github.repository }}'

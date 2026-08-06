@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/notification"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient/mocks"
@@ -17,6 +16,8 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/notification/settings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/fake"
 	k8scache "k8s.io/client-go/tools/cache"
 	"k8s.io/kubectl/pkg/scheme"
@@ -25,6 +26,7 @@ import (
 const testNamespace = "default"
 
 func TestNotificationServer(t *testing.T) {
+	t.Parallel()
 	// catalogPath := path.Join(paths[1], "config", "notifications-catalog")
 	b, err := os.ReadFile("../../notifications_catalog/install.yaml")
 	require.NoError(t, err)
@@ -66,33 +68,37 @@ func TestNotificationServer(t *testing.T) {
 	}
 	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}}
 
-	argocdService, err := service.NewArgoCDService(kubeclientset, testNamespace, mockRepoClient)
+	dynamicClient := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
+	argocdService, err := service.NewArgoCDService(kubeclientset, dynamicClient, testNamespace, mockRepoClient)
 	require.NoError(t, err)
-	defer argocdService.Close()
+	t.Cleanup(argocdService.Close)
 	apiFactory := api.NewFactory(settings.GetFactorySettings(argocdService, "argocd-notifications-secret", "argocd-notifications-cm", false), testNamespace, secretInformer, configMapInformer)
 
 	t.Run("TestListServices", func(t *testing.T) {
+		t.Parallel()
 		server := NewServer(apiFactory)
 		services, err := server.ListServices(ctx, &notification.ServicesListRequest{})
 		require.NoError(t, err)
 		assert.Len(t, services.Items, 1)
-		assert.Equal(t, services.Items[0].Name, ptr.To("test"))
+		assert.Equal(t, services.Items[0].Name, new("test"))
 		assert.NotEmpty(t, services.Items[0])
 	})
 	t.Run("TestListTriggers", func(t *testing.T) {
+		t.Parallel()
 		server := NewServer(apiFactory)
 		triggers, err := server.ListTriggers(ctx, &notification.TriggersListRequest{})
 		require.NoError(t, err)
 		assert.Len(t, triggers.Items, 1)
-		assert.Equal(t, triggers.Items[0].Name, ptr.To("on-created"))
+		assert.Equal(t, triggers.Items[0].Name, new("on-created"))
 		assert.NotEmpty(t, triggers.Items[0])
 	})
 	t.Run("TestListTemplates", func(t *testing.T) {
+		t.Parallel()
 		server := NewServer(apiFactory)
 		templates, err := server.ListTemplates(ctx, &notification.TemplatesListRequest{})
 		require.NoError(t, err)
 		assert.Len(t, templates.Items, 1)
-		assert.Equal(t, templates.Items[0].Name, ptr.To("app-created"))
+		assert.Equal(t, templates.Items[0].Name, new("app-created"))
 		assert.NotEmpty(t, templates.Items[0])
 	})
 }

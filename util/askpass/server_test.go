@@ -7,6 +7,7 @@ import (
 )
 
 func TestAdd(t *testing.T) {
+	t.Parallel()
 	s := NewServer(SocketPath)
 	nonce := s.Add("foo", "bar")
 
@@ -15,6 +16,7 @@ func TestAdd(t *testing.T) {
 }
 
 func TestRemove(t *testing.T) {
+	t.Parallel()
 	s := NewServer(SocketPath)
 	s.creds["some-id"] = Creds{Username: "foo"}
 

@@ -28,7 +28,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
-	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 type ExternalNamespace string
@@ -49,7 +48,6 @@ const (
 	// Note: this is NOT the namespace the ApplicationSet controller is deployed to; see ArgoCDNamespace.
 	ApplicationsResourcesNamespace = "applicationset-e2e"
 
-	TmpDir       = "/tmp/applicationset-e2e"
 	TestingLabel = "e2e.argoproj.io"
 )
 
@@ -208,12 +206,6 @@ func EnsureCleanState(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NoError(t, waitForExpectedClusterState(t))
-
-	// remove tmp dir
-	require.NoError(t, os.RemoveAll(TmpDir))
-
-	// create tmp dir
-	errors.NewHandler(t).FailOnErr(Run("", "mkdir", "-p", TmpDir))
 
 	// We can switch user and as result in previous state we will have non-admin user, this case should be reset
 	require.NoError(t, fixture.LoginAs("admin"))

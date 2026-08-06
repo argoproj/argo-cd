@@ -15,6 +15,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v3/util/assets"
 	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
@@ -182,7 +183,7 @@ argocd admin settings rbac can someuser create application 'default/app' --defau
 			// Exactly one of --namespace or --policy-file must be given.
 			if (!nsOverride && policyFile == "") || (nsOverride && policyFile != "") {
 				c.HelpFunc()(c, args)
-				log.Fatalf("please provide exactly one of --policy-file or --namespace")
+				log.Fatal("please provide exactly one of --policy-file or --namespace")
 			}
 
 			restConfig, err := clientConfig.ClientConfig()
@@ -206,6 +207,12 @@ argocd admin settings rbac can someuser create application 'default/app' --defau
 			// a policy, use this to check for enforce.
 			if newDefaultRole != "" && defaultRole == "" {
 				defaultRole = newDefaultRole
+			}
+
+			// In quiet mode, only the Yes/No result matters, so raise the log
+			// level to suppress the advisory group-binding warning.
+			if quiet {
+				log.SetLevel(log.ErrorLevel)
 			}
 
 			res := checkPolicy(subject, action, resource, subResource, builtinPolicy, userPolicy, defaultRole, matchMode, strict)
@@ -264,12 +271,12 @@ argocd admin settings rbac validate --namespace argocd
 
 			if len(args) > 0 {
 				c.HelpFunc()(c, args)
-				log.Fatalf("too many arguments")
+				log.Fatal("too many arguments")
 			}
 
 			if (namespace == "" && policyFile == "") || (namespace != "" && policyFile != "") {
 				c.HelpFunc()(c, args)
-				log.Fatalf("please provide exactly one of --policy-file or --namespace")
+				log.Fatal("please provide exactly one of --policy-file or --namespace")
 			}
 
 			restConfig, err := clientConfig.ClientConfig()
@@ -284,13 +291,13 @@ argocd admin settings rbac validate --namespace argocd
 			userPolicy, _, _ := getPolicy(ctx, policyFile, realClientset, namespace)
 			if userPolicy != "" {
 				if err := rbac.ValidatePolicy(userPolicy); err == nil {
-					fmt.Printf("Policy is valid.\n")
+					fmt.Print("Policy is valid.\n")
 					os.Exit(0)
 				}
 				fmt.Printf("Policy is invalid: %v\n", err)
 				os.Exit(1)
 			}
-			log.Fatalf("Policy is empty or could not be loaded.")
+			log.Fatal("Policy is empty or could not be loaded.")
 		},
 	}
 	clientConfig = cli.AddKubectlFlagsToCmd(command)
@@ -303,13 +310,9 @@ argocd admin settings rbac validate --namespace argocd
 // Load user policy file if requested or use Kubernetes client to get the
 // appropriate ConfigMap from the current context
 func getPolicy(ctx context.Context, policyFile string, kubeClient kubernetes.Interface, namespace string) (userPolicy string, defaultRole string, matchMode string) {
-	var err error
 	if policyFile != "" {
 		// load from file
-		userPolicy, defaultRole, matchMode, err = getPolicyFromFile(policyFile)
-		if err != nil {
-			log.Fatalf("could not read policy file: %v", err)
-		}
+		userPolicy, defaultRole, matchMode = getPolicyFromFile(policyFile)
 	} else {
 		cm, err := getPolicyConfigMap(ctx, kubeClient, namespace)
 		if err != nil {
@@ -321,8 +324,10 @@ func getPolicy(ctx context.Context, policyFile string, kubeClient kubernetes.Int
 	return userPolicy, defaultRole, matchMode
 }
 
-// getPolicyFromFile loads a RBAC policy from given path
-func getPolicyFromFile(policyFile string) (string, string, string, error) {
+// getPolicyFromFile loads an RBAC policy from the given path. The file may be
+// raw policy text or a serialized ConfigMap. If [os.ReadFile] fails, it calls
+// log.Fatalf (which exits the process) and does not return to the caller.
+func getPolicyFromFile(policyFile string) (string, string, string) {
 	var (
 		userPolicy  string
 		defaultRole string
@@ -332,7 +337,6 @@ func getPolicyFromFile(policyFile string) (string, string, string, error) {
 	upol, err := os.ReadFile(policyFile)
 	if err != nil {
 		log.Fatalf("error opening policy file: %v", err)
-		return "", "", "", err
 	}
 
 	// Try to unmarshal the input file as ConfigMap first. If it succeeds, we
@@ -345,7 +349,7 @@ func getPolicyFromFile(policyFile string) (string, string, string, error) {
 		userPolicy, defaultRole, matchMode = getPolicyFromConfigMap(upolCM)
 	}
 
-	return userPolicy, defaultRole, matchMode, nil
+	return userPolicy, defaultRole, matchMode
 }
 
 // Retrieve policy information from a ConfigMap
@@ -416,7 +420,64 @@ func checkPolicy(subject, action, resource, subResource, builtinPolicy, userPoli
 			subResource = "*/*"
 		}
 	}
-	return enf.Enforce(subject, realResource, action, subResource)
+	result := enf.Enforce(subject, realResource, action, subResource)
+	if result {
+		warnIfUnenforcedGroupGrant(enf, subject, realResource, action, subResource)
+	}
+	return result
+}
+
+// warnIfUnenforcedGroupGrant warns when a group subject has a grant of its own
+// but no `g,` binding. The API server only evaluates a group that appears in a
+// grouping policy (see server/rbacpolicy.EnforceClaims), so such a grant is
+// silently ignored at runtime even though this command reports it as allowed.
+func warnIfUnenforcedGroupGrant(enf *rbac.Enforcer, subject, resource, action, subResource string) {
+	if !isGroupSubject(subject) {
+		return
+	}
+	if !hasDirectGrant(enf, subject, resource, action, subResource) {
+		return
+	}
+	if hasGroupBinding(enf, subject) {
+		return
+	}
+	log.Warnf("subject %q is a group with a direct 'p,' policy but no 'g, %s, role:...' binding; "+
+		"the API server ignores such grants at runtime, so this permission will NOT take effect. "+
+		"Bind the group to a role instead.", subject, subject)
+}
+
+// isGroupSubject reports whether the subject looks like an SSO group ("org:team")
+// rather than a role, project role, or local user (which contain no ":").
+func isGroupSubject(subject string) bool {
+	if strings.HasPrefix(subject, "role:") || rbacpolicy.IsProjectSubject(subject) {
+		return false
+	}
+	return strings.Contains(subject, ":")
+}
+
+// hasDirectGrant reports whether the subject is granted the request by its own
+// policy, ignoring the default role (which is enforced independently of groups).
+func hasDirectGrant(enf *rbac.Enforcer, subject, resource, action, subResource string) bool {
+	casbinEnf := enf.CreateEnforcerWithRuntimePolicy("", "")
+	ok, err := casbinEnf.Enforce(subject, resource, action, subResource)
+	return err == nil && ok
+}
+
+// hasGroupBinding reports whether a grouping ("g,") policy binds the subject to
+// a role, using the same GetGroupingPolicy primitive as EnforceClaims.
+func hasGroupBinding(enf *rbac.Enforcer, subject string) bool {
+	casbinEnf := enf.CreateEnforcerWithRuntimePolicy("", "")
+	groupingPolicies, err := casbinEnf.GetGroupingPolicy()
+	if err != nil {
+		log.WithError(err).Warn("could not read grouping policy to check group binding")
+		return false
+	}
+	for _, gp := range groupingPolicies {
+		if len(gp) > 0 && gp[0] == subject {
+			return true
+		}
+	}
+	return false
 }
 
 // resolveRBACResourceName resolves a user supplied value to a valid RBAC
