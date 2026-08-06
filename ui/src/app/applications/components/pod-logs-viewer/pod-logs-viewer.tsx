@@ -28,7 +28,7 @@ import {AutoScrollButton} from './auto-scroll-button';
 import {WrapLinesButton} from './wrap-lines-button';
 import {MatchCaseToggleButton} from './match-case-toggle-button';
 import Ansi from 'ansi-to-react';
-import {EMPTY} from 'rxjs';
+import {EMPTY, throwError} from 'rxjs';
 
 export interface PodLogsProps {
     namespace: string;
@@ -197,18 +197,41 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
             .pipe(
                 bufferTime(100),
                 catchError((error: any) => {
-                    const errorBody = JSON.parse(error.body);
-                    if (errorBody.error && errorBody.error.message) {
-                        if (errorBody.error.message.includes('max pods to view logs are reached')) {
-                            setErrorMessage('Max pods to view logs are reached. Please provide more granular query.');
-                            return EMPTY; // Non-retryable condition, stop the stream and display the error message.
-                        }
+                    // The error may be a plain string (e.g. the stream was closed by a proxy), in
+                    // which case there is no JSON body to inspect - just retry.
+                    let errorBody: any;
+                    try {
+                        errorBody = JSON.parse(error?.body);
+                    } catch {
+                        errorBody = null;
                     }
+                    if (errorBody?.error?.message?.includes('max pods to view logs are reached')) {
+                        setErrorMessage('Max pods to view logs are reached. Please provide more granular query.');
+                        return EMPTY; // Non-retryable condition, stop the stream and display the error message.
+                    }
+                    return throwError(() => error); // Retryable condition, let retryWhen re-subscribe.
                 }),
                 retryWhen(errors => errors.pipe(delay(500)))
             )
             .subscribe(log => {
-                if (log.length) {
+                if (!log.length) {
+                    return;
+                }
+                // getContainerLogs marks the first entry of every (re)connection with `first`. A
+                // reconnect replays the pod's logs from the start, so the buffer must be dropped
+                // rather than appended to, otherwise every reconnect duplicates the whole log.
+                // bufferTime may batch the reconnect together with trailing entries of the previous
+                // connection, so look for the last restart marker in the batch. See issue #29080.
+                let restartIdx = -1;
+                for (let i = log.length - 1; i >= 0; i--) {
+                    if (log[i].first) {
+                        restartIdx = i;
+                        break;
+                    }
+                }
+                if (restartIdx >= 0) {
+                    setLogs(log.slice(restartIdx));
+                } else {
                     setLogs(previousLogs => previousLogs.concat(log));
                 }
             });
