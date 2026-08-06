@@ -495,7 +495,14 @@ Add a `rootCA` to your `oidc.config` which contains the PEM encoded root certifi
 
 ## CI/CD Pipeline Authentication
 
-CI/CD pipelines run without a browser, so the usual `argocd login --sso` flow doesn't apply. The following patterns all work headlessly.
+CI/CD pipelines run without a browser, so the usual `argocd login --sso` flow doesn't apply.
+The following patterns described in this section all work headlessly, and you can choose the one that suits your needs.
+
+However, before going further — if your pipeline is creating or updating Applications or AppProjects, 
+committing those manifests to Git and letting Argo CD reconcile them is almost always the better path. You don't 
+need to manage credentials, rotate tokens or perform other security operations. 
+
+The patterns discussed in the next sections cover the cases where a direct `argocd` CLI call is unavoidable: triggering a sync, querying live status, or managing tokens.
 
 ### Project role tokens
 
