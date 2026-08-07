@@ -209,7 +209,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                         setErrorMessage('Max pods to view logs are reached. Please provide more granular query.');
                         return EMPTY; // Non-retryable condition, stop the stream and display the error message.
                     }
-                    return throwError(() => error); // Retryable condition, let retryWhen re-subscribe.
+                    return throwError(error); // Retryable condition, let retryWhen re-subscribe.
                 }),
                 retryWhen(errors => errors.pipe(delay(500)))
             )

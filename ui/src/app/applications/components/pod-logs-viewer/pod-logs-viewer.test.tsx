@@ -109,4 +109,30 @@ describe('PodsLogsViewer reconnect handling', () => {
         expect(screen.getAllByText('line 1')).toHaveLength(1);
         expect(screen.getAllByText('line 2')).toHaveLength(1);
     });
+
+    it('keeps streaming after a non-JSON stream error', async () => {
+        // loadEventSource reports a dropped connection as a plain string, so the error
+        // handler must not assume a JSON body nor surface the max-pods message.
+        await renderViewer();
+        await emit([entry('line 1', true)]);
+
+        await act(async () => {
+            stream.error('connection got closed unexpectedly');
+            jest.advanceTimersByTime(600);
+        });
+
+        expect(screen.queryByText(/Max pods to view logs are reached/)).not.toBeInTheDocument();
+        expect(screen.getByText('line 1')).toBeInTheDocument();
+    });
+
+    it('surfaces the max pods message instead of a blank view', async () => {
+        await renderViewer();
+
+        await act(async () => {
+            stream.error({body: JSON.stringify({error: {message: 'max pods to view logs are reached. Please provide more granular query'}})});
+            await Promise.resolve();
+        });
+
+        expect(screen.getByText('Max pods to view logs are reached. Please provide more granular query.')).toBeInTheDocument();
+    });
 });
