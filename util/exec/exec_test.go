@@ -226,3 +226,36 @@ func TestRunWithExecRunOptsCaptureStderr(t *testing.T) {
 	assert.Equal(t, "hello world\nmy-error", output)
 	assert.NoError(t, err)
 }
+
+// TestRunCommandExtTimeoutReapsProcessGroup verifies that a timed-out command is
+// torn down along with any grandchild processes it spawned.
+//
+// The shell backgrounds a long-lived `sleep` that inherits the command's stdout
+// pipe and then waits on it. When the timeout fires, signalling only the direct
+// child (the shell) is not enough: the orphaned `sleep` keeps the inherited
+// stdout pipe open, so cmd.Wait() — and therefore RunCommandExt — blocks until
+// `sleep` exits on its own, far past timeout+fatalTimeout. This is the same
+// failure mode that lets a single hung `git fetch` (whose `git-remote-https`
+// child holds a dead TCP connection) keep the argocd-repo-server per-repo lock
+// held for many minutes. Killing the whole process group fixes it.
+func TestRunCommandExtTimeoutReapsProcessGroup(t *testing.T) {
+	// `sleep 15` outlives timeout+fatalTimeout (500ms) by ~30x, so if the
+	// process group is not reaped the call blocks for ~15s instead of ~0.5s.
+	cmd := exec.CommandContext(t.Context(), "sh", "-c", "sleep 15 & wait")
+	opts := CmdOpts{
+		Timeout:      250 * time.Millisecond,
+		FatalTimeout: 250 * time.Millisecond,
+		TimeoutBehavior: TimeoutBehavior{
+			Signal:     syscall.SIGTERM,
+			ShouldWait: true,
+		},
+	}
+
+	start := time.Now()
+	_, err := RunCommandExt(cmd, opts)
+	elapsed := time.Since(start)
+
+	require.Error(t, err)
+	assert.Lessf(t, elapsed, 5*time.Second,
+		"RunCommandExt blocked for %s waiting on an orphaned grandchild; the process group was not reaped", elapsed)
+}
