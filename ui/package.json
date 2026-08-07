@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "license": "Apache-2.0",
   "packageManager": "pnpm@10.28.1",
+  "scarfSettings": {
+    "enabled": false
+  },
   "scripts": {
     "start": "webpack-dev-server --config ./src/app/webpack.config.js --mode development",
     "docker": "./scripts/build_docker.sh",
@@ -47,9 +50,9 @@
     "react-router-dom": "^5.3.4",
     "react-svg-piechart": "^2.4.2",
     "react-virtualized": "^9.22.3",
-    "redoc": "^2.4.0",
     "rxjs": "^6.6.6",
     "superagent": "^8.1.2",
+    "swagger-ui-dist": "^5.32.11",
     "timezones-list": "3.0.1",
     "tsx": "^3.4.0",
     "unidiff": "^1.0.2",
