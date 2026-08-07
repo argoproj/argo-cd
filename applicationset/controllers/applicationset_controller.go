@@ -1105,6 +1105,12 @@ func (r *ApplicationSetReconciler) updateResourcesStatus(ctx context.Context, lo
 		logCtx.Warnf("Truncating ApplicationSet %s resource status from %d to max allowed %d entries", appset.Name, len(statuses), r.MaxResourcesStatusCount)
 		statuses = statuses[:r.MaxResourcesStatusCount]
 	}
+
+	if appset.Status.ResourcesCount == resourcesCount &&
+		cmp.Equal(appset.Status.Resources, statuses, cmpopts.EquateEmpty()) {
+		return nil
+	}
+
 	appset.Status.Resources = statuses
 	appset.Status.ResourcesCount = resourcesCount
 	// DefaultRetry will retry 5 times with a backoff factor of 1, jitter of 0.1 and a duration of 10ms
