@@ -59,6 +59,19 @@ func TestProjectServer(t *testing.T) {
 		},
 	}, &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
+			Name:      "scoped-repository",
+			Namespace: testNamespace,
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeRepository,
+			},
+		},
+		Data: map[string][]byte{
+			"type":    []byte("git"),
+			"url":     []byte("https://github.com/argoproj/argo-cd.git"),
+			"project": []byte("scoped-test"),
+		},
+	}, &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      "cluster-1",
 			Namespace: testNamespace,
 			Labels: map[string]string{
@@ -288,6 +301,106 @@ func TestProjectServer(t *testing.T) {
 
 		require.NoError(t, err)
 		assert.ElementsMatch(t, res.Spec.SourceRepos, updatedProj.Spec.SourceRepos)
+	})
+
+	t.Run("TestRemoveSourceUsedByAppSuccessfulIfRepositoryIsProjectScoped", func(t *testing.T) {
+		proj := existingProj.DeepCopy()
+		proj.Name = "scoped-test"
+		proj.Spec.SourceRepos = []string{"*"}
+		existingApp := v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
+			Spec:       v1alpha1.ApplicationSpec{Destination: v1alpha1.ApplicationDestination{Server: "https://server1", Namespace: "ns1"}, Project: proj.Name, Source: &v1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argo-cd.git"}},
+		}
+		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(proj, &existingApp), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
+
+		updatedProj := proj.DeepCopy()
+		updatedProj.Spec.SourceRepos = nil
+
+		res, err := projectServer.Update(t.Context(), &project.ProjectUpdateRequest{Project: updatedProj})
+
+		require.NoError(t, err)
+		assert.Empty(t, res.Spec.SourceRepos)
+	})
+
+	t.Run("TestRemoveSourceUsedByMultiSourceAppFailsIfOnlyOneRepositoryIsProjectScoped", func(t *testing.T) {
+		proj := existingProj.DeepCopy()
+		proj.Name = "scoped-test"
+		proj.Spec.SourceRepos = []string{"*"}
+		existingApp := v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
+			Spec: v1alpha1.ApplicationSpec{
+				Destination: v1alpha1.ApplicationDestination{Server: "https://server1", Namespace: "ns1"},
+				Project:     proj.Name,
+				Sources: []v1alpha1.ApplicationSource{
+					{RepoURL: "https://github.com/argoproj/argo-cd.git"},
+					{RepoURL: "https://example.com/unscoped.git"},
+				},
+			},
+		}
+		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(proj, &existingApp), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
+
+		updatedProj := proj.DeepCopy()
+		updatedProj.Spec.SourceRepos = nil
+
+		_, err := projectServer.Update(t.Context(), &project.ProjectUpdateRequest{Project: updatedProj})
+
+		require.Error(t, err)
+		statusCode, _ := status.FromError(err)
+		assert.Equal(t, codes.InvalidArgument, statusCode.Code())
+		assert.Equal(t, "as a result of project update 1 applications source became invalid", statusCode.Message())
+	})
+
+	t.Run("TestRemoveSourceUsedByHydratorAppFailsIfOnlySyncRepositoryIsProjectScoped", func(t *testing.T) {
+		proj := existingProj.DeepCopy()
+		proj.Name = "scoped-test"
+		proj.Spec.SourceRepos = []string{"*"}
+		existingApp := v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
+			Spec: v1alpha1.ApplicationSpec{
+				Destination: v1alpha1.ApplicationDestination{Server: "https://server1", Namespace: "ns1"},
+				Project:     proj.Name,
+				SourceHydrator: &v1alpha1.SourceHydrator{
+					DrySource:  v1alpha1.DrySource{RepoURL: "https://example.com/unscoped.git"},
+					SyncSource: v1alpha1.SyncSource{RepoURL: "https://github.com/argoproj/argo-cd.git"},
+				},
+			},
+		}
+		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(proj, &existingApp), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
+
+		updatedProj := proj.DeepCopy()
+		updatedProj.Spec.SourceRepos = nil
+
+		_, err := projectServer.Update(t.Context(), &project.ProjectUpdateRequest{Project: updatedProj})
+
+		require.Error(t, err)
+		statusCode, _ := status.FromError(err)
+		assert.Equal(t, codes.InvalidArgument, statusCode.Code())
+		assert.Equal(t, "as a result of project update 1 applications source became invalid", statusCode.Message())
+	})
+
+	t.Run("TestProjectScopedRepositoryDoesNotOverrideSourceDenyPattern", func(t *testing.T) {
+		proj := existingProj.DeepCopy()
+		proj.Name = "scoped-test"
+		proj.Spec.SourceRepos = []string{"*"}
+		existingApp := v1alpha1.Application{
+			ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "default"},
+			Spec:       v1alpha1.ApplicationSpec{Destination: v1alpha1.ApplicationDestination{Server: "https://server1", Namespace: "ns1"}, Project: proj.Name, Source: &v1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argo-cd.git"}},
+		}
+		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(proj, &existingApp), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
+
+		updatedProj := proj.DeepCopy()
+		updatedProj.Spec.SourceRepos = []string{"!https://github.com/argoproj/argo-cd.git"}
+
+		_, err := projectServer.Update(t.Context(), &project.ProjectUpdateRequest{Project: updatedProj})
+
+		require.Error(t, err)
+		statusCode, _ := status.FromError(err)
+		assert.Equal(t, codes.InvalidArgument, statusCode.Code())
+		assert.Equal(t, "as a result of project update 1 applications source became invalid", statusCode.Message())
 	})
 
 	t.Run("TestRemoveDestinationUsedByAppSuccessfulIfPermittedByAnotherDestination", func(t *testing.T) {
