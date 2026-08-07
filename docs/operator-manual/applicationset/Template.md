@@ -137,7 +137,7 @@ Example:
 - Conditionally switch prune boolean to `true`.
 - Add multiple helm value files from a list.
 
-The `templatePatch` feature enables advanced templating, with support for `json` and `yaml`.
+The `templatePatch` feature enables advanced templating, with support for `json`, `yaml` and `json+patch`. `json+patch` is useful when needing to patch arrays mostly when dealing with `sources`.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -183,6 +183,27 @@ spec:
     {{- end }}
 ```
 
+The same example using `json+patch`.
+```yaml
+  templatePatch: |
+    [
+      {
+        "op": "replace",
+        "path": "/spec/source/helm/valueFiles",
+        "value": {{ .valueFiles }}
+      }
+      {{- if .autoSync }}
+      ,
+      {
+        "op": "add",
+        "path": "/spec/syncPolicy/prune",
+        "value": {{ .prune }}
+      }
+      {{- end }}
+    ]
+```
+
+
 > [!IMPORTANT]
 > `templatePatch` only works when [go templating](../applicationset/GoTemplate.md) is enabled.
 > This means that the `goTemplate` field under `spec` needs to be set to `true` for template patching to work.
@@ -198,3 +219,6 @@ spec:
 
 > [!IMPORTANT]
 > When writing a `templatePatch`, you're crafting a patch. So, if the patch includes an empty `spec: # nothing in here`, it will effectively clear out existing fields. See [#17040](https://github.com/argoproj/argo-cd/issues/17040) for an example of this behavior.
+
+> [!IMPORTANT]
+> `templatePatch` only supports `yaml`/`json` or `json+patch`. The two patch types cannot be combined.  A `json+patch` `templatePatch` must be an array of patchs.
