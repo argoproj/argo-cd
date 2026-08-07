@@ -93,6 +93,7 @@ func NewCommand() *cobra.Command {
 		enableDynamicClusterDistribution bool
 		serverSideDiff                   bool
 		ignoreNormalizerOpts             normalizers.IgnoreNormalizerOpts
+		enableSourceNamespaceDiscovery   bool
 
 		// argocd k8s event logging flag
 		enableK8sEvent []string
@@ -221,6 +222,7 @@ func NewCommand() *cobra.Command {
 				ignoreNormalizerOpts,
 				enableK8sEvent,
 				hydratorEnabled,
+				enableSourceNamespaceDiscovery,
 			)
 			errors.CheckError(err)
 			cacheutil.CollectMetrics(redisClient, appController.GetMetricsServer(), nil)
@@ -309,6 +311,7 @@ func NewCommand() *cobra.Command {
 	// argocd k8s event logging flag
 	command.Flags().StringSliceVar(&enableK8sEvent, "enable-k8s-event", env.StringsFromEnv("ARGOCD_ENABLE_K8S_EVENT", argo.DefaultEnableEventList(), ","), "Enable ArgoCD to use k8s event. For disabling all events, set the value as `none`. (e.g --enable-k8s-event=none), For enabling specific events, set the value as `event reason`. (e.g --enable-k8s-event=StatusRefreshed,ResourceCreated)")
 	command.Flags().BoolVar(&hydratorEnabled, "hydrator-enabled", env.ParseBoolFromEnv("ARGOCD_HYDRATOR_ENABLED", false), "Feature flag to enable Hydrator. Default (\"false\")")
+	command.Flags().BoolVar(&enableSourceNamespaceDiscovery, "enable-source-namespace-discovery", env.ParseBoolFromEnv("ARGOCD_SOURCE_NAMESPACE_DISCOVERY", false), "Enable source namespaces to be discovered by label")
 	repoServerClientTLSConfigSrc = tls.AddClientTLSFlagsToCmdWithPrefix(&command, "APPLICATION_CONTROLLER")
 	cacheSource = appstatecache.AddCacheFlagsToCmd(&command, cacheutil.Options{
 		OnClientCreated: func(client *redis.Client) {

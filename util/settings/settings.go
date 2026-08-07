@@ -572,6 +572,8 @@ const (
 	impersonationEnforcedKey = "application.sync.impersonation.enforced"
 	// requireOverridePrivilegeForRevisionSyncKey is the key to configure whether giving an external revision during sync is considered an override
 	requireOverridePrivilegeForRevisionSyncKey = "application.sync.requireOverridePrivilegeForRevisionSync"
+	// settingsApplicationSourceNamespaceKey is the key to configure which label indicates namespace is a source namespace for applications
+	settingsApplicationSourceNamespaceKey = "application.namespaces.sourceNamespaceKey"
 )
 
 const (
@@ -2862,4 +2864,16 @@ func ConfigureGoClientFeatures() {
 		wrapper := myFeatureGates{parent: gates}
 		clientgofeatures.ReplaceFeatureGates(wrapper)
 	}
+}
+
+func (mgr *SettingsManager) GetAppSourceNamespaceKey() (string, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return "", err
+	}
+	label, ok := argoCDCM.Data[settingsApplicationSourceNamespaceKey]
+	if !ok {
+		return common.LabelKeySourceNamespace, nil
+	}
+	return label, nil
 }

@@ -346,6 +346,12 @@ spec:
               name: argocd-cmd-params-cm
               key: commit.server
               optional: true
+        - name: ARGOCD_SOURCE_NAMESPACE_DISCOVERY
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: application.namespaces.discovery
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         name: argocd-application-controller

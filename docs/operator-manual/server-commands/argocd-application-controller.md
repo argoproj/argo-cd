@@ -33,6 +33,7 @@ argocd-application-controller [flags]
       --disable-compression                                       If true, opt-out of response compression for all requests to the server
       --dynamic-cluster-distribution-enabled                      Enables dynamic cluster distribution.
       --enable-k8s-event none                                     Enable ArgoCD to use k8s event. For disabling all events, set the value as none. (e.g --enable-k8s-event=none), For enabling specific events, set the value as `event reason`. (e.g --enable-k8s-event=StatusRefreshed,ResourceCreated) (default [all])
+      --enable-source-namespace-discovery                         Enable source namespaces to be discovered by label
       --gloglevel int                                             Set the glog logging level
   -h, --help                                                      help for argocd-application-controller
       --hydration-processors int                                  Number of manifest hydration processors (only relevant when the Source Hydrator is enabled) (default 5)
