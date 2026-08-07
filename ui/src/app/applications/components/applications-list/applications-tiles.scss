@@ -27,6 +27,18 @@
         }
     }
 
+    // page.scss globally sets `.argo-table-list .row { display: flex; align-items: center }` for
+    // horizontal table rows. That selector (0,2,0) also matches this wrapper anchor (it carries
+    // `.row`) and outranks the `display: block` above (0,1,0), so the wrapper is really a flex
+    // container whose content is vertically centred. In the equal-height tile grid that centres a
+    // shorter card's content — e.g. an app with no "Last Sync" row (operationState absent) sits one
+    // row shorter than its siblings — pushing its fields down out of alignment. Top-align the
+    // wrapper's content (the inner header `.row` still wants centring for its icon + title, so this
+    // is scoped to the wrapper only). `.argo-table-list &__wrapper.row` = (0,3,0) beats the global.
+    .argo-table-list &__wrapper.row {
+        align-items: flex-start;
+    }
+
     // Header buttons (URLs, external-link, favorite) live outside the wrapping anchor
     // to keep the markup valid (no <a>/<button> nested inside <a>). They're absolutely
     // positioned over the top-right of the tile where the original button column rendered.
@@ -115,22 +127,6 @@
             width: auto;
             flex: 1 1 auto;
             overflow: visible;
-        }
-    }
-
-    .applications-tiles__fields {
-        display: grid;
-        grid-template-columns: max-content minmax(0, 1fr);
-        column-gap: 1rem;
-        align-items: baseline;
-    }
-
-    .applications-tiles__field-row {
-        display: contents;
-
-        &::before,
-        &::after {
-            display: none;
         }
     }
 

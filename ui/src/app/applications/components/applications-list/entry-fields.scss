@@ -1,0 +1,221 @@
+@import 'node_modules/argo-ui/src/styles/config';
+
+$entry-label-min: 5.75rem;
+$entry-xxlarge: calc(map-get($breakpoints, xxlarge) - 1px);
+// Matches Foundation's medium column gutter (the per-side padding a `.columns` normally gets).
+$entry-gutter: 0.9375rem;
+
+// Neutralise Foundation's element-level <dl>/<dt> defaults — it adds `margin-bottom` to
+// <dl>/<dt> and `font-weight: bold` to <dt>. The legacy markup used <div>s and got none of
+// that; the visual styling comes from the reused utility classes (see entry-fields.tsx).
+.entry-fields {
+    margin: 0;
+
+    &__dt {
+        margin: 0;
+        font-weight: normal;
+    }
+
+    &__dd {
+        margin: 0;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Tile variant: a single full-width 2-column grid (label | value); fields flow
+// in source order, no placement map.
+// ---------------------------------------------------------------------------
+.entry-fields--tile {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    column-gap: 1rem;
+    align-items: baseline;
+    line-height: 24px;
+}
+
+// ---------------------------------------------------------------------------
+// Table variant: the row reuses the legacy Foundation grid (`.row` + `.columns
+// small-4/6/2`) plus the meta-column / fav-col / meta-rows layout, so gutters,
+// proportions and spacing match HEAD exactly. The only new bits here are the
+// <dl> 2-column grid (which takes the place of the old stack of meta-row divs),
+// the sr-only-below-xxlarge labels, and the flush-right actions menu.
+// ---------------------------------------------------------------------------
+.applications-table {
+    // Each column's <dl>: a full-width 2-column grid (label | value) that collapses to
+    // value-only below xxlarge, using the same label:value ratio (2fr:8fr) the legacy table rows
+    // used. Line-height is inherited from `.applications-table .argo-table-list__row` (so it
+    // tracks HEAD); nothing to override here.
+    .entry-fields--table {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        column-gap: 0.25rem;
+        align-content: start;
+        // Match HEAD's per-item height. The legacy meta-row divs inherited 26px from
+        // `.applications-table .argo-table-list__row`, but that doesn't reliably reach these
+        // grid cells, so pin it here (each row of the <dl> = one 26px line → 2 rows = ~52px).
+        line-height: 26px;
+
+        @media screen and (min-width: $entry-xxlarge) {
+            grid-template-columns: minmax($entry-label-min, 2fr) minmax(0, 8fr);
+        }
+
+        // Field labels: a real label-column cell at xxlarge; below it, kept in the
+        // accessibility tree but visually hidden (sr-only), so screen readers still announce
+        // "Project", "Source", etc. on narrow screens. This replaces Foundation's
+        // `show-for-xxlarge`, which uses display:none and drops the name from the a11y tree.
+        .entry-fields__dt {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            min-width: 0;
+            padding: 0;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+
+            @media screen and (min-width: $entry-xxlarge) {
+                position: static;
+                width: auto;
+                height: auto;
+                overflow: visible;
+                clip: auto;
+            }
+        }
+
+        // Status is a single-pair list: its term stays sr-only at every width (the table never
+        // shows a visible "Status" label), so keep it hidden even at xxlarge (overrides the
+        // restore above). Its value spans the whole column and may wrap to multiple lines,
+        // unlike the other single-line, truncating value cells.
+        .entry-fields__dt--status {
+            @media screen and (min-width: $entry-xxlarge) {
+                position: absolute;
+                width: 1px;
+                height: 1px;
+                overflow: hidden;
+                clip: rect(0, 0, 0, 0);
+            }
+        }
+
+        .entry-fields__dd--status {
+            grid-column: 1 / -1;
+            white-space: normal;
+            overflow: visible;
+        }
+    }
+
+    // ---------------------------------------------------------------------------
+    // Flat variant (application table row): the whole record is ONE <dl>, but laid
+    // out as the legacy three visual columns — each a (label | value) pair stacked
+    // two-high — instead of three separate <dl>s:
+    //
+    //     Project: …      Source: …          Status: …
+    //     Name: …         Destination: …
+    //
+    // Because <dt>/<dd> are separate grid items (a <dl> needs them as direct
+    // children), auto-flow can't produce "pairs stacked within a column", so each
+    // field is pinned to its cell explicitly via its `--${name}` class. The three
+    // column-groups take the exact small-4/6/2 widths (33.3% / 50% / 16.7%); see
+    // the grid-template-columns note below. Overrides the base rule's single-column
+    // grid, sr-only labels, and full-width status cell.
+    // ---------------------------------------------------------------------------
+    .entry-fields--table.applications-list__meta-flat {
+        flex: 1;
+        min-width: 0;
+        // Clear the absolutely-positioned `…` actions menu pinned flush-right. Grid
+        // percentages resolve against this content box, so all three groups fit
+        // inside it and their content clears the menu.
+        padding-right: 3em;
+        // No grid gap: the three group widths below are exact percentages that sum to
+        // 100%, so any column-gap would push the total past the content box and
+        // overflow. Spacing is done with cell padding instead — a small label→value
+        // gap on each <dt>, a larger column→column gap on each <dd> (see below).
+        column-gap: 0;
+        row-gap: 0;
+
+        // Column-group widths reproduce the legacy Foundation columns EXACTLY:
+        // project/name = small-4 (33.3%), source/destination = small-6 (50%), status
+        // = small-2 (16.7%) of the <dl>. Each group is [label track | value track];
+        // to make a group's total an exact percentage, the label track is a FIXED
+        // width ($entry-label-min) and the value track is `calc(group% − label)` —
+        // so label + value == group%. (A max-content label would make the total
+        // vary with the label text, missing the target.) Status's label is sr-only,
+        // so its track is 0 and the whole 16.7% goes to the value.
+        //   project/name (33.3%)                                  │ source/destination (50%)                     │ status (16.7%)
+        grid-template-columns:
+            $entry-label-min calc(33.333% - #{$entry-label-min})
+            $entry-label-min calc(50% - #{$entry-label-min})
+            0 16.667%;
+        grid-template-rows: auto auto;
+        // Top-align each cell so a single-line value doesn't get vertically centred
+        // inside a taller row — that's what lets Name/Destination sit flush under
+        // Project/Source rather than floating in the middle of the row's height.
+        align-items: start;
+
+        // Explicit cell placement — label in the odd column, value in the even one;
+        // row 1 = Project/Source/Status, row 2 = Name/Destination.
+        .entry-fields__dt--project { grid-column: 1; grid-row: 1; }
+        .entry-fields__dd--project { grid-column: 2; grid-row: 1; }
+        .entry-fields__dt--name    { grid-column: 1; grid-row: 2; }
+        .entry-fields__dd--name    { grid-column: 2; grid-row: 2; }
+
+        .entry-fields__dt--source      { grid-column: 3; grid-row: 1; }
+        .entry-fields__dd--source      { grid-column: 4; grid-row: 1; }
+        .entry-fields__dt--destination { grid-column: 3; grid-row: 2; }
+        .entry-fields__dd--destination { grid-column: 4; grid-row: 2; }
+
+        .entry-fields__dt--status { grid-column: 5; grid-row: 1; }
+        // Status is ~2 lines tall (health + sync, split by a <br/>). Span it across
+        // BOTH rows so row 1 stays single-line — otherwise Status alone makes row 1
+        // two lines high and pushes Name/Destination down, leaving a gap. Undo the
+        // base rule's full-width `grid-column: 1 / -1` span at the same time.
+        .entry-fields__dd--status { grid-column: 6; grid-row: 1 / 3; }
+
+        // Labels are shown inline at every width in this flat layout, so undo the
+        // sr-only treatment the base rule applies below xxlarge.
+        // No `min-width: 0` here (unlike the base sr-only rule): let the reused
+        // `.applications-list__meta-label` min-width apply so labels keep a consistent
+        // column width, as they did in the legacy per-column layout.
+        .entry-fields__dt {
+            position: static;
+            width: auto;
+            height: auto;
+            overflow: visible;
+            clip: auto;
+            // Small label→value gap (column-gap is 0; see the grid note above).
+            padding: 0 0.4rem 0 0;
+        }
+
+        // ...except Status: its "Status:" term stays visually hidden (kept only for
+        // screen readers), matching the legacy table, which never showed that label.
+        // Must follow the rule above — equal specificity, so source order wins.
+        .entry-fields__dt--status {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+        }
+
+        // Trailing space after each value so the next column's label reads as a new
+        // pair rather than butting up against the previous value.
+        .entry-fields__dd {
+            padding-right: 1.25rem;
+        }
+    }
+
+    // When the <dl> IS the column (Source/Destination, Status), it doesn't receive Foundation's
+    // `.row > .columns` gutter, so apply that gutter to the cells instead — both sides of every
+    // cell, exactly as Foundation pads each column (gutter/2 ≈ 0.9375rem per side; adjacent cells'
+    // paddings combine into the gap between them). Column 1's <dl> (`.meta-rows`, not `.columns`)
+    // is untouched: its left gutter comes from the sibling `.applications-list__fav-col.columns`
+    // that precedes it in the flex row (there is no longer a `small-4` wrapper around the group).
+    .entry-fields--table.columns {
+        .entry-fields__dt,
+        .entry-fields__dd {
+            padding-left: $entry-gutter;
+            padding-right: $entry-gutter;
+        }
+    }
+
+}

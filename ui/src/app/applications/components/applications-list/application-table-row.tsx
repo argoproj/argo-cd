@@ -12,8 +12,11 @@ import {isValidManagedByURL} from '../../../shared/utils';
 import {ApplicationsLabels} from './applications-labels';
 import {ApplicationsSource} from './applications-source';
 import {CellLink} from './cell-link';
+import {EntryField, EntryFieldList} from './entry-fields';
 import {services} from '../../../shared/services';
 import {ViewPreferences} from '../../../shared/services';
+
+import './entry-fields.scss';
 
 export interface ApplicationTableRowProps {
     app: models.Application;
@@ -36,6 +39,7 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
 
     const view = pref.appDetails.view;
     const appLink = AppUtils.getAppListLink(ctx, app, view);
+    const qualifiedName = AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled);
 
     const handleFavoriteToggle = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -69,143 +73,124 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
     };
 
     return (
-        <div className={`argo-table-list__row applications-list__entry applications-list__entry--health-${healthStatus} ${selected ? 'applications-tiles__selected' : ''}`}>
-            <div className={`row applications-list__table-row ${app.status.sourceHydrator?.currentOperation ? 'applications-table-row--with-hydrator' : ''}`}>
+        // role=group + aria-label on the row card ties its columns/<dl>s together as one labelled
+        // record, recovering the "these fields all describe one application" relationship that
+        // splitting into per-column <dl>s would otherwise lose. (Matches the tile's outer div.)
+        <div
+            role='group'
+            aria-label={qualifiedName}
+            className={`argo-table-list__row applications-list__entry applications-list__entry--health-${healthStatus} ${selected ? 'applications-tiles__selected' : ''}`}>
+            <div className='row applications-list__table-row'>
                 {/* The overlay anchor is the row's accessible link: a real link in tab order with an
                     aria-label so screen readers announce the application name once per row. It sits
                     behind the row's interactive children (lifted via z-index in the SCSS) so the
                     visible buttons, dropdowns, status icons, etc. still receive their own clicks. */}
-                <a
-                    className='applications-list__table-row__overlay-link'
-                    href={appLink.href}
-                    onClick={appLink.onClick}
-                    aria-label={AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)}
+                <a className='applications-list__table-row__overlay-link' href={appLink.href} onClick={appLink.onClick} aria-label={qualifiedName} />
+
+                {/* Favourite + external URLs: its own content-width `shrink` column. The Project/Name
+                    <dl> that follows expands to fill the rest, so together they occupy the old
+                    small-4 region — no wrapping meta-column/small-4 div needed. */}
+                <div className='applications-list__fav-col columns shrink'>
+                    <Tooltip content={favList?.includes(app.metadata.name) ? 'Remove Favorite' : 'Add Favorite'}>
+                        <button type='button' onClick={handleFavoriteToggle}>
+                            <i
+                                className={favList?.includes(app.metadata.name) ? 'fas fa-star' : 'far fa-star'}
+                                style={{
+                                    cursor: 'pointer',
+                                    color: favList?.includes(app.metadata.name) ? '#FFCE25' : '#8fa4b1'
+                                }}
+                            />
+                        </button>
+                    </Tooltip>
+                    <ApplicationURLs urls={app.status.summary?.externalURLs} />
+                </div>
+                {/* One flat <dl> for the whole record, laid out as the legacy three visual columns —
+                    Project/Name · Source/Destination · Status, each a (label | value) pair stacked
+                    two-high (see `.applications-list__meta-flat` in entry-fields.scss, which pins each
+                    field to its grid cell). Replaces the former three per-column <dl>s; the fav-col
+                    and actions menu stay outside it. Field order below feeds the explicit placement. */}
+                <EntryFieldList variant='table' className='applications-list__meta-flat'>
+                    <EntryField name='project' label='Project'>
+                        {app.spec.project}
+                    </EntryField>
+                    <EntryField name='name' label='Name'>
+                        {/* NoticeIcon before the name so it stays visible when the name truncates. */}
+                        <NoticeIcon annotations={app.metadata.annotations} />
+                        <Tooltip
+                            content={
+                                <>
+                                    {app.metadata.name}
+                                    <br />
+                                    <Moment fromNow={true} ago={true}>
+                                        {app.metadata.creationTimestamp}
+                                    </Moment>
+                                </>
+                            }>
+                            <a className='applications-list__table-row-name' href={appLink.href} onClick={appLink.onClick} tabIndex={-1}>
+                                {app.metadata.name}
+                            </a>
+                        </Tooltip>
+                        <button
+                            type='button'
+                            className={managedByURLInvalid ? 'managed-by-url-invalid' : undefined}
+                            onClick={handleExternalLinkClick}
+                            style={{marginLeft: '0.5em', cursor: managedByURLInvalid ? 'not-allowed' : undefined}}
+                            title={managedByURLInvalid ? MANAGED_BY_URL_INVALID_TEXT : `Link: ${linkInfo.url}\nmanaged-by-url: ${managedByURL || 'none'}`}>
+                            <i className='fa fa-window-maximize' />
+                        </button>
+                    </EntryField>
+                    <EntryField name='source' label='Source' valueClassName='applications-table-source'>
+                        <CellLink href={appLink.href} onClick={appLink.onClick} className='applications-table-source__link'>
+                            <ApplicationsSource source={source} />
+                        </CellLink>
+                        <CellLink href={appLink.href} onClick={appLink.onClick} className='applications-table-source__labels'>
+                            <ApplicationsLabels app={app} />
+                        </CellLink>
+                    </EntryField>
+                    <EntryField name='destination' label='Destination'>
+                        <CellLink href={appLink.href} onClick={appLink.onClick}>
+                            <Cluster server={app.spec.destination.server} name={app.spec.destination.name} />/{app.spec.destination.namespace}
+                        </CellLink>
+                    </EntryField>
+                    <EntryField name='status' label='Status'>
+                        <CellLink href={appLink.href} onClick={appLink.onClick}>
+                            <AppUtils.HealthStatusIcon state={app.status.health} /> <span>{app.status.health.status}</span> <br />
+                            {app.status.sourceHydrator?.currentOperation && (
+                                <>
+                                    <AppUtils.HydrateOperationPhaseIcon operationState={app.status.sourceHydrator.currentOperation} />{' '}
+                                    <span>{app.status.sourceHydrator.currentOperation.phase}</span> <br />
+                                </>
+                            )}
+                            <AppUtils.ComparisonStatusIcon status={app.status.sync.status} />
+                            <span>{app.status.sync.status}</span> <OperationState app={app} quiet={true} />
+                        </CellLink>
+                    </EntryField>
+                </EntryFieldList>
+
+                <DropDownMenu
+                    anchor={() => (
+                        <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
+                            <i className='fa fa-ellipsis-v' />
+                        </button>
+                    )}
+                    items={[
+                        {
+                            title: 'Sync',
+                            iconClassName: 'fa fa-fw fa-sync',
+                            action: () => syncApplication(app.metadata.name, app.metadata.namespace)
+                        },
+                        {
+                            title: 'Refresh',
+                            iconClassName: 'fa fa-fw fa-redo',
+                            action: () => refreshApplication(app.metadata.name, app.metadata.namespace)
+                        },
+                        {
+                            title: 'Delete',
+                            iconClassName: 'fa fa-fw fa-times-circle',
+                            action: () => deleteApplication(app.metadata.name, app.metadata.namespace)
+                        }
+                    ]}
                 />
-                {/* First column: Favorite, URLs, Project, Name */}
-                <div className='columns small-4'>
-                    <div className='applications-list__meta-column'>
-                        <div className='applications-list__fav-col'>
-                            <Tooltip content={favList?.includes(app.metadata.name) ? 'Remove Favorite' : 'Add Favorite'}>
-                                <button type='button' onClick={handleFavoriteToggle}>
-                                    <i
-                                        className={favList?.includes(app.metadata.name) ? 'fas fa-star' : 'far fa-star'}
-                                        style={{
-                                            cursor: 'pointer',
-                                            color: favList?.includes(app.metadata.name) ? '#FFCE25' : '#8fa4b1'
-                                        }}
-                                    />
-                                </button>
-                            </Tooltip>
-                            <ApplicationURLs urls={app.status.summary?.externalURLs} />
-                        </div>
-                        <div className='applications-list__meta-rows'>
-                            <div className='applications-list__meta-row'>
-                                <div className='show-for-xxlarge applications-list__meta-label'>Project:</div>
-                                <div className='applications-list__meta-value'>{app.spec.project}</div>
-                            </div>
-                            <div className='applications-list__meta-row'>
-                                <div className='show-for-xxlarge applications-list__meta-label'>Name:</div>
-                                <div className='applications-list__meta-value'>
-                                    {/* Rendered before the name so it stays visible when the name truncates with ellipsis;
-                                        the column's `overflow:hidden; white-space:nowrap` (argo-ui table-list) clips trailing
-                                        inline children. The tile view does the opposite because there the title wraps. */}
-                                    <NoticeIcon annotations={app.metadata.annotations} />
-                                    <Tooltip
-                                        content={
-                                            <>
-                                                {app.metadata.name}
-                                                <br />
-                                                <Moment fromNow={true} ago={true}>
-                                                    {app.metadata.creationTimestamp}
-                                                </Moment>
-                                            </>
-                                        }>
-                                        <a className='applications-list__table-row-name' href={appLink.href} onClick={appLink.onClick} tabIndex={-1}>
-                                            {app.metadata.name}
-                                        </a>
-                                    </Tooltip>
-                                    <button
-                                        type='button'
-                                        className={managedByURLInvalid ? 'managed-by-url-invalid' : undefined}
-                                        onClick={handleExternalLinkClick}
-                                        style={{marginLeft: '0.5em', cursor: managedByURLInvalid ? 'not-allowed' : undefined}}
-                                        title={managedByURLInvalid ? MANAGED_BY_URL_INVALID_TEXT : `Link: ${linkInfo.url}\nmanaged-by-url: ${managedByURL || 'none'}`}>
-                                        <i className='fa fa-window-maximize' />
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Second column: Source and Destination — wrapped in CellLink so each cell
-                    behaves as a real link (middle-click / right-click / status-bar URL preview).
-                    Keyboard users tab to the overlay anchor instead (CellLink uses tabIndex=-1). */}
-                <div className='columns small-6'>
-                    <div className='applications-list__meta-rows'>
-                        <div className='applications-list__meta-row'>
-                            <div className='show-for-xxlarge applications-list__meta-label'>Source:</div>
-                            <div className='applications-list__meta-value applications-table-source'>
-                                <CellLink href={appLink.href} onClick={appLink.onClick} className='applications-table-source__link'>
-                                    <ApplicationsSource source={source} />
-                                </CellLink>
-                                <CellLink href={appLink.href} onClick={appLink.onClick} className='applications-table-source__labels'>
-                                    <ApplicationsLabels app={app} />
-                                </CellLink>
-                            </div>
-                        </div>
-                        <div className='applications-list__meta-row'>
-                            <div className='show-for-xxlarge applications-list__meta-label'>Destination:</div>
-                            <div className='applications-list__meta-value'>
-                                <CellLink href={appLink.href} onClick={appLink.onClick}>
-                                    <Cluster server={app.spec.destination.server} name={app.spec.destination.name} />/{app.spec.destination.namespace}
-                                </CellLink>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Third column: Status and Actions */}
-                <div className='columns small-2'>
-                    {/* Status text/icons wrapped in CellLink so clicking the cell navigates (the icons
-                        carry a `title` and would otherwise sit above the overlay as click dead-zones).
-                        The `…` DropDownMenu below stays OUTSIDE — a <button> nested in an <a> is invalid. */}
-                    <CellLink href={appLink.href} onClick={appLink.onClick}>
-                        <AppUtils.HealthStatusIcon state={app.status.health} /> <span>{app.status.health.status}</span> <br />
-                        {app.status.sourceHydrator?.currentOperation && (
-                            <>
-                                <AppUtils.HydrateOperationPhaseIcon operationState={app.status.sourceHydrator.currentOperation} />{' '}
-                                <span>{app.status.sourceHydrator.currentOperation.phase}</span> <br />
-                            </>
-                        )}
-                        <AppUtils.ComparisonStatusIcon status={app.status.sync.status} />
-                        <span>{app.status.sync.status}</span> <OperationState app={app} quiet={true} />
-                    </CellLink>
-                    <DropDownMenu
-                        anchor={() => (
-                            <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
-                                <i className='fa fa-ellipsis-v' />
-                            </button>
-                        )}
-                        items={[
-                            {
-                                title: 'Sync',
-                                iconClassName: 'fa fa-fw fa-sync',
-                                action: () => syncApplication(app.metadata.name, app.metadata.namespace)
-                            },
-                            {
-                                title: 'Refresh',
-                                iconClassName: 'fa fa-fw fa-redo',
-                                action: () => refreshApplication(app.metadata.name, app.metadata.namespace)
-                            },
-                            {
-                                title: 'Delete',
-                                iconClassName: 'fa fa-fw fa-times-circle',
-                                action: () => deleteApplication(app.metadata.name, app.metadata.namespace)
-                            }
-                        ]}
-                    />
-                </div>
             </div>
         </div>
     );

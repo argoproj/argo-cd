@@ -1,7 +1,6 @@
 @import 'node_modules/argo-ui/src/styles/config';
 
 $applications-list-label-min: 5.75rem;
-$applications-list-xxlarge: calc(map-get($breakpoints, xxlarge) - 1px);
 
 .applications-table {
 
@@ -32,11 +31,15 @@ $applications-list-xxlarge: calc(map-get($breakpoints, xxlarge) - 1px);
             z-index: 2;
         }
 
-        // `.argo-dropdown` is `position: static` by default (argo-ui dropdown.scss), so
-        // z-index alone wouldn't lift it above the overlay link. Promote it to positioned
-        // so the `…` action menu still receives its own clicks.
+        // The `…` action menu (`.argo-dropdown`, `position: static` by default) is pinned
+        // flush-right and vertically centred, anchored to the outer already-positioned
+        // `.argo-table-list__row`. Being absolutely positioned takes it out of flow (so it
+        // doesn't add row height) and the z-index lifts it above the overlay link for clicks.
         .argo-dropdown {
-            position: relative;
+            position: absolute;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
             z-index: 2;
         }
 
@@ -84,15 +87,6 @@ $applications-list-xxlarge: calc(map-get($breakpoints, xxlarge) - 1px);
         }
     }
 
-    .applications-list__table-row.applications-table-row--with-hydrator {
-        .columns.small-4,
-        .columns.small-6 {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
-    }
-
     .applications-list__table-row button.managed-by-url-invalid {
         color: #f4c030;
 
@@ -101,15 +95,11 @@ $applications-list-xxlarge: calc(map-get($breakpoints, xxlarge) - 1px);
         }
     }
 
-    .applications-list__meta-column {
-        display: flex;
-        align-items: flex-start;
-        width: 100%;
-    }
-
     .applications-list__fav-col {
         flex-shrink: 0;
-        padding-left: 0;
+        // No `padding-left: 0` override: as its own first column the fav-col keeps the standard
+        // column gutter, so the star sits where it did when this was nested inside `small-4`.
+        // (As a plain <div> — e.g. the appset row — a div's default left padding is 0 anyway.)
         padding-right: 10px;
 
         button {
@@ -127,16 +117,6 @@ $applications-list-xxlarge: calc(map-get($breakpoints, xxlarge) - 1px);
     .applications-list__meta-rows {
         flex: 1;
         min-width: 0;
-    }
-
-    .applications-list__meta-row {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr);
-
-        @media screen and (min-width: $applications-list-xxlarge) {
-            grid-template-columns: minmax($applications-list-label-min, 2fr) minmax(0, 8fr);
-            column-gap: 0.25rem;
-        }
     }
 
     .applications-list__meta-label {
