@@ -912,14 +912,7 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 		manifestRevisions = append(manifestRevisions, manifestInfo.Revision)
 	}
 
-	serverSideDiff := m.serverSideDiff ||
-		resourceutil.HasAnnotationOption(app, common.AnnotationCompareOptions, "ServerSideDiff=true")
-
-	// This allows turning SSD off for a given app if it is enabled at the
-	// controller level
-	if resourceutil.HasAnnotationOption(app, common.AnnotationCompareOptions, "ServerSideDiff=false") {
-		serverSideDiff = false
-	}
+	serverSideDiff := shouldUseServerSideDiff(app, m.serverSideDiff)
 
 	useDiffCache := useDiffCache(noCache, manifestInfos, sources, app, manifestRevisions, m.statusRefreshTimeout, serverSideDiff, logCtx)
 
@@ -955,11 +948,6 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 			defer cleanup()
 			diffConfigBuilder.WithServerSideDryRunner(diff.NewK8sServerSideDryRunner(applier))
 		}
-	}
-
-	// enable structured merge diff if application syncs with server-side apply
-	if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.SyncOptions.HasOption("ServerSideApply=true") {
-		diffConfigBuilder.WithStructuredMergeDiff(true)
 	}
 
 	// it is necessary to ignore the error at this point to avoid creating duplicated
@@ -1174,6 +1162,32 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 	ts.AddCheckpoint("health_ms")
 	compRes.timings = ts.Timings()
 	return &compRes, nil
+}
+
+// shouldUseServerSideDiff determines whether Server-Side Diff should be used
+// when calculating the diff for the given application.
+//
+// Server-Side Diff is used when any of the following is true:
+//   - it is enabled at the controller level (controllerLevelSSD)
+//   - the app has the `ServerSideDiff=true` compare-option annotation
+//   - the app syncs with the `ServerSideApply=true` sync option
+//
+// The `ServerSideApply=true` sync option implies Server-Side Diff because it is
+// the strategy that most accurately predicts the result of a server-side apply.
+// It supersedes the now-discontinued Structured-Merge Diff strategy that was
+// previously selected for server-side apply enabled applications.
+//
+// An explicit `ServerSideDiff=false` compare-option annotation always wins and
+// disables Server-Side Diff regardless of the above, allowing it to be turned
+// off for a given app even when enabled at the controller level or implied by
+// the server-side apply sync option.
+func shouldUseServerSideDiff(app *v1alpha1.Application, controllerLevelSSD bool) bool {
+	if resourceutil.HasAnnotationOption(app, common.AnnotationCompareOptions, "ServerSideDiff=false") {
+		return false
+	}
+	return controllerLevelSSD ||
+		resourceutil.HasAnnotationOption(app, common.AnnotationCompareOptions, "ServerSideDiff=true") ||
+		(app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.SyncOptions.HasOption("ServerSideApply=true"))
 }
 
 // useDiffCache will determine if the diff should be calculated based

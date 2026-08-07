@@ -176,6 +176,58 @@ func TestDiff(t *testing.T) {
 	}
 }
 
+func TestDiffServerSideApplyAnnotation(t *testing.T) {
+	// The ServerSideApply=true sync-options annotation on the desired state
+	// resource requests Server-Side Diff. It used to select the (now
+	// discontinued) structured-merge-diff strategy.
+	withSSAAnnotation := func(un *unstructured.Unstructured) *unstructured.Unstructured {
+		un = un.DeepCopy()
+		annotations := un.GetAnnotations()
+		if annotations == nil {
+			annotations = map[string]string{}
+		}
+		annotations["argocd.argoproj.io/sync-options"] = "ServerSideApply=true"
+		un.SetAnnotations(annotations)
+		return un
+	}
+
+	t.Run("uses ServerSideDiff when a dry-run runner is configured", func(t *testing.T) {
+		t.Parallel()
+		liveState := StrToUnstructured(testdata.ServiceLiveYAMLSSD)
+		desiredState := withSSAAnnotation(StrToUnstructured(testdata.ServiceConfigYAMLSSD))
+
+		dryRunner := mocks.NewServerSideDryRunner(t)
+		// The runner being invoked proves the ServerSideDiff path was taken.
+		dryRunner.EXPECT().Run(mock.Anything, mock.AnythingOfType("*unstructured.Unstructured"), "argocd-controller").
+			Return(testdata.ServicePredictedLiveJSONSSD, nil)
+		opts := []Option{
+			WithGVKParser(buildGVKParser(t)),
+			WithManager("argocd-controller"),
+			WithServerSideDryRunner(dryRunner),
+		}
+
+		result, err := Diff(t.Context(), desiredState, liveState, opts...)
+
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+	})
+
+	t.Run("falls through to client-side diff when no dry-run runner is configured", func(t *testing.T) {
+		t.Parallel()
+		annotated := withSSAAnnotation(mustToUnstructured(newDeployment()))
+
+		// No ServerSideDryRunner configured: the annotation must not cause an
+		// error, it should fall through to the regular three-way / two-way diff.
+		// Diffing an identical config and live confirms the fall-through path
+		// completes successfully rather than erroring on the missing runner.
+		result, err := Diff(t.Context(), annotated, annotated, diffOptionsForTest()...)
+
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.False(t, result.Modified)
+	})
+}
+
 func TestDiff_KnownTypeInvalidValue(t *testing.T) {
 	leftDep := newDeployment()
 	leftUn := mustToUnstructured(leftDep)

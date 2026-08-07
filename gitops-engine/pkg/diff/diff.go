@@ -90,14 +90,6 @@ func Diff(ctx context.Context, config, live *unstructured.Unstructured, opts ...
 		Normalize(live, preDiffOpts...)
 	}
 
-	if o.serverSideDiff {
-		r, err := ServerSideDiff(ctx, config, live, opts...)
-		if err != nil {
-			return nil, fmt.Errorf("error calculating server side diff: %w", err)
-		}
-		return r, nil
-	}
-
 	// TODO The two variables bellow are necessary because there is a cyclic
 	// dependency with the kube package that blocks the usage of constants
 	// from common package. common package needs to be refactored and exclude
@@ -105,20 +97,26 @@ func Diff(ctx context.Context, config, live *unstructured.Unstructured, opts ...
 	syncOptAnnotation := "argocd.argoproj.io/sync-options"
 	ssaAnnotation := "ServerSideApply=true"
 
-	// structuredMergeDiff is mainly used as a feature flag to enable
-	// calculating diffs using the structured-merge-diff library
-	// used in k8s while performing server-side applies. It checks the
-	// given diff Option or if the desired state resource has the
-	// Server-Side apply sync option annotation enabled.
-	structuredMergeDiff := o.structuredMergeDiff ||
+	// Server-Side Diff should be used when syncing with Server-Side Apply. It is
+	// enabled either explicitly via the serverSideDiff option or implicitly when
+	// the desired state resource has the Server-Side Apply sync option enabled.
+	// This supersedes the now-discontinued structured-merge-diff strategy that was
+	// previously selected for Server-Side Apply enabled resources.
+	serverSideDiff := o.serverSideDiff ||
 		(config != nil && resource.HasAnnotationOption(config, syncOptAnnotation, ssaAnnotation))
-	if structuredMergeDiff {
-		r, err := StructuredMergeDiff(config, live, o.gvkParser, o.manager)
+
+	// Server-Side Diff requires a dry-run runner to execute the Server-Side Apply
+	// against the kube-apiserver. When one is not configured (e.g. the caller only
+	// wants a client-side diff), fall through to the regular three-way / two-way
+	// diff instead of failing.
+	if serverSideDiff && o.serverSideDryRunner != nil {
+		r, err := ServerSideDiff(ctx, config, live, opts...)
 		if err != nil {
-			return nil, fmt.Errorf("error calculating structured merge diff: %w", err)
+			return nil, fmt.Errorf("error calculating server side diff: %w", err)
 		}
 		return r, nil
 	}
+
 	orig, err := GetLastAppliedConfigAnnotation(live)
 	if err != nil {
 		o.log.V(1).Info(fmt.Sprintf("Failed to get last applied configuration: %v", err))
