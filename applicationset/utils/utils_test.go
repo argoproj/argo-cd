@@ -298,6 +298,109 @@ func TestRenderHelmValuesObjectYaml(t *testing.T) {
 	assert.Equal(t, "Hello world", unmarshaled.(map[string]any)["some"].(map[string]any)["string"])
 }
 
+func TestRenderHelmValuesObjectPreservesNulls(t *testing.T) {
+	params := map[string]any{
+		"release": "my-release",
+	}
+
+	application := &argoappsv1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations:       map[string]string{},
+			Labels:            map[string]string{},
+			CreationTimestamp: metav1.NewTime(time.Now()),
+			UID:               types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"),
+			Name:              "application-one",
+			Namespace:         "default",
+		},
+		Spec: argoappsv1.ApplicationSpec{
+			Source: &argoappsv1.ApplicationSource{
+				Helm: &argoappsv1.ApplicationSourceHelm{
+					ReleaseName: "{{.release}}",
+					ValuesObject: &runtime.RawExtension{
+						Raw: []byte(`{
+							"recommender": {
+								"resources": {
+									"limits": {
+										"cpu": null,
+										"memory": "64Mi"
+									}
+								}
+							}
+						}`),
+					},
+				},
+			},
+			Destination: argoappsv1.ApplicationDestination{},
+			Project:     "",
+		},
+	}
+
+	render := Render{}
+	newApplication, err := render.RenderTemplateParams(application, nil, params, true, []string{})
+
+	require.NoError(t, err)
+	require.NotNil(t, newApplication)
+
+	assert.Equal(t, "my-release", newApplication.Spec.Source.Helm.ReleaseName)
+
+	var unmarshaled map[string]any
+	err = json.Unmarshal(newApplication.Spec.Source.Helm.ValuesObject.Raw, &unmarshaled)
+	require.NoError(t, err)
+
+	limits := unmarshaled["recommender"].(map[string]any)["resources"].(map[string]any)["limits"].(map[string]any)
+	assert.Nil(t, limits["cpu"], "null values should be preserved in valuesObject")
+	assert.Contains(t, limits, "cpu", "null keys should not be stripped from valuesObject")
+	assert.Equal(t, "64Mi", limits["memory"])
+}
+
+func TestRenderHelmValuesObjectPreservesNullsYaml(t *testing.T) {
+	params := map[string]any{
+		"release": "my-release",
+	}
+
+	application := &argoappsv1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Annotations:       map[string]string{},
+			Labels:            map[string]string{},
+			CreationTimestamp: metav1.NewTime(time.Now()),
+			UID:               types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"),
+			Name:              "application-one",
+			Namespace:         "default",
+		},
+		Spec: argoappsv1.ApplicationSpec{
+			Source: &argoappsv1.ApplicationSource{
+				Helm: &argoappsv1.ApplicationSourceHelm{
+					ReleaseName: "{{.release}}",
+					ValuesObject: &runtime.RawExtension{
+						Raw: []byte(`recommender:
+  resources:
+    limits:
+      cpu: null
+      memory: 64Mi`),
+					},
+				},
+			},
+			Destination: argoappsv1.ApplicationDestination{},
+			Project:     "",
+		},
+	}
+
+	render := Render{}
+	newApplication, err := render.RenderTemplateParams(application, nil, params, true, []string{})
+
+	require.NoError(t, err)
+	require.NotNil(t, newApplication)
+
+	var unmarshaled map[string]any
+	err = json.Unmarshal(newApplication.Spec.Source.Helm.ValuesObject.Raw, &unmarshaled)
+	require.NoError(t, err)
+
+	limits := unmarshaled["recommender"].(map[string]any)["resources"].(map[string]any)["limits"].(map[string]any)
+	assert.Nil(t, limits["cpu"], "null values should be preserved in valuesObject")
+	assert.Contains(t, limits, "cpu", "null keys should not be stripped from valuesObject")
+	assert.Equal(t, "64Mi", limits["memory"])
+}
+
 func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 	// Believe it or not, this is actually less complex than the equivalent solution using reflection
 	fieldMap := map[string]func(app *argoappsv1.Application) *string{}
