@@ -124,7 +124,7 @@ func getMaxLoginFailures() int {
 
 // Returns the number of maximum seconds the login is allowed to delay for
 func getLoginFailureWindow() time.Duration {
-	return time.Duration(env.ParseNumFromEnv(envLoginFailureWindowSeconds, defaultFailureWindow, 0, math.MaxInt32))
+	return time.Duration(env.ParseNumFromEnv(envLoginFailureWindowSeconds, defaultFailureWindow, 0, math.MaxInt32)) * time.Second
 }
 
 // NewSessionManager creates a new session manager from Argo CD settings
@@ -327,7 +327,7 @@ func (mgr *SessionManager) GetLoginFailures() map[string]LoginAttempts {
 func expireOldFailedAttempts(maxAge time.Duration, failures map[string]LoginAttempts) int {
 	expiredCount := 0
 	for key, attempt := range failures {
-		if time.Since(attempt.LastFailed) > maxAge*time.Second {
+		if time.Since(attempt.LastFailed) > maxAge {
 			expiredCount++
 			delete(failures, key)
 		}
@@ -337,18 +337,17 @@ func expireOldFailedAttempts(maxAge time.Duration, failures map[string]LoginAtte
 
 // Protect admin user from login attempt reset caused by attempts to overflow cache in a brute force attack. Instead remove random non-admin to make room in cache.
 func pickRandomNonAdminLoginFailure(failures map[string]LoginAttempts, username string) *string {
-	idx := rand.Intn(len(failures) - 1)
-	i := 0
+	eligible := make([]string, 0, len(failures))
 	for key := range failures {
-		if i == idx {
-			if key == common.ArgoCDAdminUsername || key == username {
-				return pickRandomNonAdminLoginFailure(failures, username)
-			}
-			return &key
+		if key != common.ArgoCDAdminUsername && key != username {
+			eligible = append(eligible, key)
 		}
-		i++
 	}
-	return nil
+	if len(eligible) == 0 {
+		return nil
+	}
+	k := eligible[rand.Intn(len(eligible))]
+	return &k
 }
 
 // Updates the failure count for a given username. If failed is true, increases the counter. Otherwise, sets counter back to 0.
@@ -421,7 +420,7 @@ func (mgr *SessionManager) exceededFailedLoginAttempts(attempt LoginAttempts) bo
 
 	// Whether we are in the failure window for given attempt
 	inWindow := func() bool {
-		if failureWindow == 0 || time.Since(attempt.LastFailed).Seconds() <= float64(failureWindow) {
+		if failureWindow == 0 || time.Since(attempt.LastFailed) <= failureWindow {
 			return true
 		}
 		return false
