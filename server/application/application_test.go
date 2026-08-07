@@ -5349,3 +5349,136 @@ func TestRollbackRBACPermissions(t *testing.T) {
 		assert.ErrorContains(t, err, "permission denied")
 	})
 }
+
+func TestRollbackRBACPermissions_ProjectScoped(t *testing.T) {
+	const projName = "rollback-proj"
+
+	newTestAppWithRollbackHistory := func() *v1alpha1.Application {
+		app := newTestApp()
+		app.Spec.Project = projName
+		app.Status.History = []v1alpha1.RevisionHistory{{
+			ID:        1,
+			Revision:  "abc",
+			Revisions: []string{"abc"},
+			Source:    *app.Spec.Source.DeepCopy(),
+			Sources:   []v1alpha1.ApplicationSource{*app.Spec.Source.DeepCopy()},
+		}}
+		return app
+	}
+
+	newProjectWithRole := func(roleName string, policies []string) *v1alpha1.AppProject {
+		return &v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: projName, Namespace: testNamespace},
+			Spec: v1alpha1.AppProjectSpec{
+				SourceRepos:  []string{"*"},
+				Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				Roles: []v1alpha1.ProjectRole{
+					{Name: roleName, Policies: policies},
+				},
+			},
+		}
+	}
+
+	setupServer := func(t *testing.T, testApp *v1alpha1.Application, proj *v1alpha1.AppProject, rollbackEnforce bool) *Server {
+		t.Helper()
+		f := func(enf *rbac.Enforcer) {
+			_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+			enf.SetDefaultRole("role:readonly")
+		}
+		additionalConfig := map[string]string{}
+		if rollbackEnforce {
+			additionalConfig["server.rbac.rollback.enforce.enable"] = "true"
+		}
+		return newTestAppServerWithEnforcerConfigure(t, f, additionalConfig, testApp, proj)
+	}
+
+	t.Run("project-scoped rollback policy allows rollback when feature flag enabled", func(t *testing.T) {
+		testApp := newTestAppWithRollbackHistory()
+		proj := newProjectWithRole("rollback-role", []string{
+			"p, proj:rollback-proj:rollback-role, applications, rollback, rollback-proj/test-app, allow",
+		})
+		appServer := setupServer(t, testApp, proj, true)
+
+		//nolint:staticcheck
+		userCtx := context.WithValue(t.Context(), "claims", &jwt.MapClaims{"sub": "proj:rollback-proj:rollback-role"})
+
+		updatedApp, err := appServer.Rollback(userCtx, &application.ApplicationRollbackRequest{
+			Name: &testApp.Name,
+			Id:   new(int64(1)),
+		})
+		require.NoError(t, err)
+		assert.NotNil(t, updatedApp.Operation)
+	})
+
+	t.Run("project-scoped rollback policy denied without sync when feature flag disabled", func(t *testing.T) {
+		testApp := newTestAppWithRollbackHistory()
+		proj := newProjectWithRole("rollback-role", []string{
+			"p, proj:rollback-proj:rollback-role, applications, rollback, rollback-proj/test-app, allow",
+		})
+		appServer := setupServer(t, testApp, proj, false)
+
+		//nolint:staticcheck
+		userCtx := context.WithValue(t.Context(), "claims", &jwt.MapClaims{"sub": "proj:rollback-proj:rollback-role"})
+
+		_, err := appServer.Rollback(userCtx, &application.ApplicationRollbackRequest{
+			Name: &testApp.Name,
+			Id:   new(int64(1)),
+		})
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "permission denied")
+	})
+
+	t.Run("project-scoped sync policy allows rollback for backwards compatibility", func(t *testing.T) {
+		testApp := newTestAppWithRollbackHistory()
+		proj := newProjectWithRole("sync-role", []string{
+			"p, proj:rollback-proj:sync-role, applications, sync, rollback-proj/test-app, allow",
+		})
+		appServer := setupServer(t, testApp, proj, false)
+
+		//nolint:staticcheck
+		userCtx := context.WithValue(t.Context(), "claims", &jwt.MapClaims{"sub": "proj:rollback-proj:sync-role"})
+
+		updatedApp, err := appServer.Rollback(userCtx, &application.ApplicationRollbackRequest{
+			Name: &testApp.Name,
+			Id:   new(int64(1)),
+		})
+		require.NoError(t, err)
+		assert.NotNil(t, updatedApp.Operation)
+	})
+
+	t.Run("project-scoped rollback denied when feature flag enabled and only sync granted", func(t *testing.T) {
+		testApp := newTestAppWithRollbackHistory()
+		proj := newProjectWithRole("sync-role", []string{
+			"p, proj:rollback-proj:sync-role, applications, sync, rollback-proj/test-app, allow",
+		})
+		appServer := setupServer(t, testApp, proj, true)
+
+		//nolint:staticcheck
+		userCtx := context.WithValue(t.Context(), "claims", &jwt.MapClaims{"sub": "proj:rollback-proj:sync-role"})
+
+		_, err := appServer.Rollback(userCtx, &application.ApplicationRollbackRequest{
+			Name: &testApp.Name,
+			Id:   new(int64(1)),
+		})
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "permission denied")
+	})
+
+	t.Run("project-scoped no rollback or sync permission is denied", func(t *testing.T) {
+		testApp := newTestAppWithRollbackHistory()
+		proj := newProjectWithRole("readonly-role", []string{
+			"p, proj:rollback-proj:readonly-role, applications, get, rollback-proj/test-app, allow",
+		})
+		appServer := setupServer(t, testApp, proj, true)
+
+		//nolint:staticcheck
+		userCtx := context.WithValue(t.Context(), "claims", &jwt.MapClaims{"sub": "proj:rollback-proj:readonly-role"})
+
+		_, err := appServer.Rollback(userCtx, &application.ApplicationRollbackRequest{
+			Name: &testApp.Name,
+			Id:   new(int64(1)),
+		})
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "permission denied")
+	})
+}
