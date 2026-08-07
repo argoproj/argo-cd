@@ -39,6 +39,7 @@ import (
 	argocommon "github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/pkg/ratelimiter"
 	applog "github.com/argoproj/argo-cd/v3/util/app/log"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/settings"
@@ -4342,13 +4343,14 @@ func TestUpdateResourceStatus(t *testing.T) {
 func generateNAppResourceStatuses(n int) []v1alpha1.ResourceStatus {
 	var r []v1alpha1.ResourceStatus
 	for i := range n {
-		r = append(r, v1alpha1.ResourceStatus{
-			Name:   "app" + strconv.Itoa(i),
-			Status: v1alpha1.SyncStatusCodeSynced,
-			Health: &v1alpha1.HealthStatus{
-				Status: health.HealthStatusHealthy,
+		r = append(
+			r, v1alpha1.ResourceStatus{
+				Name:   "app" + strconv.Itoa(i),
+				Status: v1alpha1.SyncStatusCodeSynced,
+				Health: &v1alpha1.HealthStatus{
+					Status: health.HealthStatusHealthy,
+				},
 			},
-		},
 		)
 	}
 	return r
@@ -5472,4 +5474,64 @@ func startAndSyncInformer(t *testing.T, informer cache.SharedIndexInformer) cont
 		t.Fatal("Timed out waiting for caches to sync")
 	}
 	return cancel
+}
+
+func TestRateLimiterConfig(t *testing.T) {
+	t.Run("default config has expected values", func(t *testing.T) {
+		cfg := ratelimiter.GetDefaultAppRateLimiterConfig()
+		require.NotNil(t, cfg)
+		assert.Equal(t, int64(500), cfg.BucketSize)
+		assert.Equal(t, time.Millisecond, cfg.BaseDelay)
+		assert.Equal(t, time.Second, cfg.MaxDelay)
+		assert.InDelta(t, 1.5, cfg.BackoffFactor, 0.001)
+	})
+
+	t.Run("NewCustomAppControllerRateLimiter with default config", func(t *testing.T) {
+		cfg := ratelimiter.GetDefaultAppRateLimiterConfig()
+		limiter := ratelimiter.NewCustomAppControllerRateLimiter[ctrl.Request](cfg)
+		require.NotNil(t, limiter)
+		req := ctrl.Request{}
+		delay := limiter.When(req)
+		assert.GreaterOrEqual(t, delay, cfg.BaseDelay)
+	})
+
+	t.Run("NewCustomAppControllerRateLimiter with custom config", func(t *testing.T) {
+		cfg := &ratelimiter.AppControllerRateLimiterConfig{
+			BucketSize:      100,
+			BucketQPS:       50,
+			FailureCoolDown: 0,
+			BaseDelay:       5 * time.Millisecond,
+			MaxDelay:        10 * time.Second,
+			BackoffFactor:   2.0,
+		}
+		limiter := ratelimiter.NewCustomAppControllerRateLimiter[ctrl.Request](cfg)
+		require.NotNil(t, limiter)
+		req := ctrl.Request{}
+		delay := limiter.When(req)
+		assert.GreaterOrEqual(t, delay, cfg.BaseDelay)
+	})
+}
+
+func TestResolveRateLimiterConfig(t *testing.T) {
+	t.Run("nil input returns default config", func(t *testing.T) {
+		result := resolveRateLimiterConfig(nil)
+		require.NotNil(t, result)
+		expected := ratelimiter.GetDefaultAppRateLimiterConfig()
+		assert.Equal(t, expected.BucketSize, result.BucketSize)
+		assert.Equal(t, expected.BaseDelay, result.BaseDelay)
+		assert.Equal(t, expected.MaxDelay, result.MaxDelay)
+		assert.InDelta(t, expected.BackoffFactor, result.BackoffFactor, 0.001)
+	})
+
+	t.Run("non-nil input is returned as-is", func(t *testing.T) {
+		cfg := &ratelimiter.AppControllerRateLimiterConfig{
+			BucketSize:    100,
+			BucketQPS:     50,
+			BaseDelay:     5 * time.Millisecond,
+			MaxDelay:      30 * time.Second,
+			BackoffFactor: 2.0,
+		}
+		result := resolveRateLimiterConfig(cfg)
+		assert.Same(t, cfg, result)
+	})
 }
