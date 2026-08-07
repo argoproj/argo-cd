@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
-	"strings"
 
 	"github.com/argoproj/argo-cd/v3/common"
 )
@@ -49,20 +49,13 @@ func VerifyCleartextSignedMessage(ctx context.Context, clearsigned []byte) (sign
 		return "", err
 	}
 	pw.Close()
-	var sb strings.Builder
-	buf := make([]byte, 512)
-	for {
-		n, err := pr.Read(buf)
-		if n > 0 {
-			sb.Write(buf[:n])
-		}
-		if err != nil {
-			break
-		}
-	}
+	statusBytes, readErr := io.ReadAll(pr)
 	_ = cmd.Wait()
+	if readErr != nil {
+		return "", readErr
+	}
 
-	status := sb.String()
+	status := string(statusBytes)
 	code, keyID, err := ParseStatusOutputStrict(status)
 	if err != nil {
 		if errors.Is(err, ErrNoStatusFound) {

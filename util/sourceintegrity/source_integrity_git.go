@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 
 	log "github.com/sirupsen/logrus"
 
@@ -13,7 +14,7 @@ import (
 
 type gitFunc func(ctx context.Context, gitClient git.Client, verifiedRevision string) (result *v1alpha1.SourceIntegrityCheckResult, legacyDescription string, err error)
 
-var _gpgDisabledLoggedAlready bool
+var gpgDisabledLogOnce sync.Once
 
 // VerifyGit makes sure the git repository satisfies the criteria declared.
 // It returns nil in case there were no relevant criteria, a check result if there were.
@@ -54,9 +55,10 @@ func lookupGit(si *v1alpha1.SourceIntegrity, repoURL string) gitFunc {
 			return nil
 		}
 
-		if !_gpgDisabledLoggedAlready && !IsGPGEnabled() {
-			log.Warnf("SourceIntegrity criteria for git+gpg declared, but it is turned off by ARGOCD_GPG_ENABLED")
-			_gpgDisabledLoggedAlready = true
+		if !IsGPGEnabled() {
+			gpgDisabledLogOnce.Do(func() {
+				log.Warnf("SourceIntegrity criteria for git+gpg declared, but it is turned off by ARGOCD_GPG_ENABLED")
+			})
 			return nil
 		}
 
