@@ -1,12 +1,13 @@
 import * as deepMerge from 'deepmerge';
 import {Observable} from 'rxjs';
-import {filter, map, repeat, retry} from 'rxjs/operators';
+import {filter, map, repeat} from 'rxjs/operators';
 
 import * as models from '../models';
 import {isValidURL} from '../utils';
 import requests from './requests';
 import {getRootPathByApp, isApp} from '../../applications/components/utils';
 import {namespaceQuery, namespaceQueryKey} from './applications-service.namespace';
+import {retryWithBackoff} from './retry-backoff';
 
 interface QueryOptions {
     fields: string[];
@@ -145,7 +146,9 @@ export class ApplicationsService {
         }
         return requests
             .loadEventSource(`/stream/applications/${name}/resource-tree?appNamespace=${appNamespace}`)
-            .pipe(map(data => JSON.parse(data).result as models.ApplicationTree));
+            .pipe(map(data => JSON.parse(data).result as models.ApplicationTree))
+            .pipe(repeat())
+            .pipe(retryWithBackoff());
     }
 
     public managedResources(name: string, appNamespace: string, options: {id?: models.ResourceID; fields?: string[]} = {}): Promise<models.ResourceDiff[]> {
@@ -263,8 +266,6 @@ export class ApplicationsService {
         const url = `/stream${endpoint}${(searchStr && '?' + searchStr) || ''}`;
         return requests
             .loadEventSource(url)
-            .pipe(repeat())
-            .pipe(retry())
             .pipe(map(data => JSON.parse(data).result as models.ApplicationWatchEvent))
             .pipe(
                 map(watchEvent => {
@@ -273,7 +274,9 @@ export class ApplicationsService {
                     watchEvent.application = this.parseAppFields(rawApp, isApplication) as models.Application;
                     return watchEvent;
                 })
-            );
+            )
+            .pipe(repeat())
+            .pipe(retryWithBackoff());
     }
 
     public sync(

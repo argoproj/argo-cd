@@ -4,7 +4,7 @@ import * as ReactDOM from 'react-dom';
 import {Key, KeybindingContext, KeybindingProvider, NumKey, NumKeyToNumber, NumPadKey, useNav} from 'argo-ui/v2';
 import {RouteComponentProps} from 'react-router';
 import {combineLatest, from, merge, Observable} from 'rxjs';
-import {bufferTime, delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
+import {bufferTime, filter, map, mergeMap} from 'rxjs/operators';
 import {DataLoader, EmptyState, Page, Paginate, SearchBar} from '../../../shared/components';
 import {AuthSettingsCtx, Consumer, Context, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
@@ -27,7 +27,6 @@ import './applications-table.scss';
 import './applications-tiles.scss';
 
 const EVENTS_BUFFER_TIMEOUT = 500;
-const WATCH_RETRY_TIMEOUT = 500;
 
 const APPSET_FIELDS = [
     'metadata.name',
@@ -53,8 +52,6 @@ function loadApplicationSets(projects: string[]): Observable<models.ApplicationS
                 from([appSets]),
                 services.applications
                     .watch('applicationset', {projects, resourceVersion: applicationsList.metadata.resourceVersion}, {fields: APPSET_WATCH_FIELDS})
-                    .pipe(repeat())
-                    .pipe(retryWhen(errors => errors.pipe(delay(WATCH_RETRY_TIMEOUT))))
                     .pipe(bufferTime(EVENTS_BUFFER_TIMEOUT))
                     .pipe(
                         map(appChanges => {
