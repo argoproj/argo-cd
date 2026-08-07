@@ -1,5 +1,19 @@
 @import 'node_modules/argo-ui/src/styles/config';
 
+.application-sync-panel__kind-filter {
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+
+    label {
+        margin-right: 0.5em;
+    }
+}
+
+.application-sync-panel__kind-filter-actions {
+    margin-left: 1em;
+    font-size: 0.9em;
+}
+
 .application-sync-panel__resource {
     margin-top: 0.5em;
     white-space: nowrap;
