@@ -639,6 +639,11 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	for _, container := range pod.Spec.Containers {
 		imagesSet[container.Image] = true
 	}
+	for _, volume := range pod.Spec.Volumes {
+		if volume.Image != nil && volume.Image.Reference != "" {
+			imagesSet[volume.Image.Reference] = true
+		}
+	}
 
 	res.Images = nil
 	for image := range imagesSet {
