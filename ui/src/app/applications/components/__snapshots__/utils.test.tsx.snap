@@ -26,6 +26,8 @@ exports[`OperationState.Sync error 1`] = `"<i title="Sync error" qe-id="utils-op
 
 exports[`OperationState.Sync failed 1`] = `"<i title="Sync failed" qe-id="utils-operations-status-title" class="fa fa-times-circle" style="color:#E96D76"></i> Sync failed"`;
 
+exports[`OperationState.Sync warning 1`] = `"<i title="Sync warning" qe-id="utils-operations-status-title" class="fa fa-exclamation-circle" style="color:#f4c030"></i> Sync warning"`;
+
 exports[`OperationState.Syncing 1`] = `"<svg class="icon spin" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" style="color:#0DADEA" qe-id="utils-operations-status-title"><path fill="#0DADEA" d="M222.7 32.1c5 16.9-4.6 34.8-21.5 39.8C121.8 95.6 64 169.1 64 256c0 106 86 192 192 192s192-86 192-192c0-86.9-57.8-160.4-137.1-184.1c-16.9-5-26.6-22.9-21.5-39.8s22.9-26.6 39.8-21.5C434.9 42.1 512 140 512 256c0 141.4-114.6 256-256 256S0 397.4 0 256C0 140 77.1 42.1 182.9 10.6c16.9-5 34.8 4.6 39.8 21.5z"></path></svg> Syncing"`;
 
 exports[`OperationState.Unknown 1`] = `"<svg class="icon spin" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" style="color:#0DADEA" qe-id="utils-operations-status-title"><path fill="#0DADEA" d="M222.7 32.1c5 16.9-4.6 34.8-21.5 39.8C121.8 95.6 64 169.1 64 256c0 106 86 192 192 192s192-86 192-192c0-86.9-57.8-160.4-137.1-184.1c-16.9-5-26.6-22.9-21.5-39.8s22.9-26.6 39.8-21.5C434.9 42.1 512 140 512 256c0 141.4-114.6 256-256 256S0 397.4 0 256C0 140 77.1 42.1 182.9 10.6c16.9-5 34.8 4.6 39.8 21.5z"></path></svg> Unknown"`;
@@ -44,8 +46,12 @@ exports[`ResourceResultIcon.Hook.Succeeded 1`] = `"<i class="fa fa-heart" style=
 
 exports[`ResourceResultIcon.Hook.Terminating 1`] = `"<svg class="icon spin" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" style="color:#DE303D" qe-id="utils-resource-result-icon"><path fill="#DE303D" d="M222.7 32.1c5 16.9-4.6 34.8-21.5 39.8C121.8 95.6 64 169.1 64 256c0 106 86 192 192 192s192-86 192-192c0-86.9-57.8-160.4-137.1-184.1c-16.9-5-26.6-22.9-21.5-39.8s22.9-26.6 39.8-21.5C434.9 42.1 512 140 512 256c0 141.4-114.6 256-256 256S0 397.4 0 256C0 140 77.1 42.1 182.9 10.6c16.9-5 34.8 4.6 39.8 21.5z"></path></svg>"`;
 
+exports[`ResourceResultIcon.Hook.Warning 1`] = `"<i class="fa fa-exclamation-circle" style="color:#f4c030"></i>"`;
+
 exports[`ResourceResultIcon.Pruned 1`] = `"<i class="fa fa-trash" style="color:#CCD6DD"></i>"`;
 
 exports[`ResourceResultIcon.SyncFailed 1`] = `"<i class="fa fa-heart-broken" style="color:#E96D76"></i>"`;
 
 exports[`ResourceResultIcon.Synced 1`] = `"<i title="Synced: my-message" class="fa fa-heart" style="color:#18BE94"></i>"`;
+
+exports[`ResourceResultIcon.SyncedWithWarning 1`] = `"<i title="SyncedWithWarning: my-warning" class="fa fa-exclamation-circle" style="color:#f4c030"></i>"`;
