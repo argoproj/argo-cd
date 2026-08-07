@@ -1164,23 +1164,11 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 	return &compRes, nil
 }
 
-// shouldUseServerSideDiff determines whether Server-Side Diff should be used
-// when calculating the diff for the given application.
-//
-// Server-Side Diff is used when any of the following is true:
-//   - it is enabled at the controller level (controllerLevelSSD)
-//   - the app has the `ServerSideDiff=true` compare-option annotation
-//   - the app syncs with the `ServerSideApply=true` sync option
-//
-// The `ServerSideApply=true` sync option implies Server-Side Diff because it is
-// the strategy that most accurately predicts the result of a server-side apply.
-// It supersedes the now-discontinued Structured-Merge Diff strategy that was
-// previously selected for server-side apply enabled applications.
-//
-// An explicit `ServerSideDiff=false` compare-option annotation always wins and
-// disables Server-Side Diff regardless of the above, allowing it to be turned
-// off for a given app even when enabled at the controller level or implied by
-// the server-side apply sync option.
+// shouldUseServerSideDiff returns whether Server-Side Diff should be used for
+// the given application. It is enabled by the controller-level flag, the
+// `ServerSideDiff=true` compare-option annotation, or the `ServerSideApply=true`
+// sync option (which supersedes the discontinued Structured-Merge Diff strategy).
+// An explicit `ServerSideDiff=false` annotation always disables it.
 func shouldUseServerSideDiff(app *v1alpha1.Application, controllerLevelSSD bool) bool {
 	if resourceutil.HasAnnotationOption(app, common.AnnotationCompareOptions, "ServerSideDiff=false") {
 		return false

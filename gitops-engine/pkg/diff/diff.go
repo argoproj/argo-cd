@@ -106,10 +106,14 @@ func Diff(ctx context.Context, config, live *unstructured.Unstructured, opts ...
 		(config != nil && resource.HasAnnotationOption(config, syncOptAnnotation, ssaAnnotation))
 
 	// Server-Side Diff requires a dry-run runner to execute the Server-Side Apply
-	// against the kube-apiserver. When one is not configured (e.g. the caller only
-	// wants a client-side diff), fall through to the regular three-way / two-way
+	// against the kube-apiserver. When it was explicitly requested via the
+	// serverSideDiff option, a missing runner is a hard error: silently falling
+	// back to a client-side diff would produce a misleading result for a resource
+	// that is applied server-side. When it is only implied by the annotation, the
+	// caller may be a client-side-only consumer (e.g. `argocd app diff` without
+	// server-side generation), so fall through to the regular three-way / two-way
 	// diff instead of failing.
-	if serverSideDiff && o.serverSideDryRunner != nil {
+	if serverSideDiff && (o.serverSideDiff || o.serverSideDryRunner != nil) {
 		r, err := ServerSideDiff(ctx, config, live, opts...)
 		if err != nil {
 			return nil, fmt.Errorf("error calculating server side diff: %w", err)

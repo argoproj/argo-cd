@@ -21,7 +21,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/klog/v2/textlogger"
 	openapiproto "k8s.io/kube-openapi/pkg/util/proto"
@@ -212,12 +211,13 @@ func TestDiffServerSideApplyAnnotation(t *testing.T) {
 		assert.NotNil(t, result)
 	})
 
-	t.Run("falls through to client-side diff when no dry-run runner is configured", func(t *testing.T) {
+	t.Run("annotation only falls through to client-side diff when no dry-run runner is configured", func(t *testing.T) {
 		t.Parallel()
 		annotated := withSSAAnnotation(mustToUnstructured(newDeployment()))
 
-		// No ServerSideDryRunner configured: the annotation must not cause an
-		// error, it should fall through to the regular three-way / two-way diff.
+		// The annotation alone (without the serverSideDiff option) must not cause
+		// an error when no runner is configured: the caller may be a client-side
+		// consumer, so it falls through to the regular three-way / two-way diff.
 		// Diffing an identical config and live confirms the fall-through path
 		// completes successfully rather than erroring on the missing runner.
 		result, err := Diff(t.Context(), annotated, annotated, diffOptionsForTest()...)
@@ -225,6 +225,19 @@ func TestDiffServerSideApplyAnnotation(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, result)
 		assert.False(t, result.Modified)
+	})
+
+	t.Run("explicit serverSideDiff option errors when no dry-run runner is configured", func(t *testing.T) {
+		t.Parallel()
+		liveState := StrToUnstructured(testdata.ServiceLiveYAMLSSD)
+		desiredState := StrToUnstructured(testdata.ServiceConfigYAMLSSD)
+
+		// When Server-Side Diff is explicitly requested but no runner is available,
+		// it must error rather than silently degrade to a client-side diff.
+		opts := append(diffOptionsForTest(), WithServerSideDiff(true))
+		_, err := Diff(t.Context(), desiredState, liveState, opts...)
+
+		require.Error(t, err)
 	})
 }
 
@@ -818,124 +831,6 @@ func buildGVKParser(t *testing.T) *managedfields.GvkParser {
 	gvkParser, err := managedfields.NewGVKParser(models, false)
 	require.NoErrorf(t, err, "error building gvkParser: %s", err)
 	return gvkParser
-}
-
-func TestStructuredMergeDiff(t *testing.T) {
-	buildParams := func(live, config *unstructured.Unstructured) *SMDParams {
-		gvkParser := buildGVKParser(t)
-		manager := "argocd-controller"
-		return &SMDParams{
-			config:    config,
-			live:      live,
-			gvkParser: gvkParser,
-			manager:   manager,
-		}
-	}
-
-	t.Run("will apply default values", func(t *testing.T) {
-		// given
-		t.Parallel()
-		liveState := StrToUnstructured(testdata.ServiceLiveYAML)
-		desiredState := StrToUnstructured(testdata.ServiceConfigYAML)
-		params := buildParams(liveState, desiredState)
-
-		// when
-		result, err := structuredMergeDiff(params)
-
-		// then
-		require.NoError(t, err)
-		assert.NotNil(t, result)
-		assert.True(t, result.Modified)
-		predictedSVC := YamlToSvc(t, result.PredictedLive)
-		liveSVC := YamlToSvc(t, result.NormalizedLive)
-		require.NotNil(t, predictedSVC.Spec.InternalTrafficPolicy)
-		require.NotNil(t, liveSVC.Spec.InternalTrafficPolicy)
-		assert.Equal(t, "Cluster", string(*predictedSVC.Spec.InternalTrafficPolicy))
-		assert.Equal(t, "Cluster", string(*liveSVC.Spec.InternalTrafficPolicy))
-		assert.Empty(t, predictedSVC.Annotations[AnnotationLastAppliedConfig])
-		assert.Empty(t, liveSVC.Annotations[AnnotationLastAppliedConfig])
-	})
-	t.Run("will remove entries in list", func(t *testing.T) {
-		// given
-		t.Parallel()
-		liveState := StrToUnstructured(testdata.ServiceLiveYAML)
-		desiredState := StrToUnstructured(testdata.ServiceConfigWith2Ports)
-		params := buildParams(liveState, desiredState)
-
-		// when
-		result, err := structuredMergeDiff(params)
-
-		// then
-		require.NoError(t, err)
-		assert.NotNil(t, result)
-		assert.True(t, result.Modified)
-		svc := YamlToSvc(t, result.PredictedLive)
-		assert.Len(t, svc.Spec.Ports, 2)
-	})
-	t.Run("will remove previously added fields not present in desired state", func(t *testing.T) {
-		// given
-		t.Parallel()
-		liveState := StrToUnstructured(testdata.LiveServiceWithTypeYAML)
-		desiredState := StrToUnstructured(testdata.ServiceConfigYAML)
-		params := buildParams(liveState, desiredState)
-
-		// when
-		result, err := structuredMergeDiff(params)
-
-		// then
-		require.NoError(t, err)
-		assert.NotNil(t, result)
-		assert.True(t, result.Modified)
-		svc := YamlToSvc(t, result.PredictedLive)
-		assert.Equal(t, corev1.ServiceTypeClusterIP, svc.Spec.Type)
-	})
-	t.Run("will apply service with multiple ports", func(t *testing.T) {
-		// given
-		t.Parallel()
-		liveState := StrToUnstructured(testdata.ServiceLiveYAML)
-		desiredState := StrToUnstructured(testdata.ServiceConfigWithSamePortsYAML)
-		params := buildParams(liveState, desiredState)
-
-		// when
-		result, err := structuredMergeDiff(params)
-
-		// then
-		require.NoError(t, err)
-		assert.NotNil(t, result)
-		assert.True(t, result.Modified)
-		svc := YamlToSvc(t, result.PredictedLive)
-		assert.Len(t, svc.Spec.Ports, 5)
-	})
-	t.Run("will apply deployment defaults correctly", func(t *testing.T) {
-		// given
-		t.Parallel()
-		liveState := StrToUnstructured(testdata.DeploymentLiveYAML)
-		desiredState := StrToUnstructured(testdata.DeploymentConfigYAML)
-		params := buildParams(liveState, desiredState)
-
-		// when
-		result, err := structuredMergeDiff(params)
-
-		// then
-		require.NoError(t, err)
-		assert.NotNil(t, result)
-		assert.False(t, result.Modified)
-		deploy := YamlToDeploy(t, result.PredictedLive)
-		assert.Len(t, deploy.Spec.Template.Spec.Containers, 1)
-		assert.Equal(t, "0", deploy.Spec.Template.Spec.Containers[0].Resources.Requests.Cpu().String())
-		assert.Equal(t, "0", deploy.Spec.Template.Spec.Containers[0].Resources.Requests.Memory().String())
-		assert.Equal(t, "0", deploy.Spec.Template.Spec.Containers[0].Resources.Requests.Storage().String())
-		assert.Equal(t, "0", deploy.Spec.Template.Spec.Containers[0].Resources.Limits.Cpu().String())
-		assert.Equal(t, "0", deploy.Spec.Template.Spec.Containers[0].Resources.Limits.Memory().String())
-		assert.Equal(t, "0", deploy.Spec.Template.Spec.Containers[0].Resources.Limits.Storage().String())
-		require.NotNil(t, deploy.Spec.Strategy.RollingUpdate)
-		expectedMaxSurge := &intstr.IntOrString{
-			Type:   intstr.String,
-			StrVal: "25%",
-		}
-		assert.Equal(t, expectedMaxSurge, deploy.Spec.Strategy.RollingUpdate.MaxSurge)
-		assert.Equal(t, "ClusterFirst", string(deploy.Spec.Template.Spec.DNSPolicy))
-	})
 }
 
 func TestServerSideDiff(t *testing.T) {
