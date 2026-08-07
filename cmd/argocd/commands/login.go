@@ -77,23 +77,27 @@ argocd login cd.argoproj.io --core`,
 			default:
 				server = args[0]
 
-				if !skipTestTLS {
+				if !skipTestTLS && !clientOpts.GRPCWeb {
 					dialTime := 30 * time.Second
 					tlsTestResult, err := grpc_util.TestTLS(server, dialTime)
-					errors.CheckError(err)
-					if !tlsTestResult.TLS {
-						if !clientOpts.PlainText {
-							if !cli.AskToProceed("WARNING: server is not configured with TLS. Proceed (y/n)? ") {
-								os.Exit(1)
+					if err != nil {
+						clientOpts.GRPCWeb = true
+						log.Warnf("Failed to perform TLS handshake. Falling back to grpc-web (server may have HTTP/2 disabled). Use flag --grpc-web in grpc calls. To avoid this warning message, use flag --grpc-web.")
+					} else {
+						if !tlsTestResult.TLS {
+							if !clientOpts.PlainText {
+								if !cli.AskToProceed("WARNING: server is not configured with TLS. Proceed (y/n)? ") {
+									os.Exit(1)
+								}
+								clientOpts.PlainText = true
 							}
-							clientOpts.PlainText = true
-						}
-					} else if tlsTestResult.InsecureErr != nil {
-						if !clientOpts.Insecure {
-							if !cli.AskToProceed(fmt.Sprintf("WARNING: server certificate had error: %s. Proceed insecurely (y/n)? ", tlsTestResult.InsecureErr)) {
-								os.Exit(1)
+						} else if tlsTestResult.InsecureErr != nil {
+							if !clientOpts.Insecure {
+								if !cli.AskToProceed(fmt.Sprintf("WARNING: server certificate had error: %s. Proceed insecurely (y/n)? ", tlsTestResult.InsecureErr)) {
+									os.Exit(1)
+								}
+								clientOpts.Insecure = true
 							}
-							clientOpts.Insecure = true
 						}
 					}
 				}
