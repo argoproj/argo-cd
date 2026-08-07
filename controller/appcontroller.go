@@ -2160,6 +2160,8 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 
 	softExpired, hardExpired := comparisonExpiry(app.Status, statusRefreshTimeout, statusHardRefreshTimeout)
 
+	controllerRequested, requestedLevel := ctrl.isRefreshRequested(app.QualifiedName())
+
 	if requestedType, ok := app.IsRefreshRequested(); ok {
 		compareWith = CompareWithLatestForceResolve
 		// user requested app refresh.
@@ -2191,8 +2193,8 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 			reason = "spec.syncPolicy.managedNamespaceMetadata differs"
 		} else if !app.Spec.IgnoreDifferences.Equals(app.Status.Sync.ComparedTo.IgnoreDifferences) {
 			reason = "spec.ignoreDifferences differs"
-		} else if requested, level := ctrl.isRefreshRequested(app.QualifiedName()); requested {
-			compareWith = level
+		} else if controllerRequested {
+			compareWith = requestedLevel
 			reason = "controller refresh requested"
 		}
 	}
