@@ -2977,6 +2977,16 @@ func getProjectsFromApplicationQuery(q application.ApplicationQuery) []string {
 	return q.Projects
 }
 
+// isCoreSecret reports whether the given object is a core/v1 Secret. It is used to decide
+// Secret data masking from server-parsed objects rather than caller-supplied metadata.
+func isCoreSecret(obj *unstructured.Unstructured) bool {
+	if obj == nil {
+		return false
+	}
+	gvk := obj.GroupVersionKind()
+	return gvk.Group == "" && gvk.Kind == kube.SecretKind
+}
+
 // ServerSideDiff gets the destination cluster and creates a server-side dry run applier and performs the diff
 // It returns the diff result in the form of a list of ResourceDiffs.
 func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationServerSideDiffQuery) (*application.ApplicationServerSideDiffResponse, error) {
@@ -3160,13 +3170,6 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 		// leak the dry-run result's Secret data. The live side is checked too as
 		// defense-in-depth, in case the live-resource consistency validation above
 		// is ever relaxed.
-		isCoreSecret := func(obj *unstructured.Unstructured) bool {
-			if obj == nil {
-				return false
-			}
-			gvk := obj.GroupVersionKind()
-			return gvk.Group == "" && gvk.Kind == kube.SecretKind
-		}
 		isSecret := (i < len(targetObjs) && isCoreSecret(targetObjs[i])) ||
 			(i < len(liveObjs) && isCoreSecret(liveObjs[i]))
 
