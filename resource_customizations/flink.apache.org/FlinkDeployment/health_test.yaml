@@ -1,25 +1,73 @@
 tests:
-- healthStatus:
-    status: Healthy
-  inputPath: testdata/healthy_running_v0.1.x.yaml
-- healthStatus:
-    status: Healthy
-  inputPath: testdata/healthy_running_v1.x.yaml
-- healthStatus:
-    status: Healthy
-  inputPath: testdata/healthy_suspended_v0.1.x.yaml
-- healthStatus:
-    status: Healthy
-  inputPath: testdata/healthy_suspended_v1.x.yaml
-- healthStatus:
-    status: Progressing
-    message: Waiting for deploying
-  inputPath: testdata/progressing_deployedNotReady.yaml
-- healthStatus:
-    status: Progressing
-    message: Waiting for deploying
-  inputPath: testdata/progressing_deploying.yaml
-- healthStatus:
-    status: Degraded
-    message: "org.apache.flink.configuration.IllegalConfigurationException: TaskManager memory configuration failed: Cannot read memory size from config option ''taskmanager.memory.network.max''."
-  inputPath: testdata/degraded_error.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Waiting for Flink operator"
+    inputPath: testdata/no_status.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Waiting for Flink operator to report generation"
+    inputPath: testdata/no_observed_generation.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Waiting for operator to reconcile generation 3"
+    inputPath: testdata/generation_mismatch.yaml
+  - healthStatus:
+      status: Healthy
+      message: "Deployment stable"
+    inputPath: testdata/stable.yaml
+  - healthStatus:
+      status: Degraded
+      message: "Job crash-looping (RESTARTING) despite stable deployment"
+    inputPath: testdata/stable_restarting.yaml
+  - healthStatus:
+      status: Degraded
+      message: "Deployment failed"
+    inputPath: testdata/failed.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Rolling back to last stable spec"
+    inputPath: testdata/rolling_back.yaml
+  - healthStatus:
+      status: Degraded
+      message: "Deployment rolled back"
+    inputPath: testdata/rolled_back.yaml
+  - healthStatus:
+      status: Suspended
+      message: "Deployment suspended"
+    inputPath: testdata/suspended.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Deployed, waiting for stability validation"
+    inputPath: testdata/deployed.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Upgrading deployment"
+    inputPath: testdata/upgrading.yaml
+  - healthStatus:
+      status: Healthy
+      message: "Batch job finished"
+    inputPath: testdata/job_finished.yaml
+  - healthStatus:
+      status: Suspended
+      message: "Job suspended"
+    inputPath: testdata/job_suspended.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Job failed, operator recovering"
+    inputPath: testdata/job_failed.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Job failing, waiting for operator action"
+    inputPath: testdata/job_failing.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Job restarting"
+    inputPath: testdata/job_restarting.yaml
+  - healthStatus:
+      status: Progressing
+      message: "JobManager deploying"
+    inputPath: testdata/jm_deploying.yaml
+  - healthStatus:
+      status: Progressing
+      message: "JobManager error, operator recovering"
+    inputPath: testdata/jm_error.yaml
