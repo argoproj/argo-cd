@@ -551,6 +551,7 @@ func TestHydratorHydratesAutomatically_NewCommit_WithChanges(t *testing.T) {
 		Refresh(RefreshTypeNormal).
 		Wait("--hydrated").
 		Then().
+		AndAction(func() { time.Sleep(2 * time.Second) }). // Give the controller time to process the hydration
 		Expect(HydrationPhaseIs(HydrateOperationPhaseHydrated)).
 		And(func(app *Application) {
 			require.NotEqual(t, firstDrySHA, app.Status.SourceHydrator.CurrentOperation.DrySHA,
