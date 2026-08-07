@@ -423,7 +423,10 @@ func TestGenerateManifests_K8SAPIResetCache(t *testing.T) {
 
 	cachedFakeResponse := &apiclient.ManifestResponse{Manifests: []string{"Fake"}, Revision: mock.Anything}
 
-	err := service.cache.SetManifests(getManifestCacheKey(mock.Anything, &src, &q, nil), &cache.CachedManifestResponse{ManifestResponse: cachedFakeResponse})
+	key := cache.NewManifestKey(mock.Anything, &src, q.GetRefSources(), q.GetNamespace(), q.GetTrackingMethod(),
+		q.GetAppLabelKey(), q.GetAppName(), q.GetInstallationID(), q.GetSourceIntegrity(), &q, nil,
+	)
+	err := service.cache.SetManifests(key, &cache.CachedManifestResponse{ManifestResponse: cachedFakeResponse})
 	require.NoError(t, err)
 
 	res, err := service.GenerateManifest(t.Context(), &q)
@@ -448,7 +451,10 @@ func TestGenerateManifests_EmptyCache(t *testing.T) {
 		ProjectSourceRepos: []string{"*"},
 	}
 
-	err := service.cache.SetManifests(getManifestCacheKey(mock.Anything, &src, &q, nil), &cache.CachedManifestResponse{ManifestResponse: nil})
+	key := cache.NewManifestKey(mock.Anything, &src, q.GetRefSources(), q.GetNamespace(), q.GetTrackingMethod(),
+		q.GetAppLabelKey(), q.GetAppName(), q.GetInstallationID(), q.GetSourceIntegrity(), &q, nil,
+	)
+	err := service.cache.SetManifests(key, &cache.CachedManifestResponse{ManifestResponse: nil})
 	require.NoError(t, err)
 
 	res, err := service.GenerateManifest(t.Context(), &q)
@@ -949,7 +955,10 @@ func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 		assert.NotNil(t, manifestRequest)
 
 		cachedManifestResponse := &cache.CachedManifestResponse{}
-		err := service.cache.GetManifests(getManifestCacheKey(mock.Anything, manifestRequest.ApplicationSource, manifestRequest, nil), cachedManifestResponse)
+		key := cache.NewManifestKey(mock.Anything, manifestRequest.ApplicationSource, manifestRequest.GetRefSources(), manifestRequest.GetNamespace(), manifestRequest.GetTrackingMethod(),
+			manifestRequest.GetAppLabelKey(), manifestRequest.GetAppName(), manifestRequest.GetInstallationID(), manifestRequest.GetSourceIntegrity(), manifestRequest, nil,
+		)
+		err := service.cache.GetManifests(key, cachedManifestResponse)
 		require.NoError(t, err)
 		return cachedManifestResponse
 	}
@@ -2438,13 +2447,14 @@ func TestGenerateManifestsWithAppParameterFile(t *testing.T) {
 			// Try to pull from the cache with a `source` that does not include any overrides. Overrides should not be
 			// part of the cache key, because you can't get the overrides without a repo operation. And avoiding repo
 			// operations is the point of the cache.
-			err = service.cache.GetManifests(cache.ManifestKey{
-				Revision:    mock.Anything,
-				AppSource:   source,
-				RefSources:  v1alpha1.RefTargetRevisionMapping{},
-				ClusterInfo: &v1alpha1.ClusterInfo{},
-				AppName:     "test",
-			}, res)
+			q := apiclient.ManifestRequest{
+				AppName:    "test",
+				RefSources: v1alpha1.RefTargetRevisionMapping{},
+			}
+			key := cache.NewManifestKey(mock.Anything, source, q.GetRefSources(), q.GetNamespace(), q.GetTrackingMethod(),
+				q.GetAppLabelKey(), q.GetAppName(), q.GetInstallationID(), q.GetSourceIntegrity(), &q, nil,
+			)
+			err = service.cache.GetManifests(key, res)
 			require.NoError(t, err)
 		})
 	})
@@ -5070,6 +5080,25 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				Paths:          []string{},
 			},
 		}, want: &apiclient.UpdateRevisionForPathsResponse{Changes: true}, wantErr: assert.NoError},
+		{name: "OCIRepoWithEmptyTypeShortCircuits", fields: func() fields {
+			// Regression test: empty Type on an oci:// repo URL must not be normalized to "git",
+			// otherwise the call falls through to git LsRemote and fails with
+			// "unsupported scheme oci".
+			s, _, c := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, _ *iomocks.TempPaths) {
+			}, ".")
+			return fields{
+				service: s,
+				cache:   c,
+			}
+		}(), args: args{
+			ctx: t.Context(),
+			request: &apiclient.UpdateRevisionForPathsRequest{
+				Repo:           &v1alpha1.Repository{Repo: "oci://example.com/foo"},
+				Revision:       "1.0.0",
+				SyncedRevision: "0.9.0",
+				Paths:          []string{"."},
+			},
+		}, want: &apiclient.UpdateRevisionForPathsResponse{}, wantErr: assert.NoError},
 		{name: "SameResolvedRevisionAbort", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
@@ -5444,6 +5473,86 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 			ExternalGets:    1,
 			ExternalSets:    1,
 		}},
+		{name: "UntypedHelmSourceWithRefSourcesNotTreatedAsGit", fields: func() fields {
+			// An untyped Helm chart source (Type is empty) with ref sources must not be
+			// treated as git. Before the fix, the empty type was assumed to be git, so any
+			// git client call here would resolve a git revision against the Helm repository
+			// URL and fail with "repository not found" (issue #28890). The mocks below make
+			// any git resolution fail so that the test only passes when the git path is skipped.
+			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+				gitClient.EXPECT().LsRemote(mock.Anything).Return("", errors.New("failed to list refs: repository not found"))
+				gitClient.EXPECT().Root().Return("")
+				paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+				paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+			}, ".")
+			return fields{
+				service: s,
+				cache:   c,
+			}
+		}(), args: args{
+			ctx: t.Context(),
+			request: &apiclient.UpdateRevisionForPathsRequest{
+				Repo: &v1alpha1.Repository{Repo: "https://charts.example.com"},
+				RefSources: v1alpha1.RefTargetRevisionMapping{
+					"$values": {Repo: v1alpha1.Repository{Repo: "a-url.com"}, TargetRevision: "HEAD"},
+				},
+				SyncedRefSources: v1alpha1.RefTargetRevisionMapping{
+					"$values": {Repo: v1alpha1.Repository{Repo: "a-url.com"}, TargetRevision: "SYNCEDHEAD"},
+				},
+				Revision:           "0.0.1",
+				SyncedRevision:     "0.0.2",
+				Paths:              []string{"."},
+				AppLabelKey:        "app.kubernetes.io/name",
+				AppName:            "untyped-helm-source",
+				Namespace:          "default",
+				TrackingMethod:     "annotation+label",
+				ApplicationSource:  &v1alpha1.ApplicationSource{Chart: "my-chart", Helm: &v1alpha1.ApplicationSourceHelm{ReleaseName: "test"}},
+				KubeVersion:        "v1.16.0",
+				HasMultipleSources: true,
+			},
+		}, want: &apiclient.UpdateRevisionForPathsResponse{
+			Revision: "0.0.1",
+			Changes:  false,
+		}, wantErr: assert.NoError, cacheCallCount: &repositorymocks.CacheCallCounts{
+			ExternalRenames: 0,
+			ExternalGets:    0,
+			ExternalSets:    0,
+		}},
+		{name: "ExplicitGitTypeWithHelmSourceStillTreatedAsGit", fields: func() fields {
+			// A repository with an explicitly configured git type must keep using the git
+			// path even when the application source carries a chart name. Only a type that
+			// Normalize defaulted to git may be overridden by the application source type,
+			// otherwise a multi source app whose git repo also sets a chart would stop
+			// having its git revision resolved at all.
+			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+				gitClient.EXPECT().LsRemote("HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
+				gitClient.EXPECT().LsRemote("SYNCEDHEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
+				paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+				paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+			}, ".")
+			return fields{
+				service: s,
+				cache:   c,
+			}
+		}(), args: args{
+			ctx: t.Context(),
+			request: &apiclient.UpdateRevisionForPathsRequest{
+				Repo:              &v1alpha1.Repository{Repo: "a-url.com", Type: "git"},
+				Revision:          "HEAD",
+				SyncedRevision:    "SYNCEDHEAD",
+				Paths:             []string{"."},
+				ApplicationSource: &v1alpha1.ApplicationSource{Chart: "my-chart"},
+			},
+		}, want: &apiclient.UpdateRevisionForPathsResponse{
+			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0",
+			Changes:  false,
+		}, wantErr: assert.NoError, cacheCallCount: &repositorymocks.CacheCallCounts{
+			ExternalRenames: 0,
+			ExternalGets:    0,
+			ExternalSets:    0,
+		}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -5504,9 +5613,11 @@ func TestUpdateRevisionForPaths_CallerMustPersistResolvedRevision(t *testing.T) 
 	}
 
 	// Seed the manifest cache for the synced revision.
+	key := cache.NewManifestKey(syncedRevision, request.ApplicationSource, request.GetRefSources(), request.GetNamespace(), request.GetTrackingMethod(),
+		request.GetAppLabelKey(), request.GetAppName(), request.GetInstallationID(), request.GetSourceIntegrity(), request, nil,
+	)
 	err := cacheMocks.cache.SetManifests(
-		getManifestCacheKeyFromUpdateRevisionRequest(request, syncedRevision, nil),
-		&cache.CachedManifestResponse{ManifestResponse: &apiclient.ManifestResponse{Revision: syncedRevision}},
+		key, &cache.CachedManifestResponse{ManifestResponse: &apiclient.ManifestResponse{Revision: syncedRevision}},
 	)
 	require.NoError(t, err)
 
@@ -5531,6 +5642,41 @@ func TestUpdateRevisionForPaths_CallerMustPersistResolvedRevision(t *testing.T) 
 	require.NoError(t, err)
 	assert.False(t, resp3.Changes, "Using the resolved revision as SyncedRevision should detect no changes")
 	assert.Equal(t, resolvedRevision, resp3.Revision)
+}
+
+func TestConsistentManifestCacheKey(t *testing.T) {
+	revision := "HEAD"
+
+	request := &apiclient.UpdateRevisionForPathsRequest{
+		Repo:              &v1alpha1.Repository{Repo: "a-url.com", Type: "git"},
+		Revision:          revision,
+		SyncedRevision:    "1e67a504d03def3a6a1125d934cb511680f72555",
+		Paths:             []string{"."},
+		AppLabelKey:       "app.kubernetes.io/name",
+		AppName:           "test-persist-revision",
+		Namespace:         "default",
+		TrackingMethod:    "annotation+label",
+		ApplicationSource: &v1alpha1.ApplicationSource{Path: "."},
+		SourceIntegrity:   sourceIntegrityReqStrict,
+	}
+
+	manifestRequest := &apiclient.ManifestRequest{
+		Repo:              &v1alpha1.Repository{Repo: "a-url.com", Type: "git"},
+		Revision:          revision,
+		AppLabelKey:       "app.kubernetes.io/name",
+		AppName:           "test-persist-revision",
+		Namespace:         "default",
+		TrackingMethod:    "annotation+label",
+		ApplicationSource: &v1alpha1.ApplicationSource{Path: "."},
+		SourceIntegrity:   sourceIntegrityReqStrict,
+	}
+
+	assert.Equal(t,
+		cache.NewManifestKey(revision, request.ApplicationSource, request.GetRefSources(), request.GetNamespace(), request.GetTrackingMethod(),
+			request.GetAppLabelKey(), request.GetAppName(), request.GetInstallationID(), request.GetSourceIntegrity(), request, nil).String(),
+		cache.NewManifestKey(revision, manifestRequest.ApplicationSource, manifestRequest.GetRefSources(), manifestRequest.GetNamespace(), manifestRequest.GetTrackingMethod(),
+			manifestRequest.GetAppLabelKey(), manifestRequest.GetAppName(), manifestRequest.GetInstallationID(), manifestRequest.GetSourceIntegrity(), manifestRequest, nil).String(),
+	)
 }
 
 func Test_getRepoSanitizerRegex(t *testing.T) {
