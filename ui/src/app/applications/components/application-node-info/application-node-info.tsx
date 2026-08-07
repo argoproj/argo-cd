@@ -156,6 +156,13 @@ export const ApplicationNodeInfo = (props: {
             attributes.push({title: 'HOSTNAMES', value: hostNames});
         } else if (props.node.kind === 'ReplicaSet') {
             attributes.push({title: 'REPLICAS', value: `${props.live.spec?.replicas || 0}/${props.live.status?.readyReplicas || 0}/${props.live.status?.replicas || 0}`});
+        } else if (props.node.kind === 'Gateway') {
+            let hostNames = '';
+            const status = props.live.status;
+            if (status && status.addresses) {
+                hostNames = (status.addresses || []).map((item: any) => item.value).join(', ');
+            }
+            attributes.push({title: 'HOSTNAMES', value: hostNames});
         }
     }
 
