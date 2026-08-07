@@ -89,9 +89,11 @@ interface Line {
 }
 
 const NODE_WIDTH = 282;
-const NODE_HEIGHT = 52;
+export const NODE_HEIGHT = 52;
 const POD_NODE_HEIGHT = 136;
-const POD_GROUP_ROW_HEIGHT = 20;
+const POD_GROUP_STATUS_ROW_HEIGHT = 20;
+// Keep in sync with `$pod-size + 2 * $gutter` in `application-resource-tree.scss`.
+const POD_GROUP_POD_ROW_HEIGHT = 31;
 // Keep in sync with `$pods-per-row` in `application-resource-tree.scss`.
 const POD_GROUP_PODS_PER_ROW = 8;
 const FILTERED_INDICATOR_NODE = '__filtered_indicator__';
@@ -112,8 +114,8 @@ function getGraphSize(nodes: dagre.Node[]): {width: number; height: number} {
     let width = 0;
     let height = 0;
     nodes.forEach(node => {
-        width = Math.max(node.x + node.width, width);
-        height = Math.max(node.y + node.height, height);
+        width = Math.max(node.x + node.width / 2, width);
+        height = Math.max(node.y + node.height / 2, height);
     });
     return {width, height};
 }
@@ -265,7 +267,7 @@ function renderFilteredNode(node: {count: number} & dagre.Node, onClearFilter: (
     }
     return (
         <React.Fragment>
-            <div className='application-resource-tree__node' style={{left: node.x, top: node.y, width: node.width, height: node.height}}>
+            <div className='application-resource-tree__node' style={{left: getNodeRenderLeft(node), top: getNodeRenderTop(node), width: node.width, height: node.height}}>
                 <div className='application-resource-tree__node-kind-icon '>
                     <i className='icon fa fa-filter' />
                 </div>
@@ -279,7 +281,7 @@ function renderFilteredNode(node: {count: number} & dagre.Node, onClearFilter: (
                 <div
                     key={i}
                     className='application-resource-tree__node application-resource-tree__filtered-indicator'
-                    style={{left: node.x + i * 2, top: node.y + i * 2, width: node.width, height: node.height}}
+                    style={{left: getNodeRenderLeft(node) + i * 2, top: getNodeRenderTop(node) + i * 2, width: node.width, height: node.height}}
                 />
             ))}
         </React.Fragment>
@@ -294,7 +296,7 @@ function renderGroupedNodes(props: ApplicationResourceTreeProps, node: {count: n
     }
     return (
         <React.Fragment>
-            <div className='application-resource-tree__node' style={{left: node.x, top: node.y, width: node.width, height: node.height}}>
+            <div className='application-resource-tree__node' style={{left: getNodeRenderLeft(node), top: getNodeRenderTop(node), width: node.width, height: node.height}}>
                 <div className='application-resource-tree__node-kind-icon'>
                     <ResourceIcon group={node.group} kind={node.kind} />
                     <br />
@@ -322,7 +324,7 @@ function renderGroupedNodes(props: ApplicationResourceTreeProps, node: {count: n
                 <div
                     key={i}
                     className='application-resource-tree__node application-resource-tree__filtered-indicator'
-                    style={{left: node.x + i * 2, top: node.y + i * 2, width: node.width, height: node.height}}
+                    style={{left: getNodeRenderLeft(node) + i * 2, top: getNodeRenderTop(node) + i * 2, width: node.width, height: node.height}}
                 />
             ))}
         </React.Fragment>
@@ -331,7 +333,7 @@ function renderGroupedNodes(props: ApplicationResourceTreeProps, node: {count: n
 
 function renderTrafficNode(node: dagre.Node) {
     return (
-        <div style={{position: 'absolute', left: 0, top: node.y, width: node.width, height: node.height}}>
+        <div style={{position: 'absolute', left: 0, top: getNodeRenderTop(node), width: node.width, height: node.height}}>
             <div className='application-resource-tree__node-kind-icon' style={{fontSize: '2em'}}>
                 <i className='icon fa fa-cloud' />
             </div>
@@ -344,8 +346,8 @@ function renderLoadBalancerNode(node: dagre.Node & {label: string; color: string
         <div
             className='application-resource-tree__node application-resource-tree__node--load-balancer'
             style={{
-                left: node.x,
-                top: node.y,
+                left: getNodeRenderLeft(node),
+                top: getNodeRenderTop(node),
                 width: node.width,
                 height: node.height
             }}>
@@ -406,24 +408,45 @@ function processPodGroup(targetPodGroup: ResourceTreeNode, child: ResourceTreeNo
     }
 }
 
-function getPodGroupNumberOfRows(pods: models.Pod[], showPodGroupByStatus: boolean) {
-    if (!pods || pods.length === 0) {
-        return 0;
-    }
-    if (showPodGroupByStatus) {
-        const statuses = new Set<string>();
-        for (const pod of pods) {
-            if (!pod) {
-                continue;
-            }
-            const health = pod.health;
-            if (health === 'Healthy' || health === 'Degraded' || health === 'Progressing') {
-                statuses.add(health);
-            }
+// Pods in other health states are not rendered, so they are dropped here.
+function groupPodsByHealth(pods: models.Pod[] | undefined): models.Pod[][] {
+    const healthy: models.Pod[] = [];
+    const degraded: models.Pod[] = [];
+    const progressing: models.Pod[] = [];
+    for (const pod of pods || []) {
+        switch (pod?.health) {
+            case 'Healthy':
+                healthy.push(pod);
+                break;
+            case 'Degraded':
+                degraded.push(pod);
+                break;
+            case 'Progressing':
+                progressing.push(pod);
+                break;
         }
-        return statuses.size;
     }
-    return Math.ceil(pods.length / POD_GROUP_PODS_PER_ROW);
+    return [healthy, degraded, progressing];
+}
+
+// Mirrors what renderPodGroup draws: one container per non-empty health bucket, holding either a
+// single summary row or the bucket's pods at POD_GROUP_PODS_PER_ROW per row.
+export function getPodGroupHeight(pods: models.Pod[] | undefined, showPodGroupByStatus: boolean): number {
+    const buckets = groupPodsByHealth(pods).filter(bucket => bucket.length > 0);
+    if (showPodGroupByStatus) {
+        return POD_NODE_HEIGHT + POD_GROUP_STATUS_ROW_HEIGHT * buckets.length;
+    }
+    const rows = buckets.reduce((total, bucket) => total + Math.ceil(bucket.length / POD_GROUP_PODS_PER_ROW), 0);
+    return POD_NODE_HEIGHT + POD_GROUP_POD_ROW_HEIGHT * rows;
+}
+
+// Dagre reports node positions as box centers; rendering needs the box's top-left corner.
+export function getNodeRenderLeft(node: {x: number; width: number}): number {
+    return node.x - node.width / 2;
+}
+
+export function getNodeRenderTop(node: {y: number; height: number}): number {
+    return node.y - node.height / 2;
 }
 
 function renderPodGroup(
@@ -450,28 +473,10 @@ function renderPodGroup(
         return acc;
     }, []);
     const childCount = nonPodChildren?.length;
-    const podGroup = node.podGroup;
-    const podGroupHealthy = [];
-    const podGroupDegraded = [];
-    const podGroupInProgress = [];
-
-    for (const pod of podGroup?.pods || []) {
-        switch (pod.health) {
-            case 'Healthy':
-                podGroupHealthy.push(pod);
-                break;
-            case 'Degraded':
-                podGroupDegraded.push(pod);
-                break;
-            case 'Progressing':
-                podGroupInProgress.push(pod);
-        }
-    }
+    const [podGroupHealthy, podGroupDegraded, podGroupInProgress] = groupPodsByHealth(node.podGroup?.pods);
 
     // Use Dagre's measured height directly to avoid duplicating sizing logic in the render path.
-    // Dagre assigns node.y as the node center; convert to DOM top-left for rendering.
     const podGroupHeight = node.height;
-    const podGroupTop = node.y - podGroupHeight / 2;
 
     return (
         <div
@@ -482,8 +487,8 @@ function renderPodGroup(
             })}
             title={describeNode(node)}
             style={{
-                left: node.x,
-                top: podGroupTop,
+                left: getNodeRenderLeft(node),
+                top: getNodeRenderTop(node),
                 width: node.width,
                 height: podGroupHeight
             }}>
@@ -816,8 +821,8 @@ function renderResourceNode(props: ApplicationResourceTreeProps, node: ResourceT
             })}
             title={isAppSetParent ? `ApplicationSet: ${node.name}\nThis ApplicationSet generates and manages this Application.` : describeNode(node)}
             style={{
-                left: node.x,
-                top: node.y,
+                left: getNodeRenderLeft(node),
+                top: getNodeRenderTop(node),
                 width: node.width,
                 height: node.height
             }}>
@@ -1002,7 +1007,7 @@ function findNetworkTargets(nodes: ResourceTreeNode[], networkingInfo: models.Re
 }
 export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => {
     const graph = new dagre.graphlib.Graph<{[key: string]: any}>();
-    graph.setGraph({nodesep: 25, rankdir: 'LR', marginy: 45, marginx: -100, ranksep: 80});
+    graph.setGraph({nodesep: 25, rankdir: 'LR', marginy: 71, marginx: 41, ranksep: 80});
     graph.setDefaultEdgeLabel(() => ({}));
     const overridesCount = getAppOverridesCount(props.app);
     const appNode = {
@@ -1331,12 +1336,11 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     }
 
     function setPodGroupNode(node: ResourceTreeNode, root: ResourceTreeNode) {
-        const numberOfRows = getPodGroupNumberOfRows(node.podGroup?.pods, showPodGroupByStatus);
         graph.setNode(treeNodeKey(node), {
             ...node,
             type: NODE_TYPES.podGroup,
             width: NODE_WIDTH,
-            height: POD_NODE_HEIGHT + POD_GROUP_ROW_HEIGHT * numberOfRows,
+            height: getPodGroupHeight(node.podGroup?.pods, showPodGroupByStatus),
             root
         });
     }
@@ -1540,7 +1544,8 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                                         left: xMid - distance / 2,
                                         top: yMid,
                                         backgroundImage: edge.backgroundImage,
-                                        transform: props.useNetworkingHierarchy ? `translate(140px, 35px) rotate(${angle}deg)` : `translate(150px, 35px) rotate(${angle}deg)`
+                                        // 9px = the 10px node margin minus the line's 1px border.
+                                        transform: props.useNetworkingHierarchy ? `translate(-1px, 9px) rotate(${angle}deg)` : `translate(9px, 9px) rotate(${angle}deg)`
                                     }}>
                                     {lastLine && props.useNetworkingHierarchy && <ArrowConnector color={arrowColor} left={xMid + distance / 2} top={yMid} angle={angle} />}
                                 </div>
