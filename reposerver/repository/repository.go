@@ -589,10 +589,22 @@ func resolveReferencedSources(hasMultipleSources bool, source *v1alpha1.Applicat
 	refCandidates := append(source.ValueFiles, refFileParams...)
 
 	for _, valueFile := range refCandidates {
-		if !strings.HasPrefix(valueFile, "$") {
+		var refVar string
+
+		if strings.HasPrefix(valueFile, "$") {
+			candidate := strings.Split(valueFile, "/")[0]
+			if _, ok := refSources[candidate]; ok {
+				refVar = candidate
+			}
+		}
+
+		if refVar == "" {
+			refVar = envRefByValueFile(valueFile, refSources)
+		}
+
+		if refVar == "" {
 			continue
 		}
-		refVar := strings.Split(valueFile, "/")[0]
 
 		refSourceMapping, ok := refSources[refVar]
 		if !ok {
@@ -873,10 +885,25 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 
 				// Checkout every one of the referenced sources to the target revision before generating Manifests
 				for _, valueFile := range refCandidates {
-					if !strings.HasPrefix(valueFile, "$") {
+					var refVar string
+
+					if strings.HasPrefix(valueFile, "$") {
+						candidate := strings.Split(valueFile, "/")[0]
+						// Only use the $ prefix form if it's a known ref key.
+						// Otherwise fall through to envRefByValueFile so that
+						// paths like $ARGOCD_APP_REF_VALUES/... are handled correctly.
+						if _, ok := q.RefSources[candidate]; ok {
+							refVar = candidate
+						}
+					}
+
+					if refVar == "" {
+						refVar = envRefByValueFile(valueFile, q.RefSources)
+					}
+
+					if refVar == "" {
 						continue
 					}
-					refVar := strings.Split(valueFile, "/")[0]
 
 					refSourceMapping, ok := q.RefSources[refVar]
 					if !ok {
@@ -1747,7 +1774,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 
 	resourceTracking := argo.NewResourceTracking()
 
-	env := newEnv(q, revision)
+	env := newEnv(q, revision, gitRepoPaths)
 
 	appSourceType, err := GetAppSourceType(ctx, q.ApplicationSource, appPath, repoRoot, q.AppName, q.EnabledSourceTypes, opt.cmpTarExcludedGlobs, env.Environ())
 	if err != nil {
@@ -1855,10 +1882,53 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 	}, nil
 }
 
-func newEnv(q *apiclient.ManifestRequest, revision string) *v1alpha1.Env {
+func envRefByValueFile(valueFile string, refSources map[string]*v1alpha1.RefTarget) string {
+	for k := range refSources {
+		envVar := "$" + envByRefSourceName(k)
+		// Match only when the env var token is followed by "/" or end-of-string,
+		// to avoid $ARGOCD_APP_REF_VALUES matching $ARGOCD_APP_REF_VALUES_SRC.
+		if strings.Contains(valueFile, envVar+"/") || strings.HasSuffix(valueFile, envVar) {
+			return k
+		}
+	}
+	return ""
+}
+
+var refEnvRe = regexp.MustCompile(`[^A-Za-z0-9]+`)
+
+func envByRefSourceName(refName string) string {
+	return "ARGOCD_APP_REF_" + refEnvRe.ReplaceAllString(strings.ToUpper(strings.TrimPrefix(refName, "$")), "_")
+}
+
+func newRefsEnv(q *apiclient.ManifestRequest, gitRepoPaths utilio.TempPaths) *v1alpha1.Env {
+	var refEnv v1alpha1.Env
+
+	if gitRepoPaths == nil {
+		return &refEnv
+	}
+
+	keys := make([]string, 0, len(q.RefSources))
+	for k := range q.RefSources {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, k := range keys {
+		v := q.RefSources[k]
+		path, err := gitRepoPaths.GetPath(git.NormalizeGitURL(v.Repo.Repo))
+		if err == nil {
+			refEnv = append(refEnv, &v1alpha1.EnvEntry{Name: envByRefSourceName(k), Value: path})
+		}
+	}
+	return &refEnv
+}
+
+func newEnv(q *apiclient.ManifestRequest, revision string, gitRepoPaths utilio.TempPaths) *v1alpha1.Env {
+	refsEnv := newRefsEnv(q, gitRepoPaths)
+
 	shortRevision := shortenRevision(revision, 7)
 	shortRevision8 := shortenRevision(revision, 8)
-	return &v1alpha1.Env{
+	env := v1alpha1.Env{
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAME", Value: q.AppName},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAMESPACE", Value: q.Namespace},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_PROJECT_NAME", Value: q.ProjectName},
@@ -1869,6 +1939,9 @@ func newEnv(q *apiclient.ManifestRequest, revision string) *v1alpha1.Env {
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_PATH", Value: q.ApplicationSource.Path},
 		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_TARGET_REVISION", Value: q.ApplicationSource.TargetRevision},
 	}
+
+	env = append(env, *refsEnv...)
+	return &env
 }
 
 func shortenRevision(revision string, length int) string {
@@ -2669,7 +2742,7 @@ func populateKustomizeAppDetails(res *apiclient.RepoAppDetailsResponse, q *apicl
 		Repo:              q.Repo,
 		ApplicationSource: q.Source,
 	}
-	env := newEnv(&fakeManifestRequest, reversion)
+	env := newEnv(&fakeManifestRequest, reversion, nil)
 	_, images, _, err := k.Build(q.Source.Kustomize, q.KustomizeOptions, env, nil)
 	if err != nil {
 		return err
