@@ -1,4 +1,5 @@
-import {NotificationType, SlidingPanel, Tooltip, SplitButtonAction} from 'argo-ui';
+import {NotificationType, SlidingPanel, Tooltip, SplitButtonAction, DropDownMenu} from 'argo-ui';
+import {Link} from 'react-router-dom';
 import classNames from 'classnames';
 import React, {useState, useEffect, useCallback, useRef, useContext, FC} from 'react';
 import * as ReactDOM from 'react-dom';
@@ -27,7 +28,7 @@ import {AppSetResourceDetails} from '../resource-details/appset-resource-details
 import * as AppUtils from '../utils';
 import {ApplicationResourceList, ApplicationResourceParentRef} from './application-resource-list';
 import {Filters, FiltersProps} from './application-resource-filter';
-import {getAppDefaultSource, getAppCurrentVersion, urlPattern} from '../utils';
+import {getAppDefaultSource, getAppCurrentVersion, urlPattern, getAppParentName, loadAppAncestors} from '../utils';
 import {ChartDetails, OCIMetadata} from '../../../shared/models';
 import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
@@ -79,6 +80,44 @@ export const NodeInfo = (node?: string): {key: string; container: number} => {
 export const SelectNode = (fullName: string, containerIndex = 0, tab: string = null, appContext: ContextApis) => {
     const node = fullName ? `${fullName}/${containerIndex}` : null;
     appContext.navigation.goto('.', {node, tab}, {replace: true});
+};
+
+const AppBreadcrumb = ({app, appName, objectListKind}: {app: appModels.Application; appName: string; objectListKind: string}) => {
+    const ctx = useContext(Context);
+    const directParentName = getAppParentName(app);
+    const appDropdown = <ApplicationsDetailsAppDropdown appName={appName} objectListKind={objectListKind} />;
+    if (!directParentName) return appDropdown;
+    return (
+        <DataLoader
+            input={`${app.metadata.name}/${app.metadata.namespace}`}
+            load={() => loadAppAncestors(app, directParentName)}>
+            {(ancestors: Array<{name: string; namespace: string}>) => {
+                const chain = ancestors.filter(a => a.name !== app.metadata.name);
+                if (chain.length === 0) return appDropdown;
+                const directParent = chain[chain.length - 1];
+                const higher = chain.slice(0, chain.length - 1);
+                return (
+                    <span style={{display: 'inline-flex', alignItems: 'center', gap: '4px'}}>
+                        {higher.length > 0 && (
+                            <React.Fragment>
+                                <DropDownMenu
+                                    anchor={() => <a style={{cursor: 'pointer'}}>+{higher.length}</a>}
+                                    items={higher.map(a => ({
+                                        title: a.name,
+                                        action: () => ctx.navigation.goto(`/applications/${a.namespace}/${a.name}`)
+                                    }))}
+                                />
+                                <span style={{opacity: 0.5}}>›</span>
+                            </React.Fragment>
+                        )}
+                        <Link to={`/applications/${directParent.namespace}/${directParent.name}`}>{directParent.name}</Link>
+                        <span className='top-bar__sep' />
+                        {appDropdown}
+                    </span>
+                );
+            }}
+        </DataLoader>
+    );
 };
 
 export const ApplicationDetails: FC<RouteComponentProps<{appnamespace: string; name: string}> & {objectListKind: string}> = props => {
@@ -908,7 +947,11 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                     title: isApplication ? 'Applications' : 'ApplicationSets',
                                                     path: isApplication ? '/applications' : '/applicationsets'
                                                 },
-                                                {title: <ApplicationsDetailsAppDropdown appName={props.match.params.name} objectListKind={objectListKind} />}
+                                                {
+                                                    title: isApplication
+                                                        ? <AppBreadcrumb app={application as appModels.Application} appName={props.match.params.name} objectListKind={objectListKind} />
+                                                        : <ApplicationsDetailsAppDropdown appName={props.match.params.name} objectListKind={objectListKind} />
+                                                }
                                             ],
                                             actionMenu: {
                                                 items: isApplication
