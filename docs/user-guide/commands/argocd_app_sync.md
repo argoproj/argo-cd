@@ -53,6 +53,7 @@ argocd app sync [APPNAME... | -l selector | --project project-name] [flags]
       --info stringArray                                  A list of key-value pairs during sync process. These infos will be persisted in app.
       --label stringArray                                 Sync only specific resources with a label. This option may be specified repeatedly.
       --local string                                      Path to a local directory. When this flag is present no git queries will be made
+      --local-include stringArray                         Used with --server-side-generate, specify patterns of filenames to send. Matching is based on filename and not path. (default [*.yaml,*.yml,*.json])
       --local-repo-root string                            Path to the repository root. Used together with --local allows setting the repository root (default "/")
   -o, --output string                                     Output format. One of: json|yaml|wide|tree|tree=detailed (default "wide")
       --preview-changes                                   Preview difference against the target and live state before syncing app and wait for user confirmation
@@ -71,6 +72,7 @@ argocd app sync [APPNAME... | -l selector | --project project-name] [flags]
       --server-side                                       Use server-side apply while syncing the application
       --server-side-diff-concurrency int                  Max concurrent batches for server-side diff. -1 = unlimited, 1 = sequential, 2+ = concurrent (0 = invalid) (default -1)
       --server-side-diff-max-batch-kb int                 Max batch size in KB for server-side diff. Smaller values are safer for proxies (default 250)
+      --server-side-generate                              Used with --local, this will send your manifests to the server for manifest generation
       --source-names stringArray                          List of source names. Default is an empty array.
       --source-positions int64Slice                       List of source positions. Default is empty array. Counting start at 1. (default [])
       --strategy string                                   Sync strategy (one of: apply|hook)
