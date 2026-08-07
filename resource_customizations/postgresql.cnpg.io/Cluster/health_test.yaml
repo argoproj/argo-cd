@@ -23,3 +23,7 @@ tests:
     status: Progressing
     message: "Waiting for the CloudNativePG operator to report cluster status"
   inputPath: testdata/cluster_no_status.yaml
+- healthStatus:
+    status: Progressing
+    message: "Setting up primary"
+  inputPath: testdata/cluster_phase_no_conditions.yaml

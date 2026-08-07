@@ -65,5 +65,5 @@ if obj.status ~= nil and obj.status.conditions ~= nil then
 end
 
 hs.status = "Progressing"
-hs.message = (obj.status ~= nil) and obj.status.phaseReason or "Waiting for the CloudNativePG operator to report cluster status"
+hs.message = (obj.status ~= nil) and (obj.status.phase or obj.status.phaseReason) or "Waiting for the CloudNativePG operator to report cluster status"
 return hs
