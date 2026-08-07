@@ -2244,10 +2244,12 @@ func checkResourceStatus(watch watchOpts, healthStatus string, syncStatus string
 		return false
 	}
 
+	hasHealthCheck := healthStatus != ""
 	healthBeingChecked := watch.suspended || watch.health || watch.degraded
 	healthCheckPassed := true
 
-	if healthBeingChecked {
+	// If resource does not have health status, we default to healthy.
+	if healthBeingChecked && hasHealthCheck {
 		healthCheckPassed = false
 		if watch.health {
 			healthCheckPassed = healthCheckPassed || healthStatus == string(health.HealthStatusHealthy)
