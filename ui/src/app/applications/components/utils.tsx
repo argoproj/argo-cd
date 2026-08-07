@@ -73,6 +73,20 @@ export function helpTip(text: string) {
     );
 }
 
+/**
+ * Builds the class list for the Application (and ApplicationSet) details container.
+ *
+ * The per-application class is a styling hook that lets operators target a specific
+ * application's page from custom CSS (see docs/operator-manual/custom-styles.md, added in #13279).
+ * It is prefixed with `user-app-` so that an application whose name matches a built-in component
+ * class cannot collide with that component's styles. For example, an application named `login`
+ * previously rendered the class `application-details login`, which pulled in the login page's
+ * `.login` styles and broke the page (issue #24220).
+ */
+export function getApplicationDetailsContainerClass(appName: string): string {
+    return `application-details user-app-${appName}`;
+}
+
 //CLassic Solid circle-notch icon
 //<!--!Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2025 Fonticons, Inc.-->
 //this will replace all <i> fa-spin </i> icons as they are currently misbehaving with no fix available.
