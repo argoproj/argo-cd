@@ -1,0 +1,14 @@
+apiVersion: eventing.knative.dev/v1
+kind: Trigger
+metadata:
+  name: my-service-trigger
+  namespace: events
+spec:
+  broker: default
+status:
+  conditions:
+  - type: BrokerReady
+    status: Unknown
+  - type: Ready
+    status: Unknown
+    reason: BrokerNotReady
