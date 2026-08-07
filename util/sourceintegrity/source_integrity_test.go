@@ -119,12 +119,62 @@ func TestNullOrEmptyDoesNothing(t *testing.T) {
 	}
 }
 
+func TestRepoURLCaseInsensitivePolicyMatching(t *testing.T) {
+	si := func(url string) *v1alpha1.SourceIntegrityGit {
+		return &v1alpha1.SourceIntegrityGit{Policies: []*v1alpha1.SourceIntegrityGitPolicy{{
+			Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{{URL: url}},
+			GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
+				Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeStrict,
+				Keys: []string{"SOME_KEY_ID"},
+			},
+		}}}
+	}
+
+	caseSensitive, _ := findMatchingGitPolicies(
+		si("https://github.com/myorg/*"),
+		"https://github.com/myorg/myrepo",
+	)
+	assert.Len(t, caseSensitive, 1)
+
+	caseInsensitive, normalizedRepoURL := findMatchingGitPolicies(
+		si("https://github.com/myorg/*"),
+		"https://GitHub.com/myorg/myrepo",
+	)
+	assert.Len(t, caseInsensitive, 1)
+	assert.Equal(t, "https://github.com/myorg/myrepo", normalizedRepoURL)
+
+	negative, normalizedRepoURL := findMatchingGitPolicies(
+		si("https://github.com/myorg/foo.git"),
+		"https://github.com/other-org/repo.git",
+	)
+	assert.Empty(t, negative)
+	assert.Equal(t, "https://github.com/other-org/repo", normalizedRepoURL)
+
+	matchAll, _ := findMatchingGitPolicies(
+		si("*"),
+		"https://github.com/myorg/myrepo",
+	)
+	assert.Len(t, matchAll, 1)
+
+	matchNone, _ := findMatchingGitPolicies(
+		si("!https://github.com/*"),
+		"https://github.com/myorg/myrepo",
+	)
+	assert.Empty(t, matchNone)
+
+	middle, _ := findMatchingGitPolicies(
+		si("https://*"),
+		"https://github.com/myorg/myrepo",
+	)
+	assert.Len(t, middle, 1)
+}
+
 func TestPolicyMatching(t *testing.T) {
 	group := &v1alpha1.SourceIntegrityGitPolicy{
 		Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{
 			{URL: "https://github.com/group/*"},
-			{URL: "!https://github.com/group/*-legacy.git"},
-			{URL: "!https://github.com/group/*-critical.git"},
+			{URL: "!https://github.com/group/*-legacy"},
+			{URL: "!https://github.com/group/*-critical"},
 		},
 		GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
 			Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead,
@@ -132,7 +182,7 @@ func TestPolicyMatching(t *testing.T) {
 	}
 	legacy := &v1alpha1.SourceIntegrityGitPolicy{
 		Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{
-			{URL: "https://github.com/group/*-legacy.git"},
+			{URL: "https://github.com/group/*-legacy"},
 		},
 		GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
 			Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeNone,
@@ -140,7 +190,7 @@ func TestPolicyMatching(t *testing.T) {
 	}
 	critical := &v1alpha1.SourceIntegrityGitPolicy{
 		Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{
-			{URL: "https://github.com/group/*-critical.git"},
+			{URL: "https://github.com/group/*-critical"},
 		},
 		GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
 			Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeStrict,
@@ -149,14 +199,22 @@ func TestPolicyMatching(t *testing.T) {
 	// collides with group
 	duplicated := &v1alpha1.SourceIntegrityGitPolicy{
 		Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{
-			{URL: "https://github.com/group/duplicated.git"},
+			{URL: "https://github.com/group/duplicated"},
+		},
+		GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
+			Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead,
+		},
+	}
+	ssh := &v1alpha1.SourceIntegrityGitPolicy{
+		Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{
+			{URL: "git@github.com/group/ssh"},
 		},
 		GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
 			Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead,
 		},
 	}
 	sig := &v1alpha1.SourceIntegrityGit{
-		Policies: []*v1alpha1.SourceIntegrityGitPolicy{group, legacy, critical, duplicated},
+		Policies: []*v1alpha1.SourceIntegrityGitPolicy{group, legacy, critical, duplicated, ssh},
 	}
 
 	p := func(ps ...*v1alpha1.SourceIntegrityGitPolicy) []*v1alpha1.SourceIntegrityGitPolicy { return ps }
@@ -167,8 +225,18 @@ func TestPolicyMatching(t *testing.T) {
 		expectedNoFunc   bool
 	}{
 		{
-			repo:             "https://github.com/group/head.git",
+			repo:             "https://github.com/group/head",
 			expectedPolicies: p(group),
+			expectedLogs:     []string{},
+		},
+		{ // Case-insensitive matching
+			repo:             "https://GitHub.com/group/head.git",
+			expectedPolicies: p(group),
+			expectedLogs:     []string{},
+		},
+		{ // URL normalized
+			repo:             "git@github.com:group/ssh.git",
+			expectedPolicies: p(ssh),
 			expectedLogs:     []string{},
 		},
 		{
@@ -185,19 +253,19 @@ func TestPolicyMatching(t *testing.T) {
 		{
 			repo:             "https://github.com/group/duplicated.git",
 			expectedPolicies: p(group, duplicated),
-			expectedLogs:     []string{"multiple (2) git source integrity policies found for repo URL: https://github.com/group/duplicated.git"},
+			expectedLogs:     []string{"multiple (2) git source integrity policies found for repo URL: https://github.com/group/duplicated"},
 		},
 		{
 			repo:             "https://gitlab.com/foo/bar.git",
 			expectedPolicies: p(),
-			expectedLogs:     []string{"No git source integrity policies found for repo URL: https://gitlab.com/foo/bar.git"},
+			expectedLogs:     []string{"No git source integrity policies found for repo URL: https://gitlab.com/foo/bar"},
 			expectedNoFunc:   true,
 		},
 	}
 
 	for _, tt := range testCases {
 		t.Run(tt.repo, func(t *testing.T) {
-			actual := findMatchingGitPolicies(sig, tt.repo)
+			actual, _ := findMatchingGitPolicies(sig, tt.repo)
 
 			assert.Equal(t, tt.expectedPolicies, actual)
 
