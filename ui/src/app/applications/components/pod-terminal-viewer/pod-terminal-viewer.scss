@@ -1,3 +1,5 @@
+@import 'node_modules/argo-ui/src/styles/config';
+
 .pod-terminal-viewer {
     height: 780px;
 
@@ -42,6 +44,21 @@
             background-color: #fff;
             border-color: #fff;
             color: #191826;
+        }
+    }
+}
+
+.theme-dark {
+    .pod-terminal-viewer__tab {
+        &:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+    }
+    .pod-terminal-viewer__container {
+        .tooltip {
+            background-color: $dark-theme-background-2;
+            border-color: $dark-theme-background-2;
+            color: #fff;
         }
     }
 }
