@@ -86,6 +86,8 @@ func NewCommand() *cobra.Command {
 		otlpInsecure                     bool
 		otlpHeaders                      map[string]string
 		otlpAttrs                        []string
+		otlpMetricsEnabled               bool
+		otlpMetricsInterval              time.Duration
 		otlpSampleRatio                  float64
 		applicationNamespaces            []string
 		persistResourceHealth            bool
@@ -235,6 +237,16 @@ func NewCommand() *cobra.Command {
 					log.Fatalf("failed to initialize tracing: %v", err)
 				}
 				defer closeTracer()
+
+				if otlpMetricsEnabled {
+					closeMeter, err := trace.InitMeter(ctx, "argocd-controller", otlpAddress, otlpInsecure, otlpHeaders, otlpAttrs, otlpMetricsInterval, appController.GetMetricsServer().Gatherers()...)
+					if err != nil {
+						log.Fatalf("failed to initialize metrics: %v", err)
+					}
+					defer closeMeter()
+				}
+			} else if otlpMetricsEnabled {
+				log.Warn("--otlp-metrics-enabled is set but --otlp-address is empty, no metrics will be pushed")
 			}
 
 			// Graceful shutdown code
@@ -290,6 +302,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&otlpInsecure, "otlp-insecure", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_OTLP_INSECURE", true), "OpenTelemetry collector insecure mode")
 	command.Flags().StringToStringVar(&otlpHeaders, "otlp-headers", env.ParseStringToStringFromEnv("ARGOCD_APPLICATION_CONTROLLER_OTLP_HEADERS", map[string]string{}, ","), "List of OpenTelemetry collector extra headers sent with traces, headers are comma-separated key-value pairs(e.g. key1=value1,key2=value2)")
 	command.Flags().StringSliceVar(&otlpAttrs, "otlp-attrs", env.StringsFromEnv("ARGOCD_APPLICATION_CONTROLLER_OTLP_ATTRS", []string{}, ","), "List of OpenTelemetry collector extra attrs when send traces, each attribute is separated by a colon(e.g. key:value)")
+	command.Flags().BoolVar(&otlpMetricsEnabled, "otlp-metrics-enabled", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_OTLP_METRICS_ENABLED", false), "Push the Prometheus metrics to the OpenTelemetry collector at --otlp-address")
+	command.Flags().DurationVar(&otlpMetricsInterval, "otlp-metrics-interval", env.ParseDurationFromEnv("ARGOCD_APPLICATION_CONTROLLER_OTLP_METRICS_INTERVAL", 30*time.Second, time.Second, math.MaxInt64), "Interval at which Prometheus metrics are pushed to the OpenTelemetry collector")
 	cli.BoundedFloat64Var(command.Flags(), &otlpSampleRatio, "otlp-sample-ratio", env.ParseFloat64FromEnv("ARGOCD_APPLICATION_CONTROLLER_OTLP_SAMPLE_RATIO", 1.0, 0.0, 1.0), 0.0, 1.0, "Fraction of traces to sample, from 0.0 (none) to 1.0 (all). Parent-based, so downstream services honor the upstream sampling decision")
 	command.Flags().StringSliceVar(&applicationNamespaces, "application-namespaces", env.StringsFromEnv("ARGOCD_APPLICATION_NAMESPACES", []string{}, ","), "List of additional namespaces that applications are allowed to be reconciled from")
 	command.Flags().BoolVar(&persistResourceHealth, "persist-resource-health", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_PERSIST_RESOURCE_HEALTH", false), "Enables storing the managed resources health in the Application CRD")
