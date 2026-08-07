@@ -183,3 +183,13 @@ func SetEventProcessingInterval(interval time.Duration) UpdateSettingsFunc {
 		cache.eventProcessingInterval = interval
 	}
 }
+
+// SetManagedIndexKeyFn sets a function mapping a cached Resource to a grouping
+// key (e.g. the owning application name). When set, the cluster cache maintains
+// an index from key -> resources so callers can retrieve an app's resources via
+// GetManagedLiveObjsForKey without scanning the whole cache. Return "" to skip.
+func SetManagedIndexKeyFn(fn func(r *Resource) string) UpdateSettingsFunc {
+	return func(cache *clusterCache) {
+		cache.managedIndexKeyFn = fn
+	}
+}
