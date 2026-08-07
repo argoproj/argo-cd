@@ -188,23 +188,23 @@ type ArgoCDServer struct {
 	ArgoCDServerOpts
 	ApplicationSetOpts
 
-	ssoClientApp    *oidc.ClientApp
-	settings        *settings_util.ArgoCDSettings
-	log             *log.Entry
-	sessionMgr      *util_session.SessionManager
-	settingsMgr     *settings_util.SettingsManager
-	enf             *rbac.Enforcer
-	projInformer    cache.SharedIndexInformer
-	projLister      applisters.AppProjectNamespaceLister
+	ssoClientApp       *oidc.ClientApp
+	settings           *settings_util.ArgoCDSettings
+	log                *log.Entry
+	sessionMgr         *util_session.SessionManager
+	settingsMgr        *settings_util.SettingsManager
+	enf                *rbac.Enforcer
+	projInformer       cache.SharedIndexInformer
+	projLister         applisters.AppProjectNamespaceLister
 	syncWindowInformer cache.SharedIndexInformer
 	syncWindowLister   applisters.SyncWindowResourceLister
-	policyEnforcer  *rbacpolicy.RBACPolicyEnforcer
-	clusterInformer *settings_util.ClusterInformer
-	appInformer     cache.SharedIndexInformer
-	appLister       applisters.ApplicationLister
-	appsetInformer  cache.SharedIndexInformer
-	appsetLister    applisters.ApplicationSetLister
-	db              db.ArgoDB
+	policyEnforcer     *rbacpolicy.RBACPolicyEnforcer
+	clusterInformer    *settings_util.ClusterInformer
+	appInformer        cache.SharedIndexInformer
+	appLister          applisters.ApplicationLister
+	appsetInformer     cache.SharedIndexInformer
+	appsetLister       applisters.ApplicationSetLister
+	db                 db.ArgoDB
 
 	// stopCh is the channel which when closed, will shutdown the Argo CD server
 	stopCh             chan os.Signal
