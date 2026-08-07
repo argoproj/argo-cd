@@ -14,9 +14,10 @@ import (
 )
 
 var (
-	descAppsetLabels        *prometheus.Desc
-	descAppsetDefaultLabels = []string{"namespace", "name"}
-	descAppsetInfo          = prometheus.NewDesc(
+	descAppsetLabels          *prometheus.Desc
+	descAppsetDefaultLabels   = []string{"namespace", "name"}
+	progressiveSyncStepLabels = []string{"namespace", "name", "step", "progressiveStatus"}
+	descAppsetInfo            = prometheus.NewDesc(
 		"argocd_appset_info",
 		"Information about applicationset",
 		append(descAppsetDefaultLabels, "resource_update_status"),
@@ -31,8 +32,23 @@ var (
 	)
 )
 
+// Counters
+var ()
+
+// Gauge
+var (
+	progressiveSyncAppStatusGauge = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "argocd_appset_progressive_sync_app_status",
+		Help: "Count of apps per status (Waiting/Pending/Progressing/Healthy) per step",
+	}, progressiveSyncStepLabels)
+)
+
+// Histograms
+var ()
+
 type ApplicationsetMetrics struct {
-	reconcileHistogram *prometheus.HistogramVec
+	reconcileHistogram            *prometheus.HistogramVec
+	progressiveSyncAppStatusGauge *prometheus.GaugeVec
 }
 
 type appsetCollector struct {
@@ -56,13 +72,15 @@ func NewApplicationsetMetrics(appsetLister applisters.ApplicationSetLister, apps
 
 	// Register collectors and metrics
 	metrics.Registry.MustRegister(reconcileHistogram)
+	metrics.Registry.MustRegister(progressiveSyncAppStatusGauge)
 	metrics.Registry.MustRegister(appsetCollector)
 
 	kubectl.RegisterWithClientGo()
 	kubectl.RegisterWithPrometheus(metrics.Registry)
 
 	return ApplicationsetMetrics{
-		reconcileHistogram: reconcileHistogram,
+		reconcileHistogram:            reconcileHistogram,
+		progressiveSyncAppStatusGauge: progressiveSyncAppStatusGauge,
 	}
 }
 
