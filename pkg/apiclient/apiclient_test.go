@@ -11,11 +11,12 @@ import (
 	"testing"
 	"time"
 
-	settingspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/settings"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+
+	settingspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/settings"
 )
 
 func Test_parseHeaders(t *testing.T) {
@@ -304,7 +305,7 @@ func TestOIDCConfig_DisableOfflineAccessScopeInjection(t *testing.T) {
 			var issuerURL string
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
-				discoveryDoc := map[string]interface{}{
+				discoveryDoc := map[string]any{
 					"issuer":                 issuerURL,
 					"authorization_endpoint": issuerURL + "/auth",
 					"token_endpoint":         issuerURL + "/token",
