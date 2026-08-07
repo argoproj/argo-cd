@@ -54,7 +54,19 @@ spec:
       name: dnsendpoints.externaldns.k8s.io
 ```
 
-Empty fields in the selector act as wildcards (e.g., specifying only `kind` will match all resources of that kind).
+Each entry requires `kind`. The `group`, `name`, and `namespace` fields are optional and act as wildcards when omitted.
+For example, to suppress warnings for **all** duplicate CRDs regardless of name:
+
+```yaml
+spec:
+  ignoreDuplicateResources:
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+```
+
+> [!WARNING]
+> Omitting `name` and `namespace` matches **all** resources of the given kind and group across the entire application.
+> Be as specific as possible to avoid accidentally suppressing warnings for unintentional duplicates.
 
 ## Helm value files from external Git repository
 

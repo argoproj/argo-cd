@@ -210,14 +210,4 @@ data:
 
 ## Suppressing RepeatedResourceWarning
 
-When multiple sources produce the same resource, Argo CD correctly deduplicates the resource but emits a `RepeatedResourceWarning`. If the duplication is intentional (for example, CRDs from Helm subchart dependencies), you can suppress this warning using `ignoreDuplicateResources`:
-
-```yaml
-spec:
-  ignoreDuplicateResources:
-    - group: apiextensions.k8s.io
-      kind: CustomResourceDefinition
-      name: dnsendpoints.externaldns.k8s.io
-```
-
-Each entry supports `group`, `kind`, `name`, and `namespace` fields. Empty fields act as wildcards — specifying only `kind` suppresses warnings for all resources of that kind.
+When multiple sources produce the same resource, Argo CD correctly deduplicates the resource but emits a `RepeatedResourceWarning`. If the duplication is intentional (for example, CRDs from Helm subchart dependencies), you can suppress this warning for specific resources using `spec.ignoreDuplicateResources`. See [multiple sources](../user-guide/multiple_sources.md) for details and examples.
