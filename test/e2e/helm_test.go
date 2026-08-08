@@ -86,7 +86,7 @@ func TestDeclarativeHelmInvalidValuesFile(t *testing.T) {
 		Then().
 		Expect(HealthIs(health.HealthStatusHealthy)).
 		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
-		Expect(Condition(ApplicationConditionComparisonError, "does-not-exist-values.yaml: no such file or directory"))
+		Expect(Condition(ApplicationConditionComparisonError, "value file does-not-exist-values.yaml does not exist"))
 }
 
 func TestHelmRepo(t *testing.T) {
@@ -153,7 +153,7 @@ func TestHelmIgnoreMissingValueFiles(t *testing.T) {
 		IgnoreErrors().
 		Sync().
 		Then().
-		Expect(ErrorRegex("Error: open .*does-not-exist-values.yaml: no such file or directory", ""))
+		Expect(ErrorRegex("value file does-not-exist-values.yaml does not exist", ""))
 }
 
 // TestHelmGlobValueFiles verifies that a glob pattern in valueFiles expands to all matching
