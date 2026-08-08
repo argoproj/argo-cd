@@ -26,7 +26,7 @@ import (
 	sessionpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
 	settingspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/settings"
 	"github.com/argoproj/argo-cd/v3/util/cli"
-	"github.com/argoproj/argo-cd/v3/util/errors"
+	errutil "github.com/argoproj/argo-cd/v3/util/errors"
 	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/localconfig"
@@ -80,7 +80,10 @@ argocd login cd.argoproj.io --core`,
 				if !skipTestTLS {
 					dialTime := 30 * time.Second
 					tlsTestResult, err := grpc_util.TestTLS(server, dialTime)
-					errors.CheckError(err)
+					if err != nil {
+						log.Warn(getTLSTestHint(clientOpts.GRPCWeb))
+						errutil.CheckError(fmt.Errorf("failed to determine whether server uses TLS: %w", err))
+					}
 					if !tlsTestResult.TLS {
 						if !clientOpts.PlainText {
 							if !cli.AskToProceed("WARNING: server is not configured with TLS. Proceed (y/n)? ") {
@@ -133,24 +136,24 @@ argocd login cd.argoproj.io --core`,
 					tokenString = passwordLogin(ctx, acdClient, username, password)
 				} else {
 					httpClient, err := acdClient.HTTPClient()
-					errors.CheckError(err)
+					errutil.CheckError(err)
 					ctx = oidc.ClientContext(ctx, httpClient)
 					acdSet, err := setIf.Get(ctx, &settingspkg.SettingsQuery{})
-					errors.CheckError(err)
+					errutil.CheckError(err)
 					oauth2conf, provider, err := acdClient.OIDCConfig(ctx, acdSet)
-					errors.CheckError(err)
+					errutil.CheckError(err)
 					tokenString, refreshToken = oauth2Login(ctx, callback, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider, ssoLaunchBrowser)
 				}
 				parser := jwt.NewParser(jwt.WithoutClaimsValidation())
 				claims := jwt.MapClaims{}
 				_, _, err := parser.ParseUnverified(tokenString, &claims)
-				errors.CheckError(err)
+				errutil.CheckError(err)
 				fmt.Printf("'%s' logged in successfully\n", userDisplayName(claims))
 			}
 
 			// login successful. Persist the config
 			localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
-			errors.CheckError(err)
+			errutil.CheckError(err)
 			if localCfg == nil {
 				localCfg = &localconfig.LocalConfig{}
 			}
@@ -177,7 +180,7 @@ argocd login cd.argoproj.io --core`,
 				Server: server,
 			})
 			err = localconfig.WriteLocalConfig(*localCfg, clientOpts.ConfigPath)
-			errors.CheckError(err)
+			errutil.CheckError(err)
 			fmt.Printf("Context '%s' updated\n", ctxName)
 		},
 	}
@@ -220,7 +223,7 @@ func oauth2Login(
 
 	oauth2conf.RedirectURL = redirectBase + "/auth/callback"
 	oidcConf, err := oidcutil.ParseConfig(provider)
-	errors.CheckError(err)
+	errutil.CheckError(err)
 	log.Debug("OIDC Configuration:")
 	log.Debugf("  supported_scopes: %v", oidcConf.ScopesSupported)
 	log.Debugf("  response_types_supported: %v", oidcConf.ResponseTypesSupported)
@@ -233,7 +236,7 @@ func oauth2Login(
 	// According to the spec (https://www.rfc-editor.org/rfc/rfc6749#section-10.10), this must be guessable with
 	// probability <= 2^(-128). The following call generates one of 52^24 random strings, ~= 2^136 possibilities.
 	stateNonce, err := rand.String(24)
-	errors.CheckError(err)
+	errutil.CheckError(err)
 	var tokenString string
 	var refreshToken string
 
@@ -247,7 +250,7 @@ func oauth2Login(
 		43,
 		"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~",
 	)
-	errors.CheckError(err)
+	errutil.CheckError(err)
 	codeChallengeHash := sha256.Sum256([]byte(codeVerifier))
 	codeChallenge := base64.RawURLEncoding.EncodeToString(codeChallengeHash[:])
 
@@ -334,7 +337,7 @@ func oauth2Login(
 		url = oauth2conf.AuthCodeURL(stateNonce, opts...)
 	case oidcutil.GrantTypeImplicit:
 		url, err = oidcutil.ImplicitFlowURL(oauth2conf, stateNonce, opts...)
-		errors.CheckError(err)
+		errutil.CheckError(err)
 	default:
 		log.Fatalf("Unsupported grant type: %v", grantType)
 	}
@@ -369,7 +372,7 @@ func passwordLogin(ctx context.Context, acdClient argocdclient.Client, username,
 		Password: password,
 	}
 	createdSession, err := sessionIf.Create(ctx, &sessionRequest)
-	errors.CheckError(err)
+	errutil.CheckError(err)
 	return createdSession.Token
 }
 
@@ -377,8 +380,16 @@ func ssoAuthFlow(url string, ssoLaunchBrowser bool) {
 	if ssoLaunchBrowser {
 		fmt.Print("Opening system default browser for authentication\n")
 		err := open.Start(url)
-		errors.CheckError(err)
+		errutil.CheckError(err)
 	} else {
 		fmt.Printf("To authenticate, copy-and-paste the following URL into your preferred browser: %s\n", url)
 	}
+}
+
+func getTLSTestHint(grpcWeb bool) string {
+	hint := "If the server is behind a reverse proxy that does not accept native gRPC probes, try --skip-test-tls."
+	if !grpcWeb {
+		hint += " If the proxy requires gRPC-Web, also use --grpc-web."
+	}
+	return hint
 }
