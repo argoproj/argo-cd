@@ -20,6 +20,8 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
+func int64ptr(v int64) *int64 { return &v }
+
 func TestSecretsRepositoryBackend_CreateRepository(t *testing.T) {
 	t.Parallel()
 
@@ -937,6 +939,7 @@ func TestRepoCredsToSecret(t *testing.T) {
 		GithubAppId:                123,
 		GithubAppInstallationId:    456,
 		GitHubAppEnterpriseBaseURL: "GitHubAppEnterpriseBaseURL",
+		Depth:                      int64ptr(1),
 	}
 	s = testee.repoCredsToSecret(creds, s)
 	assert.Equal(t, []byte(creds.URL), s.Data["url"])
@@ -953,6 +956,7 @@ func TestRepoCredsToSecret(t *testing.T) {
 	assert.Equal(t, []byte(creds.GitHubAppEnterpriseBaseURL), s.Data["githubAppEnterpriseBaseUrl"])
 	assert.Equal(t, map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD}, s.Annotations)
 	assert.Equal(t, map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds}, s.Labels)
+	assert.Equal(t, []byte(strconv.FormatInt(*creds.Depth, 10)), s.Data["depth"])
 }
 
 func TestRepoWriteCredsToSecret(t *testing.T) {
@@ -997,6 +1001,55 @@ func TestRepoWriteCredsToSecret(t *testing.T) {
 	assert.Equal(t, map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepoCredsWrite}, s.Labels)
 }
 
+func TestSecretToRepoCreds(t *testing.T) {
+	sharedSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      RepoURLToSecretName(repoSecretPrefix, "git@github.com:argoproj/argo-cd.git", ""),
+			Namespace: testNamespace,
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds,
+			},
+		},
+		Data: map[string][]byte{
+			"url":      []byte("git@github.com:argoproj/argo-cd.git"),
+			"username": []byte("test-user"),
+			"password": []byte("test-pass"),
+			"depth":    []byte("1"),
+		},
+	}
+
+	sharedSecretWithIncorrectDepth := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      RepoURLToSecretName(repoSecretPrefix, "git@github.com:argoproj/argo-cd.git", ""),
+			Namespace: testNamespace,
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeRepoCreds,
+			},
+		},
+		Data: map[string][]byte{
+			"url":      []byte("git@github.com:argoproj/argo-cd.git"),
+			"username": []byte("test-user"),
+			"password": []byte("test-pass"),
+			"depth":    []byte("1s"),
+		},
+	}
+
+	backend := &secretsRepositoryBackend{}
+
+	_, err := backend.secretToRepoCred(sharedSecretWithIncorrectDepth)
+	require.Error(t, err)
+
+	creds, err := backend.secretToRepoCred(sharedSecret)
+	require.NoError(t, err)
+	ecreds := &appsv1.RepoCreds{
+		URL:      "git@github.com:argoproj/argo-cd.git",
+		Username: "test-user",
+		Password: "test-pass",
+		Depth:    int64ptr(1),
+	}
+	assert.Equal(t, ecreds, creds)
+}
+
 func TestRaceConditionInRepoCredsOperations(t *testing.T) {
 	// Create a single shared secret that will be accessed concurrently
 	sharedSecret := &corev1.Secret{
@@ -1011,6 +1064,7 @@ func TestRaceConditionInRepoCredsOperations(t *testing.T) {
 			"url":      []byte("git@github.com:argoproj/argo-cd.git"),
 			"username": []byte("test-user"),
 			"password": []byte("test-pass"),
+			"depth":    []byte("1"),
 		},
 	}
 
@@ -1019,6 +1073,7 @@ func TestRaceConditionInRepoCredsOperations(t *testing.T) {
 		URL:      "git@github.com:argoproj/argo-cd.git",
 		Username: "test-user",
 		Password: "test-pass",
+		Depth:    int64ptr(1),
 	}
 
 	backend := &secretsRepositoryBackend{}
@@ -1237,7 +1292,7 @@ func TestRepositoryToSecret(t *testing.T) {
 		GCPServiceAccountKey:             "GCPServiceAccountKey",
 		ForceHttpBasicAuth:               true,
 		UseAzureWorkloadIdentity:         true,
-		Depth:                            1,
+		Depth:                            int64ptr(1),
 		WebhookManifestCacheWarmDisabled: true,
 	}
 	s = testee.repositoryToSecret(repo, s)
@@ -1264,7 +1319,7 @@ func TestRepositoryToSecret(t *testing.T) {
 	assert.Equal(t, []byte(repo.GCPServiceAccountKey), s.Data["gcpServiceAccountKey"])
 	assert.Equal(t, []byte(strconv.FormatBool(repo.ForceHttpBasicAuth)), s.Data["forceHttpBasicAuth"])
 	assert.Equal(t, []byte(strconv.FormatBool(repo.UseAzureWorkloadIdentity)), s.Data["useAzureWorkloadIdentity"])
-	assert.Equal(t, []byte(strconv.FormatInt(repo.Depth, 10)), s.Data["depth"])
+	assert.Equal(t, []byte(strconv.FormatInt(*repo.Depth, 10)), s.Data["depth"])
 	assert.Equal(t, []byte(strconv.FormatBool(repo.WebhookManifestCacheWarmDisabled)), s.Data["webhookManifestCacheWarmDisabled"])
 	assert.Equal(t, map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD}, s.Annotations)
 	assert.Equal(t, map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository}, s.Labels)

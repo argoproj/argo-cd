@@ -95,6 +95,19 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 		Use:     "add REPOURL",
 		Short:   "Add git repository connection parameters",
 		Example: repocredsAddExamples,
+		PreRunE: func(cmd *cobra.Command, _ []string) error {
+			if cmd.Flags().Changed("depth") {
+				d, err := cmd.Flags().GetInt64("depth")
+				if err != nil {
+					return err
+				}
+				if d < 0 {
+					return fmt.Errorf("--depth must be >= 0, got %d", d)
+				}
+				repo.Depth = &d
+			}
+			return nil
+		},
 		Run: func(c *cobra.Command, args []string) {
 			ctx := c.Context()
 
@@ -211,6 +224,7 @@ func NewRepoCredsAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comma
 	command.Flags().BoolVar(&repo.ForceHttpBasicAuth, "force-http-basic-auth", false, "whether to force basic auth when connecting via HTTP")
 	command.Flags().BoolVar(&repo.UseAzureWorkloadIdentity, "use-azure-workload-identity", false, "whether to use azure workload identity for authentication")
 	command.Flags().StringVar(&repo.Proxy, "proxy-url", "", "If provided, this URL will be used to connect via proxy")
+	command.Flags().Int64("depth", 0, "Specify a custom depth for git clone operations. A value of 0 performs a full clone. If unset, the depth is not inherited by repositories using this template.")
 	command.Flags().StringVar(&repo.AzureServicePrincipalClientId, "azure-service-principal-client-id", "", "client id of the Azure Service Principal")
 	command.Flags().StringVar(&repo.AzureServicePrincipalClientSecret, "azure-service-principal-client-secret", "", "client secret of the Azure Service Principal")
 	command.Flags().StringVar(&repo.AzureServicePrincipalTenantId, "azure-service-principal-tenant-id", "", "tenant id of the Azure Service Principal")

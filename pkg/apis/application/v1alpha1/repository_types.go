@@ -57,6 +57,9 @@ type RepoCreds struct {
 	BearerToken string `json:"bearerToken,omitempty" protobuf:"bytes,25,opt,name=bearerToken"`
 	// InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
 	InsecureOCIForceHttp bool `json:"insecureOCIForceHttp,omitempty" protobuf:"bytes,26,opt,name=insecureOCIForceHttp"` //nolint:revive //FIXME(var-naming)
+	// Depth specifies the depth for shallow clones. Nil or omitting the field inherits the depth from a matching
+	// credential template. A value of 0 indicates a full clone (overrides any template depth).
+	Depth *int64 `json:"depth,omitempty" protobuf:"bytes,27,opt,name=depth"`
 	// AzureServicePrincipalClientId specifies the client ID of the Azure Service Principal used to access the repo
 	AzureServicePrincipalClientId string `json:"azureServicePrincipalClientId,omitempty" protobuf:"bytes,29,opt,name=azureServicePrincipalClientId"`
 	// AzureServicePrincipalClientSecret specifies the client secret of the Azure Service Principal used to access the repo
@@ -122,8 +125,9 @@ type Repository struct {
 	BearerToken string `json:"bearerToken,omitempty" protobuf:"bytes,25,opt,name=bearerToken"`
 	// InsecureOCIForceHttp specifies whether the connection to the repository uses TLS at _all_. If true, no TLS. This flag is applicable for OCI repos only.
 	InsecureOCIForceHttp bool `json:"insecureOCIForceHttp,omitempty" protobuf:"bytes,26,opt,name=insecureOCIForceHttp"` //nolint:revive //FIXME(var-naming)
-	// Depth specifies the depth for shallow clones. A value of 0 or omitting the field indicates a full clone.
-	Depth int64 `json:"depth,omitempty" protobuf:"bytes,27,opt,name=depth"`
+	// Depth specifies the depth for shallow clones. Nil or omitting the field inherits the depth from a matching
+	// credential template. A value of 0 indicates a full clone (overrides any template depth).
+	Depth *int64 `json:"depth,omitempty" protobuf:"bytes,27,opt,name=depth"`
 	// WebhookManifestCacheWarmDisabled disables manifest cache warming during webhook processing for this repository.
 	// When set, webhook handlers will only trigger reconciliation for affected applications and skip Redis cache
 	// operations for unaffected ones. Recommended for large monorepos with plain YAML manifests.
@@ -264,7 +268,9 @@ func (repo *Repository) CopyCredentialsFrom(source *RepoCreds) {
 		if repo.Type == "" {
 			repo.Type = source.Type
 		}
-
+		if repo.Depth == nil {
+			repo.Depth = source.Depth
+		}
 		repo.EnableOCI = source.EnableOCI
 		repo.InsecureOCIForceHttp = source.InsecureOCIForceHttp
 		repo.ForceHttpBasicAuth = source.ForceHttpBasicAuth
@@ -384,7 +390,10 @@ func (repo *Repository) CopySettingsFrom(source *Repository) {
 		repo.InsecureIgnoreHostKey = source.InsecureIgnoreHostKey
 		repo.Insecure = source.Insecure
 		repo.InheritedCreds = source.InheritedCreds
-		repo.Depth = source.Depth
+		if source.Depth != nil {
+			v := *source.Depth
+			repo.Depth = &v
+		}
 	}
 }
 
@@ -418,8 +427,16 @@ func (repo *Repository) Sanitized() *Repository {
 		AzureActiveDirectoryEndpoint:  repo.AzureActiveDirectoryEndpoint,
 		AzureServicePrincipalClientId: repo.AzureServicePrincipalClientId,
 		AzureServicePrincipalTenantId: repo.AzureServicePrincipalTenantId,
-		Depth:                         repo.Depth,
+		Depth:                         repo.depthCopy(),
 	}
+}
+
+func (repo *Repository) depthCopy() *int64 {
+	if repo.Depth == nil {
+		return nil
+	}
+	v := *repo.Depth
+	return &v
 }
 
 func (repo *Repository) Normalize() *Repository {
