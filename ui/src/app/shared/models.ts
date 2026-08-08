@@ -1131,6 +1131,14 @@ export interface LinksResponse {
     items: LinkInfo[];
 }
 
+// ResourceHealthDefinition describes the health check definition used to compute a resource's health
+// status: a "custom" or "built-in" Lua script (with its source code), a "built-in-go" native check with
+// no inspectable script, or no dedicated health check at all (source and script both empty).
+export interface ResourceHealthDefinition {
+    source?: 'custom' | 'built-in' | 'built-in-go';
+    script?: string;
+}
+
 export interface UserMessages {
     appName: string;
     msgKey: string;

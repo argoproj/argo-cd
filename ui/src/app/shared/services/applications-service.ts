@@ -393,6 +393,20 @@ export class ApplicationsService {
             .then(res => JSON.parse(res.manifest) as models.State);
     }
 
+    public getResourceHealthDefinition(name: string, appNamespace: string, resource: models.ResourceNode): Promise<models.ResourceHealthDefinition> {
+        return requests
+            .get(`/applications/${name}/resource/health`)
+            .query({
+                appNamespace,
+                namespace: resource.namespace,
+                resourceName: resource.name,
+                version: resource.version,
+                kind: resource.kind,
+                group: resource.group || '' // The group query param must be present even if empty.
+            })
+            .then(res => res.body as models.ResourceHealthDefinition);
+    }
+
     public getResourceActions(name: string, appNamespace: string, resource: models.ResourceNode): Promise<models.ResourceAction[]> {
         return requests
             .get(`/applications/${name}/resource/actions`)
