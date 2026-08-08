@@ -171,6 +171,7 @@ nav:
     - operator-manual/upgrading/1.1-1.2.md
     - operator-manual/upgrading/1.0-1.1.md
   - Project Specification Reference: operator-manual/project-specification.md
+  - Declarative API Reference: operator-manual/declarative-api-reference.md
 - User Guide:
   - user-guide/index.md
   - user-guide/application_sources.md
