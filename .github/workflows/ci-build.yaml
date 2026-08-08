@@ -56,7 +56,7 @@ jobs:
               - '!docs/**'
               - 'ui/embed.go'
               - 'ui/dist/app/gitkeep'
-              - 'ui/dist/app/assets/images/resources/.gitkeep'
+              - 'ui/dist/app/assets/images/resources/gitkeep'
             frontend:
               - 'ui/**'
               - Dockerfile

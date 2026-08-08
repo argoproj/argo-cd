@@ -6,6 +6,7 @@ vendor/
 dist/*
 ui/dist/app/*
 !ui/dist/app/gitkeep
+!ui/dist/app/assets/images/resources/gitkeep
 site/
 *.iml
 .tilt-bin/
