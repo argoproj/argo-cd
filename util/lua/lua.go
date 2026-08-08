@@ -246,21 +246,47 @@ func (vm VM) ExecuteHealthLua(obj *unstructured.Unstructured, script string) (*h
 	return nil, fmt.Errorf(incorrectReturnType, "table", returnValue.Type().String())
 }
 
+// HealthCheckSource identifies where a resource's resolved health check definition came from.
+type HealthCheckSource string
+
+const (
+	// HealthCheckSourceNone means no Lua health check applies to the resource (it may still have a
+	// built-in Go health check: see gitops-engine's health.GetHealthCheckFunc).
+	HealthCheckSourceNone HealthCheckSource = ""
+	// HealthCheckSourceCustom means the script was defined by the Argo CD admin via the
+	// resource.customizations setting in argocd-cm.
+	HealthCheckSourceCustom HealthCheckSource = "custom"
+	// HealthCheckSourceBuiltIn means the script ships with Argo CD, embedded under resource_customizations/.
+	HealthCheckSourceBuiltIn HealthCheckSource = "built-in"
+)
+
 // GetHealthScript attempts to read lua script from config and then filesystem for that resource. If none exists, return
 // an empty string.
 func (vm VM) GetHealthScript(obj *unstructured.Unstructured) (script string, useOpenLibs bool, err error) {
+	script, useOpenLibs, _, err = vm.getHealthScript(obj)
+	return script, useOpenLibs, err
+}
+
+// GetHealthScriptWithSource behaves like GetHealthScript, but additionally reports whether the resolved
+// script (if any) is a user-defined override or one of the scripts bundled with Argo CD. This is used to
+// surface the health check definition to end users in the UI.
+func (vm VM) GetHealthScriptWithSource(obj *unstructured.Unstructured) (script string, useOpenLibs bool, source HealthCheckSource, err error) {
+	return vm.getHealthScript(obj)
+}
+
+func (vm VM) getHealthScript(obj *unstructured.Unstructured) (script string, useOpenLibs bool, source HealthCheckSource, err error) {
 	// first, search the gvk as is in the ResourceOverrides
 	key := GetConfigMapKey(obj.GroupVersionKind())
 
-	if script, ok := vm.ResourceOverrides[key]; ok && script.HealthLua != "" {
-		return script.HealthLua, script.UseOpenLibs, nil
+	if override, ok := vm.ResourceOverrides[key]; ok && override.HealthLua != "" {
+		return override.HealthLua, override.UseOpenLibs, HealthCheckSourceCustom, nil
 	}
 
 	// if not found as is, perhaps it matches a wildcard entry in the configmap
 	getWildcardHealthOverride, useOpenLibs := getWildcardHealthOverrideLua(vm.ResourceOverrides, obj.GroupVersionKind())
 
 	if getWildcardHealthOverride != "" {
-		return getWildcardHealthOverride, useOpenLibs, nil
+		return getWildcardHealthOverride, useOpenLibs, HealthCheckSourceCustom, nil
 	}
 
 	// if not found in the ResourceOverrides at all, search it as is in the built-in scripts
@@ -271,19 +297,19 @@ func (vm VM) GetHealthScript(obj *unstructured.Unstructured) (script string, use
 			// Try to find a wildcard built-in health script
 			builtInScript, err = getWildcardBuiltInHealthOverrideLua(key)
 			if err != nil {
-				return "", false, fmt.Errorf("error while fetching built-in health script: %w", err)
+				return "", false, HealthCheckSourceNone, fmt.Errorf("error while fetching built-in health script: %w", err)
 			}
 			if builtInScript != "" {
-				return builtInScript, true, nil
+				return builtInScript, true, HealthCheckSourceBuiltIn, nil
 			}
 
 			// It's okay if no built-in health script exists. Just return an empty string and let the caller handle it.
-			return "", false, nil
+			return "", false, HealthCheckSourceNone, nil
 		}
-		return "", false, err
+		return "", false, HealthCheckSourceNone, err
 	}
 	// standard libraries will be enabled for all built-in scripts
-	return builtInScript, true, err
+	return builtInScript, true, HealthCheckSourceBuiltIn, err
 }
 
 func (vm VM) ExecuteResourceAction(obj *unstructured.Unstructured, script string, resourceActionParameters []*applicationpkg.ResourceActionParameters) ([]ImpactedResource, error) {
