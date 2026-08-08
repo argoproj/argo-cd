@@ -100,4 +100,72 @@ describe('SourcePanel', () => {
         expect(formApi?.values.spec.sources[0].chart).toBe(expectedChart);
         expect(formApi?.values.spec.sources[0].repoURL).toBe(targetType === 'OCI' ? 'oci://' : 'https://git.example.com/infrastructure/values.git');
     });
+
+    test.each([
+        ['Helm', 'https://charts.example.com', 'helm', '', ''],
+        ['OCI', 'oci://registry.example.com/application', 'oci', undefined, 'main']
+    ])('normalizes a ref-only Git source when a registered %s repository URL is selected', async (_name, repoURL, type, expectedChart, expectedRevision) => {
+        const app = applicationWithSources([
+            {
+                repoURL: 'https://git.example.com/infrastructure/values.git',
+                targetRevision: 'main',
+                ref: 'values',
+                plugin: {name: 'stale'}
+            } as models.ApplicationSource
+        ]);
+        const registeredRepo = {repo: repoURL, type} as models.Repository;
+        let formApi: FormApi | undefined;
+
+        render(
+            <Form defaultValues={app} getApi={api => (formApi = api)}>
+                {api => {
+                    const selectedURL = (api.values as models.Application).spec.sources?.[0]?.repoURL;
+                    return <SourcePanel formApi={api} repos={[repoURL]} repoInfo={selectedURL === repoURL ? registeredRepo : undefined} sourceIndex={0} />;
+                }}
+            </Form>
+        );
+
+        fireEvent.change(document.querySelector('[qe-id="application-create-source-1-field-repository-url"]') as HTMLInputElement, {target: {value: repoURL}});
+
+        await waitFor(() => expect(formApi?.values.spec.sources[0].ref).toBeUndefined());
+        expect(formApi?.values.spec.sources[0].chart).toBe(expectedChart);
+        expect(formApi?.values.spec.sources[0].targetRevision).toBe(expectedRevision);
+        expect(formApi?.values.spec.sources[0].plugin).toBeUndefined();
+        expect(screen.queryByRole('textbox', {name: 'Ref'})).toBeNull();
+    });
+
+    test('normalizes a registered Helm source when a registered Git repository URL is selected', async () => {
+        const helmRepoURL = 'https://charts.example.com';
+        const gitRepoURL = 'https://git.example.com/application.git';
+        const app = applicationWithSources([
+            {
+                repoURL: helmRepoURL,
+                chart: 'application',
+                targetRevision: '1.0.0',
+                helm: {valueFiles: ['values.yaml']}
+            } as models.ApplicationSource
+        ]);
+        const repositories = [
+            {repo: helmRepoURL, type: 'helm'},
+            {repo: gitRepoURL, type: 'git'}
+        ] as models.Repository[];
+        let formApi: FormApi | undefined;
+
+        render(
+            <Form defaultValues={app} getApi={api => (formApi = api)}>
+                {api => {
+                    const selectedURL = (api.values as models.Application).spec.sources?.[0]?.repoURL;
+                    return <SourcePanel formApi={api} repos={repositories.map(repo => repo.repo)} repoInfo={repositories.find(repo => repo.repo === selectedURL)} sourceIndex={0} />;
+                }}
+            </Form>
+        );
+
+        fireEvent.change(document.querySelector('[qe-id="application-create-source-1-field-repository-url"]') as HTMLInputElement, {target: {value: gitRepoURL}});
+
+        await waitFor(() => expect(formApi?.values.spec.sources[0].path).toBe('application'));
+        expect(formApi?.values.spec.sources[0].chart).toBeUndefined();
+        expect(formApi?.values.spec.sources[0].targetRevision).toBe('HEAD');
+        expect(formApi?.values.spec.sources[0].helm?.valueFiles).toEqual(['values.yaml']);
+        expect(screen.getByRole('textbox', {name: 'Ref'})).toBeInTheDocument();
+    });
 });

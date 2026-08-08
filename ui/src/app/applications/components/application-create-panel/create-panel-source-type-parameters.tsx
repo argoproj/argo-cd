@@ -4,7 +4,7 @@ import {FormApi} from 'argo-ui';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationParameters} from '../application-parameters/application-parameters';
-import {APP_SOURCE_TYPES, isRefOnlySource, normalizeTypeFieldsForSource} from '../shared/app-source-edit';
+import {APP_SOURCE_TYPES, isRefOnlySource, normalizeTypeFieldsForSource, sourceDiscoveryKey, sourceKeyForTypeOverride} from '../shared/app-source-edit';
 
 function pathKeyForSource(src: models.ApplicationSource | undefined): string {
     if (!src) {
@@ -14,7 +14,7 @@ function pathKeyForSource(src: models.ApplicationSource | undefined): string {
 }
 
 export const CreatePanelSourceTypeParameters = (props: {formApi: FormApi; sourceIndex: number}) => {
-    const [explicitPathType, setExplicitPathType] = React.useState<{path: string; type: models.AppSourceType}>(null);
+    const [explicitPathType, setExplicitPathType] = React.useState<{sourceKey: string; type: models.AppSourceType}>(null);
     const formApp = props.formApi.getFormState().values as models.Application;
     const src = formApp.spec.sources?.[props.sourceIndex];
     const qeN = props.sourceIndex + 1;
@@ -25,6 +25,7 @@ export const CreatePanelSourceTypeParameters = (props: {formApi: FormApi; source
 
     return (
         <DataLoader
+            key={sourceDiscoveryKey(src, formApp.metadata.name, formApp.spec.project)}
             input={{
                 repoURL: src?.repoURL,
                 path: src?.path,
@@ -47,8 +48,8 @@ export const CreatePanelSourceTypeParameters = (props: {formApi: FormApi; source
                 };
             }}>
             {(details: models.RepoAppDetails) => {
-                const key = pathKeyForSource(src);
-                const type = (explicitPathType && explicitPathType.path === key && explicitPathType.type) || details.type;
+                const sourceKey = sourceKeyForTypeOverride(src);
+                const type = (explicitPathType && explicitPathType.sourceKey === sourceKey && explicitPathType.type) || details.type;
                 let d = details;
                 if (d.type !== type) {
                     switch (type) {
@@ -82,7 +83,7 @@ export const CreatePanelSourceTypeParameters = (props: {formApi: FormApi; source
                             items={APP_SOURCE_TYPES.map(item => ({
                                 title: item.type,
                                 action: () => {
-                                    setExplicitPathType({type: item.type, path: key});
+                                    setExplicitPathType({type: item.type, sourceKey});
                                     normalizeTypeFieldsForSource(props.formApi, item.type, props.sourceIndex);
                                 }
                             }))}
