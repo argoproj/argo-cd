@@ -1,6 +1,7 @@
 package apiclient
 
 import (
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -14,6 +15,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
+
+	settingspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/settings"
 )
 
 func Test_parseHeaders(t *testing.T) {
@@ -280,4 +283,55 @@ func (c *closeTracker) Close() error {
 		c.onClose()
 	}
 	return c.ReadCloser.Close()
+}
+
+func TestOIDCConfig_DisableOfflineAccessScopeInjection(t *testing.T) {
+	tests := []struct {
+		name               string
+		disableInjection   bool
+		providerSupportsOA bool
+		expectOfflineScope bool
+	}{
+		{"flag off, provider supports offline_access", false, true, true},
+		{"flag on, provider supports offline_access", true, true, false},
+		{"flag off, provider does not support offline_access", false, false, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			scopesSupported := []string{"openid", "profile", "email"}
+			if tt.providerSupportsOA {
+				scopesSupported = append(scopesSupported, "offline_access")
+			}
+			var issuerURL string
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				discoveryDoc := map[string]any{
+					"issuer":                 issuerURL,
+					"authorization_endpoint": issuerURL + "/auth",
+					"token_endpoint":         issuerURL + "/token",
+					"jwks_uri":               issuerURL + "/jwks",
+					"scopes_supported":       scopesSupported,
+				}
+				_ = json.NewEncoder(w).Encode(discoveryDoc)
+			}))
+			defer srv.Close()
+			issuerURL = srv.URL
+			c := &client{ServerAddr: srv.URL[7:], PlainText: true}
+			set := &settingspkg.Settings{
+				OIDCConfig: &settingspkg.OIDCConfig{
+					Issuer:                             srv.URL,
+					DisableOfflineAccessScopeInjection: tt.disableInjection,
+				},
+			}
+			oauth2Conf, _, err := c.OIDCConfig(t.Context(), set)
+			require.NoError(t, err)
+			gotOfflineScope := false
+			for _, s := range oauth2Conf.Scopes {
+				if s == "offline_access" {
+					gotOfflineScope = true
+				}
+			}
+			assert.Equal(t, tt.expectOfflineScope, gotOfflineScope)
+		})
+	}
 }
