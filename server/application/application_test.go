@@ -1027,6 +1027,24 @@ func TestNoAppEnumeration(t *testing.T) {
 		assert.EqualError(t, err, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", "when the request specifies a project, we can return the standard k8s error message")
 	})
 
+	t.Run("GetResourceHealthDefinition", func(t *testing.T) {
+		// A resource that's actually part of the app's tree.
+		_, err := appServer.GetResourceHealthDefinition(adminCtx, &application.ApplicationResourceRequest{Name: new("test"), ResourceName: new("test"), Group: new("apps"), Kind: new("Deployment"), Namespace: new("test")})
+		require.NoError(t, err)
+		// The Application-as-resource special case (Name == ResourceName): used when a resource panel
+		// is opened on the Application object itself, rather than one of its managed resources.
+		_, err = appServer.GetResourceHealthDefinition(adminCtx, &application.ApplicationResourceRequest{Name: new("test"), ResourceName: new("test"), Group: new("argoproj.io"), Kind: new("Application")})
+		require.NoError(t, err)
+		_, err = appServer.GetResourceHealthDefinition(noRoleCtx, &application.ApplicationResourceRequest{Name: new("test")})
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		_, err = appServer.GetResourceHealthDefinition(noRoleCtx, &application.ApplicationResourceRequest{Name: new("test"), ResourceName: new("test"), Group: new("argoproj.io"), Kind: new("Application")})
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		_, err = appServer.GetResourceHealthDefinition(adminCtx, &application.ApplicationResourceRequest{Name: new("doest-not-exist")})
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		_, err = appServer.GetResourceHealthDefinition(adminCtx, &application.ApplicationResourceRequest{Name: new("doest-not-exist"), Project: new("test")})
+		assert.EqualError(t, err, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", "when the request specifies a project, we can return the standard k8s error message")
+	})
+
 	//nolint:staticcheck // SA1019: RunResourceAction is deprecated, but we still need to support it for backward compatibility.
 	t.Run("RunResourceAction", func(t *testing.T) {
 		_, err := appServer.RunResourceAction(adminCtx, &application.ResourceActionRunRequest{Name: new("test"), ResourceName: new("test"), Group: new("apps"), Kind: new("Deployment"), Namespace: new("test"), Action: new("restart")})

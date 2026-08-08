@@ -2582,7 +2582,7 @@ func (s *Server) ListResourceActions(ctx context.Context, q *application.Applica
 }
 
 func (s *Server) GetResourceHealthDefinition(ctx context.Context, q *application.ApplicationResourceRequest) (*application.ResourceHealthDefinitionResponse, error) {
-	obj, _, _, _, err := s.getUnstructuredLiveResourceOrApp(ctx, rbac.ActionGet, q)
+	gvk, err := s.getResourceGVK(ctx, rbac.ActionGet, q)
 	if err != nil {
 		return nil, err
 	}
@@ -2591,11 +2591,46 @@ func (s *Server) GetResourceHealthDefinition(ctx context.Context, q *application
 		return nil, fmt.Errorf("error getting resource overrides: %w", err)
 	}
 
+	// The health check definition only ever depends on the resource's GVK (to resolve a Lua
+	// override/built-in script or detect a built-in Go health check), never on its live field
+	// values, so a bare GVK-tagged object is all that's needed here.
+	obj := &unstructured.Unstructured{}
+	obj.SetGroupVersionKind(gvk)
+
 	definition, err := s.getResourceHealthDefinition(resourceOverrides, obj)
 	if err != nil {
 		return nil, fmt.Errorf("error getting resource health definition: %w", err)
 	}
 	return definition, nil
+}
+
+// getResourceGVK resolves a resource's GroupVersionKind, enforcing the same authorization and
+// application-tree-membership checks as getUnstructuredLiveResourceOrApp, but without fetching the
+// resource's full live state from the cluster. Callers that only need the GVK (like health check
+// definitions) shouldn't pay for the added latency, cluster load, or broadened data access (e.g. full
+// Secret contents) of a live GET.
+func (s *Server) getResourceGVK(ctx context.Context, rbacRequest string, q *application.ApplicationResourceRequest) (schema.GroupVersionKind, error) {
+	if q.GetKind() == applicationType.ApplicationKind && q.GetGroup() == applicationType.Group && q.GetName() == q.GetResourceName() {
+		app, _, err := s.getApplicationEnforceRBACInformer(ctx, rbacRequest, q.GetProject(), q.GetAppNamespace(), q.GetName())
+		if err != nil {
+			return schema.GroupVersionKind{}, err
+		}
+		gvk := schema.GroupVersionKind{
+			Group:   applicationType.Group,
+			Version: v1alpha1.SchemeGroupVersion.Version,
+			Kind:    applicationType.ApplicationKind,
+		}
+		app.SetGroupVersionKind(gvk)
+		if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplications, rbacRequest, app.RBACName(s.ns)); err != nil {
+			return schema.GroupVersionKind{}, err
+		}
+		return gvk, nil
+	}
+	res, _, _, err := s.getAppLiveResource(ctx, rbacRequest, q)
+	if err != nil {
+		return schema.GroupVersionKind{}, err
+	}
+	return res.GroupKindVersion(), nil
 }
 
 // healthCheckSourceBuiltInGo identifies a resource whose health is assessed by one of Argo CD's
