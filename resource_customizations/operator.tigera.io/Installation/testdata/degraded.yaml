@@ -1,0 +1,18 @@
+apiVersion: operator.tigera.io/v1
+kind: Installation
+metadata:
+  name: default
+spec:
+  calicoNetwork: {}
+status:
+  conditions:
+  - lastTransitionTime: "2025-05-01T10:00:00Z"
+    status: "False"
+    reason: NotAvailable
+    type: Available
+  - lastTransitionTime: "2025-05-01T10:00:00Z"
+    message: "Some components are not ready: calico-node"
+    observedGeneration: 1
+    reason: ResourceNotReady
+    status: "True"
+    type: Degraded

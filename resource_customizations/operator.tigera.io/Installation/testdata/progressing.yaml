@@ -1,0 +1,13 @@
+apiVersion: operator.tigera.io/v1
+kind: Installation
+metadata:
+  name: default
+spec:
+  calicoNetwork: {}
+status:
+  conditions:
+  - lastTransitionTime: "2025-05-01T10:00:00Z"
+    message: "Waiting for Installation to become available"
+    reason: ResourceNotReady
+    status: "True"
+    type: Progressing
