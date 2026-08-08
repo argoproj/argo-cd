@@ -127,4 +127,41 @@ describe('ApplicationParameters ref-only sources', () => {
 
         await waitFor(() => expect(screen.getByText('VALUES FILES').closest('.columns.small-3')?.querySelector('.help-tip')).not.toBeNull());
     });
+
+    test.each([
+        ['repository details cannot be loaded', () => appDetails.mockRejectedValue(new Error('failed to load application details'))],
+        ['repository details report a different type', () => appDetails.mockResolvedValue({type: 'Directory', path: 'charts/web-app'} as models.RepoAppDetails)]
+    ])('uses the explicit Helm source when %s', async (_name, arrangeAppDetails) => {
+        arrangeAppDetails();
+        const app = applicationWithValuesSource({
+            repoURL: 'https://git.example.com/org/value-files.git',
+            targetRevision: 'main',
+            ref: 'values'
+        } as models.ApplicationSource);
+        app.spec.sources[0] = {
+            repoURL: 'https://git.example.com/org/charts.git',
+            targetRevision: 'main',
+            path: 'charts/web-app',
+            helm: {valueFiles: ['$values/sandboxes/multisource-ui-test/values.yaml']}
+        } as models.ApplicationSource;
+
+        render(
+            <Context.Provider value={{notifications: {show: jest.fn()}} as any}>
+                <ApplicationParameters
+                    application={app}
+                    pageNumber={0}
+                    setPageNumber={jest.fn()}
+                    collapsedSources={[false, true]}
+                    handleCollapse={jest.fn()}
+                    appContext={{} as any}
+                />
+            </Context.Provider>
+        );
+
+        expect(await screen.findByText(/Source 1: TYPE=Helm/)).toBeInTheDocument();
+        expect(screen.getByText('HELM')).toBeInTheDocument();
+        expect(screen.getByText('$values/sandboxes/multisource-ui-test/values.yaml')).toBeInTheDocument();
+        expect(screen.getByText('VALUES FILES').closest('.columns.small-3')?.querySelector('.help-tip')).not.toBeNull();
+        expect(screen.queryByText('DIRECTORY')).not.toBeInTheDocument();
+    });
 });

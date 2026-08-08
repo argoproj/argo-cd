@@ -1108,21 +1108,46 @@ function gatherDetails(
 
 // For Sources field. Get one source with index i from the list
 async function getSourceFromAppSources(aSource: models.ApplicationSource, name: string, project: string, index: number, version: number) {
-    const repoDetail = await services.repos.appDetails(aSource, name, project, index, version).catch(() => ({
-        type: 'Directory' as models.AppSourceType,
-        path: aSource.path
-    }));
-    return repoDetail;
+    const repoDetail = await services.repos.appDetails(aSource, name, project, index, version).catch(() => getExplicitSourceDetails(aSource));
+    return applyExplicitSourceType(aSource, repoDetail);
 }
 
 // Delete when source field is removed
 async function getSingleSource(app: models.Application) {
     if (app.spec.source || app.spec.sourceHydrator) {
-        const repoDetail = await services.repos.appDetails(getAppDrySource(app), app.metadata.name, app.spec.project, 0, 0).catch(() => ({
-            type: 'Directory' as models.AppSourceType,
-            path: getAppDrySource(app).path
-        }));
-        return repoDetail;
+        const source = getAppDrySource(app);
+        const repoDetail = await services.repos.appDetails(source, app.metadata.name, app.spec.project, 0, 0).catch(() => getExplicitSourceDetails(source));
+        return applyExplicitSourceType(source, repoDetail);
     }
     return null;
+}
+
+function applyExplicitSourceType(source: models.ApplicationSource, details: models.RepoAppDetails): models.RepoAppDetails {
+    const explicitDetails = getExplicitSourceDetails(source);
+    if (!hasExplicitSourceType(source) || details.type === explicitDetails.type) {
+        return details;
+    }
+    return {...details, ...explicitDetails};
+}
+
+function hasExplicitSourceType(source: models.ApplicationSource): boolean {
+    return !!(source.chart || source.helm || source.kustomize || source.directory || source.plugin);
+}
+
+function getExplicitSourceDetails(source: models.ApplicationSource): models.RepoAppDetails {
+    const path = source.path || '';
+    if (source.chart || source.helm) {
+        return {
+            type: 'Helm',
+            path,
+            helm: {name: source.chart || '', path, valueFiles: [], parameters: [], fileParameters: []}
+        };
+    }
+    if (source.kustomize) {
+        return {type: 'Kustomize', path, kustomize: {path}};
+    }
+    if (source.plugin) {
+        return {type: 'Plugin', path, plugin: {name: source.plugin.name || '', env: source.plugin.env || []}};
+    }
+    return {type: 'Directory', path, directory: {}};
 }
