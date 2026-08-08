@@ -173,6 +173,54 @@ export class ApplicationsService {
             });
     }
 
+    public getBatchApplicationDiff(
+        options: {apps?: models.ApplicationIdentifier[]; projects?: string[]; selector?: string; refresh?: string} = {}
+    ): Promise<models.ApplicationDiffSummary[]> {
+        let req = requests.get('/applications/diffs');
+        if (options.apps) {
+            options.apps.forEach((app, idx) => {
+                req = req.query(`apps[${idx}].name=${encodeURIComponent(app.name)}`);
+                req = req.query(`apps[${idx}].appNamespace=${encodeURIComponent(app.appNamespace)}`);
+            });
+        }
+        if (options.projects) {
+            options.projects.forEach(project => {
+                req = req.query(`projects=${encodeURIComponent(project)}`);
+            });
+        }
+        if (options.selector) {
+            req = req.query(`selector=${encodeURIComponent(options.selector)}`);
+        }
+        if (options.refresh) {
+            req = req.query(`refresh=${encodeURIComponent(options.refresh)}`);
+        }
+        return req
+            .then(res => (res.body.items as any[]) || [])
+            .then(items => {
+                items.forEach((appDiff: any) => {
+                    if (appDiff.diffs) {
+                        appDiff.diffs.forEach((item: any) => {
+                            if (item.liveState) {
+                                item.liveState = JSON.parse(item.liveState);
+                            }
+                            if (item.targetState) {
+                                item.targetState = JSON.parse(item.targetState);
+                            }
+                            if (item.predictedLiveState) {
+                                item.predictedLiveState = JSON.parse(item.predictedLiveState);
+                            }
+                            if (item.normalizedLiveState) {
+                                item.normalizedLiveState = JSON.parse(item.normalizedLiveState);
+                            }
+                        });
+                    } else {
+                        appDiff.diffs = [];
+                    }
+                });
+                return items as models.ApplicationDiffSummary[];
+            });
+    }
+
     public getManifest(name: string, appNamespace: string, revision: string): Promise<models.ManifestResponse> {
         return requests
             .get(`/applications/${name}/manifests`)

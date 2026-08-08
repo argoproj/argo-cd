@@ -25,6 +25,7 @@ import {ViewTypeSwitcher} from './view-type-switcher';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 import {useQuery, useObservableQuery} from '../../../shared/hooks/query';
 import {isInvalidRegex} from '../../../shared/utils';
+import {GlobalDiffModal} from '../global-diff/GlobalDiffModal';
 
 import './applications-list.scss';
 
@@ -331,6 +332,8 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
     const loaderRef = React.useRef<DataLoader | null>(null);
     const {List, Summary, Tiles} = AppsListViewKey;
 
+    const [showGlobalDiff, setShowGlobalDiff] = React.useState(false);
+
     function refreshApp(appName: string, appNamespace: string) {
         // app refreshing might be done too quickly so that UI might miss it due to event batching
         // add refreshing annotation in the UI to improve user experience
@@ -429,6 +432,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
 
                                             const apps = applications as models.Application[];
                                             const {filteredApps, filterResults} = filterApplications(apps, pref, pref.search, pref.searchRegex);
+                                            const nonSyncedApps = filteredApps.filter(app => app.status.sync.status !== models.SyncStatuses.Synced);
 
                                             return (
                                                 <React.Fragment>
@@ -453,6 +457,31 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                         title: 'Refresh Apps',
                                                                         iconClassName: 'fa fa-redo',
                                                                         action: () => ctx.navigation.goto('.', {refreshApps: true}, {replace: true})
+                                                                    },
+                                                                    {
+                                                                        title: (
+                                                                            <React.Fragment>
+                                                                                View Diffs
+                                                                                {nonSyncedApps.length > 0 && (
+                                                                                    <span
+                                                                                        className='badge badge--danger'
+                                                                                        style={{
+                                                                                            marginLeft: '6px',
+                                                                                            backgroundColor: '#e96d76',
+                                                                                            color: '#fff',
+                                                                                            borderRadius: '10px',
+                                                                                            padding: '1px 6px',
+                                                                                            fontSize: '11px',
+                                                                                            fontWeight: 'bold',
+                                                                                            verticalAlign: 'middle'
+                                                                                        }}>
+                                                                                        {nonSyncedApps.length}
+                                                                                    </span>
+                                                                                )}
+                                                                            </React.Fragment>
+                                                                        ) as any,
+                                                                        iconClassName: 'fa fa-file-medical',
+                                                                        action: () => setShowGlobalDiff(true)
                                                                     }
                                                                 ]
                                                             }
@@ -564,6 +593,14 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                             show={refreshAppsInput}
                                                             hide={() => ctx.navigation.goto('.', {refreshApps: null}, {replace: true})}
                                                             apps={filteredApps}
+                                                        />
+                                                        <GlobalDiffModal
+                                                            isShown={showGlobalDiff}
+                                                            onClose={() => setShowGlobalDiff(false)}
+                                                            apps={nonSyncedApps.map(app => ({name: app.metadata.name, appNamespace: app.metadata.namespace}))}
+                                                            projects={pref.projectsFilter}
+                                                            selector={pref.labelsFilter?.join(',')}
+                                                            allApps={applications}
                                                         />
                                                     </div>
                                                     <DataLoader

@@ -340,6 +340,50 @@
         }
       }
     },
+    "/api/v1/applications/diffs": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "GetBatchApplicationDiff returns application diffs for a batch of applications",
+        "operationId": "ApplicationService_GetBatchApplicationDiff",
+        "parameters": [
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "name": "projects",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "selector",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "refresh",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationApplicationDiffResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications/manifestsWithFiles": {
       "post": {
         "tags": [
@@ -5138,6 +5182,54 @@
     },
     "accountUpdatePasswordResponse": {
       "type": "object"
+    },
+    "applicationApplicationDiffResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/applicationApplicationDiffSummary"
+          }
+        }
+      }
+    },
+    "applicationApplicationDiffSummary": {
+      "type": "object",
+      "properties": {
+        "appName": {
+          "type": "string"
+        },
+        "appNamespace": {
+          "type": "string"
+        },
+        "diffs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceDiff"
+          }
+        },
+        "error": {
+          "type": "string"
+        },
+        "project": {
+          "type": "string"
+        },
+        "syncStatus": {
+          "type": "string"
+        }
+      }
+    },
+    "applicationApplicationIdentifier": {
+      "type": "object",
+      "properties": {
+        "appNamespace": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      }
     },
     "applicationApplicationManifestQueryWithFiles": {
       "type": "object",

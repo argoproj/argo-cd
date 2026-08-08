@@ -5238,3 +5238,328 @@ func TestGetUnstructuredLiveResourceOrAppWithImpersonation(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "system:serviceaccount:"+test.FakeDestNamespace+":test-sa", config.Impersonate.UserName)
 }
+
+func TestGetBatchApplicationDiff(t *testing.T) {
+	ctx := t.Context()
+	//nolint:staticcheck
+	ctx = context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "admin"})
+
+	app1 := &v1alpha1.Application{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "argoproj.io/v1alpha1",
+			Kind:       "Application",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "app1",
+			Namespace: "default",
+		},
+		Spec: v1alpha1.ApplicationSpec{
+			Project: "default",
+		},
+		Status: v1alpha1.ApplicationStatus{
+			Sync: v1alpha1.SyncStatus{
+				Status: v1alpha1.SyncStatusCodeOutOfSync,
+			},
+			Resources: []v1alpha1.ResourceStatus{
+				{
+					Group:     "apps",
+					Kind:      "Deployment",
+					Namespace: "default",
+					Name:      "deploy1",
+					Status:    v1alpha1.SyncStatusCodeOutOfSync,
+				},
+				{
+					Group:     "apps",
+					Kind:      "Deployment",
+					Namespace: "default",
+					Name:      "deploy2",
+					Status:    v1alpha1.SyncStatusCodeSynced,
+				},
+			},
+		},
+	}
+
+	app2 := &v1alpha1.Application{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "argoproj.io/v1alpha1",
+			Kind:       "Application",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "app2",
+			Namespace: "default",
+		},
+		Spec: v1alpha1.ApplicationSpec{
+			Project: "my-proj",
+		},
+		Status: v1alpha1.ApplicationStatus{
+			Sync: v1alpha1.SyncStatus{
+				Status: v1alpha1.SyncStatusCodeSynced,
+			},
+			Resources: []v1alpha1.ResourceStatus{
+				{
+					Group:     "",
+					Kind:      "Service",
+					Namespace: "default",
+					Name:      "svc1",
+					Status:    v1alpha1.SyncStatusCodeSynced,
+				},
+			},
+		},
+	}
+
+	appServer := newTestAppServer(t, app1, app2)
+
+	// Pre-populate cache with resource diffs
+	diffs1 := []*v1alpha1.ResourceDiff{
+		{
+			Group:     "apps",
+			Kind:      "Deployment",
+			Namespace: "default",
+			Name:      "deploy1",
+			Modified:  false,
+		},
+		{
+			Group:     "apps",
+			Kind:      "Deployment",
+			Namespace: "default",
+			Name:      "deploy2",
+			Modified:  true, // Drifted!
+		},
+	}
+	err := appServer.cache.SetAppManagedResources("app1", diffs1)
+	require.NoError(t, err)
+
+	diffs2 := []*v1alpha1.ResourceDiff{
+		{
+			Group:     "",
+			Kind:      "Service",
+			Namespace: "default",
+			Name:      "svc1",
+			Modified:  false, // Not drifted, and status is Synced
+		},
+	}
+	err = appServer.cache.SetAppManagedResources("app2", diffs2)
+	require.NoError(t, err)
+
+	t.Run("basic fetch", func(t *testing.T) {
+		res, err := appServer.GetBatchApplicationDiff(ctx, &application.ApplicationDiffRequest{})
+		require.NoError(t, err)
+		assert.Len(t, res.Items, 2)
+
+		// app1 should be first (sorted by name)
+		assert.Equal(t, "app1", res.Items[0].GetAppName())
+		assert.Equal(t, "default", res.Items[0].GetProject())
+		assert.Equal(t, "OutOfSync", res.Items[0].GetSyncStatus())
+		// deploy1 (OutOfSync) and deploy2 (Modified/Drifted) should both be returned
+		assert.Len(t, res.Items[0].Diffs, 2)
+
+		// app2 should be second
+		assert.Equal(t, "app2", res.Items[1].GetAppName())
+		assert.Equal(t, "my-proj", res.Items[1].GetProject())
+		assert.Equal(t, "Synced", res.Items[1].GetSyncStatus())
+		// svc1 (Synced and unmodified) should NOT be returned
+		assert.Empty(t, res.Items[1].Diffs)
+	})
+
+	t.Run("filter by appName", func(t *testing.T) {
+		name := "app1"
+		ns := "default"
+		res, err := appServer.GetBatchApplicationDiff(ctx, &application.ApplicationDiffRequest{
+			Apps: []*application.ApplicationIdentifier{
+				{
+					Name:         &name,
+					AppNamespace: &ns,
+				},
+			},
+		})
+		require.NoError(t, err)
+		assert.Len(t, res.Items, 1)
+		assert.Equal(t, "app1", res.Items[0].GetAppName())
+	})
+
+	t.Run("filter by project", func(t *testing.T) {
+		res, err := appServer.GetBatchApplicationDiff(ctx, &application.ApplicationDiffRequest{
+			Projects: []string{"my-proj"},
+		})
+		require.NoError(t, err)
+		assert.Len(t, res.Items, 1)
+		assert.Equal(t, "app2", res.Items[0].GetAppName())
+	})
+
+	t.Run("filter by selector", func(t *testing.T) {
+		// Create app with labels
+		appWithLabel := &v1alpha1.Application{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "argoproj.io/v1alpha1",
+				Kind:       "Application",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "app-labeled",
+				Namespace: "default",
+				Labels: map[string]string{
+					"env": "prod",
+				},
+			},
+			Spec: v1alpha1.ApplicationSpec{
+				Project: "default",
+			},
+		}
+		appServerLabeled := newTestAppServer(t, app1, app2, appWithLabel)
+		err := appServerLabeled.cache.SetAppManagedResources("app-labeled", []*v1alpha1.ResourceDiff{})
+		require.NoError(t, err)
+
+		selVal := "env=prod"
+		res, err := appServerLabeled.GetBatchApplicationDiff(ctx, &application.ApplicationDiffRequest{
+			Selector: &selVal,
+		})
+		require.NoError(t, err)
+		assert.Len(t, res.Items, 1)
+		assert.Equal(t, "app-labeled", res.Items[0].GetAppName())
+	})
+
+	t.Run("RBAC get allowed and denied", func(t *testing.T) {
+		// Use a non-admin user
+		//nolint:staticcheck
+		userCtx := context.WithValue(ctx, "claims", &jwt.RegisteredClaims{Subject: "test-user"})
+		appServerRBAC := newTestAppServer(t, app1, app2)
+		appServerRBAC.enf.SetDefaultRole("")
+
+		// Pre-populate cache with resource diffs
+		err = appServerRBAC.cache.SetAppManagedResources("app1", diffs1)
+		require.NoError(t, err)
+		err = appServerRBAC.cache.SetAppManagedResources("app2", diffs2)
+		require.NoError(t, err)
+
+		// Set policy allowing access only to app1
+		_ = appServerRBAC.enf.SetBuiltinPolicy(`
+p, test-user, applications, get, default/app1, allow
+`)
+
+		res, err := appServerRBAC.GetBatchApplicationDiff(userCtx, &application.ApplicationDiffRequest{})
+		require.NoError(t, err)
+		// app2 should be omitted
+		assert.Len(t, res.Items, 1)
+		assert.Equal(t, "app1", res.Items[0].GetAppName())
+	})
+
+	t.Run("parallel fetching and concurrency limit check", func(t *testing.T) {
+		var testApps []runtime.Object
+		for i := 1; i <= 20; i++ {
+			name := fmt.Sprintf("app-parallel-%d", i)
+			app := &v1alpha1.Application{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "argoproj.io/v1alpha1",
+					Kind:       "Application",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      name,
+					Namespace: "default",
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Project: "default",
+				},
+				Status: v1alpha1.ApplicationStatus{
+					Sync: v1alpha1.SyncStatus{
+						Status: v1alpha1.SyncStatusCodeOutOfSync,
+					},
+				},
+			}
+			testApps = append(testApps, app)
+		}
+
+		appServerParallel := newTestAppServer(t, testApps...)
+		for _, obj := range testApps {
+			app := obj.(*v1alpha1.Application)
+			err := appServerParallel.cache.SetAppManagedResources(app.Name, []*v1alpha1.ResourceDiff{})
+			require.NoError(t, err)
+		}
+
+		res, err := appServerParallel.GetBatchApplicationDiff(ctx, &application.ApplicationDiffRequest{})
+		require.NoError(t, err)
+		assert.Len(t, res.Items, 20)
+	})
+
+	t.Run("exceeding maximum batch limit of 50 applications", func(t *testing.T) {
+		var testApps []runtime.Object
+		for i := 1; i <= 51; i++ {
+			name := fmt.Sprintf("app-limit-%d", i)
+			app := &v1alpha1.Application{
+				TypeMeta: metav1.TypeMeta{
+					APIVersion: "argoproj.io/v1alpha1",
+					Kind:       "Application",
+				},
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      name,
+					Namespace: "default",
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Project: "default",
+				},
+			}
+			testApps = append(testApps, app)
+		}
+
+		appServerLimit := newTestAppServer(t, testApps...)
+		for _, obj := range testApps {
+			app := obj.(*v1alpha1.Application)
+			err := appServerLimit.cache.SetAppManagedResources(app.Name, []*v1alpha1.ResourceDiff{})
+			require.NoError(t, err)
+		}
+
+		_, err := appServerLimit.GetBatchApplicationDiff(ctx, &application.ApplicationDiffRequest{})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "exceeds maximum batch limit of 50 applications")
+	})
+
+	t.Run("error isolation for failed app diff fetch", func(t *testing.T) {
+		app1Success := &v1alpha1.Application{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "argoproj.io/v1alpha1",
+				Kind:       "Application",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "app-success",
+				Namespace: "default",
+			},
+			Spec: v1alpha1.ApplicationSpec{
+				Project: "default",
+			},
+			Status: v1alpha1.ApplicationStatus{
+				Sync: v1alpha1.SyncStatus{
+					Status: v1alpha1.SyncStatusCodeOutOfSync,
+				},
+			},
+		}
+
+		app2Fail := &v1alpha1.Application{
+			TypeMeta: metav1.TypeMeta{
+				APIVersion: "argoproj.io/v1alpha1",
+				Kind:       "Application",
+			},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "app-fail",
+				Namespace: "default",
+			},
+			Spec: v1alpha1.ApplicationSpec{
+				Project: "invalid-project",
+			},
+		}
+
+		appServerErrIso := newTestAppServer(t, app1Success, app2Fail)
+
+		err := appServerErrIso.cache.SetAppManagedResources("app-success", []*v1alpha1.ResourceDiff{})
+		require.NoError(t, err)
+		err = appServerErrIso.cache.SetAppManagedResources("app-fail", nil) // delete cache entry to force cache miss
+		require.NoError(t, err)
+
+		res, err := appServerErrIso.GetBatchApplicationDiff(ctx, &application.ApplicationDiffRequest{})
+		require.NoError(t, err)
+		assert.Len(t, res.Items, 2)
+
+		assert.Equal(t, "app-success", res.Items[1].GetAppName())
+		assert.Empty(t, res.Items[1].GetError())
+
+		assert.Equal(t, "app-fail", res.Items[0].GetAppName())
+		assert.NotEmpty(t, res.Items[0].GetError())
+	})
+}
