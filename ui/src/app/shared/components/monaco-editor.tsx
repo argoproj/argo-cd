@@ -11,7 +11,15 @@ export interface EditorInput {
 
 export interface MonacoProps {
     minHeight?: number;
+    // Caps the auto-computed height (which otherwise grows with content up to 95% of the viewport).
+    // Useful for embedding the editor in a small panel where dominating the screen isn't wanted;
+    // content beyond this height stays reachable via the scrollbar (see vScrollBar).
+    maxHeight?: number;
     vScrollBar: boolean;
+    // Whether Monaco reserves extra scroll room past the last line, as a code editor typically does.
+    // Defaults to vScrollBar for backward compatibility. Read-only viewers (vs. active editing) often
+    // want this off even when vScrollBar is on, since the extra blank space serves no purpose there.
+    scrollBeyondLastLine?: boolean;
     editor?: {
         options?: monacoEditor.editor.IEditorOptions;
         input: EditorInput;
@@ -98,7 +106,7 @@ const MonacoEditorLazy = React.lazy(() =>
                                 if (!container.editorApi) {
                                     const editor = monaco.editor.create(el, {
                                         ...props.editor.options,
-                                        scrollBeyondLastLine: props.vScrollBar,
+                                        scrollBeyondLastLine: props.scrollBeyondLastLine ?? props.vScrollBar,
                                         scrollbar: {
                                             alwaysConsumeMouseWheel: false,
                                             vertical: props.vScrollBar ? 'auto' : 'hidden'
@@ -112,7 +120,8 @@ const MonacoEditorLazy = React.lazy(() =>
                                 const model = monaco.editor.createModel(props.editor.input.text, props.editor.input.language);
                                 const lineCount = model.getLineCount();
                                 const newHeight = lineCount * DEFAULT_LINE_HEIGHT + 50;
-                                setHeight(newHeight > window.innerHeight * 0.95 ? window.innerHeight * 0.95 : newHeight);
+                                const heightCap = props.maxHeight ?? window.innerHeight * 0.95;
+                                setHeight(newHeight > heightCap ? heightCap : newHeight);
 
                                 if (!IsEqualInput(container.prevEditorInput, props.editor.input)) {
                                     container.prevEditorInput = props.editor.input;
