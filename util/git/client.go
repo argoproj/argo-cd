@@ -167,6 +167,8 @@ type Client interface {
 	AddAndPushNote(ctx context.Context, sha string, namespace string, note string) error
 	// HasFileChanged returns the outout of git diff considering whether it is tracked or un-tracked
 	HasFileChanged(ctx context.Context, filePath string) (bool, error)
+	// IsShallowRepo returns true if the repository is shallow
+	IsShallowRepo(ctx context.Context) (bool, error)
 }
 
 type EventHandlers struct {
@@ -1744,6 +1746,16 @@ func (m *nativeGitClient) HasFileChanged(ctx context.Context, filePath string) (
 	}
 	// always return the actual wrapped error
 	return false, fmt.Errorf("git diff failed: %w", err)
+}
+
+// IsShallowRepo returns true if the repository is shallow
+func (m *nativeGitClient) IsShallowRepo(ctx context.Context) (bool, error) {
+	out, err := m.runCmd(ctx, "rev-parse", "--is-shallow-repository")
+	if err != nil {
+		return false, fmt.Errorf("failed to check if repository is shallow: %w", err)
+	}
+
+	return strings.TrimSpace(out) == "true", nil
 }
 
 // cmdWithGPG creates git Cmd with a GPG-enabled environment
