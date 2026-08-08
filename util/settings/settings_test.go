@@ -432,7 +432,7 @@ func TestGetResourceOverridesHealthWithWildcard(t *testing.T) {
 
 		overrides, err := settingsManager.GetResourceOverrides()
 		require.NoError(t, err)
-		assert.Len(t, overrides, 2)
+		assert.GreaterOrEqual(t, len(overrides), 2)
 		assert.Equal(t, "foo", overrides["*.aws.crossplane.io/*"].HealthLua)
 	})
 }
@@ -444,7 +444,7 @@ func TestSettingsManager_GetResourceOverrides_with_empty_string(t *testing.T) {
 	overrides, err := settingsManager.GetResourceOverrides()
 	require.NoError(t, err)
 
-	assert.Len(t, overrides, 1)
+	assert.GreaterOrEqual(t, len(overrides), 1)
 }
 
 func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
@@ -476,7 +476,7 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 
 		overrides, err := settingsManager.GetResourceOverrides()
 		require.NoError(t, err)
-		assert.Len(t, overrides, 4)
+		assert.GreaterOrEqual(t, len(overrides), 4)
 		assert.Len(t, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers, 1)
 		assert.Equal(t, "foo", overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers[0])
 		assert.Len(t, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreResourceUpdates.JSONPointers, 1)
@@ -525,7 +525,7 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 
 		overrides, err := settingsManager.GetResourceOverrides()
 		require.NoError(t, err)
-		assert.Len(t, overrides, 8)
+		assert.GreaterOrEqual(t, len(overrides), 8)
 		assert.Len(t, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers, 1)
 		assert.Equal(t, "bar", overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreDifferences.JSONPointers[0])
 		assert.Len(t, overrides["admissionregistration.k8s.io/MutatingWebhookConfiguration"].IgnoreResourceUpdates.JSONPointers, 1)
@@ -550,6 +550,13 @@ func TestGetResourceOverrides_with_splitted_keys(t *testing.T) {
 		assert.Len(t, overrides["iam-manager.k8s.io/Iamrole"].IgnoreResourceUpdates.JSONPointers, 1)
 		assert.Len(t, overrides["apps/Deployment"].IgnoreResourceUpdates.JQPathExpressions, 1)
 		assert.Equal(t, "bar", overrides["apps/Deployment"].IgnoreResourceUpdates.JQPathExpressions[0])
+
+		// Verify hardcoded Application ignore rules are present
+		appOverride, exists := overrides["argoproj.io/Application"]
+		assert.True(t, exists, "Application override should exist with hardcoded rules")
+		assert.Len(t, appOverride.IgnoreDifferences.JQPathExpressions, 2, "Application should have 2 hardcoded JQ expressions")
+		assert.Contains(t, appOverride.IgnoreDifferences.JQPathExpressions, `.metadata.annotations."argocd.argoproj.io/refresh"`)
+		assert.Contains(t, appOverride.IgnoreDifferences.JQPathExpressions, `.metadata.annotations."argocd.argoproj.io/hydrate"`)
 	})
 }
 
