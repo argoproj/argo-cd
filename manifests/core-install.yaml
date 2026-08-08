@@ -1048,6 +1048,31 @@ spec:
                   - kind
                   type: object
                 type: array
+              ignoreDuplicateResources:
+                description: |-
+                  IgnoreDuplicateResources controls which resources should suppress RepeatedResourceWarning.
+                  If a resource appears multiple times among application resources but matches one of these
+                  selectors, the RepeatedResourceWarning condition will not be generated for it.
+                items:
+                  description: |-
+                    ResourceIgnoreDuplicate contains resource filter for suppressing RepeatedResourceWarning.
+                    If a resource matches the Group/Kind/Name/Namespace selector, the warning will not be
+                    generated when that resource appears multiple times among application resources.
+                  properties:
+                    group:
+                      minLength: 1
+                      type: string
+                    kind:
+                      minLength: 1
+                      type: string
+                    name:
+                      type: string
+                    namespace:
+                      type: string
+                  required:
+                  - kind
+                  type: object
+                type: array
               info:
                 description: Info contains a list of information (URLs, email addresses,
                   and plain text) that relates to the application
@@ -6268,6 +6293,29 @@ spec:
                           - kind
                           type: object
                         type: array
+                      ignoreDuplicateResources:
+                        description: IgnoreDuplicateResources is a reference to the
+                          application's ignored duplicate resources used for comparison
+                        items:
+                          description: |-
+                            ResourceIgnoreDuplicate contains resource filter for suppressing RepeatedResourceWarning.
+                            If a resource matches the Group/Kind/Name/Namespace selector, the warning will not be
+                            generated when that resource appears multiple times among application resources.
+                          properties:
+                            group:
+                              minLength: 1
+                              type: string
+                            kind:
+                              minLength: 1
+                              type: string
+                            name:
+                              type: string
+                            namespace:
+                              type: string
+                          required:
+                          - kind
+                          type: object
+                        type: array
                       source:
                         description: Source is a reference to the application's source
                           used for comparison
@@ -7239,6 +7287,23 @@ spec:
                                     - kind
                                     type: object
                                   type: array
+                                ignoreDuplicateResources:
+                                  items:
+                                    properties:
+                                      group:
+                                        minLength: 1
+                                        type: string
+                                      kind:
+                                        minLength: 1
+                                        type: string
+                                      name:
+                                        type: string
+                                      namespace:
+                                        type: string
+                                    required:
+                                    - kind
+                                    type: object
+                                  type: array
                                 info:
                                   items:
                                     properties:
@@ -8145,6 +8210,23 @@ spec:
                                         items:
                                           type: string
                                         type: array
+                                      name:
+                                        type: string
+                                      namespace:
+                                        type: string
+                                    required:
+                                    - kind
+                                    type: object
+                                  type: array
+                                ignoreDuplicateResources:
+                                  items:
+                                    properties:
+                                      group:
+                                        minLength: 1
+                                        type: string
+                                      kind:
+                                        minLength: 1
+                                        type: string
                                       name:
                                         type: string
                                       namespace:
@@ -9068,6 +9150,23 @@ spec:
                                     - kind
                                     type: object
                                   type: array
+                                ignoreDuplicateResources:
+                                  items:
+                                    properties:
+                                      group:
+                                        minLength: 1
+                                        type: string
+                                      kind:
+                                        minLength: 1
+                                        type: string
+                                      name:
+                                        type: string
+                                      namespace:
+                                        type: string
+                                    required:
+                                    - kind
+                                    type: object
+                                  type: array
                                 info:
                                   items:
                                     properties:
@@ -9953,6 +10052,23 @@ spec:
                                         items:
                                           type: string
                                         type: array
+                                      name:
+                                        type: string
+                                      namespace:
+                                        type: string
+                                    required:
+                                    - kind
+                                    type: object
+                                  type: array
+                                ignoreDuplicateResources:
+                                  items:
+                                    properties:
+                                      group:
+                                        minLength: 1
+                                        type: string
+                                      kind:
+                                        minLength: 1
+                                        type: string
                                       name:
                                         type: string
                                       namespace:
@@ -10879,6 +10995,23 @@ spec:
                                               - kind
                                               type: object
                                             type: array
+                                          ignoreDuplicateResources:
+                                            items:
+                                              properties:
+                                                group:
+                                                  minLength: 1
+                                                  type: string
+                                                kind:
+                                                  minLength: 1
+                                                  type: string
+                                                name:
+                                                  type: string
+                                                namespace:
+                                                  type: string
+                                              required:
+                                              - kind
+                                              type: object
+                                            type: array
                                           info:
                                             items:
                                               properties:
@@ -11785,6 +11918,23 @@ spec:
                                                   items:
                                                     type: string
                                                   type: array
+                                                name:
+                                                  type: string
+                                                namespace:
+                                                  type: string
+                                              required:
+                                              - kind
+                                              type: object
+                                            type: array
+                                          ignoreDuplicateResources:
+                                            items:
+                                              properties:
+                                                group:
+                                                  minLength: 1
+                                                  type: string
+                                                kind:
+                                                  minLength: 1
+                                                  type: string
                                                 name:
                                                   type: string
                                                 namespace:
@@ -12708,6 +12858,23 @@ spec:
                                               - kind
                                               type: object
                                             type: array
+                                          ignoreDuplicateResources:
+                                            items:
+                                              properties:
+                                                group:
+                                                  minLength: 1
+                                                  type: string
+                                                kind:
+                                                  minLength: 1
+                                                  type: string
+                                                name:
+                                                  type: string
+                                                namespace:
+                                                  type: string
+                                              required:
+                                              - kind
+                                              type: object
+                                            type: array
                                           info:
                                             items:
                                               properties:
@@ -13593,6 +13760,23 @@ spec:
                                                   items:
                                                     type: string
                                                   type: array
+                                                name:
+                                                  type: string
+                                                namespace:
+                                                  type: string
+                                              required:
+                                              - kind
+                                              type: object
+                                            type: array
+                                          ignoreDuplicateResources:
+                                            items:
+                                              properties:
+                                                group:
+                                                  minLength: 1
+                                                  type: string
+                                                kind:
+                                                  minLength: 1
+                                                  type: string
                                                 name:
                                                   type: string
                                                 namespace:
@@ -14494,6 +14678,23 @@ spec:
                                                   items:
                                                     type: string
                                                   type: array
+                                                name:
+                                                  type: string
+                                                namespace:
+                                                  type: string
+                                              required:
+                                              - kind
+                                              type: object
+                                            type: array
+                                          ignoreDuplicateResources:
+                                            items:
+                                              properties:
+                                                group:
+                                                  minLength: 1
+                                                  type: string
+                                                kind:
+                                                  minLength: 1
+                                                  type: string
                                                 name:
                                                   type: string
                                                 namespace:
@@ -15630,6 +15831,23 @@ spec:
                                               - kind
                                               type: object
                                             type: array
+                                          ignoreDuplicateResources:
+                                            items:
+                                              properties:
+                                                group:
+                                                  minLength: 1
+                                                  type: string
+                                                kind:
+                                                  minLength: 1
+                                                  type: string
+                                                name:
+                                                  type: string
+                                                namespace:
+                                                  type: string
+                                              required:
+                                              - kind
+                                              type: object
+                                            type: array
                                           info:
                                             items:
                                               properties:
@@ -16755,6 +16973,23 @@ spec:
                                               - kind
                                               type: object
                                             type: array
+                                          ignoreDuplicateResources:
+                                            items:
+                                              properties:
+                                                group:
+                                                  minLength: 1
+                                                  type: string
+                                                kind:
+                                                  minLength: 1
+                                                  type: string
+                                                name:
+                                                  type: string
+                                                namespace:
+                                                  type: string
+                                              required:
+                                              - kind
+                                              type: object
+                                            type: array
                                           info:
                                             items:
                                               properties:
@@ -17657,6 +17892,23 @@ spec:
                                         items:
                                           type: string
                                         type: array
+                                      name:
+                                        type: string
+                                      namespace:
+                                        type: string
+                                    required:
+                                    - kind
+                                    type: object
+                                  type: array
+                                ignoreDuplicateResources:
+                                  items:
+                                    properties:
+                                      group:
+                                        minLength: 1
+                                        type: string
+                                      kind:
+                                        minLength: 1
+                                        type: string
                                       name:
                                         type: string
                                       namespace:
@@ -18585,6 +18837,23 @@ spec:
                                               - kind
                                               type: object
                                             type: array
+                                          ignoreDuplicateResources:
+                                            items:
+                                              properties:
+                                                group:
+                                                  minLength: 1
+                                                  type: string
+                                                kind:
+                                                  minLength: 1
+                                                  type: string
+                                                name:
+                                                  type: string
+                                                namespace:
+                                                  type: string
+                                              required:
+                                              - kind
+                                              type: object
+                                            type: array
                                           info:
                                             items:
                                               properties:
@@ -19491,6 +19760,23 @@ spec:
                                                   items:
                                                     type: string
                                                   type: array
+                                                name:
+                                                  type: string
+                                                namespace:
+                                                  type: string
+                                              required:
+                                              - kind
+                                              type: object
+                                            type: array
+                                          ignoreDuplicateResources:
+                                            items:
+                                              properties:
+                                                group:
+                                                  minLength: 1
+                                                  type: string
+                                                kind:
+                                                  minLength: 1
+                                                  type: string
                                                 name:
                                                   type: string
                                                 namespace:
@@ -20414,6 +20700,23 @@ spec:
                                               - kind
                                               type: object
                                             type: array
+                                          ignoreDuplicateResources:
+                                            items:
+                                              properties:
+                                                group:
+                                                  minLength: 1
+                                                  type: string
+                                                kind:
+                                                  minLength: 1
+                                                  type: string
+                                                name:
+                                                  type: string
+                                                namespace:
+                                                  type: string
+                                              required:
+                                              - kind
+                                              type: object
+                                            type: array
                                           info:
                                             items:
                                               properties:
@@ -21299,6 +21602,23 @@ spec:
                                                   items:
                                                     type: string
                                                   type: array
+                                                name:
+                                                  type: string
+                                                namespace:
+                                                  type: string
+                                              required:
+                                              - kind
+                                              type: object
+                                            type: array
+                                          ignoreDuplicateResources:
+                                            items:
+                                              properties:
+                                                group:
+                                                  minLength: 1
+                                                  type: string
+                                                kind:
+                                                  minLength: 1
+                                                  type: string
                                                 name:
                                                   type: string
                                                 namespace:
@@ -22200,6 +22520,23 @@ spec:
                                                   items:
                                                     type: string
                                                   type: array
+                                                name:
+                                                  type: string
+                                                namespace:
+                                                  type: string
+                                              required:
+                                              - kind
+                                              type: object
+                                            type: array
+                                          ignoreDuplicateResources:
+                                            items:
+                                              properties:
+                                                group:
+                                                  minLength: 1
+                                                  type: string
+                                                kind:
+                                                  minLength: 1
+                                                  type: string
                                                 name:
                                                   type: string
                                                 namespace:
@@ -23336,6 +23673,23 @@ spec:
                                               - kind
                                               type: object
                                             type: array
+                                          ignoreDuplicateResources:
+                                            items:
+                                              properties:
+                                                group:
+                                                  minLength: 1
+                                                  type: string
+                                                kind:
+                                                  minLength: 1
+                                                  type: string
+                                                name:
+                                                  type: string
+                                                namespace:
+                                                  type: string
+                                              required:
+                                              - kind
+                                              type: object
+                                            type: array
                                           info:
                                             items:
                                               properties:
@@ -24461,6 +24815,23 @@ spec:
                                               - kind
                                               type: object
                                             type: array
+                                          ignoreDuplicateResources:
+                                            items:
+                                              properties:
+                                                group:
+                                                  minLength: 1
+                                                  type: string
+                                                kind:
+                                                  minLength: 1
+                                                  type: string
+                                                name:
+                                                  type: string
+                                                namespace:
+                                                  type: string
+                                              required:
+                                              - kind
+                                              type: object
+                                            type: array
                                           info:
                                             items:
                                               properties:
@@ -25375,6 +25746,23 @@ spec:
                                     - kind
                                     type: object
                                   type: array
+                                ignoreDuplicateResources:
+                                  items:
+                                    properties:
+                                      group:
+                                        minLength: 1
+                                        type: string
+                                      kind:
+                                        minLength: 1
+                                        type: string
+                                      name:
+                                        type: string
+                                      namespace:
+                                        type: string
+                                    required:
+                                    - kind
+                                    type: object
+                                  type: array
                                 info:
                                   items:
                                     properties:
@@ -26267,6 +26655,23 @@ spec:
                                         items:
                                           type: string
                                         type: array
+                                      name:
+                                        type: string
+                                      namespace:
+                                        type: string
+                                    required:
+                                    - kind
+                                    type: object
+                                  type: array
+                                ignoreDuplicateResources:
+                                  items:
+                                    properties:
+                                      group:
+                                        minLength: 1
+                                        type: string
+                                      kind:
+                                        minLength: 1
+                                        type: string
                                       name:
                                         type: string
                                       namespace:
@@ -27403,6 +27808,23 @@ spec:
                                     - kind
                                     type: object
                                   type: array
+                                ignoreDuplicateResources:
+                                  items:
+                                    properties:
+                                      group:
+                                        minLength: 1
+                                        type: string
+                                      kind:
+                                        minLength: 1
+                                        type: string
+                                      name:
+                                        type: string
+                                      namespace:
+                                        type: string
+                                    required:
+                                    - kind
+                                    type: object
+                                  type: array
                                 info:
                                   items:
                                     properties:
@@ -28528,6 +28950,23 @@ spec:
                                     - kind
                                     type: object
                                   type: array
+                                ignoreDuplicateResources:
+                                  items:
+                                    properties:
+                                      group:
+                                        minLength: 1
+                                        type: string
+                                      kind:
+                                        minLength: 1
+                                        type: string
+                                      name:
+                                        type: string
+                                      namespace:
+                                        type: string
+                                    required:
+                                    - kind
+                                    type: object
+                                  type: array
                                 info:
                                   items:
                                     properties:
@@ -29507,6 +29946,23 @@ spec:
                               items:
                                 type: string
                               type: array
+                            name:
+                              type: string
+                            namespace:
+                              type: string
+                          required:
+                          - kind
+                          type: object
+                        type: array
+                      ignoreDuplicateResources:
+                        items:
+                          properties:
+                            group:
+                              minLength: 1
+                              type: string
+                            kind:
+                              minLength: 1
+                              type: string
                             name:
                               type: string
                             namespace:

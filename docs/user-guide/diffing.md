@@ -207,3 +207,7 @@ metadata:
 data:
   ignore.normalizer.jq.timeout: '5s'
 ```
+
+## Suppressing RepeatedResourceWarning
+
+When multiple sources produce the same resource, Argo CD correctly deduplicates the resource but emits a `RepeatedResourceWarning`. If the duplication is intentional (for example, CRDs from Helm subchart dependencies), you can suppress this warning for specific resources using `spec.ignoreDuplicateResources`. See [multiple sources](../user-guide/multiple_sources.md) for details and examples.
