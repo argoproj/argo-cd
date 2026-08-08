@@ -2062,10 +2062,13 @@ func (m *ResourceActionsListResponse) GetActions() []*v1alpha1.ResourceAction {
 }
 
 type ResourceHealthDefinitionResponse struct {
-	// Source describes where the resource's health check definition comes from: "custom" for a
-	// user-defined override configured in argocd-cm, "built-in" for a Lua script bundled with
-	// Argo CD, or unset if the resource has no Lua-based health check (it may still be assessed
-	// by one of Argo CD's built-in Go health checks).
+	// Source describes where the resource's health check definition comes from. One of:
+	//  - "custom": a user-defined override configured in argocd-cm.
+	//  - "built-in": a Lua script bundled with Argo CD.
+	//  - "built-in-go": the resource has no Lua-based health check, but is assessed by one of
+	//    Argo CD's built-in Go health checks. Script is unset in this case - there is no Lua
+	//    source to show.
+	//  - unset: the resource kind has no dedicated health check at all.
 	Source *string `protobuf:"bytes,1,opt,name=source" json:"source,omitempty"`
 	// Script contains the Lua source of the health check, when one is defined (source is
 	// "custom" or "built-in"). Empty otherwise.

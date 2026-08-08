@@ -5543,7 +5543,7 @@
           "type": "string"
         },
         "source": {
-          "description": "Source describes where the resource's health check definition comes from: \"custom\" for a\nuser-defined override configured in argocd-cm, \"built-in\" for a Lua script bundled with\nArgo CD, or unset if the resource has no Lua-based health check (it may still be assessed\nby one of Argo CD's built-in Go health checks).",
+          "description": "Source describes where the resource's health check definition comes from. One of:\n - \"custom\": a user-defined override configured in argocd-cm.\n - \"built-in\": a Lua script bundled with Argo CD.\n - \"built-in-go\": the resource has no Lua-based health check, but is assessed by one of\n   Argo CD's built-in Go health checks. Script is unset in this case - there is no Lua\n   source to show.\n - unset: the resource kind has no dedicated health check at all.",
           "type": "string"
         }
       }
