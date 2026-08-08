@@ -3,12 +3,18 @@ package utils
 import (
 	"testing"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.yaml.in/yaml/v3"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 )
 
@@ -235,4 +241,63 @@ spec:
 			assert.YAMLEq(t, string(yamlExpected), string(yamlFound))
 		})
 	}
+}
+
+// https://github.com/argoproj/argo-cd/issues/29066
+//
+// A tool like argocd-image-updater patches spec.source.kustomize.images directly onto the live
+// Application. An ignoreApplicationDifferences rule on that path is supposed to make the
+// ApplicationSet controller leave it alone. Removing the ignored field leaves an empty-but-present
+// Kustomize struct on the live side (the generated side, built from a template with no kustomize
+// block, has a nil pointer instead) unless that leftover is renormalized away — otherwise
+// CreateOrUpdate sees a spurious diff and patches "kustomize": null over the image updater's write.
+func TestCreateOrUpdateDoesNotRevertIgnoredKustomizeImages(t *testing.T) {
+	t.Parallel()
+
+	scheme := runtime.NewScheme()
+	require.NoError(t, v1alpha1.AddToScheme(scheme))
+
+	live := &v1alpha1.Application{
+		TypeMeta:   metav1.TypeMeta{APIVersion: "argoproj.io/v1alpha1", Kind: "Application"},
+		ObjectMeta: metav1.ObjectMeta{Name: "demo-dev", Namespace: "argocd"},
+		Spec: v1alpha1.ApplicationSpec{
+			Project: "default",
+			Source: &v1alpha1.ApplicationSource{
+				RepoURL: "https://github.com/argoproj/argocd-example-apps.git",
+				Path:    "kustomize-guestbook",
+				Kustomize: &v1alpha1.ApplicationSourceKustomize{
+					Images: []v1alpha1.KustomizeImage{"gcr.io/heptio-images/ks-guestbook-demo:0.2"},
+				},
+			},
+			Destination: v1alpha1.ApplicationDestination{
+				Server: "https://kubernetes.default.svc", Namespace: "guestbook",
+			},
+		},
+	}
+
+	generated := live.DeepCopy()
+	generated.Spec.Source.Kustomize = nil // template has no kustomize block
+	generated.Spec = *argo.NormalizeApplicationSpec(&generated.Spec)
+
+	ignore := v1alpha1.ApplicationSetIgnoreDifferences{
+		{JSONPointers: []string{"/spec/source/kustomize/images"}},
+	}
+	diffConfig, err := BuildIgnoreDiffConfig(ignore, normalizers.IgnoreNormalizerOpts{})
+	require.NoError(t, err)
+
+	c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(live.DeepCopy()).Build()
+	obj := live.DeepCopy()
+	op, err := CreateOrUpdate(t.Context(), log.NewEntry(log.New()), c, diffConfig, obj, func() error {
+		obj.Spec = generated.Spec
+		return nil
+	})
+	require.NoError(t, err)
+
+	require.Equal(t, controllerutil.OperationResultNone, op,
+		"CreateOrUpdate must not patch when the only diff is on a field covered by ignoreApplicationDifferences")
+
+	persisted := &v1alpha1.Application{}
+	require.NoError(t, c.Get(t.Context(), client.ObjectKeyFromObject(live), persisted))
+	require.NotNil(t, persisted.Spec.Source.Kustomize, "the ignored kustomize.images override must survive in the cluster")
+	require.Equal(t, live.Spec.Source.Kustomize.Images, persisted.Spec.Source.Kustomize.Images)
 }
