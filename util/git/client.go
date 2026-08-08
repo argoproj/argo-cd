@@ -130,7 +130,7 @@ type Client interface {
 	Root() string
 	RepoURL() string
 	Init() error
-	Fetch(ctx context.Context, revision string, depth int64) error
+	Fetch(ctx context.Context, revision string) error
 	Submodule(ctx context.Context) error
 	Checkout(ctx context.Context, revision string, submoduleEnabled bool, cleanState bool) (string, error)
 	LsRefs() (*Refs, error)
@@ -199,6 +199,8 @@ type nativeGitClient struct {
 	noProxy string
 	// git configuration environment variables
 	gitConfigEnv []string
+	// depth is the clone depth
+	depth int64
 	// tagPrefix filters git tags to only those with this prefix when resolving semver constraints.
 	// The prefix is stripped before comparison and re-added to the resolved tag name.
 	tagPrefix string
@@ -262,6 +264,13 @@ func WithBuiltinGitConfig(enable bool) ClientOpts {
 func WithEventHandlers(handlers EventHandlers) ClientOpts {
 	return func(c *nativeGitClient) {
 		c.EventHandlers = handlers
+	}
+}
+
+// WithDepth sets the Git clone depth.
+func WithDepth(depth int64) ClientOpts {
+	return func(c *nativeGitClient) {
+		c.depth = depth
 	}
 }
 
@@ -570,14 +579,14 @@ func (m *nativeGitClient) IsLFSEnabled() bool {
 	return m.enableLfs
 }
 
-func (m *nativeGitClient) fetch(ctx context.Context, revision string, depth int64) error {
+func (m *nativeGitClient) fetch(ctx context.Context, revision string) error {
 	args := []string{"fetch", "origin"}
 	if revision != "" {
 		args = append(args, revision)
 	}
 
-	if depth > 0 {
-		args = append(args, "--depth", strconv.FormatInt(depth, 10))
+	if m.depth > 0 {
+		args = append(args, "--depth", strconv.FormatInt(m.depth, 10))
 	} else {
 		args = append(args, "--tags")
 	}
@@ -673,13 +682,13 @@ func (m *nativeGitClient) cleanupOrphanedTempPackfiles() {
 }
 
 // Fetch fetches latest updates from origin
-func (m *nativeGitClient) Fetch(ctx context.Context, revision string, depth int64) error {
+func (m *nativeGitClient) Fetch(ctx context.Context, revision string) error {
 	if m.OnFetch != nil {
 		done := m.OnFetch(m.repoURL)
 		defer done()
 	}
 
-	err := m.fetch(ctx, revision, depth)
+	err := m.fetch(ctx, revision)
 	if err != nil {
 		m.cleanupOrphanedTempPackfiles()
 		return err
@@ -763,7 +772,13 @@ func (m *nativeGitClient) Submodule(ctx context.Context) error {
 	if err := m.runCredentialedCmd(ctx, "submodule", "sync", "--recursive"); err != nil {
 		return err
 	}
-	return m.runCredentialedCmd(ctx, "submodule", "update", "--init", "--recursive")
+
+	args := []string{"submodule", "update", "--init", "--recursive"}
+	if m.depth > 0 {
+		args = append(args, "--depth", strconv.FormatInt(m.depth, 10))
+	}
+
+	return m.runCredentialedCmd(ctx, args...)
 }
 
 // Checkout checks out the specified revision
