@@ -32,7 +32,8 @@ const (
 	// The default minimum TLS version to provide to clients
 	DefaultTLSMinVersion = "1.2"
 	// The default maximum TLS version to provide to clients
-	DefaultTLSMaxVersion = "1.3"
+	DefaultTLSMaxVersion       = "1.3"
+	DefaultTLSCurvePreferences = ""
 )
 
 var tlsVersionByString = map[string]uint16{
@@ -135,7 +136,7 @@ func tlsVersionsToStr(versions []uint16) []string {
 	return ret
 }
 
-func getTLSConfigCustomizer(minVersionStr, maxVersionStr, tlsCiphersStr string) (ConfigCustomizer, error) {
+func getTLSConfigCustomizer(minVersionStr, maxVersionStr, tlsCiphersStr, tlsCurvePreferences string) (ConfigCustomizer, error) {
 	minVersion, err := getTLSVersionByString(minVersionStr)
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving TLS version by min version %q: %w", minVersionStr, err)
@@ -174,11 +175,54 @@ func getTLSConfigCustomizer(minVersionStr, maxVersionStr, tlsCiphersStr string) 
 		cipherSuites = make([]uint16, 0)
 	}
 
+	var curvePreferences []tls.CurveID
+	if tlsCurvePreferences != "" {
+		curvePreferences, err = getTLSCurvePreferencesByString(strings.Split(tlsCurvePreferences, ":"))
+		if err != nil {
+			return nil, err
+		}
+	}
 	return func(config *tls.Config) {
 		config.MinVersion = minVersion
 		config.MaxVersion = maxVersion
 		config.CipherSuites = cipherSuites
+		config.CurvePreferences = curvePreferences
 	}, nil
+}
+
+// Accept multiple aliases for the same curve to support different naming
+// conventions (Go, OpenSSL, Kubernetes configs, and user-provided values).
+var tlsCurveByString = map[string]tls.CurveID{
+	"SecP256r1MLKEM768":  tls.SecP256r1MLKEM768,
+	"SecP384r1MLKEM1024": tls.SecP384r1MLKEM1024,
+	"P256":               tls.CurveP256,
+	"P384":               tls.CurveP384,
+	"P521":               tls.CurveP521,
+	"CurveP256":          tls.CurveP256,
+	"CurveP384":          tls.CurveP384,
+	"CurveP521":          tls.CurveP521,
+	"X25519":             tls.X25519,
+	"P-256":              tls.CurveP256,
+	"P-384":              tls.CurveP384,
+	"P-521":              tls.CurveP521,
+
+	// Post-Quantum hybrid: ML-KEM 768 combined with X25519 (Go 1.24+)
+	"X25519MLKEM768": tls.X25519MLKEM768,
+}
+
+func getTLSCurvePreferencesByString(curves []string) ([]tls.CurveID, error) {
+	if len(curves) == 0 {
+		return nil, nil
+	}
+	ids := make([]tls.CurveID, 0, len(curves))
+	for _, curve := range curves {
+		id, ok := tlsCurveByString[strings.TrimSpace(curve)]
+		if !ok {
+			return nil, fmt.Errorf("invalid TLS curve preference: %s", strings.TrimSpace(curve))
+		}
+		ids = append(ids, id)
+	}
+	return ids, nil
 }
 
 // AddTLSFlagsToCmd adds TLS server-related command line options to a command and returns a TLS
@@ -191,6 +235,7 @@ func AddTLSFlagsToCmdWithPrefix(cmd *cobra.Command, prefix string) func() (Confi
 	minVersionStr := ""
 	maxVersionStr := ""
 	tlsCiphersStr := ""
+	tlsCurvePreferences := ""
 	envPrefix := ""
 	if prefix != "" {
 		envPrefix = strings.ReplaceAll(strings.ToUpper(prefix), "-", "_") + "_"
@@ -199,9 +244,9 @@ func AddTLSFlagsToCmdWithPrefix(cmd *cobra.Command, prefix string) func() (Confi
 	cmd.Flags().StringVar(&minVersionStr, prefix+"tlsminversion", env.StringFromEnv("ARGOCD_"+envPrefix+"TLS_MIN_VERSION", DefaultTLSMinVersion), "The minimum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3)")
 	cmd.Flags().StringVar(&maxVersionStr, prefix+"tlsmaxversion", env.StringFromEnv("ARGOCD_"+envPrefix+"TLS_MAX_VERSION", DefaultTLSMaxVersion), "The maximum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3)")
 	cmd.Flags().StringVar(&tlsCiphersStr, prefix+"tlsciphers", env.StringFromEnv("ARGOCD_"+envPrefix+"TLS_CIPHERS", DefaultTLSCipherSuite), "The list of acceptable ciphers to be used when establishing TLS connections. Use 'list' to list available ciphers.")
-
+	cmd.Flags().StringVar(&tlsCurvePreferences, prefix+"tlscurvepreferences", env.StringFromEnv("ARGOCD_"+envPrefix+"TLS_CURVE_PREFERENCES", DefaultTLSCurvePreferences), "Colon-separated list of TLS curve preferences to be used when establishing TLS connections (e.g. X25519:CurveP256).")
 	return func() (ConfigCustomizer, error) {
-		return getTLSConfigCustomizer(minVersionStr, maxVersionStr, tlsCiphersStr)
+		return getTLSConfigCustomizer(minVersionStr, maxVersionStr, tlsCiphersStr, tlsCurvePreferences)
 	}
 }
 
