@@ -2763,3 +2763,84 @@ func Test_EvaluateAppRevisionsChanges(t *testing.T) {
 		})
 	}
 }
+
+func TestShouldUseServerSideDiff(t *testing.T) {
+	appWith := func(compareOptions string, syncOptions ...string) *v1alpha1.Application {
+		app := &v1alpha1.Application{}
+		if compareOptions != "" {
+			app.Annotations = map[string]string{common.AnnotationCompareOptions: compareOptions}
+		}
+		if syncOptions != nil {
+			app.Spec.SyncPolicy = &v1alpha1.SyncPolicy{SyncOptions: syncOptions}
+		}
+		return app
+	}
+
+	testCases := []struct {
+		name               string
+		app                *v1alpha1.Application
+		controllerLevelSSD bool
+		expected           bool
+	}{
+		{
+			name:               "no controller flag, no annotation, no sync option -> false",
+			app:                appWith(""),
+			controllerLevelSSD: false,
+			expected:           false,
+		},
+		{
+			name:               "controller level enabled -> true",
+			app:                appWith(""),
+			controllerLevelSSD: true,
+			expected:           true,
+		},
+		{
+			name:               "ServerSideDiff=true annotation -> true",
+			app:                appWith("ServerSideDiff=true"),
+			controllerLevelSSD: false,
+			expected:           true,
+		},
+		{
+			name:               "ServerSideApply=true sync option -> true",
+			app:                appWith("", "ServerSideApply=true"),
+			controllerLevelSSD: false,
+			expected:           true,
+		},
+		{
+			name:               "other sync options only -> false",
+			app:                appWith("", "Validate=false", "Prune=false"),
+			controllerLevelSSD: false,
+			expected:           false,
+		},
+		{
+			name:               "ServerSideDiff=false annotation overrides controller level flag -> false",
+			app:                appWith("ServerSideDiff=false"),
+			controllerLevelSSD: true,
+			expected:           false,
+		},
+		{
+			name:               "ServerSideDiff=false annotation overrides ServerSideApply=true sync option -> false",
+			app:                appWith("ServerSideDiff=false", "ServerSideApply=true"),
+			controllerLevelSSD: false,
+			expected:           false,
+		},
+		{
+			name:               "ServerSideDiff=false annotation overrides ServerSideDiff=true annotation -> false",
+			app:                appWith("ServerSideDiff=false,ServerSideDiff=true"),
+			controllerLevelSSD: false,
+			expected:           false,
+		},
+		{
+			name:               "nil SyncPolicy is handled gracefully -> false",
+			app:                &v1alpha1.Application{},
+			controllerLevelSSD: false,
+			expected:           false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, shouldUseServerSideDiff(tc.app, tc.controllerLevelSSD))
+		})
+	}
+}
