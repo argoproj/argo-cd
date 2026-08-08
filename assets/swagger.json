@@ -5596,6 +5596,9 @@
     "clusterConnector": {
       "type": "object",
       "properties": {
+        "id": {
+          "type": "string"
+        },
         "name": {
           "type": "string"
         },
@@ -5612,6 +5615,10 @@
           "items": {
             "$ref": "#/definitions/clusterConnector"
           }
+        },
+        "dexAuthConnectorID": {
+          "type": "string",
+          "title": "dexAuthConnectorID is the connector ID that the login screen should redirect to directly, bypassing the connector selection screen"
         }
       }
     },
