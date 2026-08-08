@@ -72,7 +72,10 @@ func BuildIgnoreDiffConfig(ignoreDifferences argov1alpha1.ApplicationSetIgnoreDi
 //
 // Both specs are normalized here, unlike in CreateOrUpdate whose caller normalizes the generated spec
 // first. Order matters: an ignore rule selecting on a normalized value only matches once the defaults
-// are in place.
+// are in place, and a rule that empties a parent object (e.g. removing every field under
+// /spec/source/kustomize) must be followed by another normalization pass so NormalizeSource can nil
+// the now-empty parent — otherwise the two sides differ only by empty-struct-vs-nil and DeepEqual
+// (regression #29066) treats them as unequal.
 func SpecsEquivalent(diffConfig argodiff.DiffConfig, live, desired *argov1alpha1.Application) (bool, error) {
 	normalizedLive := live.DeepCopy()
 	normalizedDesired := desired.DeepCopy()
@@ -83,6 +86,9 @@ func SpecsEquivalent(diffConfig argodiff.DiffConfig, live, desired *argov1alpha1
 	if err := applyIgnoreDifferences(diffConfig, normalizedLive, normalizedDesired); err != nil {
 		return false, fmt.Errorf("failed to apply ignore differences: %w", err)
 	}
+
+	normalizedLive.Spec = *argo.NormalizeApplicationSpec(&normalizedLive.Spec)
+	normalizedDesired.Spec = *argo.NormalizeApplicationSpec(&normalizedDesired.Spec)
 
 	return appEquality.DeepEqual(normalizedLive.Spec, normalizedDesired.Spec), nil
 }
@@ -137,6 +143,15 @@ func CreateOrUpdate(ctx context.Context, logCtx *log.Entry, c client.Client, dif
 	if err != nil {
 		return controllerutil.OperationResultNone, fmt.Errorf("failed to apply ignore differences: %w", err)
 	}
+
+	// Re-normalize both sides after applyIgnoreDifferences: a rule that removes every field under
+	// an object parent (e.g. /spec/source/kustomize/images with no other kustomize fields) leaves
+	// an empty struct on the side that had the field and nothing on the side that did not.
+	// NormalizeSource nils out those now-empty parents so DeepEqual below (and the patch it gates)
+	// does not see a false empty-struct-vs-nil diff and wipe the ignored field on the next reconcile
+	// (regression #29066).
+	normalizedLive.Spec = *argo.NormalizeApplicationSpec(&normalizedLive.Spec)
+	obj.Spec = *argo.NormalizeApplicationSpec(&obj.Spec)
 
 	// Note: if the informer cache holds a stale entry for an application that no longer exists on
 	// the API server, DeepEqual may match against that stale entry and we skip Patch here. The

@@ -236,3 +236,106 @@ spec:
 		})
 	}
 }
+
+// TestSpecsEquivalent_ignoreLeavesEmptyParentStruct covers the regression from #29066:
+// when an ignoreApplicationDifferences rule removes every field under a parent object
+// (e.g. /spec/source/kustomize/images with no other kustomize fields, or /spec/syncPolicy/automated
+// with no other syncPolicy fields), the side that held the ignored field is left with an empty
+// struct while the other side has a nil pointer. Prior to the fix these two shapes were reported
+// as unequal, so CreateOrUpdate produced a patch that wiped the ignored field on every reconcile
+// (breaking the argocd-image-updater write-back pattern for kustomize.images).
+func TestSpecsEquivalent_ignoreLeavesEmptyParentStruct(t *testing.T) {
+	t.Parallel()
+
+	appMeta := metav1.TypeMeta{
+		APIVersion: v1alpha1.ApplicationSchemaGroupVersionKind.GroupVersion().String(),
+		Kind:       v1alpha1.ApplicationSchemaGroupVersionKind.Kind,
+	}
+	testCases := []struct {
+		name              string
+		ignoreDifferences v1alpha1.ApplicationSetIgnoreDifferences
+		live              string
+		desired           string
+	}{
+		{
+			name: "ignore kustomize.images with no other kustomize fields (argocd-image-updater write-back)",
+			ignoreDifferences: v1alpha1.ApplicationSetIgnoreDifferences{
+				{JSONPointers: []string{"/spec/source/kustomize/images"}},
+			},
+			live: `
+spec:
+  project: default
+  source:
+    repoURL: https://example.com/repo
+    path: app
+    kustomize:
+      images:
+      - example.com/img:v2`,
+			desired: `
+spec:
+  project: default
+  source:
+    repoURL: https://example.com/repo
+    path: app`,
+		},
+		{
+			name: "ignore helm.parameters with no other helm fields",
+			ignoreDifferences: v1alpha1.ApplicationSetIgnoreDifferences{
+				{JSONPointers: []string{"/spec/source/helm/parameters"}},
+			},
+			live: `
+spec:
+  project: default
+  source:
+    repoURL: https://example.com/repo
+    path: chart
+    helm:
+      parameters:
+      - name: image.tag
+        value: v2`,
+			desired: `
+spec:
+  project: default
+  source:
+    repoURL: https://example.com/repo
+    path: chart`,
+		},
+		{
+			name: "ignore syncPolicy.automated with no other syncPolicy fields",
+			ignoreDifferences: v1alpha1.ApplicationSetIgnoreDifferences{
+				{JSONPointers: []string{"/spec/syncPolicy/automated"}},
+			},
+			live: `
+spec:
+  project: default
+  source:
+    repoURL: https://example.com/repo
+    path: app
+  syncPolicy:
+    automated:
+      selfHeal: true`,
+			desired: `
+spec:
+  project: default
+  source:
+    repoURL: https://example.com/repo
+    path: app`,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			liveApp := v1alpha1.Application{TypeMeta: appMeta}
+			require.NoError(t, yaml.Unmarshal([]byte(tc.live), &liveApp))
+			desiredApp := v1alpha1.Application{TypeMeta: appMeta}
+			require.NoError(t, yaml.Unmarshal([]byte(tc.desired), &desiredApp))
+			diffConfig, err := BuildIgnoreDiffConfig(tc.ignoreDifferences, normalizers.IgnoreNormalizerOpts{})
+			require.NoError(t, err)
+
+			equivalent, err := SpecsEquivalent(diffConfig, &liveApp, &desiredApp)
+			require.NoError(t, err)
+			assert.True(t, equivalent, "specs should be equivalent after ignoring %v (regression #29066: an empty parent struct left on the live side must not be reported as different from a nil parent on the desired side)", tc.ignoreDifferences)
+		})
+	}
+}
