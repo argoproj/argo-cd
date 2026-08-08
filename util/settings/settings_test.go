@@ -279,6 +279,33 @@ func TestApplicationFineGrainedRBACInheritanceDisabled(t *testing.T) {
 	assert.False(t, flag)
 }
 
+func TestGetServerRBACRollbackEnforceEnable(t *testing.T) {
+	t.Run("defaults to false when key absent", func(t *testing.T) {
+		_, settingsManager := fixtures(t.Context(), nil)
+		enabled, err := settingsManager.GetServerRBACRollbackEnforceEnable()
+		require.NoError(t, err)
+		assert.False(t, enabled)
+	})
+
+	t.Run("returns true when set to true", func(t *testing.T) {
+		_, settingsManager := fixtures(t.Context(), map[string]string{
+			"server.rbac.rollback.enforce.enable": "true",
+		})
+		enabled, err := settingsManager.GetServerRBACRollbackEnforceEnable()
+		require.NoError(t, err)
+		assert.True(t, enabled)
+	})
+
+	t.Run("returns false when explicitly set to false", func(t *testing.T) {
+		_, settingsManager := fixtures(t.Context(), map[string]string{
+			"server.rbac.rollback.enforce.enable": "false",
+		})
+		enabled, err := settingsManager.GetServerRBACRollbackEnforceEnable()
+		require.NoError(t, err)
+		assert.False(t, enabled)
+	})
+}
+
 func TestGetIsIgnoreResourceUpdatesEnabled(t *testing.T) {
 	_, settingsManager := fixtures(t.Context(), nil)
 	ignoreResourceUpdatesEnabled, err := settingsManager.GetIsIgnoreResourceUpdatesEnabled()
