@@ -97,6 +97,7 @@ func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 	command.AddCommand(NewApplicationAddSourceCommand(clientOpts))
 	command.AddCommand(NewApplicationRemoveSourceCommand(clientOpts))
 	command.AddCommand(NewApplicationConfirmDeletionCommand(clientOpts))
+	command.AddCommand(NewApplicationRenameCommand(clientOpts))
 	return command
 }
 
@@ -1256,6 +1257,53 @@ func findAndPrintDiff(
 	}
 
 	return foundDiffs
+}
+
+// NewApplicationRenameCommand renames an application without recreating its resources.
+func NewApplicationRenameCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var (
+		appNamespace string
+		noPrompt     bool
+	)
+	command := &cobra.Command{
+		Use:   "rename APPNAME NEWNAME",
+		Short: "Rename an application without recreating its managed resources",
+		Example: `  # Rename application 'foo' to 'bar'
+  argocd app rename foo bar`,
+		Run: func(c *cobra.Command, args []string) {
+			ctx := c.Context()
+			if len(args) != 2 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			acdClient := headless.NewClientOrDie(clientOpts, c)
+			conn, appIf := acdClient.NewApplicationClientOrDie()
+			defer utilio.Close(conn)
+
+			appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
+			newName, _ := argo.ParseFromQualifiedName(args[1], appNamespace)
+
+			// Renaming deletes and recreates the Application resource, so confirm first
+			// (unless -y is given). Managed workloads keep running; only the CR is swapped.
+			if !noPrompt {
+				promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
+				if !promptUtil.Confirm(fmt.Sprintf("Are you sure you want to rename application '%s' to '%s'? The Application resource is deleted and recreated; managed workloads keep running. [y/n] ", appName, newName)) {
+					return
+				}
+			}
+
+			renamed, err := appIf.Rename(ctx, &application.ApplicationRenameRequest{
+				Name:         &appName,
+				NewName:      &newName,
+				AppNamespace: &appNs,
+			})
+			errors.CheckError(err)
+			fmt.Printf("application '%s' renamed to '%s'\n", appName, renamed.Name)
+		},
+	}
+	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Namespace of the application")
+	command.Flags().BoolVarP(&noPrompt, "yes", "y", false, "Turn off prompting to confirm the rename")
+	return command
 }
 
 // NewApplicationDeleteCommand returns a new instance of an `argocd app delete` command

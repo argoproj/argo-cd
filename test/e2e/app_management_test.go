@@ -155,6 +155,51 @@ func TestGetLogsAllow(t *testing.T) {
 		})
 }
 
+// TestAppRename verifies that `argocd app rename` renames an application without
+// recreating its managed resources: the live Deployment keeps the same UID (no rollout),
+// the old app is gone, and the renamed app converges to Synced.
+func TestAppRename(t *testing.T) {
+	ctx := Given(t)
+	ctx.
+		Path(guestbookPath).
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		And(func(app *Application) {
+			oldName := app.Name
+			newName := oldName + "-renamed"
+			ns := ctx.DeploymentNamespace()
+
+			before, err := fixture.KubeClientset.AppsV1().Deployments(ns).Get(t.Context(), "guestbook-ui", metav1.GetOptions{})
+			require.NoError(t, err)
+
+			_, err = fixture.RunCli("app", "rename", oldName, newName)
+			require.NoError(t, err)
+			t.Cleanup(func() { _, _ = fixture.RunCli("app", "delete", newName, "-y") })
+
+			// The old application is gone.
+			_, err = fixture.RunCli("app", "get", oldName)
+			require.Error(t, err)
+
+			// The renamed application exists and converges to Synced (the server rewrote the
+			// resource-tracking id, so no manual sync is required).
+			require.EventuallyWithT(t, func(c *assert.CollectT) {
+				out, err := fixture.RunCli("app", "get", newName)
+				assert.NoError(c, err)
+				assert.Contains(c, out, "Synced")
+			}, 30*time.Second, 2*time.Second)
+
+			// The managed Deployment was adopted in place, not recreated (same UID).
+			after, err := fixture.KubeClientset.AppsV1().Deployments(ns).Get(t.Context(), "guestbook-ui", metav1.GetOptions{})
+			require.NoError(t, err)
+			assert.Equal(t, before.UID, after.UID, "rename must not recreate the managed Deployment")
+		})
+}
+
 func TestAppCreation(t *testing.T) {
 	ctx := Given(t)
 	ctx.

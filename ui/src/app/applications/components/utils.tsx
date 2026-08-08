@@ -190,6 +190,45 @@ export async function deleteApplication(appName: string, appNamespace: string, a
     return confirmed;
 }
 
+export async function renameApplication(appName: string, appNamespace: string, project: string, apis: ContextApis): Promise<string | null> {
+    let renamedTo: string | null = null;
+    await apis.popup.prompt(
+        'Rename application',
+        api => (
+            <div>
+                <p>
+                    Rename the <strong>Application</strong> <kbd>{appName}</kbd> without recreating its managed resources.
+                </p>
+                <p>
+                    The application is recreated under the new name and its live resources are adopted in place (no rollout). The application must be <kbd>Synced</kbd> with no
+                    operation in progress.
+                </p>
+                <div className='argo-form-row'>
+                    <FormField label='New application name' formApi={api} field='newName' qeId='name-field-rename' component={Text} />
+                </div>
+            </div>
+        ),
+        {
+            validate: vals => ({
+                newName: (!vals.newName && 'Enter a new application name') || (vals.newName === appName && 'New name must be different from the current name')
+            }),
+            submit: async (vals, _, close) => {
+                try {
+                    const renamed = await services.applications.rename(appName, appNamespace, project, vals.newName);
+                    renamedTo = renamed.metadata?.name || vals.newName;
+                    close();
+                } catch (e) {
+                    apis.notifications.show({
+                        content: <ErrorNotification title='Unable to rename application' e={e} />,
+                        type: NotificationType.Error
+                    });
+                }
+            }
+        }
+    );
+    return renamedTo;
+}
+
 export async function confirmSyncingAppOfApps(apps: appModels.Application[], apis: ContextApis, form: FormApi): Promise<boolean> {
     let confirmed = false;
     const appNames: string[] = apps.map(app => app.metadata.name);
@@ -1477,6 +1516,33 @@ export function isAppSetNode(node: appModels.ResourceNode) {
 
 export function getApplicationSetOwnerRef(application: appModels.Application) {
     return application.metadata.ownerReferences?.find(ref => ref.kind === 'ApplicationSet');
+}
+
+// isManagedApplication reports whether the application is a child managed by another resource:
+// an ApplicationSet (via ownerReference) or an app-of-apps parent (via resource tracking).
+// Such children must be renamed through their source of truth (the generator or the parent's
+// Git manifest); the imperative UI rename is disabled for them and offered only via the CLI,
+// which guides the required semi-automatic finalization.
+// appLabelKey is the configured instance label key (from server settings); it defaults to the
+// standard key, but callers should pass the effective value since it is configurable.
+export function isManagedApplication(application: appModels.Application, appLabelKey = 'app.kubernetes.io/instance'): boolean {
+    if (getApplicationSetOwnerRef(application)) {
+        return true;
+    }
+    // The tracking-id annotation key is fixed regardless of the configured tracking method, so it
+    // is a reliable signal whenever annotation-based tracking is in use. The parent name encoded
+    // in it differs from the app's own name for a managed child.
+    const trackingId = application.metadata.annotations?.['argocd.argoproj.io/tracking-id'];
+    if (trackingId) {
+        const parent = trackingId.split(':')[0];
+        if (parent && parent !== application.metadata.name) {
+            return true;
+        }
+    }
+    // The instance label key is configurable; use the effective key so label-based tracking with a
+    // non-default key is not misclassified as unmanaged.
+    const instanceLabel = application.metadata.labels?.[appLabelKey];
+    return !!instanceLabel && instanceLabel !== application.metadata.name;
 }
 
 export function getAppOverridesCount(app: appModels.AbstractApplication) {
