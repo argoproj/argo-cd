@@ -21,7 +21,7 @@ type Server struct {
 	mgr                *sessionmgr.SessionManager
 	settingsMgr        *settings.SettingsManager
 	authenticator      Authenticator
-	policyEnf          *rbacpolicy.RBACPolicyEnforcer
+	policyEnf          *rbacpolicy.Enforcer
 	limitLoginAttempts func() (utilio.Closer, error)
 }
 
@@ -35,7 +35,7 @@ const (
 )
 
 // NewServer returns a new instance of the Session service
-func NewServer(mgr *sessionmgr.SessionManager, settingsMgr *settings.SettingsManager, authenticator Authenticator, policyEnf *rbacpolicy.RBACPolicyEnforcer, rateLimiter func() (utilio.Closer, error)) *Server {
+func NewServer(mgr *sessionmgr.SessionManager, settingsMgr *settings.SettingsManager, authenticator Authenticator, policyEnf *rbacpolicy.Enforcer, rateLimiter func() (utilio.Closer, error)) *Server {
 	return &Server{mgr, settingsMgr, authenticator, policyEnf, rateLimiter}
 }
 
@@ -74,6 +74,14 @@ func (s *Server) Create(_ context.Context, q *session.SessionCreateRequest) (*se
 		s.mgr.IncLoginRequestCounter(failure)
 		return nil, err
 	}
+	if s.policyEnf != nil && s.policyEnf.GetPreventLoginWithoutPermissions() {
+		if !s.policyEnf.UserHasAnyPermission(q.Username, nil) {
+			s.mgr.IncLoginRequestCounter(failure)
+			return nil, status.Errorf(codes.PermissionDenied,
+				"account has no permissions. Contact your administrator.")
+		}
+	}
+
 	jwtToken, err := s.mgr.Create(
 		fmt.Sprintf("%s:%s", q.Username, settings.AccountCapabilityLogin),
 		int64(argoCDSettings.UserSessionDuration.Seconds()),
@@ -102,10 +110,37 @@ func (s *Server) AuthFuncOverride(ctx context.Context, _ string) (context.Contex
 }
 
 func (s *Server) GetUserInfo(ctx context.Context, _ *session.GetUserInfoRequest) (*session.GetUserInfoResponse, error) {
+	loggedIn := sessionmgr.LoggedIn(ctx)
+	username := sessionmgr.Username(ctx)
+	iss := sessionmgr.Iss(ctx)
+	var scopes []string
+	if s.policyEnf != nil {
+		scopes = s.policyEnf.GetScopes()
+	}
+	groups := sessionmgr.Groups(ctx, scopes)
+
+	// For SSO users the permission check cannot happen at login time (there is no
+	// local Create call), so enforce it here on every request.  Local users are
+	// already checked once inside Create, so skipping here avoids the casbin
+	// lookup on every page navigation for the common case.
+	if loggedIn && iss != sessionmgr.SessionManagerClaimsIssuer && s.policyEnf != nil {
+		if s.policyEnf.GetPreventLoginWithoutPermissions() {
+			// Use GetUserIdentifier instead of Username so that the subject passed to
+			// RBAC matches the identifier used by EnforceClaims (sub / federated_claims.user_id).
+			// Username() returns the email claim for SSO users, which can differ from the
+			// RBAC subject and would cause the check to incorrectly block or allow access.
+			rbacSubject := sessionmgr.GetUserIdentifier(ctx)
+			if !s.policyEnf.UserHasAnyPermission(rbacSubject, groups) {
+				return nil, status.Errorf(codes.PermissionDenied,
+					"account has no permissions. Contact your administrator.")
+			}
+		}
+	}
+
 	return &session.GetUserInfoResponse{
-		LoggedIn: sessionmgr.LoggedIn(ctx),
-		Username: sessionmgr.Username(ctx),
-		Iss:      sessionmgr.Iss(ctx),
-		Groups:   sessionmgr.Groups(ctx, s.policyEnf.GetScopes()),
+		LoggedIn: loggedIn,
+		Username: username,
+		Iss:      iss,
+		Groups:   groups,
 	}, nil
 }
