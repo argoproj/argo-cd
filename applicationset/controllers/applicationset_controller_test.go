@@ -11,6 +11,8 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/applicationset/progressivesync"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -4429,9 +4431,84 @@ func TestResourceStatusAreOrdered(t *testing.T) {
 			err = r.updateResourcesStatus(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps)
 			require.NoError(t, err, "expected no errors, but errors occurred")
 
-			assert.Equal(t, cc.expectedResources, cc.appSet.Status.Resources, "expected resources did not match actual")
+			assert.Empty(t, cmp.Diff(cc.expectedResources, cc.appSet.Status.Resources, cmpopts.EquateEmpty()), "expected resources did not match actual")
 		})
 	}
+}
+
+func TestUpdateResourceStatus_SkipsUpdateWhenUnchanged(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, v1alpha1.AddToScheme(scheme))
+
+	appSet := v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "name",
+			Namespace: "argocd",
+		},
+		Status: v1alpha1.ApplicationSetStatus{
+			Resources: []v1alpha1.ResourceStatus{
+				{
+					Name:   "app1",
+					Status: v1alpha1.SyncStatusCodeSynced,
+					Health: &v1alpha1.HealthStatus{
+						Status: health.HealthStatusHealthy,
+					},
+				},
+			},
+			ResourcesCount: 1,
+		},
+	}
+
+	apps := []v1alpha1.Application{
+		{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "app1",
+			},
+			Status: v1alpha1.ApplicationStatus{
+				Sync: v1alpha1.SyncStatus{
+					Status: v1alpha1.SyncStatusCodeSynced,
+				},
+				Health: v1alpha1.AppHealthStatus{
+					Status: health.HealthStatusHealthy,
+				},
+			},
+		},
+	}
+
+	kubeclientset := kubefake.NewClientset([]runtime.Object{}...)
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).WithStatusSubresource(&appSet).WithObjects(&appSet).Build()
+	metrics := appsetmetrics.NewFakeAppsetMetrics()
+	argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
+
+	r := ApplicationSetReconciler{
+		Client:        fakeClient,
+		Scheme:        scheme,
+		Recorder:      record.NewFakeRecorder(1),
+		Generators:    map[string]generators.Generator{},
+		ArgoDB:        argodb,
+		KubeClientset: kubeclientset,
+		Metrics:       metrics,
+	}
+
+	err := r.updateResourcesStatus(t.Context(), log.NewEntry(log.StandardLogger()), &appSet, apps)
+	require.NoError(t, err)
+
+	var stored v1alpha1.ApplicationSet
+	err = fakeClient.Get(t.Context(), types.NamespacedName{Name: "name", Namespace: "argocd"}, &stored)
+	require.NoError(t, err)
+	rvAfterFirst := stored.ResourceVersion
+
+	err = r.updateResourcesStatus(t.Context(), log.NewEntry(log.StandardLogger()), &appSet, apps)
+	require.NoError(t, err)
+
+	err = fakeClient.Get(t.Context(), types.NamespacedName{Name: "name", Namespace: "argocd"}, &stored)
+	require.NoError(t, err)
+	rvAfterSecond := stored.ResourceVersion
+
+	assert.Equal(t, rvAfterFirst, rvAfterSecond,
+		"updateResourcesStatus should not perform a status update when resources haven't changed; "+
+			"unconditional updates bump ResourceVersion on every reconcile, triggering an infinite "+
+			"reconciliation loop via the watch event → re-queue → reconcile → status update cycle")
 }
 
 func TestApplicationOwnsHandler(t *testing.T) {
