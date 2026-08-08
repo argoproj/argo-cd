@@ -2,9 +2,14 @@ import * as React from 'react';
 
 import Helmet from 'react-helmet';
 import {RouteComponentProps} from 'react-router-dom';
-import {PodsLogsViewer} from '../pod-logs-viewer/pod-logs-viewer';
+import {lazyWithBoundary} from '../../../shared/components/lazy-with-boundary';
 import {useQuery} from '../../../shared/hooks/query';
 import './application-fullscreen-logs.scss';
+
+const PodsLogsViewer = lazyWithBoundary(
+    React.lazy(() => import(/* webpackChunkName: "pod-logs" */ '../pod-logs-viewer/pod-logs-viewer').then(m => ({default: m.PodsLogsViewer}))),
+    'Failed to load logs viewer. Please reload and try again.'
+);
 
 export const ApplicationFullscreenLogs = (props: RouteComponentProps<{name: string; appnamespace: string; container: string; namespace: string}>) => {
     const query = useQuery();
