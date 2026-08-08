@@ -330,6 +330,11 @@ data:
   # at the bottom of the page. Change the value as needed.
   # ui.bannerposition: "bottom"
 
+  # Set to "true" to disable the managed Resources view in the UI. When disabled, the "Resources"
+  # navigation item is hidden and the /resources page shows a "feature not enabled" message.
+  # Defaults to "false" (the Resources view is enabled).
+  ui.view.resources.disabled: "false"
+
   # Optional override for the SSO login button label.
   # ui.loginButtonText: "SSO Login"
 
