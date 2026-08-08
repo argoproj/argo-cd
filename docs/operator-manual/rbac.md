@@ -71,19 +71,19 @@ Syntax: `p, <role/user/group>, <resource>, <action>, <object>, <effect>`
 
 Below is a table that summarizes all possible resources and which actions are valid for each of them.
 
-| Resource\Action     | get | create | update | delete | sync | action | override | invoke |
-| :------------------ | :-: | :----: | :----: | :----: | :--: | :----: | :------: | :----: |
-| **applications**    | ✅  |   ✅   |   ✅   |   ✅   |  ✅  |   ✅   |    ✅    |   ❌   |
-| **applicationsets** | ✅  |   ✅   |   ✅   |   ✅   |  ❌  |   ❌   |    ❌    |   ❌   |
-| **clusters**        | ✅  |   ✅   |   ✅   |   ✅   |  ❌  |   ❌   |    ❌    |   ❌   |
-| **projects**        | ✅  |   ✅   |   ✅   |   ✅   |  ❌  |   ❌   |    ❌    |   ❌   |
-| **repositories**    | ✅  |   ✅   |   ✅   |   ✅   |  ❌  |   ❌   |    ❌    |   ❌   |
-| **accounts**        | ✅  |   ❌   |   ✅   |   ❌   |  ❌  |   ❌   |    ❌    |   ❌   |
-| **certificates**    | ✅  |   ✅   |   ❌   |   ✅   |  ❌  |   ❌   |    ❌    |   ❌   |
-| **gpgkeys**         | ✅  |   ✅   |   ❌   |   ✅   |  ❌  |   ❌   |    ❌    |   ❌   |
-| **logs**            | ✅  |   ❌   |   ❌   |   ❌   |  ❌  |   ❌   |    ❌    |   ❌   |
-| **exec**            | ❌  |   ✅   |   ❌   |   ❌   |  ❌  |   ❌   |    ❌    |   ❌   |
-| **extensions**      | ❌  |   ❌   |   ❌   |   ❌   |  ❌  |   ❌   |    ❌    |   ✅   |
+| Resource\Action     | get | create | update | delete | sync | action | override | invoke | debug |
+| :------------------ | :-: | :----: | :----: | :----: | :--: | :----: | :------: | :----: | :---: |
+| **applications**    | ✅  |   ✅   |   ✅   |   ✅   |  ✅  |   ✅   |    ✅    |   ❌   |  ❌  |
+| **applicationsets** | ✅  |   ✅   |   ✅   |   ✅   |  ❌  |   ❌   |    ❌    |   ❌   |  ❌  |
+| **clusters**        | ✅  |   ✅   |   ✅   |   ✅   |  ❌  |   ❌   |    ❌    |   ❌   |  ❌  |
+| **projects**        | ✅  |   ✅   |   ✅   |   ✅   |  ❌  |   ❌   |    ❌    |   ❌   |  ❌  |
+| **repositories**    | ✅  |   ✅   |   ✅   |   ✅   |  ❌  |   ❌   |    ❌    |   ❌   |  ❌  |
+| **accounts**        | ✅  |   ❌   |   ✅   |   ❌   |  ❌  |   ❌   |    ❌    |   ❌   |  ❌  |
+| **certificates**    | ✅  |   ✅   |   ❌   |   ✅   |  ❌  |   ❌   |    ❌    |   ❌   |  ❌  |
+| **gpgkeys**         | ✅  |   ✅   |   ❌   |   ✅   |  ❌  |   ❌   |    ❌    |   ❌   |  ❌  |
+| **logs**            | ✅  |   ❌   |   ❌   |   ❌   |  ❌  |   ❌   |    ❌    |   ❌   |  ❌  |
+| **exec**            | ❌  |   ✅   |   ❌   |   ❌   |  ❌  |   ❌   |    ❌    |   ❌   |  ✅  |
+| **extensions**      | ❌  |   ❌   |   ❌   |   ❌   |  ❌  |   ❌   |    ❌    |   ✅   |  ❌  |
 
 ### Application-Specific Policy
 
@@ -265,6 +265,31 @@ When granted with the `create` action, this policy allows a user to `exec` into 
 the Argo CD UI. The functionality is similar to `kubectl exec`.
 
 See [Web-based Terminal](web_based_terminal.md) for more info.
+
+### The `debug` action
+
+The `debug` action on the `exec` resource allows a user to start ephemeral debug containers on
+Pods of an application via the Argo CD UI. The functionality is similar to `kubectl debug`. This
+is more powerful than `exec` because it injects new containers — use with care. It is part of the
+[Application-Specific Policy](#application-specific-policy) governed by the `exec` resource.
+
+A bare `debug` action allows any image permitted by the `exec.debug.images` allowlist:
+
+```csv
+p, role:debugger, exec, debug, */*, allow
+```
+
+The action can be extended with a glob image pattern to scope a subject to specific images. The
+pattern is matched against the image reference and intersected with the `exec.debug.images`
+allowlist (you cannot attach images that are not in the allowlist). A bare `debug` is equivalent
+to `debug/*`:
+
+```csv
+p, role:net-debug, exec, debug/docker.io/library/busybox:*, */*, allow
+p, role:go-debug,  exec, debug/gcr.io/example/dlv:1.22, prod/*, allow
+```
+
+See [Web-based Debug](web_based_debug.md) for more info.
 
 ### The `extensions` resource
 

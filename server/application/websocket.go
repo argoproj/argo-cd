@@ -46,6 +46,9 @@ type terminalSession struct {
 	token          *string
 	appRBACName    string
 	terminalOpts   *TerminalOptions
+	// permissionValidator, when set, is the per-read RBAC check for this session. Debug sessions
+	// set it to validate debug access; when nil the check defaults to exec/create (terminal).
+	permissionValidator func() error
 }
 
 // getToken extracts the auth token from a websocket request. Consistent with
@@ -167,7 +170,7 @@ func (t *terminalSession) validatePermissions(p []byte) (int, error) {
 		return copy(p, EndOfTransmission), common.PermissionDeniedAPIError
 	}
 
-	if err := t.terminalOpts.Enf.EnforceErr(t.ctx.Value("claims"), rbac.ResourceExec, rbac.ActionCreate, t.appRBACName); err != nil {
+	if err := t.validateAction(); err != nil {
 		err = t.wsConn.WriteMessage(websocket.TextMessage, permissionDeniedMessage)
 		if err != nil {
 			log.Errorf("permission denied message err: %v", err)
@@ -175,6 +178,16 @@ func (t *terminalSession) validatePermissions(p []byte) (int, error) {
 		return copy(p, EndOfTransmission), common.PermissionDeniedAPIError
 	}
 	return 0, nil
+}
+
+// validateAction enforces the session-specific permission. A debug session sets
+// permissionValidator to check debug access (exec/debug[/image]); otherwise this defaults to the
+// terminal permission, exec/create.
+func (t *terminalSession) validateAction() error {
+	if t.permissionValidator != nil {
+		return t.permissionValidator()
+	}
+	return t.terminalOpts.Enf.EnforceErr(t.ctx.Value("claims"), rbac.ResourceExec, rbac.ActionCreate, t.appRBACName)
 }
 
 func (t *terminalSession) performValidationsAndReconnect(p []byte) (int, error) {

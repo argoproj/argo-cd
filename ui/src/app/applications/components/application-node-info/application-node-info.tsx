@@ -14,7 +14,11 @@ import './application-node-info.scss';
 import {ReadinessGatesNotPassedWarning} from './readiness-gates-not-passed-warning';
 import Moment from 'react-moment';
 
-const RenderContainerState = (props: {container: any}) => {
+// Ephemeral debug containers Argo CD attaches are named with this prefix
+// (mirrors common.DebugContainerNamePrefix on the backend).
+const debugContainerNamePrefix = 'argocd-debug-';
+
+const RenderContainerState = (props: {container: any; attachedDebugContainers?: string[]}) => {
     const state = (props.container.state?.waiting && 'waiting') || (props.container.state?.terminated && 'terminated') || (props.container.state?.running && 'running');
     const status = props.container.state.waiting?.reason || props.container.state.terminated?.reason || props.container.state.running?.reason;
     const lastState = props.container.lastState?.terminated;
@@ -89,6 +93,11 @@ const RenderContainerState = (props: {container: any}) => {
                         {'.'}
                     </>
                 )}
+                {(props.attachedDebugContainers || []).map(name => (
+                    <div key={name} className='application-node-info__container--debug-attached'>
+                        (debug container <span className='application-node-info__container--highlight'>{name}</span> is attached)
+                    </div>
+                ))}
             </div>
         </div>
     );
@@ -135,12 +144,19 @@ export const ApplicationNodeInfo = (props: {
                 attributes.push({title: 'STATE DETAILS', value: message});
             }
             if (netContainerStatuses.length > 0) {
+                // target container -> Argo debug containers sharing its namespace (targetContainerName).
+                const debugByTarget: {[target: string]: string[]} = {};
+                ((props.live.spec?.ephemeralContainers || []) as Array<{name?: string; targetContainerName?: string}>).forEach(ec => {
+                    if (ec.targetContainerName && ec.name?.startsWith(debugContainerNamePrefix)) {
+                        debugByTarget[ec.targetContainerName] = (debugByTarget[ec.targetContainerName] || []).concat(ec.name);
+                    }
+                });
                 attributes.push({
                     title: 'CONTAINER STATE',
                     value: (
                         <div className='application-node-info__labels'>
                             {netContainerStatuses.map((container, i) => {
-                                return <RenderContainerState key={i} container={container} />;
+                                return <RenderContainerState key={i} container={container} attachedDebugContainers={debugByTarget[container.name] || []} />;
                             })}
                         </div>
                     )

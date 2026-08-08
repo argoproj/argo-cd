@@ -196,13 +196,22 @@ const config = {
         },
         proxy: [
             {
-                context: ['/extensions', '/api', '/auth', '/swagger-ui', '/swagger.json', '/download'],
+                context: ['/extensions', '/api', '/auth', '/swagger-ui', '/swagger.json', '/download', '/debug-images'],
                 ...proxyConf
             },
             {
                 context: ['/terminal'],
                 target: process.env.ARGOCD_API_URL || 'ws://localhost:8080',
                 ws: true,
+                secure: false,
+                changeOrigin: !!process.env.ARGOCD_API_URL,
+            },
+            {
+                context: ['/debug'],
+                target: process.env.ARGOCD_API_URL || 'ws://localhost:8080',
+                ws: true,
+                secure: false,
+                changeOrigin: !!process.env.ARGOCD_API_URL,
             }
         ]
     }

@@ -542,6 +542,16 @@ export class ApplicationsService {
             });
     }
 
+    // getDebugImages returns the images the user may attach (allowlist ∩ RBAC). The /debug-images
+    // endpoint is at the root (like the /debug ws), not /api/v1; auth via same-origin cookie.
+    public getDebugImages(projectName: string, appName: string, appNamespace: string): Promise<string[]> {
+        const params = new URLSearchParams({appName, projectName, appNamespace: appNamespace || ''});
+        return fetch(`${requests.toAbsURL('/debug-images')}?${params.toString()}`, {credentials: 'include'})
+            .then(res => (res.ok ? res.json() : {images: [] as string[]}))
+            .then((body: {images?: string[]}) => body.images || [])
+            .catch((): string[] => []);
+    }
+
     private getLogsQuery(query: {
         namespace: string;
         appNamespace: string;

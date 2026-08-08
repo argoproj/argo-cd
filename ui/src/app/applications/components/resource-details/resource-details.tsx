@@ -18,6 +18,7 @@ import {ApplicationResourcesDiff} from '../application-resources-diff/applicatio
 import {ApplicationSummary} from '../application-summary/application-summary';
 import {AppSetResourceNodePreview} from './appset-resource-node-preview';
 import {PodsLogsViewer} from '../pod-logs-viewer/pod-logs-viewer';
+import {PodDebugViewer} from '../pod-debug-viewer/pod-debug-viewer';
 import {PodTerminalViewer} from '../pod-terminal-viewer/pod-terminal-viewer';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
@@ -70,7 +71,10 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
         execEnabled: boolean,
         execAllowed: boolean,
         logsAllowed: boolean,
-        controlledState: {summary: models.ResourceStatus; state: models.ResourceDiff} | null
+        debugEnabled?: boolean,
+        debugAllowed?: boolean,
+        debugImages?: string[],
+        controlledState?: {summary: models.ResourceStatus; state: models.ResourceDiff} | null
     ) => {
         if (!node || node === undefined) {
             return [];
@@ -151,6 +155,25 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                 selectedNode={selectedNode}
                                 containerName={AppUtils.getContainerName(podState, activeContainer)}
                                 onClickContainer={onClickContainer}
+                            />
+                        )
+                    }
+                ]);
+            }
+            if (selectedNode?.kind === 'Pod' && debugEnabled && debugAllowed) {
+                tabs = tabs.concat([
+                    {
+                        key: 'debug',
+                        icon: 'fa fa-bug',
+                        title: 'Debug',
+                        content: (
+                            <PodDebugViewer
+                                applicationName={application.metadata.name}
+                                applicationNamespace={application.metadata.namespace}
+                                projectName={application.spec.project}
+                                podState={podState}
+                                selectedNode={selectedNode}
+                                debugImages={debugImages || []}
                             />
                         )
                     }
@@ -303,11 +326,33 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
 
                         const settings = await services.authService.settings();
                         const execEnabled = settings.execEnabled;
-                        const logsAllowed = await services.accounts.canI('logs', 'get', AppUtils.appRBACName(application));
-                        const execAllowed = execEnabled && (await services.accounts.canI('exec', 'create', AppUtils.appRBACName(application)));
+                        const debugEnabled = settings.debugEnabled;
+                        const appRBACName = application.spec.project + '/' + application.metadata.name;
+                        const logsAllowed = await services.accounts.canI('logs', 'get', appRBACName);
+                        const execAllowed = execEnabled && (await services.accounts.canI('exec', 'create', appRBACName));
+                        // Dropdown = allowlist ∩ RBAC, computed server-side. Per-image canI can't work
+                        // here: the CanI REST path splits the '/' in a debug/<image> action.
+                        const debugImages: string[] = debugEnabled
+                            ? await services.applications.getDebugImages(application.spec.project, application.metadata.name, application.metadata.namespace)
+                            : [];
+                        const debugAllowed = debugEnabled && debugImages.length > 0;
                         const links = await services.applications.getResourceLinks(application.metadata.name, application.metadata.namespace, selectedNode).catch((): null => null);
                         const resourceActionsMenuItems = await AppUtils.getResourceActionsMenuItems(selectedNode, application.metadata, appContext);
-                        return {controlledState, liveState, events, podState, execEnabled, execAllowed, logsAllowed, links, childResources, resourceActionsMenuItems};
+                        return {
+                            controlledState,
+                            liveState,
+                            events,
+                            podState,
+                            execEnabled,
+                            execAllowed,
+                            logsAllowed,
+                            debugEnabled,
+                            debugAllowed,
+                            debugImages,
+                            links,
+                            childResources,
+                            resourceActionsMenuItems
+                        };
                     }}>
                     {data => (
                         <React.Fragment>
@@ -374,6 +419,9 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     data.execEnabled,
                                     data.execAllowed,
                                     data.logsAllowed,
+                                    data.debugEnabled,
+                                    data.debugAllowed,
+                                    data.debugImages,
                                     data.controlledState
                                 )}
                                 selectedTabKey={tab}
