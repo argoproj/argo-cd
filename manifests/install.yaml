@@ -2337,6 +2337,69 @@ spec:
                       type: string
                     type: array
                 type: object
+              syncWindowRefs:
+                description: |-
+                  SyncWindowRefs references external SyncWindowResource CRDs that apply directly to this application.
+                  When specified, the referenced sync windows apply to this application regardless of the
+                  applications/namespaces/clusters filters defined in the SyncWindowResource.
+                items:
+                  description: SyncWindowRef is a reference to a SyncWindowResource
+                    CRD.
+                  properties:
+                    name:
+                      description: Name is the metadata.name of the SyncWindowResource
+                        to reference.
+                      type: string
+                    selector:
+                      description: |-
+                        Selector is a label selector to match SyncWindowResource objects.
+                        Either Name or Selector should be specified, not both.
+                      properties:
+                        matchExpressions:
+                          description: matchExpressions is a list of label selector
+                            requirements. The requirements are ANDed.
+                          items:
+                            description: |-
+                              A label selector requirement is a selector that contains values, a key, and an operator that
+                              relates the key and values.
+                            properties:
+                              key:
+                                description: key is the label key that the selector
+                                  applies to.
+                                type: string
+                              operator:
+                                description: |-
+                                  operator represents a key's relationship to a set of values.
+                                  Valid operators are In, NotIn, Exists and DoesNotExist.
+                                type: string
+                              values:
+                                description: |-
+                                  values is an array of string values. If the operator is In or NotIn,
+                                  the values array must be non-empty. If the operator is Exists or DoesNotExist,
+                                  the values array must be empty. This array is replaced during a strategic
+                                  merge patch.
+                                items:
+                                  type: string
+                                type: array
+                                x-kubernetes-list-type: atomic
+                            required:
+                            - key
+                            - operator
+                            type: object
+                          type: array
+                          x-kubernetes-list-type: atomic
+                        matchLabels:
+                          additionalProperties:
+                            type: string
+                          description: |-
+                            matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+                            map is equivalent to an element of matchExpressions, whose key field is "key", the
+                            operator is "In", and the values array contains only "value". The requirements are ANDed.
+                          type: object
+                      type: object
+                      x-kubernetes-map-type: atomic
+                  type: object
+                type: array
             required:
             - destination
             - project
@@ -8049,6 +8112,39 @@ spec:
                                         type: string
                                       type: array
                                   type: object
+                                syncWindowRefs:
+                                  items:
+                                    properties:
+                                      name:
+                                        type: string
+                                      selector:
+                                        properties:
+                                          matchExpressions:
+                                            items:
+                                              properties:
+                                                key:
+                                                  type: string
+                                                operator:
+                                                  type: string
+                                                values:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                  x-kubernetes-list-type: atomic
+                                              required:
+                                              - key
+                                              - operator
+                                              type: object
+                                            type: array
+                                            x-kubernetes-list-type: atomic
+                                          matchLabels:
+                                            additionalProperties:
+                                              type: string
+                                            type: object
+                                        type: object
+                                        x-kubernetes-map-type: atomic
+                                    type: object
+                                  type: array
                               required:
                               - destination
                               - project
@@ -8963,6 +9059,39 @@ spec:
                                         type: string
                                       type: array
                                   type: object
+                                syncWindowRefs:
+                                  items:
+                                    properties:
+                                      name:
+                                        type: string
+                                      selector:
+                                        properties:
+                                          matchExpressions:
+                                            items:
+                                              properties:
+                                                key:
+                                                  type: string
+                                                operator:
+                                                  type: string
+                                                values:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                  x-kubernetes-list-type: atomic
+                                              required:
+                                              - key
+                                              - operator
+                                              type: object
+                                            type: array
+                                            x-kubernetes-list-type: atomic
+                                          matchLabels:
+                                            additionalProperties:
+                                              type: string
+                                            type: object
+                                        type: object
+                                        x-kubernetes-map-type: atomic
+                                    type: object
+                                  type: array
                               required:
                               - destination
                               - project
@@ -9878,6 +10007,39 @@ spec:
                                         type: string
                                       type: array
                                   type: object
+                                syncWindowRefs:
+                                  items:
+                                    properties:
+                                      name:
+                                        type: string
+                                      selector:
+                                        properties:
+                                          matchExpressions:
+                                            items:
+                                              properties:
+                                                key:
+                                                  type: string
+                                                operator:
+                                                  type: string
+                                                values:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                  x-kubernetes-list-type: atomic
+                                              required:
+                                              - key
+                                              - operator
+                                              type: object
+                                            type: array
+                                            x-kubernetes-list-type: atomic
+                                          matchLabels:
+                                            additionalProperties:
+                                              type: string
+                                            type: object
+                                        type: object
+                                        x-kubernetes-map-type: atomic
+                                    type: object
+                                  type: array
                               required:
                               - destination
                               - project
@@ -10771,6 +10933,39 @@ spec:
                                         type: string
                                       type: array
                                   type: object
+                                syncWindowRefs:
+                                  items:
+                                    properties:
+                                      name:
+                                        type: string
+                                      selector:
+                                        properties:
+                                          matchExpressions:
+                                            items:
+                                              properties:
+                                                key:
+                                                  type: string
+                                                operator:
+                                                  type: string
+                                                values:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                  x-kubernetes-list-type: atomic
+                                              required:
+                                              - key
+                                              - operator
+                                              type: object
+                                            type: array
+                                            x-kubernetes-list-type: atomic
+                                          matchLabels:
+                                            additionalProperties:
+                                              type: string
+                                            type: object
+                                        type: object
+                                        x-kubernetes-map-type: atomic
+                                    type: object
+                                  type: array
                               required:
                               - destination
                               - project
@@ -11689,6 +11884,39 @@ spec:
                                                   type: string
                                                 type: array
                                             type: object
+                                          syncWindowRefs:
+                                            items:
+                                              properties:
+                                                name:
+                                                  type: string
+                                                selector:
+                                                  properties:
+                                                    matchExpressions:
+                                                      items:
+                                                        properties:
+                                                          key:
+                                                            type: string
+                                                          operator:
+                                                            type: string
+                                                          values:
+                                                            items:
+                                                              type: string
+                                                            type: array
+                                                            x-kubernetes-list-type: atomic
+                                                        required:
+                                                        - key
+                                                        - operator
+                                                        type: object
+                                                      type: array
+                                                      x-kubernetes-list-type: atomic
+                                                    matchLabels:
+                                                      additionalProperties:
+                                                        type: string
+                                                      type: object
+                                                  type: object
+                                                  x-kubernetes-map-type: atomic
+                                              type: object
+                                            type: array
                                         required:
                                         - destination
                                         - project
@@ -12603,6 +12831,39 @@ spec:
                                                   type: string
                                                 type: array
                                             type: object
+                                          syncWindowRefs:
+                                            items:
+                                              properties:
+                                                name:
+                                                  type: string
+                                                selector:
+                                                  properties:
+                                                    matchExpressions:
+                                                      items:
+                                                        properties:
+                                                          key:
+                                                            type: string
+                                                          operator:
+                                                            type: string
+                                                          values:
+                                                            items:
+                                                              type: string
+                                                            type: array
+                                                            x-kubernetes-list-type: atomic
+                                                        required:
+                                                        - key
+                                                        - operator
+                                                        type: object
+                                                      type: array
+                                                      x-kubernetes-list-type: atomic
+                                                    matchLabels:
+                                                      additionalProperties:
+                                                        type: string
+                                                      type: object
+                                                  type: object
+                                                  x-kubernetes-map-type: atomic
+                                              type: object
+                                            type: array
                                         required:
                                         - destination
                                         - project
@@ -13518,6 +13779,39 @@ spec:
                                                   type: string
                                                 type: array
                                             type: object
+                                          syncWindowRefs:
+                                            items:
+                                              properties:
+                                                name:
+                                                  type: string
+                                                selector:
+                                                  properties:
+                                                    matchExpressions:
+                                                      items:
+                                                        properties:
+                                                          key:
+                                                            type: string
+                                                          operator:
+                                                            type: string
+                                                          values:
+                                                            items:
+                                                              type: string
+                                                            type: array
+                                                            x-kubernetes-list-type: atomic
+                                                        required:
+                                                        - key
+                                                        - operator
+                                                        type: object
+                                                      type: array
+                                                      x-kubernetes-list-type: atomic
+                                                    matchLabels:
+                                                      additionalProperties:
+                                                        type: string
+                                                      type: object
+                                                  type: object
+                                                  x-kubernetes-map-type: atomic
+                                              type: object
+                                            type: array
                                         required:
                                         - destination
                                         - project
@@ -14411,6 +14705,39 @@ spec:
                                                   type: string
                                                 type: array
                                             type: object
+                                          syncWindowRefs:
+                                            items:
+                                              properties:
+                                                name:
+                                                  type: string
+                                                selector:
+                                                  properties:
+                                                    matchExpressions:
+                                                      items:
+                                                        properties:
+                                                          key:
+                                                            type: string
+                                                          operator:
+                                                            type: string
+                                                          values:
+                                                            items:
+                                                              type: string
+                                                            type: array
+                                                            x-kubernetes-list-type: atomic
+                                                        required:
+                                                        - key
+                                                        - operator
+                                                        type: object
+                                                      type: array
+                                                      x-kubernetes-list-type: atomic
+                                                    matchLabels:
+                                                      additionalProperties:
+                                                        type: string
+                                                      type: object
+                                                  type: object
+                                                  x-kubernetes-map-type: atomic
+                                              type: object
+                                            type: array
                                         required:
                                         - destination
                                         - project
@@ -15312,6 +15639,39 @@ spec:
                                                   type: string
                                                 type: array
                                             type: object
+                                          syncWindowRefs:
+                                            items:
+                                              properties:
+                                                name:
+                                                  type: string
+                                                selector:
+                                                  properties:
+                                                    matchExpressions:
+                                                      items:
+                                                        properties:
+                                                          key:
+                                                            type: string
+                                                          operator:
+                                                            type: string
+                                                          values:
+                                                            items:
+                                                              type: string
+                                                            type: array
+                                                            x-kubernetes-list-type: atomic
+                                                        required:
+                                                        - key
+                                                        - operator
+                                                        type: object
+                                                      type: array
+                                                      x-kubernetes-list-type: atomic
+                                                    matchLabels:
+                                                      additionalProperties:
+                                                        type: string
+                                                      type: object
+                                                  type: object
+                                                  x-kubernetes-map-type: atomic
+                                              type: object
+                                            type: array
                                         required:
                                         - destination
                                         - project
@@ -16440,6 +16800,39 @@ spec:
                                                   type: string
                                                 type: array
                                             type: object
+                                          syncWindowRefs:
+                                            items:
+                                              properties:
+                                                name:
+                                                  type: string
+                                                selector:
+                                                  properties:
+                                                    matchExpressions:
+                                                      items:
+                                                        properties:
+                                                          key:
+                                                            type: string
+                                                          operator:
+                                                            type: string
+                                                          values:
+                                                            items:
+                                                              type: string
+                                                            type: array
+                                                            x-kubernetes-list-type: atomic
+                                                        required:
+                                                        - key
+                                                        - operator
+                                                        type: object
+                                                      type: array
+                                                      x-kubernetes-list-type: atomic
+                                                    matchLabels:
+                                                      additionalProperties:
+                                                        type: string
+                                                      type: object
+                                                  type: object
+                                                  x-kubernetes-map-type: atomic
+                                              type: object
+                                            type: array
                                         required:
                                         - destination
                                         - project
@@ -17565,6 +17958,39 @@ spec:
                                                   type: string
                                                 type: array
                                             type: object
+                                          syncWindowRefs:
+                                            items:
+                                              properties:
+                                                name:
+                                                  type: string
+                                                selector:
+                                                  properties:
+                                                    matchExpressions:
+                                                      items:
+                                                        properties:
+                                                          key:
+                                                            type: string
+                                                          operator:
+                                                            type: string
+                                                          values:
+                                                            items:
+                                                              type: string
+                                                            type: array
+                                                            x-kubernetes-list-type: atomic
+                                                        required:
+                                                        - key
+                                                        - operator
+                                                        type: object
+                                                      type: array
+                                                      x-kubernetes-list-type: atomic
+                                                    matchLabels:
+                                                      additionalProperties:
+                                                        type: string
+                                                      type: object
+                                                  type: object
+                                                  x-kubernetes-map-type: atomic
+                                              type: object
+                                            type: array
                                         required:
                                         - destination
                                         - project
@@ -18475,6 +18901,39 @@ spec:
                                         type: string
                                       type: array
                                   type: object
+                                syncWindowRefs:
+                                  items:
+                                    properties:
+                                      name:
+                                        type: string
+                                      selector:
+                                        properties:
+                                          matchExpressions:
+                                            items:
+                                              properties:
+                                                key:
+                                                  type: string
+                                                operator:
+                                                  type: string
+                                                values:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                  x-kubernetes-list-type: atomic
+                                              required:
+                                              - key
+                                              - operator
+                                              type: object
+                                            type: array
+                                            x-kubernetes-list-type: atomic
+                                          matchLabels:
+                                            additionalProperties:
+                                              type: string
+                                            type: object
+                                        type: object
+                                        x-kubernetes-map-type: atomic
+                                    type: object
+                                  type: array
                               required:
                               - destination
                               - project
@@ -19395,6 +19854,39 @@ spec:
                                                   type: string
                                                 type: array
                                             type: object
+                                          syncWindowRefs:
+                                            items:
+                                              properties:
+                                                name:
+                                                  type: string
+                                                selector:
+                                                  properties:
+                                                    matchExpressions:
+                                                      items:
+                                                        properties:
+                                                          key:
+                                                            type: string
+                                                          operator:
+                                                            type: string
+                                                          values:
+                                                            items:
+                                                              type: string
+                                                            type: array
+                                                            x-kubernetes-list-type: atomic
+                                                        required:
+                                                        - key
+                                                        - operator
+                                                        type: object
+                                                      type: array
+                                                      x-kubernetes-list-type: atomic
+                                                    matchLabels:
+                                                      additionalProperties:
+                                                        type: string
+                                                      type: object
+                                                  type: object
+                                                  x-kubernetes-map-type: atomic
+                                              type: object
+                                            type: array
                                         required:
                                         - destination
                                         - project
@@ -20309,6 +20801,39 @@ spec:
                                                   type: string
                                                 type: array
                                             type: object
+                                          syncWindowRefs:
+                                            items:
+                                              properties:
+                                                name:
+                                                  type: string
+                                                selector:
+                                                  properties:
+                                                    matchExpressions:
+                                                      items:
+                                                        properties:
+                                                          key:
+                                                            type: string
+                                                          operator:
+                                                            type: string
+                                                          values:
+                                                            items:
+                                                              type: string
+                                                            type: array
+                                                            x-kubernetes-list-type: atomic
+                                                        required:
+                                                        - key
+                                                        - operator
+                                                        type: object
+                                                      type: array
+                                                      x-kubernetes-list-type: atomic
+                                                    matchLabels:
+                                                      additionalProperties:
+                                                        type: string
+                                                      type: object
+                                                  type: object
+                                                  x-kubernetes-map-type: atomic
+                                              type: object
+                                            type: array
                                         required:
                                         - destination
                                         - project
@@ -21224,6 +21749,39 @@ spec:
                                                   type: string
                                                 type: array
                                             type: object
+                                          syncWindowRefs:
+                                            items:
+                                              properties:
+                                                name:
+                                                  type: string
+                                                selector:
+                                                  properties:
+                                                    matchExpressions:
+                                                      items:
+                                                        properties:
+                                                          key:
+                                                            type: string
+                                                          operator:
+                                                            type: string
+                                                          values:
+                                                            items:
+                                                              type: string
+                                                            type: array
+                                                            x-kubernetes-list-type: atomic
+                                                        required:
+                                                        - key
+                                                        - operator
+                                                        type: object
+                                                      type: array
+                                                      x-kubernetes-list-type: atomic
+                                                    matchLabels:
+                                                      additionalProperties:
+                                                        type: string
+                                                      type: object
+                                                  type: object
+                                                  x-kubernetes-map-type: atomic
+                                              type: object
+                                            type: array
                                         required:
                                         - destination
                                         - project
@@ -22117,6 +22675,39 @@ spec:
                                                   type: string
                                                 type: array
                                             type: object
+                                          syncWindowRefs:
+                                            items:
+                                              properties:
+                                                name:
+                                                  type: string
+                                                selector:
+                                                  properties:
+                                                    matchExpressions:
+                                                      items:
+                                                        properties:
+                                                          key:
+                                                            type: string
+                                                          operator:
+                                                            type: string
+                                                          values:
+                                                            items:
+                                                              type: string
+                                                            type: array
+                                                            x-kubernetes-list-type: atomic
+                                                        required:
+                                                        - key
+                                                        - operator
+                                                        type: object
+                                                      type: array
+                                                      x-kubernetes-list-type: atomic
+                                                    matchLabels:
+                                                      additionalProperties:
+                                                        type: string
+                                                      type: object
+                                                  type: object
+                                                  x-kubernetes-map-type: atomic
+                                              type: object
+                                            type: array
                                         required:
                                         - destination
                                         - project
@@ -23018,6 +23609,39 @@ spec:
                                                   type: string
                                                 type: array
                                             type: object
+                                          syncWindowRefs:
+                                            items:
+                                              properties:
+                                                name:
+                                                  type: string
+                                                selector:
+                                                  properties:
+                                                    matchExpressions:
+                                                      items:
+                                                        properties:
+                                                          key:
+                                                            type: string
+                                                          operator:
+                                                            type: string
+                                                          values:
+                                                            items:
+                                                              type: string
+                                                            type: array
+                                                            x-kubernetes-list-type: atomic
+                                                        required:
+                                                        - key
+                                                        - operator
+                                                        type: object
+                                                      type: array
+                                                      x-kubernetes-list-type: atomic
+                                                    matchLabels:
+                                                      additionalProperties:
+                                                        type: string
+                                                      type: object
+                                                  type: object
+                                                  x-kubernetes-map-type: atomic
+                                              type: object
+                                            type: array
                                         required:
                                         - destination
                                         - project
@@ -24146,6 +24770,39 @@ spec:
                                                   type: string
                                                 type: array
                                             type: object
+                                          syncWindowRefs:
+                                            items:
+                                              properties:
+                                                name:
+                                                  type: string
+                                                selector:
+                                                  properties:
+                                                    matchExpressions:
+                                                      items:
+                                                        properties:
+                                                          key:
+                                                            type: string
+                                                          operator:
+                                                            type: string
+                                                          values:
+                                                            items:
+                                                              type: string
+                                                            type: array
+                                                            x-kubernetes-list-type: atomic
+                                                        required:
+                                                        - key
+                                                        - operator
+                                                        type: object
+                                                      type: array
+                                                      x-kubernetes-list-type: atomic
+                                                    matchLabels:
+                                                      additionalProperties:
+                                                        type: string
+                                                      type: object
+                                                  type: object
+                                                  x-kubernetes-map-type: atomic
+                                              type: object
+                                            type: array
                                         required:
                                         - destination
                                         - project
@@ -25271,6 +25928,39 @@ spec:
                                                   type: string
                                                 type: array
                                             type: object
+                                          syncWindowRefs:
+                                            items:
+                                              properties:
+                                                name:
+                                                  type: string
+                                                selector:
+                                                  properties:
+                                                    matchExpressions:
+                                                      items:
+                                                        properties:
+                                                          key:
+                                                            type: string
+                                                          operator:
+                                                            type: string
+                                                          values:
+                                                            items:
+                                                              type: string
+                                                            type: array
+                                                            x-kubernetes-list-type: atomic
+                                                        required:
+                                                        - key
+                                                        - operator
+                                                        type: object
+                                                      type: array
+                                                      x-kubernetes-list-type: atomic
+                                                    matchLabels:
+                                                      additionalProperties:
+                                                        type: string
+                                                      type: object
+                                                  type: object
+                                                  x-kubernetes-map-type: atomic
+                                              type: object
+                                            type: array
                                         required:
                                         - destination
                                         - project
@@ -26185,6 +26875,39 @@ spec:
                                         type: string
                                       type: array
                                   type: object
+                                syncWindowRefs:
+                                  items:
+                                    properties:
+                                      name:
+                                        type: string
+                                      selector:
+                                        properties:
+                                          matchExpressions:
+                                            items:
+                                              properties:
+                                                key:
+                                                  type: string
+                                                operator:
+                                                  type: string
+                                                values:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                  x-kubernetes-list-type: atomic
+                                              required:
+                                              - key
+                                              - operator
+                                              type: object
+                                            type: array
+                                            x-kubernetes-list-type: atomic
+                                          matchLabels:
+                                            additionalProperties:
+                                              type: string
+                                            type: object
+                                        type: object
+                                        x-kubernetes-map-type: atomic
+                                    type: object
+                                  type: array
                               required:
                               - destination
                               - project
@@ -27085,6 +27808,39 @@ spec:
                                         type: string
                                       type: array
                                   type: object
+                                syncWindowRefs:
+                                  items:
+                                    properties:
+                                      name:
+                                        type: string
+                                      selector:
+                                        properties:
+                                          matchExpressions:
+                                            items:
+                                              properties:
+                                                key:
+                                                  type: string
+                                                operator:
+                                                  type: string
+                                                values:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                  x-kubernetes-list-type: atomic
+                                              required:
+                                              - key
+                                              - operator
+                                              type: object
+                                            type: array
+                                            x-kubernetes-list-type: atomic
+                                          matchLabels:
+                                            additionalProperties:
+                                              type: string
+                                            type: object
+                                        type: object
+                                        x-kubernetes-map-type: atomic
+                                    type: object
+                                  type: array
                               required:
                               - destination
                               - project
@@ -28213,6 +28969,39 @@ spec:
                                         type: string
                                       type: array
                                   type: object
+                                syncWindowRefs:
+                                  items:
+                                    properties:
+                                      name:
+                                        type: string
+                                      selector:
+                                        properties:
+                                          matchExpressions:
+                                            items:
+                                              properties:
+                                                key:
+                                                  type: string
+                                                operator:
+                                                  type: string
+                                                values:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                  x-kubernetes-list-type: atomic
+                                              required:
+                                              - key
+                                              - operator
+                                              type: object
+                                            type: array
+                                            x-kubernetes-list-type: atomic
+                                          matchLabels:
+                                            additionalProperties:
+                                              type: string
+                                            type: object
+                                        type: object
+                                        x-kubernetes-map-type: atomic
+                                    type: object
+                                  type: array
                               required:
                               - destination
                               - project
@@ -29338,6 +30127,39 @@ spec:
                                         type: string
                                       type: array
                                   type: object
+                                syncWindowRefs:
+                                  items:
+                                    properties:
+                                      name:
+                                        type: string
+                                      selector:
+                                        properties:
+                                          matchExpressions:
+                                            items:
+                                              properties:
+                                                key:
+                                                  type: string
+                                                operator:
+                                                  type: string
+                                                values:
+                                                  items:
+                                                    type: string
+                                                  type: array
+                                                  x-kubernetes-list-type: atomic
+                                              required:
+                                              - key
+                                              - operator
+                                              type: object
+                                            type: array
+                                            x-kubernetes-list-type: atomic
+                                          matchLabels:
+                                            additionalProperties:
+                                              type: string
+                                            type: object
+                                        type: object
+                                        x-kubernetes-map-type: atomic
+                                    type: object
+                                  type: array
                               required:
                               - destination
                               - project
@@ -30325,6 +31147,39 @@ spec:
                               type: string
                             type: array
                         type: object
+                      syncWindowRefs:
+                        items:
+                          properties:
+                            name:
+                              type: string
+                            selector:
+                              properties:
+                                matchExpressions:
+                                  items:
+                                    properties:
+                                      key:
+                                        type: string
+                                      operator:
+                                        type: string
+                                      values:
+                                        items:
+                                          type: string
+                                        type: array
+                                        x-kubernetes-list-type: atomic
+                                    required:
+                                    - key
+                                    - operator
+                                    type: object
+                                  type: array
+                                  x-kubernetes-list-type: atomic
+                                matchLabels:
+                                  additionalProperties:
+                                    type: string
+                                  type: object
+                              type: object
+                              x-kubernetes-map-type: atomic
+                          type: object
+                        type: array
                     required:
                     - destination
                     - project
@@ -30782,6 +31637,94 @@ spec:
                 items:
                   type: string
                 type: array
+              syncWindowRefs:
+                description: SyncWindowRefs references external SyncWindowResource
+                  CRDs that define sync windows for this project.
+                items:
+                  description: |-
+                    SyncWindowProjectRef is a reference to a SyncWindowResource from an AppProject.
+                    It allows specifying additional filters that restrict which apps the referenced
+                    sync windows apply to.
+                  properties:
+                    applications:
+                      description: Applications restricts which applications the referenced
+                        sync windows apply to (glob patterns supported).
+                      items:
+                        type: string
+                      type: array
+                    clusters:
+                      description: Clusters restricts which clusters the referenced
+                        sync windows apply to (glob patterns supported).
+                      items:
+                        type: string
+                      type: array
+                    namespaces:
+                      description: Namespaces restricts which namespaces the referenced
+                        sync windows apply to (glob patterns supported).
+                      items:
+                        type: string
+                      type: array
+                    ref:
+                      description: Ref references a SyncWindowResource by name or
+                        selector.
+                      properties:
+                        name:
+                          description: Name is the metadata.name of the SyncWindowResource
+                            to reference.
+                          type: string
+                        selector:
+                          description: |-
+                            Selector is a label selector to match SyncWindowResource objects.
+                            Either Name or Selector should be specified, not both.
+                          properties:
+                            matchExpressions:
+                              description: matchExpressions is a list of label selector
+                                requirements. The requirements are ANDed.
+                              items:
+                                description: |-
+                                  A label selector requirement is a selector that contains values, a key, and an operator that
+                                  relates the key and values.
+                                properties:
+                                  key:
+                                    description: key is the label key that the selector
+                                      applies to.
+                                    type: string
+                                  operator:
+                                    description: |-
+                                      operator represents a key's relationship to a set of values.
+                                      Valid operators are In, NotIn, Exists and DoesNotExist.
+                                    type: string
+                                  values:
+                                    description: |-
+                                      values is an array of string values. If the operator is In or NotIn,
+                                      the values array must be non-empty. If the operator is Exists or DoesNotExist,
+                                      the values array must be empty. This array is replaced during a strategic
+                                      merge patch.
+                                    items:
+                                      type: string
+                                    type: array
+                                    x-kubernetes-list-type: atomic
+                                required:
+                                - key
+                                - operator
+                                type: object
+                              type: array
+                              x-kubernetes-list-type: atomic
+                            matchLabels:
+                              additionalProperties:
+                                type: string
+                              description: |-
+                                matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+                                map is equivalent to an element of matchExpressions, whose key field is "key", the
+                                operator is "In", and the values array contains only "value". The requirements are ANDed.
+                              type: object
+                          type: object
+                          x-kubernetes-map-type: atomic
+                      type: object
+                  required:
+                  - ref
+                  type: object
+                type: array
               syncWindows:
                 description: SyncWindows controls when syncs can be run for apps in
                   this project
@@ -30873,6 +31816,130 @@ spec:
                 description: JWTTokensByRole contains a list of JWT tokens issued
                   for a given role
                 type: object
+            type: object
+        required:
+        - metadata
+        - spec
+        type: object
+    served: true
+    storage: true
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  labels:
+    app.kubernetes.io/name: syncwindowresources.argoproj.io
+    app.kubernetes.io/part-of: argocd
+  name: syncwindowresources.argoproj.io
+spec:
+  group: argoproj.io
+  names:
+    kind: SyncWindowResource
+    listKind: SyncWindowResourceList
+    plural: syncwindowresources
+    shortNames:
+    - sw
+    singular: syncwindowresource
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: |-
+          SyncWindowResource is a CRD that defines reusable sync windows which can be referenced
+          by AppProjects and Applications.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: SyncWindowResourceSpec defines the desired state of a SyncWindowResource
+            properties:
+              windows:
+                description: |-
+                  Windows is a list of sync window definitions contained in this resource.
+                  Multiple windows are allowed for easy transition from projects and to group related windows.
+                items:
+                  description: |-
+                    SyncWindowDefinition defines a single sync window entry within a SyncWindowResource.
+                    When referenced from an Application, the Applications/Namespaces/Clusters filters are ignored
+                    since the window applies directly to the referencing application.
+                  properties:
+                    andOperator:
+                      description: UseAndOperator uses AND operator for matching applications,
+                        namespaces and clusters instead of the default OR.
+                      type: boolean
+                    applications:
+                      description: |-
+                        Applications contains a list of applications that the window will apply to (glob patterns supported).
+                        Ignored when the SyncWindowResource is referenced directly from an Application.
+                      items:
+                        type: string
+                      type: array
+                    clusters:
+                      description: |-
+                        Clusters contains a list of clusters that the window will apply to (glob patterns supported).
+                        Ignored when the SyncWindowResource is referenced directly from an Application.
+                      items:
+                        type: string
+                      type: array
+                    description:
+                      description: Description of the sync window (max 255 chars).
+                      maxLength: 255
+                      type: string
+                    duration:
+                      description: Duration is the amount of time the sync window
+                        will be open (e.g. "1h", "30m").
+                      type: string
+                    kind:
+                      description: Kind defines if the window allows or blocks syncs.
+                        Must be "allow" or "deny".
+                      type: string
+                    manualSync:
+                      description: ManualSync enables manual syncs when they would
+                        otherwise be blocked.
+                      type: boolean
+                    namespaces:
+                      description: |-
+                        Namespaces contains a list of namespaces that the window will apply to (glob patterns supported).
+                        Ignored when the SyncWindowResource is referenced directly from an Application.
+                      items:
+                        type: string
+                      type: array
+                    schedule:
+                      description: Schedule is the time the window will begin, specified
+                        in cron format.
+                      type: string
+                    syncOverrun:
+                      description: SyncOverrun allows ongoing syncs to continue past
+                        window boundaries.
+                      type: boolean
+                    timeZone:
+                      description: TimeZone of the sync window schedule (IANA timezone,
+                        e.g. "America/New_York"). Defaults to UTC.
+                      type: string
+                  required:
+                  - duration
+                  - kind
+                  - schedule
+                  type: object
+                type: array
+            required:
+            - windows
             type: object
         required:
         - metadata
@@ -30976,6 +32043,14 @@ rules:
   - update
   - patch
   - delete
+- apiGroups:
+  - argoproj.io
+  resources:
+  - syncwindowresources
+  verbs:
+  - get
+  - list
+  - watch
 - apiGroups:
   - ""
   resources:

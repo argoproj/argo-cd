@@ -39,6 +39,7 @@ import (
 	logutils "github.com/argoproj/argo-cd/v3/util/log"
 	"github.com/argoproj/argo-cd/v3/util/lua"
 	"github.com/argoproj/argo-cd/v3/util/settings"
+	"github.com/argoproj/argo-cd/v3/util/syncwindow"
 )
 
 const (
@@ -188,7 +189,8 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 		state.SyncResult = newSyncOperationResult(app, syncOp)
 	}
 
-	if isBlocked, err := syncWindowPreventsSync(app, project); isBlocked {
+	filteredWindows, directWindows := m.resolveSyncWindowCRDRefs(app, project)
+	if isBlocked, err := syncWindowPreventsSync(app, project, filteredWindows, directWindows); isBlocked {
 		// If the operation is currently running, simply let the user know the sync is blocked by a current sync window
 		if state.Phase == common.OperationRunning {
 			state.Message = "Sync operation blocked by sync window"
@@ -724,8 +726,28 @@ func delayBetweenSyncWaves(_ common.SyncPhase, _ int, finalWave bool) error {
 	return nil
 }
 
-func syncWindowPreventsSync(app *v1alpha1.Application, proj *v1alpha1.AppProject) (bool, error) {
+func syncWindowPreventsSync(app *v1alpha1.Application, proj *v1alpha1.AppProject, filteredWindows v1alpha1.SyncWindows, directWindows v1alpha1.SyncWindows) (bool, error) {
 	window := proj.Spec.SyncWindows.Matches(app)
+	// Merge filtered windows (from project refs) — these need Matches() filtering.
+	if len(filteredWindows) > 0 {
+		additionalMatched := filteredWindows.Matches(app)
+		if additionalMatched.HasWindows() {
+			if window == nil {
+				window = additionalMatched
+			} else {
+				*window = append(*window, *additionalMatched...)
+			}
+		}
+	}
+	// Merge direct windows (from app refs) — these apply unconditionally to the referencing app.
+	if len(directWindows) > 0 {
+		if window == nil {
+			w := v1alpha1.SyncWindows(directWindows)
+			window = &w
+		} else {
+			*window = append(*window, directWindows...)
+		}
+	}
 	isManual := false
 	var operationStartTime *time.Time
 	if app.Status.OperationState != nil {
@@ -741,6 +763,33 @@ func syncWindowPreventsSync(app *v1alpha1.Application, proj *v1alpha1.AppProject
 		return true, err
 	}
 	return !canSync, nil
+}
+
+// resolveSyncWindowCRDRefs resolves SyncWindowResource CRD references from the app and project.
+// It returns two sets: filtered windows (need Matches() against the app) and direct windows (apply unconditionally).
+func (m *appStateManager) resolveSyncWindowCRDRefs(app *v1alpha1.Application, proj *v1alpha1.AppProject) (filtered v1alpha1.SyncWindows, direct v1alpha1.SyncWindows) {
+	if m.syncWindowLister == nil || (m.syncWindowCacheReady != nil && !m.syncWindowCacheReady()) {
+		return nil, nil
+	}
+	resolver := syncwindow.NewResolver(m.syncWindowLister, m.namespace)
+
+	if len(proj.Spec.SyncWindowRefs) > 0 {
+		windows, err := resolver.ResolveProjectRefs(proj.Spec.SyncWindowRefs)
+		if err != nil {
+			log.WithError(err).Warn("Failed to resolve some project sync window refs")
+		}
+		filtered = append(filtered, windows...)
+	}
+
+	if len(app.Spec.SyncWindowRefs) > 0 {
+		windows, err := resolver.ResolveAppRefs(app.Spec.SyncWindowRefs)
+		if err != nil {
+			log.WithError(err).Warn("Failed to resolve some app sync window refs")
+		}
+		direct = append(direct, windows...)
+	}
+
+	return filtered, direct
 }
 
 // validateSyncPermissions checks whether the given resource is permitted by the project's

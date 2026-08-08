@@ -793,6 +793,7 @@ func TestInterpolateGeneratorValuesHandling(t *testing.T) {
 			IgnoreDifferences: argov1alpha1.IgnoreDifferences{},
 			Info:              []argov1alpha1.Info{},
 			Sources:           argov1alpha1.ApplicationSources{},
+			SyncWindowRefs:    []argov1alpha1.SyncWindowRef{},
 		},
 	}
 	type args struct {
