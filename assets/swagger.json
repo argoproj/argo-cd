@@ -281,6 +281,16 @@
             "description": "the project names to restrict returned list applications (legacy name for backwards-compatibility).",
             "name": "project",
             "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the application names to restrict returned list applications (used by the UI favorites filter).",
+            "name": "names",
+            "in": "query"
           }
         ],
         "responses": {
@@ -669,6 +679,16 @@
             "collectionFormat": "multi",
             "description": "the project names to restrict returned list applications (legacy name for backwards-compatibility).",
             "name": "project",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the application names to restrict returned list applications (used by the UI favorites filter).",
+            "name": "names",
             "in": "query"
           }
         ],
@@ -4306,6 +4326,16 @@
             "collectionFormat": "multi",
             "description": "the project names to restrict returned list applications (legacy name for backwards-compatibility).",
             "name": "project",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the application names to restrict returned list applications (used by the UI favorites filter).",
+            "name": "names",
             "in": "query"
           }
         ],

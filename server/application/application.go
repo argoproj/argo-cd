@@ -313,6 +313,9 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*v1
 	// Filter applications by source repo URL
 	filteredApps = argo.FilterByRepoP(filteredApps, q.GetRepo())
 
+	// Filter applications by name
+	filteredApps = argo.FilterByNamesP(filteredApps, q.GetNames())
+
 	newItems := make([]v1alpha1.Application, 0)
 	for _, a := range filteredApps {
 		// Skip any application that is neither in the control plane's namespace
@@ -1224,8 +1227,12 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 	return &application.ApplicationResponse{}, nil
 }
 
-func (s *Server) isApplicationPermitted(selector labels.Selector, minVersion int, claims any, appName, appNs string, projects map[string]bool, a v1alpha1.Application) bool {
+func (s *Server) isApplicationPermitted(selector labels.Selector, minVersion int, claims any, appName, appNs string, projects map[string]bool, names map[string]bool, a v1alpha1.Application) bool {
 	if len(projects) > 0 && !projects[a.Spec.GetProject()] {
+		return false
+	}
+
+	if len(names) > 0 && !names[a.Name] {
 		return false
 	}
 
@@ -1260,6 +1267,10 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 	for _, project := range getProjectsFromApplicationQuery(*q) {
 		projects[project] = true
 	}
+	names := map[string]bool{}
+	for _, name := range q.GetNames() {
+		names[name] = true
+	}
 	claims := ws.Context().Value("claims")
 	selector, err := labels.Parse(q.GetSelector())
 	if err != nil {
@@ -1275,7 +1286,7 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 	// sendIfPermitted is a helper to send the application to the client's streaming channel if the
 	// caller has RBAC privileges permissions to view it
 	sendIfPermitted := func(a v1alpha1.Application, eventType watch.EventType) {
-		permitted := s.isApplicationPermitted(selector, minVersion, claims, appName, appNs, projects, a)
+		permitted := s.isApplicationPermitted(selector, minVersion, claims, appName, appNs, projects, names, a)
 		if !permitted {
 			return
 		}

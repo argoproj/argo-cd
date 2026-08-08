@@ -59,14 +59,20 @@ const APP_FIELDS = [
 const APP_LIST_FIELDS = ['metadata.resourceVersion', ...APP_FIELDS.map(field => `items.${field}`)];
 const APP_WATCH_FIELDS = ['result.type', ...APP_FIELDS.map(field => `result.application.${field}`)];
 
-function loadApplications(projects: string[], appNamespace: string): Observable<models.Application[]> {
-    return from(services.applications.list(projects, 'application', {appNamespace, fields: APP_LIST_FIELDS})).pipe(
+function loadApplications(projects: string[], appNamespace: string, names?: string[]): Observable<models.Application[]> {
+    // Favorites-only mode with no favorites selected: an empty (but defined) names array means
+    // "match nothing". The server treats an empty filter as "no filter", so short-circuit here to
+    // avoid fetching and continuously watching every application only to hide them client-side.
+    if (names && names.length === 0) {
+        return from([[] as models.Application[]]);
+    }
+    return from(services.applications.list(projects, 'application', {appNamespace, fields: APP_LIST_FIELDS, names})).pipe(
         mergeMap(applicationsList => {
             const applications = applicationsList.items as models.Application[];
             return merge(
                 from([applications]),
                 services.applications
-                    .watch('application', {projects, resourceVersion: applicationsList.metadata.resourceVersion}, {fields: APP_WATCH_FIELDS})
+                    .watch('application', {projects, resourceVersion: applicationsList.metadata.resourceVersion}, {fields: APP_WATCH_FIELDS, names})
                     .pipe(repeat())
                     .pipe(retryWhen(errors => errors.pipe(delay(WATCH_RETRY_TIMEOUT))))
                     // batch events to avoid constant re-rendering and improve UI performance
@@ -402,9 +408,13 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                         ]
                                     }}>
                                     <DataLoader
-                                        input={pref.projectsFilter?.join(',')}
+                                        input={`${pref.projectsFilter?.join(',')}:${pref.showFavorites}:${(pref.favoritesAppList || []).join(',')}`}
                                         ref={loaderRef}
-                                        load={() => AppUtils.handlePageVisibility(() => loadApplications(pref.projectsFilter, query.get('appNamespace')))}
+                                        load={() =>
+                                            AppUtils.handlePageVisibility(() =>
+                                                loadApplications(pref.projectsFilter, query.get('appNamespace'), pref.showFavorites ? pref.favoritesAppList : undefined)
+                                            )
+                                        }
                                         loadingRenderer={() => (
                                             <div className='argo-container'>
                                                 <MockupList height={100} marginTop={30} />
