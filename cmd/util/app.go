@@ -918,3 +918,13 @@ func FilterResources(groupChanged bool, resources []*argoappv1.ResourceDiff, gro
 	}
 	return filteredObjects, nil
 }
+
+// HasSourceScopedFlags returns true if any of the provided flags target a specific
+// source rather than the application as a whole. Used to determine whether
+// --source-position is required for multi-source apps.
+func HasSourceScopedFlags(appOpts AppOptions, flags *pflag.FlagSet) bool {
+	src := &argoappv1.ApplicationSource{}
+	ConstructSource(src, appOpts, flags)
+	_, hasHydrator := constructSourceHydrator(nil, appOpts, flags)
+	return *src != (argoappv1.ApplicationSource{}) || hasHydrator || flags.Changed("parameter")
+}
