@@ -17,11 +17,32 @@ const SOURCE_LABELS: {[key: string]: string} = {
 const SHORT_SCRIPT_MAX_LINES = 20;
 const LONG_SCRIPT_HEIGHT = 400;
 
+// Mirrors the error-message extraction used elsewhere in this codebase (e.g.
+// appset-generated-apps-diff.tsx) for the same grpc-gateway JSON error envelope shape.
+function extractErrorMessage(err: any): string {
+    if (err?.response?.body?.message) {
+        return err.response.body.message;
+    }
+    if (err?.response?.body?.error) {
+        return err.response.body.error;
+    }
+    if (err?.message) {
+        return err.message;
+    }
+    return 'unknown error';
+}
+
 // Presentational only: the resource health definition is fetched once, alongside the rest of the
 // resource panel's data, by the DataLoader in resource-details.tsx so that
 // switching to this tab is as instant as switching to any other (no per-visit network round trip).
-export const ApplicationResourceHealthCheck = (props: {definition: models.ResourceHealthDefinition}) => {
-    const {definition} = props;
+export const ApplicationResourceHealthCheck = (props: {definition: models.ResourceHealthDefinition; error?: any}) => {
+    const {definition, error} = props;
+
+    // Report a failed fetch distinctly from a genuine "no health check" response - collapsing the
+    // two would misrepresent an RBAC or network error as a fact about the resource.
+    if (error) {
+        return <p className='application-resource-health-check__message'>Unable to load the health check definition: {extractErrorMessage(error)}.</p>;
+    }
 
     if (definition?.script) {
         const lineCount = definition.script.split('\n').length;

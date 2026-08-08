@@ -67,6 +67,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
         podState: State,
         events: Event[],
         healthDefinition: models.ResourceHealthDefinition,
+        healthDefinitionError: any,
         extensionTabs: ResourceTabExtension[],
         tabs: Tab[],
         execEnabled: boolean,
@@ -94,7 +95,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                 title: 'HEALTH CHECK',
                 icon: 'fa fa-heartbeat',
                 key: 'health-check',
-                content: <ApplicationResourceHealthCheck definition={healthDefinition} />
+                content: <ApplicationResourceHealthCheck definition={healthDefinition} error={healthDefinitionError} />
             });
         }
         if (podState && podState.metadata && podState.spec) {
@@ -298,12 +299,15 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     uid: liveState.metadata.uid
                                 }))) ||
                             [];
-                        const healthDefinition =
-                            (liveState &&
-                                (await services.applications
-                                    .getResourceHealthDefinition(application.metadata.name, application.metadata.namespace, selectedNode)
-                                    .catch((): null => null))) ||
-                            null;
+                        // Captured separately (rather than collapsed to null) so the tab can tell a genuine "no
+                        // health check" response apart from a failed fetch (e.g. an RBAC or network error) and
+                        // avoid reporting one as the other.
+                        const healthDefinitionResult = liveState
+                            ? await services.applications
+                                  .getResourceHealthDefinition(application.metadata.name, application.metadata.namespace, selectedNode)
+                                  .then(value => ({value, error: null as any}))
+                                  .catch(error => ({value: null as models.ResourceHealthDefinition, error}))
+                            : {value: null as models.ResourceHealthDefinition, error: null as any};
                         let podState: State;
                         let childResources: models.ResourceNode[] = [];
                         if (selectedNode.kind === 'Pod') {
@@ -326,7 +330,8 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                             controlledState,
                             liveState,
                             events,
-                            healthDefinition,
+                            healthDefinition: healthDefinitionResult.value,
+                            healthDefinitionError: healthDefinitionResult.error,
                             podState,
                             execEnabled,
                             execAllowed,
@@ -382,6 +387,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     data.podState,
                                     data.events,
                                     data.healthDefinition,
+                                    data.healthDefinitionError,
                                     extensions,
                                     [
                                         {
