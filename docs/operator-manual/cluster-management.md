@@ -10,7 +10,7 @@ Run `argocd cluster add context-name`.
 
 If you're unsure about the context names, run `kubectl config get-contexts` to get them all listed.
 
-This will connect to the cluster and install the necessary resources for ArgoCD to connect to it.
+This will connect to the cluster and install the necessary resources for Argo CD to connect to it.
 Note that you will need privileged access to the cluster.
 
 ## Skipping cluster reconciliation
