@@ -1082,16 +1082,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     const nodesHavingChildren = new Map<string, number>();
     const childrenMap = new Map<string, ResourceTreeNode[]>();
     const filtersRef = React.useRef(props.filters);
-    const filteredGraphRef = React.useRef<any[]>([]);
-    const filteredNodes: any[] = [];
-
-    React.useEffect(() => {
-        if (props.filters !== filtersRef.current) {
-            filtersRef.current = props.filters;
-            props.setTreeFilterGraph(filteredGraphRef.current);
-            filteredGraphRef.current = filteredNodes;
-        }
-    }, [props.filters]);
+    let filteredNodes: any[] = [];
     const {podGroupCount, userMsgs, updateUsrHelpTipMsgs, setShowCompactNodes} = props;
     const podCount = nodes.filter(node => node.kind === 'Pod').length;
     const showPodGroupByStatus = props.tree.nodes.filter((rNode: ResourceTreeNode) => rNode.kind === 'Pod').length >= props.podGroupCount;
@@ -1111,9 +1102,10 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         filteredIndicatorParent: string,
         graphNodesFilter: dagre.graphlib.Graph<{[key: string]: any}>,
         predicate: (node: ResourceTreeNode) => boolean
-    ) {
+    ): any[] {
         const appKey = appNodeKey(app);
         const filteredNodeIds: string[] = [];
+        const kept: any[] = [];
         graphNodesFilter.nodes().forEach(nodeId => {
             const node: ResourceTreeNode = graphNodesFilter.node(nodeId) as any;
             const parentIds = graphNodesFilter.predecessors(nodeId);
@@ -1136,7 +1128,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                     });
                 });
             } else {
-                if (node.root != null) filteredNodes.push(node);
+                if (node.root != null) kept.push(node);
             }
         });
 
@@ -1149,6 +1141,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             });
             graphNodesFilter.setEdge(filteredIndicatorParent, FILTERED_INDICATOR_NODE);
         }
+        return kept;
     }
 
     // Helper to check if edge should be reversed for correct traffic flow visualization
@@ -1258,7 +1251,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         }
         if (props.nodeFilter) {
             // show filtered indicator next to external traffic node is app has it otherwise next to internal traffic node
-            filterGraph(props.app, externalRoots.length > 0 ? EXTERNAL_TRAFFIC_NODE : INTERNAL_TRAFFIC_NODE, graph, props.nodeFilter);
+            filteredNodes = filterGraph(props.app, externalRoots.length > 0 ? EXTERNAL_TRAFFIC_NODE : INTERNAL_TRAFFIC_NODE, graph, props.nodeFilter);
         }
     } else {
         // Tree view
@@ -1323,12 +1316,20 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             graph.setEdge(appSetKey, appNodeKey(props.app));
         }
         if (props.nodeFilter) {
-            filterGraph(props.app, appSetKey || appNodeKey(props.app), graph, props.nodeFilter);
+            filteredNodes = filterGraph(props.app, appSetKey || appNodeKey(props.app), graph, props.nodeFilter);
         }
         if (props.showCompactNodes) {
             groupNodes(nodes, graph);
         }
     }
+    const setTreeFilterGraph = props.setTreeFilterGraph;
+    const currentFilters = props.filters;
+    React.useEffect(() => {
+        if (currentFilters !== filtersRef.current) {
+            filtersRef.current = currentFilters;
+            setTreeFilterGraph?.(filteredNodes);
+        }
+    });
 
     function setPodGroupNode(node: ResourceTreeNode, root: ResourceTreeNode) {
         const numberOfRows = getPodGroupNumberOfRows(node.podGroup?.pods, showPodGroupByStatus);
