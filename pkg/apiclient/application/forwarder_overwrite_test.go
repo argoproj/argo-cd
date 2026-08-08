@@ -96,9 +96,42 @@ func TestProcessApplicationListField_OperationStateOperationSync(t *testing.T) {
 	syncMap, ok, err := unstructured.NestedMap(item, "status", "operationState", "operation", "sync")
 	require.NoError(t, err)
 	require.True(t, ok)
-	// Only the revision is projected; large fields (resources, manifests, sources)
-	// must not be included in the list payload.
-	require.Equal(t, map[string]any{"revision": "abc"}, syncMap)
+	// The field is a pure presence marker: it must be an empty object, with none
+	// of the operation's payload (revision, resources, manifests, sources).
+	require.Empty(t, syncMap)
+}
+
+func TestProcessApplicationListField_OperationStateOperationSyncMultiSource(t *testing.T) {
+	t.Parallel()
+	list := v1alpha1.ApplicationList{
+		Items: []v1alpha1.Application{{Status: v1alpha1.ApplicationStatus{
+			OperationState: &v1alpha1.OperationState{
+				Operation: v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{
+					Revisions: []string{"abc", "def"},
+					Sources: v1alpha1.ApplicationSources{
+						{RepoURL: "https://example.com/repo1.git"},
+						{RepoURL: "https://example.com/repo2.git"},
+					},
+				}},
+			},
+		}}},
+	}
+
+	res, err := processApplicationListField(&list, map[string]any{"items.status.operationState.operation.sync": true}, false)
+	require.NoError(t, err)
+	resMap, ok := res.(map[string]any)
+	require.True(t, ok)
+
+	items, ok := resMap["items"].([]map[string]any)
+	require.True(t, ok)
+	item := test.ToMap(items[0])
+
+	syncMap, ok, err := unstructured.NestedMap(item, "status", "operationState", "operation", "sync")
+	require.NoError(t, err)
+	require.True(t, ok)
+	// Multi-source operations get the same empty presence marker; their sources
+	// and revisions must not leak into the list payload.
+	require.Empty(t, syncMap)
 }
 
 func TestProcessApplicationListField_OperationStateOperationSyncMissing(t *testing.T) {
