@@ -49,6 +49,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 )
 
 func Test_getInfos(t *testing.T) {
@@ -1862,7 +1863,7 @@ func TestWaitOnApplicationStatus_JSON_YAML_WideOutput(t *testing.T) {
 
 	output, err := captureOutput(
 		func() error {
-			_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "json")
+			_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "json", 10)
 			return nil
 		},
 	)
@@ -1870,7 +1871,7 @@ func TestWaitOnApplicationStatus_JSON_YAML_WideOutput(t *testing.T) {
 	assert.True(t, json.Valid([]byte(output)))
 
 	output, err = captureOutput(func() error {
-		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "yaml")
+		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "yaml", 10)
 		return nil
 	})
 
@@ -1879,7 +1880,7 @@ func TestWaitOnApplicationStatus_JSON_YAML_WideOutput(t *testing.T) {
 	require.NoError(t, err)
 
 	output, _ = captureOutput(func() error {
-		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "")
+		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "", 10)
 		return nil
 	})
 	timeStr := time.Now().Format("2006-01-02T15:04:05-07:00")
@@ -1948,7 +1949,7 @@ func TestWaitOnApplicationStatus_JSON_YAML_WideOutput_With_Timeout(t *testing.T)
 	watch = getWatchOpts(watch)
 
 	output, _ := captureOutput(func() error {
-		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 5, watch, selectResource, "")
+		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 5, watch, selectResource, "", 10)
 		return nil
 	})
 	timeStr := time.Now().Format("2006-01-02T15:04:05-07:00")
@@ -2156,7 +2157,7 @@ func TestWaitOnApplicationStatus_ReturnsImmediatelyWhenAlreadyInDesiredState(t *
 	}
 
 	start := time.Now()
-	_, _, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "json")
+	_, _, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "json", 10)
 	elapsed := time.Since(start)
 
 	require.NoError(t, err)
@@ -2172,7 +2173,7 @@ func TestWaitOnApplicationStatus_DeleteWatchSkipsEarlyReturn(t *testing.T) {
 	ctx := t.Context()
 	watch := watchOpts{delete: true}
 
-	app, opState, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, nil, "")
+	app, opState, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, nil, "", 10)
 	require.NoError(t, err)
 	assert.Nil(t, app)
 	assert.Nil(t, opState)
@@ -2187,7 +2188,7 @@ func TestWaitOnApplicationStatus_ReturnsFromWatchLoopWhenEventSatisfiesCondition
 	ctx := t.Context()
 	watch := watchOpts{sync: true, health: true}
 
-	app, _, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, nil, "json")
+	app, _, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, nil, "json", 10)
 	require.NoError(t, err)
 	// The function returns via the readiness path inside the watch loop.
 	// The returned app may be re-fetched by printFinalStatus so we only
@@ -2732,4 +2733,281 @@ func TestIsContextCanceledErr(t *testing.T) {
 		t.Parallel()
 		assert.False(t, isContextCanceledErr(errors.New("some other error")))
 	})
+}
+
+func TestFormatPendingResources(t *testing.T) {
+	tests := []struct {
+		name      string
+		pending   []string
+		maxPending uint
+		expected  string
+	}{
+		{
+			name:      "empty list",
+			pending:   []string{},
+			maxPending: 10,
+			expected:  "",
+		},
+		{
+			name:      "below limit",
+			pending:   []string{"a", "b", "c"},
+			maxPending: 10,
+			expected:  "a, b, c",
+		},
+		{
+			name:      "exactly at limit",
+			pending:   []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j"},
+			maxPending: 10,
+			expected:  "a, b, c, d, e, f, g, h, i, j",
+		},
+		{
+			name:      "above limit",
+			pending:   []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"},
+			maxPending: 10,
+			expected:  "a, b, c, d, e, f, g, h, i, j, ... and 1 more",
+		},
+		{
+			name:      "custom maxPending=5",
+			pending:   []string{"a", "b", "c", "d", "e", "f", "g"},
+			maxPending: 5,
+			expected:  "a, b, c, d, e, ... and 2 more",
+		},
+		{
+			name:      "zero maxPending defaults to 10",
+			pending:   []string{"a", "b", "c"},
+			maxPending: 0,
+			expected:  "a, b, c",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := formatPendingResources(tt.pending, tt.maxPending)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestAppHydrationFinished(t *testing.T) {
+	tests := []struct {
+		name     string
+		app      *v1alpha1.Application
+		expected bool
+	}{
+		{
+			name: "nil CurrentOperation",
+			app: &v1alpha1.Application{
+				Status: v1alpha1.ApplicationStatus{
+					SourceHydrator: v1alpha1.SourceHydratorStatus{},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "nil LastSuccessfulOperation",
+			app: &v1alpha1.Application{
+				Status: v1alpha1.ApplicationStatus{
+					SourceHydrator: v1alpha1.SourceHydratorStatus{
+						CurrentOperation: &v1alpha1.HydrateOperation{},
+					},
+				},
+			},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := appHydrationFinished(tt.app)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+// statusAcdClient serves a fixed application status so wait-timeout tests can
+// exercise the pending-resource reporting without duplicating client
+// boilerplate per scenario.
+type statusAcdClient struct {
+	*fakeAcdClient
+	status v1alpha1.ApplicationStatus
+}
+
+func newStatusAcdClient(status v1alpha1.ApplicationStatus) *statusAcdClient {
+	return &statusAcdClient{fakeAcdClient: &fakeAcdClient{}, status: status}
+}
+
+func (c *statusAcdClient) WatchApplicationWithRetry(_ context.Context, _ string, _ string) chan *v1alpha1.ApplicationWatchEvent {
+	appEventsCh := make(chan *v1alpha1.ApplicationWatchEvent)
+	close(appEventsCh)
+	return appEventsCh
+}
+
+func (c *statusAcdClient) NewApplicationClientOrDie() (io.Closer, applicationpkg.ApplicationServiceClient) {
+	return &fakeConnection{}, &statusFakeAppServiceClient{status: c.status}
+}
+
+func (c *statusAcdClient) NewSettingsClientOrDie() (io.Closer, settingspkg.SettingsServiceClient) {
+	return &fakeConnection{}, &fakeSettingsServiceClient{}
+}
+
+type statusFakeAppServiceClient struct {
+	fakeAppServiceClient
+	status v1alpha1.ApplicationStatus
+}
+
+func (c *statusFakeAppServiceClient) Get(_ context.Context, _ *applicationpkg.ApplicationQuery, _ ...grpc.CallOption) (*v1alpha1.Application, error) {
+	return &v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "argocd"},
+		Spec: v1alpha1.ApplicationSpec{
+			Project:     "default",
+			Destination: v1alpha1.ApplicationDestination{Server: "local", Namespace: "argocd"},
+			Source:      &v1alpha1.ApplicationSource{RepoURL: "test", TargetRevision: "master", Path: "/test"},
+		},
+		Status: c.status,
+	}, nil
+}
+
+func pendingAppStatus() v1alpha1.ApplicationStatus {
+	return v1alpha1.ApplicationStatus{
+		Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeOutOfSync},
+		Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusProgressing},
+		Resources: []v1alpha1.ResourceStatus{
+			{
+				Group:     "apps",
+				Kind:      "Deployment",
+				Namespace: "prod",
+				Name:      "api",
+				Status:    v1alpha1.SyncStatusCodeOutOfSync,
+				Health:    &v1alpha1.HealthStatus{Status: health.HealthStatusDegraded},
+			},
+			{
+				Kind:      "Service",
+				Namespace: "prod",
+				Name:      "web",
+				Status:    v1alpha1.SyncStatusCodeSynced,
+				Health:    &v1alpha1.HealthStatus{Status: health.HealthStatusHealthy},
+			},
+		},
+	}
+}
+
+func aggregateOnlyAppStatus() v1alpha1.ApplicationStatus {
+	return v1alpha1.ApplicationStatus{
+		Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeOutOfSync},
+		Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
+		Resources: []v1alpha1.ResourceStatus{
+			{
+				Kind:      "Service",
+				Namespace: "prod",
+				Name:      "web",
+				Status:    v1alpha1.SyncStatusCodeSynced,
+				Health:    &v1alpha1.HealthStatus{Status: health.HealthStatusHealthy},
+			},
+		},
+	}
+}
+
+func TestWaitOnApplicationStatus_TimeoutErrorListsPendingResources(t *testing.T) {
+	acdClient := newStatusAcdClient(pendingAppStatus())
+	watch := getWatchOpts(watchOpts{sync: true, health: true})
+
+	_, _, err := waitOnApplicationStatus(t.Context(), acdClient, "app-name", 0, watch, nil, "wide", 10)
+	require.Error(t, err)
+	errMsg := err.Error()
+	assert.Contains(t, errMsg, "timed out")
+	assert.Contains(t, errMsg, "sync status: OutOfSync")
+	assert.Contains(t, errMsg, "health status: Progressing")
+	assert.Contains(t, errMsg, "resources not ready: apps/Deployment/prod/api (sync: OutOfSync, health: Degraded)")
+	assert.NotContains(t, errMsg, "prod/web")
+}
+
+func TestWaitOnApplicationStatus_TimeoutErrorSelectedResources(t *testing.T) {
+	acdClient := newStatusAcdClient(pendingAppStatus())
+	selected := []*v1alpha1.SyncOperationResource{
+		{Group: "apps", Kind: "Deployment", Name: "api"},
+	}
+	watch := getWatchOpts(watchOpts{sync: true, health: true})
+
+	_, _, err := waitOnApplicationStatus(t.Context(), acdClient, "app-name", 0, watch, selected, "wide", 10)
+	require.Error(t, err)
+	errMsg := err.Error()
+	assert.Contains(t, errMsg, "resources not ready: apps/Deployment/prod/api (sync: OutOfSync, health: Degraded)")
+	assert.NotContains(t, errMsg, "app sync status")
+}
+
+func TestWaitOnApplicationStatus_TimeoutErrorAppLevelWithoutPendingResources(t *testing.T) {
+	acdClient := newStatusAcdClient(aggregateOnlyAppStatus())
+	watch := getWatchOpts(watchOpts{sync: true})
+
+	_, _, err := waitOnApplicationStatus(t.Context(), acdClient, "app-name", 0, watch, nil, "wide", 10)
+	require.Error(t, err)
+	errMsg := err.Error()
+	assert.Contains(t, errMsg, "sync status: OutOfSync")
+	assert.NotContains(t, errMsg, "resources not ready")
+}
+
+func TestWaitOnApplicationStatus_TimeoutErrorOnlyReportsWatchedConditions(t *testing.T) {
+	status := aggregateOnlyAppStatus()
+	status.OperationState = &v1alpha1.OperationState{Phase: synccommon.OperationRunning}
+	acdClient := newStatusAcdClient(status)
+	watch := watchOpts{operation: true}
+
+	_, _, err := waitOnApplicationStatus(t.Context(), acdClient, "app-name", 0, watch, nil, "wide", 10)
+	require.Error(t, err)
+	errMsg := err.Error()
+	assert.Contains(t, errMsg, "timed out")
+	assert.NotContains(t, errMsg, "sync status")
+	assert.NotContains(t, errMsg, "health status")
+}
+
+func TestWaitOnApplicationStatus_TimeoutErrorSkipsCompletedHooks(t *testing.T) {
+	status := aggregateOnlyAppStatus()
+	status.OperationState = &v1alpha1.OperationState{
+		SyncResult: &v1alpha1.SyncOperationResult{
+			Resources: []*v1alpha1.ResourceResult{
+				{
+					Group:     "batch",
+					Kind:      "Job",
+					Namespace: "prod",
+					Name:      "migrate",
+					HookType:  synccommon.HookTypePreSync,
+					HookPhase: synccommon.OperationSucceeded,
+					Status:    synccommon.ResultCodeSynced,
+				},
+			},
+		},
+	}
+	acdClient := newStatusAcdClient(status)
+	watch := getWatchOpts(watchOpts{sync: true})
+
+	_, _, err := waitOnApplicationStatus(t.Context(), acdClient, "app-name", 0, watch, nil, "wide", 10)
+	require.Error(t, err)
+	errMsg := err.Error()
+	assert.NotContains(t, errMsg, "batch/Job/prod/migrate")
+}
+
+func TestWaitOnApplicationStatus_MaxPendingCustomLimit(t *testing.T) {
+	// With maxPending=2, only 2 resources should be listed even though 3 are pending
+	resources := make([]v1alpha1.ResourceStatus, 15)
+	for i := range resources {
+		resources[i] = v1alpha1.ResourceStatus{
+			Kind:      fmt.Sprintf("Deployment%d", i),
+			Namespace: "prod",
+			Name:      fmt.Sprintf("app%d", i),
+			Status:    v1alpha1.SyncStatusCodeOutOfSync,
+			Health:    &v1alpha1.HealthStatus{Status: health.HealthStatusDegraded},
+		}
+	}
+	status := v1alpha1.ApplicationStatus{
+		Sync:      v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeOutOfSync},
+		Health:    v1alpha1.AppHealthStatus{Status: health.HealthStatusProgressing},
+		Resources: resources,
+	}
+	acdClient := newStatusAcdClient(status)
+	watch := getWatchOpts(watchOpts{sync: true})
+
+	_, _, err := waitOnApplicationStatus(t.Context(), acdClient, "app-name", 0, watch, nil, "wide", 2)
+	require.Error(t, err)
+	errMsg := err.Error()
+	assert.Contains(t, errMsg, "... and 13 more")
 }
