@@ -353,6 +353,45 @@ func TestKustomizeApiVersions(t *testing.T) {
 		})
 }
 
+func TestKustomizeHelmOCIRegistryWithoutCredentialsFails(t *testing.T) {
+	Given(t).
+		CustomCACertAdded().
+		PushChartToTLSAuthenticatedOCIRegistry("testdata/helm-values", "helm-values", "1.0.0").
+		Path("kustomize-helm-oci").
+		And(func() {
+			errors.NewHandler(t).FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
+				"-n", fixture.TestNamespace(),
+				"-p", `{ "data": { "kustomize.buildOptions": "--enable-helm" } }`))
+		}).
+		When().
+		IgnoreErrors().
+		// Allow the Application to be created so the sync can report the expected registry authentication failure.
+		CreateApp("--validate=false").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationError))
+}
+
+func TestKustomizeHelmOCIRegistryWithCredentials(t *testing.T) {
+	Given(t).
+		CustomCACertAdded().
+		PushChartToTLSAuthenticatedOCIRegistry("testdata/helm-values", "helm-values", "1.0.0").
+		HelmTLSAuthenticatedOCIRepoAdded("myrepo").
+		Path("kustomize-helm-oci").
+		And(func() {
+			errors.NewHandler(t).FailOnErr(fixture.Run("", "kubectl", "patch", "cm", "argocd-cm",
+				"-n", fixture.TestNamespace(),
+				"-p", `{ "data": { "kustomize.buildOptions": "--enable-helm" } }`))
+		}).
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
+
 func TestKustomizeNamespaceOverride(t *testing.T) {
 	Given(t).
 		Path("kustomize-kube-version").
