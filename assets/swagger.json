@@ -1640,6 +1640,72 @@
         }
       }
     },
+    "/api/v1/applications/{name}/resource/health": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "GetResourceHealthDefinition returns the health check definition (Lua script and its source)\nused to compute the resource's health status, if any",
+        "operationId": "ApplicationService_GetResourceHealthDefinition",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "namespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "resourceName",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "version",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "group",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "kind",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationResourceHealthDefinitionResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications/{name}/resource/links": {
       "get": {
         "tags": [
@@ -5466,6 +5532,19 @@
           "items": {
             "$ref": "#/definitions/v1alpha1ResourceAction"
           }
+        }
+      }
+    },
+    "applicationResourceHealthDefinitionResponse": {
+      "type": "object",
+      "properties": {
+        "script": {
+          "description": "Script contains the Lua source of the health check, when one is defined (source is\n\"custom\" or \"built-in\"). Empty otherwise.",
+          "type": "string"
+        },
+        "source": {
+          "description": "Source describes where the resource's health check definition comes from: \"custom\" for a\nuser-defined override configured in argocd-cm, \"built-in\" for a Lua script bundled with\nArgo CD, or unset if the resource has no Lua-based health check (it may still be assessed\nby one of Argo CD's built-in Go health checks).",
+          "type": "string"
         }
       }
     },

@@ -5238,3 +5238,59 @@ func TestGetUnstructuredLiveResourceOrAppWithImpersonation(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "system:serviceaccount:"+test.FakeDestNamespace+":test-sa", config.Impersonate.UserName)
 }
+
+func TestGetResourceHealthDefinition(t *testing.T) {
+	rolloutObj := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "argoproj.io/v1alpha1",
+		"kind":       "Rollout",
+		"metadata":   map[string]any{"name": "my-rollout"},
+	}}
+	deploymentObj := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "apps/v1",
+		"kind":       "Deployment",
+		"metadata":   map[string]any{"name": "my-deployment"},
+	}}
+	widgetObj := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "example.com/v1",
+		"kind":       "Widget",
+		"metadata":   map[string]any{"name": "my-widget"},
+	}}
+
+	s := &Server{}
+
+	t.Run("custom override defined in argocd-cm", func(t *testing.T) {
+		overrides := map[string]v1alpha1.ResourceOverride{
+			"argoproj.io/Rollout": {HealthLua: "hs = {}\nhs.status = \"Healthy\"\nreturn hs"},
+		}
+		resp, err := s.getResourceHealthDefinition(overrides, rolloutObj)
+		require.NoError(t, err)
+		require.NotNil(t, resp.Source)
+		assert.Equal(t, "custom", *resp.Source)
+		require.NotNil(t, resp.Script)
+		assert.Contains(t, *resp.Script, "Healthy")
+	})
+
+	t.Run("built-in Lua script bundled with Argo CD", func(t *testing.T) {
+		resp, err := s.getResourceHealthDefinition(nil, rolloutObj)
+		require.NoError(t, err)
+		require.NotNil(t, resp.Source)
+		assert.Equal(t, "built-in", *resp.Source)
+		require.NotNil(t, resp.Script)
+		assert.NotEmpty(t, *resp.Script)
+	})
+
+	t.Run("built-in Go health check with no Lua script", func(t *testing.T) {
+		resp, err := s.getResourceHealthDefinition(nil, deploymentObj)
+		require.NoError(t, err)
+		require.NotNil(t, resp.Source)
+		assert.Equal(t, "built-in-go", *resp.Source)
+		assert.Nil(t, resp.Script)
+	})
+
+	t.Run("no health check defined for this kind", func(t *testing.T) {
+		resp, err := s.getResourceHealthDefinition(nil, widgetObj)
+		require.NoError(t, err)
+		assert.Nil(t, resp.Source)
+		assert.Nil(t, resp.Script)
+	})
+}

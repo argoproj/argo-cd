@@ -2520,6 +2520,10 @@ func (c *fakeAppServiceClient) ListResourceActions(_ context.Context, _ *applica
 	return nil, nil
 }
 
+func (c *fakeAppServiceClient) GetResourceHealthDefinition(_ context.Context, _ *applicationpkg.ApplicationResourceRequest, _ ...grpc.CallOption) (*applicationpkg.ResourceHealthDefinitionResponse, error) {
+	return nil, nil
+}
+
 // nolint:staticcheck // ResourceActionRunRequest is deprecated, but we still need to implement it to satisfy the server interface.
 func (c *fakeAppServiceClient) RunResourceAction(_ context.Context, _ *applicationpkg.ResourceActionRunRequest, _ ...grpc.CallOption) (*applicationpkg.ApplicationResponse, error) {
 	return nil, nil

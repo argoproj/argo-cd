@@ -2581,6 +2581,57 @@ func (s *Server) ListResourceActions(ctx context.Context, q *application.Applica
 	return &application.ResourceActionsListResponse{Actions: actionsPtr}, nil
 }
 
+func (s *Server) GetResourceHealthDefinition(ctx context.Context, q *application.ApplicationResourceRequest) (*application.ResourceHealthDefinitionResponse, error) {
+	obj, _, _, _, err := s.getUnstructuredLiveResourceOrApp(ctx, rbac.ActionGet, q)
+	if err != nil {
+		return nil, err
+	}
+	resourceOverrides, err := s.settingsMgr.GetResourceOverrides()
+	if err != nil {
+		return nil, fmt.Errorf("error getting resource overrides: %w", err)
+	}
+
+	definition, err := s.getResourceHealthDefinition(resourceOverrides, obj)
+	if err != nil {
+		return nil, fmt.Errorf("error getting resource health definition: %w", err)
+	}
+	return definition, nil
+}
+
+// healthCheckSourceBuiltInGo identifies a resource whose health is assessed by one of Argo CD's
+// built-in Go health check functions (see gitops-engine's health.GetHealthCheckFunc) rather than a
+// Lua script. It's a sibling of lua.HealthCheckSourceCustom/lua.HealthCheckSourceBuiltIn, kept here
+// instead of in the lua package since it isn't a Lua concept.
+const healthCheckSourceBuiltInGo = "built-in-go"
+
+func (s *Server) getResourceHealthDefinition(resourceOverrides map[string]v1alpha1.ResourceOverride, obj *unstructured.Unstructured) (*application.ResourceHealthDefinitionResponse, error) {
+	luaVM := lua.VM{
+		ResourceOverrides: resourceOverrides,
+	}
+	script, _, source, err := luaVM.GetHealthScriptWithSource(obj)
+	if err != nil {
+		return nil, fmt.Errorf("error getting Lua health check script: %w", err)
+	}
+
+	if script != "" {
+		sourceStr := string(source)
+		return &application.ResourceHealthDefinitionResponse{
+			Source: &sourceStr,
+			Script: &script,
+		}, nil
+	}
+
+	// No Lua script applies to this resource; it may still be assessed by one of Argo CD's
+	// built-in Go health checks (for example, Deployment, Pod, Service).
+	if health.GetHealthCheckFunc(obj.GroupVersionKind()) != nil {
+		builtInGoSource := healthCheckSourceBuiltInGo
+		return &application.ResourceHealthDefinitionResponse{Source: &builtInGoSource}, nil
+	}
+
+	// This resource kind has no dedicated health check at all; Argo CD treats it as Healthy once synced.
+	return &application.ResourceHealthDefinitionResponse{}, nil
+}
+
 func (s *Server) getUnstructuredLiveResourceOrApp(ctx context.Context, rbacRequest string, q *application.ApplicationResourceRequest) (obj *unstructured.Unstructured, res *v1alpha1.ResourceNode, app *v1alpha1.Application, config *rest.Config, err error) {
 	if q.GetKind() == applicationType.ApplicationKind && q.GetGroup() == applicationType.Group && q.GetName() == q.GetResourceName() {
 		var p *v1alpha1.AppProject
