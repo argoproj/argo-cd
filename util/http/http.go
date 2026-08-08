@@ -2,6 +2,7 @@ package http
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"math"
@@ -9,9 +10,11 @@ import (
 	"net/http/httputil"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	utilnet "k8s.io/apimachinery/pkg/util/net"
 	"k8s.io/client-go/transport"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -179,6 +182,160 @@ func WithRetry(maxRetries int64, baseRetryBackoff time.Duration) transport.Wrapp
 			backoff:    baseRetryBackoff,
 		}
 	}
+}
+
+// WithTimeoutForNonLongRunningRequests applies a per-attempt timeout to
+// Kubernetes API requests without limiting long-running connections.
+func WithTimeoutForNonLongRunningRequests(timeout time.Duration, serverPathPrefix string) transport.WrapperFunc {
+	serverPathPrefix = strings.TrimRight(serverPathPrefix, "/")
+	return func(rt http.RoundTripper) http.RoundTripper {
+		if rt == nil {
+			rt = http.DefaultTransport
+		}
+		return &nonLongRunningTimeoutTransport{
+			inner:            rt,
+			timeout:          timeout,
+			serverPathPrefix: serverPathPrefix,
+		}
+	}
+}
+
+type nonLongRunningTimeoutTransport struct {
+	inner            http.RoundTripper
+	timeout          time.Duration
+	serverPathPrefix string
+}
+
+var _ utilnet.RoundTripperWrapper = (*nonLongRunningTimeoutTransport)(nil)
+
+func (t *nonLongRunningTimeoutTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if t.timeout <= 0 || isLongRunningRequest(req, t.serverPathPrefix) {
+		return t.inner.RoundTrip(req)
+	}
+
+	ctx, cancel := context.WithTimeout(req.Context(), t.timeout)
+	resp, err := t.inner.RoundTrip(req.Clone(ctx))
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+	if resp.Body == nil {
+		cancel()
+		return resp, nil
+	}
+	resp.Body = &cancelReadCloser{
+		ReadCloser: resp.Body,
+		cancel:     cancel,
+	}
+	return resp, nil
+}
+
+func (t *nonLongRunningTimeoutTransport) WrappedRoundTripper() http.RoundTripper {
+	return t.inner
+}
+
+func isLongRunningRequest(req *http.Request, serverPathPrefix string) bool {
+	if req == nil || req.URL == nil {
+		return false
+	}
+
+	if req.Header.Get("Upgrade") != "" || headerHasToken(req.Header, "Connection", "upgrade") {
+		return true
+	}
+
+	hasFollow := false
+	rawQuery := req.URL.RawQuery
+	if rawQuery != "" && (strings.Contains(rawQuery, "watch") ||
+		strings.Contains(rawQuery, "follow")) {
+		query := req.URL.Query()
+		if hasTrueValue(query["watch"]) {
+			return true
+		}
+		hasFollow = hasTrueValue(query["follow"])
+	}
+
+	path := stripServerPathPrefix(req.URL.Path, serverPathPrefix)
+	if !strings.Contains(path, "/exec") &&
+		!strings.Contains(path, "/attach") &&
+		!strings.Contains(path, "/portforward") &&
+		!strings.Contains(path, "/log") &&
+		!strings.Contains(path, "/proxy") {
+		return false
+	}
+
+	var twoSegmentsBack string
+	var previousSegment string
+	for segment := range strings.SplitSeq(strings.Trim(path, "/"), "/") {
+		resource := twoSegmentsBack
+		subresource := segment
+		switch {
+		case resource == "pods" &&
+			(subresource == "exec" || subresource == "attach" || subresource == "portforward"):
+			return true
+		case resource == "pods" && hasFollow && (subresource == "log" || subresource == "logs"):
+			return true
+		case subresource == "proxy" &&
+			(resource == "pods" || resource == "services" || resource == "nodes"):
+			return true
+		}
+		twoSegmentsBack, previousSegment = previousSegment, segment
+	}
+
+	return false
+}
+
+func stripServerPathPrefix(requestPath, serverPathPrefix string) string {
+	if serverPathPrefix == "" || !strings.HasPrefix(requestPath, serverPathPrefix) {
+		return requestPath
+	}
+	if len(requestPath) == len(serverPathPrefix) {
+		return "/"
+	}
+	if requestPath[len(serverPathPrefix)] != '/' {
+		return requestPath
+	}
+	return requestPath[len(serverPathPrefix):]
+}
+
+func headerHasToken(header http.Header, name, expected string) bool {
+	for _, value := range header.Values(name) {
+		for token := range strings.SplitSeq(value, ",") {
+			if strings.EqualFold(strings.TrimSpace(token), expected) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func hasTrueValue(values []string) bool {
+	for _, value := range values {
+		enabled, err := strconv.ParseBool(value)
+		if err == nil && enabled {
+			return true
+		}
+	}
+	return false
+}
+
+type cancelReadCloser struct {
+	io.ReadCloser
+	cancel     context.CancelFunc
+	cancelOnce sync.Once
+}
+
+func (r *cancelReadCloser) Read(p []byte) (int, error) {
+	n, err := r.ReadCloser.Read(p)
+	if err != nil {
+		r.cancelOnce.Do(r.cancel)
+	}
+	return n, err
+}
+
+func (r *cancelReadCloser) Close() error {
+	err := r.ReadCloser.Close()
+	r.cancelOnce.Do(r.cancel)
+	return err
 }
 
 type retryTransport struct {

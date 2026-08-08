@@ -1,24 +1,28 @@
 package v1alpha1
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"path"
+	"strings"
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
-
-	argocdcommon "github.com/argoproj/argo-cd/v3/common"
-
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/rest"
+
+	argocdcommon "github.com/argoproj/argo-cd/v3/common"
+	utilhttp "github.com/argoproj/argo-cd/v3/util/http"
 )
 
 func TestAppProject_IsSourcePermitted(t *testing.T) {
@@ -6229,4 +6233,137 @@ func TestGetDrySource_PreservesAllFields(t *testing.T) {
 			}
 		})
 	}
+}
+
+type roundTripperFunc func(req *http.Request) (*http.Response, error)
+
+func (f roundTripperFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
+
+func TestClusterRESTConfigsApplyK8sRequestTimeoutWithTransportWrapper(t *testing.T) {
+	originalTimeout := K8sServerSideTimeout
+	K8sServerSideTimeout = time.Minute
+	t.Cleanup(func() {
+		K8sServerSideTimeout = originalTimeout
+	})
+
+	cluster := &Cluster{Server: "https://kubernetes.example"}
+
+	rawConfig, err := cluster.RawRestConfig()
+	require.NoError(t, err)
+	assert.Zero(t, rawConfig.Timeout)
+	assert.NotNil(t, rawConfig.WrapTransport)
+
+	config, err := cluster.RESTConfig()
+	require.NoError(t, err)
+	assert.Zero(t, config.Timeout)
+	assert.NotNil(t, config.WrapTransport)
+}
+
+func TestSetK8SConfigDefaultsDoesNotApplyExistingTransportWrapperTwice(t *testing.T) {
+	originalTimeout := K8sServerSideTimeout
+	K8sServerSideTimeout = time.Minute
+	t.Cleanup(func() {
+		K8sServerSideTimeout = originalTimeout
+	})
+
+	wrapCount := 0
+	config := &rest.Config{
+		Host: "https://kubernetes.example",
+		WrapTransport: func(rt http.RoundTripper) http.RoundTripper {
+			wrapCount++
+			return rt
+		},
+	}
+
+	require.NoError(t, SetK8SConfigDefaults(config))
+	assert.Equal(t, 1, wrapCount)
+	require.NotNil(t, config.WrapTransport)
+
+	config.WrapTransport(config.Transport)
+	assert.Equal(t, 1, wrapCount)
+}
+
+func TestSetK8SConfigDefaultsExcludesServerPathPrefixFromTimeoutClassification(t *testing.T) {
+	originalTimeout := K8sServerSideTimeout
+	K8sServerSideTimeout = time.Minute
+	t.Cleanup(func() {
+		K8sServerSideTimeout = originalTimeout
+	})
+
+	tests := []struct {
+		name string
+		host string
+	}{
+		{
+			name: "standard subpath prefix",
+			host: "https://kubernetes.example/services/gateway/proxy/urn:cluster/",
+		},
+		{
+			name: "complex proxy subpath prefix",
+			host: "https://k8s-proxy.example/proxy/k8s/namespaces/namespace-id",
+		},
+		{
+			name: "ip with port no prefix",
+			host: "https://127.0.0.1:6443",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := &rest.Config{Host: tt.host}
+			require.NoError(t, SetK8SConfigDefaults(config))
+			require.NotNil(t, config.WrapTransport)
+
+			var requestContext context.Context
+			wrapped := config.WrapTransport(roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+				requestContext = req.Context()
+				return &http.Response{StatusCode: http.StatusOK, Body: http.NoBody}, nil
+			}))
+			reqUrl := config.Host
+			if !strings.HasSuffix(reqUrl, "/") {
+				reqUrl += "/"
+			}
+			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, reqUrl+"api/v1/pods", http.NoBody)
+			require.NoError(t, err)
+			resp, err := wrapped.RoundTrip(req)
+			require.NoError(t, err)
+			_, hasDeadline := requestContext.Deadline()
+			assert.True(t, hasDeadline)
+			require.NoError(t, resp.Body.Close())
+		})
+	}
+}
+
+func TestSetK8SConfigDefaultsRetriesAfterPerAttemptTimeout(t *testing.T) {
+	originalTimeout := K8sServerSideTimeout
+	K8sServerSideTimeout = 10 * time.Millisecond
+	t.Cleanup(func() {
+		K8sServerSideTimeout = originalTimeout
+	})
+	t.Setenv(utilhttp.EnvRetryMax, "1")
+	t.Setenv(utilhttp.EnvRetryBaseBackoff, "1")
+
+	config := &rest.Config{Host: "https://kubernetes.example"}
+	require.NoError(t, SetK8SConfigDefaults(config))
+	require.NotNil(t, config.WrapTransport)
+
+	attempts := 0
+	wrapped := config.WrapTransport(roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		attempts++
+		if attempts == 1 {
+			<-req.Context().Done()
+			return nil, req.Context().Err()
+		}
+		return &http.Response{StatusCode: http.StatusOK}, nil
+	}))
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://kubernetes.example/api/v1/pods", http.NoBody)
+	require.NoError(t, err)
+	resp, err := wrapped.RoundTrip(req)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	assert.Equal(t, 2, attempts)
+	assert.NoError(t, req.Context().Err())
 }

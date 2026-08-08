@@ -34,7 +34,7 @@ const (
 	// EnvK8sTCPIdleConnTimeout is the duration when idle TCP connection to the K8s API servers should timeout
 	EnvK8sTCPIdleConnTimeout = "ARGOCD_K8S_TCP_IDLE_TIMEOUT"
 
-	// EnvK8sServerSideTimeout is the duration for the server side timeout for each API request
+	// EnvK8sServerSideTimeout is the per-attempt timeout for non-long-running Kubernetes API requests
 	EnvK8sServerSideTimeout = "ARGOCD_K8S_SERVER_SIDE_TIMEOUT"
 )
 
@@ -62,6 +62,6 @@ var (
 	// K8sTCPIdleConnTimeout defines the duration for keeping idle TCP connections to the K8s API server
 	K8sTCPIdleConnTimeout = env.ParseDurationFromEnv(EnvK8sTCPIdleConnTimeout, 5*time.Minute, 0, math.MaxInt32*time.Second)
 
-	// K8sServerSideTimeout defines which server side timeout to send with each API request
+	// K8sServerSideTimeout defines the per-attempt timeout for non-long-running Kubernetes API requests
 	K8sServerSideTimeout = env.ParseDurationFromEnv(EnvK8sServerSideTimeout, 0, 0, math.MaxInt32*time.Second)
 )
