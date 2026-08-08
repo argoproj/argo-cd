@@ -28,6 +28,7 @@ export interface ApplicationParametersPanelProps<T> {
     numberOfSources?: number;
     noReadonlyMode?: boolean;
     collapsible?: boolean;
+    hideBottom?: boolean;
     deleteSource: () => void;
 }
 
@@ -68,7 +69,7 @@ export function ApplicationParametersSource<T = {}>(props: ApplicationParameters
                 }}
                 deleteSource={props.deleteSource}
             />
-            {props.itemsTop && (
+            {props.itemsTop && !props.hideBottom && (
                 <>
                     <div className='row white-box__details-row'>
                         <p>&nbsp;</p>
@@ -76,25 +77,27 @@ export function ApplicationParametersSource<T = {}>(props: ApplicationParameters
                     <div className='white-box--no-padding editable-panel__divider' />
                 </>
             )}
-            <EditableSection
-                uniqueId={'bottom_' + props.index}
-                title={props.titleBottom}
-                view={props.viewBottom}
-                values={props.valuesBottom}
-                items={props.itemsBottom}
-                validate={props.validateBottom}
-                save={props.saveBottom}
-                onModeSwitch={() => onModeSwitch()}
-                noReadonlyMode={props.noReadonlyMode}
-                edit={props.editBottom}
-                collapsible={props.collapsible}
-                ctx={ctx}
-                isTopSection={false}
-                disabledState={editBottom || editBottom === null}
-                updateButtons={editClicked => {
-                    setEditTop(editClicked);
-                }}
-            />
+            {!props.hideBottom && (
+                <EditableSection
+                    uniqueId={'bottom_' + props.index}
+                    title={props.titleBottom}
+                    view={props.viewBottom}
+                    values={props.valuesBottom}
+                    items={props.itemsBottom}
+                    validate={props.validateBottom}
+                    save={props.saveBottom}
+                    onModeSwitch={() => onModeSwitch()}
+                    noReadonlyMode={props.noReadonlyMode}
+                    edit={props.editBottom}
+                    collapsible={props.collapsible}
+                    ctx={ctx}
+                    isTopSection={false}
+                    disabledState={editBottom || editBottom === null}
+                    updateButtons={editClicked => {
+                        setEditTop(editClicked);
+                    }}
+                />
+            )}
         </div>
     );
 }
