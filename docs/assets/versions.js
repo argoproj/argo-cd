@@ -138,6 +138,16 @@ window.addEventListener("DOMContentLoaded", function() {
   var margin = 30;
   var headerHeight = document.getElementsByClassName("md-header")[0].offsetHeight;
   const currentVersion = getCurrentVersion();
+  // Build equivalent stable URL for the current page (preserve path, query, hash)
+  const stableUrl = (() => {
+    try {
+      const path = window.location.pathname.replace(/^\/en\/[^/]+/, '');
+      return 'https://argo-cd.readthedocs.io/en/stable' + path + window.location.search + window.location.hash;
+    } catch (e) {
+      return 'https://argo-cd.readthedocs.io/en/stable/';
+    }
+  })();
+
   if (currentVersion && currentVersion !== "stable") {
     var stableUrl = window.location.href.replace(VERSION_REGEX, '/en/stable/');
     if (currentVersion === "latest") {
