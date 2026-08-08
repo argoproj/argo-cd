@@ -6,6 +6,7 @@ import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
 import {getAppDefaultSource} from '../utils';
+import {inferSourceRepositoryType, isRefOnlySource, normalizeRefOnlySource, normalizeSourceForRepositoryType, SourceRepositoryType} from '../shared/app-source-edit';
 
 function getSourceForPanel(app: models.Application, sourceIndex?: number): models.ApplicationSource | null {
     if (sourceIndex !== undefined) {
@@ -21,29 +22,64 @@ function fieldPath(sourceIndex: number | undefined, field: string): string {
     return `spec.source.${field}`;
 }
 
+function registeredRepositoryType(repoInfo: models.Repository | undefined, source: models.ApplicationSource | null): SourceRepositoryType {
+    if (!repoInfo) {
+        return inferSourceRepositoryType(source ?? undefined);
+    }
+    const type = repoInfo.type?.toLowerCase();
+    return type === 'helm' || type === 'oci' ? type : 'git';
+}
+
+function updateSource(formApi: FormApi, sourceIndex: number | undefined, transform: (source: models.ApplicationSource) => models.ApplicationSource): void {
+    const app = formApi.getFormState().values as models.Application;
+    const source = getSourceForPanel(app, sourceIndex);
+    if (!source) {
+        return;
+    }
+    const updatedSource = transform(source);
+    if (updatedSource === source) {
+        return;
+    }
+
+    if (sourceIndex === undefined) {
+        formApi.setAllValues({...app, spec: {...app.spec, source: updatedSource}});
+        return;
+    }
+
+    const sources = [...(app.spec.sources || [])];
+    if (!sources[sourceIndex]) {
+        return;
+    }
+    sources[sourceIndex] = updatedSource;
+    formApi.setAllValues({...app, spec: {...app.spec, sources}});
+}
+
 export interface SourcePanelProps {
     formApi: FormApi;
     repos: string[];
     repoInfo?: models.Repository;
     sourceIndex?: number;
     suppressMultiSourceHeading?: boolean;
-    currentRepoType?: React.MutableRefObject<string | undefined>;
     lastGitOrHelmUrl?: React.MutableRefObject<string>;
     lastOciUrl?: React.MutableRefObject<string>;
 }
 
 export const SourcePanel = (props: SourcePanelProps) => {
-    const internalRepoType = React.useRef<string | undefined>(undefined);
     const internalLastGit = React.useRef('');
     const internalLastOci = React.useRef('');
     const isMulti = props.sourceIndex !== undefined;
-    const lastGitOrHelmUrl = isMulti ? internalLastGit : props.lastGitOrHelmUrl;
-    const lastOciUrl = isMulti ? internalLastOci : props.lastOciUrl;
-    const currentRepoType = isMulti ? internalRepoType : props.currentRepoType;
+    const lastGitOrHelmUrl = isMulti ? internalLastGit : props.lastGitOrHelmUrl || internalLastGit;
+    const lastOciUrl = isMulti ? internalLastOci : props.lastOciUrl || internalLastOci;
 
     const currentApp = props.formApi.getFormState().values as models.Application;
     const currentSource = getSourceForPanel(currentApp, props.sourceIndex);
-    const repoType = currentSource?.repoURL?.startsWith('oci://') ? 'oci' : (currentSource && Object.prototype.hasOwnProperty.call(currentSource, 'chart') && 'helm') || 'git';
+    const repoType = registeredRepositoryType(props.repoInfo, currentSource);
+    const currentRepoURL = currentSource?.repoURL;
+    const refOnly = isRefOnlySource(currentSource ?? undefined);
+
+    React.useEffect(() => {
+        updateSource(props.formApi, props.sourceIndex, source => normalizeSourceForRepositoryType(normalizeRefOnlySource(source), repoType));
+    }, [props.formApi, props.sourceIndex, repoType, currentRepoURL, refOnly]);
 
     const idx = props.sourceIndex;
     const qeSourceN = isMulti && idx !== undefined ? idx + 1 : 0;
@@ -101,33 +137,13 @@ export const SourcePanel = (props: SourcePanelProps) => {
                                             } else {
                                                 lastOciUrl.current = source.repoURL;
                                             }
-                                            currentRepoType.current = type;
                                             /* eslint-enable react-hooks/refs */
-                                            if (type !== 'git') {
-                                                delete source.ref;
-                                            }
-                                            switch (type) {
-                                                case 'git':
-                                                case 'oci':
-                                                    if (Object.prototype.hasOwnProperty.call(source, 'chart')) {
-                                                        source.path = source.chart;
-                                                        delete source.chart;
-                                                    }
-                                                    source.targetRevision = 'HEAD';
-                                                    source.repoURL = type === 'git' ? lastGitOrHelmUrl.current : lastOciUrl.current === '' ? 'oci://' : lastOciUrl.current;
-                                                    break;
-                                                case 'helm':
-                                                    if (Object.prototype.hasOwnProperty.call(source, 'path')) {
-                                                        source.chart = source.path;
-                                                        delete source.path;
-                                                    } else if (!Object.prototype.hasOwnProperty.call(source, 'chart')) {
-                                                        source.chart = '';
-                                                    }
-                                                    source.targetRevision = '';
-                                                    source.repoURL = lastGitOrHelmUrl.current;
-                                                    break;
-                                            }
-                                            props.formApi.setAllValues(updatedApp);
+                                            const targetRepoURL = type === 'oci' ? (lastOciUrl.current === '' ? 'oci://' : lastOciUrl.current) : lastGitOrHelmUrl.current;
+                                            updateSource(props.formApi, props.sourceIndex, current => ({
+                                                ...normalizeSourceForRepositoryType(current, type),
+                                                repoURL: targetRepoURL,
+                                                targetRevision: type === 'helm' ? '' : 'HEAD'
+                                            }));
                                         }
                                     }
                                 }))}

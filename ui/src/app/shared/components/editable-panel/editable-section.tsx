@@ -4,7 +4,7 @@ import {useState, useRef, useEffect, Fragment, useCallback} from 'react';
 import type {FormApi, FormState} from 'argo-ui';
 import {Form} from 'argo-ui';
 import {ContextApis} from '../../context';
-import {EditablePanelItem} from './editable-panel';
+import {EditablePanelItem, EditablePanelItemTitle} from './editable-panel';
 import {Spinner} from '../spinner';
 import {helpTip} from '../../../applications/components/utils';
 
@@ -165,7 +165,9 @@ function EditableSection<T extends {} = {}>({
                             <Fragment key={'read_' + uniqueId + '_' + (item.key || item.title)}>
                                 {item.before}
                                 <div className='row white-box__details-row'>
-                                    <div className='columns small-3'>{item.customTitle || item.title}</div>
+                                    <div className='columns small-3'>
+                                        <EditablePanelItemTitle item={item} />
+                                    </div>
                                     <div className='columns small-9'>{item.view}</div>
                                 </div>
                             </Fragment>
@@ -180,7 +182,9 @@ function EditableSection<T extends {} = {}>({
                                 <Fragment key={'edit_' + uniqueId + '_' + (item.key || item.title)}>
                                     {item.before}
                                     <div className='row white-box__details-row'>
-                                        <div className='columns small-3'>{(item.titleEdit && item.titleEdit(api)) || item.customTitle || item.title}</div>
+                                        <div className='columns small-3'>
+                                            <EditablePanelItemTitle item={item} formApi={api} />
+                                        </div>
                                         <div className='columns small-9'>{(item.edit && item.edit(api)) || item.view}</div>
                                     </div>
                                 </Fragment>

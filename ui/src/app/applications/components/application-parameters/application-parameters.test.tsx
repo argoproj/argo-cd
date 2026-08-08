@@ -1,4 +1,5 @@
 import {render, screen, waitFor} from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import * as React from 'react';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -89,5 +90,41 @@ describe('ApplicationParameters ref-only sources', () => {
         await waitFor(() => expect(appDetails).toHaveBeenCalledWith(source, 'sandbox', 'default', 1, 0));
         expect(await screen.findByText('PLUGIN')).toBeInTheDocument();
         expect(screen.getByText(/Source 2: TYPE=Plugin/)).toBeInTheDocument();
+    });
+
+    test('shows the external values hint while viewing and editing an existing multi-source application', async () => {
+        const app = applicationWithValuesSource({
+            repoURL: 'https://git.example.com/org/value-files.git',
+            targetRevision: 'main',
+            ref: 'values'
+        } as models.ApplicationSource);
+        app.spec.sources[0].helm = {valueFiles: ['$values/charts/prometheus/values.yaml']} as models.ApplicationSourceHelm;
+        appDetails.mockResolvedValue({
+            type: 'Helm',
+            helm: {name: 'prometheus', valueFiles: ['values.yaml'], parameters: [], fileParameters: []}
+        } as models.RepoAppDetails);
+        const user = userEvent.setup();
+
+        render(
+            <Context.Provider value={{notifications: {show: jest.fn()}} as any}>
+                <ApplicationParameters
+                    application={app}
+                    save={jest.fn().mockResolvedValue(undefined)}
+                    pageNumber={0}
+                    setPageNumber={jest.fn()}
+                    collapsedSources={[false, true]}
+                    handleCollapse={jest.fn()}
+                    appContext={{} as any}
+                />
+            </Context.Provider>
+        );
+
+        const viewTitle = await screen.findByText('VALUES FILES');
+        expect(viewTitle.closest('.columns.small-3')?.querySelector('.help-tip')).not.toBeNull();
+
+        const editButtons = screen.getAllByRole('button', {name: 'Edit'});
+        await user.click(editButtons[1]);
+
+        await waitFor(() => expect(screen.getByText('VALUES FILES').closest('.columns.small-3')?.querySelector('.help-tip')).not.toBeNull());
     });
 });

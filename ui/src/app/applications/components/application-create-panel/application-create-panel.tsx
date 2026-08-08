@@ -1,4 +1,3 @@
-/* eslint-disable no-prototype-builtins */
 import {AutocompleteField, Checkbox, DataLoader, DropDownMenu, FormField, HelpIcon, Select} from 'argo-ui';
 import * as deepMerge from 'deepmerge';
 import * as React from 'react';
@@ -16,8 +15,7 @@ import {HydratorSourcePanel} from './hydrator-source-panel';
 import {CollapsibleMultiSourceSection} from './collapsible-multi-source-section';
 import {SourcePanel} from './source-panel';
 import './application-create-panel.scss';
-import {getAppDefaultSource} from '../utils';
-import {APP_SOURCE_TYPES, normalizeTypeFieldsForSource} from '../shared/app-source-edit';
+import {APP_SOURCE_TYPES, normalizeTypeFieldsForSource, sourceDiscoveryKey, sourceKeyForTypeOverride} from '../shared/app-source-edit';
 import {validateApplicationCreate} from './application-create-panel-validation';
 
 const jsonMergePatch = require('json-merge-patch');
@@ -84,24 +82,6 @@ const AutoSyncFormField = ReactFormField((props: {fieldApi: FieldApi; className:
     );
 });
 
-function normalizeAppSource(app: models.Application, type: string): boolean {
-    const source = getAppDefaultSource(app);
-    const repoType = source.repoURL.startsWith('oci://') ? 'oci' : (source.hasOwnProperty('chart') && 'helm') || 'git';
-    if (repoType !== type) {
-        if (type === 'git' || type === 'oci') {
-            source.path = source.chart;
-            delete source.chart;
-            source.targetRevision = 'HEAD';
-        } else {
-            source.chart = source.path;
-            delete source.path;
-            source.targetRevision = '';
-        }
-        return true;
-    }
-    return false;
-}
-
 export const ApplicationCreatePanel = (props: {
     app: models.Application;
     onAppChanged: (app: models.Application) => any;
@@ -109,13 +89,12 @@ export const ApplicationCreatePanel = (props: {
     getFormApi: (api: FormApi) => any;
 }) => {
     const [yamlMode, setYamlMode] = React.useState(false);
-    const [explicitPathType, setExplicitPathType] = React.useState<{path: string; type: models.AppSourceType}>(null);
+    const [explicitPathType, setExplicitPathType] = React.useState<{sourceKey: string; type: models.AppSourceType}>(null);
     const [retry, setRetry] = React.useState(false);
     const app = deepMerge(DEFAULT_APP, props.app || {});
     const debouncedOnAppChanged = debounce(props.onAppChanged, 800);
     const [destinationFieldChanges, setDestinationFieldChanges] = React.useState({destFormat: 'URL', destFormatChanged: null});
     const [comboSwitchedFromPanel, setComboSwitchedFromPanel] = React.useState(false);
-    const currentRepoType = React.useRef(undefined);
     const lastGitOrHelmUrl = React.useRef('');
     const lastOciUrl = React.useRef('');
     const [isHydratorEnabled, setIsHydratorEnabled] = React.useState(!!app.spec.sourceHydrator);
@@ -232,10 +211,6 @@ export const ApplicationCreatePanel = (props: {
             }>
             {({projects, clusters, reposInfo}) => {
                 const repos = reposInfo.map(info => info.repo).sort();
-                const repoInfo = reposInfo.find(info => info.repo === app.spec.source?.repoURL);
-                if (repoInfo) {
-                    normalizeAppSource(app, repoInfo.type || currentRepoType.current || 'git');
-                }
                 return (
                     <div className='application-create-panel'>
                         {(yamlMode && (
@@ -261,6 +236,7 @@ export const ApplicationCreatePanel = (props: {
                                 getApi={props.getFormApi}>
                                 {api => {
                                     const formApp = api.getFormState().values as models.Application;
+                                    const repoInfo = reposInfo.find(info => info.repo === formApp.spec.source?.repoURL);
 
                                     const generalPanel = () => (
                                         <div className='white-box'>
@@ -392,14 +368,7 @@ export const ApplicationCreatePanel = (props: {
                                                     <HydratorSourcePanel formApi={api} repos={repos} />
                                                 ) : (
                                                     <React.Fragment>
-                                                        <SourcePanel
-                                                            formApi={api}
-                                                            repos={repos}
-                                                            repoInfo={repoInfo}
-                                                            currentRepoType={currentRepoType}
-                                                            lastGitOrHelmUrl={lastGitOrHelmUrl}
-                                                            lastOciUrl={lastOciUrl}
-                                                        />
+                                                        <SourcePanel formApi={api} repos={repos} repoInfo={repoInfo} lastGitOrHelmUrl={lastGitOrHelmUrl} lastOciUrl={lastOciUrl} />
                                                         <div className='application-create-panel__add-source'>
                                                             <button type='button' className='argo-button argo-button--base' onClick={() => handleAddSource(api)}>
                                                                 <i className='fa fa-plus' style={{marginLeft: '-5px', marginRight: '5px'}} />
@@ -484,6 +453,7 @@ export const ApplicationCreatePanel = (props: {
                                         const liveSrc = liveApp.spec.source;
                                         return (
                                             <DataLoader
+                                                key={sourceDiscoveryKey(liveSrc, liveApp.metadata.name, liveApp.spec.project)}
                                                 input={{
                                                     repoURL: liveSrc?.repoURL,
                                                     path: liveSrc?.path,
@@ -505,8 +475,8 @@ export const ApplicationCreatePanel = (props: {
                                                     };
                                                 }}>
                                                 {(details: models.RepoAppDetails) => {
-                                                    const pathKey = (liveSrc?.chart || liveSrc?.path || '') as string;
-                                                    const type = (explicitPathType && explicitPathType.path === pathKey && explicitPathType.type) || details.type;
+                                                    const sourceKey = sourceKeyForTypeOverride(liveSrc);
+                                                    const type = (explicitPathType && explicitPathType.sourceKey === sourceKey && explicitPathType.type) || details.type;
                                                     let d = details;
                                                     if (d.type !== type) {
                                                         switch (type) {
@@ -540,7 +510,7 @@ export const ApplicationCreatePanel = (props: {
                                                                 items={APP_SOURCE_TYPES.map(item => ({
                                                                     title: item.type,
                                                                     action: () => {
-                                                                        setExplicitPathType({type: item.type, path: pathKey});
+                                                                        setExplicitPathType({type: item.type, sourceKey});
                                                                         normalizeTypeFieldsForSource(api, item.type, undefined);
                                                                     }
                                                                 }))}
