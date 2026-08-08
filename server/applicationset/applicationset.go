@@ -233,7 +233,7 @@ func NewServer(
 
 func (s *Server) Get(ctx context.Context, q *applicationset.ApplicationSetGetQuery) (*v1alpha1.ApplicationSet, error) {
 	namespace := s.appsetNamespaceOrDefault(q.AppsetNamespace)
-	return s.getAppSetEnforceRBAC(ctx, rbac.ActionGet, namespace, q.Name)
+	return s.getAppSetEnforceRBAC(ctx, namespace, q.Name)
 }
 
 // List returns list of ApplicationSets
@@ -447,7 +447,7 @@ func (s *Server) Delete(ctx context.Context, q *applicationset.ApplicationSetDel
 func (s *Server) ResourceTree(ctx context.Context, q *applicationset.ApplicationSetTreeQuery) (*v1alpha1.ApplicationSetTree, error) {
 	namespace := s.appsetNamespaceOrDefault(q.AppsetNamespace)
 
-	appset, err := s.getAppSetEnforceRBAC(ctx, rbac.ActionGet, namespace, q.Name)
+	appset, err := s.getAppSetEnforceRBAC(ctx, namespace, q.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -618,12 +618,12 @@ func (s *Server) isNamespaceEnabled(namespace string) bool {
 }
 
 // getAppSetEnforceRBAC gets the ApplicationSet with the given name in the given namespace and
-// verifies that the user has the specified RBAC action permission on it.
+// verifies that the user has get permission on it.
 //
 // Note: Unlike Applications, ApplicationSets are not currently scoped to Projects for RBAC purposes.
 // The RBAC name is derived from the template's project field, but there is no project-level isolation
 // or validation (e.g., verifying the AppSet belongs to the claimed project)
-func (s *Server) getAppSetEnforceRBAC(ctx context.Context, action, namespace, name string) (*v1alpha1.ApplicationSet, error) {
+func (s *Server) getAppSetEnforceRBAC(ctx context.Context, namespace, name string) (*v1alpha1.ApplicationSet, error) {
 	if !s.isNamespaceEnabled(namespace) {
 		return nil, security.NamespaceNotPermittedError(namespace)
 	}
@@ -633,7 +633,7 @@ func (s *Server) getAppSetEnforceRBAC(ctx context.Context, action, namespace, na
 		return nil, fmt.Errorf("error getting ApplicationSet: %w", err)
 	}
 
-	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplicationSets, action, appset.RBACName(s.ns)); err != nil {
+	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplicationSets, rbac.ActionGet, appset.RBACName(s.ns)); err != nil {
 		return nil, err
 	}
 
@@ -644,7 +644,7 @@ func (s *Server) getAppSetEnforceRBAC(ctx context.Context, action, namespace, na
 func (s *Server) ListResourceEvents(ctx context.Context, q *applicationset.ApplicationSetGetQuery) (*eventspb.EventList, error) {
 	namespace := s.appsetNamespaceOrDefault(q.AppsetNamespace)
 
-	appset, err := s.getAppSetEnforceRBAC(ctx, rbac.ActionGet, namespace, q.Name)
+	appset, err := s.getAppSetEnforceRBAC(ctx, namespace, q.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -662,4 +662,33 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *applicationset.Appli
 		return nil, fmt.Errorf("error listing resource events: %w", err)
 	}
 	return serverevents.K8sEventListToAPIEventList(list), nil
+}
+
+// Refresh patches the ApplicationSet with the refresh annotation to trigger immediate reconciliation.
+func (s *Server) Refresh(ctx context.Context, q *applicationset.ApplicationSetGetQuery) (*v1alpha1.ApplicationSet, error) {
+	namespace := s.appsetNamespaceOrDefault(q.AppsetNamespace)
+
+	appset, err := s.getAppSetEnforceRBAC(ctx, namespace, q.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	s.projectLock.RLock(appset.Spec.Template.Spec.Project)
+	defer s.projectLock.RUnlock(appset.Spec.Template.Spec.Project)
+
+	updated, err := s.refreshAppSet(ctx, appset)
+	if err != nil {
+		return nil, err
+	}
+	s.logAppSetEvent(ctx, updated, argo.EventReasonResourceUpdated, "requested refresh of ApplicationSet")
+	return updated, nil
+}
+
+func (s *Server) refreshAppSet(ctx context.Context, appset *v1alpha1.ApplicationSet) (*v1alpha1.ApplicationSet, error) {
+	updated, err := appsetutils.RequestRefresh(ctx, s.client, appset.DeepCopy())
+	if err != nil {
+		return nil, fmt.Errorf("error updating ApplicationSet: %w", err)
+	}
+	s.waitSync(updated)
+	return updated, nil
 }

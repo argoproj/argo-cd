@@ -1,5 +1,6 @@
 import {NotificationType, Tooltip} from 'argo-ui';
 import * as React from 'react';
+import classNames from 'classnames';
 import Moment from 'react-moment';
 import {AuthSettingsCtx, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
@@ -15,9 +16,10 @@ export interface AppSetTableRowProps {
     selected: boolean;
     pref: ViewPreferences;
     ctx: ContextApis;
+    refreshApplicationSet: (appSetName: string, appSetNamespace: string) => void;
 }
 
-export const AppSetTableRow = ({appSet, selected, pref, ctx}: AppSetTableRowProps) => {
+export const AppSetTableRow = ({appSet, selected, pref, ctx, refreshApplicationSet}: AppSetTableRowProps) => {
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
     const favList = pref.appList.favoritesAppList || [];
     const healthStatus = getAppSetHealthStatus(appSet);
@@ -127,10 +129,24 @@ export const AppSetTableRow = ({appSet, selected, pref, ctx}: AppSetTableRowProp
                 {/* Status column (takes remaining space since no Source/Destination for AppSets) —
                     wrapped in CellLink so the status icon (which carries a `title` and is lifted
                     above the overlay) navigates on click instead of being a dead zone. */}
-                <div className='columns small-8'>
+                <div className='columns small-6'>
                     <CellLink href={appSetLink.href} onClick={appSetLink.onClick}>
                         <AppUtils.HealthStatusIcon state={{status: healthStatus, message: ''}} /> <span>{healthStatus}</span>
                     </CellLink>
+                </div>
+                <div className='columns small-2 applications-list__entry--actions'>
+                    <Tooltip content='Refresh'>
+                        <button
+                            type='button'
+                            qe-id='applicationsets-table-button-refresh'
+                            {...AppUtils.appSetRefreshLinkAttrs(appSet)}
+                            onClick={e => {
+                                e.stopPropagation();
+                                refreshApplicationSet(appSet.metadata.name, appSet.metadata.namespace);
+                            }}>
+                            <i className={classNames('fa fa-redo', {'status-icon--spin': AppUtils.isAppSetRefreshing(appSet)})} />
+                        </button>
+                    </Tooltip>
                 </div>
             </div>
         </div>
