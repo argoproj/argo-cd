@@ -788,6 +788,200 @@ func TestHelmChartReferencingExternalValues_OutOfBounds_Symlink(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestHelmChartReferencingOCIValues(t *testing.T) {
+	service := newService(t, ".")
+	spec := v1alpha1.ApplicationSpec{
+		Sources: []v1alpha1.ApplicationSource{
+			{RepoURL: "https://helm.example.com", Chart: "my-chart", TargetRevision: ">= 1.0.0", Helm: &v1alpha1.ApplicationSourceHelm{
+				ValueFiles: []string{"$ref/testdata/oci-ref-values/values.yaml"},
+			}},
+			{Ref: "ref", RepoURL: "oci://registry.example.com/config/app-values"},
+		},
+	}
+	refSources, err := argo.GetRefSources(t.Context(), spec.Sources, spec.Project, func(_ context.Context, _ string, _ string) (*v1alpha1.Repository, error) {
+		return &v1alpha1.Repository{
+			Repo: "oci://registry.example.com/config/app-values",
+		}, nil
+	}, []string{})
+	require.NoError(t, err)
+	request := &apiclient.ManifestRequest{
+		Repo: &v1alpha1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true, ProjectName: "something",
+		ProjectSourceRepos: []string{"*"},
+	}
+	response, err := service.GenerateManifest(t.Context(), request)
+	require.NoError(t, err)
+	assert.NotNil(t, response)
+	assert.Equal(t, &apiclient.ManifestResponse{
+		Manifests:  []string{"{\"apiVersion\":\"v1\",\"kind\":\"ConfigMap\",\"metadata\":{\"name\":\"my-map\"}}"},
+		Namespace:  "",
+		Server:     "",
+		Revision:   "1.1.0",
+		SourceType: "Helm",
+		// The OCI-extracted directory is redacted to "." (it is a randomized temp path in
+		// production), so the value file path is shown relative to the OCI extraction root.
+		Commands: []string{`helm template . --name-template "" --values ./testdata/oci-ref-values/values.yaml --include-crds`},
+	}, response)
+}
+
+func TestHelmChartReferencingOCIValues_InvalidRefs(t *testing.T) {
+	// Test with non-existent ref - should fail
+	service := newService(t, ".")
+	spec := v1alpha1.ApplicationSpec{
+		Sources: []v1alpha1.ApplicationSource{
+			{RepoURL: "https://helm.example.com", Chart: "my-chart", TargetRevision: ">= 1.0.0", Helm: &v1alpha1.ApplicationSourceHelm{
+				ValueFiles: []string{"$ref/testdata/non-existent-values/values.yaml"},
+			}},
+			{Ref: "ref", RepoURL: "oci://registry.example.com/config/app-values"},
+		},
+	}
+
+	getRepository := func(_ context.Context, _ string, _ string) (*v1alpha1.Repository, error) {
+		return &v1alpha1.Repository{
+			Repo: "oci://registry.example.com/config/app-values",
+		}, nil
+	}
+
+	refSources, err := argo.GetRefSources(t.Context(), spec.Sources, spec.Project, getRepository, []string{})
+	require.NoError(t, err)
+
+	request := &apiclient.ManifestRequest{
+		Repo: &v1alpha1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true, ProjectName: "something",
+		ProjectSourceRepos: []string{"*"},
+	}
+	response, err := service.GenerateManifest(t.Context(), request)
+	require.Error(t, err)
+	assert.Nil(t, response)
+
+	// Test with invalid ref name
+	spec = v1alpha1.ApplicationSpec{
+		Sources: []v1alpha1.ApplicationSource{
+			{RepoURL: "https://helm.example.com", Chart: "my-chart", TargetRevision: ">= 1.0.0", Helm: &v1alpha1.ApplicationSourceHelm{
+				ValueFiles: []string{"$invalidRef/testdata/oci-ref-values/values.yaml"},
+			}},
+			{Ref: "ref", RepoURL: "oci://registry.example.com/config/app-values"},
+		},
+	}
+
+	refSources, err = argo.GetRefSources(t.Context(), spec.Sources, spec.Project, getRepository, []string{})
+	require.NoError(t, err)
+
+	request = &apiclient.ManifestRequest{
+		Repo: &v1alpha1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true, ProjectName: "something",
+		ProjectSourceRepos: []string{"*"},
+	}
+	response, err = service.GenerateManifest(t.Context(), request)
+	require.Error(t, err)
+	assert.Nil(t, response)
+}
+
+// TestResolveReferencedSources_RejectsChartOnRefSource is a regression test for the guard
+// that rejects a 'chart' field on ref sources. The 'chart' field is not incorporated into
+// ref resolution (which keys off the repository URL only), so accepting it - for Git or OCI -
+// would silently ignore it and, for the Helm-OCI repoURL+chart pattern, extract the wrong
+// artifact. Both schemes must be rejected.
+func TestResolveReferencedSources_RejectsChartOnRefSource(t *testing.T) {
+	helmSource := &v1alpha1.ApplicationSourceHelm{ValueFiles: []string{"$ref/values.yaml"}}
+
+	tests := []struct {
+		name    string
+		refRepo v1alpha1.Repository
+	}{
+		{name: "git ref source with chart", refRepo: v1alpha1.Repository{Repo: "https://git.example.com/org/repo.git"}},
+		{name: "oci ref source with chart", refRepo: v1alpha1.Repository{Repo: "oci://registry.example.com/charts"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			refSources := map[string]*v1alpha1.RefTarget{
+				"$ref": {Repo: tt.refRepo, Chart: "my-chart", TargetRevision: "1.0.0"},
+			}
+			// The guard rejects before any client getter is invoked, so nil getters are safe.
+			_, err := resolveReferencedSources(t.Context(), true, helmSource, refSources, nil, nil, nil)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "'chart' field defined")
+		})
+	}
+}
+
+// TestResolveReferencedSources_AllowsOCIRefWithoutChart proves the rejection above is
+// specific to the 'chart' field: an OCI ref source without a chart resolves normally.
+func TestResolveReferencedSources_AllowsOCIRefWithoutChart(t *testing.T) {
+	helmSource := &v1alpha1.ApplicationSourceHelm{ValueFiles: []string{"$ref/values.yaml"}}
+	refSources := map[string]*v1alpha1.RefTarget{
+		"$ref": {Repo: v1alpha1.Repository{Repo: "oci://registry.example.com/charts"}, TargetRevision: "1.0.0"},
+	}
+	ociGetter := func(_ context.Context, _ *v1alpha1.Repository, _ string, _ bool) (oci.Client, string, error) {
+		return nil, "sha256:deadbeef", nil
+	}
+
+	repoRefs, err := resolveReferencedSources(t.Context(), true, helmSource, refSources, nil, ociGetter, nil)
+	require.NoError(t, err)
+	assert.Equal(t, "sha256:deadbeef", repoRefs[v1alpha1.NormalizeOCIURL("oci://registry.example.com/charts")])
+}
+
+// TestGenerateManifest_RejectsChartOnRefSource is the end-to-end regression: a multi-source
+// Helm app whose ref source carries a 'chart' field must fail manifest generation rather than
+// silently ignore the chart. GenerateManifest rejects at the resolveReferencedSources guard,
+// which runs before the duplicated guard in runManifestGenAsync.
+func TestGenerateManifest_RejectsChartOnRefSource(t *testing.T) {
+	service := newService(t, ".")
+	spec := v1alpha1.ApplicationSpec{
+		Sources: []v1alpha1.ApplicationSource{
+			{RepoURL: "https://helm.example.com", Chart: "my-chart", TargetRevision: ">= 1.0.0", Helm: &v1alpha1.ApplicationSourceHelm{
+				ValueFiles: []string{"$ref/testdata/oci-ref-values/values.yaml"},
+			}},
+			{Ref: "ref", RepoURL: "oci://registry.example.com/config/app-values", Chart: "app-chart"},
+		},
+	}
+	refSources, err := argo.GetRefSources(t.Context(), spec.Sources, spec.Project, func(_ context.Context, _ string, _ string) (*v1alpha1.Repository, error) {
+		return &v1alpha1.Repository{Repo: "oci://registry.example.com/config/app-values"}, nil
+	}, []string{})
+	require.NoError(t, err)
+	request := &apiclient.ManifestRequest{
+		Repo: &v1alpha1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true, ProjectName: "something",
+		ProjectSourceRepos: []string{"*"},
+	}
+	response, err := service.GenerateManifest(t.Context(), request)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "'chart' field defined")
+	assert.Nil(t, response)
+}
+
+// TestRedactPaths_RedactsGitAndOCIPaths is a regression test ensuring value files resolved
+// from a $ref OCI source (extracted under ociPaths) are redacted from the returned helm
+// template command, not just Git checkout paths. Otherwise reposerver filesystem paths leak
+// into ManifestResponse.Commands.
+func TestRedactPaths_RedactsGitAndOCIPaths(t *testing.T) {
+	gitDir := t.TempDir()
+	ociDir := t.TempDir()
+	gitPaths := utilio.NewRandomizedTempPaths(t.TempDir())
+	gitPaths.Add("git-key", gitDir)
+	ociPaths := utilio.NewRandomizedTempPaths(t.TempDir())
+	ociPaths.Add("oci-key", ociDir)
+
+	cmd := fmt.Sprintf("helm template . --values %s/values.yaml --values %s/oci-values.yaml", gitDir, ociDir)
+	got := redactPaths(cmd, "", gitPaths, ociPaths)
+
+	assert.NotContains(t, got, gitDir)
+	assert.NotContains(t, got, ociDir)
+	assert.Equal(t, "helm template . --values ./values.yaml --values ./oci-values.yaml", got)
+}
+
+// TestRedactPathsInError_RedactsOCIPath ensures helm errors (which embed the rendered command,
+// including OCI-extracted value file paths) are redacted before being returned.
+func TestRedactPathsInError_RedactsOCIPath(t *testing.T) {
+	ociDir := t.TempDir()
+	ociPaths := utilio.NewRandomizedTempPaths(t.TempDir())
+	ociPaths.Add("oci-key", ociDir)
+
+	require.NoError(t, redactPathsInError(nil, "", ociPaths))
+
+	err := fmt.Errorf("failed to render: open %s/oci-values.yaml: no such file", ociDir)
+	got := redactPathsInError(err, "", ociPaths)
+	require.Error(t, got)
+	assert.NotContains(t, got.Error(), ociDir)
+	assert.Contains(t, got.Error(), "./oci-values.yaml")
+}
+
 func TestGenerateManifestsUseExactRevision(t *testing.T) {
 	service, gitClient, _ := newServiceWithMocks(t, ".")
 
@@ -3564,7 +3758,7 @@ func Test_populateHelmAppDetails(t *testing.T) {
 	}
 	appPath, err := filepath.Abs("./testdata/values-files/")
 	require.NoError(t, err)
-	err = service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, sha, "main", &q, emptyTempPaths)
+	err = service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, sha, "main", &q, emptyTempPaths, emptyTempPaths)
 	require.NoError(t, err)
 	assert.Len(t, res.Helm.Parameters, 3)
 	assert.Len(t, res.Helm.ValueFiles, 5)
@@ -3864,7 +4058,7 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 			appPath, err = filepath.Abs(repoRoot)
 			require.NoError(t, err)
 			res = apiclient.RepoAppDetailsResponse{}
-			err = service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, sha, "main", &query, service.gitRepoPaths)
+			err = service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, sha, "main", &query, service.gitRepoPaths, service.ociPaths)
 			tc.testResults(t)
 		})
 	}
@@ -3877,7 +4071,7 @@ func Test_populateHelmAppDetails_values_symlinks(t *testing.T) {
 	t.Run("inbound", func(t *testing.T) {
 		res := apiclient.RepoAppDetailsResponse{}
 		q := apiclient.RepoServerAppDetailsQuery{Repo: &v1alpha1.Repository{}, Source: &v1alpha1.ApplicationSource{}}
-		err := service.populateHelmAppDetails(t.Context(), &res, "./testdata/in-bounds-values-file-link/", "./testdata/in-bounds-values-file-link/", "dummy_sha", "main", &q, emptyTempPaths)
+		err := service.populateHelmAppDetails(t.Context(), &res, "./testdata/in-bounds-values-file-link/", "./testdata/in-bounds-values-file-link/", "dummy_sha", "main", &q, emptyTempPaths, emptyTempPaths)
 		require.NoError(t, err)
 		assert.NotEmpty(t, res.Helm.Values)
 		assert.NotEmpty(t, res.Helm.Parameters)
@@ -3886,7 +4080,7 @@ func Test_populateHelmAppDetails_values_symlinks(t *testing.T) {
 	t.Run("out of bounds", func(t *testing.T) {
 		res := apiclient.RepoAppDetailsResponse{}
 		q := apiclient.RepoServerAppDetailsQuery{Repo: &v1alpha1.Repository{}, Source: &v1alpha1.ApplicationSource{}}
-		err := service.populateHelmAppDetails(t.Context(), &res, "./testdata/out-of-bounds-values-file-link/", "./testdata/out-of-bounds-values-file-link/", sha, "main", &q, emptyTempPaths)
+		err := service.populateHelmAppDetails(t.Context(), &res, "./testdata/out-of-bounds-values-file-link/", "./testdata/out-of-bounds-values-file-link/", sha, "main", &q, emptyTempPaths, emptyTempPaths)
 		require.NoError(t, err)
 		assert.Empty(t, res.Helm.Values)
 		assert.Empty(t, res.Helm.Parameters)
@@ -4125,7 +4319,7 @@ func Test_getResolvedValueFiles(t *testing.T) {
 		tcc := tc
 		t.Run(tcc.name, func(t *testing.T) {
 			t.Parallel()
-			resolvedPaths, err := getResolvedValueFiles(path.Join(tempDir, "main-repo"), path.Join(tempDir, "main-repo"), tcc.env, []string{}, []string{tcc.rawPath}, tcc.refSources, paths, false)
+			resolvedPaths, err := getResolvedValueFiles(path.Join(tempDir, "main-repo"), path.Join(tempDir, "main-repo"), tcc.env, []string{}, []string{tcc.rawPath}, tcc.refSources, paths, paths, false)
 			if !tcc.expectedErr {
 				require.NoError(t, err)
 				require.Len(t, resolvedPaths, 1)
@@ -4348,7 +4542,7 @@ func Test_getResolvedValueFiles_glob(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			repoPath := path.Join(tempDir, "main-repo")
-			resolvedPaths, err := getResolvedValueFiles(repoPath, repoPath, tt.env, []string{}, []string{tt.rawPath}, tt.refSources, paths, tt.ignoreMissingValueFiles)
+			resolvedPaths, err := getResolvedValueFiles(repoPath, repoPath, tt.env, []string{}, []string{tt.rawPath}, tt.refSources, paths, paths, tt.ignoreMissingValueFiles)
 			if tt.expectedErr {
 				require.Error(t, err)
 				return
@@ -4375,7 +4569,7 @@ func Test_getResolvedValueFiles_glob(t *testing.T) {
 				"envs/*.yaml", // glob - z.yaml is explicit so skipped; only a.yaml added
 				"envs/z.yaml", // explicit - placed last, highest precedence
 			},
-			map[string]*v1alpha1.RefTarget{}, paths, false,
+			map[string]*v1alpha1.RefTarget{}, paths, paths, false,
 		)
 		require.NoError(t, err)
 		require.Len(t, resolvedPaths, 2)
@@ -4393,7 +4587,7 @@ func Test_getResolvedValueFiles_glob(t *testing.T) {
 				"prod/a.yaml", // explicit locks in position 0
 				"prod/*.yaml", // glob - a.yaml already seen, only b.yaml is new
 			},
-			map[string]*v1alpha1.RefTarget{}, paths, false,
+			map[string]*v1alpha1.RefTarget{}, paths, paths, false,
 		)
 		require.NoError(t, err)
 		require.Len(t, resolvedPaths, 2)
@@ -4411,7 +4605,7 @@ func Test_getResolvedValueFiles_glob(t *testing.T) {
 				"prod/*.yaml", // glob - a.yaml is explicit so skipped; only b.yaml added (pos 0)
 				"prod/a.yaml", // explicit - placed here at pos 1 (highest precedence)
 			},
-			map[string]*v1alpha1.RefTarget{}, paths, false,
+			map[string]*v1alpha1.RefTarget{}, paths, paths, false,
 		)
 		require.NoError(t, err)
 		require.Len(t, resolvedPaths, 2)
@@ -4429,7 +4623,7 @@ func Test_getResolvedValueFiles_glob(t *testing.T) {
 				"prod/*.yaml",    // adds a.yaml, b.yaml
 				"prod/**/*.yaml", // a.yaml, b.yaml already seen; adds nested/c.yaml, nested/d.yaml
 			},
-			map[string]*v1alpha1.RefTarget{}, paths, false,
+			map[string]*v1alpha1.RefTarget{}, paths, paths, false,
 		)
 		require.NoError(t, err)
 		require.Len(t, resolvedPaths, 4)
@@ -4452,7 +4646,7 @@ func Test_getResolvedValueFiles_glob(t *testing.T) {
 				"prod/**/*.yaml",     // a.yaml, b.yaml, nested/c.yaml all explicit and skipped; nested/d.yaml added - pos 2
 				"prod/nested/c.yaml", // explicit - pos 3
 			},
-			map[string]*v1alpha1.RefTarget{}, paths, false,
+			map[string]*v1alpha1.RefTarget{}, paths, paths, false,
 		)
 		require.NoError(t, err)
 		require.Len(t, resolvedPaths, 4)
@@ -4575,7 +4769,7 @@ func Test_getResolvedValueFiles_glob_symlink_escape(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(outsideDir, "secret.yaml"), []byte("password: hunter2"), 0o644))
 	require.NoError(t, os.Symlink(filepath.Join(outsideDir, "secret.yaml"), filepath.Join(repoDir, "values", "escape.yaml")))
 
-	_, err := getResolvedValueFiles(repoDir, repoDir, &v1alpha1.Env{}, []string{}, []string{"values/*.yaml"}, map[string]*v1alpha1.RefTarget{}, paths, false)
+	_, err := getResolvedValueFiles(repoDir, repoDir, &v1alpha1.Env{}, []string{}, []string{"values/*.yaml"}, map[string]*v1alpha1.RefTarget{}, paths, paths, false)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "resolved to outside repository root")
 }
