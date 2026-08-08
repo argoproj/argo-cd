@@ -30,6 +30,7 @@ nav:
   - operator-manual/ingress.md
   - High Availability:
     - Overview: operator-manual/high_availability.md
+    - Manifest Compression: operator-manual/manifest-compression.md
     - Dynamic Cluster Distribution: operator-manual/dynamic-cluster-distribution.md
   - User Management:
     - operator-manual/user-management/index.md
