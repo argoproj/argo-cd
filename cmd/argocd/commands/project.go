@@ -872,9 +872,9 @@ func printProjectNames(projects []v1alpha1.AppProject) {
 }
 
 // Print table of project info
-func printProjectTable(projects []v1alpha1.AppProject) {
-	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprint(w, "NAME\tDESCRIPTION\tDESTINATIONS\tSOURCES\tCLUSTER-RESOURCE-WHITELIST\tNAMESPACE-RESOURCE-BLACKLIST\tSIGNATURE-KEYS\tORPHANED-RESOURCES\tDESTINATION-SERVICE-ACCOUNTS\n")
+func printProjectTable(projects []v1alpha1.AppProject, outWriter io.Writer) {
+	w := tabwriter.NewWriter(outWriter, 0, 0, 2, ' ', 0)
+	fmt.Fprint(w, "NAME\tDESCRIPTION\tDESTINATIONS\tSOURCES\tCLUSTER-RESOURCE-WHITELIST\tNAMESPACE-RESOURCE-BLACKLIST\tSOURCE-INTEGRITY\tORPHANED-RESOURCES\tDESTINATION-SERVICE-ACCOUNTS\n")
 	for _, p := range projects {
 		printProjectLine(w, &p)
 	}
@@ -897,7 +897,7 @@ func NewProjectListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 		Run: func(c *cobra.Command, _ []string) {
 			ctx := c.Context()
 
-			conn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDie()
+			conn, projIf := newProjectClient(clientOpts, c)
 			defer utilio.Close(conn)
 			projects, err := projIf.List(ctx, &projectpkg.ProjectQuery{})
 			errors.CheckError(err)
@@ -908,7 +908,7 @@ func NewProjectListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 			case "name":
 				printProjectNames(projects.Items)
 			case "wide", "":
-				printProjectTable(projects.Items)
+				printProjectTable(projects.Items, c.OutOrStdout())
 			default:
 				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 			}
@@ -930,7 +930,7 @@ func formatOrphanedResources(p *v1alpha1.AppProject) string {
 }
 
 func printProjectLine(w io.Writer, p *v1alpha1.AppProject) {
-	var destinations, destinationServiceAccounts, sourceRepos, clusterWhitelist, namespaceBlacklist, signatureKeys string
+	var destinations, destinationServiceAccounts, sourceRepos, clusterWhitelist, namespaceBlacklist, sourceIntegrity string
 	switch len(p.Spec.Destinations) {
 	case 0:
 		destinations = "<none>"
@@ -969,13 +969,12 @@ func printProjectLine(w io.Writer, p *v1alpha1.AppProject) {
 	default:
 		namespaceBlacklist = fmt.Sprintf("%d resources", len(p.Spec.NamespaceResourceBlacklist))
 	}
-	switch len(p.Spec.SignatureKeys) { // nolint:staticcheck
-	case 0:
-		signatureKeys = "<none>"
-	default:
-		signatureKeys = fmt.Sprintf("%d key(s)", len(p.Spec.SignatureKeys)) // nolint:staticcheck
+	if sourceIntegrityMethods := p.EffectiveSourceIntegrity().ConfiguredMethods(); len(sourceIntegrityMethods) > 0 {
+		sourceIntegrity = strings.Join(sourceIntegrityMethods, ", ")
+	} else {
+		sourceIntegrity = "<none>"
 	}
-	fmt.Fprintf(w, "%s\t%s\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n", p.Name, p.Spec.Description, destinations, sourceRepos, clusterWhitelist, namespaceBlacklist, signatureKeys, formatOrphanedResources(p), destinationServiceAccounts)
+	fmt.Fprintf(w, "%s\t%s\t%v\t%v\t%v\t%v\t%v\t%v\t%v\n", p.Name, p.Spec.Description, destinations, sourceRepos, clusterWhitelist, namespaceBlacklist, sourceIntegrity, formatOrphanedResources(p), destinationServiceAccounts)
 }
 
 func printProject(p *v1alpha1.AppProject, scopedRepositories []*v1alpha1.Repository, scopedClusters []*v1alpha1.Cluster) {
