@@ -1082,7 +1082,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     const nodesHavingChildren = new Map<string, number>();
     const childrenMap = new Map<string, ResourceTreeNode[]>();
     const filtersRef = React.useRef(props.filters);
-    let filteredNodes: any[] = [];
+    let filteredNodes: ResourceTreeNode[] = [];
     const {podGroupCount, userMsgs, updateUsrHelpTipMsgs, setShowCompactNodes} = props;
     const podCount = nodes.filter(node => node.kind === 'Pod').length;
     const showPodGroupByStatus = props.tree.nodes.filter((rNode: ResourceTreeNode) => rNode.kind === 'Pod').length >= props.podGroupCount;
@@ -1102,10 +1102,10 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         filteredIndicatorParent: string,
         graphNodesFilter: dagre.graphlib.Graph<{[key: string]: any}>,
         predicate: (node: ResourceTreeNode) => boolean
-    ): any[] {
+    ): ResourceTreeNode[] {
         const appKey = appNodeKey(app);
         const filteredNodeIds: string[] = [];
-        const kept: any[] = [];
+        const kept: ResourceTreeNode[] = [];
         graphNodesFilter.nodes().forEach(nodeId => {
             const node: ResourceTreeNode = graphNodesFilter.node(nodeId) as any;
             const parentIds = graphNodesFilter.predecessors(nodeId);
@@ -1329,7 +1329,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             filtersRef.current = currentFilters;
             setTreeFilterGraph?.(filteredNodes);
         }
-    });
+    }, [currentFilters, setTreeFilterGraph]);
 
     function setPodGroupNode(node: ResourceTreeNode, root: ResourceTreeNode) {
         const numberOfRows = getPodGroupNumberOfRows(node.podGroup?.pods, showPodGroupByStatus);
