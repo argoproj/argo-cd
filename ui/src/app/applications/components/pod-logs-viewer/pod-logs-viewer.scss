@@ -16,6 +16,12 @@ $pod-background-dark: $dark-theme-background-2;
     padding: 0;
     color: black;
 
+    .theme-dark & {
+        background-color: $dark-theme-background-2;
+        color: $argo-color-gray-3;
+        scrollbar-color: $argo-color-gray-5 $dark-theme-background-2;
+    }
+
     &--inverted {
         background-color: black;
         color: white;
@@ -102,6 +108,14 @@ $pod-background-dark: $dark-theme-background-2;
             &:hover {
                 background-color: black;
                 color: white;
+            }
+            .theme-dark & {
+                border-color: $argo-color-gray-5;
+                color: $argo-color-gray-3;
+                &:hover {
+                    background-color: $argo-color-gray-5;
+                    color: white;
+                }
             }
             &.disabled {
                 opacity: 0.5;
@@ -233,12 +247,12 @@ $pod-background-dark: $dark-theme-background-2;
     border-radius: 4px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     z-index: 1000;
-    min-width: 200px;  // Ensure dropdown is wide enough for pod names
+    min-width: 200px;
 
-    &.dark-mode {
-        background: #333; /* Dark background for dark mode */
-        border: 1px solid #555; /* Subtle border for dark mode */
-        color: #eee; /* Light text for dark mode */
+    .theme-dark & {
+        background: #333;
+        border: 1px solid #555;
+        color: #eee;
     }
 }
 
@@ -249,24 +263,23 @@ $pod-background-dark: $dark-theme-background-2;
     .select-option {
         padding: 8px 10px;
         cursor: pointer;
-        white-space: nowrap;  // Prevent pod names from wrapping
-        
+        white-space: nowrap;
+
         &:hover {
             background-color: #f5f5f5;
         }
 
-        &.dark-mode {
-            background-color: #444; /* Hover effect in dark mode */
-            &:hover {
-                background-color: #555;
-            }
-        }
-        
         &.selected {
             background-color: #e6f3ff;
         }
-        &.dark-mode.selected {
-            background-color: #666; /* Selection highlight in dark mode */
+
+        .theme-dark & {
+            &:hover {
+                background-color: #555;
+            }
+            &.selected {
+                background-color: #666;
+            }
         }
     }
 }
@@ -277,12 +290,12 @@ $pod-background-dark: $dark-theme-background-2;
     text-align: center;
     color: #1750d3;
     cursor: pointer;
-    
+
     &:hover {
         background-color: #f0f0f0;
     }
 
-    &.dark-mode {
+    .theme-dark & {
         border-top: 1px solid #555;
         color: #5a9bd3;
         &:hover {

@@ -22,6 +22,10 @@
                     font-size: 10px;
                     top: -9px;
                     transform: rotate(180deg);
+
+                    .theme-dark & {
+                        color: $argo-color-gray-5;
+                    }
                 }
             }
         }
