@@ -17,7 +17,6 @@ import (
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube/kubetest"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
-	"go.etcd.io/etcd/api/v3/v3rpc/rpctypes"
 	"google.golang.org/grpc"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/labels"
@@ -4153,7 +4152,15 @@ func TestPersistAppStatus_AnnotationManagement(t *testing.T) {
 func TestIsOperationStatePayloadTooLargeError(t *testing.T) {
 	// "etcdserver: request is too large" — carried by rpctypes.ErrGRPCRequestTooLarge
 	t.Run("etcdserver: request is too large", func(t *testing.T) {
-		assert.True(t, isOperationStatePayloadTooLargeError(rpctypes.ErrGRPCRequestTooLarge))
+		assert.True(t, isOperationStatePayloadTooLargeError(
+			&apierrors.StatusError{
+				metav1.Status{
+					Status:  metav1.StatusFailure,
+					Reason:  "",
+					Message: "etcdserver: request is too large",
+				},
+			},
+		))
 	})
 
 	// "rpc error: code = ResourceExhausted desc = trying to send message larger than max" —
@@ -4188,10 +4195,10 @@ func TestSetOperationStateTooLargeRequest(t *testing.T) {
 	}
 
 	tests := []struct {
-		name           string
-		setupApp       func() *v1alpha1.Application
-		wantPhase      string
-		wantMsgContain string
+		name          string
+		setupApp      func() *v1alpha1.Application
+		wantPhase     string
+		wantOperation bool // whether "operation" should remain set (not cleared) in the patch
 	}{
 		{
 			name: "operationState is nil",
@@ -4200,12 +4207,30 @@ func TestSetOperationStateTooLargeRequest(t *testing.T) {
 				app.Status.OperationState = nil
 				return app
 			},
+			// First time we see the size error, we ask the operation to terminate instead of
+			// erroring out immediately, so the operation is left in place.
+			wantPhase:     string(synccommon.OperationTerminating),
+			wantOperation: true,
 		},
 		{
-			name: "operationState is not nil",
+			name: "operationState is not nil and not already terminating",
 			setupApp: func() *v1alpha1.Application {
 				return newFakeApp()
 			},
+			wantPhase:     string(synccommon.OperationTerminating),
+			wantOperation: true,
+		},
+		{
+			name: "operationState is already terminating",
+			setupApp: func() *v1alpha1.Application {
+				app := newFakeApp()
+				app.Status.OperationState.Phase = synccommon.OperationTerminating
+				return app
+			},
+			// Once termination has already been requested and the patch still fails, we give up
+			// and finalize as an error, clearing the operation so the controller stops retrying.
+			wantPhase:     string(synccommon.OperationError),
+			wantOperation: false,
 		},
 	}
 
@@ -4239,8 +4264,19 @@ func TestSetOperationStateTooLargeRequest(t *testing.T) {
 			require.NoError(t, json.Unmarshal(capturedPatch, &patchedObj))
 			phase, _, _ := unstructured.NestedString(patchedObj, "status", "operationState", "phase")
 			message, _, _ := unstructured.NestedString(patchedObj, "status", "operationState", "message")
-			assert.Equal(t, string(synccommon.OperationError), phase)
+			assert.Equal(t, tt.wantPhase, phase)
 			assert.Contains(t, message, "exceeds the Kubernetes resource size limit")
+
+			_, hasOperation := patchedObj["operation"]
+			if tt.wantOperation {
+				assert.False(t, hasOperation, "operation should not be cleared while termination is still pending")
+			} else {
+				assert.True(t, hasOperation, "operation should be cleared once the operation has finalized")
+				assert.Nil(t, patchedObj["operation"])
+			}
+
+			resources, _, _ := unstructured.NestedSlice(patchedObj, "status", "operationState", "syncResult", "resources")
+			assert.Nil(t, resources)
 		})
 	}
 }

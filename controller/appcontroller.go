@@ -74,8 +74,6 @@ import (
 	logutils "github.com/argoproj/argo-cd/v3/util/log"
 	settings_util "github.com/argoproj/argo-cd/v3/util/settings"
 	traceutil "github.com/argoproj/argo-cd/v3/util/trace"
-
-	"go.etcd.io/etcd/api/v3/v3rpc/rpctypes"
 )
 
 const (
@@ -1751,17 +1749,44 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 		fallbackStatus.Phase = synccommon.OperationError
 		fallbackStatus.Message = nonRetryableError.Error()
 
-		if isOperationStatePayloadTooLargeError(nonRetryableError) {
-			logCtx.WithError(nonRetryableError).Warn("Application operation status exceeds the Kubernetes resource size limit; falling back to operation error")
+		// alreadyTerminating is true once we've already asked the operation to terminate
+		// (below) and are back here because even the terminated state was too large to
+		// persist. In that case we give up and finalize as an error instead of terminating
+		// again, which would otherwise loop forever.
+		alreadyTerminating := app.Status.OperationState != nil && app.Status.OperationState.Phase == synccommon.OperationTerminating
 
-			fallbackStatus.Message = fmt.Sprintf("Operation state patch exceeds the Kubernetes resource size limit and could not be persisted. Reduce the number of managed resources, set ApplyOutOfSyncOnly=true, lower spec.revisionHistoryLimit, or split the Application. error: %s",
+		if isOperationStatePayloadTooLargeError(nonRetryableError) {
+			sizeLimitMessage := fmt.Sprintf("Operation state patch exceeds the Kubernetes resource size limit and could not be persisted. Reduce the number of managed resources, set ApplyOutOfSyncOnly=true, lower spec.revisionHistoryLimit, or split the Application. error: %s",
 				nonRetryableError.Error())
+
+			if !alreadyTerminating {
+				// Request termination instead of jumping straight to an error state, so the next
+				// reconcile drives the operation through the normal Terminating path (same as the
+				// "Terminate" UI/API action) and cleans up any in-flight hooks before we give up.
+				logCtx.WithError(nonRetryableError).Warn("Application operation status exceeds the Kubernetes resource size limit; requesting operation termination")
+				fallbackStatus.Phase = synccommon.OperationTerminating
+			} else {
+				logCtx.WithError(nonRetryableError).Warn("Application operation status still exceeds the Kubernetes resource size limit after termination; falling back to operation error")
+				fallbackStatus.Phase = synccommon.OperationError
+			}
+			fallbackStatus.Message = sizeLimitMessage
+
+			// Drop resources so the fallback patch, itself doesn't hit the same size limit.
+			if fallbackStatus.SyncResult != nil {
+				fallbackStatus.SyncResult.Resources = nil
+			}
 		}
 
 		fallbackPatch := map[string]any{
 			"status": map[string]any{
 				"operationState": fallbackStatus,
 			},
+		}
+		if fallbackStatus.Phase.Completed() {
+			// Mirrors the completed-phase handling above: once the operation has reached a
+			// terminal phase, clear the requested operation so the controller doesn't
+			// immediately re-attempt the same sync and hit the same size failure again.
+			fallbackPatch["operation"] = nil
 		}
 
 		fallbackPatchJSON, err := json.Marshal(fallbackPatch)
@@ -1827,11 +1852,11 @@ func isOperationStatePayloadTooLargeError(err error) bool {
 		return true
 	}
 
-	if strings.Contains(err.Error(), "rpc error: code = ResourceExhausted desc = trying to send message larger than max") {
+	if strings.Contains(err.Error(), "etcdserver: request is too large") {
 		return true
 	}
 
-	if stderrors.Is(err, rpctypes.ErrGRPCRequestTooLarge) {
+	if strings.Contains(err.Error(), "rpc error: code = ResourceExhausted desc = trying to send message larger than max") {
 		return true
 	}
 
