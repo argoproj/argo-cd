@@ -462,7 +462,7 @@ func request_ProjectService_ListEvents_0(ctx context.Context, marshaler runtime.
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
 	}
 	msg, err := client.ListEvents(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
-	return &eventListMessage{msg}, metadata, err
+	return msg, metadata, err
 }
 
 func local_request_ProjectService_ListEvents_0(ctx context.Context, marshaler runtime.Marshaler, server ProjectServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
@@ -480,7 +480,7 @@ func local_request_ProjectService_ListEvents_0(ctx context.Context, marshaler ru
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "name", err)
 	}
 	msg, err := server.ListEvents(ctx, &protoReq)
-	return &eventListMessage{msg}, metadata, err
+	return msg, metadata, err
 }
 
 func request_ProjectService_GetSyncWindowsState_0(ctx context.Context, marshaler runtime.Marshaler, client ProjectServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {

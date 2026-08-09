@@ -323,7 +323,7 @@ func request_ApplicationSetService_ListResourceEvents_0(ctx context.Context, mar
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 	msg, err := client.ListResourceEvents(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
-	return &eventListMessage{msg}, metadata, err
+	return msg, metadata, err
 }
 
 func local_request_ApplicationSetService_ListResourceEvents_0(ctx context.Context, marshaler runtime.Marshaler, server ApplicationSetServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
@@ -347,7 +347,7 @@ func local_request_ApplicationSetService_ListResourceEvents_0(ctx context.Contex
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 	msg, err := server.ListResourceEvents(ctx, &protoReq)
-	return &eventListMessage{msg}, metadata, err
+	return msg, metadata, err
 }
 
 var filter_ApplicationSetService_Watch_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}

@@ -94,13 +94,32 @@ go mod vendor
 # protoc-gen-grpc-gateway (v2) replaces the old protoc-gen-grpc-gateway (v1).
 # protoc-gen-openapiv2 replaces the old protoc-gen-swagger.
 MOD_ROOT=${GOPATH}/pkg/mod
+GOGO_PROTOBUF_PATH=${PROJECT_ROOT}/vendor/github.com/gogo/protobuf
 PROTO_FILES=$(find "$PROJECT_ROOT" \( -name "*.proto" -and -path '*/server/*' -or -path '*/reposerver/*' -and -name "*.proto" -or -path '*/cmpserver/*' -and -name "*.proto" -or -path '*/commitserver/*' -and -name "*.proto" -or -path '*/util/askpass/*' -and -name "*.proto" \) | sort)
+
+# server/events/events.proto defines k8s-style mirror types (value fields via
+# gogoproto.nullable=false, custom field names) and therefore stays on
+# protoc-gen-gogofast, like pkg/apis/application/v1alpha1. It declares no gRPC
+# service, so it needs no go-grpc, grpc-gateway, or openapiv2 outputs.
+protoc \
+    -I"${PROJECT_ROOT}" \
+    -I"${protoc_include}" \
+    -I./vendor \
+    -I"$GOPATH"/src \
+    -I"${GOGO_PROTOBUF_PATH}" \
+    --gogofast_out="$GOPATH"/src \
+    "${PROJECT_ROOT}/server/events/events.proto"
+
 for i in ${PROTO_FILES}; do
+    if [ "$i" = "${PROJECT_ROOT}/server/events/events.proto" ]; then
+        continue
+    fi
     protoc \
         -I"${PROJECT_ROOT}" \
         -I"${protoc_include}" \
         -I./vendor \
         -I"$GOPATH"/src \
+        -I"${GOGO_PROTOBUF_PATH}" \
         --go_out=paths=import:"$GOPATH"/src \
         --go-grpc_out=paths=import:"$GOPATH"/src \
         --grpc-gateway_out=paths=import,logtostderr=true:"$GOPATH"/src \
@@ -109,7 +128,8 @@ for i in ${PROTO_FILES}; do
 done
 
 # This file is generated but should not be checked in.
-rm -f util/askpass/askpass.openapiv2.json
+# NOTE: protoc-gen-openapiv2 still names its output files *.swagger.json.
+rm -f util/askpass/askpass.swagger.json
 
 [ -L "${GOPATH_PROJECT_ROOT}" ] && rm -rf "${GOPATH_PROJECT_ROOT}"
 [ -L ./v3 ] && rm -rf v3
@@ -135,7 +155,7 @@ EOF
 
     rm -f "${SWAGGER_OUT}"
 
-    find "${SWAGGER_ROOT}" -name '*.openapiv2.json' -exec swagger mixin --ignore-conflicts "${PRIMARY_SWAGGER}" '{}' \+ >"${COMBINED_SWAGGER}"
+    find "${SWAGGER_ROOT}" -name '*.swagger.json' -exec swagger mixin --ignore-conflicts "${PRIMARY_SWAGGER}" '{}' \+ >"${COMBINED_SWAGGER}"
     jq -r 'del(.definitions[].properties[]? | select(."$ref"!=null and .description!=null).description) | del(.definitions[].properties[]? | select(."$ref"!=null and .title!=null).title) |
       # The "array" and "map" fields have custom unmarshaling. Modify the swagger to reflect this.
       .definitions.v1alpha1ApplicationSourcePluginParameter.properties.array = {"description":"Array is the value of an array type parameter.","type":"array","items":{"type":"string"}} |
@@ -155,8 +175,6 @@ EOF
 # clean up generated swagger files (should come after collect_swagger)
 clean_swagger() {
     SWAGGER_ROOT="$1"
-    find "${SWAGGER_ROOT}" -name '*.openapiv2.json' -delete
-    # Also remove legacy *.swagger.json files produced by the old protoc-gen-swagger toolchain.
     find "${SWAGGER_ROOT}" -name '*.swagger.json' -delete
 }
 

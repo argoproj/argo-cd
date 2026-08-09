@@ -29,7 +29,7 @@ func (*ApplicationSetGenerator) ProtoReflect() protoreflect.Message             
 func (*ApplicationSetList) ProtoReflect() protoreflect.Message                   { return nil }
 func (*ApplicationSetNestedGenerator) ProtoReflect() protoreflect.Message        { return nil }
 func (*ApplicationSetResourceIgnoreDifferences) ProtoReflect() protoreflect.Message {
-return nil
+	return nil
 }
 func (*ApplicationSetRolloutStep) ProtoReflect() protoreflect.Message        { return nil }
 func (*ApplicationSetRolloutStrategy) ProtoReflect() protoreflect.Message    { return nil }
@@ -126,63 +126,63 @@ func (*PullRequestGenerator) ProtoReflect() protoreflect.Message             { r
 func (*PullRequestGeneratorAzureDevOps) ProtoReflect() protoreflect.Message  { return nil }
 func (*PullRequestGeneratorBitbucket) ProtoReflect() protoreflect.Message    { return nil }
 func (*PullRequestGeneratorBitbucketServer) ProtoReflect() protoreflect.Message {
-return nil
+	return nil
 }
-func (*PullRequestGeneratorFilter) ProtoReflect() protoreflect.Message    { return nil }
-func (*PullRequestGeneratorGitLab) ProtoReflect() protoreflect.Message    { return nil }
-func (*PullRequestGeneratorGitea) ProtoReflect() protoreflect.Message     { return nil }
-func (*PullRequestGeneratorGithub) ProtoReflect() protoreflect.Message    { return nil }
-func (*RefTarget) ProtoReflect() protoreflect.Message                     { return nil }
-func (*RepoCreds) ProtoReflect() protoreflect.Message                     { return nil }
-func (*RepoCredsList) ProtoReflect() protoreflect.Message                 { return nil }
-func (*Repository) ProtoReflect() protoreflect.Message                    { return nil }
-func (*RepositoryCertificate) ProtoReflect() protoreflect.Message         { return nil }
-func (*RepositoryCertificateList) ProtoReflect() protoreflect.Message     { return nil }
-func (*RepositoryList) ProtoReflect() protoreflect.Message                { return nil }
-func (*ResourceAction) ProtoReflect() protoreflect.Message                { return nil }
-func (*ResourceActionDefinition) ProtoReflect() protoreflect.Message      { return nil }
-func (*ResourceActionParam) ProtoReflect() protoreflect.Message           { return nil }
-func (*ResourceActions) ProtoReflect() protoreflect.Message               { return nil }
-func (*ResourceDiff) ProtoReflect() protoreflect.Message                  { return nil }
-func (*ResourceIgnoreDifferences) ProtoReflect() protoreflect.Message     { return nil }
-func (*ResourceNetworkingInfo) ProtoReflect() protoreflect.Message        { return nil }
-func (*ResourceNode) ProtoReflect() protoreflect.Message                  { return nil }
-func (*ResourceOverride) ProtoReflect() protoreflect.Message              { return nil }
-func (*ResourceRef) ProtoReflect() protoreflect.Message                   { return nil }
-func (*ResourceResult) ProtoReflect() protoreflect.Message                { return nil }
-func (*ResourceStatus) ProtoReflect() protoreflect.Message                { return nil }
-func (*RetryStrategy) ProtoReflect() protoreflect.Message                 { return nil }
-func (*RevisionHistory) ProtoReflect() protoreflect.Message               { return nil }
-func (*RevisionMetadata) ProtoReflect() protoreflect.Message              { return nil }
-func (*RevisionReference) ProtoReflect() protoreflect.Message             { return nil }
-func (*SCMProviderGenerator) ProtoReflect() protoreflect.Message          { return nil }
+func (*PullRequestGeneratorFilter) ProtoReflect() protoreflect.Message { return nil }
+func (*PullRequestGeneratorGitLab) ProtoReflect() protoreflect.Message { return nil }
+func (*PullRequestGeneratorGitea) ProtoReflect() protoreflect.Message  { return nil }
+func (*PullRequestGeneratorGithub) ProtoReflect() protoreflect.Message { return nil }
+func (*RefTarget) ProtoReflect() protoreflect.Message                  { return nil }
+func (*RepoCreds) ProtoReflect() protoreflect.Message                  { return nil }
+func (*RepoCredsList) ProtoReflect() protoreflect.Message              { return nil }
+func (*Repository) ProtoReflect() protoreflect.Message                 { return nil }
+func (*RepositoryCertificate) ProtoReflect() protoreflect.Message      { return nil }
+func (*RepositoryCertificateList) ProtoReflect() protoreflect.Message  { return nil }
+func (*RepositoryList) ProtoReflect() protoreflect.Message             { return nil }
+func (*ResourceAction) ProtoReflect() protoreflect.Message             { return nil }
+func (*ResourceActionDefinition) ProtoReflect() protoreflect.Message   { return nil }
+func (*ResourceActionParam) ProtoReflect() protoreflect.Message        { return nil }
+func (*ResourceActions) ProtoReflect() protoreflect.Message            { return nil }
+func (*ResourceDiff) ProtoReflect() protoreflect.Message               { return nil }
+func (*ResourceIgnoreDifferences) ProtoReflect() protoreflect.Message  { return nil }
+func (*ResourceNetworkingInfo) ProtoReflect() protoreflect.Message     { return nil }
+func (*ResourceNode) ProtoReflect() protoreflect.Message               { return nil }
+func (*ResourceOverride) ProtoReflect() protoreflect.Message           { return nil }
+func (*ResourceRef) ProtoReflect() protoreflect.Message                { return nil }
+func (*ResourceResult) ProtoReflect() protoreflect.Message             { return nil }
+func (*ResourceStatus) ProtoReflect() protoreflect.Message             { return nil }
+func (*RetryStrategy) ProtoReflect() protoreflect.Message              { return nil }
+func (*RevisionHistory) ProtoReflect() protoreflect.Message            { return nil }
+func (*RevisionMetadata) ProtoReflect() protoreflect.Message           { return nil }
+func (*RevisionReference) ProtoReflect() protoreflect.Message          { return nil }
+func (*SCMProviderGenerator) ProtoReflect() protoreflect.Message       { return nil }
 func (*SCMProviderGeneratorAWSCodeCommit) ProtoReflect() protoreflect.Message {
-return nil
+	return nil
 }
-func (*SCMProviderGeneratorAzureDevOps) ProtoReflect() protoreflect.Message  { return nil }
-func (*SCMProviderGeneratorBitbucket) ProtoReflect() protoreflect.Message    { return nil }
+func (*SCMProviderGeneratorAzureDevOps) ProtoReflect() protoreflect.Message { return nil }
+func (*SCMProviderGeneratorBitbucket) ProtoReflect() protoreflect.Message   { return nil }
 func (*SCMProviderGeneratorBitbucketServer) ProtoReflect() protoreflect.Message {
-return nil
+	return nil
 }
-func (*SCMProviderGeneratorFilter) ProtoReflect() protoreflect.Message   { return nil }
-func (*SCMProviderGeneratorGitea) ProtoReflect() protoreflect.Message    { return nil }
-func (*SCMProviderGeneratorGithub) ProtoReflect() protoreflect.Message   { return nil }
-func (*SCMProviderGeneratorGitlab) ProtoReflect() protoreflect.Message   { return nil }
-func (*SecretRef) ProtoReflect() protoreflect.Message                    { return nil }
-func (*SignatureKey) ProtoReflect() protoreflect.Message                 { return nil }
-func (*SourceHydrator) ProtoReflect() protoreflect.Message               { return nil }
-func (*SourceHydratorStatus) ProtoReflect() protoreflect.Message         { return nil }
-func (*SuccessfulHydrateOperation) ProtoReflect() protoreflect.Message   { return nil }
-func (*SyncOperation) ProtoReflect() protoreflect.Message                { return nil }
-func (*SyncOperationResource) ProtoReflect() protoreflect.Message        { return nil }
-func (*SyncOperationResult) ProtoReflect() protoreflect.Message          { return nil }
-func (*SyncPolicy) ProtoReflect() protoreflect.Message                   { return nil }
-func (*SyncPolicyAutomated) ProtoReflect() protoreflect.Message          { return nil }
-func (*SyncSource) ProtoReflect() protoreflect.Message                   { return nil }
-func (*SyncStatus) ProtoReflect() protoreflect.Message                   { return nil }
-func (*SyncStrategy) ProtoReflect() protoreflect.Message                 { return nil }
-func (*SyncStrategyApply) ProtoReflect() protoreflect.Message            { return nil }
-func (*SyncStrategyHook) ProtoReflect() protoreflect.Message             { return nil }
-func (*SyncWindow) ProtoReflect() protoreflect.Message                   { return nil }
-func (*TLSClientConfig) ProtoReflect() protoreflect.Message              { return nil }
-func (*TagFilter) ProtoReflect() protoreflect.Message                    { return nil }
+func (*SCMProviderGeneratorFilter) ProtoReflect() protoreflect.Message { return nil }
+func (*SCMProviderGeneratorGitea) ProtoReflect() protoreflect.Message  { return nil }
+func (*SCMProviderGeneratorGithub) ProtoReflect() protoreflect.Message { return nil }
+func (*SCMProviderGeneratorGitlab) ProtoReflect() protoreflect.Message { return nil }
+func (*SecretRef) ProtoReflect() protoreflect.Message                  { return nil }
+func (*SignatureKey) ProtoReflect() protoreflect.Message               { return nil }
+func (*SourceHydrator) ProtoReflect() protoreflect.Message             { return nil }
+func (*SourceHydratorStatus) ProtoReflect() protoreflect.Message       { return nil }
+func (*SuccessfulHydrateOperation) ProtoReflect() protoreflect.Message { return nil }
+func (*SyncOperation) ProtoReflect() protoreflect.Message              { return nil }
+func (*SyncOperationResource) ProtoReflect() protoreflect.Message      { return nil }
+func (*SyncOperationResult) ProtoReflect() protoreflect.Message        { return nil }
+func (*SyncPolicy) ProtoReflect() protoreflect.Message                 { return nil }
+func (*SyncPolicyAutomated) ProtoReflect() protoreflect.Message        { return nil }
+func (*SyncSource) ProtoReflect() protoreflect.Message                 { return nil }
+func (*SyncStatus) ProtoReflect() protoreflect.Message                 { return nil }
+func (*SyncStrategy) ProtoReflect() protoreflect.Message               { return nil }
+func (*SyncStrategyApply) ProtoReflect() protoreflect.Message          { return nil }
+func (*SyncStrategyHook) ProtoReflect() protoreflect.Message           { return nil }
+func (*SyncWindow) ProtoReflect() protoreflect.Message                 { return nil }
+func (*TLSClientConfig) ProtoReflect() protoreflect.Message            { return nil }
+func (*TagFilter) ProtoReflect() protoreflect.Message                  { return nil }
