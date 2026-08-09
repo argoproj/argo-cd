@@ -2311,24 +2311,33 @@ func (a *AppWithLock) GetApp() *argoappv1.Application {
 	return a.app
 }
 
+// isOperationInProgress reports whether the application has a pending or
+// recently-finished operation that still needs controller reconciliation.
+func isOperationInProgress(app *argoappv1.Application) bool {
+	if app.Operation != nil {
+		// operation was just requested
+		return true
+	}
+	if app.Status.OperationState != nil {
+		if app.Status.OperationState.FinishedAt == nil {
+			// operation is not finished yet
+			return true
+		}
+		if !app.Status.OperationState.Operation.DryRun() && (app.Status.ReconciledAt == nil || app.Status.ReconciledAt.Before(app.Status.OperationState.FinishedAt)) {
+			// operation just finished but controller hasn't reconciled yet
+			return true
+		}
+	}
+	return false
+}
+
 // checkAppWaitConditions evaluates whether an application currently matches the
 // conditions requested by `argocd app wait`. It returns whether the conditions
 // are met (ready) and whether a sync/refresh operation is still in progress.
 // It does not mutate any state — callers are responsible for any side effects
 // such as triggering a status refresh before printing the final summary.
 func checkAppWaitConditions(app *argoappv1.Application, watch watchOpts, selectedResources []*argoappv1.SyncOperationResource) (ready, operationInProgress bool) {
-	if app.Operation != nil {
-		// if it just got requested
-		operationInProgress = true
-	} else if app.Status.OperationState != nil {
-		if app.Status.OperationState.FinishedAt == nil {
-			// if it is not finished yet
-			operationInProgress = true
-		} else if !app.Status.OperationState.Operation.DryRun() && (app.Status.ReconciledAt == nil || app.Status.ReconciledAt.Before(app.Status.OperationState.FinishedAt)) {
-			// if it is just finished and we need to wait for controller to reconcile app once after syncing
-			operationInProgress = true
-		}
-	}
+	operationInProgress = isOperationInProgress(app)
 
 	hydrationFinished := appHydrationFinished(app)
 
@@ -2370,6 +2379,15 @@ func formatPendingResources(pending []string, maxPending uint) string {
 		return strings.Join(pending[:maxPending], ", ") + fmt.Sprintf(", ... and %d more", len(pending)-int(maxPending))
 	}
 	return strings.Join(pending, ", ")
+}
+
+// formatResourceStateLabel returns a human-readable label for a resource state.
+// Hook resources use phase/result labels; regular resources use sync/health.
+func formatResourceStateLabel(state *resourceState) string {
+	if state.Hook != "" {
+		return fmt.Sprintf("%s (hook: %s, result: %s)", state.Key(), state.Status, state.Health)
+	}
+	return fmt.Sprintf("%s (sync: %s, health: %s)", state.Key(), state.Status, state.Health)
 }
 
 // waitOnApplicationStatus watches an application and blocks until either the desired watch conditions
@@ -2564,7 +2582,7 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 		var pending []string
 		for _, state := range getResourceStates(app, selectedResources) {
 			if !checkResourceStatus(watch, state.Health, state.Status, app.Operation, hydrationFinished) {
-				pending = append(pending, fmt.Sprintf("%s (sync: %s, health: %s)", state.Key(), state.Status, state.Health))
+				pending = append(pending, formatResourceStateLabel(state))
 			}
 		}
 		if len(pending) > 0 {
@@ -2580,7 +2598,7 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 	if watch.health || watch.suspended || watch.degraded {
 		conditions = append(conditions, fmt.Sprintf("health status: %s", app.Status.Health.Status))
 	}
-	if watch.operation && app.Operation != nil {
+	if watch.operation && isOperationInProgress(app) {
 		conditions = append(conditions, "operation: still in progress")
 	}
 	if watch.hydrated {
@@ -2594,7 +2612,7 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 			continue
 		}
 		if !checkResourceStatus(watch, state.Health, state.Status, app.Operation, hydrationFinished) {
-			pending = append(pending, fmt.Sprintf("%s (sync: %s, health: %s)", state.Key(), state.Status, state.Health))
+			pending = append(pending, formatResourceStateLabel(state))
 		}
 	}
 	if len(pending) > 0 {

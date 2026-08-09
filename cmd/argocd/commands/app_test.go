@@ -52,6 +52,9 @@ import (
 	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 )
 
+var now = metav1.Now()
+var later = metav1.NewTime(now.Add(time.Hour))
+
 func Test_getInfos(t *testing.T) {
 	testCases := []struct {
 		name          string
@@ -2783,6 +2786,117 @@ func TestFormatPendingResources(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := formatPendingResources(tt.pending, tt.maxPending)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestIsOperationInProgress(t *testing.T) {
+	tests := []struct {
+		name     string
+		app      *v1alpha1.Application
+		expected bool
+	}{
+		{
+			name:     "nil operation and nil operation state",
+			app:      &v1alpha1.Application{},
+			expected: false,
+		},
+		{
+			name: "active operation requested",
+			app: &v1alpha1.Application{
+				Operation: &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}},
+			},
+			expected: true,
+		},
+		{
+			name: "operation state with nil FinishedAt",
+			app: &v1alpha1.Application{
+				Status: v1alpha1.ApplicationStatus{
+					OperationState: &v1alpha1.OperationState{
+						FinishedAt: nil,
+						Operation:  v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}},
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "operation finished but not reconciled",
+			app: &v1alpha1.Application{
+				Status: v1alpha1.ApplicationStatus{
+					OperationState: &v1alpha1.OperationState{
+						FinishedAt: &now,
+						Operation:  v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}},
+					},
+					ReconciledAt: nil,
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "operation finished and reconciled",
+			app: &v1alpha1.Application{
+				Status: v1alpha1.ApplicationStatus{
+					OperationState: &v1alpha1.OperationState{
+						FinishedAt: &now,
+						Operation:  v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}},
+					},
+					ReconciledAt: &later,
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "dry-run operation finished",
+			app: &v1alpha1.Application{
+				Status: v1alpha1.ApplicationStatus{
+					OperationState: &v1alpha1.OperationState{
+						FinishedAt: &now,
+						Operation: v1alpha1.Operation{
+							Sync: &v1alpha1.SyncOperation{DryRun: true},
+						},
+					},
+				},
+			},
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isOperationInProgress(tt.app)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestFormatResourceStateLabel(t *testing.T) {
+	tests := []struct {
+		name     string
+		state    *resourceState
+		expected string
+	}{
+		{
+			name:     "regular resource",
+			state:    &resourceState{Group: "apps", Kind: "Deployment", Name: "my-app", Status: "Synced", Health: "Healthy"},
+			expected: "apps/Deployment//my-app (sync: Synced, health: Healthy)",
+		},
+		{
+			name:     "hook resource",
+			state:    &resourceState{Group: "", Kind: "Pod", Name: "hook-pod", Status: "Succeeded", Health: "HookResult", Hook: "PreSync"},
+			expected: "/Pod//hook-pod (hook: Succeeded, result: HookResult)",
+		},
+		{
+			name:     "hook with empty health",
+			state:    &resourceState{Group: "batch", Kind: "Job", Name: "hook-job", Status: "Running", Health: "", Hook: "Sync"},
+			expected: "batch/Job//hook-job (hook: Running, result: )",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := formatResourceStateLabel(tt.state)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
