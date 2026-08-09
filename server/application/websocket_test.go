@@ -170,6 +170,19 @@ func TestValidateWithoutPermissions(t *testing.T) {
 	testServerConnection(t, validate, true)
 }
 
+func TestValidateActionUsesDebugValidator(t *testing.T) {
+	t.Parallel()
+	// A debug session sets permissionValidator; validateAction must consult it (and return its
+	// result) instead of the terminal exec/create check, so a subject with only debug access
+	// isn't denied mid-stream. The nil-validator (exec/create) path is covered by
+	// TestValidateWithAdminPermissions / TestValidateWithoutPermissions.
+	ts := &terminalSession{permissionValidator: func() error { return common.PermissionDeniedAPIError }}
+	require.ErrorIs(t, ts.validateAction(), common.PermissionDeniedAPIError)
+
+	ts.permissionValidator = func() error { return nil }
+	require.NoError(t, ts.validateAction())
+}
+
 func TestTerminalSession_Write(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

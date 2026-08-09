@@ -601,6 +601,50 @@ func TestGetPodInfo(t *testing.T) {
 		assert.Equal(t, &v1alpha1.ResourceNetworkingInfo{Labels: map[string]string{"app": "guestbook"}}, info.NetworkingInfo)
 	})
 
+	t.Run("TestGetPodInfoWithArgoDebugContainer", func(t *testing.T) {
+		t.Parallel()
+		pod := strToUnstructured(`
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    name: debug-pod
+    namespace: default
+  spec:
+    nodeName: minikube
+    containers:
+    - image: bar
+    ephemeralContainers:
+    - name: argocd-debug-abc123
+      image: busybox:latest
+`)
+		info := &ResourceInfo{}
+		populateNodeInfo(pod, info, []string{})
+		// Argo CD-attached debug container (argocd-debug- prefix) surfaces the indicator.
+		assert.Contains(t, info.Info, v1alpha1.InfoItem{Name: "Debug", Value: "Attached"})
+	})
+
+	t.Run("TestGetPodInfoWithExternalEphemeralContainer", func(t *testing.T) {
+		t.Parallel()
+		pod := strToUnstructured(`
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    name: debug-pod
+    namespace: default
+  spec:
+    nodeName: minikube
+    containers:
+    - image: bar
+    ephemeralContainers:
+    - name: debugger-xyz
+      image: busybox:latest
+`)
+		info := &ResourceInfo{}
+		populateNodeInfo(pod, info, []string{})
+		// Ephemeral containers added out of band (e.g. `kubectl debug`) must NOT trigger the indicator.
+		assert.NotContains(t, info.Info, v1alpha1.InfoItem{Name: "Debug", Value: "Attached"})
+	})
+
 	t.Run("TestGetPodWithInitialContainerInfo", func(t *testing.T) {
 		t.Parallel()
 		pod := strToUnstructured(`

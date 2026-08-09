@@ -48,6 +48,8 @@ message Settings {
     bool hydratorEnabled = 28;
     bool syncWithReplaceAllowed = 29;
     string uiLoginButtonText = 30;
+    bool debugEnabled = 31;
+    repeated string debugImages = 32;
 }
 
 message GoogleAnalyticsConfig {

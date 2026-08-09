@@ -5714,6 +5714,15 @@
         "controllerNamespace": {
           "type": "string"
         },
+        "debugEnabled": {
+          "type": "boolean"
+        },
+        "debugImages": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
         "dexConfig": {
           "$ref": "#/definitions/clusterDexConfig"
         },

@@ -994,6 +994,9 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                 {isApplication ? (
                                                     <ApplicationStatusPanel
                                                         application={application as appModels.Application}
+                                                        hasDebugContainer={(tree?.nodes || []).some(node =>
+                                                            (node.info || []).some(item => item.name === 'Debug' && item.value === 'Attached')
+                                                        )}
                                                         showDiff={() => selectNode(appFullName, 0, 'diff')}
                                                         showOperation={() => setOperationStatusVisible(true)}
                                                         showHydrateOperation={() => setHydrateOperationStatusVisible(true)}

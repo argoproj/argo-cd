@@ -352,6 +352,30 @@ func TestCanI_GetLogsDeny(t *testing.T) {
 	assert.Equal(t, "no", resp.Value)
 }
 
+func TestCanI_PathActionAllow(t *testing.T) {
+	t.Parallel()
+	// An image-scoped debug grant should be checkable via a path-form action.
+	accountServer, _ := newTestAccountServerExt(t, t.Context(), nil)
+	require.NoError(t, accountServer.enf.SetBuiltinPolicy("p, role:debugger, exec, debug/docker.io/library/busybox:*, */*, allow"))
+	accountServer.enf.SetDefaultRole("role:debugger")
+	ctx := adminContext(t.Context())
+
+	resp, err := accountServer.CanI(ctx, &account.CanIRequest{Resource: "exec", Action: "debug/docker.io/library/busybox:1.36", Subresource: "myproject/myapp"})
+	require.NoError(t, err)
+	assert.Equal(t, "yes", resp.Value)
+
+	resp, err = accountServer.CanI(ctx, &account.CanIRequest{Resource: "exec", Action: "debug/redis:7", Subresource: "myproject/myapp"})
+	require.NoError(t, err)
+	assert.Equal(t, "no", resp.Value)
+}
+
+func TestCanI_UnknownBaseActionRejected(t *testing.T) {
+	t.Parallel()
+	accountServer, _ := newTestAccountServerExt(t, t.Context(), nil)
+	_, err := accountServer.CanI(adminContext(t.Context()), &account.CanIRequest{Resource: "exec", Action: "bogus/foo", Subresource: "myproject/myapp"})
+	require.Error(t, err)
+}
+
 func TestCanI_RBACPolicyMatchingWithNormalizedSubresource(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
