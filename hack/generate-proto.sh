@@ -127,6 +127,13 @@ for i in ${PROTO_FILES}; do
         "$i"
 done
 
+# k8s.io/apimachinery v0.36 removed the gogo ProtoMessage() marker method, so
+# *metav1.Time satisfies neither the v1 nor the v2 proto.Message interface and
+# google.golang.org/protobuf panics when resolving it as a message dependency.
+# Point the generated dependency table at the metav1TimeProtoShim adapter
+# (pkg/apiclient/application/metav1_time_compat.go) instead.
+sed -i 's/(\*v1\.Time)(nil),/(*metav1TimeProtoShim)(nil),/' pkg/apiclient/application/application.pb.go
+
 # Regenerate the proto.Message (google.golang.org/protobuf) compatibility
 # shims for the gogo-generated packages. See hack/gen-proto-compat/main.go.
 go run "${PROJECT_ROOT}/hack/gen-proto-compat" pkg/apis/application/v1alpha1/generated.pb.go

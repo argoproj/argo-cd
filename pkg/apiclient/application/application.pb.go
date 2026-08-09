@@ -3333,7 +3333,7 @@ var file_server_application_application_proto_goTypes = []any{
 	(*v1alpha1.RetryStrategy)(nil),                   // 43: github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.RetryStrategy
 	(*v1alpha1.ApplicationSpec)(nil),                 // 44: github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ApplicationSpec
 	(*v1alpha1.ResourceAction)(nil),                  // 45: github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ResourceAction
-	(*v1.Time)(nil),                                  // 46: k8s.io.apimachinery.pkg.apis.meta.v1.Time
+	(*metav1TimeProtoShim)(nil),                                  // 46: k8s.io.apimachinery.pkg.apis.meta.v1.Time
 	(*v1alpha1.ResourceDiff)(nil),                    // 47: github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ResourceDiff
 	(*v1alpha1.ApplicationList)(nil),                 // 48: github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ApplicationList
 	(*events.EventList)(nil),                         // 49: events.EventList
