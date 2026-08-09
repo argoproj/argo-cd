@@ -238,7 +238,7 @@ func newTestAppSet(opts ...func(appset *appsv1.ApplicationSet)) *appsv1.Applicat
 	return &appset
 }
 
-func testListAppsetsWithLabels(t *testing.T, appsetQuery applicationset.ApplicationSetListQuery, appServer *Server) {
+func testListAppsetsWithLabels(t *testing.T, appsetQuery *applicationset.ApplicationSetListQuery, appServer *Server) {
 	t.Helper()
 	validTests := []struct {
 		testName       string
@@ -285,7 +285,7 @@ func testListAppsetsWithLabels(t *testing.T, appsetQuery applicationset.Applicat
 	for _, validTest := range validTests {
 		t.Run(validTest.testName, func(t *testing.T) {
 			appsetQuery.Selector = validTest.label
-			res, err := appServer.List(t.Context(), &appsetQuery)
+			res, err := appServer.List(t.Context(), appsetQuery)
 			require.NoError(t, err)
 			apps := []string{}
 			for i := range res.Items {
@@ -315,7 +315,7 @@ func testListAppsetsWithLabels(t *testing.T, appsetQuery applicationset.Applicat
 	for _, invalidTest := range invalidTests {
 		t.Run(invalidTest.testName, func(t *testing.T) {
 			appsetQuery.Selector = invalidTest.label
-			_, err := appServer.List(t.Context(), &appsetQuery)
+			_, err := appServer.List(t.Context(), appsetQuery)
 			assert.ErrorContains(t, err, invalidTest.errorMesage)
 		})
 	}
@@ -339,7 +339,7 @@ func TestListAppSetsInNamespaceWithLabels(t *testing.T) {
 	appSetServer.enabledNamespaces = []string{testNamespace}
 	appsetQuery := applicationset.ApplicationSetListQuery{AppsetNamespace: testNamespace}
 
-	testListAppsetsWithLabels(t, appsetQuery, appSetServer)
+	testListAppsetsWithLabels(t, &appsetQuery, appSetServer)
 }
 
 func TestListAppSetsInDefaultNSWithLabels(t *testing.T) {
@@ -355,7 +355,7 @@ func TestListAppSetsInDefaultNSWithLabels(t *testing.T) {
 	}))
 	appsetQuery := applicationset.ApplicationSetListQuery{}
 
-	testListAppsetsWithLabels(t, appsetQuery, appSetServer)
+	testListAppsetsWithLabels(t, &appsetQuery, appSetServer)
 }
 
 // This test covers https://github.com/argoproj/argo-cd/issues/15429

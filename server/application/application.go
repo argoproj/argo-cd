@@ -308,7 +308,7 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*v1
 	}
 
 	// Filter applications by projects
-	filteredApps = argo.FilterByProjectsP(filteredApps, getProjectsFromApplicationQuery(*q))
+	filteredApps = argo.FilterByProjectsP(filteredApps, getProjectsFromApplicationQuery(q))
 
 	// Filter applications by source repo URL
 	filteredApps = argo.FilterByRepoP(filteredApps, q.GetRepo())
@@ -783,7 +783,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*v1a
 	appNs := s.appNamespaceOrDefault(q.GetAppNamespace())
 
 	project := ""
-	projects := getProjectsFromApplicationQuery(*q)
+	projects := getProjectsFromApplicationQuery(q)
 	if len(projects) == 1 {
 		project = projects[0]
 	} else if len(projects) > 1 {
@@ -1257,7 +1257,7 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 		logCtx = logCtx.WithField("application", *q.Name)
 	}
 	projects := map[string]bool{}
-	for _, project := range getProjectsFromApplicationQuery(*q) {
+	for _, project := range getProjectsFromApplicationQuery(q) {
 		projects[project] = true
 	}
 	claims := ws.Context().Value("claims")
@@ -2971,7 +2971,7 @@ func (s *Server) isNamespaceEnabled(namespace string) bool {
 
 // getProjectsFromApplicationQuery gets the project names from a query. If the legacy "project" field was specified, use
 // that. Otherwise, use the newer "projects" field.
-func getProjectsFromApplicationQuery(q application.ApplicationQuery) []string {
+func getProjectsFromApplicationQuery(q *application.ApplicationQuery) []string {
 	if q.Project != nil {
 		return q.Project
 	}

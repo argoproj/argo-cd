@@ -24,6 +24,6 @@ func (m *metav1TimeProtoShim) Reset()         { (*metav1.Time)(m).Reset() }
 func (m *metav1TimeProtoShim) String() string { return (*metav1.Time)(m).String() }
 func (*metav1TimeProtoShim) ProtoMessage()    {}
 
-func (m *metav1TimeProtoShim) Marshal() ([]byte, error)  { return (*metav1.Time)(m).Marshal() }
-func (m *metav1TimeProtoShim) Unmarshal(b []byte) error  { return (*metav1.Time)(m).Unmarshal(b) }
-func (m *metav1TimeProtoShim) Size() int                 { return (*metav1.Time)(m).Size() }
+func (m *metav1TimeProtoShim) Marshal() ([]byte, error) { return (*metav1.Time)(m).Marshal() }
+func (m *metav1TimeProtoShim) Unmarshal(b []byte) error { return (*metav1.Time)(m).Unmarshal(b) }
+func (m *metav1TimeProtoShim) Size() int                { return (*metav1.Time)(m).Size() }

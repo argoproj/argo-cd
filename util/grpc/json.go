@@ -11,7 +11,7 @@ import (
 type JSONMarshaler struct{}
 
 // ContentType implements gwruntime.Marshaler.
-func (j *JSONMarshaler) ContentType(_ interface{}) string {
+func (j *JSONMarshaler) ContentType(_ any) string {
 	return "application/json"
 }
 

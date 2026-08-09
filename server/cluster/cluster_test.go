@@ -134,23 +134,23 @@ func TestUpdateCluster_RejectInvalidParams(t *testing.T) {
 
 	testCases := []struct {
 		name    string
-		request cluster.ClusterUpdateRequest
+		request *cluster.ClusterUpdateRequest
 	}{
 		{
 			name:    "allowed cluster URL in body, disallowed cluster URL in query",
-			request: cluster.ClusterUpdateRequest{Cluster: &appv1.Cluster{Name: "", Server: "https://127.0.0.1", Project: "", ClusterResources: true}, Id: &cluster.ClusterID{Type: "", Value: "https://127.0.0.2"}, UpdatedFields: []string{"clusterResources", "project"}},
+			request: &cluster.ClusterUpdateRequest{Cluster: &appv1.Cluster{Name: "", Server: "https://127.0.0.1", Project: "", ClusterResources: true}, Id: &cluster.ClusterID{Type: "", Value: "https://127.0.0.2"}, UpdatedFields: []string{"clusterResources", "project"}},
 		},
 		{
 			name:    "allowed cluster URL in body, disallowed cluster name in query",
-			request: cluster.ClusterUpdateRequest{Cluster: &appv1.Cluster{Name: "", Server: "https://127.0.0.1", Project: "", ClusterResources: true}, Id: &cluster.ClusterID{Type: "name", Value: "disallowed-unscoped"}, UpdatedFields: []string{"clusterResources", "project"}},
+			request: &cluster.ClusterUpdateRequest{Cluster: &appv1.Cluster{Name: "", Server: "https://127.0.0.1", Project: "", ClusterResources: true}, Id: &cluster.ClusterID{Type: "name", Value: "disallowed-unscoped"}, UpdatedFields: []string{"clusterResources", "project"}},
 		},
 		{
 			name:    "allowed cluster URL in body, disallowed cluster name in query, changing unscoped to scoped",
-			request: cluster.ClusterUpdateRequest{Cluster: &appv1.Cluster{Name: "", Server: "https://127.0.0.1", Project: "allowed-project", ClusterResources: true}, Id: &cluster.ClusterID{Type: "", Value: "https://127.0.0.2"}, UpdatedFields: []string{"clusterResources", "project"}},
+			request: &cluster.ClusterUpdateRequest{Cluster: &appv1.Cluster{Name: "", Server: "https://127.0.0.1", Project: "allowed-project", ClusterResources: true}, Id: &cluster.ClusterID{Type: "", Value: "https://127.0.0.2"}, UpdatedFields: []string{"clusterResources", "project"}},
 		},
 		{
 			name:    "allowed cluster URL in body, disallowed cluster URL in query, changing unscoped to scoped",
-			request: cluster.ClusterUpdateRequest{Cluster: &appv1.Cluster{Name: "", Server: "https://127.0.0.1", Project: "allowed-project", ClusterResources: true}, Id: &cluster.ClusterID{Type: "name", Value: "disallowed-unscoped"}, UpdatedFields: []string{"clusterResources", "project"}},
+			request: &cluster.ClusterUpdateRequest{Cluster: &appv1.Cluster{Name: "", Server: "https://127.0.0.1", Project: "allowed-project", ClusterResources: true}, Id: &cluster.ClusterID{Type: "name", Value: "disallowed-unscoped"}, UpdatedFields: []string{"clusterResources", "project"}},
 		},
 	}
 
@@ -214,7 +214,7 @@ p, role:test, clusters, *, allowed-project/*, allow`)
 		cc := c
 		t.Run(cc.name, func(t *testing.T) {
 			t.Parallel()
-			out, err := server.Update(t.Context(), &cc.request)
+			out, err := server.Update(t.Context(), cc.request)
 			require.Nil(t, out)
 			assert.ErrorIs(t, err, common.PermissionDeniedAPIError)
 		})

@@ -866,8 +866,8 @@ func TestService_GetParametersAnnouncement(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, s.response)
 		require.Len(t, s.response.ParameterAnnouncements, 2)
-		assert.Equal(t, repoclient.ParameterAnnouncement{Name: "dynamic-test-param", String_: "yep"}, *s.response.ParameterAnnouncements[0])
-		assert.Equal(t, repoclient.ParameterAnnouncement{Name: "test-param", String_: "test-value"}, *s.response.ParameterAnnouncements[1])
+		assert.Equal(t, &repoclient.ParameterAnnouncement{Name: "dynamic-test-param", String_: "yep"}, s.response.ParameterAnnouncements[0])
+		assert.Equal(t, &repoclient.ParameterAnnouncement{Name: "test-param", String_: "test-value"}, s.response.ParameterAnnouncements[1])
 	})
 	t.Run("out of bounds app", func(t *testing.T) {
 		t.Parallel()

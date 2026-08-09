@@ -1175,7 +1175,7 @@ func TestListAppsInNamespaceWithLabels(t *testing.T) {
 	appQuery := application.ApplicationQuery{}
 	namespace := "test-namespace"
 	appQuery.AppNamespace = &namespace
-	testListAppsWithLabels(t, appQuery, appServer)
+	testListAppsWithLabels(t, &appQuery, appServer)
 }
 
 func TestListAppsInDefaultNSWithLabels(t *testing.T) {
@@ -1190,10 +1190,10 @@ func TestListAppsInDefaultNSWithLabels(t *testing.T) {
 		app.SetLabels(map[string]string{"key1": "value3"})
 	}))
 	appQuery := application.ApplicationQuery{}
-	testListAppsWithLabels(t, appQuery, appServer)
+	testListAppsWithLabels(t, &appQuery, appServer)
 }
 
-func testListAppsWithLabels(t *testing.T, appQuery application.ApplicationQuery, appServer *Server) {
+func testListAppsWithLabels(t *testing.T, appQuery *application.ApplicationQuery, appServer *Server) {
 	t.Helper()
 	validTests := []struct {
 		testName       string
@@ -1240,7 +1240,7 @@ func testListAppsWithLabels(t *testing.T, appQuery application.ApplicationQuery,
 	for _, validTest := range validTests {
 		t.Run(validTest.testName, func(t *testing.T) {
 			appQuery.Selector = &validTest.label
-			res, err := appServer.List(t.Context(), &appQuery)
+			res, err := appServer.List(t.Context(), appQuery)
 			require.NoError(t, err)
 			apps := []string{}
 			for i := range res.Items {
@@ -1270,7 +1270,7 @@ func testListAppsWithLabels(t *testing.T, appQuery application.ApplicationQuery,
 	for _, invalidTest := range invalidTests {
 		t.Run(invalidTest.testName, func(t *testing.T) {
 			appQuery.Selector = &invalidTest.label
-			_, err := appServer.List(t.Context(), &appQuery)
+			_, err := appServer.List(t.Context(), appQuery)
 			assert.ErrorContains(t, err, invalidTest.errorMesage)
 		})
 	}
@@ -1289,15 +1289,15 @@ func TestListAppWithProjects(t *testing.T) {
 	}))
 
 	t.Run("List all apps", func(t *testing.T) {
-		appQuery := application.ApplicationQuery{}
-		appList, err := appServer.List(t.Context(), &appQuery)
+		appQuery := &application.ApplicationQuery{}
+		appList, err := appServer.List(t.Context(), appQuery)
 		require.NoError(t, err)
 		assert.Len(t, appList.Items, 3)
 	})
 
 	t.Run("List apps with projects filter set", func(t *testing.T) {
-		appQuery := application.ApplicationQuery{Projects: []string{"test-project1"}}
-		appList, err := appServer.List(t.Context(), &appQuery)
+		appQuery := &application.ApplicationQuery{Projects: []string{"test-project1"}}
+		appList, err := appServer.List(t.Context(), appQuery)
 		require.NoError(t, err)
 		assert.Len(t, appList.Items, 1)
 		for _, app := range appList.Items {
@@ -1306,8 +1306,8 @@ func TestListAppWithProjects(t *testing.T) {
 	})
 
 	t.Run("List apps with project filter set (legacy field)", func(t *testing.T) {
-		appQuery := application.ApplicationQuery{Project: []string{"test-project1"}}
-		appList, err := appServer.List(t.Context(), &appQuery)
+		appQuery := &application.ApplicationQuery{Project: []string{"test-project1"}}
+		appList, err := appServer.List(t.Context(), appQuery)
 		require.NoError(t, err)
 		assert.Len(t, appList.Items, 1)
 		for _, app := range appList.Items {
@@ -1317,8 +1317,8 @@ func TestListAppWithProjects(t *testing.T) {
 
 	t.Run("List apps with both projects and project filter set", func(t *testing.T) {
 		// If the older field is present, we should use it instead of the newer field.
-		appQuery := application.ApplicationQuery{Project: []string{"test-project1"}, Projects: []string{"test-project2"}}
-		appList, err := appServer.List(t.Context(), &appQuery)
+		appQuery := &application.ApplicationQuery{Project: []string{"test-project1"}, Projects: []string{"test-project2"}}
+		appList, err := appServer.List(t.Context(), appQuery)
 		require.NoError(t, err)
 		assert.Len(t, appList.Items, 1)
 		for _, app := range appList.Items {

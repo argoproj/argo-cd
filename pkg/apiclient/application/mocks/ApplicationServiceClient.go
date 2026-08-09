@@ -565,7 +565,7 @@ func (_c *ApplicationServiceClient_GetManifests_Call) RunAndReturn(run func(ctx 
 }
 
 // GetManifestsWithFiles provides a mock function for the type ApplicationServiceClient
-func (_mock *ApplicationServiceClient) GetManifestsWithFiles(ctx context.Context, opts ...grpc.CallOption) (application.ApplicationService_GetManifestsWithFilesClient, error) {
+func (_mock *ApplicationServiceClient) GetManifestsWithFiles(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[application.ApplicationManifestQueryWithFilesWrapper, apiclient.ManifestResponse], error) {
 	// grpc.CallOption
 	_va := make([]any, len(opts))
 	for _i := range opts {
@@ -580,16 +580,16 @@ func (_mock *ApplicationServiceClient) GetManifestsWithFiles(ctx context.Context
 		panic("no return value specified for GetManifestsWithFiles")
 	}
 
-	var r0 application.ApplicationService_GetManifestsWithFilesClient
+	var r0 grpc.ClientStreamingClient[application.ApplicationManifestQueryWithFilesWrapper, apiclient.ManifestResponse]
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ...grpc.CallOption) (application.ApplicationService_GetManifestsWithFilesClient, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...grpc.CallOption) (grpc.ClientStreamingClient[application.ApplicationManifestQueryWithFilesWrapper, apiclient.ManifestResponse], error)); ok {
 		return returnFunc(ctx, opts...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, ...grpc.CallOption) application.ApplicationService_GetManifestsWithFilesClient); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, ...grpc.CallOption) grpc.ClientStreamingClient[application.ApplicationManifestQueryWithFilesWrapper, apiclient.ManifestResponse]); ok {
 		r0 = returnFunc(ctx, opts...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(application.ApplicationService_GetManifestsWithFilesClient)
+			r0 = ret.Get(0).(grpc.ClientStreamingClient[application.ApplicationManifestQueryWithFilesWrapper, apiclient.ManifestResponse])
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, ...grpc.CallOption) error); ok {
@@ -635,12 +635,12 @@ func (_c *ApplicationServiceClient_GetManifestsWithFiles_Call) Run(run func(ctx 
 	return _c
 }
 
-func (_c *ApplicationServiceClient_GetManifestsWithFiles_Call) Return(applicationService_GetManifestsWithFilesClient application.ApplicationService_GetManifestsWithFilesClient, err error) *ApplicationServiceClient_GetManifestsWithFiles_Call {
-	_c.Call.Return(applicationService_GetManifestsWithFilesClient, err)
+func (_c *ApplicationServiceClient_GetManifestsWithFiles_Call) Return(clientStreamingClient grpc.ClientStreamingClient[application.ApplicationManifestQueryWithFilesWrapper, apiclient.ManifestResponse], err error) *ApplicationServiceClient_GetManifestsWithFiles_Call {
+	_c.Call.Return(clientStreamingClient, err)
 	return _c
 }
 
-func (_c *ApplicationServiceClient_GetManifestsWithFiles_Call) RunAndReturn(run func(ctx context.Context, opts ...grpc.CallOption) (application.ApplicationService_GetManifestsWithFilesClient, error)) *ApplicationServiceClient_GetManifestsWithFiles_Call {
+func (_c *ApplicationServiceClient_GetManifestsWithFiles_Call) RunAndReturn(run func(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[application.ApplicationManifestQueryWithFilesWrapper, apiclient.ManifestResponse], error)) *ApplicationServiceClient_GetManifestsWithFiles_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1516,7 +1516,7 @@ func (_c *ApplicationServiceClient_PatchResource_Call) RunAndReturn(run func(ctx
 }
 
 // PodLogs provides a mock function for the type ApplicationServiceClient
-func (_mock *ApplicationServiceClient) PodLogs(ctx context.Context, in *application.ApplicationPodLogsQuery, opts ...grpc.CallOption) (application.ApplicationService_PodLogsClient, error) {
+func (_mock *ApplicationServiceClient) PodLogs(ctx context.Context, in *application.ApplicationPodLogsQuery, opts ...grpc.CallOption) (grpc.ServerStreamingClient[application.LogEntry], error) {
 	// grpc.CallOption
 	_va := make([]any, len(opts))
 	for _i := range opts {
@@ -1531,16 +1531,16 @@ func (_mock *ApplicationServiceClient) PodLogs(ctx context.Context, in *applicat
 		panic("no return value specified for PodLogs")
 	}
 
-	var r0 application.ApplicationService_PodLogsClient
+	var r0 grpc.ServerStreamingClient[application.LogEntry]
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *application.ApplicationPodLogsQuery, ...grpc.CallOption) (application.ApplicationService_PodLogsClient, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *application.ApplicationPodLogsQuery, ...grpc.CallOption) (grpc.ServerStreamingClient[application.LogEntry], error)); ok {
 		return returnFunc(ctx, in, opts...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *application.ApplicationPodLogsQuery, ...grpc.CallOption) application.ApplicationService_PodLogsClient); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *application.ApplicationPodLogsQuery, ...grpc.CallOption) grpc.ServerStreamingClient[application.LogEntry]); ok {
 		r0 = returnFunc(ctx, in, opts...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(application.ApplicationService_PodLogsClient)
+			r0 = ret.Get(0).(grpc.ServerStreamingClient[application.LogEntry])
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, *application.ApplicationPodLogsQuery, ...grpc.CallOption) error); ok {
@@ -1592,12 +1592,12 @@ func (_c *ApplicationServiceClient_PodLogs_Call) Run(run func(ctx context.Contex
 	return _c
 }
 
-func (_c *ApplicationServiceClient_PodLogs_Call) Return(applicationService_PodLogsClient application.ApplicationService_PodLogsClient, err error) *ApplicationServiceClient_PodLogs_Call {
-	_c.Call.Return(applicationService_PodLogsClient, err)
+func (_c *ApplicationServiceClient_PodLogs_Call) Return(serverStreamingClient grpc.ServerStreamingClient[application.LogEntry], err error) *ApplicationServiceClient_PodLogs_Call {
+	_c.Call.Return(serverStreamingClient, err)
 	return _c
 }
 
-func (_c *ApplicationServiceClient_PodLogs_Call) RunAndReturn(run func(ctx context.Context, in *application.ApplicationPodLogsQuery, opts ...grpc.CallOption) (application.ApplicationService_PodLogsClient, error)) *ApplicationServiceClient_PodLogs_Call {
+func (_c *ApplicationServiceClient_PodLogs_Call) RunAndReturn(run func(ctx context.Context, in *application.ApplicationPodLogsQuery, opts ...grpc.CallOption) (grpc.ServerStreamingClient[application.LogEntry], error)) *ApplicationServiceClient_PodLogs_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2560,7 +2560,7 @@ func (_c *ApplicationServiceClient_UpdateSpec_Call) RunAndReturn(run func(ctx co
 }
 
 // Watch provides a mock function for the type ApplicationServiceClient
-func (_mock *ApplicationServiceClient) Watch(ctx context.Context, in *application.ApplicationQuery, opts ...grpc.CallOption) (application.ApplicationService_WatchClient, error) {
+func (_mock *ApplicationServiceClient) Watch(ctx context.Context, in *application.ApplicationQuery, opts ...grpc.CallOption) (grpc.ServerStreamingClient[v1alpha1.ApplicationWatchEvent], error) {
 	// grpc.CallOption
 	_va := make([]any, len(opts))
 	for _i := range opts {
@@ -2575,16 +2575,16 @@ func (_mock *ApplicationServiceClient) Watch(ctx context.Context, in *applicatio
 		panic("no return value specified for Watch")
 	}
 
-	var r0 application.ApplicationService_WatchClient
+	var r0 grpc.ServerStreamingClient[v1alpha1.ApplicationWatchEvent]
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *application.ApplicationQuery, ...grpc.CallOption) (application.ApplicationService_WatchClient, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *application.ApplicationQuery, ...grpc.CallOption) (grpc.ServerStreamingClient[v1alpha1.ApplicationWatchEvent], error)); ok {
 		return returnFunc(ctx, in, opts...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *application.ApplicationQuery, ...grpc.CallOption) application.ApplicationService_WatchClient); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *application.ApplicationQuery, ...grpc.CallOption) grpc.ServerStreamingClient[v1alpha1.ApplicationWatchEvent]); ok {
 		r0 = returnFunc(ctx, in, opts...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(application.ApplicationService_WatchClient)
+			r0 = ret.Get(0).(grpc.ServerStreamingClient[v1alpha1.ApplicationWatchEvent])
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, *application.ApplicationQuery, ...grpc.CallOption) error); ok {
@@ -2636,18 +2636,18 @@ func (_c *ApplicationServiceClient_Watch_Call) Run(run func(ctx context.Context,
 	return _c
 }
 
-func (_c *ApplicationServiceClient_Watch_Call) Return(applicationService_WatchClient application.ApplicationService_WatchClient, err error) *ApplicationServiceClient_Watch_Call {
-	_c.Call.Return(applicationService_WatchClient, err)
+func (_c *ApplicationServiceClient_Watch_Call) Return(serverStreamingClient grpc.ServerStreamingClient[v1alpha1.ApplicationWatchEvent], err error) *ApplicationServiceClient_Watch_Call {
+	_c.Call.Return(serverStreamingClient, err)
 	return _c
 }
 
-func (_c *ApplicationServiceClient_Watch_Call) RunAndReturn(run func(ctx context.Context, in *application.ApplicationQuery, opts ...grpc.CallOption) (application.ApplicationService_WatchClient, error)) *ApplicationServiceClient_Watch_Call {
+func (_c *ApplicationServiceClient_Watch_Call) RunAndReturn(run func(ctx context.Context, in *application.ApplicationQuery, opts ...grpc.CallOption) (grpc.ServerStreamingClient[v1alpha1.ApplicationWatchEvent], error)) *ApplicationServiceClient_Watch_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // WatchResourceTree provides a mock function for the type ApplicationServiceClient
-func (_mock *ApplicationServiceClient) WatchResourceTree(ctx context.Context, in *application.ResourcesQuery, opts ...grpc.CallOption) (application.ApplicationService_WatchResourceTreeClient, error) {
+func (_mock *ApplicationServiceClient) WatchResourceTree(ctx context.Context, in *application.ResourcesQuery, opts ...grpc.CallOption) (grpc.ServerStreamingClient[v1alpha1.ApplicationTree], error) {
 	// grpc.CallOption
 	_va := make([]any, len(opts))
 	for _i := range opts {
@@ -2662,16 +2662,16 @@ func (_mock *ApplicationServiceClient) WatchResourceTree(ctx context.Context, in
 		panic("no return value specified for WatchResourceTree")
 	}
 
-	var r0 application.ApplicationService_WatchResourceTreeClient
+	var r0 grpc.ServerStreamingClient[v1alpha1.ApplicationTree]
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *application.ResourcesQuery, ...grpc.CallOption) (application.ApplicationService_WatchResourceTreeClient, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *application.ResourcesQuery, ...grpc.CallOption) (grpc.ServerStreamingClient[v1alpha1.ApplicationTree], error)); ok {
 		return returnFunc(ctx, in, opts...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *application.ResourcesQuery, ...grpc.CallOption) application.ApplicationService_WatchResourceTreeClient); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *application.ResourcesQuery, ...grpc.CallOption) grpc.ServerStreamingClient[v1alpha1.ApplicationTree]); ok {
 		r0 = returnFunc(ctx, in, opts...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(application.ApplicationService_WatchResourceTreeClient)
+			r0 = ret.Get(0).(grpc.ServerStreamingClient[v1alpha1.ApplicationTree])
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(context.Context, *application.ResourcesQuery, ...grpc.CallOption) error); ok {
@@ -2723,12 +2723,12 @@ func (_c *ApplicationServiceClient_WatchResourceTree_Call) Run(run func(ctx cont
 	return _c
 }
 
-func (_c *ApplicationServiceClient_WatchResourceTree_Call) Return(applicationService_WatchResourceTreeClient application.ApplicationService_WatchResourceTreeClient, err error) *ApplicationServiceClient_WatchResourceTree_Call {
-	_c.Call.Return(applicationService_WatchResourceTreeClient, err)
+func (_c *ApplicationServiceClient_WatchResourceTree_Call) Return(serverStreamingClient grpc.ServerStreamingClient[v1alpha1.ApplicationTree], err error) *ApplicationServiceClient_WatchResourceTree_Call {
+	_c.Call.Return(serverStreamingClient, err)
 	return _c
 }
 
-func (_c *ApplicationServiceClient_WatchResourceTree_Call) RunAndReturn(run func(ctx context.Context, in *application.ResourcesQuery, opts ...grpc.CallOption) (application.ApplicationService_WatchResourceTreeClient, error)) *ApplicationServiceClient_WatchResourceTree_Call {
+func (_c *ApplicationServiceClient_WatchResourceTree_Call) RunAndReturn(run func(ctx context.Context, in *application.ResourcesQuery, opts ...grpc.CallOption) (grpc.ServerStreamingClient[v1alpha1.ApplicationTree], error)) *ApplicationServiceClient_WatchResourceTree_Call {
 	_c.Call.Return(run)
 	return _c
 }

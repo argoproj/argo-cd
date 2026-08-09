@@ -293,12 +293,12 @@ func NewAccountListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 	return cmd
 }
 
-func getCurrentAccount(ctx context.Context, clientset argocdclient.Client) session.GetUserInfoResponse {
+func getCurrentAccount(ctx context.Context, clientset argocdclient.Client) *session.GetUserInfoResponse {
 	conn, client := clientset.NewSessionClientOrDie()
 	defer utilio.Close(conn)
 	userInfo, err := client.GetUserInfo(ctx, &session.GetUserInfoRequest{})
 	errors.CheckError(err)
-	return *userInfo
+	return userInfo
 }
 
 func NewAccountGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
