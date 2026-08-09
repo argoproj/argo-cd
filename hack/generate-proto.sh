@@ -127,6 +127,12 @@ for i in ${PROTO_FILES}; do
         "$i"
 done
 
+# Regenerate the proto.Message (google.golang.org/protobuf) compatibility
+# shims for the gogo-generated packages. See hack/gen-proto-compat/main.go.
+go run "${PROJECT_ROOT}/hack/gen-proto-compat" pkg/apis/application/v1alpha1/generated.pb.go
+go run "${PROJECT_ROOT}/hack/gen-proto-compat" pkg/apiclient/events/events.pb.go
+gofmt -w pkg/apis/application/v1alpha1/proto_reflect_compat.go pkg/apiclient/events/proto_reflect_compat.go
+
 # This file is generated but should not be checked in.
 # NOTE: protoc-gen-openapiv2 still names its output files *.swagger.json.
 rm -f util/askpass/askpass.swagger.json
