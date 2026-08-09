@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
@@ -174,7 +175,10 @@ func TestCache_GetAppDetails(t *testing.T) {
 	// cache hit
 	err = cache.GetAppDetails("my-revision", &v1alpha1.ApplicationSource{}, emptyRefSources, value, "", nil)
 	require.NoError(t, err)
-	assert.Equal(t, &apiclient.RepoAppDetailsResponse{Type: "my-type"}, value)
+	// assert.Equal cannot be used on protoc-gen-go generated messages: their
+	// lazily-populated internal state breaks reflect.DeepEqual.
+	expectedDetails := &apiclient.RepoAppDetailsResponse{Type: "my-type"}
+	assert.True(t, proto.Equal(expectedDetails, value), "expected %v, got %v", expectedDetails, value)
 	mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 1, ExternalGets: 4})
 }
 
