@@ -76,7 +76,9 @@ const config = {
         filename: '[name].[contenthash].js',
         chunkFilename: '[name].[contenthash].chunk.js',
         path: __dirname + '/../../dist/app',
-        clean: true
+        // `gitkeep` (and assets/images/resources/.gitkeep) are tracked in git so ui/embed.go
+        // has something to embed before the UI is built; clean would otherwise delete them.
+        clean: {keep: /(^|\/)\.?gitkeep$/}
     },
     cache: { type: 'filesystem' },
 
