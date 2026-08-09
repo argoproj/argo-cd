@@ -2,8 +2,6 @@
 
 $entry-label-min: 5.75rem;
 $entry-xxlarge: calc(map-get($breakpoints, xxlarge) - 1px);
-// Matches Foundation's medium column gutter (the per-side padding a `.columns` normally gets).
-$entry-gutter: 0.9375rem;
 
 // Neutralise Foundation's element-level <dl>/<dt> defaults — it adds `margin-bottom` to
 // <dl>/<dt> and `font-weight: bold` to <dt>. The legacy markup used <div>s and got none of
@@ -34,11 +32,13 @@ $entry-gutter: 0.9375rem;
 }
 
 // ---------------------------------------------------------------------------
-// Table variant: the row reuses the legacy Foundation grid (`.row` + `.columns
-// small-4/6/2`) plus the meta-column / fav-col / meta-rows layout, so gutters,
-// proportions and spacing match HEAD exactly. The only new bits here are the
-// <dl> 2-column grid (which takes the place of the old stack of meta-row divs),
-// the sr-only-below-xxlarge labels, and the flush-right actions menu.
+// Table variant: the row reuses the legacy Foundation `.row` + the fav-col /
+// meta-rows layout, so gutters, proportions and spacing match HEAD exactly. The
+// legacy `.columns small-4/6/2` wrappers survive only where a <dl> IS the column
+// (the appset Status list); the application row instead reproduces those widths
+// inside one flat grid (see the flat variant below). The only new bits here are
+// the <dl> 2-column grid (which takes the place of the old stack of meta-row
+// divs), the sr-only-below-xxlarge labels, and the flush-right actions menu.
 // ---------------------------------------------------------------------------
 .applications-table {
     // Each column's <dl>: a full-width 2-column grid (label | value) that collapses to
@@ -204,18 +204,8 @@ $entry-gutter: 0.9375rem;
         }
     }
 
-    // When the <dl> IS the column (Source/Destination, Status), it doesn't receive Foundation's
-    // `.row > .columns` gutter, so apply that gutter to the cells instead — both sides of every
-    // cell, exactly as Foundation pads each column (gutter/2 ≈ 0.9375rem per side; adjacent cells'
-    // paddings combine into the gap between them). Column 1's <dl> (`.meta-rows`, not `.columns`)
-    // is untouched: its left gutter comes from the sibling `.applications-list__fav-col.columns`
-    // that precedes it in the flex row (there is no longer a `small-4` wrapper around the group).
-    .entry-fields--table.columns {
-        .entry-fields__dt,
-        .entry-fields__dd {
-            padding-left: $entry-gutter;
-            padding-right: $entry-gutter;
-        }
-    }
-
+    // Gutters: a <dl> that carries `.columns` (the appset Status list) gets its gutter from
+    // `.argo-table-list .columns` like any other column — no cell padding needed here. Column 1's
+    // <dl> (`.meta-rows`, not `.columns`) takes its left gutter from the preceding
+    // `.applications-list__fav-col.columns` sibling in the flex row.
 }
