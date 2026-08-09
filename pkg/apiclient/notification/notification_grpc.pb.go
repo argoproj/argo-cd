@@ -81,7 +81,7 @@ func (c *notificationServiceClient) ListTemplates(ctx context.Context, in *Templ
 }
 
 // NotificationServiceServer is the server API for NotificationService service.
-// All implementations must embed UnimplementedNotificationServiceServer
+// All implementations should embed UnimplementedNotificationServiceServer
 // for forward compatibility.
 //
 // NotificationService
@@ -92,10 +92,9 @@ type NotificationServiceServer interface {
 	ListServices(context.Context, *ServicesListRequest) (*ServiceList, error)
 	// List returns list of templates
 	ListTemplates(context.Context, *TemplatesListRequest) (*TemplateList, error)
-	mustEmbedUnimplementedNotificationServiceServer()
 }
 
-// UnimplementedNotificationServiceServer must be embedded to have
+// UnimplementedNotificationServiceServer should be embedded to have
 // forward compatible implementations.
 //
 // NOTE: this should be embedded by value instead of pointer to avoid a nil
@@ -111,8 +110,7 @@ func (UnimplementedNotificationServiceServer) ListServices(context.Context, *Ser
 func (UnimplementedNotificationServiceServer) ListTemplates(context.Context, *TemplatesListRequest) (*TemplateList, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListTemplates not implemented")
 }
-func (UnimplementedNotificationServiceServer) mustEmbedUnimplementedNotificationServiceServer() {}
-func (UnimplementedNotificationServiceServer) testEmbeddedByValue()                             {}
+func (UnimplementedNotificationServiceServer) testEmbeddedByValue() {}
 
 // UnsafeNotificationServiceServer may be embedded to opt out of forward compatibility for this service.
 // Use of this interface is not recommended, as added methods to NotificationServiceServer will

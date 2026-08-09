@@ -483,7 +483,7 @@ func (c *applicationServiceClient) ListResourceLinks(ctx context.Context, in *Ap
 }
 
 // ApplicationServiceServer is the server API for ApplicationService service.
-// All implementations must embed UnimplementedApplicationServiceServer
+// All implementations should embed UnimplementedApplicationServiceServer
 // for forward compatibility.
 //
 // ApplicationService
@@ -554,10 +554,9 @@ type ApplicationServiceServer interface {
 	ListLinks(context.Context, *ListAppLinksRequest) (*LinksResponse, error)
 	// ListResourceLinks returns the list of all resource deep links
 	ListResourceLinks(context.Context, *ApplicationResourceRequest) (*LinksResponse, error)
-	mustEmbedUnimplementedApplicationServiceServer()
 }
 
-// UnimplementedApplicationServiceServer must be embedded to have
+// UnimplementedApplicationServiceServer should be embedded to have
 // forward compatible implementations.
 //
 // NOTE: this should be embedded by value instead of pointer to avoid a nil
@@ -657,8 +656,7 @@ func (UnimplementedApplicationServiceServer) ListLinks(context.Context, *ListApp
 func (UnimplementedApplicationServiceServer) ListResourceLinks(context.Context, *ApplicationResourceRequest) (*LinksResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListResourceLinks not implemented")
 }
-func (UnimplementedApplicationServiceServer) mustEmbedUnimplementedApplicationServiceServer() {}
-func (UnimplementedApplicationServiceServer) testEmbeddedByValue()                            {}
+func (UnimplementedApplicationServiceServer) testEmbeddedByValue() {}
 
 // UnsafeApplicationServiceServer may be embedded to opt out of forward compatibility for this service.
 // Use of this interface is not recommended, as added methods to ApplicationServiceServer will

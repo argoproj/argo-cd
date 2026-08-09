@@ -102,7 +102,7 @@ func (c *configManagementPluginServiceClient) GetParametersAnnouncement(ctx cont
 type ConfigManagementPluginService_GetParametersAnnouncementClient = grpc.ClientStreamingClient[AppStreamRequest, ParametersAnnouncementResponse]
 
 // ConfigManagementPluginServiceServer is the server API for ConfigManagementPluginService service.
-// All implementations must embed UnimplementedConfigManagementPluginServiceServer
+// All implementations should embed UnimplementedConfigManagementPluginServiceServer
 // for forward compatibility.
 //
 // ConfigManagementPlugin Service
@@ -117,10 +117,9 @@ type ConfigManagementPluginServiceServer interface {
 	MatchRepository(grpc.ClientStreamingServer[AppStreamRequest, RepositoryResponse]) error
 	// GetParametersAnnouncement gets a list of parameter announcements for the given app
 	GetParametersAnnouncement(grpc.ClientStreamingServer[AppStreamRequest, ParametersAnnouncementResponse]) error
-	mustEmbedUnimplementedConfigManagementPluginServiceServer()
 }
 
-// UnimplementedConfigManagementPluginServiceServer must be embedded to have
+// UnimplementedConfigManagementPluginServiceServer should be embedded to have
 // forward compatible implementations.
 //
 // NOTE: this should be embedded by value instead of pointer to avoid a nil
@@ -138,8 +137,6 @@ func (UnimplementedConfigManagementPluginServiceServer) MatchRepository(grpc.Cli
 }
 func (UnimplementedConfigManagementPluginServiceServer) GetParametersAnnouncement(grpc.ClientStreamingServer[AppStreamRequest, ParametersAnnouncementResponse]) error {
 	return status.Error(codes.Unimplemented, "method GetParametersAnnouncement not implemented")
-}
-func (UnimplementedConfigManagementPluginServiceServer) mustEmbedUnimplementedConfigManagementPluginServiceServer() {
 }
 func (UnimplementedConfigManagementPluginServiceServer) testEmbeddedByValue() {}
 

@@ -50,16 +50,15 @@ func (c *askPassServiceClient) GetCredentials(ctx context.Context, in *Credentia
 }
 
 // AskPassServiceServer is the server API for AskPassService service.
-// All implementations must embed UnimplementedAskPassServiceServer
+// All implementations should embed UnimplementedAskPassServiceServer
 // for forward compatibility.
 //
 // AskPassService
 type AskPassServiceServer interface {
 	GetCredentials(context.Context, *CredentialsRequest) (*CredentialsResponse, error)
-	mustEmbedUnimplementedAskPassServiceServer()
 }
 
-// UnimplementedAskPassServiceServer must be embedded to have
+// UnimplementedAskPassServiceServer should be embedded to have
 // forward compatible implementations.
 //
 // NOTE: this should be embedded by value instead of pointer to avoid a nil
@@ -69,8 +68,7 @@ type UnimplementedAskPassServiceServer struct{}
 func (UnimplementedAskPassServiceServer) GetCredentials(context.Context, *CredentialsRequest) (*CredentialsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetCredentials not implemented")
 }
-func (UnimplementedAskPassServiceServer) mustEmbedUnimplementedAskPassServiceServer() {}
-func (UnimplementedAskPassServiceServer) testEmbeddedByValue()                        {}
+func (UnimplementedAskPassServiceServer) testEmbeddedByValue() {}
 
 // UnsafeAskPassServiceServer may be embedded to opt out of forward compatibility for this service.
 // Use of this interface is not recommended, as added methods to AskPassServiceServer will

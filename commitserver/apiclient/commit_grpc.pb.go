@@ -51,17 +51,16 @@ func (c *commitServiceClient) CommitHydratedManifests(ctx context.Context, in *C
 }
 
 // CommitServiceServer is the server API for CommitService service.
-// All implementations must embed UnimplementedCommitServiceServer
+// All implementations should embed UnimplementedCommitServiceServer
 // for forward compatibility.
 //
 // CommitService is the service for committing hydrated manifests to a repository.
 type CommitServiceServer interface {
 	// Commit commits hydrated manifests to a repository.
 	CommitHydratedManifests(context.Context, *CommitHydratedManifestsRequest) (*CommitHydratedManifestsResponse, error)
-	mustEmbedUnimplementedCommitServiceServer()
 }
 
-// UnimplementedCommitServiceServer must be embedded to have
+// UnimplementedCommitServiceServer should be embedded to have
 // forward compatible implementations.
 //
 // NOTE: this should be embedded by value instead of pointer to avoid a nil
@@ -71,8 +70,7 @@ type UnimplementedCommitServiceServer struct{}
 func (UnimplementedCommitServiceServer) CommitHydratedManifests(context.Context, *CommitHydratedManifestsRequest) (*CommitHydratedManifestsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CommitHydratedManifests not implemented")
 }
-func (UnimplementedCommitServiceServer) mustEmbedUnimplementedCommitServiceServer() {}
-func (UnimplementedCommitServiceServer) testEmbeddedByValue()                       {}
+func (UnimplementedCommitServiceServer) testEmbeddedByValue() {}
 
 // UnsafeCommitServiceServer may be embedded to opt out of forward compatibility for this service.
 // Use of this interface is not recommended, as added methods to CommitServiceServer will

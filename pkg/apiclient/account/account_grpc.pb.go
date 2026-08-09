@@ -118,7 +118,7 @@ func (c *accountServiceClient) DeleteToken(ctx context.Context, in *DeleteTokenR
 }
 
 // AccountServiceServer is the server API for AccountService service.
-// All implementations must embed UnimplementedAccountServiceServer
+// All implementations should embed UnimplementedAccountServiceServer
 // for forward compatibility.
 type AccountServiceServer interface {
 	// CanI checks if the current account has permission to perform an action
@@ -133,10 +133,9 @@ type AccountServiceServer interface {
 	CreateToken(context.Context, *CreateTokenRequest) (*CreateTokenResponse, error)
 	// DeleteToken deletes a token
 	DeleteToken(context.Context, *DeleteTokenRequest) (*EmptyResponse, error)
-	mustEmbedUnimplementedAccountServiceServer()
 }
 
-// UnimplementedAccountServiceServer must be embedded to have
+// UnimplementedAccountServiceServer should be embedded to have
 // forward compatible implementations.
 //
 // NOTE: this should be embedded by value instead of pointer to avoid a nil
@@ -161,8 +160,7 @@ func (UnimplementedAccountServiceServer) CreateToken(context.Context, *CreateTok
 func (UnimplementedAccountServiceServer) DeleteToken(context.Context, *DeleteTokenRequest) (*EmptyResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeleteToken not implemented")
 }
-func (UnimplementedAccountServiceServer) mustEmbedUnimplementedAccountServiceServer() {}
-func (UnimplementedAccountServiceServer) testEmbeddedByValue()                        {}
+func (UnimplementedAccountServiceServer) testEmbeddedByValue() {}
 
 // UnsafeAccountServiceServer may be embedded to opt out of forward compatibility for this service.
 // Use of this interface is not recommended, as added methods to AccountServiceServer will

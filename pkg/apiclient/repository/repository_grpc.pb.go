@@ -323,7 +323,7 @@ func (c *repositoryServiceClient) ValidateWriteAccess(ctx context.Context, in *R
 }
 
 // RepositoryServiceServer is the server API for RepositoryService service.
-// All implementations must embed UnimplementedRepositoryServiceServer
+// All implementations should embed UnimplementedRepositoryServiceServer
 // for forward compatibility.
 //
 // RepositoryService
@@ -372,10 +372,9 @@ type RepositoryServiceServer interface {
 	ValidateAccess(context.Context, *RepoAccessQuery) (*RepoResponse, error)
 	// ValidateWriteAccess validates write access to a repository with given parameters
 	ValidateWriteAccess(context.Context, *RepoAccessQuery) (*RepoResponse, error)
-	mustEmbedUnimplementedRepositoryServiceServer()
 }
 
-// UnimplementedRepositoryServiceServer must be embedded to have
+// UnimplementedRepositoryServiceServer should be embedded to have
 // forward compatible implementations.
 //
 // NOTE: this should be embedded by value instead of pointer to avoid a nil
@@ -445,8 +444,7 @@ func (UnimplementedRepositoryServiceServer) ValidateAccess(context.Context, *Rep
 func (UnimplementedRepositoryServiceServer) ValidateWriteAccess(context.Context, *RepoAccessQuery) (*RepoResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ValidateWriteAccess not implemented")
 }
-func (UnimplementedRepositoryServiceServer) mustEmbedUnimplementedRepositoryServiceServer() {}
-func (UnimplementedRepositoryServiceServer) testEmbeddedByValue()                           {}
+func (UnimplementedRepositoryServiceServer) testEmbeddedByValue() {}
 
 // UnsafeRepositoryServiceServer may be embedded to opt out of forward compatibility for this service.
 // Use of this interface is not recommended, as added methods to RepositoryServiceServer will

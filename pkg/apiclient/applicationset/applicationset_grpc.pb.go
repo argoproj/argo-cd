@@ -156,7 +156,7 @@ func (c *applicationSetServiceClient) Watch(ctx context.Context, in *Application
 type ApplicationSetService_WatchClient = grpc.ServerStreamingClient[v1alpha1.ApplicationSetWatchEvent]
 
 // ApplicationSetServiceServer is the server API for ApplicationSetService service.
-// All implementations must embed UnimplementedApplicationSetServiceServer
+// All implementations should embed UnimplementedApplicationSetServiceServer
 // for forward compatibility.
 //
 // ApplicationSetService
@@ -176,10 +176,9 @@ type ApplicationSetServiceServer interface {
 	// ListResourceEvents returns a list of event resources
 	ListResourceEvents(context.Context, *ApplicationSetGetQuery) (*events.EventList, error)
 	Watch(*ApplicationSetWatchQuery, grpc.ServerStreamingServer[v1alpha1.ApplicationSetWatchEvent]) error
-	mustEmbedUnimplementedApplicationSetServiceServer()
 }
 
-// UnimplementedApplicationSetServiceServer must be embedded to have
+// UnimplementedApplicationSetServiceServer should be embedded to have
 // forward compatible implementations.
 //
 // NOTE: this should be embedded by value instead of pointer to avoid a nil
@@ -210,8 +209,7 @@ func (UnimplementedApplicationSetServiceServer) ListResourceEvents(context.Conte
 func (UnimplementedApplicationSetServiceServer) Watch(*ApplicationSetWatchQuery, grpc.ServerStreamingServer[v1alpha1.ApplicationSetWatchEvent]) error {
 	return status.Error(codes.Unimplemented, "method Watch not implemented")
 }
-func (UnimplementedApplicationSetServiceServer) mustEmbedUnimplementedApplicationSetServiceServer() {}
-func (UnimplementedApplicationSetServiceServer) testEmbeddedByValue()                               {}
+func (UnimplementedApplicationSetServiceServer) testEmbeddedByValue() {}
 
 // UnsafeApplicationSetServiceServer may be embedded to opt out of forward compatibility for this service.
 // Use of this interface is not recommended, as added methods to ApplicationSetServiceServer will

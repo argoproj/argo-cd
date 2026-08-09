@@ -251,7 +251,7 @@ func (c *repoServerServiceClient) UpdateRevisionForPaths(ctx context.Context, in
 }
 
 // RepoServerServiceServer is the server API for RepoServerService service.
-// All implementations must embed UnimplementedRepoServerServiceServer
+// All implementations should embed UnimplementedRepoServerServiceServer
 // for forward compatibility.
 //
 // ManifestService
@@ -288,10 +288,9 @@ type RepoServerServiceServer interface {
 	GetGitDirectories(context.Context, *GitDirectoriesRequest) (*GitDirectoriesResponse, error)
 	// UpdateRevisionForPaths will compare two revisions and update the cache with the new revision if no changes are detected in the provided paths
 	UpdateRevisionForPaths(context.Context, *UpdateRevisionForPathsRequest) (*UpdateRevisionForPathsResponse, error)
-	mustEmbedUnimplementedRepoServerServiceServer()
 }
 
-// UnimplementedRepoServerServiceServer must be embedded to have
+// UnimplementedRepoServerServiceServer should be embedded to have
 // forward compatible implementations.
 //
 // NOTE: this should be embedded by value instead of pointer to avoid a nil
@@ -346,8 +345,7 @@ func (UnimplementedRepoServerServiceServer) GetGitDirectories(context.Context, *
 func (UnimplementedRepoServerServiceServer) UpdateRevisionForPaths(context.Context, *UpdateRevisionForPathsRequest) (*UpdateRevisionForPathsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdateRevisionForPaths not implemented")
 }
-func (UnimplementedRepoServerServiceServer) mustEmbedUnimplementedRepoServerServiceServer() {}
-func (UnimplementedRepoServerServiceServer) testEmbeddedByValue()                           {}
+func (UnimplementedRepoServerServiceServer) testEmbeddedByValue() {}
 
 // UnsafeRepoServerServiceServer may be embedded to opt out of forward compatibility for this service.
 // Use of this interface is not recommended, as added methods to RepoServerServiceServer will

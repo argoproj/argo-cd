@@ -81,7 +81,7 @@ func (c *sessionServiceClient) Delete(ctx context.Context, in *SessionDeleteRequ
 }
 
 // SessionServiceServer is the server API for SessionService service.
-// All implementations must embed UnimplementedSessionServiceServer
+// All implementations should embed UnimplementedSessionServiceServer
 // for forward compatibility.
 //
 // SessionService
@@ -92,10 +92,9 @@ type SessionServiceServer interface {
 	Create(context.Context, *SessionCreateRequest) (*SessionResponse, error)
 	// Delete an existing JWT cookie if using HTTP
 	Delete(context.Context, *SessionDeleteRequest) (*SessionResponse, error)
-	mustEmbedUnimplementedSessionServiceServer()
 }
 
-// UnimplementedSessionServiceServer must be embedded to have
+// UnimplementedSessionServiceServer should be embedded to have
 // forward compatible implementations.
 //
 // NOTE: this should be embedded by value instead of pointer to avoid a nil
@@ -111,8 +110,7 @@ func (UnimplementedSessionServiceServer) Create(context.Context, *SessionCreateR
 func (UnimplementedSessionServiceServer) Delete(context.Context, *SessionDeleteRequest) (*SessionResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Delete not implemented")
 }
-func (UnimplementedSessionServiceServer) mustEmbedUnimplementedSessionServiceServer() {}
-func (UnimplementedSessionServiceServer) testEmbeddedByValue()                        {}
+func (UnimplementedSessionServiceServer) testEmbeddedByValue() {}
 
 // UnsafeSessionServiceServer may be embedded to opt out of forward compatibility for this service.
 // Use of this interface is not recommended, as added methods to SessionServiceServer will

@@ -95,7 +95,7 @@ func (c *gPGKeyServiceClient) Delete(ctx context.Context, in *GnuPGPublicKeyQuer
 }
 
 // GPGKeyServiceServer is the server API for GPGKeyService service.
-// All implementations must embed UnimplementedGPGKeyServiceServer
+// All implementations should embed UnimplementedGPGKeyServiceServer
 // for forward compatibility.
 //
 // GPGKeyService implements API for managing GPG public keys on the server
@@ -108,10 +108,9 @@ type GPGKeyServiceServer interface {
 	Create(context.Context, *GnuPGPublicKeyCreateRequest) (*GnuPGPublicKeyCreateResponse, error)
 	// Delete specified GPG public key from the server's configuration
 	Delete(context.Context, *GnuPGPublicKeyQuery) (*GnuPGPublicKeyResponse, error)
-	mustEmbedUnimplementedGPGKeyServiceServer()
 }
 
-// UnimplementedGPGKeyServiceServer must be embedded to have
+// UnimplementedGPGKeyServiceServer should be embedded to have
 // forward compatible implementations.
 //
 // NOTE: this should be embedded by value instead of pointer to avoid a nil
@@ -130,8 +129,7 @@ func (UnimplementedGPGKeyServiceServer) Create(context.Context, *GnuPGPublicKeyC
 func (UnimplementedGPGKeyServiceServer) Delete(context.Context, *GnuPGPublicKeyQuery) (*GnuPGPublicKeyResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Delete not implemented")
 }
-func (UnimplementedGPGKeyServiceServer) mustEmbedUnimplementedGPGKeyServiceServer() {}
-func (UnimplementedGPGKeyServiceServer) testEmbeddedByValue()                       {}
+func (UnimplementedGPGKeyServiceServer) testEmbeddedByValue() {}
 
 // UnsafeGPGKeyServiceServer may be embedded to opt out of forward compatibility for this service.
 // Use of this interface is not recommended, as added methods to GPGKeyServiceServer will

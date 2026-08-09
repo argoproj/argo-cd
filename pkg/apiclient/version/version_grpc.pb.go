@@ -56,17 +56,16 @@ func (c *versionServiceClient) Version(ctx context.Context, in *emptypb.Empty, o
 }
 
 // VersionServiceServer is the server API for VersionService service.
-// All implementations must embed UnimplementedVersionServiceServer
+// All implementations should embed UnimplementedVersionServiceServer
 // for forward compatibility.
 //
 // VersionService returns the version of the API server.
 type VersionServiceServer interface {
 	// Version returns version information of the API server
 	Version(context.Context, *emptypb.Empty) (*VersionMessage, error)
-	mustEmbedUnimplementedVersionServiceServer()
 }
 
-// UnimplementedVersionServiceServer must be embedded to have
+// UnimplementedVersionServiceServer should be embedded to have
 // forward compatible implementations.
 //
 // NOTE: this should be embedded by value instead of pointer to avoid a nil
@@ -76,8 +75,7 @@ type UnimplementedVersionServiceServer struct{}
 func (UnimplementedVersionServiceServer) Version(context.Context, *emptypb.Empty) (*VersionMessage, error) {
 	return nil, status.Error(codes.Unimplemented, "method Version not implemented")
 }
-func (UnimplementedVersionServiceServer) mustEmbedUnimplementedVersionServiceServer() {}
-func (UnimplementedVersionServiceServer) testEmbeddedByValue()                        {}
+func (UnimplementedVersionServiceServer) testEmbeddedByValue() {}
 
 // UnsafeVersionServiceServer may be embedded to opt out of forward compatibility for this service.
 // Use of this interface is not recommended, as added methods to VersionServiceServer will

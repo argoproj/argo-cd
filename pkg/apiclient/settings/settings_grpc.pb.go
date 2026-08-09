@@ -68,7 +68,7 @@ func (c *settingsServiceClient) GetPlugins(ctx context.Context, in *SettingsQuer
 }
 
 // SettingsServiceServer is the server API for SettingsService service.
-// All implementations must embed UnimplementedSettingsServiceServer
+// All implementations should embed UnimplementedSettingsServiceServer
 // for forward compatibility.
 //
 // SettingsService
@@ -77,10 +77,9 @@ type SettingsServiceServer interface {
 	Get(context.Context, *SettingsQuery) (*Settings, error)
 	// Get returns Argo CD plugins
 	GetPlugins(context.Context, *SettingsQuery) (*SettingsPluginsResponse, error)
-	mustEmbedUnimplementedSettingsServiceServer()
 }
 
-// UnimplementedSettingsServiceServer must be embedded to have
+// UnimplementedSettingsServiceServer should be embedded to have
 // forward compatible implementations.
 //
 // NOTE: this should be embedded by value instead of pointer to avoid a nil
@@ -93,8 +92,7 @@ func (UnimplementedSettingsServiceServer) Get(context.Context, *SettingsQuery) (
 func (UnimplementedSettingsServiceServer) GetPlugins(context.Context, *SettingsQuery) (*SettingsPluginsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetPlugins not implemented")
 }
-func (UnimplementedSettingsServiceServer) mustEmbedUnimplementedSettingsServiceServer() {}
-func (UnimplementedSettingsServiceServer) testEmbeddedByValue()                         {}
+func (UnimplementedSettingsServiceServer) testEmbeddedByValue() {}
 
 // UnsafeSettingsServiceServer may be embedded to opt out of forward compatibility for this service.
 // Use of this interface is not recommended, as added methods to SettingsServiceServer will

@@ -201,7 +201,7 @@ func (c *projectServiceClient) ListLinks(ctx context.Context, in *ListProjectLin
 }
 
 // ProjectServiceServer is the server API for ProjectService service.
-// All implementations must embed UnimplementedProjectServiceServer
+// All implementations should embed UnimplementedProjectServiceServer
 // for forward compatibility.
 //
 // ProjectService
@@ -230,10 +230,9 @@ type ProjectServiceServer interface {
 	GetSyncWindowsState(context.Context, *SyncWindowsQuery) (*SyncWindowsResponse, error)
 	// ListLinks returns all deep links for the particular project
 	ListLinks(context.Context, *ListProjectLinksRequest) (*application.LinksResponse, error)
-	mustEmbedUnimplementedProjectServiceServer()
 }
 
-// UnimplementedProjectServiceServer must be embedded to have
+// UnimplementedProjectServiceServer should be embedded to have
 // forward compatible implementations.
 //
 // NOTE: this should be embedded by value instead of pointer to avoid a nil
@@ -276,8 +275,7 @@ func (UnimplementedProjectServiceServer) GetSyncWindowsState(context.Context, *S
 func (UnimplementedProjectServiceServer) ListLinks(context.Context, *ListProjectLinksRequest) (*application.LinksResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListLinks not implemented")
 }
-func (UnimplementedProjectServiceServer) mustEmbedUnimplementedProjectServiceServer() {}
-func (UnimplementedProjectServiceServer) testEmbeddedByValue()                        {}
+func (UnimplementedProjectServiceServer) testEmbeddedByValue() {}
 
 // UnsafeProjectServiceServer may be embedded to opt out of forward compatibility for this service.
 // Use of this interface is not recommended, as added methods to ProjectServiceServer will

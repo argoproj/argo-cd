@@ -121,7 +121,7 @@ for i in ${PROTO_FILES}; do
         -I"$GOPATH"/src \
         -I"${GOGO_PROTOBUF_PATH}" \
         --go_out=paths=import:"$GOPATH"/src \
-        --go-grpc_out=paths=import:"$GOPATH"/src \
+        --go-grpc_out=require_unimplemented_servers=false,paths=import:"$GOPATH"/src \
         --grpc-gateway_out=paths=import,logtostderr=true:"$GOPATH"/src \
         --openapiv2_out=logtostderr=true:. \
         "$i"

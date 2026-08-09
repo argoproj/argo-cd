@@ -147,7 +147,7 @@ func (c *repoCredsServiceClient) DeleteWriteRepositoryCredentials(ctx context.Co
 }
 
 // RepoCredsServiceServer is the server API for RepoCredsService service.
-// All implementations must embed UnimplementedRepoCredsServiceServer
+// All implementations should embed UnimplementedRepoCredsServiceServer
 // for forward compatibility.
 //
 // RepoCredsService implements CRUD actions for managing repository credentials config
@@ -168,10 +168,9 @@ type RepoCredsServiceServer interface {
 	DeleteRepositoryCredentials(context.Context, *RepoCredsDeleteRequest) (*RepoCredsResponse, error)
 	// DeleteWriteRepositoryCredentials deletes a repository credential set with write access from the configuration
 	DeleteWriteRepositoryCredentials(context.Context, *RepoCredsDeleteRequest) (*RepoCredsResponse, error)
-	mustEmbedUnimplementedRepoCredsServiceServer()
 }
 
-// UnimplementedRepoCredsServiceServer must be embedded to have
+// UnimplementedRepoCredsServiceServer should be embedded to have
 // forward compatible implementations.
 //
 // NOTE: this should be embedded by value instead of pointer to avoid a nil
@@ -202,8 +201,7 @@ func (UnimplementedRepoCredsServiceServer) DeleteRepositoryCredentials(context.C
 func (UnimplementedRepoCredsServiceServer) DeleteWriteRepositoryCredentials(context.Context, *RepoCredsDeleteRequest) (*RepoCredsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeleteWriteRepositoryCredentials not implemented")
 }
-func (UnimplementedRepoCredsServiceServer) mustEmbedUnimplementedRepoCredsServiceServer() {}
-func (UnimplementedRepoCredsServiceServer) testEmbeddedByValue()                          {}
+func (UnimplementedRepoCredsServiceServer) testEmbeddedByValue() {}
 
 // UnsafeRepoCredsServiceServer may be embedded to opt out of forward compatibility for this service.
 // Use of this interface is not recommended, as added methods to RepoCredsServiceServer will

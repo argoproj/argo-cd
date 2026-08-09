@@ -81,7 +81,7 @@ func (c *certificateServiceClient) DeleteCertificate(ctx context.Context, in *Re
 }
 
 // CertificateServiceServer is the server API for CertificateService service.
-// All implementations must embed UnimplementedCertificateServiceServer
+// All implementations should embed UnimplementedCertificateServiceServer
 // for forward compatibility.
 type CertificateServiceServer interface {
 	// List all available repository certificates
@@ -90,10 +90,9 @@ type CertificateServiceServer interface {
 	CreateCertificate(context.Context, *RepositoryCertificateCreateRequest) (*v1alpha1.RepositoryCertificateList, error)
 	// Delete the certificates that match the RepositoryCertificateQuery
 	DeleteCertificate(context.Context, *RepositoryCertificateQuery) (*v1alpha1.RepositoryCertificateList, error)
-	mustEmbedUnimplementedCertificateServiceServer()
 }
 
-// UnimplementedCertificateServiceServer must be embedded to have
+// UnimplementedCertificateServiceServer should be embedded to have
 // forward compatible implementations.
 //
 // NOTE: this should be embedded by value instead of pointer to avoid a nil
@@ -109,8 +108,7 @@ func (UnimplementedCertificateServiceServer) CreateCertificate(context.Context, 
 func (UnimplementedCertificateServiceServer) DeleteCertificate(context.Context, *RepositoryCertificateQuery) (*v1alpha1.RepositoryCertificateList, error) {
 	return nil, status.Error(codes.Unimplemented, "method DeleteCertificate not implemented")
 }
-func (UnimplementedCertificateServiceServer) mustEmbedUnimplementedCertificateServiceServer() {}
-func (UnimplementedCertificateServiceServer) testEmbeddedByValue()                            {}
+func (UnimplementedCertificateServiceServer) testEmbeddedByValue() {}
 
 // UnsafeCertificateServiceServer may be embedded to opt out of forward compatibility for this service.
 // Use of this interface is not recommended, as added methods to CertificateServiceServer will

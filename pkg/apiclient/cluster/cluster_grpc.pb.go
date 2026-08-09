@@ -134,7 +134,7 @@ func (c *clusterServiceClient) InvalidateCache(ctx context.Context, in *ClusterQ
 }
 
 // ClusterServiceServer is the server API for ClusterService service.
-// All implementations must embed UnimplementedClusterServiceServer
+// All implementations should embed UnimplementedClusterServiceServer
 // for forward compatibility.
 //
 // ClusterService
@@ -153,10 +153,9 @@ type ClusterServiceServer interface {
 	RotateAuth(context.Context, *ClusterQuery) (*ClusterResponse, error)
 	// InvalidateCache invalidates cluster cache
 	InvalidateCache(context.Context, *ClusterQuery) (*v1alpha1.Cluster, error)
-	mustEmbedUnimplementedClusterServiceServer()
 }
 
-// UnimplementedClusterServiceServer must be embedded to have
+// UnimplementedClusterServiceServer should be embedded to have
 // forward compatible implementations.
 //
 // NOTE: this should be embedded by value instead of pointer to avoid a nil
@@ -184,8 +183,7 @@ func (UnimplementedClusterServiceServer) RotateAuth(context.Context, *ClusterQue
 func (UnimplementedClusterServiceServer) InvalidateCache(context.Context, *ClusterQuery) (*v1alpha1.Cluster, error) {
 	return nil, status.Error(codes.Unimplemented, "method InvalidateCache not implemented")
 }
-func (UnimplementedClusterServiceServer) mustEmbedUnimplementedClusterServiceServer() {}
-func (UnimplementedClusterServiceServer) testEmbeddedByValue()                        {}
+func (UnimplementedClusterServiceServer) testEmbeddedByValue() {}
 
 // UnsafeClusterServiceServer may be embedded to opt out of forward compatibility for this service.
 // Use of this interface is not recommended, as added methods to ClusterServiceServer will
