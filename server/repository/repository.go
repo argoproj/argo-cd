@@ -32,6 +32,7 @@ import (
 
 // Server provides a Repository service
 type Server struct {
+	repositorypkg.UnimplementedRepositoryServiceServer
 	db              db.ArgoDB
 	repoClientset   apiclient.Clientset
 	enf             *rbac.Enforcer

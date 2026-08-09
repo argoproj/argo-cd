@@ -11,6 +11,7 @@ import (
 
 // Server provides a Certificate service
 type Server struct {
+	certificatepkg.UnimplementedCertificateServiceServer
 	db  db.ArgoDB
 	enf *rbac.Enforcer
 }

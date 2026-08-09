@@ -1,20 +1,19 @@
 package grpc
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"time"
 
-	"github.com/gogo/protobuf/jsonpb"
-	"github.com/gogo/protobuf/proto"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/selector"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 func logRequest(ctx context.Context, entry *logrus.Entry, info string, pbMsg any, logClaims bool) {
@@ -44,13 +43,11 @@ type jsonpbMarshalleble struct {
 }
 
 func (j *jsonpbMarshalleble) MarshalJSON() ([]byte, error) {
-	var b bytes.Buffer
-	m := &jsonpb.Marshaler{}
-	err := m.Marshal(&b, j.Message)
+	b, err := protojson.Marshal(j.Message)
 	if err != nil {
-		return nil, fmt.Errorf("jsonpb serializer failed: %w", err)
+		return nil, fmt.Errorf("protojson serializer failed: %w", err)
 	}
-	return b.Bytes(), nil
+	return b, nil
 }
 
 type reporter struct {

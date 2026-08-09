@@ -37,6 +37,7 @@ type Server interface {
 // have access to the server to look up the corresponding git credentials, and 2) the nonce should be deleted from
 // the server before the user even sees the manifests.
 type server struct {
+	UnimplementedAskPassServiceServer
 	lock       sync.Mutex
 	creds      map[string]Creds
 	socketPath string

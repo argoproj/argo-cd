@@ -8,7 +8,7 @@ import (
 )
 
 func getFilePermission(fi os.FileInfo) error {
-	if fi.Mode().Perm() == 0666 || fi.Mode().Perm() == 0444 {
+	if fi.Mode().Perm() == 0o666 || fi.Mode().Perm() == 0o444 {
 		return nil
 	}
 	return fmt.Errorf("config file has incorrect permission flags:%s."+

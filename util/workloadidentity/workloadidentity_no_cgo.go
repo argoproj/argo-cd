@@ -10,8 +10,7 @@ import (
 	"errors"
 )
 
-type WorkloadIdentityTokenProvider struct {
-}
+type WorkloadIdentityTokenProvider struct{}
 
 const CGOError = "CGO is not enabled, cannot use workload identity token provider"
 

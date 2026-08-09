@@ -3,8 +3,8 @@ package version
 import (
 	"context"
 
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/go-jsonnet"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/version"
@@ -15,6 +15,7 @@ import (
 )
 
 type Server struct {
+	version.UnimplementedVersionServiceServer
 	kustomizeVersion string
 	helmVersion      string
 	jsonnetVersion   string
@@ -27,7 +28,7 @@ func NewServer(authenticator settings.Authenticator, disableAuth func() (bool, e
 }
 
 // Version returns the version of the API server
-func (s *Server) Version(ctx context.Context, _ *empty.Empty) (*version.VersionMessage, error) {
+func (s *Server) Version(ctx context.Context, _ *emptypb.Empty) (*version.VersionMessage, error) {
 	vers := common.GetVersion()
 	disableAuth, err := s.disableAuth()
 	if err != nil {

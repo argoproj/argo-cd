@@ -4,14 +4,14 @@ import (
 	"encoding/json"
 	"io"
 
-	gwruntime "github.com/grpc-ecosystem/grpc-gateway/runtime"
+	gwruntime "github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
 )
 
-// JSONMarshaler is a type which satisfies the grpc-gateway Marshaler interface
+// JSONMarshaler is a type which satisfies the grpc-gateway v2 Marshaler interface
 type JSONMarshaler struct{}
 
 // ContentType implements gwruntime.Marshaler.
-func (j *JSONMarshaler) ContentType() string {
+func (j *JSONMarshaler) ContentType(_ interface{}) string {
 	return "application/json"
 }
 

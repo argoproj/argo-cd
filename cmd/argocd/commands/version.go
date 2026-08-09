@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/golang/protobuf/ptypes/empty"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
 	"github.com/argoproj/argo-cd/v3/common"
@@ -96,7 +96,7 @@ func getServerVersion(ctx context.Context, options *argocdclient.ClientOptions, 
 	conn, versionIf := headless.NewClientOrDie(options, c).NewVersionClientOrDie()
 	defer utilio.Close(conn)
 
-	v, err := versionIf.Version(ctx, &empty.Empty{})
+	v, err := versionIf.Version(ctx, &emptypb.Empty{})
 	errors.CheckError(err)
 
 	return v
