@@ -152,10 +152,10 @@ export class App extends React.Component<
         this.routes = routes;
         this.popupPropsSubscription = null;
         this.unauthorizedSubscription = null;
-        services.extensions.addEventListener('systemLevel', this.onAddSystemLevelExtension.bind(this));
     }
 
     public componentDidMount() {
+        services.extensions.addEventListener('systemLevel', this.onAddSystemLevelExtension.bind(this));
         this.popupPropsSubscription = this.popupManager.popupProps.subscribe(popupProps => this.setState({popupProps}));
         this.subscribeUnauthorized().then(subscription => {
             this.unauthorizedSubscription = subscription;
