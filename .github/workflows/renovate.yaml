@@ -19,10 +19,17 @@ jobs:
     steps:
       - name: Harden the runner (Block unknown outbound calls)
         if: ${{ vars.disable_harden_runner != 'true' }}
-        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
         with:
           egress-policy: block
           disable-sudo-and-containers: "false" # renovatebot runs in `docker run`
+          # Blocked egress does not fail this job: harden-runner only reports it, and
+          # Renovate treats an unreachable datasource as a per-dependency warning and
+          # still exits 0. The errors are supposed to be logged in the Renovate Dashboard.
+          #
+          # The apt mirrors are on port 80 on purpose: that is what
+          # the distro sources inside the Renovate image have, and apt
+          # authenticates packages with GPG rather than TLS.
           allowed-endpoints: >
             github.com:443
             api.github.com:443
@@ -31,11 +38,21 @@ jobs:
             ghcr.io:443
             pkg-containers.githubusercontent.com:443
             hub.docker.com:443
+            index.docker.io:443
+            registry-1.docker.io:443
+            auth.docker.io:443
             proxy.golang.org:443
             nodejs.org:443
             pypi.org:443
-            get.helm.sh
-            registry.npmjs.org
+            get.helm.sh:443
+            registry.npmjs.org:443
+            archive.ubuntu.com:80
+            archive.ubuntu.com:443
+            security.ubuntu.com:80
+            security.ubuntu.com:443
+            deb.debian.org:80
+            deb.debian.org:443
+            production.cloudfront.docker.com:443
 
       - name: Get token
         id: get_token
@@ -45,21 +62,27 @@ jobs:
           private-key: ${{ secrets.RENOVATE_APP_PRIVATE_KEY }}
 
       - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # 7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      # Renovate do not pin their docker image versions to SHA, so
-      # when bumping renovate action version please check if renovate image
-      # has been updated (see it's numeric version in action.yaml)
-      # and update `renovate-version` parameter accordingly
+      # Unlike every other action here, the `uses:` pin below is managed by Renovate
+      # rather than dependabot, so its update will be grouped into the same PR
+      # as the image (below).
       - name: Self-hosted Renovate
-        uses: renovatebot/github-action@1a96852b0384df1837619d04c60b2d10d1f9ff08 #46.1.21
+        uses: renovatebot/github-action@316d7cd859606d6039a2182b7d69199e9b036835 # v46.2.1
         with:
           configurationFile: .github/configs/renovate-config.js
           token: '${{ steps.get_token.outputs.token }}'
-          renovate-image: "ghcr.io/renovatebot/renovate@sha256"
-          renovate-version: "5dfeab680f40edd2713b8fcae574824e60d2c831b8d89cc965e51621894c7084" #43
+          # The action runs `docker run <renovate-image>:<renovate-version>`, so pinning
+          # `renovate-version` to `<tag>@sha256:<digest>` gives a fully pinned image
+          # reference instead of the floating major tag the action defaults to.
+          #
+          # Both the tag and the digest are kept up to date by the custom manager in
+          # renovate-presets/custom-managers/renovate-action.json5, which expects
+          # `renovate-image` and `renovate-version` to stay on adjacent lines.
+          renovate-image: "ghcr.io/renovatebot/renovate"
+          renovate-version: "44.17.1@sha256:90759c92793143ae7db68cd14e690109d8ace3527e17c7d188c96a1ad628282e"
         env:
           LOG_LEVEL: 'debug'
           RENOVATE_REPOSITORIES: '${{ github.repository }}'

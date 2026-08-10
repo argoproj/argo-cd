@@ -493,6 +493,230 @@ Add a `rootCA` to your `oidc.config` which contains the PEM encoded root certifi
 ```
 
 
+## CI/CD Pipeline Authentication
+
+CI/CD pipelines run without a browser, so the usual `argocd login --sso` flow doesn't apply.
+The following patterns described in this section all work headlessly, and you can choose the one that suits your needs.
+
+However, before going further — if your pipeline is creating or updating Applications or AppProjects, 
+committing those manifests to Git and letting Argo CD reconcile them is almost always the better path. You don't 
+need to manage credentials, rotate tokens or perform other security operations. 
+
+The patterns discussed in the next sections cover the cases where a direct `argocd` CLI call is unavoidable: triggering a sync, querying live status, or managing tokens.
+
+### Project role tokens
+
+AppProjects can issue JWTs scoped to a role's policies. This is useful when you want CI access limited to a specific project without creating a cluster-level account.
+
+Add a role to your AppProject:
+
+```yaml
+spec:
+  roles:
+    - name: ci-deploy
+      description: CI pipeline deployment access
+      policies:
+        - p, proj:my-project:ci-deploy, applications, sync, my-project/*, allow
+        - p, proj:my-project:ci-deploy, applications, get, my-project/*, allow
+```
+
+Then generate a token for it:
+
+```bash
+argocd proj role create-token my-project ci-deploy --expires-in 24h
+```
+
+Store the token as `ARGOCD_AUTH_TOKEN` in your CI secrets. Use `argocd proj role delete-token` to revoke it.
+
+> [!WARNING]
+> Avoid `--expires-in 0s` (no expiry) unless your pipeline explicitly rotates tokens. A
+> non-expiring token that leaks — via a CI log, a cached artifact, or an accidentally
+> committed secret — remains valid indefinitely with no automatic recovery.
+>
+> Short-lived tokens require rotation. Rotating a project role token requires an existing
+> valid Argo CD credential to call `argocd proj role create-token`. If your pipeline runs
+> infrequently, consider using Dex Token Exchange instead — the CI platform's own identity
+> token is always fresh and needs no rotation.
+
+> [!NOTE]
+> Project role tokens are scoped to the project's own policies. They cannot be granted
+> cluster-level or cross-project permissions.
+
+### Local user API token
+
+Add a local account with the `apiKey` capability in `argocd-cm`:
+
+```yaml
+data:
+  accounts.ci-bot: apiKey
+```
+
+Generate a token:
+
+```bash
+argocd account generate-token --account ci-bot --expires-in 24h
+```
+
+Set the output as `ARGOCD_AUTH_TOKEN` and configure the account's RBAC in `argocd-rbac-cm`. Use `argocd account delete-token` to revoke individual tokens.
+
+> [!WARNING]
+> Without `--expires-in`, the generated token never expires. Prefer short-lived tokens and
+> rotate them from your CI system rather than relying on manual revocation.
+
+### Dex Token Exchange
+
+If your CI platform issues OIDC tokens ([GitHub Actions](github-actions.md), [GitLab CI](gitlab-ci.md), [Microsoft Entra ID](microsoft.md), etc.), Dex can exchange them for Argo CD tokens without any browser interaction. This uses the OAuth 2.0 Token Exchange grant (RFC 8693).
+
+**Configure Dex**
+
+Enable the token exchange grant type and add a connector for your CI provider in `dex.config` inside `argocd-cm`:
+
+```yaml
+dex.config: |
+  oauth2:
+    grantTypes:
+      - authorization_code
+      - refresh_token
+      - urn:ietf:params:oauth:grant-type:token-exchange
+  connectors:
+    - type: oidc
+      id: <your-ci-connector-id>
+      name: <Your CI Provider>
+      config:
+        issuer: <issuer-url-of-ci-identity-provider>
+        scopes: [openid]
+        userNameKey: sub
+        insecureSkipEmailVerified: true
+```
+
+> [!WARNING]
+> `insecureSkipEmailVerified: true` skips email verification for every identity on that
+> connector, not just pipeline jobs. Always use a dedicated connector for CI providers —
+> never share a connector between CI pipelines and human users.
+
+**Exchange the token**
+
+In your pipeline, exchange your CI platform's identity token for an Argo CD token:
+
+```bash
+DEX_TOKEN=$(curl -sSf "https://${ARGOCD_SERVER}/api/dex/token" \
+  --user "argo-cd-cli:" \
+  --data-urlencode "connector_id=<your-ci-connector-id>" \
+  --data-urlencode "grant_type=urn:ietf:params:oauth:grant-type:token-exchange" \
+  --data-urlencode "scope=openid email profile federated:id" \
+  --data-urlencode "requested_token_type=urn:ietf:params:oauth:token-type:access_token" \
+  --data-urlencode "subject_token=${CI_IDENTITY_TOKEN}" \
+  --data-urlencode "subject_token_type=urn:ietf:params:oauth:token-type:id_token" \
+  | jq -r .access_token)
+
+# mask the token in CI logs before use
+export ARGOCD_AUTH_TOKEN="$DEX_TOKEN"
+```
+
+Replace `CI_IDENTITY_TOKEN` with the identity token your CI platform issues and `connector_id` with the `id` from your Dex connector config. Mask the token before it reaches your CI logs — for example, `echo "::add-mask::$DEX_TOKEN"` in GitHub Actions or the equivalent for your platform.
+
+**Configure RBAC**
+
+In Argo CD v3.0 and later, the RBAC subject is derived from `federated_claims.user_id` in
+the exchanged token, not the `sub` claim. For an OIDC connector configured with
+`userNameKey: sub` (as shown above), this equals the raw `sub` value from your CI
+platform's own identity token — the connector ID is not appended.
+
+To find the exact value for your setup, run `argocd account get-user-info` after a
+successful exchange and copy the `Username` field. Then add it to `argocd-rbac-cm`:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-rbac-cm
+  namespace: argocd
+data:
+  policy.csv: |
+    p, repo:myorg/myrepo:ref:refs/heads/main, applications, sync, my-project/*, allow
+    p, repo:myorg/myrepo:ref:refs/heads/main, applications, get, my-project/*, allow
+```
+
+If you manage Argo CD with Helm, set the same policies under `configs.rbac.policy.csv` in
+your values file instead.
+
+For full worked examples see [GitHub Actions](github-actions.md) and [GitLab CI](gitlab-ci.md).
+
+> [!WARNING]
+> The RBAC subject must be the full, exact `federated_claims.user_id` value — not a partial
+> string or the connector name. The Dex token endpoint is publicly reachable and uses a
+> public client, so security depends entirely on your RBAC policies being specific. An overly
+> broad subject could grant access to any identity from that issuer, including pipelines in
+> other organizations' repositories.
+
+> [!WARNING]
+> When requesting `CI_IDENTITY_TOKEN`, set its audience (`aud`) to your Argo CD URL (e.g.
+> `https://argocd.example.com`). If the token carries a broad or shared audience, Dex will
+> accept any token carrying that audience, regardless of which service it was issued for —
+> the same confused deputy risk as with external OIDC. Most CI platforms let you specify
+> the audience when requesting an identity token; always scope it to Argo CD specifically.
+
+> [!NOTE]
+> Token exchange requires Dex. It does not work when Argo CD is configured with an external
+> OIDC provider directly via `oidc.config` without Dex.
+
+### External OIDC ID token
+
+If Argo CD uses an external OIDC provider via `oidc.config` (no Dex), and your CI platform can get an ID token from that same provider, you can pass it directly as `ARGOCD_AUTH_TOKEN`. Argo CD verifies it against the provider's public keys.
+
+This covers several common setups:
+
+- **Azure** — CI running with Azure Workload Identity or a managed identity, where the same Azure AD tenant is Argo CD's OIDC provider.
+- **Kubernetes pods** — a pod's projected ServiceAccount token, when the cluster's SA token issuer matches Argo CD's configured OIDC issuer.
+- **Okta / Keycloak** — a machine client using the client credentials grant to get an ID token directly from the IdP.
+
+> [!WARNING]
+> Set `allowedAudiences` explicitly in `oidc.config` to a value unique to your Argo CD
+> instance. If it is too broad — or shared with other services — a token issued for a
+> different service can be used to authenticate to Argo CD. This is a confused deputy
+> attack: the attacker needs only to compromise any other service that shares the audience.
+
+> [!WARNING]
+> Avoid the Resource Owner Password Credentials (ROPC) grant. It sends a username and
+> password directly from your pipeline to the IdP, bypasses MFA, and is deprecated in
+> OAuth 2.1. Use the client credentials grant or Dex Token Exchange instead.
+
+### Kubernetes-direct (`--core` mode)
+
+`argocd login --core` skips Argo CD's own authentication entirely. It starts a local in-process server and enforces access through Kubernetes RBAC on your kubeconfig or in-cluster service account. No `ARGOCD_AUTH_TOKEN` required.
+
+```bash
+# in-cluster
+argocd login --core
+
+# with a specific kubeconfig context
+argocd login --core --kube-context my-cluster
+```
+
+```bash
+argocd app sync guestbook --core
+argocd app wait guestbook --core
+```
+
+The kubeconfig user or service account needs read/write access to Argo CD CRDs (`applications.argoproj.io`, `appprojects.argoproj.io`) in the Argo CD namespace.
+
+> [!WARNING]
+> `--core` mode bypasses Argo CD's authentication and its RBAC policy enforcer (the
+> `p, <subject>, applications, …` rules in `argocd-rbac-cm`). AppProject source and
+> destination validation still runs in the application controller at reconcile time — an
+> `Application` that violates its project's `sourceRepos` or `destinations` will surface an
+> `InvalidSpecError` condition rather than sync. The real escalation path is different: a
+> `--core` identity with write access to `appprojects.argoproj.io` can mutate the AppProject
+> itself — widening `destinations`, relaxing `sourceRepos`, or adding a permissive role —
+> and then deploy anywhere. Grant this access only to highly trusted identities and prefer
+> project role tokens or local user tokens for normal CI use.
+> Additionally, actions taken in `--core` mode are not attributed to a named Argo CD user
+> in the audit log, which may be a compliance concern in regulated environments.
+
+> [!NOTE]
+> Some server-side operations — such as generating project tokens or managing accounts — are
+> not available in `--core` mode.
+
 ## SSO Further Reading
 
 ### Sensitive Data and SSO Client Secrets
