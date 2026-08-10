@@ -12,6 +12,18 @@ import {EmptyState} from '../../../shared/components';
 import {AppContext, Consumer} from '../../../shared/context';
 import {ApplicationURLs} from '../application-urls';
 import {ResourceIcon} from '../resource-icon';
+import {
+    allowanceFor,
+    atCeiling as budgetAtCeiling,
+    DEFAULT_VISIBLE_CAP,
+    EXPAND_STEP,
+    filterIsActive,
+    KIND_GROUP_PREVIEW,
+    MAX_CHILDREN_PER_PARENT,
+    nextAllowance,
+    nextCap,
+    rootStrategy
+} from './application-resource-tree-budget';
 import {ResourceLabel} from '../resource-label';
 import {
     BASE_COLORS,
@@ -106,8 +118,6 @@ interface Line {
 // A large application hands dagre more nodes than it can lay out on the main thread: the cost is
 // superlinear, so a few thousand resources freeze the tab for minutes. Draw a bounded set instead and
 // report the remainder, rather than trying to draw everything faster.
-const DEFAULT_VISIBLE_CAP = 200;
-const MAX_CHILDREN_PER_PARENT = 25;
 
 const NODE_WIDTH = 282;
 const NODE_HEIGHT = 52;
@@ -121,11 +131,8 @@ const CAPPED_INDICATOR_NODE = '__capped_indicator__';
 // contested budget into a budget per kind: the top level stops growing with the size of the
 // application, and each kind can be explored on its own terms.
 const KIND_GROUP_PREFIX = '__kind_group__/';
-const KIND_GROUP_PREVIEW = 5;
 // Every "+N more" grows by the same step, and the graph as a whole stops at a ceiling: expanding
 // should cost a predictable amount rather than letting one click decide the size of the whole graph.
-const EXPAND_STEP = 50;
-const MAX_VISIBLE_CAP = 1000;
 const KIND_CHIP_LIMIT = 6;
 const EXTERNAL_TRAFFIC_NODE = '__external_traffic__';
 const INTERNAL_TRAFFIC_NODE = '__internal_traffic__';
@@ -397,18 +404,6 @@ function ownRelevance(node: ResourceTreeNode): number {
 // traversal however many roots ask.
 // True when the node itself or anything beneath it satisfies the predicate. Mirrors subtreeRelevance,
 // cycle guard included, so a filter that only matches a descendant still keeps the path down to it.
-// Two questions the budget used to answer with one number. Clustering is about how crowded the top level
-// is. Ordering is about whether the budget can bite at all, which it can through depth alone: 150
-// deployments with their replica sets and pods is 150 roots but well over a thousand nodes, and ordering
-// by name there means later roots are dropped unranked and a filter match inside one is never built.
-export function rootStrategy(rootCount: number, nodeCount: number, cap: number, hasFilter: boolean, bucket?: string | null): {clusterKinds: boolean; rankRoots: boolean} {
-    return {
-        clusterKinds: rootCount > cap && !bucket,
-        // A filter always forces ordering: without it a match cannot outrank whatever sorts first.
-        rankRoots: hasFilter || !!bucket || rootCount > cap || nodeCount > cap
-    };
-}
-
 export function subtreeMatches(
     node: ResourceTreeNode,
     predicate: (candidate: ResourceTreeNode) => boolean,
@@ -505,12 +500,16 @@ function renderCappedNode(
         byKind?: {kind: string; count: number; shown: number}[];
         bucket?: string | null;
         parentKey?: string;
+        // The allowance in effect for this control's parent, and which parent to raise. Deliberately not
+        // shownCount: on a deep graph fewer are drawn than were allowed, and starting from the drawn
+        // count would lower the allowance.
+        allowance?: number;
+        expandKey?: string;
     } & dagre.Node,
     handlers: {
-        onLoadMore: () => any;
+        onExpand: (key: string, allowanceInEffect: number) => any;
         onSelectKind: (kind: string) => any;
         onClearBucket: () => any;
-        onExpandParent: (parentKey: string, shownNow: number) => any;
         onShowAllKindChips: () => any;
     },
     showAllKinds: boolean
@@ -527,7 +526,7 @@ function renderCappedNode(
                         ? `${node.shownCount} of ${node.totalCount} shown — the graph is full, narrow with search or filter`
                         : `${node.shownCount} of ${node.totalCount} shown — click to load ${Math.min(EXPAND_STEP, node.hiddenCount)} more`
                 }
-                onClick={() => !node.atCeiling && handlers.onExpandParent(node.parentKey, node.shownCount)}
+                onClick={() => !node.atCeiling && handlers.onExpand(node.parentKey, node.allowance)}
                 style={{
                     left: node.x,
                     top: node.y,
@@ -619,7 +618,7 @@ function renderCappedNode(
             </div>
             <div>
                 {node.hiddenCount > 0 && !node.atCeiling && (
-                    <a onClick={handlers.onLoadMore} style={{marginRight: 12, cursor: 'pointer'}}>
+                    <a onClick={() => handlers.onExpand(node.expandKey, node.allowance)} style={{marginRight: 12, cursor: 'pointer'}}>
                         <i className='fa fa-plus' style={{marginRight: 4}} />
                         Load {EXPAND_STEP} more
                     </a>
@@ -1485,7 +1484,13 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     const [expandedCounts, setExpandedCounts] = React.useState<{[key: string]: number}>({});
     const [showAllKindChips, setShowAllKindChips] = React.useState(false);
     // Allowance for one marker: its own expanded count if it has been clicked, else the default.
-    const allowanceFor = (key: string, fallback: number) => expandedCounts[key] ?? fallback;
+    const allowanceOf = (key: string, fallback: number) => allowanceFor(expandedCounts, key, fallback);
+    const expandParent = (key: string, allowanceInEffect: number) => {
+        setExpandedCounts(prev => ({...prev, [key]: nextAllowance(prev[key], allowanceInEffect)}));
+        // The budget is shared, so raising one control's allowance without raising it means the extra
+        // nodes are refused.
+        setVisibleCap(cap => nextCap(cap));
+    };
 
     // Ranking, shared by the roots, their children and the clustered kinds. The budget is spent before
     // the filter is applied, so without the filter term a search could only narrow what happened to be
@@ -1498,7 +1503,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     // about whether the user has filtered anything. The filter list is the signal: without it every
     // application, however small, would be reordered by relevance instead of keeping the order it has
     // always had, and every node would pay for a subtree walk that can only ever return true.
-    const filterActive = (props.filters || []).length > 0;
+    const filterActive = filterIsActive(props.filters);
     const matchMemo = new Map<string, boolean>();
     const matchVisiting = new Set<string>();
     const rankOf = (node: ResourceTreeNode) =>
@@ -1509,7 +1514,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     // Roots draw against an allowance of their own rather than against the graph's whole budget. Raising
     // the budget for one overflow marker has to reach that marker: while roots shared the budget they
     // spent the increment before the marker was even processed, so clicking it did nothing.
-    const rootAllowance = allowanceFor(appNodeKey(props.app), DEFAULT_VISIBLE_CAP);
+    const rootAllowance = allowanceOf(appNodeKey(props.app), DEFAULT_VISIBLE_CAP);
 
     const filtersRef = React.useRef(props.filters);
     const filteredGraphRef = React.useRef<any[]>([]);
@@ -1715,6 +1720,8 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                 type: NODE_TYPES.cappedIndicator,
                 shownCount: drawnRoots,
                 totalCount: roots.length,
+                allowance: rootAllowance,
+                expandKey: appNodeKey(props.app),
                 hiddenCount: undrawnRoots.length,
                 hiddenStates: tallyStates(undrawnRoots),
                 parentKey: appNodeKey(props.app)
@@ -1850,7 +1857,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             });
             graph.setEdge(appNodeKey(props.app), kindNodeId);
             let shownHere = 0;
-            const preview = allowanceFor(kindNodeId, KIND_GROUP_PREVIEW);
+            const preview = allowanceOf(kindNodeId, KIND_GROUP_PREVIEW);
             // Only childless roots are ever clustered, so a member's subtree relevance is its own: the
             // memoised walk would build a key string per member to learn it has no children.
             const shown = new Set<ResourceTreeNode>();
@@ -1872,6 +1879,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                     type: NODE_TYPES.cappedIndicator,
                     shownCount: shownHere,
                     totalCount: members.length,
+                    allowance: preview,
                     hiddenCount: members.length - shownHere,
                     hiddenStates: tallyStates(members.filter(member => !shown.has(member))),
                     parentKey: kindNodeId
@@ -1897,6 +1905,8 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                 type: NODE_TYPES.cappedIndicator,
                 shownCount: shownRoots,
                 totalCount: rootsTotal,
+                allowance: rootAllowance,
+                expandKey: appNodeKey(props.app),
                 hiddenCount: rootsTotal - shownRoots,
                 bucket: capBucketKind,
                 byKind: Array.from(kindCounts, ([kind, count]) => ({kind, count, shown: shownByKind.get(kind) || 0})).sort((a, b) => b.count - a.count)
@@ -1950,6 +1960,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         }
         // Capped per parent as well, so one very wide subtree cannot consume the whole budget and
         // leave every other branch undrawn.
+        const childAllowance = allowanceOf(treeNodeKey(node), MAX_CHILDREN_PER_PARENT);
         let shownChildren = 0;
         let hiddenChildren = 0;
         const hiddenChildNodes: ResourceTreeNode[] = [];
@@ -1962,7 +1973,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             // In the network view each service below an ingress gets its own colour, and that colour has
             // to travel down its own subtree rather than the root's.
             const childColors = colorByChild?.has(treeNodeKey(child)) ? [colorByChild.get(treeNodeKey(child))] : colors;
-            if (shownChildren >= allowanceFor(treeNodeKey(node), MAX_CHILDREN_PER_PARENT)) {
+            if (shownChildren >= childAllowance) {
                 hiddenChildren++;
                 hiddenChildNodes.push(child);
                 return;
@@ -1990,6 +2001,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                 type: NODE_TYPES.cappedIndicator,
                 shownCount: shownChildren,
                 totalCount: shownChildren + hiddenChildren,
+                allowance: childAllowance,
                 hiddenCount: hiddenChildren,
                 hiddenStates: tallyStates(hiddenChildNodes),
                 parentKey: treeNodeKey(node)
@@ -2002,7 +2014,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     // stays clickable while the graph still has room, even when the cap itself has reached its ceiling.
     // Deciding this from the cap alone disabled expansion with capacity to spare, because a parent's own
     // allowance grows more slowly than the cap does.
-    const atCeiling = visibleCap >= MAX_VISIBLE_CAP && renderState.drawn >= visibleCap;
+    const atCeiling = budgetAtCeiling(visibleCap, renderState.drawn);
     graph.nodes().forEach(id => {
         const node = graph.node(id) as any;
         if (node?.type === NODE_TYPES.cappedIndicator) {
@@ -2195,13 +2207,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                                     {renderCappedNode(
                                         node as any,
                                         {
-                                            onLoadMore: () => {
-                                                // The card asks for more roots, so raise their allowance
-                                                // as well as the budget they draw against.
-                                                const appKey = appNodeKey(props.app);
-                                                setExpandedCounts(prev => ({...prev, [appKey]: (prev[appKey] ?? DEFAULT_VISIBLE_CAP) + EXPAND_STEP}));
-                                                setVisibleCap(cap => Math.min(cap + EXPAND_STEP, MAX_VISIBLE_CAP));
-                                            },
+                                            onExpand: expandParent,
                                             onSelectKind: (kind: string) => {
                                                 setCapBucketKind(kind);
                                                 setVisibleCap(DEFAULT_VISIBLE_CAP);
@@ -2209,12 +2215,6 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                                             onClearBucket: () => {
                                                 setCapBucketKind(null);
                                                 setVisibleCap(DEFAULT_VISIBLE_CAP);
-                                            },
-                                            onExpandParent: (parentKey: string, shownNow: number) => {
-                                                setExpandedCounts(prev => ({...prev, [parentKey]: (prev[parentKey] ?? shownNow) + EXPAND_STEP}));
-                                                // The budget is global, so raising one marker's allowance
-                                                // without raising it means the extra nodes are refused.
-                                                setVisibleCap(cap => Math.min(cap + EXPAND_STEP, MAX_VISIBLE_CAP));
                                             },
                                             onShowAllKindChips: () => setShowAllKindChips(true)
                                         },

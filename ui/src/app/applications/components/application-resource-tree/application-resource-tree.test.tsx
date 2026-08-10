@@ -1,4 +1,4 @@
-import {compareNodes, describeNode, mostRelevantFirst, ResourceTreeNode, rootStrategy, subtreeMatches, subtreeRelevance} from './application-resource-tree';
+import {compareNodes, describeNode, mostRelevantFirst, ResourceTreeNode, subtreeMatches, subtreeRelevance} from './application-resource-tree';
 
 test('describeNode.NoImages', () => {
     expect(
@@ -203,32 +203,6 @@ describe('subtreeRelevance', () => {
         const b = node('b');
         const children = childrenOf({a: [b], b: [a]});
         expect(subtreeRelevance(a, children)).toBe(6);
-    });
-});
-
-describe('rootStrategy', () => {
-    const CAP = 200;
-
-    test('ranks roots when the budget can only bite through depth', () => {
-        // 150 deployments, each with a replica set and three pods: far fewer roots than the cap, far more
-        // nodes. Ordering by name here drops the later chains unranked and hides filter matches inside them.
-        expect(rootStrategy(150, 750, CAP, false)).toEqual({clusterKinds: false, rankRoots: true});
-    });
-
-    test('leaves a small application in its familiar order', () => {
-        expect(rootStrategy(10, 40, CAP, false)).toEqual({clusterKinds: false, rankRoots: false});
-    });
-
-    test('ranks whenever a filter is active, however small the application', () => {
-        expect(rootStrategy(10, 40, CAP, true)).toEqual({clusterKinds: false, rankRoots: true});
-    });
-
-    test('clusters kinds only when the top level itself is crowded', () => {
-        expect(rootStrategy(1500, 4000, CAP, false)).toEqual({clusterKinds: true, rankRoots: true});
-    });
-
-    test('drilling into a kind shows it flat, and ranked', () => {
-        expect(rootStrategy(1500, 4000, CAP, false, 'ConfigMap')).toEqual({clusterKinds: false, rankRoots: true});
     });
 });
 
