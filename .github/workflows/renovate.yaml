@@ -82,7 +82,7 @@ jobs:
           # renovate-presets/custom-managers/renovate-action.json5, which expects
           # `renovate-image` and `renovate-version` to stay on adjacent lines.
           renovate-image: "ghcr.io/renovatebot/renovate"
-          renovate-version: "44.17.5@sha256:dbbf9657fe838765507f8e633ad57dd29ab3dc7812cf324872be6aa360b0ffa7"
+          renovate-version: "44.20.1@sha256:b170ea0afac1df995911f24d0420c116e7836c387b72a1a4cba016c35499175d"
         env:
           LOG_LEVEL: 'debug'
           RENOVATE_REPOSITORIES: '${{ github.repository }}'
