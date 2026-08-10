@@ -70,6 +70,14 @@ export function Login(props: RouteComponentProps<{}>) {
 
     const ssoConfigured = authSettings && ((authSettings.dexConfig && (authSettings.dexConfig.connectors || []).length > 0) || authSettings.oidcConfig);
 
+    // When dex.auth.connectorId is configured, the backend redirects straight to that connector,
+    // so surface its name on the login button instead of a generic "SSO Login".
+    const forcedConnector =
+        authSettings &&
+        authSettings.dexConfig &&
+        authSettings.dexConfig.dexAuthConnectorID &&
+        (authSettings.dexConfig.connectors || []).find(connector => connector.id === authSettings.dexConfig.dexAuthConnectorID);
+
     return (
         <div className='login'>
             <div className='login__content show-for-medium'>
@@ -85,7 +93,8 @@ export function Login(props: RouteComponentProps<{}>) {
                         <a href={`auth/login?return_url=${encodeURIComponent(returnUrl)}`}>
                             <button className='argo-button argo-button--base argo-button--full-width argo-button--xlg'>
                                 {(authSettings.oidcConfig && <span>Log in via {authSettings.oidcConfig.name}</span>) ||
-                                    (authSettings.dexConfig.connectors.length === 1 && <span>Log in via {authSettings.dexConfig.connectors[0].name}</span>) || (
+                                    (forcedConnector && <span>Log in via {forcedConnector.name}</span>) ||
+                                    ((authSettings.dexConfig.connectors || []).length === 1 && <span>Log in via {authSettings.dexConfig.connectors[0].name}</span>) || (
                                         <span>SSO Login</span>
                                     )}
                             </button>

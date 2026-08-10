@@ -604,9 +604,11 @@ export interface AuthSettings {
     };
     dexConfig: {
         connectors: {
+            id?: string;
             name: string;
             type: string;
         }[];
+        dexAuthConnectorID?: string;
     };
     oidcConfig: {
         name: string;
