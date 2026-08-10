@@ -118,6 +118,12 @@ spec:
   sourceNamespaces:
   - "argocd-apps-*"
 
+  # When using Applications-in-any-namespace, this field determines which values of the argocd.argoproj.io/source-namespace
+  # label on namespaces are ok to have applications reside in.
+  # https://argo-cd.readthedocs.io/en/stable/operator-manual/app-any-namespace/#the-source-namespace-label
+  allowedSourceNamespaceLabels:
+  - "some-value-*"
+
   # Source Integrity declares criteria for application source repositories, such as cryptographic signing, etc.
   # https://argo-cd.readthedocs.io/en/latest/user-guide/source-integrity/
   sourceIntegrity:

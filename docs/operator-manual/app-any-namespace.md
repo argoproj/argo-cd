@@ -21,9 +21,11 @@ This feature can only be enabled and used when your Argo CD is installed as a cl
 
 ### Switch resource tracking method
 
+The below prerequisite only needs to be changed in Argo CD versions before 3.0 or if you changed the default tracking method to just `label`.
+
 Also, while technically not necessary, it is strongly suggested that you switch the application tracking method from the default `label` setting to either `annotation` or `annotation+label`. The reasoning for this is, that application names will be a composite of the namespace's name and the name of the `Application`, and this can easily exceed the 63 characters length limit imposed on label values. Annotations have a notably greater length limit.
 
-To enable annotation based resource tracking, refer to the documentation about [resource tracking methods](../user-guide/resource_tracking.md)
+To enable annotation based resource tracking, refer to the documentation about [resource tracking methods](../user-guide/resource_tracking.md).
 
 ## Implementation details
 
@@ -154,6 +156,70 @@ If you want to restrict access to be granted only to `Applications` in project `
 
 ```
 p, somerole, applications, get, foo/bar/*, allow
+```
+
+### The source namespace label
+
+Namespaces can be given a label to mark it as a source namespace for applications. This allows for setting application namespaces without needing to update the `--application-namespaces` flag.
+This also allows for namespaces to be allowed without needing to restart the application controller (this is disabled by default). 
+
+On startup of the application controller, namespaces with the label are listed and allowed to be used as source namespaces. Namespaces added this way must still be
+specified in the AppProject's `.spec.sourceNamespaces` field. 
+
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: some-namespace
+  labels:
+    argocd.argoproj.io/source-namespace: ""
+```
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: source-namespace-label-example-1
+  namespace: argocd
+spec:
+  sourceNamespaces:
+    - some-namespace
+```
+
+As seen in the example above, you can provide it as normal. If the namespaces name also matches a glob in an existing AppProject it will now
+be able to be used with it. In the above example we have a namespace named `some-namespace` where the labels value is `team-a-prod`. Simply adding `some-namespace` to
+`spec.sourceNamespaces` will allow for it to be used.
+
+
+#### Enabling labeled source namespaces to automatically be discovered
+
+By default, labeled namespaces are only checked on the start up of the application controller. It can be enabled to dynamically add, update, and remove
+namespaces with the label without needing to restart the app controller. This is done by adding the `--enable-source-namespace-discovery` flag or setting the
+`ARGOCD_SOURCE_NAMESPACE_DISCOVERY` environment variable. The option can also be enabled through the following setting in the `argocd-cmd-params-cm` ConfigMap:
+
+```yaml
+data:
+  application.namespaces.discovery: "true"
+```
+
+If a namespace has the label and is also present in the list provided through the `--application-namespaces` flag, removing the label will remove that label from 
+being used until the controller is restarted.
+
+The Argo CD Server's default RBAC does not have permissions for listing namespaces. This must be added to it's Role or ClusterRole
+
+> [!NOTE]
+> At the current moment, the Argo CD Server cannot dynamically pick up new namespaces that have the label. To have it pick up new namespaces a restart is still required.
+> This functionality will potentially be added in the future.
+
+#### Customzing the label
+
+The label that is used to mark a source namespace can be customized for use cases where multiple Argo CD instances are running in one cluster. This can be done by editing
+the `argocd-cm` ConfigMap. For example:
+
+```yaml
+data:
+  application.namespaces.sourceNamespaceKey: "desired-label-key"
+
 ```
 
 ## Managing applications in other namespaces
