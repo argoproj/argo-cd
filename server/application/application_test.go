@@ -4830,6 +4830,140 @@ func TestServerSideDiff(t *testing.T) {
 		assert.False(t, applierCalled, "applier should not be called for new objects with null LiveState")
 	})
 
+	t.Run("SecretMaskingNotBypassedBySpoofedLiveKind", func(t *testing.T) {
+		// A caller with get access to the app must not be able to bypass Secret
+		// data masking by pairing a spoofed non-Secret liveResources[i].Kind with a
+		// Secret target manifest. The masking decision must key off the server's own
+		// parsed target/live objects, not the caller-supplied kind/group envelope.
+
+		// Register a decoy ConfigMap as managed so the spoofed live entry passes the
+		// managed-resources membership check.
+		decoyConfigMap := &corev1.ConfigMap{
+			TypeMeta:   metav1.TypeMeta{APIVersion: "v1", Kind: "ConfigMap"},
+			ObjectMeta: metav1.ObjectMeta{Name: "decoy-config", Namespace: "default"},
+			Data:       map[string]string{"key": "value"},
+		}
+		decoyJSON, err := json.Marshal(decoyConfigMap)
+		require.NoError(t, err)
+
+		// The dry-run returns a real Secret (with sensitive data) as the predicted
+		// live state, simulating a server-side apply of the Secret target manifest.
+		const leakedSecret = "czNjcjN0LWxlYWtlZA==" // base64("s3cr3t-leaked")
+		predictedSecret := `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"real-secret","namespace":"default"},"type":"Opaque","data":{"password":"` + leakedSecret + `"}}`
+		mockApplier := &kubetest.MockKubeApplier{
+			ApplyResourceFunc: func(_ context.Context, _ *unstructured.Unstructured, _ cmdutil.DryRunStrategy, _, _, _ bool, _ string) (string, error) {
+				return predictedSecret, nil
+			},
+		}
+		mockKubectl := &kubetest.MockKubectlCmd{}
+		mockKubectl.WithManageServerSideDiffDryRunFunc(func(_ *rest.Config) (diff.KubeApplier, func(), error) {
+			return mockApplier, func() {}, nil
+		})
+
+		// Skip webhook-mutation removal (which would require managedFields on the
+		// mock dry-run result); this test is about masking, not webhook handling.
+		spoofApp := newTestApp(func(app *v1alpha1.Application) {
+			app.Name = "spoof-app"
+			app.Namespace = testNamespace
+			app.Spec.Project = "test-project"
+			app.Annotations = map[string]string{
+				"argocd.argoproj.io/compare-options": "IncludeMutationWebhook=true",
+			}
+		})
+
+		appServerSpoof := newTestAppServer(t, testProj, spoofApp)
+		appServerSpoof.kubectl = mockKubectl
+		appServerSpoof.cache = newCachedManagedResources(t, appServerSpoof, spoofApp, kube.MustToUnstructured(decoyConfigMap))
+
+		// Target manifest is a real Secret, but liveResources[0].Kind is spoofed as
+		// ConfigMap to try to skip Secret masking.
+		targetSecret := `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"real-secret","namespace":"default"},"type":"Opaque","data":{"password":"` + leakedSecret + `"}}`
+		query := &application.ApplicationServerSideDiffQuery{
+			AppName:      new(spoofApp.Name),
+			AppNamespace: new(spoofApp.Namespace),
+			Project:      new(spoofApp.Spec.Project),
+			LiveResources: []*v1alpha1.ResourceDiff{
+				{
+					Group:     "",
+					Kind:      "ConfigMap", // spoofed - target is actually a Secret
+					Namespace: "default",
+					Name:      "decoy-config",
+					LiveState: string(decoyJSON),
+				},
+			},
+			TargetManifests: []string{targetSecret},
+		}
+
+		resp, err := appServerSpoof.ServerSideDiff(t.Context(), query)
+		require.NoError(t, err)
+		require.Len(t, resp.Items, 1)
+
+		assert.NotContains(t, resp.Items[0].TargetState, leakedSecret,
+			"raw secret data from the dry-run must not leak into TargetState even when liveResources[i].Kind is spoofed")
+		assert.NotContains(t, resp.Items[0].LiveState, leakedSecret,
+			"raw secret data from the dry-run must not leak into LiveState even when liveResources[i].Kind is spoofed")
+	})
+
+	t.Run("NonSecretIsNotMasked", func(t *testing.T) {
+		// Guard against over-masking: a genuine ConfigMap on both sides must have its
+		// data returned unmasked. The fix keys masking off the real parsed GVK, so
+		// non-Secret resources must be unaffected.
+		configMap := &corev1.ConfigMap{
+			TypeMeta:   metav1.TypeMeta{APIVersion: "v1", Kind: "ConfigMap"},
+			ObjectMeta: metav1.ObjectMeta{Name: "plain-config", Namespace: "default"},
+			Data:       map[string]string{"key": "not-a-secret"},
+		}
+		configJSON, err := json.Marshal(configMap)
+		require.NoError(t, err)
+
+		predictedConfig := `{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"plain-config","namespace":"default"},"data":{"key":"not-a-secret"}}`
+		mockApplier := &kubetest.MockKubeApplier{
+			ApplyResourceFunc: func(_ context.Context, _ *unstructured.Unstructured, _ cmdutil.DryRunStrategy, _, _, _ bool, _ string) (string, error) {
+				return predictedConfig, nil
+			},
+		}
+		mockKubectl := &kubetest.MockKubectlCmd{}
+		mockKubectl.WithManageServerSideDiffDryRunFunc(func(_ *rest.Config) (diff.KubeApplier, func(), error) {
+			return mockApplier, func() {}, nil
+		})
+
+		plainApp := newTestApp(func(app *v1alpha1.Application) {
+			app.Name = "plain-app"
+			app.Namespace = testNamespace
+			app.Spec.Project = "test-project"
+			app.Annotations = map[string]string{
+				"argocd.argoproj.io/compare-options": "IncludeMutationWebhook=true",
+			}
+		})
+
+		appServerPlain := newTestAppServer(t, testProj, plainApp)
+		appServerPlain.kubectl = mockKubectl
+		appServerPlain.cache = newCachedManagedResources(t, appServerPlain, plainApp, kube.MustToUnstructured(configMap))
+
+		query := &application.ApplicationServerSideDiffQuery{
+			AppName:      new(plainApp.Name),
+			AppNamespace: new(plainApp.Namespace),
+			Project:      new(plainApp.Spec.Project),
+			LiveResources: []*v1alpha1.ResourceDiff{
+				{
+					Group:     "",
+					Kind:      "ConfigMap",
+					Namespace: "default",
+					Name:      "plain-config",
+					LiveState: string(configJSON),
+				},
+			},
+			TargetManifests: []string{predictedConfig},
+		}
+
+		resp, err := appServerPlain.ServerSideDiff(t.Context(), query)
+		require.NoError(t, err)
+		require.Len(t, resp.Items, 1)
+
+		assert.Contains(t, resp.Items[0].TargetState, "not-a-secret",
+			"ConfigMap data must not be masked")
+	})
+
 	t.Run("LiveObjectConsistency", func(t *testing.T) {
 		// Test that ServerSideDiff validates that the JSON object in LiveState
 		// matches the Group, Kind, Namespace, Name fields of the ResourceDiff
