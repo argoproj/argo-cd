@@ -176,7 +176,7 @@ class Request implements Promise<ApiResponse> {
             return this.promise;
         }
         const qs = this.params.toString();
-        const fullUrl = qs ? `${this.url}?${qs}` : this.url;
+        const fullUrl = qs ? `${this.url}${this.url.includes('?') ? '&' : '?'}${qs}` : this.url;
         this.promise = fetch(fullUrl, {
             method: this.method,
             headers: this.headersMap,

@@ -40,6 +40,16 @@ describe('Request', () => {
         expect(params.has('skip')).toBe(false);
     });
 
+    test('appends to an existing query string with & rather than a second ?', async () => {
+        const fetchSpy = jest.fn().mockResolvedValue(jsonResponse(200, {ok: true}));
+        (global as any).fetch = fetchSpy;
+
+        await requests.get('/repositories?forceRefresh=true').query({fields: 'items.name'});
+
+        const url = fetchSpy.mock.calls[0][0] as string;
+        expect(url).toBe('/api/v1/repositories?forceRefresh=true&fields=items.name');
+    });
+
     test('parses JSON response bodies into res.body', async () => {
         (global as any).fetch = jest.fn().mockResolvedValue(jsonResponse(200, {hello: 'world'}));
 
