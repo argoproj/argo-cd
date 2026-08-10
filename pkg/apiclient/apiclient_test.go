@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -17,6 +18,7 @@ import (
 	"google.golang.org/grpc/metadata"
 
 	settingspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/settings"
+	utilsettings "github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 func Test_parseHeaders(t *testing.T) {
@@ -292,9 +294,10 @@ func TestOIDCConfig_DisableOfflineAccessScopeInjection(t *testing.T) {
 		providerSupportsOA bool
 		expectOfflineScope bool
 	}{
-		{"flag off, provider supports offline_access", false, true, true},
-		{"flag on, provider supports offline_access", true, true, false},
-		{"flag off, provider does not support offline_access", false, false, false},
+		{name: "flag off, provider does not support offline_access", disableInjection: false, providerSupportsOA: false, expectOfflineScope: false},
+		{name: "flag off, provider supports offline_access", disableInjection: false, providerSupportsOA: true, expectOfflineScope: true},
+		{name: "flag on, provider supports offline_access", disableInjection: true, providerSupportsOA: true, expectOfflineScope: false},
+		{name: "flag on, provider does not support offline_access", disableInjection: true, providerSupportsOA: false, expectOfflineScope: false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -318,9 +321,9 @@ func TestOIDCConfig_DisableOfflineAccessScopeInjection(t *testing.T) {
 			issuerURL = srv.URL
 			c := &client{ServerAddr: srv.URL[7:], PlainText: true}
 			set := &settingspkg.Settings{
+				DisableOfflineAccessScopeInjection: tt.disableInjection,
 				OIDCConfig: &settingspkg.OIDCConfig{
-					Issuer:                             srv.URL,
-					DisableOfflineAccessScopeInjection: tt.disableInjection,
+					Issuer: srv.URL,
 				},
 			}
 			oauth2Conf, _, err := c.OIDCConfig(t.Context(), set)
@@ -334,4 +337,55 @@ func TestOIDCConfig_DisableOfflineAccessScopeInjection(t *testing.T) {
 			assert.Equal(t, tt.expectOfflineScope, gotOfflineScope)
 		})
 	}
+}
+
+func TestOIDCConfig_DisableOfflineAccessScopeInjection_EndToEnd(t *testing.T) {
+	var issuerURL string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"issuer":                 issuerURL,
+			"authorization_endpoint": issuerURL + "/auth",
+			"token_endpoint":         issuerURL + "/token",
+			"jwks_uri":               issuerURL + "/jwks",
+			"scopes_supported":       []string{"openid", "profile", "email", "offline_access"},
+		})
+	}))
+	defer srv.Close()
+	issuerURL = srv.URL
+
+	argoCDSettings := &utilsettings.ArgoCDSettings{
+		DisableOfflineAccessScopeInjection: true,
+		OIDCConfigRAW: `
+name: Keycloak
+issuer: ` + srv.URL + `
+clientID: argo-cd
+requestedScopes: ["openid", "profile", "email"]
+enablePKCEAuthentication: true
+`}
+	oidcConfig := argoCDSettings.OIDCConfig()
+	require.NotNil(t, oidcConfig)
+	require.True(t, oidcConfig.EnablePKCEAuthentication,
+		"control: enablePKCEAuthentication should survive parsing")
+	assert.True(t, argoCDSettings.DisableOfflineAccessScopeInjection,
+		"operator setting should survive parsing into the exported OIDC config")
+
+	set := &settingspkg.Settings{
+		URL:                                srv.URL,
+		DisableOfflineAccessScopeInjection: argoCDSettings.DisableOfflineAccessScopeInjection,
+		OIDCConfig: &settingspkg.OIDCConfig{
+			Name:                     oidcConfig.Name,
+			Issuer:                   oidcConfig.Issuer,
+			ClientID:                 oidcConfig.ClientID,
+			CLIClientID:              oidcConfig.CLIClientID,
+			Scopes:                   oidcConfig.RequestedScopes,
+			EnablePKCEAuthentication: oidcConfig.EnablePKCEAuthentication,
+		},
+	}
+
+	c := &client{ServerAddr: strings.TrimPrefix(srv.URL, "http://"), PlainText: true}
+	oauth2Conf, _, err := c.OIDCConfig(t.Context(), set)
+	require.NoError(t, err)
+	assert.NotContains(t, oauth2Conf.Scopes, "offline_access",
+		"operator set disableOfflineAccessScopeInjection: true in argocd-cm, but the CLI still requests offline_access")
 }

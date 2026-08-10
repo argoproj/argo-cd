@@ -1159,6 +1159,24 @@ userInfoBaseURL: "://users.example.com"
 	}
 }
 
+func TestDisableOfflineAccessScopeInjection(t *testing.T) {
+	settings := &ArgoCDSettings{
+		DisableOfflineAccessScopeInjection: true,
+		OIDCConfigRAW: `
+name: Keycloak
+issuer: https://keycloak.example.com
+clientID: argo-cd
+requestedScopes: ["openid", "profile", "email"]
+enablePKCEAuthentication: true
+`,
+	}
+
+	oidcConfig := settings.OIDCConfig()
+	require.NotNil(t, oidcConfig)
+	assert.True(t, oidcConfig.EnablePKCEAuthentication)
+	assert.True(t, settings.DisableOfflineAccessScopeInjection)
+}
+
 func TestRedirectURL(t *testing.T) {
 	cases := map[string][]string{
 		"https://localhost:4000":         {"https://localhost:4000/auth/callback", "https://localhost:4000/api/dex/callback"},

@@ -157,12 +157,12 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 			CLIClientID:                        oidcConfig.CLIClientID,
 			Scopes:                             oidcConfig.RequestedScopes,
 			EnablePKCEAuthentication:           oidcConfig.EnablePKCEAuthentication,
-			DisableOfflineAccessScopeInjection: oidcConfig.DisableOfflineAccessScopeInjection,
 		}
 		if len(argoCDSettings.OIDCConfig().RequestedIDTokenClaims) > 0 {
 			set.OIDCConfig.IDTokenClaims = argoCDSettings.OIDCConfig().RequestedIDTokenClaims
 		}
 	}
+	set.DisableOfflineAccessScopeInjection = argoCDSettings.DisableOfflineAccessScopeInjection
 	return &set, nil
 }
 
