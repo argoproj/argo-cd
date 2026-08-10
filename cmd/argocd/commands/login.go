@@ -139,7 +139,7 @@ argocd login cd.argoproj.io --core`,
 					errors.CheckError(err)
 					oauth2conf, provider, err := acdClient.OIDCConfig(ctx, acdSet)
 					errors.CheckError(err)
-					tokenString, refreshToken = oauth2Login(ctx, callback, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider, ssoLaunchBrowser)
+					tokenString, refreshToken = oauth2Login(ctx, callback, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider, ssoLaunchBrowser, acdSet.GetDexConfig().GetDexAuthConnectorID())
 				}
 				parser := jwt.NewParser(jwt.WithoutClaimsValidation())
 				claims := jwt.MapClaims{}
@@ -212,6 +212,7 @@ func oauth2Login(
 	oauth2conf *oauth2.Config,
 	provider *oidc.Provider,
 	ssoLaunchBrowser bool,
+	dexAuthConnectorID string,
 ) (string, string) {
 	redirectBase := callback
 	if redirectBase == "" {
@@ -322,6 +323,12 @@ func oauth2Login(
 	opts := []oauth2.AuthCodeOption{oauth2.AccessTypeOffline}
 	if claimsRequested := oidcSettings.GetIDTokenClaims(); claimsRequested != nil {
 		opts = oidcutil.AppendClaimsAuthenticationRequestParameter(opts, claimsRequested)
+	}
+	// When bundled Dex is configured with a forced connector, redirect straight to it and
+	// bypass Dex's connector selection screen (mirrors the browser login flow).
+	if dexAuthConnectorID != "" {
+		log.Debugf("force redirect to selected connector_id: %s", dexAuthConnectorID)
+		opts = append(opts, oauth2.SetAuthURLParam("connector_id", dexAuthConnectorID))
 	}
 
 	switch grantType {
