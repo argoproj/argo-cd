@@ -789,6 +789,7 @@ function renderPodGroup(
                 'application-resource-tree__node--grouped-node': !showPodGroupByStatus
             })}
             title={describeNode(node)}
+            data-node-key={treeNodeKey(node)}
             style={{
                 left: node.x,
                 top: podGroupTop,
@@ -1123,6 +1124,7 @@ function renderResourceNode(props: ApplicationResourceTreeProps, node: ResourceT
                 'application-resource-tree__node--orphaned': node.orphaned
             })}
             title={isAppSetParent ? `ApplicationSet: ${node.name}\nThis ApplicationSet generates and manages this Application.` : describeNode(node)}
+            data-node-key={treeNodeKey(node)}
             style={{
                 left: node.x,
                 top: node.y,
@@ -1201,7 +1203,14 @@ function renderResourceNode(props: ApplicationResourceTreeProps, node: ResourceT
                             expandCollapse(node, props);
                             event.stopPropagation();
                         }}>
-                        {props.getNodeExpansion(node.uid) ? <div className='fa fa-minus' /> : <div className='fa fa-plus' />}
+                        {props.getNodeExpansion(node.uid) ? (
+                            <div className='fa fa-minus' />
+                        ) : (
+                            <React.Fragment>
+                                <div className='fa fa-plus' />
+                                {childCount > 1 && <span style={{fontSize: 10, marginLeft: 2}}>{childCount}</span>}
+                            </React.Fragment>
+                        )}
                     </div>
                 )}
             </div>
@@ -1490,11 +1499,9 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                 const children = childrenByParentKey.get(treeNodeKey(actualParent)) || [];
                 hasParents.add(treeNodeKey(actualChild));
                 const parentId = actualParent.uid;
-                if (nodesHavingChildren.has(parentId)) {
-                    nodesHavingChildren.set(parentId, nodesHavingChildren.get(parentId) + children.length);
-                } else {
-                    nodesHavingChildren.set(parentId, 1);
-                }
+                // A count of children, not a running total of array lengths: it is shown on the
+                // collapse toggle, so a folded node can say how much is inside it.
+                nodesHavingChildren.set(parentId, (nodesHavingChildren.get(parentId) || 0) + 1);
                 if (actualChild.kind !== 'Pod' || !props.showCompactNodes) {
                     if (props.getNodeExpansion(parentId)) {
                         hasParents.add(treeNodeKey(actualChild));
@@ -1603,11 +1610,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                     node.parentRefs.forEach(parent => {
                         const parentId = treeNodeKey(parent);
                         const children = childrenByParentKey.get(parentId) || [];
-                        if (nodesHavingChildren.has(parentId)) {
-                            nodesHavingChildren.set(parentId, nodesHavingChildren.get(parentId) + children.length);
-                        } else {
-                            nodesHavingChildren.set(parentId, 1);
-                        }
+                        nodesHavingChildren.set(parentId, (nodesHavingChildren.get(parentId) || 0) + 1);
                         allChildNodes.push(node);
                         if (node.kind !== 'Pod' || !props.showCompactNodes) {
                             if (props.getNodeExpansion(parentId)) {
@@ -1902,6 +1905,37 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
 
     const resourceTreeRef = React.useRef<HTMLDivElement | null>(null);
 
+    // Expanding or collapsing a node re-ranks everything dagre draws, so the node that was clicked can
+    // travel a long way: expanding a Deployment moved it 1,502px down the layout, which threw the user
+    // out of the place they were looking at. Record where it sat, then scroll by however far it moved so
+    // it stays under the cursor. The capture phase runs before the toggle's own handler, so the position
+    // is read from the layout still on screen. Both readings come from dagre rather than the DOM: by the
+    // time a layout effect runs React has written the new inline offsets, but offsetTop still reports the
+    // old ones, so measuring the elements would compare a new position against a stale one.
+    const anchorRef = React.useRef<{key: string; x: number; y: number; scrollLeft: number; scrollTop: number} | null>(null);
+
+    const onToggleCapture: React.MouseEventHandler<HTMLDivElement> = e => {
+        const toggle = (e.target as HTMLElement).closest('.application-resource-tree__node--expansion, .application-resource-tree__node--podgroup--expansion');
+        const key = (toggle?.closest('.application-resource-tree__node') as HTMLElement | null)?.dataset.nodeKey;
+        const container = resourceTreeRef.current?.parentElement;
+        const laidOut = key && graph.hasNode(key) ? (graph.node(key) as any) : null;
+        anchorRef.current = laidOut && container ? {key, x: laidOut.x, y: laidOut.y, scrollLeft: container.scrollLeft, scrollTop: container.scrollTop} : null;
+    };
+
+    React.useLayoutEffect(() => {
+        const anchor = anchorRef.current;
+        anchorRef.current = null;
+        const container = resourceTreeRef.current?.parentElement;
+        // Collapsing cannot always be honoured: a node whose subtree is removed from above it rises to
+        // the top of the graph, and there is no scroll left to give back.
+        if (!anchor || !container || !graph.hasNode(anchor.key)) {
+            return;
+        }
+        const laidOut = graph.node(anchor.key) as any;
+        container.scrollLeft = Math.max(0, anchor.scrollLeft + (laidOut.x - anchor.x) * props.zoom);
+        container.scrollTop = Math.max(0, anchor.scrollTop + (laidOut.y - anchor.y) * props.zoom);
+    });
+
     const graphMoving = React.useRef({
         enable: false,
         x: 0,
@@ -1960,6 +1994,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         )) || (
             <div
                 ref={resourceTreeRef}
+                onClickCapture={onToggleCapture}
                 onPointerDown={onGraphDragStart}
                 onPointerMove={onGraphDragMoving}
                 onPointerUp={onGraphDragEnd}
