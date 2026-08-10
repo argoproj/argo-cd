@@ -117,11 +117,17 @@ const POD_GROUP_ROW_HEIGHT = 20;
 const POD_GROUP_PODS_PER_ROW = 8;
 const FILTERED_INDICATOR_NODE = '__filtered_indicator__';
 const CAPPED_INDICATOR_NODE = '__capped_indicator__';
+// A synthetic parent standing for a whole kind. Giving the bulk kinds a parent of their own turns one
+// contested budget into a budget per kind: the top level stops growing with the size of the
+// application, and each kind can be explored on its own terms.
+const KIND_GROUP_PREFIX = '__kind_group__/';
+const KIND_GROUP_PREVIEW = 5;
 const EXTERNAL_TRAFFIC_NODE = '__external_traffic__';
 const INTERNAL_TRAFFIC_NODE = '__internal_traffic__';
 const NODE_TYPES = {
     filteredIndicator: 'filtered_indicator',
     cappedIndicator: 'capped_indicator',
+    kindGroup: 'kind_group',
     externalTraffic: 'external_traffic',
     externalLoadBalancer: 'external_load_balancer',
     internalTraffic: 'internal_traffic',
@@ -205,6 +211,10 @@ function groupNodes(nodes: ResourceTreeNode[], graph: dagre.graphlib.Graph<{[key
     if (groupedNodesArr.length > 0) {
         groupedNodesArr.forEach((obj: {kind: string; nodeIds: string[]; parentIds: dagre.Node[]}) => {
             const {nodeIds, kind, parentIds} = obj;
+            // Members previewed under a kind node are already a deliberate sample of that kind.
+            if (parentIds[0].toString().startsWith(KIND_GROUP_PREFIX)) {
+                return;
+            }
             const groupedNodeIds: string[] = [];
             const podGroupIds: string[] = [];
             nodeIds.forEach((nodeId: string) => {
@@ -344,6 +354,26 @@ export function subtreeRelevance(
 
 function appNodeKey(app: models.AbstractApplication) {
     return nodeKey({group: 'argoproj.io', kind: app.kind, name: app.metadata.name, namespace: app.metadata.namespace});
+}
+
+function renderKindGroupNode(node: {kind: string; total: number; group?: string} & dagre.Node) {
+    const plural = node.kind.endsWith('s') ? node.kind : `${node.kind}s`;
+    return (
+        <div
+            className='application-resource-tree__node'
+            title={`${node.total} ${plural} in this application`}
+            style={{left: node.x, top: node.y, width: node.width, height: node.height}}>
+            <div className='application-resource-tree__node-kind-icon'>
+                <ResourceIcon group={node.group || ''} kind={node.kind} />
+                <br />
+                <div className='application-resource-tree__node-kind'>{ResourceLabel({kind: node.kind})}</div>
+            </div>
+            <div className='application-resource-tree__node-content'>
+                <div className='application-resource-tree__node-title'>{plural}</div>
+                <div className='application-resource-tree__node-status-icon'>{node.total} total</div>
+            </div>
+        </div>
+    );
 }
 
 function renderCappedNode(node: {shownCount: number; totalCount: number; hiddenCount: number; parentKey?: string} & dagre.Node) {
@@ -1448,12 +1478,85 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         const relevanceMemo = new Map<string, number>();
         const relevanceVisiting = new Set<string>();
         const relevanceOf = (n: ResourceTreeNode) => subtreeRelevance(n, childrenByParentKey, relevanceMemo, relevanceVisiting);
-        const orderedRoots = roots.length > DEFAULT_VISIBLE_CAP ? [...roots].sort((a, b) => relevanceOf(a) - relevanceOf(b) || compareNodes(a, b)) : roots.sort(compareNodes);
+        const byRelevanceThenName = (a: ResourceTreeNode, b: ResourceTreeNode) => relevanceOf(a) - relevanceOf(b) || compareNodes(a, b);
+        const budgetBites = roots.length > DEFAULT_VISIBLE_CAP;
+
+        // Past the budget the bulk kinds get a parent of their own rather than competing for one
+        // shared allowance. The top level then holds the workloads, whose hierarchy is the reason this
+        // is a graph at all, plus one node per remaining kind, and it stops growing with the size of
+        // the application.
+        const clusters = new Map<string, ResourceTreeNode[]>();
+        let orderedRoots = budgetBites ? [...roots].sort(byRelevanceThenName) : roots.sort(compareNodes);
+        if (budgetBites) {
+            const direct: ResourceTreeNode[] = [];
+            orderedRoots.forEach(root => {
+                // Workloads and anything with children are never folded away: burying
+                // Deployment -> ReplicaSet -> Pod under a synthetic parent hides the path a user
+                // follows to explain a failure.
+                if (WORKLOAD_KINDS.has(root.kind) || (childrenByParentKey.get(treeNodeKey(root)) || []).length > 0) {
+                    direct.push(root);
+                    return;
+                }
+                const members = clusters.get(root.kind);
+                if (members) {
+                    members.push(root);
+                } else {
+                    clusters.set(root.kind, [root]);
+                }
+            });
+            // A kind small enough to show outright gains nothing from a parent.
+            Array.from(clusters.entries()).forEach(([kind, members]) => {
+                if (members.length <= KIND_GROUP_PREVIEW) {
+                    clusters.delete(kind);
+                    direct.push(...members);
+                }
+            });
+            orderedRoots = direct.sort(byRelevanceThenName);
+        }
+
         let shownRoots = 0;
         orderedRoots.forEach(node => {
             if (processNode(node, node)) {
                 shownRoots++;
                 graph.setEdge(appNodeKey(props.app), treeNodeKey(node));
+            }
+        });
+
+        // One node per clustered kind, each previewing the members that most need attention and
+        // carrying its own marker for the rest.
+        clusters.forEach((members, kind) => {
+            const kindNodeId = `${KIND_GROUP_PREFIX}${kind}`;
+            graph.setNode(kindNodeId, {
+                height: NODE_HEIGHT,
+                width: NODE_WIDTH,
+                type: NODE_TYPES.kindGroup,
+                kind,
+                total: members.length,
+                group: members[0].group
+            });
+            graph.setEdge(appNodeKey(props.app), kindNodeId);
+            let shownHere = 0;
+            [...members].sort(byRelevanceThenName).forEach(member => {
+                if (shownHere >= KIND_GROUP_PREVIEW) {
+                    return;
+                }
+                if (processNode(member, member)) {
+                    shownHere++;
+                    graph.setEdge(kindNodeId, treeNodeKey(member));
+                }
+            });
+            if (members.length > shownHere) {
+                const moreId = `${kindNodeId}/__more__`;
+                graph.setNode(moreId, {
+                    height: NODE_HEIGHT,
+                    width: NODE_WIDTH,
+                    type: NODE_TYPES.cappedIndicator,
+                    shownCount: shownHere,
+                    totalCount: members.length,
+                    hiddenCount: members.length - shownHere,
+                    parentKey: kindNodeId
+                });
+                graph.setEdge(kindNodeId, moreId);
             }
         });
         orphans.sort(compareNodes).forEach(node => {
@@ -1690,6 +1793,8 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                     const node = graph.node(key);
                     const nodeType = node.type;
                     switch (nodeType) {
+                        case NODE_TYPES.kindGroup:
+                            return <React.Fragment key={key}>{renderKindGroupNode(node as any)}</React.Fragment>;
                         case NODE_TYPES.cappedIndicator:
                             return <React.Fragment key={key}>{renderCappedNode(node as any)}</React.Fragment>;
                         case NODE_TYPES.filteredIndicator:
