@@ -321,8 +321,37 @@ function summaryState(node: ResourceTreeNode): {state: string; health: boolean} 
     return health ? {state: health, health: true} : {state: models.SyncStatuses.Synced, health: false};
 }
 
+// Only the most relevant few are ever drawn, so ordering the whole application to take a couple of
+// hundred of it is wasted work. Keep the best `limit` in one pass instead: an item that cannot displace
+// the worst one kept is rejected on a single comparison, which is what nearly every item does. Sorting
+// ~14k roots by relevance cost 120ms of every re-render, and bucketing them by tier still sorted a
+// 4,000-member kind by name to take 5 of it. The result is ordered but truncated, so callers that need
+// a total have to count the input rather than the result.
+function mostRelevantFirst(items: ResourceTreeNode[], limit: number, relevanceOf: (node: ResourceTreeNode) => number): ResourceTreeNode[] {
+    const moreRelevant = (a: ResourceTreeNode, b: ResourceTreeNode) => relevanceOf(a) - relevanceOf(b) || compareNodes(a, b);
+    if (items.length <= limit) {
+        return [...items].sort(moreRelevant);
+    }
+    const best: ResourceTreeNode[] = [];
+    items.forEach(item => {
+        if (best.length === limit && moreRelevant(item, best[best.length - 1]) >= 0) {
+            return;
+        }
+        let at = best.length;
+        while (at > 0 && moreRelevant(item, best[at - 1]) < 0) {
+            at--;
+        }
+        best.splice(at, 0, item);
+        if (best.length > limit) {
+            best.pop();
+        }
+    });
+    return best;
+}
+
 // Tally of what a marker hides, most concerning first, so the count can say whether opening it is
 // worth it rather than only how much is behind it.
+
 function tallyStates(nodes: ResourceTreeNode[]): {state: string; count: number; health: boolean}[] {
     const counts = new Map<string, {count: number; health: boolean}>();
     nodes.forEach(node => {
@@ -1638,7 +1667,6 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         const relevanceMemo = new Map<string, number>();
         const relevanceVisiting = new Set<string>();
         const relevanceOf = (n: ResourceTreeNode) => subtreeRelevance(n, childrenByParentKey, relevanceMemo, relevanceVisiting);
-        const byRelevanceThenName = (a: ResourceTreeNode, b: ResourceTreeNode) => relevanceOf(a) - relevanceOf(b) || compareNodes(a, b);
         const budgetBites = roots.length > visibleCap && !capBucketKind;
 
         // Past the budget the bulk kinds get a parent of their own rather than competing for one
@@ -1648,10 +1676,15 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         const clusters = new Map<string, ResourceTreeNode[]>();
         // Drilling into a kind shows that kind's resources at the top level, which is what was asked for.
         const inBucket = capBucketKind ? roots.filter(r => r.kind === capBucketKind) : roots;
-        let orderedRoots = budgetBites || capBucketKind ? [...inBucket].sort(byRelevanceThenName) : inBucket.sort(compareNodes);
+        let orderedRoots: ResourceTreeNode[];
+        // What the card counts as "not drawn one at a time". Ordering yields only a prefix now, so the
+        // total has to come from the set that went in.
+        let rootsTotal: number;
         if (budgetBites) {
             const direct: ResourceTreeNode[] = [];
-            orderedRoots.forEach(root => {
+            // Partitioned before anything is ordered, so each kind node still counts every member it
+            // stands for rather than only the ones that reached the top of a sort.
+            inBucket.forEach(root => {
                 // Workloads and anything with children are never folded away: burying
                 // Deployment -> ReplicaSet -> Pod under a synthetic parent hides the path a user
                 // follows to explain a failure.
@@ -1673,7 +1706,14 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                     direct.push(...members);
                 }
             });
-            orderedRoots = direct.sort(byRelevanceThenName);
+            orderedRoots = mostRelevantFirst(direct, visibleCap, relevanceOf);
+            rootsTotal = direct.length;
+        } else if (capBucketKind) {
+            orderedRoots = mostRelevantFirst(inBucket, visibleCap, relevanceOf);
+            rootsTotal = inBucket.length;
+        } else {
+            orderedRoots = inBucket.sort(compareNodes);
+            rootsTotal = orderedRoots.length;
         }
 
         let shownRoots = 0;
@@ -1699,12 +1739,16 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             graph.setEdge(appNodeKey(props.app), kindNodeId);
             let shownHere = 0;
             const preview = allowanceFor(kindNodeId, KIND_GROUP_PREVIEW);
-            [...members].sort(byRelevanceThenName).forEach(member => {
+            // Only childless roots are ever clustered, so a member's subtree relevance is its own: the
+            // memoised walk would build a key string per member to learn it has no children.
+            const shown = new Set<ResourceTreeNode>();
+            mostRelevantFirst(members, preview, ownRelevance).forEach(member => {
                 if (shownHere >= preview) {
                     return;
                 }
                 if (processNode(member, member)) {
                     shownHere++;
+                    shown.add(member);
                     graph.setEdge(kindNodeId, treeNodeKey(member));
                 }
             });
@@ -1718,7 +1762,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                     totalCount: members.length,
                     hiddenCount: members.length - shownHere,
                     atCeiling: visibleCap >= MAX_VISIBLE_CAP,
-                    hiddenStates: tallyStates([...members].sort(byRelevanceThenName).slice(shownHere)),
+                    hiddenStates: tallyStates(members.filter(member => !shown.has(member))),
                     parentKey: kindNodeId
                 });
                 graph.setEdge(kindNodeId, moreId);
@@ -1731,7 +1775,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         // difference between "this application has 200 resources" and "we drew 200 of 14,451".
         // While kinds are clustered the members a kind is not previewing are not missing: their kind
         // node carries the total and its own marker. The card reports only roots drawn one at a time.
-        if (orderedRoots.length > shownRoots || capBucketKind) {
+        if (rootsTotal > shownRoots || capBucketKind) {
             const kindCounts = new Map<string, number>();
             inBucket.forEach(r => kindCounts.set(r.kind, (kindCounts.get(r.kind) || 0) + 1));
             const shownByKind = new Map<string, number>();
@@ -1741,8 +1785,8 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                 width: 340,
                 type: NODE_TYPES.cappedIndicator,
                 shownCount: shownRoots,
-                totalCount: orderedRoots.length,
-                hiddenCount: orderedRoots.length - shownRoots,
+                totalCount: rootsTotal,
+                hiddenCount: rootsTotal - shownRoots,
                 atCeiling: visibleCap >= MAX_VISIBLE_CAP,
                 bucket: capBucketKind,
                 byKind: Array.from(kindCounts, ([kind, count]) => ({kind, count, shown: shownByKind.get(kind) || 0})).sort((a, b) => b.count - a.count)
