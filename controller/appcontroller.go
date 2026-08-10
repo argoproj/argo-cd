@@ -1559,6 +1559,9 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		switch {
 		case state.Phase == synccommon.OperationTerminating:
 			logCtx.Infof("Resuming in-progress operation. phase: %s, message: %s", state.Phase, state.Message)
+			if state.Message != "" {
+				terminatingCause = state.Message
+			}
 		case ctrl.syncTimeout != time.Duration(0) && time.Now().After(state.StartedAt.Add(ctrl.syncTimeout)):
 			state.Phase = synccommon.OperationTerminating
 			state.Message = "operation is terminating due to timeout"

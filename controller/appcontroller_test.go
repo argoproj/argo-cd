@@ -3052,6 +3052,9 @@ func TestProcessRequestedAppOperation_HasRetriesTerminated(t *testing.T) {
 	}
 	app.Status.OperationState.Operation = *app.Operation
 	app.Status.OperationState.Phase = synccommon.OperationTerminating
+	// No termination reason recorded on the operation state; the final message should not
+	// gain a spurious "triggered by" suffix from unrelated leftover state.
+	app.Status.OperationState.Message = ""
 
 	data := &fakeData{
 		apps: []runtime.Object{app, &defaultProj},
@@ -3078,6 +3081,43 @@ func TestProcessRequestedAppOperation_HasRetriesTerminated(t *testing.T) {
 	message, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "message")
 	assert.Equal(t, string(synccommon.OperationFailed), phase)
 	assert.Equal(t, "Operation terminated", message)
+}
+
+func TestProcessRequestedAppOperation_HasRetriesTerminatedWithMessage(t *testing.T) {
+	app := newFakeApp()
+	app.Operation = &v1alpha1.Operation{
+		Sync:  &v1alpha1.SyncOperation{},
+		Retry: v1alpha1.RetryStrategy{Limit: 10},
+	}
+	app.Status.OperationState.Operation = *app.Operation
+	app.Status.OperationState.Phase = synccommon.OperationTerminating
+	app.Status.OperationState.Message = "dummy operation state message"
+
+	data := &fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+	}
+	ctrl := newFakeController(t.Context(), data, nil)
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	receivedPatch := map[string]any{}
+	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		if patchAction, ok := action.(kubetesting.PatchAction); ok {
+			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+		}
+		return true, &v1alpha1.Application{}, nil
+	})
+
+	ctrl.processRequestedAppOperation(app)
+
+	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
+	message, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "message")
+	assert.Equal(t, string(synccommon.OperationFailed), phase)
+	assert.Equal(t, "Operation terminated, triggered by dummy operation state message", message)
 }
 
 func TestProcessRequestedAppOperation_Successful(t *testing.T) {
