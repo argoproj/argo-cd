@@ -1890,9 +1890,9 @@ const (
 )
 
 // ApplicationConditionType represents type of application condition. Type name has following convention:
-// prefix "Error" means error condition
-// prefix "Warning" means warning condition
-// prefix "Info" means informational condition
+// suffix "Error" means error condition
+// suffix "Warning" means warning condition
+// suffix "Info" means informational condition
 type ApplicationConditionType = string
 
 const (
