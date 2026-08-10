@@ -103,6 +103,12 @@ interface Line {
     y2: number;
 }
 
+// A large application hands dagre more nodes than it can lay out on the main thread: the cost is
+// superlinear, so a few thousand resources freeze the tab for minutes. Draw a bounded set instead and
+// report the remainder, rather than trying to draw everything faster.
+const DEFAULT_VISIBLE_CAP = 200;
+const MAX_CHILDREN_PER_PARENT = 25;
+
 const NODE_WIDTH = 282;
 const NODE_HEIGHT = 52;
 const POD_NODE_HEIGHT = 136;
@@ -1019,6 +1025,8 @@ function findNetworkTargets(nodes: ResourceTreeNode[], networkingInfo: models.Re
 }
 export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => {
     const graph = new dagre.graphlib.Graph<{[key: string]: any}>();
+    // How much of the budget this render has spent, and how much it turned away.
+    const renderState = {drawn: 0, skipped: 0};
     graph.setGraph({nodesep: 25, rankdir: 'LR', marginy: 45, marginx: -100, ranksep: 80});
     graph.setDefaultEdgeLabel(() => ({}));
     const overridesCount = getAppOverridesCount(props.app);
@@ -1327,8 +1335,9 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             });
         }
         roots.sort(compareNodes).forEach(node => {
-            processNode(node, node);
-            graph.setEdge(appNodeKey(props.app), treeNodeKey(node));
+            if (processNode(node, node)) {
+                graph.setEdge(appNodeKey(props.app), treeNodeKey(node));
+            }
         });
         orphans.sort(compareNodes).forEach(node => {
             processNode(node, node);
@@ -1358,23 +1367,37 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         });
     }
 
-    function processNode(node: ResourceTreeNode, root: ResourceTreeNode, colors?: string[]) {
+    // Returns whether the node was drawn. Callers must only draw an edge to it when it was: an edge to
+    // a node the budget refused leaves a dimensionless placeholder behind, which dagre.layout throws on.
+    function processNode(node: ResourceTreeNode, root: ResourceTreeNode, colors?: string[]): boolean {
+        if (renderState.drawn >= DEFAULT_VISIBLE_CAP) {
+            renderState.skipped++;
+            return false;
+        }
+        renderState.drawn++;
         if (props.showCompactNodes && node.podGroup) {
             setPodGroupNode(node, root);
         } else {
             graph.setNode(treeNodeKey(node), {...node, width: NODE_WIDTH, height: NODE_HEIGHT, root});
         }
+        // Capped per parent as well, so one very wide subtree cannot consume the whole budget and
+        // leave every other branch undrawn.
+        let shownChildren = 0;
         (childrenByParentKey.get(treeNodeKey(node)) || []).sort(compareNodes).forEach(child => {
-            if (treeNodeKey(child) === treeNodeKey(root)) {
+            if (treeNodeKey(child) === treeNodeKey(root) || shownChildren >= MAX_CHILDREN_PER_PARENT) {
                 return;
             }
+            if (!processNode(child, root, colors)) {
+                return;
+            }
+            shownChildren++;
             // Draw edge if nodes are in same namespace OR if parent is cluster-scoped (empty/undefined namespace)
             const isParentClusterScoped = !node.namespace || node.namespace === '';
             if (node.namespace === child.namespace || isParentClusterScoped) {
                 graph.setEdge(treeNodeKey(node), treeNodeKey(child), {colors});
             }
-            processNode(child, root, colors);
         });
+        return true;
     }
     dagre.layout(graph);
 
