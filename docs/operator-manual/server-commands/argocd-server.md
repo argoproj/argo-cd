@@ -51,6 +51,7 @@ argocd-server [flags]
       --dex-server-strict-tls                           Perform strict validation of TLS certificates when connecting to dex server
       --disable-auth                                    Disable client authentication
       --disable-compression                             If true, opt-out of response compression for all requests to the server
+      --disable-swagger-ui                              Disable the Swagger UI (/swagger-ui) endpoint
       --enable-gzip                                     Enable GZIP compression (default true)
       --enable-k8s-event none                           Enable ArgoCD to use k8s event. For disabling all events, set the value as none. (e.g --enable-k8s-event=none), For enabling specific events, set the value as `event reason`. (e.g --enable-k8s-event=StatusRefreshed,ResourceCreated) (default [all])
       --enable-proxy-extension                          Enable Proxy Extension feature

@@ -32,7 +32,7 @@ data:
   passwordPattern: "^.{8,32}$"
 
   # Enables google analytics tracking is specified
-  ga.trackingid: "UA-12345-1"
+  ga.trackingid: "G-XXXXXXXXXX"
   # Unless set to 'false' then user ids are hashed before sending to google analytics
   ga.anonymizeusers: "false"
 
@@ -54,6 +54,8 @@ data:
   # https://github.com/argoproj/argo-cd/blob/master/docs/operator-manual/user-management/index.md#sso
   # https://dexidp.io/docs/connectors/
   dex.config: |
+    web:
+      tlsMinVersion: "1.2"
     connectors:
       # GitHub example
       - type: github

@@ -195,6 +195,7 @@ type ArgoCDServer struct {
 	settingsMgr     *settings_util.SettingsManager
 	enf             *rbac.Enforcer
 	projInformer    cache.SharedIndexInformer
+	projLister      applisters.AppProjectNamespaceLister
 	policyEnforcer  *rbacpolicy.RBACPolicyEnforcer
 	clusterInformer *settings_util.ClusterInformer
 	appInformer     cache.SharedIndexInformer
@@ -253,6 +254,7 @@ type ArgoCDServerOpts struct {
 	EnableK8sEvent          []string
 	HydratorEnabled         bool
 	SyncWithReplaceAllowed  bool
+	DisableSwaggerUI        bool
 }
 
 type ApplicationSetOpts struct {
@@ -400,6 +402,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 		settingsMgr:        settingsMgr,
 		enf:                enf,
 		projInformer:       projInformer,
+		projLister:         projLister,
 		appInformer:        appInformer,
 		appLister:          appLister,
 		appsetInformer:     appsetInformer,
@@ -1166,6 +1169,17 @@ func compressHandler(handler http.Handler) http.Handler {
 	})
 }
 
+// registerSwaggerUI registers the Swagger UI and OpenAPI spec handlers on mux, unless disableSwaggerUI
+// is set. The endpoint serves API documentation and is unauthenticated by design, since the docs are
+// static and identical across Argo CD instances. Some environments (e.g. those fronted by OpenShift
+// Routes, which unlike Ingress cannot block specific paths via annotations) still want the ability to
+// disable it. See https://github.com/argoproj/argo-cd/issues/19780.
+func registerSwaggerUI(mux *http.ServeMux, rootPath string, disableSwaggerUI bool) {
+	if !disableSwaggerUI {
+		swagger.ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui", rootPath)
+	}
+}
+
 // newHTTPServer returns the HTTP server to serve HTTP/HTTPS requests. This is implemented
 // using grpc-gateway as a proxy to the gRPC server.
 func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWebHandler http.Handler, appResourceTreeFn application.AppResourceTreeFn, conn *grpc.ClientConn, metricsReg HTTPMetricsRegistry) *http.Server {
@@ -1247,8 +1261,7 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 	mustRegisterGWHandler(ctx, certificatepkg.RegisterCertificateServiceHandler, gwmux, conn)
 	mustRegisterGWHandler(ctx, gpgkeypkg.RegisterGPGKeyServiceHandler, gwmux, conn)
 
-	// Swagger UI
-	swagger.ServeSwaggerUI(mux, assets.SwaggerJSON, "/swagger-ui", server.RootPath)
+	registerSwaggerUI(mux, server.RootPath, server.DisableSwaggerUI)
 	healthz.ServeHealthCheck(mux, server.healthCheck)
 
 	// Dex reverse proxy and OAuth2 login/callback
@@ -1256,7 +1269,7 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 
 	// Webhook handler for git events (Note: cache timeouts are hardcoded because API server does not write to cache and not really using them)
 	argoDB := db.NewDB(server.Namespace, server.settingsMgr, server.KubeClientset)
-	acdWebhookHandler := webhook.NewHandler(server.Namespace, server.ApplicationNamespaces, server.WebhookParallelism, server.WebhookRefreshWorkers, server.AppClientset, server.appLister, server.settings, server.settingsMgr, server.RepoServerCache, server.Cache, argoDB, server.settingsMgr.GetMaxWebhookPayloadSize(), server.settingsMgr.GetWebhookRefreshJitter(), server.settingsMgr.GetWebhookRefreshJitterThreshold())
+	acdWebhookHandler := webhook.NewHandler(server.Namespace, server.ApplicationNamespaces, server.WebhookParallelism, server.WebhookRefreshWorkers, server.AppClientset, server.appLister, server.settings, server.settingsMgr, server.RepoServerCache, server.Cache, argoDB, server.settingsMgr.GetMaxWebhookPayloadSize(), server.settingsMgr.GetWebhookRefreshJitter(), server.settingsMgr.GetWebhookRefreshJitterThreshold(), server.projLister)
 
 	mux.HandleFunc("/api/webhook", acdWebhookHandler.Handler)
 
