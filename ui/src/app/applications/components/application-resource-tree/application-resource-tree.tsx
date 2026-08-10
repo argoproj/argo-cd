@@ -122,6 +122,11 @@ const CAPPED_INDICATOR_NODE = '__capped_indicator__';
 // application, and each kind can be explored on its own terms.
 const KIND_GROUP_PREFIX = '__kind_group__/';
 const KIND_GROUP_PREVIEW = 5;
+// Every "+N more" grows by the same step, and the graph as a whole stops at a ceiling: expanding
+// should cost a predictable amount rather than letting one click decide the size of the whole graph.
+const EXPAND_STEP = 50;
+const MAX_VISIBLE_CAP = 1000;
+const KIND_CHIP_LIMIT = 6;
 const EXTERNAL_TRAFFIC_NODE = '__external_traffic__';
 const INTERNAL_TRAFFIC_NODE = '__internal_traffic__';
 const NODE_TYPES = {
@@ -148,7 +153,10 @@ function getGraphSize(nodes: dagre.Node[]): {width: number; height: number} {
     return {width, height};
 }
 
-function groupNodes(nodes: ResourceTreeNode[], graph: dagre.graphlib.Graph<{[key: string]: any}>) {
+// `totalByKind` carries how many resources of each kind the application has, for groups hanging off
+// the application node. Without it a group reports how many of its kind were drawn, which on a
+// bounded tree is a sample: "15 ConfigMaps" for an application that has four thousand.
+function groupNodes(nodes: ResourceTreeNode[], graph: dagre.graphlib.Graph<{[key: string]: any}>, totalByKind?: Map<string, number>, appKey?: string) {
     function getNodeGroupingInfo(nodeId: string) {
         const node = graph.node(nodeId);
         return {
@@ -234,12 +242,16 @@ function groupNodes(nodes: ResourceTreeNode[], graph: dagre.graphlib.Graph<{[key
             }, []);
             if (groupedNodeIds.length > 1) {
                 groupedNodeIds.forEach(n => graph.removeNode(n));
+                // Only groups directly under the application node stand for a whole kind; deeper ones
+                // (ReplicaSets under a Deployment) mean exactly what they collapsed.
+                const kindTotal = appKey && parentIds[0].toString() === appKey ? totalByKind?.get(kind) : undefined;
                 graph.setNode(`${parentIds[0].toString()}/child/${kind}`, {
                     kind,
                     groupedNodeIds,
                     height: NODE_HEIGHT,
                     width: NODE_WIDTH,
                     count: reducedNodeIds.length,
+                    kindTotal,
                     type: NODE_TYPES.groupedNodes
                 });
                 graph.setEdge(parentIds[0].toString(), `${parentIds[0].toString()}/child/${kind}`);
@@ -295,6 +307,34 @@ const RELEVANCE_EXPOSURE = 5;
 const RELEVANCE_UNREMARKABLE = 6;
 const WORKLOAD_KINDS = new Set(['Deployment', 'StatefulSet', 'DaemonSet', 'Job', 'CronJob', 'Rollout', 'ReplicationController']);
 const EXPOSURE_KINDS = new Set(['Service', 'Ingress', 'Gateway', 'HTTPRoute', 'GRPCRoute', 'Route']);
+
+// State of a resource in one word, for summarising a group that is not drawn. Sync state stands in
+// where a resource has no health of its own, which is most of a large application.
+function summaryState(node: ResourceTreeNode): {state: string; health: boolean} {
+    const health = node.health?.status;
+    if (health && health !== models.HealthStatuses.Healthy) {
+        return {state: health, health: true};
+    }
+    if (node.status === models.SyncStatuses.OutOfSync) {
+        return {state: models.SyncStatuses.OutOfSync, health: false};
+    }
+    return health ? {state: health, health: true} : {state: models.SyncStatuses.Synced, health: false};
+}
+
+// Tally of what a marker hides, most concerning first, so the count can say whether opening it is
+// worth it rather than only how much is behind it.
+function tallyStates(nodes: ResourceTreeNode[]): {state: string; count: number; health: boolean}[] {
+    const counts = new Map<string, {count: number; health: boolean}>();
+    nodes.forEach(node => {
+        const {state, health} = summaryState(node);
+        const seen = counts.get(state);
+        counts.set(state, {count: (seen?.count || 0) + 1, health});
+    });
+    const settled = (state: string) => state === models.SyncStatuses.Synced || state === models.HealthStatuses.Healthy;
+    return Array.from(counts, ([state, tally]) => ({state, count: tally.count, health: tally.health})).sort(
+        (a, b) => Number(settled(a.state)) - Number(settled(b.state)) || b.count - a.count
+    );
+}
 
 function ownRelevance(node: ResourceTreeNode): number {
     switch (node.health?.status) {
@@ -356,13 +396,14 @@ function appNodeKey(app: models.AbstractApplication) {
     return nodeKey({group: 'argoproj.io', kind: app.kind, name: app.metadata.name, namespace: app.metadata.namespace});
 }
 
-function renderKindGroupNode(node: {kind: string; total: number; group?: string} & dagre.Node) {
+function renderKindGroupNode(node: {kind: string; total: number; group?: string} & dagre.Node, onDrillIntoKind: (kind: string) => any) {
     const plural = node.kind.endsWith('s') ? node.kind : `${node.kind}s`;
     return (
         <div
             className='application-resource-tree__node'
-            title={`${node.total} ${plural} in this application`}
-            style={{left: node.x, top: node.y, width: node.width, height: node.height}}>
+            title={`${node.total} ${plural} in this application — click to show only ${plural}`}
+            onClick={() => onDrillIntoKind(node.kind)}
+            style={{left: node.x, top: node.y, width: node.width, height: node.height, cursor: 'pointer'}}>
             <div className='application-resource-tree__node-kind-icon'>
                 <ResourceIcon group={node.group || ''} kind={node.kind} />
                 <br />
@@ -376,43 +417,145 @@ function renderKindGroupNode(node: {kind: string; total: number; group?: string}
     );
 }
 
-function renderCappedNode(node: {shownCount: number; totalCount: number; hiddenCount: number; parentKey?: string} & dagre.Node) {
-    // A per-parent overflow marker: same idea, but it stands for one parent's children.
+function renderCappedNode(
+    node: {
+        shownCount: number;
+        totalCount: number;
+        hiddenCount: number;
+        atCeiling?: boolean;
+        hiddenStates?: {state: string; count: number; health: boolean}[];
+        byKind?: {kind: string; count: number; shown: number}[];
+        bucket?: string | null;
+        parentKey?: string;
+    } & dagre.Node,
+    handlers: {
+        onLoadMore: () => any;
+        onSelectKind: (kind: string) => any;
+        onClearBucket: () => any;
+        onExpandParent: (parentKey: string, shownNow: number) => any;
+        onShowAllKindChips: () => any;
+    },
+    showAllKinds: boolean
+) {
+    const states = (node.hiddenStates || []).slice(0, 3);
+    // A per-parent overflow marker. Keyed on parentKey rather than on an empty kind breakdown, because
+    // the application level card also has nothing to break down when the filters match nothing.
     if (node.parentKey) {
         return (
             <div
                 className='application-resource-tree__node'
-                title={`${node.shownCount} of ${node.totalCount} children shown`}
+                title={
+                    node.atCeiling
+                        ? `${node.shownCount} of ${node.totalCount} shown — the graph is full, narrow with search or filter`
+                        : `${node.shownCount} of ${node.totalCount} shown — click to load ${Math.min(EXPAND_STEP, node.hiddenCount)} more`
+                }
+                onClick={() => !node.atCeiling && handlers.onExpandParent(node.parentKey, node.shownCount)}
                 style={{
                     left: node.x,
                     top: node.y,
                     width: node.width,
                     height: node.height,
                     borderStyle: 'dashed',
+                    cursor: node.atCeiling ? 'default' : 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontSize: 12
                 }}>
                 <span style={{textAlign: 'center', lineHeight: '16px'}}>
-                    {node.hiddenCount} more
-                    <div style={{opacity: 0.7, fontSize: 11}}>
-                        {node.shownCount} of {node.totalCount} shown
-                    </div>
+                    {node.atCeiling ? (
+                        <React.Fragment>
+                            <span style={{opacity: 0.7}}>
+                                {node.shownCount} of {node.totalCount} shown
+                            </span>
+                            <div style={{opacity: 0.7, fontSize: 11}}>graph is full — narrow with search or filter</div>
+                        </React.Fragment>
+                    ) : (
+                        <React.Fragment>
+                            <i className='fa fa-plus' style={{marginRight: 6}} />
+                            {Math.min(EXPAND_STEP, node.hiddenCount)} more
+                            <div style={{opacity: 0.7, fontSize: 11}}>
+                                {node.shownCount} of {node.totalCount} shown
+                            </div>
+                            {states.length > 0 && (
+                                <div style={{fontSize: 11, marginTop: 2, display: 'flex', gap: 8, justifyContent: 'center', alignItems: 'center'}}>
+                                    {states.map(st => (
+                                        <span key={st.state} title={`${st.count} ${st.state}`} style={{display: 'inline-flex', alignItems: 'center', gap: 3}}>
+                                            {st.health ? (
+                                                <HealthStatusIcon state={{status: st.state as models.HealthStatusCode, message: ''}} noSpin={true} />
+                                            ) : (
+                                                <ComparisonStatusIcon status={st.state as models.SyncStatusCode} noSpin={true} />
+                                            )}
+                                            {st.count}
+                                        </span>
+                                    ))}
+                                </div>
+                            )}
+                        </React.Fragment>
+                    )}
                 </span>
             </div>
         );
     }
+    const byKind = node.byKind || [];
     return (
         <div
             className='application-resource-tree__node'
-            title={`${node.shownCount} of ${node.totalCount} resources drawn`}
             style={{left: node.x, top: node.y, width: node.width, height: node.height, borderStyle: 'dashed', padding: 8, overflow: 'hidden', fontSize: 12}}>
             <div style={{fontWeight: 600, marginBottom: 4}}>
                 <i className='fa fa-layer-group' style={{marginRight: 6}} />
-                Showing {node.shownCount} of {node.totalCount} resources
+                {node.totalCount === 0 ? 'No resources match the current filters' : `Showing ${node.shownCount} of ${node.totalCount} resources`}
+                {node.bucket ? ` · ${node.bucket}` : ''}
             </div>
-            <div style={{opacity: 0.7}}>Use search or filter to find a specific one.</div>
+            <div style={{opacity: 0.7, marginBottom: 6}}>
+                {node.totalCount === 0 ? 'Clear a filter, or pick a different kind, to see resources again.' : 'Use search or filter to find a specific one.'}
+            </div>
+            <div style={{marginBottom: 6, lineHeight: '20px', maxHeight: showAllKinds ? 54 : undefined, overflowY: showAllKinds ? 'auto' : undefined}}>
+                {(showAllKinds ? byKind : byKind.slice(0, KIND_CHIP_LIMIT)).map(k => (
+                    <a
+                        key={k.kind}
+                        // Both numbers, because a count of what exists reads as a count of what is drawn.
+                        title={`${k.shown} of ${k.count} ${k.kind} shown — click to show only ${k.kind}`}
+                        onClick={() => handlers.onSelectKind(k.kind)}
+                        style={{
+                            display: 'inline-block',
+                            margin: '0 4px 2px 0',
+                            padding: '0 6px',
+                            border: '1px solid currentColor',
+                            borderRadius: 10,
+                            opacity: 0.8,
+                            cursor: 'pointer',
+                            whiteSpace: 'nowrap'
+                        }}>
+                        {k.kind} ({k.shown}/{k.count})
+                    </a>
+                ))}
+                {!showAllKinds && byKind.length > KIND_CHIP_LIMIT && (
+                    <a
+                        title='Show the remaining kinds'
+                        onClick={handlers.onShowAllKindChips}
+                        style={{display: 'inline-block', margin: '0 4px 2px 0', padding: '0 6px', cursor: 'pointer', whiteSpace: 'nowrap'}}>
+                        +{byKind.length - KIND_CHIP_LIMIT} more kinds
+                    </a>
+                )}
+            </div>
+            <div>
+                {node.hiddenCount > 0 && !node.atCeiling && (
+                    <a onClick={handlers.onLoadMore} style={{marginRight: 12, cursor: 'pointer'}}>
+                        <i className='fa fa-plus' style={{marginRight: 4}} />
+                        Load {EXPAND_STEP} more
+                    </a>
+                )}
+                {node.hiddenCount > 0 && node.atCeiling && (
+                    <span style={{marginRight: 12, opacity: 0.7}}>Showing the most the graph can display — narrow with search or filter.</span>
+                )}
+                {node.bucket && (
+                    <a onClick={handlers.onClearBucket} style={{cursor: 'pointer'}}>
+                        <i className='fa fa-times' style={{marginRight: 4}} />
+                        Show all kinds
+                    </a>
+                )}
+            </div>
         </div>
     );
 }
@@ -446,7 +589,11 @@ function renderFilteredNode(node: {count: number} & dagre.Node, onClearFilter: (
     );
 }
 
-function renderGroupedNodes(props: ApplicationResourceTreeProps, node: {count: number; groupedNodeIds: string[]} & dagre.Node & ResourceTreeNode, allNodes: ResourceTreeNode[]) {
+function renderGroupedNodes(
+    props: ApplicationResourceTreeProps,
+    node: {count: number; kindTotal?: number; groupedNodeIds: string[]} & dagre.Node & ResourceTreeNode,
+    allNodes: ResourceTreeNode[]
+) {
     const indicators = new Array<number>();
     let count = Math.min(node.count - 1, 3);
     while (count > 0) {
@@ -465,7 +612,7 @@ function renderGroupedNodes(props: ApplicationResourceTreeProps, node: {count: n
                     className='application-resource-tree__node-title application-resource-tree__direction-center-left'
                     onClick={() => props.onGroupdNodeClick && props.onGroupdNodeClick(node.groupedNodeIds)}
                     title={`Click to see details of ${node.count} collapsed ${node.kind} and doesn't contains any active pods`}>
-                    {node.count} {node.kind.endsWith('s') ? node.kind : `${node.kind}s`}
+                    {node.kindTotal ?? node.count} {node.kind.endsWith('s') ? node.kind : `${node.kind}s`}
                     <span style={{paddingLeft: '.5em', fontSize: 'small'}}>
                         {node.kind === 'ReplicaSet' ? (
                             <i
@@ -1244,6 +1391,13 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     const childrenByParentKey = new Map<string, ResourceTreeNode[]>();
     const nodesHavingChildren = new Map<string, number>();
     const childrenMap = new Map<string, ResourceTreeNode[]>();
+    // How much of the graph to draw, and which parts the user has asked to see more of.
+    const [visibleCap, setVisibleCap] = React.useState(DEFAULT_VISIBLE_CAP);
+    const [capBucketKind, setCapBucketKind] = React.useState<string | null>(null);
+    const [expandedCounts, setExpandedCounts] = React.useState<{[key: string]: number}>({});
+    const [showAllKindChips, setShowAllKindChips] = React.useState(false);
+    // Allowance for one marker: its own expanded count if it has been clicked, else the default.
+    const allowanceFor = (key: string, fallback: number) => expandedCounts[key] ?? fallback;
     const filtersRef = React.useRef(props.filters);
     const filteredGraphRef = React.useRef<any[]>([]);
     const filteredNodes: any[] = [];
@@ -1383,15 +1537,17 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                 const loadBalancers = root.networkingInfo.ingress.map(ingress => ingress.hostname || ingress.ip);
                 const colorByService = new Map<string, string>();
                 (childrenByParentKey.get(treeNodeKey(root)) || []).forEach((child, i) => colorByService.set(treeNodeKey(child), TRAFFIC_COLORS[i % TRAFFIC_COLORS.length]));
-                (childrenByParentKey.get(treeNodeKey(root)) || []).sort(compareNodes).forEach(child => {
-                    processNode(child, root, [colorByService.get(treeNodeKey(child))]);
-                });
-                if (root.podGroup && props.showCompactNodes) {
-                    setPodGroupNode(root, root);
-                } else {
-                    graph.setNode(treeNodeKey(root), {...root, width: NODE_WIDTH, height: NODE_HEIGHT, root});
+                // The root goes through the budget like everything else, and before anything is hung
+                // off it. Placing it directly meant the budget only ever refused children, so an
+                // application with many ingress facing resources quietly lost most of its graph; and
+                // an edge to a refused node leaves a dimensionless placeholder that dagre throws on.
+                if (!processNode(root, root, [colorsBySource.get(treeNodeKey(root))])) {
+                    return;
                 }
                 (childrenByParentKey.get(treeNodeKey(root)) || []).forEach(child => {
+                    if (!graph.hasNode(treeNodeKey(child))) {
+                        return;
+                    }
                     // Draw edge if nodes are in same namespace OR if parent is cluster-scoped (no namespace)
                     if (root.namespace === child.namespace || !root.namespace) {
                         graph.setEdge(treeNodeKey(root), treeNodeKey(child), {colors: [colorByService.get(treeNodeKey(child))]});
@@ -1415,8 +1571,9 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         if (internalRoots.length > 0) {
             graph.setNode(INTERNAL_TRAFFIC_NODE, {height: NODE_HEIGHT, width: 30, type: NODE_TYPES.internalTraffic});
             internalRoots.forEach(root => {
-                processNode(root, root, [colorsBySource.get(treeNodeKey(root))]);
-                graph.setEdge(INTERNAL_TRAFFIC_NODE, treeNodeKey(root));
+                if (processNode(root, root, [colorsBySource.get(treeNodeKey(root))])) {
+                    graph.setEdge(INTERNAL_TRAFFIC_NODE, treeNodeKey(root));
+                }
             });
         }
         if (props.nodeFilter) {
@@ -1479,14 +1636,16 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         const relevanceVisiting = new Set<string>();
         const relevanceOf = (n: ResourceTreeNode) => subtreeRelevance(n, childrenByParentKey, relevanceMemo, relevanceVisiting);
         const byRelevanceThenName = (a: ResourceTreeNode, b: ResourceTreeNode) => relevanceOf(a) - relevanceOf(b) || compareNodes(a, b);
-        const budgetBites = roots.length > DEFAULT_VISIBLE_CAP;
+        const budgetBites = roots.length > visibleCap && !capBucketKind;
 
         // Past the budget the bulk kinds get a parent of their own rather than competing for one
         // shared allowance. The top level then holds the workloads, whose hierarchy is the reason this
         // is a graph at all, plus one node per remaining kind, and it stops growing with the size of
         // the application.
         const clusters = new Map<string, ResourceTreeNode[]>();
-        let orderedRoots = budgetBites ? [...roots].sort(byRelevanceThenName) : roots.sort(compareNodes);
+        // Drilling into a kind shows that kind's resources at the top level, which is what was asked for.
+        const inBucket = capBucketKind ? roots.filter(r => r.kind === capBucketKind) : roots;
+        let orderedRoots = budgetBites || capBucketKind ? [...inBucket].sort(byRelevanceThenName) : inBucket.sort(compareNodes);
         if (budgetBites) {
             const direct: ResourceTreeNode[] = [];
             orderedRoots.forEach(root => {
@@ -1536,8 +1695,9 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             });
             graph.setEdge(appNodeKey(props.app), kindNodeId);
             let shownHere = 0;
+            const preview = allowanceFor(kindNodeId, KIND_GROUP_PREVIEW);
             [...members].sort(byRelevanceThenName).forEach(member => {
-                if (shownHere >= KIND_GROUP_PREVIEW) {
+                if (shownHere >= preview) {
                     return;
                 }
                 if (processNode(member, member)) {
@@ -1554,6 +1714,8 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                     shownCount: shownHere,
                     totalCount: members.length,
                     hiddenCount: members.length - shownHere,
+                    atCeiling: visibleCap >= MAX_VISIBLE_CAP,
+                    hiddenStates: tallyStates([...members].sort(byRelevanceThenName).slice(shownHere)),
                     parentKey: kindNodeId
                 });
                 graph.setEdge(kindNodeId, moreId);
@@ -1564,14 +1726,23 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         });
         // Say what is missing. Truncating quietly is worse than truncating: the user cannot tell the
         // difference between "this application has 200 resources" and "we drew 200 of 14,451".
-        if (orderedRoots.length > shownRoots) {
+        // While kinds are clustered the members a kind is not previewing are not missing: their kind
+        // node carries the total and its own marker. The card reports only roots drawn one at a time.
+        if (orderedRoots.length > shownRoots || capBucketKind) {
+            const kindCounts = new Map<string, number>();
+            inBucket.forEach(r => kindCounts.set(r.kind, (kindCounts.get(r.kind) || 0) + 1));
+            const shownByKind = new Map<string, number>();
+            orderedRoots.slice(0, shownRoots).forEach(r => shownByKind.set(r.kind, (shownByKind.get(r.kind) || 0) + 1));
             graph.setNode(CAPPED_INDICATOR_NODE, {
-                height: NODE_HEIGHT,
-                width: NODE_WIDTH,
+                height: 150,
+                width: 340,
                 type: NODE_TYPES.cappedIndicator,
                 shownCount: shownRoots,
                 totalCount: orderedRoots.length,
-                hiddenCount: orderedRoots.length - shownRoots
+                hiddenCount: orderedRoots.length - shownRoots,
+                atCeiling: visibleCap >= MAX_VISIBLE_CAP,
+                bucket: capBucketKind,
+                byKind: Array.from(kindCounts, ([kind, count]) => ({kind, count, shown: shownByKind.get(kind) || 0})).sort((a, b) => b.count - a.count)
             });
             graph.setEdge(appNodeKey(props.app), CAPPED_INDICATOR_NODE);
         }
@@ -1585,7 +1756,9 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             filterGraph(props.app, appSetKey || appNodeKey(props.app), graph, props.nodeFilter);
         }
         if (props.showCompactNodes) {
-            groupNodes(nodes, graph);
+            const kindCounts = new Map<string, number>();
+            inBucket.forEach(r => kindCounts.set(r.kind, (kindCounts.get(r.kind) || 0) + 1));
+            groupNodes(nodes, graph, kindCounts, appNodeKey(props.app));
         }
     }
 
@@ -1603,7 +1776,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     // Returns whether the node was drawn. Callers must only draw an edge to it when it was: an edge to
     // a node the budget refused leaves a dimensionless placeholder behind, which dagre.layout throws on.
     function processNode(node: ResourceTreeNode, root: ResourceTreeNode, colors?: string[]): boolean {
-        if (renderState.drawn >= DEFAULT_VISIBLE_CAP) {
+        if (renderState.drawn >= visibleCap) {
             renderState.skipped++;
             return false;
         }
@@ -1617,6 +1790,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         // leave every other branch undrawn.
         let shownChildren = 0;
         let hiddenChildren = 0;
+        const hiddenChildNodes: ResourceTreeNode[] = [];
         // Copied before sorting: the array is cached in childrenByParentKey and sort works in place.
         const orderedChildren = [...(childrenByParentKey.get(treeNodeKey(node)) || [])].sort(
             (a, b) => subtreeRelevance(a, childrenByParentKey) - subtreeRelevance(b, childrenByParentKey) || compareNodes(a, b)
@@ -1625,8 +1799,9 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             if (treeNodeKey(child) === treeNodeKey(root)) {
                 return;
             }
-            if (shownChildren >= MAX_CHILDREN_PER_PARENT) {
+            if (shownChildren >= allowanceFor(treeNodeKey(node), MAX_CHILDREN_PER_PARENT)) {
                 hiddenChildren++;
+                hiddenChildNodes.push(child);
                 return;
             }
             if (!processNode(child, root, colors)) {
@@ -1648,6 +1823,8 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                 shownCount: shownChildren,
                 totalCount: shownChildren + hiddenChildren,
                 hiddenCount: hiddenChildren,
+                atCeiling: visibleCap >= MAX_VISIBLE_CAP,
+                hiddenStates: tallyStates(hiddenChildNodes),
                 parentKey: treeNodeKey(node)
             });
             graph.setEdge(treeNodeKey(node), moreId);
@@ -1794,9 +1971,41 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                     const nodeType = node.type;
                     switch (nodeType) {
                         case NODE_TYPES.kindGroup:
-                            return <React.Fragment key={key}>{renderKindGroupNode(node as any)}</React.Fragment>;
+                            return (
+                                <React.Fragment key={key}>
+                                    {renderKindGroupNode(node as any, (kind: string) => {
+                                        setCapBucketKind(kind);
+                                        setVisibleCap(DEFAULT_VISIBLE_CAP);
+                                    })}
+                                </React.Fragment>
+                            );
                         case NODE_TYPES.cappedIndicator:
-                            return <React.Fragment key={key}>{renderCappedNode(node as any)}</React.Fragment>;
+                            return (
+                                <React.Fragment key={key}>
+                                    {renderCappedNode(
+                                        node as any,
+                                        {
+                                            onLoadMore: () => setVisibleCap(cap => Math.min(cap + EXPAND_STEP, MAX_VISIBLE_CAP)),
+                                            onSelectKind: (kind: string) => {
+                                                setCapBucketKind(kind);
+                                                setVisibleCap(DEFAULT_VISIBLE_CAP);
+                                            },
+                                            onClearBucket: () => {
+                                                setCapBucketKind(null);
+                                                setVisibleCap(DEFAULT_VISIBLE_CAP);
+                                            },
+                                            onExpandParent: (parentKey: string, shownNow: number) => {
+                                                setExpandedCounts(prev => ({...prev, [parentKey]: (prev[parentKey] ?? shownNow) + EXPAND_STEP}));
+                                                // The budget is global, so raising one marker's allowance
+                                                // without raising it means the extra nodes are refused.
+                                                setVisibleCap(cap => Math.min(cap + EXPAND_STEP, MAX_VISIBLE_CAP));
+                                            },
+                                            onShowAllKindChips: () => setShowAllKindChips(true)
+                                        },
+                                        showAllKindChips
+                                    )}
+                                </React.Fragment>
+                            );
                         case NODE_TYPES.filteredIndicator:
                             return <React.Fragment key={key}>{renderFilteredNode(node as any, props.onClearFilter)}</React.Fragment>;
                         case NODE_TYPES.externalTraffic:

@@ -1,6 +1,6 @@
 import {NotificationType, SlidingPanel, Tooltip, SplitButtonAction} from 'argo-ui';
 import classNames from 'classnames';
-import React, {useState, useEffect, useCallback, useRef, useContext, FC} from 'react';
+import React, {useState, useEffect, useCallback, useMemo, useRef, useContext, FC} from 'react';
 import * as ReactDOM from 'react-dom';
 import * as models from '../../../shared/models';
 import {RouteComponentProps} from 'react-router';
@@ -207,11 +207,15 @@ export const ApplicationDetails: FC<RouteComponentProps<{appnamespace: string; n
         });
     }, []);
 
+    // Set-backed so the lookup is O(1): the resource tree asks this once per node while building the
+    // graph, where a linear scan of the collapsed list showed up on large applications.
+    const collapsedNodeSet = useMemo(() => new Set(state.collapsedNodes), [state.collapsedNodes]);
+
     const getNodeExpansion = useCallback(
         (node: string): boolean => {
-            return state.collapsedNodes.indexOf(node) < 0;
+            return !collapsedNodeSet.has(node);
         },
-        [state.collapsedNodes]
+        [collapsedNodeSet]
     );
 
     const closeGroupedNodesPanel = useCallback(() => {
@@ -854,44 +858,57 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                             const toggleNameDirection = () => {
                                 setState(prevState => ({...prevState, truncateNameOnRight: !prevState.truncateNameOnRight}));
                             };
-                            const expandAll = () => {
-                                setState(prevState => ({...prevState, collapsedNodes: []}));
+                            // Depth of every resource, counting what the application owns directly as level
+                            // one. Collapsing a node hides its children, so showing the tree down to level
+                            // L means collapsing everything at level L and deeper.
+                            const nodeDepths = () => {
+                                const managedKeys = isApplication ? new Set((application as appModels.Application).status.resources.map(AppUtils.nodeKey)) : new Set<string>();
+                                const all = (tree.nodes || []).concat(tree.orphanedNodes || []);
+                                const byUid = new Map<string, appModels.ResourceNode>();
+                                all.forEach(node => node.uid && byUid.set(node.uid, node));
+                                const depths = new Map<string, number>();
+                                const depthOf = (node: appModels.ResourceNode, seen: Set<string>): number => {
+                                    if (depths.has(node.uid)) {
+                                        return depths.get(node.uid);
+                                    }
+                                    const parents = (node.parentRefs || []).filter(ref => byUid.has(ref.uid));
+                                    let depth = 1;
+                                    // A cycle in parentRefs would otherwise recurse forever.
+                                    if (parents.length > 0 && !managedKeys.has(AppUtils.nodeKey(node)) && !seen.has(node.uid)) {
+                                        seen.add(node.uid);
+                                        depth = 1 + Math.min(...parents.map(ref => depthOf(byUid.get(ref.uid), seen)));
+                                        seen.delete(node.uid);
+                                    }
+                                    depths.set(node.uid, depth);
+                                    return depth;
+                                };
+                                all.forEach(node => node.uid && depthOf(node, new Set<string>()));
+                                return depths;
                             };
-                            const collapseAll = () => {
-                                const nodes = new Array<ResourceTreeNode>();
-                                tree.nodes
-                                    .map(node => ({...node, orphaned: false}))
-                                    .concat((tree.orphanedNodes || []).map(node => ({...node, orphaned: true})))
-                                    .forEach(node => {
-                                        const resourceNode: ResourceTreeNode = {...node};
-                                        nodes.push(resourceNode);
-                                    });
-                                const collapsedNodesList = state.collapsedNodes.slice();
-                                if (pref.view === 'network') {
-                                    const networkNodes = nodes.filter(node => node.networkingInfo);
-                                    networkNodes.forEach(parent => {
-                                        const parentId = parent.uid;
-                                        if (collapsedNodesList.indexOf(parentId) < 0) {
-                                            collapsedNodesList.push(parentId);
-                                        }
-                                    });
-                                    setState(prevState => ({...prevState, collapsedNodes: collapsedNodesList}));
-                                } else {
-                                    const managedKeys = isApplication ? new Set((application as appModels.Application).status.resources.map(AppUtils.nodeKey)) : new Set<string>();
-                                    nodes.forEach(node => {
-                                        if (!((node.parentRefs || []).length === 0 || managedKeys.has(AppUtils.nodeKey(node)))) {
-                                            node.parentRefs.forEach(parent => {
-                                                const parentId = parent.uid;
-                                                if (collapsedNodesList.indexOf(parentId) < 0) {
-                                                    collapsedNodesList.push(parentId);
-                                                }
-                                            });
-                                        }
-                                    });
-                                    collapsedNodesList.push(application.kind + '-' + application.metadata.namespace + '-' + application.metadata.name);
-                                    setState(prevState => ({...prevState, collapsedNodes: collapsedNodesList}));
+
+                            // One level at a time, in both directions. Collapsing every parent at once
+                            // left nothing for a second click to do, which reads as a broken control, and
+                            // it collapsed the application node too, emptying the view entirely.
+                            const setVisibleDepth = (step: number) => {
+                                const depths = nodeDepths();
+                                if (depths.size === 0) {
+                                    return;
                                 }
+                                const maxDepth = Math.max(...Array.from(depths.values()));
+                                const collapsed = new Set(state.collapsedNodes);
+                                const collapsedDepths = Array.from(depths.entries())
+                                    .filter(([uid]) => collapsed.has(uid))
+                                    .map(([, depth]) => depth);
+                                const current = collapsedDepths.length > 0 ? Math.min(...collapsedDepths) : maxDepth;
+                                const next = Math.min(maxDepth, Math.max(1, current + step));
+                                const collapsedNodes = Array.from(depths.entries())
+                                    .filter(([, depth]) => depth >= next)
+                                    .map(([uid]) => uid);
+                                setState(prevState => ({...prevState, collapsedNodes}));
                             };
+                            const expandAll = () => setVisibleDepth(1);
+                            const collapseAll = () => setVisibleDepth(-1);
+
                             const appFullName = AppUtils.nodeKey({
                                 group: 'argoproj.io',
                                 kind: application.kind,
@@ -1096,10 +1113,10 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                                 </a>
                                                             )}
                                                             <span className={`separator`} />
-                                                            <a className={`group-nodes-button`} onClick={() => expandAll()} title='Expand all child nodes of all parent nodes'>
+                                                            <a className={`group-nodes-button`} onClick={() => expandAll()} title='Show one more level of child nodes'>
                                                                 <i className='fa fa-plus fa-fw' />
                                                             </a>
-                                                            <a className={`group-nodes-button`} onClick={() => collapseAll()} title='Collapse all child nodes of all parent nodes'>
+                                                            <a className={`group-nodes-button`} onClick={() => collapseAll()} title='Hide the deepest level of child nodes'>
                                                                 <i className='fa fa-minus fa-fw' />
                                                             </a>
                                                             <span className={`separator`} />

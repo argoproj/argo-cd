@@ -8,7 +8,9 @@ import {ComparisonStatusIcon, HealthStatusIcon} from '../utils';
 import {resources} from '../resources';
 import * as models from '../../../shared/models';
 
-const uniq = (value: string, index: number, self: string[]) => self.indexOf(value) === index;
+// Set rather than indexOf: resource names are all distinct, so the scan never hits an early match
+// and deduplicating them was quadratic in the size of the application.
+const dedupeSorted = (values: string[]) => Array.from(new Set(values)).sort();
 
 function toOption(label: string) {
     return {label};
@@ -88,24 +90,21 @@ export const Filters = (props: FiltersProps) => {
     // otherwise the user will not be able to clear them from this panel
     const alreadyFilteredOn = (prefix: string) => resourceFilter.filter(f => f.startsWith(prefix + ':')).map(removePrefix(prefix));
 
-    const kinds = tree.nodes
-        .map(x => x.kind)
-        .concat(alreadyFilteredOn('kind'))
-        .filter(uniq)
-        .sort();
-
-    const names = tree.nodes
-        .map(x => x.name)
-        .concat(alreadyFilteredOn('name'))
-        .filter(uniq)
-        .sort();
-
-    const namespaces = tree.nodes
-        .map(x => x.namespace)
-        .filter(x => !!x)
-        .concat(alreadyFilteredOn('namespace'))
-        .filter(uniq)
-        .sort();
+    // Keyed on the filter's contents, not its identity: `pref.resourceFilter || []` yields a fresh
+    // array when unset, which would invalidate these on every render.
+    const filterKey = resourceFilter.join(',');
+    const kinds = React.useMemo(() => dedupeSorted(tree.nodes.map(x => x.kind).concat(alreadyFilteredOn('kind'))), [tree.nodes, filterKey]);
+    const names = React.useMemo(() => dedupeSorted(tree.nodes.map(x => x.name).concat(alreadyFilteredOn('name'))), [tree.nodes, filterKey]);
+    const namespaces = React.useMemo(
+        () =>
+            dedupeSorted(
+                tree.nodes
+                    .map(x => x.namespace)
+                    .filter(x => !!x)
+                    .concat(alreadyFilteredOn('namespace'))
+            ),
+        [tree.nodes, filterKey]
+    );
 
     const selectedFor = (prefix: string) => {
         return groupedFilters[prefix] ? groupedFilters[prefix].split(',').map(removePrefix(prefix)) : [];

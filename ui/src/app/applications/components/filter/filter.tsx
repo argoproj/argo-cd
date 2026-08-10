@@ -4,6 +4,9 @@ import * as React from 'react';
 
 import './filter.scss';
 
+// Upper bound on how many suggestions the autocomplete is handed at once.
+const MAX_SUGGESTIONS = 100;
+
 interface FilterProps {
     selected: string[];
     setSelected: (items: string[]) => void;
@@ -103,7 +106,15 @@ export const Filter = (props: FilterProps) => {
     const [collapsed, setCollapsed] = React.useState(props.collapsed || false);
     const options = props.options;
 
-    const labels = props.labels || options.map(o => o.label);
+    // The autocomplete mounts every item it is given, so an application with tens of thousands of
+    // resources would otherwise put one hidden DOM node per resource on the page. Narrow by what has
+    // been typed, across the whole list so nothing becomes unreachable, then hand over a bounded slice.
+    const labels = React.useMemo(() => {
+        const all = props.labels || options.map(o => o.label);
+        const needle = input.trim().toLowerCase();
+        const matched = needle ? all.filter(label => (label || '').toLowerCase().includes(needle)) : all;
+        return matched.slice(0, MAX_SUGGESTIONS);
+    }, [props.labels, options, input]);
 
     const {cleanedValues, selectedKeys} = Object.entries(values).reduce(
         (acc, [key, value]) => {
