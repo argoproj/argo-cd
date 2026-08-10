@@ -662,7 +662,7 @@ jobs:
           docker pull ghcr.io/dexidp/dex:v2.45.1
           docker pull argoproj/argo-cd-ci-builder:v1.0.0
           # renovate: datasource=docker packageName=docker.io/library/redis
-          docker pull redis:8.6.4-alpine
+          docker pull redis:8.10.0-alpine
       - name: Create target directory for binaries in the build-process
         run: |
           mkdir -p dist
