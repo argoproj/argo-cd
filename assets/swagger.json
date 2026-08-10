@@ -5769,6 +5769,9 @@
             "$ref": "#/definitions/v1alpha1ResourceOverride"
           }
         },
+        "resourceViewEnabled": {
+          "type": "boolean"
+        },
         "statusBadgeEnabled": {
           "type": "boolean"
         },

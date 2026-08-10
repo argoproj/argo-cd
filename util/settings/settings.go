@@ -142,6 +142,8 @@ type ArgoCDSettings struct {
 	UiBannerPermanent bool `json:"uiBannerPermanent,omitempty"` //nolint:revive //FIXME(var-naming)
 	// Position of UI Banner
 	UiBannerPosition string `json:"uiBannerPosition,omitempty"` //nolint:revive //FIXME(var-naming)
+	// ResourceViewEnabled indicates whether the managed Resources view is enabled in the UI
+	ResourceViewEnabled bool `json:"resourceViewEnabled"`
 	// UiLoginButtonText is an optional override for the SSO login button label
 	UiLoginButtonText string `json:"uiLoginButtonText,omitempty"` //nolint:revive //FIXME(var-naming)
 	// PasswordPattern for password regular expression
@@ -523,6 +525,8 @@ const (
 	settingUIBannerPermanentKey = "ui.bannerpermanent"
 	// settingUIBannerPositionKey designates the key for the position of the banner
 	settingUIBannerPositionKey = "ui.bannerposition"
+	// settingUIResourcesViewDisabledKey designates the key for disabling the managed Resources view in the UI
+	settingUIResourcesViewDisabledKey = "ui.view.resources.disabled"
 	// settingUILoginButtonTextKey designates the key for the custom SSO login button label
 	settingUILoginButtonTextKey = "ui.loginButtonText"
 	// settingsBinaryUrlsKey designates the key for the argocd binary URLs
@@ -1695,6 +1699,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 	settings.UiBannerContent = argoCDCM.Data[settingUIBannerContentKey]
 	settings.UiBannerPermanent = argoCDCM.Data[settingUIBannerPermanentKey] == "true"
 	settings.UiBannerPosition = argoCDCM.Data[settingUIBannerPositionKey]
+	settings.ResourceViewEnabled = argoCDCM.Data[settingUIResourcesViewDisabledKey] != "true"
 	settings.UiLoginButtonText = argoCDCM.Data[settingUILoginButtonTextKey]
 	settings.BinaryUrls = getDownloadBinaryUrlsFromConfigMap(argoCDCM)
 	if err := ValidateExternalURL(argoCDCM.Data[settingURLKey]); err != nil {
