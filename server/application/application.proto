@@ -118,6 +118,15 @@ message ApplicationDeleteRequest {
 	optional string project = 5;
 }
 
+// ApplicationRenameRequest is a request to rename an application without
+// recreating its managed resources.
+message ApplicationRenameRequest {
+	required string name = 1;
+	required string newName = 2;
+	optional string appNamespace = 3;
+	optional string project = 4;
+}
+
 message SyncOptions {
 	repeated string items = 1;
 }
@@ -441,6 +450,14 @@ service ApplicationService {
 	// Delete deletes an application
 	rpc Delete(ApplicationDeleteRequest) returns (ApplicationResponse) {
 		option (google.api.http).delete = "/api/v1/applications/{name}";
+	}
+
+	// Rename renames an application without recreating its managed resources
+	rpc Rename(ApplicationRenameRequest) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Application) {
+		option (google.api.http) = {
+			post: "/api/v1/applications/{name}/rename"
+			body: "*"
+		};
 	}
 
 	// Sync syncs an application to its target state

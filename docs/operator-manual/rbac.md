@@ -119,6 +119,23 @@ p, example-user, logs, get, example-project/app-namespace/my-app, allow
 
 The `applications` resource is an [Application-Specific Policy](#application-specific-policy).
 
+#### Renaming an application
+
+`argocd app rename` deletes the existing application and recreates it under the new name (its
+managed resources are adopted in place, not recreated). It therefore requires `get`, `update`,
+and `delete` on the existing application, plus `create` on the new name:
+
+```csv
+p, example-user, applications, get, default/*, allow
+p, example-user, applications, update, default/*, allow
+p, example-user, applications, delete, default/*, allow
+p, example-user, applications, create, default/*, allow
+```
+
+`update` is required because rename rewrites the resource-tracking metadata on the
+application's managed resources. Applications managed by an ApplicationSet or an app-of-apps
+parent cannot be renamed via this operation and must be renamed in their source of truth.
+
 #### Fine-grained Permissions for `update`/`delete` action
 
 The `update` and `delete` actions, when granted on an application, will allow the user to perform the operation on the application itself,

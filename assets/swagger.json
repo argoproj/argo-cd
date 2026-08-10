@@ -1245,6 +1245,45 @@
         }
       }
     },
+    "/api/v1/applications/{name}/rename": {
+      "post": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "Rename renames an application without recreating its managed resources",
+        "operationId": "ApplicationService_Rename",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/applicationApplicationRenameRequest"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1alpha1Application"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications/{name}/resource": {
       "get": {
         "tags": [
@@ -5181,6 +5220,24 @@
           "type": "string"
         },
         "patchType": {
+          "type": "string"
+        },
+        "project": {
+          "type": "string"
+        }
+      }
+    },
+    "applicationApplicationRenameRequest": {
+      "description": "ApplicationRenameRequest is a request to rename an application without\nrecreating its managed resources.",
+      "type": "object",
+      "properties": {
+        "appNamespace": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "newName": {
           "type": "string"
         },
         "project": {

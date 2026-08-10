@@ -563,6 +563,323 @@ func newTestApp(opts ...func(app *v1alpha1.Application)) *v1alpha1.Application {
 	return createTestApp(fakeApp, opts...)
 }
 
+func TestValidateRenamePreconditions(t *testing.T) {
+	synced := func(app *v1alpha1.Application) {
+		app.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
+	}
+	t.Run("ok when synced and idle", func(t *testing.T) {
+		app := newTestApp(synced)
+		require.NoError(t, validateRenamePreconditions(app, "new-name"))
+	})
+	t.Run("rejects empty new name", func(t *testing.T) {
+		app := newTestApp(synced)
+		assert.ErrorContains(t, validateRenamePreconditions(app, ""), "empty")
+	})
+	t.Run("rejects same name", func(t *testing.T) {
+		app := newTestApp(synced)
+		assert.ErrorContains(t, validateRenamePreconditions(app, app.Name), "different")
+	})
+	t.Run("rejects invalid dns name", func(t *testing.T) {
+		app := newTestApp(synced)
+		assert.ErrorContains(t, validateRenamePreconditions(app, "Bad_Name"), "valid")
+	})
+	t.Run("rejects out of sync", func(t *testing.T) {
+		app := newTestApp(func(a *v1alpha1.Application) {
+			a.Status.Sync.Status = v1alpha1.SyncStatusCodeOutOfSync
+		})
+		assert.ErrorContains(t, validateRenamePreconditions(app, "new-name"), "Synced")
+	})
+	t.Run("rejects running operation", func(t *testing.T) {
+		app := newTestApp(synced)
+		app.Status.OperationState = &v1alpha1.OperationState{Phase: synccommon.OperationRunning}
+		assert.ErrorContains(t, validateRenamePreconditions(app, "new-name"), "operation")
+	})
+	t.Run("rejects app being deleted", func(t *testing.T) {
+		app := newTestApp(synced)
+		now := metav1.Now()
+		app.DeletionTimestamp = &now
+		assert.ErrorContains(t, validateRenamePreconditions(app, "new-name"), "being deleted")
+	})
+}
+
+func TestBuildRenamedApp(t *testing.T) {
+	old := newTestApp(func(a *v1alpha1.Application) {
+		a.Name = "old-name"
+		a.Labels = map[string]string{"team": "x"}
+		a.Finalizers = []string{v1alpha1.ResourcesFinalizerName}
+		a.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
+		a.Operation = &v1alpha1.Operation{}
+	})
+	got := buildRenamedApp(old, "new-name")
+
+	assert.Equal(t, "new-name", got.Name)
+	assert.Equal(t, old.Namespace, got.Namespace)
+	assert.Equal(t, old.Spec, got.Spec)
+	assert.Equal(t, map[string]string{"team": "x"}, got.Labels)
+	assert.Equal(t, []string{v1alpha1.ResourcesFinalizerName}, got.Finalizers)
+	assert.Empty(t, got.ResourceVersion)
+	assert.Nil(t, got.Operation)
+	assert.Equal(t, v1alpha1.ApplicationStatus{}, got.Status)
+}
+
+func TestBuildRenameTrackingPatch(t *testing.T) {
+	const labelKey = "app.kubernetes.io/instance"
+	liveState := `{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"name":"guestbook-ui","namespace":"guestbook",` +
+		`"annotations":{"argocd.argoproj.io/tracking-id":"old-app:apps/Deployment:guestbook/guestbook-ui"},` +
+		`"labels":{"app.kubernetes.io/instance":"old-app"}}}`
+	res := func() *v1alpha1.ResourceDiff {
+		return &v1alpha1.ResourceDiff{Group: "apps", Kind: "Deployment", Namespace: "guestbook", Name: "guestbook-ui", LiveState: liveState}
+	}
+	trackingID := func(patch []byte) string {
+		var p map[string]any
+		require.NoError(t, json.Unmarshal(patch, &p))
+		anns, _ := p["metadata"].(map[string]any)["annotations"].(map[string]any)
+		v, _ := anns["argocd.argoproj.io/tracking-id"].(string)
+		return v
+	}
+	instanceLabel := func(patch []byte) string {
+		var p map[string]any
+		require.NoError(t, json.Unmarshal(patch, &p))
+		labels, _ := p["metadata"].(map[string]any)["labels"].(map[string]any)
+		v, _ := labels[labelKey].(string)
+		return v
+	}
+
+	// The tracking-id must be single-encoded, NOT doubled (regression: passing a pre-built
+	// value to SetAppInstance produced "new-app:apps/Deployment:ns/name:apps/...").
+	t.Run("annotation method", func(t *testing.T) {
+		patch, gvk, err := buildRenameTrackingPatch("new-app", res(), string(v1alpha1.TrackingMethodAnnotation), labelKey, "")
+		require.NoError(t, err)
+		assert.Equal(t, "apps", gvk.Group)
+		assert.Equal(t, "Deployment", gvk.Kind)
+		assert.Equal(t, "new-app:apps/Deployment:guestbook/guestbook-ui", trackingID(patch))
+	})
+	t.Run("label method", func(t *testing.T) {
+		patch, _, err := buildRenameTrackingPatch("new-app", res(), string(v1alpha1.TrackingMethodLabel), labelKey, "")
+		require.NoError(t, err)
+		assert.Equal(t, "new-app", instanceLabel(patch))
+	})
+	t.Run("annotation+label method", func(t *testing.T) {
+		patch, _, err := buildRenameTrackingPatch("new-app", res(), string(v1alpha1.TrackingMethodAnnotationAndLabel), labelKey, "")
+		require.NoError(t, err)
+		assert.Equal(t, "new-app:apps/Deployment:guestbook/guestbook-ui", trackingID(patch))
+		assert.Equal(t, "new-app", instanceLabel(patch))
+	})
+	t.Run("patches only the tracking keys, not unrelated metadata", func(t *testing.T) {
+		// The patch must not carry unrelated labels/annotations from the cached live state, which
+		// would reset them to stale values and clobber concurrent changes.
+		liveWithExtra := `{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"name":"guestbook-ui","namespace":"guestbook",` +
+			`"annotations":{"argocd.argoproj.io/tracking-id":"old-app:apps/Deployment:guestbook/guestbook-ui","other.io/keep":"x"},` +
+			`"labels":{"app.kubernetes.io/instance":"old-app","other-label":"y"}}}`
+		r := &v1alpha1.ResourceDiff{Group: "apps", Kind: "Deployment", Namespace: "guestbook", Name: "guestbook-ui", LiveState: liveWithExtra}
+		patch, _, err := buildRenameTrackingPatch("new-app", r, string(v1alpha1.TrackingMethodAnnotationAndLabel), labelKey, "")
+		require.NoError(t, err)
+		var p map[string]any
+		require.NoError(t, json.Unmarshal(patch, &p))
+		meta, _ := p["metadata"].(map[string]any)
+		anns, _ := meta["annotations"].(map[string]any)
+		labels, _ := meta["labels"].(map[string]any)
+		assert.Equal(t, map[string]any{"argocd.argoproj.io/tracking-id": "new-app:apps/Deployment:guestbook/guestbook-ui"}, anns)
+		assert.Equal(t, map[string]any{labelKey: "new-app"}, labels)
+	})
+}
+
+func TestServer_Rename(t *testing.T) {
+	syncedApp := func(name string) *v1alpha1.Application {
+		return newTestApp(func(a *v1alpha1.Application) {
+			a.Name = name
+			a.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
+		})
+	}
+
+	t.Run("renames a synced app: creates new, deletes old", func(t *testing.T) {
+		appServer := newTestAppServer(t, syncedApp("old-app"))
+		ctx := t.Context()
+
+		renamed, err := appServer.Rename(ctx, &application.ApplicationRenameRequest{
+			Name:    new("old-app"),
+			NewName: new("new-app"),
+		})
+		require.NoError(t, err)
+		assert.Equal(t, "new-app", renamed.Name)
+
+		_, err = appServer.Get(ctx, &application.ApplicationQuery{Name: new("old-app")})
+		require.Error(t, err)
+		got, err := appServer.Get(ctx, &application.ApplicationQuery{Name: new("new-app")})
+		require.NoError(t, err)
+		assert.Equal(t, "new-app", got.Name)
+	})
+
+	t.Run("rejects out-of-sync app without changing anything", func(t *testing.T) {
+		appServer := newTestAppServer(t, newTestApp(func(a *v1alpha1.Application) {
+			a.Name = "old-app"
+			a.Status.Sync.Status = v1alpha1.SyncStatusCodeOutOfSync
+		}))
+		ctx := t.Context()
+
+		_, err := appServer.Rename(ctx, &application.ApplicationRenameRequest{
+			Name: new("old-app"), NewName: new("new-app"),
+		})
+		require.ErrorContains(t, err, "Synced")
+		_, err = appServer.Get(ctx, &application.ApplicationQuery{Name: new("old-app")})
+		assert.NoError(t, err)
+	})
+
+	t.Run("rejects when new name already exists", func(t *testing.T) {
+		appServer := newTestAppServer(t, syncedApp("old-app"), syncedApp("taken"))
+		ctx := t.Context()
+		_, err := appServer.Rename(ctx, &application.ApplicationRenameRequest{
+			Name: new("old-app"), NewName: new("taken"),
+		})
+		assert.ErrorContains(t, err, "exists")
+	})
+
+	t.Run("rejects a managed child of an app-of-apps parent", func(t *testing.T) {
+		parent := syncedApp("parent-app")
+		child := newTestApp(func(a *v1alpha1.Application) {
+			a.Name = "child-foo"
+			a.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
+			a.Annotations = map[string]string{
+				common.AnnotationKeyAppInstance: "parent-app:argoproj.io/Application:default/child-foo",
+			}
+		})
+		appServer := newTestAppServer(t, parent, child)
+		ctx := t.Context()
+
+		_, err := appServer.Rename(ctx, &application.ApplicationRenameRequest{
+			Name: new("child-foo"), NewName: new("child-bar"),
+		})
+		require.ErrorContains(t, err, "managed by")
+		// the child is left untouched
+		_, err = appServer.appclientset.ArgoprojV1alpha1().Applications(testNamespace).Get(ctx, "child-foo", metav1.GetOptions{})
+		assert.NoError(t, err)
+	})
+
+	t.Run("rejects a managed child of an ApplicationSet", func(t *testing.T) {
+		appset := &v1alpha1.ApplicationSet{
+			ObjectMeta: metav1.ObjectMeta{Name: "my-appset", Namespace: testNamespace},
+			Spec: v1alpha1.ApplicationSetSpec{
+				Template: v1alpha1.ApplicationSetTemplate{Spec: v1alpha1.ApplicationSpec{Project: "default"}},
+			},
+		}
+		child := newTestApp(func(a *v1alpha1.Application) {
+			a.Name = "appset-child"
+			a.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
+			a.OwnerReferences = []metav1.OwnerReference{{
+				APIVersion: "argoproj.io/v1alpha1", Kind: "ApplicationSet", Name: "my-appset", UID: "uid-1",
+			}}
+		})
+		appServer := newTestAppServer(t, appset, child)
+		ctx := t.Context()
+
+		_, err := appServer.Rename(ctx, &application.ApplicationRenameRequest{
+			Name: new("appset-child"), NewName: new("appset-child-new"),
+		})
+		require.ErrorContains(t, err, "managed by")
+		_, err = appServer.appclientset.ArgoprojV1alpha1().Applications(testNamespace).Get(ctx, "appset-child", metav1.GetOptions{})
+		assert.NoError(t, err)
+	})
+}
+
+func TestServer_Rename_failureRestoresState(t *testing.T) {
+	syncedApp := func(name string) *v1alpha1.Application {
+		return newTestApp(func(a *v1alpha1.Application) {
+			a.Name = name
+			a.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
+		})
+	}
+	// failCreateOf injects a failure for creating an application with the given name, while
+	// letting other creates (e.g. the rollback of the original) proceed.
+	failCreateOf := func(cs *apps.Clientset, name string) {
+		cs.PrependReactor("create", "applications", func(action kubetesting.Action) (bool, runtime.Object, error) {
+			if obj, ok := action.(kubetesting.CreateAction).GetObject().(*v1alpha1.Application); ok && obj.GetName() == name {
+				return true, nil, errors.New("injected create failure")
+			}
+			return false, nil, nil
+		})
+	}
+
+	t.Run("create failure restores the original application", func(t *testing.T) {
+		appServer := newTestAppServer(t, syncedApp("old-app"))
+		ctx := t.Context()
+		cs := appServer.appclientset.(*deepCopyAppClientset).GetUnderlyingClientSet().(*apps.Clientset)
+		failCreateOf(cs, "new-app")
+
+		_, err := appServer.Rename(ctx, &application.ApplicationRenameRequest{Name: new("old-app"), NewName: new("new-app")})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "was restored")
+		_, gerr := cs.ArgoprojV1alpha1().Applications(testNamespace).Get(ctx, "old-app", metav1.GetOptions{})
+		require.NoError(t, gerr, "original app must be restored")
+		_, gerr = cs.ArgoprojV1alpha1().Applications(testNamespace).Get(ctx, "new-app", metav1.GetOptions{})
+		assert.Error(t, gerr, "renamed app must not exist")
+	})
+
+	t.Run("delete failure restores the original finalizers", func(t *testing.T) {
+		// Rename removes only Argo CD's cascade finalizer before deleting the old app; if the
+		// delete then fails, the user's finalizers and the original cascade finalizer must be
+		// restored rather than left stripped.
+		app := newTestApp(func(a *v1alpha1.Application) {
+			a.Name = "old-app"
+			a.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
+			a.Finalizers = []string{v1alpha1.ResourcesFinalizerName, "user.example.com/keep"}
+		})
+		appServer := newTestAppServer(t, app)
+		ctx := t.Context()
+		cs := appServer.appclientset.(*deepCopyAppClientset).GetUnderlyingClientSet().(*apps.Clientset)
+		cs.PrependReactor("delete", "applications", func(action kubetesting.Action) (bool, runtime.Object, error) {
+			if action.(kubetesting.DeleteAction).GetName() == "old-app" {
+				return true, nil, errors.New("injected delete failure")
+			}
+			return false, nil, nil
+		})
+
+		_, err := appServer.Rename(ctx, &application.ApplicationRenameRequest{Name: new("old-app"), NewName: new("new-app")})
+		require.Error(t, err)
+		got, gerr := cs.ArgoprojV1alpha1().Applications(testNamespace).Get(ctx, "old-app", metav1.GetOptions{})
+		require.NoError(t, gerr, "old app must still exist after a failed delete")
+		assert.ElementsMatch(t, []string{v1alpha1.ResourcesFinalizerName, "user.example.com/keep"}, got.Finalizers,
+			"original finalizers must be restored after a failed delete")
+	})
+}
+
+// TestServer_Rename_RequiresUpdatePermission verifies rename requires `update` in addition
+// to `delete`/`create`: rename rewrites the tracking metadata on the app's managed resources,
+// so a caller with only delete+create must not be able to trigger it.
+func TestServer_Rename_RequiresUpdatePermission(t *testing.T) {
+	setup := func(t *testing.T, policy string) (*Server, context.Context) {
+		t.Helper()
+		//nolint:staticcheck
+		ctx := context.WithValue(t.Context(), "claims", &jwt.RegisteredClaims{Subject: "test-user"})
+		f := func(enf *rbac.Enforcer) {
+			_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+			enf.SetDefaultRole("role:admin")
+		}
+		app := newTestApp(func(a *v1alpha1.Application) {
+			a.Name = "old-app"
+			a.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
+		})
+		s := newTestAppServerWithEnforcerConfigure(t, f, map[string]string{}, app)
+		_ = s.enf.SetBuiltinPolicy(policy)
+		return s, ctx
+	}
+	base := `
+        p, test-user, applications, get, default/*, allow
+        p, test-user, applications, create, default/*, allow
+        p, test-user, applications, delete, default/*, allow`
+
+	t.Run("denied without update permission", func(t *testing.T) {
+		s, ctx := setup(t, base)
+		_, err := s.Rename(ctx, &application.ApplicationRenameRequest{Name: new("old-app"), NewName: new("new-app")})
+		assert.Equal(t, codes.PermissionDenied.String(), status.Code(err).String())
+	})
+
+	t.Run("allowed with update permission", func(t *testing.T) {
+		s, ctx := setup(t, base+"\n        p, test-user, applications, update, default/*, allow")
+		_, err := s.Rename(ctx, &application.ApplicationRenameRequest{Name: new("old-app"), NewName: new("new-app")})
+		require.NoError(t, err)
+	})
+}
+
 func newMultiSourceTestApp(opts ...func(app *v1alpha1.Application)) *v1alpha1.Application {
 	multiSourceApp := newTestApp(opts...)
 	multiSourceApp.Name = "multi-source-app"
