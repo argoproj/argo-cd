@@ -116,10 +116,12 @@ const POD_GROUP_ROW_HEIGHT = 20;
 // Keep in sync with `$pods-per-row` in `application-resource-tree.scss`.
 const POD_GROUP_PODS_PER_ROW = 8;
 const FILTERED_INDICATOR_NODE = '__filtered_indicator__';
+const CAPPED_INDICATOR_NODE = '__capped_indicator__';
 const EXTERNAL_TRAFFIC_NODE = '__external_traffic__';
 const INTERNAL_TRAFFIC_NODE = '__internal_traffic__';
 const NODE_TYPES = {
     filteredIndicator: 'filtered_indicator',
+    cappedIndicator: 'capped_indicator',
     externalTraffic: 'external_traffic',
     externalLoadBalancer: 'external_load_balancer',
     internalTraffic: 'internal_traffic',
@@ -275,8 +277,114 @@ export function compareNodes(first: ResourceTreeNode, second: ResourceTreeNode) 
     );
 }
 
+// How much attention a resource needs, lower first. Anything unhealthy outranks a healthy resource,
+// and among healthy ones the workloads outrank configuration: otherwise a budget spent in name order
+// fills up with ConfigMaps and never reaches the Deployment the user came to look at.
+const RELEVANCE_WORKLOAD = 4;
+const RELEVANCE_EXPOSURE = 5;
+const RELEVANCE_UNREMARKABLE = 6;
+const WORKLOAD_KINDS = new Set(['Deployment', 'StatefulSet', 'DaemonSet', 'Job', 'CronJob', 'Rollout', 'ReplicationController']);
+const EXPOSURE_KINDS = new Set(['Service', 'Ingress', 'Gateway', 'HTTPRoute', 'GRPCRoute', 'Route']);
+
+function ownRelevance(node: ResourceTreeNode): number {
+    switch (node.health?.status) {
+        case models.HealthStatuses.Degraded:
+        case models.HealthStatuses.Missing:
+            return 0;
+        case models.HealthStatuses.Progressing:
+            return 1;
+    }
+    if (node.status === models.SyncStatuses.OutOfSync) {
+        return 2;
+    }
+    switch (node.health?.status) {
+        case models.HealthStatuses.Suspended:
+        case models.HealthStatuses.Unknown:
+            return 3;
+    }
+    if (WORKLOAD_KINDS.has(node.kind)) {
+        return RELEVANCE_WORKLOAD;
+    }
+    if (EXPOSURE_KINDS.has(node.kind)) {
+        return RELEVANCE_EXPOSURE;
+    }
+    return RELEVANCE_UNREMARKABLE;
+}
+
+// A parent is as interesting as the most interesting thing beneath it: a healthy looking Deployment
+// whose pod is failing still needs to be on screen. Memoised per node, so the whole forest costs one
+// traversal however many roots ask.
+export function subtreeRelevance(
+    node: ResourceTreeNode,
+    childrenByParentKey: Map<string, ResourceTreeNode[]>,
+    memo: Map<string, number> = new Map(),
+    visiting: Set<string> = new Set()
+): number {
+    const key = treeNodeKey(node);
+    const cached = memo.get(key);
+    if (cached !== undefined) {
+        return cached;
+    }
+    // Guards against a cycle in parentRefs, which would otherwise recurse forever.
+    if (visiting.has(key)) {
+        return RELEVANCE_UNREMARKABLE;
+    }
+    visiting.add(key);
+    let best = ownRelevance(node);
+    for (const child of childrenByParentKey.get(key) || []) {
+        if (best === 0) {
+            break;
+        }
+        best = Math.min(best, subtreeRelevance(child, childrenByParentKey, memo, visiting));
+    }
+    visiting.delete(key);
+    memo.set(key, best);
+    return best;
+}
+
 function appNodeKey(app: models.AbstractApplication) {
     return nodeKey({group: 'argoproj.io', kind: app.kind, name: app.metadata.name, namespace: app.metadata.namespace});
+}
+
+function renderCappedNode(node: {shownCount: number; totalCount: number; hiddenCount: number; parentKey?: string} & dagre.Node) {
+    // A per-parent overflow marker: same idea, but it stands for one parent's children.
+    if (node.parentKey) {
+        return (
+            <div
+                className='application-resource-tree__node'
+                title={`${node.shownCount} of ${node.totalCount} children shown`}
+                style={{
+                    left: node.x,
+                    top: node.y,
+                    width: node.width,
+                    height: node.height,
+                    borderStyle: 'dashed',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: 12
+                }}>
+                <span style={{textAlign: 'center', lineHeight: '16px'}}>
+                    {node.hiddenCount} more
+                    <div style={{opacity: 0.7, fontSize: 11}}>
+                        {node.shownCount} of {node.totalCount} shown
+                    </div>
+                </span>
+            </div>
+        );
+    }
+    return (
+        <div
+            className='application-resource-tree__node'
+            title={`${node.shownCount} of ${node.totalCount} resources drawn`}
+            style={{left: node.x, top: node.y, width: node.width, height: node.height, borderStyle: 'dashed', padding: 8, overflow: 'hidden', fontSize: 12}}>
+            <div style={{fontWeight: 600, marginBottom: 4}}>
+                <i className='fa fa-layer-group' style={{marginRight: 6}} />
+                Showing {node.shownCount} of {node.totalCount} resources
+            </div>
+            <div style={{opacity: 0.7}}>Use search or filter to find a specific one.</div>
+        </div>
+    );
 }
 
 function renderFilteredNode(node: {count: number} & dagre.Node, onClearFilter: () => any) {
@@ -1334,14 +1442,36 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                 }
             });
         }
-        roots.sort(compareNodes).forEach(node => {
+        // Ranked before the budget is spent, so what survives is what needs attention rather than
+        // whatever sorts first by name. Only reordered when the budget actually bites, so an
+        // application that fits keeps the ordering it has always had.
+        const relevanceMemo = new Map<string, number>();
+        const relevanceVisiting = new Set<string>();
+        const relevanceOf = (n: ResourceTreeNode) => subtreeRelevance(n, childrenByParentKey, relevanceMemo, relevanceVisiting);
+        const orderedRoots = roots.length > DEFAULT_VISIBLE_CAP ? [...roots].sort((a, b) => relevanceOf(a) - relevanceOf(b) || compareNodes(a, b)) : roots.sort(compareNodes);
+        let shownRoots = 0;
+        orderedRoots.forEach(node => {
             if (processNode(node, node)) {
+                shownRoots++;
                 graph.setEdge(appNodeKey(props.app), treeNodeKey(node));
             }
         });
         orphans.sort(compareNodes).forEach(node => {
             processNode(node, node);
         });
+        // Say what is missing. Truncating quietly is worse than truncating: the user cannot tell the
+        // difference between "this application has 200 resources" and "we drew 200 of 14,451".
+        if (orderedRoots.length > shownRoots) {
+            graph.setNode(CAPPED_INDICATOR_NODE, {
+                height: NODE_HEIGHT,
+                width: NODE_WIDTH,
+                type: NODE_TYPES.cappedIndicator,
+                shownCount: shownRoots,
+                totalCount: orderedRoots.length,
+                hiddenCount: orderedRoots.length - shownRoots
+            });
+            graph.setEdge(appNodeKey(props.app), CAPPED_INDICATOR_NODE);
+        }
         graph.setNode(appNodeKey(props.app), {...appNode, width: NODE_WIDTH, height: NODE_HEIGHT});
         const appSetKey = appSetNode ? nodeKey({group: 'argoproj.io', kind: 'ApplicationSet', name: appSetRef.name, namespace: props.app.metadata.namespace}) : null;
         if (appSetKey) {
@@ -1383,8 +1513,17 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         // Capped per parent as well, so one very wide subtree cannot consume the whole budget and
         // leave every other branch undrawn.
         let shownChildren = 0;
-        (childrenByParentKey.get(treeNodeKey(node)) || []).sort(compareNodes).forEach(child => {
-            if (treeNodeKey(child) === treeNodeKey(root) || shownChildren >= MAX_CHILDREN_PER_PARENT) {
+        let hiddenChildren = 0;
+        // Copied before sorting: the array is cached in childrenByParentKey and sort works in place.
+        const orderedChildren = [...(childrenByParentKey.get(treeNodeKey(node)) || [])].sort(
+            (a, b) => subtreeRelevance(a, childrenByParentKey) - subtreeRelevance(b, childrenByParentKey) || compareNodes(a, b)
+        );
+        orderedChildren.forEach(child => {
+            if (treeNodeKey(child) === treeNodeKey(root)) {
+                return;
+            }
+            if (shownChildren >= MAX_CHILDREN_PER_PARENT) {
+                hiddenChildren++;
                 return;
             }
             if (!processNode(child, root, colors)) {
@@ -1397,6 +1536,19 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                 graph.setEdge(treeNodeKey(node), treeNodeKey(child), {colors});
             }
         });
+        if (hiddenChildren > 0) {
+            const moreId = treeNodeKey(node) + '/__more__';
+            graph.setNode(moreId, {
+                height: NODE_HEIGHT,
+                width: NODE_WIDTH,
+                type: NODE_TYPES.cappedIndicator,
+                shownCount: shownChildren,
+                totalCount: shownChildren + hiddenChildren,
+                hiddenCount: hiddenChildren,
+                parentKey: treeNodeKey(node)
+            });
+            graph.setEdge(treeNodeKey(node), moreId);
+        }
         return true;
     }
     dagre.layout(graph);
@@ -1538,6 +1690,8 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                     const node = graph.node(key);
                     const nodeType = node.type;
                     switch (nodeType) {
+                        case NODE_TYPES.cappedIndicator:
+                            return <React.Fragment key={key}>{renderCappedNode(node as any)}</React.Fragment>;
                         case NODE_TYPES.filteredIndicator:
                             return <React.Fragment key={key}>{renderFilteredNode(node as any, props.onClearFilter)}</React.Fragment>;
                         case NODE_TYPES.externalTraffic:
