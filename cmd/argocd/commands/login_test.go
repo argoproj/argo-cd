@@ -77,3 +77,11 @@ func Test_ssoAuthFlow_ssoLaunchBrowser_false(t *testing.T) {
 
 	assert.Contains(t, out, "To authenticate, copy-and-paste the following URL into your preferred browser: http://test-sso-browser-flow.com")
 }
+
+func Test_getTLSTestHint(t *testing.T) {
+	assert.Contains(t, getTLSTestHint(false), "--grpc-web")
+	assert.Contains(t, getTLSTestHint(false), "--skip-test-tls")
+
+	assert.NotContains(t, getTLSTestHint(true), "--grpc-web")
+	assert.Contains(t, getTLSTestHint(true), "--skip-test-tls")
+}
