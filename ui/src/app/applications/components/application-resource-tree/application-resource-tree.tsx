@@ -305,6 +305,8 @@ export function compareNodes(first: ResourceTreeNode, second: ResourceTreeNode) 
 const RELEVANCE_WORKLOAD = 4;
 const RELEVANCE_EXPOSURE = 5;
 const RELEVANCE_UNREMARKABLE = 6;
+// One past the last tier, so adding it to a rank orders every non-match after every match.
+const RELEVANCE_TIERS = 7;
 const WORKLOAD_KINDS = new Set(['Deployment', 'StatefulSet', 'DaemonSet', 'Job', 'CronJob', 'Rollout', 'ReplicationController']);
 const EXPOSURE_KINDS = new Set(['Service', 'Ingress', 'Gateway', 'HTTPRoute', 'GRPCRoute', 'Route']);
 
@@ -327,7 +329,7 @@ function summaryState(node: ResourceTreeNode): {state: string; health: boolean} 
 // ~14k roots by relevance cost 120ms of every re-render, and bucketing them by tier still sorted a
 // 4,000-member kind by name to take 5 of it. The result is ordered but truncated, so callers that need
 // a total have to count the input rather than the result.
-function mostRelevantFirst(items: ResourceTreeNode[], limit: number, relevanceOf: (node: ResourceTreeNode) => number): ResourceTreeNode[] {
+export function mostRelevantFirst(items: ResourceTreeNode[], limit: number, relevanceOf: (node: ResourceTreeNode) => number): ResourceTreeNode[] {
     const moreRelevant = (a: ResourceTreeNode, b: ResourceTreeNode) => relevanceOf(a) - relevanceOf(b) || compareNodes(a, b);
     if (items.length <= limit) {
         return [...items].sort(moreRelevant);
@@ -393,6 +395,38 @@ function ownRelevance(node: ResourceTreeNode): number {
 // A parent is as interesting as the most interesting thing beneath it: a healthy looking Deployment
 // whose pod is failing still needs to be on screen. Memoised per node, so the whole forest costs one
 // traversal however many roots ask.
+// True when the node itself or anything beneath it satisfies the predicate. Mirrors subtreeRelevance,
+// cycle guard included, so a filter that only matches a descendant still keeps the path down to it.
+export function subtreeMatches(
+    node: ResourceTreeNode,
+    predicate: (candidate: ResourceTreeNode) => boolean,
+    childrenByParentKey: Map<string, ResourceTreeNode[]>,
+    memo: Map<string, boolean> = new Map(),
+    visiting: Set<string> = new Set()
+): boolean {
+    const key = treeNodeKey(node);
+    const cached = memo.get(key);
+    if (cached !== undefined) {
+        return cached;
+    }
+    if (visiting.has(key)) {
+        return false;
+    }
+    visiting.add(key);
+    let found = predicate(node);
+    if (!found) {
+        for (const child of childrenByParentKey.get(key) || []) {
+            if (subtreeMatches(child, predicate, childrenByParentKey, memo, visiting)) {
+                found = true;
+                break;
+            }
+        }
+    }
+    visiting.delete(key);
+    memo.set(key, found);
+    return found;
+}
+
 export function subtreeRelevance(
     node: ResourceTreeNode,
     childrenByParentKey: Map<string, ResourceTreeNode[]>,
@@ -1348,8 +1382,9 @@ function findNetworkTargets(nodes: ResourceTreeNode[], networkingInfo: models.Re
 }
 export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => {
     const graph = new dagre.graphlib.Graph<{[key: string]: any}>();
-    // How much of the budget this render has spent, and how much it turned away.
-    const renderState = {drawn: 0, skipped: 0};
+    // How much of the budget this render has spent. What it turned away is reported by the card and by
+    // the overflow markers, each of which counts its own.
+    const renderState = {drawn: 0};
     graph.setGraph({nodesep: 25, rankdir: 'LR', marginy: 45, marginx: -100, ranksep: 80});
     graph.setDefaultEdgeLabel(() => ({}));
     const overridesCount = getAppOverridesCount(props.app);
@@ -1436,6 +1471,21 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     const [showAllKindChips, setShowAllKindChips] = React.useState(false);
     // Allowance for one marker: its own expanded count if it has been clicked, else the default.
     const allowanceFor = (key: string, fallback: number) => expandedCounts[key] ?? fallback;
+
+    // Ranking, shared by the roots, their children and the clustered kinds. The budget is spent before
+    // the filter is applied, so without the filter term a search could only narrow what happened to be
+    // drawn: the card would tell the user to search for the resources it had hidden, and searching would
+    // not find them. Anything the filter reaches outranks everything it does not.
+    const relevanceMemo = new Map<string, number>();
+    const relevanceVisiting = new Set<string>();
+    const relevanceOf = (node: ResourceTreeNode) => subtreeRelevance(node, childrenByParentKey, relevanceMemo, relevanceVisiting);
+    const matchMemo = new Map<string, boolean>();
+    const matchVisiting = new Set<string>();
+    const rankOf = (node: ResourceTreeNode) =>
+        relevanceOf(node) + (!props.nodeFilter || subtreeMatches(node, props.nodeFilter, childrenByParentKey, matchMemo, matchVisiting) ? 0 : RELEVANCE_TIERS);
+    // A clustered kind only ever holds childless roots, so its members need neither walk.
+    const clusterRankOf = (node: ResourceTreeNode) => ownRelevance(node) + (!props.nodeFilter || props.nodeFilter(node) ? 0 : RELEVANCE_TIERS);
+
     const filtersRef = React.useRef(props.filters);
     const filteredGraphRef = React.useRef<any[]>([]);
     const filteredNodes: any[] = [];
@@ -1551,8 +1601,14 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             }
             return acc;
         }, []);
-        const externalRoots = roots.filter(root => (root.networkingInfo.ingress || []).length > 0).sort(compareNodes);
-        const internalRoots = roots.filter(root => (root.networkingInfo.ingress || []).length === 0).sort(compareNodes);
+        // Ordered the same way the tree view orders its roots, so the budget admits what needs attention
+        // and, while a filter is active, what that filter reaches. Ordering by name alone meant a search
+        // could not find a resource the budget had already turned away.
+        const externalCandidates = roots.filter(root => (root.networkingInfo.ingress || []).length > 0);
+        const internalCandidates = roots.filter(root => (root.networkingInfo.ingress || []).length === 0);
+        const networkBudgetBites = roots.length > DEFAULT_VISIBLE_CAP;
+        const externalRoots = networkBudgetBites ? mostRelevantFirst(externalCandidates, visibleCap, rankOf) : externalCandidates.sort(compareNodes);
+        const internalRoots = networkBudgetBites ? mostRelevantFirst(internalCandidates, visibleCap, rankOf) : internalCandidates.sort(compareNodes);
         const colorsBySource = new Map<string, string>();
         // sources are root internal services and external ingress/service IPs
         const sources = Array.from(
@@ -1577,7 +1633,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                 // off it. Placing it directly meant the budget only ever refused children, so an
                 // application with many ingress facing resources quietly lost most of its graph; and
                 // an edge to a refused node leaves a dimensionless placeholder that dagre throws on.
-                if (!processNode(root, root, [colorsBySource.get(treeNodeKey(root))])) {
+                if (!processNode(root, root, undefined, colorByService)) {
                     return;
                 }
                 (childrenByParentKey.get(treeNodeKey(root)) || []).forEach(child => {
@@ -1606,7 +1662,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
 
         if (internalRoots.length > 0) {
             graph.setNode(INTERNAL_TRAFFIC_NODE, {height: NODE_HEIGHT, width: 30, type: NODE_TYPES.internalTraffic});
-            internalRoots.forEach(root => {
+            internalRoots.sort(compareNodes).forEach(root => {
                 if (processNode(root, root, [colorsBySource.get(treeNodeKey(root))])) {
                     graph.setEdge(INTERNAL_TRAFFIC_NODE, treeNodeKey(root));
                 }
@@ -1664,18 +1720,19 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         // Ranked before the budget is spent, so what survives is what needs attention rather than
         // whatever sorts first by name. Only reordered when the budget actually bites, so an
         // application that fits keeps the ordering it has always had.
-        const relevanceMemo = new Map<string, number>();
-        const relevanceVisiting = new Set<string>();
-        const relevanceOf = (n: ResourceTreeNode) => subtreeRelevance(n, childrenByParentKey, relevanceMemo, relevanceVisiting);
-        const budgetBites = roots.length > visibleCap && !capBucketKind;
+        // Decided from the size of the application rather than the running budget, so expanding a marker
+        // cannot push the cap past the root count and reshape the whole top level mid-session.
+        const budgetBites = roots.length > DEFAULT_VISIBLE_CAP && !capBucketKind;
 
         // Past the budget the bulk kinds get a parent of their own rather than competing for one
         // shared allowance. The top level then holds the workloads, whose hierarchy is the reason this
         // is a graph at all, plus one node per remaining kind, and it stops growing with the size of
         // the application.
         const clusters = new Map<string, ResourceTreeNode[]>();
+        const kindTotals = new Map<string, number>();
         // Drilling into a kind shows that kind's resources at the top level, which is what was asked for.
         const inBucket = capBucketKind ? roots.filter(r => r.kind === capBucketKind) : roots;
+        inBucket.forEach(r => kindTotals.set(r.kind, (kindTotals.get(r.kind) || 0) + 1));
         let orderedRoots: ResourceTreeNode[];
         // What the card counts as "not drawn one at a time". Ordering yields only a prefix now, so the
         // total has to come from the set that went in.
@@ -1706,10 +1763,10 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                     direct.push(...members);
                 }
             });
-            orderedRoots = mostRelevantFirst(direct, visibleCap, relevanceOf);
+            orderedRoots = mostRelevantFirst(direct, visibleCap, rankOf);
             rootsTotal = direct.length;
         } else if (capBucketKind) {
-            orderedRoots = mostRelevantFirst(inBucket, visibleCap, relevanceOf);
+            orderedRoots = mostRelevantFirst(inBucket, visibleCap, rankOf);
             rootsTotal = inBucket.length;
         } else {
             orderedRoots = inBucket.sort(compareNodes);
@@ -1733,7 +1790,9 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                 width: NODE_WIDTH,
                 type: NODE_TYPES.kindGroup,
                 kind,
-                total: members.length,
+                // Every root of the kind, not only those clustered here: the ones with children of their
+                // own are shown at the top level, and drilling into the kind will show all of them.
+                total: kindTotals.get(kind),
                 group: members[0].group
             });
             graph.setEdge(appNodeKey(props.app), kindNodeId);
@@ -1742,7 +1801,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             // Only childless roots are ever clustered, so a member's subtree relevance is its own: the
             // memoised walk would build a key string per member to learn it has no children.
             const shown = new Set<ResourceTreeNode>();
-            mostRelevantFirst(members, preview, ownRelevance).forEach(member => {
+            mostRelevantFirst(members, preview, clusterRankOf).forEach(member => {
                 if (shownHere >= preview) {
                     return;
                 }
@@ -1822,9 +1881,8 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
 
     // Returns whether the node was drawn. Callers must only draw an edge to it when it was: an edge to
     // a node the budget refused leaves a dimensionless placeholder behind, which dagre.layout throws on.
-    function processNode(node: ResourceTreeNode, root: ResourceTreeNode, colors?: string[]): boolean {
+    function processNode(node: ResourceTreeNode, root: ResourceTreeNode, colors?: string[], colorByChild?: Map<string, string>): boolean {
         if (renderState.drawn >= visibleCap) {
-            renderState.skipped++;
             return false;
         }
         renderState.drawn++;
@@ -1839,26 +1897,32 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         let hiddenChildren = 0;
         const hiddenChildNodes: ResourceTreeNode[] = [];
         // Copied before sorting: the array is cached in childrenByParentKey and sort works in place.
-        const orderedChildren = [...(childrenByParentKey.get(treeNodeKey(node)) || [])].sort(
-            (a, b) => subtreeRelevance(a, childrenByParentKey) - subtreeRelevance(b, childrenByParentKey) || compareNodes(a, b)
-        );
+        const orderedChildren = [...(childrenByParentKey.get(treeNodeKey(node)) || [])].sort((a, b) => rankOf(a) - rankOf(b) || compareNodes(a, b));
         orderedChildren.forEach(child => {
             if (treeNodeKey(child) === treeNodeKey(root)) {
                 return;
             }
+            // In the network view each service below an ingress gets its own colour, and that colour has
+            // to travel down its own subtree rather than the root's.
+            const childColors = colorByChild?.has(treeNodeKey(child)) ? [colorByChild.get(treeNodeKey(child))] : colors;
             if (shownChildren >= allowanceFor(treeNodeKey(node), MAX_CHILDREN_PER_PARENT)) {
                 hiddenChildren++;
                 hiddenChildNodes.push(child);
                 return;
             }
-            if (!processNode(child, root, colors)) {
+            // A child the global budget refuses is just as hidden as one the per-parent cap refused.
+            // Reporting only the second meant a subtree could lose descendants with no marker and no
+            // way to ask for them back.
+            if (!processNode(child, root, childColors)) {
+                hiddenChildren++;
+                hiddenChildNodes.push(child);
                 return;
             }
             shownChildren++;
             // Draw edge if nodes are in same namespace OR if parent is cluster-scoped (empty/undefined namespace)
             const isParentClusterScoped = !node.namespace || node.namespace === '';
             if (node.namespace === child.namespace || isParentClusterScoped) {
-                graph.setEdge(treeNodeKey(node), treeNodeKey(child), {colors});
+                graph.setEdge(treeNodeKey(node), treeNodeKey(child), {colors: childColors});
             }
         });
         if (hiddenChildren > 0) {

@@ -108,13 +108,26 @@ export const Filter = (props: FilterProps) => {
 
     // The autocomplete mounts every item it is given, so an application with tens of thousands of
     // resources would otherwise put one hidden DOM node per resource on the page. Narrow by what has
-    // been typed, across the whole list so nothing becomes unreachable, then hand over a bounded slice.
+    // been typed, then hand over a bounded slice.
+    //
+    // The autocomplete does its own matching on top of this, and it matches more than a substring of the
+    // label: it resolves abbreviations, so "svc" finds Service, it accepts globs, and when nothing
+    // matches it falls back to showing the whole list. A plain substring prefilter defeats all three, so
+    // leave the list alone for a glob, compare abbreviations as well as labels, and fall back to the head
+    // of the list rather than to nothing.
     const labels = React.useMemo(() => {
         const all = props.labels || options.map(o => o.label);
         const needle = input.trim().toLowerCase();
-        const matched = needle ? all.filter(label => (label || '').toLowerCase().includes(needle)) : all;
-        return matched.slice(0, MAX_SUGGESTIONS);
-    }, [props.labels, options, input]);
+        if (!needle || /[*?[\]]/.test(needle)) {
+            return all.slice(0, MAX_SUGGESTIONS);
+        }
+        const matched = all.filter(label => {
+            const candidate = (label || '').toLowerCase();
+            const abbreviation = (props.abbreviations?.get(label) || '').toLowerCase();
+            return candidate.includes(needle) || abbreviation.includes(needle);
+        });
+        return (matched.length > 0 ? matched : all).slice(0, MAX_SUGGESTIONS);
+    }, [props.labels, options, input, props.abbreviations]);
 
     const {cleanedValues, selectedKeys} = Object.entries(values).reduce(
         (acc, [key, value]) => {

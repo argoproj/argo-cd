@@ -867,6 +867,14 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                 const byUid = new Map<string, appModels.ResourceNode>();
                                 all.forEach(node => node.uid && byUid.set(node.uid, node));
                                 const depths = new Map<string, number>();
+                                const hasChildren = new Set<string>();
+                                all.forEach(node =>
+                                    (node.parentRefs || []).forEach(ref => {
+                                        if (byUid.has(ref.uid)) {
+                                            hasChildren.add(ref.uid);
+                                        }
+                                    })
+                                );
                                 const depthOf = (node: appModels.ResourceNode, seen: Set<string>): number => {
                                     if (depths.has(node.uid)) {
                                         return depths.get(node.uid);
@@ -883,6 +891,12 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                     return depth;
                                 };
                                 all.forEach(node => node.uid && depthOf(node, new Set<string>()));
+                                // Only parents are collapsible, so only they belong in the result.
+                                Array.from(depths.keys()).forEach(uid => {
+                                    if (!hasChildren.has(uid)) {
+                                        depths.delete(uid);
+                                    }
+                                });
                                 return depths;
                             };
 
@@ -894,20 +908,46 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                 if (depths.size === 0) {
                                     return;
                                 }
-                                const maxDepth = Math.max(...Array.from(depths.values()));
+                                // Reduced rather than spread: one argument per node overflows the call
+                                // stack on a large application.
                                 const collapsed = new Set(state.collapsedNodes);
-                                const collapsedDepths = Array.from(depths.entries())
-                                    .filter(([uid]) => collapsed.has(uid))
-                                    .map(([, depth]) => depth);
-                                const current = collapsedDepths.length > 0 ? Math.min(...collapsedDepths) : maxDepth;
-                                const next = Math.min(maxDepth, Math.max(1, current + step));
+                                let maxDepth = 1;
+                                let current = Number.MAX_SAFE_INTEGER;
+                                depths.forEach((depth, uid) => {
+                                    maxDepth = Math.max(maxDepth, depth);
+                                    if (collapsed.has(uid)) {
+                                        current = Math.min(current, depth);
+                                    }
+                                });
+                                // Nothing collapsed means everything below the deepest parent is already
+                                // showing, so a further "show more" has nothing left to give.
+                                if (current === Number.MAX_SAFE_INTEGER) {
+                                    if (step > 0) {
+                                        return;
+                                    }
+                                    current = maxDepth + 1;
+                                }
+                                const next = Math.min(maxDepth + 1, Math.max(1, current + step));
                                 const collapsedNodes = Array.from(depths.entries())
                                     .filter(([, depth]) => depth >= next)
                                     .map(([uid]) => uid);
                                 setState(prevState => ({...prevState, collapsedNodes}));
                             };
-                            const expandAll = () => setVisibleDepth(1);
-                            const collapseAll = () => setVisibleDepth(-1);
+                            // The level control describes an ownership hierarchy. The network view draws
+                            // parents from networkingInfo instead, where these depths would collapse the
+                            // wrong nodes, so there it keeps the all-or-nothing behaviour it always had.
+                            const collapseAllNetwork = () => {
+                                const collapsedNodes = state.collapsedNodes.slice();
+                                (tree.nodes || []).forEach(node => {
+                                    if (node.networkingInfo && node.uid && collapsedNodes.indexOf(node.uid) < 0) {
+                                        collapsedNodes.push(node.uid);
+                                    }
+                                });
+                                setState(prevState => ({...prevState, collapsedNodes}));
+                            };
+                            const isNetworkView = pref.view === 'network';
+                            const expandAll = () => (isNetworkView ? setState(prevState => ({...prevState, collapsedNodes: []})) : setVisibleDepth(1));
+                            const collapseAll = () => (isNetworkView ? collapseAllNetwork() : setVisibleDepth(-1));
 
                             const appFullName = AppUtils.nodeKey({
                                 group: 'argoproj.io',
@@ -1130,7 +1170,14 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                                 <div className={`zoom-value`}>{zoomNum}%</div>
                                                             </span>
                                                         </div>
-                                                        <ApplicationResourceTree {...getResourceTreeProps()} />
+                                                        {/* Keyed by view and application: one element serves both the tree and the
+                                                            network view, so without a key a kind drilled into in one of them keeps
+                                                            filtering the other, and a budget raised for one application follows you
+                                                            to the next. */}
+                                                        <ApplicationResourceTree
+                                                            key={`${pref.view}/${application.metadata.namespace}/${application.metadata.name}`}
+                                                            {...getResourceTreeProps()}
+                                                        />
                                                     </>
                                                 )) ||
                                                     (isApplication && pref.view === 'pods' && (
