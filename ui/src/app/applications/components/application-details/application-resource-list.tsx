@@ -80,11 +80,14 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
     props.tree?.nodes?.forEach(res => nodeByKey.set(nodeKey(res), res));
     const selectedRowRef = React.useRef<HTMLDivElement | null>(null);
 
+    // Whether the selected row is currently rendered: it flips to true once the selected row mounts,
+    // but stays constant across watch refreshes, so the effect below scrolls when the selection appears.
+    const selectedNodePresent = !!props.selectedNodeFullName && (props.resources || []).some(res => nodeKey(res) === props.selectedNodeFullName);
     React.useEffect(() => {
         if (props.selectedNodeFullName && selectedRowRef.current) {
             selectedRowRef.current.scrollIntoView({block: 'nearest', behavior: 'smooth'});
         }
-    }, [props.selectedNodeFullName, props.resources]);
+    }, [props.selectedNodeFullName, selectedNodePresent]);
 
     const handleSort = (key: ApplicationResourceSortKey) => props.requestSort?.(key);
     const getSortArrow = (key: ApplicationResourceSortKey) => props.sortIcon?.(key);
