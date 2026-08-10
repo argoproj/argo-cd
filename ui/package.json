@@ -139,6 +139,6 @@
     "uuid": "^14.0.1",
     "webpack": "^5.105.4",
     "webpack-cli": "^5.1.4",
-    "webpack-dev-server": "^5.2.6"
+    "webpack-dev-server": "^6.0.0"
   }
 }
