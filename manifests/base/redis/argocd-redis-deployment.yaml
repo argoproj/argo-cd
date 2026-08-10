@@ -41,7 +41,7 @@ spec:
       containers:
       - name: redis
         # renovate: datasource=docker packageName=docker.io/library/redis
-        image: redis:8.6.4-alpine
+        image: redis:8.10.0-alpine
         imagePullPolicy: Always
         args:
         - "--save"
