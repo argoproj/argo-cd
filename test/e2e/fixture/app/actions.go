@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"regexp"
 	"slices"
 	"strconv"
 	"time"
@@ -43,9 +44,25 @@ func (a *Actions) DoNotIgnoreErrors() *Actions {
 	return a
 }
 
+func (a *Actions) GetLastOutput() string {
+	return a.lastOutput
+}
+
 func (a *Actions) PatchFile(file string, jsonPatch string) *Actions {
 	a.context.T().Helper()
 	fixture.Patch(a.context.T(), a.context.path+"/"+file, jsonPatch)
+	return a
+}
+
+func (a *Actions) PatchDrySourceFile(file string, jsonPatch string) *Actions {
+	a.context.T().Helper()
+	fixture.Patch(a.context.T(), a.context.drySourcePath+"/"+file, jsonPatch)
+	return a
+}
+
+func (a *Actions) GitRevList(args ...string) *Actions {
+	a.context.T().Helper()
+	a.lastOutput = fixture.GitRevList(a.context.T(), args)
 	return a
 }
 
@@ -530,7 +547,12 @@ func (a *Actions) And(block func()) *Actions {
 
 func (a *Actions) Then() *Consequences {
 	a.context.T().Helper()
-	return &Consequences{a.context, a, 15}
+	return &Consequences{a.context, a, 25}
+}
+
+func (a *Actions) ThenWithTimeout(timeout int) *Consequences {
+	a.context.T().Helper()
+	return &Consequences{a.context, a, timeout}
 }
 
 func (a *Actions) runCli(args ...string) {
@@ -583,6 +605,25 @@ func (a *Actions) WithImpersonationDisabled() *Actions {
 func (a *Actions) WithImpersonationEnforcementDisabled() *Actions {
 	a.context.T().Helper()
 	require.NoError(a.context.T(), fixture.SetImpersonationEnforcement("false"))
+	return a
+}
+
+func (a *Actions) GetHelmTemplateProcess() *Actions {
+	a.context.T().Helper()
+	cwd, err := os.Getwd()
+	require.NoError(a.context.T(), err)
+
+	// use BSD style ps(1) options and field names so it can be run
+	// on both linux and MacOS: the first column will be PID,
+	// the rest - commandline starting with the executable name
+	output, err := fixture.Run(cwd, "ps", "xao", "pid=,command=")
+	require.NoError(a.context.T(), err)
+
+	appName := regexp.QuoteMeta(a.context.AppName())
+	regexStr := "(?m)^.* helm template \\. --name-template " + appName + " .*$"
+	regex := regexp.MustCompile(regexStr)
+	a.lastOutput = regex.FindString(output)
+	a.lastError = nil
 	return a
 }
 

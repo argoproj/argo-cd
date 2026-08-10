@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube/mocks"
+	"k8s.io/kubectl/pkg/cmd/auth"
 	testingutils "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/testing"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/tracing"
 	"github.com/go-logr/logr"
@@ -546,4 +547,18 @@ func TestReplaceOptionsConfiguration(t *testing.T) {
 			})
 		}
 	})
+}
+
+// TestRealKubectlOptionsRunner_AuthReconcile_PanicRecovery verifies that the
+// recover() wrapper in realKubectlOptionsRunner.AuthReconcile converts a panic
+// inside kubectl into a returned error instead of crashing the controller
+// (see GitHub #28607).
+func TestRealKubectlOptionsRunner_AuthReconcile_PanicRecovery(t *testing.T) {
+	t.Parallel()
+	runner := &realKubectlOptionsRunner{}
+	// A nil *auth.ReconcileOptions panics at opts.RunReconcile() — the same
+	// class of panic that occurs when the impersonated SA is forbidden.
+	err := runner.AuthReconcile((*auth.ReconcileOptions)(nil))
+	require.Error(t, err, "AuthReconcile must return an error rather than propagating the panic")
+	assert.Contains(t, err.Error(), "error running kubectl auth reconcile")
 }
