@@ -1494,12 +1494,17 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     const relevanceMemo = new Map<string, number>();
     const relevanceVisiting = new Set<string>();
     const relevanceOf = (node: ResourceTreeNode) => subtreeRelevance(node, childrenByParentKey, relevanceMemo, relevanceVisiting);
+    // nodeFilter is a required prop and the caller always supplies a closure, so its presence says nothing
+    // about whether the user has filtered anything. The filter list is the signal: without it every
+    // application, however small, would be reordered by relevance instead of keeping the order it has
+    // always had, and every node would pay for a subtree walk that can only ever return true.
+    const filterActive = (props.filters || []).length > 0;
     const matchMemo = new Map<string, boolean>();
     const matchVisiting = new Set<string>();
     const rankOf = (node: ResourceTreeNode) =>
-        relevanceOf(node) + (!props.nodeFilter || subtreeMatches(node, props.nodeFilter, childrenByParentKey, matchMemo, matchVisiting) ? 0 : RELEVANCE_TIERS);
+        relevanceOf(node) + (!filterActive || subtreeMatches(node, props.nodeFilter, childrenByParentKey, matchMemo, matchVisiting) ? 0 : RELEVANCE_TIERS);
     // A clustered kind only ever holds childless roots, so its members need neither walk.
-    const clusterRankOf = (node: ResourceTreeNode) => ownRelevance(node) + (!props.nodeFilter || props.nodeFilter(node) ? 0 : RELEVANCE_TIERS);
+    const clusterRankOf = (node: ResourceTreeNode) => ownRelevance(node) + (!filterActive || props.nodeFilter(node) ? 0 : RELEVANCE_TIERS);
 
     // Roots draw against an allowance of their own rather than against the graph's whole budget. Raising
     // the budget for one overflow marker has to reach that marker: while roots shared the budget they
@@ -1629,10 +1634,13 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         // Ranked as one set against the one budget they share. Selecting each bucket separately let the
         // external roots, which are placed first, spend the whole allowance and starve an internal root
         // the active search had matched.
-        const {rankRoots: rankNetworkRoots} = rootStrategy(roots.length, nodes.length, DEFAULT_VISIBLE_CAP, !!props.nodeFilter);
+        const {rankRoots: rankNetworkRoots} = rootStrategy(roots.length, nodes.length, DEFAULT_VISIBLE_CAP, filterActive);
         const admittedRoots = rankNetworkRoots ? new Set(mostRelevantFirst(roots, rootAllowance, rankOf).map(treeNodeKey)) : null;
         const admitted = (root: ResourceTreeNode) => !admittedRoots || admittedRoots.has(treeNodeKey(root));
-        const omittedRoots = roots.filter(root => !admitted(root));
+        // Turned away before traversal. A root the budget admits can still be refused once an earlier
+        // root's descendants have spent it, so what was actually drawn is counted below.
+        const undrawnRoots = roots.filter(root => !admitted(root));
+        let drawnRoots = 0;
         const externalRoots = externalCandidates.filter(admitted).sort(compareNodes);
         const internalRoots = internalCandidates.filter(admitted).sort(compareNodes);
         const colorsBySource = new Map<string, string>();
@@ -1660,8 +1668,10 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                 // application with many ingress facing resources quietly lost most of its graph; and
                 // an edge to a refused node leaves a dimensionless placeholder that dagre throws on.
                 if (!processNode(root, root, undefined, colorByService)) {
+                    undrawnRoots.push(root);
                     return;
                 }
+                drawnRoots++;
                 (childrenByParentKey.get(treeNodeKey(root)) || []).forEach(child => {
                     if (!graph.hasNode(treeNodeKey(child))) {
                         return;
@@ -1690,20 +1700,23 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             graph.setNode(INTERNAL_TRAFFIC_NODE, {height: NODE_HEIGHT, width: 30, type: NODE_TYPES.internalTraffic});
             internalRoots.sort(compareNodes).forEach(root => {
                 if (processNode(root, root, [colorsBySource.get(treeNodeKey(root))])) {
+                    drawnRoots++;
                     graph.setEdge(INTERNAL_TRAFFIC_NODE, treeNodeKey(root));
+                } else {
+                    undrawnRoots.push(root);
                 }
             });
         }
         // Roots the budget turned away had nothing to report them, so this view truncated in silence.
-        if (omittedRoots.length > 0) {
+        if (undrawnRoots.length > 0) {
             graph.setNode(CAPPED_INDICATOR_NODE, {
                 height: NODE_HEIGHT,
                 width: NODE_WIDTH,
                 type: NODE_TYPES.cappedIndicator,
-                shownCount: roots.length - omittedRoots.length,
+                shownCount: drawnRoots,
                 totalCount: roots.length,
-                hiddenCount: omittedRoots.length,
-                hiddenStates: tallyStates(omittedRoots),
+                hiddenCount: undrawnRoots.length,
+                hiddenStates: tallyStates(undrawnRoots),
                 parentKey: appNodeKey(props.app)
             });
             graph.setEdge(externalRoots.length > 0 ? EXTERNAL_TRAFFIC_NODE : INTERNAL_TRAFFIC_NODE, CAPPED_INDICATOR_NODE);
@@ -1762,7 +1775,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         // application that fits keeps the ordering it has always had.
         // Decided from the size of the application rather than the running budget, so expanding a marker
         // cannot push the cap past the root count and reshape the whole top level mid-session.
-        const {clusterKinds, rankRoots} = rootStrategy(roots.length, nodes.length, DEFAULT_VISIBLE_CAP, !!props.nodeFilter, capBucketKind);
+        const {clusterKinds, rankRoots} = rootStrategy(roots.length, nodes.length, DEFAULT_VISIBLE_CAP, filterActive, capBucketKind);
 
         // Past the budget the bulk kinds get a parent of their own rather than competing for one
         // shared allowance. The top level then holds the workloads, whose hierarchy is the reason this
