@@ -397,6 +397,18 @@ function ownRelevance(node: ResourceTreeNode): number {
 // traversal however many roots ask.
 // True when the node itself or anything beneath it satisfies the predicate. Mirrors subtreeRelevance,
 // cycle guard included, so a filter that only matches a descendant still keeps the path down to it.
+// Two questions the budget used to answer with one number. Clustering is about how crowded the top level
+// is. Ordering is about whether the budget can bite at all, which it can through depth alone: 150
+// deployments with their replica sets and pods is 150 roots but well over a thousand nodes, and ordering
+// by name there means later roots are dropped unranked and a filter match inside one is never built.
+export function rootStrategy(rootCount: number, nodeCount: number, cap: number, hasFilter: boolean, bucket?: string | null): {clusterKinds: boolean; rankRoots: boolean} {
+    return {
+        clusterKinds: rootCount > cap && !bucket,
+        // A filter always forces ordering: without it a match cannot outrank whatever sorts first.
+        rankRoots: hasFilter || !!bucket || rootCount > cap || nodeCount > cap
+    };
+}
+
 export function subtreeMatches(
     node: ResourceTreeNode,
     predicate: (candidate: ResourceTreeNode) => boolean,
@@ -413,7 +425,10 @@ export function subtreeMatches(
         return false;
     }
     visiting.add(key);
-    let found = predicate(node);
+    // In compact mode a parent's pods live on its podGroup rather than in the child map, so a search for
+    // one of them would otherwise never mark the path down to it and the budget could discard that path
+    // before filterGraph gets to look at the group.
+    let found = predicate(node) || (node.podGroup?.pods || []).some(pod => predicate({...node, kind: 'Pod', name: pod.name}));
     if (!found) {
         for (const child of childrenByParentKey.get(key) || []) {
             if (subtreeMatches(child, predicate, childrenByParentKey, memo, visiting)) {
@@ -1486,6 +1501,11 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     // A clustered kind only ever holds childless roots, so its members need neither walk.
     const clusterRankOf = (node: ResourceTreeNode) => ownRelevance(node) + (!props.nodeFilter || props.nodeFilter(node) ? 0 : RELEVANCE_TIERS);
 
+    // Roots draw against an allowance of their own rather than against the graph's whole budget. Raising
+    // the budget for one overflow marker has to reach that marker: while roots shared the budget they
+    // spent the increment before the marker was even processed, so clicking it did nothing.
+    const rootAllowance = allowanceFor(appNodeKey(props.app), DEFAULT_VISIBLE_CAP);
+
     const filtersRef = React.useRef(props.filters);
     const filteredGraphRef = React.useRef<any[]>([]);
     const filteredNodes: any[] = [];
@@ -1606,9 +1626,15 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         // could not find a resource the budget had already turned away.
         const externalCandidates = roots.filter(root => (root.networkingInfo.ingress || []).length > 0);
         const internalCandidates = roots.filter(root => (root.networkingInfo.ingress || []).length === 0);
-        const networkBudgetBites = roots.length > DEFAULT_VISIBLE_CAP;
-        const externalRoots = networkBudgetBites ? mostRelevantFirst(externalCandidates, visibleCap, rankOf) : externalCandidates.sort(compareNodes);
-        const internalRoots = networkBudgetBites ? mostRelevantFirst(internalCandidates, visibleCap, rankOf) : internalCandidates.sort(compareNodes);
+        // Ranked as one set against the one budget they share. Selecting each bucket separately let the
+        // external roots, which are placed first, spend the whole allowance and starve an internal root
+        // the active search had matched.
+        const {rankRoots: rankNetworkRoots} = rootStrategy(roots.length, nodes.length, DEFAULT_VISIBLE_CAP, !!props.nodeFilter);
+        const admittedRoots = rankNetworkRoots ? new Set(mostRelevantFirst(roots, rootAllowance, rankOf).map(treeNodeKey)) : null;
+        const admitted = (root: ResourceTreeNode) => !admittedRoots || admittedRoots.has(treeNodeKey(root));
+        const omittedRoots = roots.filter(root => !admitted(root));
+        const externalRoots = externalCandidates.filter(admitted).sort(compareNodes);
+        const internalRoots = internalCandidates.filter(admitted).sort(compareNodes);
         const colorsBySource = new Map<string, string>();
         // sources are root internal services and external ingress/service IPs
         const sources = Array.from(
@@ -1668,6 +1694,20 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                 }
             });
         }
+        // Roots the budget turned away had nothing to report them, so this view truncated in silence.
+        if (omittedRoots.length > 0) {
+            graph.setNode(CAPPED_INDICATOR_NODE, {
+                height: NODE_HEIGHT,
+                width: NODE_WIDTH,
+                type: NODE_TYPES.cappedIndicator,
+                shownCount: roots.length - omittedRoots.length,
+                totalCount: roots.length,
+                hiddenCount: omittedRoots.length,
+                hiddenStates: tallyStates(omittedRoots),
+                parentKey: appNodeKey(props.app)
+            });
+            graph.setEdge(externalRoots.length > 0 ? EXTERNAL_TRAFFIC_NODE : INTERNAL_TRAFFIC_NODE, CAPPED_INDICATOR_NODE);
+        }
         if (props.nodeFilter) {
             // show filtered indicator next to external traffic node is app has it otherwise next to internal traffic node
             filterGraph(props.app, externalRoots.length > 0 ? EXTERNAL_TRAFFIC_NODE : INTERNAL_TRAFFIC_NODE, graph, props.nodeFilter);
@@ -1722,7 +1762,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         // application that fits keeps the ordering it has always had.
         // Decided from the size of the application rather than the running budget, so expanding a marker
         // cannot push the cap past the root count and reshape the whole top level mid-session.
-        const budgetBites = roots.length > DEFAULT_VISIBLE_CAP && !capBucketKind;
+        const {clusterKinds, rankRoots} = rootStrategy(roots.length, nodes.length, DEFAULT_VISIBLE_CAP, !!props.nodeFilter, capBucketKind);
 
         // Past the budget the bulk kinds get a parent of their own rather than competing for one
         // shared allowance. The top level then holds the workloads, whose hierarchy is the reason this
@@ -1737,7 +1777,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         // What the card counts as "not drawn one at a time". Ordering yields only a prefix now, so the
         // total has to come from the set that went in.
         let rootsTotal: number;
-        if (budgetBites) {
+        if (clusterKinds) {
             const direct: ResourceTreeNode[] = [];
             // Partitioned before anything is ordered, so each kind node still counts every member it
             // stands for rather than only the ones that reached the top of a sort.
@@ -1763,10 +1803,10 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                     direct.push(...members);
                 }
             });
-            orderedRoots = mostRelevantFirst(direct, visibleCap, rankOf);
+            orderedRoots = mostRelevantFirst(direct, rootAllowance, rankOf);
             rootsTotal = direct.length;
-        } else if (capBucketKind) {
-            orderedRoots = mostRelevantFirst(inBucket, visibleCap, rankOf);
+        } else if (rankRoots) {
+            orderedRoots = mostRelevantFirst(inBucket, rootAllowance, rankOf);
             rootsTotal = inBucket.length;
         } else {
             orderedRoots = inBucket.sort(compareNodes);
@@ -1820,7 +1860,6 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                     shownCount: shownHere,
                     totalCount: members.length,
                     hiddenCount: members.length - shownHere,
-                    atCeiling: visibleCap >= MAX_VISIBLE_CAP,
                     hiddenStates: tallyStates(members.filter(member => !shown.has(member))),
                     parentKey: kindNodeId
                 });
@@ -1846,7 +1885,6 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                 shownCount: shownRoots,
                 totalCount: rootsTotal,
                 hiddenCount: rootsTotal - shownRoots,
-                atCeiling: visibleCap >= MAX_VISIBLE_CAP,
                 bucket: capBucketKind,
                 byKind: Array.from(kindCounts, ([kind, count]) => ({kind, count, shown: shownByKind.get(kind) || 0})).sort((a, b) => b.count - a.count)
             });
@@ -1882,6 +1920,12 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     // Returns whether the node was drawn. Callers must only draw an edge to it when it was: an edge to
     // a node the budget refused leaves a dimensionless placeholder behind, which dagre.layout throws on.
     function processNode(node: ResourceTreeNode, root: ResourceTreeNode, colors?: string[], colorByChild?: Map<string, string>): boolean {
+        // A node with several parents, or a network target shared by several sources, is reached once per
+        // path but is a single node in the graph. Charging every visit spent the budget several times over
+        // on the same resource and walked its subtree again each time; the caller still draws its own edge.
+        if (graph.hasNode(treeNodeKey(node))) {
+            return true;
+        }
         if (renderState.drawn >= visibleCap) {
             return false;
         }
@@ -1934,7 +1978,6 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                 shownCount: shownChildren,
                 totalCount: shownChildren + hiddenChildren,
                 hiddenCount: hiddenChildren,
-                atCeiling: visibleCap >= MAX_VISIBLE_CAP,
                 hiddenStates: tallyStates(hiddenChildNodes),
                 parentKey: treeNodeKey(node)
             });
@@ -1942,6 +1985,17 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         }
         return true;
     }
+    // Every overflow control is told the same thing, once the budget's final spend is known: a marker
+    // stays clickable while the graph still has room, even when the cap itself has reached its ceiling.
+    // Deciding this from the cap alone disabled expansion with capacity to spare, because a parent's own
+    // allowance grows more slowly than the cap does.
+    const atCeiling = visibleCap >= MAX_VISIBLE_CAP && renderState.drawn >= visibleCap;
+    graph.nodes().forEach(id => {
+        const node = graph.node(id) as any;
+        if (node?.type === NODE_TYPES.cappedIndicator) {
+            node.atCeiling = atCeiling;
+        }
+    });
     dagre.layout(graph);
 
     const edges: {from: string; to: string; lines: Line[]; backgroundImage?: string; color?: string; colors?: string | {[key: string]: any}}[] = [];
@@ -2128,7 +2182,13 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                                     {renderCappedNode(
                                         node as any,
                                         {
-                                            onLoadMore: () => setVisibleCap(cap => Math.min(cap + EXPAND_STEP, MAX_VISIBLE_CAP)),
+                                            onLoadMore: () => {
+                                                // The card asks for more roots, so raise their allowance
+                                                // as well as the budget they draw against.
+                                                const appKey = appNodeKey(props.app);
+                                                setExpandedCounts(prev => ({...prev, [appKey]: (prev[appKey] ?? DEFAULT_VISIBLE_CAP) + EXPAND_STEP}));
+                                                setVisibleCap(cap => Math.min(cap + EXPAND_STEP, MAX_VISIBLE_CAP));
+                                            },
                                             onSelectKind: (kind: string) => {
                                                 setCapBucketKind(kind);
                                                 setVisibleCap(DEFAULT_VISIBLE_CAP);
