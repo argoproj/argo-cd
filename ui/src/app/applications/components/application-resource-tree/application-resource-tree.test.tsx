@@ -1,4 +1,51 @@
-import {compareNodes, describeNode, ResourceTreeNode} from './application-resource-tree';
+import * as models from '../../../shared/models';
+import {compareNodes, describeNode, getNodeRenderLeft, getNodeRenderTop, getPodGroupHeight, NODE_HEIGHT, ResourceTreeNode} from './application-resource-tree';
+
+const POD_NODE_HEIGHT = 136;
+
+function pods(health: string, count: number): models.Pod[] {
+    return Array.from({length: count}, (_, i) => ({name: `${health}-${i}`, health} as models.Pod));
+}
+
+describe('getPodGroupHeight', () => {
+    test('reserves nothing for a pod group with no renderable pods', () => {
+        expect(getPodGroupHeight([], true)).toBe(POD_NODE_HEIGHT);
+        expect(getPodGroupHeight(undefined, false)).toBe(POD_NODE_HEIGHT);
+        expect(getPodGroupHeight(pods('Unknown', 12), false)).toBe(POD_NODE_HEIGHT);
+    });
+
+    test('reserves one summary row per non-empty health bucket in the status view', () => {
+        expect(getPodGroupHeight(pods('Healthy', 200), true)).toBe(POD_NODE_HEIGHT + 20);
+        expect(getPodGroupHeight([...pods('Healthy', 3), ...pods('Degraded', 4)], true)).toBe(POD_NODE_HEIGHT + 40);
+        expect(getPodGroupHeight([...pods('Healthy', 1), ...pods('Degraded', 1), ...pods('Progressing', 1)], true)).toBe(POD_NODE_HEIGHT + 60);
+    });
+
+    test('counts pod rows per bucket, since each bucket is drawn in its own container', () => {
+        expect(getPodGroupHeight(pods('Healthy', 8), false)).toBe(POD_NODE_HEIGHT + 31);
+        expect(getPodGroupHeight(pods('Healthy', 9), false)).toBe(POD_NODE_HEIGHT + 62);
+        // Two half-full buckets occupy two rows, not ceil(8 / 8) = 1.
+        expect(getPodGroupHeight([...pods('Healthy', 4), ...pods('Degraded', 4)], false)).toBe(POD_NODE_HEIGHT + 62);
+    });
+});
+
+describe('node render position helpers', () => {
+    test('convert the Dagre box center to the box top-left corner', () => {
+        expect(getNodeRenderLeft({x: 200, width: 282})).toBe(59);
+        expect(getNodeRenderTop({y: 200, height: NODE_HEIGHT})).toBe(200 - NODE_HEIGHT / 2);
+        expect(getNodeRenderTop({y: 200, height: 156})).toBe(122);
+    });
+
+    test('preserve the Dagre gap between a regular node and the pod group below it', () => {
+        const nodesep = 25;
+        const regularNode = {y: 100, height: NODE_HEIGHT};
+        const regularNodeBottom = getNodeRenderTop(regularNode) + regularNode.height;
+
+        const podGroupHeight = 176;
+        const podGroup = {y: regularNode.y + NODE_HEIGHT / 2 + nodesep + podGroupHeight / 2, height: podGroupHeight};
+
+        expect(getNodeRenderTop(podGroup) - regularNodeBottom).toBe(nodesep);
+    });
+});
 
 test('describeNode.NoImages', () => {
     expect(
