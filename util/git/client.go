@@ -4,11 +4,9 @@ import (
 	"bufio"
 	"context"
 	"crypto/tls"
-	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"math"
 	"net/http"
 	"net/mail"
@@ -1231,7 +1229,7 @@ var gpgKeyIdRegexp = regexp.MustCompile("[0-9a-zA-Z]{16}")
 func (m *nativeGitClient) tagSignature(ctx context.Context, tagRevision string) (*RevisionSignatureInfo, error) {
 	// Unlike for commits, there is no elegant way to slurp all signature info for tag. So this extracts details needed
 	// for RevisionSignatureInfo from 2 different git invocations.
-	cmd := m.cmdWithGPG(ctx, "git", "for-each-ref", "refs/tags/"+tagRevision, `--format=%(taggerdate),%(taggername) "%(taggeremail)"`)
+	cmd := m.cmdWithGPG(ctx, "git", "for-each-ref", "refs/tags/"+tagRevision, `--format=%(taggerdate:rfc2822)%00%(taggername) %(taggeremail)`)
 	tagOut, err := m.runCmdOutput(cmd, runOpts{})
 	if err != nil {
 		return nil, err
@@ -1239,7 +1237,7 @@ func (m *nativeGitClient) tagSignature(ctx context.Context, tagRevision string) 
 	if tagOut == "" {
 		return nil, fmt.Errorf("no tag found: %q", tagRevision)
 	}
-	tagInfo := strings.Split(tagOut, ",")
+	tagInfo := strings.SplitN(tagOut, "\x00", 2)
 	if len(tagInfo) != 2 {
 		return nil, fmt.Errorf("failed to parse tag %q for revisions %q", tagOut, tagRevision)
 	}
@@ -1334,16 +1332,8 @@ func (m *nativeGitClient) LsSignatures(ctx context.Context, unresolvedRevision s
 	}
 
 	// Final LF will be cut by executil
-	csvR := csv.NewReader(strings.NewReader(commitSignaturesRawOut))
-	for {
-		r, err := csvR.Read()
-		// EOF means parsing had ended
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		if err != nil {
-			return nil, "", err
-		}
+	for line := range strings.SplitSeq(commitSignaturesRawOut, "\n") {
+		r := strings.SplitN(line, "\x00", 5)
 
 		if len(r) < 5 {
 			return nil, "", fmt.Errorf("invalid rev-list output for %q (fields=%d)", unresolvedRevision, len(r))
@@ -1432,7 +1422,7 @@ func (m *nativeGitClient) listRawSignatures(ctx context.Context, deep bool) (str
 	}
 
 	// Find all commits until the criteria, including
-	lsArgs := append([]string{"rev-list", `--pretty=format:%H,%G?,%GK,"%aD","%an <%ae>"`, "--no-commit-header"}, commitFilterArgs...)
+	lsArgs := append([]string{"rev-list", `--pretty=format:%H%x00%G?%x00%GK%x00%aD%x00%an <%ae>`, "--no-commit-header"}, commitFilterArgs...)
 	commitSignaturesRawOut, err := m.runCmdOutput(m.cmdWithGPG(ctx, "git", lsArgs...), runOpts{})
 	if err != nil {
 		return "", err
