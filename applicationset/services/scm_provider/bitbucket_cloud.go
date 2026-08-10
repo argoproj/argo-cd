@@ -10,6 +10,13 @@ import (
 	bitbucket "github.com/ktrysmt/go-bitbucket"
 )
 
+// bitbucketCloudMaxPageLen is the largest page length the Bitbucket Cloud API documents for
+// paginated collections: "The default value is 10 with 100 being the maximum allowed value."
+// (https://developer.atlassian.com/cloud/bitbucket/rest/intro/#pagination). Requesting the maximum
+// only reduces the number of round trips -- correctness comes from following the `next` link, so a
+// smaller page size enforced by the API would still return every branch.
+const bitbucketCloudMaxPageLen = 100
+
 type BitBucketCloudProvider struct {
 	client      *ExtendedClient
 	allBranches bool
@@ -147,14 +154,27 @@ func (g *BitBucketCloudProvider) listBranches(repo *Repository) ([]bitbucket.Rep
 		}, nil
 	}
 
-	branches, err := g.client.Repositories.Repository.ListBranches(&bitbucket.RepositoryBranchOptions{
-		Owner:    g.owner,
-		RepoSlug: repo.Repository,
-	})
-	if err != nil {
-		return nil, err
+	// ListBranches returns a single page, so keep requesting pages until Bitbucket stops
+	// advertising a next one. Without this only the API's default page length is returned and
+	// the generator silently produces Applications for a subset of the branches.
+	var branches []bitbucket.RepositoryBranch
+	for pageNum := 1; ; pageNum++ {
+		response, err := g.client.Repositories.Repository.ListBranches(&bitbucket.RepositoryBranchOptions{
+			Owner:    g.owner,
+			RepoSlug: repo.Repository,
+			PageNum:  pageNum,
+			Pagelen:  bitbucketCloudMaxPageLen,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("error listing branches for %s/%s: %w", repo.Organization, repo.Repository, err)
+		}
+		branches = append(branches, response.Branches...)
+		// Guard against a next link that never clears: an empty page cannot advance us.
+		if response.Next == "" || len(response.Branches) == 0 {
+			break
+		}
 	}
-	return branches.Branches, nil
+	return branches, nil
 }
 
 func findCloneURL(cloneProtocol string, repo *bitbucket.Repository) (*string, error) {
