@@ -12,8 +12,6 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
-	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 	log "github.com/sirupsen/logrus"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,6 +20,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/applicationset/utils"
 	argov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -368,6 +367,13 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 		desiredAppsMap[desiredApplications[i].Name] = &desiredApplications[i]
 	}
 
+	// Built once per call, as CreateOrUpdate documents. Fatal on failure, matching
+	// createOrUpdateInCluster: a nil config would skip the ignore rules entirely.
+	diffConfig, err := utils.BuildIgnoreDiffConfig(applicationSet.Spec.IgnoreApplicationDifferences, normalizers.IgnoreNormalizerOpts{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to build ignore diff config: %w", err)
+	}
+
 	for _, app := range applications {
 		appHealthStatus := app.Status.Health.Status
 		appSyncStatus := app.Status.Sync.Status
@@ -409,7 +415,20 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 		if desiredApp, ok := desiredAppsMap[app.Name]; ok {
 			// Compare the desired spec with the current spec to detect non-Git changes
 			// This will catch changes to generator parameters like image tags, helm values, etc.
-			specChanged = !cmp.Equal(desiredApp.Spec, app.Spec, cmpopts.EquateEmpty(), cmpopts.EquateComparable(argov1alpha1.ApplicationDestination{}))
+			//
+			// Via SpecsEquivalent, so this agrees with what the write path will actually do; see its
+			// doc comment for why comparing specs directly loops.
+			desiredForCompare := desiredApp.DeepCopy()
+			disableAutomatedSync(desiredForCompare)
+
+			equivalent, cmpErr := utils.SpecsEquivalent(diffConfig, &app, desiredForCompare)
+			if cmpErr != nil {
+				// Failures here are persistent (for example a malformed jsonPointer), so reporting
+				// "changed" would loop forever. Leave the status alone and surface it.
+				statusLogCtx.WithError(cmpErr).Warn("could not compare desired and live specs; leaving progressive sync status unchanged")
+			} else {
+				specChanged = !equivalent
+			}
 		}
 
 		if revisionsChanged || specChanged {
@@ -494,7 +513,7 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 		appStatuses = append(appStatuses, *newAppStatus)
 	}
 
-	err := m.dependencies.SetAppSetApplicationStatus(ctx, logCtx, applicationSet, appStatuses)
+	err = m.dependencies.SetAppSetApplicationStatus(ctx, logCtx, applicationSet, appStatuses)
 	if err != nil {
 		return nil, fmt.Errorf("failed to set AppSet application statuses: %w", err)
 	}
@@ -712,6 +731,17 @@ func (m *Manager) updateApplicationSetApplicationStatusConditions(ctx context.Co
 	return applicationSet.Status.Conditions
 }
 
+// disableAutomatedSync clears automated sync on a RollingSync-managed Application, since the
+// ApplicationSet controller triggers those syncs itself. Anything comparing a generated Application
+// against its live counterpart must apply this first: the mutation lands on the written copy, so the
+// live object carries automated.enabled=false while a freshly generated one leaves it unset.
+func disableAutomatedSync(app *argov1alpha1.Application) {
+	if app.Spec.SyncPolicy == nil || app.Spec.SyncPolicy.Automated == nil {
+		return
+	}
+	app.Spec.SyncPolicy.Automated.Enabled = new(false)
+}
+
 func (m *Manager) SyncDesiredApplications(logCtx *log.Entry, applicationSet *argov1alpha1.ApplicationSet, appsToSync map[string]bool, desiredApplications []argov1alpha1.Application) []argov1alpha1.Application {
 	rolloutApps := []argov1alpha1.Application{}
 	for i := range desiredApplications {
@@ -720,8 +750,8 @@ func (m *Manager) SyncDesiredApplications(logCtx *log.Entry, applicationSet *arg
 		// ensure that Applications generated with RollingSync do not have an automated sync policy, since the AppSet controller will handle triggering the sync operation instead
 		if desiredApplications[i].Spec.SyncPolicy != nil && desiredApplications[i].Spec.SyncPolicy.IsAutomatedSyncEnabled() {
 			pruneEnabled = desiredApplications[i].Spec.SyncPolicy.Automated.GetPrune()
-			desiredApplications[i].Spec.SyncPolicy.Automated.Enabled = new(false)
 		}
+		disableAutomatedSync(&desiredApplications[i])
 
 		appSetStatusPending := false
 		idx := utils.FindApplicationStatusIndex(applicationSet.Status.ApplicationStatus, desiredApplications[i].Name)
