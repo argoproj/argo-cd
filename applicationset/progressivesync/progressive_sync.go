@@ -189,7 +189,7 @@ func (m *Manager) PerformReverseDeletion(ctx context.Context, logCtx *log.Entry,
 				case err != nil:
 					return 0, fmt.Errorf("application %s has not been deleted in over %s and could not be verified against the API server: %w", step.AppName, staleCacheThreshold, err)
 				case gone:
-					logCtx.Infof("application %s is absent from the API server but still present in the informer cache; treating it as deleted and continuing", step.AppName)
+					logCtx.Infof("application %s is absent from the API server but still present in the informer cache; evicting the stale entry", step.AppName)
 					// Skipping the entry is not enough: it stays in the informer store, and children
 					// are indexed by owner *name*, so an ApplicationSet later recreated under the
 					// same name counts the stale entry as an existing child. Under a create-only
@@ -201,9 +201,8 @@ func (m *Manager) PerformReverseDeletion(ctx context.Context, logCtx *log.Entry,
 					//
 					// The UID precondition matters. Between the live read above and this call another
 					// Application could be created at the same name, and an unconditional delete by
-					// name would remove it. Gating on the stale entry's UID means the API server
-					// rejects the delete with a conflict in that case, leaving the new object alone;
-					// the informer's own ADDED event then corrects the cache.
+					// name would remove it. Gating on the stale entry's UID makes the API server
+					// reject the delete with a conflict instead, leaving that object untouched.
 					// An object read from the API server always carries a UID; guard anyway so an
 					// empty one cannot turn into a precondition that never matches.
 					deleteOpts := []client.DeleteOption{}
@@ -215,10 +214,16 @@ func (m *Manager) PerformReverseDeletion(ctx context.Context, logCtx *log.Entry,
 						case apierrors.IsNotFound(err):
 							// Expected: the object is gone. The eviction has already been triggered.
 						case apierrors.IsConflict(err):
-							// The UID precondition failed, so a different Application now holds this
-							// name. The informer entry describes a real object, so there is nothing
-							// stale left to evict and deletion of this step can proceed.
-							logCtx.Infof("application %s was recreated while being confirmed as deleted; leaving the new object alone", step.AppName)
+							// The precondition failed, so an Application exists at this name that is
+							// not the one just confirmed absent. That invalidates the verdict this
+							// step rests on, and nothing here can tell whether the replacement is a
+							// child of this ApplicationSet still owed an ordered deletion. Treating
+							// the step as complete could release the finalizer with a live child, so
+							// stop and let the next pass classify it: the informer's ADDED event
+							// refreshes the entry and getCurrentApplications rebuilds the step list,
+							// after which the replacement is either deleted in its proper order or is
+							// not part of this ApplicationSet at all.
+							return 0, fmt.Errorf("application %s was recreated while being confirmed as deleted", step.AppName)
 						default:
 							// Any other failure means the cache-syncing client returned before
 							// evicting, so the stale entry is still in the store. Continuing would
@@ -229,6 +234,7 @@ func (m *Manager) PerformReverseDeletion(ctx context.Context, logCtx *log.Entry,
 							return 0, fmt.Errorf("application %s is absent from the API server but its stale cache entry could not be evicted: %w", step.AppName, err)
 						}
 					}
+					logCtx.Infof("application %s confirmed absent and its stale cache entry evicted; treating it as deleted and continuing", step.AppName)
 					continue
 				default:
 					// The Application really is still there, so it is genuinely stuck rather than a
