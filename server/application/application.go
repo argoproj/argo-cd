@@ -72,7 +72,6 @@ import (
 	applicationType "github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	argodiff "github.com/argoproj/argo-cd/v3/util/argo/diff"
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
-	kubeutil "github.com/argoproj/argo-cd/v3/util/kube"
 )
 
 type AppResourceTreeFn func(ctx context.Context, app *v1alpha1.Application) (*v1alpha1.ApplicationTree, error)
@@ -2978,6 +2977,16 @@ func getProjectsFromApplicationQuery(q application.ApplicationQuery) []string {
 	return q.Projects
 }
 
+// isCoreSecret reports whether the given object is a core/v1 Secret. It is used to decide
+// Secret data masking from server-parsed objects rather than caller-supplied metadata.
+func isCoreSecret(obj *unstructured.Unstructured) bool {
+	if obj == nil {
+		return false
+	}
+	gvk := obj.GroupVersionKind()
+	return gvk.Group == "" && gvk.Kind == kube.SecretKind
+}
+
 // ServerSideDiff gets the destination cluster and creates a server-side dry run applier and performs the diff
 // It returns the diff result in the form of a list of ResourceDiffs.
 func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationServerSideDiffQuery) (*application.ApplicationServerSideDiffResponse, error) {
@@ -3017,9 +3026,7 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 		return nil, fmt.Errorf("failed to get OpenAPI schema: %w", err)
 	}
 
-	applier, cleanup, err := kubeutil.ManageServerSideDiffDryRuns(clusterConfig, func(_ string) (kube.CleanupFunc, error) {
-		return func() {}, nil
-	})
+	applier, cleanup, err := s.kubectl.ManageServerSideDiffDryRuns(clusterConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error creating server-side dry run applier: %w", err)
 	}
@@ -3156,7 +3163,17 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 		targetState := string(diffRes.PredictedLive)
 		liveState := string(diffRes.NormalizedLive)
 
-		if kind == kube.SecretKind && group == "" {
+		// Whether to mask Secret data must be decided from the objects the server
+		// itself parsed (targetObjs[i]/liveObjs[i]), never from the caller-supplied
+		// kind/group metadata. Otherwise a request can pair a spoofed non-Secret
+		// liveResources[i].Kind with a Secret target manifest to bypass masking and
+		// leak the dry-run result's Secret data. The live side is checked too as
+		// defense-in-depth, in case the live-resource consistency validation above
+		// is ever relaxed.
+		isSecret := (i < len(targetObjs) && isCoreSecret(targetObjs[i])) ||
+			(i < len(liveObjs) && isCoreSecret(liveObjs[i]))
+
+		if isSecret {
 			var targetObj, liveObj *unstructured.Unstructured
 			if len(diffRes.PredictedLive) > 0 && string(diffRes.PredictedLive) != "null" {
 				targetObj = &unstructured.Unstructured{}
