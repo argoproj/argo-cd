@@ -4885,15 +4885,15 @@ func (m *SyncStrategyHook) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_SyncStrategyHook proto.InternalMessageInfo
 
-func (m *SyncWindow) Reset()      { *m = SyncWindow{} }
-func (*SyncWindow) ProtoMessage() {}
-func (*SyncWindow) Descriptor() ([]byte, []int) {
+func (m *InlineSyncWindow) Reset()      { *m = InlineSyncWindow{} }
+func (*InlineSyncWindow) ProtoMessage() {}
+func (*InlineSyncWindow) Descriptor() ([]byte, []int) {
 	return fileDescriptor_c078c3c476799f44, []int{173}
 }
-func (m *SyncWindow) XXX_Unmarshal(b []byte) error {
+func (m *InlineSyncWindow) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
 }
-func (m *SyncWindow) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+func (m *InlineSyncWindow) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	b = b[:cap(b)]
 	n, err := m.MarshalToSizedBuffer(b)
 	if err != nil {
@@ -4901,13 +4901,13 @@ func (m *SyncWindow) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
 	}
 	return b[:n], nil
 }
-func (m *SyncWindow) XXX_Merge(src proto.Message) {
+func (m *InlineSyncWindow) XXX_Merge(src proto.Message) {
 	xxx_messageInfo_SyncWindow.Merge(m, src)
 }
-func (m *SyncWindow) XXX_Size() int {
+func (m *InlineSyncWindow) XXX_Size() int {
 	return m.Size()
 }
-func (m *SyncWindow) XXX_DiscardUnknown() {
+func (m *InlineSyncWindow) XXX_DiscardUnknown() {
 	xxx_messageInfo_SyncWindow.DiscardUnknown(m)
 }
 
@@ -5165,7 +5165,7 @@ func init() {
 	proto.RegisterType((*SyncStrategy)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.SyncStrategy")
 	proto.RegisterType((*SyncStrategyApply)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.SyncStrategyApply")
 	proto.RegisterType((*SyncStrategyHook)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.SyncStrategyHook")
-	proto.RegisterType((*SyncWindow)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.SyncWindow")
+	proto.RegisterType((*InlineSyncWindow)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.InlineSyncWindow")
 	proto.RegisterType((*TLSClientConfig)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.TLSClientConfig")
 	proto.RegisterType((*TagFilter)(nil), "github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.TagFilter")
 }
@@ -16774,7 +16774,7 @@ func (m *SyncStrategyHook) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
-func (m *SyncWindow) Marshal() (dAtA []byte, err error) {
+func (m *InlineSyncWindow) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
 	n, err := m.MarshalToSizedBuffer(dAtA[:size])
@@ -16784,12 +16784,12 @@ func (m *SyncWindow) Marshal() (dAtA []byte, err error) {
 	return dAtA[:n], nil
 }
 
-func (m *SyncWindow) MarshalTo(dAtA []byte) (int, error) {
+func (m *InlineSyncWindow) MarshalTo(dAtA []byte) (int, error) {
 	size := m.Size()
 	return m.MarshalToSizedBuffer(dAtA[:size])
 }
 
-func (m *SyncWindow) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+func (m *InlineSyncWindow) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	i := len(dAtA)
 	_ = i
 	var l int
@@ -20955,7 +20955,7 @@ func (m *SyncStrategyHook) Size() (n int) {
 	return n
 }
 
-func (m *SyncWindow) Size() (n int) {
+func (m *InlineSyncWindow) Size() (n int) {
 	if m == nil {
 		return 0
 	}
@@ -21114,9 +21114,9 @@ func (this *AppProjectSpec) String() string {
 		repeatedStringForNamespaceResourceBlacklist += fmt.Sprintf("%v", f) + ","
 	}
 	repeatedStringForNamespaceResourceBlacklist += "}"
-	repeatedStringForSyncWindows := "[]*SyncWindow{"
+	repeatedStringForSyncWindows := "[]*InlineSyncWindow{"
 	for _, f := range this.SyncWindows {
-		repeatedStringForSyncWindows += strings.Replace(f.String(), "SyncWindow", "SyncWindow", 1) + ","
+		repeatedStringForSyncWindows += strings.Replace(f.String(), "InlineSyncWindow", "InlineSyncWindow", 1) + ","
 	}
 	repeatedStringForSyncWindows += "}"
 	repeatedStringForNamespaceResourceWhitelist := "[]GroupKind{"
@@ -23943,11 +23943,11 @@ func (this *SyncStrategyHook) String() string {
 	}, "")
 	return s
 }
-func (this *SyncWindow) String() string {
+func (this *InlineSyncWindow) String() string {
 	if this == nil {
 		return "nil"
 	}
-	s := strings.Join([]string{`&SyncWindow{`,
+	s := strings.Join([]string{`&InlineSyncWindow{`,
 		`Kind:` + fmt.Sprintf("%v", this.Kind) + `,`,
 		`Schedule:` + fmt.Sprintf("%v", this.Schedule) + `,`,
 		`Duration:` + fmt.Sprintf("%v", this.Duration) + `,`,
@@ -24852,7 +24852,7 @@ func (m *AppProjectSpec) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.SyncWindows = append(m.SyncWindows, &SyncWindow{})
+			m.SyncWindows = append(m.SyncWindows, &InlineSyncWindow{})
 			if err := m.SyncWindows[len(m.SyncWindows)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
@@ -59236,7 +59236,7 @@ func (m *SyncStrategyHook) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
-func (m *SyncWindow) Unmarshal(dAtA []byte) error {
+func (m *InlineSyncWindow) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
 	for iNdEx < l {
@@ -59259,10 +59259,10 @@ func (m *SyncWindow) Unmarshal(dAtA []byte) error {
 		fieldNum := int32(wire >> 3)
 		wireType := int(wire & 0x7)
 		if wireType == 4 {
-			return fmt.Errorf("proto: SyncWindow: wiretype end group for non-group")
+			return fmt.Errorf("proto: InlineSyncWindow: wiretype end group for non-group")
 		}
 		if fieldNum <= 0 {
-			return fmt.Errorf("proto: SyncWindow: illegal tag %d (wire type %d)", fieldNum, wire)
+			return fmt.Errorf("proto: InlineSyncWindow: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
 		case 1:

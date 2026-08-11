@@ -30786,8 +30786,8 @@ spec:
                 description: SyncWindows controls when syncs can be run for apps in
                   this project
                 items:
-                  description: SyncWindow contains the kind, time, duration and attributes
-                    that are used to assign the syncWindows to apps
+                  description: InlineSyncWindow contains the kind, time, duration
+                    and attributes that are used to assign the syncWindows to apps
                   properties:
                     andOperator:
                       description: UseAndOperator use AND operator for matching applications,

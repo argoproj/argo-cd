@@ -2917,10 +2917,10 @@ type ClusterResourceRestrictionItem struct {
 }
 
 // SyncWindows is a collection of sync windows in this project
-type SyncWindows []*SyncWindow
+type SyncWindows []*InlineSyncWindow
 
-// SyncWindow contains the kind, time, duration and attributes that are used to assign the syncWindows to apps
-type SyncWindow struct {
+// InlineSyncWindow contains the kind, time, duration and attributes that are used to assign the syncWindows to apps
+type InlineSyncWindow struct {
 	// Kind defines if the window allows or blocks syncs
 	Kind string `json:"kind,omitempty" protobuf:"bytes,1,opt,name=kind"`
 	// Schedule is the time the window will begin, specified in cron format
@@ -2947,7 +2947,7 @@ type SyncWindow struct {
 	SyncOverrun bool `json:"syncOverrun,omitempty" protobuf:"bytes,11,opt,name=syncOverrun"`
 }
 
-// HasWindows returns true if SyncWindows has one or more SyncWindow
+// HasWindows returns true if SyncWindows has one or more InlineSyncWindow
 func (w *SyncWindows) HasWindows() bool {
 	return w != nil && len(*w) > 0
 }
@@ -3031,7 +3031,7 @@ func (w *SyncWindows) inactiveAllows(currentTime time.Time) (*SyncWindows, error
 	return nil, nil
 }
 
-func (w *SyncWindow) scheduleOffsetByTimeZone() time.Duration {
+func (w *InlineSyncWindow) scheduleOffsetByTimeZone() time.Duration {
 	loc, err := time.LoadLocation(w.TimeZone)
 	if err != nil {
 		log.Warnf("Invalid time zone %s specified. Using UTC as default time zone", w.TimeZone)
@@ -3047,7 +3047,7 @@ func (spec *AppProjectSpec) AddWindow(knd string, sch string, dur string, app []
 		return errors.New("cannot create window: require kind, schedule, duration and one or more of applications, namespaces and clusters")
 	}
 
-	window := &SyncWindow{
+	window := &InlineSyncWindow{
 		Kind:           knd,
 		Schedule:       sch,
 		Duration:       dur,
@@ -3364,12 +3364,12 @@ func (w *SyncWindows) canSyncAtTime(isManual bool, checkTime time.Time) (bool, e
 }
 
 // Active returns true if the sync window is currently active
-func (w SyncWindow) Active() (bool, error) {
+func (w InlineSyncWindow) Active() (bool, error) {
 	return w.active(time.Now())
 }
 
-func (w SyncWindow) active(currentTime time.Time) (bool, error) {
-	// If SyncWindow.Active() is called outside of a UTC locale, it should be
+func (w InlineSyncWindow) active(currentTime time.Time) (bool, error) {
+	// If InlineSyncWindow.Active() is called outside of a UTC locale, it should be
 	// first converted to UTC before search
 	currentTime = currentTime.UTC()
 
@@ -3391,7 +3391,7 @@ func (w SyncWindow) active(currentTime time.Time) (bool, error) {
 }
 
 // Update updates a sync window's settings with the given parameter
-func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []string, tz string, description string) error {
+func (w *InlineSyncWindow) Update(s string, d string, a []string, n []string, c []string, tz string, description string) error {
 	if s == "" && d == "" && len(a) == 0 && len(n) == 0 && len(c) == 0 && description == "" {
 		return errors.New("cannot update: require one or more of schedule, duration, application, namespace, cluster or description")
 	}
@@ -3428,7 +3428,7 @@ func (w *SyncWindow) Update(s string, d string, a []string, n []string, c []stri
 }
 
 // Validate checks whether a sync window has valid configuration. The error returned indicates any problems that has been found.
-func (w *SyncWindow) Validate() error {
+func (w *InlineSyncWindow) Validate() error {
 	// Default timeZone to UTC if timeZone is not specified
 	if w.TimeZone == "" {
 		w.TimeZone = "UTC"
@@ -3458,10 +3458,10 @@ func (w *SyncWindow) Validate() error {
 	return nil
 }
 
-func (w *SyncWindow) HashIdentity() (uint64, error) {
+func (w *InlineSyncWindow) HashIdentity() (uint64, error) {
 	// Create a copy of the window with only the core identity fields
 	// Excluding ManualSync and Description as they are behavioral/metadata fields
-	identityWindow := SyncWindow{
+	identityWindow := InlineSyncWindow{
 		Kind:           w.Kind,
 		Schedule:       w.Schedule,
 		Duration:       w.Duration,

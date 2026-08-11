@@ -90,7 +90,7 @@ message AppProjectSpec {
   optional OrphanedResourcesMonitorSettings orphanedResources = 7;
 
   // SyncWindows controls when syncs can be run for apps in this project
-  repeated SyncWindow syncWindows = 8;
+  repeated InlineSyncWindow syncWindows = 8;
 
   // NamespaceResourceWhitelist contains list of whitelisted namespace level resources
   repeated .k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind namespaceResourceWhitelist = 9;
@@ -2881,8 +2881,8 @@ message SyncStrategyHook {
   optional SyncStrategyApply syncStrategyApply = 1;
 }
 
-// SyncWindow contains the kind, time, duration and attributes that are used to assign the syncWindows to apps
-message SyncWindow {
+// InlineSyncWindow contains the kind, time, duration and attributes that are used to assign the syncWindows to apps
+message InlineSyncWindow {
   // Kind defines if the window allows or blocks syncs
   optional string kind = 1;
 
