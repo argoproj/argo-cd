@@ -52,7 +52,7 @@ argocd proj windows list <project-name>`,
 }
 
 // newProjectWindowsToggleCommand creates a command for toggling a boolean field on a sync window
-func newProjectWindowsToggleCommand(clientOpts *argocdclient.ClientOptions, use, short, long, example string, updateFn func(*v1alpha1.SyncWindow)) *cobra.Command {
+func newProjectWindowsToggleCommand(clientOpts *argocdclient.ClientOptions, use, short, long, example string, updateFn func(*v1alpha1.InlineSyncWindow)) *cobra.Command {
 	return &cobra.Command{
 		Use:     use,
 		Short:   short,
@@ -107,7 +107,7 @@ argocd proj windows disable-manual-sync PROJECT ID
 
 #Disabling manual sync for a windows set on the default project with Id 0
 argocd proj windows disable-manual-sync default 0`,
-		func(window *v1alpha1.SyncWindow) {
+		func(window *v1alpha1.InlineSyncWindow) {
 			window.ManualSync = false
 		},
 	)
@@ -129,7 +129,7 @@ argocd proj windows enable-manual-sync default 2
 
 #Enabling manual sync with a custom message
 argocd proj windows enable-manual-sync my-app-project --message "Manual sync initiated by admin`,
-		func(window *v1alpha1.SyncWindow) {
+		func(window *v1alpha1.InlineSyncWindow) {
 			window.ManualSync = true
 		},
 	)
@@ -148,7 +148,7 @@ argocd proj windows disable-sync-overrun PROJECT ID
 
 #Disabling sync overrun for a window set on the default project with Id 0
 argocd proj windows disable-sync-overrun default 0`,
-		func(window *v1alpha1.SyncWindow) {
+		func(window *v1alpha1.InlineSyncWindow) {
 			window.SyncOverrun = false
 		},
 	)
@@ -167,7 +167,7 @@ argocd proj windows enable-sync-overrun PROJECT ID
 
 #Enabling sync overrun for a window set on the default project with Id 2
 argocd proj windows enable-sync-overrun default 2`,
-		func(window *v1alpha1.SyncWindow) {
+		func(window *v1alpha1.InlineSyncWindow) {
 			window.SyncOverrun = true
 		},
 	)

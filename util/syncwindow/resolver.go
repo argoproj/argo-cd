@@ -11,7 +11,7 @@ import (
 	listers "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 )
 
-// Resolver resolves SyncWindowRef references into concrete SyncWindow objects
+// Resolver resolves SyncWindowRef references into concrete InlineSyncWindow objects
 // that can be evaluated by the existing sync window logic.
 type Resolver struct {
 	lister    listers.SyncWindowResourceLister
@@ -26,7 +26,7 @@ func NewResolver(lister listers.SyncWindowResourceLister, namespace string) *Res
 	}
 }
 
-// ResolveProjectRefs resolves SyncWindowProjectRef entries from an AppProject into SyncWindow objects.
+// ResolveProjectRefs resolves SyncWindowProjectRef entries from an AppProject into InlineSyncWindow objects.
 // The returned windows incorporate any application/namespace/cluster filters from the project ref.
 // If a ref cannot be resolved, the error is recorded and resolution continues with the remaining
 // refs so that valid deny windows are never silently dropped by a single bad reference.
@@ -60,7 +60,7 @@ func (r *Resolver) ResolveProjectRefs(refs []v1alpha1.SyncWindowProjectRef) (v1a
 	return result, errors.Join(errs...)
 }
 
-// ResolveAppRefs resolves SyncWindowRef entries from an Application into SyncWindow objects.
+// ResolveAppRefs resolves SyncWindowRef entries from an Application into InlineSyncWindow objects.
 // The returned windows have their application/namespace/cluster filters cleared since
 // they apply directly to the referencing application.
 // If a ref cannot be resolved, the error is recorded and resolution continues with the remaining
@@ -116,9 +116,9 @@ func convertLabelSelector(ls *metav1.LabelSelector) (labels.Selector, error) {
 	return metav1.LabelSelectorAsSelector(ls)
 }
 
-// definitionToSyncWindow converts a SyncWindowDefinition from a CRD into the existing SyncWindow type.
-func definitionToSyncWindow(def *v1alpha1.SyncWindowDefinition) *v1alpha1.SyncWindow {
-	return &v1alpha1.SyncWindow{
+// definitionToSyncWindow converts a SyncWindowDefinition from a CRD into the existing InlineSyncWindow type.
+func definitionToSyncWindow(def *v1alpha1.SyncWindowDefinition) *v1alpha1.InlineSyncWindow {
+	return &v1alpha1.InlineSyncWindow{
 		Kind:           def.Kind,
 		Schedule:       def.Schedule,
 		Duration:       def.Duration,

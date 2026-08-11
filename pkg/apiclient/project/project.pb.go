@@ -473,7 +473,7 @@ func (m *SyncWindowsQuery) GetName() string {
 }
 
 type SyncWindowsResponse struct {
-	Windows              []*v1alpha1.SyncWindow `protobuf:"bytes,1,rep,name=windows,proto3" json:"windows,omitempty"`
+	Windows              []*v1alpha1.InlineSyncWindow `protobuf:"bytes,1,rep,name=windows,proto3" json:"windows,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}               `json:"-"`
 	XXX_unrecognized     []byte                 `json:"-"`
 	XXX_sizecache        int32                  `json:"-"`
@@ -512,7 +512,7 @@ func (m *SyncWindowsResponse) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_SyncWindowsResponse proto.InternalMessageInfo
 
-func (m *SyncWindowsResponse) GetWindows() []*v1alpha1.SyncWindow {
+func (m *SyncWindowsResponse) GetWindows() []*v1alpha1.InlineSyncWindow {
 	if m != nil {
 		return m.Windows
 	}
@@ -2967,7 +2967,7 @@ func (m *SyncWindowsResponse) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.Windows = append(m.Windows, &v1alpha1.SyncWindow{})
+			m.Windows = append(m.Windows, &v1alpha1.InlineSyncWindow{})
 			if err := m.Windows[len(m.Windows)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
