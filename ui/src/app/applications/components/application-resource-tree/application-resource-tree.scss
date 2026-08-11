@@ -1,5 +1,6 @@
 @import 'node_modules/argo-ui/src/styles/config';
 @import 'node_modules/argo-ui/src/styles/theme';
+@import '../resource-highlight-pulse.scss';
 
 .application-resource-tree {
     position: relative;
@@ -99,7 +100,7 @@
         }
 
         &.active {
-            border-color: $argo-color-teal-6;
+            @include resource-highlight-tree-node-active;
         }
 
         &--orphaned {

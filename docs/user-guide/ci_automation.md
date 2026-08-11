@@ -36,6 +36,19 @@ git commit -am "Update guestbook to v2.0"
 git push
 ```
 
+## Authentication in CI Pipelines
+
+CI pipelines run without a browser, so the usual `argocd login --sso` flow doesn't apply.
+Set `ARGOCD_AUTH_TOKEN` (or pass `--auth-token`) with a token obtained by one of these methods:
+
+- Project role token — `argocd proj role create-token`. Scoped to a single AppProject; no local user account needed.
+- Local user API token — `argocd account generate-token` on a [local user](../operator-manual/user-management/index.md#local-usersaccounts) with the `apiKey` capability. Simplest option if local service accounts are permitted.
+- Dex Token Exchange — your CI platform's OIDC token (GitHub Actions, GitLab CI, etc.) is exchanged for a Dex token with a single `curl` call. Works headlessly without requiring local accounts.
+- External OIDC ID token — when Argo CD uses an external OIDC provider (no Dex), pass the CI platform's ID token directly if the provider is the same one Argo CD is configured to use.
+- `--core` mode — `argocd login --core` bypasses Argo CD auth entirely and uses kubeconfig or in-cluster credentials instead. No `ARGOCD_AUTH_TOKEN` needed.
+
+See [CI/CD Pipeline Authentication](../operator-manual/user-management/index.md#cicd-pipeline-authentication) for configuration details and examples.
+
 ## Synchronize The App (Optional)
 
 For convenience, the argocd CLI can be downloaded directly from the API server. This is
@@ -44,7 +57,7 @@ that is always compatible with the Argo CD API server.
 
 ```bash
 export ARGOCD_SERVER=argocd.example.com
-export ARGOCD_AUTH_TOKEN=<JWT token generated from project>
+export ARGOCD_AUTH_TOKEN=<token — see Authentication in CI Pipelines above>
 curl -sSL -o /usr/local/bin/argocd https://${ARGOCD_SERVER}/download/argocd-linux-amd64
 argocd app sync guestbook
 argocd app wait guestbook
