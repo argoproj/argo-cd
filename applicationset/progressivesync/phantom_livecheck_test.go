@@ -2,6 +2,7 @@ package progressivesync
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -232,4 +233,63 @@ func TestEvictionDeleteIsGatedOnUID(t *testing.T) {
 			"name between the live read and the delete would be removed instead")
 	assert.Equal(t, deletedUID, preconditionUID,
 		"the precondition must pin the UID of the entry we confirmed absent, not some other object")
+}
+
+// The eviction Delete is what removes the stale entry from the informer store, and the cache-syncing
+// client only evicts when that write succeeds or comes back NotFound -- any other error returns
+// before eviction. So a failed eviction must not let reverse deletion proceed: releasing the
+// ApplicationSet's finalizer with the phantom still in the store reintroduces the recreation failure
+// the eviction exists to prevent. A conflict is different, and must stay non-fatal.
+func TestEvictionFailureDoesNotReleaseTheFinalizer(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name      string
+		deleteErr error
+		wantErr   bool
+		reason    string
+	}{
+		{
+			name:      "unexpected failure blocks progress",
+			deleteErr: apierrors.NewInternalError(errors.New("etcd unavailable")),
+			wantErr:   true,
+			reason: "the client returns before evicting on any non-NotFound error, so the phantom is " +
+				"still in the store; continuing would release the finalizer and leave it there",
+		},
+		{
+			name:      "conflict is not a failure",
+			deleteErr: apierrors.NewConflict(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, "repro-app", errors.New("uid mismatch")),
+			wantErr:   false,
+			reason: "the UID precondition failed because a real Application now holds this name, so " +
+				"there is no stale entry to evict and deletion may proceed",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			s := schemeWithApps(t)
+			phantom := agedTerminatingApp()
+			cached := fake.NewClientBuilder().
+				WithScheme(s).
+				WithObjects(&phantom).
+				WithInterceptorFuncs(interceptor.Funcs{
+					Delete: func(_ context.Context, _ crtclient.WithWatch, _ crtclient.Object, _ ...crtclient.DeleteOption) error {
+						return tc.deleteErr
+					},
+				}).
+				Build()
+			apiServer := fake.NewClientBuilder().WithScheme(s).Build() // object really gone
+
+			m := &Manager{Client: cached, APIReader: apiServer}
+
+			_, err := m.PerformReverseDeletion(t.Context(), log.NewEntry(log.New()),
+				singleStepAppSet(), []v1alpha1.Application{phantom})
+
+			if tc.wantErr {
+				require.Error(t, err, tc.reason)
+			} else {
+				require.NoError(t, err, tc.reason)
+			}
+		})
+	}
 }

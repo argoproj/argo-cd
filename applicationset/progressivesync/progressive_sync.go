@@ -65,7 +65,9 @@ type Manager struct {
 	// APIReader reads directly from the API server, bypassing the informer cache. Reverse deletion
 	// uses it to double-check an Application the cache has reported as terminating for an
 	// implausibly long time, since the cache alone cannot distinguish a slow teardown from a DELETED
-	// event that was never delivered. May be nil, in which case the check degrades to waiting.
+	// event that was never delivered. Required: with no uncached reader the cache cannot be verified,
+	// so past the threshold reverse deletion errors rather than trusting it. Production supplies
+	// mgr.GetAPIReader().
 	APIReader    client.Reader
 	dependencies Dependencies
 }
@@ -213,9 +215,18 @@ func (m *Manager) PerformReverseDeletion(ctx context.Context, logCtx *log.Entry,
 						case apierrors.IsNotFound(err):
 							// Expected: the object is gone. The eviction has already been triggered.
 						case apierrors.IsConflict(err):
+							// The UID precondition failed, so a different Application now holds this
+							// name. The informer entry describes a real object, so there is nothing
+							// stale left to evict and deletion of this step can proceed.
 							logCtx.Infof("application %s was recreated while being confirmed as deleted; leaving the new object alone", step.AppName)
 						default:
-							logCtx.WithError(err).Warnf("could not evict stale cache entry for application %s", step.AppName)
+							// Any other failure means the cache-syncing client returned before
+							// evicting, so the stale entry is still in the store. Continuing would
+							// release the ApplicationSet's finalizer while the phantom remains, which
+							// is exactly the recreation failure this eviction exists to prevent.
+							// Surface it: unlike the stale-cache condition, a write that failed once
+							// can succeed on a later attempt, so the backoff has somewhere to go.
+							return 0, fmt.Errorf("application %s is absent from the API server but its stale cache entry could not be evicted: %w", step.AppName, err)
 						}
 					}
 					continue
