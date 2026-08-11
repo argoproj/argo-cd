@@ -1327,7 +1327,7 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 			if cmpErr != nil {
 				// Failures here are persistent (for example a malformed jsonPointer), so reporting
 				// "changed" would loop forever. Leave the status alone and surface it.
-				logCtx.WithError(cmpErr).Warn("could not compare desired and live specs; leaving progressive sync status unchanged")
+				statusLogCtx.WithError(cmpErr).Warn("could not compare desired and live specs; leaving progressive sync status unchanged")
 			} else {
 				specChanged = !equivalent
 			}
