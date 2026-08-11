@@ -227,6 +227,32 @@ func TestDiffServerSideApplyAnnotation(t *testing.T) {
 		assert.False(t, result.Modified)
 	})
 
+	t.Run("annotation only still applies full normalization on the client-side fallback", func(t *testing.T) {
+		t.Parallel()
+		// The SSA annotation implies server-side diff, but with no runner configured
+		// the diff falls back to the client-side path. Full normalization (including
+		// the ignore-differences normalizer) must still be applied there; otherwise a
+		// field the user asked to ignore would surface as a spurious diff.
+		config := withSSAAnnotation(mustToUnstructured(newDeployment()))
+		live := config.DeepCopy()
+		// Introduce a difference only in a field that the normalizer removes.
+		require.NoError(t, unstructured.SetNestedField(live.Object, int64(99), "spec", "replicas"))
+
+		normalizer := &testIgnoreDifferencesNormalizer{
+			fieldsToRemove: [][]string{{"spec", "replicas"}},
+		}
+		opts := append(diffOptionsForTest(), WithNormalizer(normalizer))
+
+		result, err := Diff(t.Context(), config, live, opts...)
+
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		// If normalization were skipped on the fallback path (the bug), the differing
+		// replicas field would remain and the diff would be Modified.
+		assert.False(t, result.Modified,
+			"ignore-differences normalization must be applied on the client-side fallback path")
+	})
+
 	t.Run("explicit serverSideDiff option errors when no dry-run runner is configured", func(t *testing.T) {
 		t.Parallel()
 		liveState := StrToUnstructured(testdata.ServiceLiveYAMLSSD)

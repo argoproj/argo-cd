@@ -89,11 +89,23 @@ func Diff(ctx context.Context, config, live *unstructured.Unstructured, opts ...
 	serverSideDiff := o.serverSideDiff ||
 		(config != nil && resource.HasAnnotationOption(config, syncOptAnnotation, ssaAnnotation))
 
-	// If server-side diff is enabled, we need to skip full normalization (including ignore differences)
-	// when pre-processing the config and live objects. This must account for both the explicit
-	// serverSideDiff option and the Server-Side Apply annotation so that annotation-triggered
-	// server-side diffs are not fully normalized before the dry-run apply.
-	if serverSideDiff {
+	// Server-Side Diff requires a dry-run runner to execute the Server-Side Apply
+	// against the kube-apiserver. It can only actually run when it was explicitly
+	// requested via the serverSideDiff option (in which case a missing runner is a
+	// hard error, see serverSideDiff) or when a dry-run runner is configured. When
+	// server-side diff is only implied by the Server-Side Apply annotation and no
+	// runner is available, the caller is a client-side-only consumer (e.g.
+	// `argocd app diff` without server-side generation) and we fall back to the
+	// regular three-way / two-way client-side diff.
+	willUseSSD := serverSideDiff && (o.serverSideDiff || o.serverSideDryRunner != nil)
+
+	// Full normalization (including ignore differences and known-type normalization)
+	// must only be skipped when server-side diff will actually run, since it performs
+	// its own normalization after the dry-run apply. Skipping it on the client-side
+	// fallback path would drop ignore-differences/known-type normalization and produce
+	// noisy or incorrect diffs, so this is gated on willUseSSD rather than the bare
+	// serverSideDiff intent.
+	if willUseSSD {
 		preDiffOpts = append(preDiffOpts, WithSkipFullNormalize(true))
 	}
 	if config != nil {
@@ -105,15 +117,7 @@ func Diff(ctx context.Context, config, live *unstructured.Unstructured, opts ...
 		Normalize(live, preDiffOpts...)
 	}
 
-	// Server-Side Diff requires a dry-run runner to execute the Server-Side Apply
-	// against the kube-apiserver. When it was explicitly requested via the
-	// serverSideDiff option, a missing runner is a hard error: silently falling
-	// back to a client-side diff would produce a misleading result for a resource
-	// that is applied server-side. When it is only implied by the annotation, the
-	// caller may be a client-side-only consumer (e.g. `argocd app diff` without
-	// server-side generation), so fall through to the regular three-way / two-way
-	// diff instead of failing.
-	if serverSideDiff && (o.serverSideDiff || o.serverSideDryRunner != nil) {
+	if willUseSSD {
 		r, err := ServerSideDiff(ctx, config, live, opts...)
 		if err != nil {
 			return nil, fmt.Errorf("error calculating server side diff: %w", err)
