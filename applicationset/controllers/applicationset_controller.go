@@ -450,6 +450,17 @@ func (r *ApplicationSetReconciler) applicationGoneFromAPIServer(ctx context.Cont
 	}
 }
 
+// disableAutomatedSync clears automated sync on a RollingSync-managed Application, since the
+// ApplicationSet controller triggers those syncs itself. Anything comparing a generated Application
+// against its live counterpart must apply this first: the mutation lands on the written copy, so the
+// live object carries automated.enabled=false while a freshly generated one leaves it unset.
+func disableAutomatedSync(app *argov1alpha1.Application) {
+	if app.Spec.SyncPolicy == nil || app.Spec.SyncPolicy.Automated == nil {
+		return
+	}
+	app.Spec.SyncPolicy.Automated.Enabled = new(false)
+}
+
 func (r *ApplicationSetReconciler) performReverseDeletion(ctx context.Context, logCtx *log.Entry, appset argov1alpha1.ApplicationSet, currentApps []argov1alpha1.Application) (time.Duration, error) {
 	requeueTime := 10 * time.Second
 	stepLength := len(appset.Spec.Strategy.RollingSync.Steps)
@@ -1306,7 +1317,20 @@ func (r *ApplicationSetReconciler) updateApplicationSetApplicationStatus(ctx con
 		if desiredApp, ok := desiredAppsMap[app.Name]; ok {
 			// Compare the desired spec with the current spec to detect non-Git changes
 			// This will catch changes to generator parameters like image tags, helm values, etc.
-			specChanged = !cmp.Equal(desiredApp.Spec, app.Spec, cmpopts.EquateEmpty(), cmpopts.EquateComparable(argov1alpha1.ApplicationDestination{}))
+			//
+			// Via SpecsEquivalent, so this agrees with what the write path will actually do; see its
+			// doc comment for why comparing specs directly loops.
+			desiredForCompare := desiredApp.DeepCopy()
+			disableAutomatedSync(desiredForCompare)
+
+			equivalent, cmpErr := utils.SpecsEquivalent(applicationSet.Spec.IgnoreApplicationDifferences, normalizers.IgnoreNormalizerOpts{}, &app, desiredForCompare)
+			if cmpErr != nil {
+				// Failures here are persistent (for example a malformed jsonPointer), so reporting
+				// "changed" would loop forever. Leave the status alone and surface it.
+				logCtx.WithError(cmpErr).Warn("could not compare desired and live specs; leaving progressive sync status unchanged")
+			} else {
+				specChanged = !equivalent
+			}
 		}
 
 		if revisionsChanged || specChanged {
@@ -1721,8 +1745,8 @@ func (r *ApplicationSetReconciler) syncDesiredApplications(logCtx *log.Entry, ap
 		// ensure that Applications generated with RollingSync do not have an automated sync policy, since the AppSet controller will handle triggering the sync operation instead
 		if desiredApplications[i].Spec.SyncPolicy != nil && desiredApplications[i].Spec.SyncPolicy.IsAutomatedSyncEnabled() {
 			pruneEnabled = desiredApplications[i].Spec.SyncPolicy.Automated.GetPrune()
-			desiredApplications[i].Spec.SyncPolicy.Automated.Enabled = new(false)
 		}
+		disableAutomatedSync(&desiredApplications[i])
 
 		appSetStatusPending := false
 		idx := findApplicationStatusIndex(applicationSet.Status.ApplicationStatus, desiredApplications[i].Name)
