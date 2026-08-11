@@ -18,8 +18,10 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
-const watchTestTimeout = 20 * time.Second
-const watchTestNoEventTimeout = 5 * time.Second
+const (
+	watchTestTimeout        = 20 * time.Second
+	watchTestNoEventTimeout = 5 * time.Second
+)
 
 func TestWatchClusters_CreateRemoveCluster(t *testing.T) {
 	emptyArgoCDConfigMap := &corev1.ConfigMap{
