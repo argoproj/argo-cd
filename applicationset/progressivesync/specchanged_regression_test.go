@@ -116,7 +116,7 @@ func TestSpecChangedHonoursIgnoreApplicationDifferences(t *testing.T) {
 	m := regressionManager(t, &appSet)
 	statuses, err := m.UpdateApplicationSetApplicationStatus(t.Context(), log.NewEntry(log.New()),
 		&appSet, []argov1alpha1.Application{live}, []argov1alpha1.Application{desired},
-		map[string]int{"storm-a": 0})
+		map[string]int{"storm-a": 0}, argov1alpha1.ApplicationsSyncPolicySync)
 	require.NoError(t, err)
 	require.Len(t, statuses, 1)
 
@@ -141,7 +141,7 @@ func TestSpecChangedIgnoresControllerManagedAutomatedEnabled(t *testing.T) {
 	m := regressionManager(t, &appSet)
 	statuses, err := m.UpdateApplicationSetApplicationStatus(t.Context(), log.NewEntry(log.New()),
 		&appSet, []argov1alpha1.Application{live}, []argov1alpha1.Application{desired},
-		map[string]int{"storm-a": 0})
+		map[string]int{"storm-a": 0}, argov1alpha1.ApplicationsSyncPolicySync)
 	require.NoError(t, err)
 	require.Len(t, statuses, 1)
 
@@ -171,13 +171,75 @@ func TestInvalidIgnoreRuleDoesNotReportSpecChange(t *testing.T) {
 	m := regressionManager(t, &appSet)
 	statuses, err := m.UpdateApplicationSetApplicationStatus(t.Context(), log.NewEntry(log.New()),
 		&appSet, []argov1alpha1.Application{live}, []argov1alpha1.Application{desired},
-		map[string]int{"storm-a": 0})
+		map[string]int{"storm-a": 0}, argov1alpha1.ApplicationsSyncPolicySync)
 	require.NoError(t, err)
 	require.Len(t, statuses, 1)
 
 	assert.NotContains(t, statuses[0].Message, "spec differs",
 		"with an unusable ignore rule the comparison cannot be trusted, so the status must not claim "+
 			"a spec change; the write path is erroring, so a change reported here can never be acted on")
+}
+
+// A permanent spec difference is expected when the effective policy forbids Application updates.
+// It must not drive progressive-sync transitions that the write path cannot complete.
+func TestSpecChangedHonoursEffectiveApplicationsSyncPolicy(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name           string
+		policy         argov1alpha1.ApplicationsSyncPolicy
+		wantSpecChange bool
+	}{
+		{name: "create-only", policy: argov1alpha1.ApplicationsSyncPolicyCreateOnly},
+		{name: "create-delete", policy: argov1alpha1.ApplicationsSyncPolicyCreateDelete},
+		{name: "create-update", policy: argov1alpha1.ApplicationsSyncPolicyCreateUpdate, wantSpecChange: true},
+		{name: "sync", policy: argov1alpha1.ApplicationsSyncPolicySync, wantSpecChange: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			appSet := regressionAppSet(nil)
+			live := regressionApp("abc123", new(false))
+			desired := regressionApp("HEAD", new(false))
+
+			statuses, err := regressionManager(t, &appSet).UpdateApplicationSetApplicationStatus(
+				t.Context(), log.NewEntry(log.New()), &appSet,
+				[]argov1alpha1.Application{live}, []argov1alpha1.Application{desired},
+				map[string]int{"storm-a": 0}, tc.policy,
+			)
+			require.NoError(t, err)
+			require.Len(t, statuses, 1)
+
+			if tc.wantSpecChange {
+				assert.Equal(t, argov1alpha1.ProgressiveSyncWaiting, statuses[0].Status)
+				assert.Contains(t, statuses[0].Message, "spec differs")
+			} else {
+				assert.Equal(t, argov1alpha1.ProgressiveSyncHealthy, statuses[0].Status)
+				assert.NotContains(t, statuses[0].Message, "spec differs")
+			}
+		})
+	}
+}
+
+func TestNoUpdatePolicyStillReportsRevisionChanges(t *testing.T) {
+	t.Parallel()
+
+	appSet := regressionAppSet(nil)
+	appSet.Status.ApplicationStatus[0].TargetRevisions = []string{"old-revision"}
+	live := regressionApp("abc123", new(false))
+	desired := regressionApp("HEAD", new(false))
+
+	statuses, err := regressionManager(t, &appSet).UpdateApplicationSetApplicationStatus(
+		t.Context(), log.NewEntry(log.New()), &appSet,
+		[]argov1alpha1.Application{live}, []argov1alpha1.Application{desired},
+		map[string]int{"storm-a": 0}, argov1alpha1.ApplicationsSyncPolicyCreateOnly,
+	)
+	require.NoError(t, err)
+	require.Len(t, statuses, 1)
+
+	assert.Equal(t, argov1alpha1.ProgressiveSyncWaiting, statuses[0].Status)
+	assert.Equal(t, revisionChangedMsg, statuses[0].Message)
+	assert.NotContains(t, statuses[0].Message, "spec differs")
 }
 
 // disableAutomatedSync is the single definition of the rule, used by both the writer and the comparer.

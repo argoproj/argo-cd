@@ -908,7 +908,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			if desiredApps == nil {
 				desiredApps = cc.apps
 			}
-			appStatuses, err := r.ProgressiveSyncManager.UpdateApplicationSetApplicationStatus(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps, desiredApps, cc.appStepMap)
+			appStatuses, err := r.ProgressiveSyncManager.UpdateApplicationSetApplicationStatus(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps, desiredApps, cc.appStepMap, v1alpha1.ApplicationsSyncPolicySync)
 
 			// opt out of testing the LastTransitionTime is accurate
 			for i := range appStatuses {
