@@ -3485,8 +3485,8 @@ func (s *Service) UpdateRevisionForPaths(ctx context.Context, request *apiclient
 	// persisted the default git type (issue #29058).
 	isGitSource := repo.Type == "git"
 	if isGitSource && request.ApplicationSource != nil {
-		isGitSource = !(request.ApplicationSource.IsOCI() ||
-			typeWasUnset && request.ApplicationSource.IsHelm())
+		isGitSource = !request.ApplicationSource.IsOCI() &&
+			(!typeWasUnset || !request.ApplicationSource.IsHelm())
 	}
 
 	if len(refreshPaths) == 0 {
