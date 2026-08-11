@@ -1,19 +1,9 @@
-import {Tooltip} from 'argo-ui/v2';
 import * as React from 'react';
-import {COLORS} from '../../../shared/components';
-import {Consumer} from '../../../shared/context';
+import {COLORS, StatusBar, StatusBarReading} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {getAppSetHealthStatus} from '../utils';
 
-import './applications-status-bar.scss';
-
-interface Reading {
-    name: string;
-    value: number;
-    color: string;
-}
-
-function getAppReadings(applications: models.Application[]): Reading[] {
+function getAppReadings(applications: models.Application[]): StatusBarReading[] {
     return [
         {
             name: 'Healthy',
@@ -48,7 +38,7 @@ function getAppReadings(applications: models.Application[]): Reading[] {
     ];
 }
 
-function getAppSetReadings(appSets: models.ApplicationSet[]): Reading[] {
+function getAppSetReadings(appSets: models.ApplicationSet[]): StatusBarReading[] {
     return [
         {
             name: 'Healthy',
@@ -73,41 +63,6 @@ function getAppSetReadings(appSets: models.ApplicationSet[]): Reading[] {
     ];
 }
 
-function StatusBarRenderer({readings}: {readings: Reading[]}) {
-    // will sort readings by value greatest to lowest, then by name
-    const sortedReadings = [...readings].sort((a, b) => (a.value < b.value ? 1 : a.value === b.value ? (a.name > b.name ? 1 : -1) : -1));
-
-    const totalItems = sortedReadings.reduce((total, i) => {
-        return total + i.value;
-    }, 0);
-
-    return (
-        <Consumer>
-            {() => (
-                <>
-                    {totalItems > 1 && (
-                        <div className='status-bar'>
-                            {sortedReadings &&
-                                sortedReadings.length > 1 &&
-                                sortedReadings.map((item, i) => {
-                                    if (item.value > 0) {
-                                        return (
-                                            <div className='status-bar__segment' style={{backgroundColor: item.color, width: (item.value / totalItems) * 100 + '%'}} key={i}>
-                                                <Tooltip content={`${item.value} ${item.name}`} inverted={true}>
-                                                    <div className='status-bar__segment__fill' />
-                                                </Tooltip>
-                                            </div>
-                                        );
-                                    }
-                                })}
-                        </div>
-                    )}
-                </>
-            )}
-        </Consumer>
-    );
-}
-
 export interface AppsStatusBarProps {
     applications: models.Application[];
 }
@@ -116,7 +71,7 @@ export const AppsStatusBar = ({applications}: AppsStatusBarProps) => {
     if (!applications || applications.length === 0) {
         return null;
     }
-    return <StatusBarRenderer readings={getAppReadings(applications)} />;
+    return <StatusBar readings={getAppReadings(applications)} />;
 };
 
 export interface AppSetsStatusBarProps {
@@ -127,7 +82,7 @@ export const AppSetsStatusBar = ({appSets}: AppSetsStatusBarProps) => {
     if (!appSets || appSets.length === 0) {
         return null;
     }
-    return <StatusBarRenderer readings={getAppSetReadings(appSets)} />;
+    return <StatusBar readings={getAppSetReadings(appSets)} />;
 };
 
 // Legacy wrapper for backwards compatibility (callers should migrate to AppsStatusBar or AppSetsStatusBar)
