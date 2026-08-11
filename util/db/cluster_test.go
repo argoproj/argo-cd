@@ -253,12 +253,10 @@ func TestRejectCreationForInClusterWhenDisabled(t *testing.T) {
 	require.Error(t, err)
 }
 
-func runWatchTest(t *testing.T, db ArgoDB, actions []func(old *v1alpha1.Cluster, new *v1alpha1.Cluster)) (completed bool) {
+func runWatchTest(t *testing.T, db ArgoDB, timeout time.Duration, actions []func(old *v1alpha1.Cluster, new *v1alpha1.Cluster)) (completed bool) {
 	t.Helper()
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
-
-	timeout := time.Second * 5
 
 	allDone := make(chan bool, 1)
 
