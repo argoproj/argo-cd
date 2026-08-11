@@ -75,13 +75,49 @@ func schemeWithApps(t *testing.T) *runtime.Scheme {
 	return s
 }
 
+// evictingCacheClient models the production cache-syncing client for a phantom entry: the object is
+// already gone from the API server, so the eviction Delete comes back NotFound, and the entry is then
+// removed from the informer store so cache-backed reads stop seeing it. Tests that only simulate the
+// Delete without that second half are not representative -- reverse deletion verifies the eviction
+// actually happened before it lets a step complete.
+//
+// onDelete, when set, overrides what the Delete returns; the store is only evicted when it reports
+// NotFound, mirroring execAndSyncCache.
+func evictingCacheClient(s *runtime.Scheme, app *v1alpha1.Application, onDelete func() error) crtclient.WithWatch {
+	evicted := false
+	return fake.NewClientBuilder().
+		WithScheme(s).
+		WithObjects(app).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Delete: func(_ context.Context, _ crtclient.WithWatch, obj crtclient.Object, _ ...crtclient.DeleteOption) error {
+				err := error(nil)
+				if onDelete != nil {
+					err = onDelete()
+				} else {
+					err = apierrors.NewNotFound(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, obj.GetName())
+				}
+				if apierrors.IsNotFound(err) {
+					evicted = true
+				}
+				return err
+			},
+			Get: func(ctx context.Context, c crtclient.WithWatch, key crtclient.ObjectKey, obj crtclient.Object, opts ...crtclient.GetOption) error {
+				if evicted && key.Name == app.Name && key.Namespace == app.Namespace {
+					return apierrors.NewNotFound(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, key.Name)
+				}
+				return c.Get(ctx, key, obj, opts...)
+			},
+		}).
+		Build()
+}
+
 func TestPhantomIsNotFatal(t *testing.T) {
 	t.Parallel()
 
 	s := schemeWithApps(t)
 	phantom := agedTerminatingApp()
 
-	cached := fake.NewClientBuilder().WithScheme(s).WithObjects(&phantom).Build()
+	cached := evictingCacheClient(s, &phantom, nil)
 	apiServer := fake.NewClientBuilder().WithScheme(s).Build() // object really gone
 
 	m := &Manager{Client: cached, APIReader: apiServer}
@@ -159,20 +195,12 @@ func TestConfirmedPhantomTriggersCacheEviction(t *testing.T) {
 	phantom := agedTerminatingApp()
 
 	deletes := 0
-	cached := fake.NewClientBuilder().
-		WithScheme(s).
-		WithObjects(&phantom).
-		WithInterceptorFuncs(interceptor.Funcs{
-			// Stand in for the real API server, which reports the object as already gone. This is
-			// the call whose NotFound drives eviction in the cache-syncing client.
-			Delete: func(_ context.Context, _ crtclient.WithWatch, obj crtclient.Object, _ ...crtclient.DeleteOption) error {
-				if obj.GetName() == phantom.Name {
-					deletes++
-				}
-				return apierrors.NewNotFound(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, obj.GetName())
-			},
-		}).
-		Build()
+	// Stand in for the real API server, which reports the object as already gone. That NotFound is
+	// what drives eviction in the cache-syncing client, which the helper then models.
+	cached := evictingCacheClient(s, &phantom, func() error {
+		deletes++
+		return apierrors.NewNotFound(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, phantom.Name)
+	})
 	apiServer := fake.NewClientBuilder().WithScheme(s).Build() // live read: object really gone
 
 	m := &Manager{Client: cached, APIReader: apiServer}
@@ -202,6 +230,7 @@ func TestEvictionDeleteIsGatedOnUID(t *testing.T) {
 
 	var deletedUID types.UID
 	var preconditionUID types.UID
+	evicted := false
 	cached := fake.NewClientBuilder().
 		WithScheme(s).
 		WithObjects(&phantom).
@@ -215,7 +244,16 @@ func TestEvictionDeleteIsGatedOnUID(t *testing.T) {
 				if do.Preconditions != nil && do.Preconditions.UID != nil {
 					preconditionUID = *do.Preconditions.UID
 				}
+				evicted = true
 				return apierrors.NewNotFound(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, obj.GetName())
+			},
+			// The cache-syncing client evicts the entry on that NotFound, so cached reads stop
+			// seeing it. Reverse deletion checks for exactly that before completing the step.
+			Get: func(ctx context.Context, c crtclient.WithWatch, key crtclient.ObjectKey, obj crtclient.Object, opts ...crtclient.GetOption) error {
+				if evicted && key.Name == phantom.Name {
+					return apierrors.NewNotFound(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, key.Name)
+				}
+				return c.Get(ctx, key, obj, opts...)
 			},
 		}).
 		Build()
@@ -300,4 +338,41 @@ func TestEvictionFailureDoesNotReleaseTheFinalizer(t *testing.T) {
 			}
 		})
 	}
+}
+
+// A nil error from the eviction Delete is not proof the entry left the informer store.
+// cacheSyncingClient.execAndSyncCache logs a failure to reach the store, or to delete from it, and
+// then returns the original error -- which for a NotFound delete is nil. Reverse deletion must not
+// take that as success: releasing the ApplicationSet's finalizer with the phantom still cached is the
+// create-only recreation failure the eviction exists to prevent, and unlike the entry's age, a store
+// failure can clear on a later attempt.
+func TestSilentEvictionFailureDoesNotReleaseTheFinalizer(t *testing.T) {
+	t.Parallel()
+
+	s := schemeWithApps(t)
+	phantom := agedTerminatingApp()
+
+	// Delete reports the object gone, as the API server would, but the entry is never evicted --
+	// the store failure the production client only logs.
+	cached := fake.NewClientBuilder().
+		WithScheme(s).
+		WithObjects(&phantom).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Delete: func(_ context.Context, _ crtclient.WithWatch, obj crtclient.Object, _ ...crtclient.DeleteOption) error {
+				return apierrors.NewNotFound(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, obj.GetName())
+			},
+		}).
+		Build()
+	apiServer := fake.NewClientBuilder().WithScheme(s).Build() // object really gone
+
+	m := &Manager{Client: cached, APIReader: apiServer}
+
+	_, err := m.PerformReverseDeletion(t.Context(), log.NewEntry(log.New()),
+		singleStepAppSet(), []v1alpha1.Application{phantom})
+
+	require.Error(t, err,
+		"the stale entry is still readable from the cache, so this step is not complete; completing it "+
+			"would release the finalizer and leave the phantom behind")
+	assert.Contains(t, err.Error(), "still present after eviction",
+		"the error should say the eviction could not be confirmed, not something unrelated")
 }

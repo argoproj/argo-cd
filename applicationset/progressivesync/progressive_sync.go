@@ -245,6 +245,21 @@ func (m *Manager) PerformReverseDeletion(ctx context.Context, logCtx *log.Entry,
 							return 0, fmt.Errorf("application %s is absent from the API server but its stale cache entry could not be evicted: %w", step.AppName, err)
 						}
 					}
+					// A nil error above does not prove the entry was evicted: cacheSyncingClient logs
+					// store lookup and store deletion failures and returns the original error, which
+					// for a NotFound delete is nil. Confirm the postcondition against the cache
+					// itself, because releasing the finalizer with the phantom still in the store is
+					// the recreation failure this eviction exists to prevent.
+					var evicted argov1alpha1.Application
+					switch err := m.Client.Get(ctx, types.NamespacedName{Name: app.Name, Namespace: app.Namespace}, &evicted); {
+					case apierrors.IsNotFound(err):
+						// Gone from the cache, which is what this step needed.
+					case err != nil:
+						return 0, fmt.Errorf("could not confirm the stale cache entry for application %s was evicted: %w", step.AppName, err)
+					default:
+						return 0, fmt.Errorf("stale cache entry for application %s is still present after eviction", step.AppName)
+					}
+
 					logCtx.Infof("application %s confirmed absent and its stale cache entry evicted; treating it as deleted and continuing", step.AppName)
 					continue
 				default:
