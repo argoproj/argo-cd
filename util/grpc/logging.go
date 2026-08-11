@@ -12,7 +12,6 @@ import (
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/selector"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
-	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -43,9 +42,13 @@ type jsonpbMarshalleble struct {
 }
 
 func (j *jsonpbMarshalleble) MarshalJSON() ([]byte, error) {
-	b, err := protojson.Marshal(j.Message)
+	// Serialize with encoding/json rather than protojson: protojson walks the
+	// message tree via protoreflect, which crashes on the embedded
+	// k8s.io/apimachinery types (they expose no protobuf descriptors since
+	// k8s 0.36). The struct json tags produce the same field names.
+	b, err := json.Marshal(j.Message)
 	if err != nil {
-		return nil, fmt.Errorf("protojson serializer failed: %w", err)
+		return nil, fmt.Errorf("json serializer failed: %w", err)
 	}
 	return b, nil
 }
