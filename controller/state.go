@@ -148,7 +148,7 @@ type appStateManager struct {
 	repoErrorGracePeriod  time.Duration
 	serverSideDiff        bool
 	ignoreNormalizerOpts  normalizers.IgnoreNormalizerOpts
-	syncWindowLister      applisters.SyncWindowResourceLister
+	syncWindowLister      applisters.SyncWindowLister
 	syncWindowCacheReady  func() bool
 }
 
@@ -1320,7 +1320,7 @@ func NewAppStateManager(
 	repoErrorGracePeriod time.Duration,
 	serverSideDiff bool,
 	ignoreNormalizerOpts normalizers.IgnoreNormalizerOpts,
-	syncWindowLister applisters.SyncWindowResourceLister,
+	syncWindowLister applisters.SyncWindowLister,
 	syncWindowCacheReady func() bool,
 ) AppStateManager {
 	return &appStateManager{

@@ -10,11 +10,11 @@ import (
 
 var (
 	// SchemeGroupVersion is group version used to register these objects
-	SchemeGroupVersion                       = schema.GroupVersion{Group: application.Group, Version: "v1alpha1"}
-	ApplicationSchemaGroupVersionKind        = schema.GroupVersionKind{Group: application.Group, Version: "v1alpha1", Kind: application.ApplicationKind}
-	AppProjectSchemaGroupVersionKind         = schema.GroupVersionKind{Group: application.Group, Version: "v1alpha1", Kind: application.AppProjectKind}
-	ApplicationSetSchemaGroupVersionKind     = schema.GroupVersionKind{Group: application.Group, Version: "v1alpha1", Kind: application.ApplicationSetKind}
-	SyncWindowResourceSchemaGroupVersionKind = schema.GroupVersionKind{Group: application.Group, Version: "v1alpha1", Kind: application.SyncWindowResourceKind}
+	SchemeGroupVersion                   = schema.GroupVersion{Group: application.Group, Version: "v1alpha1"}
+	ApplicationSchemaGroupVersionKind    = schema.GroupVersionKind{Group: application.Group, Version: "v1alpha1", Kind: application.ApplicationKind}
+	AppProjectSchemaGroupVersionKind     = schema.GroupVersionKind{Group: application.Group, Version: "v1alpha1", Kind: application.AppProjectKind}
+	ApplicationSetSchemaGroupVersionKind = schema.GroupVersionKind{Group: application.Group, Version: "v1alpha1", Kind: application.ApplicationSetKind}
+	SyncWindowSchemaGroupVersionKind     = schema.GroupVersionKind{Group: application.Group, Version: "v1alpha1", Kind: application.SyncWindowKind}
 )
 
 // Resource takes an unqualified resource and returns a Group-qualified GroupResource.
@@ -36,8 +36,8 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&AppProjectList{},
 		&ApplicationSet{},
 		&ApplicationSetList{},
-		&SyncWindowResource{},
-		&SyncWindowResourceList{},
+		&SyncWindow{},
+		&SyncWindowList{},
 	)
 	metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
 	return nil

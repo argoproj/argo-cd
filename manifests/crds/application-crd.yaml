@@ -2338,20 +2338,19 @@ spec:
                 type: object
               syncWindowRefs:
                 description: |-
-                  SyncWindowRefs references external SyncWindowResource CRDs that apply directly to this application.
+                  SyncWindowRefs references external SyncWindow CRDs that apply directly to this application.
                   When specified, the referenced sync windows apply to this application regardless of the
-                  applications/namespaces/clusters filters defined in the SyncWindowResource.
+                  applications/namespaces/clusters filters defined in the SyncWindow.
                 items:
-                  description: SyncWindowRef is a reference to a SyncWindowResource
-                    CRD.
+                  description: SyncWindowRef is a reference to a SyncWindow CRD.
                   properties:
                     name:
-                      description: Name is the metadata.name of the SyncWindowResource
-                        to reference.
+                      description: Name is the metadata.name of the SyncWindow to
+                        reference.
                       type: string
                     selector:
                       description: |-
-                        Selector is a label selector to match SyncWindowResource objects.
+                        Selector is a label selector to match SyncWindow objects.
                         Either Name or Selector should be specified, not both.
                       properties:
                         matchExpressions:

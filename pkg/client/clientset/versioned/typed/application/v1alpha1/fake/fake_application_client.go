@@ -24,8 +24,8 @@ func (c *FakeArgoprojV1alpha1) ApplicationSets(namespace string) v1alpha1.Applic
 	return newFakeApplicationSets(c, namespace)
 }
 
-func (c *FakeArgoprojV1alpha1) SyncWindowResources(namespace string) v1alpha1.SyncWindowResourceInterface {
-	return newFakeSyncWindowResources(c, namespace)
+func (c *FakeArgoprojV1alpha1) SyncWindows(namespace string) v1alpha1.SyncWindowInterface {
+	return newFakeSyncWindows(c, namespace)
 }
 
 // RESTClient returns a RESTClient that is used to communicate

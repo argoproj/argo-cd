@@ -2,25 +2,25 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   labels:
-    app.kubernetes.io/name: syncwindowresources.argoproj.io
+    app.kubernetes.io/name: syncwindows.argoproj.io
     app.kubernetes.io/part-of: argocd
-  name: syncwindowresources.argoproj.io
+  name: syncwindows.argoproj.io
 spec:
   group: argoproj.io
   names:
-    kind: SyncWindowResource
-    listKind: SyncWindowResourceList
-    plural: syncwindowresources
+    kind: SyncWindow
+    listKind: SyncWindowList
+    plural: syncwindows
     shortNames:
     - sw
-    singular: syncwindowresource
+    singular: syncwindow
   scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
         description: |-
-          SyncWindowResource is a CRD that defines reusable sync windows which can be referenced
+          SyncWindow is a CRD that defines reusable sync windows which can be referenced
           by AppProjects and Applications.
         properties:
           apiVersion:
@@ -41,7 +41,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: SyncWindowResourceSpec defines the desired state of a SyncWindowResource
+            description: SyncWindowSpec defines the desired state of a SyncWindow
             properties:
               windows:
                 description: |-
@@ -49,7 +49,7 @@ spec:
                   Multiple windows are allowed for easy transition from projects and to group related windows.
                 items:
                   description: |-
-                    SyncWindowDefinition defines a single sync window entry within a SyncWindowResource.
+                    SyncWindowDefinition defines a single sync window entry within a SyncWindow.
                     When referenced from an Application, the Applications/Namespaces/Clusters filters are ignored
                     since the window applies directly to the referencing application.
                   properties:
@@ -60,14 +60,14 @@ spec:
                     applications:
                       description: |-
                         Applications contains a list of applications that the window will apply to (glob patterns supported).
-                        Ignored when the SyncWindowResource is referenced directly from an Application.
+                        Ignored when the SyncWindow is referenced directly from an Application.
                       items:
                         type: string
                       type: array
                     clusters:
                       description: |-
                         Clusters contains a list of clusters that the window will apply to (glob patterns supported).
-                        Ignored when the SyncWindowResource is referenced directly from an Application.
+                        Ignored when the SyncWindow is referenced directly from an Application.
                       items:
                         type: string
                       type: array
@@ -90,7 +90,7 @@ spec:
                     namespaces:
                       description: |-
                         Namespaces contains a list of namespaces that the window will apply to (glob patterns supported).
-                        Ignored when the SyncWindowResource is referenced directly from an Application.
+                        Ignored when the SyncWindow is referenced directly from an Application.
                       items:
                         type: string
                       type: array
