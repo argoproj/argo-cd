@@ -99,6 +99,7 @@ type Settings struct {
 	HydratorEnabled           bool                               `protobuf:"varint,28,opt,name=hydratorEnabled,proto3" json:"hydratorEnabled,omitempty"`
 	SyncWithReplaceAllowed    bool                               `protobuf:"varint,29,opt,name=syncWithReplaceAllowed,proto3" json:"syncWithReplaceAllowed,omitempty"`
 	UiLoginButtonText         string                             `protobuf:"bytes,30,opt,name=uiLoginButtonText,proto3" json:"uiLoginButtonText,omitempty"`
+	ResourceViewEnabled       bool                               `protobuf:"varint,31,opt,name=resourceViewEnabled,proto3" json:"resourceViewEnabled,omitempty"`
 	unknownFields             protoimpl.UnknownFields
 	sizeCache                 protoimpl.SizeCache
 }
@@ -343,6 +344,13 @@ func (x *Settings) GetUiLoginButtonText() string {
 	return ""
 }
 
+func (x *Settings) GetResourceViewEnabled() bool {
+	if x != nil {
+		return x.ResourceViewEnabled
+	}
+	return false
+}
+
 type GoogleAnalyticsConfig struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	TrackingID     string                 `protobuf:"bytes,1,opt,name=trackingID,proto3" json:"trackingID,omitempty"`
@@ -550,10 +558,12 @@ func (x *Plugin) GetName() string {
 }
 
 type DexConfig struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Connectors    []*Connector           `protobuf:"bytes,1,rep,name=connectors,proto3" json:"connectors,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	Connectors []*Connector           `protobuf:"bytes,1,rep,name=connectors,proto3" json:"connectors,omitempty"`
+	// dexAuthConnectorID is the connector ID that the login screen should redirect to directly, bypassing the connector selection screen
+	DexAuthConnectorID string `protobuf:"bytes,2,opt,name=dexAuthConnectorID,proto3" json:"dexAuthConnectorID,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *DexConfig) Reset() {
@@ -593,10 +603,18 @@ func (x *DexConfig) GetConnectors() []*Connector {
 	return nil
 }
 
+func (x *DexConfig) GetDexAuthConnectorID() string {
+	if x != nil {
+		return x.DexAuthConnectorID
+	}
+	return ""
+}
+
 type Connector struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	Type          string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
+	Id            string                 `protobuf:"bytes,3,opt,name=id,proto3" json:"id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -641,6 +659,13 @@ func (x *Connector) GetName() string {
 func (x *Connector) GetType() string {
 	if x != nil {
 		return x.Type
+	}
+	return ""
+}
+
+func (x *Connector) GetId() string {
+	if x != nil {
+		return x.Id
 	}
 	return ""
 }
@@ -742,7 +767,7 @@ var File_server_settings_settings_proto protoreflect.FileDescriptor
 const file_server_settings_settings_proto_rawDesc = "" +
 	"\n" +
 	"\x1eserver/settings/settings.proto\x12\acluster\x1a\x1cgoogle/api/annotations.proto\x1aLgithub.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1/generated.proto\x1a@github.com/argoproj/argo-cd/v3/server/settings/oidc/claims.proto\"\x0f\n" +
-	"\rSettingsQuery\"\xb1\r\n" +
+	"\rSettingsQuery\"\xe3\r\n" +
 	"\bSettings\x12\x10\n" +
 	"\x03url\x18\x01 \x01(\tR\x03url\x120\n" +
 	"\tdexConfig\x18\x02 \x01(\v2\x12.cluster.DexConfigR\tdexConfig\x123\n" +
@@ -776,7 +801,8 @@ const file_server_settings_settings_proto_rawDesc = "" +
 	"\x0eadditionalUrls\x18\x1b \x03(\tR\x0eadditionalUrls\x12(\n" +
 	"\x0fhydratorEnabled\x18\x1c \x01(\bR\x0fhydratorEnabled\x126\n" +
 	"\x16syncWithReplaceAllowed\x18\x1d \x01(\bR\x16syncWithReplaceAllowed\x12,\n" +
-	"\x11uiLoginButtonText\x18\x1e \x01(\tR\x11uiLoginButtonText\x1a\x94\x01\n" +
+	"\x11uiLoginButtonText\x18\x1e \x01(\tR\x11uiLoginButtonText\x120\n" +
+	"\x13resourceViewEnabled\x18\x1f \x01(\bR\x13resourceViewEnabled\x1a\x94\x01\n" +
 	"\x16ResourceOverridesEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12d\n" +
 	"\x05value\x18\x02 \x01(\v2N.github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ResourceOverrideR\x05value:\x028\x01\"_\n" +
@@ -797,14 +823,16 @@ const file_server_settings_settings_proto_rawDesc = "" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x1c\n" +
 	"\x06Plugin\x12\x12\n" +
-	"\x04name\x18\x01 \x01(\tR\x04name\"?\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\"o\n" +
 	"\tDexConfig\x122\n" +
 	"\n" +
 	"connectors\x18\x01 \x03(\v2\x12.cluster.ConnectorR\n" +
-	"connectors\"3\n" +
+	"connectors\x12.\n" +
+	"\x12dexAuthConnectorID\x18\x02 \x01(\tR\x12dexAuthConnectorID\"C\n" +
 	"\tConnector\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
-	"\x04type\x18\x02 \x01(\tR\x04type\"\x93\x03\n" +
+	"\x04type\x18\x02 \x01(\tR\x04type\x12\x0e\n" +
+	"\x02id\x18\x03 \x01(\tR\x02id\"\x93\x03\n" +
 	"\n" +
 	"OIDCConfig\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x16\n" +

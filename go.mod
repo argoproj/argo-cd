@@ -314,8 +314,6 @@ require (
 
 require (
 	github.com/go-openapi/runtime/server-middleware v0.33.0
-	github.com/golang/protobuf v1.5.4
-	github.com/grpc-ecosystem/grpc-gateway v1.16.0
 	k8s.io/streaming v0.36.1
 )
 

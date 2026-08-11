@@ -78,13 +78,13 @@ message Plugin {
 message DexConfig {
     repeated Connector connectors = 1;
     // dexAuthConnectorID is the connector ID that the login screen should redirect to directly, bypassing the connector selection screen
-    string dexAuthConnectorID = 2 [(gogoproto.customname) = "DexAuthConnectorID"];
+    string dexAuthConnectorID = 2;
 }
 
 message Connector {
     string name = 1;
     string type = 2;
-    string id = 3 [(gogoproto.customname) = "ID"];
+    string id = 3;
 }
 
 message OIDCConfig {
