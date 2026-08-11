@@ -3,8 +3,9 @@ package github_app
 import (
 	"testing"
 
-	"github.com/argoproj/argo-cd/v3/applicationset/services/github_app_auth"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/argoproj/argo-cd/v3/applicationset/services/github_app_auth"
 )
 
 func TestResolveAPIURLPrefersCredentialEnterpriseURL(t *testing.T) {
