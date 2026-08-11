@@ -239,8 +239,11 @@ func NewCommand() *cobra.Command {
 				})
 
 			if err = (&controllers.ApplicationSetReconciler{
-				Generators:                 topLevelGenerators,
-				Client:                     utils.NewCacheSyncingClient(mgr.GetClient(), mgr.GetCache()),
+				Generators: topLevelGenerators,
+				Client:     utils.NewCacheSyncingClient(mgr.GetClient(), mgr.GetCache()),
+				// Uncached reads, used by reverse deletion to verify an Application the informer
+				// cache has reported as terminating for implausibly long.
+				APIReader:                  mgr.GetAPIReader(),
 				Scheme:                     mgr.GetScheme(),
 				Recorder:                   mgr.GetEventRecorderFor("applicationset-controller"),
 				Renderer:                   &utils.Render{},
