@@ -235,11 +235,17 @@ func TestEvictionDeleteIsGatedOnUID(t *testing.T) {
 		"the precondition must pin the UID of the entry we confirmed absent, not some other object")
 }
 
-// The eviction Delete is what removes the stale entry from the informer store, and the cache-syncing
-// client only evicts when that write succeeds or comes back NotFound -- any other error returns
-// before eviction. So a failed eviction must not let reverse deletion proceed: releasing the
-// ApplicationSet's finalizer with the phantom still in the store reintroduces the recreation failure
-// the eviction exists to prevent. A conflict is different, and must stay non-fatal.
+// Past the staleness threshold, a step may only be treated as complete once the Application is both
+// confirmed absent and its stale cache entry evicted. Neither failure mode may let reverse deletion
+// proceed, because each would release the ApplicationSet's finalizer on an unproven premise:
+//
+//   - an unexpected Delete error means the cache-syncing client returned before evicting, leaving the
+//     phantom in the store -- the recreation failure the eviction exists to prevent;
+//   - a conflict means the UID precondition failed, so an Application exists at this name that is not
+//     the one confirmed absent. It may be a child of this ApplicationSet still owed an ordered
+//     deletion, and nothing at this point can tell.
+//
+// Both are transient, so erroring lets a later pass classify the situation instead of guessing.
 func TestEvictionFailureDoesNotReleaseTheFinalizer(t *testing.T) {
 	t.Parallel()
 
@@ -257,11 +263,13 @@ func TestEvictionFailureDoesNotReleaseTheFinalizer(t *testing.T) {
 				"still in the store; continuing would release the finalizer and leave it there",
 		},
 		{
-			name:      "conflict is not a failure",
+			name:      "conflict blocks progress too",
 			deleteErr: apierrors.NewConflict(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, "repro-app", errors.New("uid mismatch")),
-			wantErr:   false,
-			reason: "the UID precondition failed because a real Application now holds this name, so " +
-				"there is no stale entry to evict and deletion may proceed",
+			wantErr:   true,
+			reason: "the precondition failed because an Application exists at this name that is not " +
+				"the one confirmed absent, which invalidates the verdict this step rests on; the " +
+				"replacement may be a child still owed an ordered deletion, so the finalizer must " +
+				"not be released until a later pass has classified it",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
