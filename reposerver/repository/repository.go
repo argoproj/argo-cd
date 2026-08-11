@@ -3480,12 +3480,13 @@ func (s *Service) UpdateRevisionForPaths(ctx context.Context, request *apiclient
 	// Determine whether the main source is a git source. A type that Normalize defaulted
 	// to git must not be trusted on its own: an untyped Helm chart source would then have
 	// its revision resolved against the chart repository URL as if it were a git repo and
-	// fail with "repository not found" (issue #28890). In that case fall back to the
-	// application source type.
+	// fail with "repository not found" (issue #28890). OCI sources are identified by their
+	// URL and must never enter the Git revision path, even when a repository secret has
+	// persisted the default git type (issue #29058).
 	isGitSource := repo.Type == "git"
-	if isGitSource && typeWasUnset && request.ApplicationSource != nil &&
-		(request.ApplicationSource.IsHelm() || request.ApplicationSource.IsOCI()) {
-		isGitSource = false
+	if isGitSource && request.ApplicationSource != nil {
+		isGitSource = !(request.ApplicationSource.IsOCI() ||
+			typeWasUnset && request.ApplicationSource.IsHelm())
 	}
 
 	if len(refreshPaths) == 0 {

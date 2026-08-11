@@ -5079,6 +5079,20 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				Paths:          []string{"."},
 			},
 		}, want: &apiclient.UpdateRevisionForPathsResponse{}, wantErr: assert.NoError},
+		{name: "OCIRepoWithExplicitGitTypeShortCircuits", fields: func() fields {
+			s, _, c := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, _ *iomocks.TempPaths) {
+			}, ".")
+			return fields{service: s, cache: c}
+		}(), args: args{
+			ctx: t.Context(),
+			request: &apiclient.UpdateRevisionForPathsRequest{
+				Repo:              &v1alpha1.Repository{Repo: "oci://example.com/foo", Type: "git"},
+				Revision:          "1.0.0",
+				SyncedRevision:    "0.9.0",
+				Paths:             []string{"."},
+				ApplicationSource: &v1alpha1.ApplicationSource{RepoURL: "oci://example.com/foo", Path: "."},
+			},
+		}, want: &apiclient.UpdateRevisionForPathsResponse{}, wantErr: assert.NoError},
 		{name: "SameResolvedRevisionAbort", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
