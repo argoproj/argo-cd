@@ -349,6 +349,33 @@ message ListAppLinksRequest {
 	optional string project = 4;
 }
 
+message InspectGitGPGSourceIntegrityQuery {
+	required string name = 1;
+	required string project = 2;
+	optional string appNamespace = 3;
+}
+
+message GitGPGCommitInfo {
+    required string revision = 1;
+	required string author = 2;
+    required string date = 3;
+    required string subject = 4;
+    optional string keyId = 5;
+    optional string verificationResult = 6;
+}
+
+message InspectGitGPGSourceIntegrityResponse {
+	required string repoUrl = 1;
+    required string resolvedRevision = 2;
+	required string targetRevision = 3;
+	optional github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.SourceIntegrityGitPolicyGPG gitGpgPolicy = 4;
+	repeated GitGPGCommitInfo commits = 5;
+	optional string errorMessage = 6;
+}
+
+message InspectGitGPGSourceIntegrityListResponse {
+	repeated InspectGitGPGSourceIntegrityResponse items = 1;
+}
 
 // ApplicationService
 service ApplicationService {
@@ -399,6 +426,11 @@ service ApplicationService {
 	// Get the chart metadata (description, maintainers, home) for a specific revision of the application
 	rpc GetOCIMetadata (RevisionMetadataQuery) returns (github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.OCIMetadata) {
 		option (google.api.http).get = "/api/v1/applications/{name}/revisions/{revision}/ocimetadata";
+	}
+
+	// Inspect the Git/GPG source integrity status for an application (problematic signatures)
+	rpc InspectGitGPGSourceIntegrity (InspectGitGPGSourceIntegrityQuery) returns (InspectGitGPGSourceIntegrityListResponse) {
+	    option (google.api.http).get = "/api/v1/applications/{name}/source-integrity/git/gpg/inspect";
 	}
 
 	// GetManifests returns application manifests

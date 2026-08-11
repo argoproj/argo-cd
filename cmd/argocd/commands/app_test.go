@@ -2581,6 +2581,10 @@ func (c *fakeAppServiceClient) ServerSideDiff(_ context.Context, _ *applicationp
 	return nil, nil
 }
 
+func (c *fakeAppServiceClient) InspectGitGPGSourceIntegrity(_ context.Context, _ *applicationpkg.InspectGitGPGSourceIntegrityQuery, _ ...grpc.CallOption) (*applicationpkg.InspectGitGPGSourceIntegrityListResponse, error) {
+	return nil, nil
+}
+
 type fakeAcdClient struct {
 	simulateTimeout uint
 }

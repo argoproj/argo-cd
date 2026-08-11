@@ -3641,3 +3641,57 @@ func (s *Service) ociClientStandardOpts() []oci.ClientOpts {
 		oci.WithEventHandlers(metrics.NewOCIClientEventHandlers(s.metricsServer)),
 	}
 }
+
+func (s *Service) InspectGitGPGSourceIntegrity(ctx context.Context, request *apiclient.InspectGitGPGSourceIntegrityRequest) (*apiclient.InspectGitGPGSourceIntegrityResponse, error) {
+	gitClient, resolvedRevision, err := s.newClientResolveRevision(request.Repo, request.Revision, git.WithTagPrefix(request.TagPrefix))
+	if err != nil {
+		return nil, err
+	}
+
+	revision := request.Revision
+	if request.Revision == "" {
+		revision = resolvedRevision
+	}
+
+	s.metricsServer.IncPendingRepoRequest(request.Repo.Repo)
+	defer s.metricsServer.DecPendingRepoRequest(request.Repo.Repo)
+
+	closer, err := s.repoLock.Lock(gitClient.Root(), resolvedRevision, true, func(clean bool) (goio.Closer, error) {
+		return s.checkoutRevision(ctx, gitClient, resolvedRevision, s.initConstants.SubmoduleEnabled, request.Repo.Depth, clean)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error acquiring repo lock: %w", err)
+	}
+	defer utilio.Close(closer)
+
+	// passing original revision so we can resolve tags
+	signatures, _, err := gitClient.LsSignatures(ctx, revision, request.Policy.Mode == v1alpha1.SourceIntegrityGitPolicyGPGModeStrict)
+	if err != nil {
+		return nil, fmt.Errorf("error listing signatures: %w", err)
+	}
+
+	commits := make([]*apiclient.GitGPGCommitInfo, 0, len(signatures))
+
+	for _, signature := range signatures {
+		verificationResult, valid := sourceintegrity.VerifyGPGSignatureInfo(request.Policy, signature)
+
+		if valid {
+			// only report problematic signatures
+			continue
+		}
+
+		commits = append(commits, &apiclient.GitGPGCommitInfo{
+			Revision:           signature.Revision,
+			Author:             signature.AuthorIdentity,
+			Date:               signature.Date,
+			Subject:            signature.Subject,
+			KeyId:              signature.SignatureKeyID,
+			VerificationResult: verificationResult,
+		})
+	}
+
+	return &apiclient.InspectGitGPGSourceIntegrityResponse{
+		ResolvedRevision: resolvedRevision,
+		Commits:          commits,
+	}, nil
+}

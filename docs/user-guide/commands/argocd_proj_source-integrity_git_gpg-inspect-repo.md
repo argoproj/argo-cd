@@ -1,33 +1,17 @@
-# `argocd proj source-integrity git` Command Reference
+# `argocd proj source-integrity git gpg-inspect-repo` Command Reference
 
-## argocd proj source-integrity git
+## argocd proj source-integrity git gpg-inspect-repo
 
-Manage policies for Git repositories
-
-```
-argocd proj source-integrity git [flags]
-```
-
-### Examples
+Inspect the problematic GPG signatures for an application
 
 ```
-  # List git policies
-  argocd proj source-integrity git policies list PROJECT
-  
-  # Add a new git policy
-  argocd proj source-integrity git policies add PROJECT ...
-  
-  # Update a git policy
-  argocd proj source-integrity git policies update PROJECT POLICY_ID ...
-  
-  # Delete a git policy
-  argocd proj source-integrity git policies delete PROJECT POLICY_ID
+argocd proj source-integrity git gpg-inspect-repo PROJECT APPNAME [flags]
 ```
 
 ### Options
 
 ```
-  -h, --help   help for git
+  -h, --help   help for gpg-inspect-repo
 ```
 
 ### Options inherited from parent commands
@@ -63,7 +47,5 @@ argocd proj source-integrity git [flags]
 
 ### SEE ALSO
 
-* [argocd proj source-integrity](argocd_proj_source-integrity.md)	 - Manage criteria for source integrity
-* [argocd proj source-integrity git gpg-inspect-repo](argocd_proj_source-integrity_git_gpg-inspect-repo.md)	 - Inspect the problematic GPG signatures for an application
-* [argocd proj source-integrity git policies](argocd_proj_source-integrity_git_policies.md)	 - Manage git source integrity policies
+* [argocd proj source-integrity git](argocd_proj_source-integrity_git.md)	 - Manage policies for Git repositories
 

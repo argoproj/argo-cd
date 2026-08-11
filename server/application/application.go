@@ -1770,23 +1770,148 @@ func getAppSourceBySourceIndexAndVersionId(a *v1alpha1.Application, sourceIndexM
 		}
 	}
 
-	// Start by assuming we want the first source.
-	sourceIndex := 0
-
-	// If the user specified a source index, use that instead.
-	if sourceIndexMaybe != nil {
-		sourceIndex = int(*sourceIndexMaybe)
-		if sourceIndex >= len(sources) {
-			if len(sources) == 1 {
-				return v1alpha1.ApplicationSource{}, fmt.Errorf("source index %d not found because there is only 1 source", sourceIndex)
-			}
-			return v1alpha1.ApplicationSource{}, fmt.Errorf("source index %d not found because there are only %d sources", sourceIndex, len(sources))
-		}
+	sources, err := filterAppSourcesBySourceIndex(sources, sourceIndexMaybe)
+	if err != nil {
+		return v1alpha1.ApplicationSource{}, err
 	}
 
-	source := sources[sourceIndex]
+	// if the user did not specify a source index, default to the first source
+	// if the source index is specified sources contains only the one source
+	return sources[0], nil
+}
 
-	return source, nil
+func getAppSourcesBySourceIndex(a *v1alpha1.Application, sourceIndexMaybe *int32) ([]v1alpha1.ApplicationSource, error) {
+	return filterAppSourcesBySourceIndex(a.Spec.GetSources(), sourceIndexMaybe)
+}
+
+func filterAppSourcesBySourceIndex(sources []v1alpha1.ApplicationSource, sourceIndexMaybe *int32) ([]v1alpha1.ApplicationSource, error) {
+	// If the user specified a source index, return only the source at that index.
+	if sourceIndexMaybe != nil {
+		sourceIndex := int(*sourceIndexMaybe)
+		if sourceIndex < 0 {
+			return []v1alpha1.ApplicationSource{}, fmt.Errorf("source index %d is negative", sourceIndex)
+		}
+		if sourceIndex >= len(sources) {
+			if len(sources) == 1 {
+				return []v1alpha1.ApplicationSource{}, fmt.Errorf("source index %d not found because there is only 1 source", sourceIndex)
+			}
+			return []v1alpha1.ApplicationSource{}, fmt.Errorf("source index %d not found because there are only %d sources", sourceIndex, len(sources))
+		}
+
+		sources = []v1alpha1.ApplicationSource{sources[sourceIndex]}
+	}
+
+	return sources, nil
+}
+
+func (s *Server) InspectGitGPGSourceIntegrity(ctx context.Context, q *application.InspectGitGPGSourceIntegrityQuery) (*application.InspectGitGPGSourceIntegrityListResponse, error) {
+	a, proj, err := s.getApplicationEnforceRBACInformer(ctx, rbac.ActionGet, q.GetProject(), q.GetAppNamespace(), q.GetName())
+	if err != nil {
+		return nil, err
+	}
+
+	sources, err := getAppSourcesBySourceIndex(a, nil)
+	if err != nil {
+		return nil, fmt.Errorf("error getting app sources by source index: %w", err)
+	}
+
+	conn, repoClient, err := s.repoClientset.NewRepoServerClient()
+	if err != nil {
+		return nil, fmt.Errorf("error creating repo server client: %w", err)
+	}
+	defer utilio.Close(conn)
+
+	sourceIntegrity := proj.EffectiveSourceIntegrity()
+	if sourceIntegrity == nil || sourceIntegrity.Git == nil {
+		return nil, fmt.Errorf("no git source integrity configured for project %s", proj.Name)
+	}
+
+	items := make([]*application.InspectGitGPGSourceIntegrityResponse, 0, len(sources))
+
+	for _, source := range sources {
+		item := &application.InspectGitGPGSourceIntegrityResponse{
+			RepoUrl:          &source.RepoURL,
+			ResolvedRevision: &source.TargetRevision,
+			TargetRevision:   &source.TargetRevision,
+			GitGpgPolicy:     nil,
+			Commits:          make([]*application.GitGPGCommitInfo, 0),
+			ErrorMessage:     nil,
+		}
+
+		if source.IsZero() || source.IsOCI() || source.IsHelm() {
+			// skip non-git sources in output
+			log.Warnf("source %s is not a git source", source.RepoURL)
+			continue
+		}
+
+		gitPolicy, err := selectGitGPGPolicy(sourceIntegrity, source)
+		if err != nil {
+			msg := err.Error()
+			log.Warnf("error selecting git gpg policy for source %s: %v", source.RepoURL, err)
+			item.ErrorMessage = &msg
+			continue
+		}
+
+		strictPolicy := gitPolicy.GPG.DeepCopy()
+		strictPolicy.Mode = v1alpha1.SourceIntegrityGitPolicyGPGModeStrict // always use strict mode for inspection
+
+		repo, err := s.db.GetRepository(ctx, source.RepoURL, proj.Name)
+		if err != nil {
+			return nil, fmt.Errorf("error getting repository by URL for source %s: %w", source.RepoURL, err)
+		}
+
+		resp, err := repoClient.InspectGitGPGSourceIntegrity(ctx, &apiclient.InspectGitGPGSourceIntegrityRequest{
+			Repo:      repo,
+			Revision:  source.TargetRevision,
+			Policy:    strictPolicy,
+			TagPrefix: source.TagPrefix,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to inspect git gpg source integrity for source %s: %w", source.RepoURL, err)
+		}
+
+		commits := make([]*application.GitGPGCommitInfo, 0, len(resp.Commits))
+		for _, commit := range resp.Commits {
+			commits = append(commits, &application.GitGPGCommitInfo{
+				Revision:           &commit.Revision,
+				Author:             &commit.Author,
+				Date:               &commit.Date,
+				Subject:            &commit.Subject,
+				KeyId:              &commit.KeyId,
+				VerificationResult: &commit.VerificationResult,
+			})
+		}
+
+		item.ResolvedRevision = &resp.ResolvedRevision
+		item.GitGpgPolicy = gitPolicy.GPG
+		item.Commits = commits
+		item.ErrorMessage = nil
+
+		items = append(items, item)
+	}
+
+	return &application.InspectGitGPGSourceIntegrityListResponse{Items: items}, nil
+}
+
+func selectGitGPGPolicy(sourceIntegrity *v1alpha1.SourceIntegrity, source v1alpha1.ApplicationSource) (*v1alpha1.SourceIntegrityGitPolicy, error) {
+	gitPolicies := sourceintegrity.FindMatchingGitPolicies(sourceIntegrity.Git, source.RepoURL)
+	nPolicies := len(gitPolicies)
+	if nPolicies == 0 {
+		// not having policy can be intentional, but inform the user
+		return nil, fmt.Errorf("no matching git policy found for source %s", source.RepoURL)
+	}
+	if nPolicies > 1 {
+		// invalid configuration, show this to the user
+		return nil, fmt.Errorf("multiple (%d) git policies found for source %s, invalid configuration", nPolicies, source.RepoURL)
+	}
+
+	gitPolicy := gitPolicies[0] // there is only one matching policy for the source
+	if gitPolicy.GPG == nil {
+		// this endpoint is only for gpg policies, warn the user
+		return nil, fmt.Errorf("the git policy for source %s is not a gpg policy", source.RepoURL)
+	}
+
+	return gitPolicy, nil
 }
 
 // getRevisionHistoryByVersionId returns the revision history for a specific version ID.

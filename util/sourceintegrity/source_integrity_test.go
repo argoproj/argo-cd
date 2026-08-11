@@ -197,7 +197,7 @@ func TestPolicyMatching(t *testing.T) {
 
 	for _, tt := range testCases {
 		t.Run(tt.repo, func(t *testing.T) {
-			actual := findMatchingGitPolicies(sig, tt.repo)
+			actual := FindMatchingGitPolicies(sig, tt.repo)
 
 			assert.Equal(t, tt.expectedPolicies, actual)
 
