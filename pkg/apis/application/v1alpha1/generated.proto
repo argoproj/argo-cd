@@ -1341,6 +1341,44 @@ message InfoItem {
   optional string value = 2;
 }
 
+// InlineSyncWindow contains the kind, time, duration and attributes that are used to assign the syncWindows to apps
+message InlineSyncWindow {
+  // Kind defines if the window allows or blocks syncs
+  optional string kind = 1;
+
+  // Schedule is the time the window will begin, specified in cron format
+  optional string schedule = 2;
+
+  // Duration is the amount of time the sync window will be open
+  optional string duration = 3;
+
+  // Applications contains a list of applications that the window will apply to
+  repeated string applications = 4;
+
+  // Namespaces contains a list of namespaces that the window will apply to
+  repeated string namespaces = 5;
+
+  // Clusters contains a list of clusters that the window will apply to
+  repeated string clusters = 6;
+
+  // ManualSync enables manual syncs when they would otherwise be blocked
+  optional bool manualSync = 7;
+
+  // TimeZone of the sync that will be applied to the schedule
+  optional string timeZone = 8;
+
+  // UseAndOperator use AND operator for matching applications, namespaces and clusters instead of the default OR operator
+  optional bool andOperator = 9;
+
+  // Description of the sync that will be applied to the schedule, can be used to add any information such as a ticket number for example
+  optional string description = 10;
+
+  // SyncOverrun allows ongoing syncs to continue in two scenarios:
+  // For deny windows: allows syncs that started before the deny window became active to continue running
+  // For allow windows: allows syncs that started during the allow window to continue after the window ends
+  optional bool syncOverrun = 11;
+}
+
 // JWTToken holds the issuedAt and expiresAt values of a token
 message JWTToken {
   optional int64 iat = 1;
@@ -2879,44 +2917,6 @@ message SyncStrategyHook {
   // Embed SyncStrategyApply type to inherit any `apply` options
   // +optional
   optional SyncStrategyApply syncStrategyApply = 1;
-}
-
-// InlineSyncWindow contains the kind, time, duration and attributes that are used to assign the syncWindows to apps
-message InlineSyncWindow {
-  // Kind defines if the window allows or blocks syncs
-  optional string kind = 1;
-
-  // Schedule is the time the window will begin, specified in cron format
-  optional string schedule = 2;
-
-  // Duration is the amount of time the sync window will be open
-  optional string duration = 3;
-
-  // Applications contains a list of applications that the window will apply to
-  repeated string applications = 4;
-
-  // Namespaces contains a list of namespaces that the window will apply to
-  repeated string namespaces = 5;
-
-  // Clusters contains a list of clusters that the window will apply to
-  repeated string clusters = 6;
-
-  // ManualSync enables manual syncs when they would otherwise be blocked
-  optional bool manualSync = 7;
-
-  // TimeZone of the sync that will be applied to the schedule
-  optional string timeZone = 8;
-
-  // UseAndOperator use AND operator for matching applications, namespaces and clusters instead of the default OR operator
-  optional bool andOperator = 9;
-
-  // Description of the sync that will be applied to the schedule, can be used to add any information such as a ticket number for example
-  optional string description = 10;
-
-  // SyncOverrun allows ongoing syncs to continue in two scenarios:
-  // For deny windows: allows syncs that started before the deny window became active to continue running
-  // For allow windows: allows syncs that started during the allow window to continue after the window ends
-  optional bool syncOverrun = 11;
 }
 
 // TLSClientConfig contains settings to enable transport layer security
