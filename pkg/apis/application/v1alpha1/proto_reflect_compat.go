@@ -14,6 +14,8 @@
 package v1alpha1
 
 import (
+	"reflect"
+
 	"google.golang.org/protobuf/protoadapt"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/runtime/protoiface"
@@ -38,10 +40,22 @@ type legacyMessageShim interface {
 // (nullable=false) message fields.
 type protoMessageView struct {
 	protoreflect.Message
+	orig protoreflect.ProtoMessage
 	shim legacyMessageShim
 }
 
 func (v protoMessageView) ProtoMethods() *protoiface.Methods { return &legacyShimMethods }
+
+// Interface must return the original message rather than forwarding to the
+// wrapped protoimpl view: protoimpl's field converters recover the Go value of
+// map/list entries through Interface() and require the concrete generated type.
+func (v protoMessageView) Interface() protoreflect.ProtoMessage { return v.orig }
+
+// New must produce a fresh instance of the original generated type for the
+// same reason as Interface.
+func (v protoMessageView) New() protoreflect.Message {
+	return reflect.New(reflect.TypeOf(v.orig).Elem()).Interface().(protoreflect.ProtoMessage).ProtoReflect()
+}
 
 var legacyShimMethods = protoiface.Methods{
 	Flags: protoiface.SupportMarshalDeterministic,
@@ -89,7 +103,7 @@ func (m *protoShimAWSAuthConfig) Size() int                { return (*AWSAuthCon
 
 func (m *AWSAuthConfig) ProtoReflect() protoreflect.Message {
 	s := (*protoShimAWSAuthConfig)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimAppHealthStatus is a method-less defined type sharing the memory layout of AppHealthStatus so
@@ -111,7 +125,7 @@ func (m *protoShimAppHealthStatus) Size() int { return (*AppHealthStatus)(m).Siz
 
 func (m *AppHealthStatus) ProtoReflect() protoreflect.Message {
 	s := (*protoShimAppHealthStatus)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimAppProject is a method-less defined type sharing the memory layout of AppProject so
@@ -129,7 +143,7 @@ func (m *protoShimAppProject) Size() int                 { return (*AppProject)(
 
 func (m *AppProject) ProtoReflect() protoreflect.Message {
 	s := (*protoShimAppProject)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimAppProjectList is a method-less defined type sharing the memory layout of AppProjectList so
@@ -149,7 +163,7 @@ func (m *protoShimAppProjectList) Size() int                { return (*AppProjec
 
 func (m *AppProjectList) ProtoReflect() protoreflect.Message {
 	s := (*protoShimAppProjectList)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimAppProjectSpec is a method-less defined type sharing the memory layout of AppProjectSpec so
@@ -169,7 +183,7 @@ func (m *protoShimAppProjectSpec) Size() int                { return (*AppProjec
 
 func (m *AppProjectSpec) ProtoReflect() protoreflect.Message {
 	s := (*protoShimAppProjectSpec)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimAppProjectStatus is a method-less defined type sharing the memory layout of AppProjectStatus so
@@ -193,7 +207,7 @@ func (m *protoShimAppProjectStatus) Size() int { return (*AppProjectStatus)(m).S
 
 func (m *AppProjectStatus) ProtoReflect() protoreflect.Message {
 	s := (*protoShimAppProjectStatus)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimApplication is a method-less defined type sharing the memory layout of Application so
@@ -211,7 +225,7 @@ func (m *protoShimApplication) Size() int                 { return (*Application
 
 func (m *Application) ProtoReflect() protoreflect.Message {
 	s := (*protoShimApplication)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimApplicationCondition is a method-less defined type sharing the memory layout of ApplicationCondition so
@@ -235,7 +249,7 @@ func (m *protoShimApplicationCondition) Size() int { return (*ApplicationConditi
 
 func (m *ApplicationCondition) ProtoReflect() protoreflect.Message {
 	s := (*protoShimApplicationCondition)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimApplicationDestination is a method-less defined type sharing the memory layout of ApplicationDestination so
@@ -261,7 +275,7 @@ func (m *protoShimApplicationDestination) Size() int { return (*ApplicationDesti
 
 func (m *ApplicationDestination) ProtoReflect() protoreflect.Message {
 	s := (*protoShimApplicationDestination)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimApplicationDestinationServiceAccount is a method-less defined type sharing the memory layout of ApplicationDestinationServiceAccount so
@@ -291,7 +305,7 @@ func (m *protoShimApplicationDestinationServiceAccount) Size() int {
 
 func (m *ApplicationDestinationServiceAccount) ProtoReflect() protoreflect.Message {
 	s := (*protoShimApplicationDestinationServiceAccount)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimApplicationList is a method-less defined type sharing the memory layout of ApplicationList so
@@ -313,7 +327,7 @@ func (m *protoShimApplicationList) Size() int { return (*ApplicationList)(m).Siz
 
 func (m *ApplicationList) ProtoReflect() protoreflect.Message {
 	s := (*protoShimApplicationList)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimApplicationMatchExpression is a method-less defined type sharing the memory layout of ApplicationMatchExpression so
@@ -341,7 +355,7 @@ func (m *protoShimApplicationMatchExpression) Size() int {
 
 func (m *ApplicationMatchExpression) ProtoReflect() protoreflect.Message {
 	s := (*protoShimApplicationMatchExpression)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimApplicationPreservedFields is a method-less defined type sharing the memory layout of ApplicationPreservedFields so
@@ -369,7 +383,7 @@ func (m *protoShimApplicationPreservedFields) Size() int {
 
 func (m *ApplicationPreservedFields) ProtoReflect() protoreflect.Message {
 	s := (*protoShimApplicationPreservedFields)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimApplicationSet is a method-less defined type sharing the memory layout of ApplicationSet so
@@ -389,7 +403,7 @@ func (m *protoShimApplicationSet) Size() int                { return (*Applicati
 
 func (m *ApplicationSet) ProtoReflect() protoreflect.Message {
 	s := (*protoShimApplicationSet)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimApplicationSetApplicationStatus is a method-less defined type sharing the memory layout of ApplicationSetApplicationStatus so
@@ -419,7 +433,7 @@ func (m *protoShimApplicationSetApplicationStatus) Size() int {
 
 func (m *ApplicationSetApplicationStatus) ProtoReflect() protoreflect.Message {
 	s := (*protoShimApplicationSetApplicationStatus)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimApplicationSetCondition is a method-less defined type sharing the memory layout of ApplicationSetCondition so
@@ -445,7 +459,7 @@ func (m *protoShimApplicationSetCondition) Size() int { return (*ApplicationSetC
 
 func (m *ApplicationSetCondition) ProtoReflect() protoreflect.Message {
 	s := (*protoShimApplicationSetCondition)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimApplicationSetGenerator is a method-less defined type sharing the memory layout of ApplicationSetGenerator so
@@ -471,7 +485,7 @@ func (m *protoShimApplicationSetGenerator) Size() int { return (*ApplicationSetG
 
 func (m *ApplicationSetGenerator) ProtoReflect() protoreflect.Message {
 	s := (*protoShimApplicationSetGenerator)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimApplicationSetList is a method-less defined type sharing the memory layout of ApplicationSetList so
@@ -495,7 +509,7 @@ func (m *protoShimApplicationSetList) Size() int { return (*ApplicationSetList)(
 
 func (m *ApplicationSetList) ProtoReflect() protoreflect.Message {
 	s := (*protoShimApplicationSetList)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimApplicationSetNestedGenerator is a method-less defined type sharing the memory layout of ApplicationSetNestedGenerator so
@@ -523,7 +537,7 @@ func (m *protoShimApplicationSetNestedGenerator) Size() int {
 
 func (m *ApplicationSetNestedGenerator) ProtoReflect() protoreflect.Message {
 	s := (*protoShimApplicationSetNestedGenerator)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimApplicationSetResourceIgnoreDifferences is a method-less defined type sharing the memory layout of ApplicationSetResourceIgnoreDifferences so
@@ -553,7 +567,7 @@ func (m *protoShimApplicationSetResourceIgnoreDifferences) Size() int {
 
 func (m *ApplicationSetResourceIgnoreDifferences) ProtoReflect() protoreflect.Message {
 	s := (*protoShimApplicationSetResourceIgnoreDifferences)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimApplicationSetRolloutStep is a method-less defined type sharing the memory layout of ApplicationSetRolloutStep so
@@ -581,7 +595,7 @@ func (m *protoShimApplicationSetRolloutStep) Size() int {
 
 func (m *ApplicationSetRolloutStep) ProtoReflect() protoreflect.Message {
 	s := (*protoShimApplicationSetRolloutStep)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimApplicationSetRolloutStrategy is a method-less defined type sharing the memory layout of ApplicationSetRolloutStrategy so
@@ -609,7 +623,7 @@ func (m *protoShimApplicationSetRolloutStrategy) Size() int {
 
 func (m *ApplicationSetRolloutStrategy) ProtoReflect() protoreflect.Message {
 	s := (*protoShimApplicationSetRolloutStrategy)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimApplicationSetSpec is a method-less defined type sharing the memory layout of ApplicationSetSpec so
@@ -633,7 +647,7 @@ func (m *protoShimApplicationSetSpec) Size() int { return (*ApplicationSetSpec)(
 
 func (m *ApplicationSetSpec) ProtoReflect() protoreflect.Message {
 	s := (*protoShimApplicationSetSpec)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimApplicationSetStatus is a method-less defined type sharing the memory layout of ApplicationSetStatus so
@@ -657,7 +671,7 @@ func (m *protoShimApplicationSetStatus) Size() int { return (*ApplicationSetStat
 
 func (m *ApplicationSetStatus) ProtoReflect() protoreflect.Message {
 	s := (*protoShimApplicationSetStatus)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimApplicationSetStrategy is a method-less defined type sharing the memory layout of ApplicationSetStrategy so
@@ -683,7 +697,7 @@ func (m *protoShimApplicationSetStrategy) Size() int { return (*ApplicationSetSt
 
 func (m *ApplicationSetStrategy) ProtoReflect() protoreflect.Message {
 	s := (*protoShimApplicationSetStrategy)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimApplicationSetSyncPolicy is a method-less defined type sharing the memory layout of ApplicationSetSyncPolicy so
@@ -709,7 +723,7 @@ func (m *protoShimApplicationSetSyncPolicy) Size() int { return (*ApplicationSet
 
 func (m *ApplicationSetSyncPolicy) ProtoReflect() protoreflect.Message {
 	s := (*protoShimApplicationSetSyncPolicy)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimApplicationSetTemplate is a method-less defined type sharing the memory layout of ApplicationSetTemplate so
@@ -735,7 +749,7 @@ func (m *protoShimApplicationSetTemplate) Size() int { return (*ApplicationSetTe
 
 func (m *ApplicationSetTemplate) ProtoReflect() protoreflect.Message {
 	s := (*protoShimApplicationSetTemplate)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimApplicationSetTemplateMeta is a method-less defined type sharing the memory layout of ApplicationSetTemplateMeta so
@@ -763,7 +777,7 @@ func (m *protoShimApplicationSetTemplateMeta) Size() int {
 
 func (m *ApplicationSetTemplateMeta) ProtoReflect() protoreflect.Message {
 	s := (*protoShimApplicationSetTemplateMeta)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimApplicationSetTerminalGenerator is a method-less defined type sharing the memory layout of ApplicationSetTerminalGenerator so
@@ -793,7 +807,7 @@ func (m *protoShimApplicationSetTerminalGenerator) Size() int {
 
 func (m *ApplicationSetTerminalGenerator) ProtoReflect() protoreflect.Message {
 	s := (*protoShimApplicationSetTerminalGenerator)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimApplicationSetTree is a method-less defined type sharing the memory layout of ApplicationSetTree so
@@ -817,7 +831,7 @@ func (m *protoShimApplicationSetTree) Size() int { return (*ApplicationSetTree)(
 
 func (m *ApplicationSetTree) ProtoReflect() protoreflect.Message {
 	s := (*protoShimApplicationSetTree)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimApplicationSetWatchEvent is a method-less defined type sharing the memory layout of ApplicationSetWatchEvent so
@@ -843,7 +857,7 @@ func (m *protoShimApplicationSetWatchEvent) Size() int { return (*ApplicationSet
 
 func (m *ApplicationSetWatchEvent) ProtoReflect() protoreflect.Message {
 	s := (*protoShimApplicationSetWatchEvent)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimApplicationSource is a method-less defined type sharing the memory layout of ApplicationSource so
@@ -867,7 +881,7 @@ func (m *protoShimApplicationSource) Size() int { return (*ApplicationSource)(m)
 
 func (m *ApplicationSource) ProtoReflect() protoreflect.Message {
 	s := (*protoShimApplicationSource)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimApplicationSourceDirectory is a method-less defined type sharing the memory layout of ApplicationSourceDirectory so
@@ -895,7 +909,7 @@ func (m *protoShimApplicationSourceDirectory) Size() int {
 
 func (m *ApplicationSourceDirectory) ProtoReflect() protoreflect.Message {
 	s := (*protoShimApplicationSourceDirectory)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimApplicationSourceHelm is a method-less defined type sharing the memory layout of ApplicationSourceHelm so
@@ -919,7 +933,7 @@ func (m *protoShimApplicationSourceHelm) Size() int { return (*ApplicationSource
 
 func (m *ApplicationSourceHelm) ProtoReflect() protoreflect.Message {
 	s := (*protoShimApplicationSourceHelm)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimApplicationSourceJsonnet is a method-less defined type sharing the memory layout of ApplicationSourceJsonnet so
@@ -945,7 +959,7 @@ func (m *protoShimApplicationSourceJsonnet) Size() int { return (*ApplicationSou
 
 func (m *ApplicationSourceJsonnet) ProtoReflect() protoreflect.Message {
 	s := (*protoShimApplicationSourceJsonnet)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimApplicationSourceKustomize is a method-less defined type sharing the memory layout of ApplicationSourceKustomize so
@@ -973,7 +987,7 @@ func (m *protoShimApplicationSourceKustomize) Size() int {
 
 func (m *ApplicationSourceKustomize) ProtoReflect() protoreflect.Message {
 	s := (*protoShimApplicationSourceKustomize)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimApplicationSourcePlugin is a method-less defined type sharing the memory layout of ApplicationSourcePlugin so
@@ -999,7 +1013,7 @@ func (m *protoShimApplicationSourcePlugin) Size() int { return (*ApplicationSour
 
 func (m *ApplicationSourcePlugin) ProtoReflect() protoreflect.Message {
 	s := (*protoShimApplicationSourcePlugin)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimApplicationSourcePluginParameter is a method-less defined type sharing the memory layout of ApplicationSourcePluginParameter so
@@ -1029,7 +1043,7 @@ func (m *protoShimApplicationSourcePluginParameter) Size() int {
 
 func (m *ApplicationSourcePluginParameter) ProtoReflect() protoreflect.Message {
 	s := (*protoShimApplicationSourcePluginParameter)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimApplicationSpec is a method-less defined type sharing the memory layout of ApplicationSpec so
@@ -1051,7 +1065,7 @@ func (m *protoShimApplicationSpec) Size() int { return (*ApplicationSpec)(m).Siz
 
 func (m *ApplicationSpec) ProtoReflect() protoreflect.Message {
 	s := (*protoShimApplicationSpec)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimApplicationStatus is a method-less defined type sharing the memory layout of ApplicationStatus so
@@ -1075,7 +1089,7 @@ func (m *protoShimApplicationStatus) Size() int { return (*ApplicationStatus)(m)
 
 func (m *ApplicationStatus) ProtoReflect() protoreflect.Message {
 	s := (*protoShimApplicationStatus)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimApplicationSummary is a method-less defined type sharing the memory layout of ApplicationSummary so
@@ -1099,7 +1113,7 @@ func (m *protoShimApplicationSummary) Size() int { return (*ApplicationSummary)(
 
 func (m *ApplicationSummary) ProtoReflect() protoreflect.Message {
 	s := (*protoShimApplicationSummary)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimApplicationTree is a method-less defined type sharing the memory layout of ApplicationTree so
@@ -1121,7 +1135,7 @@ func (m *protoShimApplicationTree) Size() int { return (*ApplicationTree)(m).Siz
 
 func (m *ApplicationTree) ProtoReflect() protoreflect.Message {
 	s := (*protoShimApplicationTree)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimApplicationWatchEvent is a method-less defined type sharing the memory layout of ApplicationWatchEvent so
@@ -1145,7 +1159,7 @@ func (m *protoShimApplicationWatchEvent) Size() int { return (*ApplicationWatchE
 
 func (m *ApplicationWatchEvent) ProtoReflect() protoreflect.Message {
 	s := (*protoShimApplicationWatchEvent)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimBackoff is a method-less defined type sharing the memory layout of Backoff so
@@ -1163,7 +1177,7 @@ func (m *protoShimBackoff) Size() int                 { return (*Backoff)(m).Siz
 
 func (m *Backoff) ProtoReflect() protoreflect.Message {
 	s := (*protoShimBackoff)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimBasicAuthBitbucketServer is a method-less defined type sharing the memory layout of BasicAuthBitbucketServer so
@@ -1189,7 +1203,7 @@ func (m *protoShimBasicAuthBitbucketServer) Size() int { return (*BasicAuthBitbu
 
 func (m *BasicAuthBitbucketServer) ProtoReflect() protoreflect.Message {
 	s := (*protoShimBasicAuthBitbucketServer)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimBearerTokenBitbucket is a method-less defined type sharing the memory layout of BearerTokenBitbucket so
@@ -1213,7 +1227,7 @@ func (m *protoShimBearerTokenBitbucket) Size() int { return (*BearerTokenBitbuck
 
 func (m *BearerTokenBitbucket) ProtoReflect() protoreflect.Message {
 	s := (*protoShimBearerTokenBitbucket)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimBearerTokenBitbucketCloud is a method-less defined type sharing the memory layout of BearerTokenBitbucketCloud so
@@ -1241,7 +1255,7 @@ func (m *protoShimBearerTokenBitbucketCloud) Size() int {
 
 func (m *BearerTokenBitbucketCloud) ProtoReflect() protoreflect.Message {
 	s := (*protoShimBearerTokenBitbucketCloud)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimChartDetails is a method-less defined type sharing the memory layout of ChartDetails so
@@ -1259,7 +1273,7 @@ func (m *protoShimChartDetails) Size() int                 { return (*ChartDetai
 
 func (m *ChartDetails) ProtoReflect() protoreflect.Message {
 	s := (*protoShimChartDetails)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimCluster is a method-less defined type sharing the memory layout of Cluster so
@@ -1277,7 +1291,7 @@ func (m *protoShimCluster) Size() int                 { return (*Cluster)(m).Siz
 
 func (m *Cluster) ProtoReflect() protoreflect.Message {
 	s := (*protoShimCluster)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimClusterCacheInfo is a method-less defined type sharing the memory layout of ClusterCacheInfo so
@@ -1301,7 +1315,7 @@ func (m *protoShimClusterCacheInfo) Size() int { return (*ClusterCacheInfo)(m).S
 
 func (m *ClusterCacheInfo) ProtoReflect() protoreflect.Message {
 	s := (*protoShimClusterCacheInfo)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimClusterConfig is a method-less defined type sharing the memory layout of ClusterConfig so
@@ -1321,7 +1335,7 @@ func (m *protoShimClusterConfig) Size() int                { return (*ClusterCon
 
 func (m *ClusterConfig) ProtoReflect() protoreflect.Message {
 	s := (*protoShimClusterConfig)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimClusterGenerator is a method-less defined type sharing the memory layout of ClusterGenerator so
@@ -1345,7 +1359,7 @@ func (m *protoShimClusterGenerator) Size() int { return (*ClusterGenerator)(m).S
 
 func (m *ClusterGenerator) ProtoReflect() protoreflect.Message {
 	s := (*protoShimClusterGenerator)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimClusterInfo is a method-less defined type sharing the memory layout of ClusterInfo so
@@ -1363,7 +1377,7 @@ func (m *protoShimClusterInfo) Size() int                 { return (*ClusterInfo
 
 func (m *ClusterInfo) ProtoReflect() protoreflect.Message {
 	s := (*protoShimClusterInfo)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimClusterList is a method-less defined type sharing the memory layout of ClusterList so
@@ -1381,7 +1395,7 @@ func (m *protoShimClusterList) Size() int                 { return (*ClusterList
 
 func (m *ClusterList) ProtoReflect() protoreflect.Message {
 	s := (*protoShimClusterList)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimClusterResourceRestrictionItem is a method-less defined type sharing the memory layout of ClusterResourceRestrictionItem so
@@ -1411,7 +1425,7 @@ func (m *protoShimClusterResourceRestrictionItem) Size() int {
 
 func (m *ClusterResourceRestrictionItem) ProtoReflect() protoreflect.Message {
 	s := (*protoShimClusterResourceRestrictionItem)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimCommand is a method-less defined type sharing the memory layout of Command so
@@ -1429,7 +1443,7 @@ func (m *protoShimCommand) Size() int                 { return (*Command)(m).Siz
 
 func (m *Command) ProtoReflect() protoreflect.Message {
 	s := (*protoShimCommand)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimCommitMetadata is a method-less defined type sharing the memory layout of CommitMetadata so
@@ -1449,7 +1463,7 @@ func (m *protoShimCommitMetadata) Size() int                { return (*CommitMet
 
 func (m *CommitMetadata) ProtoReflect() protoreflect.Message {
 	s := (*protoShimCommitMetadata)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimComparedTo is a method-less defined type sharing the memory layout of ComparedTo so
@@ -1467,7 +1481,7 @@ func (m *protoShimComparedTo) Size() int                 { return (*ComparedTo)(
 
 func (m *ComparedTo) ProtoReflect() protoreflect.Message {
 	s := (*protoShimComparedTo)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimComponentParameter is a method-less defined type sharing the memory layout of ComponentParameter so
@@ -1491,7 +1505,7 @@ func (m *protoShimComponentParameter) Size() int { return (*ComponentParameter)(
 
 func (m *ComponentParameter) ProtoReflect() protoreflect.Message {
 	s := (*protoShimComponentParameter)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimConfigManagementPlugin is a method-less defined type sharing the memory layout of ConfigManagementPlugin so
@@ -1517,7 +1531,7 @@ func (m *protoShimConfigManagementPlugin) Size() int { return (*ConfigManagement
 
 func (m *ConfigManagementPlugin) ProtoReflect() protoreflect.Message {
 	s := (*protoShimConfigManagementPlugin)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimConfigMapKeyRef is a method-less defined type sharing the memory layout of ConfigMapKeyRef so
@@ -1539,7 +1553,7 @@ func (m *protoShimConfigMapKeyRef) Size() int { return (*ConfigMapKeyRef)(m).Siz
 
 func (m *ConfigMapKeyRef) ProtoReflect() protoreflect.Message {
 	s := (*protoShimConfigMapKeyRef)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimConnectionState is a method-less defined type sharing the memory layout of ConnectionState so
@@ -1561,7 +1575,7 @@ func (m *protoShimConnectionState) Size() int { return (*ConnectionState)(m).Siz
 
 func (m *ConnectionState) ProtoReflect() protoreflect.Message {
 	s := (*protoShimConnectionState)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimDrySource is a method-less defined type sharing the memory layout of DrySource so
@@ -1579,7 +1593,7 @@ func (m *protoShimDrySource) Size() int                 { return (*DrySource)(m)
 
 func (m *DrySource) ProtoReflect() protoreflect.Message {
 	s := (*protoShimDrySource)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimDuckTypeGenerator is a method-less defined type sharing the memory layout of DuckTypeGenerator so
@@ -1603,7 +1617,7 @@ func (m *protoShimDuckTypeGenerator) Size() int { return (*DuckTypeGenerator)(m)
 
 func (m *DuckTypeGenerator) ProtoReflect() protoreflect.Message {
 	s := (*protoShimDuckTypeGenerator)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimEnvEntry is a method-less defined type sharing the memory layout of EnvEntry so
@@ -1621,7 +1635,7 @@ func (m *protoShimEnvEntry) Size() int                 { return (*EnvEntry)(m).S
 
 func (m *EnvEntry) ProtoReflect() protoreflect.Message {
 	s := (*protoShimEnvEntry)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimExecProviderConfig is a method-less defined type sharing the memory layout of ExecProviderConfig so
@@ -1645,7 +1659,7 @@ func (m *protoShimExecProviderConfig) Size() int { return (*ExecProviderConfig)(
 
 func (m *ExecProviderConfig) ProtoReflect() protoreflect.Message {
 	s := (*protoShimExecProviderConfig)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimGitDirectoryGeneratorItem is a method-less defined type sharing the memory layout of GitDirectoryGeneratorItem so
@@ -1673,7 +1687,7 @@ func (m *protoShimGitDirectoryGeneratorItem) Size() int {
 
 func (m *GitDirectoryGeneratorItem) ProtoReflect() protoreflect.Message {
 	s := (*protoShimGitDirectoryGeneratorItem)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimGitFileGeneratorItem is a method-less defined type sharing the memory layout of GitFileGeneratorItem so
@@ -1697,7 +1711,7 @@ func (m *protoShimGitFileGeneratorItem) Size() int { return (*GitFileGeneratorIt
 
 func (m *GitFileGeneratorItem) ProtoReflect() protoreflect.Message {
 	s := (*protoShimGitFileGeneratorItem)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimGitGenerator is a method-less defined type sharing the memory layout of GitGenerator so
@@ -1715,7 +1729,7 @@ func (m *protoShimGitGenerator) Size() int                 { return (*GitGenerat
 
 func (m *GitGenerator) ProtoReflect() protoreflect.Message {
 	s := (*protoShimGitGenerator)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimGnuPGPublicKey is a method-less defined type sharing the memory layout of GnuPGPublicKey so
@@ -1735,7 +1749,7 @@ func (m *protoShimGnuPGPublicKey) Size() int                { return (*GnuPGPubl
 
 func (m *GnuPGPublicKey) ProtoReflect() protoreflect.Message {
 	s := (*protoShimGnuPGPublicKey)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimGnuPGPublicKeyList is a method-less defined type sharing the memory layout of GnuPGPublicKeyList so
@@ -1759,7 +1773,7 @@ func (m *protoShimGnuPGPublicKeyList) Size() int { return (*GnuPGPublicKeyList)(
 
 func (m *GnuPGPublicKeyList) ProtoReflect() protoreflect.Message {
 	s := (*protoShimGnuPGPublicKeyList)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimHealthStatus is a method-less defined type sharing the memory layout of HealthStatus so
@@ -1777,7 +1791,7 @@ func (m *protoShimHealthStatus) Size() int                 { return (*HealthStat
 
 func (m *HealthStatus) ProtoReflect() protoreflect.Message {
 	s := (*protoShimHealthStatus)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimHelmFileParameter is a method-less defined type sharing the memory layout of HelmFileParameter so
@@ -1801,7 +1815,7 @@ func (m *protoShimHelmFileParameter) Size() int { return (*HelmFileParameter)(m)
 
 func (m *HelmFileParameter) ProtoReflect() protoreflect.Message {
 	s := (*protoShimHelmFileParameter)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimHelmOptions is a method-less defined type sharing the memory layout of HelmOptions so
@@ -1819,7 +1833,7 @@ func (m *protoShimHelmOptions) Size() int                 { return (*HelmOptions
 
 func (m *HelmOptions) ProtoReflect() protoreflect.Message {
 	s := (*protoShimHelmOptions)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimHelmParameter is a method-less defined type sharing the memory layout of HelmParameter so
@@ -1839,7 +1853,7 @@ func (m *protoShimHelmParameter) Size() int                { return (*HelmParame
 
 func (m *HelmParameter) ProtoReflect() protoreflect.Message {
 	s := (*protoShimHelmParameter)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimHostInfo is a method-less defined type sharing the memory layout of HostInfo so
@@ -1857,7 +1871,7 @@ func (m *protoShimHostInfo) Size() int                 { return (*HostInfo)(m).S
 
 func (m *HostInfo) ProtoReflect() protoreflect.Message {
 	s := (*protoShimHostInfo)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimHostResourceInfo is a method-less defined type sharing the memory layout of HostResourceInfo so
@@ -1881,7 +1895,7 @@ func (m *protoShimHostResourceInfo) Size() int { return (*HostResourceInfo)(m).S
 
 func (m *HostResourceInfo) ProtoReflect() protoreflect.Message {
 	s := (*protoShimHostResourceInfo)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimHydrateOperation is a method-less defined type sharing the memory layout of HydrateOperation so
@@ -1905,7 +1919,7 @@ func (m *protoShimHydrateOperation) Size() int { return (*HydrateOperation)(m).S
 
 func (m *HydrateOperation) ProtoReflect() protoreflect.Message {
 	s := (*protoShimHydrateOperation)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimHydrateTo is a method-less defined type sharing the memory layout of HydrateTo so
@@ -1923,7 +1937,7 @@ func (m *protoShimHydrateTo) Size() int                 { return (*HydrateTo)(m)
 
 func (m *HydrateTo) ProtoReflect() protoreflect.Message {
 	s := (*protoShimHydrateTo)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimInfo is a method-less defined type sharing the memory layout of Info so
@@ -1941,7 +1955,7 @@ func (m *protoShimInfo) Size() int                 { return (*Info)(m).Size() }
 
 func (m *Info) ProtoReflect() protoreflect.Message {
 	s := (*protoShimInfo)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimInfoItem is a method-less defined type sharing the memory layout of InfoItem so
@@ -1959,7 +1973,7 @@ func (m *protoShimInfoItem) Size() int                 { return (*InfoItem)(m).S
 
 func (m *InfoItem) ProtoReflect() protoreflect.Message {
 	s := (*protoShimInfoItem)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimJWTToken is a method-less defined type sharing the memory layout of JWTToken so
@@ -1977,7 +1991,7 @@ func (m *protoShimJWTToken) Size() int                 { return (*JWTToken)(m).S
 
 func (m *JWTToken) ProtoReflect() protoreflect.Message {
 	s := (*protoShimJWTToken)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimJWTTokens is a method-less defined type sharing the memory layout of JWTTokens so
@@ -1995,7 +2009,7 @@ func (m *protoShimJWTTokens) Size() int                 { return (*JWTTokens)(m)
 
 func (m *JWTTokens) ProtoReflect() protoreflect.Message {
 	s := (*protoShimJWTTokens)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimJsonnetVar is a method-less defined type sharing the memory layout of JsonnetVar so
@@ -2013,7 +2027,7 @@ func (m *protoShimJsonnetVar) Size() int                 { return (*JsonnetVar)(
 
 func (m *JsonnetVar) ProtoReflect() protoreflect.Message {
 	s := (*protoShimJsonnetVar)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimKnownTypeField is a method-less defined type sharing the memory layout of KnownTypeField so
@@ -2033,7 +2047,7 @@ func (m *protoShimKnownTypeField) Size() int                { return (*KnownType
 
 func (m *KnownTypeField) ProtoReflect() protoreflect.Message {
 	s := (*protoShimKnownTypeField)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimKustomizeGvk is a method-less defined type sharing the memory layout of KustomizeGvk so
@@ -2051,7 +2065,7 @@ func (m *protoShimKustomizeGvk) Size() int                 { return (*KustomizeG
 
 func (m *KustomizeGvk) ProtoReflect() protoreflect.Message {
 	s := (*protoShimKustomizeGvk)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimKustomizeOptions is a method-less defined type sharing the memory layout of KustomizeOptions so
@@ -2075,7 +2089,7 @@ func (m *protoShimKustomizeOptions) Size() int { return (*KustomizeOptions)(m).S
 
 func (m *KustomizeOptions) ProtoReflect() protoreflect.Message {
 	s := (*protoShimKustomizeOptions)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimKustomizePatch is a method-less defined type sharing the memory layout of KustomizePatch so
@@ -2095,7 +2109,7 @@ func (m *protoShimKustomizePatch) Size() int                { return (*Kustomize
 
 func (m *KustomizePatch) ProtoReflect() protoreflect.Message {
 	s := (*protoShimKustomizePatch)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimKustomizeReplica is a method-less defined type sharing the memory layout of KustomizeReplica so
@@ -2119,7 +2133,7 @@ func (m *protoShimKustomizeReplica) Size() int { return (*KustomizeReplica)(m).S
 
 func (m *KustomizeReplica) ProtoReflect() protoreflect.Message {
 	s := (*protoShimKustomizeReplica)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimKustomizeResId is a method-less defined type sharing the memory layout of KustomizeResId so
@@ -2139,7 +2153,7 @@ func (m *protoShimKustomizeResId) Size() int                { return (*Kustomize
 
 func (m *KustomizeResId) ProtoReflect() protoreflect.Message {
 	s := (*protoShimKustomizeResId)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimKustomizeSelector is a method-less defined type sharing the memory layout of KustomizeSelector so
@@ -2163,7 +2177,7 @@ func (m *protoShimKustomizeSelector) Size() int { return (*KustomizeSelector)(m)
 
 func (m *KustomizeSelector) ProtoReflect() protoreflect.Message {
 	s := (*protoShimKustomizeSelector)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimKustomizeVersion is a method-less defined type sharing the memory layout of KustomizeVersion so
@@ -2187,7 +2201,7 @@ func (m *protoShimKustomizeVersion) Size() int { return (*KustomizeVersion)(m).S
 
 func (m *KustomizeVersion) ProtoReflect() protoreflect.Message {
 	s := (*protoShimKustomizeVersion)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimListGenerator is a method-less defined type sharing the memory layout of ListGenerator so
@@ -2207,7 +2221,7 @@ func (m *protoShimListGenerator) Size() int                { return (*ListGenera
 
 func (m *ListGenerator) ProtoReflect() protoreflect.Message {
 	s := (*protoShimListGenerator)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimManagedNamespaceMetadata is a method-less defined type sharing the memory layout of ManagedNamespaceMetadata so
@@ -2233,7 +2247,7 @@ func (m *protoShimManagedNamespaceMetadata) Size() int { return (*ManagedNamespa
 
 func (m *ManagedNamespaceMetadata) ProtoReflect() protoreflect.Message {
 	s := (*protoShimManagedNamespaceMetadata)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimMatrixGenerator is a method-less defined type sharing the memory layout of MatrixGenerator so
@@ -2255,7 +2269,7 @@ func (m *protoShimMatrixGenerator) Size() int { return (*MatrixGenerator)(m).Siz
 
 func (m *MatrixGenerator) ProtoReflect() protoreflect.Message {
 	s := (*protoShimMatrixGenerator)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimMergeGenerator is a method-less defined type sharing the memory layout of MergeGenerator so
@@ -2275,7 +2289,7 @@ func (m *protoShimMergeGenerator) Size() int                { return (*MergeGene
 
 func (m *MergeGenerator) ProtoReflect() protoreflect.Message {
 	s := (*protoShimMergeGenerator)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimNestedMatrixGenerator is a method-less defined type sharing the memory layout of NestedMatrixGenerator so
@@ -2299,7 +2313,7 @@ func (m *protoShimNestedMatrixGenerator) Size() int { return (*NestedMatrixGener
 
 func (m *NestedMatrixGenerator) ProtoReflect() protoreflect.Message {
 	s := (*protoShimNestedMatrixGenerator)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimNestedMergeGenerator is a method-less defined type sharing the memory layout of NestedMergeGenerator so
@@ -2323,7 +2337,7 @@ func (m *protoShimNestedMergeGenerator) Size() int { return (*NestedMergeGenerat
 
 func (m *NestedMergeGenerator) ProtoReflect() protoreflect.Message {
 	s := (*protoShimNestedMergeGenerator)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimOCIMetadata is a method-less defined type sharing the memory layout of OCIMetadata so
@@ -2341,7 +2355,7 @@ func (m *protoShimOCIMetadata) Size() int                 { return (*OCIMetadata
 
 func (m *OCIMetadata) ProtoReflect() protoreflect.Message {
 	s := (*protoShimOCIMetadata)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimOperation is a method-less defined type sharing the memory layout of Operation so
@@ -2359,7 +2373,7 @@ func (m *protoShimOperation) Size() int                 { return (*Operation)(m)
 
 func (m *Operation) ProtoReflect() protoreflect.Message {
 	s := (*protoShimOperation)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimOperationInitiator is a method-less defined type sharing the memory layout of OperationInitiator so
@@ -2383,7 +2397,7 @@ func (m *protoShimOperationInitiator) Size() int { return (*OperationInitiator)(
 
 func (m *OperationInitiator) ProtoReflect() protoreflect.Message {
 	s := (*protoShimOperationInitiator)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimOperationState is a method-less defined type sharing the memory layout of OperationState so
@@ -2403,7 +2417,7 @@ func (m *protoShimOperationState) Size() int                { return (*Operation
 
 func (m *OperationState) ProtoReflect() protoreflect.Message {
 	s := (*protoShimOperationState)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimOptionalArray is a method-less defined type sharing the memory layout of OptionalArray so
@@ -2423,7 +2437,7 @@ func (m *protoShimOptionalArray) Size() int                { return (*OptionalAr
 
 func (m *OptionalArray) ProtoReflect() protoreflect.Message {
 	s := (*protoShimOptionalArray)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimOptionalMap is a method-less defined type sharing the memory layout of OptionalMap so
@@ -2441,7 +2455,7 @@ func (m *protoShimOptionalMap) Size() int                 { return (*OptionalMap
 
 func (m *OptionalMap) ProtoReflect() protoreflect.Message {
 	s := (*protoShimOptionalMap)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimOrphanedResourceKey is a method-less defined type sharing the memory layout of OrphanedResourceKey so
@@ -2465,7 +2479,7 @@ func (m *protoShimOrphanedResourceKey) Size() int { return (*OrphanedResourceKey
 
 func (m *OrphanedResourceKey) ProtoReflect() protoreflect.Message {
 	s := (*protoShimOrphanedResourceKey)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimOrphanedResourcesMonitorSettings is a method-less defined type sharing the memory layout of OrphanedResourcesMonitorSettings so
@@ -2495,7 +2509,7 @@ func (m *protoShimOrphanedResourcesMonitorSettings) Size() int {
 
 func (m *OrphanedResourcesMonitorSettings) ProtoReflect() protoreflect.Message {
 	s := (*protoShimOrphanedResourcesMonitorSettings)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimOverrideIgnoreDiff is a method-less defined type sharing the memory layout of OverrideIgnoreDiff so
@@ -2519,7 +2533,7 @@ func (m *protoShimOverrideIgnoreDiff) Size() int { return (*OverrideIgnoreDiff)(
 
 func (m *OverrideIgnoreDiff) ProtoReflect() protoreflect.Message {
 	s := (*protoShimOverrideIgnoreDiff)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimPluginConfigMapRef is a method-less defined type sharing the memory layout of PluginConfigMapRef so
@@ -2543,7 +2557,7 @@ func (m *protoShimPluginConfigMapRef) Size() int { return (*PluginConfigMapRef)(
 
 func (m *PluginConfigMapRef) ProtoReflect() protoreflect.Message {
 	s := (*protoShimPluginConfigMapRef)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimPluginGenerator is a method-less defined type sharing the memory layout of PluginGenerator so
@@ -2565,7 +2579,7 @@ func (m *protoShimPluginGenerator) Size() int { return (*PluginGenerator)(m).Siz
 
 func (m *PluginGenerator) ProtoReflect() protoreflect.Message {
 	s := (*protoShimPluginGenerator)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimPluginInput is a method-less defined type sharing the memory layout of PluginInput so
@@ -2583,7 +2597,7 @@ func (m *protoShimPluginInput) Size() int                 { return (*PluginInput
 
 func (m *PluginInput) ProtoReflect() protoreflect.Message {
 	s := (*protoShimPluginInput)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimProjectRole is a method-less defined type sharing the memory layout of ProjectRole so
@@ -2601,7 +2615,7 @@ func (m *protoShimProjectRole) Size() int                 { return (*ProjectRole
 
 func (m *ProjectRole) ProtoReflect() protoreflect.Message {
 	s := (*protoShimProjectRole)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimPullRequestGenerator is a method-less defined type sharing the memory layout of PullRequestGenerator so
@@ -2625,7 +2639,7 @@ func (m *protoShimPullRequestGenerator) Size() int { return (*PullRequestGenerat
 
 func (m *PullRequestGenerator) ProtoReflect() protoreflect.Message {
 	s := (*protoShimPullRequestGenerator)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimPullRequestGeneratorAzureDevOps is a method-less defined type sharing the memory layout of PullRequestGeneratorAzureDevOps so
@@ -2655,7 +2669,7 @@ func (m *protoShimPullRequestGeneratorAzureDevOps) Size() int {
 
 func (m *PullRequestGeneratorAzureDevOps) ProtoReflect() protoreflect.Message {
 	s := (*protoShimPullRequestGeneratorAzureDevOps)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimPullRequestGeneratorBitbucket is a method-less defined type sharing the memory layout of PullRequestGeneratorBitbucket so
@@ -2683,7 +2697,7 @@ func (m *protoShimPullRequestGeneratorBitbucket) Size() int {
 
 func (m *PullRequestGeneratorBitbucket) ProtoReflect() protoreflect.Message {
 	s := (*protoShimPullRequestGeneratorBitbucket)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimPullRequestGeneratorBitbucketServer is a method-less defined type sharing the memory layout of PullRequestGeneratorBitbucketServer so
@@ -2713,7 +2727,7 @@ func (m *protoShimPullRequestGeneratorBitbucketServer) Size() int {
 
 func (m *PullRequestGeneratorBitbucketServer) ProtoReflect() protoreflect.Message {
 	s := (*protoShimPullRequestGeneratorBitbucketServer)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimPullRequestGeneratorFilter is a method-less defined type sharing the memory layout of PullRequestGeneratorFilter so
@@ -2741,7 +2755,7 @@ func (m *protoShimPullRequestGeneratorFilter) Size() int {
 
 func (m *PullRequestGeneratorFilter) ProtoReflect() protoreflect.Message {
 	s := (*protoShimPullRequestGeneratorFilter)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimPullRequestGeneratorGitLab is a method-less defined type sharing the memory layout of PullRequestGeneratorGitLab so
@@ -2769,7 +2783,7 @@ func (m *protoShimPullRequestGeneratorGitLab) Size() int {
 
 func (m *PullRequestGeneratorGitLab) ProtoReflect() protoreflect.Message {
 	s := (*protoShimPullRequestGeneratorGitLab)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimPullRequestGeneratorGitea is a method-less defined type sharing the memory layout of PullRequestGeneratorGitea so
@@ -2797,7 +2811,7 @@ func (m *protoShimPullRequestGeneratorGitea) Size() int {
 
 func (m *PullRequestGeneratorGitea) ProtoReflect() protoreflect.Message {
 	s := (*protoShimPullRequestGeneratorGitea)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimPullRequestGeneratorGithub is a method-less defined type sharing the memory layout of PullRequestGeneratorGithub so
@@ -2825,7 +2839,7 @@ func (m *protoShimPullRequestGeneratorGithub) Size() int {
 
 func (m *PullRequestGeneratorGithub) ProtoReflect() protoreflect.Message {
 	s := (*protoShimPullRequestGeneratorGithub)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimRefTarget is a method-less defined type sharing the memory layout of RefTarget so
@@ -2843,7 +2857,7 @@ func (m *protoShimRefTarget) Size() int                 { return (*RefTarget)(m)
 
 func (m *RefTarget) ProtoReflect() protoreflect.Message {
 	s := (*protoShimRefTarget)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimRepoCreds is a method-less defined type sharing the memory layout of RepoCreds so
@@ -2861,7 +2875,7 @@ func (m *protoShimRepoCreds) Size() int                 { return (*RepoCreds)(m)
 
 func (m *RepoCreds) ProtoReflect() protoreflect.Message {
 	s := (*protoShimRepoCreds)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimRepoCredsList is a method-less defined type sharing the memory layout of RepoCredsList so
@@ -2881,7 +2895,7 @@ func (m *protoShimRepoCredsList) Size() int                { return (*RepoCredsL
 
 func (m *RepoCredsList) ProtoReflect() protoreflect.Message {
 	s := (*protoShimRepoCredsList)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimRepository is a method-less defined type sharing the memory layout of Repository so
@@ -2899,7 +2913,7 @@ func (m *protoShimRepository) Size() int                 { return (*Repository)(
 
 func (m *Repository) ProtoReflect() protoreflect.Message {
 	s := (*protoShimRepository)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimRepositoryCertificate is a method-less defined type sharing the memory layout of RepositoryCertificate so
@@ -2923,7 +2937,7 @@ func (m *protoShimRepositoryCertificate) Size() int { return (*RepositoryCertifi
 
 func (m *RepositoryCertificate) ProtoReflect() protoreflect.Message {
 	s := (*protoShimRepositoryCertificate)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimRepositoryCertificateList is a method-less defined type sharing the memory layout of RepositoryCertificateList so
@@ -2951,7 +2965,7 @@ func (m *protoShimRepositoryCertificateList) Size() int {
 
 func (m *RepositoryCertificateList) ProtoReflect() protoreflect.Message {
 	s := (*protoShimRepositoryCertificateList)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimRepositoryList is a method-less defined type sharing the memory layout of RepositoryList so
@@ -2971,7 +2985,7 @@ func (m *protoShimRepositoryList) Size() int                { return (*Repositor
 
 func (m *RepositoryList) ProtoReflect() protoreflect.Message {
 	s := (*protoShimRepositoryList)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimResourceAction is a method-less defined type sharing the memory layout of ResourceAction so
@@ -2991,7 +3005,7 @@ func (m *protoShimResourceAction) Size() int                { return (*ResourceA
 
 func (m *ResourceAction) ProtoReflect() protoreflect.Message {
 	s := (*protoShimResourceAction)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimResourceActionDefinition is a method-less defined type sharing the memory layout of ResourceActionDefinition so
@@ -3017,7 +3031,7 @@ func (m *protoShimResourceActionDefinition) Size() int { return (*ResourceAction
 
 func (m *ResourceActionDefinition) ProtoReflect() protoreflect.Message {
 	s := (*protoShimResourceActionDefinition)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimResourceActionParam is a method-less defined type sharing the memory layout of ResourceActionParam so
@@ -3041,7 +3055,7 @@ func (m *protoShimResourceActionParam) Size() int { return (*ResourceActionParam
 
 func (m *ResourceActionParam) ProtoReflect() protoreflect.Message {
 	s := (*protoShimResourceActionParam)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimResourceActions is a method-less defined type sharing the memory layout of ResourceActions so
@@ -3063,7 +3077,7 @@ func (m *protoShimResourceActions) Size() int { return (*ResourceActions)(m).Siz
 
 func (m *ResourceActions) ProtoReflect() protoreflect.Message {
 	s := (*protoShimResourceActions)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimResourceDiff is a method-less defined type sharing the memory layout of ResourceDiff so
@@ -3081,7 +3095,7 @@ func (m *protoShimResourceDiff) Size() int                 { return (*ResourceDi
 
 func (m *ResourceDiff) ProtoReflect() protoreflect.Message {
 	s := (*protoShimResourceDiff)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimResourceIgnoreDifferences is a method-less defined type sharing the memory layout of ResourceIgnoreDifferences so
@@ -3109,7 +3123,7 @@ func (m *protoShimResourceIgnoreDifferences) Size() int {
 
 func (m *ResourceIgnoreDifferences) ProtoReflect() protoreflect.Message {
 	s := (*protoShimResourceIgnoreDifferences)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimResourceNetworkingInfo is a method-less defined type sharing the memory layout of ResourceNetworkingInfo so
@@ -3135,7 +3149,7 @@ func (m *protoShimResourceNetworkingInfo) Size() int { return (*ResourceNetworki
 
 func (m *ResourceNetworkingInfo) ProtoReflect() protoreflect.Message {
 	s := (*protoShimResourceNetworkingInfo)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimResourceNode is a method-less defined type sharing the memory layout of ResourceNode so
@@ -3153,7 +3167,7 @@ func (m *protoShimResourceNode) Size() int                 { return (*ResourceNo
 
 func (m *ResourceNode) ProtoReflect() protoreflect.Message {
 	s := (*protoShimResourceNode)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimResourceOverride is a method-less defined type sharing the memory layout of ResourceOverride so
@@ -3177,7 +3191,7 @@ func (m *protoShimResourceOverride) Size() int { return (*ResourceOverride)(m).S
 
 func (m *ResourceOverride) ProtoReflect() protoreflect.Message {
 	s := (*protoShimResourceOverride)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimResourceRef is a method-less defined type sharing the memory layout of ResourceRef so
@@ -3195,7 +3209,7 @@ func (m *protoShimResourceRef) Size() int                 { return (*ResourceRef
 
 func (m *ResourceRef) ProtoReflect() protoreflect.Message {
 	s := (*protoShimResourceRef)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimResourceResult is a method-less defined type sharing the memory layout of ResourceResult so
@@ -3215,7 +3229,7 @@ func (m *protoShimResourceResult) Size() int                { return (*ResourceR
 
 func (m *ResourceResult) ProtoReflect() protoreflect.Message {
 	s := (*protoShimResourceResult)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimResourceStatus is a method-less defined type sharing the memory layout of ResourceStatus so
@@ -3235,7 +3249,7 @@ func (m *protoShimResourceStatus) Size() int                { return (*ResourceS
 
 func (m *ResourceStatus) ProtoReflect() protoreflect.Message {
 	s := (*protoShimResourceStatus)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimRetryStrategy is a method-less defined type sharing the memory layout of RetryStrategy so
@@ -3255,7 +3269,7 @@ func (m *protoShimRetryStrategy) Size() int                { return (*RetryStrat
 
 func (m *RetryStrategy) ProtoReflect() protoreflect.Message {
 	s := (*protoShimRetryStrategy)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimRevisionHistory is a method-less defined type sharing the memory layout of RevisionHistory so
@@ -3277,7 +3291,7 @@ func (m *protoShimRevisionHistory) Size() int { return (*RevisionHistory)(m).Siz
 
 func (m *RevisionHistory) ProtoReflect() protoreflect.Message {
 	s := (*protoShimRevisionHistory)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimRevisionMetadata is a method-less defined type sharing the memory layout of RevisionMetadata so
@@ -3301,7 +3315,7 @@ func (m *protoShimRevisionMetadata) Size() int { return (*RevisionMetadata)(m).S
 
 func (m *RevisionMetadata) ProtoReflect() protoreflect.Message {
 	s := (*protoShimRevisionMetadata)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimRevisionReference is a method-less defined type sharing the memory layout of RevisionReference so
@@ -3325,7 +3339,7 @@ func (m *protoShimRevisionReference) Size() int { return (*RevisionReference)(m)
 
 func (m *RevisionReference) ProtoReflect() protoreflect.Message {
 	s := (*protoShimRevisionReference)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimSCMProviderGenerator is a method-less defined type sharing the memory layout of SCMProviderGenerator so
@@ -3349,7 +3363,7 @@ func (m *protoShimSCMProviderGenerator) Size() int { return (*SCMProviderGenerat
 
 func (m *SCMProviderGenerator) ProtoReflect() protoreflect.Message {
 	s := (*protoShimSCMProviderGenerator)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimSCMProviderGeneratorAWSCodeCommit is a method-less defined type sharing the memory layout of SCMProviderGeneratorAWSCodeCommit so
@@ -3379,7 +3393,7 @@ func (m *protoShimSCMProviderGeneratorAWSCodeCommit) Size() int {
 
 func (m *SCMProviderGeneratorAWSCodeCommit) ProtoReflect() protoreflect.Message {
 	s := (*protoShimSCMProviderGeneratorAWSCodeCommit)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimSCMProviderGeneratorAzureDevOps is a method-less defined type sharing the memory layout of SCMProviderGeneratorAzureDevOps so
@@ -3409,7 +3423,7 @@ func (m *protoShimSCMProviderGeneratorAzureDevOps) Size() int {
 
 func (m *SCMProviderGeneratorAzureDevOps) ProtoReflect() protoreflect.Message {
 	s := (*protoShimSCMProviderGeneratorAzureDevOps)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimSCMProviderGeneratorBitbucket is a method-less defined type sharing the memory layout of SCMProviderGeneratorBitbucket so
@@ -3437,7 +3451,7 @@ func (m *protoShimSCMProviderGeneratorBitbucket) Size() int {
 
 func (m *SCMProviderGeneratorBitbucket) ProtoReflect() protoreflect.Message {
 	s := (*protoShimSCMProviderGeneratorBitbucket)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimSCMProviderGeneratorBitbucketServer is a method-less defined type sharing the memory layout of SCMProviderGeneratorBitbucketServer so
@@ -3467,7 +3481,7 @@ func (m *protoShimSCMProviderGeneratorBitbucketServer) Size() int {
 
 func (m *SCMProviderGeneratorBitbucketServer) ProtoReflect() protoreflect.Message {
 	s := (*protoShimSCMProviderGeneratorBitbucketServer)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimSCMProviderGeneratorFilter is a method-less defined type sharing the memory layout of SCMProviderGeneratorFilter so
@@ -3495,7 +3509,7 @@ func (m *protoShimSCMProviderGeneratorFilter) Size() int {
 
 func (m *SCMProviderGeneratorFilter) ProtoReflect() protoreflect.Message {
 	s := (*protoShimSCMProviderGeneratorFilter)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimSCMProviderGeneratorGitea is a method-less defined type sharing the memory layout of SCMProviderGeneratorGitea so
@@ -3523,7 +3537,7 @@ func (m *protoShimSCMProviderGeneratorGitea) Size() int {
 
 func (m *SCMProviderGeneratorGitea) ProtoReflect() protoreflect.Message {
 	s := (*protoShimSCMProviderGeneratorGitea)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimSCMProviderGeneratorGithub is a method-less defined type sharing the memory layout of SCMProviderGeneratorGithub so
@@ -3551,7 +3565,7 @@ func (m *protoShimSCMProviderGeneratorGithub) Size() int {
 
 func (m *SCMProviderGeneratorGithub) ProtoReflect() protoreflect.Message {
 	s := (*protoShimSCMProviderGeneratorGithub)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimSCMProviderGeneratorGitlab is a method-less defined type sharing the memory layout of SCMProviderGeneratorGitlab so
@@ -3579,7 +3593,7 @@ func (m *protoShimSCMProviderGeneratorGitlab) Size() int {
 
 func (m *SCMProviderGeneratorGitlab) ProtoReflect() protoreflect.Message {
 	s := (*protoShimSCMProviderGeneratorGitlab)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimSecretRef is a method-less defined type sharing the memory layout of SecretRef so
@@ -3597,7 +3611,7 @@ func (m *protoShimSecretRef) Size() int                 { return (*SecretRef)(m)
 
 func (m *SecretRef) ProtoReflect() protoreflect.Message {
 	s := (*protoShimSecretRef)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimSignatureKey is a method-less defined type sharing the memory layout of SignatureKey so
@@ -3615,7 +3629,7 @@ func (m *protoShimSignatureKey) Size() int                 { return (*SignatureK
 
 func (m *SignatureKey) ProtoReflect() protoreflect.Message {
 	s := (*protoShimSignatureKey)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimSourceHydrator is a method-less defined type sharing the memory layout of SourceHydrator so
@@ -3635,7 +3649,7 @@ func (m *protoShimSourceHydrator) Size() int                { return (*SourceHyd
 
 func (m *SourceHydrator) ProtoReflect() protoreflect.Message {
 	s := (*protoShimSourceHydrator)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimSourceHydratorStatus is a method-less defined type sharing the memory layout of SourceHydratorStatus so
@@ -3659,7 +3673,7 @@ func (m *protoShimSourceHydratorStatus) Size() int { return (*SourceHydratorStat
 
 func (m *SourceHydratorStatus) ProtoReflect() protoreflect.Message {
 	s := (*protoShimSourceHydratorStatus)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimSourceIntegrity is a method-less defined type sharing the memory layout of SourceIntegrity so
@@ -3681,7 +3695,7 @@ func (m *protoShimSourceIntegrity) Size() int { return (*SourceIntegrity)(m).Siz
 
 func (m *SourceIntegrity) ProtoReflect() protoreflect.Message {
 	s := (*protoShimSourceIntegrity)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimSourceIntegrityCheckResult is a method-less defined type sharing the memory layout of SourceIntegrityCheckResult so
@@ -3709,7 +3723,7 @@ func (m *protoShimSourceIntegrityCheckResult) Size() int {
 
 func (m *SourceIntegrityCheckResult) ProtoReflect() protoreflect.Message {
 	s := (*protoShimSourceIntegrityCheckResult)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimSourceIntegrityCheckResultItem is a method-less defined type sharing the memory layout of SourceIntegrityCheckResultItem so
@@ -3739,7 +3753,7 @@ func (m *protoShimSourceIntegrityCheckResultItem) Size() int {
 
 func (m *SourceIntegrityCheckResultItem) ProtoReflect() protoreflect.Message {
 	s := (*protoShimSourceIntegrityCheckResultItem)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimSourceIntegrityGit is a method-less defined type sharing the memory layout of SourceIntegrityGit so
@@ -3763,7 +3777,7 @@ func (m *protoShimSourceIntegrityGit) Size() int { return (*SourceIntegrityGit)(
 
 func (m *SourceIntegrityGit) ProtoReflect() protoreflect.Message {
 	s := (*protoShimSourceIntegrityGit)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimSourceIntegrityGitPolicy is a method-less defined type sharing the memory layout of SourceIntegrityGitPolicy so
@@ -3789,7 +3803,7 @@ func (m *protoShimSourceIntegrityGitPolicy) Size() int { return (*SourceIntegrit
 
 func (m *SourceIntegrityGitPolicy) ProtoReflect() protoreflect.Message {
 	s := (*protoShimSourceIntegrityGitPolicy)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimSourceIntegrityGitPolicyGPG is a method-less defined type sharing the memory layout of SourceIntegrityGitPolicyGPG so
@@ -3817,7 +3831,7 @@ func (m *protoShimSourceIntegrityGitPolicyGPG) Size() int {
 
 func (m *SourceIntegrityGitPolicyGPG) ProtoReflect() protoreflect.Message {
 	s := (*protoShimSourceIntegrityGitPolicyGPG)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimSourceIntegrityGitPolicyRepo is a method-less defined type sharing the memory layout of SourceIntegrityGitPolicyRepo so
@@ -3845,7 +3859,7 @@ func (m *protoShimSourceIntegrityGitPolicyRepo) Size() int {
 
 func (m *SourceIntegrityGitPolicyRepo) ProtoReflect() protoreflect.Message {
 	s := (*protoShimSourceIntegrityGitPolicyRepo)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimSuccessfulHydrateOperation is a method-less defined type sharing the memory layout of SuccessfulHydrateOperation so
@@ -3873,7 +3887,7 @@ func (m *protoShimSuccessfulHydrateOperation) Size() int {
 
 func (m *SuccessfulHydrateOperation) ProtoReflect() protoreflect.Message {
 	s := (*protoShimSuccessfulHydrateOperation)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimSyncOperation is a method-less defined type sharing the memory layout of SyncOperation so
@@ -3893,7 +3907,7 @@ func (m *protoShimSyncOperation) Size() int                { return (*SyncOperat
 
 func (m *SyncOperation) ProtoReflect() protoreflect.Message {
 	s := (*protoShimSyncOperation)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimSyncOperationResource is a method-less defined type sharing the memory layout of SyncOperationResource so
@@ -3917,7 +3931,7 @@ func (m *protoShimSyncOperationResource) Size() int { return (*SyncOperationReso
 
 func (m *SyncOperationResource) ProtoReflect() protoreflect.Message {
 	s := (*protoShimSyncOperationResource)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimSyncOperationResult is a method-less defined type sharing the memory layout of SyncOperationResult so
@@ -3941,7 +3955,7 @@ func (m *protoShimSyncOperationResult) Size() int { return (*SyncOperationResult
 
 func (m *SyncOperationResult) ProtoReflect() protoreflect.Message {
 	s := (*protoShimSyncOperationResult)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimSyncPolicy is a method-less defined type sharing the memory layout of SyncPolicy so
@@ -3959,7 +3973,7 @@ func (m *protoShimSyncPolicy) Size() int                 { return (*SyncPolicy)(
 
 func (m *SyncPolicy) ProtoReflect() protoreflect.Message {
 	s := (*protoShimSyncPolicy)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimSyncPolicyAutomated is a method-less defined type sharing the memory layout of SyncPolicyAutomated so
@@ -3983,7 +3997,7 @@ func (m *protoShimSyncPolicyAutomated) Size() int { return (*SyncPolicyAutomated
 
 func (m *SyncPolicyAutomated) ProtoReflect() protoreflect.Message {
 	s := (*protoShimSyncPolicyAutomated)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimSyncSource is a method-less defined type sharing the memory layout of SyncSource so
@@ -4001,7 +4015,7 @@ func (m *protoShimSyncSource) Size() int                 { return (*SyncSource)(
 
 func (m *SyncSource) ProtoReflect() protoreflect.Message {
 	s := (*protoShimSyncSource)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimSyncStatus is a method-less defined type sharing the memory layout of SyncStatus so
@@ -4019,7 +4033,7 @@ func (m *protoShimSyncStatus) Size() int                 { return (*SyncStatus)(
 
 func (m *SyncStatus) ProtoReflect() protoreflect.Message {
 	s := (*protoShimSyncStatus)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimSyncStrategy is a method-less defined type sharing the memory layout of SyncStrategy so
@@ -4037,7 +4051,7 @@ func (m *protoShimSyncStrategy) Size() int                 { return (*SyncStrate
 
 func (m *SyncStrategy) ProtoReflect() protoreflect.Message {
 	s := (*protoShimSyncStrategy)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimSyncStrategyApply is a method-less defined type sharing the memory layout of SyncStrategyApply so
@@ -4061,7 +4075,7 @@ func (m *protoShimSyncStrategyApply) Size() int { return (*SyncStrategyApply)(m)
 
 func (m *SyncStrategyApply) ProtoReflect() protoreflect.Message {
 	s := (*protoShimSyncStrategyApply)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimSyncStrategyHook is a method-less defined type sharing the memory layout of SyncStrategyHook so
@@ -4085,7 +4099,7 @@ func (m *protoShimSyncStrategyHook) Size() int { return (*SyncStrategyHook)(m).S
 
 func (m *SyncStrategyHook) ProtoReflect() protoreflect.Message {
 	s := (*protoShimSyncStrategyHook)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimSyncWindow is a method-less defined type sharing the memory layout of SyncWindow so
@@ -4103,7 +4117,7 @@ func (m *protoShimSyncWindow) Size() int                 { return (*SyncWindow)(
 
 func (m *SyncWindow) ProtoReflect() protoreflect.Message {
 	s := (*protoShimSyncWindow)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimTLSClientConfig is a method-less defined type sharing the memory layout of TLSClientConfig so
@@ -4125,7 +4139,7 @@ func (m *protoShimTLSClientConfig) Size() int { return (*TLSClientConfig)(m).Siz
 
 func (m *TLSClientConfig) ProtoReflect() protoreflect.Message {
 	s := (*protoShimTLSClientConfig)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimTagFilter is a method-less defined type sharing the memory layout of TagFilter so
@@ -4143,5 +4157,5 @@ func (m *protoShimTagFilter) Size() int                 { return (*TagFilter)(m)
 
 func (m *TagFilter) ProtoReflect() protoreflect.Message {
 	s := (*protoShimTagFilter)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }

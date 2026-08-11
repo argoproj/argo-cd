@@ -93,6 +93,8 @@ func main() {
 	b.WriteString("// to the gogo encoding.\n")
 	fmt.Fprintf(&b, "\npackage %s\n\n", pkgName)
 	b.WriteString("import (\n")
+	b.WriteString("\t\"reflect\"\n")
+	b.WriteString("\n")
 	b.WriteString("\t\"google.golang.org/protobuf/protoadapt\"\n")
 	b.WriteString("\t\"google.golang.org/protobuf/reflect/protoreflect\"\n")
 	b.WriteString("\t\"google.golang.org/protobuf/runtime/protoiface\"\n")
@@ -117,10 +119,22 @@ type legacyMessageShim interface {
 // (nullable=false) message fields.
 type protoMessageView struct {
 	protoreflect.Message
+	orig protoreflect.ProtoMessage
 	shim legacyMessageShim
 }
 
 func (v protoMessageView) ProtoMethods() *protoiface.Methods { return &legacyShimMethods }
+
+// Interface must return the original message rather than forwarding to the
+// wrapped protoimpl view: protoimpl's field converters recover the Go value of
+// map/list entries through Interface() and require the concrete generated type.
+func (v protoMessageView) Interface() protoreflect.ProtoMessage { return v.orig }
+
+// New must produce a fresh instance of the original generated type for the
+// same reason as Interface.
+func (v protoMessageView) New() protoreflect.Message {
+	return reflect.New(reflect.TypeOf(v.orig).Elem()).Interface().(protoreflect.ProtoMessage).ProtoReflect()
+}
 
 var legacyShimMethods = protoiface.Methods{
 	Flags: protoiface.SupportMarshalDeterministic,
@@ -170,7 +184,7 @@ func (m *%[2]s) Size() int                 { return (*%[1]s)(m).Size() }
 
 func (m *%[1]s) ProtoReflect() protoreflect.Message {
 	s := (*%[2]s)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 `, name, shim)
 	}

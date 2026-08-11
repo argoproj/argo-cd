@@ -14,6 +14,8 @@
 package events
 
 import (
+	"reflect"
+
 	"google.golang.org/protobuf/protoadapt"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/runtime/protoiface"
@@ -38,10 +40,22 @@ type legacyMessageShim interface {
 // (nullable=false) message fields.
 type protoMessageView struct {
 	protoreflect.Message
+	orig protoreflect.ProtoMessage
 	shim legacyMessageShim
 }
 
 func (v protoMessageView) ProtoMethods() *protoiface.Methods { return &legacyShimMethods }
+
+// Interface must return the original message rather than forwarding to the
+// wrapped protoimpl view: protoimpl's field converters recover the Go value of
+// map/list entries through Interface() and require the concrete generated type.
+func (v protoMessageView) Interface() protoreflect.ProtoMessage { return v.orig }
+
+// New must produce a fresh instance of the original generated type for the
+// same reason as Interface.
+func (v protoMessageView) New() protoreflect.Message {
+	return reflect.New(reflect.TypeOf(v.orig).Elem()).Interface().(protoreflect.ProtoMessage).ProtoReflect()
+}
 
 var legacyShimMethods = protoiface.Methods{
 	Flags: protoiface.SupportMarshalDeterministic,
@@ -87,7 +101,7 @@ func (m *protoShimEvent) Size() int                 { return (*Event)(m).Size() 
 
 func (m *Event) ProtoReflect() protoreflect.Message {
 	s := (*protoShimEvent)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimEventList is a method-less defined type sharing the memory layout of EventList so
@@ -105,7 +119,7 @@ func (m *protoShimEventList) Size() int                 { return (*EventList)(m)
 
 func (m *EventList) ProtoReflect() protoreflect.Message {
 	s := (*protoShimEventList)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimEventSeries is a method-less defined type sharing the memory layout of EventSeries so
@@ -123,7 +137,7 @@ func (m *protoShimEventSeries) Size() int                 { return (*EventSeries
 
 func (m *EventSeries) ProtoReflect() protoreflect.Message {
 	s := (*protoShimEventSeries)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimEventSource is a method-less defined type sharing the memory layout of EventSource so
@@ -141,7 +155,7 @@ func (m *protoShimEventSource) Size() int                 { return (*EventSource
 
 func (m *EventSource) ProtoReflect() protoreflect.Message {
 	s := (*protoShimEventSource)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
 
 // protoShimObjectReference is a method-less defined type sharing the memory layout of ObjectReference so
@@ -163,5 +177,5 @@ func (m *protoShimObjectReference) Size() int { return (*ObjectReference)(m).Siz
 
 func (m *ObjectReference) ProtoReflect() protoreflect.Message {
 	s := (*protoShimObjectReference)(m)
-	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), s}
+	return protoMessageView{protoadapt.MessageV2Of(s).ProtoReflect(), m, s}
 }
