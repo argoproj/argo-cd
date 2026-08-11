@@ -124,6 +124,15 @@ func (v protoMessageView) ProtoMethods() *protoiface.Methods { return &legacyShi
 
 var legacyShimMethods = protoiface.Methods{
 	Flags: protoiface.SupportMarshalDeterministic,
+	// CheckInitialized must be a non-nil no-op: none of these messages declare
+	// proto2 required fields, and without it google.golang.org/protobuf falls
+	// back to a full protoreflect walk of the message tree after every
+	// Marshal. That walk reaches embedded k8s.io/apimachinery types, which
+	// carry no descriptors since k8s 0.36 and crash protoimpl's struct-tag
+	// based (aberrant) reflection on their map fields.
+	CheckInitialized: func(protoiface.CheckInitializedInput) (protoiface.CheckInitializedOutput, error) {
+		return protoiface.CheckInitializedOutput{}, nil
+	},
 	Marshal: func(in protoiface.MarshalInput) (protoiface.MarshalOutput, error) {
 		b, err := in.Message.(protoMessageView).shim.Marshal()
 		if err != nil {
