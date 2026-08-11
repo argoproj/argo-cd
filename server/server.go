@@ -197,7 +197,7 @@ type ArgoCDServer struct {
 	projInformer       cache.SharedIndexInformer
 	projLister         applisters.AppProjectNamespaceLister
 	syncWindowInformer cache.SharedIndexInformer
-	syncWindowLister   applisters.SyncWindowResourceLister
+	syncWindowLister   applisters.SyncWindowLister
 	policyEnforcer     *rbacpolicy.RBACPolicyEnforcer
 	clusterInformer    *settings_util.ClusterInformer
 	appInformer        cache.SharedIndexInformer
@@ -339,8 +339,8 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	appsetInformer := appFactory.Argoproj().V1alpha1().ApplicationSets().Informer()
 	appsetLister := appFactory.Argoproj().V1alpha1().ApplicationSets().Lister()
 
-	syncWindowInformer := projFactory.Argoproj().V1alpha1().SyncWindowResources().Informer()
-	syncWindowLister := projFactory.Argoproj().V1alpha1().SyncWindowResources().Lister()
+	syncWindowInformer := projFactory.Argoproj().V1alpha1().SyncWindows().Informer()
+	syncWindowLister := projFactory.Argoproj().V1alpha1().SyncWindows().Lister()
 
 	// When watching cluster-wide (i.e. application.namespaces is configured),
 	// drop objects from namespaces that are not in the allowed list before

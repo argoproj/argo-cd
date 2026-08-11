@@ -15,7 +15,7 @@ type ArgoprojV1alpha1Interface interface {
 	AppProjectsGetter
 	ApplicationsGetter
 	ApplicationSetsGetter
-	SyncWindowResourcesGetter
+	SyncWindowsGetter
 }
 
 // ArgoprojV1alpha1Client is used to interact with features provided by the argoproj.io group.
@@ -35,8 +35,8 @@ func (c *ArgoprojV1alpha1Client) ApplicationSets(namespace string) ApplicationSe
 	return newApplicationSets(c, namespace)
 }
 
-func (c *ArgoprojV1alpha1Client) SyncWindowResources(namespace string) SyncWindowResourceInterface {
-	return newSyncWindowResources(c, namespace)
+func (c *ArgoprojV1alpha1Client) SyncWindows(namespace string) SyncWindowInterface {
+	return newSyncWindows(c, namespace)
 }
 
 // NewForConfig creates a new ArgoprojV1alpha1Client for the given config.

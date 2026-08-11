@@ -14,12 +14,12 @@ import (
 // Resolver resolves SyncWindowRef references into concrete SyncWindow objects
 // that can be evaluated by the existing sync window logic.
 type Resolver struct {
-	lister    listers.SyncWindowResourceLister
+	lister    listers.SyncWindowLister
 	namespace string
 }
 
 // NewResolver creates a new Resolver with the given lister and namespace.
-func NewResolver(lister listers.SyncWindowResourceLister, namespace string) *Resolver {
+func NewResolver(lister listers.SyncWindowLister, namespace string) *Resolver {
 	return &Resolver{
 		lister:    lister,
 		namespace: namespace,
@@ -89,24 +89,24 @@ func (r *Resolver) ResolveAppRefs(refs []v1alpha1.SyncWindowRef) (v1alpha1.SyncW
 	return result, errors.Join(errs...)
 }
 
-// resolveRef resolves a single SyncWindowRef to a list of SyncWindowResource objects.
-func (r *Resolver) resolveRef(ref v1alpha1.SyncWindowRef) ([]*v1alpha1.SyncWindowResource, error) {
+// resolveRef resolves a single SyncWindowRef to a list of SyncWindow objects.
+func (r *Resolver) resolveRef(ref v1alpha1.SyncWindowRef) ([]*v1alpha1.SyncWindow, error) {
 	if ref.Name != "" && ref.Selector != nil {
 		return nil, errors.New("sync window ref cannot specify both name and selector")
 	}
 	if ref.Name != "" {
-		sw, err := r.lister.SyncWindowResources(r.namespace).Get(ref.Name)
+		sw, err := r.lister.SyncWindows(r.namespace).Get(ref.Name)
 		if err != nil {
 			return nil, fmt.Errorf("sync window resource %q not found: %w", ref.Name, err)
 		}
-		return []*v1alpha1.SyncWindowResource{sw}, nil
+		return []*v1alpha1.SyncWindow{sw}, nil
 	}
 	if ref.Selector != nil {
 		selector, err := convertLabelSelector(ref.Selector)
 		if err != nil {
 			return nil, fmt.Errorf("invalid label selector: %w", err)
 		}
-		return r.lister.SyncWindowResources(r.namespace).List(selector)
+		return r.lister.SyncWindows(r.namespace).List(selector)
 	}
 	return nil, errors.New("sync window ref must specify either name or selector")
 }

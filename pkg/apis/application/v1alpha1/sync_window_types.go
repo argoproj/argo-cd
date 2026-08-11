@@ -4,26 +4,26 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// SyncWindowResource is a CRD that defines reusable sync windows which can be referenced
+// SyncWindow is a CRD that defines reusable sync windows which can be referenced
 // by AppProjects and Applications.
 // +genclient
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-// +kubebuilder:resource:path=syncwindowresources,shortName=sw
-type SyncWindowResource struct {
+// +kubebuilder:resource:path=syncwindows,shortName=sw
+type SyncWindow struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
-	Spec              SyncWindowResourceSpec `json:"spec" protobuf:"bytes,2,opt,name=spec"`
+	Spec              SyncWindowSpec `json:"spec" protobuf:"bytes,2,opt,name=spec"`
 }
 
-// SyncWindowResourceSpec defines the desired state of a SyncWindowResource
-type SyncWindowResourceSpec struct {
+// SyncWindowSpec defines the desired state of a SyncWindow
+type SyncWindowSpec struct {
 	// Windows is a list of sync window definitions contained in this resource.
 	// Multiple windows are allowed for easy transition from projects and to group related windows.
 	Windows []SyncWindowDefinition `json:"windows" protobuf:"bytes,1,rep,name=windows"`
 }
 
-// SyncWindowDefinition defines a single sync window entry within a SyncWindowResource.
+// SyncWindowDefinition defines a single sync window entry within a SyncWindow.
 // When referenced from an Application, the Applications/Namespaces/Clusters filters are ignored
 // since the window applies directly to the referencing application.
 type SyncWindowDefinition struct {
@@ -34,13 +34,13 @@ type SyncWindowDefinition struct {
 	// Duration is the amount of time the sync window will be open (e.g. "1h", "30m").
 	Duration string `json:"duration" protobuf:"bytes,3,opt,name=duration"`
 	// Applications contains a list of applications that the window will apply to (glob patterns supported).
-	// Ignored when the SyncWindowResource is referenced directly from an Application.
+	// Ignored when the SyncWindow is referenced directly from an Application.
 	Applications []string `json:"applications,omitempty" protobuf:"bytes,4,rep,name=applications"`
 	// Namespaces contains a list of namespaces that the window will apply to (glob patterns supported).
-	// Ignored when the SyncWindowResource is referenced directly from an Application.
+	// Ignored when the SyncWindow is referenced directly from an Application.
 	Namespaces []string `json:"namespaces,omitempty" protobuf:"bytes,5,rep,name=namespaces"`
 	// Clusters contains a list of clusters that the window will apply to (glob patterns supported).
-	// Ignored when the SyncWindowResource is referenced directly from an Application.
+	// Ignored when the SyncWindow is referenced directly from an Application.
 	Clusters []string `json:"clusters,omitempty" protobuf:"bytes,6,rep,name=clusters"`
 	// ManualSync enables manual syncs when they would otherwise be blocked.
 	ManualSync bool `json:"manualSync,omitempty" protobuf:"bytes,7,opt,name=manualSync"`
@@ -55,28 +55,28 @@ type SyncWindowDefinition struct {
 	SyncOverrun bool `json:"syncOverrun,omitempty" protobuf:"bytes,11,opt,name=syncOverrun"`
 }
 
-// SyncWindowResourceList is a list of SyncWindowResource resources
+// SyncWindowList is a list of SyncWindow resources
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-type SyncWindowResourceList struct {
+type SyncWindowList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
-	Items           []SyncWindowResource `json:"items" protobuf:"bytes,2,rep,name=items"`
+	Items           []SyncWindow `json:"items" protobuf:"bytes,2,rep,name=items"`
 }
 
-// SyncWindowRef is a reference to a SyncWindowResource CRD.
+// SyncWindowRef is a reference to a SyncWindow CRD.
 type SyncWindowRef struct {
-	// Name is the metadata.name of the SyncWindowResource to reference.
+	// Name is the metadata.name of the SyncWindow to reference.
 	Name string `json:"name,omitempty" protobuf:"bytes,1,opt,name=name"`
-	// Selector is a label selector to match SyncWindowResource objects.
+	// Selector is a label selector to match SyncWindow objects.
 	// Either Name or Selector should be specified, not both.
 	Selector *metav1.LabelSelector `json:"selector,omitempty" protobuf:"bytes,2,opt,name=selector"`
 }
 
-// SyncWindowProjectRef is a reference to a SyncWindowResource from an AppProject.
+// SyncWindowProjectRef is a reference to a SyncWindow from an AppProject.
 // It allows specifying additional filters that restrict which apps the referenced
 // sync windows apply to.
 type SyncWindowProjectRef struct {
-	// Ref references a SyncWindowResource by name or selector.
+	// Ref references a SyncWindow by name or selector.
 	Ref SyncWindowRef `json:"ref" protobuf:"bytes,1,opt,name=ref"`
 	// Applications restricts which applications the referenced sync windows apply to (glob patterns supported).
 	Applications []string `json:"applications,omitempty" protobuf:"bytes,2,rep,name=applications"`

@@ -108,7 +108,7 @@ rules:
 - apiGroups:
   - argoproj.io
   resources:
-  - syncwindowresources
+  - syncwindows
   verbs:
   - get
   - list

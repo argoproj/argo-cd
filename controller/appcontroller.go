@@ -159,7 +159,7 @@ type ApplicationController struct {
 	deploymentInformer                informerv1.DeploymentInformer
 
 	syncWindowInformer cache.SharedIndexInformer
-	syncWindowLister   applisters.SyncWindowResourceLister
+	syncWindowLister   applisters.SyncWindowLister
 
 	hydrator *hydrator.Hydrator
 }
@@ -318,8 +318,8 @@ func NewApplicationController(
 	}
 	stateCache := statecache.NewLiveStateCache(db, appInformer, ctrl.settingsMgr, ctrl.metricsServer, ctrl.handleObjectUpdated, clusterSharding, argo.NewResourceTracking())
 
-	syncWindowInformer := v1alpha1.NewSyncWindowResourceInformer(applicationClientset, namespace, appResyncPeriod, indexers)
-	syncWindowLister := applisters.NewSyncWindowResourceLister(syncWindowInformer.GetIndexer())
+	syncWindowInformer := v1alpha1.NewSyncWindowInformer(applicationClientset, namespace, appResyncPeriod, indexers)
+	syncWindowLister := applisters.NewSyncWindowLister(syncWindowInformer.GetIndexer())
 	ctrl.syncWindowInformer = syncWindowInformer
 	ctrl.syncWindowLister = syncWindowLister
 
@@ -986,14 +986,14 @@ func (ctrl *ApplicationController) Run(ctx context.Context, statusProcessors int
 	errors.CheckError(ctrl.stateCache.Init())
 
 	cacheSyncs := []cache.InformerSynced{ctrl.appInformer.HasSynced, ctrl.projInformer.HasSynced}
-	// Only block on the SyncWindowResource cache when the CRD is actually installed. Waiting
+	// Only block on the SyncWindow cache when the CRD is actually installed. Waiting
 	// unconditionally would hang controller startup forever on clusters without the CRD (its
 	// informer can never sync). When the CRD is present, awaiting it closes the fail-open gap
 	// where CRD-based deny windows would not be enforced until the cache catches up.
 	if ctrl.syncWindowCRDInstalled() {
 		cacheSyncs = append(cacheSyncs, ctrl.syncWindowInformer.HasSynced)
 	} else {
-		log.Info("SyncWindowResource CRD not installed; skipping its cache sync")
+		log.Info("SyncWindow CRD not installed; skipping its cache sync")
 	}
 
 	if !cache.WaitForCacheSync(ctx.Done(), cacheSyncs...) {
@@ -2537,18 +2537,18 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 	return patchDuration
 }
 
-// syncWindowCRDInstalled reports whether the SyncWindowResource CRD is registered in the API server.
-// It is used to decide whether to block controller startup on the SyncWindowResource informer cache:
+// syncWindowCRDInstalled reports whether the SyncWindow CRD is registered in the API server.
+// It is used to decide whether to block controller startup on the SyncWindow informer cache:
 // waiting for a cache that can never sync (CRD absent) would hang startup indefinitely.
 func (ctrl *ApplicationController) syncWindowCRDInstalled() bool {
 	groupVersion := appv1.SchemeGroupVersion.String()
 	resources, err := ctrl.applicationClientset.Discovery().ServerResourcesForGroupVersion(groupVersion)
 	if err != nil {
-		log.WithError(err).Warnf("Unable to discover resources for %s; assuming SyncWindowResource CRD is not installed", groupVersion)
+		log.WithError(err).Warnf("Unable to discover resources for %s; assuming SyncWindow CRD is not installed", groupVersion)
 		return false
 	}
 	for _, r := range resources.APIResources {
-		if r.Name == application.SyncWindowResourcePlural {
+		if r.Name == application.SyncWindowPlural {
 			return true
 		}
 	}

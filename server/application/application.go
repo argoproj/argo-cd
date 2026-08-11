@@ -106,7 +106,7 @@ type Server struct {
 	projInformer           cache.SharedIndexInformer
 	enabledNamespaces      []string
 	syncWithReplaceAllowed bool
-	syncWindowLister       applisters.SyncWindowResourceLister
+	syncWindowLister       applisters.SyncWindowLister
 }
 
 // NewServer returns a new instance of the Application service
@@ -128,7 +128,7 @@ func NewServer(
 	enabledNamespaces []string,
 	enableK8sEvent []string,
 	syncWithReplaceAllowed bool,
-	syncWindowLister applisters.SyncWindowResourceLister,
+	syncWindowLister applisters.SyncWindowLister,
 ) (application.ApplicationServiceServer, AppResourceTreeFn) {
 	if appBroadcaster == nil {
 		appBroadcaster = broadcast.NewHandler[v1alpha1.Application, v1alpha1.ApplicationWatchEvent](
@@ -2938,7 +2938,7 @@ func (s *Server) inferResourcesStatusHealth(app *v1alpha1.Application) {
 }
 
 // effectiveSyncWindows returns the union of inline project SyncWindows matching the app and
-// SyncWindows resolved from SyncWindowResource CRD refs on the project and application.
+// SyncWindows resolved from SyncWindow CRD refs on the project and application.
 func (s *Server) effectiveSyncWindows(a *v1alpha1.Application, proj *v1alpha1.AppProject) *v1alpha1.SyncWindows {
 	windows := proj.Spec.SyncWindows.Matches(a)
 	resolver := syncwindow.NewResolver(s.syncWindowLister, s.ns)

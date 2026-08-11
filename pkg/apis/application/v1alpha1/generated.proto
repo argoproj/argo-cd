@@ -90,7 +90,7 @@ message AppProjectSpec {
   optional OrphanedResourcesMonitorSettings orphanedResources = 7;
 
   // SyncWindows controls when syncs can be run for apps in this project
-  repeated SyncWindow syncWindows = 8;
+  repeated InlineSyncWindow syncWindows = 8;
 
   // NamespaceResourceWhitelist contains list of whitelisted namespace level resources
   repeated .k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind namespaceResourceWhitelist = 9;
@@ -116,7 +116,7 @@ message AppProjectSpec {
   // Do not access directly, use EffectiveSourceIntegrity() for correct backwards compatibility handling.
   optional SourceIntegrity sourceIntegrity = 15;
 
-  // SyncWindowRefs references external SyncWindowResource CRDs that define sync windows for this project.
+  // SyncWindowRefs references external SyncWindow CRDs that define sync windows for this project.
   repeated SyncWindowProjectRef syncWindowRefs = 16;
 }
 
@@ -718,9 +718,9 @@ message ApplicationSpec {
   // SourceHydrator provides a way to push hydrated manifests back to git before syncing them to the cluster.
   optional SourceHydrator sourceHydrator = 9;
 
-  // SyncWindowRefs references external SyncWindowResource CRDs that apply directly to this application.
+  // SyncWindowRefs references external SyncWindow CRDs that apply directly to this application.
   // When specified, the referenced sync windows apply to this application regardless of the
-  // applications/namespaces/clusters filters defined in the SyncWindowResource.
+  // applications/namespaces/clusters filters defined in the SyncWindow.
   repeated SyncWindowRef syncWindowRefs = 10;
 }
 
@@ -1347,6 +1347,44 @@ message InfoItem {
 
   // Value is human readable content.
   optional string value = 2;
+}
+
+// InlineSyncWindow contains the kind, time, duration and attributes that are used to assign the syncWindows to apps
+message InlineSyncWindow {
+  // Kind defines if the window allows or blocks syncs
+  optional string kind = 1;
+
+  // Schedule is the time the window will begin, specified in cron format
+  optional string schedule = 2;
+
+  // Duration is the amount of time the sync window will be open
+  optional string duration = 3;
+
+  // Applications contains a list of applications that the window will apply to
+  repeated string applications = 4;
+
+  // Namespaces contains a list of namespaces that the window will apply to
+  repeated string namespaces = 5;
+
+  // Clusters contains a list of clusters that the window will apply to
+  repeated string clusters = 6;
+
+  // ManualSync enables manual syncs when they would otherwise be blocked
+  optional bool manualSync = 7;
+
+  // TimeZone of the sync that will be applied to the schedule
+  optional string timeZone = 8;
+
+  // UseAndOperator use AND operator for matching applications, namespaces and clusters instead of the default OR operator
+  optional bool andOperator = 9;
+
+  // Description of the sync that will be applied to the schedule, can be used to add any information such as a ticket number for example
+  optional string description = 10;
+
+  // SyncOverrun allows ongoing syncs to continue in two scenarios:
+  // For deny windows: allows syncs that started before the deny window became active to continue running
+  // For allow windows: allows syncs that started during the allow window to continue after the window ends
+  optional bool syncOverrun = 11;
 }
 
 // JWTToken holds the issuedAt and expiresAt values of a token
@@ -2889,45 +2927,19 @@ message SyncStrategyHook {
   optional SyncStrategyApply syncStrategyApply = 1;
 }
 
-// SyncWindow contains the kind, time, duration and attributes that are used to assign the syncWindows to apps
+// SyncWindow is a CRD that defines reusable sync windows which can be referenced
+// by AppProjects and Applications.
+// +genclient
+// +genclient:noStatus
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:resource:path=syncwindows,shortName=sw
 message SyncWindow {
-  // Kind defines if the window allows or blocks syncs
-  optional string kind = 1;
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
 
-  // Schedule is the time the window will begin, specified in cron format
-  optional string schedule = 2;
-
-  // Duration is the amount of time the sync window will be open
-  optional string duration = 3;
-
-  // Applications contains a list of applications that the window will apply to
-  repeated string applications = 4;
-
-  // Namespaces contains a list of namespaces that the window will apply to
-  repeated string namespaces = 5;
-
-  // Clusters contains a list of clusters that the window will apply to
-  repeated string clusters = 6;
-
-  // ManualSync enables manual syncs when they would otherwise be blocked
-  optional bool manualSync = 7;
-
-  // TimeZone of the sync that will be applied to the schedule
-  optional string timeZone = 8;
-
-  // UseAndOperator use AND operator for matching applications, namespaces and clusters instead of the default OR operator
-  optional bool andOperator = 9;
-
-  // Description of the sync that will be applied to the schedule, can be used to add any information such as a ticket number for example
-  optional string description = 10;
-
-  // SyncOverrun allows ongoing syncs to continue in two scenarios:
-  // For deny windows: allows syncs that started before the deny window became active to continue running
-  // For allow windows: allows syncs that started during the allow window to continue after the window ends
-  optional bool syncOverrun = 11;
+  optional SyncWindowSpec spec = 2;
 }
 
-// SyncWindowDefinition defines a single sync window entry within a SyncWindowResource.
+// SyncWindowDefinition defines a single sync window entry within a SyncWindow.
 // When referenced from an Application, the Applications/Namespaces/Clusters filters are ignored
 // since the window applies directly to the referencing application.
 message SyncWindowDefinition {
@@ -2941,15 +2953,15 @@ message SyncWindowDefinition {
   optional string duration = 3;
 
   // Applications contains a list of applications that the window will apply to (glob patterns supported).
-  // Ignored when the SyncWindowResource is referenced directly from an Application.
+  // Ignored when the SyncWindow is referenced directly from an Application.
   repeated string applications = 4;
 
   // Namespaces contains a list of namespaces that the window will apply to (glob patterns supported).
-  // Ignored when the SyncWindowResource is referenced directly from an Application.
+  // Ignored when the SyncWindow is referenced directly from an Application.
   repeated string namespaces = 5;
 
   // Clusters contains a list of clusters that the window will apply to (glob patterns supported).
-  // Ignored when the SyncWindowResource is referenced directly from an Application.
+  // Ignored when the SyncWindow is referenced directly from an Application.
   repeated string clusters = 6;
 
   // ManualSync enables manual syncs when they would otherwise be blocked.
@@ -2969,11 +2981,19 @@ message SyncWindowDefinition {
   optional bool syncOverrun = 11;
 }
 
-// SyncWindowProjectRef is a reference to a SyncWindowResource from an AppProject.
+// SyncWindowList is a list of SyncWindow resources
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+message SyncWindowList {
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+
+  repeated SyncWindow items = 2;
+}
+
+// SyncWindowProjectRef is a reference to a SyncWindow from an AppProject.
 // It allows specifying additional filters that restrict which apps the referenced
 // sync windows apply to.
 message SyncWindowProjectRef {
-  // Ref references a SyncWindowResource by name or selector.
+  // Ref references a SyncWindow by name or selector.
   optional SyncWindowRef ref = 1;
 
   // Applications restricts which applications the referenced sync windows apply to (glob patterns supported).
@@ -2986,38 +3006,18 @@ message SyncWindowProjectRef {
   repeated string clusters = 4;
 }
 
-// SyncWindowRef is a reference to a SyncWindowResource CRD.
+// SyncWindowRef is a reference to a SyncWindow CRD.
 message SyncWindowRef {
-  // Name is the metadata.name of the SyncWindowResource to reference.
+  // Name is the metadata.name of the SyncWindow to reference.
   optional string name = 1;
 
-  // Selector is a label selector to match SyncWindowResource objects.
+  // Selector is a label selector to match SyncWindow objects.
   // Either Name or Selector should be specified, not both.
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector selector = 2;
 }
 
-// SyncWindowResource is a CRD that defines reusable sync windows which can be referenced
-// by AppProjects and Applications.
-// +genclient
-// +genclient:noStatus
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-// +kubebuilder:resource:path=syncwindowresources,shortName=sw
-message SyncWindowResource {
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
-
-  optional SyncWindowResourceSpec spec = 2;
-}
-
-// SyncWindowResourceList is a list of SyncWindowResource resources
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-message SyncWindowResourceList {
-  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
-
-  repeated SyncWindowResource items = 2;
-}
-
-// SyncWindowResourceSpec defines the desired state of a SyncWindowResource
-message SyncWindowResourceSpec {
+// SyncWindowSpec defines the desired state of a SyncWindow
+message SyncWindowSpec {
   // Windows is a list of sync window definitions contained in this resource.
   // Multiple windows are allowed for easy transition from projects and to group related windows.
   repeated SyncWindowDefinition windows = 1;

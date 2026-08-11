@@ -6158,7 +6158,7 @@
         "windows": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/v1alpha1SyncWindow"
+            "$ref": "#/definitions/v1alpha1InlineSyncWindow"
           }
         }
       }
@@ -7078,7 +7078,7 @@
           }
         },
         "syncWindowRefs": {
-          "description": "SyncWindowRefs references external SyncWindowResource CRDs that define sync windows for this project.",
+          "description": "SyncWindowRefs references external SyncWindow CRDs that define sync windows for this project.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/v1alpha1SyncWindowProjectRef"
@@ -7088,7 +7088,7 @@
           "type": "array",
           "title": "SyncWindows controls when syncs can be run for apps in this project",
           "items": {
-            "$ref": "#/definitions/v1alpha1SyncWindow"
+            "$ref": "#/definitions/v1alpha1InlineSyncWindow"
           }
         }
       }
@@ -7977,7 +7977,7 @@
           "$ref": "#/definitions/v1alpha1SyncPolicy"
         },
         "syncWindowRefs": {
-          "description": "SyncWindowRefs references external SyncWindowResource CRDs that apply directly to this application.\nWhen specified, the referenced sync windows apply to this application regardless of the\napplications/namespaces/clusters filters defined in the SyncWindowResource.",
+          "description": "SyncWindowRefs references external SyncWindow CRDs that apply directly to this application.\nWhen specified, the referenced sync windows apply to this application regardless of the\napplications/namespaces/clusters filters defined in the SyncWindow.",
           "type": "array",
           "items": {
             "$ref": "#/definitions/v1alpha1SyncWindowRef"
@@ -8880,6 +8880,65 @@
         "value": {
           "description": "Value is human readable content.",
           "type": "string"
+        }
+      }
+    },
+    "v1alpha1InlineSyncWindow": {
+      "type": "object",
+      "title": "InlineSyncWindow contains the kind, time, duration and attributes that are used to assign the syncWindows to apps",
+      "properties": {
+        "andOperator": {
+          "type": "boolean",
+          "title": "UseAndOperator use AND operator for matching applications, namespaces and clusters instead of the default OR operator"
+        },
+        "applications": {
+          "type": "array",
+          "title": "Applications contains a list of applications that the window will apply to",
+          "items": {
+            "type": "string"
+          }
+        },
+        "clusters": {
+          "type": "array",
+          "title": "Clusters contains a list of clusters that the window will apply to",
+          "items": {
+            "type": "string"
+          }
+        },
+        "description": {
+          "type": "string",
+          "title": "Description of the sync that will be applied to the schedule, can be used to add any information such as a ticket number for example"
+        },
+        "duration": {
+          "type": "string",
+          "title": "Duration is the amount of time the sync window will be open"
+        },
+        "kind": {
+          "type": "string",
+          "title": "Kind defines if the window allows or blocks syncs"
+        },
+        "manualSync": {
+          "type": "boolean",
+          "title": "ManualSync enables manual syncs when they would otherwise be blocked"
+        },
+        "namespaces": {
+          "type": "array",
+          "title": "Namespaces contains a list of namespaces that the window will apply to",
+          "items": {
+            "type": "string"
+          }
+        },
+        "schedule": {
+          "type": "string",
+          "title": "Schedule is the time the window will begin, specified in cron format"
+        },
+        "syncOverrun": {
+          "type": "boolean",
+          "title": "SyncOverrun allows ongoing syncs to continue in two scenarios:\nFor deny windows: allows syncs that started before the deny window became active to continue running\nFor allow windows: allows syncs that started during the allow window to continue after the window ends"
+        },
+        "timeZone": {
+          "type": "string",
+          "title": "TimeZone of the sync that will be applied to the schedule"
         }
       }
     },
@@ -11037,67 +11096,8 @@
         }
       }
     },
-    "v1alpha1SyncWindow": {
-      "type": "object",
-      "title": "SyncWindow contains the kind, time, duration and attributes that are used to assign the syncWindows to apps",
-      "properties": {
-        "andOperator": {
-          "type": "boolean",
-          "title": "UseAndOperator use AND operator for matching applications, namespaces and clusters instead of the default OR operator"
-        },
-        "applications": {
-          "type": "array",
-          "title": "Applications contains a list of applications that the window will apply to",
-          "items": {
-            "type": "string"
-          }
-        },
-        "clusters": {
-          "type": "array",
-          "title": "Clusters contains a list of clusters that the window will apply to",
-          "items": {
-            "type": "string"
-          }
-        },
-        "description": {
-          "type": "string",
-          "title": "Description of the sync that will be applied to the schedule, can be used to add any information such as a ticket number for example"
-        },
-        "duration": {
-          "type": "string",
-          "title": "Duration is the amount of time the sync window will be open"
-        },
-        "kind": {
-          "type": "string",
-          "title": "Kind defines if the window allows or blocks syncs"
-        },
-        "manualSync": {
-          "type": "boolean",
-          "title": "ManualSync enables manual syncs when they would otherwise be blocked"
-        },
-        "namespaces": {
-          "type": "array",
-          "title": "Namespaces contains a list of namespaces that the window will apply to",
-          "items": {
-            "type": "string"
-          }
-        },
-        "schedule": {
-          "type": "string",
-          "title": "Schedule is the time the window will begin, specified in cron format"
-        },
-        "syncOverrun": {
-          "type": "boolean",
-          "title": "SyncOverrun allows ongoing syncs to continue in two scenarios:\nFor deny windows: allows syncs that started before the deny window became active to continue running\nFor allow windows: allows syncs that started during the allow window to continue after the window ends"
-        },
-        "timeZone": {
-          "type": "string",
-          "title": "TimeZone of the sync that will be applied to the schedule"
-        }
-      }
-    },
     "v1alpha1SyncWindowProjectRef": {
-      "description": "SyncWindowProjectRef is a reference to a SyncWindowResource from an AppProject.\nIt allows specifying additional filters that restrict which apps the referenced\nsync windows apply to.",
+      "description": "SyncWindowProjectRef is a reference to a SyncWindow from an AppProject.\nIt allows specifying additional filters that restrict which apps the referenced\nsync windows apply to.",
       "type": "object",
       "properties": {
         "applications": {
@@ -11127,11 +11127,11 @@
       }
     },
     "v1alpha1SyncWindowRef": {
-      "description": "SyncWindowRef is a reference to a SyncWindowResource CRD.",
+      "description": "SyncWindowRef is a reference to a SyncWindow CRD.",
       "type": "object",
       "properties": {
         "name": {
-          "description": "Name is the metadata.name of the SyncWindowResource to reference.",
+          "description": "Name is the metadata.name of the SyncWindow to reference.",
           "type": "string"
         },
         "selector": {

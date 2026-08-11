@@ -12,33 +12,33 @@ import (
 	listers "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 )
 
-func newFakeLister(objects ...*v1alpha1.SyncWindowResource) listers.SyncWindowResourceLister {
+func newFakeLister(objects ...*v1alpha1.SyncWindow) listers.SyncWindowLister {
 	indexer := cache.NewIndexer(cache.MetaNamespaceKeyFunc, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc})
 	for _, obj := range objects {
 		_ = indexer.Add(obj)
 	}
-	return listers.NewSyncWindowResourceLister(indexer)
+	return listers.NewSyncWindowLister(indexer)
 }
 
-func newSyncWindowResource(name, namespace string, labels map[string]string, windows []v1alpha1.SyncWindowDefinition) *v1alpha1.SyncWindowResource {
-	return &v1alpha1.SyncWindowResource{
+func newSyncWindow(name, namespace string, labels map[string]string, windows []v1alpha1.SyncWindowDefinition) *v1alpha1.SyncWindow {
+	return &v1alpha1.SyncWindow{
 		TypeMeta: metav1.TypeMeta{
 			APIVersion: "argoproj.io/v1alpha1",
-			Kind:       "SyncWindowResource",
+			Kind:       "SyncWindow",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 			Labels:    labels,
 		},
-		Spec: v1alpha1.SyncWindowResourceSpec{
+		Spec: v1alpha1.SyncWindowSpec{
 			Windows: windows,
 		},
 	}
 }
 
 func TestResolveProjectRefs_ByName(t *testing.T) {
-	sw := newSyncWindowResource("my-window", "argocd", nil, []v1alpha1.SyncWindowDefinition{
+	sw := newSyncWindow("my-window", "argocd", nil, []v1alpha1.SyncWindowDefinition{
 		{
 			Kind:         "allow",
 			Schedule:     "0 0 * * *",
@@ -66,7 +66,7 @@ func TestResolveProjectRefs_ByName(t *testing.T) {
 }
 
 func TestResolveProjectRefs_WithOverrides(t *testing.T) {
-	sw := newSyncWindowResource("my-window", "argocd", nil, []v1alpha1.SyncWindowDefinition{
+	sw := newSyncWindow("my-window", "argocd", nil, []v1alpha1.SyncWindowDefinition{
 		{
 			Kind:         "deny",
 			Schedule:     "0 22 * * *",
@@ -98,13 +98,13 @@ func TestResolveProjectRefs_WithOverrides(t *testing.T) {
 }
 
 func TestResolveProjectRefs_BySelector(t *testing.T) {
-	sw1 := newSyncWindowResource("window-1", "argocd", map[string]string{"env": "prod"}, []v1alpha1.SyncWindowDefinition{
+	sw1 := newSyncWindow("window-1", "argocd", map[string]string{"env": "prod"}, []v1alpha1.SyncWindowDefinition{
 		{Kind: "allow", Schedule: "0 0 * * *", Duration: "1h"},
 	})
-	sw2 := newSyncWindowResource("window-2", "argocd", map[string]string{"env": "prod"}, []v1alpha1.SyncWindowDefinition{
+	sw2 := newSyncWindow("window-2", "argocd", map[string]string{"env": "prod"}, []v1alpha1.SyncWindowDefinition{
 		{Kind: "deny", Schedule: "0 22 * * *", Duration: "2h"},
 	})
-	sw3 := newSyncWindowResource("window-3", "argocd", map[string]string{"env": "dev"}, []v1alpha1.SyncWindowDefinition{
+	sw3 := newSyncWindow("window-3", "argocd", map[string]string{"env": "dev"}, []v1alpha1.SyncWindowDefinition{
 		{Kind: "allow", Schedule: "0 6 * * *", Duration: "12h"},
 	})
 
@@ -127,7 +127,7 @@ func TestResolveProjectRefs_BySelector(t *testing.T) {
 }
 
 func TestResolveAppRefs_ClearsFilters(t *testing.T) {
-	sw := newSyncWindowResource("my-window", "argocd", nil, []v1alpha1.SyncWindowDefinition{
+	sw := newSyncWindow("my-window", "argocd", nil, []v1alpha1.SyncWindowDefinition{
 		{
 			Kind:         "allow",
 			Schedule:     "0 0 * * *",
@@ -172,7 +172,7 @@ func TestResolveRef_NotFound(t *testing.T) {
 // silently discard windows resolved from earlier valid refs.  A deny window from a valid ref must
 // still be returned alongside the error so callers can enforce it.
 func TestResolveProjectRefs_BadRefDoesNotDropValidWindows(t *testing.T) {
-	sw := newSyncWindowResource("valid-window", "argocd", nil, []v1alpha1.SyncWindowDefinition{
+	sw := newSyncWindow("valid-window", "argocd", nil, []v1alpha1.SyncWindowDefinition{
 		{Kind: "deny", Schedule: "0 22 * * *", Duration: "2h"},
 	})
 
@@ -194,7 +194,7 @@ func TestResolveProjectRefs_BadRefDoesNotDropValidWindows(t *testing.T) {
 
 // TestResolveAppRefs_BadRefDoesNotDropValidWindows is the application-ref equivalent of the above.
 func TestResolveAppRefs_BadRefDoesNotDropValidWindows(t *testing.T) {
-	sw := newSyncWindowResource("valid-window", "argocd", nil, []v1alpha1.SyncWindowDefinition{
+	sw := newSyncWindow("valid-window", "argocd", nil, []v1alpha1.SyncWindowDefinition{
 		{Kind: "deny", Schedule: "0 22 * * *", Duration: "2h"},
 	})
 

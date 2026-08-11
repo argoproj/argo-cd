@@ -2379,20 +2379,19 @@ spec:
                 type: object
               syncWindowRefs:
                 description: |-
-                  SyncWindowRefs references external SyncWindowResource CRDs that apply directly to this application.
+                  SyncWindowRefs references external SyncWindow CRDs that apply directly to this application.
                   When specified, the referenced sync windows apply to this application regardless of the
-                  applications/namespaces/clusters filters defined in the SyncWindowResource.
+                  applications/namespaces/clusters filters defined in the SyncWindow.
                 items:
-                  description: SyncWindowRef is a reference to a SyncWindowResource
-                    CRD.
+                  description: SyncWindowRef is a reference to a SyncWindow CRD.
                   properties:
                     name:
-                      description: Name is the metadata.name of the SyncWindowResource
-                        to reference.
+                      description: Name is the metadata.name of the SyncWindow to
+                        reference.
                       type: string
                     selector:
                       description: |-
-                        Selector is a label selector to match SyncWindowResource objects.
+                        Selector is a label selector to match SyncWindow objects.
                         Either Name or Selector should be specified, not both.
                       properties:
                         matchExpressions:
@@ -31902,11 +31901,11 @@ spec:
                   type: string
                 type: array
               syncWindowRefs:
-                description: SyncWindowRefs references external SyncWindowResource
-                  CRDs that define sync windows for this project.
+                description: SyncWindowRefs references external SyncWindow CRDs that
+                  define sync windows for this project.
                 items:
                   description: |-
-                    SyncWindowProjectRef is a reference to a SyncWindowResource from an AppProject.
+                    SyncWindowProjectRef is a reference to a SyncWindow from an AppProject.
                     It allows specifying additional filters that restrict which apps the referenced
                     sync windows apply to.
                   properties:
@@ -31929,16 +31928,15 @@ spec:
                         type: string
                       type: array
                     ref:
-                      description: Ref references a SyncWindowResource by name or
-                        selector.
+                      description: Ref references a SyncWindow by name or selector.
                       properties:
                         name:
-                          description: Name is the metadata.name of the SyncWindowResource
+                          description: Name is the metadata.name of the SyncWindow
                             to reference.
                           type: string
                         selector:
                           description: |-
-                            Selector is a label selector to match SyncWindowResource objects.
+                            Selector is a label selector to match SyncWindow objects.
                             Either Name or Selector should be specified, not both.
                           properties:
                             matchExpressions:
@@ -32092,25 +32090,25 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   labels:
-    app.kubernetes.io/name: syncwindowresources.argoproj.io
+    app.kubernetes.io/name: syncwindows.argoproj.io
     app.kubernetes.io/part-of: argocd
-  name: syncwindowresources.argoproj.io
+  name: syncwindows.argoproj.io
 spec:
   group: argoproj.io
   names:
-    kind: SyncWindowResource
-    listKind: SyncWindowResourceList
-    plural: syncwindowresources
+    kind: SyncWindow
+    listKind: SyncWindowList
+    plural: syncwindows
     shortNames:
     - sw
-    singular: syncwindowresource
+    singular: syncwindow
   scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
         description: |-
-          SyncWindowResource is a CRD that defines reusable sync windows which can be referenced
+          SyncWindow is a CRD that defines reusable sync windows which can be referenced
           by AppProjects and Applications.
         properties:
           apiVersion:
@@ -32131,7 +32129,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: SyncWindowResourceSpec defines the desired state of a SyncWindowResource
+            description: SyncWindowSpec defines the desired state of a SyncWindow
             properties:
               windows:
                 description: |-
@@ -32139,7 +32137,7 @@ spec:
                   Multiple windows are allowed for easy transition from projects and to group related windows.
                 items:
                   description: |-
-                    SyncWindowDefinition defines a single sync window entry within a SyncWindowResource.
+                    SyncWindowDefinition defines a single sync window entry within a SyncWindow.
                     When referenced from an Application, the Applications/Namespaces/Clusters filters are ignored
                     since the window applies directly to the referencing application.
                   properties:
@@ -32150,14 +32148,14 @@ spec:
                     applications:
                       description: |-
                         Applications contains a list of applications that the window will apply to (glob patterns supported).
-                        Ignored when the SyncWindowResource is referenced directly from an Application.
+                        Ignored when the SyncWindow is referenced directly from an Application.
                       items:
                         type: string
                       type: array
                     clusters:
                       description: |-
                         Clusters contains a list of clusters that the window will apply to (glob patterns supported).
-                        Ignored when the SyncWindowResource is referenced directly from an Application.
+                        Ignored when the SyncWindow is referenced directly from an Application.
                       items:
                         type: string
                       type: array
@@ -32180,7 +32178,7 @@ spec:
                     namespaces:
                       description: |-
                         Namespaces contains a list of namespaces that the window will apply to (glob patterns supported).
-                        Ignored when the SyncWindowResource is referenced directly from an Application.
+                        Ignored when the SyncWindow is referenced directly from an Application.
                       items:
                         type: string
                       type: array
@@ -32330,7 +32328,7 @@ rules:
 - apiGroups:
   - argoproj.io
   resources:
-  - syncwindowresources
+  - syncwindows
   verbs:
   - get
   - list
