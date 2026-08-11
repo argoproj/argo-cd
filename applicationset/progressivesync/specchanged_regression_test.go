@@ -96,7 +96,10 @@ func regressionManager(t *testing.T, appSet *argov1alpha1.ApplicationSet) *Manag
 	require.NoError(t, argov1alpha1.AddToScheme(scheme))
 
 	c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(appSet).WithStatusSubresource(appSet).Build()
-	return NewManager(c, regressionDeps{})
+	// Constructed directly rather than through NewManager: #29138 adds an APIReader parameter to
+	// that constructor, and these tests must compile whether or not it has merged yet. They exercise
+	// the status path only, which never reads from APIReader.
+	return &Manager{Client: c, dependencies: regressionDeps{}}
 }
 
 // Defect 1: the status path must honour ignoreApplicationDifferences, exactly as
