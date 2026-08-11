@@ -376,3 +376,70 @@ func TestSilentEvictionFailureDoesNotReleaseTheFinalizer(t *testing.T) {
 	assert.Contains(t, err.Error(), "still present after eviction",
 		"the error should say the eviction could not be confirmed, not something unrelated")
 }
+
+// A conflict on the eviction Delete stops the step, and the comment there claims that is bounded
+// because a later pass reclassifies the replacement. This pins that claim, because an unbounded
+// version of it would be the very defect this file exists to prevent: a condition that can never
+// become false, blocking RemoveFinalizer forever.
+//
+// Pass 1 sees the stale entry, confirms it absent, and the eviction Delete conflicts -- a different
+// Application now holds the name. Pass 2 sees what the informer's ADDED event left behind: the
+// replacement, which is not terminating. Reverse deletion must make progress there rather than
+// returning the same error again.
+func TestConflictOnEvictionConvergesOnALaterPass(t *testing.T) {
+	t.Parallel()
+
+	s := schemeWithApps(t)
+	phantom := agedTerminatingApp()
+
+	// The object that appeared at the same name between the live read and the eviction Delete.
+	replacement := phantom.DeepCopy()
+	replacement.UID = "99999999-8888-7777-6666-555555555555"
+	replacement.DeletionTimestamp = nil
+	replacement.Finalizers = nil
+
+	pass := 0
+	deletes := 0
+	cached := fake.NewClientBuilder().
+		WithScheme(s).
+		WithObjects(&phantom).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Get: func(ctx context.Context, c crtclient.WithWatch, key crtclient.ObjectKey, obj crtclient.Object, opts ...crtclient.GetOption) error {
+				if key.Name == phantom.Name && pass > 1 {
+					// What the informer holds once the ADDED event for the replacement lands.
+					replacement.DeepCopyInto(obj.(*v1alpha1.Application))
+					return nil
+				}
+				return c.Get(ctx, key, obj, opts...)
+			},
+			Delete: func(_ context.Context, _ crtclient.WithWatch, obj crtclient.Object, _ ...crtclient.DeleteOption) error {
+				deletes++
+				if pass == 1 {
+					return apierrors.NewConflict(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, obj.GetName(), errors.New("uid mismatch"))
+				}
+				return nil
+			},
+		}).
+		Build()
+	apiServer := fake.NewClientBuilder().WithScheme(s).Build() // the entry we confirmed absent really is gone
+
+	m := &Manager{Client: cached, APIReader: apiServer}
+
+	pass = 1
+	_, err := m.PerformReverseDeletion(t.Context(), log.NewEntry(log.New()),
+		singleStepAppSet(), []v1alpha1.Application{phantom})
+	require.Error(t, err, "pass 1: a conflict invalidates the absence verdict, so the step must not complete")
+	require.Contains(t, err.Error(), "was recreated while being confirmed as deleted",
+		"pass 1 must stop *because of the conflict*. Any error would satisfy a bare Error() assertion "+
+			"-- a conflict left non-fatal still trips the eviction check below it -- so pin the reason.")
+
+	pass = 2
+	_, err = m.PerformReverseDeletion(t.Context(), log.NewEntry(log.New()),
+		singleStepAppSet(), []v1alpha1.Application{*replacement})
+
+	require.NoError(t, err,
+		"pass 2 must make progress: the replacement is a live child, so it is deleted in its proper "+
+			"order. Returning the same error here would mean the conflict branch can never clear, "+
+			"which is the unbounded wedge this whole change removes")
+	assert.GreaterOrEqual(t, deletes, 2, "the replacement must actually be deleted on pass 2, not skipped")
+}
