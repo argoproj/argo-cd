@@ -61,15 +61,45 @@ type Dependencies interface {
 }
 
 type Manager struct {
-	Client       client.Client
+	Client client.Client
+	// APIReader reads directly from the API server, bypassing the informer cache. Reverse deletion
+	// uses it to double-check an Application the cache has reported as terminating for an
+	// implausibly long time, since the cache alone cannot distinguish a slow teardown from a DELETED
+	// event that was never delivered. Required: with no uncached reader the cache cannot be verified,
+	// so past the threshold reverse deletion errors rather than trusting it. Production supplies
+	// mgr.GetAPIReader().
+	APIReader    client.Reader
 	dependencies Dependencies
 }
 
 // NewManager creates a new manager with dependencies
-func NewManager(client client.Client, dependencies Dependencies) *Manager {
+func NewManager(client client.Client, apiReader client.Reader, dependencies Dependencies) *Manager {
 	return &Manager{
 		Client:       client,
+		APIReader:    apiReader,
 		dependencies: dependencies,
+	}
+}
+
+// staleCacheThreshold is how long an Application may appear to be terminating in the informer cache
+// before we stop trusting the cache and ask the API server directly.
+const staleCacheThreshold = 2 * time.Minute
+
+// applicationGoneFromAPIServer performs a live, non-cached read and reports whether the API server
+// says the Application no longer exists.
+func (m *Manager) applicationGoneFromAPIServer(ctx context.Context, namespace, name string) (bool, error) {
+	if m.APIReader == nil {
+		return false, errors.New("no uncached API reader is configured")
+	}
+	var live argov1alpha1.Application
+	err := m.APIReader.Get(ctx, types.NamespacedName{Name: name, Namespace: namespace}, &live)
+	switch {
+	case apierrors.IsNotFound(err):
+		return true, nil
+	case err != nil:
+		return false, err
+	default:
+		return false, nil
 	}
 }
 
@@ -140,8 +170,92 @@ func (m *Manager) PerformReverseDeletion(ctx context.Context, logCtx *log.Entry,
 		// while the child is still being torn down.
 		if retrievedApp.DeletionTimestamp != nil {
 			logCtx.Infof("application %s has been marked for deletion, but object not removed yet", step.AppName)
-			if time.Since(retrievedApp.DeletionTimestamp.Time) > 2*time.Minute {
-				return 0, errors.New("application has not been deleted in over 2 minutes")
+			if time.Since(retrievedApp.DeletionTimestamp.Time) > staleCacheThreshold {
+				// The cached read has claimed this Application is terminating for longer than any
+				// real teardown plausibly takes. Two things look identical from the cache: a child
+				// that is genuinely slow, and a child whose DELETED event was never delivered, so
+				// the entry will never be corrected. Because the age measured here only grows,
+				// trusting the cache in the second case means the ApplicationSet's finalizer can
+				// never be removed and it stays in Terminating forever.
+				//
+				// Escalate to the API server and let it decide. Only a confirmed-absent entry may
+				// proceed; every other outcome returns an error so controller-runtime applies
+				// exponential backoff rather than this polling at a fixed interval for the whole
+				// teardown. That is safe precisely because the stale-cache case now has an exit: the
+				// conditions that remain -- a child that genuinely still exists, or an API read that
+				// failed -- can both become false on a later attempt.
+				gone, err := m.applicationGoneFromAPIServer(ctx, app.Namespace, app.Name)
+				switch {
+				case err != nil:
+					return 0, fmt.Errorf("application %s has not been deleted in over %s and could not be verified against the API server: %w", step.AppName, staleCacheThreshold, err)
+				case gone:
+					logCtx.Infof("application %s is absent from the API server but still present in the informer cache; evicting the stale entry", step.AppName)
+					// Skipping the entry is not enough: it stays in the informer store, and children
+					// are indexed by owner *name*, so an ApplicationSet later recreated under the
+					// same name counts the stale entry as an existing child. Under a create-only
+					// policy it is then filtered out of the create set and never recreated, and
+					// because no write is attempted nothing triggers the client's own eviction.
+					//
+					// Issue the Delete purely for that side effect: the cache-syncing client evicts
+					// on a write that returns NotFound, and swallows the NotFound for deletes.
+					//
+					// The UID precondition matters. Between the live read above and this call another
+					// Application could be created at the same name, and an unconditional delete by
+					// name would remove it. Gating on the stale entry's UID makes the API server
+					// reject the delete with a conflict instead, leaving that object untouched.
+					// An object read from the API server always carries a UID; guard anyway so an
+					// empty one cannot turn into a precondition that never matches.
+					deleteOpts := []client.DeleteOption{}
+					if retrievedApp.UID != "" {
+						deleteOpts = append(deleteOpts, client.Preconditions{UID: &retrievedApp.UID})
+					}
+					if err := m.Client.Delete(ctx, &retrievedApp, deleteOpts...); err != nil {
+						switch {
+						case apierrors.IsNotFound(err):
+							// Expected: the object is gone. The eviction has already been triggered.
+						case apierrors.IsConflict(err):
+							// The precondition failed, so an Application exists at this name that is
+							// not the one just confirmed absent. That invalidates the verdict this
+							// step rests on, and nothing here can tell whether the replacement is a
+							// child of this ApplicationSet still owed an ordered deletion. Treating
+							// the step as complete could release the finalizer with a live child, so
+							// stop and let the next pass classify it: the informer's ADDED event
+							// refreshes the entry and getCurrentApplications rebuilds the step list,
+							// after which the replacement is either deleted in its proper order or is
+							// not part of this ApplicationSet at all.
+							return 0, fmt.Errorf("application %s was recreated while being confirmed as deleted", step.AppName)
+						default:
+							// Any other failure means the cache-syncing client returned before
+							// evicting, so the stale entry is still in the store. Continuing would
+							// release the ApplicationSet's finalizer while the phantom remains, which
+							// is exactly the recreation failure this eviction exists to prevent.
+							// Surface it: unlike the stale-cache condition, a write that failed once
+							// can succeed on a later attempt, so the backoff has somewhere to go.
+							return 0, fmt.Errorf("application %s is absent from the API server but its stale cache entry could not be evicted: %w", step.AppName, err)
+						}
+					}
+					// A nil error above does not prove the entry was evicted: cacheSyncingClient logs
+					// store lookup and store deletion failures and returns the original error, which
+					// for a NotFound delete is nil. Confirm the postcondition against the cache
+					// itself, because releasing the finalizer with the phantom still in the store is
+					// the recreation failure this eviction exists to prevent.
+					var evicted argov1alpha1.Application
+					switch err := m.Client.Get(ctx, types.NamespacedName{Name: app.Name, Namespace: app.Namespace}, &evicted); {
+					case apierrors.IsNotFound(err):
+						// Gone from the cache, which is what this step needed.
+					case err != nil:
+						return 0, fmt.Errorf("could not confirm the stale cache entry for application %s was evicted: %w", step.AppName, err)
+					default:
+						return 0, fmt.Errorf("stale cache entry for application %s is still present after eviction", step.AppName)
+					}
+
+					logCtx.Infof("application %s confirmed absent and its stale cache entry evicted; treating it as deleted and continuing", step.AppName)
+					continue
+				default:
+					// The Application really is still there, so it is genuinely stuck rather than a
+					// stale cache entry. Surface it and let the backoff grow.
+					return 0, errors.New("application has not been deleted in over 2 minutes")
+				}
 			}
 			return requeueTime, nil
 		}
