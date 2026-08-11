@@ -15,6 +15,10 @@ import (
 	// google.golang.org/grpc/cmd/protoc-gen-go-grpc generates gRPC service stubs
 	_ "google.golang.org/grpc/cmd/protoc-gen-go-grpc"
 
+	// protoc-gen-gogofast generates the k8s-style mirror types in
+	// server/events/events.proto (see hack/generate-proto.sh)
+	_ "github.com/gogo/protobuf/protoc-gen-gogofast"
+
 	// k8s.io/code-generator is vendored to get generate-groups.sh, and k8s codegen utilities
 	_ "k8s.io/code-generator"
 	_ "k8s.io/code-generator/cmd/client-gen"

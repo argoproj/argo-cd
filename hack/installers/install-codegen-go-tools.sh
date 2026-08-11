@@ -33,6 +33,10 @@ go_mod_install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-grpc-gateway
 # protoc-gen-openapiv2 is used to build openapiv2 (swagger) JSON from .proto files
 go_mod_install github.com/grpc-ecosystem/grpc-gateway/v2/protoc-gen-openapiv2
 
+# protoc-gen-gogofast is still used to generate the k8s-style mirror types in
+# server/events/events.proto (see hack/generate-proto.sh)
+go_mod_install github.com/gogo/protobuf/protoc-gen-gogofast
+
 # k8s tools to codegen .proto files, client libraries, and helpers from types.go
 go_mod_install k8s.io/code-generator/cmd/go-to-protobuf
 go_mod_install k8s.io/code-generator/cmd/go-to-protobuf/protoc-gen-gogo
