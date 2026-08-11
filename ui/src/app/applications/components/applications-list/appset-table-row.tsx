@@ -8,7 +8,7 @@ import {getApplicationLinkURL, getManagedByURL, getAppSetHealthStatus, MANAGED_B
 import {services} from '../../../shared/services';
 import {ViewPreferences} from '../../../shared/services';
 import {isValidManagedByURL} from '../../../shared/utils';
-import {CellLink} from './cell-link';
+import {CellLink} from '../../../shared/components';
 
 export interface AppSetTableRowProps {
     appSet: models.ApplicationSet;

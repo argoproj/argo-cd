@@ -118,6 +118,8 @@ type ArgoCDSettings struct {
 	WebhookBitbucketServerSecret string `json:"webhookBitbucketServerSecret,omitempty"`
 	// WebhookGogsSecret holds the shared secret for authenticating Gogs webhook events
 	WebhookGogsSecret string `json:"webhookGogsSecret,omitempty"`
+	// WebhookHarborSecret holds the shared secret for authenticating Harbor webhook events
+	WebhookHarborSecret string `json:"webhookHarborSecret,omitempty"`
 	// WebhookAzureDevOpsUsername holds the username for authenticating Azure DevOps webhook events
 	WebhookAzureDevOpsUsername string `json:"webhookAzureDevOpsUsername,omitempty"`
 	// WebhookAzureDevOpsPassword holds the password for authenticating Azure DevOps webhook events
@@ -140,6 +142,8 @@ type ArgoCDSettings struct {
 	UiBannerPermanent bool `json:"uiBannerPermanent,omitempty"` //nolint:revive //FIXME(var-naming)
 	// Position of UI Banner
 	UiBannerPosition string `json:"uiBannerPosition,omitempty"` //nolint:revive //FIXME(var-naming)
+	// ResourceViewEnabled indicates whether the managed Resources view is enabled in the UI
+	ResourceViewEnabled bool `json:"resourceViewEnabled"`
 	// UiLoginButtonText is an optional override for the SSO login button label
 	UiLoginButtonText string `json:"uiLoginButtonText,omitempty"` //nolint:revive //FIXME(var-naming)
 	// PasswordPattern for password regular expression
@@ -463,6 +467,8 @@ const (
 	settingsWebhookBitbucketServerSecretKey = "webhook.bitbucketserver.secret"
 	// settingsWebhookGogsSecret is the key for Gogs webhook secret
 	settingsWebhookGogsSecretKey = "webhook.gogs.secret"
+	// settingsWebhookHarborSecret is the key for Harbor webhook secret
+	settingsWebhookHarborSecretKey = "webhook.harbor.secret"
 	// settingsWebhookAzureDevOpsUsernameKey is the key for Azure DevOps webhook username
 	settingsWebhookAzureDevOpsUsernameKey = "webhook.azuredevops.username"
 	// settingsWebhookAzureDevOpsPasswordKey is the key for Azure DevOps webhook password
@@ -519,6 +525,8 @@ const (
 	settingUIBannerPermanentKey = "ui.bannerpermanent"
 	// settingUIBannerPositionKey designates the key for the position of the banner
 	settingUIBannerPositionKey = "ui.bannerposition"
+	// settingUIResourcesViewDisabledKey designates the key for disabling the managed Resources view in the UI
+	settingUIResourcesViewDisabledKey = "ui.view.resources.disabled"
 	// settingUILoginButtonTextKey designates the key for the custom SSO login button label
 	settingUILoginButtonTextKey = "ui.loginButtonText"
 	// settingsBinaryUrlsKey designates the key for the argocd binary URLs
@@ -1691,6 +1699,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 	settings.UiBannerContent = argoCDCM.Data[settingUIBannerContentKey]
 	settings.UiBannerPermanent = argoCDCM.Data[settingUIBannerPermanentKey] == "true"
 	settings.UiBannerPosition = argoCDCM.Data[settingUIBannerPositionKey]
+	settings.ResourceViewEnabled = argoCDCM.Data[settingUIResourcesViewDisabledKey] != "true"
 	settings.UiLoginButtonText = argoCDCM.Data[settingUILoginButtonTextKey]
 	settings.BinaryUrls = getDownloadBinaryUrlsFromConfigMap(argoCDCM)
 	if err := ValidateExternalURL(argoCDCM.Data[settingURLKey]); err != nil {
@@ -1842,6 +1851,7 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 	settings.WebhookBitbucketUUID = string(argoCDSecret.Data[settingsWebhookBitbucketUUIDKey])
 	settings.WebhookBitbucketServerSecret = string(argoCDSecret.Data[settingsWebhookBitbucketServerSecretKey])
 	settings.WebhookGogsSecret = string(argoCDSecret.Data[settingsWebhookGogsSecretKey])
+	settings.WebhookHarborSecret = string(argoCDSecret.Data[settingsWebhookHarborSecretKey])
 	settings.WebhookAzureDevOpsUsername = string(argoCDSecret.Data[settingsWebhookAzureDevOpsUsernameKey])
 	settings.WebhookAzureDevOpsPassword = string(argoCDSecret.Data[settingsWebhookAzureDevOpsPasswordKey])
 
@@ -2088,6 +2098,11 @@ func (a *ArgoCDSettings) GetWebhookBitbucketServerSecret() string {
 // GetWebhookGogsSecret returns the resolved Gogs webhook secret
 func (a *ArgoCDSettings) GetWebhookGogsSecret() string {
 	return ReplaceStringSecret(a.WebhookGogsSecret, a.Secrets)
+}
+
+// GetWebhookHarborSecret returns the resolved Harbor webhook secret
+func (a *ArgoCDSettings) GetWebhookHarborSecret() string {
+	return ReplaceStringSecret(a.WebhookHarborSecret, a.Secrets)
 }
 
 // GetWebhookAzureDevOpsUsername returns the resolved Azure DevOps webhook username
