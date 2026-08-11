@@ -938,7 +938,11 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                             // wrong nodes, so there it keeps the all-or-nothing behaviour it always had.
                             const collapseAllNetwork = () => {
                                 const collapsedNodes = state.collapsedNodes.slice();
-                                (tree.nodes || []).forEach(node => {
+                                // Orphans too: the tree draws them when orphaned resources are enabled, so a
+                                // control that claims to collapse everything has to reach them. Collapsing a
+                                // uid that is not drawn costs nothing, which is why this does not consult the
+                                // preference, and it matches how the depths above are gathered.
+                                (tree.nodes || []).concat(tree.orphanedNodes || []).forEach(node => {
                                     if (node.networkingInfo && node.uid && collapsedNodes.indexOf(node.uid) < 0) {
                                         collapsedNodes.push(node.uid);
                                     }
