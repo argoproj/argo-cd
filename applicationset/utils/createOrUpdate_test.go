@@ -301,3 +301,67 @@ func TestCreateOrUpdateDoesNotRevertIgnoredKustomizeImages(t *testing.T) {
 	require.NotNil(t, persisted.Spec.Source.Kustomize, "the ignored kustomize.images override must survive in the cluster")
 	require.Equal(t, live.Spec.Source.Kustomize.Images, persisted.Spec.Source.Kustomize.Images)
 }
+
+// https://github.com/argoproj/argo-cd/issues/29066
+//
+// Same scenario as TestCreateOrUpdateDoesNotRevertIgnoredKustomizeImages, but for a multi-source
+// Application: argocd-image-updater patches spec.sources[N].kustomize.images and the
+// ignoreApplicationDifferences rule targets that path. The renormalization must collapse the
+// empty-but-present Kustomize struct left behind on the live side for the sources[] path too,
+// otherwise CreateOrUpdate patches "kustomize": null over the image updater's write.
+func TestCreateOrUpdateDoesNotRevertIgnoredKustomizeImagesMultiSource(t *testing.T) {
+	t.Parallel()
+
+	scheme := runtime.NewScheme()
+	require.NoError(t, v1alpha1.AddToScheme(scheme))
+
+	live := &v1alpha1.Application{
+		TypeMeta:   metav1.TypeMeta{APIVersion: "argoproj.io/v1alpha1", Kind: "Application"},
+		ObjectMeta: metav1.ObjectMeta{Name: "demo-dev", Namespace: "argocd"},
+		Spec: v1alpha1.ApplicationSpec{
+			Project: "default",
+			Sources: v1alpha1.ApplicationSources{
+				{
+					RepoURL: "https://github.com/argoproj/argocd-example-apps.git",
+					Path:    "helm-guestbook",
+				},
+				{
+					RepoURL: "https://github.com/argoproj/argocd-example-apps.git",
+					Path:    "kustomize-guestbook",
+					Kustomize: &v1alpha1.ApplicationSourceKustomize{
+						Images: []v1alpha1.KustomizeImage{"gcr.io/heptio-images/ks-guestbook-demo:0.2"},
+					},
+				},
+			},
+			Destination: v1alpha1.ApplicationDestination{
+				Server: "https://kubernetes.default.svc", Namespace: "guestbook",
+			},
+		},
+	}
+
+	generated := live.DeepCopy()
+	generated.Spec.Sources[1].Kustomize = nil // template has no kustomize block on this source
+	generated.Spec = *argo.NormalizeApplicationSpec(&generated.Spec)
+
+	ignore := v1alpha1.ApplicationSetIgnoreDifferences{
+		{JSONPointers: []string{"/spec/sources/1/kustomize/images"}},
+	}
+	diffConfig, err := BuildIgnoreDiffConfig(ignore, normalizers.IgnoreNormalizerOpts{})
+	require.NoError(t, err)
+
+	c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(live.DeepCopy()).Build()
+	obj := live.DeepCopy()
+	op, err := CreateOrUpdate(t.Context(), log.NewEntry(log.New()), c, diffConfig, obj, func() error {
+		obj.Spec = generated.Spec
+		return nil
+	})
+	require.NoError(t, err)
+
+	require.Equal(t, controllerutil.OperationResultNone, op,
+		"CreateOrUpdate must not patch when the only diff is on a field covered by ignoreApplicationDifferences")
+
+	persisted := &v1alpha1.Application{}
+	require.NoError(t, c.Get(t.Context(), client.ObjectKeyFromObject(live), persisted))
+	require.NotNil(t, persisted.Spec.Sources[1].Kustomize, "the ignored kustomize.images override must survive in the cluster")
+	require.Equal(t, live.Spec.Sources[1].Kustomize.Images, persisted.Spec.Sources[1].Kustomize.Images)
+}

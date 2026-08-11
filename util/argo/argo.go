@@ -1033,8 +1033,8 @@ func NormalizeApplicationSpec(spec *argoappv1.ApplicationSpec) *argoappv1.Applic
 		spec.SyncPolicy = nil
 	}
 	if len(spec.Sources) > 0 {
-		for _, source := range spec.Sources {
-			NormalizeSource(&source)
+		for i := range spec.Sources {
+			NormalizeSource(&spec.Sources[i])
 		}
 	} else if spec.Source != nil {
 		// In practice, spec.Source should never be nil.
