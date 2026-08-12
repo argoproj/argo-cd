@@ -323,8 +323,8 @@ func (c *Cache) UnlockGitReferences(repo string, lockId string) error {
 	return err
 }
 
-// ManifestKey carries all fields required to build a manifests cache key.
-type ManifestKey struct {
+// manifestKey carries all fields required to build a manifests cache key.
+type manifestKey struct {
 	Revision       string
 	AppSource      *appv1.ApplicationSource
 	RefSources     appv1.RefTargetRevisionMapping
@@ -340,7 +340,35 @@ type ManifestKey struct {
 	SourceIntegrity     *appv1.SourceIntegrity
 }
 
-func (d ManifestKey) String() string {
+func NewManifestKey(
+	revision string,
+	appSource *appv1.ApplicationSource,
+	refSources map[string]*appv1.RefTarget,
+	namespace string,
+	trackingMethod string,
+	appLabelKey string,
+	appName string,
+	installationID string,
+	sourceIntegrity *appv1.SourceIntegrity,
+	clusterInfo ClusterRuntimeInfo,
+	refSourceCommitSHAs ResolvedRevisions,
+) manifestKey {
+	return manifestKey{
+		Revision:            revision,
+		AppSource:           appSource,
+		RefSources:          refSources,
+		ClusterInfo:         clusterInfo,
+		Namespace:           namespace,
+		TrackingMethod:      trackingMethod,
+		AppLabelKey:         appLabelKey,
+		AppName:             appName,
+		RefSourceCommitSHAs: refSourceCommitSHAs,
+		InstallationID:      installationID,
+		SourceIntegrity:     sourceIntegrity,
+	}
+}
+
+func (d manifestKey) String() string {
 	trackingKey := trackingKey(d.AppLabelKey, d.TrackingMethod)
 	key := fmt.Sprintf("mfst|%s|%s|%s|%s|%d|%s", trackingKey, d.AppName, d.Revision, d.Namespace, appSourceKey(d.AppSource, d.RefSources, d.RefSourceCommitSHAs)+clusterRuntimeInfoKey(d.ClusterInfo), d.SourceIntegrity.CacheKey())
 	if d.InstallationID != "" {
@@ -357,27 +385,12 @@ func trackingKey(appLabelKey string, trackingMethod string) string {
 	return trackingKey
 }
 
-// LogDebugManifestCacheKeyFields logs all the information included in a manifest cache key. It's intended to be run
-// before every manifest cache operation to help debug cache misses.
-func LogDebugManifestCacheKeyFields(message string, reason string, manifestKey ManifestKey) {
-	if log.IsLevelEnabled(log.DebugLevel) {
-		log.WithFields(log.Fields{
-			"revision":    manifestKey.Revision,
-			"appSrc":      appSourceKeyJSON(manifestKey.AppSource, manifestKey.RefSources, manifestKey.RefSourceCommitSHAs),
-			"namespace":   manifestKey.Namespace,
-			"trackingKey": trackingKey(manifestKey.AppLabelKey, manifestKey.TrackingMethod),
-			"appName":     manifestKey.AppName,
-			"clusterInfo": clusterRuntimeInfoKeyUnhashed(manifestKey.ClusterInfo),
-			"reason":      reason,
-		}).Debug(message)
-	}
-}
-
-func (c *Cache) SetNewRevisionManifests(oldKey, newKey ManifestKey) error {
+func (c *Cache) SetNewRevisionManifests(oldKey, newKey manifestKey) error {
 	return c.cache.RenameItem(oldKey.String(), newKey.String(), c.repoCacheExpiration)
 }
 
-func (c *Cache) GetManifests(manifestKey ManifestKey, res *CachedManifestResponse) error {
+func (c *Cache) GetManifests(manifestKey manifestKey, res *CachedManifestResponse) error {
+	logCtx := log.WithField("cacheKey", manifestKey.String())
 	err := c.cache.GetItem(manifestKey.String(), res)
 	if err != nil {
 		return err
@@ -390,9 +403,8 @@ func (c *Cache) GetManifests(manifestKey ManifestKey, res *CachedManifestRespons
 
 	// If cached result does not have manifests or the expected hash of the cache entry does not match the actual hash value...
 	if hash != res.CacheEntryHash || res.ManifestResponse == nil && res.MostRecentError == "" {
-		log.Warnf("Manifest hash did not match expected value or cached manifests response is empty, treating as a cache miss: %s", manifestKey.AppName)
-
-		LogDebugManifestCacheKeyFields("deleting manifests cache", "manifest hash did not match or cached response is empty", manifestKey)
+		logCtx.Warnf("Manifest hash did not match expected value or cached manifests response is empty, treating as a cache miss: %s", manifestKey.AppName)
+		logCtx.Debug("deleting manifests cache: manifest hash did not match or cached response is empty")
 
 		err = c.DeleteManifests(manifestKey)
 		if err != nil {
@@ -414,7 +426,7 @@ func (c *Cache) GetManifests(manifestKey ManifestKey, res *CachedManifestRespons
 	return nil
 }
 
-func (c *Cache) SetManifests(manifestKey ManifestKey, res *CachedManifestResponse) error {
+func (c *Cache) SetManifests(manifestKey manifestKey, res *CachedManifestResponse) error {
 	// Generate and apply the cache entry hash, before writing
 	if res != nil {
 		res = res.shallowCopy()
@@ -434,7 +446,7 @@ func (c *Cache) SetManifests(manifestKey ManifestKey, res *CachedManifestRespons
 		})
 }
 
-func (c *Cache) DeleteManifests(manifestKey ManifestKey) error {
+func (c *Cache) DeleteManifests(manifestKey manifestKey) error {
 	return c.cache.SetItem(
 		manifestKey.String(),
 		"",

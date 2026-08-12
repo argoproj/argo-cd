@@ -5295,7 +5295,7 @@ func TestReconcileAddsFinalizer_WhenDeletionOrderReverse(t *testing.T) {
 				Metrics:                metrics,
 				EnableProgressiveSyncs: cc.progressiveSyncEnabled,
 			}
-			r.ProgressiveSyncManager = progressivesync.NewManager(r.Client, &r)
+			r.ProgressiveSyncManager = progressivesync.NewManager(r.Client, r.Client, &r)
 
 			req := ctrl.Request{
 				NamespacedName: types.NamespacedName{
