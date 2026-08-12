@@ -1367,6 +1367,16 @@ func TestGetPodInfo(t *testing.T) {
 		assert.Contains(t, info.Images, "nginx:latest")
 		assert.Contains(t, info.Images, "registry.example.com/data-image:v1")
 		assert.Len(t, info.Images, 2)
+
+		var volumeImagesInfo *v1alpha1.InfoItem
+		for i := range info.Info {
+			if info.Info[i].Name == "Volume Images" {
+				volumeImagesInfo = &info.Info[i]
+				break
+			}
+		}
+		assert.NotNil(t, volumeImagesInfo)
+		assert.Equal(t, "registry.example.com/data-image:v1", volumeImagesInfo.Value)
 	})
 }
 

@@ -639,8 +639,13 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	for _, container := range pod.Spec.Containers {
 		imagesSet[container.Image] = true
 	}
+
+	var volumeImages []string
 	for _, volume := range pod.Spec.Volumes {
 		if volume.Image != nil && volume.Image.Reference != "" {
+			if !imagesSet[volume.Image.Reference] {
+				volumeImages = append(volumeImages, volume.Image.Reference)
+			}
 			imagesSet[volume.Image.Reference] = true
 		}
 	}
@@ -648,6 +653,10 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	res.Images = nil
 	for image := range imagesSet {
 		res.Images = append(res.Images, image)
+	}
+
+	if len(volumeImages) > 0 {
+		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Volume Images", Value: strings.Join(volumeImages, ",")})
 	}
 
 	// If the Pod carries {type:PodScheduled, reason:SchedulingGated}, set reason to 'SchedulingGated'.
