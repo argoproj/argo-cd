@@ -5060,6 +5060,25 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				Paths:          []string{},
 			},
 		}, want: &apiclient.UpdateRevisionForPathsResponse{Changes: true}, wantErr: assert.NoError},
+		{name: "OCIRepoWithEmptyTypeShortCircuits", fields: func() fields {
+			// Regression test: empty Type on an oci:// repo URL must not be normalized to "git",
+			// otherwise the call falls through to git LsRemote and fails with
+			// "unsupported scheme oci".
+			s, _, c := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, _ *iomocks.TempPaths) {
+			}, ".")
+			return fields{
+				service: s,
+				cache:   c,
+			}
+		}(), args: args{
+			ctx: t.Context(),
+			request: &apiclient.UpdateRevisionForPathsRequest{
+				Repo:           &v1alpha1.Repository{Repo: "oci://example.com/foo"},
+				Revision:       "1.0.0",
+				SyncedRevision: "0.9.0",
+				Paths:          []string{"."},
+			},
+		}, want: &apiclient.UpdateRevisionForPathsResponse{}, wantErr: assert.NoError},
 		{name: "SameResolvedRevisionAbort", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
@@ -5433,6 +5452,86 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 			ExternalRenames: 1,
 			ExternalGets:    1,
 			ExternalSets:    1,
+		}},
+		{name: "UntypedHelmSourceWithRefSourcesNotTreatedAsGit", fields: func() fields {
+			// An untyped Helm chart source (Type is empty) with ref sources must not be
+			// treated as git. Before the fix, the empty type was assumed to be git, so any
+			// git client call here would resolve a git revision against the Helm repository
+			// URL and fail with "repository not found" (issue #28890). The mocks below make
+			// any git resolution fail so that the test only passes when the git path is skipped.
+			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+				gitClient.EXPECT().LsRemote(mock.Anything).Return("", errors.New("failed to list refs: repository not found"))
+				gitClient.EXPECT().Root().Return("")
+				paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+				paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+			}, ".")
+			return fields{
+				service: s,
+				cache:   c,
+			}
+		}(), args: args{
+			ctx: t.Context(),
+			request: &apiclient.UpdateRevisionForPathsRequest{
+				Repo: &v1alpha1.Repository{Repo: "https://charts.example.com"},
+				RefSources: v1alpha1.RefTargetRevisionMapping{
+					"$values": {Repo: v1alpha1.Repository{Repo: "a-url.com"}, TargetRevision: "HEAD"},
+				},
+				SyncedRefSources: v1alpha1.RefTargetRevisionMapping{
+					"$values": {Repo: v1alpha1.Repository{Repo: "a-url.com"}, TargetRevision: "SYNCEDHEAD"},
+				},
+				Revision:           "0.0.1",
+				SyncedRevision:     "0.0.2",
+				Paths:              []string{"."},
+				AppLabelKey:        "app.kubernetes.io/name",
+				AppName:            "untyped-helm-source",
+				Namespace:          "default",
+				TrackingMethod:     "annotation+label",
+				ApplicationSource:  &v1alpha1.ApplicationSource{Chart: "my-chart", Helm: &v1alpha1.ApplicationSourceHelm{ReleaseName: "test"}},
+				KubeVersion:        "v1.16.0",
+				HasMultipleSources: true,
+			},
+		}, want: &apiclient.UpdateRevisionForPathsResponse{
+			Revision: "0.0.1",
+			Changes:  false,
+		}, wantErr: assert.NoError, cacheCallCount: &repositorymocks.CacheCallCounts{
+			ExternalRenames: 0,
+			ExternalGets:    0,
+			ExternalSets:    0,
+		}},
+		{name: "ExplicitGitTypeWithHelmSourceStillTreatedAsGit", fields: func() fields {
+			// A repository with an explicitly configured git type must keep using the git
+			// path even when the application source carries a chart name. Only a type that
+			// Normalize defaulted to git may be overridden by the application source type,
+			// otherwise a multi source app whose git repo also sets a chart would stop
+			// having its git revision resolved at all.
+			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+				gitClient.EXPECT().LsRemote("HEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
+				gitClient.EXPECT().LsRemote("SYNCEDHEAD").Once().Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
+				paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+				paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+			}, ".")
+			return fields{
+				service: s,
+				cache:   c,
+			}
+		}(), args: args{
+			ctx: t.Context(),
+			request: &apiclient.UpdateRevisionForPathsRequest{
+				Repo:              &v1alpha1.Repository{Repo: "a-url.com", Type: "git"},
+				Revision:          "HEAD",
+				SyncedRevision:    "SYNCEDHEAD",
+				Paths:             []string{"."},
+				ApplicationSource: &v1alpha1.ApplicationSource{Chart: "my-chart"},
+			},
+		}, want: &apiclient.UpdateRevisionForPathsResponse{
+			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0",
+			Changes:  false,
+		}, wantErr: assert.NoError, cacheCallCount: &repositorymocks.CacheCallCounts{
+			ExternalRenames: 0,
+			ExternalGets:    0,
+			ExternalSets:    0,
 		}},
 	}
 	for _, tt := range tests {
