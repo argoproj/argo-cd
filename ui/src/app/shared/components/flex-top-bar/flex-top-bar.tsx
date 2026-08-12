@@ -28,7 +28,8 @@ export const FlexTopBar = (props: FlexTopBarProps) => {
         updateTopBarHeight();
 
         if (typeof ResizeObserver === 'undefined') {
-            return;
+            window.addEventListener('resize', updateTopBarHeight);
+            return () => window.removeEventListener('resize', updateTopBarHeight);
         }
 
         const observer = new ResizeObserver(updateTopBarHeight);
