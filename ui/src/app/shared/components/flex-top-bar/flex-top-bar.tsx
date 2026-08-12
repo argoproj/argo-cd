@@ -15,12 +15,33 @@ interface FlexTopBarProps {
 }
 
 export const FlexTopBar = (props: FlexTopBarProps) => {
+    const topBarRef = React.useRef<HTMLDivElement>(null);
+    const [topBarHeight, setTopBarHeight] = React.useState<number>();
+
+    React.useLayoutEffect(() => {
+        const topBar = topBarRef.current;
+        if (!topBar) {
+            return;
+        }
+
+        const updateTopBarHeight = () => setTopBarHeight(topBar.getBoundingClientRect().height);
+        updateTopBarHeight();
+
+        if (typeof ResizeObserver === 'undefined') {
+            return;
+        }
+
+        const observer = new ResizeObserver(updateTopBarHeight);
+        observer.observe(topBar);
+        return () => observer.disconnect();
+    }, []);
+
     return (
         <React.Fragment>
-            <div className='top-bar row flex-top-bar' key='tool-bar'>
+            <div ref={topBarRef} className='top-bar row flex-top-bar' key='tool-bar'>
                 <FlexTopBarContent toolbar={props.toolbar} />
             </div>
-            <div className='flex-top-bar__padder' />
+            <div className='flex-top-bar__padder' style={topBarHeight === undefined ? undefined : {height: topBarHeight}} />
         </React.Fragment>
     );
 };
