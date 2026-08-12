@@ -582,7 +582,7 @@ func printGitGpgSourceIntegrityResponse(w io.Writer, items []*applicationpkg.Ins
 		gpgPolicy := item.GetGitGpgPolicy()
 		isStrictMode := gpgPolicy != nil && gpgPolicy.Mode == v1alpha1.SourceIntegrityGitPolicyGPGModeStrict
 		if i > 0 {
-			fmt.Fprintf(w, "\n--------------------------------\n\n")
+			fmt.Fprint(w, "\n--------------------------------\n\n")
 		}
 
 		printGitGpgSourceIntegrityItemHeader(w, item)
@@ -601,7 +601,7 @@ func printGitGpgSourceIntegrityResponse(w io.Writer, items []*applicationpkg.Ins
 
 			fmt.Fprintln(w, "\nPROBLEMATIC COMMITS:")
 			tabW := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
-			fmt.Fprintf(tabW, "  Revision\tDate\tAuthor\tSubject\tResult\n")
+			fmt.Fprint(tabW, "  Revision\tDate\tAuthor\tSubject\tResult\n")
 			for _, commit := range item.GetCommits() {
 				fmt.Fprintf(tabW, "  %s\t%s\t%s\t%s\t%s\n", commit.GetRevision(), formatCommitDate(commit.GetDate()), commit.GetAuthor(), commit.GetSubject(), commit.GetVerificationResult())
 			}
