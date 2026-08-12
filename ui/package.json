@@ -61,7 +61,7 @@
     "@types/react": "^16.9.3",
     "@types/react-dom": "^16.8.2",
     "normalize-url": "4.5.1",
-    "redoc/dompurify": "^3.4.0",
+    "redoc/dompurify": "3.4.7",
     "rxjs": "6.6.7",
     "form-data": "4.0.6",
     "minimatch/brace-expansion": "1.1.18",
