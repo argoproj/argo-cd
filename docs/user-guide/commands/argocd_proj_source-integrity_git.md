@@ -64,6 +64,6 @@ argocd proj source-integrity git [flags]
 ### SEE ALSO
 
 * [argocd proj source-integrity](argocd_proj_source-integrity.md)	 - Manage criteria for source integrity
-* [argocd proj source-integrity git gpg-inspect-repo](argocd_proj_source-integrity_git_gpg-inspect-repo.md)	 - Inspect the problematic GPG signatures for an application
+* [argocd proj source-integrity git gpg-inspect-repo](argocd_proj_source-integrity_git_gpg-inspect-repo.md)	 - Inspect the Git/GPG source integrity of an application in a project
 * [argocd proj source-integrity git policies](argocd_proj_source-integrity_git_policies.md)	 - Manage git source integrity policies
 

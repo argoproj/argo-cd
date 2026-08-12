@@ -2,7 +2,7 @@
 
 ## argocd proj source-integrity git gpg-inspect-repo
 
-Inspect the problematic GPG signatures for an application
+Inspect the Git/GPG source integrity of an application in a project
 
 ```
 argocd proj source-integrity git gpg-inspect-repo PROJECT APPNAME [flags]

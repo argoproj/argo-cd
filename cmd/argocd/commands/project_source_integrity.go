@@ -540,14 +540,17 @@ func NewProjectSourceIntegrityGitPoliciesUpdateCommand(clientOpts *argocdclient.
 func NewProjectSourceIntegrityGitGpgInspectRepoCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	return &cobra.Command{
 		Use:   "gpg-inspect-repo PROJECT APPNAME",
-		Short: "Inspect the problematic GPG signatures for an application",
-		RunE: func(c *cobra.Command, args []string) error {
-			ctx := c.Context()
-
+		Short: "Inspect the Git/GPG source integrity of an application in a project",
+		Args: func(c *cobra.Command, args []string) error {
 			if len(args) != 2 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
+				return NewExitError(1, nil)
 			}
+
+			return nil
+		},
+		RunE: func(c *cobra.Command, args []string) error {
+			ctx := c.Context()
 
 			cleanup, applicationClient := newApplicationClient(clientOpts, c)
 			defer utilio.Close(cleanup)
@@ -562,12 +565,12 @@ func NewProjectSourceIntegrityGitGpgInspectRepoCommand(clientOpts *argocdclient.
 
 			if len(data.GetItems()) == 0 {
 				fmt.Fprintf(c.ErrOrStderr(), "Git/GPG source integrity is not configured for any source of application %q, check the project and application configuration.\n", appName)
-				os.Exit(3)
+				return NewExitError(3, nil)
 			}
 
 			hasSourceIntegrityProblems := printGitGpgSourceIntegrityResponse(c.OutOrStdout(), data.GetItems())
 			if hasSourceIntegrityProblems {
-				os.Exit(2)
+				return NewExitError(2, nil)
 			}
 
 			return nil
