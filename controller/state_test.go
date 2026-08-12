@@ -1939,6 +1939,32 @@ func TestUseDiffCache(t *testing.T) {
 			expectedUseCache:     false,
 			serverSideDiff:       false,
 		},
+		{
+			testName:             "will use diff cache if status refresh timeout is disabled",
+			noCache:              false,
+			manifestInfos:        manifestInfos("rev1"),
+			sources:              sources(),
+			app:                  app("httpbin", "rev1", false, nil),
+			manifestRevisions:    []string{"rev1"},
+			statusRefreshTimeout: 0,
+			expectedUseCache:     true,
+			serverSideDiff:       false,
+		},
+		{
+			testName:      "will return false if never reconciled and status refresh timeout is disabled",
+			noCache:       false,
+			manifestInfos: manifestInfos("rev1"),
+			sources:       sources(),
+			app: app("httpbin", "rev1", false, &v1alpha1.Application{
+				Status: v1alpha1.ApplicationStatus{
+					ReconciledAt: nil,
+				},
+			}),
+			manifestRevisions:    []string{"rev1"},
+			statusRefreshTimeout: 0,
+			expectedUseCache:     false,
+			serverSideDiff:       false,
+		},
 	}
 
 	for _, tc := range cases {

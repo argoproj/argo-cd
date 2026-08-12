@@ -1133,7 +1133,8 @@ func useDiffCache(noCache bool, manifestInfos []*apiclient.ManifestResponse, sou
 	// app refresh with serverSideDiff is enabled. If there are negative side
 	// effects identified with this approach, the serverSideDiff should be removed
 	// from this condition.
-	if app.Status.Expired(statusRefreshTimeout) && !serverSideDiff {
+	softExpired, _ := comparisonExpiry(app.Status, statusRefreshTimeout, 0)
+	if softExpired && !serverSideDiff {
 		log.WithField("useDiffCache", "false").Debug("app.status.expired")
 		return false
 	}
