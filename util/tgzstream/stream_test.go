@@ -39,6 +39,23 @@ func TestCloseAndDeleteTempFilePreservesUnownedParentDirectory(t *testing.T) {
 	assert.NoError(t, err)
 }
 
+func TestIsOwnedTempDir(t *testing.T) {
+	tempRoot := t.TempDir()
+	t.Setenv("TMP", tempRoot)
+	t.Setenv("TEMP", tempRoot)
+	t.Setenv("TMPDIR", tempRoot)
+
+	owned, err := files.CreateTempDir(os.TempDir())
+	require.NoError(t, err)
+	assert.True(t, isOwnedTempDir(owned))
+	assert.False(t, isOwnedTempDir(tempRoot))
+
+	unowned := filepath.Join(tempRoot, "not-a-uuid")
+	require.NoError(t, os.Mkdir(unowned, 0o755))
+	assert.False(t, isOwnedTempDir(unowned))
+	assert.False(t, isOwnedTempDir(filepath.Join(owned, "child")))
+}
+
 func TestCloseAndDeletePreservesParentDirectory(t *testing.T) {
 	parent := t.TempDir()
 	file, err := os.CreateTemp(parent, "archive")
