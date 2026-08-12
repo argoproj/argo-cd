@@ -7,8 +7,14 @@ set -o pipefail
 SRCROOT="$( CDPATH='' cd -- "$(dirname "$0")/.." && pwd -P )"
 AUTOGENMSG="# This is an auto-generated file. DO NOT EDIT"
 
+# shellcheck disable=SC2128
+PROJECT_ROOT=$(
+    cd "$(dirname "${BASH_SOURCE}")"/..
+    pwd
+)
+PATH="${PROJECT_ROOT}/dist:${PATH}"
+
 KUSTOMIZE=kustomize
-[ -f "$SRCROOT/dist/kustomize" ] && KUSTOMIZE="$SRCROOT/dist/kustomize"
 
 cd "${SRCROOT}/manifests/ha/base/redis-ha" && ./generate.sh
 
