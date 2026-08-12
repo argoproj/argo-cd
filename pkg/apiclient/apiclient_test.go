@@ -369,7 +369,7 @@ enablePKCEAuthentication: true
 	require.True(t, oidcConfig.EnablePKCEAuthentication,
 		"control: enablePKCEAuthentication should survive parsing")
 	assert.True(t, argoCDSettings.DisableOfflineAccessScopeInjection,
-		"operator setting should survive parsing into the exported OIDC config")
+		"operator setting should survive parsing")
 
 	set := &settingspkg.Settings{
 		URL:                                srv.URL,
