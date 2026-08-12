@@ -647,7 +647,7 @@ func printGitGpgSourceIntegrityItemHeader(w io.Writer, item *applicationpkg.Insp
 		if !isStrictMode {
 			fmt.Fprint(w, " (SIMULATED STRICT MODE)")
 		}
-		fmt.Fprintln(w, "")
+		fmt.Fprintln(w)
 
 		fmt.Fprintln(w, "GPG Keys:")
 		for _, key := range gpgPolicy.Keys {
