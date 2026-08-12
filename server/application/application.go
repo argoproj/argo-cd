@@ -1840,15 +1840,14 @@ func (s *Server) InspectGitGPGSourceIntegrity(ctx context.Context, q *applicatio
 
 		if source.IsZero() || source.IsOCI() || source.IsHelm() {
 			// skip non-git sources in output
-			log.Warnf("source %s is not a git source", source.RepoURL)
 			continue
 		}
 
 		gitPolicy, err := selectGitGPGPolicy(sourceIntegrity, source)
 		if err != nil {
 			msg := err.Error()
-			log.Warnf("error selecting git gpg policy for source %s: %v", source.RepoURL, err)
 			item.ErrorMessage = &msg
+			items = append(items, item)
 			continue
 		}
 

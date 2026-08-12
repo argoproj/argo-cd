@@ -561,17 +561,23 @@ func NewProjectSourceIntegrityGitGpgInspectRepoCommand(clientOpts *argocdclient.
 			}
 
 			if len(data.GetItems()) == 0 {
-				return fmt.Errorf("Git/GPG source integrity is not configured for any source of application %q, check the project and application configuration", appName)
+				fmt.Fprintf(c.ErrOrStderr(), "Git/GPG source integrity is not configured for any source of application %q, check the project and application configuration.\n", appName)
+				os.Exit(3)
 			}
 
-			printGitGpgSourceIntegrityResponse(c.OutOrStdout(), data.GetItems())
+			hasSourceIntegrityProblems := printGitGpgSourceIntegrityResponse(c.OutOrStdout(), data.GetItems())
+			if hasSourceIntegrityProblems {
+				os.Exit(2)
+			}
 
 			return nil
 		},
 	}
 }
 
-func printGitGpgSourceIntegrityResponse(w io.Writer, items []*applicationpkg.InspectGitGPGSourceIntegrityResponse) {
+func printGitGpgSourceIntegrityResponse(w io.Writer, items []*applicationpkg.InspectGitGPGSourceIntegrityResponse) bool {
+	hasSourceIntegrityProblems := false
+
 	for i, item := range items {
 		gpgPolicy := item.GetGitGpgPolicy()
 		isStrictMode := gpgPolicy != nil && gpgPolicy.Mode == v1alpha1.SourceIntegrityGitPolicyGPGModeStrict
@@ -582,14 +588,17 @@ func printGitGpgSourceIntegrityResponse(w io.Writer, items []*applicationpkg.Ins
 		printGitGpgSourceIntegrityItemHeader(w, item)
 
 		if item.GetErrorMessage() != "" {
+			hasSourceIntegrityProblems = true
 			fmt.Fprintf(w, "\nPROBLEMS: %s\n", item.GetErrorMessage())
 		}
 
 		if gpgPolicy != nil && !isStrictMode {
-			fmt.Fprintln(w, "\nWARNING: Project does not have strict GPG mode enabled. GPG verification is not actually enforced.")
+			fmt.Fprintln(w, "\nWARNING: Project does not have strict Git/GPG mode enabled. Strict GPG verification is not actually enforced.")
 		}
 
 		if len(item.GetCommits()) > 0 {
+			hasSourceIntegrityProblems = true
+
 			fmt.Fprintln(w, "\nPROBLEMATIC COMMITS:")
 			tabW := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 			fmt.Fprintf(tabW, "  Revision\tDate\tAuthor\tSubject\tResult\n")
@@ -597,14 +606,13 @@ func printGitGpgSourceIntegrityResponse(w io.Writer, items []*applicationpkg.Ins
 				fmt.Fprintf(tabW, "  %s\t%s\t%s\t%s\t%s\n", commit.GetRevision(), formatCommitDate(commit.GetDate()), commit.GetAuthor(), commit.GetSubject(), commit.GetVerificationResult())
 			}
 			tabW.Flush()
-		} else {
-			fmt.Fprintln(w, "\nNo problematic commits found")
+		} else if item.GetErrorMessage() == "" {
+			// if there is error message the source integrity check won't pass
+			fmt.Fprintln(w, "\nSource passes strict Git/GPG source integrity checks.")
 		}
 		fmt.Fprintln(w)
 
 		fmt.Fprintln(w, "To inspect repository:")
-		fmt.Fprintf(w, "  git clone %s\n", item.GetRepoUrl())
-		fmt.Fprintln(w, "  cd <repo-name>")
 		fmt.Fprintln(w, "  git fetch --tags")
 		fmt.Fprintf(w, "  git checkout %s\n", item.GetResolvedRevision())
 		fmt.Fprintf(w, "  git log --oneline %s\n", item.GetResolvedRevision())
@@ -613,13 +621,15 @@ func printGitGpgSourceIntegrityResponse(w io.Writer, items []*applicationpkg.Ins
 			revisions = append(revisions, commit.GetRevision())
 		}
 		if len(revisions) > 0 {
-			fmt.Fprintf(w, "  git show --show-signature %s\n", strings.Join(revisions, " "))
+			fmt.Fprintf(w, "  git log -p --no-walk %s\n", strings.Join(revisions, " "))
 		}
 
 		fmt.Fprintln(w)
-		fmt.Fprintln(w, "To create seal commit:")
+		fmt.Fprintln(w, "To create seal commit (this will trust all commits up to this point):")
 		fmt.Fprintln(w, `  git commit --signoff --gpg-sign --trailer="Argocd-gpg-seal: <justification>"`)
 	}
+
+	return hasSourceIntegrityProblems
 }
 
 func printGitGpgSourceIntegrityItemHeader(w io.Writer, item *applicationpkg.InspectGitGPGSourceIntegrityResponse) {
