@@ -7,11 +7,17 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/argoproj/argo-cd/v3/util/io/files"
 )
 
 func TestCloseAndDeleteTempFileRemovesParentDirectory(t *testing.T) {
-	parent := filepath.Join(t.TempDir(), "stream")
-	require.NoError(t, os.Mkdir(parent, 0o755))
+	tempRoot := t.TempDir()
+	t.Setenv("TMP", tempRoot)
+	t.Setenv("TEMP", tempRoot)
+	t.Setenv("TMPDIR", tempRoot)
+	parent, err := files.CreateTempDir(os.TempDir())
+	require.NoError(t, err)
 	file, err := os.CreateTemp(parent, "archive")
 	require.NoError(t, err)
 
@@ -19,6 +25,18 @@ func TestCloseAndDeleteTempFileRemovesParentDirectory(t *testing.T) {
 
 	_, err = os.Stat(parent)
 	assert.ErrorIs(t, err, os.ErrNotExist)
+}
+
+func TestCloseAndDeleteTempFilePreservesUnownedParentDirectory(t *testing.T) {
+	parent := filepath.Join(t.TempDir(), "shared")
+	require.NoError(t, os.Mkdir(parent, 0o755))
+	file, err := os.CreateTemp(parent, "archive")
+	require.NoError(t, err)
+
+	CloseAndDeleteTempFile(file)
+
+	_, err = os.Stat(parent)
+	assert.NoError(t, err)
 }
 
 func TestCloseAndDeletePreservesParentDirectory(t *testing.T) {
@@ -50,11 +68,12 @@ func TestCompressFilesCleanupRemovesTemporaryDirectory(t *testing.T) {
 
 func TestCompressFilesCleansTemporaryDirectoryOnFailure(t *testing.T) {
 	tempRoot := t.TempDir()
+	appPath := t.TempDir()
 	t.Setenv("TMP", tempRoot)
 	t.Setenv("TEMP", tempRoot)
 	t.Setenv("TMPDIR", tempRoot)
 
-	_, _, _, err := CompressFiles(filepath.Join(t.TempDir(), "missing"), nil, nil)
+	_, _, _, err := CompressFiles(filepath.Join(appPath, "missing"), nil, nil)
 	require.Error(t, err)
 
 	entries, err := os.ReadDir(tempRoot)

@@ -31,11 +31,11 @@ func (failingSender) Send(*pluginclient.AppStreamRequest) error {
 
 func TestSendRepoStreamCleansTemporaryDirectoryWhenMetadataSendFails(t *testing.T) {
 	tempRoot := t.TempDir()
+	appPath := t.TempDir()
 	t.Setenv("TMP", tempRoot)
 	t.Setenv("TEMP", tempRoot)
 	t.Setenv("TMPDIR", tempRoot)
 
-	appPath := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(appPath, "config.yaml"), []byte("kind: ConfigMap\n"), 0o600))
 
 	err := cmp.SendRepoStream(t.Context(), appPath, appPath, failingSender{}, nil, nil)

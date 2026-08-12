@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v3/util/io/files"
@@ -26,17 +27,31 @@ func CloseAndDelete(f *os.File) {
 }
 
 // CloseAndDeleteTempFile closes and deletes a file created in a dedicated
-// temporary directory, then removes that directory. It must only be used for
-// files whose parent directory is owned by the caller.
+// temporary directory, then removes that directory. The directory is removed
+// only when it is a direct UUID-named child of os.TempDir().
 func CloseAndDeleteTempFile(f *os.File) {
 	if f == nil {
 		return
 	}
 	name := f.Name()
 	CloseAndDelete(f)
-	if err := os.RemoveAll(filepath.Dir(name)); err != nil {
+	tempDir := filepath.Dir(name)
+	if !isOwnedTempDir(tempDir) {
+		log.Warnf("refusing to remove unowned temporary directory %q for file %q", tempDir, name)
+		return
+	}
+	if err := os.Remove(tempDir); err != nil {
 		log.Warnf("error removing temporary directory for file %q: %s", name, err)
 	}
+}
+
+func isOwnedTempDir(tempDir string) bool {
+	relPath, err := filepath.Rel(os.TempDir(), tempDir)
+	if err != nil || filepath.Dir(relPath) != "." {
+		return false
+	}
+	_, err = uuid.Parse(relPath)
+	return err == nil
 }
 
 // CompressFiles will create a tgz file with all contents of appPath
