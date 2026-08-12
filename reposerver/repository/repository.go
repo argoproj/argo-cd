@@ -132,7 +132,6 @@ type RepoServerInitConstants struct {
 	EnableBuiltinGitConfig                       bool
 	HelmUserAgent                                string
 	HelmChartCacheExpiration                     time.Duration // Cache expiration for repo
-	EnableTrackingLabelsOnCRDs                   bool
 	EnableTrackingLabelOnCRDs                    bool
 }
 
