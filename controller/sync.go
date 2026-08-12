@@ -190,7 +190,16 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 	}
 
 	filteredWindows, directWindows := m.resolveSyncWindowCRDRefs(app, project)
-	if isBlocked, err := syncWindowPreventsSync(app, project, filteredWindows, directWindows); isBlocked {
+	isManual := false
+	var operationStartTime *time.Time
+	if app.Status.OperationState != nil {
+		isManual = !app.Status.OperationState.Operation.InitiatedBy.Automated
+		if !app.Status.OperationState.StartedAt.IsZero() {
+			t := app.Status.OperationState.StartedAt.Time
+			operationStartTime = &t
+		}
+	}
+	if isBlocked, err := syncWindowPreventsSync(app, project, filteredWindows, directWindows, isManual, operationStartTime); isBlocked {
 		// If the operation is currently running, simply let the user know the sync is blocked by a current sync window
 		if state.Phase == common.OperationRunning {
 			state.Message = "Sync operation blocked by sync window"
@@ -726,7 +735,7 @@ func delayBetweenSyncWaves(_ common.SyncPhase, _ int, finalWave bool) error {
 	return nil
 }
 
-func syncWindowPreventsSync(app *v1alpha1.Application, proj *v1alpha1.AppProject, filteredWindows v1alpha1.SyncWindows, directWindows v1alpha1.SyncWindows) (bool, error) {
+func syncWindowPreventsSync(app *v1alpha1.Application, proj *v1alpha1.AppProject, filteredWindows v1alpha1.SyncWindows, directWindows v1alpha1.SyncWindows, isManual bool, operationStartTime *time.Time) (bool, error) {
 	window := proj.Spec.SyncWindows.Matches(app)
 	// Merge filtered windows (from project refs) — these need Matches() filtering.
 	if len(filteredWindows) > 0 {
@@ -746,15 +755,6 @@ func syncWindowPreventsSync(app *v1alpha1.Application, proj *v1alpha1.AppProject
 			window = &w
 		} else {
 			*window = append(*window, directWindows...)
-		}
-	}
-	isManual := false
-	var operationStartTime *time.Time
-	if app.Status.OperationState != nil {
-		isManual = !app.Status.OperationState.Operation.InitiatedBy.Automated
-		if !app.Status.OperationState.StartedAt.IsZero() {
-			t := app.Status.OperationState.StartedAt.Time
-			operationStartTime = &t
 		}
 	}
 	canSync, err := window.CanSync(isManual, operationStartTime)

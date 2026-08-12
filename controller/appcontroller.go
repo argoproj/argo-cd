@@ -322,6 +322,10 @@ func NewApplicationController(
 	syncWindowLister := applisters.NewSyncWindowLister(syncWindowInformer.GetIndexer())
 	ctrl.syncWindowInformer = syncWindowInformer
 	ctrl.syncWindowLister = syncWindowLister
+	_, err = syncWindowInformer.AddEventHandler(ctrl.syncWindowEventHandlerFuncs())
+	if err != nil {
+		return nil, err
+	}
 
 	appStateManager := NewAppStateManager(db, applicationClientset, repoClientset, namespace, kubectl, ctrl.onKubectlRun, ctrl.settingsMgr, stateCache, ctrl.metricsServer, argoCache, ctrl.statusRefreshTimeout, argo.NewResourceTracking(), persistResourceHealth, repoErrorGracePeriod, serverSideDiff, ignoreNormalizerOpts, syncWindowLister, syncWindowInformer.HasSynced)
 	ctrl.appInformer = appInformer
@@ -2577,7 +2581,10 @@ func (ctrl *ApplicationController) syncWindowPreventsAutoSync(app *appv1.Applica
 			directWindows = append(directWindows, windows...)
 		}
 	}
-	return syncWindowPreventsSync(app, project, filteredWindows, directWindows)
+	// Auto-sync decision path: no operation has started yet, so pass isManual=false
+	// and operationStartTime=nil. status.OperationState here reflects a *previous*
+	// operation and must not influence whether the next auto-sync attempt is allowed.
+	return syncWindowPreventsSync(app, project, filteredWindows, directWindows, false, nil)
 }
 
 // autoSync will initiate a sync operation for an application configured with automated sync
@@ -2953,6 +2960,88 @@ func (ctrl *ApplicationController) appProjectEventHandlerFuncs() cache.ResourceE
 			}
 		},
 	}
+}
+
+// syncWindowEventHandlerFuncs returns the informer event handlers for SyncWindow CRDs.
+// On Add/Update/Delete of a SyncWindow, apps whose Application.spec.syncWindowRefs or
+// whose project's spec.syncWindowRefs match the CR (by name or label selector) are
+// enqueued to appRefreshQueue immediately.
+func (ctrl *ApplicationController) syncWindowEventHandlerFuncs() cache.ResourceEventHandlerFuncs {
+	requeue := func(obj any) {
+		sw, ok := obj.(metav1.Object)
+		if !ok {
+			return
+		}
+		swName := sw.GetName()
+		swLabels := labels.Set(sw.GetLabels())
+		apps, err := ctrl.appLister.List(labels.Everything())
+		if err != nil {
+			log.WithError(err).Error("Failed to list applications for sync window event")
+			return
+		}
+		for _, app := range apps {
+			if !ctrl.appReferencesSyncWindow(app, swName, swLabels) {
+				continue
+			}
+			if key, err := cache.MetaNamespaceKeyFunc(app); err == nil {
+				ctrl.appRefreshQueue.Add(key)
+			}
+		}
+	}
+	return cache.ResourceEventHandlerFuncs{
+		AddFunc:    func(obj any) { requeue(obj) },
+		UpdateFunc: func(_, new any) { requeue(new) },
+		DeleteFunc: func(obj any) {
+			if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+				obj = tombstone.Obj
+			}
+			requeue(obj)
+		},
+	}
+}
+
+// syncWindowRefMatches reports whether a SyncWindowRef targets the given
+// SyncWindow Matches by exact name OR by label selector; if
+// both are set on the ref the resolver already treats it as invalid, so name takes
+// precedence here for the purpose of best-effort event routing.
+func syncWindowRefMatches(ref appv1.SyncWindowRef, swName string, swLabels labels.Set) bool {
+	if ref.Name != "" {
+		return ref.Name == swName
+	}
+	if ref.Selector != nil {
+		selector, err := metav1.LabelSelectorAsSelector(ref.Selector)
+		if err != nil {
+			return false
+		}
+		return selector.Matches(swLabels)
+	}
+	return false
+}
+
+// appReferencesSyncWindow reports whether the given application should be refreshed
+// in response to a change of the SyncWindow with the given name and labels. An app
+// is affected if it or its project references the sync window directly (by name) or
+// via a matching label selector.
+func (ctrl *ApplicationController) appReferencesSyncWindow(app *appv1.Application, swName string, swLabels labels.Set) bool {
+	for _, ref := range app.Spec.SyncWindowRefs {
+		if syncWindowRefMatches(ref, swName, swLabels) {
+			return true
+		}
+	}
+	obj, exists, err := ctrl.projInformer.GetIndexer().GetByKey(ctrl.namespace + "/" + app.Spec.GetProject())
+	if err != nil || !exists {
+		return false
+	}
+	proj, ok := obj.(*appv1.AppProject)
+	if !ok {
+		return false
+	}
+	for _, pref := range proj.Spec.SyncWindowRefs {
+		if syncWindowRefMatches(pref.Ref, swName, swLabels) {
+			return true
+		}
+	}
+	return false
 }
 
 // applicationEventHandlerFuncs returns the informer event handlers for Application
