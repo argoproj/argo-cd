@@ -1,15 +1,15 @@
 import {DropDown, Tooltip} from 'argo-ui';
 import * as React from 'react';
-import * as classNames from 'classnames';
+import classNames from 'classnames';
 import * as models from '../../../shared/models';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
+import {ActionMenuButton, EditablePanel} from '../../../shared/components';
 import {
     ComparisonStatusIcon,
     HealthStatusIcon,
     nodeKey,
     isSameNode,
-    createdOrNodeKey,
     resourceStatusToResourceNode,
     getApplicationLinkURLFromNode,
     getManagedByURLFromNode,
@@ -20,8 +20,9 @@ import {AppDetailsPreferences} from '../../../shared/services';
 import {Consumer} from '../../../shared/context';
 import Moment from 'react-moment';
 import {format} from 'date-fns';
-import {HealthPriority, ResourceNode, SyncPriority, SyncStatusCode} from '../../../shared/models';
+import {ResourceNode} from '../../../shared/models';
 import {isValidManagedByURL} from '../../../shared/utils';
+import {ApplicationResourceSortKey} from './application-resource-sort';
 import './application-resource-list.scss';
 
 export interface ApplicationResourceListProps {
@@ -30,130 +31,76 @@ export interface ApplicationResourceListProps {
     onNodeClick?: (fullName: string) => any;
     nodeMenu?: (node: models.ResourceNode) => React.ReactNode;
     tree?: models.ApplicationTree;
+    selectedNodeFullName?: string;
+    sortKey?: ApplicationResourceSortKey;
+    requestSort?: (key: ApplicationResourceSortKey) => void;
+    sortIcon?: (key: ApplicationResourceSortKey) => React.ReactNode;
 }
+
+export interface ApplicationResourceParentRefProps {
+    resources: models.ResourceStatus[];
+    tree?: models.ApplicationTree;
+}
+
+export const ApplicationResourceParentRef = (props: ApplicationResourceParentRefProps) => {
+    const nodeByKey = new Map<string, models.ResourceNode>();
+    props.tree?.nodes?.forEach(res => nodeByKey.set(nodeKey(res), res));
+
+    const firstParentNode = props.resources.length > 0 && (nodeByKey.get(nodeKey(props.resources[0])) as ResourceNode)?.parentRefs?.[0];
+    const isSameParent = firstParentNode && props.resources?.every(x => (nodeByKey.get(nodeKey(x)) as ResourceNode)?.parentRefs?.every(p => isSameNode(p, firstParentNode)));
+
+    if (!isSameParent) {
+        return null;
+    }
+
+    return (
+        <EditablePanel
+            title='PARENT NODE'
+            values={firstParentNode}
+            items={[
+                {
+                    title: 'KIND',
+                    view: firstParentNode.kind
+                },
+                {
+                    title: 'NAME',
+                    view: firstParentNode.name
+                },
+                {
+                    title: 'NAMESPACE',
+                    view: firstParentNode.namespace
+                }
+            ]}
+        />
+    );
+};
 
 export const ApplicationResourceList = (props: ApplicationResourceListProps) => {
     const nodeByKey = new Map<string, models.ResourceNode>();
     props.tree?.nodes?.forEach(res => nodeByKey.set(nodeKey(res), res));
+    const selectedRowRef = React.useRef<HTMLDivElement | null>(null);
 
-    const [sortConfig, setSortConfig] = React.useState<{key: string; direction: 'asc' | 'desc'}>({key: 'createdAt', direction: 'desc'});
-
-    const handleSort = (key: string) => {
-        setSortConfig(prevConfig => {
-            if (prevConfig.key !== key) {
-                return {key, direction: 'asc'};
-            }
-            return {key, direction: prevConfig.direction === 'asc' ? 'desc' : 'asc'};
-        });
-    };
-
-    const getSortArrow = (key: string) => {
-        if (sortConfig.key !== key) {
-            return null;
+    // Whether the selected row is currently rendered: it flips to true once the selected row mounts,
+    // but stays constant across watch refreshes, so the effect below scrolls when the selection appears.
+    const selectedNodePresent = !!props.selectedNodeFullName && (props.resources || []).some(res => nodeKey(res) === props.selectedNodeFullName);
+    React.useEffect(() => {
+        if (props.selectedNodeFullName && selectedRowRef.current) {
+            selectedRowRef.current.scrollIntoView({block: 'nearest', behavior: 'smooth'});
         }
+    }, [props.selectedNodeFullName, selectedNodePresent]);
 
-        const isAsc = sortConfig.direction === 'asc';
-        const style: React.CSSProperties = {
-            position: 'relative',
-            top: isAsc ? '2px' : '-2px'
-        };
-        return (
-            <span style={style}>
-                <i className={isAsc ? 'fa fa-sort-up' : 'fa fa-sort-down'} />
-            </span>
-        );
-    };
+    const handleSort = (key: ApplicationResourceSortKey) => props.requestSort?.(key);
+    const getSortArrow = (key: ApplicationResourceSortKey) => props.sortIcon?.(key);
 
-    const sortedResources = React.useMemo(() => {
-        const resourcesToSort = [...props.resources];
-        resourcesToSort.sort((a, b) => {
-            let compare = 0;
-            switch (sortConfig.key) {
-                case 'name':
-                    compare = a.name.localeCompare(b.name);
-                    break;
-
-                case 'group-kind':
-                    {
-                        const groupKindA = [a.group, a.kind].filter(item => !!item).join('/');
-                        const groupKindB = [b.group, b.kind].filter(item => !!item).join('/');
-                        compare = groupKindA.localeCompare(groupKindB);
-                    }
-                    break;
-
-                case 'syncOrder':
-                    {
-                        const waveA = a.syncWave ?? 0;
-                        const waveB = b.syncWave ?? 0;
-                        compare = waveA - waveB;
-                    }
-                    break;
-                case 'namespace':
-                    {
-                        const namespaceA = a.namespace ?? '';
-                        const namespaceB = b.namespace ?? '';
-                        compare = namespaceA.localeCompare(namespaceB);
-                    }
-                    break;
-                case 'createdAt':
-                    {
-                        compare = createdOrNodeKey(a).localeCompare(createdOrNodeKey(b), undefined, {numeric: true});
-                    }
-                    break;
-                case 'status':
-                    {
-                        const healthA = a.health?.status ?? 'Unknown';
-                        const healthB = b.health?.status ?? 'Unknown';
-                        const syncA = (a.status as SyncStatusCode) ?? 'Unknown';
-                        const syncB = (b.status as SyncStatusCode) ?? 'Unknown';
-
-                        compare = HealthPriority[healthA] - HealthPriority[healthB];
-                        if (compare === 0) {
-                            compare = SyncPriority[syncA] - SyncPriority[syncB];
-                        }
-                    }
-                    break;
-            }
-            return sortConfig.direction === 'asc' ? compare : -compare;
-        });
-        return resourcesToSort;
-    }, [props.resources, sortConfig]);
-
-    const firstParentNode = props.resources.length > 0 && (nodeByKey.get(nodeKey(props.resources[0])) as ResourceNode)?.parentRefs?.[0];
-    const isSameParent = firstParentNode && props.resources?.every(x => (nodeByKey.get(nodeKey(x)) as ResourceNode)?.parentRefs?.every(p => isSameNode(p, firstParentNode)));
     const isSameKind = props.resources?.every(x => x.group === props.resources[0].group && x.kind === props.resources[0].kind);
-    const view = props.pref.view;
 
-    const ParentRefDetails = () => {
-        return isSameParent ? (
-            <div className='resource-parent-node-info-title'>
-                <div>Parent Node Info</div>
-                <div className='resource-parent-node-info-title__label'>
-                    <div>Name:</div>
-                    <div>{firstParentNode.name}</div>
-                </div>
-                <div className='resource-parent-node-info-title__label'>
-                    <div>Kind:</div>
-                    <div>{firstParentNode.kind}</div>
-                </div>
-            </div>
-        ) : (
-            <div />
-        );
-    };
     return (
         props.resources.length > 0 && (
             <div>
-                {/* Display only when the view is set to  or network */}
-                {(view === 'tree' || view === 'network') && (
-                    <div className='resource-details__header' style={{paddingTop: '20px'}}>
-                        <ParentRefDetails />
-                    </div>
-                )}
-                <div className='argo-table-list argo-table-list--clickable'>
+                <div className='application-resource-list argo-table-list argo-table-list--clickable'>
                     <div className='argo-table-list__head'>
                         <div className='row'>
-                            <div className='columns small-1 xxxlarge-1' />
+                            <div className='columns small-1 xxxlarge-1 application-resource-list__icon-column' />
                             <div className='columns small-2 xxxlarge-2' onClick={() => handleSort('name')} style={{cursor: 'pointer'}}>
                                 NAME {getSortArrow('name')}
                             </div>
@@ -175,21 +122,24 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                             </div>
                         </div>
                     </div>
-                    {sortedResources.map(res => {
+                    {props.resources.map(res => {
                         const groupkindjoin = [res.group, res.kind].filter(item => !!item).join('/');
+                        const resKey = nodeKey(res);
+                        const isSelected = props.selectedNodeFullName === resKey;
                         return (
                             <div
-                                key={nodeKey(res)}
+                                key={isSelected ? `${resKey}-highlighted` : resKey}
+                                ref={isSelected ? selectedRowRef : undefined}
                                 className={classNames('argo-table-list__row', {
-                                    'application-resource-tree__node--orphaned': res.orphaned
+                                    'application-resource-list__row--selected': isSelected,
+                                    'application-resource-list__row--orphaned': res.orphaned
                                 })}
-                                onClick={() => props.onNodeClick && props.onNodeClick(nodeKey(res))}>
+                                onClick={() => props.onNodeClick && props.onNodeClick(resKey)}>
                                 <div className='row'>
-                                    <div className='columns small-1 xxxlarge-1'>
-                                        <div className='application-details__resource-icon'>
+                                    <div className='columns small-1 xxxlarge-1 application-resource-list__icon-column'>
+                                        <div className='application-resource-list__kind-icon'>
                                             <ResourceIcon group={res.group} kind={res.kind} />
-                                            <br />
-                                            <div>{ResourceLabel({kind: res.kind})}</div>
+                                            <div className='application-resource-list__kind'>{ResourceLabel({kind: res.kind})}</div>
                                         </div>
                                     </div>
                                     <Tooltip content={res.name} enabled={!!res.name}>
@@ -214,7 +164,7 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                                                                         e.stopPropagation();
                                                                     }}
                                                                     title={`Open application\n${MANAGED_BY_URL_INVALID_TEXT}`}>
-                                                                    <i className='fa fa-external-link-alt' style={{color: MANAGED_BY_URL_INVALID_COLOR}} />
+                                                                    <i className='fa fa-window-maximize' style={{color: MANAGED_BY_URL_INVALID_COLOR}} />
                                                                 </span>
                                                             );
                                                         }
@@ -226,7 +176,7 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                                                                     rel={linkInfo.isExternal ? 'noopener noreferrer' : undefined}
                                                                     onClick={e => e.stopPropagation()}
                                                                     title={managedByURL ? `Open application\nmanaged-by-url: ${managedByURL}` : 'Open application'}>
-                                                                    <i className='fa fa-external-link-alt' />
+                                                                    <i className='fa fa-window-maximize' />
                                                                 </a>
                                                             </span>
                                                         );
@@ -246,7 +196,7 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                                     </Tooltip>
                                     {isSameKind &&
                                         res.kind === 'ReplicaSet' &&
-                                        ((nodeByKey.get(nodeKey(res)) as ResourceNode).info || [])
+                                        (((nodeByKey.get(nodeKey(res)) as ResourceNode | undefined)?.info || (res as unknown as ResourceNode).info || []) as models.InfoItem[])
                                             .filter(tag => !tag.name.includes('Node'))
                                             .slice(0, 4)
                                             .map((tag, i) => {
@@ -277,25 +227,17 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                                         {res.status && <ComparisonStatusIcon status={res.status} resource={res} label={true} />}
                                         {res.hook && <i title='Resource lifecycle hook' className='fa fa-anchor' />}
                                         {props.nodeMenu && (
-                                            <div className='application-details__node-menu'>
-                                                <DropDown
-                                                    isMenu={true}
-                                                    anchor={() => (
-                                                        <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
-                                                            <i className='fa fa-ellipsis-v' />
-                                                        </button>
-                                                    )}>
-                                                    {() => {
-                                                        const node = nodeByKey.get(nodeKey(res));
-                                                        if (node) {
-                                                            return props.nodeMenu(node);
-                                                        } else {
-                                                            // For orphaned resources, create a ResourceNode-like object to prevent errors
-                                                            return props.nodeMenu(resourceStatusToResourceNode(res));
-                                                        }
-                                                    }}
-                                                </DropDown>
-                                            </div>
+                                            <DropDown isMenu={true} anchor={ActionMenuButton}>
+                                                {() => {
+                                                    const node = nodeByKey.get(nodeKey(res));
+                                                    if (node) {
+                                                        return props.nodeMenu(node);
+                                                    } else {
+                                                        // For orphaned resources, create a ResourceNode-like object to prevent errors
+                                                        return props.nodeMenu(resourceStatusToResourceNode(res));
+                                                    }
+                                                }}
+                                            </DropDown>
                                         )}
                                     </div>
                                 </div>

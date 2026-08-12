@@ -22,7 +22,7 @@ Each template has access to the following fields:
 - `appProject` holds the AppProject object associated with the application. This provides access to project-level details like RBAC roles, policies, source repository restrictions, and destination cluster restrictions.
 - `context` is a user-defined string map and might include any string keys and values.
 - `secrets` provides access to sensitive data stored in `argocd-notifications-secret`
-- `serviceType` holds the notification service type name (such as "slack" or "email). The field can be used to conditionally
+- `serviceType` holds the notification service type name (such as "slack" or "email"). The field can be used to conditionally
 render service-specific fields.
 - `recipient` holds the recipient name.
 
@@ -108,35 +108,13 @@ data:
 ## Notification Service Specific Fields
 
 The `message` field of the template definition allows creating a basic notification for any notification service. You can leverage notification service-specific
-fields to create complex notifications. For example using service-specific you can add blocks and attachments for Slack, subject for Email or URL path, and body for Webhook.
+fields to create complex notifications. For example, using service-specific fields you can add blocks and attachments for Slack, subject for Email or URL path, and body for Webhook.
 See corresponding service [documentation](services/overview.md) for more information.
 
 ## Change the timezone
 
-You can change the timezone to show in notifications as follows.
-
-1. Call time functions.
-
-    ```
-    {{ (call .time.Parse .app.status.operationState.startedAt).Local.Format "2006-01-02T15:04:05Z07:00" }}
-    ```
-
-2. Set the `TZ` environment variable on the argocd-notifications-controller container.
-
-    ```yaml
-    apiVersion: apps/v1
-    kind: Deployment
-    metadata:
-      name: argocd-notifications-controller
-    spec:
-      template:
-        spec:
-          containers:
-          - name: argocd-notifications-controller
-            env:
-            - name: TZ
-              value: Asia/Tokyo
-    ```
+To change the timezone used when formatting time values in notifications, see
+[Configuring the local timezone](#configuring-the-local-timezone).
 
 ## Functions
 

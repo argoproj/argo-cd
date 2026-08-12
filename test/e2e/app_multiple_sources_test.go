@@ -25,7 +25,7 @@ func TestMultiSourceAppCreation(t *testing.T) {
 	ctx.
 		Sources(sources).
 		When().
-		CreateMultiSourceAppFromFile().
+		CreateMultiSourceApp().
 		Then().
 		And(func(app *Application) {
 			assert.Equal(t, ctx.GetName(), app.Name)
@@ -80,7 +80,7 @@ func TestMultiSourceAppWithHelmExternalValueFiles(t *testing.T) {
 	ctx.
 		Sources(sources).
 		When().
-		CreateMultiSourceAppFromFile().
+		CreateMultiSourceApp().
 		Then().
 		And(func(app *Application) {
 			assert.Equal(t, ctx.GetName(), app.Name)
@@ -132,7 +132,7 @@ func TestMultiSourceAppWithSourceOverride(t *testing.T) {
 	ctx.
 		Sources(sources).
 		When().
-		CreateMultiSourceAppFromFile().
+		CreateMultiSourceApp().
 		Then().
 		And(func(app *Application) {
 			assert.Equal(t, ctx.GetName(), app.Name)
@@ -186,7 +186,7 @@ func TestMultiSourceAppWithSourceName(t *testing.T) {
 	ctx.
 		Sources(sources).
 		When().
-		CreateMultiSourceAppFromFile().
+		CreateMultiSourceApp().
 		Then().
 		And(func(app *Application) {
 			assert.Equal(t, ctx.GetName(), app.Name)
@@ -248,7 +248,7 @@ func TestMultiSourceAppSetWithSourceName(t *testing.T) {
 	ctx.
 		Sources(sources).
 		When().
-		CreateMultiSourceAppFromFile().
+		CreateMultiSourceApp().
 		Then().
 		And(func(app *Application) {
 			assert.Equal(t, ctx.GetName(), app.Name)
@@ -271,7 +271,7 @@ func TestMultiSourceAppSetWithSourceName(t *testing.T) {
 		})
 }
 
-func TestMultiSourceApptErrorWhenSourceNameAndSourcePosition(t *testing.T) {
+func TestMultiSourceAppErrorWhenSourceNameAndSourcePosition(t *testing.T) {
 	sources := []ApplicationSource{{
 		RepoURL: RepoURL(RepoURLTypeFile),
 		Path:    guestbookPath,
@@ -285,7 +285,7 @@ func TestMultiSourceApptErrorWhenSourceNameAndSourcePosition(t *testing.T) {
 	ctx.
 		Sources(sources).
 		When().
-		CreateMultiSourceAppFromFile().
+		CreateMultiSourceApp().
 		Then().
 		Expect(Event(EventReasonResourceCreated, "create")).
 		And(func(_ *Application) {

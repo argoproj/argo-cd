@@ -14,7 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
 
 	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -303,8 +303,9 @@ func TestLuaResourceActionsScript(t *testing.T) {
 						}
 					}
 
-					// Ideally, we would use a assert.Equal to detect the difference, but the Lua VM returns a object with float64 instead of the original int32.  As a result, the assert.Equal is never true despite that the change has been applied.
-					diffResult, err := diff.Diff(expectedObj, result, diff.WithNormalizer(testNormalizer{}))
+					// Ideally, we would use assert.Equal to detect the difference, but the Lua VM returns an object with float64 instead of the original int32.
+					// As a result, assert.Equal is never true despite that the change has been applied.
+					diffResult, err := diff.Diff(t.Context(), expectedObj, result, diff.WithNormalizer(testNormalizer{}))
 					require.NoError(t, err)
 					if diffResult.Modified {
 						t.Error("Output does not match input:")

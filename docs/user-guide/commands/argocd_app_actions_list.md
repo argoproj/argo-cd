@@ -18,6 +18,7 @@ argocd app actions list APPNAME [flags]
 ### Options
 
 ```
+  -N, --app-namespace string   Namespace of the application
       --group string           Group
   -h, --help                   help for list
       --kind string            Kind

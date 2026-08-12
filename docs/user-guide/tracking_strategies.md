@@ -62,6 +62,49 @@ comparison/sync.
 But if you're using semantic versioning you can set the constraint in your service revision
 and Argo CD will get the latest version following the constraint rules.
 
+> [!NOTE]
+> Semver constraints (those containing `*`, `>`, `<`, `>=`, `<=`, `~`, `^`, or range expressions like `>=1.0.0 <2.0.0`) are **only matched against tags**, never branches. This is by design - semver resolution uses the list of Git tags exclusively.
+
+#### Prefixed Tags
+
+Argo CD supports hierarchical tag prefixes, allowing you to organize tags by application, environment, cluster, or any other criteria. This is particularly useful for:
+
+- **Monorepos** - Tag each application separately (e.g., `app1/v1.0.0`, `app2/v2.0.0`)
+- **Multi-cluster deployments** - Organize by application, cluster, and environment for use with ApplicationSet generators
+
+Set `tagPrefix` to the prefix string. Argo CD will filter tags to only those with that prefix, strip the prefix before evaluating `targetRevision` as a semver constraint, and re-add it to the resolved version.
+
+| Tags in repo | `tagPrefix` | `targetRevision` | Resolves to |
+|-|-|-|-|
+| `app1/v1.0.0`, `app1/v1.0.1` | `app1/` | `v1.0.*` | `app1/v1.0.1` |
+| `app2/v1.0.0`, `app2/v2.0.0` | `app2/` | `v1.*` | `app2/v1.0.0` |
+| `app1/cluster1/prod/v1.0.0` | `app1/cluster1/prod/` | `v1.*` | `app1/cluster1/prod/v1.0.0` |
+
+**Examples:**
+
+```yaml
+# Monorepo: Track patch releases for a specific application
+spec:
+  source:
+    targetRevision: v1.0.*
+    tagPrefix: app1/
+
+# Multi-cluster: Track versions for a specific app/cluster/environment
+spec:
+  source:
+    targetRevision: v1.*
+    tagPrefix: app1/cluster1/prod/
+
+# ApplicationSet generator example - use template variables in the prefix
+spec:
+  source:
+    targetRevision: v1.*
+    tagPrefix: "{{.app}}/{{.cluster}}/{{.env}}/"
+```
+
+> [!NOTE]
+> For prerelease versions, use the `-0` suffix: `tagPrefix: app1/` with `targetRevision: ">=v1.0.0-0"` will match prerelease tags like `app1/v1.0.0-rc.1`.
+
 ### Commit Pinning
 
 If a Git commit SHA is specified, the app is effectively pinned to the manifests defined at

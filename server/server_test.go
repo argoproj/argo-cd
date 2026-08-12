@@ -20,6 +20,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/oauth2"
 	"google.golang.org/grpc/metadata"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -896,6 +897,62 @@ func TestGetClaims(t *testing.T) {
 	}
 }
 
+func TestGetClaims_RefreshOnExpiredOIDCToken(t *testing.T) {
+	t.Parallel()
+
+	oidcServer := testutil.GetOIDCTestServer(t, nil)
+	t.Cleanup(oidcServer.Close)
+
+	cm := test.NewFakeConfigMap()
+	cm.Data["url"] = "https://argocd.example.com"
+	cm.Data["oidc.tls.insecure.skip.verify"] = "true"
+	cm.Data["oidc.config"] = fmt.Sprintf(`
+name: Test
+issuer: %s
+clientID: test-client-id
+clientSecret: $oidc.clientSecret`, oidcServer.URL)
+	secret := test.NewFakeSecret()
+	secret.Data["oidc.clientSecret"] = []byte("test-client-secret")
+
+	argocd := NewServer(t.Context(), ArgoCDServerOpts{
+		Namespace:     test.FakeArgoCDNamespace,
+		KubeClientset: fake.NewSimpleClientset(cm, secret),
+		AppClientset:  apps.NewSimpleClientset(),
+		RepoClientset: &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}},
+	}, ApplicationSetOpts{})
+	var err error
+	argocd.ssoClientApp, err = oidc.NewClientApp(argocd.settings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
+	require.NoError(t, err)
+
+	sub, sid := "randomUser", "1111"
+	cacheJSON, err := json.Marshal(&oidc.OidcTokenCache{Token: &oauth2.Token{RefreshToken: "not empty"}})
+	require.NoError(t, err)
+	require.NoError(t, argocd.ssoClientApp.SetValueInEncryptedCache(t.Context(),
+		fmt.Sprintf("%s_%s_%s", oidc.OidcTokenCachePrefix, sub, sid), cacheJSON, time.Minute))
+
+	expired := jwt.NewWithClaims(jwt.SigningMethodRS512, jwt.MapClaims{
+		"iss": oidcServer.URL,
+		"aud": "test-client-id",
+		"sub": sub,
+		"sid": sid,
+		"exp": jwt.NewNumericDate(time.Now().Add(-time.Minute)),
+	})
+	key, err := jwt.ParseRSAPrivateKeyFromPEM(testutil.PrivateKey)
+	require.NoError(t, err)
+	tokenString, err := expired.SignedString(key)
+	require.NoError(t, err)
+
+	ctx := metadata.NewIncomingContext(t.Context(), metadata.Pairs(apiclient.MetaDataTokenKey, tokenString))
+	gotClaims, newToken, err := argocd.getClaims(ctx)
+	require.NoError(t, err)
+	assert.NotEmpty(t, newToken)
+	assert.NotEqual(t, tokenString, newToken, "newToken should differ from the original expired token")
+
+	mapClaims, ok := gotClaims.(jwt.MapClaims)
+	require.True(t, ok)
+	assert.Equal(t, "1234567890", mapClaims["sub"], "claims should come from the refreshed token (mock returns sub=1234567890), proving reactive refresh ran")
+}
+
 func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 	t.Parallel()
 
@@ -1755,6 +1812,34 @@ func TestReplaceBaseHRef(t *testing.T) {
 	}
 }
 
+func TestRegisterSwaggerUI(t *testing.T) {
+	t.Run("registers /swagger-ui when not disabled", func(t *testing.T) {
+		mux := http.NewServeMux()
+		registerSwaggerUI(mux, "", false)
+
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/swagger-ui", http.NoBody)
+		_, pattern := mux.Handler(req)
+		assert.Equal(t, "/swagger-ui", pattern, "expected /swagger-ui to be registered on the mux when swagger UI is not disabled")
+
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, req)
+		assert.NotEqual(t, http.StatusNotFound, w.Result().StatusCode, "expected the swagger UI handler to actually serve the request")
+	})
+
+	t.Run("skips registering /swagger-ui when disabled", func(t *testing.T) {
+		mux := http.NewServeMux()
+		registerSwaggerUI(mux, "", true)
+
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/swagger-ui", http.NoBody)
+		_, pattern := mux.Handler(req)
+		assert.Empty(t, pattern, "expected /swagger-ui to not be registered on the mux when swagger UI is disabled")
+
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusNotFound, w.Result().StatusCode, "expected requests to /swagger-ui to 404 when swagger UI is disabled")
+	})
+}
+
 func Test_enforceContentTypes(t *testing.T) {
 	t.Parallel()
 
@@ -1801,6 +1886,39 @@ func Test_enforceContentTypes(t *testing.T) {
 		resp = w.Result()
 		assert.Equal(t, http.StatusUnsupportedMediaType, resp.StatusCode, "should not have passed, since a disallowed content type was provided")
 	})
+}
+
+func TestServeExtensions_IsolatesEachFile(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Write two extension files
+	err := os.WriteFile(filepath.Join(tmpDir, "extension-a.js"), []byte(`console.log("ext-a");`), 0o644)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(tmpDir, "extension-b.js"), []byte(`console.log("ext-b");`), 0o644)
+	require.NoError(t, err)
+
+	argocd, closer := fakeServer(t)
+	defer closer()
+
+	w := httptest.NewRecorder()
+	argocd.serveExtensions(tmpDir, w)
+	body := w.Body.String()
+
+	// Each file must be wrapped in its own try/catch so a failure in one
+	// does not prevent subsequent extensions from loading.
+	assert.Contains(t, body, "try {")
+	assert.Contains(t, body, "} catch(e) {")
+	assert.Contains(t, body, `console.log("ext-a");`)
+	assert.Contains(t, body, `console.log("ext-b");`)
+
+	// Verify the try/catch for ext-a appears before ext-b's content
+	idxTry := strings.Index(body, "try {")
+	idxExtB := strings.Index(body, `console.log("ext-b");`)
+	assert.Less(t, idxTry, idxExtB, "try block should wrap ext-a before ext-b content appears")
+
+	// There should be two separate try/catch blocks (one per file)
+	assert.Equal(t, 2, strings.Count(body, "try {"), "each extension file should have its own try block")
+	assert.Equal(t, 2, strings.Count(body, "} catch(e) {"), "each extension file should have its own catch block")
 }
 
 func Test_StaticAssetsDir_no_symlink_traversal(t *testing.T) {

@@ -14,8 +14,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 )
 
-var tenSec = int64(10)
-
 func TestSimpleClusterDecisionResourceGeneratorExternalNamespace(t *testing.T) {
 	externalNamespace := string(utils.ArgoCDExternalNamespace)
 
@@ -296,7 +294,7 @@ func TestSimpleClusterDecisionResourceGeneratorAddingCluster(t *testing.T) {
 						ClusterDecisionResource: &v1alpha1.DuckTypeGenerator{
 							ConfigMapRef:        "my-configmap",
 							Name:                "my-placementdecision",
-							RequeueAfterSeconds: &tenSec,
+							RequeueAfterSeconds: new(int64(10)),
 						},
 					},
 				},
@@ -389,7 +387,7 @@ func TestSimpleClusterDecisionResourceGeneratorDeletingClusterSecret(t *testing.
 						ClusterDecisionResource: &v1alpha1.DuckTypeGenerator{
 							ConfigMapRef:        "my-configmap",
 							Name:                "my-placementdecision",
-							RequeueAfterSeconds: &tenSec,
+							RequeueAfterSeconds: new(int64(10)),
 						},
 					},
 				},
@@ -490,7 +488,7 @@ func TestSimpleClusterDecisionResourceGeneratorDeletingClusterFromResource(t *te
 						ClusterDecisionResource: &v1alpha1.DuckTypeGenerator{
 							ConfigMapRef:        "my-configmap",
 							Name:                "my-placementdecision",
-							RequeueAfterSeconds: &tenSec,
+							RequeueAfterSeconds: new(int64(10)),
 						},
 					},
 				},

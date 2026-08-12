@@ -1,7 +1,9 @@
 package helm
 
 import (
+	"archive/tar"
 	"bytes"
+	"compress/gzip"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
@@ -13,7 +15,9 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -45,12 +49,12 @@ func (f *fakeIndexCache) GetHelmIndex(_ string, indexData *[]byte) error {
 func TestIndex(t *testing.T) {
 	t.Run("Invalid", func(t *testing.T) {
 		client := NewClient("", HelmCreds{}, false, "", "")
-		_, err := client.GetIndex(false, 10000)
+		_, err := client.GetIndex(t.Context(), false, 10000)
 		require.Error(t, err)
 	})
 	t.Run("Stable", func(t *testing.T) {
 		client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
-		index, err := client.GetIndex(false, 10000)
+		index, err := client.GetIndex(t.Context(), false, 10000)
 		require.NoError(t, err)
 		assert.NotNil(t, index)
 	})
@@ -59,7 +63,7 @@ func TestIndex(t *testing.T) {
 			Username: "my-password",
 			Password: "my-username",
 		}, false, "", "")
-		index, err := client.GetIndex(false, 10000)
+		index, err := client.GetIndex(t.Context(), false, 10000)
 		require.NoError(t, err)
 		assert.NotNil(t, index)
 	})
@@ -71,7 +75,7 @@ func TestIndex(t *testing.T) {
 		require.NoError(t, err)
 
 		client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "", WithIndexCache(&fakeIndexCache{data: data.Bytes()}))
-		index, err := client.GetIndex(false, 10000)
+		index, err := client.GetIndex(t.Context(), false, 10000)
 
 		require.NoError(t, err)
 		assert.Equal(t, fakeIndex, *index)
@@ -79,7 +83,7 @@ func TestIndex(t *testing.T) {
 
 	t.Run("Limited", func(t *testing.T) {
 		client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
-		_, err := client.GetIndex(false, 100)
+		_, err := client.GetIndex(t.Context(), false, 100)
 
 		assert.ErrorContains(t, err, "unexpected end of stream")
 	})
@@ -87,7 +91,7 @@ func TestIndex(t *testing.T) {
 
 func Test_nativeHelmChart_ExtractChart(t *testing.T) {
 	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
-	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false, math.MaxInt64, true)
+	path, closer, err := client.ExtractChart(t.Context(), "argo-cd", "0.7.1", false, math.MaxInt64, true)
 	require.NoError(t, err)
 	defer utilio.Close(closer)
 	info, err := os.Stat(path)
@@ -97,13 +101,13 @@ func Test_nativeHelmChart_ExtractChart(t *testing.T) {
 
 func Test_nativeHelmChart_ExtractChartWithLimiter(t *testing.T) {
 	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
-	_, _, err := client.ExtractChart("argo-cd", "0.7.1", false, 100, false)
+	_, _, err := client.ExtractChart(t.Context(), "argo-cd", "0.7.1", false, 100, false)
 	require.Error(t, err, "error while iterating on tar reader: unexpected EOF")
 }
 
 func Test_nativeHelmChart_ExtractChart_insecure(t *testing.T) {
 	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{InsecureSkipVerify: true}, false, "", "")
-	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false, math.MaxInt64, true)
+	path, closer, err := client.ExtractChart(t.Context(), "argo-cd", "0.7.1", false, math.MaxInt64, true)
 	require.NoError(t, err)
 	defer utilio.Close(closer)
 	info, err := os.Stat(path)
@@ -202,7 +206,7 @@ func TestGetTagsFromUrl(t *testing.T) {
 
 		client := NewClient(server.URL, HelmCreds{InsecureSkipVerify: true}, true, "", "")
 
-		tags, err := client.GetTags("mychart", true)
+		tags, err := client.GetTags(t.Context(), "mychart", true)
 		require.NoError(t, err)
 		assert.ElementsMatch(t, tags, []string{
 			"first",
@@ -218,7 +222,7 @@ func TestGetTagsFromUrl(t *testing.T) {
 	t.Run("should return an error not when oci is not enabled", func(t *testing.T) {
 		client := NewClient("example.com", HelmCreds{}, false, "", "")
 
-		_, err := client.GetTags("my-chart", true)
+		_, err := client.GetTags(t.Context(), "my-chart", true)
 		assert.ErrorIs(t, ErrOCINotEnabled, err)
 	})
 }
@@ -289,7 +293,7 @@ func TestGetTagsFromURLPrivateRepoAuthentication(t *testing.T) {
 				Password:           password,
 			}, true, "", "")
 
-			tags, err := client.GetTags("mychart", true)
+			tags, err := client.GetTags(t.Context(), "mychart", true)
 
 			require.NoError(t, err)
 			assert.ElementsMatch(t, tags, []string{
@@ -387,7 +391,7 @@ func TestGetTagsFromURLPrivateRepoWithAzureWorkloadIdentityAuthentication(t *tes
 				tokenProvider:      workloadIdentityMock,
 			}, true, "", "")
 
-			tags, err := client.GetTags("mychart", true)
+			tags, err := client.GetTags(t.Context(), "mychart", true)
 
 			require.NoError(t, err)
 			assert.ElementsMatch(t, tags, []string{
@@ -470,7 +474,7 @@ func TestGetTagsFromURLEnvironmentAuthentication(t *testing.T) {
 				InsecureSkipVerify: true,
 			}, true, "", "")
 
-			tags, err := client.GetTags("mychart", true)
+			tags, err := client.GetTags(t.Context(), "mychart", true)
 
 			require.NoError(t, err)
 			assert.ElementsMatch(t, tags, []string{
@@ -513,7 +517,7 @@ func TestGetTagsCaching(t *testing.T) {
 			InsecureSkipVerify: true,
 		}, true, "", "", WithIndexCache(cache))
 
-		tags1, err := client.GetTags("mychart", false)
+		tags1, err := client.GetTags(t.Context(), "mychart", false)
 		require.NoError(t, err)
 		assert.ElementsMatch(t, tags1, []string{
 			"1.0.0",
@@ -524,7 +528,7 @@ func TestGetTagsCaching(t *testing.T) {
 
 		requestCount = 0
 
-		tags2, err := client.GetTags("mychart", false)
+		tags2, err := client.GetTags(t.Context(), "mychart", false)
 		require.NoError(t, err)
 		assert.ElementsMatch(t, tags2, []string{
 			"1.0.0",
@@ -556,7 +560,7 @@ func TestGetTagsCaching(t *testing.T) {
 
 		requestCount = 0
 
-		tags1, err := client.GetTags("mychart", true)
+		tags1, err := client.GetTags(t.Context(), "mychart", true)
 		require.NoError(t, err)
 		assert.ElementsMatch(t, tags1, []string{
 			"1.0.0",
@@ -565,7 +569,7 @@ func TestGetTagsCaching(t *testing.T) {
 		})
 		assert.Equal(t, 1, requestCount)
 
-		tags2, err := client.GetTags("mychart", true)
+		tags2, err := client.GetTags(t.Context(), "mychart", true)
 		require.NoError(t, err)
 		assert.ElementsMatch(t, tags2, []string{
 			"1.0.0",
@@ -599,7 +603,7 @@ func TestGetTagsUsesHTTP2(t *testing.T) {
 
 		client := NewClient(server.URL, HelmCreds{InsecureSkipVerify: true}, true, "", "")
 
-		tags, err := client.GetTags("mychart", true)
+		tags, err := client.GetTags(t.Context(), "mychart", true)
 		require.NoError(t, err)
 		assert.Equal(t, []string{"1.0.0"}, tags)
 
@@ -631,7 +635,7 @@ entries: {}
 
 		client := NewClient(server.URL, HelmCreds{InsecureSkipVerify: true}, false, "", "")
 
-		_, err := client.GetIndex(false, 10000)
+		_, err := client.GetIndex(t.Context(), false, 10000)
 		require.NoError(t, err)
 
 		assert.Equal(t, "HTTP/2.0", requestProto, "expected HTTP/2 request for index fetch, but got %s", requestProto)
@@ -655,7 +659,7 @@ entries: {}
 
 		// Create client and make a request
 		client := NewClient(ts.URL, HelmCreds{}, false, "", "")
-		_, err := client.GetIndex(false, 10000)
+		_, err := client.GetIndex(t.Context(), false, 10000)
 		require.NoError(t, err)
 
 		// Verify User-Agent was set and contains expected components
@@ -681,7 +685,7 @@ entries: {}
 		// Create client with custom User-Agent
 		customUA := "my-custom-app/1.2.3 (contact@example.com)"
 		client := NewClient(ts.URL, HelmCreds{}, false, "", "", WithUserAgent(customUA))
-		_, err := client.GetIndex(false, 10000)
+		_, err := client.GetIndex(t.Context(), false, 10000)
 		require.NoError(t, err)
 
 		// Verify custom User-Agent was used
@@ -715,11 +719,11 @@ entries: {}
 
 		// Create client (should automatically set User-Agent)
 		client := NewClient(ts.URL, HelmCreds{}, false, "", "")
-		_, err := client.GetIndex(false, 10000)
+		_, err := client.GetIndex(t.Context(), false, 10000)
 
 		// Should succeed because our implementation sets User-Agent
 		require.NoError(t, err, "Request should succeed with User-Agent set")
-		t.Logf("Success! Server accepted request with User-Agent")
+		t.Log("Success! Server accepted request with User-Agent")
 	})
 }
 
@@ -739,7 +743,7 @@ entries: {}
 		// Set custom User-Agent using WithUserAgent option
 		customUA := "CustomAgent/1.0 (test)"
 		client := NewClient(ts.URL, HelmCreds{}, false, "", "", WithUserAgent(customUA))
-		_, err := client.GetIndex(false, 10000)
+		_, err := client.GetIndex(t.Context(), false, 10000)
 		require.NoError(t, err)
 
 		// Verify custom User-Agent was used
@@ -761,11 +765,137 @@ entries: {}
 
 		// Create client without custom User-Agent
 		client := NewClient(ts.URL, HelmCreds{}, false, "", "")
-		_, err := client.GetIndex(false, 10000)
+		_, err := client.GetIndex(t.Context(), false, 10000)
 		require.NoError(t, err)
 
 		// Verify default User-Agent was used
 		assert.Contains(t, receivedUserAgent, "argocd-repo-server", "Should use default User-Agent format")
 		t.Logf("Default User-Agent sent: %s", receivedUserAgent)
 	})
+}
+
+func TestWithPlainHTTP(t *testing.T) {
+	t.Run("not set by default", func(t *testing.T) {
+		c := NewClient("my.registry.com", HelmCreds{}, true, "", "")
+		assert.False(t, c.(*nativeHelmChart).plainHTTP)
+	})
+
+	t.Run("set via WithPlainHTTP option", func(t *testing.T) {
+		c := NewClient("my.registry.com", HelmCreds{}, true, "", "", WithPlainHTTP())
+		assert.True(t, c.(*nativeHelmChart).plainHTTP)
+	})
+}
+
+func Test_nativeHelmChart_ExtractChartRespectsChartCacheExpiration(t *testing.T) {
+	const (
+		chartName    = "test-chart"
+		chartVersion = "1.0.0"
+	)
+
+	var (
+		mu            sync.Mutex
+		chartRequests int
+		chartArchive  = testHelmChartArchive(t, chartName, chartVersion, "foo: first\n")
+		server        *httptest.Server
+	)
+
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/index.yaml":
+			w.Header().Set("Content-Type", "application/x-yaml")
+			_, _ = fmt.Fprintf(w, `apiVersion: v1
+entries:
+  %[1]s:
+  - apiVersion: v2
+    name: %[1]s
+    version: %[2]s
+    urls:
+    - %[3]s/%[1]s-%[2]s.tgz
+`, chartName, chartVersion, server.URL)
+		case "/" + chartName + "-" + chartVersion + ".tgz":
+			mu.Lock()
+			chartRequests++
+			body := append([]byte(nil), chartArchive...)
+			mu.Unlock()
+
+			w.Header().Set("Content-Type", "application/gzip")
+			_, _ = w.Write(body)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	client := NewClient(server.URL, HelmCreds{}, false, "", "",
+		WithChartPaths(utilio.NewRandomizedTempPaths(t.TempDir())),
+		WithHelmChartCacheExpiration(time.Hour),
+	)
+	nativeClient, ok := client.(*nativeHelmChart)
+	require.True(t, ok)
+
+	extractValues := func() string {
+		t.Helper()
+		path, closer, err := client.ExtractChart(t.Context(), chartName, chartVersion, false, math.MaxInt64, false)
+		require.NoError(t, err)
+		defer utilio.Close(closer)
+
+		values, err := os.ReadFile(filepath.Join(path, "values.yaml"))
+		require.NoError(t, err)
+		return string(values)
+	}
+	requireChartRequests := func(expected int) {
+		t.Helper()
+		mu.Lock()
+		defer mu.Unlock()
+		require.Equal(t, expected, chartRequests)
+	}
+
+	require.Equal(t, "foo: first\n", extractValues())
+	requireChartRequests(1)
+
+	secondChartArchive := testHelmChartArchive(t, chartName, chartVersion, "foo: second\n")
+	mu.Lock()
+	chartArchive = secondChartArchive
+	mu.Unlock()
+
+	require.Equal(t, "foo: first\n", extractValues())
+	requireChartRequests(1)
+
+	cachedChartPath, err := nativeClient.getCachedChartPath(chartName, chartVersion)
+	require.NoError(t, err)
+	expired := time.Now().Add(-2 * time.Hour)
+	require.NoError(t, os.Chtimes(cachedChartPath, expired, expired))
+
+	require.Equal(t, "foo: second\n", extractValues())
+	requireChartRequests(2)
+}
+
+func testHelmChartArchive(t *testing.T, chartName, chartVersion, values string) []byte {
+	t.Helper()
+
+	var archive bytes.Buffer
+	gzipWriter := gzip.NewWriter(&archive)
+	tarWriter := tar.NewWriter(gzipWriter)
+
+	writeFile := func(name, contents string) {
+		t.Helper()
+		header := &tar.Header{
+			Name: name,
+			Mode: 0o644,
+			Size: int64(len(contents)),
+		}
+		require.NoError(t, tarWriter.WriteHeader(header))
+		_, err := tarWriter.Write([]byte(contents))
+		require.NoError(t, err)
+	}
+
+	writeFile(filepath.ToSlash(filepath.Join(chartName, "Chart.yaml")), fmt.Sprintf(`apiVersion: v2
+name: %s
+version: %s
+`, chartName, chartVersion))
+	writeFile(filepath.ToSlash(filepath.Join(chartName, "values.yaml")), values)
+
+	require.NoError(t, tarWriter.Close())
+	require.NoError(t, gzipWriter.Close())
+	return archive.Bytes()
 }

@@ -73,7 +73,7 @@ type AzureDevOpsClientFactory_GetClient_Call struct {
 
 // GetClient is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *AzureDevOpsClientFactory_Expecter) GetClient(ctx interface{}) *AzureDevOpsClientFactory_GetClient_Call {
+func (_e *AzureDevOpsClientFactory_Expecter) GetClient(ctx any) *AzureDevOpsClientFactory_GetClient_Call {
 	return &AzureDevOpsClientFactory_GetClient_Call{Call: _e.mock.On("GetClient", ctx)}
 }
 

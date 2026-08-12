@@ -25,9 +25,10 @@ const (
 
 type HelmRepository struct {
 	Creds
-	Name      string
-	Repo      string
-	EnableOci bool
+	Name                 string
+	Repo                 string
+	EnableOci            bool
+	InsecureOCIForceHttp bool
 }
 
 // Helm provides wrapper functionality around the `helm` command.
@@ -37,7 +38,7 @@ type Helm interface {
 	// GetParameters returns a list of chart parameters taking into account values in provided YAML files.
 	GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, repoRoot string) (map[string]string, error)
 	// DependencyBuild runs `helm dependency build` to download a chart's dependencies
-	DependencyBuild() error
+	DependencyBuild(ctx context.Context) error
 	// Dispose deletes temp resources
 	Dispose()
 }
@@ -76,7 +77,7 @@ func (h *helm) Template(templateOpts *TemplateOpts) (string, string, error) {
 	return out, command, nil
 }
 
-func (h *helm) DependencyBuild() error {
+func (h *helm) DependencyBuild(ctx context.Context) error {
 	isHelmOci := h.cmd.IsHelmOci
 	defer func() {
 		h.cmd.IsHelmOci = isHelmOci
@@ -91,7 +92,7 @@ func (h *helm) DependencyBuild() error {
 				return fmt.Errorf("failed to get password for helm registry: %w", err)
 			}
 			if repo.GetUsername() != "" && helmPassword != "" {
-				_, err := h.cmd.RegistryLogin(repo.Repo, repo.Creds)
+				_, err := h.cmd.RegistryLogin(ctx, repo.Repo, repo.Creds, repo.InsecureOCIForceHttp)
 
 				defer func() {
 					_, _ = h.cmd.RegistryLogout(repo.Repo, repo.Creds)
@@ -108,8 +109,20 @@ func (h *helm) DependencyBuild() error {
 			}
 		}
 	}
+
+	// Check if any dependent repository has insecureOCIForceHttp set to true
+	// If so, set the command to use plain HTTP, as helm dependency build command doesn't support mixed TLS and non TLS dependencies
+	// Please note that the fact we logged in earlier to each dependent repo with it's own InsecureOCIForceHttp either enabled or disabled
+	// is unrelated to how we perform helm dependency build, which does not have an option to set --plain-http per repo
+	plainHTTP := false
+	for i := range h.repos {
+		if h.repos[i].InsecureOCIForceHttp {
+			plainHTTP = true
+			break
+		}
+	}
 	h.repos = nil
-	_, err := h.cmd.dependencyBuild(h.insecure)
+	_, err := h.cmd.dependencyBuild(h.insecure, plainHTTP)
 	if err != nil {
 		return fmt.Errorf("failed to build helm dependencies: %w", err)
 	}

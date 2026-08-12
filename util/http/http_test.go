@@ -13,6 +13,7 @@ import (
 )
 
 func TestCookieMaxLength(t *testing.T) {
+	t.Parallel()
 	cookies, err := MakeCookieMetadata("foo", "bar")
 	require.NoError(t, err)
 	assert.Equal(t, "foo=bar", cookies[0])
@@ -24,6 +25,7 @@ func TestCookieMaxLength(t *testing.T) {
 }
 
 func TestCookieWithAttributes(t *testing.T) {
+	t.Parallel()
 	flags := []string{"SameSite=lax", "httpOnly"}
 
 	cookies, err := MakeCookieMetadata("foo", "bar", flags...)
@@ -32,6 +34,7 @@ func TestCookieWithAttributes(t *testing.T) {
 }
 
 func TestSplitCookie(t *testing.T) {
+	t.Parallel()
 	cookieValue := strings.Repeat("_", (maxCookieLength-6)*4)
 	cookies, err := MakeCookieMetadata("foo", cookieValue)
 	require.NoError(t, err)
@@ -68,6 +71,7 @@ func (m *mockResponseWriter) Write([]byte) (int, error) { return 0, nil }
 func (m *mockResponseWriter) WriteHeader(_ int)         {}
 
 func TestSetTokenCookie(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name            string
 		token           string
@@ -124,6 +128,7 @@ func TestSetTokenCookie(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			w := &mockResponseWriter{}
 
 			err := SetTokenCookie(tt.token, tt.baseHRef, tt.isSecure, w)
@@ -162,6 +167,7 @@ func (rt TestRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) 
 }
 
 func TestTransportWithHeader(t *testing.T) {
+	t.Parallel()
 	client := &http.Client{}
 	req, _ := http.NewRequestWithContext(t.Context(), http.MethodGet, "/foo", http.NoBody)
 	req.Header.Set("Bar", "req_1")

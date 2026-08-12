@@ -352,7 +352,7 @@ func NewCertListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 // Print table of certificate info
 func printCertTable(certs []appsv1.RepositoryCertificate, sortOrder string) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(w, "HOSTNAME\tTYPE\tSUBTYPE\tINFO\n")
+	fmt.Fprint(w, "HOSTNAME\tTYPE\tSUBTYPE\tINFO\n")
 
 	switch sortOrder {
 	case "hostname", "":

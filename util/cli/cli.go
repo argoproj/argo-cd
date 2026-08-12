@@ -9,13 +9,14 @@ import (
 	stderrors "errors"
 	"flag"
 	"fmt"
+	"math"
 	"os"
 	"os/exec"
 	"path"
 	"strconv"
 	"strings"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/text"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/text"
 	"github.com/google/shlex"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -348,4 +349,36 @@ func PrintDiff(name string, live *unstructured.Unstructured, target *unstructure
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
 	return cmd.Run()
+}
+
+// boundedFloat64Value is a pflag.Value that accepts a float64 within [min, max].
+type boundedFloat64Value struct {
+	val      *float64
+	min, max float64
+}
+
+func (b *boundedFloat64Value) Set(s string) error {
+	v, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return err
+	}
+	// NaN must be rejected explicitly: NaN comparisons are always false, so it would
+	// otherwise slip past the range check below.
+	if math.IsNaN(v) || v < b.min || v > b.max {
+		return fmt.Errorf("%s is out of range [%g, %g]", s, b.min, b.max)
+	}
+	*b.val = v
+	return nil
+}
+
+func (*boundedFloat64Value) Type() string { return "float" }
+
+func (b *boundedFloat64Value) String() string { return strconv.FormatFloat(*b.val, 'g', -1, 64) }
+
+// BoundedFloat64Var defines a float64 flag constrained to [min, max], rejecting out-of-range
+// or NaN input at parse time. It mirrors the signature of pflag's Float64Var. The default
+// value is not validated, matching pflag's behavior (Set runs only for an explicit flag).
+func BoundedFloat64Var(fs *pflag.FlagSet, p *float64, name string, value, minimum, maximum float64, usage string) {
+	*p = value
+	fs.Var(&boundedFloat64Value{val: p, min: minimum, max: maximum}, name, usage)
 }

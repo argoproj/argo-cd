@@ -26,7 +26,3 @@ agent-image:
 agent-manifests:
 	kustomize build ./agent/manifests/cluster-install > ./agent/manifests/install.yaml
 	kustomize build ./agent/manifests/namespace-install > ./agent/manifests/install-namespaced.yaml
-
-.PHONY: generate-mocks
-generate-mocks:
-	go generate -x -v "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/tracing/tracer_testing"

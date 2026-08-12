@@ -1,0 +1,17 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Replace :ignoreModulesAndTests. Top-level test/ holds CI/e2e Dockerfiles Renovate should manage.",
+  "ignorePresets": [
+    ":ignoreModulesAndTests"
+  ],
+  "ignorePaths": [
+    "**/node_modules/**",
+    "**/bower_components/**",
+    "**/vendor/**",
+    "**/examples/**",
+    "**/__tests__/**",
+    "**/*/test/**",
+    "**/*/tests/**",
+    "**/__fixtures__/**"
+  ]
+}

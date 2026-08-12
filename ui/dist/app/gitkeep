@@ -1,0 +1,14 @@
+This directory holds the compiled Argo CD UI assets produced by `make build-ui`.
+
+Built artifacts (JavaScript bundles, index.html, and so on) are gitignored. This file is
+tracked in git so that:
+
+- go:embed dist/app in ui/embed.go has a non-hidden file to embed when the UI has not
+  been built yet (for example, backend-only CI jobs that run make build-local).
+- The directory exists in a fresh clone before the first UI build.
+
+This file is named "gitkeep" (not ".gitkeep") on purpose. Go's embed directive ignores
+files and directories whose names begin with a dot, so a hidden .gitkeep would not satisfy
+the dist/app embed pattern and backend-only CI would fail to compile ui/embed.go.
+
+Do not delete this file. Run make build-ui locally when you need the full UI output.

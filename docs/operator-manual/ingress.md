@@ -224,7 +224,9 @@ spec:
           port: 80
 ```
 
-## [kubernetes/ingress-nginx](https://github.com/kubernetes/ingress-nginx)
+## [kubernetes/ingress-nginx (DEPRECATED)](https://github.com/kubernetes/ingress-nginx)
+
+[ingress-nginx](https://github.com/kubernetes/ingress-nginx/) is retired, and was archived on March 24, 2026. This section can still be used as a reference for other Ingress Controllers.
 
 ### Option 1: SSL-Passthrough
 
@@ -370,6 +372,70 @@ The obvious disadvantage to this approach is that this technique requires two se
 the API server -- one for gRPC and the other for HTTP/HTTPS. However it allows TLS termination to
 happen at the ingress controller.
 
+## [F5 NGINX Ingress Controller](https://docs.nginx.com/nginx-ingress-controller/)
+
+To properly support ArgoCD, this Ingress Controller must be configured with HTTP/2 support, via its [ConfigMap](https://docs.nginx.com/nginx-ingress-controller/configuration/global-configuration/configmap-resource/#listeners).
+
+After having that configuration, you can terminate SSL at the Ingress and have two ingresses, one for HTTP and one for GRPC, with different domains:
+
+HTTP/HTTPS Ingress:
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd-server-http-ingress
+  namespace: argocd
+  annotations:
+    nginx.org/redirect-to-https: "true"
+spec:
+  ingressClassName: f5-nginx
+  rules:
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: argocd-server
+            port:
+              name: http
+    host: argocd.example.com
+  tls:
+  - hosts:
+    - argocd.example.com
+    secretName: argocd-ingress-http
+```
+
+gRPC Ingress:
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd-server-grpc-ingress
+  namespace: argocd
+  annotations:
+    nginx.org/grpc-services: argocd-server
+spec:
+  ingressClassName: f5-nginx
+  rules:
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: argocd-server
+            port:
+              name: https
+    host: grpc.argocd.example.com
+  tls:
+  - hosts:
+    - grpc.argocd.example.com
+    secretName: argocd-ingress-grpc
+```
+
+The API server should then be run with TLS disabled. Edit the `argocd-server` deployment to add the
+`--insecure` flag to the argocd-server command, or simply set `server.insecure: "true"` in the `argocd-cmd-params-cm` ConfigMap [as described here](server-commands/additional-configuration-method.md).
 
 ## [Traefik (v3.0)](https://docs.traefik.io/)
 
@@ -480,7 +546,7 @@ Also note that we can configure the health check to return the gRPC health statu
 ## [Istio](https://www.istio.io)
 You can put Argo CD behind Istio using the following configuration. This example serves Argo CD behind Istio and uses a subpath (for example, `/argocd`).
 
-First we need to make sure that we can run Argo CD with subpath (ie /argocd). For this we have used install.yaml from argocd project as is
+First we need to make sure that we can run Argo CD with subpath (i.e. /argocd). For this we have used install.yaml from argocd project as is
 
 ```bash
 curl -kLs -o install.yaml https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
@@ -502,7 +568,7 @@ And following lines as patch.yml
 
 ```yaml
 # Use --insecure so Ingress can send traffic with HTTP
-# --bashref /argocd is the subpath like https://IP/argocd
+# --basehref /argocd is the subpath like https://IP/argocd
 # env was added because of https://github.com/argoproj/argo-cd/issues/3572 error
 ---
 apiVersion: apps/v1
@@ -688,7 +754,7 @@ spec:
 
 ---
 > [!NOTE]
-> The next two steps (the certificate secret and the Ingress) are described supposing that you manage the certificate yourself, and you have the certificate and key files for it. In the case that your certificate is Google-managed, fix the next two steps using the [guide to use a Google-managed SSL certificate](https://cloud.google.com/kubernetes-engine/docs/how-to/managed-certs#creating_an_ingress_with_a_google-managed_certificate).
+> The next two steps (the certificate secret and the Ingress) are described assuming that you manage the certificate yourself, and you have the certificate and key files for it. In the case that your certificate is Google-managed, fix the next two steps using the [guide to use a Google-managed SSL certificate](https://cloud.google.com/kubernetes-engine/docs/how-to/managed-certs#creating_an_ingress_with_a_google-managed_certificate).
 
 ---
 

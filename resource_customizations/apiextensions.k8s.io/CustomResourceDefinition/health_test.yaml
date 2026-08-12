@@ -27,3 +27,7 @@ tests:
     status: Progressing
     message: "Status conditions not found"
   inputPath: testdata/crd-v1-no-conditions-progressing.yaml
+- healthStatus:
+    status: Progressing
+    message: "CRD is being installed"
+  inputPath: testdata/crd-v1-installing-progressing.yaml

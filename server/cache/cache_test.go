@@ -29,6 +29,7 @@ func newFixtures() *fixtures {
 }
 
 func TestCache_GetRepoConnectionState(t *testing.T) {
+	t.Parallel()
 	cache := newFixtures().Cache
 	// cache miss
 	_, err := cache.GetRepoConnectionState("my-repo", "")
@@ -53,6 +54,7 @@ func TestCache_GetRepoConnectionState(t *testing.T) {
 }
 
 func TestAddCacheFlagsToCmd(t *testing.T) {
+	t.Parallel()
 	cache, err := AddCacheFlagsToCmd(&cobra.Command{})()
 	require.NoError(t, err)
 	assert.Equal(t, 1*time.Hour, cache.connectionStatusCacheExpiration)

@@ -119,6 +119,27 @@ func TestGenerateParamsForDuckType(t *testing.T) {
 		},
 	}
 
+	duckTypeWithNonStringValues := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": resourceAPIVersion,
+			"kind":       "Duck",
+			"metadata": map[string]any{
+				"name":      resourceName,
+				"namespace": "namespace",
+				"labels":    map[string]any{"duck": "all-species"},
+			},
+			"status": map[string]any{
+				"decisions": []any{
+					map[string]any{
+						"clusterName": "staging-01",
+						"reason":      "",
+						"score":       int64(0),
+					},
+				},
+			},
+		},
+	}
+
 	duckTypeEmpty := &unstructured.Unstructured{
 		Object: map[string]any{
 			"apiVersion": resourceAPIVersion,
@@ -182,6 +203,16 @@ func TestGenerateParamsForDuckType(t *testing.T) {
 				{"clusterName": "production-01", "name": "production-01", "server": "https://production-01.example.com"},
 
 				{"clusterName": "staging-01", "name": "staging-01", "server": "https://staging-01.example.com"},
+			},
+			expectedError: nil,
+		},
+		{
+			name:         "non-string values in cluster decisions are converted to strings",
+			resourceName: resourceName,
+			resource:     duckTypeWithNonStringValues,
+			values:       nil,
+			expected: []map[string]any{
+				{"clusterName": "staging-01", "reason": "", "score": "0", "name": "staging-01", "server": "https://staging-01.example.com"},
 			},
 			expectedError: nil,
 		},

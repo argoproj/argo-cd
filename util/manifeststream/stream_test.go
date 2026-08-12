@@ -80,6 +80,7 @@ func newRepoStreamMock() *repoStreamMock {
 }
 
 func TestManifestStream(t *testing.T) {
+	t.Parallel()
 	appStreamMock := newApplicationStreamMock()
 	repoStreamMock := newRepoStreamMock()
 	workdir, err := files.CreateTempDir("")
