@@ -164,7 +164,7 @@ func NewCommand() *cobra.Command {
 				IncludeHiddenDirectories:                     includeHiddenDirectories,
 				CMPUseManifestGeneratePaths:                  cmpUseManifestGeneratePaths,
 				OCIMediaTypes:                                ociMediaTypes,
-				EnableTrackingLabelsOnCRDs:                   enableTrackingLabelOnCRDs,
+				EnableTrackingLabelOnCRDs:                    enableTrackingLabelOnCRDs,
 				EnableBuiltinGitConfig:                       enableBuiltinGitConfig,
 				HelmUserAgent:                                helmUserAgent,
 				HelmChartCacheExpiration:                     repoCacheExpiration,
