@@ -362,7 +362,8 @@ issuer: ` + srv.URL + `
 clientID: argo-cd
 requestedScopes: ["openid", "profile", "email"]
 enablePKCEAuthentication: true
-`}
+`,
+	}
 	oidcConfig := argoCDSettings.OIDCConfig()
 	require.NotNil(t, oidcConfig)
 	require.True(t, oidcConfig.EnablePKCEAuthentication,
