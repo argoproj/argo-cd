@@ -93,7 +93,7 @@ func SendRepoStream(ctx context.Context, appPath, rootPath string, sender Stream
 	if err != nil {
 		return err
 	}
-	defer tgzstream.CloseAndDelete(tgz)
+	defer tgzstream.CloseAndDeleteTempFile(tgz)
 	err = sender.Send(mr)
 	if err != nil {
 		// include ctx.Err() in the message to make cancellations/deadlines visible
@@ -118,6 +118,7 @@ func GetCompressedRepoAndMetadata(rootPath string, appPath string, env []string,
 		return nil, nil, fmt.Errorf("error compressing repo files: %w", err)
 	}
 	if filesWritten == 0 {
+		tgzstream.CloseAndDeleteTempFile(tgz)
 		return nil, nil, fmt.Errorf("no files to send(%s)", rootPath)
 	}
 	if opt != nil && opt.tarDoneChan != nil {
@@ -127,10 +128,12 @@ func GetCompressedRepoAndMetadata(rootPath string, appPath string, env []string,
 
 	fi, err := tgz.Stat()
 	if err != nil {
+		tgzstream.CloseAndDeleteTempFile(tgz)
 		return nil, nil, fmt.Errorf("error getting tgz stat: %w", err)
 	}
 	appRelPath, err := files.RelativePath(appPath, rootPath)
 	if err != nil {
+		tgzstream.CloseAndDeleteTempFile(tgz)
 		return nil, nil, fmt.Errorf("error building app relative path: %w", err)
 	}
 	// send metadata first

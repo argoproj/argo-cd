@@ -645,7 +645,7 @@ func NewMockGenerateManifestStream(repoPath, appPath string, env []string) (*Moc
 	if err != nil {
 		return nil, err
 	}
-	defer tgzstream.CloseAndDelete(tgz)
+	defer tgzstream.CloseAndDeleteTempFile(tgz)
 
 	tgzBuffer := bytes.NewBuffer(nil)
 	_, err = io.Copy(tgzBuffer, tgz)
@@ -722,7 +722,7 @@ func NewMockMatchRepositoryStream(repoPath, appPath string, env []string) (*Mock
 	if err != nil {
 		return nil, err
 	}
-	defer tgzstream.CloseAndDelete(tgz)
+	defer tgzstream.CloseAndDeleteTempFile(tgz)
 
 	tgzBuffer := bytes.NewBuffer(nil)
 	_, err = io.Copy(tgzBuffer, tgz)
@@ -798,7 +798,7 @@ func NewMockParametersAnnouncementStream(repoPath, appPath string, env []string)
 	if err != nil {
 		return nil, err
 	}
-	defer tgzstream.CloseAndDelete(tgz)
+	defer tgzstream.CloseAndDeleteTempFile(tgz)
 
 	tgzBuffer := bytes.NewBuffer(nil)
 	_, err = io.Copy(tgzBuffer, tgz)

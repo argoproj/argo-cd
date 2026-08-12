@@ -23,6 +23,29 @@ type streamMock struct {
 	done     chan bool
 }
 
+type failingSender struct{}
+
+func (failingSender) Send(*pluginclient.AppStreamRequest) error {
+	return errors.New("send failed")
+}
+
+func TestSendRepoStreamCleansTemporaryDirectoryWhenMetadataSendFails(t *testing.T) {
+	tempRoot := t.TempDir()
+	t.Setenv("TMP", tempRoot)
+	t.Setenv("TEMP", tempRoot)
+	t.Setenv("TMPDIR", tempRoot)
+
+	appPath := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(appPath, "config.yaml"), []byte("kind: ConfigMap\n"), 0o600))
+
+	err := cmp.SendRepoStream(t.Context(), appPath, appPath, failingSender{}, nil, nil)
+	require.ErrorContains(t, err, "send failed")
+
+	entries, err := os.ReadDir(tempRoot)
+	require.NoError(t, err)
+	assert.Empty(t, entries)
+}
+
 func (m *streamMock) Recv() (*pluginclient.AppStreamRequest, error) {
 	select {
 	case message := <-m.messages:

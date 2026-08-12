@@ -24,6 +24,29 @@ type applicationStreamMock struct {
 	done     chan bool
 }
 
+type failingApplicationStreamSender struct{}
+
+func (failingApplicationStreamSender) Send(*applicationpkg.ApplicationManifestQueryWithFilesWrapper) error {
+	return errors.New("send failed")
+}
+
+func TestSendApplicationManifestQueryWithFilesCleansTemporaryDirectoryWhenHeaderSendFails(t *testing.T) {
+	tempRoot := t.TempDir()
+	t.Setenv("TMP", tempRoot)
+	t.Setenv("TEMP", tempRoot)
+	t.Setenv("TMPDIR", tempRoot)
+
+	appPath := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(appPath, "config.yaml"), []byte("kind: ConfigMap\n"), 0o600))
+
+	err := manifeststream.SendApplicationManifestQueryWithFiles(t.Context(), failingApplicationStreamSender{}, "test", "test", appPath, nil)
+	require.ErrorContains(t, err, "send failed")
+
+	entries, err := os.ReadDir(tempRoot)
+	require.NoError(t, err)
+	assert.Empty(t, entries)
+}
+
 func (m *applicationStreamMock) Recv() (*applicationpkg.ApplicationManifestQueryWithFilesWrapper, error) {
 	select {
 	case message := <-m.messages:
