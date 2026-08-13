@@ -1310,3 +1310,93 @@ func TestCreateReadAndWriteRepoCredsSecretForSameURL(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, common.LabelValueSecretTypeRepoCredsWrite, writeSecret.Labels[common.LabelKeySecretType])
 }
+
+func TestSecretsRepositoryBackend_GetRepositoryForSource(t *testing.T) {
+	repoSecrets := []runtime.Object{
+		// Same URL+project, typed as git.
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace:   testNamespace,
+				Name:        RepoURLToSecretName(repoSecretPrefix, "https://example.com/repo.git", "proj"),
+				Annotations: map[string]string{common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD},
+				Labels:      map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
+			},
+			Data: map[string][]byte{
+				"name":    []byte("GitRepo"),
+				"url":     []byte("https://example.com/repo.git"),
+				"project": []byte("proj"),
+				"type":    []byte("git"),
+			},
+		},
+		// Same URL+project, typed as helm; the helm entry must win for helm callers.
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: testNamespace,
+				Name:      RepoURLToSecretName(repoSecretPrefix, "https://example.com/repo-helm.git", "proj"),
+				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
+			},
+			Data: map[string][]byte{
+				"name":    []byte("HelmRepo"),
+				"url":     []byte("https://example.com/repo.git"),
+				"project": []byte("proj"),
+				"type":    []byte("helm"),
+			},
+		},
+		// Fallback helm credential with empty project so helm sources outside "proj" still resolve.
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: testNamespace,
+				Name:      RepoURLToSecretName(repoSecretPrefix, "https://example.com/repo-fallback-helm.git", ""),
+				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
+			},
+			Data: map[string][]byte{
+				"name": []byte("FallbackHelmRepo"),
+				"url":  []byte("https://example.com/repo.git"),
+				"type": []byte("helm"),
+			},
+		},
+	}
+
+	clientset := getClientset(repoSecrets...)
+	testee := &secretsRepositoryBackend{db: &db{
+		ns:            testNamespace,
+		kubeclientset: clientset,
+		settingsMgr:   settings.NewSettingsManager(t.Context(), clientset, testNamespace),
+	}}
+
+	helmSource := &appsv1.ApplicationSource{RepoURL: "https://example.com/repo.git", Chart: "mychart"}
+	gitSource := &appsv1.ApplicationSource{RepoURL: "https://example.com/repo.git"}
+
+	// 1. Helm callers resolve the helm-typed secret.
+	repo, err := testee.GetRepositoryForSource(t.Context(), "https://example.com/repo.git", "proj", helmSource)
+	require.NoError(t, err)
+	require.NotNil(t, repo)
+	assert.Equal(t, "HelmRepo", repo.Name)
+	assert.Equal(t, "helm", repo.Type)
+
+	// 2. Git callers resolve the git-typed secret (first URL+project candidate).
+	repo, err = testee.GetRepositoryForSource(t.Context(), "https://example.com/repo.git", "proj", gitSource)
+	require.NoError(t, err)
+	require.NotNil(t, repo)
+	assert.Equal(t, "GitRepo", repo.Name)
+	assert.Equal(t, "git", repo.Type)
+
+	// 3. Nil source preserves the legacy behaviour: URL+project first match wins.
+	repo, err = testee.GetRepositoryForSource(t.Context(), "https://example.com/repo.git", "proj", nil)
+	require.NoError(t, err)
+	require.NotNil(t, repo)
+	assert.Equal(t, "GitRepo", repo.Name)
+
+	// 4. Request an OCI source: no candidate matches, falls back to first URL+project candidate.
+	ociSource := &appsv1.ApplicationSource{RepoURL: "oci://example.com/repo.git"}
+	repo, err = testee.GetRepositoryForSource(t.Context(), "https://example.com/repo.git", "proj", ociSource)
+	require.NoError(t, err)
+	require.NotNil(t, repo)
+	assert.Equal(t, "GitRepo", repo.Name)
+
+	// 5. An unknown project falls back to the project-less helm credential and honours type.
+	repo, err = testee.GetRepositoryForSource(t.Context(), "https://example.com/repo.git", "other-project", helmSource)
+	require.NoError(t, err)
+	require.NotNil(t, repo)
+	assert.Equal(t, "FallbackHelmRepo", repo.Name)
+}

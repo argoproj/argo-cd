@@ -39,6 +39,11 @@ const (
 type repositoryBackend interface {
 	CreateRepository(ctx context.Context, r *v1alpha1.Repository) (*v1alpha1.Repository, error)
 	GetRepository(ctx context.Context, repoURL, project string) (*v1alpha1.Repository, error)
+	// GetRepositoryForSource is the type-aware variant of GetRepository. When
+	// a non-nil source is supplied, its inferred type (helm, oci, git) is
+	// used to prefer candidates whose repository.Type matches. When source is
+	// nil the behaviour is identical to GetRepository.
+	GetRepositoryForSource(ctx context.Context, repoURL, project string, source *v1alpha1.ApplicationSource) (*v1alpha1.Repository, error)
 	ListRepositories(ctx context.Context, repoType *string) ([]*v1alpha1.Repository, error)
 	UpdateRepository(ctx context.Context, r *v1alpha1.Repository) (*v1alpha1.Repository, error)
 	DeleteRepository(ctx context.Context, repoURL, project string) error
@@ -85,7 +90,14 @@ func (db *db) CreateWriteRepository(ctx context.Context, r *v1alpha1.Repository)
 }
 
 func (db *db) GetRepository(ctx context.Context, repoURL, project string) (*v1alpha1.Repository, error) {
-	repository, err := db.getRepository(ctx, repoURL, project)
+	return db.GetRepositoryForSource(ctx, repoURL, project, nil)
+}
+
+// GetRepositoryForSource returns the repository configured for the given URL
+// and project, preferring credentials whose repository type matches the
+// supplied source. Callers without a source should use GetRepository.
+func (db *db) GetRepositoryForSource(ctx context.Context, repoURL, project string, source *v1alpha1.ApplicationSource) (*v1alpha1.Repository, error) {
+	repository, err := db.repoBackend().GetRepositoryForSource(ctx, repoURL, project, source)
 	if err != nil {
 		return repository, fmt.Errorf("unable to get repository %q: %w", git.SanitizeRepoURL(repoURL), err)
 	}

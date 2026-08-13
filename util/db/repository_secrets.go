@@ -83,8 +83,12 @@ func (s *secretsRepositoryBackend) GetRepoCredsBySecretName(_ context.Context, n
 	return s.secretToRepoCred(secret)
 }
 
-func (s *secretsRepositoryBackend) GetRepository(_ context.Context, repoURL, project string) (*appsv1.Repository, error) {
-	secret, err := s.getRepositorySecret(repoURL, project, true)
+func (s *secretsRepositoryBackend) GetRepository(ctx context.Context, repoURL, project string) (*appsv1.Repository, error) {
+	return s.GetRepositoryForSource(ctx, repoURL, project, nil)
+}
+
+func (s *secretsRepositoryBackend) GetRepositoryForSource(_ context.Context, repoURL, project string, source *appsv1.ApplicationSource) (*appsv1.Repository, error) {
+	secret, err := s.getRepositorySecretForSource(repoURL, project, true, sourceTypeOf(source))
 	if err != nil {
 		if status.Code(err) == codes.NotFound {
 			return &appsv1.Repository{Repo: repoURL}, nil
@@ -561,13 +565,62 @@ func (s *secretsRepositoryBackend) repoCredsToSecret(repoCreds *appsv1.RepoCreds
 	return secretCopy
 }
 
-func (s *secretsRepositoryBackend) getRepositorySecret(repoURL, project string, allowFallback bool) (*corev1.Secret, error) {
+// sourceTypeOf derives the repository-type marker (helm, oci, git, or blank
+// when the caller cannot infer one) from an *ApplicationSource. The returned
+// marker is compared against the `type` field stored on repository secrets.
+func sourceTypeOf(source *appsv1.ApplicationSource) string {
+	if source == nil {
+		return ""
+	}
+	if source.IsHelmOci() {
+		return "oci"
+	}
+	if source.IsHelm() {
+		return "helm"
+	}
+	if source.IsOCI() {
+		return "oci"
+	}
+	return "git"
+}
+
+// selectSecretByType picks among the furnished candidates the entry whose
+// `type` field matches the requested source type. Candidates whose type is
+// empty never shadow a typed candidate. When no candidate claims the source
+// type, the first candidate is returned unchanged, preserving behaviour for
+// existing callers that have not yet typed their repositories. A warning is
+// logged whenever URL+project candidates disagree on type.
+func selectSecretByType(candidates []*corev1.Secret, sourceType string) *corev1.Secret {
+	if len(candidates) == 0 {
+		return nil
+	}
+	if sourceType == "" || len(candidates) == 1 {
+		return candidates[0]
+	}
+	for _, c := range candidates {
+		if strings.EqualFold(string(c.Data["type"]), sourceType) {
+			return c
+		}
+	}
+	if len(candidates) > 1 {
+		log.Warnf("found %d credentials for repo URL disagreeing in type; falling back to first match", len(candidates))
+	}
+	return candidates[0]
+}
+
+// getRepositorySecretForSource is the type-aware implementation underlying
+// GetRepositoryForSource. When sourceType is empty it behaves identically to
+// getRepositorySecret. When sourceType is non-empty it collects URL+project
+// and URL+"" candidates (subject to allowFallback) and returns the first
+// candidate whose `type` field equals sourceType; if none matches, the first
+// URL+project (then URL+"") candidate is returned unchanged.
+func (s *secretsRepositoryBackend) getRepositorySecretForSource(repoURL, project string, allowFallback bool, sourceType string) (*corev1.Secret, error) {
 	secrets, err := s.db.listSecretsByType(s.getSecretType())
 	if err != nil {
 		return nil, fmt.Errorf("failed to list repository secrets: %w", err)
 	}
 
-	var foundSecret *corev1.Secret
+	var urlProjectCandidates, fallbackCandidates []*corev1.Secret
 	for _, secret := range secrets {
 		if !git.SameURL(string(secret.Data["url"]), repoURL) {
 			continue
@@ -575,27 +628,30 @@ func (s *secretsRepositoryBackend) getRepositorySecret(repoURL, project string, 
 
 		projectSecret := string(secret.Data["project"])
 		if project == projectSecret {
-			if foundSecret != nil {
-				log.Warnf("Found multiple credentials for repoURL: %s", repoURL)
-			}
-
-			return secret, nil
+			urlProjectCandidates = append(urlProjectCandidates, secret)
 		}
 
 		if projectSecret == "" && allowFallback {
-			if foundSecret != nil {
-				log.Warnf("Found multiple credentials for repoURL: %s", repoURL)
-			}
-
-			foundSecret = secret
+			fallbackCandidates = append(fallbackCandidates, secret)
 		}
 	}
 
-	if foundSecret != nil {
-		return foundSecret, nil
+	if len(urlProjectCandidates) > 0 {
+		return selectSecretByType(urlProjectCandidates, sourceType), nil
+	}
+
+	if len(fallbackCandidates) > 0 {
+		return selectSecretByType(fallbackCandidates, sourceType), nil
 	}
 
 	return nil, status.Errorf(codes.NotFound, "repository %q not found", git.SanitizeRepoURL(repoURL))
+}
+
+// getRepositorySecret is retained for internal callers (update/delete paths)
+// that operate on whatever credential is present for the URL and do not have
+// a source.
+func (s *secretsRepositoryBackend) getRepositorySecret(repoURL, project string, allowFallback bool) (*corev1.Secret, error) {
+	return s.getRepositorySecretForSource(repoURL, project, allowFallback, "")
 }
 
 func (s *secretsRepositoryBackend) getRepoCredsSecret(repoURL string) (*corev1.Secret, error) {
