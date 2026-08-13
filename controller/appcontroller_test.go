@@ -4194,7 +4194,7 @@ func TestIsOperationStatePayloadTooLargeError(t *testing.T) {
 	t.Run("etcdserver: request is too large", func(t *testing.T) {
 		assert.True(t, isOperationStatePayloadTooLargeError(
 			&apierrors.StatusError{
-				metav1.Status{
+				ErrStatus: metav1.Status{
 					Status:  metav1.StatusFailure,
 					Reason:  "",
 					Message: "etcdserver: request is too large",
@@ -4253,10 +4253,8 @@ func TestSetOperationStateTooLargeRequest(t *testing.T) {
 			wantOperation: true,
 		},
 		{
-			name: "operationState is not nil and not already terminating",
-			setupApp: func() *v1alpha1.Application {
-				return newFakeApp()
-			},
+			name:          "operationState is not nil and not already terminating",
+			setupApp:      newFakeApp,
 			wantPhase:     string(synccommon.OperationTerminating),
 			wantOperation: true,
 		},

@@ -1759,8 +1759,7 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 		alreadyTerminating := app.Status.OperationState != nil && app.Status.OperationState.Phase == synccommon.OperationTerminating
 
 		if isOperationStatePayloadTooLargeError(nonRetryableError) {
-			sizeLimitMessage := fmt.Sprintf("Operation state patch exceeds the Kubernetes resource size limit and could not be persisted. Reduce the number of managed resources, set ApplyOutOfSyncOnly=true, lower spec.revisionHistoryLimit, or split the Application. error: %s",
-				nonRetryableError.Error())
+			sizeLimitMessage := "Operation state patch exceeds the Kubernetes resource size limit and could not be persisted. Reduce the number of managed resources, set ApplyOutOfSyncOnly=true, lower spec.revisionHistoryLimit, or split the Application. error: " + nonRetryableError.Error()
 
 			if !alreadyTerminating {
 				// Request termination instead of jumping straight to an error state, so the next
