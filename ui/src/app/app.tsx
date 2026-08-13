@@ -359,6 +359,11 @@ export class App extends React.Component<
                         return;
                     }
                     ssoRedirectInProgress = true;
+                    // If the redirect fails to navigate away (e.g. network failure), reset the
+                    // flag so a later 401 can retry the redirect instead of being blocked forever.
+                    setTimeout(() => {
+                        ssoRedirectInProgress = false;
+                    }, 5000);
                     window.location.href = `${basehref}/auth/login?return_url=${encodeURIComponent(location.href)}`;
                 } else {
                     history.push(`/login?return_url=${encodeURIComponent(location.href)}`);
