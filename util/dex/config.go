@@ -143,13 +143,20 @@ func GenerateDexConfigYAML(argocdSettings *settings.ArgoCDSettings, disableTLS b
 	dexCfg = settings.ReplaceMapSecrets(dexCfg, argocdSettings.Secrets)
 
 	if escapedConnectors, ok := dexCfg["connectors"].([]any); ok {
+		// DEX_EXPAND_ENV controls whether Dex expands environment variables in the config.
+		// When disabled, the $ to $$ escape is unnecessary and causes doubled dollar signs.
+		// Only escape when DEX_EXPAND_ENV is not explicitly disabled.
+		dexExpandEnv := os.Getenv("DEX_EXPAND_ENV")
+		shouldEscape := !(dexExpandEnv == "false" || dexExpandEnv == "0" || dexExpandEnv == "no")
 		for i, connectorIf := range escapedConnectors {
 			connector, ok := connectorIf.(map[string]any)
 			if !ok {
 				continue
 			}
 			if connectorCfg, ok := connector["config"].(map[string]any); ok {
-				connector["config"] = settings.EscapeDollarSignsInConnectorConfig(connectorCfg, argocdSettings.Secrets)
+				if shouldEscape {
+					connector["config"] = settings.EscapeDollarSignsInConnectorConfig(connectorCfg, argocdSettings.Secrets)
+				}
 				escapedConnectors[i] = connector
 			}
 		}
