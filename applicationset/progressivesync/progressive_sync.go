@@ -64,7 +64,9 @@ type Manager struct {
 	// APIReader reads directly from the API server, bypassing the informer cache. Reverse deletion
 	// uses it to double-check an Application the cache has reported as terminating for an
 	// implausibly long time, since the cache alone cannot distinguish a slow teardown from a DELETED
-	// event that was never delivered. May be nil, in which case the check degrades to waiting.
+	// event that was never delivered. Required: with no uncached reader the cache cannot be verified,
+	// so past the threshold reverse deletion errors rather than trusting it. Production supplies
+	// mgr.GetAPIReader().
 	APIReader        client.Reader
 	dependencies     Dependencies
 	validationIssues *ValidationIssues // collected during progressive sync execution
@@ -198,7 +200,7 @@ func (m *Manager) PerformReverseDeletion(ctx context.Context, logCtx *log.Entry,
 				case err != nil:
 					return 0, fmt.Errorf("application %s has not been deleted in over %s and could not be verified against the API server: %w", step.AppName, staleCacheThreshold, err)
 				case gone:
-					logCtx.Infof("application %s is absent from the API server but still present in the informer cache; treating it as deleted and continuing", step.AppName)
+					logCtx.Infof("application %s is absent from the API server but still present in the informer cache; evicting the stale entry", step.AppName)
 					// Skipping the entry is not enough: it stays in the informer store, and children
 					// are indexed by owner *name*, so an ApplicationSet later recreated under the
 					// same name counts the stale entry as an existing child. Under a create-only
@@ -210,9 +212,8 @@ func (m *Manager) PerformReverseDeletion(ctx context.Context, logCtx *log.Entry,
 					//
 					// The UID precondition matters. Between the live read above and this call another
 					// Application could be created at the same name, and an unconditional delete by
-					// name would remove it. Gating on the stale entry's UID means the API server
-					// rejects the delete with a conflict in that case, leaving the new object alone;
-					// the informer's own ADDED event then corrects the cache.
+					// name would remove it. Gating on the stale entry's UID makes the API server
+					// reject the delete with a conflict instead, leaving that object untouched.
 					// An object read from the API server always carries a UID; guard anyway so an
 					// empty one cannot turn into a precondition that never matches.
 					deleteOpts := []client.DeleteOption{}
@@ -224,11 +225,42 @@ func (m *Manager) PerformReverseDeletion(ctx context.Context, logCtx *log.Entry,
 						case apierrors.IsNotFound(err):
 							// Expected: the object is gone. The eviction has already been triggered.
 						case apierrors.IsConflict(err):
-							logCtx.Infof("application %s was recreated while being confirmed as deleted; leaving the new object alone", step.AppName)
+							// The precondition failed, so an Application exists at this name that is
+							// not the one just confirmed absent. That invalidates the verdict this
+							// step rests on, and nothing here can tell whether the replacement is a
+							// child of this ApplicationSet still owed an ordered deletion. Treating
+							// the step as complete could release the finalizer with a live child, so
+							// stop and let the next pass classify it: the informer's ADDED event
+							// refreshes the entry and getCurrentApplications rebuilds the step list,
+							// after which the replacement is either deleted in its proper order or is
+							// not part of this ApplicationSet at all.
+							return 0, fmt.Errorf("application %s was recreated while being confirmed as deleted", step.AppName)
 						default:
-							logCtx.WithError(err).Warnf("could not evict stale cache entry for application %s", step.AppName)
+							// Any other failure means the cache-syncing client returned before
+							// evicting, so the stale entry is still in the store. Continuing would
+							// release the ApplicationSet's finalizer while the phantom remains, which
+							// is exactly the recreation failure this eviction exists to prevent.
+							// Surface it: unlike the stale-cache condition, a write that failed once
+							// can succeed on a later attempt, so the backoff has somewhere to go.
+							return 0, fmt.Errorf("application %s is absent from the API server but its stale cache entry could not be evicted: %w", step.AppName, err)
 						}
 					}
+					// A nil error above does not prove the entry was evicted: cacheSyncingClient logs
+					// store lookup and store deletion failures and returns the original error, which
+					// for a NotFound delete is nil. Confirm the postcondition against the cache
+					// itself, because releasing the finalizer with the phantom still in the store is
+					// the recreation failure this eviction exists to prevent.
+					var evicted argov1alpha1.Application
+					switch err := m.Client.Get(ctx, types.NamespacedName{Name: app.Name, Namespace: app.Namespace}, &evicted); {
+					case apierrors.IsNotFound(err):
+						// Gone from the cache, which is what this step needed.
+					case err != nil:
+						return 0, fmt.Errorf("could not confirm the stale cache entry for application %s was evicted: %w", step.AppName, err)
+					default:
+						return 0, fmt.Errorf("stale cache entry for application %s is still present after eviction", step.AppName)
+					}
+
+					logCtx.Infof("application %s confirmed absent and its stale cache entry evicted; treating it as deleted and continuing", step.AppName)
 					continue
 				default:
 					// The Application really is still there, so it is genuinely stuck rather than a

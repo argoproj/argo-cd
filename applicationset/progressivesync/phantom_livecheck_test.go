@@ -2,6 +2,7 @@ package progressivesync
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -74,13 +75,49 @@ func schemeWithApps(t *testing.T) *runtime.Scheme {
 	return s
 }
 
+// evictingCacheClient models the production cache-syncing client for a phantom entry: the object is
+// already gone from the API server, so the eviction Delete comes back NotFound, and the entry is then
+// removed from the informer store so cache-backed reads stop seeing it. Tests that only simulate the
+// Delete without that second half are not representative -- reverse deletion verifies the eviction
+// actually happened before it lets a step complete.
+//
+// onDelete, when set, overrides what the Delete returns; the store is only evicted when it reports
+// NotFound, mirroring execAndSyncCache.
+func evictingCacheClient(s *runtime.Scheme, app *v1alpha1.Application, onDelete func() error) crtclient.WithWatch {
+	evicted := false
+	return fake.NewClientBuilder().
+		WithScheme(s).
+		WithObjects(app).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Delete: func(_ context.Context, _ crtclient.WithWatch, obj crtclient.Object, _ ...crtclient.DeleteOption) error {
+				err := error(nil)
+				if onDelete != nil {
+					err = onDelete()
+				} else {
+					err = apierrors.NewNotFound(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, obj.GetName())
+				}
+				if apierrors.IsNotFound(err) {
+					evicted = true
+				}
+				return err
+			},
+			Get: func(ctx context.Context, c crtclient.WithWatch, key crtclient.ObjectKey, obj crtclient.Object, opts ...crtclient.GetOption) error {
+				if evicted && key.Name == app.Name && key.Namespace == app.Namespace {
+					return apierrors.NewNotFound(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, key.Name)
+				}
+				return c.Get(ctx, key, obj, opts...)
+			},
+		}).
+		Build()
+}
+
 func TestPhantomIsNotFatal(t *testing.T) {
 	t.Parallel()
 
 	s := schemeWithApps(t)
 	phantom := agedTerminatingApp()
 
-	cached := fake.NewClientBuilder().WithScheme(s).WithObjects(&phantom).Build()
+	cached := evictingCacheClient(s, &phantom, nil)
 	apiServer := fake.NewClientBuilder().WithScheme(s).Build() // object really gone
 
 	m := &Manager{Client: cached, APIReader: apiServer}
@@ -158,20 +195,12 @@ func TestConfirmedPhantomTriggersCacheEviction(t *testing.T) {
 	phantom := agedTerminatingApp()
 
 	deletes := 0
-	cached := fake.NewClientBuilder().
-		WithScheme(s).
-		WithObjects(&phantom).
-		WithInterceptorFuncs(interceptor.Funcs{
-			// Stand in for the real API server, which reports the object as already gone. This is
-			// the call whose NotFound drives eviction in the cache-syncing client.
-			Delete: func(_ context.Context, _ crtclient.WithWatch, obj crtclient.Object, _ ...crtclient.DeleteOption) error {
-				if obj.GetName() == phantom.Name {
-					deletes++
-				}
-				return apierrors.NewNotFound(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, obj.GetName())
-			},
-		}).
-		Build()
+	// Stand in for the real API server, which reports the object as already gone. That NotFound is
+	// what drives eviction in the cache-syncing client, which the helper then models.
+	cached := evictingCacheClient(s, &phantom, func() error {
+		deletes++
+		return apierrors.NewNotFound(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, phantom.Name)
+	})
 	apiServer := fake.NewClientBuilder().WithScheme(s).Build() // live read: object really gone
 
 	m := &Manager{Client: cached, APIReader: apiServer}
@@ -201,6 +230,7 @@ func TestEvictionDeleteIsGatedOnUID(t *testing.T) {
 
 	var deletedUID types.UID
 	var preconditionUID types.UID
+	evicted := false
 	cached := fake.NewClientBuilder().
 		WithScheme(s).
 		WithObjects(&phantom).
@@ -214,7 +244,16 @@ func TestEvictionDeleteIsGatedOnUID(t *testing.T) {
 				if do.Preconditions != nil && do.Preconditions.UID != nil {
 					preconditionUID = *do.Preconditions.UID
 				}
+				evicted = true
 				return apierrors.NewNotFound(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, obj.GetName())
+			},
+			// The cache-syncing client evicts the entry on that NotFound, so cached reads stop
+			// seeing it. Reverse deletion checks for exactly that before completing the step.
+			Get: func(ctx context.Context, c crtclient.WithWatch, key crtclient.ObjectKey, obj crtclient.Object, opts ...crtclient.GetOption) error {
+				if evicted && key.Name == phantom.Name {
+					return apierrors.NewNotFound(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, key.Name)
+				}
+				return c.Get(ctx, key, obj, opts...)
 			},
 		}).
 		Build()
@@ -232,4 +271,175 @@ func TestEvictionDeleteIsGatedOnUID(t *testing.T) {
 			"name between the live read and the delete would be removed instead")
 	assert.Equal(t, deletedUID, preconditionUID,
 		"the precondition must pin the UID of the entry we confirmed absent, not some other object")
+}
+
+// Past the staleness threshold, a step may only be treated as complete once the Application is both
+// confirmed absent and its stale cache entry evicted. Neither failure mode may let reverse deletion
+// proceed, because each would release the ApplicationSet's finalizer on an unproven premise:
+//
+//   - an unexpected Delete error means the cache-syncing client returned before evicting, leaving the
+//     phantom in the store -- the recreation failure the eviction exists to prevent;
+//   - a conflict means the UID precondition failed, so an Application exists at this name that is not
+//     the one confirmed absent. It may be a child of this ApplicationSet still owed an ordered
+//     deletion, and nothing at this point can tell.
+//
+// Both are transient, so erroring lets a later pass classify the situation instead of guessing.
+func TestEvictionFailureDoesNotReleaseTheFinalizer(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name      string
+		deleteErr error
+		wantErr   bool
+		reason    string
+	}{
+		{
+			name:      "unexpected failure blocks progress",
+			deleteErr: apierrors.NewInternalError(errors.New("etcd unavailable")),
+			wantErr:   true,
+			reason: "the client returns before evicting on any non-NotFound error, so the phantom is " +
+				"still in the store; continuing would release the finalizer and leave it there",
+		},
+		{
+			name:      "conflict blocks progress too",
+			deleteErr: apierrors.NewConflict(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, "repro-app", errors.New("uid mismatch")),
+			wantErr:   true,
+			reason: "the precondition failed because an Application exists at this name that is not " +
+				"the one confirmed absent, which invalidates the verdict this step rests on; the " +
+				"replacement may be a child still owed an ordered deletion, so the finalizer must " +
+				"not be released until a later pass has classified it",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			s := schemeWithApps(t)
+			phantom := agedTerminatingApp()
+			cached := fake.NewClientBuilder().
+				WithScheme(s).
+				WithObjects(&phantom).
+				WithInterceptorFuncs(interceptor.Funcs{
+					Delete: func(_ context.Context, _ crtclient.WithWatch, _ crtclient.Object, _ ...crtclient.DeleteOption) error {
+						return tc.deleteErr
+					},
+				}).
+				Build()
+			apiServer := fake.NewClientBuilder().WithScheme(s).Build() // object really gone
+
+			m := &Manager{Client: cached, APIReader: apiServer}
+
+			_, err := m.PerformReverseDeletion(t.Context(), log.NewEntry(log.New()),
+				singleStepAppSet(), []v1alpha1.Application{phantom})
+
+			if tc.wantErr {
+				require.Error(t, err, tc.reason)
+			} else {
+				require.NoError(t, err, tc.reason)
+			}
+		})
+	}
+}
+
+// A nil error from the eviction Delete is not proof the entry left the informer store.
+// cacheSyncingClient.execAndSyncCache logs a failure to reach the store, or to delete from it, and
+// then returns the original error -- which for a NotFound delete is nil. Reverse deletion must not
+// take that as success: releasing the ApplicationSet's finalizer with the phantom still cached is the
+// create-only recreation failure the eviction exists to prevent, and unlike the entry's age, a store
+// failure can clear on a later attempt.
+func TestSilentEvictionFailureDoesNotReleaseTheFinalizer(t *testing.T) {
+	t.Parallel()
+
+	s := schemeWithApps(t)
+	phantom := agedTerminatingApp()
+
+	// Delete reports the object gone, as the API server would, but the entry is never evicted --
+	// the store failure the production client only logs.
+	cached := fake.NewClientBuilder().
+		WithScheme(s).
+		WithObjects(&phantom).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Delete: func(_ context.Context, _ crtclient.WithWatch, obj crtclient.Object, _ ...crtclient.DeleteOption) error {
+				return apierrors.NewNotFound(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, obj.GetName())
+			},
+		}).
+		Build()
+	apiServer := fake.NewClientBuilder().WithScheme(s).Build() // object really gone
+
+	m := &Manager{Client: cached, APIReader: apiServer}
+
+	_, err := m.PerformReverseDeletion(t.Context(), log.NewEntry(log.New()),
+		singleStepAppSet(), []v1alpha1.Application{phantom})
+
+	require.Error(t, err,
+		"the stale entry is still readable from the cache, so this step is not complete; completing it "+
+			"would release the finalizer and leave the phantom behind")
+	assert.Contains(t, err.Error(), "still present after eviction",
+		"the error should say the eviction could not be confirmed, not something unrelated")
+}
+
+// A conflict on the eviction Delete stops the step, and the comment there claims that is bounded
+// because a later pass reclassifies the replacement. This pins that claim, because an unbounded
+// version of it would be the very defect this file exists to prevent: a condition that can never
+// become false, blocking RemoveFinalizer forever.
+//
+// Pass 1 sees the stale entry, confirms it absent, and the eviction Delete conflicts -- a different
+// Application now holds the name. Pass 2 sees what the informer's ADDED event left behind: the
+// replacement, which is not terminating. Reverse deletion must make progress there rather than
+// returning the same error again.
+func TestConflictOnEvictionConvergesOnALaterPass(t *testing.T) {
+	t.Parallel()
+
+	s := schemeWithApps(t)
+	phantom := agedTerminatingApp()
+
+	// The object that appeared at the same name between the live read and the eviction Delete.
+	replacement := phantom.DeepCopy()
+	replacement.UID = "99999999-8888-7777-6666-555555555555"
+	replacement.DeletionTimestamp = nil
+	replacement.Finalizers = nil
+
+	pass := 0
+	deletes := 0
+	cached := fake.NewClientBuilder().
+		WithScheme(s).
+		WithObjects(&phantom).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Get: func(ctx context.Context, c crtclient.WithWatch, key crtclient.ObjectKey, obj crtclient.Object, opts ...crtclient.GetOption) error {
+				if key.Name == phantom.Name && pass > 1 {
+					// What the informer holds once the ADDED event for the replacement lands.
+					replacement.DeepCopyInto(obj.(*v1alpha1.Application))
+					return nil
+				}
+				return c.Get(ctx, key, obj, opts...)
+			},
+			Delete: func(_ context.Context, _ crtclient.WithWatch, obj crtclient.Object, _ ...crtclient.DeleteOption) error {
+				deletes++
+				if pass == 1 {
+					return apierrors.NewConflict(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, obj.GetName(), errors.New("uid mismatch"))
+				}
+				return nil
+			},
+		}).
+		Build()
+	apiServer := fake.NewClientBuilder().WithScheme(s).Build() // the entry we confirmed absent really is gone
+
+	m := &Manager{Client: cached, APIReader: apiServer}
+
+	pass = 1
+	_, err := m.PerformReverseDeletion(t.Context(), log.NewEntry(log.New()),
+		singleStepAppSet(), []v1alpha1.Application{phantom})
+	require.Error(t, err, "pass 1: a conflict invalidates the absence verdict, so the step must not complete")
+	require.Contains(t, err.Error(), "was recreated while being confirmed as deleted",
+		"pass 1 must stop *because of the conflict*. Any error would satisfy a bare Error() assertion "+
+			"-- a conflict left non-fatal still trips the eviction check below it -- so pin the reason.")
+
+	pass = 2
+	_, err = m.PerformReverseDeletion(t.Context(), log.NewEntry(log.New()),
+		singleStepAppSet(), []v1alpha1.Application{*replacement})
+
+	require.NoError(t, err,
+		"pass 2 must make progress: the replacement is a live child, so it is deleted in its proper "+
+			"order. Returning the same error here would mean the conflict branch can never clear, "+
+			"which is the unbounded wedge this whole change removes")
+	assert.GreaterOrEqual(t, deletes, 2, "the replacement must actually be deleted on pass 2, not skipped")
 }

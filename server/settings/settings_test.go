@@ -132,3 +132,72 @@ func TestSettingsServer(t *testing.T) {
 		assert.NotEmpty(t, resp.ResourceOverrides["*/*"])
 	})
 }
+
+func TestGetDexConfig(t *testing.T) {
+	t.Parallel()
+	newServer := func(data map[string]string) *Server {
+		_, settingsMgr := fixtures(t.Context(), data)
+		return NewServer(settingsMgr, nil, nil, false, false, false, false)
+	}
+
+	const dexConfig = `connectors:
+- type: oidc
+  id: okta
+  name: Okta
+  config:
+    issuer: https://example.okta.com
+    clientID: aaaa
+    clientSecret: bbbb
+- type: oidc
+  id: github-actions
+  name: GitHub Actions
+  config:
+    issuer: https://token.actions.githubusercontent.com
+`
+
+	tests := []struct {
+		name                       string
+		dexAuthConnectorID         string
+		expectedDexAuthConnectorID string
+	}{
+		{
+			name:                       "no connector ID configured returns empty DexAuthConnectorID",
+			dexAuthConnectorID:         "",
+			expectedDexAuthConnectorID: "",
+		},
+		{
+			name:                       "valid connector ID is returned",
+			dexAuthConnectorID:         "okta",
+			expectedDexAuthConnectorID: "okta",
+		},
+		{
+			name:                       "unknown connector ID is dropped",
+			dexAuthConnectorID:         "does-not-exist",
+			expectedDexAuthConnectorID: "",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			data := map[string]string{
+				"url":        "http://localhost", // required for IsDexConfigured
+				"dex.config": dexConfig,
+			}
+			if tc.dexAuthConnectorID != "" {
+				data["dex.auth.connectorId"] = tc.dexAuthConnectorID
+			}
+			resp, err := newServer(data).Get(t.Context(), nil)
+			require.NoError(t, err)
+			require.NotNil(t, resp.DexConfig)
+
+			// All connectors are always returned; only the forced connector ID varies.
+			var ids []string
+			for _, c := range resp.DexConfig.Connectors {
+				ids = append(ids, c.ID)
+			}
+			assert.ElementsMatch(t, []string{"okta", "github-actions"}, ids)
+			assert.Equal(t, tc.expectedDexAuthConnectorID, resp.DexConfig.DexAuthConnectorID)
+		})
+	}
+}

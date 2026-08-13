@@ -193,6 +193,7 @@ nav:
     - Diff Strategies: user-guide/diff-strategies.md
     - Diff Customization: user-guide/diffing.md
   - user-guide/orphaned-resources.md
+  - user-guide/resources-view.md
   - user-guide/compare-options.md
   - user-guide/sync-options.md
   - user-guide/parameters.md
