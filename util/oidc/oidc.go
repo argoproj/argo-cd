@@ -288,6 +288,11 @@ func (a *ClientApp) getRedirectURIForRequest(req *http.Request) string {
 	return redirectURI
 }
 
+func (a *ClientApp) cookiePath() string {
+	path := strings.TrimRight(strings.TrimLeft(a.baseHRef, "/"), "/")
+	return "/" + path
+}
+
 func (a *ClientApp) getOauth2ConfigForRedirectURI(redirectURI string) (*oauth2.Config, error) {
 	endpoint, err := a.provider.Endpoint()
 	if err != nil {
@@ -324,6 +329,7 @@ func (a *ClientApp) generateAppState(returnURL string, pkceVerifier string, w ht
 	http.SetCookie(w, &http.Cookie{
 		Name:     common.StateCookieName,
 		Value:    cookieValue,
+		Path:     a.cookiePath(),
 		Expires:  time.Now().Add(common.StateCookieMaxAge),
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
@@ -371,6 +377,7 @@ func (a *ClientApp) verifyAppState(r *http.Request, w http.ResponseWriter, state
 	http.SetCookie(w, &http.Cookie{
 		Name:     common.StateCookieName,
 		Value:    "",
+		Path:     a.cookiePath(),
 		HttpOnly: true,
 		SameSite: http.SameSiteLaxMode,
 		Secure:   a.secureCookie,

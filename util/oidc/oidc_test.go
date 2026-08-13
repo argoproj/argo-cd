@@ -959,16 +959,25 @@ func TestGenerateAppState(t *testing.T) {
 	state, err := app.generateAppState(expectedReturnURL, expectedPKCEVerifier, generateResponse)
 	require.NoError(t, err)
 
+	cookies := generateResponse.Result().Cookies()
+	require.Len(t, cookies, 1)
+	assert.Equal(t, "/", cookies[0].Path)
+
 	t.Run("VerifyAppState_Successful", func(t *testing.T) {
 		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", http.NoBody)
 		for _, cookie := range generateResponse.Result().Cookies() {
 			req.AddCookie(cookie)
 		}
 
-		returnURL, pkceVerifier, err := app.verifyAppState(req, httptest.NewRecorder(), state)
+		verifyResponse := httptest.NewRecorder()
+		returnURL, pkceVerifier, err := app.verifyAppState(req, verifyResponse, state)
 		require.NoError(t, err)
 		assert.Equal(t, expectedReturnURL, returnURL)
 		assert.Equal(t, expectedPKCEVerifier, pkceVerifier)
+
+		clearCookies := verifyResponse.Result().Cookies()
+		require.Len(t, clearCookies, 1)
+		assert.Equal(t, "/", clearCookies[0].Path)
 	})
 
 	t.Run("VerifyAppState_Failed", func(t *testing.T) {
