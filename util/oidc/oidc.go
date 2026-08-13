@@ -293,6 +293,23 @@ func (a *ClientApp) cookiePath() string {
 	return "/" + path
 }
 
+// legacyStateCookiePath is the Path browsers used before we set an explicit Path on the state cookie.
+func (a *ClientApp) legacyStateCookiePath() string {
+	return path.Join(a.cookiePath(), strings.Trim(path.Dir(common.LoginEndpoint), "/"))
+}
+
+func (a *ClientApp) clearStateCookie(w http.ResponseWriter, cookiePath string) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     common.StateCookieName,
+		Value:    "",
+		Path:     cookiePath,
+		MaxAge:   -1,
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		Secure:   a.secureCookie,
+	})
+}
+
 func (a *ClientApp) getOauth2ConfigForRedirectURI(redirectURI string) (*oauth2.Config, error) {
 	endpoint, err := a.provider.Endpoint()
 	if err != nil {
@@ -335,6 +352,11 @@ func (a *ClientApp) generateAppState(returnURL string, pkceVerifier string, w ht
 		SameSite: http.SameSiteLaxMode,
 		Secure:   a.secureCookie,
 	})
+	// Delete any cookie left at the path browsers derived before an explicit Path was set. Browsers
+	// send longer paths first and http.Request.Cookie returns the first match, so a leftover cookie
+	// there would shadow the one set above. This has to happen here rather than in verifyAppState,
+	// which returns early on the shadowed cookie and so never reaches its own clearing code.
+	a.clearStateCookie(w, a.legacyStateCookiePath())
 	return randStr, nil
 }
 
@@ -373,15 +395,8 @@ func (a *ClientApp) verifyAppState(r *http.Request, w http.ResponseWriter, state
 	if parts[0] != state {
 		return "", "", fmt.Errorf("invalid state in '%s' cookie", common.AuthCookieName)
 	}
-	// set empty cookie to clear it
-	http.SetCookie(w, &http.Cookie{
-		Name:     common.StateCookieName,
-		Value:    "",
-		Path:     a.cookiePath(),
-		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
-		Secure:   a.secureCookie,
-	})
+	a.clearStateCookie(w, a.cookiePath())
+	a.clearStateCookie(w, a.legacyStateCookiePath())
 	return redirectURL, pkceVerifier, nil
 }
 

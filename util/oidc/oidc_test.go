@@ -960,13 +960,20 @@ func TestGenerateAppState(t *testing.T) {
 	require.NoError(t, err)
 
 	cookies := generateResponse.Result().Cookies()
-	require.Len(t, cookies, 1)
+	require.Len(t, cookies, 2)
 	assert.Equal(t, "/", cookies[0].Path)
+	assert.NotEmpty(t, cookies[0].Value)
+	assert.Equal(t, common.StateCookieName, cookies[0].Name)
+	assert.Equal(t, "/auth", cookies[1].Path)
+	assert.Equal(t, -1, cookies[1].MaxAge)
+	assert.Empty(t, cookies[1].Value)
 
 	t.Run("VerifyAppState_Successful", func(t *testing.T) {
 		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", http.NoBody)
 		for _, cookie := range generateResponse.Result().Cookies() {
-			req.AddCookie(cookie)
+			if cookie.MaxAge >= 0 {
+				req.AddCookie(cookie)
+			}
 		}
 
 		verifyResponse := httptest.NewRecorder()
@@ -976,18 +983,41 @@ func TestGenerateAppState(t *testing.T) {
 		assert.Equal(t, expectedPKCEVerifier, pkceVerifier)
 
 		clearCookies := verifyResponse.Result().Cookies()
-		require.Len(t, clearCookies, 1)
+		require.Len(t, clearCookies, 2)
+		for _, c := range clearCookies {
+			assert.Equal(t, -1, c.MaxAge)
+			assert.Empty(t, c.Value)
+		}
 		assert.Equal(t, "/", clearCookies[0].Path)
+		assert.Equal(t, "/auth", clearCookies[1].Path)
 	})
 
 	t.Run("VerifyAppState_Failed", func(t *testing.T) {
 		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", http.NoBody)
 		for _, cookie := range generateResponse.Result().Cookies() {
-			req.AddCookie(cookie)
+			if cookie.MaxAge >= 0 {
+				req.AddCookie(cookie)
+			}
 		}
 
 		_, _, err := app.verifyAppState(req, httptest.NewRecorder(), "wrong state")
 		require.Error(t, err)
+	})
+
+	t.Run("SubpathDeployment", func(t *testing.T) {
+		subpathApp, err := NewClientApp(
+			&settings.ArgoCDSettings{ServerSignature: signature, URL: "http://argocd.example.com/argo-cd"},
+			"", nil, "/argo-cd", cache.NewInMemoryCache(24*time.Hour),
+		)
+		require.NoError(t, err)
+		subpathResponse := httptest.NewRecorder()
+		_, err = subpathApp.generateAppState("", "", subpathResponse)
+		require.NoError(t, err)
+		subpathCookies := subpathResponse.Result().Cookies()
+		require.Len(t, subpathCookies, 2)
+		assert.Equal(t, "/argo-cd", subpathCookies[0].Path)
+		assert.Equal(t, "/argo-cd/auth", subpathCookies[1].Path)
+		assert.Equal(t, -1, subpathCookies[1].MaxAge)
 	})
 }
 
