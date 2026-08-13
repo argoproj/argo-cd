@@ -35,14 +35,6 @@ func HasCriteria(si *v1alpha1.SourceIntegrity, sources ...v1alpha1.ApplicationSo
 	return false
 }
 
-func IsGit(si *v1alpha1.SourceIntegrity, source v1alpha1.ApplicationSource) bool {
-	if source.IsZero() || source.IsOCI() || source.IsHelm() {
-		return false
-	}
-
-	return lookupGit(si, source.RepoURL) != nil
-}
-
 // VerifyGit makes sure the git repository satisfies the criteria declared.
 // It returns nil in case there were no relevant criteria, a check result if there were.
 // The verifiedRevision is expected to be either an annotated tag to a resolved commit sha - the revision, its signature is being verified.
