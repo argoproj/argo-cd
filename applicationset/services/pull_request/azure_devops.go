@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/core"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/git"
@@ -14,6 +15,7 @@ import (
 const (
 	AZURE_DEVOPS_DEFAULT_URL             = "https://dev.azure.com"
 	AZURE_DEVOPS_PROJECT_NOT_FOUND_ERROR = "The following project does not exist"
+	AZURE_DEVOPS_MAX_PAGE_SIZE           = 100
 )
 
 type AzureDevOpsClientFactory interface {
@@ -69,54 +71,87 @@ func (a *AzureDevOpsService) List(ctx context.Context) ([]*PullRequest, error) {
 		return nil, fmt.Errorf("failed to get Azure DevOps client: %w", err)
 	}
 
-	args := git.GetPullRequestsByProjectArgs{
-		Project:        &a.project,
-		SearchCriteria: &git.GitPullRequestSearchCriteria{},
+	searchCriteria := &git.GitPullRequestSearchCriteria{}
+
+	// Resolve the repo name to an ADO repository ID for server-side scoping
+	if a.repo != "" {
+		repos, err := client.GetRepositories(ctx, git.GetRepositoriesArgs{
+			Project: &a.project,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to list Azure DevOps repositories: %w", err)
+		}
+		for _, repo := range *repos {
+			if repo.Name != nil && *repo.Name == a.repo {
+				searchCriteria.RepositoryId = repo.Id
+				break
+			}
+		}
 	}
 
 	pullRequests := []*PullRequest{}
+	top := AZURE_DEVOPS_MAX_PAGE_SIZE
+	skip := 0
 
-	azurePullRequests, err := client.GetPullRequestsByProject(ctx, args)
-	if err != nil {
-		// A standard Http 404 error is not returned for Azure DevOps,
-		// so checking the error message for a specific pattern.
-		// NOTE: Since the repos are filtered later, only existence of the project
-		// is relevant for AzureDevOps
-		if strings.Contains(err.Error(), AZURE_DEVOPS_PROJECT_NOT_FOUND_ERROR) {
-			// return a custom error indicating that the repository is not found,
-			// but also return the empty result since the decision to continue or not in this case is made by the caller
-			return pullRequests, NewRepositoryNotFoundError(err)
-		}
-		return nil, fmt.Errorf("failed to get pull requests by project: %w", err)
-	}
-
-	for _, pr := range *azurePullRequests {
-		if pr.Repository == nil ||
-			pr.Repository.Name == nil ||
-			pr.PullRequestId == nil ||
-			pr.SourceRefName == nil ||
-			pr.TargetRefName == nil ||
-			pr.LastMergeSourceCommit == nil ||
-			pr.LastMergeSourceCommit.CommitId == nil {
-			continue
+	for {
+		args := git.GetPullRequestsByProjectArgs{
+			Project:        &a.project,
+			SearchCriteria: searchCriteria,
+			Top:            &top,
+			Skip:           &skip,
 		}
 
-		azureDevOpsLabels := convertLabels(pr.Labels)
-		if !containAzureDevOpsLabels(a.labels, azureDevOpsLabels) {
-			continue
+		azurePullRequests, err := client.GetPullRequestsByProject(ctx, args)
+		if err != nil {
+			// A standard Http 404 error is not returned for Azure DevOps,
+			// so checking the error message for a specific pattern.
+			// NOTE: Since the repos are filtered later, only existence of the project
+			// is relevant for AzureDevOps
+			if strings.Contains(err.Error(), AZURE_DEVOPS_PROJECT_NOT_FOUND_ERROR) {
+				// return a custom error indicating that the repository is not found,
+				// but also return the empty result since the decision to continue or not in this case is made by the caller
+				return pullRequests, NewRepositoryNotFoundError(err)
+			}
+			return nil, fmt.Errorf("failed to get pull requests by project: %w", err)
 		}
 
-		if *pr.Repository.Name == a.repo {
-			pullRequests = append(pullRequests, &PullRequest{
-				Number:       int64(*pr.PullRequestId),
-				Title:        *pr.Title,
-				Branch:       strings.Replace(*pr.SourceRefName, "refs/heads/", "", 1),
-				TargetBranch: strings.Replace(*pr.TargetRefName, "refs/heads/", "", 1),
-				HeadSHA:      *pr.LastMergeSourceCommit.CommitId,
-				Labels:       azureDevOpsLabels,
-				Author:       strings.Split(*pr.CreatedBy.UniqueName, "@")[0], // Get the part before the @ in the email-address
-			})
+		if azurePullRequests == nil || len(*azurePullRequests) == 0 {
+			break
 		}
+
+		for _, pr := range *azurePullRequests {
+			if pr.Repository == nil ||
+				pr.Repository.Name == nil ||
+				pr.PullRequestId == nil ||
+				pr.SourceRefName == nil ||
+				pr.TargetRefName == nil ||
+				pr.LastMergeSourceCommit == nil ||
+				pr.LastMergeSourceCommit.CommitId == nil {
+				continue
+			}
+
+			azureDevOpsLabels := convertLabels(pr.Labels)
+			if !containAzureDevOpsLabels(a.labels, azureDevOpsLabels) {
+				continue
+			}
+
+			if *pr.Repository.Name == a.repo {
+				pullRequests = append(pullRequests, &PullRequest{
+					Number:       int64(*pr.PullRequestId),
+					Title:        *pr.Title,
+					Branch:       strings.Replace(*pr.SourceRefName, "refs/heads/", "", 1),
+					TargetBranch: strings.Replace(*pr.TargetRefName, "refs/heads/", "", 1),
+					HeadSHA:      *pr.LastMergeSourceCommit.CommitId,
+					Labels:       azureDevOpsLabels,
+					Author:       strings.Split(*pr.CreatedBy.UniqueName, "@")[0], // Get the part before the @ in the email-address
+				})
+			}
+		}
+
+		if len(*azurePullRequests) < top {
+			break
+		}
+		skip += top
 	}
 
 	return pullRequests, nil
