@@ -85,9 +85,6 @@ importers:
       react:
         specifier: ^19.0.0
         version: 19.2.6
-      react-autocomplete:
-        specifier: ^1.8.1
-        version: 1.8.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       react-diff-view:
         specifier: 3.3.3
         version: 3.3.3(react@19.2.6)
@@ -224,9 +221,6 @@ importers:
       '@types/react':
         specifier: ^19.0.0
         version: 19.2.14
-      '@types/react-autocomplete':
-        specifier: ^1.8.10
-        version: 1.8.11
       '@types/react-dom':
         specifier: ^19.0.0
         version: 19.2.3(@types/react@19.2.14)
@@ -2084,9 +2078,6 @@ packages:
   '@types/range-parser@1.2.7':
     resolution: {integrity: sha512-hKormJbkJqzQGhziax5PItDUTMAM9uE2XXQmM37dyd4hVM+5aVl7oVxMVUiVQn2oCQFN/LKCZdvSM0pFRqbSmQ==}
 
-  '@types/react-autocomplete@1.8.11':
-    resolution: {integrity: sha512-JYaD/OGfVFMK5NaGOCAd25QRs4MEevapn38xvYWjwo5brxrUMo2PucYmShTfuTX99r80UtncCMDrFZ9MGIVyvQ==}
-
   '@types/react-dom@19.2.3':
     resolution: {integrity: sha512-jp2L/eY6fn+KgVVQAOqYItbF0VY/YApe5Mz2F0aykSO8gx31bYCZyvSeYxCHKvzHG5eZjc+zyaS5BrBWya2+kQ==}
     peerDependencies:
@@ -3053,9 +3044,6 @@ packages:
 
   dom-helpers@5.2.1:
     resolution: {integrity: sha512-nRCa7CK3VTrM2NmGkIy4cbK7IZlgBE/PYMn55rrXefr5xXDP0LdtfPnblFDoVdcAfslJ7or6iqAUnx0CCGIWQA==}
-
-  dom-scroll-into-view@1.0.1:
-    resolution: {integrity: sha512-1Dmy6uH1vRcm2+Lvggyrlc04cMh+mr+VA+qcgs085hAEZp+v+6NT/xhRjfc6vRc7965sCSDdQcw063VkG+eNmQ==}
 
   dom-serializer@1.4.1:
     resolution: {integrity: sha512-VHwB3KfrcOOkelEG2ZOfxqLZdfkil8PtJi4P8N2MMXucZq2yLp75ClViUlOVwyoHEDjYU433Aq+5zWP61+RGag==}
@@ -4871,12 +4859,6 @@ packages:
 
   raw-loader@0.5.1:
     resolution: {integrity: sha512-sf7oGoLuaYAScB4VGr0tzetsYlS8EJH6qnTCfQ/WVEa89hALQ4RQfCKt5xCyPQKPDUbVUAIP1QsxAwfAjlDp7Q==}
-
-  react-autocomplete@1.8.1:
-    resolution: {integrity: sha512-YQGVN5POdcI3G89wUVWnJhk9rLF6JeB6Ik6xnNpfvSMG4tJkksBzqOE4mkFNGqEz+2AaQw13xNmVXresg9E3zg==}
-    peerDependencies:
-      react: ^0.14.7 || ^15.0.0-0 || ^16.0.0-0
-      react-dom: ^0.14.7 || ^15.0.0-0 || ^16.0.0-0
 
   react-deep-force-update@2.1.3:
     resolution: {integrity: sha512-lqD4eHKVuB65RyO/hGbEST53E2/GPbcIPcFYyeW/p4vNngtH4G7jnKGlU6u1OqrFo0uNfIvwuBOg98IbLHlNEA==}
@@ -8052,10 +8034,6 @@ snapshots:
 
   '@types/range-parser@1.2.7': {}
 
-  '@types/react-autocomplete@1.8.11':
-    dependencies:
-      '@types/react': 19.2.14
-
   '@types/react-dom@19.2.3(@types/react@19.2.14)':
     dependencies:
       '@types/react': 19.2.14
@@ -9173,8 +9151,6 @@ snapshots:
     dependencies:
       '@babel/runtime': 7.29.2
       csstype: 3.2.3
-
-  dom-scroll-into-view@1.0.1: {}
 
   dom-serializer@1.4.1:
     dependencies:
@@ -11391,13 +11367,6 @@ snapshots:
       unpipe: 1.0.0
 
   raw-loader@0.5.1: {}
-
-  react-autocomplete@1.8.1(react-dom@19.2.6(react@19.2.6))(react@19.2.6):
-    dependencies:
-      dom-scroll-into-view: 1.0.1
-      prop-types: 15.8.1
-      react: 19.2.6
-      react-dom: 19.2.6(react@19.2.6)
 
   react-deep-force-update@2.1.3: {}
 
