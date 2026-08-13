@@ -29,6 +29,28 @@ func (failingSender) Send(*pluginclient.AppStreamRequest) error {
 	return errors.New("send failed")
 }
 
+type discardSender struct{}
+
+func (discardSender) Send(*pluginclient.AppStreamRequest) error {
+	return nil
+}
+
+func TestSendRepoStreamCleansTemporaryDirectoryOnSuccess(t *testing.T) {
+	tempRoot := t.TempDir()
+	appPath := t.TempDir()
+	t.Setenv("TMP", tempRoot)
+	t.Setenv("TEMP", tempRoot)
+	t.Setenv("TMPDIR", tempRoot)
+
+	require.NoError(t, os.WriteFile(filepath.Join(appPath, "config.yaml"), []byte("kind: ConfigMap\n"), 0o600))
+
+	require.NoError(t, cmp.SendRepoStream(t.Context(), appPath, appPath, discardSender{}, nil, nil))
+
+	entries, err := os.ReadDir(tempRoot)
+	require.NoError(t, err)
+	assert.Empty(t, entries)
+}
+
 func TestSendRepoStreamCleansTemporaryDirectoryWhenMetadataSendFails(t *testing.T) {
 	tempRoot := t.TempDir()
 	appPath := t.TempDir()
