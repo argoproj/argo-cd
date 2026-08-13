@@ -16,7 +16,7 @@
     "@types/react-virtualized": "^9.21.21",
     "@types/superagent": "^8.1.6",
     "ansi-to-react": "^6.1.6",
-    "argo-ui": "git+https://github.com/argoproj/argo-ui.git#ddb31739b573c8be19f3d0085667be695b425c1b",
+    "argo-ui": "git+https://github.com/jwinters01/argo-ui.git#cf97f50b1fafb4765066475cc76fb4f42e7ab16e",
     "buffer": "^6.0.3",
     "classnames": "^2.2.5",
     "color": "^3.2.1",
