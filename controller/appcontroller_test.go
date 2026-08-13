@@ -3095,21 +3095,14 @@ func TestProcessRequestedAppOperation_HasRetriesTerminatedWithMessage(t *testing
 		},
 	}
 	ctrl := newFakeController(t.Context(), data, nil)
-	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-	receivedPatch := map[string]any{}
-	fakeAppCs.PrependReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		if patchAction, ok := action.(kubetesting.PatchAction); ok {
-			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
-		}
-		return true, &v1alpha1.Application{}, nil
-	})
 
 	ctrl.processRequestedAppOperation(app)
 
-	phase, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "phase")
-	message, _, _ := unstructured.NestedString(receivedPatch, "status", "operationState", "message")
-	assert.Equal(t, string(synccommon.OperationFailed), phase)
-	assert.Equal(t, "Operation terminated, triggered by dummy operation state message", message)
+	patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, patchedApp.Status.OperationState)
+	assert.Equal(t, synccommon.OperationFailed, patchedApp.Status.OperationState.Phase)
+	assert.Equal(t, "Operation terminated, triggered by dummy operation state message", patchedApp.Status.OperationState.Message)
 }
 
 func TestProcessRequestedAppOperation_Successful(t *testing.T) {
