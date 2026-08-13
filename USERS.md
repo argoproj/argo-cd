@@ -246,6 +246,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Mission Lane](https://missionlane.com)
 1. [mixi Group](https://mixi.co.jp/)
 1. [Moengage](https://www.moengage.com/)
+1. [Mojro](https://mojro.com/)
 1. [Mollie](https://www.mollie.com/)
 1. [Money Forward](https://corp.moneyforward.com/en/)
 1. [MongoDB](https://www.mongodb.com/)
