@@ -28,14 +28,15 @@ type Routes = {[path: string]: {component: React.ComponentType<RouteComponentPro
 const applications = React.lazy(() => import(/* webpackChunkName: "applications", webpackPrefetch: true */ './applications').then(m => ({default: m.default.component})));
 const help = React.lazy(() => import(/* webpackChunkName: "help" */ './help').then(m => ({default: m.default.component})));
 const login = React.lazy(() => import(/* webpackChunkName: "login", webpackPrefetch: true */ './login').then(m => ({default: m.default.component})));
+const resources = React.lazy(() => import(/* webpackChunkName: "resources" */ './resources').then(m => ({default: m.default.component})));
 const settings = React.lazy(() => import(/* webpackChunkName: "settings" */ './settings').then(m => ({default: m.default.component})));
 const userInfo = React.lazy(() => import(/* webpackChunkName: "user-info" */ './user-info').then(m => ({default: m.default.component})));
 
 const routes: Routes = {
     '/login': {component: login as any, noLayout: true},
     '/applications': {component: applications},
-    // TODO: Uncomment when ApplicationSet details page is fully implemented
     '/applicationsets': {component: applications},
+    '/resources': {component: resources},
     '/settings': {component: settings},
     '/user-info': {component: userInfo},
     '/help': {component: help}
@@ -60,6 +61,12 @@ const navItems: NavItem[] = [
         tooltip: 'Manage your ApplicationSets, and diagnose health problems.',
         path: '/applicationsets',
         iconClassName: 'argo-icon argo-icon-applicationset'
+    },
+    {
+        title: 'Resources',
+        tooltip: 'Display all managed resources.',
+        path: '/resources',
+        iconClassName: 'argo-icon argo-icon-catalog'
     },
     {
         title: 'Settings',
@@ -211,6 +218,9 @@ export class App extends React.Component<
             }
             history.replace(`/login?return_url=${encodeURIComponent(location.href)}`);
         }
+
+        // Remove the Resources item from the navigation if the resource view is disabled.
+        this.navItems = this.navItems.filter(item => item.path !== '/resources' || authSettings.resourceViewEnabled);
 
         this.setState(prev => ({
             ...prev,

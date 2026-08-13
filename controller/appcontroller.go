@@ -813,47 +813,88 @@ func (ctrl *ApplicationController) hideSecretData(ctx context.Context, destClust
 		resDiff := res.Diff
 		if res.Kind == kube.SecretKind && res.Group == "" {
 			var err error
-			target, live, err = diff.HideSecretData(res.Target, res.Live, ctrl.settingsMgr.GetSensitiveAnnotations())
+			hideAnnots := ctrl.settingsMgr.GetSensitiveAnnotations()
+			target, live, err = diff.HideSecretData(res.Target, res.Live, hideAnnots)
 			if err != nil {
 				return nil, fmt.Errorf("error hiding secret data: %w", err)
 			}
-			compareOptions, err := ctrl.settingsMgr.GetResourceCompareOptions()
-			if err != nil {
-				return nil, fmt.Errorf("error getting resource compare options: %w", err)
+			// server-side diff removes webhook mutations on updates; recomputing
+			// client-side here would resurrect that drift.
+			useSSDResult := comparisonResult.diffConfig != nil &&
+				comparisonResult.diffConfig.ServerSideDiff() &&
+				res.Target != nil && res.Live != nil
+			// gitops-engine SSD leaves masking to the caller, so resDiff still holds raw
+			// Secret data and annotations. Re-mask both sides as a pair.
+			if useSSDResult {
+				var predicted, normalized *unstructured.Unstructured
+				if len(resDiff.PredictedLive) > 0 && string(resDiff.PredictedLive) != "null" {
+					predicted = &unstructured.Unstructured{}
+					if err := json.Unmarshal(resDiff.PredictedLive, predicted); err != nil {
+						return nil, fmt.Errorf("error unmarshaling predicted live for secret masking: %w", err)
+					}
+				}
+				if len(resDiff.NormalizedLive) > 0 && string(resDiff.NormalizedLive) != "null" {
+					normalized = &unstructured.Unstructured{}
+					if err := json.Unmarshal(resDiff.NormalizedLive, normalized); err != nil {
+						return nil, fmt.Errorf("error unmarshaling normalized live for secret masking: %w", err)
+					}
+				}
+				predicted, normalized, err = diff.HideSecretData(predicted, normalized, hideAnnots)
+				if err != nil {
+					return nil, fmt.Errorf("error hiding secret data in diff result: %w", err)
+				}
+				if predicted != nil {
+					resDiff.PredictedLive, err = json.Marshal(predicted)
+					if err != nil {
+						return nil, fmt.Errorf("error marshaling masked predicted live: %w", err)
+					}
+				}
+				if normalized != nil {
+					resDiff.NormalizedLive, err = json.Marshal(normalized)
+					if err != nil {
+						return nil, fmt.Errorf("error marshaling masked normalized live: %w", err)
+					}
+				}
 			}
-			resourceOverrides, err := ctrl.settingsMgr.GetResourceOverrides()
-			if err != nil {
-				return nil, fmt.Errorf("error getting resource overrides: %w", err)
-			}
-			appLabelKey, err := ctrl.settingsMgr.GetAppInstanceLabelKey()
-			if err != nil {
-				return nil, fmt.Errorf("error getting app instance label key: %w", err)
-			}
-			trackingMethod, err := ctrl.settingsMgr.GetTrackingMethod()
-			if err != nil {
-				return nil, fmt.Errorf("error getting tracking method: %w", err)
-			}
+			if !useSSDResult {
+				compareOptions, err := ctrl.settingsMgr.GetResourceCompareOptions()
+				if err != nil {
+					return nil, fmt.Errorf("error getting resource compare options: %w", err)
+				}
+				resourceOverrides, err := ctrl.settingsMgr.GetResourceOverrides()
+				if err != nil {
+					return nil, fmt.Errorf("error getting resource overrides: %w", err)
+				}
+				appLabelKey, err := ctrl.settingsMgr.GetAppInstanceLabelKey()
+				if err != nil {
+					return nil, fmt.Errorf("error getting app instance label key: %w", err)
+				}
+				trackingMethod, err := ctrl.settingsMgr.GetTrackingMethod()
+				if err != nil {
+					return nil, fmt.Errorf("error getting tracking method: %w", err)
+				}
 
-			clusterCache, err := ctrl.stateCache.GetClusterCache(destCluster)
-			if err != nil {
-				return nil, fmt.Errorf("error getting cluster cache: %w", err)
-			}
-			diffConfig, err := argodiff.NewDiffConfigBuilder().
-				WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles, ctrl.ignoreNormalizerOpts).
-				WithTracking(appLabelKey, trackingMethod).
-				WithNoCache().
-				WithLogger(logutils.NewLogrusLogger(logutils.NewWithCurrentConfig())).
-				WithGVKParser(clusterCache.GetGVKParser()).
-				Build()
-			if err != nil {
-				return nil, fmt.Errorf("appcontroller error building diff config: %w", err)
-			}
+				clusterCache, err := ctrl.stateCache.GetClusterCache(destCluster)
+				if err != nil {
+					return nil, fmt.Errorf("error getting cluster cache: %w", err)
+				}
+				diffConfig, err := argodiff.NewDiffConfigBuilder().
+					WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles, ctrl.ignoreNormalizerOpts).
+					WithTracking(appLabelKey, trackingMethod).
+					WithNoCache().
+					WithLogger(logutils.NewLogrusLogger(logutils.NewWithCurrentConfig())).
+					WithGVKParser(clusterCache.GetGVKParser()).
+					Build()
+				if err != nil {
+					return nil, fmt.Errorf("appcontroller error building diff config: %w", err)
+				}
 
-			diffResult, err := argodiff.StateDiff(ctx, live, target, diffConfig)
-			if err != nil {
-				return nil, fmt.Errorf("error applying diff: %w", err)
+				diffResult, err := argodiff.StateDiff(ctx, live, target, diffConfig)
+				if err != nil {
+					return nil, fmt.Errorf("error applying diff: %w", err)
+				}
+				resDiff = diffResult
 			}
-			resDiff = diffResult
 		}
 
 		if live != nil {
@@ -2117,8 +2158,7 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 	compareWith := CompareWithLatest
 	refreshType := appv1.RefreshTypeNormal
 
-	softExpired := app.Status.ReconciledAt == nil || app.Status.ReconciledAt.Add(statusRefreshTimeout).Before(time.Now().UTC())
-	hardExpired := (app.Status.ReconciledAt == nil || app.Status.ReconciledAt.Add(statusHardRefreshTimeout).Before(time.Now().UTC())) && statusHardRefreshTimeout.Seconds() != 0
+	softExpired, hardExpired := comparisonExpiry(app.Status, statusRefreshTimeout, statusHardRefreshTimeout)
 
 	if requestedType, ok := app.IsRefreshRequested(); ok {
 		compareWith = CompareWithLatestForceResolve
@@ -2162,6 +2202,19 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 		return true, refreshType, compareWith
 	}
 	return false, refreshType, compareWith
+}
+
+// comparisonExpiry reports whether soft/hard comparison windows have expired.
+// A nil ReconciledAt means the app has never been reconciled: soft expiry always
+// applies so it gets a first compare; hard expiry applies only when hard timeout is enabled.
+// A timeout <= 0 disables time-based expiry only (e.g. timeout.reconciliation=0s).
+func comparisonExpiry(status appv1.ApplicationStatus, statusRefreshTimeout, statusHardRefreshTimeout time.Duration) (softExpired, hardExpired bool) {
+	if status.ReconciledAt == nil {
+		return true, statusHardRefreshTimeout > 0
+	}
+	softExpired = statusRefreshTimeout > 0 && status.Expired(statusRefreshTimeout)
+	hardExpired = statusHardRefreshTimeout > 0 && status.Expired(statusHardRefreshTimeout)
+	return softExpired, hardExpired
 }
 
 func (ctrl *ApplicationController) refreshAppConditions(ctx context.Context, app *appv1.Application) (*appv1.AppProject, bool) {

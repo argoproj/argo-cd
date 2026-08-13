@@ -3,14 +3,15 @@ import classNames from 'classnames';
 import * as deepMerge from 'deepmerge';
 import * as React from 'react';
 
-import {ClipboardText} from '../../../shared/components';
+import {ClipboardText, Cluster} from '../../../shared/components';
 import {YamlEditor} from '../../../shared/components/yaml-editor/yaml-editor';
 import {DeepLinks} from '../../../shared/components/deep-links';
 import {lazyWithBoundary} from '../../../shared/components/lazy-with-boundary';
+import {Context} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import type {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
-import {ComparisonStatusIcon, formatCreationTimestamp, getPodReadinessGatesState, getPodStateReason, HealthStatusIcon} from '../utils';
+import {ComparisonStatusIcon, formatCreationTimestamp, getAppUrl, getPodReadinessGatesState, getPodStateReason, HealthStatusIcon, nodeKey} from '../utils';
 import './application-node-info.scss';
 import {ReadinessGatesNotPassedWarning} from './readiness-gates-not-passed-warning';
 import Moment from 'react-moment';
@@ -108,7 +109,9 @@ export const ApplicationNodeInfo = (props: {
     live: models.State;
     links: models.LinksResponse;
     controlled: {summary: models.ResourceStatus; state: models.ResourceDiff};
+    showApplicationReference?: boolean;
 }) => {
+    const appContext = React.useContext(Context);
     const attributes: {title: string; value: any}[] = [
         {title: 'KIND', value: props.node.kind},
         {title: 'NAME', value: <ClipboardText text={props.node.name} />},
@@ -210,6 +213,36 @@ export const ApplicationNodeInfo = (props: {
             value: <DeepLinks links={props.links.items} />
         });
     }
+    if (props.showApplicationReference) {
+        const openApplication = (e?: React.MouseEvent) => {
+            appContext.navigation.goto(`/${getAppUrl(props.application)}`, {highlight: `${nodeKey(props.node)}/0`}, e ? {event: e} : undefined);
+        };
+
+        attributes.push({
+            title: 'APPLICATION',
+            value: (
+                <span className='application-node-info__application-row'>
+                    <button type='button' className='application-node-info__application-link' onClick={() => openApplication()}>
+                        {props.application.metadata.name}
+                    </button>
+                    <button
+                        type='button'
+                        className='application-node-info__application-external-link'
+                        onClick={e => {
+                            e.stopPropagation();
+                            openApplication(e);
+                        }}
+                        title='Open application'>
+                        <i className='fa fa-external-link-alt' />
+                    </button>
+                </span>
+            )
+        });
+        attributes.push({
+            title: 'CLUSTER',
+            value: <Cluster server={props.application.spec.destination.server} name={props.application.spec.destination.name} />
+        });
+    }
 
     const tabs: Tab[] = [
         {
@@ -263,7 +296,7 @@ export const ApplicationNodeInfo = (props: {
                                         </div>
                                         <YamlEditor
                                             input={live}
-                                            hideModeButtons={!live}
+                                            hideModeButtons={!live || props.showApplicationReference}
                                             vScrollbar={live}
                                             enableWordWrap={pref.appDetails.enableWordWrap}
                                             onSave={(patch, patchType) =>
