@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/go-retryablehttp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
@@ -280,4 +281,117 @@ func (c *closeTracker) Close() error {
 		c.onClose()
 	}
 	return c.ReadCloser.Close()
+}
+
+// TestNewClient_HttpRetryMax_TLSTransport is a regression test for the bug
+// where --http-retry-max was silently ignored on TLS (non-plaintext)
+// connections. The retryable client's Transport must survive TLS setup.
+func TestNewClient_HttpRetryMax_TLSTransport(t *testing.T) {
+	t.Run("retry transport survives on TLS connection", func(t *testing.T) {
+		ci, err := NewClient(&ClientOptions{
+			ServerAddr:   "argocd.example.com:443",
+			HttpRetryMax: 4,
+			Insecure:     true, // avoid needing a real CA; still a TLS (non-plaintext) client
+			GRPCWeb:      true, // skip the plain-gRPC server probe; matches real --grpc-web usage
+		})
+		require.NoError(t, err)
+		c := ci.(*client)
+
+		rt, ok := c.httpClient.Transport.(*retryablehttp.RoundTripper)
+		require.True(t, ok, "expected retryablehttp.RoundTripper, got %T", c.httpClient.Transport)
+		assert.Equal(t, 4, rt.Client.RetryMax)
+
+		// TLS config must still be honored via the retry client's inner transport.
+		inner, ok := rt.Client.HTTPClient.Transport.(*http.Transport)
+		require.True(t, ok, "expected inner *http.Transport, got %T", rt.Client.HTTPClient.Transport)
+		require.NotNil(t, inner.TLSClientConfig)
+		assert.True(t, inner.TLSClientConfig.InsecureSkipVerify)
+	})
+
+	t.Run("no retry transport when HttpRetryMax is zero", func(t *testing.T) {
+		ci, err := NewClient(&ClientOptions{
+			ServerAddr: "argocd.example.com:443",
+			Insecure:   true,
+			GRPCWeb:    true,
+		})
+		require.NoError(t, err)
+		c := ci.(*client)
+
+		tr, ok := c.httpClient.Transport.(*http.Transport)
+		require.True(t, ok, "expected plain *http.Transport, got %T", c.httpClient.Transport)
+		require.NotNil(t, tr.TLSClientConfig)
+	})
+}
+
+// TestExecuteRequest_RetriesOn502 proves that with HttpRetryMax set, a
+// transient 502 is retried rather than returned fatally on the first attempt.
+func TestExecuteRequest_RetriesOn502(t *testing.T) {
+	var attempts atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		if attempts.Add(1) < 3 {
+			w.WriteHeader(http.StatusBadGateway) // 502 on first two attempts
+			return
+		}
+		w.Header().Set("Grpc-Status", "0") // OK on the third
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	retryClient := retryablehttp.NewClient()
+	retryClient.RetryMax = 4
+	retryClient.RetryWaitMin = time.Millisecond
+	retryClient.RetryWaitMax = 5 * time.Millisecond
+	retryClient.Logger = nil
+
+	c := &client{
+		ServerAddr: server.URL[7:], // Remove "http://"
+		PlainText:  true,
+		httpClient: retryClient.StandardClient(),
+	}
+
+	ctx := t.Context()
+	md := metadata.New(map[string]string{})
+	_, err := c.executeRequest(ctx, "/test.Service/Method", []byte("test"), md)
+	require.NoError(t, err)
+	assert.Equal(t, int32(3), attempts.Load(), "expected two 502 retries before success")
+}
+
+// TestNewClient_RetriesOn502_OverTLS is the end-to-end regression test for the
+// bug: it wires the client through NewClient (not a hand-built httpClient),
+// talks to a real TLS server, and verifies that --http-retry-max actually
+// retries a transient 502 over that TLS connection. Against the pre-fix code
+// the retry transport is clobbered by TLS setup and this fails on the first 502.
+func TestNewClient_RetriesOn502_OverTLS(t *testing.T) {
+	var attempts atomic.Int32
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		if attempts.Add(1) < 3 {
+			w.WriteHeader(http.StatusBadGateway) // 502 on first two attempts
+			return
+		}
+		w.Header().Set("Grpc-Status", "0") // OK on the third
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	ci, err := NewClient(&ClientOptions{
+		ServerAddr:   server.Listener.Addr().String(), // real TLS endpoint
+		HttpRetryMax: 4,
+		Insecure:     true, // trust the httptest self-signed cert
+		GRPCWeb:      true, // skip the plain-gRPC probe; matches real --grpc-web usage
+	})
+	require.NoError(t, err)
+	c := ci.(*client)
+
+	// Speed up backoff so the test doesn't wait seconds between retries.
+	rt, ok := c.httpClient.Transport.(*retryablehttp.RoundTripper)
+	require.True(t, ok, "expected retryablehttp.RoundTripper, got %T", c.httpClient.Transport)
+	rt.Client.RetryWaitMin = time.Millisecond
+	rt.Client.RetryWaitMax = 5 * time.Millisecond
+	rt.Client.Logger = nil
+
+	ctx := t.Context()
+	md := metadata.New(map[string]string{})
+	_, err = c.executeRequest(ctx, "/test.Service/Method", []byte("test"), md)
+	require.NoError(t, err)
+	assert.Equal(t, int32(3), attempts.Load(), "expected two 502 retries before success over TLS")
 }

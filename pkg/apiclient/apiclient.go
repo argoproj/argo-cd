@@ -263,21 +263,33 @@ func NewClient(opts *ClientOptions) (Client, error) {
 		c.GRPCWebRootPath = opts.GRPCWebRootPath
 	}
 
-	if opts.HttpRetryMax > 0 {
-		retryClient := retryablehttp.NewClient()
-		retryClient.RetryMax = opts.HttpRetryMax
-		c.httpClient = retryClient.StandardClient()
-	} else {
-		c.httpClient = &http.Client{}
-	}
-
+	var transport http.RoundTripper
 	if !c.PlainText {
 		tlsConfig, err := c.tlsConfig()
 		if err != nil {
 			return nil, err
 		}
-		c.httpClient.Transport = &http.Transport{
+		transport = &http.Transport{
 			TLSClientConfig: tlsConfig,
+		}
+	}
+
+	if opts.HttpRetryMax > 0 {
+		retryClient := retryablehttp.NewClient()
+		retryClient.RetryMax = opts.HttpRetryMax
+		// Apply the TLS transport to the retryable client's inner HTTP client
+		// before wrapping it. StandardClient() returns an *http.Client whose
+		// Transport is the retry RoundTripper, so overwriting Transport after
+		// the fact (as the non-plaintext branch used to do) would silently
+		// discard the retry behavior on TLS connections.
+		if transport != nil {
+			retryClient.HTTPClient.Transport = transport
+		}
+		c.httpClient = retryClient.StandardClient()
+	} else {
+		c.httpClient = &http.Client{}
+		if transport != nil {
+			c.httpClient.Transport = transport
 		}
 	}
 	if !c.GRPCWeb {
