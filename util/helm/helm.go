@@ -38,7 +38,7 @@ type Helm interface {
 	// GetParameters returns a list of chart parameters taking into account values in provided YAML files.
 	GetParameters(valuesFiles []pathutil.ResolvedFilePath, appPath, repoRoot string) (map[string]string, error)
 	// DependencyBuild runs `helm dependency build` to download a chart's dependencies
-	DependencyBuild() error
+	DependencyBuild(ctx context.Context) error
 	// Dispose deletes temp resources
 	Dispose()
 }
@@ -77,7 +77,7 @@ func (h *helm) Template(templateOpts *TemplateOpts) (string, string, error) {
 	return out, command, nil
 }
 
-func (h *helm) DependencyBuild() error {
+func (h *helm) DependencyBuild(ctx context.Context) error {
 	isHelmOci := h.cmd.IsHelmOci
 	defer func() {
 		h.cmd.IsHelmOci = isHelmOci
@@ -92,7 +92,7 @@ func (h *helm) DependencyBuild() error {
 				return fmt.Errorf("failed to get password for helm registry: %w", err)
 			}
 			if repo.GetUsername() != "" && helmPassword != "" {
-				_, err := h.cmd.RegistryLogin(repo.Repo, repo.Creds, repo.InsecureOCIForceHttp)
+				_, err := h.cmd.RegistryLogin(ctx, repo.Repo, repo.Creds, repo.InsecureOCIForceHttp)
 
 				defer func() {
 					_, _ = h.cmd.RegistryLogout(repo.Repo, repo.Creds)

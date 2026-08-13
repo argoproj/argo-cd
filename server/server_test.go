@@ -1812,6 +1812,34 @@ func TestReplaceBaseHRef(t *testing.T) {
 	}
 }
 
+func TestRegisterSwaggerUI(t *testing.T) {
+	t.Run("registers /swagger-ui when not disabled", func(t *testing.T) {
+		mux := http.NewServeMux()
+		registerSwaggerUI(mux, "", false)
+
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/swagger-ui", http.NoBody)
+		_, pattern := mux.Handler(req)
+		assert.Equal(t, "/swagger-ui", pattern, "expected /swagger-ui to be registered on the mux when swagger UI is not disabled")
+
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, req)
+		assert.NotEqual(t, http.StatusNotFound, w.Result().StatusCode, "expected the swagger UI handler to actually serve the request")
+	})
+
+	t.Run("skips registering /swagger-ui when disabled", func(t *testing.T) {
+		mux := http.NewServeMux()
+		registerSwaggerUI(mux, "", true)
+
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/swagger-ui", http.NoBody)
+		_, pattern := mux.Handler(req)
+		assert.Empty(t, pattern, "expected /swagger-ui to not be registered on the mux when swagger UI is disabled")
+
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusNotFound, w.Result().StatusCode, "expected requests to /swagger-ui to 404 when swagger UI is disabled")
+	})
+}
+
 func Test_enforceContentTypes(t *testing.T) {
 	t.Parallel()
 

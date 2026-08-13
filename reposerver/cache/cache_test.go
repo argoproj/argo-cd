@@ -94,8 +94,8 @@ func TestCache_GetManifests(t *testing.T) {
 	// cache miss
 	q := &apiclient.ManifestRequest{}
 	value := &CachedManifestResponse{}
-	newManifestCacheKeyData := func(revision string, appSource *v1alpha1.ApplicationSource, namespace, appLabelKey, appName string, refSourceCommitSHAs ResolvedRevisions) ManifestKey {
-		return ManifestKey{
+	newManifestCacheKeyData := func(revision string, appSource *v1alpha1.ApplicationSource, namespace, appLabelKey, appName string, refSourceCommitSHAs ResolvedRevisions) manifestKey {
+		return manifestKey{
 			Revision:            revision,
 			AppSource:           appSource,
 			RefSources:          q.RefSources,
@@ -214,7 +214,7 @@ func TestCachedManifestResponse_HashBehavior(t *testing.T) {
 		NumberOfConsecutiveFailures:     0,
 	}
 	q := &apiclient.ManifestRequest{}
-	cacheKeyData := ManifestKey{
+	cacheKeyData := manifestKey{
 		Revision:    response.Revision,
 		AppSource:   appSrc,
 		RefSources:  q.RefSources,
