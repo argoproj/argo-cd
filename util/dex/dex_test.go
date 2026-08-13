@@ -582,6 +582,7 @@ func Test_GenerateDexConfig(t *testing.T) {
 }
 
 func Test_GenerateDexConfigYAML(t *testing.T) {
+	t.Setenv("DEX_EXPAND_ENV", "true")
 	type testData struct {
 		name      string
 		secrets   map[string]string
@@ -698,6 +699,24 @@ func Test_GenerateDexConfigYAML(t *testing.T) {
 			assert.Equal(t, tc.expected, connCfg[tc.field])
 		})
 	}
+
+	t.Run("LDAP bindPW with dollar sign is not escaped when Dex env expansion is disabled", func(t *testing.T) {
+		t.Setenv("DEX_EXPAND_ENV", "false")
+		config, err := GenerateDexConfigYAML(
+			argoCDSettings(
+				goodDexConfigLDAPWithDollarSign,
+				map[string]string{"dex.ldap.bindPW": "test$test"},
+			),
+			false,
+		)
+		require.NoError(t, err)
+		require.NotNil(t, config)
+		var dexCfg map[string]any
+		require.NoError(t, yaml.Unmarshal(config, &dexCfg))
+		connectors := dexCfg["connectors"].([]any)
+		connCfg := connectors[0].(map[string]any)["config"].(map[string]any)
+		assert.Equal(t, "test$test", connCfg["bindPW"])
+	})
 
 	t.Run("top-level issuer is NOT escaped even if it contained a dollar sign", func(t *testing.T) {
 		config, err := GenerateDexConfigYAML(argoCDSettings(goodDexConfigLDAPWithDollarSign,
