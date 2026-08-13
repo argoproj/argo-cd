@@ -4,6 +4,7 @@ const MonacoWebpackPlugin = require('monaco-editor-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const {codecovWebpackPlugin} = require("@codecov/webpack-plugin");
+const ReactRefreshWebpackPlugin = require('@pmmmwh/react-refresh-webpack-plugin');
 const webpack = require('webpack');
 
 const isProd = process.env.NODE_ENV === 'production';
@@ -31,6 +32,11 @@ const esbuildTsxLoader = {
 // here: running the compiler on esbuild's type-stripped/JSX-lowered output
 // produces spurious bailouts, so we drop esbuild for .tsx when the compiler is
 // on and let Babel + esbuild's JS minify (later) split the work.
+//
+// Fast Refresh is only wired into this babel-loader path via react-refresh/babel
+// below. The esbuild-loader path (REACT_COMPILER=0) has no Babel plugin support,
+// so Fast Refresh doesn't work there; that's an accepted, documented gap since
+// REACT_COMPILER=0 is an explicit niche A/B-testing flag.
 const tsxRule = reactCompiler
     ? {
           test: /\.tsx?$/,
@@ -46,7 +52,10 @@ const tsxRule = reactCompiler
                   ['@babel/preset-react', {runtime: 'automatic'}],
                   ['@babel/preset-typescript', {isTSX: true, allExtensions: true}]
               ],
-              plugins: [['babel-plugin-react-compiler', {target: '19', ...(reactCompilerLog ? {logger: {logEvent: (filename, event) => console.log(`[react-compiler] ${event.kind} ${filename ?? ''}`)}} : {})}]]
+              plugins: [
+                  ['babel-plugin-react-compiler', {target: '19', ...(reactCompilerLog ? {logger: {logEvent: (filename, event) => console.log(`[react-compiler] ${event.kind} ${filename ?? ''}`)}} : {})}],
+                  ...(!isProd ? ['react-refresh/babel'] : [])
+              ]
           }
       }
     : {
@@ -215,6 +224,10 @@ if (isProd) {
         maxEntrypointSize: 6 * 1024 * 1024,
         maxAssetSize: 6 * 1024 * 1024,
     };
+}
+
+if (!isProd) {
+    config.plugins.push(new ReactRefreshWebpackPlugin());
 }
 
 config.devtool = isProd ? 'source-map' : 'eval-source-map';
