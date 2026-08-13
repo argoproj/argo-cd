@@ -263,22 +263,26 @@ func NewClient(opts *ClientOptions) (Client, error) {
 		c.GRPCWebRootPath = opts.GRPCWebRootPath
 	}
 
-	if opts.HttpRetryMax > 0 {
-		retryClient := retryablehttp.NewClient()
-		retryClient.RetryMax = opts.HttpRetryMax
-		c.httpClient = retryClient.StandardClient()
-	} else {
-		c.httpClient = &http.Client{}
-	}
-
+	// Build the base transport, optionally with TLS config
+	var transport http.RoundTripper = &http.Transport{}
 	if !c.PlainText {
 		tlsConfig, err := c.tlsConfig()
 		if err != nil {
 			return nil, err
 		}
-		c.httpClient.Transport = &http.Transport{
+		transport = &http.Transport{
 			TLSClientConfig: tlsConfig,
 		}
+	}
+
+	// Wrap with retryable client if configured
+	if opts.HttpRetryMax > 0 {
+		retryClient := retryablehttp.NewClient()
+		retryClient.RetryMax = opts.HttpRetryMax
+		retryClient.HTTPClient = &http.Client{Transport: transport}
+		c.httpClient = retryClient.StandardClient()
+	} else {
+		c.httpClient = &http.Client{Transport: transport}
 	}
 	if !c.GRPCWeb {
 		if parts := strings.Split(c.ServerAddr, ":"); len(parts) == 1 {
