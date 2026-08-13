@@ -351,8 +351,10 @@ func TestExecuteRequest_RetriesOn502(t *testing.T) {
 
 	ctx := t.Context()
 	md := metadata.New(map[string]string{})
-	_, err := c.executeRequest(ctx, "/test.Service/Method", []byte("test"), md)
+	resp, err := c.executeRequest(ctx, "/test.Service/Method", []byte("test"), md)
 	require.NoError(t, err)
+	require.NotNil(t, resp)
+	defer resp.Body.Close()
 	assert.Equal(t, int32(3), attempts.Load(), "expected two 502 retries before success")
 }
 
@@ -391,7 +393,9 @@ func TestNewClient_RetriesOn502_OverTLS(t *testing.T) {
 
 	ctx := t.Context()
 	md := metadata.New(map[string]string{})
-	_, err = c.executeRequest(ctx, "/test.Service/Method", []byte("test"), md)
+	resp, err := c.executeRequest(ctx, "/test.Service/Method", []byte("test"), md)
 	require.NoError(t, err)
+	require.NotNil(t, resp)
+	defer resp.Body.Close()
 	assert.Equal(t, int32(3), attempts.Load(), "expected two 502 retries before success over TLS")
 }
