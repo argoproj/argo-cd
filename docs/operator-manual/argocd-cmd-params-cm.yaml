@@ -304,6 +304,8 @@ data:
   reposerver.enable.git.submodule: "true"
   # Number of concurrent git ls-remote requests. Any value less than 1 means no limit.
   reposerver.git.lsremote.parallelism.limit: "0"
+  # Timeout for exec commands (git, helm, kustomize) run by the repo server. Value must be a valid Go duration string (e.g. "90s", "5m").
+  reposerver.exec.timeout: "90s"
   # Git requests timeout.
   reposerver.git.request.timeout: "15s"
   # Enable builtin git configuration options that are required for correct argocd-repo-server operation (default "true")

@@ -33839,6 +33839,12 @@ spec:
               key: reposerver.git.lsremote.parallelism.limit
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_EXEC_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.exec.timeout
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_GIT_REQUEST_TIMEOUT
           valueFrom:
             configMapKeyRef:
