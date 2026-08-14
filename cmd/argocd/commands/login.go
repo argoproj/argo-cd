@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"html"
 	"io"
@@ -62,6 +63,9 @@ argocd login cd.argoproj.io
 
 # Login to Argo CD using SSO
 argocd login cd.argoproj.io --sso
+
+# Login to Argo CD using SSO without a browser (device code flow)
+argocd login cd.argoproj.io --sso --browserless
 
 # Configure direct access using Kubernetes API server
 argocd login cd.argoproj.io --core`,
@@ -148,7 +152,7 @@ argocd login cd.argoproj.io --core`,
 					if !browserless {
 						tokenString, refreshToken = oauth2Login(ctx, callback, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider, ssoLaunchBrowser, acdSet.GetDexConfig().GetDexAuthConnectorID())
 					} else {
-						tokenString, refreshToken = oauth2LoginBrowserless(ctx, acdSet.GetOIDCConfig(), oauth2conf)
+						tokenString, refreshToken = oauth2LoginBrowserless(ctx, acdSet.GetOIDCConfig(), oauth2conf, httpClient)
 					}
 				}
 				parser := jwt.NewParser(jwt.WithoutClaimsValidation())
@@ -415,29 +419,26 @@ func requestDeviceCode(ctx context.Context, client httpDoer, deviceURL, clientID
 }
 
 // pollForToken performs Step 3 of RFC 8628: poll tokenURL until the device
-// code is authorized, expired, or the context is cancelled.
-func pollForToken(ctx context.Context, client httpDoer, tokenURL, clientID, deviceCode string, interval, expiresIn int) (string, string, error) {
-	if interval < 0 {
-		interval = 5
-	}
-	if expiresIn < 0 {
-		expiresIn = 300
-	}
-	deadline := time.Now().Add(time.Duration(expiresIn) * time.Second)
-
+// code is authorized, the deadline is reached, or the context is cancelled.
+// pollInterval is the time to wait between attempts; deadline is the absolute
+// expiry time of the device code.
+func pollForToken(ctx context.Context, client httpDoer, tokenURL, clientID, deviceCode string, pollInterval time.Duration, deadline time.Time) (string, string, error) {
 	tokenData := url.Values{}
 	tokenData.Set("client_id", clientID)
 	tokenData.Set("grant_type", "urn:ietf:params:oauth:grant-type:device_code")
 	tokenData.Set("device_code", deviceCode)
 
+	timer := time.NewTimer(pollInterval)
+	defer timer.Stop()
+
 	for {
 		if time.Now().After(deadline) {
-			return "", "", fmt.Errorf("device code expired before authentication completed")
+			return "", "", stderrors.New("device code expired before authentication completed")
 		}
 		select {
 		case <-ctx.Done():
-			return "", "", fmt.Errorf("authentication cancelled")
-		case <-time.After(time.Duration(interval) * time.Second):
+			return "", "", stderrors.New("authentication cancelled")
+		case <-timer.C:
 		}
 
 		req, err := http.NewRequestWithContext(ctx, http.MethodPost, tokenURL, strings.NewReader(tokenData.Encode()))
@@ -460,30 +461,54 @@ func pollForToken(ctx context.Context, client httpDoer, tokenURL, clientID, devi
 			if jsonErr := json.Unmarshal(body, &errResp); jsonErr == nil {
 				switch errResp.Error {
 				case "authorization_pending":
+					timer.Reset(pollInterval)
 					continue
 				case "slow_down":
-					interval += 5
+					pollInterval += 5 * time.Second
+					timer.Reset(pollInterval)
 					continue
 				case "expired_token":
-					return "", "", fmt.Errorf("device code expired before authentication completed")
+					return "", "", stderrors.New("device code expired before authentication completed")
 				case "access_denied":
-					return "", "", fmt.Errorf("access denied during device authorization")
+					return "", "", stderrors.New("access denied during device authorization")
 				}
 			}
 			return "", "", fmt.Errorf("token request failed: %s — %s", resp.Status, string(body))
 		}
 
-		var tokenMap map[string]interface{}
+		var tokenMap map[string]any
 		if err := json.Unmarshal(body, &tokenMap); err != nil {
 			return "", "", fmt.Errorf("decode token response: %w", err)
 		}
 		idToken, _ := tokenMap["id_token"].(string)
 		if idToken == "" {
-			return "", "", fmt.Errorf("no id_token in token response")
+			return "", "", stderrors.New("no id_token in token response")
 		}
 		refreshToken, _ := tokenMap["refresh_token"].(string)
 		return idToken, refreshToken, nil
 	}
+}
+
+// buildVerificationPrompt returns the lines to print between the
+// "authenticate" header and the "Waiting" footer.
+//
+// Priority:
+//  1. verification_uri_complete — print as-is; the user just opens one URL.
+//  2. verification_uri parseable — append user_code as a query parameter
+//     (properly encoded) and also show the base URI + code for manual entry.
+//  3. Fallback — print the URI and code as plain text.
+func buildVerificationPrompt(uriComplete, uri, userCode string) string {
+	if uriComplete != "" {
+		return "  " + uriComplete
+	}
+	u, err := url.Parse(uri)
+	if err != nil {
+		return fmt.Sprintf("  %s\n\n  Enter the code: %s", uri, userCode)
+	}
+	q := u.Query()
+	q.Set("user_code", userCode)
+	u.RawQuery = q.Encode()
+	return fmt.Sprintf("  %s\n\n  Or visit %s and enter the code: %s", u.String(), uri, userCode)
 }
 
 // oauth2LoginBrowserless implements the OAuth 2.0 Device Authorization Grant
@@ -493,6 +518,7 @@ func oauth2LoginBrowserless(
 	ctx context.Context,
 	oidcSettings *settingspkg.OIDCConfig,
 	oauth2conf *oauth2.Config,
+	httpClient *http.Client,
 ) (string, string) {
 	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -509,29 +535,38 @@ func oauth2LoginBrowserless(
 		tokenURL = oidcSettings.GetTokenURL()
 	}
 
-	httpClient := &http.Client{}
-
 	deviceResp, err := requestDeviceCode(ctx, httpClient, deviceURL, oauth2conf.ClientID, strings.Join(oauth2conf.Scopes, " "))
 	if err != nil {
 		log.Fatalf("Failed to request device code: %s", err)
 		return "", ""
 	}
 
-	verificationURL := deviceResp.VerificationUriComplete
-	if verificationURL == "" {
-		verificationURL = fmt.Sprintf("%s?user_code=%s", deviceResp.VerificationUri, deviceResp.UserCode)
-	}
-	fmt.Printf("Open the following URL in your browser to authenticate:\n\n  %s\n\nWaiting for authentication...\n", verificationURL)
+	// RFC 8628: prefer verification_uri_complete when present. Otherwise print
+	// verification_uri and user_code separately so the user can enter the code
+	// manually — which is the correct fallback per the spec. If the provider
+	// returns a verification_uri with query parameters we still offer a
+	// synthesized URL as a convenience, with user_code properly encoded.
+	fmt.Printf("Open the following URL in your browser to authenticate:\n\n%s\n\nWaiting for authentication...\n",
+		buildVerificationPrompt(deviceResp.VerificationUriComplete, deviceResp.VerificationUri, deviceResp.UserCode))
 
-	idToken, refreshToken, err := pollForToken(ctx, httpClient, tokenURL, oauth2conf.ClientID, deviceResp.DeviceCode, deviceResp.Interval, deviceResp.ExpiresIn)
+	interval := deviceResp.Interval
+	if interval <= 0 {
+		interval = 5
+	}
+	expiresIn := deviceResp.ExpiresIn
+	if expiresIn <= 0 {
+		expiresIn = 300
+	}
+	idToken, refreshToken, err := pollForToken(ctx, httpClient, tokenURL, oauth2conf.ClientID, deviceResp.DeviceCode,
+		time.Duration(interval)*time.Second,
+		time.Now().Add(time.Duration(expiresIn)*time.Second),
+	)
 	if err != nil {
 		log.Fatalf("%s", err)
 		return "", ""
 	}
 
 	fmt.Print("Authentication successful\n")
-	log.Debugf("Token: %s", idToken)
-	log.Debugf("Refresh Token: %s", refreshToken)
 	return idToken, refreshToken
 }
 

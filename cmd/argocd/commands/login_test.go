@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	oidcutil "github.com/argoproj/argo-cd/v3/util/oidc"
@@ -200,6 +201,40 @@ func Test_requestDeviceCode_cancelledContext(t *testing.T) {
 	require.Error(t, err)
 }
 
+func Test_buildVerificationPrompt_completeURI(t *testing.T) {
+	prompt := buildVerificationPrompt("https://example.com/device?user_code=ABCD-1234", "https://example.com/device", "ABCD-1234")
+	assert.Equal(t, "  https://example.com/device?user_code=ABCD-1234", prompt)
+}
+
+func Test_buildVerificationPrompt_noCompleteURI_plainBase(t *testing.T) {
+	// Base URI has no query string — user_code is appended as the first parameter.
+	prompt := buildVerificationPrompt("", "https://example.com/device", "ABCD-1234")
+	assert.Contains(t, prompt, "https://example.com/device?user_code=ABCD-1234")
+	assert.Contains(t, prompt, "ABCD-1234") // also shown for manual entry
+}
+
+func Test_buildVerificationPrompt_noCompleteURI_baseHasQuery(t *testing.T) {
+	// Base URI already has a query parameter — user_code must be appended with & not ?.
+	prompt := buildVerificationPrompt("", "https://example.com/device?foo=bar", "ABCD-1234")
+	assert.Contains(t, prompt, "foo=bar")
+	assert.Contains(t, prompt, "user_code=ABCD-1234")
+	assert.NotContains(t, prompt, "?user_code") // must not add a second ?
+}
+
+func Test_buildVerificationPrompt_noCompleteURI_userCodeEncoded(t *testing.T) {
+	// user_code with characters that need URL encoding.
+	prompt := buildVerificationPrompt("", "https://example.com/device", "AB CD+12")
+	assert.Contains(t, prompt, "user_code=AB+CD%2B12")
+}
+
+func Test_buildVerificationPrompt_invalidBaseURI(t *testing.T) {
+	// Unparseable base URI falls back to plain text.
+	prompt := buildVerificationPrompt("", "://bad url", "XXXX-YYYY")
+	assert.Contains(t, prompt, "://bad url")
+	assert.Contains(t, prompt, "XXXX-YYYY")
+	assert.NotContains(t, prompt, "user_code=") // no URL synthesis attempted
+}
+
 // newTokenServer creates an httptest.Server that cycles through the provided
 // responses in order, repeating the last one indefinitely.
 func newTokenServer(t *testing.T, responses []tokenServerResponse) *httptest.Server {
@@ -240,7 +275,7 @@ func Test_pollForToken_success(t *testing.T) {
 	srv := newTokenServer(t, []tokenServerResponse{tokenOK("id-tok", "ref-tok")})
 	defer srv.Close()
 
-	idToken, refreshToken, err := pollForToken(context.Background(), srv.Client(), srv.URL, "client", "dev-code", 0, 30)
+	idToken, refreshToken, err := pollForToken(context.Background(), srv.Client(), srv.URL, "client", "dev-code", time.Millisecond, time.Now().Add(30*time.Second))
 
 	require.NoError(t, err)
 	assert.Equal(t, "id-tok", idToken)
@@ -255,7 +290,7 @@ func Test_pollForToken_authorizationPending_thenSuccess(t *testing.T) {
 	})
 	defer srv.Close()
 
-	idToken, _, err := pollForToken(context.Background(), srv.Client(), srv.URL, "client", "dev-code", 0, 30)
+	idToken, _, err := pollForToken(context.Background(), srv.Client(), srv.URL, "client", "dev-code", time.Millisecond, time.Now().Add(30*time.Second))
 
 	require.NoError(t, err)
 	assert.Equal(t, "id-tok", idToken)
@@ -268,7 +303,7 @@ func Test_pollForToken_slowDown_thenSuccess(t *testing.T) {
 	})
 	defer srv.Close()
 
-	idToken, _, err := pollForToken(context.Background(), srv.Client(), srv.URL, "client", "dev-code", 0, 30)
+	idToken, _, err := pollForToken(context.Background(), srv.Client(), srv.URL, "client", "dev-code", time.Millisecond, time.Now().Add(30*time.Second))
 
 	require.NoError(t, err)
 	assert.Equal(t, "id-tok", idToken)
@@ -278,7 +313,7 @@ func Test_pollForToken_expiredToken(t *testing.T) {
 	srv := newTokenServer(t, []tokenServerResponse{tokenErr("expired_token")})
 	defer srv.Close()
 
-	_, _, err := pollForToken(context.Background(), srv.Client(), srv.URL, "client", "dev-code", 0, 30)
+	_, _, err := pollForToken(context.Background(), srv.Client(), srv.URL, "client", "dev-code", time.Millisecond, time.Now().Add(30*time.Second))
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "expired")
@@ -288,7 +323,7 @@ func Test_pollForToken_accessDenied(t *testing.T) {
 	srv := newTokenServer(t, []tokenServerResponse{tokenErr("access_denied")})
 	defer srv.Close()
 
-	_, _, err := pollForToken(context.Background(), srv.Client(), srv.URL, "client", "dev-code", 0, 30)
+	_, _, err := pollForToken(context.Background(), srv.Client(), srv.URL, "client", "dev-code", time.Millisecond, time.Now().Add(30*time.Second))
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "access denied")
@@ -298,18 +333,18 @@ func Test_pollForToken_unknownErrorCode(t *testing.T) {
 	srv := newTokenServer(t, []tokenServerResponse{{status: http.StatusBadRequest, body: map[string]string{"error": "something_unexpected"}}})
 	defer srv.Close()
 
-	_, _, err := pollForToken(context.Background(), srv.Client(), srv.URL, "client", "dev-code", 0, 30)
+	_, _, err := pollForToken(context.Background(), srv.Client(), srv.URL, "client", "dev-code", time.Millisecond, time.Now().Add(30*time.Second))
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "token request failed")
 }
 
 func Test_pollForToken_deadlineExceeded(t *testing.T) {
-	// expiresIn=0 means deadline = time.Now(), so the very first loop iteration fails the deadline check.
 	srv := newTokenServer(t, []tokenServerResponse{tokenErr("authorization_pending")})
 	defer srv.Close()
 
-	_, _, err := pollForToken(context.Background(), srv.Client(), srv.URL, "client", "dev-code", 0, 0)
+	// Deadline already in the past — first check exits immediately.
+	_, _, err := pollForToken(context.Background(), srv.Client(), srv.URL, "client", "dev-code", time.Millisecond, time.Now().Add(-time.Second))
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "expired")
@@ -322,7 +357,8 @@ func Test_pollForToken_contextCancelled(t *testing.T) {
 	srv := newTokenServer(t, []tokenServerResponse{tokenErr("authorization_pending")})
 	defer srv.Close()
 
-	_, _, err := pollForToken(ctx, srv.Client(), srv.URL, "client", "dev-code", -1, 300)
+	// interval=5s so time.NewTimer(5s) can't fire before ctx.Done() on a pre-cancelled context.
+	_, _, err := pollForToken(ctx, srv.Client(), srv.URL, "client", "dev-code", 5*time.Second, time.Now().Add(5*time.Minute))
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "cancel")
@@ -334,7 +370,7 @@ func Test_pollForToken_noIDToken(t *testing.T) {
 	})
 	defer srv.Close()
 
-	_, _, err := pollForToken(context.Background(), srv.Client(), srv.URL, "client", "dev-code", 0, 30)
+	_, _, err := pollForToken(context.Background(), srv.Client(), srv.URL, "client", "dev-code", time.Millisecond, time.Now().Add(30*time.Second))
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "id_token")
@@ -347,7 +383,7 @@ func Test_pollForToken_malformedResponse(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	_, _, err := pollForToken(context.Background(), srv.Client(), srv.URL, "client", "dev-code", 0, 30)
+	_, _, err := pollForToken(context.Background(), srv.Client(), srv.URL, "client", "dev-code", time.Millisecond, time.Now().Add(30*time.Second))
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "decode token response")

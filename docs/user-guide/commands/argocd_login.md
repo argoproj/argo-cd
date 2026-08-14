@@ -31,16 +31,16 @@ argocd login cd.argoproj.io --core
 ### Options
 
 ```
-      --browserless       Perform SSO login without a browser
+      --browserless          Perform SSO login without a browser
       --callback string      Scheme, Host and Port for the callback URL
-  -h, --help              help for login
-      --name string       Name to use for the context
-      --password string   The password of an account to authenticate
-      --skip-test-tls     Skip testing whether the server is configured with TLS (this can help when the command hangs for no apparent reason)
-      --sso               Perform SSO login
+  -h, --help                 help for login
+      --name string          Name to use for the context
+      --password string      The password of an account to authenticate
+      --skip-test-tls        Skip testing whether the server is configured with TLS (this can help when the command hangs for no apparent reason)
+      --sso                  Perform SSO login
       --sso-launch-browser   Automatically launch the system default browser when performing SSO login (default true)
-      --sso-port int      Port to run local OAuth2 login application (default 8085)
-      --username string   The username of an account to authenticate
+      --sso-port int         Port to run local OAuth2 login application (default 8085)
+      --username string      The username of an account to authenticate
 ```
 
 ### Options inherited from parent commands

@@ -552,7 +552,7 @@ argocd relogin --browserless
 
 The CLI prints a URL like:
 
-```
+```text
 Open the following URL in your browser to authenticate:
 
   https://argocd.example.com/api/dex/device?user_code=ABCD-1234
