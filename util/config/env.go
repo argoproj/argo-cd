@@ -11,6 +11,8 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
+// slice per key: some flags (e.g. --header) are meant to be repeatable
+// issue ref: https://github.com/argoproj/argo-cd/issues/24065
 var flags map[string][]string
 
 func init() {
