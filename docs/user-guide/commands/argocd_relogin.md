@@ -32,6 +32,7 @@ argocd login cd.argoproj.io --core
 ### Options
 
 ```
+      --browserless          Perform SSO relogin without a browser using the device code flow
       --callback string      Host and Port for the callback URL
   -h, --help                 help for relogin
       --password string      The password of an account to authenticate

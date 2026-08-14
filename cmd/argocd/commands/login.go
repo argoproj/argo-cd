@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"bufio"
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
@@ -12,8 +11,10 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
@@ -377,96 +378,158 @@ func oauth2Login(
 	return tokenString, refreshToken
 }
 
+// httpDoer is a minimal interface over *http.Client, allowing unit tests to
+// inject a fake transport without spinning up a real network connection.
+type httpDoer interface {
+	Do(*http.Request) (*http.Response, error)
+}
+
+// requestDeviceCode performs Step 1 of RFC 8628: POST to deviceURL and return
+// the device authorization response.
+func requestDeviceCode(ctx context.Context, client httpDoer, deviceURL, clientID, scope string) (*oidcutil.OIDCDeviceCodeResponseBody, error) {
+	data := url.Values{}
+	data.Set("client_id", clientID)
+	data.Set("scope", scope)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, deviceURL, strings.NewReader(data.Encode()))
+	if err != nil {
+		return nil, fmt.Errorf("build device code request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("request device code: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("device code request failed: %s — %s", resp.Status, string(body))
+	}
+
+	var result oidcutil.OIDCDeviceCodeResponseBody
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, fmt.Errorf("decode device code response: %w", err)
+	}
+	return &result, nil
+}
+
+// pollForToken performs Step 3 of RFC 8628: poll tokenURL until the device
+// code is authorized, expired, or the context is cancelled.
+func pollForToken(ctx context.Context, client httpDoer, tokenURL, clientID, deviceCode string, interval, expiresIn int) (string, string, error) {
+	if interval < 0 {
+		interval = 5
+	}
+	if expiresIn < 0 {
+		expiresIn = 300
+	}
+	deadline := time.Now().Add(time.Duration(expiresIn) * time.Second)
+
+	tokenData := url.Values{}
+	tokenData.Set("client_id", clientID)
+	tokenData.Set("grant_type", "urn:ietf:params:oauth:grant-type:device_code")
+	tokenData.Set("device_code", deviceCode)
+
+	for {
+		if time.Now().After(deadline) {
+			return "", "", fmt.Errorf("device code expired before authentication completed")
+		}
+		select {
+		case <-ctx.Done():
+			return "", "", fmt.Errorf("authentication cancelled")
+		case <-time.After(time.Duration(interval) * time.Second):
+		}
+
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, tokenURL, strings.NewReader(tokenData.Encode()))
+		if err != nil {
+			return "", "", fmt.Errorf("build token request: %w", err)
+		}
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+		resp, err := client.Do(req)
+		if err != nil {
+			return "", "", fmt.Errorf("poll token endpoint: %w", err)
+		}
+		body, _ := io.ReadAll(resp.Body)
+		_ = resp.Body.Close()
+
+		if resp.StatusCode != http.StatusOK {
+			var errResp struct {
+				Error string `json:"error"`
+			}
+			if jsonErr := json.Unmarshal(body, &errResp); jsonErr == nil {
+				switch errResp.Error {
+				case "authorization_pending":
+					continue
+				case "slow_down":
+					interval += 5
+					continue
+				case "expired_token":
+					return "", "", fmt.Errorf("device code expired before authentication completed")
+				case "access_denied":
+					return "", "", fmt.Errorf("access denied during device authorization")
+				}
+			}
+			return "", "", fmt.Errorf("token request failed: %s — %s", resp.Status, string(body))
+		}
+
+		var tokenMap map[string]interface{}
+		if err := json.Unmarshal(body, &tokenMap); err != nil {
+			return "", "", fmt.Errorf("decode token response: %w", err)
+		}
+		idToken, _ := tokenMap["id_token"].(string)
+		if idToken == "" {
+			return "", "", fmt.Errorf("no id_token in token response")
+		}
+		refreshToken, _ := tokenMap["refresh_token"].(string)
+		return idToken, refreshToken, nil
+	}
+}
+
+// oauth2LoginBrowserless implements the OAuth 2.0 Device Authorization Grant
+// (RFC 8628). It prints a verification URL for the user to open in a browser
+// and polls the token endpoint until authentication completes or is cancelled.
 func oauth2LoginBrowserless(
 	ctx context.Context,
 	oidcSettings *settingspkg.OIDCConfig,
 	oauth2conf *oauth2.Config,
 ) (string, string) {
-	// Derive the device authorization endpoint from the token endpoint.
-	// e.g. https://host/api/dex/token -> https://host/api/dex/device/code
-	// Falls back to the operator-configured DeviceURL if set.
-	deviceURL := oidcSettings.GetDeviceURL()
-	if deviceURL == "" {
-		deviceURL = strings.Replace(oauth2conf.Endpoint.TokenURL, "/token", "/device/code", 1)
-	}
+	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	defer stop()
 
-	tokenURL := oidcSettings.GetTokenURL()
+	// Prefer the device authorization endpoint auto-discovered from the OIDC
+	// discovery document (device_authorization_endpoint). Fall back to the
+	// operator-configured DeviceURL for providers that do not advertise it.
+	deviceURL := oauth2conf.Endpoint.DeviceAuthURL
+	if deviceURL == "" {
+		deviceURL = oidcSettings.GetDeviceURL()
+	}
+	tokenURL := oauth2conf.Endpoint.TokenURL
 	if tokenURL == "" {
-		tokenURL = oauth2conf.Endpoint.TokenURL
+		tokenURL = oidcSettings.GetTokenURL()
 	}
 
 	httpClient := &http.Client{}
 
-	// Step 1: request a device code
-	data := url.Values{}
-	data.Set("client_id", oauth2conf.ClientID)
-	data.Set("scope", strings.Join(oauth2conf.Scopes, " "))
-	deviceCodeRequest, err := http.NewRequest("POST", deviceURL, strings.NewReader(data.Encode()))
+	deviceResp, err := requestDeviceCode(ctx, httpClient, deviceURL, oauth2conf.ClientID, strings.Join(oauth2conf.Scopes, " "))
 	if err != nil {
-		log.Fatalf("Failed to build device code request: %s", err.Error())
-	}
-	deviceCodeRequest.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-
-	deviceCodeResponse, err := httpClient.Do(deviceCodeRequest)
-	if err != nil {
-		log.Fatalf("Failed to get a device code: %s", err.Error())
-	}
-	defer deviceCodeResponse.Body.Close()
-
-	if deviceCodeResponse.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(deviceCodeResponse.Body)
-		log.Fatalf("Failed to get a device code: %s — %s", deviceCodeResponse.Status, string(body))
+		log.Fatalf("Failed to request device code: %s", err)
+		return "", ""
 	}
 
-	var deviceCodeResponseBody oidcutil.OIDCDeviceCodeResponseBody
-	if err := json.NewDecoder(deviceCodeResponse.Body).Decode(&deviceCodeResponseBody); err != nil {
-		log.Fatalf("Failed to decode device code response: %s", err.Error())
-	}
-
-	// Step 2: prompt user to authenticate in browser
-	verificationURL := deviceCodeResponseBody.VerificationUriComplete
+	verificationURL := deviceResp.VerificationUriComplete
 	if verificationURL == "" {
-		verificationURL = fmt.Sprintf("%s?user_code=%s", deviceCodeResponseBody.VerificationUri, deviceCodeResponseBody.UserCode)
+		verificationURL = fmt.Sprintf("%s?user_code=%s", deviceResp.VerificationUri, deviceResp.UserCode)
 	}
-	fmt.Printf("Open the following URL in your browser to authenticate:\n\n  %s\n\nHit enter when you have authenticated.\n", verificationURL)
-	_, _ = bufio.NewReader(os.Stdin).ReadBytes('\n')
+	fmt.Printf("Open the following URL in your browser to authenticate:\n\n  %s\n\nWaiting for authentication...\n", verificationURL)
 
-	// Step 3: exchange device code for token
-	data = url.Values{}
-	data.Set("client_id", oauth2conf.ClientID)
-	data.Set("grant_type", "urn:ietf:params:oauth:grant-type:device_code")
-	data.Set("device_code", deviceCodeResponseBody.DeviceCode)
-
-	tokenRequest, err := http.NewRequest("POST", tokenURL, strings.NewReader(data.Encode()))
+	idToken, refreshToken, err := pollForToken(ctx, httpClient, tokenURL, oauth2conf.ClientID, deviceResp.DeviceCode, deviceResp.Interval, deviceResp.ExpiresIn)
 	if err != nil {
-		log.Fatalf("Failed to build token request: %s", err.Error())
-	}
-	tokenRequest.Header.Add("Content-Type", "application/x-www-form-urlencoded")
-
-	tokenResponse, err := httpClient.Do(tokenRequest)
-	if err != nil {
-		log.Fatalf("Failed to get an access token: %s", err.Error())
-	}
-	defer tokenResponse.Body.Close()
-
-	if tokenResponse.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(tokenResponse.Body)
-		log.Fatalf("Failed to get an access token: %s — %s", tokenResponse.Status, string(body))
+		log.Fatalf("%s", err)
+		return "", ""
 	}
 
-	// Decode into a generic map to extract id_token (not in OIDCTokenResponseBody)
-	var tokenMap map[string]interface{}
-	if err := json.NewDecoder(tokenResponse.Body).Decode(&tokenMap); err != nil {
-		log.Fatalf("Failed to decode token response: %s", err.Error())
-	}
-
-	idToken, _ := tokenMap["id_token"].(string)
-	if idToken == "" {
-		log.Fatal("no id_token in token response")
-	}
-	refreshToken, _ := tokenMap["refresh_token"].(string)
-
-	fmt.Printf("Authentication successful\n")
+	fmt.Print("Authentication successful\n")
 	log.Debugf("Token: %s", idToken)
 	log.Debugf("Refresh Token: %s", refreshToken)
 	return idToken, refreshToken

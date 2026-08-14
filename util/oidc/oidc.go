@@ -60,8 +60,7 @@ const (
 	OidcTokenCachePrefix        = "oidc_token"
 )
 
-// OIDCConfiguration holds a subset of interested fields from the OIDC configuration spec
-
+// OIDCDeviceCodeResponseBody is the response from the device authorization endpoint
 type OIDCDeviceCodeResponseBody struct {
 	DeviceCode              string `json:"device_code"`
 	UserCode                string `json:"user_code"`
@@ -71,6 +70,7 @@ type OIDCDeviceCodeResponseBody struct {
 	Interval                int    `json:"interval"`
 }
 
+// OIDCTokenResponseBody is the successful token response from the token endpoint.
 type OIDCTokenResponseBody struct {
 	AccessToken      string `json:"access_token"`
 	RefreshToken     string `json:"refresh_token"`
@@ -82,6 +82,7 @@ type OIDCTokenResponseBody struct {
 	Scope            string `json:"scope"`
 }
 
+// OIDCConfiguration holds a subset of interested fields from the OIDC configuration spec
 type OIDCConfiguration struct {
 	Issuer                 string   `json:"issuer"`
 	ScopesSupported        []string `json:"scopes_supported"`

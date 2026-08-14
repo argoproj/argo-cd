@@ -68,6 +68,11 @@ func TestNewReloginCommand(t *testing.T) {
 	assert.NotNil(t, ssoPortFlag, "Expected flag --sso-port to be defined")
 	require.NoError(t, err, "Failed to convert sso-port flag value to integer")
 	assert.Equal(t, 8085, port, "Unexpected default value for --sso-port flag")
+
+	browserlessFlag := cmd.Flags().Lookup("browserless")
+	assert.NotNil(t, browserlessFlag, "Expected flag --browserless to be defined")
+	assert.Equal(t, "false", browserlessFlag.Value.String(), "Expected --browserless to default to false")
+	assert.Equal(t, "Perform SSO relogin without a browser using the device code flow", browserlessFlag.Usage)
 }
 
 func TestNewReloginCommandWithClientOptions(t *testing.T) {
@@ -99,6 +104,51 @@ func TestNewReloginCommandWithClientOptions(t *testing.T) {
 	assert.NotNil(t, ssoPortFlag, "Expected flag --sso-port to be defined")
 	require.NoError(t, err, "Failed to convert sso-port flag value to integer")
 	assert.Equal(t, 8085, port, "Unexpected default value for --sso-port flag")
+}
+
+// TestReloginBrowserlessFlagIgnoredForPasswordLogin verifies that --browserless
+// has no effect when the stored token was issued by ArgoCD itself (password
+// login): the command should fall through to passwordLogin regardless.
+func TestReloginBrowserlessFlagIgnoredForPasswordLogin(t *testing.T) {
+	lc := net.ListenConfig{}
+	lis, err := lc.Listen(t.Context(), "tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+
+	const newToken = "refreshed-password-token"
+	mockSvc := sessionmocks.NewSessionServiceServer(t)
+	mockSvc.EXPECT().Create(mock.Anything, mock.Anything).Return(
+		&sessionpkg.SessionResponse{Token: newToken}, nil,
+	)
+
+	grpcServer := grpc.NewServer()
+	versionpkg.RegisterVersionServiceServer(grpcServer, &fakeVersionServer{})
+	sessionpkg.RegisterSessionServiceServer(grpcServer, mockSvc)
+	go func() { _ = grpcServer.Serve(lis) }()
+	defer grpcServer.Stop()
+
+	addr := lis.Addr().String()
+	argoJWT := makeTestArgoJWT(t)
+
+	configFile := filepath.Join(t.TempDir(), "config")
+	cfg := localconfig.LocalConfig{
+		CurrentContext: "ctx",
+		Contexts:       []localconfig.ContextRef{{Name: "ctx", Server: addr, User: "ctx"}},
+		Servers:        []localconfig.Server{{Server: addr, PlainText: true}},
+		Users:          []localconfig.User{{Name: "ctx", AuthToken: argoJWT}},
+	}
+	require.NoError(t, localconfig.WriteLocalConfig(cfg, configFile))
+
+	clientOpts := &argocdclient.ClientOptions{ConfigPath: configFile}
+	cmd := NewReloginCommand(clientOpts)
+	// --browserless is set but the stored token is an ArgoCD password token,
+	// so the SSO branch is never reached.
+	cmd.SetArgs([]string{"--password", "test-password", "--browserless"})
+	cmd.SetContext(context.Background())
+	require.NoError(t, cmd.Execute())
+
+	updated, err := localconfig.ReadLocalConfig(configFile)
+	require.NoError(t, err)
+	assert.Equal(t, newToken, updated.GetToken("ctx"))
 }
 
 // TestReloginUsesArgocdContext is a regression test for https://github.com/argoproj/argo-cd/issues/28453.
