@@ -186,3 +186,10 @@ func TestStringSliceFlagFallback(t *testing.T) {
 
 	assert.Equal(t, []string{"default"}, strings)
 }
+
+func TestIntFlagEmptySlice(t *testing.T) {
+	loadOpts(t, "")
+	flags["foo"] = []string{}
+
+	assert.Equal(t, 5, GetIntFlag("foo", 5))
+}
