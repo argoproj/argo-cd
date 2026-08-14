@@ -160,22 +160,6 @@ func (db *db) WriteRepositoryExists(ctx context.Context, repoURL, project string
 	return secretsBackend.RepositoryExists(ctx, repoURL, project, true)
 }
 
-func (db *db) getRepository(ctx context.Context, repoURL, project string) (*v1alpha1.Repository, error) {
-	secretsBackend := db.repoBackend()
-	exists, err := secretsBackend.RepositoryExists(ctx, repoURL, project, true)
-	if err != nil {
-		return nil, fmt.Errorf("unable to check if repository %q exists from secrets backend: %w", git.SanitizeRepoURL(repoURL), err)
-	} else if exists {
-		repository, err := secretsBackend.GetRepository(ctx, repoURL, project)
-		if err != nil {
-			return nil, fmt.Errorf("unable to get repository %q from secrets backend: %w", git.SanitizeRepoURL(repoURL), err)
-		}
-		return repository, nil
-	}
-
-	return &v1alpha1.Repository{Repo: repoURL}, nil
-}
-
 func (db *db) ListRepositories(ctx context.Context) ([]*v1alpha1.Repository, error) {
 	return db.listRepositories(ctx, nil, false)
 }
