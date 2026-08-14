@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/core"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/git"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/webapi"
@@ -13,7 +14,6 @@ import (
 
 	azureMock "github.com/argoproj/argo-cd/v3/applicationset/services/scm_provider/azure_devops/git/mocks"
 	"github.com/argoproj/argo-cd/v3/applicationset/services/scm_provider/mocks"
-	"github.com/google/uuid"
 )
 
 func TestListPullRequest(t *testing.T) {
