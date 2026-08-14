@@ -35,4 +35,25 @@ describe('validateGitHubAppCredentials', () => {
             githubAppPrivateKey: 'GitHub App private Key is required'
         });
     });
+
+    test('does not treat a zero app ID as empty credentials', () => {
+        expect(validateGitHubAppCredentials({githubAppId: 0})).toEqual({
+            githubAppId: 'GitHub App ID is required',
+            githubAppPrivateKey: 'GitHub App private Key is required'
+        });
+    });
+
+    test('does not treat a zero installation ID as empty credentials', () => {
+        expect(validateGitHubAppCredentials({githubAppInstallationId: 0})).toEqual({
+            githubAppId: 'GitHub App ID is required',
+            githubAppPrivateKey: 'GitHub App private Key is required'
+        });
+    });
+
+    test.each([{githubAppId: Number.NaN}, {githubAppInstallationId: Number.NaN}])('does not allow an unnormalized numeric field: %p', values => {
+        expect(validateGitHubAppCredentials(values)).toEqual({
+            githubAppId: 'GitHub App ID is required',
+            githubAppPrivateKey: 'GitHub App private Key is required'
+        });
+    });
 });
