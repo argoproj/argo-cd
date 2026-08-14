@@ -77,6 +77,10 @@ data:
     #     - https://argo/oauth2/callback
     #   secret: $secretReference
 
+  # A default dex connector id to force HTTP redirect in Dex Auth endpoint.
+  # Helpful when dex configured with two connectors for human users and for machines.
+  dex.auth.connectorId: github
+
   # OIDC configuration as an alternative to dex (optional).
   oidc.config: |
     name: Okta
@@ -329,6 +333,11 @@ data:
   # the content appears both at the top and the bottom of the page. Uncomment the following line to make the banner appear
   # at the bottom of the page. Change the value as needed.
   # ui.bannerposition: "bottom"
+
+  # Set to "true" to disable the managed Resources view in the UI. When disabled, the "Resources"
+  # navigation item is hidden and the /resources page shows a "feature not enabled" message.
+  # Defaults to "false" (the Resources view is enabled).
+  ui.view.resources.disabled: "false"
 
   # Optional override for the SSO login button label.
   # ui.loginButtonText: "SSO Login"

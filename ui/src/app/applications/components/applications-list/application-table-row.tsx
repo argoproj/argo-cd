@@ -1,7 +1,7 @@
-import {DropDownMenu, NotificationType, Tooltip} from 'argo-ui';
+import {NotificationType, Tooltip} from 'argo-ui';
 import * as React from 'react';
 import Moment from 'react-moment';
-import {Cluster} from '../../../shared/components';
+import {ActionMenu, CellLink, Cluster} from '../../../shared/components';
 import {AuthSettingsCtx, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {NoticeIcon} from '../application-notice/notice-icon';
@@ -11,7 +11,6 @@ import {getAppDefaultSource, OperationState, getApplicationLinkURL, getManagedBy
 import {isValidManagedByURL} from '../../../shared/utils';
 import {ApplicationsLabels} from './applications-labels';
 import {ApplicationsSource} from './applications-source';
-import {CellLink} from './cell-link';
 import {EntryField, EntryFieldList} from './entry-fields';
 import {services} from '../../../shared/services';
 import {ViewPreferences} from '../../../shared/services';
@@ -108,7 +107,9 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                     Project/Name · Source/Destination · Status, each a (label | value) pair stacked
                     two-high (see `.applications-list__meta-flat` in entry-fields.scss, which pins each
                     field to its grid cell). Replaces the former three per-column <dl>s; the fav-col
-                    and actions menu stay outside it. Field order below feeds the explicit placement. */}
+                    and actions menu stay outside it — the latter also has to stay outside the Status
+                    CellLink, since a <button> nested in an <a> is invalid. Field order below feeds
+                    the explicit placement. */}
                 <EntryFieldList variant='table' className='applications-list__meta-flat'>
                     <EntryField name='project' label='Project'>
                         {app.spec.project}
@@ -167,12 +168,7 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                     </EntryField>
                 </EntryFieldList>
 
-                <DropDownMenu
-                    anchor={() => (
-                        <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
-                            <i className='fa fa-ellipsis-v' />
-                        </button>
-                    )}
+                <ActionMenu
                     items={[
                         {
                             title: 'Sync',
