@@ -248,7 +248,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	// appSyncMap tracks which apps will be synced during this reconciliation.
 	appSyncMap := map[string]bool{}
-
+	var timeBeforePerformProgressiveSync time.Time
 	if r.EnableProgressiveSyncs {
 		if !progressivesync.IsRollingSyncStrategy(&applicationSetInfo) && len(applicationSetInfo.Status.ApplicationStatus) > 0 {
 			// If an appset was previously syncing with a `RollingSync` strategy but it has switched to the default strategy, clean up the progressive sync application statuses
@@ -274,6 +274,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				)
 				return ctrl.Result{RequeueAfter: ReconcileRequeueOnValidationError}, nil
 			}
+			timeBeforePerformProgressiveSync = time.Now()
 			appSyncMap, err = r.ProgressiveSyncManager.PerformProgressiveSyncs(ctx, logCtx, applicationSetInfo, currentApplications, generatedApplications)
 			if err != nil {
 				return ctrl.Result{}, fmt.Errorf("failed to perform progressive sync reconciliation for application set: %w", err)
@@ -330,6 +331,9 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	if r.EnableProgressiveSyncs {
 		// trigger appropriate application syncs if RollingSync strategy is enabled
 		if progressivesync.RollingSyncStrategyEnabled(&applicationSetInfo) {
+			if len(appSyncMap) > 0 {
+				r.Metrics.ObserveTimeToStartSyncAfterDetection(&applicationSetInfo, time.Since(timeBeforePerformProgressiveSync))
+			}
 			validApps = r.ProgressiveSyncManager.SyncDesiredApplications(logCtx, &applicationSetInfo, appSyncMap, validApps)
 		}
 	}
@@ -1212,6 +1216,8 @@ func (r *ApplicationSetReconciler) setAppSetApplicationStatus(ctx context.Contex
 			return fmt.Errorf("unable to set application set status: %w", err)
 		}
 	}
+
+	r.Metrics.SetProgressiveSyncAppStatus(applicationSet)
 
 	return nil
 }
