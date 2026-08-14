@@ -33,7 +33,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/yaml"
 
-	enginecache "github.com/argoproj/argo-cd/gitops-engine/pkg/cache"
+	enginecache "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache"
 	timeutil "github.com/argoproj/pkg/v2/time"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -568,6 +568,8 @@ const (
 	RespectRBACValueNormal = "normal"
 	// impersonationEnabledKey is the key to configure whether the application sync decoupling through impersonation feature is enabled
 	impersonationEnabledKey = "application.sync.impersonation.enabled"
+	// impersonationEnforcedKey is the key to configure whether a service account must be configured in the AppProject when impersonation is enabled
+	impersonationEnforcedKey = "application.sync.impersonation.enforced"
 	// requireOverridePrivilegeForRevisionSyncKey is the key to configure whether giving an external revision during sync is considered an override
 	requireOverridePrivilegeForRevisionSyncKey = "application.sync.requireOverridePrivilegeForRevisionSync"
 )
@@ -581,6 +583,9 @@ const (
 
 	// application sync with impersonation feature is disabled by default.
 	defaultImpersonationEnabledFlag = false
+
+	// application sync with impersonation enforcement is enabled by default (applies only when defaultImpersonationEnabledFlag is enabled)
+	defaultImpersonationEnforcedFlag = true
 
 	// defaultInClusterEnabledFlag is the default value when the in-cluster setting
 	// cannot be read from the configmap or is not explicitly set by the user.
@@ -2782,6 +2787,18 @@ func (mgr *SettingsManager) IsImpersonationEnabled() (bool, error) {
 		return defaultImpersonationEnabledFlag, fmt.Errorf("error checking %s property in configmap: %w", impersonationEnabledKey, err)
 	}
 	return cm.Data[impersonationEnabledKey] == "true", nil
+}
+
+// IsImpersonationEnforced returns true if impersonation enforcement is enabled (requires service account to be configured)
+func (mgr *SettingsManager) IsImpersonationEnforced() (bool, error) {
+	cm, err := mgr.getConfigMap()
+	if err != nil {
+		return defaultImpersonationEnforcedFlag, fmt.Errorf("error checking %s property in configmap: %w", impersonationEnforcedKey, err)
+	}
+	if value, exists := cm.Data[impersonationEnforcedKey]; exists {
+		return value != "false", nil
+	}
+	return defaultImpersonationEnforcedFlag, nil
 }
 
 func (mgr *SettingsManager) GetAllowedNodeLabels() []string {

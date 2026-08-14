@@ -44,9 +44,13 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
     const selectedNodeInfo = NodeInfo(new URLSearchParams(appContext.history.location.search).get('node'));
     const selectedNodeKey = selectedNodeInfo.key;
 
-    React.useEffect(() => {
+    // Reset the active container when the selected node changes, by comparing the
+    // previous node key during render instead of using a cascading effect.
+    const [prevSelectedNodeKey, setPrevSelectedNodeKey] = useState(selectedNodeKey);
+    if (prevSelectedNodeKey !== selectedNodeKey) {
+        setPrevSelectedNodeKey(selectedNodeKey);
         setActiveContainer(null);
-    }, [selectedNodeKey]);
+    }
 
     const [pageNumber, setPageNumber] = React.useState(0);
     const [collapsedSources, setCollapsedSources] = React.useState(new Array<boolean>()); // For Sources tab to save collapse states

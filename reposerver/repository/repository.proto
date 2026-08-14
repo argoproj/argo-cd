@@ -300,6 +300,8 @@ message UpdateRevisionForPathsRequest {
     string installationID = 15;
 
     map<string, github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.RefTarget> syncedRefSources = 16;
+
+    github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.SourceIntegrity sourceIntegrity = 17;
 }
 
 message UpdateRevisionForPathsResponse {

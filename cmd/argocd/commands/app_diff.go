@@ -9,10 +9,10 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/hook"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/ignore"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/hook"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/ignore"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/retry"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -20,7 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	resourceutil "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/resource"
+	resourceutil "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/resource"
 
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
 	argocommon "github.com/argoproj/argo-cd/v3/common"

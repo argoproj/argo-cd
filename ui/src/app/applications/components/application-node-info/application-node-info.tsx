@@ -196,7 +196,6 @@ export const ApplicationNodeInfo = (props: {
             } as any);
         }
     }
-    let showLiveState = true;
     if (props.links) {
         attributes.push({
             title: 'LINKS',
@@ -211,14 +210,17 @@ export const ApplicationNodeInfo = (props: {
             content: (
                 <DataLoader load={() => services.viewPreferences.getPreferences()}>
                     {pref => {
-                        const live = deepMerge(props.live, {}) as any;
-                        if (Object.keys(live).length === 0) {
-                            showLiveState = false;
-                        }
+                        const merged = deepMerge(props.live, {}) as any;
+                        const showLiveState = Object.keys(merged).length !== 0;
 
-                        if (live?.metadata?.managedFields && pref.appDetails.hideManagedFields) {
-                            delete live.metadata.managedFields;
-                        }
+                        const live =
+                            merged?.metadata?.managedFields && pref.appDetails.hideManagedFields
+                                ? (() => {
+                                      const metadata = {...merged.metadata};
+                                      delete metadata.managedFields;
+                                      return {...merged, metadata};
+                                  })()
+                                : merged;
                         return (
                             <React.Fragment>
                                 {showLiveState ? (
