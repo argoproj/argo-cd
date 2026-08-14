@@ -172,3 +172,17 @@ func TestStringSliceFlagRepeatedWithEqualSign(t *testing.T) {
 	assert.Equal(t, "CF-Access-Client-Id: foo", strings[0])
 	assert.Equal(t, "CF-Access-Client-Secret: bar", strings[1])
 }
+
+func TestStringSliceFlagEmptyValue(t *testing.T) {
+	loadOpts(t, "--header ''")
+	strings := GetStringSliceFlag("header", []string{})
+
+	assert.Empty(t, strings)
+}
+
+func TestStringSliceFlagFallback(t *testing.T) {
+	loadOpts(t, "")
+	strings := GetStringSliceFlag("header", []string{"default"})
+
+	assert.Equal(t, []string{"default"}, strings)
+}
