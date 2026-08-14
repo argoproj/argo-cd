@@ -526,13 +526,62 @@ Add a `rootCA` to your `oidc.config` which contains the PEM encoded root certifi
       -----END CERTIFICATE-----
 ```
 
-### Configuring browserless CLI SSO login using the OAuth 2.0 Device Code Authorization Grant
-In case the environment doesn't allow opening a browser to finish the OIDC flow, a URL is printed on the screen that can be opened from elsewhere to finish the authorization process. This can be achieved by specifying it as follows:
+### Browserless CLI SSO login using the OAuth 2.0 Device Code Authorization Grant
+
+Cloud-based IDEs and remote development environments run the CLI inside a container, so the standard
+`argocd login --sso` flow — which opens `localhost` in a browser and captures the OIDC callback — does not work.
+The OAuth 2.0 Device Code Authorization Grant
+([RFC 8628](https://www.rfc-editor.org/rfc/rfc8628)) solves this by decoupling the device running the
+CLI from the browser used to complete authentication:
+
+1. The CLI requests a short-lived *device code* from the OIDC provider.
+2. The OIDC provider returns a *verification URL* and a human-readable *user code*.
+3. The CLI prints the URL. The user opens it in **any** browser — even on a completely different machine.
+4. The user authenticates and approves the request in the browser.
+5. The CLI polls the token endpoint until the provider confirms approval, then stores the token locally.
+
+#### Using the flag
+
+```bash
+# First-time login
+argocd login <server> --sso --browserless
+
+# Refresh an expired token
+argocd relogin --browserless
+```
+
+The CLI prints a URL like:
+
+```
+Open the following URL in your browser to authenticate:
+
+  https://argocd.example.com/api/dex/device?user_code=ABCD-1234
+
+Waiting for authentication...
+```
+
+#### Provider requirements
+
+The OIDC provider must support the device code grant type
+(`urn:ietf:params:oauth:grant-type:device_code`) and advertise a
+`device_authorization_endpoint` in its OIDC discovery document
+(`/.well-known/openid-configuration`). Most modern providers (Keycloak, Okta, Azure AD, Google) do.
+
+**Bundled Dex**: Device code support is enabled automatically when Argo CD configures the bundled Dex
+instance — no additional Dex configuration is required.
+
+**External OIDC providers**: The device authorization endpoint is discovered automatically from the
+provider's OIDC discovery document. No additional configuration is needed for standards-compliant
+providers.
+
+For providers that support the device code grant but do **not** advertise the endpoint in their discovery
+document, you can configure the URLs explicitly:
+
 ```yaml
   oidc.config: |
     ...
     tokenURL: https://example-OIDC-provider.example.com/token
-    deviceURL: https://example-OIDC-provider.example.com/device
+    deviceURL: https://example-OIDC-provider.example.com/device/code
 ```
 
 ## CI/CD Pipeline Authentication

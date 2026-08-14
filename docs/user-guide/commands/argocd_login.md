@@ -21,6 +21,9 @@ argocd login cd.argoproj.io
 # Login to Argo CD using SSO
 argocd login cd.argoproj.io --sso
 
+# Login to Argo CD using SSO without a browser (device code flow)
+argocd login cd.argoproj.io --sso --browserless
+
 # Configure direct access using Kubernetes API server
 argocd login cd.argoproj.io --core
 ```
