@@ -198,8 +198,12 @@ $entry-xxlarge: calc(map-get($breakpoints, xxlarge) - 1px);
         }
 
         // Trailing space after each value so the next column's label reads as a new
-        // pair rather than butting up against the previous value.
-        .entry-fields__dd {
+        // pair rather than butting up against the previous value. Status is excluded:
+        // it's the last group, so the gap separates it from nothing while narrowing the
+        // cell — and the status track is already tighter than the legacy small-2 column
+        // (16.667% of the <dl> content box, i.e. after the fav-col and the 3em reserved
+        // for the actions menu), so the lost width wraps the status text a line earlier.
+        .entry-fields__dd:not(.entry-fields__dd--status) {
             padding-right: 1.25rem;
         }
     }
