@@ -36,6 +36,12 @@ func LoadFlags() error {
 				flags[key] = append(flags[key], "true")
 			}
 			key = strings.TrimPrefix(opt, "--")
+			// pkg shellquota doesn't recognize `=` so that the opts in format `foo=bar` could not work.
+			// issue ref: https://github.com/argoproj/argo-cd/issues/6822
+			if idx := strings.Index(key, "="); idx >= 0 {
+				flags[key[:idx]] = append(flags[key[:idx]], key[idx+1:])
+				key = ""
+			}
 		case key != "":
 			flags[key] = append(flags[key], opt)
 			key = ""
@@ -45,17 +51,6 @@ func LoadFlags() error {
 	}
 	if key != "" {
 		flags[key] = append(flags[key], "true")
-	}
-	// pkg shellquota doesn't recognize `=` so that the opts in format `foo=bar` could not work.
-	// issue ref: https://github.com/argoproj/argo-cd/issues/6822
-	for k, v := range flags {
-		if strings.Contains(k, "=") && len(v) == 1 && v[0] == "true" {
-			kv := strings.SplitN(k, "=", 2)
-			actualKey, actualValue := kv[0], kv[1]
-			if _, ok := flags[actualKey]; !ok {
-				flags[actualKey] = []string{actualValue}
-			}
-		}
 	}
 	return nil
 }
