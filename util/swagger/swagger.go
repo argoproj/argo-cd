@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"path"
 
-	"github.com/go-openapi/runtime/middleware"
+	"github.com/go-openapi/runtime/server-middleware/docui"
 )
 
 // filename of ReDoc script in UI's assets/scripts path
@@ -30,10 +30,11 @@ func ServeSwaggerUI(mux *http.ServeMux, swaggerJSON string, uiPath string, rootP
 
 	specURL := path.Join(prefix, rootPath, "swagger.json")
 	scriptURL := path.Join(prefix, rootPath, "assets", "scripts", redocScriptName)
-	mux.Handle(uiPath, withFrameOptions(middleware.Redoc(middleware.RedocOpts{
-		BasePath: prefix,
-		SpecURL:  specURL,
-		Path:     path.Base(uiPath),
-		RedocURL: scriptURL,
-	}, http.NotFoundHandler())))
+	mux.Handle(uiPath, withFrameOptions(docui.Redoc(
+		http.NotFoundHandler(),
+		docui.WithUIBasePath(prefix),
+		docui.WithSpecURL(specURL),
+		docui.WithUIPath(path.Base(uiPath)),
+		docui.WithUIAssetsURL(scriptURL),
+	)))
 }

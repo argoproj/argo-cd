@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -261,6 +261,17 @@ func TestApplicationSetCalculateHealth(t *testing.T) {
 			},
 			expectedHealth: health.HealthStatusUnknown,
 			expectedMsg:    "Waiting for health status to be determined",
+		},
+		{
+			name: "when all conditions are present, calculate using status",
+			conditions: []ApplicationSetCondition{
+				{Type: ApplicationSetConditionResourcesUpToDate, Status: ApplicationSetConditionStatusTrue, Message: "all applications synced"},
+				{Type: ApplicationSetConditionRolloutProgressing, Status: ApplicationSetConditionStatusFalse},
+				{Type: ApplicationSetConditionErrorOccurred, Status: ApplicationSetConditionStatusFalse},
+				{Type: ApplicationSetConditionParametersGenerated, Status: ApplicationSetConditionStatusTrue, Message: "params ok"},
+			},
+			expectedHealth: health.HealthStatusHealthy,
+			expectedMsg:    "all applications synced",
 		},
 	}
 

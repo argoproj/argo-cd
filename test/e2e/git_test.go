@@ -120,6 +120,56 @@ func TestGitSemverResolutionUsingConstraintWithLeadingZero(t *testing.T) {
 		Expect(Pod(func(p corev1.Pod) bool { return strings.HasPrefix(p.Name, "new-app") }))
 }
 
+func TestGitSemverResolutionWithTagPrefix(t *testing.T) {
+	Given(t).
+		Path("deployment").
+		CustomSSHKnownHostsAdded().
+		SSHRepoURLAdded(true).
+		RepoURLType(fixture.RepoURLTypeSSH).
+		Revision("v0.1.*").
+		TagPrefix("component-a/").
+		When().
+		AddTag("component-a/v0.1.0").
+		AddTag("v9.9.9").
+		CreateApp().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			require.Equal(t, "component-a/", app.Spec.Source.TagPrefix)
+			require.NotEmpty(t, app.Status.Sync.Revision)
+		})
+}
+
+func TestGitSemverResolutionWithTagPrefixMultipleTags(t *testing.T) {
+	Given(t).
+		Path("deployment").
+		CustomSSHKnownHostsAdded().
+		SSHRepoURLAdded(true).
+		RepoURLType(fixture.RepoURLTypeSSH).
+		Revision("v0.1.*").
+		TagPrefix("component-a/").
+		When().
+		AddTag("component-a/v0.1.0").
+		CreateApp().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			require.Equal(t, "component-a/", app.Spec.Source.TagPrefix)
+		}).
+		When().
+		PatchFile("deployment.yaml", `[
+	{"op": "replace", "path": "/metadata/name", "value": "new-app"},
+	{"op": "replace", "path": "/spec/replicas", "value": 1}
+]`).
+		AddTag("component-a/v0.1.2").
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(Pod(func(p corev1.Pod) bool { return strings.HasPrefix(p.Name, "new-app") }))
+}
+
 func TestAnnotatedTagInStatusSyncRevision(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).

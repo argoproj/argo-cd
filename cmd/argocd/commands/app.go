@@ -17,9 +17,9 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	"github.com/mattn/go-isatty"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -38,7 +38,7 @@ import (
 	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 
-	resourceutil "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/resource"
+	resourceutil "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/resource"
 
 	clusterpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster"
 	projectpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
@@ -526,6 +526,7 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		container    string
 		previous     bool
 		matchCase    bool
+		appNamespace string
 	)
 	command := &cobra.Command{
 		Use:   "logs APPNAME",
@@ -581,7 +582,7 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			acdClient := headless.NewClientOrDie(clientOpts, c)
 			conn, appIf := acdClient.NewApplicationClientOrDie()
 			defer utilio.Close(conn)
-			appName, appNs := argo.ParseFromQualifiedName(args[0], "")
+			appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
 
 			retry := true
 			for retry {
@@ -630,7 +631,7 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			} // Done with retry
 		},
 	}
-
+	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Namespace of the application")
 	command.Flags().StringVar(&group, "group", "", "Resource group")
 	command.Flags().StringVar(&kind, "kind", "", "Resource kind")
 	command.Flags().StringVar(&namespace, "namespace", "", "Resource namespace")
@@ -1644,7 +1645,12 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					appName = appNamespace + "/" + appName
 				}
 				_, _, err := waitOnApplicationStatus(ctx, acdClient, appName, timeout, watch, selectedResources, output)
-				errors.CheckError(err)
+				if err != nil {
+					if isContextCanceledErr(err) {
+						log.Fatalf("timed out (%ds) waiting for app %q to match the expected conditions", timeout, appName)
+					}
+					errors.CheckError(err)
+				}
 			}
 		},
 	}
@@ -2189,8 +2195,8 @@ func getResourceStates(app *argoappv1.Application, selectedResources []*argoappv
 	}
 	// filter out not selected resources
 	if len(selectedResources) > 0 {
-		for i := len(states) - 1; i >= 0; i-- {
-			res := states[i]
+		for i, v := range slices.Backward(states) {
+			res := v
 			if !argo.IncludeResource(res.Name, res.Namespace, schema.GroupVersionKind{Group: res.Group, Kind: res.Kind}, selectedResources) {
 				states = append(states[:i], states[i+1:]...)
 			}
@@ -2369,7 +2375,7 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 
 	printFinalStatus := func(app *argoappv1.Application) *argoappv1.Application {
 		var err error
-		if refresh {
+		if refresh && ctx.Err() == nil {
 			conn, appClient := acdClient.NewApplicationClientOrDie()
 			refreshType := string(argoappv1.RefreshTypeNormal)
 			app, err = appClient.Get(ctx, &application.ApplicationQuery{
@@ -2529,6 +2535,21 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 	}
 	_ = printFinalStatus(appWithLock.GetApp())
 	return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q match desired state", timeout, appName)
+}
+
+// isContextCanceledErr returns true if the error is a context cancellation or deadline exceeded,
+// either as a stdlib error or wrapped in a gRPC status error.
+func isContextCanceledErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	if stderrors.Is(err, context.Canceled) || stderrors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	if st, ok := status.FromError(err); ok {
+		return st.Code() == codes.Canceled || st.Code() == codes.DeadlineExceeded
+	}
+	return false
 }
 
 // setParameterOverrides updates an existing or appends a new parameter override in the application
@@ -2782,6 +2803,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 		sourceNames     []string
 		local           string
 		localRepoRoot   string
+		appNamespace    string
 	)
 	command := &cobra.Command{
 		Use:   "manifests APPNAME",
@@ -2825,7 +2847,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 				}
 			}
 
-			appName, appNs := argo.ParseFromQualifiedName(args[0], "")
+			appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
 			clientset := headless.NewClientOrDie(clientOpts, c)
 			conn, appIf := clientset.NewApplicationClientOrDie()
 			defer utilio.Close(conn)
@@ -2923,6 +2945,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 	}
 	command.Flags().StringVar(&source, "source", "git", "Source of manifests. One of: live|git")
 	command.Flags().StringVar(&revision, "revision", "", "Show manifests at a specific revision")
+	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Namespace of the application")
 	command.Flags().StringArrayVar(&revisions, "revisions", []string{}, "Show manifests at specific revisions for the source at position in source-positions")
 	command.Flags().Int64SliceVar(&sourcePositions, "source-positions", []int64{}, "List of source positions. Default is empty array. Counting start at 1.")
 	command.Flags().StringArrayVar(&sourceNames, "source-names", []string{}, "List of source names. Default is an empty array.")
@@ -2933,6 +2956,7 @@ func NewApplicationManifestsCommand(clientOpts *argocdclient.ClientOptions) *cob
 
 // NewApplicationTerminateOpCommand returns a new instance of an `argocd app terminate-op` command
 func NewApplicationTerminateOpCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var appNamespace string
 	command := &cobra.Command{
 		Use:   "terminate-op APPNAME",
 		Short: "Terminate running operation of an application",
@@ -2943,7 +2967,7 @@ func NewApplicationTerminateOpCommand(clientOpts *argocdclient.ClientOptions) *c
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			appName, appNs := argo.ParseFromQualifiedName(args[0], "")
+			appName, appNs := argo.ParseFromQualifiedName(args[0], appNamespace)
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
 			defer utilio.Close(conn)
 			_, err := appIf.TerminateOperation(ctx, &application.OperationTerminateRequest{
@@ -2954,6 +2978,7 @@ func NewApplicationTerminateOpCommand(clientOpts *argocdclient.ClientOptions) *c
 			fmt.Printf("Application '%s' operation terminating\n", appName)
 		},
 	}
+	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Namespace of the application")
 	return command
 }
 

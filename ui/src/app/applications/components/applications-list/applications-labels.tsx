@@ -27,7 +27,6 @@ export const ApplicationsLabels = ({app}: {app: Application}) => {
                     }
                 }
             }}
-            placement='auto-start'
             content={<div className='application-labels-tooltip'>{labels}</div>}>
             <div className='application-labels'>{labels}</div>
         </Tooltip>

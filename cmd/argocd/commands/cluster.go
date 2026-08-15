@@ -167,6 +167,11 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 				contextName = clusterOpts.Name
 			}
 			clst := cmdutil.NewCluster(contextName, clusterOpts.Namespaces, clusterOpts.ClusterResources, conf, managerBearerToken, awsAuthConf, execProviderConf, labelsMap, annotationsMap)
+			// If --server-proxy-url was explicitly provided, override the proxy that the ArgoCD server will use to
+			// reach this cluster.  An explicit empty string means "no proxy", which is the common case when the local
+			// machine needs a proxy but the two clusters can reach each other directly.
+			err = applyServerProxyOverride(c.Flags().Changed("server-proxy-url"), clusterOpts.ServerProxyURL, clst)
+			errors.CheckError(err)
 			if clusterOpts.InClusterEndpoint() {
 				clst.Server = argoappv1.KubernetesInternalAPIServerAddr
 			} else if clusterOpts.ClusterEndpoint == string(cmdutil.KubePublicEndpoint) {
@@ -203,6 +208,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 	command.Flags().StringArrayVar(&labels, "label", nil, "Set metadata labels (e.g. --label key=value)")
 	command.Flags().StringArrayVar(&annotations, "annotation", nil, "Set metadata annotations (e.g. --annotation key=value)")
 	command.Flags().StringVar(&clusterOpts.ProxyUrl, "proxy-url", "", "use proxy to connect cluster")
+	command.Flags().StringVar(&clusterOpts.ServerProxyURL, "server-proxy-url", "", "use a different proxy URL (or \"\" for no proxy) for the ArgoCD server to connect to the cluster; if omitted the value from --proxy-url or the kubeconfig is used")
 	cmdutil.AddClusterFlags(command, &clusterOpts)
 	return command
 }
@@ -229,6 +235,22 @@ func getRestConfig(pathOpts *clientcmd.PathOptions, ctxName string) (*rest.Confi
 	}
 
 	return conf, nil
+}
+
+// applyServerProxyOverride encapsulates the logic for handling the --server-proxy-url flag.
+// When changed is true, it validates non-empty values using argoappv1.ParseProxyUrl and
+// applies the override (including clearing the value when serverProxyURL is an explicit empty string).
+func applyServerProxyOverride(changed bool, serverProxyURL string, clst *argoappv1.Cluster) error {
+	if !changed {
+		return nil
+	}
+	if serverProxyURL != "" {
+		if _, err := argoappv1.ParseProxyUrl(serverProxyURL); err != nil {
+			return err
+		}
+	}
+	clst.Config.ProxyUrl = serverProxyURL
+	return nil
 }
 
 // NewClusterSetCommand returns a new instance of an `argocd cluster set` command

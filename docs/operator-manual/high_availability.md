@@ -85,6 +85,12 @@ get the actual cluster state.
   processors if your Argo CD instance manages too many applications.
   For 1000 applications, we use 50 for `--status-processors` and 25 for `--operation-processors`
 
+* when the [Source Hydrator](../user-guide/source-hydrator.md) is enabled, the controller hydrates manifests using a
+  separate queue whose concurrency is controlled by the `--hydration-processors` flag (5 by default). The hydration
+  queue is keyed by source repo, target revision, and destination branch, so the same key is never hydrated by more
+  than one processor at a time; increasing the count only parallelizes hydration across distinct keys. Increase it if a
+  single controller hydrates many independent repositories or branches and hydration becomes a bottleneck.
+
 * The manifest generation typically takes the most time during reconciliation. The duration of manifest generation is
   limited to make sure the controller refresh queue does not overflow.
   The app reconciliation fails with `Context deadline exceeded` error if the manifest generation is taking too much
@@ -347,6 +353,14 @@ get no benefit from using these annotations.
 Similarly, applications referencing an external Helm values file will not get the benefits of this feature when an
 unrelated change happens in the external source.
 
+> [!NOTE]
+> The Git-history comparison described above is skipped for repositories configured with shallow cloning (`depth` greater
+> than `0`). In that case, Argo CD may not have enough history to compare the previous synced revision with the new
+> revision, so it treats the application as potentially changed and proceeds with normal refresh and manifest generation.
+> This does not affect webhook payload filtering, which uses the changed files reported by the webhook event. The
+> annotation can also still be used to calculate a common root path and reduce the repository content sent to a Config
+> Management Plugin sidecar when `--plugin-use-manifest-generate-paths` is enabled.
+
 For webhooks, the comparison is done using the files specified in the webhook event payload instead.
 
 > [!NOTE]
@@ -502,6 +516,45 @@ To configure the jitter you can set the following environment variables:
 
 * `ARGOCD_RECONCILIATION_JITTER` - The jitter to apply to the sync timeout. Disabled when value is 0. Defaults to 60.
 
+### Webhook Reconciliation Jitter
+
+When a webhook event arrives (e.g. after a bulk merge to a monorepo), Argo CD may simultaneously enqueue refreshes for
+a large number of applications, causing a spike in load on the repo-server. To spread these refreshes out over time you
+can configure a random jitter that is applied before each webhook-triggered refresh is processed.
+
+The following `argocd-cm` ConfigMap keys control this behaviour:
+
+* `webhook.refresh.jitter` – The maximum duration of the random delay added before each webhook-triggered
+  application refresh. For example, if set to `60s`, each refresh will wait between 0 and 60 seconds before being
+  processed. Disabled when the value is `0` (default).
+* `webhook.refresh.jitter.threshold` – The minimum number of applications that must be affected by a single
+  webhook event before jitter is applied. This prevents unnecessary delays for small events. For example, if set to
+  `10` (the default), jitter is only applied when more than 10 applications are affected.
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+data:
+  # Apply up to 60s of jitter when more than 10 applications are affected
+  webhook.refresh.jitter: "60s"
+  webhook.refresh.jitter.threshold: "10"
+```
+
+You can also tune the number of concurrent workers that process the refresh queue using the
+`server.webhook.refresh.workers` key in `argocd-cmd-params-cm` (default: `20`). Under high webhook load it may be
+beneficial to raise this value alongside the jitter settings to drain the queue faster once the jitter delay expires.
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+data:
+  server.webhook.refresh.workers: "40"
+```
+
 ## Rate Limiting Application Reconciliations
 
 To prevent high controller resource usage or sync loops caused either due to misbehaving apps or other environment
@@ -624,6 +677,35 @@ $ kubectl port-forward svc/argocd-metrics 8082:8082
 $ go tool pprof http://localhost:8082/debug/pprof/heap
 ```
 
+## Mitigating OOMKilled Events from Memory Spikes
+
+To mitigate `OOMKilled` events caused by sudden memory spikes without over-provisioning resources, you can configure the `GOMEMLIMIT` environment variable on the relevant Argo CD containers (supported in Argo CD versions >= 2.7.0).
+
+Setting `GOMEMLIMIT` to **80%–90%** of your container's total memory limit forces the Go runtime to trigger garbage collection before the Kubernetes hard limit is reached. For more detail, see the [Go GC Guide](https://go.dev/doc/gc-guide#Memory_limit) and the [Environment variables](https://pkg.go.dev/runtime#hdr-Environment_Variables) reference.
+
+```yaml
+containers:
+  - name: argocd-application-controller
+    resources:
+      limits:
+        memory: "2Gi"
+    env:
+      - name: GOMEMLIMIT
+        value: "1800MiB"  # ~90% of the 2Gi memory limit above; GOMEMLIMIT uses MiB/GiB units
+```
+
+### Known Use Cases
+
+* Application controller cold-start memory spike
+* Expensive per-request memory spikes in argocd-server
+
+### Trade-Offs & Tuning
+
+> [!WARNING]
+> Setting `GOMEMLIMIT` too close to the application's actual working set can cause **GC thrashing**. The Go runtime will spend excessive CPU cycles continuously attempting to reclaim memory, significantly degrading application performance.
+
+If you observe sustained high CPU utilization alongside frequent GC activity or ongoing `OOMKilled` events, increase the container's total memory limit and recalculate `GOMEMLIMIT` proportionally to give the runtime more breathing room.
+
 ## Shallow Clone
 
 Repositories with large histories or large files in past revisions can be slow to clone and update. To speed up the clone process, you can use the `depth: "1"` repository option:
@@ -649,3 +731,9 @@ type: Opaque
 > You can use the `argocd repo add <repo-url> --depth` command to add a repository with shallow cloning enabled.
 
 When shallow cloning, the repository is cloned with a depth of 1, which means only the required commit is cloned as opposed to the full history. This approach makes sense when the repository has a large history.
+
+> [!NOTE]
+> Shallow cloning disables the non-webhook Git-history comparison optimization provided by the
+> `argocd.argoproj.io/manifest-generate-paths` annotation. If you rely on that annotation to avoid unnecessary refreshes
+> without webhooks, use a full clone (`depth: "0"` or omit `depth`) for that repository. Webhook payload filtering and
+> Config Management Plugin sidecar path narrowing can still use the annotation with shallow clones.

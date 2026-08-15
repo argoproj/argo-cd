@@ -15,13 +15,12 @@ import (
 
 	"k8s.io/apimachinery/pkg/labels"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"k8s.io/kubectl/pkg/util/openapi"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
-	synccommon "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube/kubetest"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube/kubetest"
 	"github.com/argoproj/pkg/v2/sync"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
@@ -4753,7 +4752,7 @@ func TestServerSideDiff(t *testing.T) {
 
 		// Create mock kubectl that returns our custom applier
 		mockKubectl := &kubetest.MockKubectlCmd{}
-		mockKubectl.WithManageServerSideDiffDryRunFunc(func(_ *rest.Config, _ openapi.Resources) (diff.KubeApplier, func(), error) {
+		mockKubectl.WithManageServerSideDiffDryRunFunc(func(_ *rest.Config) (diff.KubeApplier, func(), error) {
 			return mockApplier, func() {}, nil
 		})
 
@@ -4829,6 +4828,140 @@ func TestServerSideDiff(t *testing.T) {
 		// Calling the applier for new objects would allow the caller to discover existing objects in the
 		// clusters that are not part of the application's managed resources.
 		assert.False(t, applierCalled, "applier should not be called for new objects with null LiveState")
+	})
+
+	t.Run("SecretMaskingNotBypassedBySpoofedLiveKind", func(t *testing.T) {
+		// A caller with get access to the app must not be able to bypass Secret
+		// data masking by pairing a spoofed non-Secret liveResources[i].Kind with a
+		// Secret target manifest. The masking decision must key off the server's own
+		// parsed target/live objects, not the caller-supplied kind/group envelope.
+
+		// Register a decoy ConfigMap as managed so the spoofed live entry passes the
+		// managed-resources membership check.
+		decoyConfigMap := &corev1.ConfigMap{
+			TypeMeta:   metav1.TypeMeta{APIVersion: "v1", Kind: "ConfigMap"},
+			ObjectMeta: metav1.ObjectMeta{Name: "decoy-config", Namespace: "default"},
+			Data:       map[string]string{"key": "value"},
+		}
+		decoyJSON, err := json.Marshal(decoyConfigMap)
+		require.NoError(t, err)
+
+		// The dry-run returns a real Secret (with sensitive data) as the predicted
+		// live state, simulating a server-side apply of the Secret target manifest.
+		const leakedSecret = "czNjcjN0LWxlYWtlZA==" // base64("s3cr3t-leaked")
+		predictedSecret := `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"real-secret","namespace":"default"},"type":"Opaque","data":{"password":"` + leakedSecret + `"}}`
+		mockApplier := &kubetest.MockKubeApplier{
+			ApplyResourceFunc: func(_ context.Context, _ *unstructured.Unstructured, _ cmdutil.DryRunStrategy, _, _, _ bool, _ string) (string, error) {
+				return predictedSecret, nil
+			},
+		}
+		mockKubectl := &kubetest.MockKubectlCmd{}
+		mockKubectl.WithManageServerSideDiffDryRunFunc(func(_ *rest.Config) (diff.KubeApplier, func(), error) {
+			return mockApplier, func() {}, nil
+		})
+
+		// Skip webhook-mutation removal (which would require managedFields on the
+		// mock dry-run result); this test is about masking, not webhook handling.
+		spoofApp := newTestApp(func(app *v1alpha1.Application) {
+			app.Name = "spoof-app"
+			app.Namespace = testNamespace
+			app.Spec.Project = "test-project"
+			app.Annotations = map[string]string{
+				"argocd.argoproj.io/compare-options": "IncludeMutationWebhook=true",
+			}
+		})
+
+		appServerSpoof := newTestAppServer(t, testProj, spoofApp)
+		appServerSpoof.kubectl = mockKubectl
+		appServerSpoof.cache = newCachedManagedResources(t, appServerSpoof, spoofApp, kube.MustToUnstructured(decoyConfigMap))
+
+		// Target manifest is a real Secret, but liveResources[0].Kind is spoofed as
+		// ConfigMap to try to skip Secret masking.
+		targetSecret := `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"real-secret","namespace":"default"},"type":"Opaque","data":{"password":"` + leakedSecret + `"}}`
+		query := &application.ApplicationServerSideDiffQuery{
+			AppName:      new(spoofApp.Name),
+			AppNamespace: new(spoofApp.Namespace),
+			Project:      new(spoofApp.Spec.Project),
+			LiveResources: []*v1alpha1.ResourceDiff{
+				{
+					Group:     "",
+					Kind:      "ConfigMap", // spoofed - target is actually a Secret
+					Namespace: "default",
+					Name:      "decoy-config",
+					LiveState: string(decoyJSON),
+				},
+			},
+			TargetManifests: []string{targetSecret},
+		}
+
+		resp, err := appServerSpoof.ServerSideDiff(t.Context(), query)
+		require.NoError(t, err)
+		require.Len(t, resp.Items, 1)
+
+		assert.NotContains(t, resp.Items[0].TargetState, leakedSecret,
+			"raw secret data from the dry-run must not leak into TargetState even when liveResources[i].Kind is spoofed")
+		assert.NotContains(t, resp.Items[0].LiveState, leakedSecret,
+			"raw secret data from the dry-run must not leak into LiveState even when liveResources[i].Kind is spoofed")
+	})
+
+	t.Run("NonSecretIsNotMasked", func(t *testing.T) {
+		// Guard against over-masking: a genuine ConfigMap on both sides must have its
+		// data returned unmasked. The fix keys masking off the real parsed GVK, so
+		// non-Secret resources must be unaffected.
+		configMap := &corev1.ConfigMap{
+			TypeMeta:   metav1.TypeMeta{APIVersion: "v1", Kind: "ConfigMap"},
+			ObjectMeta: metav1.ObjectMeta{Name: "plain-config", Namespace: "default"},
+			Data:       map[string]string{"key": "not-a-secret"},
+		}
+		configJSON, err := json.Marshal(configMap)
+		require.NoError(t, err)
+
+		predictedConfig := `{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"plain-config","namespace":"default"},"data":{"key":"not-a-secret"}}`
+		mockApplier := &kubetest.MockKubeApplier{
+			ApplyResourceFunc: func(_ context.Context, _ *unstructured.Unstructured, _ cmdutil.DryRunStrategy, _, _, _ bool, _ string) (string, error) {
+				return predictedConfig, nil
+			},
+		}
+		mockKubectl := &kubetest.MockKubectlCmd{}
+		mockKubectl.WithManageServerSideDiffDryRunFunc(func(_ *rest.Config) (diff.KubeApplier, func(), error) {
+			return mockApplier, func() {}, nil
+		})
+
+		plainApp := newTestApp(func(app *v1alpha1.Application) {
+			app.Name = "plain-app"
+			app.Namespace = testNamespace
+			app.Spec.Project = "test-project"
+			app.Annotations = map[string]string{
+				"argocd.argoproj.io/compare-options": "IncludeMutationWebhook=true",
+			}
+		})
+
+		appServerPlain := newTestAppServer(t, testProj, plainApp)
+		appServerPlain.kubectl = mockKubectl
+		appServerPlain.cache = newCachedManagedResources(t, appServerPlain, plainApp, kube.MustToUnstructured(configMap))
+
+		query := &application.ApplicationServerSideDiffQuery{
+			AppName:      new(plainApp.Name),
+			AppNamespace: new(plainApp.Namespace),
+			Project:      new(plainApp.Spec.Project),
+			LiveResources: []*v1alpha1.ResourceDiff{
+				{
+					Group:     "",
+					Kind:      "ConfigMap",
+					Namespace: "default",
+					Name:      "plain-config",
+					LiveState: string(configJSON),
+				},
+			},
+			TargetManifests: []string{predictedConfig},
+		}
+
+		resp, err := appServerPlain.ServerSideDiff(t.Context(), query)
+		require.NoError(t, err)
+		require.Len(t, resp.Items, 1)
+
+		assert.Contains(t, resp.Items[0].TargetState, "not-a-secret",
+			"ConfigMap data must not be masked")
 	})
 
 	t.Run("LiveObjectConsistency", func(t *testing.T) {
@@ -4989,7 +5122,7 @@ func TestTerminateOperationWithConflicts(t *testing.T) {
 	}
 
 	appServer := newTestAppServer(t, testApp)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Get the fake clientset from the deepCopy wrapper
 	fakeAppCs := appServer.appclientset.(*deepCopyAppClientset).GetUnderlyingClientSet().(*apps.Clientset)
@@ -5121,6 +5254,76 @@ func TestGetApplicationClusterConfig(t *testing.T) {
 		config, err := appServer.getApplicationClusterConfig(t.Context(), app, project)
 		assert.Nil(t, config)
 		assert.ErrorContains(t, err, "no matching service account found")
+	})
+
+	t.Run("ImpersonationEnabledWithNoMatchEnforcementDisabled", func(t *testing.T) {
+		f := func(enf *rbac.Enforcer) {
+			_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+			enf.SetDefaultRole("role:admin")
+		}
+
+		app := newTestApp()
+		appServer := newTestAppServerWithEnforcerConfigure(t, f,
+			map[string]string{
+				"application.sync.impersonation.enabled":  "true",
+				"application.sync.impersonation.enforced": "false",
+			},
+			app,
+		)
+
+		// "default" project has no DestinationServiceAccounts
+		project := &v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "default"},
+			Spec: v1alpha1.AppProjectSpec{
+				SourceRepos:  []string{"*"},
+				Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+			},
+		}
+
+		config, err := appServer.getApplicationClusterConfig(t.Context(), app, project)
+		require.NoError(t, err)
+		assert.NotNil(t, config)
+		// Should not have impersonation set (uses controller SA)
+		assert.Empty(t, config.Impersonate.UserName)
+	})
+
+	t.Run("ImpersonationEnabledWithMatchEnforcementDisabled", func(t *testing.T) {
+		f := func(enf *rbac.Enforcer) {
+			_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+			enf.SetDefaultRole("role:admin")
+		}
+
+		projWithSA := &v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "proj-impersonate", Namespace: "default"},
+			Spec: v1alpha1.AppProjectSpec{
+				SourceRepos:  []string{"*"},
+				Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				DestinationServiceAccounts: []v1alpha1.ApplicationDestinationServiceAccount{
+					{
+						Server:                "https://cluster-api.example.com",
+						Namespace:             test.FakeDestNamespace,
+						DefaultServiceAccount: "test-sa",
+					},
+				},
+			},
+		}
+
+		app := newTestApp(func(a *v1alpha1.Application) {
+			a.Spec.Project = "proj-impersonate"
+		})
+
+		appServer := newTestAppServerWithEnforcerConfigure(t, f,
+			map[string]string{
+				"application.sync.impersonation.enabled":  "true",
+				"application.sync.impersonation.enforced": "false",
+			},
+			app, projWithSA,
+		)
+
+		config, err := appServer.getApplicationClusterConfig(t.Context(), app, projWithSA)
+		require.NoError(t, err)
+		// Should use impersonation since SA is configured
+		assert.Equal(t, "system:serviceaccount:"+test.FakeDestNamespace+":test-sa", config.Impersonate.UserName)
 	})
 }
 

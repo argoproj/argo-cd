@@ -251,6 +251,8 @@ export interface ApplicationSource {
     ref?: string;
 
     name?: string;
+
+    tagPrefix?: string;
 }
 
 export interface SourceHydrator {
@@ -272,6 +274,7 @@ export interface DrySource {
 export interface SyncSource {
     targetBranch: string;
     path: string;
+    repoURL?: string;
 }
 
 export interface HydrateTo {
@@ -442,6 +445,14 @@ export interface ResourceStatus {
     orphaned?: boolean;
 }
 
+export interface Resource extends ResourceStatus {
+    appProject?: string;
+    appName?: string;
+    appNamespace?: string;
+    clusterName?: string;
+    clusterServer?: string;
+}
+
 export interface ResourceRef {
     uid: string;
     kind: string;
@@ -523,6 +534,7 @@ export interface ApplicationCondition {
 export interface ApplicationSummary {
     externalURLs?: string[];
     images?: string[];
+    isAppOfApps?: boolean;
 }
 
 export interface ApplicationStatus {
@@ -600,9 +612,11 @@ export interface AuthSettings {
     };
     dexConfig: {
         connectors: {
+            id?: string;
             name: string;
             type: string;
         }[];
+        dexAuthConnectorID?: string;
     };
     oidcConfig: {
         name: string;
@@ -619,10 +633,18 @@ export interface AuthSettings {
     uiBannerURL: string;
     uiBannerPermanent: boolean;
     uiBannerPosition: string;
+    uiLoginButtonText: string;
     execEnabled: boolean;
     appsInAnyNamespaceEnabled: boolean;
     hydratorEnabled: boolean;
     syncWithReplaceAllowed: boolean;
+    resourceViewEnabled: boolean;
+    appLabelKey: string;
+    trackingMethod: string;
+    additionalUrls: string[];
+    impersonationEnabled: boolean;
+    controllerNamespace: string;
+    installationID: string;
 }
 
 export interface UserInfo {
@@ -689,6 +711,8 @@ export interface RepoCreds {
     url: string;
     username?: string;
     bearerToken?: string;
+    type?: string;
+    enableOCI?: boolean;
 }
 
 export interface RepoCredsList extends ItemsList<RepoCreds> {}

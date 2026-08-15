@@ -11,6 +11,7 @@ import (
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 
 	"github.com/argoproj/argo-cd/v3/applicationset/utils"
+	"github.com/argoproj/argo-cd/v3/util/proxy"
 )
 
 type GitlabProvider struct {
@@ -25,7 +26,7 @@ type GitlabProvider struct {
 
 var _ SCMProviderService = &GitlabProvider{}
 
-func NewGitlabProvider(organization string, token string, url string, allBranches, includeSubgroups, includeSharedProjects, includeArchivedRepos, insecure bool, scmRootCAPath, topic string, caCerts []byte) (*GitlabProvider, error) {
+func NewGitlabProvider(organization string, token string, url string, allBranches, includeSubgroups, includeSharedProjects, includeArchivedRepos, insecure bool, scmRootCAPath, topic string, caCerts []byte, proxyURL, noProxy string) (*GitlabProvider, error) {
 	// Undocumented environment variable to set a default token, to be used in testing to dodge anonymous rate limits.
 	if token == "" {
 		token = os.Getenv("GITLAB_TOKEN")
@@ -34,6 +35,7 @@ func NewGitlabProvider(organization string, token string, url string, allBranche
 
 	tr := http.DefaultTransport.(*http.Transport).Clone()
 	tr.TLSClientConfig = utils.GetTlsConfig(scmRootCAPath, insecure, caCerts)
+	tr.Proxy = proxy.GetCallback(proxyURL, noProxy)
 
 	retryClient := retryablehttp.NewClient()
 	retryClient.HTTPClient.Transport = tr

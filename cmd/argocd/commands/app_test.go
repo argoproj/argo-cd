@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -23,7 +23,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
 	"google.golang.org/grpc"
-	corev1 "k8s.io/api/core/v1"
+	grpccodes "google.golang.org/grpc/codes"
+	grpcstatus "google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -36,6 +37,7 @@ import (
 	applicationsetpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/applicationset"
 	certificatepkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/certificate"
 	clusterpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster"
+	eventspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/events"
 	gpgkeypkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/gpgkey"
 	notificationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/notification"
 	projectpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
@@ -1002,7 +1004,7 @@ func TestNewApplicationUnsetCommand_Validation(t *testing.T) {
 		_ = cmd.Execute()
 	}
 
-	cmd := exec.CommandContext(context.Background(), os.Args[0], "-test.run=TestNewApplicationUnsetCommand_Validation")
+	cmd := exec.CommandContext(t.Context(), os.Args[0], "-test.run=TestNewApplicationUnsetCommand_Validation")
 	cmd.Env = append(os.Environ(), "BE_CRASHER=1")
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
@@ -1199,8 +1201,6 @@ func Test_unset(t *testing.T) {
 }
 
 func Test_unset_nothingToUnset(t *testing.T) {
-	t.Parallel()
-
 	testCases := []struct {
 		name   string
 		source v1alpha1.ApplicationSource
@@ -1214,8 +1214,6 @@ func Test_unset_nothingToUnset(t *testing.T) {
 		testCaseCopy := testCase
 
 		t.Run(testCaseCopy.name, func(t *testing.T) {
-			t.Parallel()
-
 			updated, nothingToUnset := unset(&testCaseCopy.source, unsetOpts{})
 			assert.False(t, updated)
 			assert.True(t, nothingToUnset)
@@ -1862,10 +1860,11 @@ func TestWaitOnApplicationStatus_JSON_YAML_WideOutput(t *testing.T) {
 	}
 	watch = getWatchOpts(watch)
 
-	output, err := captureOutput(func() error {
-		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "json")
-		return nil
-	},
+	output, err := captureOutput(
+		func() error {
+			_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "json")
+			return nil
+		},
 	)
 	require.NoError(t, err)
 	assert.True(t, json.Valid([]byte(output)))
@@ -2433,7 +2432,7 @@ func (c *fakeAppServiceClient) List(_ context.Context, _ *applicationpkg.Applica
 	return nil, nil
 }
 
-func (c *fakeAppServiceClient) ListResourceEvents(_ context.Context, _ *applicationpkg.ApplicationResourceEventsQuery, _ ...grpc.CallOption) (*corev1.EventList, error) {
+func (c *fakeAppServiceClient) ListResourceEvents(_ context.Context, _ *applicationpkg.ApplicationResourceEventsQuery, _ ...grpc.CallOption) (*eventspkg.EventList, error) {
 	return nil, nil
 }
 
@@ -2697,4 +2696,40 @@ func (c *fakeAcdClient) WatchApplicationSetWithRetry(_ context.Context, _ string
 		appSetEventsCh <- addedEvent
 	}()
 	return appSetEventsCh
+}
+
+func TestIsContextCanceledErr(t *testing.T) {
+	t.Parallel()
+
+	t.Run("nil error returns false", func(t *testing.T) {
+		t.Parallel()
+		assert.False(t, isContextCanceledErr(nil))
+	})
+
+	t.Run("context.Canceled returns true", func(t *testing.T) {
+		t.Parallel()
+		assert.True(t, isContextCanceledErr(context.Canceled))
+	})
+
+	t.Run("context.DeadlineExceeded returns true", func(t *testing.T) {
+		t.Parallel()
+		assert.True(t, isContextCanceledErr(context.DeadlineExceeded))
+	})
+
+	t.Run("gRPC Canceled status returns true", func(t *testing.T) {
+		t.Parallel()
+		grpcErr := grpcstatus.Error(grpccodes.Canceled, "context canceled")
+		assert.True(t, isContextCanceledErr(grpcErr))
+	})
+
+	t.Run("gRPC DeadlineExceeded status returns true", func(t *testing.T) {
+		t.Parallel()
+		grpcErr := grpcstatus.Error(grpccodes.DeadlineExceeded, "deadline exceeded")
+		assert.True(t, isContextCanceledErr(grpcErr))
+	})
+
+	t.Run("unrelated error returns false", func(t *testing.T) {
+		t.Parallel()
+		assert.False(t, isContextCanceledErr(errors.New("some other error")))
+	})
 }

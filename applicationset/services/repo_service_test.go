@@ -18,6 +18,7 @@ import (
 )
 
 func TestGetDirectories(t *testing.T) {
+	t.Parallel()
 	type fields struct {
 		submoduleEnabled  bool
 		getRepository     func(ctx context.Context, url, project string) (*v1alpha1.Repository, error)
@@ -75,6 +76,7 @@ func TestGetDirectories(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			a := &argoCDService{
 				getRepository:                   tt.fields.getRepository,
 				submoduleEnabled:                tt.fields.submoduleEnabled,
@@ -90,6 +92,7 @@ func TestGetDirectories(t *testing.T) {
 }
 
 func TestGetFiles(t *testing.T) {
+	t.Parallel()
 	type fields struct {
 		submoduleEnabled bool
 		getRepository    func(ctx context.Context, url, project string) (*v1alpha1.Repository, error)
@@ -154,6 +157,7 @@ func TestGetFiles(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			a := &argoCDService{
 				getRepository:             tt.fields.getRepository,
 				submoduleEnabled:          tt.fields.submoduleEnabled,
@@ -169,6 +173,7 @@ func TestGetFiles(t *testing.T) {
 }
 
 func TestNewArgoCDService(t *testing.T) {
+	t.Parallel()
 	testNamespace := "test"
 	clientset := fake.NewClientset()
 	testDB := db.NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)

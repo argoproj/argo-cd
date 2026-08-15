@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -25,6 +25,7 @@ import (
 )
 
 func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
+	t.Parallel()
 	nowMinus5 := metav1.Time{Time: time.Now().Add(-5 * time.Minute)}
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
@@ -883,6 +884,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 		},
 	} {
 		t.Run(cc.name, func(t *testing.T) {
+			t.Parallel()
 			kubeclientset := kubefake.NewClientset([]runtime.Object{}...)
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&cc.appSet).WithStatusSubresource(&cc.appSet).Build()
@@ -900,7 +902,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				Metrics:       metrics,
 			}
 
-			r.ProgressiveSyncManager = appsetprogressiveSync.NewManager(r.Client, r)
+			r.ProgressiveSyncManager = appsetprogressiveSync.NewManager(r.Client, r.Client, r)
 
 			desiredApps := cc.desiredApps
 			if desiredApps == nil {
@@ -923,6 +925,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 }
 
 func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
+	t.Parallel()
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
@@ -1642,6 +1645,7 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 		},
 	} {
 		t.Run(cc.name, func(t *testing.T) {
+			t.Parallel()
 			kubeclientset := kubefake.NewClientset([]runtime.Object{}...)
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&cc.appSet).WithStatusSubresource(&cc.appSet).Build()
@@ -1658,7 +1662,7 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 				KubeClientset: kubeclientset,
 				Metrics:       metrics,
 			}
-			r.ProgressiveSyncManager = appsetprogressiveSync.NewManager(r.Client, r)
+			r.ProgressiveSyncManager = appsetprogressiveSync.NewManager(r.Client, r.Client, r)
 
 			appStatuses, err := r.ProgressiveSyncManager.UpdateApplicationSetApplicationStatusProgress(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.appSyncMap, cc.appStepMap)
 

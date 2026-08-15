@@ -11,21 +11,24 @@ import (
 	goSync "sync"
 	"time"
 
-	synccommon "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 	corev1 "k8s.io/api/core/v1"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync"
-	hookutil "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/hook"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/ignore"
-	resourceutil "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/resource"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/syncwaves"
-	kubeutil "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync"
+	hookutil "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/hook"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/ignore"
+	resourceutil "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/resource"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/syncwaves"
+	kubeutil "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 
 	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
 
 	log "github.com/sirupsen/logrus"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	oteltrace "go.opentelemetry.io/otel/trace"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -44,12 +47,30 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v3/util/db"
+	"github.com/argoproj/argo-cd/v3/util/git"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 	"github.com/argoproj/argo-cd/v3/util/stats"
+	traceutil "github.com/argoproj/argo-cd/v3/util/trace"
 )
 
 var ErrCompareStateRepo = errors.New("failed to get repo objects")
+
+var tracer = otel.Tracer("github.com/argoproj/argo-cd/v3/controller")
+
+// setAppTraceAttrs sets the standard argocd.app.* span attributes (plus any extra attributes)
+// on span. It is a no-op when the span is not recording, so callers on hot reconcile paths do
+// not allocate attribute slices when tracing is disabled.
+func setAppTraceAttrs(span oteltrace.Span, app *v1alpha1.Application, extra ...attribute.KeyValue) {
+	if !span.IsRecording() {
+		return
+	}
+	span.SetAttributes(append([]attribute.KeyValue{
+		attribute.String("argocd.app.name", app.Name),
+		attribute.String("argocd.app.namespace", app.Namespace),
+		attribute.String("argocd.app.project", app.Spec.GetProject()),
+	}, extra...)...)
+}
 
 type resourceInfoProviderStub struct{}
 
@@ -72,8 +93,9 @@ type managedResource struct {
 
 // AppStateManager defines methods which allow to compare application spec and actual application state.
 type AppStateManager interface {
-	CompareAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localObjects []string, hasMultipleSources bool) (*comparisonResult, error)
-	SyncAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, state *v1alpha1.OperationState)
+	CompareAppState(ctx context.Context, app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localObjects []string, hasMultipleSources bool) (*comparisonResult, error)
+	SyncAppState(ctx context.Context, app *v1alpha1.Application, project *v1alpha1.AppProject, state *v1alpha1.OperationState)
+	EvaluateAppRevisionsChanges(ctx context.Context, app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, revisions []string, proj *v1alpha1.AppProject, sendRuntimeState bool, noRevisionCache bool) (bool, []string, error)
 	GetRepoObjs(ctx context.Context, app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity, proj *v1alpha1.AppProject, sendRuntimeState bool) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, bool, error)
 }
 
@@ -81,6 +103,7 @@ type AppStateManager interface {
 type comparisonResult struct {
 	syncStatus           *v1alpha1.SyncStatus
 	healthStatus         health.HealthStatusCode
+	healthMessage        string
 	resources            []v1alpha1.ResourceStatus
 	managedResources     []managedResource
 	reconciliationResult sync.ReconciliationResult
@@ -126,11 +149,88 @@ type appStateManager struct {
 	ignoreNormalizerOpts  normalizers.IgnoreNormalizerOpts
 }
 
+// EvaluateAppRevisionsChanges checks if any source revisions have changes without generating manifests.
+// If it does not, then the cached manifests are updated to the current revisions.
+// Returns whether any changes were detected across all sources and the resolved revision per source (same order as sources).
+func (m *appStateManager) EvaluateAppRevisionsChanges(ctx context.Context, app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, revisions []string, proj *v1alpha1.AppProject, sendRuntimeState bool, noRevisionCache bool) (bool, []string, error) {
+	hasChanges := false
+
+	appLabelKey, err := m.settingsMgr.GetAppInstanceLabelKey()
+	if err != nil {
+		return false, nil, fmt.Errorf("failed to get app instance label key: %w", err)
+	}
+
+	trackingMethod, err := m.settingsMgr.GetTrackingMethod()
+	if err != nil {
+		return false, nil, fmt.Errorf("failed to get trackingMethod: %w", err)
+	}
+
+	installationID, err := m.settingsMgr.GetInstallationID()
+	if err != nil {
+		return false, nil, fmt.Errorf("failed to get installation ID: %w", err)
+	}
+
+	destCluster, err := argo.GetDestinationCluster(ctx, app.Spec.Destination, m.db)
+	if err != nil {
+		return false, nil, fmt.Errorf("failed to get destination cluster: %w", err)
+	}
+
+	var serverVersion string
+	var apiVersions []string
+	if sendRuntimeState {
+		var apiResources []kubeutil.APIResourceInfo
+		serverVersion, apiResources, err = m.liveStateCache.GetVersionsInfo(destCluster)
+		if err != nil {
+			return false, nil, fmt.Errorf("failed to get cluster version for cluster %q: %w", destCluster.Server, err)
+		}
+		apiVersions = argo.APIResourcesToStrings(apiResources, true)
+	}
+
+	conn, repoClient, err := m.repoClientset.NewRepoServerClient()
+	if err != nil {
+		return false, nil, fmt.Errorf("failed to connect to repo server: %w", err)
+	}
+	defer utilio.Close(conn)
+
+	refSources, err := argo.GetRefSources(ctx, sources, app.Spec.Project, m.db.GetRepository, revisions)
+	if err != nil {
+		return false, nil, fmt.Errorf("failed to get ref sources: %w", err)
+	}
+
+	var syncedRefSources v1alpha1.RefTargetRevisionMapping
+	if app.Spec.HasMultipleSources() {
+		syncedRefSources = argo.GetSyncedRefSources(refSources, sources, app.Status.Sync.Revisions)
+	}
+
+	resolvedRevisions := make([]string, 0, len(sources))
+	for i, source := range sources {
+		if len(revisions) < len(sources) || revisions[i] == "" {
+			revisions[i] = source.TargetRevision
+		}
+		resolvedRev, revisionsMayHaveChanges, err := m.evaluateRevisionChanges(ctx, app, source, i, revisions[i], refSources, syncedRefSources, noRevisionCache, trackingMethod, appLabelKey, installationID, serverVersion, apiVersions, proj, repoClient, proj.EffectiveSourceIntegrity())
+		if err != nil {
+			return false, nil, fmt.Errorf("failed to evaluate revision changes for source %d of %d: %w", i+1, len(sources), err)
+		}
+		resolvedRevisions = append(resolvedRevisions, resolvedRev)
+
+		if revisionsMayHaveChanges {
+			hasChanges = true
+		}
+	}
+
+	return hasChanges, resolvedRevisions, nil
+}
+
 // GetRepoObjs will generate the manifests for the given application delegating the
 // task to the repo-server. It returns the list of generated manifests as unstructured
 // objects. It also returns the full response from all calls to the repo server as the
 // second argument.
-func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity, proj *v1alpha1.AppProject, sendRuntimeState bool) ([]*unstructured.Unstructured, []*apiclient.ManifestResponse, bool, error) {
+func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Application, sources []v1alpha1.ApplicationSource, appLabelKey string, revisions []string, noCache, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity, proj *v1alpha1.AppProject, sendRuntimeState bool) (_ []*unstructured.Unstructured, _ []*apiclient.ManifestResponse, _ bool, retErr error) {
+	// This span is the parent the otelgrpc client handler propagates onto the repo-server
+	// GenerateManifest RPCs below, joining the repo-server trace to this reconcile.
+	ctx, span := tracer.Start(ctx, "controller.GetRepoObjs")
+	setAppTraceAttrs(span, app)
+	defer func() { traceutil.EndSpan(span, retErr) }()
 	ts := stats.NewTimingStats()
 	helmRepos, err := m.db.ListHelmRepositories(ctx)
 	if err != nil {
@@ -202,12 +302,14 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 
 	ts.AddCheckpoint("build_options_ms")
 	var serverVersion string
-	var apiResources []kubeutil.APIResourceInfo
+	var apiVersions []string
 	if sendRuntimeState {
+		var apiResources []kubeutil.APIResourceInfo
 		serverVersion, apiResources, err = m.liveStateCache.GetVersionsInfo(destCluster)
 		if err != nil {
 			return nil, nil, false, fmt.Errorf("failed to get cluster version for cluster %q: %w", destCluster.Server, err)
 		}
+		apiVersions = argo.APIResourcesToStrings(apiResources, true)
 	}
 	conn, repoClient, err := m.repoClientset.NewRepoServerClient()
 	if err != nil {
@@ -232,97 +334,117 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 	}
 
 	revisionsMayHaveChanges := false
-
-	keyManifestGenerateAnnotationVal, keyManifestGenerateAnnotationExists := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]
-
-	sourceCount := len(sources)
 	for i, source := range sources {
-		if len(revisions) < sourceCount || revisions[i] == "" {
+		if len(revisions) < len(sources) || revisions[i] == "" {
 			revisions[i] = source.TargetRevision
 		}
-		repo, err := m.db.GetRepository(ctx, source.RepoURL, proj.Name)
-		if err != nil {
-			return nil, nil, false, fmt.Errorf("failed to get repo %q: %w", source.RepoURL, err)
-		}
-
 		revision := revisions[i]
 
-		appNamespace := app.Spec.Destination.Namespace
-		apiVersions := argo.APIResourcesToStrings(apiResources, true)
-
-		// Evaluate if the revision has changes
-		resolvedRevision, hasChanges, err := m.evaluateRevisionChanges(ctx, repoClient, app, &source, i, repo, revision, refSources, syncedRefSources, noRevisionCache, appLabelKey, serverVersion, apiVersions, trackingMethod, installationID, keyManifestGenerateAnnotationExists, keyManifestGenerateAnnotationVal)
-		if err != nil {
-			return nil, nil, false, fmt.Errorf("failed to evaluate revision changes for source %d of %d: %w", i+1, len(sources), err)
+		// Per-source span so the repo-server hop is attributed: a multi-source app otherwise
+		// produces one parent span plus N anonymous GenerateManifest RPC spans with nothing
+		// indicating which source each belongs to. The closure scopes srcCtx (the parent the
+		// otelgrpc client handler propagates onto the RPC) and ends the span per iteration.
+		srcCtx, srcSpan := tracer.Start(ctx, "controller.GetRepoObjs.source")
+		if srcSpan.IsRecording() {
+			srcSpan.SetAttributes(
+				attribute.Int("argocd.source.index", i),
+				attribute.String("argocd.source.name", source.Name),
+				attribute.String("argocd.source.repo_url", git.SanitizeRepoURL(source.RepoURL)),
+				attribute.String("argocd.revision", revision),
+			)
 		}
-		if hasChanges {
-			revisionsMayHaveChanges = true
-		}
-		revision = resolvedRevision
+		if err := func() (retErr error) {
+			defer func() { traceutil.EndSpan(srcSpan, retErr) }()
 
-		repos := permittedHelmRepos
-		helmRepoCreds := permittedHelmCredentials
-		// If the source is OCI, there is a potential for an OCI image to be a Helm chart and that said chart in
-		// turn would have OCI dependencies. To ensure that those dependencies can be resolved, add them to the repos
-		// list.
-		if source.IsOCI() {
-			repos = slices.Clone(permittedHelmRepos)
-			helmRepoCreds = slices.Clone(permittedHelmCredentials)
-			repos = append(repos, permittedOCIRepos...)
-			helmRepoCreds = append(helmRepoCreds, permittedOCICredentials...)
-		}
-
-		log.Debugf("Generating Manifest for source %s revision %s", source, revision)
-		manifestInfo, err := repoClient.GenerateManifest(ctx, &apiclient.ManifestRequest{
-			Repo:                            repo,
-			Repos:                           repos,
-			Revision:                        revision,
-			NoCache:                         noCache,
-			NoRevisionCache:                 noRevisionCache,
-			AppLabelKey:                     appLabelKey,
-			AppName:                         app.InstanceName(m.namespace),
-			Namespace:                       appNamespace,
-			ApplicationSource:               &source,
-			KustomizeOptions:                kustomizeSettings,
-			KubeVersion:                     serverVersion,
-			ApiVersions:                     apiVersions,
-			SourceIntegrity:                 sourceIntegrity,
-			VerifySignature:                 sourceIntegrity != nil, // nolint:staticcheck
-			HelmRepoCreds:                   helmRepoCreds,
-			TrackingMethod:                  trackingMethod,
-			EnabledSourceTypes:              enabledSourceTypes,
-			HelmOptions:                     helmOptions,
-			HasMultipleSources:              app.Spec.HasMultipleSources(),
-			RefSources:                      refSources,
-			ProjectName:                     proj.Name,
-			ProjectSourceRepos:              proj.Spec.SourceRepos,
-			AnnotationManifestGeneratePaths: app.GetAnnotation(v1alpha1.AnnotationKeyManifestGeneratePaths),
-			InstallationID:                  installationID,
-		})
-		if err != nil {
-			genErr := fmt.Errorf("failed to generate manifest for source %d of %d: %w", i+1, sourceCount, err)
-			if app.Spec.SourceHydrator != nil && app.Spec.SourceHydrator.HydrateTo != nil && strings.Contains(err.Error(), path.ErrMessageAppPathDoesNotExist) {
-				genErr = fmt.Errorf("%w - waiting for an external process to update %s from %s", genErr, app.Spec.SourceHydrator.SyncSource.TargetBranch, app.Spec.SourceHydrator.HydrateTo.TargetBranch)
+			// Use evaluateRevisionChanges to check for changes and get resolved revision
+			resolvedRevision, hasChanges, err := m.evaluateRevisionChanges(srcCtx, app, source, i, revision, refSources, syncedRefSources, noRevisionCache, trackingMethod, appLabelKey, installationID, serverVersion, apiVersions, proj, repoClient, sourceIntegrity)
+			if err != nil {
+				return fmt.Errorf("failed to evaluate revision changes for source %d of %d: %w", i+1, len(sources), err)
 			}
-			return nil, nil, false, genErr
-		}
 
-		targetObj, err := unmarshalManifests(manifestInfo.Manifests)
-		if err != nil {
-			return nil, nil, false, fmt.Errorf("failed to unmarshal manifests for source %d of %d: %w", i+1, sourceCount, err)
-		}
-		targetObjs = append(targetObjs, targetObj...)
-		manifestInfos = append(manifestInfos, manifestInfo)
-
-		// Update eventual check problems with the ID of the current source. This is so users can attribute problems to correct sources
-		if sourceCount > 1 {
-			var sourceId string
-			if source.Name != "" {
-				sourceId = "source " + source.Name
-			} else {
-				sourceId = fmt.Sprintf("source %d of %d", i+1, sourceCount)
+			if hasChanges {
+				revisionsMayHaveChanges = true
 			}
-			manifestInfo.SourceIntegrityResult.InjectSourceName(sourceId)
+
+			// Use the resolved revision from evaluateRevisionChanges
+			revision = resolvedRevision
+			revisions[i] = resolvedRevision
+			srcSpan.SetAttributes(attribute.String("argocd.resolved_revision", revision))
+
+			appNamespace := app.Spec.Destination.Namespace
+
+			repos := permittedHelmRepos
+			helmRepoCreds := permittedHelmCredentials
+			// If the source is OCI, there is a potential for an OCI image to be a Helm chart and that said chart in
+			// turn would have OCI dependencies. To ensure that those dependencies can be resolved, add them to the repos
+			// list.
+			if source.IsOCI() {
+				repos = slices.Clone(permittedHelmRepos)
+				helmRepoCreds = slices.Clone(permittedHelmCredentials)
+				repos = append(repos, permittedOCIRepos...)
+				helmRepoCreds = append(helmRepoCreds, permittedOCICredentials...)
+			}
+
+			repo, err := m.db.GetRepository(srcCtx, source.RepoURL, proj.Name)
+			if err != nil {
+				return fmt.Errorf("failed to get repo %q: %w", git.SanitizeRepoURL(source.RepoURL), err)
+			}
+
+			log.Debugf("Generating Manifest for source %s revision %s", source, revision)
+			manifestInfo, err := repoClient.GenerateManifest(srcCtx, &apiclient.ManifestRequest{
+				Repo:                            repo,
+				Repos:                           repos,
+				Revision:                        revision,
+				NoCache:                         noCache,
+				NoRevisionCache:                 noRevisionCache,
+				AppLabelKey:                     appLabelKey,
+				AppName:                         app.InstanceName(m.namespace),
+				Namespace:                       appNamespace,
+				ApplicationSource:               &source,
+				KustomizeOptions:                kustomizeSettings,
+				KubeVersion:                     serverVersion,
+				ApiVersions:                     apiVersions,
+				SourceIntegrity:                 sourceIntegrity,
+				VerifySignature:                 sourceIntegrity != nil, // nolint:staticcheck
+				HelmRepoCreds:                   helmRepoCreds,
+				TrackingMethod:                  trackingMethod,
+				EnabledSourceTypes:              enabledSourceTypes,
+				HelmOptions:                     helmOptions,
+				HasMultipleSources:              app.Spec.HasMultipleSources(),
+				RefSources:                      refSources,
+				ProjectName:                     proj.Name,
+				ProjectSourceRepos:              proj.Spec.SourceRepos,
+				AnnotationManifestGeneratePaths: app.GetAnnotation(v1alpha1.AnnotationKeyManifestGeneratePaths),
+				InstallationID:                  installationID,
+			})
+			if err != nil {
+				genErr := fmt.Errorf("failed to generate manifest for source %d of %d: %w", i+1, len(sources), err)
+				if app.Spec.SourceHydrator != nil && app.Spec.SourceHydrator.HydrateTo != nil && strings.Contains(err.Error(), path.ErrMessageAppPathDoesNotExist) {
+					genErr = fmt.Errorf("%w - waiting for an external process to update %s from %s", genErr, app.Spec.SourceHydrator.SyncSource.TargetBranch, app.Spec.SourceHydrator.HydrateTo.TargetBranch)
+				}
+				return genErr
+			}
+
+			targetObj, err := unmarshalManifests(manifestInfo.Manifests)
+			if err != nil {
+				return fmt.Errorf("failed to unmarshal manifests for source %d of %d: %w", i+1, len(sources), err)
+			}
+			targetObjs = append(targetObjs, targetObj...)
+			manifestInfos = append(manifestInfos, manifestInfo)
+
+			// Update eventual check problems with the ID of the current source. This is so users can attribute problems to correct sources
+			if len(sources) > 1 {
+				var sourceId string
+				if source.Name != "" {
+					sourceId = "source " + source.Name
+				} else {
+					sourceId = fmt.Sprintf("source %d of %d", i+1, len(sources))
+				}
+				manifestInfo.SourceIntegrityResult.InjectSourceName(sourceId)
+			}
+			return nil
+		}(); err != nil {
+			return nil, nil, false, err
 		}
 	}
 
@@ -337,62 +459,62 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 	return targetObjs, manifestInfos, revisionsMayHaveChanges, nil
 }
 
-// evaluateRevisionChanges determines if a source revision has changes compared to the synced revision.
-// Returns the resolved revision, whether changes were detected, and any error.
-func (m *appStateManager) evaluateRevisionChanges(
-	ctx context.Context,
-	repoClient apiclient.RepoServerServiceClient,
-	app *v1alpha1.Application,
-	source *v1alpha1.ApplicationSource,
-	sourceIndex int,
-	repo *v1alpha1.Repository,
-	revision string,
-	refSources map[string]*v1alpha1.RefTarget,
-	syncedRefSources v1alpha1.RefTargetRevisionMapping,
-	noRevisionCache bool,
-	appLabelKey string,
-	serverVersion string,
-	apiVersions []string,
-	trackingMethod string,
-	installationID string,
-	keyManifestGenerateAnnotationExists bool,
-	keyManifestGenerateAnnotationVal string,
-) (string, bool, error) {
-	// For ref source specifically, we always return false since their change are evaluated as part of the source
-	// referencing them.
-	if source.IsRef() {
-		return revision, false, nil
+// evaluateRevisionChanges checks if a single source revision has changes without generating manifests.
+// Returns the resolved revision and whether changes were detected.
+func (m *appStateManager) evaluateRevisionChanges(ctx context.Context, app *v1alpha1.Application, source v1alpha1.ApplicationSource, sourceIndex int, revision string, refSources v1alpha1.RefTargetRevisionMapping, syncedRefSources v1alpha1.RefTargetRevisionMapping, noRevisionCache bool, trackingMethod string, appLabelKey string, installationID string, serverVersion string, apiVersions []string, proj *v1alpha1.AppProject, repoClient apiclient.RepoServerServiceClient, sourceIntegrity *v1alpha1.SourceIntegrity) (string, bool, error) {
+	alwaysResolveRevision := false
+	if revision == "" {
+		revision = source.TargetRevision
 	}
 
-	// Determine the synced revision and source type for this specific source
-	var syncedRevision string
-	if app.Spec.HasMultipleSources() {
+	// Determine the synced revision and source type for comparison
+	syncedRevision := app.Status.Sync.Revision
+	if app.Spec.SourceHydrator != nil {
+		if drySource := app.Spec.SourceHydrator.GetDrySource(); source.Equals(&drySource) {
+			// Always resolve the revision even if UpdateRevisionForPaths is not called so we can
+			// correctly compare it with the syncedRevision
+			alwaysResolveRevision = true
+			sourceIndex = -1 // Special case allowing GetSourcePtrByIndex() to return the dry source
+			// Use LastComparedDryRevision as the synced revision for cache lookups
+			syncedRevision = app.Status.SourceHydrator.LastComparedDryRevision
+		}
+	} else if app.Spec.HasMultipleSources() {
 		if sourceIndex < len(app.Status.Sync.Revisions) {
 			syncedRevision = app.Status.Sync.Revisions[sourceIndex]
+		} else {
+			syncedRevision = ""
 		}
-	} else {
-		syncedRevision = app.Status.Sync.Revision
 	}
 
-	// if revisions are the same (and we are not using reference sources), we know there is no changes
-	if syncedRevision == revision && revision != "" && len(refSources) == 0 {
+	if source.IsRef() {
+		// For ref source specifically, we always return false since their change are evaluated as part of the source
+		// referencing them.
 		return revision, false, nil
 	}
 
-	appNamespace := app.Spec.Destination.Namespace
+	if syncedRevision == revision && revision != "" && len(refSources) == 0 {
+		// if revisions are the same (and we are not using reference sources), we know there is no changes
+		// TODO: Could be optimized to not call the repo server at all if we know this specific source does not use reference.
+		return revision, false, nil
+	}
+	repo, err := m.db.GetRepository(ctx, source.RepoURL, proj.Name)
+	if err != nil {
+		return "", false, fmt.Errorf("failed to get repo %q: %w", git.SanitizeRepoURL(source.RepoURL), err)
+	}
 
-	if repo.Depth == 0 && syncedRevision != "" && keyManifestGenerateAnnotationExists && keyManifestGenerateAnnotationVal != "" {
-		// Validate the manifest-generate-path annotation to avoid generating manifests if it has not changed.
+	keyManifestGenerateAnnotationVal := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]
+
+	if syncedRevision != "" && repo.Depth == 0 && keyManifestGenerateAnnotationVal != "" {
 		updateRevisionResult, err := repoClient.UpdateRevisionForPaths(ctx, &apiclient.UpdateRevisionForPathsRequest{
 			Repo:               repo,
 			Revision:           revision,
 			SyncedRevision:     syncedRevision,
 			NoRevisionCache:    noRevisionCache,
-			Paths:              path.GetSourceRefreshPaths(app, *source),
+			Paths:              path.GetSourceRefreshPaths(app, source),
 			AppLabelKey:        appLabelKey,
 			AppName:            app.InstanceName(m.namespace),
-			Namespace:          appNamespace,
-			ApplicationSource:  source,
+			Namespace:          app.Spec.Destination.Namespace,
+			ApplicationSource:  &source,
 			KubeVersion:        serverVersion,
 			ApiVersions:        apiVersions,
 			TrackingMethod:     trackingMethod,
@@ -400,20 +522,39 @@ func (m *appStateManager) evaluateRevisionChanges(
 			SyncedRefSources:   syncedRefSources,
 			HasMultipleSources: app.Spec.HasMultipleSources(),
 			InstallationID:     installationID,
+			SourceIntegrity:    sourceIntegrity,
 		})
 		if err != nil {
-			return "", false, err
+			return "", false, fmt.Errorf("failed to update revision for paths: %w", err)
 		}
 
-		// Generate manifests should use same revision as updateRevisionForPaths, because HEAD revision may be different between these two calls
+		resolvedRevision := revision
 		if updateRevisionResult.Revision != "" {
-			revision = updateRevisionResult.Revision
+			resolvedRevision = updateRevisionResult.Revision
 		}
 
-		return revision, updateRevisionResult.Changes, nil
+		return resolvedRevision, updateRevisionResult.Changes, nil
+	} else if alwaysResolveRevision {
+		resp, err := repoClient.ResolveRevision(ctx, &apiclient.ResolveRevisionRequest{
+			Repo:              repo,
+			App:               app,
+			AmbiguousRevision: revision,
+			SourceIndex:       int64(sourceIndex),
+			NoRevisionCache:   noRevisionCache,
+		})
+		if err != nil {
+			return "", false, fmt.Errorf("failed to resolve revision: %w", err)
+		}
+		revision = resp.Revision
+
+		if syncedRevision == revision && revision != "" && len(refSources) == 0 {
+			// if revisions are the same (and we are not using reference sources), we know there is no changes
+			return revision, false, nil
+		}
+		return revision, true, nil
 	}
 
-	// revisionsMayHaveChanges is set to true if at least one revision is not possible to be updated
+	// For any types of sources where we cannot know if revision has changed, we return true as we cannot make assumptions.
 	return revision, true, nil
 }
 
@@ -537,7 +678,10 @@ func partitionTargetObjsForSync(targetObjs []*unstructured.Unstructured) (syncOb
 // CompareAppState compares application git state to the live app state, using the specified
 // revision and supplied source. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
-func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localManifests []string, hasMultipleSources bool) (*comparisonResult, error) {
+func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localManifests []string, hasMultipleSources bool) (_ *comparisonResult, retErr error) {
+	ctx, span := tracer.Start(ctx, "controller.CompareAppState")
+	setAppTraceAttrs(span, app)
+	defer func() { traceutil.EndSpan(span, retErr) }()
 	ts := stats.NewTimingStats()
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 
@@ -574,7 +718,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	failedToLoadObjs := false
 	conditions := make([]v1alpha1.ApplicationCondition, 0)
 
-	destCluster, err := argo.GetDestinationCluster(context.Background(), app.Spec.Destination, m.db)
+	destCluster, err := argo.GetDestinationCluster(ctx, app.Spec.Destination, m.db)
 	if err != nil {
 		return nil, err
 	}
@@ -599,7 +743,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 			}
 		}
 
-		targetObjs, manifestInfos, revisionsMayHaveChanges, err = m.GetRepoObjs(context.Background(), app, sources, appLabelKey, revisions, noCache, noRevisionCache, project.EffectiveSourceIntegrity(), project, true)
+		targetObjs, manifestInfos, revisionsMayHaveChanges, err = m.GetRepoObjs(ctx, app, sources, appLabelKey, revisions, noCache, noRevisionCache, project.EffectiveSourceIntegrity(), project, true)
 		if err != nil {
 			targetObjs = make([]*unstructured.Unstructured, 0)
 			msg := "Failed to load target state: " + err.Error()
@@ -657,8 +801,8 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	}
 	conditions = append(conditions, dedupConditions...)
 
-	for i := len(targetObjs) - 1; i >= 0; i-- {
-		targetObj := targetObjs[i]
+	for i, v := range slices.Backward(targetObjs) {
+		targetObj := v
 		gvk := targetObj.GroupVersionKind()
 		if resFilter.IsExcludedResource(gvk.Group, gvk.Kind, destCluster.Server) {
 			targetObjs = append(targetObjs[:i], targetObjs[i+1:]...)
@@ -690,7 +834,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	// filter out all resources which are not permitted in the application project
 	for k, v := range liveObjByKey {
 		permitted, err := project.IsLiveResourcePermitted(v, destCluster, func(project string) ([]*v1alpha1.Cluster, error) {
-			clusters, err := m.db.GetProjectClusters(context.TODO(), project)
+			clusters, err := m.db.GetProjectClusters(ctx, project)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get clusters for project %q: %w", project, err)
 			}
@@ -803,7 +947,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	diffConfigBuilder.WithServerSideDiff(serverSideDiff)
 
 	if serverSideDiff {
-		applier, cleanup, err := m.getServerSideDiffDryRunApplier(destCluster)
+		applier, cleanup, err := m.getServerSideDiffDryRunApplier(destCluster, project, app)
 		if err != nil {
 			log.Errorf("CompareAppState error getting server side diff dry run applier: %s", err)
 			conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionUnknownError, Message: err.Error(), LastTransitionTime: &now})
@@ -822,7 +966,15 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	// application conditions as argo.StateDiffs will validate this diffConfig again.
 	diffConfig, _ := diffConfigBuilder.Build()
 
-	diffResults, err := argodiff.StateDiffs(reconciliation.Live, reconciliation.Target, diffConfig)
+	// Scope the diff span with a closure so it ends even if StateDiffs panics, while keeping
+	// it attributed to just the diff rather than the rest of CompareAppState.
+	var diffResults *diff.DiffResultList
+	err = func() (retErr error) {
+		_, diffSpan := tracer.Start(ctx, "controller.diff")
+		defer func() { traceutil.EndSpan(diffSpan, retErr) }()
+		diffResults, retErr = argodiff.StateDiffs(ctx, reconciliation.Live, reconciliation.Target, diffConfig)
+		return retErr
+	}()
 	if err != nil {
 		diffResults = &diff.DiffResultList{}
 		failedToLoadObjs = true
@@ -955,7 +1107,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 
 	ts.AddCheckpoint("sync_ms")
 
-	healthStatus, err := setApplicationHealth(managedResources, resourceSummaries, resourceOverrides, app, m.persistResourceHealth)
+	healthStatus, healthMessage, err := setApplicationHealth(managedResources, resourceSummaries, resourceOverrides, app, m.persistResourceHealth)
 	if err != nil {
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: "error setting app health: " + err.Error(), LastTransitionTime: &now})
 	}
@@ -991,6 +1143,7 @@ func (m *appStateManager) CompareAppState(app *v1alpha1.Application, project *v1
 	compRes := comparisonResult{
 		syncStatus:              syncStatus,
 		healthStatus:            healthStatus,
+		healthMessage:           healthMessage,
 		resources:               resourceSummaries,
 		managedResources:        managedResources,
 		reconciliationResult:    reconciliation,
@@ -1040,7 +1193,8 @@ func useDiffCache(noCache bool, manifestInfos []*apiclient.ManifestResponse, sou
 	// app refresh with serverSideDiff is enabled. If there are negative side
 	// effects identified with this approach, the serverSideDiff should be removed
 	// from this condition.
-	if app.Status.Expired(statusRefreshTimeout) && !serverSideDiff {
+	softExpired, _ := comparisonExpiry(app.Status, statusRefreshTimeout, 0)
+	if softExpired && !serverSideDiff {
 		log.WithField("useDiffCache", "false").Debug("app.status.expired")
 		return false
 	}

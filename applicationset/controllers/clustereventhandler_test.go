@@ -30,6 +30,7 @@ func (obj *mockAddRateLimitingInterface) Add(item reconcile.Request) {
 }
 
 func TestClusterEventHandler(t *testing.T) {
+	t.Parallel()
 	scheme := runtime.NewScheme()
 	err := argov1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
@@ -573,6 +574,7 @@ func TestClusterEventHandler(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			appSetList := argov1alpha1.ApplicationSetList{
 				Items: test.items,
 			}
@@ -595,6 +597,7 @@ func TestClusterEventHandler(t *testing.T) {
 }
 
 func TestNestedGeneratorHasClusterGenerator_NestedClusterGenerator(t *testing.T) {
+	t.Parallel()
 	nested := argov1alpha1.ApplicationSetNestedGenerator{
 		Clusters: &argov1alpha1.ClusterGenerator{},
 	}
@@ -606,6 +609,7 @@ func TestNestedGeneratorHasClusterGenerator_NestedClusterGenerator(t *testing.T)
 }
 
 func TestNestedGeneratorHasClusterGenerator_NestedMergeGenerator(t *testing.T) {
+	t.Parallel()
 	nested := argov1alpha1.ApplicationSetNestedGenerator{
 		Merge: &apiextensionsv1.JSON{
 			Raw: []byte(
@@ -633,6 +637,7 @@ func TestNestedGeneratorHasClusterGenerator_NestedMergeGenerator(t *testing.T) {
 }
 
 func TestNestedGeneratorHasClusterGenerator_NestedMergeGeneratorWithInvalidJSON(t *testing.T) {
+	t.Parallel()
 	nested := argov1alpha1.ApplicationSetNestedGenerator{
 		Merge: &apiextensionsv1.JSON{
 			Raw: []byte(
