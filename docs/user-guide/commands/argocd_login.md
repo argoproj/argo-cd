@@ -23,6 +23,14 @@ argocd login cd.argoproj.io --sso
 
 # Configure direct access using Kubernetes API server
 argocd login cd.argoproj.io --core
+
+# Do not include a URL scheme in the server address
+# Incorrect: argocd login https://cd.argoproj.io
+argocd login cd.argoproj.io
+
+# Do not include a path in the server address
+# Incorrect: argocd login cd.argoproj.io/argocd
+argocd login cd.argoproj.io --grpc-web-root-path /argocd
 ```
 
 ### Options
