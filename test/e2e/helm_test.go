@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
-	. "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	. "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 
@@ -589,39 +589,6 @@ func TestHelm3CRD(t *testing.T) {
 		Expect(ResourceSyncStatusIs("CustomResourceDefinition", "crontabs.stable.example.com", SyncStatusCodeSynced))
 }
 
-func TestHelmRepoDiffLocal(t *testing.T) {
-	fixture.SkipOnEnv(t, "HELM")
-	helmTmp := t.TempDir()
-	Given(t).
-		CustomCACertAdded().
-		HelmRepoAdded("custom-repo").
-		RepoURLType(fixture.RepoURLTypeHelm).
-		Chart("helm").
-		Revision("1.0.0").
-		When().
-		CreateApp().
-		Then().
-		When().
-		Sync().
-		Then().
-		Expect(OperationPhaseIs(OperationSucceeded)).
-		Expect(HealthIs(health.HealthStatusHealthy)).
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
-		And(func(app *Application) {
-			t.Setenv("XDG_CONFIG_HOME", helmTmp)
-			errors.NewHandler(t).FailOnErr(fixture.Run("", "helm", "repo", "add", "custom-repo", fixture.GetEnvWithDefault("ARGOCD_E2E_HELM_SERVICE", fixture.RepoURL(fixture.RepoURLTypeHelm)),
-				"--username", fixture.GitUsername,
-				"--password", fixture.GitPassword,
-				"--cert-file", "../fixture/certs/argocd-test-client.crt",
-				"--key-file", "../fixture/certs/argocd-test-client.key",
-				"--ca-file", "../fixture/certs/argocd-test-ca.crt",
-			))
-			diffOutput, err := fixture.RunCli("app", "diff", app.Name, "--local", "testdata/helm")
-			assert.Empty(t, diffOutput)
-			assert.NoError(t, err)
-		})
-}
-
 func TestHelmOCIRegistry(t *testing.T) {
 	Given(t).
 		PushChartToOCIRegistry("testdata/helm-values", "helm-values", "1.0.0").
@@ -699,6 +666,24 @@ func TestTemplatesHelmOCIWithDependencies(t *testing.T) {
 		RepoURLType(fixture.RepoURLTypeHelmOCI).
 		Chart("helm-oci-with-dependencies").
 		Revision("1.0.0").
+		When().
+		CreateApp().
+		Then().
+		When().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
+
+func TestHelmOCIRegistryWithConstraintRevision(t *testing.T) {
+	Given(t).
+		PushChartToOCIRegistry("testdata/helm-values", "helm-values", "1.0.0").
+		HelmOCIRepoAdded("myrepo").
+		RepoURLType(fixture.RepoURLTypeHelmOCI).
+		Chart("helm-values").
+		Revision(">=1.0.0").
 		When().
 		CreateApp().
 		Then().

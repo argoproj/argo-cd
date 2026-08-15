@@ -18,6 +18,7 @@ import (
 )
 
 func TestWorkLoadIdentityUserNameShouldBeEmptyGuid(t *testing.T) {
+	t.Parallel()
 	workloadIdentityMock := &mocks.TokenProvider{}
 	creds := NewAzureWorkloadIdentityCreds("contoso.azurecr.io/charts", "", nil, nil, false, workloadIdentityMock)
 	username := creds.GetUsername()
@@ -26,6 +27,7 @@ func TestWorkLoadIdentityUserNameShouldBeEmptyGuid(t *testing.T) {
 }
 
 func TestGetAccessTokenShouldReturnTokenFromCacheIfPresent(t *testing.T) {
+	t.Parallel()
 	workloadIdentityMock := &mocks.TokenProvider{}
 	creds := NewAzureWorkloadIdentityCreds("contoso.azurecr.io/charts", "", nil, nil, false, workloadIdentityMock)
 
@@ -42,6 +44,7 @@ func TestGetAccessTokenShouldReturnTokenFromCacheIfPresent(t *testing.T) {
 }
 
 func TestGetPasswordShouldReturnTokenFromCacheIfPresent(t *testing.T) {
+	t.Parallel()
 	workloadIdentityMock := &mocks.TokenProvider{}
 	creds := NewAzureWorkloadIdentityCreds("contoso.azurecr.io/charts", "", nil, nil, false, workloadIdentityMock)
 
@@ -58,6 +61,7 @@ func TestGetPasswordShouldReturnTokenFromCacheIfPresent(t *testing.T) {
 }
 
 func TestGetPasswordShouldGenerateTokenIfNotPresentInCache(t *testing.T) {
+	t.Parallel()
 	mockServerURL := ""
 	mockedServerURL := func() string {
 		return mockServerURL
@@ -91,6 +95,7 @@ func TestGetPasswordShouldGenerateTokenIfNotPresentInCache(t *testing.T) {
 }
 
 func TestChallengeAzureContainerRegistry(t *testing.T) {
+	t.Parallel()
 	// Set up the mock server
 	mockServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/v2/", r.URL.Path)
@@ -113,6 +118,7 @@ func TestChallengeAzureContainerRegistry(t *testing.T) {
 }
 
 func TestChallengeAzureContainerRegistryNoChallenge(t *testing.T) {
+	t.Parallel()
 	// Set up the mock server without Www-Authenticate header
 	mockServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/v2/", r.URL.Path)
@@ -130,6 +136,7 @@ func TestChallengeAzureContainerRegistryNoChallenge(t *testing.T) {
 }
 
 func TestChallengeAzureContainerRegistryNonBearer(t *testing.T) {
+	t.Parallel()
 	// Set up the mock server with a non-Bearer Www-Authenticate header
 	mockServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/v2/", r.URL.Path)
@@ -147,6 +154,7 @@ func TestChallengeAzureContainerRegistryNonBearer(t *testing.T) {
 }
 
 func TestChallengeAzureContainerRegistryNoService(t *testing.T) {
+	t.Parallel()
 	// Set up the mock server with a non-Bearer Www-Authenticate header
 	mockServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/v2/", r.URL.Path)
@@ -164,6 +172,7 @@ func TestChallengeAzureContainerRegistryNoService(t *testing.T) {
 }
 
 func TestChallengeAzureContainerRegistryNoRealm(t *testing.T) {
+	t.Parallel()
 	// Set up the mock server with a non-Bearer Www-Authenticate header
 	mockServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/v2/", r.URL.Path)
@@ -181,6 +190,7 @@ func TestChallengeAzureContainerRegistryNoRealm(t *testing.T) {
 }
 
 func TestGetAccessTokenAfterChallenge_Success(t *testing.T) {
+	t.Parallel()
 	// Mock the server to return a successful response
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/oauth2/exchange", r.URL.Path)
@@ -207,6 +217,7 @@ func TestGetAccessTokenAfterChallenge_Success(t *testing.T) {
 }
 
 func TestGetAccessTokenAfterChallenge_Failure(t *testing.T) {
+	t.Parallel()
 	// Mock the server to return an error response
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/oauth2/exchange", r.URL.Path)
@@ -232,6 +243,7 @@ func TestGetAccessTokenAfterChallenge_Failure(t *testing.T) {
 }
 
 func TestGetAccessTokenAfterChallenge_MalformedResponse(t *testing.T) {
+	t.Parallel()
 	// Mock the server to return a malformed JSON response
 	mockServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/oauth2/exchange", r.URL.Path)

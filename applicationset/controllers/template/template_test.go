@@ -22,6 +22,7 @@ import (
 )
 
 func TestGenerateApplications(t *testing.T) {
+	t.Parallel()
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
@@ -86,6 +87,7 @@ func TestGenerateApplications(t *testing.T) {
 		}
 
 		t.Run(cc.name, func(t *testing.T) {
+			t.Parallel()
 			generatorMock := &genmock.Generator{}
 			generator := v1alpha1.ApplicationSetGenerator{
 				List: &v1alpha1.ListGenerator{},
@@ -151,6 +153,7 @@ func TestGenerateApplications(t *testing.T) {
 }
 
 func TestMergeTemplateApplications(t *testing.T) {
+	t.Parallel()
 	for _, c := range []struct {
 		name             string
 		params           []map[string]any
@@ -200,6 +203,7 @@ func TestMergeTemplateApplications(t *testing.T) {
 		cc := c
 
 		t.Run(cc.name, func(t *testing.T) {
+			t.Parallel()
 			generatorMock := &genmock.Generator{}
 			generator := v1alpha1.ApplicationSetGenerator{
 				List: &v1alpha1.ListGenerator{},
@@ -243,6 +247,7 @@ func TestMergeTemplateApplications(t *testing.T) {
 
 // Test app generation from a go template application set using a pull request generator
 func TestGenerateAppsUsingPullRequestGenerator(t *testing.T) {
+	t.Parallel()
 	for _, cases := range []struct {
 		name        string
 		params      []map[string]any
@@ -312,6 +317,7 @@ func TestGenerateAppsUsingPullRequestGenerator(t *testing.T) {
 		},
 	} {
 		t.Run(cases.name, func(t *testing.T) {
+			t.Parallel()
 			generatorMock := &genmock.Generator{}
 			generator := v1alpha1.ApplicationSetGenerator{
 				PullRequest: &v1alpha1.PullRequestGenerator{},

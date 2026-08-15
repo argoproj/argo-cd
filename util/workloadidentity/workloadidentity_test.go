@@ -61,6 +61,7 @@ func TestGetToken_InitError(t *testing.T) {
 }
 
 func TestCalculateCacheExpiryBasedOnTokenExpiry(t *testing.T) {
+	t.Parallel()
 	now := time.Now()
 
 	tests := []struct {
@@ -103,6 +104,7 @@ func TestCalculateCacheExpiryBasedOnTokenExpiry(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			actual := CalculateCacheExpiryBasedOnTokenExpiry(tt.expiry)
 			if tt.delta > 0 {
 				assert.InDelta(t, tt.expected.Seconds(), actual.Seconds(), tt.delta)

@@ -9,7 +9,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/v3/util/gpg"
+	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
 )
 
 const maxRecreateRetries = 5
@@ -61,9 +61,9 @@ func StartGPGWatcher(sourcePath string) error {
 						// Force sync because we probably missed an event
 						forceSync = true
 					}
-					if gpg.IsShortKeyID(path.Base(event.Name)) || forceSync {
+					if sourceintegrity.IsShortKeyID(path.Base(event.Name)) || forceSync {
 						log.Infof("Updating GPG keyring on filesystem event")
-						added, removed, err := gpg.SyncKeyRingFromDirectory(sourcePath)
+						added, removed, err := sourceintegrity.SyncKeyRingFromDirectory(sourcePath)
 						if err != nil {
 							log.Errorf("Could not sync keyring: %s", err.Error())
 						} else {

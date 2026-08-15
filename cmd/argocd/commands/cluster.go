@@ -167,6 +167,11 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 				contextName = clusterOpts.Name
 			}
 			clst := cmdutil.NewCluster(contextName, clusterOpts.Namespaces, clusterOpts.ClusterResources, conf, managerBearerToken, awsAuthConf, execProviderConf, labelsMap, annotationsMap)
+			// If --server-proxy-url was explicitly provided, override the proxy that the ArgoCD server will use to
+			// reach this cluster.  An explicit empty string means "no proxy", which is the common case when the local
+			// machine needs a proxy but the two clusters can reach each other directly.
+			err = applyServerProxyOverride(c.Flags().Changed("server-proxy-url"), clusterOpts.ServerProxyURL, clst)
+			errors.CheckError(err)
 			if clusterOpts.InClusterEndpoint() {
 				clst.Server = argoappv1.KubernetesInternalAPIServerAddr
 			} else if clusterOpts.ClusterEndpoint == string(cmdutil.KubePublicEndpoint) {
@@ -203,6 +208,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 	command.Flags().StringArrayVar(&labels, "label", nil, "Set metadata labels (e.g. --label key=value)")
 	command.Flags().StringArrayVar(&annotations, "annotation", nil, "Set metadata annotations (e.g. --annotation key=value)")
 	command.Flags().StringVar(&clusterOpts.ProxyUrl, "proxy-url", "", "use proxy to connect cluster")
+	command.Flags().StringVar(&clusterOpts.ServerProxyURL, "server-proxy-url", "", "use a different proxy URL (or \"\" for no proxy) for the ArgoCD server to connect to the cluster; if omitted the value from --proxy-url or the kubeconfig is used")
 	cmdutil.AddClusterFlags(command, &clusterOpts)
 	return command
 }
@@ -229,6 +235,22 @@ func getRestConfig(pathOpts *clientcmd.PathOptions, ctxName string) (*rest.Confi
 	}
 
 	return conf, nil
+}
+
+// applyServerProxyOverride encapsulates the logic for handling the --server-proxy-url flag.
+// When changed is true, it validates non-empty values using argoappv1.ParseProxyUrl and
+// applies the override (including clearing the value when serverProxyURL is an explicit empty string).
+func applyServerProxyOverride(changed bool, serverProxyURL string, clst *argoappv1.Cluster) error {
+	if !changed {
+		return nil
+	}
+	if serverProxyURL != "" {
+		if _, err := argoappv1.ParseProxyUrl(serverProxyURL); err != nil {
+			return err
+		}
+	}
+	clst.Config.ProxyUrl = serverProxyURL
+	return nil
 }
 
 // NewClusterSetCommand returns a new instance of an `argocd cluster set` command
@@ -377,15 +399,15 @@ func formatNamespaces(cluster argoappv1.Cluster) string {
 
 func printClusterDetails(clusters []argoappv1.Cluster) {
 	for _, cluster := range clusters {
-		fmt.Printf("Cluster information\n\n")
+		fmt.Print("Cluster information\n\n")
 		fmt.Printf("  Server URL:            %s\n", cluster.Server)
 		fmt.Printf("  Server Name:           %s\n", strWithDefault(cluster.Name, "-"))
 		fmt.Printf("  Server Version:        %s\n", cluster.Info.ServerVersion)
 		fmt.Printf("  Namespaces:        	 %s\n", formatNamespaces(cluster))
-		fmt.Printf("\nTLS configuration\n\n")
+		fmt.Print("\nTLS configuration\n\n")
 		fmt.Printf("  Client cert:           %v\n", len(cluster.Config.CertData) != 0)
 		fmt.Printf("  Cert validation:       %v\n", !cluster.Config.Insecure)
-		fmt.Printf("\nAuthentication\n\n")
+		fmt.Print("\nAuthentication\n\n")
 		fmt.Printf("  Basic authentication:  %v\n", cluster.Config.Username != "")
 		fmt.Printf("  oAuth authentication:  %v\n", cluster.Config.BearerToken != "")
 		fmt.Printf("  AWS authentication:    %v\n", cluster.Config.AWSAuthConfig != nil)
@@ -468,7 +490,7 @@ argocd cluster rm cluster-name`,
 // Print table of cluster information
 func printClusterTable(clusters []argoappv1.Cluster) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintf(w, "SERVER\tNAME\tVERSION\tSTATUS\tMESSAGE\tPROJECT\n")
+	_, _ = fmt.Fprint(w, "SERVER\tNAME\tVERSION\tSTATUS\tMESSAGE\tPROJECT\n")
 	for _, c := range clusters {
 		server := c.Server
 		if len(c.Namespaces) > 0 {

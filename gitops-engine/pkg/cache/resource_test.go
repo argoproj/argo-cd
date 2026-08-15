@@ -10,6 +10,7 @@ import (
 var cacheTest = NewClusterCache(&rest.Config{})
 
 func TestIsParentOf(t *testing.T) {
+	t.Parallel()
 	child := cacheTest.newResource(mustToUnstructured(testPod1()))
 	parent := cacheTest.newResource(mustToUnstructured(testRS()))
 	grandParent := cacheTest.newResource(mustToUnstructured(testDeploy()))
@@ -19,6 +20,7 @@ func TestIsParentOf(t *testing.T) {
 }
 
 func TestIsParentOfSameKindDifferentGroupAndUID(t *testing.T) {
+	t.Parallel()
 	rs := testRS()
 	rs.APIVersion = "somecrd.io/v1"
 	rs.SetUID("123")
@@ -29,6 +31,7 @@ func TestIsParentOfSameKindDifferentGroupAndUID(t *testing.T) {
 }
 
 func TestIsServiceParentOfEndPointWithTheSameName(t *testing.T) {
+	t.Parallel()
 	nonMatchingNameEndPoint := cacheTest.newResource(strToUnstructured(`
 apiVersion: v1
 kind: Endpoints
@@ -53,6 +56,7 @@ metadata:
 }
 
 func TestIsServiceAccountParentOfSecret(t *testing.T) {
+	t.Parallel()
 	serviceAccount := cacheTest.newResource(strToUnstructured(`
 apiVersion: v1
 kind: ServiceAccount

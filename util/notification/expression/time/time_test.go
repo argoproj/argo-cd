@@ -10,6 +10,7 @@ import (
 )
 
 func TestNewTimeExprs(t *testing.T) {
+	t.Parallel()
 	funcs := []string{
 		"Parse",
 		"Now",

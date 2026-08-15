@@ -139,7 +139,7 @@ argocd login cd.argoproj.io --core`,
 					errors.CheckError(err)
 					oauth2conf, provider, err := acdClient.OIDCConfig(ctx, acdSet)
 					errors.CheckError(err)
-					tokenString, refreshToken = oauth2Login(ctx, callback, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider, ssoLaunchBrowser)
+					tokenString, refreshToken = oauth2Login(ctx, callback, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider, ssoLaunchBrowser, acdSet.GetDexConfig().GetDexAuthConnectorID())
 				}
 				parser := jwt.NewParser(jwt.WithoutClaimsValidation())
 				claims := jwt.MapClaims{}
@@ -212,6 +212,7 @@ func oauth2Login(
 	oauth2conf *oauth2.Config,
 	provider *oidc.Provider,
 	ssoLaunchBrowser bool,
+	dexAuthConnectorID string,
 ) (string, string) {
 	redirectBase := callback
 	if redirectBase == "" {
@@ -274,7 +275,7 @@ func oauth2Login(
 			// flow where the id_token is contained in a URL fragment, making it inaccessible to be
 			// read from the request. This javascript will redirect the browser to send the
 			// fragments as query parameters so our callback handler can read and return token.
-			fmt.Fprintf(w, `<script>window.location.search = window.location.hash.substring(1)</script>`)
+			fmt.Fprint(w, `<script>window.location.search = window.location.hash.substring(1)</script>`)
 			return
 		}
 
@@ -323,6 +324,12 @@ func oauth2Login(
 	if claimsRequested := oidcSettings.GetIDTokenClaims(); claimsRequested != nil {
 		opts = oidcutil.AppendClaimsAuthenticationRequestParameter(opts, claimsRequested)
 	}
+	// When bundled Dex is configured with a forced connector, redirect straight to it and
+	// bypass Dex's connector selection screen (mirrors the browser login flow).
+	if dexAuthConnectorID != "" {
+		log.Debugf("force redirect to selected connector_id: %s", dexAuthConnectorID)
+		opts = append(opts, oauth2.SetAuthURLParam("connector_id", dexAuthConnectorID))
+	}
 
 	switch grantType {
 	case oidcutil.GrantTypeAuthorizationCode:
@@ -351,7 +358,7 @@ func oauth2Login(
 	if errMsg != "" {
 		log.Fatal(errMsg)
 	}
-	fmt.Printf("Authentication successful\n")
+	fmt.Print("Authentication successful\n")
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 	_ = srv.Shutdown(ctx)
@@ -375,7 +382,7 @@ func passwordLogin(ctx context.Context, acdClient argocdclient.Client, username,
 
 func ssoAuthFlow(url string, ssoLaunchBrowser bool) {
 	if ssoLaunchBrowser {
-		fmt.Printf("Opening system default browser for authentication\n")
+		fmt.Print("Opening system default browser for authentication\n")
 		err := open.Start(url)
 		errors.CheckError(err)
 	} else {

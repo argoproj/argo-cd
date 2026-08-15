@@ -18,6 +18,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud"
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
+	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	giturls "github.com/chainguard-dev/git-urls"
 	"github.com/google/go-github/v69/github"
 
@@ -26,8 +30,8 @@ import (
 
 	gocache "github.com/patrickmn/go-cache"
 
-	argoio "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/io"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/text"
+	argoio "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/io"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/text"
 	"github.com/bradleyfalzon/ghinstallation/v2"
 	log "github.com/sirupsen/logrus"
 
@@ -50,6 +54,8 @@ var (
 	// installationIdCache caches installation IDs for organizations to avoid redundant API calls.
 	githubInstallationIdCache      *gocache.Cache
 	githubInstallationIdCacheMutex sync.RWMutex // For bulk API call coordination
+	// In memory cache for storing Azure Service Principal tokens
+	azureServicePrincipalTokenCache *gocache.Cache
 )
 
 const (
@@ -64,8 +70,21 @@ const (
 func init() {
 	githubAppCredsExp := common.GithubAppCredsExpirationDuration
 	if exp := os.Getenv(common.EnvGithubAppCredsExpirationDuration); exp != "" {
-		if qps, err := strconv.Atoi(exp); err != nil {
+		if qps, err := strconv.Atoi(exp); err == nil {
 			githubAppCredsExp = time.Duration(qps) * time.Minute
+		}
+	}
+	azureServicePrincipalCredsExp := common.AzureServicePrincipalCredsExpirationDuration
+	if exp := os.Getenv(common.EnvAzureServicePrincipalCredsExpirationDuration); exp != "" {
+		if qps, err := strconv.Atoi(exp); err == nil {
+			// Azure service principal tokens are valid for 60 minutes
+			// the cache has a cleanup interval of 1 minute
+			// cap the expiration duration to 59 minutes to avoid issues with token expiration
+			if qps > 59 {
+				log.Warnf("Value in %s is %d, which is greater than maximum 59 minutes allowed. Setting to 59 minutes", common.EnvAzureServicePrincipalCredsExpirationDuration, qps)
+				qps = 59
+			}
+			azureServicePrincipalCredsExp = time.Duration(qps) * time.Minute
 		}
 	}
 
@@ -74,6 +93,7 @@ func init() {
 	googleCloudTokenSource = gocache.New(gocache.NoExpiration, 0)
 	azureTokenCache = gocache.New(gocache.NoExpiration, 0)
 	githubInstallationIdCache = gocache.New(60*time.Minute, 60*time.Minute)
+	azureServicePrincipalTokenCache = gocache.New(azureServicePrincipalCredsExp, 1*time.Minute)
 }
 
 type NoopCredsStore struct{}
@@ -540,10 +560,10 @@ func (g GitHubAppCreds) getInstallationTransport() (*ghinstallation.Transport, e
 	if installationID == 0 {
 		org, err := ExtractOrgFromRepoURL(g.repoURL)
 		if err != nil {
-			return nil, fmt.Errorf("failed to extract organization from repository URL %s for GitHub App installation discovery: %w", g.repoURL, err)
+			return nil, fmt.Errorf("failed to extract organization from repository URL %s for GitHub App installation discovery: %w", SanitizeRepoURL(g.repoURL), err)
 		}
 		if org == "" {
-			return nil, fmt.Errorf("could not extract organization from repository URL %s: the URL does not contain an organization/owner", g.repoURL)
+			return nil, fmt.Errorf("could not extract organization from repository URL %s: the URL does not contain an organization/owner", SanitizeRepoURL(g.repoURL))
 		}
 
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -780,7 +800,7 @@ func ExtractOrgFromRepoURL(repoURL string) (string, error) {
 	// Use git-urls library to parse all Git URL formats
 	parsed, err := giturls.Parse(repoURL)
 	if err != nil {
-		return "", fmt.Errorf("failed to parse repository URL %q: %w", repoURL, err)
+		return "", fmt.Errorf("failed to parse repository URL %q: %w", SanitizeRepoURL(repoURL), err)
 	}
 
 	// Clean the path: remove leading/trailing slashes and .git suffix
@@ -788,7 +808,7 @@ func ExtractOrgFromRepoURL(repoURL string) (string, error) {
 	path = strings.TrimSuffix(path, ".git")
 
 	if path == "" {
-		return "", fmt.Errorf("repository URL %q does not contain a path", repoURL)
+		return "", fmt.Errorf("repository URL %q does not contain a path", SanitizeRepoURL(repoURL))
 	}
 
 	// Extract the first path component (organization/owner)
@@ -801,7 +821,7 @@ func ExtractOrgFromRepoURL(repoURL string) (string, error) {
 
 	// If there's no slash, the entire path might be just the org (unusual but handle it)
 	// This would fail validation later, but let's return it
-	return "", fmt.Errorf("could not extract organization from repository URL %q: path %q does not contain org/repo format", repoURL, path)
+	return "", fmt.Errorf("could not extract organization from repository URL %q: path %q does not contain org/repo format", SanitizeRepoURL(repoURL), path)
 }
 
 var _ Creds = GoogleCloudCreds{}
@@ -813,9 +833,14 @@ type GoogleCloudCreds struct {
 }
 
 func NewGoogleCloudCreds(jsonData string, store CredsStore) GoogleCloudCreds {
-	creds, err := google.CredentialsFromJSONWithType(context.Background(), []byte(jsonData), google.ServiceAccount, "https://www.googleapis.com/auth/cloud-platform")
+	credType := credentialTypeFromJSON([]byte(jsonData))
+	creds, err := google.CredentialsFromJSONWithType(
+		context.Background(),
+		[]byte(jsonData),
+		credType,
+		"https://www.googleapis.com/auth/cloud-platform",
+	)
 	if err != nil {
-		// Invalid JSON
 		log.Errorf("Failed reading credentials from JSON: %+v", err)
 	}
 	return GoogleCloudCreds{creds, store}
@@ -973,4 +998,155 @@ func (creds AzureWorkloadIdentityCreds) getAccessToken(scope string) (string, er
 func (creds AzureWorkloadIdentityCreds) GetAzureDevOpsAccessToken() (string, error) {
 	accessToken, err := creds.getAccessToken(azureDevopsEntraResourceId) // wellknown resourceid of Azure DevOps
 	return accessToken, err
+}
+
+var _ Creds = AzureServicePrincipalCreds{}
+
+// AzureServicePrincipalCreds to authenticate to Azure DevOps using a Service Principal
+type AzureServicePrincipalCreds struct {
+	tenantID                string
+	clientID                string
+	clientSecret            string
+	activeDirectoryEndpoint string
+	clientCertData          string
+	clientCertKey           string
+	proxy                   string
+	noProxy                 string
+	store                   CredsStore
+}
+
+// NewAzureServicePrincipalCreds creates new Azure Service Principal credentials
+func NewAzureServicePrincipalCreds(tenantID string, clientID string, clientSecret string, store CredsStore) AzureServicePrincipalCreds {
+	return AzureServicePrincipalCreds{tenantID: tenantID, clientID: clientID, clientSecret: clientSecret, store: store}
+}
+
+// WithActiveDirectoryEndpoint sets a custom Active Directory endpoint. When not set, the default Azure public cloud is used.
+func (a AzureServicePrincipalCreds) WithActiveDirectoryEndpoint(activeDirectoryEndpoint string) AzureServicePrincipalCreds {
+	if activeDirectoryEndpoint != "" {
+		a.activeDirectoryEndpoint = activeDirectoryEndpoint
+	}
+	return a
+}
+
+// WithClientCert sets the client certificate data and key
+func (a AzureServicePrincipalCreds) WithClientCert(data string, key string) AzureServicePrincipalCreds {
+	if data != "" && key != "" {
+		a.clientCertData = data
+		a.clientCertKey = key
+	}
+	return a
+}
+
+// WithProxy sets the HTTP/HTTPS proxy used to access the repo
+func (a AzureServicePrincipalCreds) WithProxy(proxy string) AzureServicePrincipalCreds {
+	if proxy != "" {
+		a.proxy = proxy
+	}
+	return a
+}
+
+// WithNoProxy sets a comma separated list of IPs/hostnames that should not use the proxy
+func (a AzureServicePrincipalCreds) WithNoProxy(noProxy string) AzureServicePrincipalCreds {
+	if noProxy != "" {
+		a.noProxy = noProxy
+	}
+	return a
+}
+
+// GetUserInfo doesn't return any user info as they are not present for Azure Service Principals.
+func (a AzureServicePrincipalCreds) GetUserInfo(_ context.Context) (string, string, error) {
+	return workloadidentity.EmptyGuid, "", nil
+}
+
+func (a AzureServicePrincipalCreds) Environ() (io.Closer, []string, error) {
+	token, err := a.getAccessToken()
+	if err != nil {
+		return NopCloser{}, nil, err
+	}
+	nonce := a.store.Add("", token)
+	env := a.store.Environ(nonce)
+	env = append(env, fmt.Sprintf("%s=Authorization: Bearer %s", bearerAuthHeaderEnv, token))
+
+	return utilio.NewCloser(func() error {
+		a.store.Remove(nonce)
+		return nil
+	}), env, nil
+}
+
+func (a AzureServicePrincipalCreds) getAccessToken() (string, error) {
+	// Override the default active directory endpoint if present
+	activeDirectoryEndpoint := "https://login.microsoftonline.com"
+	disableInstanceDiscovery := false
+	if a.activeDirectoryEndpoint != "" {
+		activeDirectoryEndpoint = a.activeDirectoryEndpoint
+		disableInstanceDiscovery = true
+	}
+
+	// Generate cache key for creds
+	key, err := argoutils.GenerateCacheKey("%s %s %s %s", a.tenantID, a.clientID, a.clientSecret, activeDirectoryEndpoint)
+	if err != nil {
+		return "", fmt.Errorf("failed to get get SHA256 hash for Azure Service Principal credentials: %w", err)
+	}
+
+	t, found := azureServicePrincipalTokenCache.Get(key)
+	if found {
+		return t.(string), nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	opts := azcore.ClientOptions{}
+	opts.Cloud = cloud.Configuration{
+		ActiveDirectoryAuthorityHost: activeDirectoryEndpoint,
+	}
+	// Configure HTTP client with proxy if proxy is set
+	if a.proxy != "" {
+		opts.Transport = GetRepoHTTPClient(activeDirectoryEndpoint, false, a, a.proxy, a.noProxy)
+	}
+	cred, err := azidentity.NewClientSecretCredential(a.tenantID, a.clientID, a.clientSecret, &azidentity.ClientSecretCredentialOptions{ClientOptions: opts, DisableInstanceDiscovery: disableInstanceDiscovery})
+	if err != nil {
+		return "", fmt.Errorf("failed to create Azure client secret credential: %w", err)
+	}
+	token, err := cred.GetToken(ctx, policy.TokenRequestOptions{
+		Scopes: []string{azureDevopsEntraResourceId},
+	})
+	if err != nil {
+		return "", fmt.Errorf("failed to get Azure access token: %w", err)
+	}
+	azureServicePrincipalTokenCache.Set(key, token.Token, 0)
+	return token.Token, nil
+}
+
+func (a AzureServicePrincipalCreds) HasClientCert() bool {
+	return a.clientCertData != "" && a.clientCertKey != ""
+}
+
+func (a AzureServicePrincipalCreds) GetClientCertData() string {
+	return a.clientCertData
+}
+
+func (a AzureServicePrincipalCreds) GetClientCertKey() string {
+	return a.clientCertKey
+}
+
+// credentialTypeFromJSON peeks at the "type" field and returns the matching google.CredentialsType.
+// Defaults to google.ServiceAccount if the type is unrecognized or missing.
+func credentialTypeFromJSON(jsonData []byte) google.CredentialsType {
+	var f struct {
+		Type string `json:"type"`
+	}
+	if err := json.Unmarshal(jsonData, &f); err != nil {
+		return google.ServiceAccount
+	}
+	switch f.Type {
+	case "external_account":
+		return google.ExternalAccount
+	case "impersonated_service_account":
+		return google.ImpersonatedServiceAccount
+	case "authorized_user":
+		return google.AuthorizedUser
+	default:
+		return google.ServiceAccount
+	}
 }
