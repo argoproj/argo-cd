@@ -72,7 +72,7 @@ argocd repo add REPOURL [flags]
       --azure-service-principal-client-secret string   client secret of the Azure Service Principal
       --azure-service-principal-tenant-id string       tenant id of the Azure Service Principal
       --bearer-token string                            bearer token to the Git BitBucket Data Center repository
-      --depth int                                      Specify a custom depth for git clone operations. Unless specified, a full clone is performed using the depth of 0
+      --depth int                                      Specify a custom depth for git clone operations. A value of 0 performs a full clone. If unset, the depth is inherited from a matching credential template.
       --enable-lfs                                     enable git-lfs (Large File Support) on this repository
       --enable-oci                                     enable helm-oci (Helm OCI-Based Repository) (only valid for helm type repositories)
       --force-http-basic-auth                          whether to force use of basic auth when connecting repository via HTTP
