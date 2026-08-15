@@ -26,6 +26,7 @@ import (
 
 // Server provides a Cluster service
 type Server struct {
+	cluster.UnimplementedClusterServiceServer
 	db      db.ArgoDB
 	enf     *rbac.Enforcer
 	cache   *servercache.Cache

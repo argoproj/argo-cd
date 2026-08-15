@@ -3588,31 +3588,33 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 	refTargetRevision2 := "dev"
 	refSha := "999932039659e542ed7de0c170a4fcc1c5799999"
 	refSha2 := "777732039659e542ed7de0c170a4fcc1c5777777"
-	queryTemplate := apiclient.RepoServerAppDetailsQuery{
-		Repo: &v1alpha1.Repository{
-			Repo: repoURL,
-			Type: "git",
-		},
-		Source: &v1alpha1.ApplicationSource{
-			Helm: &v1alpha1.ApplicationSourceHelm{ValueFiles: []string{"$values/dir/values.yaml"}},
-		},
-		RefSources: map[string]*v1alpha1.RefTarget{
-			refName: {
-				Repo: v1alpha1.Repository{
-					Type: "git",
-					Repo: refRepoURL,
-				},
-				TargetRevision: refTargetRevision,
+	newQueryTemplate := func() *apiclient.RepoServerAppDetailsQuery {
+		return &apiclient.RepoServerAppDetailsQuery{
+			Repo: &v1alpha1.Repository{
+				Repo: repoURL,
+				Type: "git",
 			},
-		},
+			Source: &v1alpha1.ApplicationSource{
+				Helm: &v1alpha1.ApplicationSourceHelm{ValueFiles: []string{"$values/dir/values.yaml"}},
+			},
+			RefSources: map[string]*v1alpha1.RefTarget{
+				refName: {
+					Repo: v1alpha1.Repository{
+						Type: "git",
+						Repo: refRepoURL,
+					},
+					TargetRevision: refTargetRevision,
+				},
+			},
+		}
 	}
 	var err error
 	var appPath string
-	var res apiclient.RepoAppDetailsResponse
+	var res *apiclient.RepoAppDetailsResponse
 
 	testCases := []struct {
 		name        string
-		makeQuery   func() apiclient.RepoServerAppDetailsQuery
+		makeQuery   func() *apiclient.RepoServerAppDetailsQuery
 		testResults func(t *testing.T)
 		mockOpts    func(_ *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths)
 		// make new client for accessing the referenced repository
@@ -3620,8 +3622,8 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 	}{
 		{
 			name: "success",
-			makeQuery: func() apiclient.RepoServerAppDetailsQuery {
-				return queryTemplate
+			makeQuery: func() *apiclient.RepoServerAppDetailsQuery {
+				return newQueryTemplate()
 			},
 			mockOpts: func(_ *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 				paths.EXPECT().GetPath(refRepoURL).Return(refRoot, nil)
@@ -3650,8 +3652,8 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 		},
 		{
 			name: "ref_checkout_error",
-			makeQuery: func() apiclient.RepoServerAppDetailsQuery {
-				return queryTemplate
+			makeQuery: func() *apiclient.RepoServerAppDetailsQuery {
+				return newQueryTemplate()
 			},
 			mockOpts: func(_ *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 				paths.EXPECT().GetPath(refRepoURL).Return(refRoot, nil)
@@ -3677,8 +3679,8 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 		},
 		{
 			name: "same_repo_diff_revision_error",
-			makeQuery: func() apiclient.RepoServerAppDetailsQuery {
-				query := queryTemplate
+			makeQuery: func() *apiclient.RepoServerAppDetailsQuery {
+				query := newQueryTemplate()
 				query.RefSources = map[string]*v1alpha1.RefTarget{
 					refName: {
 						Repo: v1alpha1.Repository{
@@ -3709,8 +3711,8 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 		},
 		{
 			name: "same_ref_repo_diff_revision_error",
-			makeQuery: func() apiclient.RepoServerAppDetailsQuery {
-				query := queryTemplate
+			makeQuery: func() *apiclient.RepoServerAppDetailsQuery {
+				query := newQueryTemplate()
 				delete(query.RefSources, "$values")
 				query.RefSources["$valuesA"] = &v1alpha1.RefTarget{
 					Repo: v1alpha1.Repository{
@@ -3757,8 +3759,8 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 		},
 		{
 			name: "ref_revision_resolution_error",
-			makeQuery: func() apiclient.RepoServerAppDetailsQuery {
-				return queryTemplate
+			makeQuery: func() *apiclient.RepoServerAppDetailsQuery {
+				return newQueryTemplate()
 			},
 			mockOpts: func(_ *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 				// paths.EXPECT().GetPath(repoURL).Return(repoRoot, nil)
@@ -3779,8 +3781,8 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 		},
 		{
 			name: "not_a_git_referenced_repo",
-			makeQuery: func() apiclient.RepoServerAppDetailsQuery {
-				query := queryTemplate
+			makeQuery: func() *apiclient.RepoServerAppDetailsQuery {
+				query := newQueryTemplate()
 				query.RefSources = map[string]*v1alpha1.RefTarget{
 					refName: {
 						Repo: v1alpha1.Repository{
@@ -3807,8 +3809,8 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 		},
 		{
 			name: "unused_refsource_is_not_checked_out",
-			makeQuery: func() apiclient.RepoServerAppDetailsQuery {
-				q := queryTemplate
+			makeQuery: func() *apiclient.RepoServerAppDetailsQuery {
+				q := newQueryTemplate()
 				// Add a second ref source but do NOT reference it in ValueFiles.
 				q.RefSources = map[string]*v1alpha1.RefTarget{
 					refName: {
@@ -3863,8 +3865,8 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 			service.newGitClient = tc.newGitClient
 			appPath, err = filepath.Abs(repoRoot)
 			require.NoError(t, err)
-			res = apiclient.RepoAppDetailsResponse{}
-			err = service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, sha, "main", &query, service.gitRepoPaths)
+			res = &apiclient.RepoAppDetailsResponse{}
+			err = service.populateHelmAppDetails(t.Context(), res, appPath, appPath, sha, "main", query, service.gitRepoPaths)
 			tc.testResults(t)
 		})
 	}

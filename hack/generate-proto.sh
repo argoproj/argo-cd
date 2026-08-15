@@ -16,7 +16,11 @@ PROJECT_ROOT=$(
 )
 PATH="${PROJECT_ROOT}/dist:${PATH}"
 GOPATH=$(go env GOPATH)
-GOPATH_PROJECT_ROOT="${GOPATH}/src/github.com/argoproj/argo-cd"
+# The module path is github.com/argoproj/argo-cd/v3. With paths=import, protoc-gen-go writes files
+# under GOPATH/src/<go_package>. We create a symlink for the full module path (including /v3 suffix)
+# so that output paths such as GOPATH/src/github.com/argoproj/argo-cd/v3/pkg/apiclient/... resolve
+# into the correct locations inside the project tree.
+GOPATH_PROJECT_ROOT="${GOPATH}/src/github.com/argoproj/argo-cd/v3"
 
 # output tool versions
 go version
@@ -62,6 +66,11 @@ rm -rf "${GOPATH}/src/k8s.io/apimachinery" && mkdir -p "${GOPATH}/src/k8s.io" &&
 rm -rf "${GOPATH}/src/k8s.io/api" && mkdir -p "${GOPATH}/src/k8s.io" && cp -r "${PROJECT_ROOT}/vendor/k8s.io/api" "${GOPATH}/src/k8s.io"
 rm -rf "${GOPATH}/src/k8s.io/apiextensions-apiserver" && mkdir -p "${GOPATH}/src/k8s.io" && cp -r "${PROJECT_ROOT}/vendor/k8s.io/apiextensions-apiserver" "${GOPATH}/src/k8s.io"
 
+# pkg/apis/application/v1alpha1/generated.pb.go is still generated with protoc-gen-gogo
+# (via go-to-protobuf): the kubernetes type-generation approach adds marshal methods to the
+# *existing* Go types in types.go, whereas protoc-gen-go always emits new struct declarations
+# that would duplicate those types. The k8s API machinery (and the k8s types our types embed)
+# remain gogo-based, so this pipeline stays on gogo until upstream kubernetes migrates.
 go-to-protobuf \
     --drop-gogo-go=false \
     --go-header-file="${PROJECT_ROOT}"/hack/custom-boilerplate.go.txt \
@@ -77,42 +86,63 @@ go-to-protobuf \
     --proto-import="${protoc_include}" \
     --output-dir="${GOPATH}/src/"
 
-# go-to-protobuf modifies vendored code. Re-vendor code so it's available for subsequent steps.
+# go mod vendor after modifying generated code
 go mod vendor
 
-# Either protoc-gen-go, protoc-gen-gofast, or protoc-gen-gogofast can be used to build
-# server/*/<service>.pb.go from .proto files. golang/protobuf and gogo/protobuf can be used
-# interchangeably. The difference in the options are:
-# 1. protoc-gen-go - official golang/protobuf
-#GOPROTOBINARY=go
-# 2. protoc-gen-gofast - fork of golang golang/protobuf. Faster code generation
-#GOPROTOBINARY=gofast
-# 3. protoc-gen-gogofast - faster code generation and gogo extensions and flexibility in controlling
-# the generated go code (e.g. customizing field names, nullable fields)
-GOPROTOBINARY=gogofast
-
-# Generate server/<service>/(<service>.pb.go|<service>.pb.gw.go)
+# Generate server/<service>/(<service>.pb.go|<service>.pb.gw.go) using grpc-gateway v2 toolchain.
+# protoc-gen-go + protoc-gen-go-grpc replace the old protoc-gen-gogofast.
+# protoc-gen-grpc-gateway (v2) replaces the old protoc-gen-grpc-gateway (v1).
+# protoc-gen-openapiv2 replaces the old protoc-gen-swagger.
 MOD_ROOT=${GOPATH}/pkg/mod
-grpc_gateway_version=$(go list -m github.com/grpc-ecosystem/grpc-gateway | awk '{print $NF}' | head -1)
-GOOGLE_PROTO_API_PATH=${MOD_ROOT}/github.com/grpc-ecosystem/grpc-gateway@${grpc_gateway_version}/third_party/googleapis
 GOGO_PROTOBUF_PATH=${PROJECT_ROOT}/vendor/github.com/gogo/protobuf
 PROTO_FILES=$(find "$PROJECT_ROOT" \( -name "*.proto" -and -path '*/server/*' -or -path '*/reposerver/*' -and -name "*.proto" -or -path '*/cmpserver/*' -and -name "*.proto" -or -path '*/commitserver/*' -and -name "*.proto" -or -path '*/util/askpass/*' -and -name "*.proto" \) | sort)
+
+# server/events/events.proto defines k8s-style mirror types (value fields via
+# gogoproto.nullable=false, custom field names) and therefore stays on
+# protoc-gen-gogofast, like pkg/apis/application/v1alpha1. It declares no gRPC
+# service, so it needs no go-grpc, grpc-gateway, or openapiv2 outputs.
+protoc \
+    -I"${PROJECT_ROOT}" \
+    -I"${protoc_include}" \
+    -I./vendor \
+    -I"$GOPATH"/src \
+    -I"${GOGO_PROTOBUF_PATH}" \
+    --gogofast_out="$GOPATH"/src \
+    "${PROJECT_ROOT}/server/events/events.proto"
+
 for i in ${PROTO_FILES}; do
+    if [ "$i" = "${PROJECT_ROOT}/server/events/events.proto" ]; then
+        continue
+    fi
     protoc \
         -I"${PROJECT_ROOT}" \
         -I"${protoc_include}" \
         -I./vendor \
         -I"$GOPATH"/src \
-        -I"${GOOGLE_PROTO_API_PATH}" \
         -I"${GOGO_PROTOBUF_PATH}" \
-        --${GOPROTOBINARY}_out=plugins=grpc:"$GOPATH"/src \
-        --grpc-gateway_out=logtostderr=true:"$GOPATH"/src \
-        --swagger_out=logtostderr=true:. \
+        --go_out=paths=import:"$GOPATH"/src \
+        --go-grpc_out=require_unimplemented_servers=false,paths=import:"$GOPATH"/src \
+        --grpc-gateway_out=paths=import,logtostderr=true:"$GOPATH"/src \
+        --openapiv2_out=logtostderr=true:. \
         "$i"
 done
 
+# k8s.io/apimachinery v0.36 removed the gogo ProtoMessage() marker method, so
+# *metav1.Time satisfies neither the v1 nor the v2 proto.Message interface and
+# google.golang.org/protobuf panics when resolving it as a message dependency.
+# Point the generated dependency table at the metav1TimeProtoShim adapter
+# (pkg/apiclient/application/metav1_time_compat.go) instead.
+sed -i 's/(\*v1\.Time)(nil),/(*metav1TimeProtoShim)(nil),/' pkg/apiclient/application/application.pb.go
+
+# Regenerate the proto.Message (google.golang.org/protobuf) compatibility
+# shims for the gogo-generated packages. See hack/gen-proto-compat/main.go.
+go run "${PROJECT_ROOT}/hack/gen-proto-compat" pkg/apis/application/v1alpha1/generated.pb.go
+go run "${PROJECT_ROOT}/hack/gen-proto-compat" pkg/apiclient/events/events.pb.go
+gofmt -w pkg/apis/application/v1alpha1/proto_reflect_compat.go pkg/apiclient/events/proto_reflect_compat.go
+
 # This file is generated but should not be checked in.
-rm util/askpass/askpass.swagger.json
+# NOTE: protoc-gen-openapiv2 still names its output files *.swagger.json.
+rm -f util/askpass/askpass.swagger.json
 
 [ -L "${GOPATH_PROJECT_ROOT}" ] && rm -rf "${GOPATH_PROJECT_ROOT}"
 [ -L ./v3 ] && rm -rf v3

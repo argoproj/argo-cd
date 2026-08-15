@@ -4,9 +4,7 @@ import (
 	"errors"
 
 	"github.com/argoproj/pkg/v2/grpc/http"
-
-	//nolint:staticcheck
-	"github.com/golang/protobuf/proto"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )

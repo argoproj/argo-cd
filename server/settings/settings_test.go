@@ -194,7 +194,7 @@ func TestGetDexConfig(t *testing.T) {
 			// All connectors are always returned; only the forced connector ID varies.
 			var ids []string
 			for _, c := range resp.DexConfig.Connectors {
-				ids = append(ids, c.ID)
+				ids = append(ids, c.Id)
 			}
 			assert.ElementsMatch(t, []string{"okta", "github-actions"}, ids)
 			assert.Equal(t, tc.expectedDexAuthConnectorID, resp.DexConfig.DexAuthConnectorID)

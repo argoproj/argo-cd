@@ -27,6 +27,7 @@ import (
 
 // Server provides a Session service
 type Server struct {
+	account.UnimplementedAccountServiceServer
 	sessionMgr  *session.SessionManager
 	settingsMgr *settings.SettingsManager
 	enf         *rbac.Enforcer
@@ -35,7 +36,7 @@ type Server struct {
 
 // NewServer returns a new instance of the Session service
 func NewServer(sessionMgr *session.SessionManager, settingsMgr *settings.SettingsManager, enf *rbac.Enforcer, namespace string) *Server {
-	return &Server{sessionMgr, settingsMgr, enf, namespace}
+	return &Server{sessionMgr: sessionMgr, settingsMgr: settingsMgr, enf: enf, namespace: namespace}
 }
 
 // UpdatePassword updates the password of the currently authenticated account or the account specified in the request.

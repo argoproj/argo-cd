@@ -17,6 +17,7 @@ import (
 
 // Server provides a Repository service
 type Server struct {
+	repocredspkg.UnimplementedRepoCredsServiceServer
 	db  db.ArgoDB
 	enf *rbac.Enforcer
 }

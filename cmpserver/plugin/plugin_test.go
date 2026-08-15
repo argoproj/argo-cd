@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/types/known/emptypb"
 	"gopkg.in/yaml.v3"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -866,8 +866,8 @@ func TestService_GetParametersAnnouncement(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, s.response)
 		require.Len(t, s.response.ParameterAnnouncements, 2)
-		assert.Equal(t, repoclient.ParameterAnnouncement{Name: "dynamic-test-param", String_: "yep"}, *s.response.ParameterAnnouncements[0])
-		assert.Equal(t, repoclient.ParameterAnnouncement{Name: "test-param", String_: "test-value"}, *s.response.ParameterAnnouncements[1])
+		assert.Equal(t, &repoclient.ParameterAnnouncement{Name: "dynamic-test-param", String_: "yep"}, s.response.ParameterAnnouncements[0])
+		assert.Equal(t, &repoclient.ParameterAnnouncement{Name: "test-param", String_: "test-value"}, s.response.ParameterAnnouncements[1])
 	})
 	t.Run("out of bounds app", func(t *testing.T) {
 		t.Parallel()
@@ -911,7 +911,7 @@ func TestService_CheckPluginConfiguration(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		resp, err := f.service.CheckPluginConfiguration(t.Context(), &empty.Empty{})
+		resp, err := f.service.CheckPluginConfiguration(t.Context(), &emptypb.Empty{})
 
 		// then
 		require.NoError(t, err)
@@ -925,7 +925,7 @@ func TestService_CheckPluginConfiguration(t *testing.T) {
 		f := setup(t, withDiscover(d))
 
 		// when
-		resp, err := f.service.CheckPluginConfiguration(t.Context(), &empty.Empty{})
+		resp, err := f.service.CheckPluginConfiguration(t.Context(), &emptypb.Empty{})
 
 		// then
 		require.NoError(t, err)

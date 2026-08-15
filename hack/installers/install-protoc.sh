@@ -51,3 +51,12 @@ sudo install -m 0755 "/tmp/protoc-${protoc_version}/bin/protoc" "${DIST_PATH}/pr
     find -- * -type f -exec install -m 0644 "/tmp/protoc-${protoc_version}/include/{}" "${DIST_PATH}/protoc-include/{}" \;
 )
 protoc --version
+
+# Download googleapis proto files needed for grpc-gateway v2 codegen.
+# grpc-gateway v2 no longer bundles third_party/googleapis in recent releases;
+# annotations.proto and http.proto must be supplied separately.
+mkdir -p "${DIST_PATH}/protoc-include/google/api"
+curl -sLf --retry 3 -o "${DIST_PATH}/protoc-include/google/api/annotations.proto" \
+    "https://raw.githubusercontent.com/googleapis/googleapis/master/google/api/annotations.proto"
+curl -sLf --retry 3 -o "${DIST_PATH}/protoc-include/google/api/http.proto" \
+    "https://raw.githubusercontent.com/googleapis/googleapis/master/google/api/http.proto"

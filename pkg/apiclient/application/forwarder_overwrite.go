@@ -16,10 +16,8 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/kube"
 
 	"github.com/argoproj/pkg/v2/grpc/http"
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
-
-	//nolint:staticcheck
-	"github.com/golang/protobuf/proto"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"google.golang.org/protobuf/proto"
 
 	log "github.com/sirupsen/logrus"
 
@@ -332,6 +330,9 @@ func init() {
 		}
 
 		// Replicate grpc-gateway ForwardResponseMessage header handling.
+		// Trailers are only forwarded when the request declares it accepts
+		// them (RFC 7230 section 4.1.2), mirroring grpc-gateway v2.
+		doForwardTrailers := strings.Contains(strings.ToLower(req.Header.Get("TE")), "trailers")
 		md, hasMD := runtime.ServerMetadataFromContext(ctx)
 		if hasMD {
 			for k, vs := range md.HeaderMD {
@@ -339,9 +340,12 @@ func init() {
 					w.Header().Add(fmt.Sprintf("%s%s", runtime.MetadataHeaderPrefix, k), v)
 				}
 			}
-			for k := range md.TrailerMD {
-				tKey := textproto.CanonicalMIMEHeaderKey(fmt.Sprintf("%s%s", runtime.MetadataTrailerPrefix, k))
-				w.Header().Add("Trailer", tKey)
+			if doForwardTrailers {
+				for k := range md.TrailerMD {
+					tKey := textproto.CanonicalMIMEHeaderKey(fmt.Sprintf("%s%s", runtime.MetadataTrailerPrefix, k))
+					w.Header().Add("Trailer", tKey)
+				}
+				w.Header().Set("Transfer-Encoding", "chunked")
 			}
 		}
 
@@ -367,7 +371,7 @@ func init() {
 			panic(gohttp.ErrAbortHandler)
 		}
 
-		if hasMD {
+		if hasMD && doForwardTrailers {
 			for k, vs := range md.TrailerMD {
 				tKey := fmt.Sprintf("%s%s", runtime.MetadataTrailerPrefix, k)
 				for _, v := range vs {

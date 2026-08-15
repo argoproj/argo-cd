@@ -699,7 +699,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 			AppProject: "default",
 		})
 		require.NoError(t, err)
-		assert.Equal(t, expectedResp, *resp)
+		assert.Equal(t, &expectedResp, resp)
 	})
 	t.Run("Test_RepoNotPermitted", func(t *testing.T) {
 		repoServerClient := &mocks.RepoServerServiceClient{}
@@ -748,7 +748,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 			AppProject: "default",
 		})
 		require.NoError(t, err)
-		assert.Equal(t, expectedResp, *resp)
+		assert.Equal(t, &expectedResp, resp)
 	})
 	t.Run("Test_ExistingMultiSourceApp001", func(t *testing.T) {
 		repoServerClient := &mocks.RepoServerServiceClient{}
@@ -775,7 +775,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 			AppProject: "default",
 		})
 		require.NoError(t, err)
-		assert.Equal(t, expectedResp, *resp)
+		assert.Equal(t, &expectedResp, resp)
 		assert.Equal(t, "Helm", resp.Type)
 		// Next source
 		resp, err = s.GetAppDetails(t.Context(), &repository.RepoAppDetailsQuery{
@@ -784,7 +784,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 			AppProject: "default",
 		})
 		require.NoError(t, err)
-		assert.Equal(t, expectedResp, *resp)
+		assert.Equal(t, &expectedResp, resp)
 		assert.Equal(t, "Helm", resp.Type)
 	})
 	t.Run("Test_ExistingMultiSourceApp002", func(t *testing.T) {
@@ -801,10 +801,10 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 		db.EXPECT().GetRepository(mock.Anything, url1, "default").Return(&appsv1.Repository{Repo: url1}, nil)
 		db.EXPECT().GetProjectRepositories("default").Return(nil, nil)
 		db.EXPECT().GetProjectClusters(mock.Anything, "default").Return(nil, nil)
-		expectedResp0 := apiclient.RepoAppDetailsResponse{Type: "Plugin"}
-		expectedResp1 := apiclient.RepoAppDetailsResponse{Type: "Helm"}
-		repoServerClient.EXPECT().GetAppDetails(mock.Anything, mock.MatchedBy(func(req *apiclient.RepoServerAppDetailsQuery) bool { return req.Source.RepoURL == url0 })).Return(&expectedResp0, nil)
-		repoServerClient.EXPECT().GetAppDetails(mock.Anything, mock.MatchedBy(func(req *apiclient.RepoServerAppDetailsQuery) bool { return req.Source.RepoURL == url1 })).Return(&expectedResp1, nil)
+		expectedResp0 := &apiclient.RepoAppDetailsResponse{Type: "Plugin"}
+		expectedResp1 := &apiclient.RepoAppDetailsResponse{Type: "Helm"}
+		repoServerClient.EXPECT().GetAppDetails(mock.Anything, mock.MatchedBy(func(req *apiclient.RepoServerAppDetailsQuery) bool { return req.Source.RepoURL == url0 })).Return(expectedResp0, nil)
+		repoServerClient.EXPECT().GetAppDetails(mock.Anything, mock.MatchedBy(func(req *apiclient.RepoServerAppDetailsQuery) bool { return req.Source.RepoURL == url1 })).Return(expectedResp1, nil)
 		appLister, projLister := newAppAndProjLister(defaultProj, multiSourceApp002)
 
 		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr, false)
@@ -818,7 +818,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 		})
 		require.NoError(t, err)
 		assert.Equal(t, "Plugin", resp.Type)
-		assert.Equal(t, expectedResp0, *resp)
+		assert.Equal(t, expectedResp0, resp)
 		// Next source
 		resp, err = s.GetAppDetails(t.Context(), &repository.RepoAppDetailsQuery{
 			Source:     &sources[1],
@@ -826,7 +826,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 			AppProject: "default",
 		})
 		require.NoError(t, err)
-		assert.Equal(t, expectedResp1, *resp)
+		assert.Equal(t, expectedResp1, resp)
 		assert.Equal(t, "Helm", resp.Type)
 	})
 	t.Run("Test_ExistingAppMismatchedProjectName", func(t *testing.T) {
@@ -893,7 +893,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 			AppProject: "default",
 		})
 		require.NoError(t, err)
-		assert.Equal(t, expectedResp, *resp)
+		assert.Equal(t, &expectedResp, resp)
 	})
 
 	t.Run("Test_ExistingAppMultiSourceNotInHistory", func(t *testing.T) {
@@ -952,7 +952,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 			VersionId:   1,
 		})
 		require.NoError(t, err)
-		assert.Equal(t, expectedResp, *resp)
+		assert.Equal(t, &expectedResp, resp)
 	})
 }
 
@@ -1164,7 +1164,7 @@ func TestDeleteRepository(t *testing.T) {
 			s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr, false)
 			resp, err := s.DeleteRepository(t.Context(), &repository.RepoQuery{Repo: repo, AppProject: "default"})
 			require.NoError(t, err)
-			assert.Equal(t, repository.RepoResponse{}, *resp)
+			assert.Equal(t, &repository.RepoResponse{}, resp)
 		})
 	}
 }
