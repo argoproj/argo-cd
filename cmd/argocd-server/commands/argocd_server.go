@@ -93,6 +93,7 @@ func NewCommand() *cobra.Command {
 		webhookRefreshWorkers    int
 		hydratorEnabled          bool
 		syncWithReplaceAllowed   bool
+		disableSwaggerUI         bool
 
 		// ApplicationSet
 		enableNewGitFileGlobbing bool
@@ -258,6 +259,7 @@ func NewCommand() *cobra.Command {
 				EnableK8sEvent:          enableK8sEvent,
 				HydratorEnabled:         hydratorEnabled,
 				SyncWithReplaceAllowed:  syncWithReplaceAllowed,
+				DisableSwaggerUI:        disableSwaggerUI,
 			}
 
 			appsetOpts := server.ApplicationSetOpts{
@@ -317,6 +319,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&disableAuth, "disable-auth", env.ParseBoolFromEnv("ARGOCD_SERVER_DISABLE_AUTH", false), "Disable client authentication")
 	command.Flags().StringVar(&contentTypes, "api-content-types", env.StringFromEnv("ARGOCD_API_CONTENT_TYPES", "application/json", env.StringFromEnvOpts{AllowEmpty: true}), "Semicolon separated list of allowed content types for non GET api requests. Any content type is allowed if empty.")
 	command.Flags().BoolVar(&enableGZip, "enable-gzip", env.ParseBoolFromEnv("ARGOCD_SERVER_ENABLE_GZIP", true), "Enable GZIP compression")
+	command.Flags().BoolVar(&disableSwaggerUI, "disable-swagger-ui", env.ParseBoolFromEnv("ARGOCD_SERVER_DISABLE_SWAGGER_UI", false), "Disable the Swagger UI (/swagger-ui) endpoint")
 	command.AddCommand(cli.NewVersionCmd(common.CommandServer))
 	command.Flags().StringVar(&listenHost, "address", env.StringFromEnv("ARGOCD_SERVER_LISTEN_ADDRESS", common.DefaultAddressAPIServer), "Listen on given address")
 	command.Flags().IntVar(&listenPort, "port", common.DefaultPortAPIServer, "Listen on given port")

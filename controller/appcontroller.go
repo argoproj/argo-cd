@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	stderrors "errors"
 	"fmt"
-	"maps"
 	"math"
 	"math/rand"
 	"net/http"
@@ -816,47 +815,88 @@ func (ctrl *ApplicationController) hideSecretData(ctx context.Context, destClust
 		resDiff := res.Diff
 		if res.Kind == kube.SecretKind && res.Group == "" {
 			var err error
-			target, live, err = diff.HideSecretData(res.Target, res.Live, ctrl.settingsMgr.GetSensitiveAnnotations())
+			hideAnnots := ctrl.settingsMgr.GetSensitiveAnnotations()
+			target, live, err = diff.HideSecretData(res.Target, res.Live, hideAnnots)
 			if err != nil {
 				return nil, fmt.Errorf("error hiding secret data: %w", err)
 			}
-			compareOptions, err := ctrl.settingsMgr.GetResourceCompareOptions()
-			if err != nil {
-				return nil, fmt.Errorf("error getting resource compare options: %w", err)
+			// server-side diff removes webhook mutations on updates; recomputing
+			// client-side here would resurrect that drift.
+			useSSDResult := comparisonResult.diffConfig != nil &&
+				comparisonResult.diffConfig.ServerSideDiff() &&
+				res.Target != nil && res.Live != nil
+			// gitops-engine SSD leaves masking to the caller, so resDiff still holds raw
+			// Secret data and annotations. Re-mask both sides as a pair.
+			if useSSDResult {
+				var predicted, normalized *unstructured.Unstructured
+				if len(resDiff.PredictedLive) > 0 && string(resDiff.PredictedLive) != "null" {
+					predicted = &unstructured.Unstructured{}
+					if err := json.Unmarshal(resDiff.PredictedLive, predicted); err != nil {
+						return nil, fmt.Errorf("error unmarshaling predicted live for secret masking: %w", err)
+					}
+				}
+				if len(resDiff.NormalizedLive) > 0 && string(resDiff.NormalizedLive) != "null" {
+					normalized = &unstructured.Unstructured{}
+					if err := json.Unmarshal(resDiff.NormalizedLive, normalized); err != nil {
+						return nil, fmt.Errorf("error unmarshaling normalized live for secret masking: %w", err)
+					}
+				}
+				predicted, normalized, err = diff.HideSecretData(predicted, normalized, hideAnnots)
+				if err != nil {
+					return nil, fmt.Errorf("error hiding secret data in diff result: %w", err)
+				}
+				if predicted != nil {
+					resDiff.PredictedLive, err = json.Marshal(predicted)
+					if err != nil {
+						return nil, fmt.Errorf("error marshaling masked predicted live: %w", err)
+					}
+				}
+				if normalized != nil {
+					resDiff.NormalizedLive, err = json.Marshal(normalized)
+					if err != nil {
+						return nil, fmt.Errorf("error marshaling masked normalized live: %w", err)
+					}
+				}
 			}
-			resourceOverrides, err := ctrl.settingsMgr.GetResourceOverrides()
-			if err != nil {
-				return nil, fmt.Errorf("error getting resource overrides: %w", err)
-			}
-			appLabelKey, err := ctrl.settingsMgr.GetAppInstanceLabelKey()
-			if err != nil {
-				return nil, fmt.Errorf("error getting app instance label key: %w", err)
-			}
-			trackingMethod, err := ctrl.settingsMgr.GetTrackingMethod()
-			if err != nil {
-				return nil, fmt.Errorf("error getting tracking method: %w", err)
-			}
+			if !useSSDResult {
+				compareOptions, err := ctrl.settingsMgr.GetResourceCompareOptions()
+				if err != nil {
+					return nil, fmt.Errorf("error getting resource compare options: %w", err)
+				}
+				resourceOverrides, err := ctrl.settingsMgr.GetResourceOverrides()
+				if err != nil {
+					return nil, fmt.Errorf("error getting resource overrides: %w", err)
+				}
+				appLabelKey, err := ctrl.settingsMgr.GetAppInstanceLabelKey()
+				if err != nil {
+					return nil, fmt.Errorf("error getting app instance label key: %w", err)
+				}
+				trackingMethod, err := ctrl.settingsMgr.GetTrackingMethod()
+				if err != nil {
+					return nil, fmt.Errorf("error getting tracking method: %w", err)
+				}
 
-			clusterCache, err := ctrl.stateCache.GetClusterCache(destCluster)
-			if err != nil {
-				return nil, fmt.Errorf("error getting cluster cache: %w", err)
-			}
-			diffConfig, err := argodiff.NewDiffConfigBuilder().
-				WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles, ctrl.ignoreNormalizerOpts).
-				WithTracking(appLabelKey, trackingMethod).
-				WithNoCache().
-				WithLogger(logutils.NewLogrusLogger(logutils.NewWithCurrentConfig())).
-				WithGVKParser(clusterCache.GetGVKParser()).
-				Build()
-			if err != nil {
-				return nil, fmt.Errorf("appcontroller error building diff config: %w", err)
-			}
+				clusterCache, err := ctrl.stateCache.GetClusterCache(destCluster)
+				if err != nil {
+					return nil, fmt.Errorf("error getting cluster cache: %w", err)
+				}
+				diffConfig, err := argodiff.NewDiffConfigBuilder().
+					WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles, ctrl.ignoreNormalizerOpts).
+					WithTracking(appLabelKey, trackingMethod).
+					WithNoCache().
+					WithLogger(logutils.NewLogrusLogger(logutils.NewWithCurrentConfig())).
+					WithGVKParser(clusterCache.GetGVKParser()).
+					Build()
+				if err != nil {
+					return nil, fmt.Errorf("appcontroller error building diff config: %w", err)
+				}
 
-			diffResult, err := argodiff.StateDiff(ctx, live, target, diffConfig)
-			if err != nil {
-				return nil, fmt.Errorf("error applying diff: %w", err)
+				diffResult, err := argodiff.StateDiff(ctx, live, target, diffConfig)
+				if err != nil {
+					return nil, fmt.Errorf("error applying diff: %w", err)
+				}
+				resDiff = diffResult
 			}
-			resDiff = diffResult
 		}
 
 		if live != nil {
@@ -1699,8 +1739,14 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 		now := metav1.Now()
 		state.FinishedAt = &now
 	}
-	statusPatch := map[string]any{
-		"operationState": state,
+	clearOperation := state.Phase.Completed() && app.Operation != nil
+	if reflect.DeepEqual(app.Status.OperationState, state) && !clearOperation {
+		logCtx.Infof("No operation updates necessary to '%s'. Skipping patch", app.QualifiedName())
+		return
+	}
+	// Replace the whole operationState since we re-evaluated the whole object
+	patchOps := []map[string]any{
+		{"op": "add", "path": "/status/operationState", "value": state},
 	}
 	if state.Phase.Completed() {
 		// If operation is completed, clear the operation field to indicate no
@@ -1710,30 +1756,16 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 		// there), the write does not bump metadata.generation, which would
 		// push generation ahead of status.observedGeneration on every
 		// operation phase change.
-		statusPatch["operation"] = nil
+		patchOps = append(patchOps, map[string]any{"op": "add", "path": "/status/operation", "value": nil})
 	}
-	patch := map[string]any{
-		"status": statusPatch,
-	}
-	if reflect.DeepEqual(app.Status.OperationState, state) {
-		logCtx.Infof("No operation updates necessary to '%s'. Skipping patch", app.QualifiedName())
-		return
-	}
-	patchJSON, err := json.Marshal(patch)
+	patchJSON, err := json.Marshal(patchOps)
 	if err != nil {
 		logCtx.WithError(err).Error("error marshaling json")
 		return
 	}
-	if app.Status.OperationState != nil && app.Status.OperationState.FinishedAt != nil && state.FinishedAt == nil {
-		patchJSON, err = jsonpatch.MergeMergePatches(patchJSON, []byte(`{"status": {"operationState": {"finishedAt": null}}}`))
-		if err != nil {
-			logCtx.WithError(err).Error("error merging operation state patch")
-			return
-		}
-	}
 
 	kube.RetryUntilSucceed(ctx, updateOperationStateTimeout, "Update application operation state", logutils.NewLogrusLogger(logutils.NewWithCurrentConfig()), func() error {
-		_, err := ctrl.PatchAppStatusWithWriteBack(ctx, app.Name, app.Namespace, types.MergePatchType, patchJSON, metav1.PatchOptions{})
+		_, err := ctrl.PatchAppStatusWithWriteBack(ctx, app.Name, app.Namespace, types.JSONPatchType, patchJSON, metav1.PatchOptions{})
 		if err != nil {
 			// Stop retrying updating deleted application
 			if apierrors.IsNotFound(err) {
@@ -2028,13 +2060,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 
 	canSync, _ := project.Spec.SyncWindows.Matches(app).CanSync(false, nil)
 	if canSync {
-		// The manifest-generate-paths optimization can report no changes for a newer commit that
-		// arrives while the app is still syncing, which would skip auto-sync and leave the app
-		// stuck OutOfSync. Only use it to avoid regenerating manifests, never to gate the sync
-		// decision: when the app is OutOfSync, always let autoSync compare the desired revision
-		// against the last synced one (#27875).
-		shouldCompareRevisions := compareResult.revisionsMayHaveChanges || compareResult.syncStatus.Status == appv1.SyncStatusCodeOutOfSync
-		syncErrCond, opDuration := ctrl.autoSync(ctx, app, compareResult.syncStatus, compareResult.resources, shouldCompareRevisions)
+		syncErrCond, opDuration := ctrl.autoSync(ctx, app, compareResult.syncStatus, compareResult.resources, compareResult.revisionsMayHaveChanges)
 		setOpDuration = opDuration
 		if syncErrCond != nil {
 			app.Status.SetConditions(
@@ -2191,8 +2217,7 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 	compareWith := CompareWithLatest
 	refreshType := appv1.RefreshTypeNormal
 
-	softExpired := app.Status.ReconciledAt == nil || app.Status.ReconciledAt.Add(statusRefreshTimeout).Before(time.Now().UTC())
-	hardExpired := (app.Status.ReconciledAt == nil || app.Status.ReconciledAt.Add(statusHardRefreshTimeout).Before(time.Now().UTC())) && statusHardRefreshTimeout.Seconds() != 0
+	softExpired, hardExpired := comparisonExpiry(app.Status, statusRefreshTimeout, statusHardRefreshTimeout)
 
 	if requestedType, ok := app.IsRefreshRequested(); ok {
 		compareWith = CompareWithLatestForceResolve
@@ -2236,6 +2261,19 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 		return true, refreshType, compareWith
 	}
 	return false, refreshType, compareWith
+}
+
+// comparisonExpiry reports whether soft/hard comparison windows have expired.
+// A nil ReconciledAt means the app has never been reconciled: soft expiry always
+// applies so it gets a first compare; hard expiry applies only when hard timeout is enabled.
+// A timeout <= 0 disables time-based expiry only (e.g. timeout.reconciliation=0s).
+func comparisonExpiry(status appv1.ApplicationStatus, statusRefreshTimeout, statusHardRefreshTimeout time.Duration) (softExpired, hardExpired bool) {
+	if status.ReconciledAt == nil {
+		return true, statusHardRefreshTimeout > 0
+	}
+	softExpired = statusRefreshTimeout > 0 && status.Expired(statusRefreshTimeout)
+	hardExpired = statusHardRefreshTimeout > 0 && status.Expired(statusHardRefreshTimeout)
+	return softExpired, hardExpired
 }
 
 func (ctrl *ApplicationController) refreshAppConditions(ctx context.Context, app *appv1.Application) (*appv1.AppProject, bool) {
@@ -2297,23 +2335,165 @@ func createMergePatch(orig, newV any) ([]byte, bool, error) {
 	return patch, string(patch) != "{}", nil
 }
 
-// persistReconciliationStatus persists updates to application status and consumes the refresh annotation.
+// persistReconciliationStatus persists updates to application status and consumes the refresh and refresh-timestamp annotations.
 func (ctrl *ApplicationController) persistReconciliationStatus(ctx context.Context, orig *appv1.Application, newStatus *appv1.ApplicationStatus) time.Duration {
-	newAnnotations := make(map[string]string)
-	maps.Copy(newAnnotations, orig.GetAnnotations())
-	delete(newAnnotations, appv1.AnnotationKeyRefresh)
 	// Record the generation that was just reconciled. Stamped here rather than in
 	// persistAppStatus so hydration-only writes don't claim a generation the
 	// reconciler hasn't processed yet. The status write goes through the v1beta1
 	// status subresource, which does not bump metadata.generation, so
 	// observedGeneration can converge with generation.
 	newStatus.ObservedGeneration = orig.Generation
-	return ctrl.persistAppStatus(ctx, orig, newStatus, newAnnotations)
+	duration, statusPersisted := ctrl.persistAppStatus(ctx, orig, newStatus)
+	if !statusPersisted {
+		// Leave the refresh annotations in place so the next reconcile redoes the
+		// refresh. Consuming them after a failed status write would silently discard
+		// the refresh result and leave the app stale until statusRefreshTimeout.
+		log.WithFields(applog.GetAppLogFields(orig)).Info("Skipping refresh annotation removal because the status write failed; the refresh will be retried")
+		return duration
+	}
+	return duration + ctrl.handleRefreshAnnotation(ctx, orig, appv1.AnnotationKeyRefresh, appv1.AnnotationKeyRefreshTimestamp)
 }
 
-// persistAppStatus persists updates to application status and optionally updates annotations.
-// If no changes were made, it is a no-op
-func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *appv1.Application, newStatus *appv1.ApplicationStatus, newAnnotations map[string]string) (patchDuration time.Duration) {
+// Conditionally removes given refresh annotation (for application refresh or hydration)
+// and its accompanying timestamp annotation. If there are no such annotations it does nothing.
+//
+// The annotations are left in place if the timestamp annotation value has changed in k8s.
+//
+// It builds a single JSONPatch request to remove the annotations, which contains
+// a "test" operation to ensure that timestamp value matches before deleting.
+//
+// In most cases the annotations are not modified and are successfully removed.
+//
+// If patch operation fails, it tests whether it was because of the timestamp change:
+// If so, both annotations remain so an additional refresh/hydration operation will be performed.
+// Otherwise it re-reads the actual application manifest state and retries the operation
+// according to the updated manifest (in case one of the annotations was deleted externally).
+//
+// It returns duration of all external patch request that were performed.
+func (ctrl *ApplicationController) handleRefreshAnnotation(ctx context.Context, orig *appv1.Application, annotation, timestampAnnotation string) (patchDuration time.Duration) {
+	// spanErr records a failed patch operation on the span so a trace doesn't look successful when
+	// the patch below failed. These are Kubernetes API errors, not repo URLs, so
+	// recording the message via EndSpan does not risk leaking credentials.
+	var spanErr error
+	// FIXME: remove check when caller function in hydrator gets tracing added
+	if ctx != nil {
+		// NB: leaf span only — the annotations patch below deliberately stays on context.Background() so a
+		// canceled reconcile ctx never aborts a durable status write. The span just measures it.
+		_, span := tracer.Start(ctx, "controller.handleRefreshAnnotations")
+		setAppTraceAttrs(span, orig)
+		defer func() { traceutil.EndSpan(span, spanErr) }()
+	}
+
+	logCtx := log.WithFields(applog.GetAppLogFields(orig))
+	origAnnotations := orig.GetAnnotations()
+	patchDuration, err := ctrl.removeRefreshAnnotationCombo(orig, annotation, timestampAnnotation)
+	if err != nil {
+		var status apierrors.APIStatus
+		if stderrors.As(err, &status) && status.Status().Code == http.StatusUnprocessableEntity {
+			// ensure that the error comes from the timestamp annotation that was modified during
+			// refresh.
+
+			origTimestamp, hasTimestamp := origAnnotations[timestampAnnotation]
+			if hasTimestamp {
+				// If the JSONPatch test operation fails the API server returns status code 422 -
+				// Unprocessable entity, but there is no way to be 100% sure from the error only
+				// that it happened because of the timestamp value mismatch in test, so we get the
+				// value from the Application manifest and compare.
+				// We fetch from k8s directly, because Informer might still have the old version
+				newApp, getErr := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(orig.GetNamespace()).Get(context.Background(), orig.GetName(), metav1.GetOptions{})
+				if getErr != nil {
+					spanErr = getErr
+					logCtx.Errorf("Unexpected error getting application: %v", getErr)
+					return
+				}
+				newAnnotations := newApp.GetAnnotations()
+				if newAnnotations != nil {
+					newTimestamp, hasNewTimestamp := newAnnotations[timestampAnnotation]
+					_, hasAnnotation := newAnnotations[annotation]
+					if hasAnnotation && hasNewTimestamp && newTimestamp != origTimestamp {
+						// there is refresh set and refresh timestamp changed,
+						// new refresh was requested while the old one was running
+						logCtx.Infof("New request arrived while processing: %s changed from %s to %s", timestampAnnotation, origTimestamp, newTimestamp)
+					} else {
+						// there was some other change (like deleted refresh annotation)
+						// retry the operation with the updated annotations
+						retryDuration, retryErr := ctrl.removeRefreshAnnotationCombo(newApp, annotation, timestampAnnotation)
+						if retryErr != nil {
+							spanErr = retryErr
+							logCtx.Errorf("Unexpected error retrying removal of annotations %s, %s, %v", annotation, timestampAnnotation, retryErr)
+						}
+						patchDuration += retryDuration
+					}
+				}
+			} else {
+				// probably externally removed refresh/hydrate annotation
+				logCtx.Infof("Failed to remove annotation %s (removed externally?): %v", annotation, err)
+			}
+		} else {
+			spanErr = err
+			logCtx.Errorf("Unexpected error removing annotations %s, %s, %v", annotation, timestampAnnotation, err)
+		}
+	}
+	return
+}
+
+var rfc6901Encoder = strings.NewReplacer("/", "~1", "~", "~0")
+
+func (ctrl *ApplicationController) removeRefreshAnnotationCombo(app *appv1.Application, annotation, timestampAnnotation string) (patchDuration time.Duration, err error) {
+	logCtx := log.WithFields(applog.GetAppLogFields(app))
+	annotations := app.GetAnnotations()
+	jsonPatch := []map[string]any{}
+	if refreshTS, ok := annotations[timestampAnnotation]; ok {
+		timestampAnnotationPath := "/metadata/annotations/" + rfc6901Encoder.Replace(timestampAnnotation)
+		jsonPatch = append(jsonPatch, []map[string]any{
+			{
+				"op":    "test",
+				"path":  timestampAnnotationPath,
+				"value": refreshTS,
+			},
+			{
+				"op":   "remove",
+				"path": timestampAnnotationPath,
+			},
+		}...)
+	}
+	if _, ok := annotations[annotation]; ok {
+		annotationPath := "/metadata/annotations/" + rfc6901Encoder.Replace(annotation)
+		jsonPatch = append(jsonPatch, map[string]any{
+			"op":   "remove",
+			"path": annotationPath,
+		})
+	}
+
+	if len(jsonPatch) != 0 {
+		var patch []byte
+		patch, err = json.Marshal(jsonPatch)
+		if err != nil {
+			logCtx.Errorf("Unexpected error marshaling JSON patch: %v", err)
+			return
+		}
+		start := time.Now()
+		defer func() {
+			patchDuration = time.Since(start)
+		}()
+		logCtx.Debugf("Patching annotations: %s", string(patch))
+		_, err = ctrl.PatchAppWithWriteBack(context.Background(), app.GetName(), app.GetNamespace(), types.JSONPatchType, patch, metav1.PatchOptions{})
+		if err == nil {
+			logCtx.Debugf("Successfully patched annotations")
+		} else {
+			logCtx.Debugf("Got error patching annotations: %v", err)
+		}
+	} else {
+		logCtx.Debugf("No changes required for %s, %s annotations. Skipping patching annotations", annotation, timestampAnnotation)
+	}
+	return
+}
+
+// persistAppStatus persists updates to application status
+// If no changes were made, it is a no-op.
+// statusPersisted reports whether the status (or its size-limit fallback) reached the
+// API server; callers gate refresh annotation consumption on it.
+func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *appv1.Application, newStatus *appv1.ApplicationStatus) (patchDuration time.Duration, statusPersisted bool) {
 	// NB: leaf span only — the status patch below deliberately stays on context.Background() so a
 	// canceled reconcile ctx never aborts a durable status write. The span just measures it.
 	_, span := tracer.Start(ctx, "controller.persistAppStatus")
@@ -2349,103 +2529,71 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 			newStatus.Health.Message = orig.Status.Health.Message
 		}
 	}
-
-	// calculate time for patch calls
-	start := time.Now()
-	defer func() {
-		patchDuration = time.Since(start)
-	}()
-
-	// Status goes through the v1beta1 status subresource (which does not bump
-	// metadata.generation); annotation changes cannot ride along on a status
-	// subresource write, so they are applied in a separate metadata patch below.
-	statusPatch, statusModified, err := createMergePatch(
+	patch, modified, err := createMergePatch(
 		&appv1.Application{Status: orig.Status},
 		&appv1.Application{Status: *newStatus})
 	if err != nil {
 		spanErr = err
 		logCtx.WithError(err).Error("Error constructing app status patch")
-		return patchDuration
+		return patchDuration, false
 	}
-	// statusPersisted tracks whether the computed status (or its size-limit
-	// fallback) made it to the API server. Annotation consumption below is
-	// gated on it.
-	statusPersisted := true
-	if statusModified {
-		_, err = ctrl.PatchAppStatusWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, statusPatch, metav1.PatchOptions{})
-		if err != nil {
-			spanErr = err
-			statusPersisted = false
-			if apierrors.IsRequestEntityTooLargeError(err) {
-				logCtx.WithError(err).Warn("Application status exceeds the Kubernetes resource size limit; falling back to error condition only")
-				fallbackStatus := orig.Status.DeepCopy()
-				fallbackStatus.SetConditions([]appv1.ApplicationCondition{
-					{
-						Type:    appv1.ApplicationConditionUnknownError,
-						Message: "Application status exceeds the Kubernetes resource size limit and could not be persisted. The displayed status may be stale. Reduce the number of managed resources, set ApplyOutOfSyncOnly=true, lower spec.revisionHistoryLimit, or split the Application.",
-					},
-				},
-					map[appv1.ApplicationConditionType]bool{
-						appv1.ApplicationConditionUnknownError: true,
-					})
-
-				fallbackPatch, modified, mpErr := createMergePatch(
-					&appv1.Application{Status: orig.Status},
-					&appv1.Application{Status: *fallbackStatus},
-				)
-				if mpErr != nil {
-					logCtx.WithError(mpErr).Error("Error constructing fallback status patch")
-					return patchDuration
-				}
-				if modified {
-					if _, fbErr := ctrl.PatchAppStatusWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, fallbackPatch, metav1.PatchOptions{}); fbErr != nil {
-						logCtx.WithError(fbErr).Error("Error persisting fallback status with error condition")
-					} else {
-						// The fallback error condition is the deliberate persisted
-						// outcome for an oversized status. Treat it as success so the
-						// refresh annotation is consumed below — leaving it in place
-						// would hard-refresh an app that can never persist its full
-						// status in a tight loop.
-						statusPersisted = true
-					}
-				}
-			} else {
-				logCtx.WithError(err).Warn("Error updating application status")
-			}
-		} else {
-			logCtx.Infof("Status update successful")
-		}
+	if !modified {
+		logCtx.Infof("No status changes. Skipping patch")
+		return patchDuration, true
 	}
-
-	// Apply annotation changes (e.g. consuming the refresh/hydrate annotations)
-	// via a metadata-only merge patch on the main resource — annotations cannot
-	// ride along on a status-subresource write. Consume them only once the
-	// status actually persisted: before the status/annotation split this was a
-	// single atomic patch, so a failed write left the annotation in place and
-	// the next reconcile redid the refresh. Consuming it after a failed write
-	// would silently discard the refresh result and leave the app stale until
-	// statusRefreshTimeout.
-	annotationPatch, annotationsModified, err := createMergePatch(
-		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: orig.GetAnnotations()}},
-		&appv1.Application{ObjectMeta: metav1.ObjectMeta{Annotations: newAnnotations}})
+	// calculate time for patch call
+	start := time.Now()
+	defer func() {
+		patchDuration = time.Since(start)
+	}()
+	// The write goes through the v1beta1 status subresource, which does not bump
+	// metadata.generation, so status.observedGeneration can converge with it.
+	_, err = ctrl.PatchAppStatusWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, patch, metav1.PatchOptions{})
 	if err != nil {
 		spanErr = err
-		logCtx.WithError(err).Error("Error constructing app annotation patch")
-		return patchDuration
-	}
-	if annotationsModified {
-		if !statusPersisted {
-			logCtx.Info("Skipping annotation consumption because the status write failed; the refresh will be retried")
-		} else if _, err := ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, annotationPatch, metav1.PatchOptions{}); err != nil {
-			spanErr = err
-			logCtx.WithError(err).Warn("Error updating application annotations")
-		}
-	}
+		if apierrors.IsRequestEntityTooLargeError(err) {
+			logCtx.WithError(err).Warn("Application status exceeds the Kubernetes resource size limit; falling back to error condition only")
+			fallbackStatus := orig.Status.DeepCopy()
+			fallbackStatus.SetConditions([]appv1.ApplicationCondition{
+				{
+					Type:    appv1.ApplicationConditionUnknownError,
+					Message: "Application status exceeds the Kubernetes resource size limit and could not be persisted. The displayed status may be stale. Reduce the number of managed resources, set ApplyOutOfSyncOnly=true, lower spec.revisionHistoryLimit, or split the Application.",
+				},
+			},
+				map[appv1.ApplicationConditionType]bool{
+					appv1.ApplicationConditionUnknownError: true,
+				})
 
-	if !statusModified && !annotationsModified {
-		logCtx.Infof("No status changes. Skipping patch")
+			fallbackPatch, modified, mpErr := createMergePatch(
+				&appv1.Application{
+					Status: orig.Status,
+				},
+				&appv1.Application{
+					Status: *fallbackStatus,
+				},
+			)
+			if mpErr != nil {
+				logCtx.WithError(mpErr).Error("Error constructing fallback status patch")
+				return patchDuration, false
+			}
+			if modified {
+				if _, fbErr := ctrl.PatchAppStatusWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, fallbackPatch, metav1.PatchOptions{}); fbErr != nil {
+					logCtx.WithError(fbErr).Error("Error persisting fallback status with error condition")
+					return patchDuration, false
+				}
+			}
+			// The fallback error condition is the deliberate persisted outcome for an
+			// oversized status (an unmodified fallback means it is already in place).
+			// Report it as persisted so the refresh annotation is consumed — leaving it
+			// would hard-refresh, in a tight loop, an app that can never persist its
+			// full status.
+			return patchDuration, true
+		}
+		logCtx.WithError(err).Warn("Error updating application")
+		return patchDuration, false
 	}
-	return patchDuration
+	logCtx.Infof("Update successful")
+	return patchDuration, true
 }
 
 // autoSync will initiate a sync operation for an application configured with automated sync

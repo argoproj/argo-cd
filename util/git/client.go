@@ -1780,7 +1780,24 @@ func (m *nativeGitClient) runCredentialedCmd(ctx context.Context, args ...string
 	cmd := exec.CommandContext(ctx, "git", args...)
 	cmd.Env = append(cmd.Env, environ...)
 	_, err = m.runCmdOutput(cmd, runOpts{})
-	return err
+	return humanizeAuthPromptError(m.repoURL, err)
+}
+
+// gitTerminalPromptDisabledMsg is the substring Git prints when it needs
+// credentials it wasn't given and interactive prompts are disabled
+// (GIT_TERMINAL_PROMPT=0). It signals a failed git authentication, not an actual
+// terminal problem.
+const gitTerminalPromptDisabledMsg = "terminal prompts disabled"
+
+// humanizeAuthPromptError rewrites Git's misleading "terminal prompts disabled"
+// failure into an authentication error, since the raw message reads as a tty
+// problem when the real cause is that no credentials matched the repository URL.
+// Any other error is returned unchanged.
+func humanizeAuthPromptError(repoURL string, err error) error {
+	if err == nil || !strings.Contains(err.Error(), gitTerminalPromptDisabledMsg) {
+		return err
+	}
+	return fmt.Errorf("failed to authenticate to git repository %q: no credentials matched this URL: %w", SanitizeRepoURL(repoURL), err)
 }
 
 func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, error) {
