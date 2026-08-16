@@ -551,6 +551,7 @@ func (h *Hydrator) hydrate(ctx context.Context, logCtx *log.Entry, apps []*appv1
 		ReadmeMessage:     readmeTemplate,
 		AuthorName:        authorName,
 		AuthorEmail:       authorEmail,
+		DrySourceRepoURL:  drySourceRepoURL,
 	}
 
 	closer, commitService, err := h.commitClientset.NewCommitServerClient()
