@@ -246,6 +246,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Mission Lane](https://missionlane.com)
 1. [mixi Group](https://mixi.co.jp/)
 1. [Moengage](https://www.moengage.com/)
+1. [Mojro](https://mojro.com/)
 1. [Mollie](https://www.mollie.com/)
 1. [Money Forward](https://corp.moneyforward.com/en/)
 1. [MongoDB](https://www.mongodb.com/)
@@ -328,6 +329,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Reenigne Cloud](https://reenigne.ca)
 1. [reev.com](https://www.reev.com/)
 1. [Relex Solutions](https://www.relexsolutions.com/)
+1. [remberg](https://remberg.com/)
 1. [RightRev](https://rightrev.com/)
 1. [Rijkswaterstaat](https://www.rijkswaterstaat.nl/en)
 1. Rise

@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	stderrors "errors"
 	"fmt"
 	"os"
@@ -13,18 +14,20 @@ import (
 
 	cdcommon "github.com/argoproj/argo-cd/v3/common"
 
-	gitopsDiff "github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	gitopsDiff "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
+	otel_codes "go.opentelemetry.io/otel/codes"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	"k8s.io/kubectl/pkg/util/openapi"
 
 	"github.com/argoproj/argo-cd/v3/controller/metrics"
 	"github.com/argoproj/argo-cd/v3/controller/syncid"
@@ -44,6 +47,14 @@ const (
 	EnvVarSyncWaveDelay = "ARGOCD_SYNC_WAVE_DELAY"
 )
 
+func (m *appStateManager) getOpenAPISchema(server *v1alpha1.Cluster) (openapi.Resources, error) {
+	cluster, err := m.liveStateCache.GetClusterCache(server)
+	if err != nil {
+		return nil, err
+	}
+	return cluster.GetOpenAPISchema(), nil
+}
+
 func (m *appStateManager) getGVKParser(server *v1alpha1.Cluster) (*managedfields.GvkParser, error) {
 	cluster, err := m.liveStateCache.GetClusterCache(server)
 	if err != nil {
@@ -56,16 +67,63 @@ func (m *appStateManager) getGVKParser(server *v1alpha1.Cluster) (*managedfields
 // interface that provides functionality to dry run apply kubernetes resources. Returns a
 // cleanup function that must be called to remove the generated kube config for this
 // server.
-func (m *appStateManager) getServerSideDiffDryRunApplier(cluster *v1alpha1.Cluster) (gitopsDiff.KubeApplier, func(), error) {
+func (m *appStateManager) getServerSideDiffDryRunApplier(cluster *v1alpha1.Cluster, project *v1alpha1.AppProject, app *v1alpha1.Application) (gitopsDiff.KubeApplier, func(), error) {
 	rawConfig, err := cluster.RawRestConfig()
 	if err != nil {
 		return nil, nil, fmt.Errorf("error getting cluster REST config: %w", err)
+	}
+	// When impersonation is enabled, the dry-run apply is executed as the ServiceAccount
+	// derived from the AppProject's destinationServiceAccounts, matching the identity used
+	// by the sync operation.
+	if err := m.applyDiffImpersonationConfig(rawConfig, project, app, cluster); err != nil {
+		return nil, nil, err
 	}
 	ops, cleanup, err := kubeutil.ManageServerSideDiffDryRuns(rawConfig, m.onKubectlRun)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error creating kubectl ResourceOperations: %w", err)
 	}
 	return ops, cleanup, nil
+}
+
+// applyDiffImpersonationConfig sets the impersonation headers on the given REST config
+// so that the server-side diff dry-run runs as the same ServiceAccount used by sync.
+// It mirrors the sync path's behaviour, including honoring the impersonation-enforced
+// setting: when impersonation is enabled but no matching destinationServiceAccount is
+// found, enforcement causes the diff to fail rather than silently fall back to the
+// controller credential (the dry-run apply is authorized by the API server as a patch,
+// so falling back would require the standing cluster credential to hold patch authority).
+func (m *appStateManager) applyDiffImpersonationConfig(config *rest.Config, project *v1alpha1.AppProject, app *v1alpha1.Application, destCluster *v1alpha1.Cluster) error {
+	logEntry := log.WithFields(applog.GetAppLogFields(app))
+
+	impersonationEnabled, err := m.settingsMgr.IsImpersonationEnabled()
+	if err != nil {
+		return fmt.Errorf("error getting impersonation setting: %w", err)
+	}
+	if !impersonationEnabled {
+		return nil
+	}
+	serviceAccountToImpersonate, err := settings.DeriveServiceAccountToImpersonate(project, app, destCluster)
+	if err != nil {
+		return fmt.Errorf("error deriving service account to impersonate: %w", err)
+	}
+	if serviceAccountToImpersonate == "" {
+		// No matching service account found - check enforcement.
+		impersonationEnforced, err := m.settingsMgr.IsImpersonationEnforced()
+		if err != nil {
+			return fmt.Errorf("error getting impersonation enforcement setting: %w", err)
+		}
+		if impersonationEnforced {
+			return fmt.Errorf("no matching service account found for destination server %s and namespace %s", destCluster.Server, app.Spec.Destination.Namespace)
+		}
+		// Non-enforced mode: fall back to the controller credential, consistent with sync.
+		logEntry.Debugf("server-side diff: no matching service account found for impersonation (project: %s, server: %s, namespace: %s), falling back to controller service account", project.Name, destCluster.Server, app.Spec.Destination.Namespace)
+		return nil
+	}
+	logEntry.Debugf("server-side diff: impersonating service account %q, matching sync", serviceAccountToImpersonate)
+	config.Impersonate = rest.ImpersonationConfig{
+		UserName: serviceAccountToImpersonate,
+	}
+	return nil
 }
 
 func NewOperationState(operation v1alpha1.Operation) *v1alpha1.OperationState {
@@ -100,6 +158,16 @@ func newSyncOperationResult(app *v1alpha1.Application, op v1alpha1.SyncOperation
 }
 
 func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Application, project *v1alpha1.AppProject, state *v1alpha1.OperationState) {
+	ctx, span := tracer.Start(ctx, "controller.SyncAppState")
+	setAppTraceAttrs(span, app)
+	// SyncAppState is void; it signals failure through state.Phase rather than a return value, so
+	// map a terminal failed phase onto the span status at exit (mirroring traceutil.EndSpan).
+	defer func() {
+		if state.Phase.Failed() {
+			span.SetStatus(otel_codes.Error, state.Message)
+		}
+		span.End()
+	}()
 	syncId, err := syncid.Generate()
 	if err != nil {
 		state.Phase = common.OperationError
@@ -237,7 +305,14 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 	// resources which in this case applies the live values in the configured
 	// ignore differences fields.
 	if syncOp.SyncOptions.HasOption("RespectIgnoreDifferences=true") {
-		patchedTargets, err := normalizeTargetResources(compareResult)
+		openAPISchema, err := m.getOpenAPISchema(destCluster)
+		if err != nil {
+			state.Phase = common.OperationError
+			state.Message = fmt.Sprintf("failed to load openAPISchema: %v", err)
+			return
+		}
+
+		patchedTargets, err := normalizeTargetResources(openAPISchema, compareResult)
 		if err != nil {
 			state.Phase = common.OperationError
 			state.Message = fmt.Sprintf("Failed to normalize target resources: %s", err)
@@ -266,16 +341,37 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 		serviceAccountToImpersonate, err := settings.DeriveServiceAccountToImpersonate(project, app, destCluster)
 		if err != nil {
 			state.Phase = common.OperationError
-			state.Message = fmt.Sprintf("failed to find a matching service account to impersonate: %v", err)
+			state.Message = fmt.Sprintf("failed to derive service account to impersonate: %v", err)
 			return
 		}
-		logEntry = logEntry.WithFields(log.Fields{"impersonationEnabled": "true", "serviceAccount": serviceAccountToImpersonate})
-		// set the impersonation headers.
-		rawConfig.Impersonate = rest.ImpersonationConfig{
-			UserName: serviceAccountToImpersonate,
-		}
-		restConfig.Impersonate = rest.ImpersonationConfig{
-			UserName: serviceAccountToImpersonate,
+
+		if serviceAccountToImpersonate == "" {
+			// No matching service account found - check enforcement
+			impersonationEnforced, enforcedErr := m.settingsMgr.IsImpersonationEnforced()
+			if enforcedErr != nil {
+				log.Errorf("could not get impersonation enforcement flag: %v", enforcedErr)
+				state.Phase = common.OperationError
+				state.Message = fmt.Sprintf("failed to check impersonation enforcement setting: %v", enforcedErr)
+				return
+			}
+
+			if impersonationEnforced {
+				state.Phase = common.OperationError
+				state.Message = fmt.Sprintf("no matching service account found for destination server %s and namespace %s", destCluster.Server, app.Spec.Destination.Namespace)
+				return
+			}
+
+			// Non-enforced mode: log info and continue with controller SA
+			logEntry.Infof("no matching service account found for impersonation (project: %s, server: %s, namespace: %s), falling back to controller service account", project.Name, destCluster.Server, app.Spec.Destination.Namespace)
+		} else {
+			logEntry = logEntry.WithFields(log.Fields{"impersonationEnabled": "true", "serviceAccount": serviceAccountToImpersonate})
+			// set the impersonation headers.
+			rawConfig.Impersonate = rest.ImpersonationConfig{
+				UserName: serviceAccountToImpersonate,
+			}
+			restConfig.Impersonate = rest.ImpersonationConfig{
+				UserName: serviceAccountToImpersonate,
+			}
 		}
 	}
 
@@ -397,33 +493,42 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 //   - applies normalization to the target resources based on the live resources
 //   - copies ignored fields from the matching live resources: apply normalizer to the live resource,
 //     calculates the patch performed by normalizer and applies the patch to the target resource
-func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructured, error) {
-	// normalize live and target resources
+func normalizeTargetResources(openAPISchema openapi.Resources, cr *comparisonResult) ([]*unstructured.Unstructured, error) {
+	// Normalize live and target resources (cleaning or aligning them)
 	normalized, err := diff.Normalize(cr.reconciliationResult.Live, cr.reconciliationResult.Target, cr.diffConfig)
 	if err != nil {
 		return nil, err
 	}
+
 	patchedTargets := []*unstructured.Unstructured{}
+
 	for idx, live := range cr.reconciliationResult.Live {
 		normalizedTarget := normalized.Targets[idx]
 		if normalizedTarget == nil {
 			patchedTargets = append(patchedTargets, nil)
 			continue
 		}
+		gvk := normalizedTarget.GroupVersionKind()
+
 		originalTarget := cr.reconciliationResult.Target[idx]
 		if live == nil {
+			// No live resource, just use target
 			patchedTargets = append(patchedTargets, originalTarget)
 			continue
 		}
 
-		var lookupPatchMeta *strategicpatch.PatchMetaFromStruct
-		versionedObject, err := scheme.Scheme.New(normalizedTarget.GroupVersionKind())
-		if err == nil {
-			meta, err := strategicpatch.NewPatchMetaFromStruct(versionedObject)
-			if err != nil {
+		var (
+			lookupPatchMeta strategicpatch.LookupPatchMeta
+			versionedObject any
+		)
+
+		// Load patch meta struct or OpenAPI schema for CRDs
+		if versionedObject, err = scheme.Scheme.New(gvk); err == nil {
+			if lookupPatchMeta, err = strategicpatch.NewPatchMetaFromStruct(versionedObject); err != nil {
 				return nil, err
 			}
-			lookupPatchMeta = &meta
+		} else if crdSchema := openAPISchema.LookupResource(gvk); crdSchema != nil {
+			lookupPatchMeta = strategicpatch.NewPatchMetaFromOpenAPI(crdSchema)
 		}
 
 		// RespectIgnoreDifferences preserves ignored fields by copying their live
@@ -443,12 +548,13 @@ func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructure
 			unstructured.RemoveNestedField(normalizedLiveForPatch.Object, "status")
 		}
 
+		// Calculate live patch
 		livePatch, err := getMergePatch(normalizedLiveForPatch, liveForPatch, lookupPatchMeta)
 		if err != nil {
 			return nil, err
 		}
 
-		patchedTarget, err := applyMergePatch(normalizedTarget, livePatch, versionedObject)
+		patchedTarget, err := applyMergePatch(normalizedTarget, livePatch, versionedObject, lookupPatchMeta)
 		if err != nil {
 			return nil, err
 		}
@@ -466,12 +572,13 @@ func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructure
 
 		patchedTargets = append(patchedTargets, patchedTarget)
 	}
+
 	return patchedTargets, nil
 }
 
 // getMergePatch calculates and returns the patch between the original and the
 // modified unstructures.
-func getMergePatch(original, modified *unstructured.Unstructured, lookupPatchMeta *strategicpatch.PatchMetaFromStruct) ([]byte, error) {
+func getMergePatch(original, modified *unstructured.Unstructured, lookupPatchMeta strategicpatch.LookupPatchMeta) ([]byte, error) {
 	originalJSON, err := original.MarshalJSON()
 	if err != nil {
 		return nil, err
@@ -487,18 +594,35 @@ func getMergePatch(original, modified *unstructured.Unstructured, lookupPatchMet
 	return jsonpatch.CreateMergePatch(originalJSON, modifiedJSON)
 }
 
-// applyMergePatch will apply the given patch in the obj and return the patched
-// unstructure.
-func applyMergePatch(obj *unstructured.Unstructured, patch []byte, versionedObject any) (*unstructured.Unstructured, error) {
+// applyMergePatch will apply the given patch in the obj and return the patched unstructure.
+func applyMergePatch(obj *unstructured.Unstructured, patch []byte, versionedObject any, meta strategicpatch.LookupPatchMeta) (*unstructured.Unstructured, error) {
 	originalJSON, err := obj.MarshalJSON()
 	if err != nil {
 		return nil, err
 	}
 	var patchedJSON []byte
-	if versionedObject == nil {
-		patchedJSON, err = jsonpatch.MergePatch(originalJSON, patch)
-	} else {
+	switch {
+	case versionedObject != nil:
 		patchedJSON, err = strategicpatch.StrategicMergePatch(originalJSON, patch, versionedObject)
+	case meta != nil:
+		var originalMap, patchMap map[string]any
+		if err := json.Unmarshal(originalJSON, &originalMap); err != nil {
+			return nil, err
+		}
+		if err := json.Unmarshal(patch, &patchMap); err != nil {
+			return nil, err
+		}
+
+		patchedMap, err := strategicpatch.StrategicMergeMapPatchUsingLookupPatchMeta(originalMap, patchMap, meta)
+		if err != nil {
+			return nil, err
+		}
+		patchedJSON, err = json.Marshal(patchedMap)
+		if err != nil {
+			return nil, err
+		}
+	default:
+		patchedJSON, err = jsonpatch.MergePatch(originalJSON, patch)
 	}
 	if err != nil {
 		return nil, err

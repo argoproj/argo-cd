@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	lua "github.com/yuin/gopher-lua"
@@ -1125,6 +1125,7 @@ func Test_getHealthScriptPaths(t *testing.T) {
 	assert.Equal(t, []string{
 		"_.cnrm.cloud.google.com/_",
 		"_.crossplane.io/_",
+		"_.services.k8s.aws/_",
 		"_.upbound.io/_",
 		"grafana-org-operator.kubitus-project.gitlab.io/_",
 		"microgateway.airlock.com/_",

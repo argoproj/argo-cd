@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -902,7 +902,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				Metrics:       metrics,
 			}
 
-			r.ProgressiveSyncManager = appsetprogressiveSync.NewManager(r.Client, r)
+			r.ProgressiveSyncManager = appsetprogressiveSync.NewManager(r.Client, r.Client, r)
 
 			desiredApps := cc.desiredApps
 			if desiredApps == nil {
@@ -1662,7 +1662,7 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 				KubeClientset: kubeclientset,
 				Metrics:       metrics,
 			}
-			r.ProgressiveSyncManager = appsetprogressiveSync.NewManager(r.Client, r)
+			r.ProgressiveSyncManager = appsetprogressiveSync.NewManager(r.Client, r.Client, r)
 
 			appStatuses, err := r.ProgressiveSyncManager.UpdateApplicationSetApplicationStatusProgress(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.appSyncMap, cc.appStepMap)
 

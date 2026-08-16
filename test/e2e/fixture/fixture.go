@@ -5,6 +5,7 @@ import (
 	"context"
 	stderrors "errors"
 	"fmt"
+	"math"
 	"os"
 	"path"
 	"path/filepath"
@@ -76,6 +77,9 @@ const (
 
 	// Account for batch events processing (set to 1ms in e2e tests)
 	WhenThenSleepInterval = 5 * time.Millisecond
+
+	// maximum length of log line
+	defaultLogLineMaxLen = 4096
 )
 
 const (
@@ -86,6 +90,7 @@ const (
 	EnvArgoCDRedisName         = "ARGOCD_E2E_REDIS_NAME"
 	EnvArgoCDRepoServerName    = "ARGOCD_E2E_REPO_SERVER_NAME"
 	EnvArgoCDAppControllerName = "ARGOCD_E2E_APPLICATION_CONTROLLER_NAME"
+	EnvLogLineMaxLen           = "ARGOCD_E2E_LOG_LINE_MAX_LEN"
 )
 
 var (
@@ -194,6 +199,8 @@ func IsLocal() bool {
 func init() {
 	// ensure we log all shell execs
 	log.SetLevel(log.DebugLevel)
+	// truncate eccessively long entries
+	log.SetFormatter(MakeTruncatingFormatter(env.ParseNumFromEnv(EnvLogLineMaxLen, defaultLogLineMaxLen, 0, math.MaxInt32)))
 	// set-up variables
 	config := getKubeConfig("", clientcmd.ConfigOverrides{})
 	AppClientset = appclientset.NewForConfigOrDie(config)
@@ -484,6 +491,13 @@ func SetTrackingLabel(trackingLabel string) error {
 func SetImpersonationEnabled(impersonationEnabledFlag string) error {
 	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
 		cm.Data["application.sync.impersonation.enabled"] = impersonationEnabledFlag
+		return nil
+	})
+}
+
+func SetImpersonationEnforcement(value string) error {
+	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data["application.sync.impersonation.enforced"] = value
 		return nil
 	})
 }
@@ -881,9 +895,15 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 		},
 		func() error {
 			tmpDir := TmpDir()
-			err := os.RemoveAll(tmpDir)
+			entries, err := os.ReadDir(tmpDir)
 			if err != nil {
 				return err
+			}
+			for _, entry := range entries {
+				err := os.RemoveAll(filepath.Join(tmpDir, entry.Name()))
+				if err != nil {
+					return err
+				}
 			}
 			_, err = Run("", "mkdir", "-p", tmpDir)
 			if err != nil {
@@ -1094,6 +1114,16 @@ func RunCliWithConfigFile(configPath string, args ...string) (string, error) {
 // RunPluginCli executes an Argo CD CLI plugin with optional stdin input.
 func RunPluginCli(stdin string, args ...string) (string, error) {
 	return RunWithStdin(stdin, "", "../../dist/argocd", args...)
+}
+
+func GitRevList(t *testing.T, args []string) string {
+	t.Helper()
+	log.WithFields(log.Fields{"args": args}).Info("rev-list")
+	gitArgs := append([]string{"rev-list"}, args...)
+
+	result, err := Run(repoDirectory(), "git", gitArgs...)
+	errors.NewHandler(t).FailOnErr(result, err)
+	return result
 }
 
 func Patch(t *testing.T, path string, jsonPatch string) {
