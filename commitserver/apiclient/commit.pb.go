@@ -50,6 +50,11 @@ type CommitHydratedManifestsRequest struct {
 	AuthorEmail string `protobuf:"bytes,9,opt,name=authorEmail,proto3" json:"authorEmail,omitempty"`
 	// ReadmeMessage is the message content for README template updates.
 	ReadmeMessage        string   `protobuf:"bytes,10,opt,name=readmeMessage,proto3" json:"readmeMessage,omitempty"`
+	// DrySourceRepoURL is the URL of the dry source repository the hydrated
+	// manifests were generated from. It is used when rendering the README
+	// template so that the git clone command points to the dry source
+	// repository rather than the hydration destination.
+	DrySourceRepoURL   string   `protobuf:"bytes,11,opt,name=drySourceRepoURL,proto3" json:"drySourceRepoURL,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -155,6 +160,13 @@ func (m *CommitHydratedManifestsRequest) GetReadmeMessage() string {
 	if m != nil {
 		return m.ReadmeMessage
 	}
+
+func (m *CommitHydratedManifestsRequest) GetDrySourceRepoURL() string {
+	if m != nil {
+		return m.DrySourceRepoURL
+	}
+	return ""
+}
 	return ""
 }
 
