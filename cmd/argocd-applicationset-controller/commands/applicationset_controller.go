@@ -286,7 +286,7 @@ func NewCommand() *cobra.Command {
 				log.Error(err, "appClientset is nil, progressive sync when enabled expects to have app clientset")
 				os.Exit(1)
 			}
-			appsetReconciler.ProgressiveSyncManager = progressivesync.NewManager(cacheSyncClient, appClientset, appsetReconciler)
+			appsetReconciler.ProgressiveSyncManager = progressivesync.NewManager(cacheSyncClient, mgr.GetAPIReader(), appClientset, appsetReconciler)
 
 			if err = appsetReconciler.SetupWithManager(mgr, enableProgressiveSyncs, maxConcurrentReconciliations); err != nil {
 				log.Error(err, "unable to create controller", "controller", "ApplicationSet")

@@ -905,7 +905,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				Metrics:       metrics,
 			}
 
-			r.ProgressiveSyncManager = appsetprogressiveSync.NewManager(r.Client, appClientSet, r)
+			r.ProgressiveSyncManager = appsetprogressiveSync.NewManager(r.Client, r.Client, appClientSet, r)
 
 			desiredApps := cc.desiredApps
 			if desiredApps == nil {
@@ -1666,7 +1666,7 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 				KubeClientset: kubeclientset,
 				Metrics:       metrics,
 			}
-			r.ProgressiveSyncManager = appsetprogressiveSync.NewManager(r.Client, appClientSet, r)
+			r.ProgressiveSyncManager = appsetprogressiveSync.NewManager(r.Client, r.Client, appClientSet, r)
 
 			appStatuses, err := r.ProgressiveSyncManager.UpdateApplicationSetApplicationStatusProgress(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.appSyncMap, cc.appStepMap)
 
