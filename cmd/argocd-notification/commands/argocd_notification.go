@@ -6,11 +6,8 @@ import (
 	"math"
 	"net/http"
 	"os"
-	"os/signal"
 	"runtime/debug"
 	"strings"
-	"sync"
-	"syscall"
 
 	"github.com/argoproj/notifications-engine/pkg/controller"
 	"github.com/prometheus/client_golang/prometheus"
@@ -56,9 +53,8 @@ func NewCommand() *cobra.Command {
 	command := cobra.Command{
 		Use:   common.CommandNotifications,
 		Short: "Starts Argo CD Notifications controller",
-		RunE: func(_ *cobra.Command, _ []string) error {
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+		RunE: cli.WithSignalContextE(func(c *cobra.Command, _ []string, _ context.CancelFunc) error {
+			ctx := c.Context()
 
 			vers := common.GetVersion()
 			namespace, _, err := clientConfig.Namespace()
@@ -152,19 +148,10 @@ func NewCommand() *cobra.Command {
 				return fmt.Errorf("failed to initialize controller: %w", err)
 			}
 
-			sigCh := make(chan os.Signal, 1)
-			signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
-			wg := sync.WaitGroup{}
-			wg.Go(func() {
-				s := <-sigCh
-				log.Printf("got signal %v, attempting graceful shutdown", s)
-				cancel()
-			})
-
 			go ctrl.Run(ctx, processorsCount)
 			<-ctx.Done()
 			return nil
-		},
+		}),
 	}
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
 	command.Flags().IntVar(&processorsCount, "processors-count", env.ParseNumFromEnv("ARGOCD_NOTIFICATION_CONTROLLER_PROCESSORS_COUNT", 1, 1, math.MaxInt32), "Processors count.")

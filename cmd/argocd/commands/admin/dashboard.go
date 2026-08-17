@@ -3,8 +3,6 @@ package admin
 import (
 	"context"
 	"fmt"
-	"os/signal"
-	"syscall"
 
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/tools/clientcmd"
@@ -39,9 +37,7 @@ func NewDashboard() *dashboard {
 }
 
 // Run runs the dashboard and blocks until context is done
-func (ds *dashboard) Run(ctx context.Context, config *DashboardConfig) error {
-	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
+func (ds *dashboard) Run(ctx context.Context, stop context.CancelFunc, config *DashboardConfig) error {
 	config.ClientOpts.Core = true
 	println("starting dashboard")
 	shutDownFunc, err := ds.startLocalServer(ctx, config.ClientOpts, config.Context, &config.Port, &config.Address, config.ClientConfig)
@@ -51,7 +47,6 @@ func (ds *dashboard) Run(ctx context.Context, config *DashboardConfig) error {
 	fmt.Printf("Argo CD UI is available at http://%s:%d\n", config.Address, config.Port)
 	<-ctx.Done()
 	stop() // unregister the signal handler as soon as we receive a signal
-	println("signal received, shutting down dashboard")
 	if shutDownFunc != nil {
 		shutDownFunc()
 	}
@@ -60,14 +55,18 @@ func (ds *dashboard) Run(ctx context.Context, config *DashboardConfig) error {
 }
 
 func NewDashboardCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	return newDashboardCommand(NewDashboard(), clientOpts)
+}
+
+func newDashboardCommand(ds *dashboard, clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	config := &DashboardConfig{ClientOpts: clientOpts}
 	cmd := &cobra.Command{
 		Use:   "dashboard",
 		Short: "Starts Argo CD Web UI locally",
-		Run: func(cmd *cobra.Command, _ []string) {
+		Run: cli.WithSignalContext(func(cmd *cobra.Command, _ []string, stop context.CancelFunc) {
 			config.Context = initialize.RetrieveContextIfChanged(cmd.Flag("context"))
-			errors.CheckError(NewDashboard().Run(cmd.Context(), config))
-		},
+			errors.CheckError(ds.Run(cmd.Context(), stop, config))
+		}),
 		Example: `# Start the Argo CD Web UI locally on the default port and address
 $ argocd admin dashboard
 

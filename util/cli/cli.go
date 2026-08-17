@@ -48,17 +48,25 @@ func WithSignalContext(run func(c *cobra.Command, args []string, stop context.Ca
 
 func WithSignalContextE(run func(c *cobra.Command, args []string, stop context.CancelFunc) error) func(c *cobra.Command, args []string) error {
 	return func(c *cobra.Command, args []string) error {
-		ctx, stop := signal.NotifyContext(c.Context(), syscall.SIGINT, syscall.SIGTERM)
-		defer stop()
+		ctx, cancel := context.WithCancel(c.Context())
+		defer cancel()
 		c.SetContext(ctx)
 
-		// after the first signal, unregister so a second Ctrl+C falls through to the default handler and kills the process
+		sigCh := make(chan os.Signal, 1)
+		signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+		defer signal.Stop(sigCh)
 		go func() {
-			<-ctx.Done()
-			stop()
+			select {
+			case s := <-sigCh:
+				// unregister so a second Ctrl+C falls through to the default handler and kills the process
+				signal.Stop(sigCh)
+				log.Printf("got signal %v, attempting graceful shutdown", s)
+				cancel()
+			case <-ctx.Done():
+			}
 		}()
 
-		return run(c, args, stop)
+		return run(c, args, cancel)
 	}
 }
 

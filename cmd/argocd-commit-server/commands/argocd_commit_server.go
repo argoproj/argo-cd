@@ -1,13 +1,11 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/http"
-	"os"
-	"os/signal"
 	"sync"
-	"syscall"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -38,7 +36,7 @@ func NewCommand() *cobra.Command {
 		Use:   common.CommandCommitServer,
 		Short: "Run Argo CD Commit Server",
 		Long:  "Argo CD Commit Server is an internal service which commits and pushes hydrated manifests to git. This command runs Commit Server in the foreground.",
-		RunE: func(cmd *cobra.Command, _ []string) error {
+		RunE: cli.WithSignalContextE(func(cmd *cobra.Command, _ []string, _ context.CancelFunc) error {
 			vers := common.GetVersion()
 			vers.LogStartupInfo(
 				"Argo CD Commit Server",
@@ -88,12 +86,9 @@ func NewCommand() *cobra.Command {
 			})
 
 			// Graceful shutdown code adapted from here: https://gist.github.com/embano1/e0bf49d24f1cdd07cffad93097c04f0a
-			sigCh := make(chan os.Signal, 1)
-			signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 			wg := sync.WaitGroup{}
 			wg.Go(func() {
-				s := <-sigCh
-				log.Printf("got signal %v, attempting graceful shutdown", s)
+				<-ctx.Done()
 				grpc.GracefulStop()
 			})
 
@@ -104,7 +99,7 @@ func NewCommand() *cobra.Command {
 			log.Println("clean shutdown")
 
 			return nil
-		},
+		}),
 	}
 	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_COMMIT_SERVER_LOGFORMAT", "json"), "Set the logging format. One of: json|text")
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_COMMIT_SERVER_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
