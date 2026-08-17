@@ -339,6 +339,22 @@ func (k *KubectlCmd) ManageServerSideDiffDryRuns(config *rest.Config) (diff.Kube
 	}, cleanup, nil
 }
 
+// ManageServerSideDiffDryRuns creates a KubeApplier for server-side diff dry runs.
+//
+// This package-level function is kept for backward compatibility with external
+// consumers that resolve against the published (archived) standalone module at
+// github.com/argoproj/gitops-engine, which predates the method form below. Its
+// signature matches the published API; the implementation delegates to the method
+// form so behavior stays identical within this module.
+func ManageServerSideDiffDryRuns(config *rest.Config, openAPISchema openapi.Resources, tracer tracing.Tracer, log logr.Logger, onKubectlRun OnKubectlRunFunc) (diff.KubeApplier, func(), error) {
+	k := &KubectlCmd{
+		Tracer:       tracer,
+		Log:          log,
+		OnKubectlRun: onKubectlRun,
+	}
+	return k.ManageServerSideDiffDryRuns(config)
+}
+
 // ConvertToVersion converts an unstructured object into the specified group/version
 func (k *KubectlCmd) ConvertToVersion(obj *unstructured.Unstructured, group string, version string) (*unstructured.Unstructured, error) {
 	span := k.Tracer.StartSpan("ConvertToVersion")
