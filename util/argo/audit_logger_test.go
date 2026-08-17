@@ -2,7 +2,6 @@ package argo
 
 import (
 	"bytes"
-	"context"
 	"sync"
 	"testing"
 
@@ -103,7 +102,7 @@ func TestLogAppProjEvent(t *testing.T) {
 	})
 
 	// Verify event was created in the AppProject's namespace (argocd)
-	events, err := fakeClient.CoreV1().Events(_argocdNs).List(context.Background(), metav1.ListOptions{})
+	events, err := fakeClient.CoreV1().Events(_argocdNs).List(t.Context(), metav1.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, events.Items, 1)
 
@@ -146,7 +145,7 @@ func TestLogAppEvent(t *testing.T) {
 	})
 
 	// Verify event was created in the Application's namespace (argocd)
-	events, err := fakeClient.CoreV1().Events(_argocdNs).List(context.Background(), metav1.ListOptions{})
+	events, err := fakeClient.CoreV1().Events(_argocdNs).List(t.Context(), metav1.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, events.Items, 1)
 
@@ -235,11 +234,11 @@ func TestLogResourceEvent_MultiCluster_CreatesEventInArgocdNamespace(t *testing.
 		logger.LogResourceEvent(&res, ei, "Resource action executed", "admin")
 	})
 
-	events, err := fakeClient.CoreV1().Events(_targetNs).List(context.Background(), metav1.ListOptions{})
+	events, err := fakeClient.CoreV1().Events(_targetNs).List(t.Context(), metav1.ListOptions{})
 	require.NoError(t, err)
 	assert.Empty(t, events.Items, "No event should be created in target namespace")
 
-	events, err = fakeClient.CoreV1().Events(_argocdNs).List(context.Background(), metav1.ListOptions{})
+	events, err = fakeClient.CoreV1().Events(_argocdNs).List(t.Context(), metav1.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, events.Items, 1, "Event should be created in ArgoCD namespace")
 
@@ -275,7 +274,7 @@ func TestLogAppSetEvent_CreatesEventInAppSetNamespace(t *testing.T) {
 	})
 
 	// Verify event was created in the ApplicationSet's namespace (argocd)
-	events, err := fakeClient.CoreV1().Events(_argocdNs).List(context.Background(), metav1.ListOptions{})
+	events, err := fakeClient.CoreV1().Events(_argocdNs).List(t.Context(), metav1.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, events.Items, 1)
 
@@ -345,7 +344,7 @@ func TestLogResourceEvent_DifferentKinds_AllInArgocdNamespace(t *testing.T) {
 				logger.LogResourceEvent(&res, ei, "Action ran", "admin")
 			})
 
-			events, err := fakeClient.CoreV1().Events(_argocdNs).List(context.Background(), metav1.ListOptions{})
+			events, err := fakeClient.CoreV1().Events(_argocdNs).List(t.Context(), metav1.ListOptions{})
 			require.NoError(t, err)
 			require.Len(t, events.Items, 1)
 
@@ -383,7 +382,7 @@ func TestLogResourceEvent_EmptyNamespace(t *testing.T) {
 	})
 
 	// Event should be created in ArgoCD namespace (not empty namespace)
-	events, err := fakeClient.CoreV1().Events(_argocdNs).List(context.Background(), metav1.ListOptions{})
+	events, err := fakeClient.CoreV1().Events(_argocdNs).List(t.Context(), metav1.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, events.Items, 1)
 

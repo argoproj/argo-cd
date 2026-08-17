@@ -1,7 +1,6 @@
 package service
 
 import (
-	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -45,7 +44,7 @@ func TestGetAppProject(t *testing.T) {
 	t.Run("returns AppProject when found", func(t *testing.T) {
 		t.Parallel()
 		svc, _ := newTestService(t, appProject)
-		result, err := svc.GetAppProject(context.Background(), "my-project", "default")
+		result, err := svc.GetAppProject(t.Context(), "my-project", "default")
 		require.NoError(t, err)
 		assert.Equal(t, "my-project", result.GetName())
 		assert.Equal(t, "default", result.GetNamespace())
@@ -60,7 +59,7 @@ func TestGetAppProject(t *testing.T) {
 			},
 		}
 		svc, _ := newTestService(t, defaultProject)
-		result, err := svc.GetAppProject(context.Background(), "", "default")
+		result, err := svc.GetAppProject(t.Context(), "", "default")
 		require.NoError(t, err)
 		assert.Equal(t, "default", result.GetName())
 	})
@@ -68,7 +67,7 @@ func TestGetAppProject(t *testing.T) {
 	t.Run("returns error when AppProject not found", func(t *testing.T) {
 		t.Parallel()
 		svc, _ := newTestService(t)
-		result, err := svc.GetAppProject(context.Background(), "nonexistent", "default")
+		result, err := svc.GetAppProject(t.Context(), "nonexistent", "default")
 		require.Error(t, err)
 		assert.Nil(t, result)
 	})

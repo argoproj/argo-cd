@@ -1,7 +1,7 @@
 import {DataLoader} from 'argo-ui';
 import classNames from 'classnames';
 import * as React from 'react';
-import {useEffect, useState, useRef} from 'react';
+import {useEffect, useMemo, useState, useRef} from 'react';
 import {bufferTime, catchError, delay, retryWhen} from 'rxjs/operators';
 
 import {LogEntry} from '../../../shared/models';
@@ -89,6 +89,12 @@ function podColor(podName: string, isDarkMode: boolean, isSelected: boolean) {
 // https://2ality.com/2012/09/empty-regexp.html
 const matchNothing = /.^/;
 
+// matchNothing this is chosen instead of empty regexp, because that would match everything and break colored logs
+// https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
+const buildHighlightRegExp = (filter: string, matchCase: boolean) =>
+    // eslint-disable-next-line no-useless-escape
+    filter === '' ? matchNothing : new RegExp(filter.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g' + (matchCase ? '' : 'i'));
+
 export const PodsLogsViewer = (props: PodLogsProps) => {
     const {containerName, onClickContainer, timestamp, containerGroups, applicationName, applicationNamespace, namespace, podName, group, kind, name} = props;
     const queryParams = new URLSearchParams(location.search);
@@ -101,7 +107,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
     const [matchCase, setMatchCase] = useState(queryParams.get('matchCase') === 'true');
     const [sinceSeconds, setSinceSeconds] = useState(parseInt(queryParams.get('sinceSeconds'), 10) || 0);
     const [filter, setFilter] = useState(queryParams.get('filterText') || '');
-    const [highlight, setHighlight] = useState<RegExp>(matchNothing);
+    const highlight = useMemo(() => buildHighlightRegExp(filter, matchCase), [filter, matchCase]);
     const [scrollToBottom, setScrollToBottom] = useState(true);
     const [logs, setLogs] = useState<LogEntry[]>([]);
     const logsContainerRef = useRef(null);
@@ -131,18 +137,37 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
         }
     };
 
-    useEffect(() => {
-        // https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
-        // matchNothing this is chosen instead of empty regexp, because that would match everything and break colored logs
-        // eslint-disable-next-line no-useless-escape
-        setHighlight(filter === '' ? matchNothing : new RegExp(filter.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g' + (matchCase ? '' : 'i')));
-    }, [filter, matchCase]);
-
-    if (!containerName || containerName === '') {
-        return <div>Pod does not have container with name {containerName}</div>;
+    // Reset auto-scroll when follow is toggled. Adjusting state during render (rather than in an
+    // effect) avoids a cascading re-render. See https://react.dev/learn/you-might-not-need-an-effect
+    const [prevFollow, setPrevFollow] = useState(follow);
+    if (prevFollow !== follow) {
+        setPrevFollow(follow);
+        setScrollToBottom(true);
     }
 
-    useEffect(() => setScrollToBottom(true), [follow]);
+    // Reset logs whenever the query parameters change, so the new subscription starts from a clean
+    // slate. Done during render via the previous-value pattern to avoid a setState-in-effect.
+    const queryKey = JSON.stringify([
+        applicationName,
+        applicationNamespace,
+        namespace,
+        podName,
+        group,
+        kind,
+        name,
+        containerName,
+        tail,
+        follow,
+        sinceSeconds,
+        filter,
+        previous,
+        matchCase
+    ]);
+    const [prevQueryKey, setPrevQueryKey] = useState(queryKey);
+    if (prevQueryKey !== queryKey) {
+        setPrevQueryKey(queryKey);
+        setLogs([]);
+    }
 
     useEffect(() => {
         if (scrollToBottom) {
@@ -154,7 +179,6 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
     }, [logs, scrollToBottom]);
 
     useEffect(() => {
-        setLogs([]);
         const logsSource = services.applications
             .getContainerLogs({
                 applicationName,
@@ -262,6 +286,11 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
     );
 
     const preferenceLoader = React.useCallback(() => services.viewPreferences.getPreferences(), []);
+
+    if (!containerName || containerName === '') {
+        return <div>Pod does not have container with name {containerName}</div>;
+    }
+
     return (
         <DataLoader load={preferenceLoader}>
             {(prefs: ViewPreferences) => {

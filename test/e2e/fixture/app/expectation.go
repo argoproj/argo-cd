@@ -7,8 +7,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -45,6 +45,40 @@ func Or(e1 Expectation, e2 Expectation) Expectation {
 			return s2, m2
 		}
 		return failed, fmt.Sprintf("expectations unsuccessful: %s and %s", m1, m2)
+	}
+}
+
+func All(es ...Expectation) Expectation {
+	return func(c *Consequences) (state, string) {
+		pendingExps := []string{}
+		failedExps := []string{}
+		succeededExps := []string{}
+		for _, e := range es {
+			s, m := e(c)
+			if s == failed {
+				failedExps = append(failedExps, m)
+			}
+			if s == pending {
+				pendingExps = append(pendingExps, m)
+			}
+			if s == succeeded {
+				succeededExps = append(succeededExps, m)
+			}
+		}
+		result := succeeded
+		msg := "expectations statuses:"
+		if len(pendingExps) > 0 {
+			result = pending
+			msg += fmt.Sprintf(" pending: %v", pendingExps)
+		}
+		if len(failedExps) > 0 {
+			result = failed
+			msg += fmt.Sprintf(" failed: %v", failedExps)
+		}
+		if len(succeededExps) > 0 {
+			msg += fmt.Sprintf(" succeeded: %v", succeededExps)
+		}
+		return result, msg
 	}
 }
 
@@ -93,6 +127,32 @@ func SyncStatusIs(expected v1alpha1.SyncStatusCode) Expectation {
 	return func(c *Consequences) (state, string) {
 		actual := c.app().Status.Sync.Status
 		return simple(actual == expected, fmt.Sprintf("sync status to be %s, is %s", expected, actual))
+	}
+}
+
+func SyncRevisionIs(expected string) Expectation {
+	return func(c *Consequences) (state, string) {
+		actual := c.app().Status.Sync.Revision
+		return simple(actual == expected, fmt.Sprintf("sync revision to be %s, is %s", expected, actual))
+	}
+}
+
+func DryRevisionIs(expected string) Expectation {
+	return func(c *Consequences) (state, string) {
+		actual := c.app().Status.SourceHydrator.LastSuccessfulOperation.DrySHA
+		return simple(actual == expected, fmt.Sprintf("dry source revision to be %s, is %s", expected, actual))
+	}
+}
+
+func HelmTemplateRuns() Expectation {
+	return func(c *Consequences) (state, string) {
+		isRunning := false
+		c.actions.GetHelmTemplateProcess()
+		processData := c.actions.GetLastOutput()
+		if processData != "" {
+			isRunning = true
+		}
+		return simple(isRunning, fmt.Sprintf("Helm template command is to be running, this is %v, processData: %q", isRunning, processData))
 	}
 }
 

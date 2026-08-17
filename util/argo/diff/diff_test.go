@@ -136,7 +136,7 @@ func TestStateDiff(t *testing.T) {
 			dc := diffConfig(t, tc.params())
 
 			// when
-			result, err := argo.StateDiff(tc.liveState, tc.desiredState, dc)
+			result, err := argo.StateDiff(t.Context(), tc.liveState, tc.desiredState, dc)
 
 			// then
 			require.NoError(t, err)
@@ -261,10 +261,8 @@ func TestDiffConfigBuilder(t *testing.T) {
 }
 
 func TestDiffFromCache(t *testing.T) {
-	t.Parallel()
 	t.Run("returns false and logs warning on cache miss", func(t *testing.T) {
 		// given
-		t.Parallel()
 		hook := test.NewLocal(logrus.StandardLogger())
 		defer hook.Reset()
 
@@ -292,7 +290,6 @@ func TestDiffFromCache(t *testing.T) {
 
 	t.Run("returns false and logs error on cache failure", func(t *testing.T) {
 		// given
-		t.Parallel()
 		hook := test.NewLocal(logrus.StandardLogger())
 		defer hook.Reset()
 

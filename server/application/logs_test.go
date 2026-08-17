@@ -18,7 +18,7 @@ func TestParseLogsStream_Successful(t *testing.T) {
 
 	res := make(chan logEntry)
 	go func() {
-		parseLogsStream(context.Background(), "test", r, res)
+		parseLogsStream(t.Context(), "test", r, res)
 		close(res)
 	}()
 
@@ -42,7 +42,7 @@ func TestParseLogsStream_ParsingError(t *testing.T) {
 
 	res := make(chan logEntry)
 	go func() {
-		parseLogsStream(context.Background(), "test", r, res)
+		parseLogsStream(t.Context(), "test", r, res)
 		close(res)
 	}()
 
@@ -59,19 +59,19 @@ func TestMergeLogStreams(t *testing.T) {
 	t.Parallel()
 	first := make(chan logEntry)
 	go func() {
-		parseLogsStream(context.Background(), "first", io.NopCloser(strings.NewReader(`2021-02-09T00:00:01Z 1
+		parseLogsStream(t.Context(), "first", io.NopCloser(strings.NewReader(`2021-02-09T00:00:01Z 1
 2021-02-09T00:00:03Z 3`)), first)
 		close(first)
 	}()
 
 	second := make(chan logEntry)
 	go func() {
-		parseLogsStream(context.Background(), "second", io.NopCloser(strings.NewReader(`2021-02-09T00:00:02Z 2
+		parseLogsStream(t.Context(), "second", io.NopCloser(strings.NewReader(`2021-02-09T00:00:02Z 2
 2021-02-09T00:00:04Z 4`)), second)
 		close(second)
 	}()
 
-	merged := mergeLogStreams(context.Background(), []chan logEntry{first, second}, time.Second)
+	merged := mergeLogStreams(t.Context(), []chan logEntry{first, second}, time.Second)
 	var lines []string
 	for entry := range merged {
 		lines = append(lines, entry.line)
@@ -80,25 +80,25 @@ func TestMergeLogStreams(t *testing.T) {
 	assert.Equal(t, []string{"1", "2", "3", "4"}, lines)
 }
 
-func TestMergeLogStreams_RaceCondition(_ *testing.T) {
+func TestMergeLogStreams_RaceCondition(t *testing.T) {
 	// Test for regression of this issue: https://github.com/argoproj/argo-cd/issues/7006
 	for i := range 5000 {
 		first := make(chan logEntry)
 		second := make(chan logEntry)
 
 		go func() {
-			parseLogsStream(context.Background(), "first", io.NopCloser(strings.NewReader(`2021-02-09T00:00:01Z 1`)), first)
+			parseLogsStream(t.Context(), "first", io.NopCloser(strings.NewReader(`2021-02-09T00:00:01Z 1`)), first)
 			time.Sleep(time.Duration(i%3) * time.Millisecond)
 			close(first)
 		}()
 
 		go func() {
-			parseLogsStream(context.Background(), "second", io.NopCloser(strings.NewReader(`2021-02-09T00:00:02Z 2`)), second)
+			parseLogsStream(t.Context(), "second", io.NopCloser(strings.NewReader(`2021-02-09T00:00:02Z 2`)), second)
 			time.Sleep(time.Duration((i+1)%3) * time.Millisecond)
 			close(second)
 		}()
 
-		merged := mergeLogStreams(context.Background(), []chan logEntry{first, second}, 1*time.Millisecond)
+		merged := mergeLogStreams(t.Context(), []chan logEntry{first, second}, 1*time.Millisecond)
 
 		// Drain the channel
 		for range merged {
@@ -114,7 +114,7 @@ func TestMergeLogStreams_RaceCondition(_ *testing.T) {
 // to close the merged channel promptly, allowing all internal goroutines to exit without leaking.
 func TestMergeLogStreams_ContextCancellation(t *testing.T) {
 	t.Parallel()
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context())
 
 	// unbuffered pipe: write end will block until someone reads
 	pr, pw := io.Pipe()
