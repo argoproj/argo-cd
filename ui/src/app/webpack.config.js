@@ -182,7 +182,8 @@ const config = {
             overlay: {
                 errors: true,
                 warnings: false,
-                // Filter out 401 unauthorized errors from overlay
+                // Suppress 401 ResponseError overlays — the onError stream
+                // in app.tsx already handles them by redirecting to login.
                 runtimeErrors: (error) => {
                     if (error.message && error.message.includes('Unauthorized')) {
                         return false;
@@ -190,7 +191,7 @@ const config = {
                     if (error.message && error.message.includes('401')) {
                         return false;
                     }
-                    return true;
+                    return !(error && error.name === 'ResponseError' && error.status === 401);
                 }
             }
         },

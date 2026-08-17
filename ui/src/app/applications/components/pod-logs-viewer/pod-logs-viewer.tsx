@@ -197,13 +197,19 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
             .pipe(
                 bufferTime(100),
                 catchError((error: any) => {
-                    const errorBody = JSON.parse(error.body);
-                    if (errorBody.error && errorBody.error.message) {
-                        if (errorBody.error.message.includes('max pods to view logs are reached')) {
-                            setErrorMessage('Max pods to view logs are reached. Please provide more granular query.');
-                            return EMPTY; // Non-retryable condition, stop the stream and display the error message.
+                    let errorBody: any = error?.response?.body;
+                    if (typeof errorBody === 'string') {
+                        try {
+                            errorBody = JSON.parse(errorBody);
+                        } catch {
+                            errorBody = null;
                         }
                     }
+                    if (errorBody?.error?.message?.includes?.('max pods to view logs are reached')) {
+                        setErrorMessage('Max pods to view logs are reached. Please provide more granular query.');
+                        return EMPTY; // Non-retryable condition, stop the stream and display the error message.
+                    }
+                    throw error;
                 }),
                 retryWhen(errors => errors.pipe(delay(500)))
             )
