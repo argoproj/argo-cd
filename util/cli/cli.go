@@ -56,10 +56,11 @@ func WithSignalContextE(run func(c *cobra.Command, args []string, stop context.C
 		signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 		defer signal.Stop(sigCh)
 		go func() {
+			// unregister once the context is done, whatever cancelled it, so a second Ctrl+C falls through to
+			// the default handler and kills the process
+			defer signal.Stop(sigCh)
 			select {
 			case s := <-sigCh:
-				// unregister so a second Ctrl+C falls through to the default handler and kills the process
-				signal.Stop(sigCh)
 				log.Printf("got signal %v, attempting graceful shutdown", s)
 				cancel()
 			case <-ctx.Done():
