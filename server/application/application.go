@@ -1845,6 +1845,8 @@ func (s *Server) InspectGitGPGSourceIntegrity(ctx context.Context, q *applicatio
 
 		gitPolicy, err := selectGitGPGPolicy(sourceIntegrity, source)
 		if err != nil {
+			// cannot select policy, therefore cannot inspect repository
+			// include the problematic source in the output
 			msg := err.Error()
 			item.ErrorMessage = &msg
 			items = append(items, item)
@@ -1896,17 +1898,14 @@ func selectGitGPGPolicy(sourceIntegrity *v1alpha1.SourceIntegrity, source v1alph
 	gitPolicies := sourceintegrity.FindMatchingGitPolicies(sourceIntegrity.Git, source.RepoURL)
 	nPolicies := len(gitPolicies)
 	if nPolicies == 0 {
-		// not having policy can be intentional, but inform the user
 		return nil, fmt.Errorf("no matching git policy found for source %s", source.RepoURL)
 	}
 	if nPolicies > 1 {
-		// invalid configuration, show this to the user
 		return nil, fmt.Errorf("multiple (%d) git policies found for source %s, invalid configuration", nPolicies, source.RepoURL)
 	}
 
 	gitPolicy := gitPolicies[0] // there is only one matching policy for the source
 	if gitPolicy.GPG == nil {
-		// this endpoint is only for gpg policies, warn the user
 		return nil, fmt.Errorf("the git policy for source %s is not a gpg policy", source.RepoURL)
 	}
 
