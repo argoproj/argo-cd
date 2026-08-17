@@ -12,7 +12,8 @@ local function getTargetUpdated(desired, partition)
     if type(partition) == "string" then
         local percentage = string.match(partition, "^(%d+)%%$")
         if percentage ~= nil then
-            return desired * (100 - tonumber(percentage)) / 100
+            local held = math.floor(desired * tonumber(percentage) / 100)
+            return desired - math.min(held, desired)
         end
 
         partition = tonumber(partition)

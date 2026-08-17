@@ -38,4 +38,12 @@ tests:
   - healthStatus:
       status: Progressing
       message: "Waiting for initialization"
+    inputPath: testdata/partition_percentage_rounding.yaml
+  - healthStatus:
+      status: Suspended
+      message: "Daemonset needs manual intervention"
+    inputPath: testdata/partition_numeric_string_suspended.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Waiting for initialization"
     inputPath: testdata/partition_percentage_hold.yaml
