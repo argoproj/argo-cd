@@ -5640,7 +5640,7 @@ func TestPerformProgressiveSyncsWithReconciliationCheck(t *testing.T) {
 				Client: client,
 				Scheme: scheme,
 			}
-			manager := progressivesync.NewManager(client, appClientSet, &r)
+			manager := progressivesync.NewManager(client, client, appClientSet, &r)
 
 			syncMap, err := manager.PerformProgressiveSyncs(
 				t.Context(),
