@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
@@ -590,6 +591,17 @@ func sourceTypeOf(source *appsv1.ApplicationSource) string {
 // type, the first candidate is returned unchanged, preserving behaviour for
 // existing callers that have not yet typed their repositories. A warning is
 // logged whenever URL+project candidates disagree on type.
+// sortSecretsByName gives the candidate lists a deterministic order.
+// listSecretsByType reads from an informer index whose iteration order is
+// unspecified, so without this the "no type matched, use the first
+// candidate" fallback picks arbitrarily between equally-valid credentials
+// and can differ run to run.
+func sortSecretsByName(secrets []*corev1.Secret) {
+	sort.Slice(secrets, func(i, j int) bool {
+		return secrets[i].Name < secrets[j].Name
+	})
+}
+
 func selectSecretByType(candidates []*corev1.Secret, sourceType string) *corev1.Secret {
 	if len(candidates) == 0 {
 		return nil
@@ -635,6 +647,13 @@ func (s *secretsRepositoryBackend) getRepositorySecretForSource(repoURL, project
 			fallbackCandidates = append(fallbackCandidates, secret)
 		}
 	}
+
+	// listSecretsByType has no defined ordering, so two credentials for the
+	// same URL+project could otherwise resolve differently between calls.
+	// Sort by secret name so both the type match and the no-match fallback
+	// are reproducible.
+	sortSecretsByName(urlProjectCandidates)
+	sortSecretsByName(fallbackCandidates)
 
 	if len(urlProjectCandidates) > 0 {
 		return selectSecretByType(urlProjectCandidates, sourceType), nil

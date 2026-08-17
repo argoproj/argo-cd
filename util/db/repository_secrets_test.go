@@ -1374,25 +1374,30 @@ func TestSecretsRepositoryBackend_GetRepositoryForSource(t *testing.T) {
 	assert.Equal(t, "HelmRepo", repo.Name)
 	assert.Equal(t, "helm", repo.Type)
 
-	// 2. Git callers resolve the git-typed secret (first URL+project candidate).
+	// 2. Git callers resolve the git-typed secret.
 	repo, err = testee.GetRepositoryForSource(t.Context(), "https://example.com/repo.git", "proj", gitSource)
 	require.NoError(t, err)
 	require.NotNil(t, repo)
 	assert.Equal(t, "GitRepo", repo.Name)
 	assert.Equal(t, "git", repo.Type)
 
-	// 3. Nil source preserves the legacy behaviour: URL+project first match wins.
+	// 3. Nil source preserves the legacy behaviour: a URL+project candidate wins.
+	// Secret listing order is undefined, so the tie is broken on secret name;
+	// "GitRepo" is stored under the lower-sorting name of the two.
 	repo, err = testee.GetRepositoryForSource(t.Context(), "https://example.com/repo.git", "proj", nil)
 	require.NoError(t, err)
 	require.NotNil(t, repo)
 	assert.Equal(t, "GitRepo", repo.Name)
 
-	// 4. Request an OCI source: no candidate matches, falls back to first URL+project candidate.
+	// 4. Request an OCI source: no candidate matches, so the tie-break applies
+	// again. Repeat it to catch any dependence on secret listing order.
 	ociSource := &appsv1.ApplicationSource{RepoURL: "oci://example.com/repo.git"}
-	repo, err = testee.GetRepositoryForSource(t.Context(), "https://example.com/repo.git", "proj", ociSource)
-	require.NoError(t, err)
-	require.NotNil(t, repo)
-	assert.Equal(t, "GitRepo", repo.Name)
+	for range 20 {
+		repo, err = testee.GetRepositoryForSource(t.Context(), "https://example.com/repo.git", "proj", ociSource)
+		require.NoError(t, err)
+		require.NotNil(t, repo)
+		require.Equal(t, "GitRepo", repo.Name)
+	}
 
 	// 5. An unknown project falls back to the project-less helm credential and honours type.
 	repo, err = testee.GetRepositoryForSource(t.Context(), "https://example.com/repo.git", "other-project", helmSource)
