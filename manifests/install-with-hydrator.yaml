@@ -32811,6 +32811,12 @@ spec:
               key: reposerver.tls.ciphers
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_TLS_CURVE_PREFERENCES
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.tls.curvepreferences
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_REPO_SERVER_CLIENT_CA_PATH
           valueFrom:
             configMapKeyRef:
@@ -33360,6 +33366,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: server.tls.ciphers
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_TLS_CURVE_PREFERENCES
+          valueFrom:
+            configMapKeyRef:
+              key: server.tls.curvepreferences
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_SERVER_CONNECTION_STATUS_CACHE_EXPIRATION
