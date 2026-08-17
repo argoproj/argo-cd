@@ -152,12 +152,16 @@ func TestMultiSourceAppWithOCIRefValues(t *testing.T) {
 		When().Wait().Then().
 		Expect(Success("")).
 		And(func(app *Application) {
-			statusByName := map[string]SyncStatusCode{}
+			// Key by kind/name: the helm-guestbook chart renders both a Deployment and a
+			// Service named "guestbook-ui", so keying by name alone would collapse them into
+			// a single entry and nondeterministically overwrite their statuses.
+			statusByKindName := map[string]SyncStatusCode{}
 			for _, r := range app.Status.Resources {
-				statusByName[r.Name] = r.Status
+				statusByKindName[r.Kind+"/"+r.Name] = r.Status
 			}
-			assert.Len(t, statusByName, 1)
-			assert.Equal(t, SyncStatusCodeSynced, statusByName["guestbook-ui"])
+			assert.Len(t, statusByKindName, 2)
+			assert.Equal(t, SyncStatusCodeSynced, statusByKindName["Deployment/guestbook-ui"])
+			assert.Equal(t, SyncStatusCodeSynced, statusByKindName["Service/guestbook-ui"])
 
 			// Confirm that the deployment has 3 replicas (from OCI ref values)
 			output, err := fixture.Run("", "kubectl", "get", "deployment", "guestbook-ui", "-n", ctx.DeploymentNamespace(), "-o", "jsonpath={.spec.replicas}")

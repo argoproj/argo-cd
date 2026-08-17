@@ -894,8 +894,8 @@ func TestResolveReferencedSources_RejectsChartOnRefSource(t *testing.T) {
 			refSources := map[string]*v1alpha1.RefTarget{
 				"$ref": {Repo: tt.refRepo, Chart: "my-chart", TargetRevision: "1.0.0"},
 			}
-			// The guard rejects before any client getter is invoked, so nil getters are safe.
-			_, err := resolveReferencedSources(t.Context(), true, helmSource, refSources, nil, nil, nil)
+			// The guard rejects before any client getter is invoked, so an empty resolver is safe.
+			_, err := resolveReferencedSources(t.Context(), true, helmSource, refSources, refSourceResolver{})
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), "'chart' field defined")
 		})
@@ -913,7 +913,7 @@ func TestResolveReferencedSources_AllowsOCIRefWithoutChart(t *testing.T) {
 		return nil, "sha256:deadbeef", nil
 	}
 
-	repoRefs, err := resolveReferencedSources(t.Context(), true, helmSource, refSources, nil, ociGetter, nil)
+	repoRefs, err := resolveReferencedSources(t.Context(), true, helmSource, refSources, refSourceResolver{newOCIClientResolveRevision: ociGetter})
 	require.NoError(t, err)
 	assert.Equal(t, "sha256:deadbeef", repoRefs[v1alpha1.NormalizeOCIURL("oci://registry.example.com/charts")])
 }
@@ -980,6 +980,13 @@ func TestRedactPathsInError_RedactsOCIPath(t *testing.T) {
 	require.Error(t, got)
 	assert.NotContains(t, got.Error(), ociDir)
 	assert.Contains(t, got.Error(), "./oci-values.yaml")
+
+	// The message is redacted, but the original error identity is preserved so callers can
+	// still match sentinels/types via errors.Is/errors.As (e.g. context cancellation).
+	sentinel := fmt.Errorf("open %s/oci-values.yaml: %w", ociDir, context.Canceled)
+	wrapped := redactPathsInError(sentinel, "", ociPaths)
+	assert.NotContains(t, wrapped.Error(), ociDir)
+	assert.ErrorIs(t, wrapped, context.Canceled)
 }
 
 func TestGenerateManifestsUseExactRevision(t *testing.T) {

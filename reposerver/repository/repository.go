@@ -380,7 +380,14 @@ func (s *Service) runRepoOperation(
 		return err
 	}
 
-	repoRefs, err := resolveReferencedSources(ctx, hasMultipleSources, source.Helm, refSources, s.newClientResolveRevision, s.newOCIClientResolveRevision, gitClientOpts)
+	repoRefs, err := resolveReferencedSources(ctx, hasMultipleSources, source.Helm, refSources, refSourceResolver{
+		newClientResolveRevision:    s.newClientResolveRevision,
+		newOCIClientResolveRevision: s.newOCIClientResolveRevision,
+		gitClientOpts:               gitClientOpts,
+		// OCI has no ClientOpts equivalent, so pass the same no-cache decision that
+		// gitClientOpts encodes above, keeping Git and OCI ref resolution consistent.
+		ociNoRevisionCache: settings.noCache || settings.noRevisionCache,
+	})
 	if err != nil {
 		return err
 	}
@@ -572,12 +579,24 @@ type gitClientGetter func(repo *v1alpha1.Repository, revision string, opts ...gi
 
 type ociClientGetter func(ctx context.Context, repo *v1alpha1.Repository, revision string, noRevisionCache bool) (oci.Client, string, error)
 
+// refSourceResolver bundles the revision-resolution dependencies and cache settings used
+// when resolving referenced sources. It keeps resolveReferencedSources from taking a long
+// list of positional arguments and ensures the Git and OCI paths honor the same cache
+// settings: gitClientOpts already encodes the caller's no-cache request for Git, and
+// ociNoRevisionCache carries the equivalent flag for OCI.
+type refSourceResolver struct {
+	newClientResolveRevision    gitClientGetter
+	newOCIClientResolveRevision ociClientGetter
+	gitClientOpts               git.ClientOpts
+	ociNoRevisionCache          bool
+}
+
 // resolveReferencedSources resolves the revisions for the given referenced sources. This lets us invalidate the cached
 // when one or more referenced sources change.
 //
 // Much of this logic is duplicated in runManifestGenAsync. If making changes here, check whether runManifestGenAsync
 // should be updated.
-func resolveReferencedSources(ctx context.Context, hasMultipleSources bool, source *v1alpha1.ApplicationSourceHelm, refSources map[string]*v1alpha1.RefTarget, newClientResolveRevision gitClientGetter, newOCIClientResolveRevision ociClientGetter, gitClientOpts git.ClientOpts) (map[string]string, error) {
+func resolveReferencedSources(ctx context.Context, hasMultipleSources bool, source *v1alpha1.ApplicationSourceHelm, refSources map[string]*v1alpha1.RefTarget, resolver refSourceResolver) (map[string]string, error) {
 	repoRefs := make(map[string]string)
 	if !hasMultipleSources || source == nil {
 		return repoRefs, nil
@@ -624,13 +643,13 @@ func resolveReferencedSources(ctx context.Context, hasMultipleSources bool, sour
 			var err error
 
 			if refSourceMapping.Repo.IsOCI() {
-				_, referencedCommitSHA, err = newOCIClientResolveRevision(ctx, &refSourceMapping.Repo, refSourceMapping.TargetRevision, false)
+				_, referencedCommitSHA, err = resolver.newOCIClientResolveRevision(ctx, &refSourceMapping.Repo, refSourceMapping.TargetRevision, resolver.ociNoRevisionCache)
 				if err != nil {
 					log.Errorf("Failed to get OCI client for repo %s: %v", refSourceMapping.Repo.Repo, err)
 					return nil, fmt.Errorf("failed to get OCI client for repo %s", refSourceMapping.Repo.Repo)
 				}
 			} else {
-				_, referencedCommitSHA, err = newClientResolveRevision(&refSourceMapping.Repo, refSourceMapping.TargetRevision, gitClientOpts)
+				_, referencedCommitSHA, err = resolver.newClientResolveRevision(&refSourceMapping.Repo, refSourceMapping.TargetRevision, resolver.gitClientOpts)
 				if err != nil {
 					log.Errorf("Failed to get git client for repo %s: %v", refSourceMapping.Repo.Repo, err)
 					return nil, fmt.Errorf("failed to get git client for repo %s", refSourceMapping.Repo.Repo)
@@ -938,7 +957,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 								return
 							}
 
-							referencedDigest, err := ociClient.ResolveRevision(ctx, refSourceMapping.TargetRevision, false)
+							referencedDigest, err := ociClient.ResolveRevision(ctx, refSourceMapping.TargetRevision, q.NoCache || q.NoRevisionCache)
 							if err != nil {
 								log.Errorf("Failed to resolve OCI revision %s: %v", refSourceMapping.TargetRevision, err)
 								ch.errCh <- fmt.Errorf("failed to resolve OCI revision %s", refSourceMapping.TargetRevision)
@@ -1540,14 +1559,30 @@ func redactPaths(s string, extraValuesPath pathutil.ResolvedFilePath, pathSets .
 	return s
 }
 
+// redactedError overrides an error's message with a path-redacted version while preserving
+// the wrapped error via Unwrap, so errors.Is/errors.As continue to see the original error
+// identity (e.g. context.Canceled/DeadlineExceeded, *exec.ExitError, gRPC status errors).
+type redactedError struct {
+	msg string
+	err error
+}
+
+func (e *redactedError) Error() string { return e.msg }
+
+func (e *redactedError) Unwrap() error { return e.err }
+
 // redactPathsInError redacts sensitive temp paths from an error message. Helm template/build
 // failures embed the rendered command (including `--values <temp path>`), which would otherwise
 // leak randomized reposerver filesystem paths for Git checkouts and extracted OCI artifacts.
+// The original error is preserved for errors.Is/errors.As; only the surfaced message is redacted.
 func redactPathsInError(err error, extraValuesPath pathutil.ResolvedFilePath, pathSets ...utilio.TempPaths) error {
 	if err == nil {
 		return nil
 	}
-	return errors.New(redactPaths(err.Error(), extraValuesPath, pathSets...))
+	return &redactedError{
+		msg: redactPaths(err.Error(), extraValuesPath, pathSets...),
+		err: err,
+	}
 }
 
 // getResolvedValueFiles resolves a list of raw value file paths (handling local
