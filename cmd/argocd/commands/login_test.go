@@ -101,8 +101,8 @@ func Test_requestDeviceCode_success(t *testing.T) {
 	want := oidcutil.OIDCDeviceCodeResponseBody{
 		DeviceCode:              "dev-code-123",
 		UserCode:                "ABCD-1234",
-		VerificationUri:         "https://example.com/device",
-		VerificationUriComplete: "https://example.com/device?user_code=ABCD-1234",
+		VerificationURI:         "https://example.com/device",
+		VerificationURIComplete: "https://example.com/device?user_code=ABCD-1234",
 		ExpiresIn:               300,
 		Interval:                5,
 	}
@@ -154,7 +154,7 @@ func Test_requestDeviceCode_wrongClientID(t *testing.T) {
 		resp := oidcutil.OIDCDeviceCodeResponseBody{
 			DeviceCode:      r.FormValue("client_id"), // echo client_id as DeviceCode for inspection
 			UserCode:        "XXXX-XXXX",
-			VerificationUri: "https://example.com/device",
+			VerificationURI: "https://example.com/device",
 			ExpiresIn:       300,
 			Interval:        5,
 		}
@@ -177,7 +177,7 @@ func Test_requestDeviceCode_emptyScope(t *testing.T) {
 		resp := oidcutil.OIDCDeviceCodeResponseBody{
 			DeviceCode:      "dev-code",
 			UserCode:        r.FormValue("scope"), // echo scope for inspection
-			VerificationUri: "https://example.com/device",
+			VerificationURI: "https://example.com/device",
 			ExpiresIn:       300,
 			Interval:        5,
 		}

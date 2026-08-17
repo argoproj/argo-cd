@@ -152,6 +152,12 @@ argocd login cd.argoproj.io --core`,
 					if !browserless {
 						tokenString, refreshToken = oauth2Login(ctx, callback, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider, ssoLaunchBrowser, acdSet.GetDexConfig().GetDexAuthConnectorID())
 					} else {
+						if c.Flags().Changed("sso-port") {
+							log.Warn("--sso-port is ignored when --browserless is used")
+						}
+						if c.Flags().Changed("callback") {
+							log.Warn("--callback is ignored when --browserless is used")
+						}
 						tokenString, refreshToken = oauth2LoginBrowserless(ctx, acdSet.GetOIDCConfig(), oauth2conf, httpClient)
 					}
 				}
@@ -199,7 +205,7 @@ argocd login cd.argoproj.io --core`,
 	command.Flags().StringVar(&username, "username", "", "The username of an account to authenticate")
 	command.Flags().StringVar(&password, "password", "", "The password of an account to authenticate")
 	command.Flags().BoolVar(&sso, "sso", false, "Perform SSO login")
-	command.Flags().BoolVar(&browserless, "browserless", false, "Perform SSO login without a browser")
+	command.Flags().BoolVar(&browserless, "browserless", false, "Perform SSO login without a browser using the device code flow (requires --sso)")
 	command.Flags().IntVar(&ssoPort, "sso-port", DefaultSSOLocalPort, "Port to run local OAuth2 login application")
 	command.Flags().StringVar(&callback, "callback", "", "Scheme, Host and Port for the callback URL")
 	command.Flags().BoolVar(&skipTestTLS, "skip-test-tls", false, "Skip testing whether the server is configured with TLS (this can help when the command hangs for no apparent reason)")
@@ -547,7 +553,7 @@ func oauth2LoginBrowserless(
 	// returns a verification_uri with query parameters we still offer a
 	// synthesized URL as a convenience, with user_code properly encoded.
 	fmt.Printf("Open the following URL in your browser to authenticate:\n\n%s\n\nWaiting for authentication...\n",
-		buildVerificationPrompt(deviceResp.VerificationUriComplete, deviceResp.VerificationUri, deviceResp.UserCode))
+		buildVerificationPrompt(deviceResp.VerificationURIComplete, deviceResp.VerificationURI, deviceResp.UserCode))
 
 	interval := deviceResp.Interval
 	if interval <= 0 {
