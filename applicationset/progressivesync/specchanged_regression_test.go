@@ -90,6 +90,8 @@ func (regressionDeps) SetApplicationSetStatusCondition(_ context.Context, _ *arg
 	return nil
 }
 
+func (regressionDeps) IncRefreshTriggeredCount(_ *argov1alpha1.ApplicationSet, _ string) {}
+
 func regressionManager(t *testing.T, appSet *argov1alpha1.ApplicationSet) *Manager {
 	t.Helper()
 	scheme := runtime.NewScheme()
