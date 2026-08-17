@@ -1843,7 +1843,7 @@ func (s *Server) InspectGitGPGSourceIntegrity(ctx context.Context, q *applicatio
 			continue
 		}
 
-		gitPolicy, err := selectGitGPGPolicy(sourceIntegrity, source)
+		gitGpgPolicy, err := selectGitGPGPolicy(sourceIntegrity, source)
 		if err != nil {
 			// cannot select policy, therefore cannot inspect repository
 			// include the problematic source in the output
@@ -1853,7 +1853,7 @@ func (s *Server) InspectGitGPGSourceIntegrity(ctx context.Context, q *applicatio
 			continue
 		}
 
-		strictPolicy := gitPolicy.GPG.DeepCopy()
+		strictPolicy := gitGpgPolicy.DeepCopy()
 		strictPolicy.Mode = v1alpha1.SourceIntegrityGitPolicyGPGModeStrict // always use strict mode for inspection
 
 		repo, err := s.db.GetRepository(ctx, source.RepoURL, proj.Name)
@@ -1884,7 +1884,7 @@ func (s *Server) InspectGitGPGSourceIntegrity(ctx context.Context, q *applicatio
 		}
 
 		item.ResolvedRevision = &resp.ResolvedRevision
-		item.GitGpgPolicy = gitPolicy.GPG
+		item.GitGpgPolicy = gitGpgPolicy
 		item.Commits = commits
 		item.ErrorMessage = nil
 
@@ -1894,7 +1894,7 @@ func (s *Server) InspectGitGPGSourceIntegrity(ctx context.Context, q *applicatio
 	return &application.InspectGitGPGSourceIntegrityListResponse{Items: items}, nil
 }
 
-func selectGitGPGPolicy(sourceIntegrity *v1alpha1.SourceIntegrity, source v1alpha1.ApplicationSource) (*v1alpha1.SourceIntegrityGitPolicy, error) {
+func selectGitGPGPolicy(sourceIntegrity *v1alpha1.SourceIntegrity, source v1alpha1.ApplicationSource) (*v1alpha1.SourceIntegrityGitPolicyGPG, error) {
 	gitPolicies := sourceintegrity.FindMatchingGitPolicies(sourceIntegrity.Git, source.RepoURL)
 	nPolicies := len(gitPolicies)
 	if nPolicies == 0 {
@@ -1909,7 +1909,7 @@ func selectGitGPGPolicy(sourceIntegrity *v1alpha1.SourceIntegrity, source v1alph
 		return nil, fmt.Errorf("the git policy for source %s is not a gpg policy", source.RepoURL)
 	}
 
-	return gitPolicy, nil
+	return gitPolicy.GPG, nil
 }
 
 // getRevisionHistoryByVersionId returns the revision history for a specific version ID.
