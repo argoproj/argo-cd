@@ -31,7 +31,7 @@ argocd login cd.argoproj.io --core
 ### Options
 
 ```
-      --browserless          Perform SSO login without a browser
+      --browserless          Perform SSO login without a browser using the device code flow (requires --sso)
       --callback string      Scheme, Host and Port for the callback URL
   -h, --help                 help for login
       --name string          Name to use for the context
