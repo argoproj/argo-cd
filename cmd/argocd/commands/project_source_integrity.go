@@ -54,7 +54,7 @@ var (
 		return headless.NewClientOrDie(clientOpts, c).NewGPGKeyClientOrDieWithContext(c.Context())
 	}
 	newApplicationClient = func(clientOpts *argocdclient.ClientOptions, c *cobra.Command) (io.Closer, applicationpkg.ApplicationServiceClient) {
-		return headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDie()
+		return headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDieWithContext(c.Context())
 	}
 )
 
@@ -549,7 +549,7 @@ func NewProjectSourceIntegrityGitGpgInspectRepoCommand(clientOpts *argocdclient.
 
 			return nil
 		},
-		RunE: func(c *cobra.Command, args []string) error {
+		RunE: cli.WithSignalContextE(func(c *cobra.Command, args []string, _ context.CancelFunc) error {
 			ctx := c.Context()
 
 			cleanup, applicationClient := newApplicationClient(clientOpts, c)
@@ -574,7 +574,7 @@ func NewProjectSourceIntegrityGitGpgInspectRepoCommand(clientOpts *argocdclient.
 			}
 
 			return nil
-		},
+		}),
 	}
 }
 

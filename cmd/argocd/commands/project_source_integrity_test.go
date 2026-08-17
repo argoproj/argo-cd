@@ -2,7 +2,6 @@ package commands
 
 import (
 	"bytes"
-	"context"
 	"errors"
 	"io"
 	"regexp"
@@ -649,7 +648,7 @@ func TestProjectSourceIntegrityGpgInspectRepoCommand_WarningsAndReturnCodes(t *t
 
 	tests := []struct {
 		name           string
-		mockSetup      func(ctx context.Context, mock *applicationmocks.ApplicationServiceClient)
+		mockSetup      func(appClient *applicationmocks.ApplicationServiceClient)
 		args           []string
 		expectedError  error
 		expectedStdout []string
@@ -682,9 +681,9 @@ func TestProjectSourceIntegrityGpgInspectRepoCommand_WarningsAndReturnCodes(t *t
 		{
 			name: "rpc fails",
 			args: []string{projectName, applicationName},
-			mockSetup: func(ctx context.Context, mock *applicationmocks.ApplicationServiceClient) {
-				mock.EXPECT().
-					InspectGitGPGSourceIntegrity(ctx, &application.InspectGitGPGSourceIntegrityQuery{Name: &applicationName, Project: &projectName}).
+			mockSetup: func(appClient *applicationmocks.ApplicationServiceClient) {
+				appClient.EXPECT().
+					InspectGitGPGSourceIntegrity(mock.Anything, &application.InspectGitGPGSourceIntegrityQuery{Name: &applicationName, Project: &projectName}).
 					Return(nil, errors.New("rpc error"))
 			},
 			expectedError:  errors.New("failed inspecting git gpg source integrity for application \"test-app\": rpc error"),
@@ -694,9 +693,9 @@ func TestProjectSourceIntegrityGpgInspectRepoCommand_WarningsAndReturnCodes(t *t
 		{
 			name: "source integrity not configured for any source",
 			args: []string{projectName, applicationName},
-			mockSetup: func(ctx context.Context, mock *applicationmocks.ApplicationServiceClient) {
-				mock.EXPECT().
-					InspectGitGPGSourceIntegrity(ctx, &application.InspectGitGPGSourceIntegrityQuery{Name: &applicationName, Project: &projectName}).
+			mockSetup: func(appClient *applicationmocks.ApplicationServiceClient) {
+				appClient.EXPECT().
+					InspectGitGPGSourceIntegrity(mock.Anything, &application.InspectGitGPGSourceIntegrityQuery{Name: &applicationName, Project: &projectName}).
 					Return(&application.InspectGitGPGSourceIntegrityListResponse{Items: []*application.InspectGitGPGSourceIntegrityResponse{}}, nil)
 			},
 			expectedError:  NewExitError(3, nil),
@@ -706,9 +705,9 @@ func TestProjectSourceIntegrityGpgInspectRepoCommand_WarningsAndReturnCodes(t *t
 		{
 			name: "source integrity has problems",
 			args: []string{projectName, applicationName},
-			mockSetup: func(ctx context.Context, mock *applicationmocks.ApplicationServiceClient) {
-				mock.EXPECT().
-					InspectGitGPGSourceIntegrity(ctx, &application.InspectGitGPGSourceIntegrityQuery{Name: &applicationName, Project: &projectName}).
+			mockSetup: func(appClient *applicationmocks.ApplicationServiceClient) {
+				appClient.EXPECT().
+					InspectGitGPGSourceIntegrity(mock.Anything, &application.InspectGitGPGSourceIntegrityQuery{Name: &applicationName, Project: &projectName}).
 					Return(&application.InspectGitGPGSourceIntegrityListResponse{
 						Items: []*application.InspectGitGPGSourceIntegrityResponse{
 							prepareInspectGitGPGSourceIntegrityResponse(
@@ -729,9 +728,9 @@ func TestProjectSourceIntegrityGpgInspectRepoCommand_WarningsAndReturnCodes(t *t
 		{
 			name: "source integrity in head mode",
 			args: []string{projectName, applicationName},
-			mockSetup: func(ctx context.Context, mock *applicationmocks.ApplicationServiceClient) {
-				mock.EXPECT().
-					InspectGitGPGSourceIntegrity(ctx, &application.InspectGitGPGSourceIntegrityQuery{Name: &applicationName, Project: &projectName}).
+			mockSetup: func(appClient *applicationmocks.ApplicationServiceClient) {
+				appClient.EXPECT().
+					InspectGitGPGSourceIntegrity(mock.Anything, &application.InspectGitGPGSourceIntegrityQuery{Name: &applicationName, Project: &projectName}).
 					Return(&application.InspectGitGPGSourceIntegrityListResponse{
 						Items: []*application.InspectGitGPGSourceIntegrityResponse{
 							prepareInspectGitGPGSourceIntegrityResponse(
@@ -764,9 +763,9 @@ func TestProjectSourceIntegrityGpgInspectRepoCommand_WarningsAndReturnCodes(t *t
 		{
 			name: "source integrity in none mode",
 			args: []string{projectName, applicationName},
-			mockSetup: func(ctx context.Context, mock *applicationmocks.ApplicationServiceClient) {
-				mock.EXPECT().
-					InspectGitGPGSourceIntegrity(ctx, &application.InspectGitGPGSourceIntegrityQuery{Name: &applicationName, Project: &projectName}).
+			mockSetup: func(appClient *applicationmocks.ApplicationServiceClient) {
+				appClient.EXPECT().
+					InspectGitGPGSourceIntegrity(mock.Anything, &application.InspectGitGPGSourceIntegrityQuery{Name: &applicationName, Project: &projectName}).
 					Return(&application.InspectGitGPGSourceIntegrityListResponse{
 						Items: []*application.InspectGitGPGSourceIntegrityResponse{
 							prepareInspectGitGPGSourceIntegrityResponse(
@@ -799,9 +798,9 @@ func TestProjectSourceIntegrityGpgInspectRepoCommand_WarningsAndReturnCodes(t *t
 		{
 			name: "source integrity in strict mode",
 			args: []string{projectName, applicationName},
-			mockSetup: func(ctx context.Context, mock *applicationmocks.ApplicationServiceClient) {
-				mock.EXPECT().
-					InspectGitGPGSourceIntegrity(ctx, &application.InspectGitGPGSourceIntegrityQuery{Name: &applicationName, Project: &projectName}).
+			mockSetup: func(appClient *applicationmocks.ApplicationServiceClient) {
+				appClient.EXPECT().
+					InspectGitGPGSourceIntegrity(mock.Anything, &application.InspectGitGPGSourceIntegrityQuery{Name: &applicationName, Project: &projectName}).
 					Return(&application.InspectGitGPGSourceIntegrityListResponse{
 						Items: []*application.InspectGitGPGSourceIntegrityResponse{
 							prepareInspectGitGPGSourceIntegrityResponse(
@@ -836,7 +835,7 @@ func TestProjectSourceIntegrityGpgInspectRepoCommand_WarningsAndReturnCodes(t *t
 		t.Run(test.name, func(t *testing.T) {
 			applications := mockApplicationClient(t)
 			if test.mockSetup != nil {
-				test.mockSetup(t.Context(), applications)
+				test.mockSetup(applications)
 			}
 
 			cmd := NewProjectSourceIntegrityGitGpgInspectRepoCommand(&argocdclient.ClientOptions{})
@@ -878,7 +877,7 @@ func TestProjectSourceIntegrityGpgInspectRepoCommand_SinglePassingSource(t *test
 
 	applications := mockApplicationClient(t)
 	applications.EXPECT().
-		InspectGitGPGSourceIntegrity(t.Context(), &application.InspectGitGPGSourceIntegrityQuery{Name: &applicationName, Project: &projectName}).
+		InspectGitGPGSourceIntegrity(mock.Anything, &application.InspectGitGPGSourceIntegrityQuery{Name: &applicationName, Project: &projectName}).
 		Return(&application.InspectGitGPGSourceIntegrityListResponse{
 			Items: []*application.InspectGitGPGSourceIntegrityResponse{
 				prepareInspectGitGPGSourceIntegrityResponse(
@@ -935,7 +934,7 @@ func TestProjectSourceIntegrityGpgInspectRepoCommand_SingleProblematicCommitsSou
 
 	applications := mockApplicationClient(t)
 	applications.EXPECT().
-		InspectGitGPGSourceIntegrity(t.Context(), &application.InspectGitGPGSourceIntegrityQuery{Name: &applicationName, Project: &projectName}).
+		InspectGitGPGSourceIntegrity(mock.Anything, &application.InspectGitGPGSourceIntegrityQuery{Name: &applicationName, Project: &projectName}).
 		Return(&application.InspectGitGPGSourceIntegrityListResponse{
 			Items: []*application.InspectGitGPGSourceIntegrityResponse{
 				prepareInspectGitGPGSourceIntegrityResponse(
@@ -1032,7 +1031,7 @@ func TestProjectSourceIntegrityGpgInspectRepoCommand_MultipleSources(t *testing.
 
 	applications := mockApplicationClient(t)
 	applications.EXPECT().
-		InspectGitGPGSourceIntegrity(t.Context(), &application.InspectGitGPGSourceIntegrityQuery{Name: &applicationName, Project: &projectName}).
+		InspectGitGPGSourceIntegrity(mock.Anything, &application.InspectGitGPGSourceIntegrityQuery{Name: &applicationName, Project: &projectName}).
 		Return(&application.InspectGitGPGSourceIntegrityListResponse{
 			Items: []*application.InspectGitGPGSourceIntegrityResponse{
 				prepareInspectGitGPGSourceIntegrityResponse(
