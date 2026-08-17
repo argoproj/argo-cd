@@ -3,7 +3,7 @@ package db
 import (
 	"context"
 	"fmt"
-	"sort"
+	"slices"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
@@ -585,23 +585,23 @@ func sourceTypeOf(source *appsv1.ApplicationSource) string {
 	return "git"
 }
 
-// selectSecretByType picks among the furnished candidates the entry whose
-// `type` field matches the requested source type. Candidates whose type is
-// empty never shadow a typed candidate. When no candidate claims the source
-// type, the first candidate is returned unchanged, preserving behaviour for
-// existing callers that have not yet typed their repositories. A warning is
-// logged whenever URL+project candidates disagree on type.
 // sortSecretsByName gives the candidate lists a deterministic order.
 // listSecretsByType reads from an informer index whose iteration order is
 // unspecified, so without this the "no type matched, use the first
 // candidate" fallback picks arbitrarily between equally-valid credentials
 // and can differ run to run.
 func sortSecretsByName(secrets []*corev1.Secret) {
-	sort.Slice(secrets, func(i, j int) bool {
-		return secrets[i].Name < secrets[j].Name
+	slices.SortFunc(secrets, func(a, b *corev1.Secret) int {
+		return strings.Compare(a.Name, b.Name)
 	})
 }
 
+// selectSecretByType picks among the furnished candidates the entry whose
+// `type` field matches the requested source type. Candidates whose type is
+// empty never shadow a typed candidate. When no candidate claims the source
+// type, the first candidate is returned unchanged, preserving behaviour for
+// existing callers that have not yet typed their repositories. A warning is
+// logged whenever URL+project candidates disagree on type.
 func selectSecretByType(candidates []*corev1.Secret, sourceType string) *corev1.Secret {
 	if len(candidates) == 0 {
 		return nil

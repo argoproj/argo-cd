@@ -1405,3 +1405,61 @@ func TestSecretsRepositoryBackend_GetRepositoryForSource(t *testing.T) {
 	require.NotNil(t, repo)
 	assert.Equal(t, "FallbackHelmRepo", repo.Name)
 }
+
+// TestSecretsRepositoryBackend_GetRepositoryForSourceIsDeterministic pins the
+// resolution order when a repo URL has several candidate secrets and none
+// matches the requested source type. Secrets reach the backend in client-go
+// indexer order, which is map-backed and varies per call, so without an
+// explicit ordering the "first match" fallback returns an arbitrary credential
+// and this assertion fails intermittently.
+func TestSecretsRepositoryBackend_GetRepositoryForSourceIsDeterministic(t *testing.T) {
+	repoSecrets := []runtime.Object{
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: testNamespace,
+				Name:      RepoURLToSecretName(repoSecretPrefix, "https://example.com/repo.git", "proj"),
+				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
+			},
+			Data: map[string][]byte{
+				"name":    []byte("GitRepo"),
+				"url":     []byte("https://example.com/repo.git"),
+				"project": []byte("proj"),
+				"type":    []byte("git"),
+			},
+		},
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Namespace: testNamespace,
+				Name:      RepoURLToSecretName(repoSecretPrefix, "https://example.com/repo-helm.git", "proj"),
+				Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
+			},
+			Data: map[string][]byte{
+				"name":    []byte("HelmRepo"),
+				"url":     []byte("https://example.com/repo.git"),
+				"project": []byte("proj"),
+				"type":    []byte("helm"),
+			},
+		},
+	}
+
+	clientset := getClientset(repoSecrets...)
+	testee := &secretsRepositoryBackend{db: &db{
+		ns:            testNamespace,
+		kubeclientset: clientset,
+		settingsMgr:   settings.NewSettingsManager(t.Context(), clientset, testNamespace),
+	}}
+
+	// No candidate is typed "oci", so every call takes the ambiguous fallback.
+	ociSource := &appsv1.ApplicationSource{RepoURL: "oci://example.com/repo.git"}
+
+	first, err := testee.GetRepositoryForSource(t.Context(), "https://example.com/repo.git", "proj", ociSource)
+	require.NoError(t, err)
+	require.NotNil(t, first)
+
+	for i := range 25 {
+		repo, err := testee.GetRepositoryForSource(t.Context(), "https://example.com/repo.git", "proj", ociSource)
+		require.NoError(t, err)
+		require.NotNil(t, repo)
+		assert.Equal(t, first.Name, repo.Name, "credential selection changed on call %d; fallback must be deterministic", i+1)
+	}
+}
