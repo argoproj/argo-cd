@@ -3643,21 +3643,29 @@ func (s *Service) ociClientStandardOpts() []oci.ClientOpts {
 }
 
 func (s *Service) InspectGitGPGSourceIntegrity(ctx context.Context, request *apiclient.InspectGitGPGSourceIntegrityRequest) (*apiclient.InspectGitGPGSourceIntegrityResponse, error) {
-	gitClient, resolvedRevision, err := s.newClientResolveRevision(request.Repo, request.Revision, git.WithTagPrefix(request.TagPrefix))
+	repo := request.GetRepo()
+	policy := request.GetPolicy()
+	if repo == nil {
+		return nil, status.Error(codes.InvalidArgument, "must pass a valid repo")
+	}
+	if policy == nil {
+		return nil, status.Error(codes.InvalidArgument, "must pass a valid git/gpg source integrity policy")
+	}
+	gitClient, resolvedRevision, err := s.newClientResolveRevision(repo, request.GetRevision(), git.WithTagPrefix(request.GetTagPrefix()))
 	if err != nil {
 		return nil, err
 	}
 
-	revision := request.Revision
-	if request.Revision == "" {
+	revision := request.GetRevision()
+	if revision == "" {
 		revision = resolvedRevision
 	}
 
-	s.metricsServer.IncPendingRepoRequest(request.Repo.Repo)
-	defer s.metricsServer.DecPendingRepoRequest(request.Repo.Repo)
+	s.metricsServer.IncPendingRepoRequest(repo.Repo)
+	defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
 
 	closer, err := s.repoLock.Lock(gitClient.Root(), resolvedRevision, true, func(clean bool) (goio.Closer, error) {
-		return s.checkoutRevision(ctx, gitClient, resolvedRevision, s.initConstants.SubmoduleEnabled, request.Repo.Depth, clean)
+		return s.checkoutRevision(ctx, gitClient, resolvedRevision, s.initConstants.SubmoduleEnabled, repo.Depth, clean)
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error acquiring repo lock: %w", err)
@@ -3665,7 +3673,7 @@ func (s *Service) InspectGitGPGSourceIntegrity(ctx context.Context, request *api
 	defer utilio.Close(closer)
 
 	// passing original revision so we can resolve tags
-	signatures, _, err := gitClient.LsSignatures(ctx, revision, request.Policy.Mode == v1alpha1.SourceIntegrityGitPolicyGPGModeStrict)
+	signatures, _, err := gitClient.LsSignatures(ctx, revision, policy.Mode == v1alpha1.SourceIntegrityGitPolicyGPGModeStrict)
 	if err != nil {
 		return nil, fmt.Errorf("error listing signatures: %w", err)
 	}
@@ -3673,7 +3681,7 @@ func (s *Service) InspectGitGPGSourceIntegrity(ctx context.Context, request *api
 	commits := make([]*apiclient.GitGPGCommitInfo, 0, len(signatures))
 
 	for _, signature := range signatures {
-		verificationResult, valid := sourceintegrity.VerifyGPGSignatureInfo(request.Policy, signature)
+		verificationResult, valid := sourceintegrity.VerifyGPGSignatureInfo(policy, signature)
 
 		if valid {
 			// only report problematic signatures

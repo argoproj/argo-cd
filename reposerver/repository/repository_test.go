@@ -6241,6 +6241,31 @@ func expectInspectGitGPGFetchAndCheckout(gitClient *gitmocks.Client) {
 }
 
 func TestInspectGitGPGSourceIntegrity(t *testing.T) {
+	t.Run("invalid request repo nil", func(t *testing.T) {
+		service := setupInspectGitGPGService(t, func(_ *gitmocks.Client) { /* no-op */ })
+		_, err := service.InspectGitGPGSourceIntegrity(t.Context(), &apiclient.InspectGitGPGSourceIntegrityRequest{
+			Repo:      nil,
+			Policy:    defaultInspectGPGPolicy(),
+			Revision:  inspectTargetRevision,
+			TagPrefix: "",
+		})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "must pass a valid repo")
+	})
+	t.Run("invalid request policy nil", func(t *testing.T) {
+		service := setupInspectGitGPGService(t, func(_ *gitmocks.Client) { /* no-op */ })
+		_, err := service.InspectGitGPGSourceIntegrity(t.Context(), &apiclient.InspectGitGPGSourceIntegrityRequest{
+			Repo: &v1alpha1.Repository{
+				Repo: "https://github.com/argoproj/argo-cd.git",
+			},
+			Policy:    nil,
+			Revision:  inspectTargetRevision,
+			TagPrefix: "",
+		})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "must pass a valid git/gpg source integrity policy")
+	})
+
 	t.Run("all valid has empty commits in resp", func(t *testing.T) {
 		service := setupInspectGitGPGService(t, func(gitClient *gitmocks.Client) {
 			expectInspectGitGPGFetchAndCheckout(gitClient)
