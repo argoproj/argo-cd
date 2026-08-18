@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -37,6 +39,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
@@ -65,8 +68,9 @@ import (
 )
 
 const (
-	testNamespace = "default"
-	fakeRepoURL   = "https://git.com/repo.git"
+	testNamespace      = "default"
+	fakeRepoURL        = "https://git.com/repo.git"
+	controlPlaneServer = "https://control-plane.example.com"
 )
 
 var testEnableEventList []string = argo.DefaultEnableEventList()
@@ -5327,48 +5331,268 @@ func TestGetApplicationClusterConfig(t *testing.T) {
 	})
 }
 
-func TestGetUnstructuredLiveResourceOrAppWithImpersonation(t *testing.T) {
+// fakeControlPlaneKubeconfig points the in-cluster address at a throwaway kubeconfig, so that
+// getControlPlaneClusterConfig() is resolvable in unit tests running outside of a cluster. This is
+// the same ARGOCD_FAKE_IN_CLUSTER escape hatch that core/headless mode relies on.
+// configRecordingKubectl records the REST config each write is routed to, so that tests can assert
+// which cluster an operation was sent to.
+type configRecordingKubectl struct {
+	kube.Kubectl
+	patchHosts  []string
+	createHosts []string
+}
+
+func (k *configRecordingKubectl) PatchResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, patchType types.PatchType, patchBytes []byte, subresources ...string) (*unstructured.Unstructured, error) {
+	k.patchHosts = append(k.patchHosts, config.Host)
+	return k.Kubectl.PatchResource(ctx, config, gvk, name, namespace, patchType, patchBytes, subresources...)
+}
+
+func (k *configRecordingKubectl) CreateResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, obj *unstructured.Unstructured, opts metav1.CreateOptions, subresources ...string) (*unstructured.Unstructured, error) {
+	k.createHosts = append(k.createHosts, config.Host)
+	return k.Kubectl.CreateResource(ctx, config, gvk, name, namespace, obj, opts, subresources...)
+}
+
+func fakeControlPlaneKubeconfig(t *testing.T) {
+	t.Helper()
+	kubeconfig := `apiVersion: v1
+kind: Config
+clusters:
+- name: control-plane
+  cluster:
+    server: ` + controlPlaneServer + `
+contexts:
+- name: control-plane
+  context:
+    cluster: control-plane
+    user: control-plane
+current-context: control-plane
+users:
+- name: control-plane
+  user:
+    token: fake-token
+`
+	path := filepath.Join(t.TempDir(), "kubeconfig")
+	require.NoError(t, os.WriteFile(path, []byte(kubeconfig), 0o600))
+	t.Setenv(v1alpha1.EnvVarFakeInClusterConfig, "true")
+	t.Setenv("KUBECONFIG", path)
+}
+
+// Resource actions targeting the Application resource itself must run against the Argo CD control
+// plane cluster rather than the Application's destination cluster, otherwise they fail with
+// NotFound whenever the destination is a remote cluster.
+// See https://github.com/argoproj/argo-cd/issues/29215.
+func TestGetUnstructuredLiveResourceOrAppForApplication(t *testing.T) {
 	f := func(enf *rbac.Enforcer) {
 		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
 		enf.SetDefaultRole("role:admin")
 	}
 
-	projWithSA := &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: "proj-impersonate", Namespace: "default"},
-		Spec: v1alpha1.AppProjectSpec{
-			SourceRepos:  []string{"*"},
-			Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
-			DestinationServiceAccounts: []v1alpha1.ApplicationDestinationServiceAccount{
-				{
-					Server:                "https://cluster-api.example.com",
-					Namespace:             test.FakeDestNamespace,
-					DefaultServiceAccount: "test-sa",
-				},
-			},
-		},
-	}
+	group := "argoproj.io"
+	kind := "Application"
 
-	app := newTestApp(func(a *v1alpha1.Application) {
-		a.Spec.Project = "proj-impersonate"
+	t.Run("RemoteDestination", func(t *testing.T) {
+		fakeControlPlaneKubeconfig(t)
+
+		// newTestApp's destination is the remote https://cluster-api.example.com cluster, which is
+		// what previously leaked into the returned config.
+		app := newTestApp()
+		appServer := newTestAppServerWithEnforcerConfigure(t, f, nil, app)
+
+		appName := app.Name
+		_, _, _, config, err := appServer.getUnstructuredLiveResourceOrApp(t.Context(), rbac.ActionGet, &application.ApplicationResourceRequest{
+			Name:         &appName,
+			ResourceName: &appName,
+			Group:        &group,
+			Kind:         &kind,
+		})
+		require.NoError(t, err)
+		assert.Equal(t, controlPlaneServer, config.Host)
 	})
 
+	t.Run("ImpersonationIsNotApplied", func(t *testing.T) {
+		fakeControlPlaneKubeconfig(t)
+
+		projWithSA := &v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "proj-impersonate", Namespace: "default"},
+			Spec: v1alpha1.AppProjectSpec{
+				SourceRepos:  []string{"*"},
+				Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				DestinationServiceAccounts: []v1alpha1.ApplicationDestinationServiceAccount{
+					{
+						Server:                "https://cluster-api.example.com",
+						Namespace:             test.FakeDestNamespace,
+						DefaultServiceAccount: "test-sa",
+					},
+				},
+			},
+		}
+
+		app := newTestApp(func(a *v1alpha1.Application) {
+			a.Spec.Project = "proj-impersonate"
+		})
+
+		appServer := newTestAppServerWithEnforcerConfigure(t, f,
+			map[string]string{"application.sync.impersonation.enabled": "true"},
+			app, projWithSA,
+		)
+
+		appName := app.Name
+		project := "proj-impersonate"
+		_, _, _, config, err := appServer.getUnstructuredLiveResourceOrApp(t.Context(), rbac.ActionGet, &application.ApplicationResourceRequest{
+			Name:         &appName,
+			ResourceName: &appName,
+			Group:        &group,
+			Kind:         &kind,
+			Project:      &project,
+		})
+		require.NoError(t, err)
+		assert.Equal(t, controlPlaneServer, config.Host)
+		// test-sa only exists in the destination namespace on the destination cluster, so it must
+		// not be impersonated while patching the Application on the control plane.
+		assert.Empty(t, config.Impersonate.UserName)
+	})
+
+	t.Run("ImpersonationEnforcedWithNoMatchingServiceAccount", func(t *testing.T) {
+		fakeControlPlaneKubeconfig(t)
+
+		// The "default" project configures no DestinationServiceAccounts. Under strict enforcement
+		// that fails the sync path, but it must not block actions on the Application itself.
+		app := newTestApp()
+		appServer := newTestAppServerWithEnforcerConfigure(t, f,
+			map[string]string{"application.sync.impersonation.enabled": "true"},
+			app,
+		)
+
+		appName := app.Name
+		_, _, _, config, err := appServer.getUnstructuredLiveResourceOrApp(t.Context(), rbac.ActionGet, &application.ApplicationResourceRequest{
+			Name:         &appName,
+			ResourceName: &appName,
+			Group:        &group,
+			Kind:         &kind,
+		})
+		require.NoError(t, err)
+		assert.Equal(t, controlPlaneServer, config.Host)
+		assert.Empty(t, config.Impersonate.UserName)
+	})
+}
+
+// An action on an Application patches the Application on the control plane, but any resource the
+// action creates is authorized against the Application's destination cluster by
+// verifyResourcePermitted, so it has to be created there rather than on the control plane.
+func TestRunResourceActionV2OnApplicationRoutesCreatesToDestination(t *testing.T) {
+	fakeControlPlaneKubeconfig(t)
+
+	f := func(enf *rbac.Enforcer) {
+		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+		enf.SetDefaultRole("role:admin")
+	}
+
+	actions := `
+discovery.lua: |
+  actions = {}
+  actions["create-cm"] = {}
+  return actions
+definitions:
+- name: create-cm
+  action.lua: |
+    local cm = {}
+    cm.apiVersion = "v1"
+    cm.kind = "ConfigMap"
+    cm.metadata = {}
+    cm.metadata.name = "action-created"
+    cm.metadata.namespace = obj.spec.destination.namespace
+    local patched = obj
+    patched.metadata.labels = {}
+    patched.metadata.labels["acted"] = "true"
+    local result = {}
+    result[1] = {}
+    result[1].operation = "create"
+    result[1].resource = cm
+    result[2] = {}
+    result[2].operation = "patch"
+    result[2].resource = patched
+    return result
+`
+
+	app := newTestApp()
 	appServer := newTestAppServerWithEnforcerConfigure(t, f,
-		map[string]string{"application.sync.impersonation.enabled": "true"},
-		app, projWithSA,
+		map[string]string{"resource.customizations.actions.argoproj.io_Application": actions},
+		app,
 	)
+
+	recorder := &configRecordingKubectl{Kubectl: appServer.kubectl}
+	appServer.kubectl = recorder
 
 	appName := app.Name
 	group := "argoproj.io"
 	kind := "Application"
-	project := "proj-impersonate"
-
-	_, _, _, config, err := appServer.getUnstructuredLiveResourceOrApp(t.Context(), rbac.ActionGet, &application.ApplicationResourceRequest{
+	action := "create-cm"
+	_, err := appServer.RunResourceActionV2(t.Context(), &application.ResourceActionRunRequestV2{
 		Name:         &appName,
 		ResourceName: &appName,
 		Group:        &group,
 		Kind:         &kind,
-		Project:      &project,
+		Action:       &action,
 	})
 	require.NoError(t, err)
-	assert.Equal(t, "system:serviceaccount:"+test.FakeDestNamespace+":test-sa", config.Impersonate.UserName)
+
+	assert.Equal(t, []string{controlPlaneServer}, recorder.patchHosts,
+		"the Application itself must be patched on the control plane cluster")
+	assert.Equal(t, []string{fakeCluster().Server, fakeCluster().Server}, recorder.createHosts,
+		"created resources must go to the destination cluster, matching verifyResourcePermitted")
+}
+
+// A patch-only action on an Application, such as toggle-auto-sync, touches nothing on the
+// destination cluster, so enforced impersonation with no matching service account must not block it.
+func TestRunResourceActionV2OnApplicationPatchOnlyIgnoresImpersonationEnforcement(t *testing.T) {
+	fakeControlPlaneKubeconfig(t)
+
+	f := func(enf *rbac.Enforcer) {
+		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+		enf.SetDefaultRole("role:admin")
+	}
+
+	actions := `
+discovery.lua: |
+  actions = {}
+  actions["label-it"] = {}
+  return actions
+definitions:
+- name: label-it
+  action.lua: |
+    obj.metadata.labels = {}
+    obj.metadata.labels["acted"] = "true"
+    return obj
+`
+
+	// The "default" project configures no DestinationServiceAccounts, so resolving the destination
+	// cluster config would fail under enforced impersonation.
+	app := newTestApp()
+	appServer := newTestAppServerWithEnforcerConfigure(t, f,
+		map[string]string{
+			"application.sync.impersonation.enabled":                  "true",
+			"application.sync.impersonation.enforced":                 "true",
+			"resource.customizations.actions.argoproj.io_Application": actions,
+		},
+		app,
+	)
+
+	recorder := &configRecordingKubectl{Kubectl: appServer.kubectl}
+	appServer.kubectl = recorder
+
+	appName := app.Name
+	group := "argoproj.io"
+	kind := "Application"
+	action := "label-it"
+	_, err := appServer.RunResourceActionV2(t.Context(), &application.ResourceActionRunRequestV2{
+		Name:         &appName,
+		ResourceName: &appName,
+		Group:        &group,
+		Kind:         &kind,
+		Action:       &action,
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{controlPlaneServer}, recorder.patchHosts)
+	assert.Empty(t, recorder.createHosts)
 }
