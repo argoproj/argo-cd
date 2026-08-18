@@ -943,7 +943,7 @@ func TestProjectSourceIntegrityGpgInspectRepoCommand_SinglePassingSource(t *test
 		"  git log --oneline abcd1234",
 		"",
 		"To create seal commit (this will trust all problematic commits up to this point):",
-		"  git commit --signoff --gpg-sign --trailer=\"Argocd-gpg-seal: <justification>\"",
+		"  git commit --allow-empty --signoff --gpg-sign --trailer=\"Argocd-gpg-seal: <justification>\"",
 	}
 	expectedStdout := strings.Join(stdoutParts, "\n") + "\n"
 
@@ -1000,7 +1000,7 @@ func TestProjectSourceIntegrityGpgInspectRepoCommand_SingleProblematicCommitsSou
 		"  git log -p --no-walk abcd1234 defe2234",
 		"",
 		"To create seal commit (this will trust all problematic commits up to this point):",
-		"  git commit --signoff --gpg-sign --trailer=\"Argocd-gpg-seal: <justification>\"",
+		"  git commit --allow-empty --signoff --gpg-sign --trailer=\"Argocd-gpg-seal: <justification>\"",
 	}
 	expectedStdout := strings.Join(stdoutParts, "\n") + "\n"
 	expectedErr := NewExitError(2, nil)
@@ -1057,7 +1057,7 @@ func TestProjectSourceIntegrityGpgInspectRepoCommand_MultipleSources(t *testing.
 		"  git log --oneline abcd1234",
 		"",
 		"To create seal commit (this will trust all problematic commits up to this point):",
-		"  git commit --signoff --gpg-sign --trailer=\"Argocd-gpg-seal: <justification>\"",
+		"  git commit --allow-empty --signoff --gpg-sign --trailer=\"Argocd-gpg-seal: <justification>\"",
 		"",
 		"--------------------------------",
 		"",
@@ -1083,7 +1083,7 @@ func TestProjectSourceIntegrityGpgInspectRepoCommand_MultipleSources(t *testing.
 		"  git log -p --no-walk abcd1234 defe2234",
 		"",
 		"To create seal commit (this will trust all problematic commits up to this point):",
-		"  git commit --signoff --gpg-sign --trailer=\"Argocd-gpg-seal: <justification>\"",
+		"  git commit --allow-empty --signoff --gpg-sign --trailer=\"Argocd-gpg-seal: <justification>\"",
 		"",
 		"--------------------------------",
 		"",
@@ -1098,7 +1098,7 @@ func TestProjectSourceIntegrityGpgInspectRepoCommand_MultipleSources(t *testing.
 		"  git log --oneline v1.0.2",
 		"",
 		"To create seal commit (this will trust all problematic commits up to this point):",
-		"  git commit --signoff --gpg-sign --trailer=\"Argocd-gpg-seal: <justification>\"",
+		"  git commit --allow-empty --signoff --gpg-sign --trailer=\"Argocd-gpg-seal: <justification>\"",
 	}
 	expectedStdout := strings.Join(stdoutParts, "\n") + "\n"
 	expectedErr := NewExitError(2, nil)

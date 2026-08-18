@@ -637,7 +637,7 @@ func printGitGpgSourceIntegrityResponse(w io.Writer, items []*applicationpkg.Ins
 
 		fmt.Fprintln(w)
 		fmt.Fprintln(w, "To create seal commit (this will trust all problematic commits up to this point):")
-		fmt.Fprintln(w, `  git commit --signoff --gpg-sign --trailer="Argocd-gpg-seal: <justification>"`)
+		fmt.Fprintln(w, `  git commit --allow-empty --signoff --gpg-sign --trailer="Argocd-gpg-seal: <justification>"`)
 	}
 
 	return hasSourceIntegrityProblems
