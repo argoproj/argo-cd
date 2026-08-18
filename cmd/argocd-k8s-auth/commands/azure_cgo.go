@@ -39,7 +39,11 @@ func buildAzureTokenOptions() (*token.Options, error) {
 	}
 	if o.LoginMethod == token.ServicePrincipalLogin {
 		if v, ok := os.LookupEnv(envIsPoPTokenEnabled); ok {
-			if enabled, err := strconv.ParseBool(v); err == nil && enabled {
+			enabled, err := strconv.ParseBool(v)
+			if err != nil {
+				return nil, fmt.Errorf("invalid %s value %q: %w", envIsPoPTokenEnabled, v, err)
+			}
+			if enabled {
 				popClaims, ok := os.LookupEnv(envPoPTokenClaims)
 				if !ok || popClaims == "" {
 					return nil, fmt.Errorf("env %s is enabled but %s is not set", envIsPoPTokenEnabled, envPoPTokenClaims)

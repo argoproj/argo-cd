@@ -187,7 +187,7 @@ func TestBuildAzureTokenOptions(t *testing.T) {
 		assert.Equal(t, "u=https://mycluster", o.PoPTokenClaims)
 	})
 
-	t.Run("does not enable PoP token when AAD_IS_POP_TOKEN_ENABLED is an invalid value", func(t *testing.T) {
+	t.Run("returns error when AAD_IS_POP_TOKEN_ENABLED is an invalid value", func(t *testing.T) {
 		// given
 		t.Setenv("AAD_LOGIN_METHOD", token.ServicePrincipalLogin)
 		t.Setenv(envIsPoPTokenEnabled, "garbage")
@@ -197,8 +197,8 @@ func TestBuildAzureTokenOptions(t *testing.T) {
 		o, err := buildAzureTokenOptions()
 
 		// then
-		require.NoError(t, err)
-		assert.False(t, o.IsPoPTokenEnabled)
-		assert.Empty(t, o.PoPTokenClaims)
+		require.Error(t, err)
+		assert.Nil(t, o)
+		assert.Contains(t, err.Error(), envIsPoPTokenEnabled)
 	})
 }
