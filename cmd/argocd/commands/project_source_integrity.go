@@ -22,6 +22,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/gpgkey"
 	projectpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/cli"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
@@ -538,7 +539,8 @@ func NewProjectSourceIntegrityGitPoliciesUpdateCommand(clientOpts *argocdclient.
 }
 
 func NewProjectSourceIntegrityGitGpgInspectRepoCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	return &cobra.Command{
+	var appNamespace string
+	command := &cobra.Command{
 		Use:   "gpg-inspect-repo PROJECT APPNAME",
 		Short: "Inspect the Git/GPG source integrity of an application in a project",
 		Args: func(c *cobra.Command, args []string) error {
@@ -556,9 +558,13 @@ func NewProjectSourceIntegrityGitGpgInspectRepoCommand(clientOpts *argocdclient.
 			defer utilio.Close(cleanup)
 
 			projName := args[0]
-			appName := args[1]
+			appName, appNs := argo.ParseFromQualifiedName(args[1], appNamespace)
 
-			data, err := applicationClient.InspectGitGPGSourceIntegrity(ctx, &applicationpkg.InspectGitGPGSourceIntegrityQuery{Name: &appName, Project: &projName})
+			data, err := applicationClient.InspectGitGPGSourceIntegrity(ctx, &applicationpkg.InspectGitGPGSourceIntegrityQuery{
+				Name:         &appName,
+				Project:      &projName,
+				AppNamespace: &appNs,
+			})
 			if err != nil {
 				return fmt.Errorf("failed inspecting git gpg source integrity for application %q: %w", appName, err)
 			}
@@ -576,6 +582,8 @@ func NewProjectSourceIntegrityGitGpgInspectRepoCommand(clientOpts *argocdclient.
 			return nil
 		}),
 	}
+	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only inspect application in namespace")
+	return command
 }
 
 func printGitGpgSourceIntegrityResponse(w io.Writer, items []*applicationpkg.InspectGitGPGSourceIntegrityResponse) bool {

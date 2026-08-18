@@ -11,7 +11,8 @@ argocd proj source-integrity git gpg-inspect-repo PROJECT APPNAME [flags]
 ### Options
 
 ```
-  -h, --help   help for gpg-inspect-repo
+  -N, --app-namespace string   Only inspect application in namespace
+  -h, --help                   help for gpg-inspect-repo
 ```
 
 ### Options inherited from parent commands
