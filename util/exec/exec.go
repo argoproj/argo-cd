@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 	"unicode"
@@ -50,6 +51,84 @@ func initTimeout() {
 	fatalTimeout, err = time.ParseDuration(os.Getenv("ARGOCD_EXEC_FATAL_TIMEOUT"))
 	if err != nil {
 		fatalTimeout = 10 * time.Second
+	}
+}
+
+// defaultCancelGrace is the escalation delay used when the configured grace is not positive.
+// ARGOCD_EXEC_FATAL_TIMEOUT=0 disables the timeout path's SIGKILL, but the cancellation path has no
+// other backstop, so it always escalates.
+const defaultCancelGrace = 10 * time.Second
+
+// CancelGrace is how long a cancelled command's process group has to exit before it is killed:
+// ARGOCD_EXEC_FATAL_TIMEOUT when set to a positive value, otherwise defaultCancelGrace. Callers that
+// budget around cancellation must use this rather than the raw setting, so their deadline cannot
+// undercut the grace the command actually gets.
+func CancelGrace() time.Duration {
+	if fatalTimeout <= 0 {
+		return defaultCancelGrace
+	}
+	return fatalTimeout
+}
+
+// TerminateGroupOnCancel makes cmd terminate its whole process group when its context is cancelled,
+// escalating to SIGKILL after grace. os/exec otherwise SIGKILLs the direct child immediately, which
+// denies the command any cleanup - Git, for one, leaves .git/index.lock behind, and nothing ever
+// reclaims a stale one - and leaves grandchildren holding the command's pipes.
+//
+// cmd must have been created with exec.CommandContext, otherwise Start reports an error. grace is
+// also used as cmd.WaitDelay, so Wait cannot block indefinitely on pipes the group still holds. A
+// grace that is not positive falls back to defaultCancelGrace: nothing else reaps a cancelled
+// command, so without an escalation a command ignoring SIGTERM would block Wait forever.
+//
+// The returned stop must be called once cmd.Wait has returned. Group signals address a process
+// group by the leader's PID, so an escalation left pending after the command is reaped could signal
+// a process group that recycled that PID.
+func TerminateGroupOnCancel(cmd *exec.Cmd, grace time.Duration) (stop func()) {
+	return terminateGroupOnCancel(cmd, grace, SignalProcessGroup)
+}
+
+// terminateGroupOnCancel is TerminateGroupOnCancel with the signalling injected, so that tests can
+// observe the escalation without racing real processes.
+func terminateGroupOnCancel(cmd *exec.Cmd, grace time.Duration, signal func(*exec.Cmd, syscall.Signal) error) (stop func()) {
+	SetChildProcessGroup(cmd)
+	if grace <= 0 {
+		grace = defaultCancelGrace
+	}
+
+	var mu sync.Mutex
+	var escalation *time.Timer
+	stopped := false
+
+	cmd.Cancel = func() error {
+		// Best effort: an already reaped group is nothing to terminate, and returning that from Cancel
+		// would replace the context error Wait reports with a less useful one.
+		_ = signal(cmd, syscall.SIGTERM)
+		mu.Lock()
+		defer mu.Unlock()
+		if stopped {
+			return nil
+		}
+		// Anything still alive after the grace period is reaped, the same escalation the timeout
+		// path applies.
+		escalation = time.AfterFunc(grace, func() {
+			mu.Lock()
+			defer mu.Unlock()
+			if stopped {
+				return
+			}
+			_ = signal(cmd, syscall.SIGKILL)
+		})
+		return nil
+	}
+	cmd.WaitDelay = grace
+
+	return func() {
+		mu.Lock()
+		defer mu.Unlock()
+		stopped = true
+		if escalation != nil {
+			escalation.Stop()
+		}
 	}
 }
 
@@ -192,7 +271,7 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 	// Run the command in its own process group so a timeout can reap the whole
 	// group (the command plus any grandchildren it spawned), not just the
 	// direct child. See signalProcessGroup.
-	setChildProcessGroup(cmd)
+	SetChildProcessGroup(cmd)
 
 	start := time.Now()
 	err = cmd.Start()
@@ -235,14 +314,14 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 	// noinspection ALL
 	case <-timoutCh:
 		// send timeout signal to the whole process group
-		_ = signalProcessGroup(cmd, timeoutBehavior.Signal)
+		_ = SignalProcessGroup(cmd, timeoutBehavior.Signal)
 		// wait on timeout signal and fallback to fatal timeout signal
 		if timeoutBehavior.ShouldWait {
 			select {
 			case <-done:
 			case <-fatalTimeoutCh:
 				// upgrades to SIGKILL if cmd does not respect SIGTERM
-				_ = signalProcessGroup(cmd, fatalTimeoutBehaviour)
+				_ = SignalProcessGroup(cmd, fatalTimeoutBehaviour)
 				// now original cmd should exit immediately after SIGKILL
 				<-done
 				// return error with a marker indicating that cmd exited only after fatal SIGKILL

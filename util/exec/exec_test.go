@@ -3,6 +3,7 @@ package exec
 import (
 	"os/exec"
 	"regexp"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -258,4 +259,93 @@ func TestRunCommandExtTimeoutReapsProcessGroup(t *testing.T) {
 	require.Error(t, err)
 	assert.Lessf(t, elapsed, 5*time.Second,
 		"RunCommandExt blocked for %s waiting on an orphaned grandchild; the process group was not reaped", elapsed)
+}
+
+// signalRecorder stands in for SignalProcessGroup, capturing what would have been signalled.
+type signalRecorder struct {
+	mu   sync.Mutex
+	sigs []syscall.Signal
+}
+
+func (r *signalRecorder) signal(_ *exec.Cmd, sig syscall.Signal) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.sigs = append(r.sigs, sig)
+	return nil
+}
+
+func (r *signalRecorder) recorded() []syscall.Signal {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return append([]syscall.Signal(nil), r.sigs...)
+}
+
+func TestTerminateGroupOnCancelEscalates(t *testing.T) {
+	rec := &signalRecorder{}
+	cmd := exec.CommandContext(t.Context(), "true")
+	terminateGroupOnCancel(cmd, 20*time.Millisecond, rec.signal)
+
+	require.NoError(t, cmd.Cancel())
+	assert.Eventually(t, func() bool {
+		return len(rec.recorded()) == 2
+	}, 3*time.Second, 5*time.Millisecond, "escalation to SIGKILL never happened")
+	assert.Equal(t, []syscall.Signal{syscall.SIGTERM, syscall.SIGKILL}, rec.recorded())
+}
+
+// TestTerminateGroupOnCancelStopPreventsEscalation covers the hazard the stop function exists for:
+// a pending escalation fired after the command was reaped would signal whatever process group had
+// since recycled its PID.
+func TestTerminateGroupOnCancelStopPreventsEscalation(t *testing.T) {
+	rec := &signalRecorder{}
+	cmd := exec.CommandContext(t.Context(), "true")
+	// The grace only has to outlast the scheduling gap between Cancel and stop: the point is that
+	// stop wins, not that it wins a race.
+	stop := terminateGroupOnCancel(cmd, time.Hour, rec.signal)
+
+	require.NoError(t, cmd.Cancel())
+	stop()
+
+	assert.Equal(t, []syscall.Signal{syscall.SIGTERM}, rec.recorded(), "escalation outlived the command")
+}
+
+func TestTerminateGroupOnCancelStopIsIdempotent(t *testing.T) {
+	rec := &signalRecorder{}
+	cmd := exec.CommandContext(t.Context(), "true")
+	stop := terminateGroupOnCancel(cmd, time.Hour, rec.signal)
+
+	// Commands that are never cancelled still call stop, possibly more than once via defer chains.
+	stop()
+	stop()
+	require.NoError(t, cmd.Cancel())
+	stop()
+
+	assert.Equal(t, []syscall.Signal{syscall.SIGTERM}, rec.recorded())
+}
+
+func TestTerminateGroupOnCancelZeroGraceStillEscalates(t *testing.T) {
+	rec := &signalRecorder{}
+	cmd := exec.CommandContext(t.Context(), "true")
+	// ARGOCD_EXEC_FATAL_TIMEOUT=0 must neither SIGKILL immediately - the cleanup window is the point
+	// of this helper - nor leave a command that ignores SIGTERM with nothing to reap it.
+	stop := terminateGroupOnCancel(cmd, 0, rec.signal)
+	defer stop()
+
+	assert.Equal(t, defaultCancelGrace, cmd.WaitDelay)
+	require.NoError(t, cmd.Cancel())
+	assert.Equal(t, []syscall.Signal{syscall.SIGTERM}, rec.recorded(), "SIGKILL must wait for the grace period")
+}
+
+func TestCancelGrace(t *testing.T) {
+	t.Run("Falls back when the fatal timeout is disabled", func(t *testing.T) {
+		t.Setenv("ARGOCD_EXEC_FATAL_TIMEOUT", "0")
+		initTimeout()
+		t.Cleanup(initTimeout)
+		assert.Equal(t, defaultCancelGrace, CancelGrace())
+	})
+	t.Run("Uses the configured fatal timeout", func(t *testing.T) {
+		t.Setenv("ARGOCD_EXEC_FATAL_TIMEOUT", "3s")
+		initTimeout()
+		t.Cleanup(initTimeout)
+		assert.Equal(t, 3*time.Second, CancelGrace())
+	})
 }
