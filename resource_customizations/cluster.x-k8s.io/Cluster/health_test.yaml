@@ -23,3 +23,7 @@ tests:
     status: Progressing
     message: 'Waiting for clusters'
   inputPath: testdata/progressing_not_ready.yaml
+- healthStatus:
+    status: Degraded
+    message: 'failed to reconcile infrastructure: quota exceeded'
+  inputPath: testdata/degraded_provisioning_error.yaml
