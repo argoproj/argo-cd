@@ -946,6 +946,35 @@ func TestGenerateManifest_RejectsChartOnRefSource(t *testing.T) {
 	assert.Nil(t, response)
 }
 
+// TestGenerateManifest_OCIRefOnlySourceIsSkipped verifies that a ref-only OCI source (empty
+// path, 'ref' set, no chart) is treated like a Git ref-only source: manifest generation is
+// skipped and the revision is resolved via the OCI client (the digest), not the git resolver.
+// Otherwise the OCI values artifact would be parsed as Kubernetes manifests and fail.
+func TestGenerateManifest_OCIRefOnlySourceIsSkipped(t *testing.T) {
+	const digest = "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+	service, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, ociClient *ocimocks.Client, _ *iomocks.TempPaths) {
+		ociClient.EXPECT().ResolveRevision(mock.Anything, "1.0.0", mock.Anything).Return(digest, nil)
+	}, ".")
+
+	source := &v1alpha1.ApplicationSource{
+		RepoURL:        "oci://registry.example.com/oci-ref-values",
+		TargetRevision: "1.0.0",
+		Ref:            "values",
+	}
+	request := &apiclient.ManifestRequest{
+		Repo:               &v1alpha1.Repository{Repo: "oci://registry.example.com/oci-ref-values"},
+		ApplicationSource:  source,
+		Revision:           "1.0.0",
+		NoCache:            true,
+		HasMultipleSources: true,
+	}
+
+	response, err := service.GenerateManifest(t.Context(), request)
+	require.NoError(t, err)
+	assert.Equal(t, digest, response.Revision, "ref-only OCI source should resolve to the OCI digest")
+	assert.Empty(t, response.Manifests, "ref-only OCI source must not generate manifests")
+}
+
 // TestRedactPaths_RedactsGitAndOCIPaths is a regression test ensuring value files resolved
 // from a $ref OCI source (extracted under ociPaths) are redacted from the returned helm
 // template command, not just Git checkout paths. Otherwise reposerver filesystem paths leak

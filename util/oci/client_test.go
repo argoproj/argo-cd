@@ -851,6 +851,28 @@ func TestNewClientUsesHTTP2(t *testing.T) {
 	})
 }
 
+func TestTrimOCIScheme(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		repoURL  string
+		expected string
+	}{
+		{name: "canonical scheme", repoURL: "oci://registry.example.com/charts", expected: "registry.example.com/charts"},
+		{name: "uppercase scheme", repoURL: "OCI://registry.example.com/charts", expected: "registry.example.com/charts"},
+		{name: "mixed-case scheme", repoURL: "Oci://registry.example.com/charts", expected: "registry.example.com/charts"},
+		{name: "surrounding whitespace", repoURL: "  oci://registry.example.com/charts  ", expected: "registry.example.com/charts"},
+		{name: "path case preserved", repoURL: "oci://registry.example.com/MyOrg/MyChart", expected: "registry.example.com/MyOrg/MyChart"},
+		{name: "no scheme", repoURL: "registry.example.com/charts", expected: "registry.example.com/charts"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.expected, trimOCIScheme(tt.repoURL))
+		})
+	}
+}
+
 func fakeEventHandlers(t *testing.T, repoURL string) EventHandlers {
 	t.Helper()
 	return EventHandlers{

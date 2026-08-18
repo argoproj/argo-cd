@@ -698,10 +698,20 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 
 	var err error
 
-	// Skip this path for ref only sources
-	if q.HasMultipleSources && q.ApplicationSource.Path == "" && !q.ApplicationSource.IsOCI() && !q.ApplicationSource.IsHelm() && q.ApplicationSource.IsRef() {
+	// Skip this path for ref only sources. A ref-only source (empty path, 'ref' set, no
+	// chart) contributes value files to other sources, not manifests of its own, so we only
+	// resolve its revision for the cache key. This applies to OCI ref sources as well: those
+	// must resolve the digest via the OCI client rather than the git resolver, and must not
+	// fall through to manifest generation (which would parse a plain values.yaml as k8s YAML).
+	if q.HasMultipleSources && q.ApplicationSource.Path == "" && !q.ApplicationSource.IsHelm() && q.ApplicationSource.IsRef() {
 		log.Debugf("Skipping manifest generation for ref only source for application: %s and ref %s", q.AppName, q.ApplicationSource.Ref)
-		_, revision, err := s.newClientResolveRevision(q.Repo, q.Revision, git.WithCache(s.cache, !q.NoRevisionCache && !q.NoCache))
+		var revision string
+		var err error
+		if q.ApplicationSource.IsOCI() {
+			_, revision, err = s.newOCIClientResolveRevision(ctx, q.Repo, q.Revision, q.NoCache || q.NoRevisionCache)
+		} else {
+			_, revision, err = s.newClientResolveRevision(q.Repo, q.Revision, git.WithCache(s.cache, !q.NoRevisionCache && !q.NoCache))
+		}
 		res = &apiclient.ManifestResponse{
 			Revision: revision,
 		}
