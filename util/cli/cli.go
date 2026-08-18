@@ -134,7 +134,7 @@ func PromptMessage(message, value string) string {
 }
 
 // PromptPassword prompts the user for a password, without local echo (unless already supplied).
-// If terminal.ReadPassword fails — often due to stdin not being a terminal (e.g., when input is piped),
+// If terminal.ReadPassword fails, often because stdin is not a terminal (e.g. when input is piped),
 // we fall back to reading from standard input using bufio.Reader.
 func PromptPassword(password string) string {
 	for password == "" {
@@ -145,7 +145,7 @@ func PromptPassword(password string) string {
 			reader := bufio.NewReader(os.Stdin)
 			input, err := reader.ReadString('\n')
 			errors.CheckError(err)
-			// Only strip line terminators — leading/trailing spaces or tabs
+			// Only strip line terminators. Leading or trailing spaces and tabs
 			// can be intentional parts of a password.
 			password = strings.TrimRight(input, "\r\n")
 			return password
@@ -202,7 +202,7 @@ func ReadPasswordFromStdin() (string, error) {
 	if err != nil && err != io.EOF {
 		return "", err
 	}
-	// Only strip line terminators — leading/trailing spaces or tabs can be
+	// Only strip line terminators. Leading or trailing spaces and tabs can be
 	// intentional parts of a password.
 	password := strings.TrimRight(input, "\r\n")
 	if password == "" {

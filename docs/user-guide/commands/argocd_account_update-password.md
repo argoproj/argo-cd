@@ -28,7 +28,7 @@ argocd account update-password [flags]
 
 	# Non-interactively update a password by piping it to stdin (useful for
 	# scripting). --current-password is required because only the new
-	# password is read from stdin. Avoid 'echo' with a literal password —
+	# password is read from stdin. Avoid 'echo' with a literal password,
 	# it ends up in shell history. Read from a variable or file instead:
 	printf '%s' "$NEW_PASSWORD" | argocd account update-password \
 	    --stdin --current-password "$OLD_PASSWORD"

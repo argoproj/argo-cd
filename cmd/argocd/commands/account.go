@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -91,7 +92,7 @@ has appropriate RBAC permissions to change other accounts.
 
 	# Non-interactively update a password by piping it to stdin (useful for
 	# scripting). --current-password is required because only the new
-	# password is read from stdin. Avoid 'echo' with a literal password —
+	# password is read from stdin. Avoid 'echo' with a literal password,
 	# it ends up in shell history. Read from a variable or file instead:
 	printf '%s' "$NEW_PASSWORD" | argocd account update-password \
 	    --stdin --current-password "$OLD_PASSWORD"
@@ -180,10 +181,10 @@ func validateUpdatePasswordFlags(stdin bool, currentPassword, newPassword string
 		return nil
 	}
 	if newPassword != "" {
-		return fmt.Errorf("--stdin cannot be combined with --new-password")
+		return stderrors.New("--stdin cannot be combined with --new-password")
 	}
 	if currentPassword == "" {
-		return fmt.Errorf("--current-password is required when --stdin is used")
+		return stderrors.New("--current-password is required when --stdin is used")
 	}
 	return nil
 }
