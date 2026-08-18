@@ -317,7 +317,7 @@ message InspectGitGPGSourceIntegrityRequest {
     github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Repository repo = 1;
     string revision = 2;
     github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.SourceIntegrityGitPolicyGPG policy = 3;
-    string tagPrefix = 5;
+    string tagPrefix = 4;
 }
 
 message GitGPGCommitInfo {
