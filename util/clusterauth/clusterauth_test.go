@@ -56,12 +56,14 @@ func newServiceAccountSecret(t *testing.T) *corev1.Secret {
 }
 
 func TestParseServiceAccountToken(t *testing.T) {
+	t.Parallel()
 	claims, err := ParseServiceAccountToken(testToken)
 	require.NoError(t, err)
 	assert.Equal(t, testClaims, *claims)
 }
 
 func TestCreateServiceAccount(t *testing.T) {
+	t.Parallel()
 	ns := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "kube-system",
@@ -79,6 +81,7 @@ func TestCreateServiceAccount(t *testing.T) {
 	}
 
 	t.Run("New SA", func(t *testing.T) {
+		t.Parallel()
 		cs := fake.NewClientset(ns)
 		err := CreateServiceAccount(cs, "argocd-manager", "kube-system")
 		require.NoError(t, err)
@@ -88,6 +91,7 @@ func TestCreateServiceAccount(t *testing.T) {
 	})
 
 	t.Run("SA exists already", func(t *testing.T) {
+		t.Parallel()
 		cs := fake.NewClientset(ns, sa)
 		err := CreateServiceAccount(cs, "argocd-manager", "kube-system")
 		require.NoError(t, err)
@@ -97,6 +101,7 @@ func TestCreateServiceAccount(t *testing.T) {
 	})
 
 	t.Run("Invalid namespace", func(t *testing.T) {
+		t.Parallel()
 		cs := fake.NewClientset()
 		err := CreateServiceAccount(cs, "argocd-manager", "invalid")
 		require.NoError(t, err)
@@ -130,6 +135,7 @@ func _MockK8STokenController(objects kubetesting.ObjectTracker) kubetesting.Reac
 }
 
 func TestInstallClusterManagerRBAC(t *testing.T) {
+	t.Parallel()
 	ns := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "test",
@@ -176,6 +182,7 @@ func TestInstallClusterManagerRBAC(t *testing.T) {
 	}
 
 	t.Run("Cluster Scope - Success", func(t *testing.T) {
+		t.Parallel()
 		cs := fake.NewClientset(ns, legacyAutoSecret, sa)
 		cs.PrependReactor("create", "secrets", _MockK8STokenController(cs.Tracker()))
 		token, err := InstallClusterManagerRBAC(cs, "test", nil, testBearerTokenTimeout)
@@ -184,6 +191,7 @@ func TestInstallClusterManagerRBAC(t *testing.T) {
 	})
 
 	t.Run("Cluster Scope - Missing data in secret", func(t *testing.T) {
+		t.Parallel()
 		nsecret := legacyAutoSecret.DeepCopy()
 		nsecret.Data = make(map[string][]byte)
 		cs := fake.NewClientset(ns, nsecret, sa)
@@ -193,6 +201,7 @@ func TestInstallClusterManagerRBAC(t *testing.T) {
 	})
 
 	t.Run("Namespace Scope - Success", func(t *testing.T) {
+		t.Parallel()
 		cs := fake.NewClientset(ns, sa, longLivedSecret)
 		cs.PrependReactor("create", "secrets", _MockK8STokenController(cs.Tracker()))
 		token, err := InstallClusterManagerRBAC(cs, "test", []string{"nsa"}, testBearerTokenTimeout)
@@ -201,6 +210,7 @@ func TestInstallClusterManagerRBAC(t *testing.T) {
 	})
 
 	t.Run("Namespace Scope - Missing data in secret", func(t *testing.T) {
+		t.Parallel()
 		nsecret := legacyAutoSecret.DeepCopy()
 		nsecret.Data = make(map[string][]byte)
 		cs := fake.NewClientset(ns, nsecret, sa)
@@ -211,7 +221,9 @@ func TestInstallClusterManagerRBAC(t *testing.T) {
 }
 
 func TestUninstallClusterManagerRBAC(t *testing.T) {
+	t.Parallel()
 	t.Run("Success", func(t *testing.T) {
+		t.Parallel()
 		cs := fake.NewClientset(newServiceAccountSecret(t))
 		err := UninstallClusterManagerRBAC(cs)
 		require.NoError(t, err)
@@ -219,6 +231,7 @@ func TestUninstallClusterManagerRBAC(t *testing.T) {
 }
 
 func TestGenerateNewClusterManagerSecret(t *testing.T) {
+	t.Parallel()
 	kubeclientset := fake.NewClientset(newServiceAccountSecret(t))
 	kubeclientset.ReactionChain = nil
 
@@ -239,6 +252,7 @@ func TestGenerateNewClusterManagerSecret(t *testing.T) {
 }
 
 func TestRotateServiceAccountSecrets(t *testing.T) {
+	t.Parallel()
 	generatedSecret := newServiceAccountSecret(t)
 	generatedSecret.Name = "argocd-manager-token-abc123"
 	generatedSecret.Data = map[string][]byte{
@@ -265,6 +279,7 @@ func TestRotateServiceAccountSecrets(t *testing.T) {
 }
 
 func TestGetServiceAccountBearerToken(t *testing.T) {
+	t.Parallel()
 	sa := newServiceAccount(t)
 	tokenSecret := newServiceAccountSecret(t)
 	dockercfgSecret := &corev1.Secret{

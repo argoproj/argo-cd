@@ -105,6 +105,7 @@ func projTokenContext(ctx context.Context) context.Context {
 }
 
 func TestUpdatePassword(t *testing.T) {
+	t.Parallel()
 	accountServer, sessionServer := newTestAccountServer(t, t.Context())
 	ctx := adminContext(t.Context())
 	var err error
@@ -141,6 +142,7 @@ func TestUpdatePassword(t *testing.T) {
 }
 
 func TestUpdatePassword_AdminUpdatesAnotherUser(t *testing.T) {
+	t.Parallel()
 	accountServer, sessionServer := newTestAccountServer(t, t.Context(), func(cm *corev1.ConfigMap, _ *corev1.Secret) {
 		cm.Data["accounts.anotherUser"] = "login"
 	})
@@ -154,11 +156,13 @@ func TestUpdatePassword_AdminUpdatesAnotherUser(t *testing.T) {
 }
 
 func TestUpdatePassword_DoesNotHavePermissions(t *testing.T) {
+	t.Parallel()
 	enforcer := func(_ jwt.Claims, _ ...any) bool {
 		return false
 	}
 
 	t.Run("LocalAccountUpdatesAnotherAccount", func(t *testing.T) {
+		t.Parallel()
 		accountServer, _ := newTestAccountServerExt(t, t.Context(), enforcer, func(cm *corev1.ConfigMap, _ *corev1.Secret) {
 			cm.Data["accounts.anotherUser"] = "login"
 		})
@@ -168,6 +172,7 @@ func TestUpdatePassword_DoesNotHavePermissions(t *testing.T) {
 	})
 
 	t.Run("SSOAccountWithTheSameName", func(t *testing.T) {
+		t.Parallel()
 		accountServer, _ := newTestAccountServerExt(t, t.Context(), enforcer)
 		ctx := ssoAdminContext(t.Context(), time.Now())
 		_, err := accountServer.UpdatePassword(ctx, &account.UpdatePasswordRequest{CurrentPassword: "oldpassword", NewPassword: "newpassword", Name: "admin"})
@@ -176,6 +181,7 @@ func TestUpdatePassword_DoesNotHavePermissions(t *testing.T) {
 }
 
 func TestUpdatePassword_ProjectToken(t *testing.T) {
+	t.Parallel()
 	accountServer, _ := newTestAccountServer(t, t.Context(), func(cm *corev1.ConfigMap, _ *corev1.Secret) {
 		cm.Data["accounts.anotherUser"] = "login"
 	})
@@ -185,6 +191,7 @@ func TestUpdatePassword_ProjectToken(t *testing.T) {
 }
 
 func TestUpdatePassword_OldSSOToken(t *testing.T) {
+	t.Parallel()
 	accountServer, _ := newTestAccountServer(t, t.Context(), func(cm *corev1.ConfigMap, _ *corev1.Secret) {
 		cm.Data["accounts.anotherUser"] = "login"
 	})
@@ -195,6 +202,7 @@ func TestUpdatePassword_OldSSOToken(t *testing.T) {
 }
 
 func TestUpdatePassword_SSOUserUpdatesAnotherUser(t *testing.T) {
+	t.Parallel()
 	accountServer, sessionServer := newTestAccountServer(t, t.Context(), func(cm *corev1.ConfigMap, _ *corev1.Secret) {
 		cm.Data["accounts.anotherUser"] = "login"
 	})
@@ -208,6 +216,7 @@ func TestUpdatePassword_SSOUserUpdatesAnotherUser(t *testing.T) {
 }
 
 func TestListAccounts_NoAccountsConfigured(t *testing.T) {
+	t.Parallel()
 	ctx := adminContext(t.Context())
 
 	accountServer, _ := newTestAccountServer(t, ctx)
@@ -217,6 +226,7 @@ func TestListAccounts_NoAccountsConfigured(t *testing.T) {
 }
 
 func TestListAccounts_AccountsAreConfigured(t *testing.T) {
+	t.Parallel()
 	ctx := adminContext(t.Context())
 	accountServer, _ := newTestAccountServer(t, ctx, func(cm *corev1.ConfigMap, _ *corev1.Secret) {
 		cm.Data["accounts.account1"] = "apiKey"
@@ -235,12 +245,14 @@ func TestListAccounts_AccountsAreConfigured(t *testing.T) {
 }
 
 func TestGetAccount(t *testing.T) {
+	t.Parallel()
 	ctx := adminContext(t.Context())
 	accountServer, _ := newTestAccountServer(t, ctx, func(cm *corev1.ConfigMap, _ *corev1.Secret) {
 		cm.Data["accounts.account1"] = "apiKey"
 	})
 
 	t.Run("ExistingAccount", func(t *testing.T) {
+		t.Parallel()
 		acc, err := accountServer.GetAccount(ctx, &account.GetAccountRequest{Name: "account1"})
 		require.NoError(t, err)
 
@@ -248,6 +260,7 @@ func TestGetAccount(t *testing.T) {
 	})
 
 	t.Run("NonExistingAccount", func(t *testing.T) {
+		t.Parallel()
 		_, err := accountServer.GetAccount(ctx, &account.GetAccountRequest{Name: "bad-name"})
 		require.Error(t, err)
 		assert.Equal(t, codes.NotFound, status.Code(err))
@@ -255,6 +268,7 @@ func TestGetAccount(t *testing.T) {
 }
 
 func TestCreateToken_SuccessfullyCreated(t *testing.T) {
+	t.Parallel()
 	ctx := adminContext(t.Context())
 	accountServer, _ := newTestAccountServer(t, ctx, func(cm *corev1.ConfigMap, _ *corev1.Secret) {
 		cm.Data["accounts.account1"] = "apiKey"
@@ -270,6 +284,7 @@ func TestCreateToken_SuccessfullyCreated(t *testing.T) {
 }
 
 func TestCreateToken_DoesNotHaveCapability(t *testing.T) {
+	t.Parallel()
 	ctx := adminContext(t.Context())
 	accountServer, _ := newTestAccountServer(t, ctx, func(cm *corev1.ConfigMap, _ *corev1.Secret) {
 		cm.Data["accounts.account1"] = "login"
@@ -280,6 +295,7 @@ func TestCreateToken_DoesNotHaveCapability(t *testing.T) {
 }
 
 func TestCreateToken_UserSpecifiedID(t *testing.T) {
+	t.Parallel()
 	ctx := adminContext(t.Context())
 	accountServer, _ := newTestAccountServer(t, ctx, func(cm *corev1.ConfigMap, _ *corev1.Secret) {
 		cm.Data["accounts.account1"] = "apiKey"
@@ -294,6 +310,7 @@ func TestCreateToken_UserSpecifiedID(t *testing.T) {
 }
 
 func TestDeleteToken_SuccessfullyRemoved(t *testing.T) {
+	t.Parallel()
 	ctx := adminContext(t.Context())
 	accountServer, _ := newTestAccountServer(t, ctx, func(cm *corev1.ConfigMap, secret *corev1.Secret) {
 		cm.Data["accounts.account1"] = "apiKey"
@@ -310,6 +327,7 @@ func TestDeleteToken_SuccessfullyRemoved(t *testing.T) {
 }
 
 func TestCanI_GetLogsAllow(t *testing.T) {
+	t.Parallel()
 	accountServer, _ := newTestAccountServer(t, t.Context(), func(_ *corev1.ConfigMap, _ *corev1.Secret) {
 	})
 
@@ -320,6 +338,7 @@ func TestCanI_GetLogsAllow(t *testing.T) {
 }
 
 func TestCanI_GetLogsDeny(t *testing.T) {
+	t.Parallel()
 	enforcer := func(_ jwt.Claims, _ ...any) bool {
 		return false
 	}
@@ -334,6 +353,7 @@ func TestCanI_GetLogsDeny(t *testing.T) {
 }
 
 func TestCanI_RBACPolicyMatchingWithNormalizedSubresource(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name         string
 		policy       string
@@ -353,6 +373,7 @@ func TestCanI_RBACPolicyMatchingWithNormalizedSubresource(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			accountServer, _ := newTestAccountServerExt(t, t.Context(), nil)
 			require.NoError(t, accountServer.enf.SetBuiltinPolicy(tt.policy))
 			accountServer.enf.SetDefaultRole("role:log-viewer")
@@ -369,6 +390,7 @@ func TestCanI_RBACPolicyMatchingWithNormalizedSubresource(t *testing.T) {
 }
 
 func TestCanI_NormalizeDefaultNamespace(t *testing.T) {
+	t.Parallel()
 	// Test: subresource "myproject/default/myapp" with default namespace "default"
 	// Expected: normalized to "myproject/myapp" (matches */* policy)
 	enforcer := func(_ jwt.Claims, rvals ...any) bool {
@@ -395,6 +417,7 @@ func TestCanI_NormalizeDefaultNamespace(t *testing.T) {
 }
 
 func TestCanI_PreserveNonDefaultNamespace(t *testing.T) {
+	t.Parallel()
 	// Test: subresource "myproject/other-ns/myapp" with default namespace "default"
 	// Expected: preserved as "myproject/other-ns/myapp" (needs */*/* policy)
 	enforcer := func(_ jwt.Claims, rvals ...any) bool {
@@ -420,6 +443,7 @@ func TestCanI_PreserveNonDefaultNamespace(t *testing.T) {
 }
 
 func TestCanI_BackwardCompatibleTwoSegment(t *testing.T) {
+	t.Parallel()
 	// Test: old UI sends "myproject/myapp" (2 segments)
 	// Expected: stays as "myproject/myapp"
 	enforcer := func(_ jwt.Claims, rvals ...any) bool {
@@ -444,6 +468,7 @@ func TestCanI_BackwardCompatibleTwoSegment(t *testing.T) {
 }
 
 func TestCanI_NonProjectScopedResource(t *testing.T) {
+	t.Parallel()
 	// Test: non-project-scoped resources should not be normalized
 	enforcer := func(_ jwt.Claims, rvals ...any) bool {
 		if len(rvals) >= 4 {

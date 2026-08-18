@@ -96,7 +96,7 @@ has appropriate RBAC permissions to change other accounts.
 	printf '%s' "$NEW_PASSWORD" | argocd account update-password \
 	    --stdin --current-password "$OLD_PASSWORD"
 `,
-		Run: func(c *cobra.Command, args []string) {
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) != 0 {
@@ -107,7 +107,7 @@ has appropriate RBAC permissions to change other accounts.
 				log.Fatal(err)
 			}
 			acdClient := headless.NewClientOrDie(clientOpts, c)
-			conn, usrIf := acdClient.NewAccountClientOrDie()
+			conn, usrIf := acdClient.NewAccountClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
 
 			userInfo := getCurrentAccount(ctx, acdClient)
@@ -161,7 +161,7 @@ has appropriate RBAC permissions to change other accounts.
 				errors.CheckError(err)
 				fmt.Printf("Context '%s' updated\n", localCfg.CurrentContext)
 			}
-		},
+		}),
 	}
 
 	command.Flags().StringVar(&currentPassword, "current-password", "", "Password of the currently logged on user")
@@ -201,7 +201,7 @@ func NewAccountGetUserInfoCommand(clientOpts *argocdclient.ClientOptions) *cobra
 			# Get User information in yaml format
 			argocd account get-user-info -o yaml
 		`),
-		Run: func(c *cobra.Command, args []string) {
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) != 0 {
@@ -209,7 +209,7 @@ func NewAccountGetUserInfoCommand(clientOpts *argocdclient.ClientOptions) *cobra
 				os.Exit(1)
 			}
 
-			conn, client := headless.NewClientOrDie(clientOpts, c).NewSessionClientOrDie()
+			conn, client := headless.NewClientOrDie(clientOpts, c).NewSessionClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
 
 			response, err := client.GetUserInfo(ctx, &session.GetUserInfoRequest{})
@@ -234,7 +234,7 @@ func NewAccountGetUserInfoCommand(clientOpts *argocdclient.ClientOptions) *cobra
 			default:
 				log.Fatalf("Unknown output format: %s", output)
 			}
-		},
+		}),
 	}
 	command.Flags().StringVarP(&output, "output", "o", "", "Output format. One of: yaml, json")
 	return command
@@ -257,7 +257,7 @@ argocd account can-i create clusters '*'
 Actions: %v
 Resources: %v
 `, rbac.Actions, rbac.Resources),
-		Run: func(c *cobra.Command, args []string) {
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) != 3 {
@@ -265,7 +265,7 @@ Resources: %v
 				os.Exit(1)
 			}
 
-			conn, client := headless.NewClientOrDie(clientOpts, c).NewAccountClientOrDie()
+			conn, client := headless.NewClientOrDie(clientOpts, c).NewAccountClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
 
 			response, err := client.CanI(ctx, &accountpkg.CanIRequest{
@@ -275,7 +275,7 @@ Resources: %v
 			})
 			errors.CheckError(err)
 			fmt.Println(response.Value)
-		},
+		}),
 	}
 }
 
@@ -300,10 +300,10 @@ func NewAccountListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 		Use:     "list",
 		Short:   "List accounts",
 		Example: "argocd account list",
-		Run: func(c *cobra.Command, _ []string) {
+		Run: cli.WithSignalContext(func(c *cobra.Command, _ []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
-			conn, client := headless.NewClientOrDie(clientOpts, c).NewAccountClientOrDie()
+			conn, client := headless.NewClientOrDie(clientOpts, c).NewAccountClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
 
 			response, err := client.ListAccounts(ctx, &accountpkg.ListAccountRequest{})
@@ -320,14 +320,14 @@ func NewAccountListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 			default:
 				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 			}
-		},
+		}),
 	}
 	cmd.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|name")
 	return cmd
 }
 
 func getCurrentAccount(ctx context.Context, clientset argocdclient.Client) session.GetUserInfoResponse {
-	conn, client := clientset.NewSessionClientOrDie()
+	conn, client := clientset.NewSessionClientOrDieWithContext(ctx)
 	defer utilio.Close(conn)
 	userInfo, err := client.GetUserInfo(ctx, &session.GetUserInfoRequest{})
 	errors.CheckError(err)
@@ -347,7 +347,7 @@ argocd account get
 
 # Get details for an account by name
 argocd account get --account <account-name>`,
-		Run: func(c *cobra.Command, _ []string) {
+		Run: cli.WithSignalContext(func(c *cobra.Command, _ []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			clientset := headless.NewClientOrDie(clientOpts, c)
@@ -356,7 +356,7 @@ argocd account get --account <account-name>`,
 				account = getCurrentAccount(ctx, clientset).Username
 			}
 
-			conn, client := clientset.NewAccountClientOrDie()
+			conn, client := clientset.NewAccountClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
 
 			acc, err := client.GetAccount(ctx, &accountpkg.GetAccountRequest{Name: account})
@@ -373,7 +373,7 @@ argocd account get --account <account-name>`,
 			default:
 				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
 			}
-		},
+		}),
 	}
 	cmd.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|name")
 	cmd.Flags().StringVarP(&account, "account", "a", "", "Account name. Defaults to the current account.")
@@ -420,11 +420,11 @@ argocd account generate-token
 
 # Generate token for the account with the specified name
 argocd account generate-token --account <account-name>`,
-		Run: func(c *cobra.Command, _ []string) {
+		Run: cli.WithSignalContext(func(c *cobra.Command, _ []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			clientset := headless.NewClientOrDie(clientOpts, c)
-			conn, client := clientset.NewAccountClientOrDie()
+			conn, client := clientset.NewAccountClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
 			if account == "" {
 				account = getCurrentAccount(ctx, clientset).Username
@@ -438,7 +438,7 @@ argocd account generate-token --account <account-name>`,
 			})
 			errors.CheckError(err)
 			fmt.Println(response.Token)
-		},
+		}),
 	}
 	cmd.Flags().StringVarP(&account, "account", "a", "", "Account name. Defaults to the current account.")
 	cmd.Flags().StringVarP(&expiresIn, "expires-in", "e", "0s", "Duration before the token will expire. (Default: No expiration)")
@@ -456,7 +456,7 @@ argocd account delete-token ID
 
 # Delete token of the account with the specified name
 argocd account delete-token --account <account-name> ID`,
-		Run: func(c *cobra.Command, args []string) {
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) != 1 {
@@ -466,7 +466,7 @@ argocd account delete-token --account <account-name> ID`,
 			id := args[0]
 
 			clientset := headless.NewClientOrDie(clientOpts, c)
-			conn, client := clientset.NewAccountClientOrDie()
+			conn, client := clientset.NewAccountClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
 			if account == "" {
 				account = getCurrentAccount(ctx, clientset).Username
@@ -479,7 +479,7 @@ argocd account delete-token --account <account-name> ID`,
 			} else {
 				fmt.Printf("The command to delete '%s' was cancelled.\n", id)
 			}
-		},
+		}),
 	}
 	cmd.Flags().StringVarP(&account, "account", "a", "", "Account name. Defaults to the current account.")
 	return cmd
@@ -503,9 +503,9 @@ argocd account session-token -o json
 # Use in scripts
 export ARGOCD_AUTH_TOKEN=$(argocd account session-token)
 curl -H "Authorization: Bearer $ARGOCD_AUTH_TOKEN" $ARGOCD_SERVER/api/v1/applications`,
-		Run: func(_ *cobra.Command, _ []string) {
+		Run: cli.WithSignalContext(func(c *cobra.Command, _ []string, _ context.CancelFunc) {
 			// Create client first - this handles token refresh automatically
-			_, err := argocdclient.NewClient(clientOpts)
+			_, err := argocdclient.NewClientWithContext(c.Context(), clientOpts)
 			if err != nil {
 				if strings.Contains(err.Error(), "invalid_grant") && strings.Contains(err.Error(), "Invalid refresh_token") {
 					log.Fatal("Refresh token is invalid or expired. Please run 'argocd relogin' to re-authenticate")
@@ -566,7 +566,7 @@ curl -H "Authorization: Bearer $ARGOCD_AUTH_TOKEN" $ARGOCD_SERVER/api/v1/applica
 			default:
 				fmt.Println(configCtx.User.AuthToken)
 			}
-		},
+		}),
 	}
 	cmd.Flags().StringVarP(&output, "output", "o", "", "Output format (json)")
 	return cmd

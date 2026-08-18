@@ -1,5 +1,5 @@
 import * as React from 'react';
-import {FormApi} from 'react-form';
+import {FormApi} from 'argo-ui';
 import * as models from '../../../shared/models';
 import {CreatePanelSourceTypeParameters} from './create-panel-source-type-parameters';
 import {SourcePanel} from './source-panel';

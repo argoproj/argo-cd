@@ -15,6 +15,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v3/util/assets"
 	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
@@ -206,6 +207,12 @@ argocd admin settings rbac can someuser create application 'default/app' --defau
 			// a policy, use this to check for enforce.
 			if newDefaultRole != "" && defaultRole == "" {
 				defaultRole = newDefaultRole
+			}
+
+			// In quiet mode, only the Yes/No result matters, so raise the log
+			// level to suppress the advisory group-binding warning.
+			if quiet {
+				log.SetLevel(log.ErrorLevel)
 			}
 
 			res := checkPolicy(subject, action, resource, subResource, builtinPolicy, userPolicy, defaultRole, matchMode, strict)
@@ -413,7 +420,64 @@ func checkPolicy(subject, action, resource, subResource, builtinPolicy, userPoli
 			subResource = "*/*"
 		}
 	}
-	return enf.Enforce(subject, realResource, action, subResource)
+	result := enf.Enforce(subject, realResource, action, subResource)
+	if result {
+		warnIfUnenforcedGroupGrant(enf, subject, realResource, action, subResource)
+	}
+	return result
+}
+
+// warnIfUnenforcedGroupGrant warns when a group subject has a grant of its own
+// but no `g,` binding. The API server only evaluates a group that appears in a
+// grouping policy (see server/rbacpolicy.EnforceClaims), so such a grant is
+// silently ignored at runtime even though this command reports it as allowed.
+func warnIfUnenforcedGroupGrant(enf *rbac.Enforcer, subject, resource, action, subResource string) {
+	if !isGroupSubject(subject) {
+		return
+	}
+	if !hasDirectGrant(enf, subject, resource, action, subResource) {
+		return
+	}
+	if hasGroupBinding(enf, subject) {
+		return
+	}
+	log.Warnf("subject %q is a group with a direct 'p,' policy but no 'g, %s, role:...' binding; "+
+		"the API server ignores such grants at runtime, so this permission will NOT take effect. "+
+		"Bind the group to a role instead.", subject, subject)
+}
+
+// isGroupSubject reports whether the subject looks like an SSO group ("org:team")
+// rather than a role, project role, or local user (which contain no ":").
+func isGroupSubject(subject string) bool {
+	if strings.HasPrefix(subject, "role:") || rbacpolicy.IsProjectSubject(subject) {
+		return false
+	}
+	return strings.Contains(subject, ":")
+}
+
+// hasDirectGrant reports whether the subject is granted the request by its own
+// policy, ignoring the default role (which is enforced independently of groups).
+func hasDirectGrant(enf *rbac.Enforcer, subject, resource, action, subResource string) bool {
+	casbinEnf := enf.CreateEnforcerWithRuntimePolicy("", "")
+	ok, err := casbinEnf.Enforce(subject, resource, action, subResource)
+	return err == nil && ok
+}
+
+// hasGroupBinding reports whether a grouping ("g,") policy binds the subject to
+// a role, using the same GetGroupingPolicy primitive as EnforceClaims.
+func hasGroupBinding(enf *rbac.Enforcer, subject string) bool {
+	casbinEnf := enf.CreateEnforcerWithRuntimePolicy("", "")
+	groupingPolicies, err := casbinEnf.GetGroupingPolicy()
+	if err != nil {
+		log.WithError(err).Warn("could not read grouping policy to check group binding")
+		return false
+	}
+	for _, gp := range groupingPolicies {
+		if len(gp) > 0 && gp[0] == subject {
+			return true
+		}
+	}
+	return false
 }
 
 // resolveRBACResourceName resolves a user supplied value to a valid RBAC

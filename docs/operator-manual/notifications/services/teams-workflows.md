@@ -22,7 +22,7 @@ The service supports the following Microsoft Teams Workflows webhook URL pattern
 ## Configuration
 
 1. Open `Teams` and go to the channel you wish to set notifications for
-2. Click on the 3 dots next to the channel name
+2. Click on the three dots next to the channel name
 3. Select`Workflows`
 4. Click on `Manage`
 5. Click `New flow`

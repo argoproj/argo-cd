@@ -33,6 +33,7 @@ import (
 	appsetutils "github.com/argoproj/argo-cd/v3/applicationset/utils"
 	argocommon "github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/applicationset"
+	eventspb "github.com/argoproj/argo-cd/v3/pkg/apiclient/events"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 	applisters "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
@@ -47,6 +48,8 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/security"
 	"github.com/argoproj/argo-cd/v3/util/session"
 	"github.com/argoproj/argo-cd/v3/util/settings"
+
+	serverevents "github.com/argoproj/argo-cd/v3/server/events"
 )
 
 type Server struct {
@@ -638,7 +641,7 @@ func (s *Server) getAppSetEnforceRBAC(ctx context.Context, action, namespace, na
 }
 
 // ListResourceEvents returns a list of event resources for an applicationset
-func (s *Server) ListResourceEvents(ctx context.Context, q *applicationset.ApplicationSetGetQuery) (*corev1.EventList, error) {
+func (s *Server) ListResourceEvents(ctx context.Context, q *applicationset.ApplicationSetGetQuery) (*eventspb.EventList, error) {
 	namespace := s.appsetNamespaceOrDefault(q.AppsetNamespace)
 
 	appset, err := s.getAppSetEnforceRBAC(ctx, rbac.ActionGet, namespace, q.Name)
@@ -658,5 +661,5 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *applicationset.Appli
 	if err != nil {
 		return nil, fmt.Errorf("error listing resource events: %w", err)
 	}
-	return list.DeepCopy(), nil
+	return serverevents.K8sEventListToAPIEventList(list), nil
 }

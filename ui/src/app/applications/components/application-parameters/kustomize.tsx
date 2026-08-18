@@ -1,6 +1,6 @@
 import {Checkbox} from 'argo-ui';
 import * as React from 'react';
-import {FieldApi, FormField as ReactFormField} from 'react-form';
+import {FieldApi, FormFieldHOC as ReactFormField} from 'argo-ui';
 
 import {format, parse} from './kustomize-image';
 

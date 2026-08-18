@@ -9,8 +9,8 @@ import (
 	gpgkeypkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/gpgkey"
 	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/db"
-	"github.com/argoproj/argo-cd/v3/util/gpg"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
+	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
 )
 
 // Server provides a service of type GPGKeyService
@@ -51,9 +51,9 @@ func (s *Server) Get(ctx context.Context, q *gpgkeypkg.GnuPGPublicKeyQuery) (*ap
 		return nil, err
 	}
 
-	keyID := gpg.KeyID(q.KeyID)
-	if keyID == "" {
-		return nil, errors.New("KeyID is malformed or empty")
+	keyID, err := sourceintegrity.KeyID(q.KeyID)
+	if err != nil {
+		return nil, err
 	}
 
 	keys, err := s.db.ListConfiguredGPGPublicKeys(ctx)
