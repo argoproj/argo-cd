@@ -134,7 +134,7 @@ Using the UI:
 
     ![connect repo overview](../assets/repo-add-overview.png)
 
-2. Click `Connect Repo using GitHub App` button, choose type: `GitHub` or `GitHub Enterprise`, enter the URL, App Id, Installation Id (optional), and the app's private key.
+2. Click `Connect Repo using GitHub App` button, choose type: `GitHub` or `GitHub Enterprise`, and enter the URL. For a read repository, either enter the App ID, Installation ID (optional), and the app's private key, or leave the GitHub App and TLS client authentication fields empty to use a matching credentials template.
 
 > [!NOTE]
 > Enter the GitHub Enterprise Base URL for type `GitHub Enterprise`.
@@ -547,4 +547,3 @@ Submodules are supported and will be picked up automatically. If the submodule r
 ## Declarative Configuration
 
 See [declarative setup](../operator-manual/declarative-setup.md#repositories)
-
