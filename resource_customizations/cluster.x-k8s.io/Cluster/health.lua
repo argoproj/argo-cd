@@ -15,6 +15,12 @@ function getStatusBasedOnPhase(obj, hs)
 end
 
 function getReadyContitionStatus(obj, hs)
+    -- Ready summarizes ControlPlaneReady + InfrastructureReady and is expected to be
+    -- False for the entire Pending/Provisioning window, not just on error:
+    local phase = obj.status ~= nil and obj.status.phase or nil
+    if phase == "Pending" or phase == "Provisioning" then
+        return hs
+    end
     if obj.status ~= nil and obj.status.conditions ~= nil then
         for i, condition in ipairs(obj.status.conditions) do
         if condition.type == "Ready" and condition.status == "False" then
