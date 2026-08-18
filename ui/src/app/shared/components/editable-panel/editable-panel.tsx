@@ -233,7 +233,15 @@ function EditablePanel<T extends {} = {}>({
                                 getApi={api => (formApiRef.current = api)}
                                 formDidUpdate={async form => {
                                     if (noReadonlyMode && save) {
-                                        await save(form.values as any, {});
+                                        // Only auto-save when the form values actually changed. When a save
+                                        // updates the parent, the `values` prop changes and the effect above
+                                        // calls setAllValues(values), which re-fires formDidUpdate with the
+                                        // already-saved values. Without this guard those echoes trigger another
+                                        // save, feeding back into `values` and re-triggering the sync — an
+                                        // infinite render loop ("Maximum update depth exceeded"), see #29097.
+                                        if (JSON.stringify(form.values) !== JSON.stringify(values)) {
+                                            await save(form.values as any, {});
+                                        }
                                     }
                                 }}
                                 onSubmit={handleSubmit}

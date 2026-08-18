@@ -193,6 +193,37 @@ describe('EditablePanel – noReadonlyMode', () => {
         // save() should have been called at least once via formDidUpdate
         expect(save).toHaveBeenCalled();
     });
+
+    // Regression for #29097: syncing an externally updated `values` prop into the
+    // form must NOT re-trigger the auto-save. When the parent updates `values` in
+    // response to a save (e.g. the New App panel mirrors state back via
+    // setAllValues), the effect calls setAllValues(values) which re-fires
+    // formDidUpdate with the already-saved values. If that echo saves again it
+    // feeds back into `values` and loops forever ("Maximum update depth exceeded").
+    test('does not auto-save when syncing an externally updated values prop (no render loop)', async () => {
+        const save = jest.fn().mockResolvedValue(undefined);
+        const editItems: EditablePanelItem[] = [
+            {
+                title: 'Name',
+                view: <span>alice</span>,
+                edit: (api: FormApi) => <input value={api.values.name || ''} onChange={e => api.setValue('name', e.target.value)} />,
+            },
+        ];
+
+        const {rerender} = renderPanel(<EditablePanel values={{name: 'v1'}} items={editItems} save={save} noReadonlyMode />);
+
+        // Parent pushes a new value (as if a prior save mirrored state back).
+        await act(async () => {
+            rerender(
+                <Wrapper>
+                    <EditablePanel values={{name: 'v2'}} items={editItems} save={save} noReadonlyMode />
+                </Wrapper>
+            );
+        });
+
+        // The programmatic sync of the external value must not trigger a save.
+        expect(save).not.toHaveBeenCalled();
+    });
 });
 
 // ===========================================================================
