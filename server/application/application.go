@@ -1441,6 +1441,22 @@ func (s *Server) getApplicationClusterConfig(ctx context.Context, a *v1alpha1.Ap
 	return config, nil
 }
 
+// getControlPlaneClusterConfig returns the REST config for the cluster Argo CD itself is running on,
+// for resources which are always stored on the control plane regardless of an Application's
+// spec.destination.
+//
+// This goes through Cluster.RESTConfig() rather than calling rest.InClusterConfig() directly so that
+// ARGOCD_FAKE_IN_CLUSTER keeps working for core/headless mode, and so that the config picks up the
+// same defaults (QPS, timeouts, retries) as every other REST config in the codebase.
+func getControlPlaneClusterConfig() (*rest.Config, error) {
+	controlPlaneCluster := v1alpha1.Cluster{Server: v1alpha1.KubernetesInternalAPIServerAddr}
+	config, err := controlPlaneCluster.RESTConfig()
+	if err != nil {
+		return nil, fmt.Errorf("error getting control plane cluster REST config: %w", err)
+	}
+	return config, nil
+}
+
 // getCachedAppState loads the cached state and trigger app refresh if cache is missing
 func (s *Server) getCachedAppState(ctx context.Context, a *v1alpha1.Application, getFromCache func() error) error {
 	err := getFromCache()
@@ -2587,8 +2603,7 @@ func (s *Server) ListResourceActions(ctx context.Context, q *application.Applica
 
 func (s *Server) getUnstructuredLiveResourceOrApp(ctx context.Context, rbacRequest string, q *application.ApplicationResourceRequest) (obj *unstructured.Unstructured, res *v1alpha1.ResourceNode, app *v1alpha1.Application, config *rest.Config, err error) {
 	if q.GetKind() == applicationType.ApplicationKind && q.GetGroup() == applicationType.Group && q.GetName() == q.GetResourceName() {
-		var p *v1alpha1.AppProject
-		app, p, err = s.getApplicationEnforceRBACInformer(ctx, rbacRequest, q.GetProject(), q.GetAppNamespace(), q.GetName())
+		app, _, err = s.getApplicationEnforceRBACInformer(ctx, rbacRequest, q.GetProject(), q.GetAppNamespace(), q.GetName())
 		if err != nil {
 			return nil, nil, nil, nil, err
 		}
@@ -2601,9 +2616,15 @@ func (s *Server) getUnstructuredLiveResourceOrApp(ctx context.Context, rbacReque
 		if err != nil {
 			return nil, nil, nil, nil, err
 		}
-		config, err = s.getApplicationClusterConfig(ctx, app, p)
+		// Unlike the branch below, which resolves a live resource on the destination cluster, the
+		// object returned here is the Application itself. Applications are always stored on the
+		// control plane cluster, which usually does not even have the Application CRD installed,
+		// so the destination cluster config must not be used. Destination impersonation does not
+		// apply either: a destination service account only exists on the destination cluster.
+		// Access remains governed by the Argo CD RBAC check above.
+		config, err = getControlPlaneClusterConfig()
 		if err != nil {
-			return nil, nil, nil, nil, fmt.Errorf("error getting application cluster config: %w", err)
+			return nil, nil, nil, nil, err
 		}
 		obj, err = kube.ToUnstructured(app)
 	} else {
@@ -2724,6 +2745,22 @@ func (s *Server) RunResourceActionV2(ctx context.Context, q *application.Resourc
 		return nil, err
 	}
 
+	// config addresses the live object, which for an action on an Application is the control plane
+	// cluster. Resources created by the action are a different matter: verifyResourcePermitted below
+	// authorizes them against destCluster, so they must also be created there, otherwise destination
+	// permissions would authorize writes to the control plane. This config is resolved only when the
+	// action actually creates something, so that a patch-only action on an Application is not subject
+	// to destination impersonation enforcement.
+	createConfig := config
+	if res == nil && slices.ContainsFunc(newObjects, func(r lua.ImpactedResource) bool {
+		return r.K8SOperation == lua.CreateOperation
+	}) {
+		createConfig, err = s.getApplicationClusterConfig(ctx, a, proj)
+		if err != nil {
+			return nil, fmt.Errorf("error getting application cluster config: %w", err)
+		}
+	}
+
 	// First, make sure all the returned resources are permitted, for each operation.
 	// Also perform create with dry-runs for all create-operation resources.
 	// This is performed separately to reduce the risk of only some of the resources being successfully created later.
@@ -2737,7 +2774,7 @@ func (s *Server) RunResourceActionV2(ctx context.Context, q *application.Resourc
 		}
 		if impactedResource.K8SOperation == lua.CreateOperation {
 			createOptions := metav1.CreateOptions{DryRun: []string{"All"}}
-			_, err := s.kubectl.CreateResource(ctx, config, newObj.GroupVersionKind(), newObj.GetName(), newObj.GetNamespace(), newObj, createOptions)
+			_, err := s.kubectl.CreateResource(ctx, createConfig, newObj.GroupVersionKind(), newObj.GetName(), newObj.GetNamespace(), newObj, createOptions)
 			if err != nil {
 				return nil, err
 			}
@@ -2764,7 +2801,7 @@ func (s *Server) RunResourceActionV2(ctx context.Context, q *application.Resourc
 				return nil, err
 			}
 		case lua.CreateOperation:
-			_, err := s.createResource(ctx, config, newObj)
+			_, err := s.createResource(ctx, createConfig, newObj)
 			if err != nil {
 				return nil, err
 			}

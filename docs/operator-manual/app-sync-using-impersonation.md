@@ -32,6 +32,9 @@ Impersonation requests first authenticate as the requesting user, then switch to
 
 Impersonation is supported for the lifecycle of objects managed by an Application directly, which includes sync operations (creation, update and pruning of resources) and deletion as part of Application finalizer logic. It is also supported for UI operations triggered by the user.
 
+> [!NOTE]
+> Impersonation does not apply to the `Application` object itself. An `Application` is stored on the Argo CD control plane cluster regardless of its `spec.destination`, so the part of a resource action that patches the `Application` — for example `toggle-auto-sync` — runs against the control plane using the Argo CD service account, and access to it is controlled by [Argo CD RBAC](./rbac.md). This applies only to the `Application` object. Resources that such an action creates are still created on the Application's destination cluster and follow the impersonation rules described on this page.
+
 ## Prerequisites
 
 In a multi-team/multi-tenant environment, a team/tenant is typically granted access to a target namespace to self-manage their kubernetes resources in a declarative way.
