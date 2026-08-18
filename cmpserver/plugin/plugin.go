@@ -39,6 +39,10 @@ var tracer = otel.Tracer("github.com/argoproj/argo-cd/v3/cmpserver/plugin")
 // enough time before the client times out to send a meaningful error message.
 const cmpTimeoutBuffer = 100 * time.Millisecond
 
+// pluginCleanupTimeout is how long a plugin command's process group is given to exit after SIGTERM
+// before it is killed.
+const pluginCleanupTimeout = 5 * time.Second
+
 // Service implements ConfigManagementPluginService interface
 type Service struct {
 	initConstants CMPServerInitConstants
@@ -104,29 +108,16 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
-	// Make sure the command is killed immediately on timeout. https://stackoverflow.com/a/38133948/684776
-	cmd.SysProcAttr = newSysProcAttr(true)
+	// Terminate the whole process group on timeout, so that a plugin's own children are killed
+	// along with it, and give the plugin a moment to clean up before it is reaped.
+	stopEscalation := argoexec.TerminateGroupOnCancel(cmd, pluginCleanupTimeout)
+	defer stopEscalation()
 
 	start := time.Now()
 	err = cmd.Start()
 	if err != nil {
 		return "", err
 	}
-
-	go func() {
-		<-ctx.Done()
-		// Kill by group ID to make sure child processes are killed. The - tells `kill` that it's a group ID.
-		// Since we didn't set Pgid in SysProcAttr, the group ID is the same as the process ID. https://pkg.go.dev/syscall#SysProcAttr
-
-		// Sending a TERM signal first to allow any potential cleanup if needed, and then sending a KILL signal
-		_ = sysCallTerm(-cmd.Process.Pid)
-
-		// modify cleanup timeout to allow process to cleanup
-		cleanupTimeout := 5 * time.Second
-		time.Sleep(cleanupTimeout)
-
-		_ = sysCallKill(-cmd.Process.Pid)
-	}()
 
 	err = cmd.Wait()
 
