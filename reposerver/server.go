@@ -1,6 +1,7 @@
 package reposerver
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
@@ -40,6 +41,8 @@ type ArgoCDRepoServer struct {
 	// healthCheckClientCert is an ephemeral cert generated at startup for the liveness probe self-connection.
 	// It is nil when mTLS is not enabled.
 	healthCheckClientCert *tls.Certificate
+	// cancelRequests aborts the context of every in-flight request. See CancelRequests.
+	cancelRequests context.CancelFunc
 }
 
 // The hostnames to generate self-signed certificates with
@@ -92,12 +95,15 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 	metricsServer.PrometheusRegistry.MustRegister(serverMetrics)
 
 	serverLog := log.NewEntry(log.StandardLogger())
+	shutdownCtx, cancelRequests := context.WithCancel(context.Background())
 	streamInterceptors := []grpc.StreamServerInterceptor{
+		cancelOnShutdownStreamInterceptor(shutdownCtx),
 		logging.StreamServerInterceptor(grpc_util.InterceptorLogger(serverLog)),
 		serverMetrics.StreamServerInterceptor(),
 		recovery.StreamServerInterceptor(recovery.WithRecoveryHandler(grpc_util.LoggerRecoveryHandler(serverLog))),
 	}
 	unaryInterceptors := []grpc.UnaryServerInterceptor{
+		cancelOnShutdownUnaryInterceptor(shutdownCtx),
 		logging.UnaryServerInterceptor(grpc_util.InterceptorLogger(serverLog)),
 		serverMetrics.UnaryServerInterceptor(),
 		recovery.UnaryServerInterceptor(recovery.WithRecoveryHandler(grpc_util.LoggerRecoveryHandler(serverLog))),
@@ -124,6 +130,7 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 	}
 	repoService := repository.NewService(metricsServer, cache, initConstants, gitCredsStore, filepath.Join(os.TempDir(), "_argocd-repo"))
 	if err := repoService.Init(); err != nil {
+		cancelRequests()
 		return nil, fmt.Errorf("failed to initialize the repo service: %w", err)
 	}
 
@@ -132,7 +139,14 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 		repoService:           repoService,
 		tlsConfig:             tlsConfig,
 		healthCheckClientCert: healthCheckClientCert,
+		cancelRequests:        cancelRequests,
 	}, nil
+}
+
+// CancelRequests cancels the context of every in-flight request, so that subprocesses are signalled
+// and get to clean up. Use it when a graceful drain has run out of time.
+func (a *ArgoCDRepoServer) CancelRequests() {
+	a.cancelRequests()
 }
 
 // CreateGRPC creates new configured grpc server

@@ -2183,3 +2183,60 @@ func Test_fetch_authPromptRewrite(t *testing.T) {
 	// ... and the fix surfaces it as an actionable authentication error (the fix).
 	assert.Contains(t, err.Error(), "failed to authenticate to git repository", "expected the humanized authentication error")
 }
+
+// Test_nativeGitClient_CheckoutCancelled asserts that cancelling a checkout terminates Git
+// gracefully, so that it removes .git/index.lock on the way out. Nothing else ever reclaims a
+// stale index.lock: every later checkout in that repository fails with
+// "Unable to create '.../index.lock': File exists".
+func Test_nativeGitClient_CheckoutCancelled(t *testing.T) {
+	tempDir := t.TempDir()
+	client, err := NewClientExt("file://"+tempDir, tempDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	require.NoError(t, client.Init())
+
+	readme := path.Join(client.Root(), "README")
+	require.NoError(t, os.WriteFile(readme, []byte("Hello.\n"), 0o600))
+	require.NoError(t, os.WriteFile(path.Join(client.Root(), ".gitattributes"), []byte("README filter=slow\n"), 0o600))
+	// A smudge filter keeps the checkout - and therefore index.lock - busy long enough to cancel it.
+	// It touches a sentinel first: Git only unlinks index.lock for signals received after it has
+	// registered the lock for cleanup, which happens after the file itself appears, so waiting for
+	// the lock alone would sometimes cancel inside that window.
+	require.NoError(t, runCmd(t.Context(), client.Root(), "git", "config", "filter.slow.smudge", "sh -c 'touch .filter-started; sleep 10; cat'"))
+	require.NoError(t, runCmd(t.Context(), client.Root(), "git", "add", "README", ".gitattributes"))
+	require.NoError(t, runCmd(t.Context(), client.Root(), "git", "commit", "-m", "initial commit"))
+	sha, err := outputCmd(t.Context(), client.Root(), "git", "rev-parse", "HEAD")
+	require.NoError(t, err)
+	// Removing the file forces the checkout to run the smudge filter.
+	require.NoError(t, os.Remove(readme))
+
+	lockPath := path.Join(client.Root(), ".git", "index.lock")
+	filterStarted := path.Join(client.Root(), ".filter-started")
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	errCh := make(chan error, 1)
+	go func() {
+		_, checkoutErr := client.Checkout(ctx, strings.TrimSpace(string(sha)), false, true)
+		errCh <- checkoutErr
+	}()
+
+	// Cancel only once Git holds the index lock and is inside the filter, so the test cannot pass by
+	// cancelling outside the window this fix is about.
+	require.Eventually(t, func() bool {
+		_, lockErr := os.Stat(lockPath)
+		_, filterErr := os.Stat(filterStarted)
+		return lockErr == nil && filterErr == nil
+	}, 10*time.Second, 5*time.Millisecond, "Git never reached the filter while holding the index lock")
+	cancel()
+	cancelled := time.Now()
+
+	select {
+	case err = <-errCh:
+	case <-time.After(10 * time.Second):
+		t.Fatal("Checkout did not return after its context was cancelled")
+	}
+	// The filter is signalled along with Git, so the rest of its 10s sleep must not hold up the return.
+	assert.Less(t, time.Since(cancelled), 5*time.Second, "checkout should not wait for the smudge filter to finish")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "signal: terminated", "checkout should have been terminated gracefully, not killed")
+	assert.NoFileExists(t, lockPath, "cancelled checkout left a stale index lock")
+}

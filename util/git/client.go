@@ -1802,6 +1802,13 @@ func humanizeAuthPromptError(repoURL string, err error) error {
 
 func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, error) {
 	cmd.Dir = m.root
+	// Terminate gracefully when the context is cancelled. os/exec's default is to SIGKILL the
+	// command, which skips Git's own lock file cleanup and leaves .git/index.lock behind; every
+	// later checkout in that repo then fails with "Unable to create '.../index.lock': File exists"
+	// until the file is removed by hand, since nothing - fetch, clean, gc, or lock age - ever
+	// reclaims a stale index.lock.
+	stopEscalation := executil.TerminateGroupOnCancel(cmd, executil.CancelGrace())
+	defer stopEscalation()
 	cmd.Env = append(os.Environ(), cmd.Env...)
 	// Set $HOME to nowhere, so we can execute Git regardless of any external
 	// authentication keys (e.g. in ~/.ssh) -- this is especially important for
