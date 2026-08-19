@@ -80,13 +80,15 @@ func TestList(t *testing.T) {
 
 	prs, err := svc.List(t.Context())
 	require.NoError(t, err)
-	assert.Len(t, prs, 1)
+	require.Len(t, prs, 2)
 	assert.Equal(t, int64(15442), prs[0].Number)
 	assert.Equal(t, "Draft: Use structured logging for DB load balancer", prs[0].Title)
 	assert.Equal(t, "use-structured-logging-for-db-load-balancer", prs[0].Branch)
 	assert.Equal(t, "master", prs[0].TargetBranch)
 	assert.Equal(t, "2fc4e8b972ff3208ec63b6143e34ad67ff343ad7", prs[0].HeadSHA)
 	assert.Equal(t, "hfyngvason", prs[0].Author)
+	assert.True(t, prs[0].Draft)
+	assert.False(t, prs[1].Draft)
 }
 
 func TestListWithLabels(t *testing.T) {
