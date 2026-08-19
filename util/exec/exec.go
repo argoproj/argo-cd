@@ -54,15 +54,12 @@ func initTimeout() {
 	}
 }
 
-// defaultCancelGrace is the escalation delay used when the configured grace is not positive.
-// ARGOCD_EXEC_FATAL_TIMEOUT=0 disables the timeout path's SIGKILL, but the cancellation path has no
-// other backstop, so it always escalates.
+// defaultCancelGrace applies when the configured grace is not positive: ARGOCD_EXEC_FATAL_TIMEOUT=0
+// disables the timeout path's SIGKILL, but cancellation has no other backstop.
 const defaultCancelGrace = 10 * time.Second
 
-// CancelGrace is how long a cancelled command's process group has to exit before it is killed:
-// ARGOCD_EXEC_FATAL_TIMEOUT when set to a positive value, otherwise defaultCancelGrace. Callers that
-// budget around cancellation must use this rather than the raw setting, so their deadline cannot
-// undercut the grace the command actually gets.
+// CancelGrace is how long a cancelled command has before it is killed. Callers budgeting around
+// cancellation must use this rather than the raw ARGOCD_EXEC_FATAL_TIMEOUT, so as not to undercut it.
 func CancelGrace() time.Duration {
 	if fatalTimeout <= 0 {
 		return defaultCancelGrace
@@ -70,25 +67,18 @@ func CancelGrace() time.Duration {
 	return fatalTimeout
 }
 
-// TerminateGroupOnCancel makes cmd terminate its whole process group when its context is cancelled,
-// escalating to SIGKILL after grace. os/exec otherwise SIGKILLs the direct child immediately, which
-// denies the command any cleanup - Git, for one, leaves .git/index.lock behind, and nothing ever
-// reclaims a stale one - and leaves grandchildren holding the command's pipes.
+// TerminateGroupOnCancel terminates cmd's process group when its context is cancelled: SIGTERM,
+// then SIGKILL after grace. os/exec instead SIGKILLs the command at once, skipping its cleanup - git
+// leaves .git/index.lock behind, and nothing ever reclaims a stale one.
 //
-// cmd must have been created with exec.CommandContext, otherwise Start reports an error. grace is
-// also used as cmd.WaitDelay, so Wait cannot block indefinitely on pipes the group still holds. A
-// grace that is not positive falls back to defaultCancelGrace: nothing else reaps a cancelled
-// command, so without an escalation a command ignoring SIGTERM would block Wait forever.
-//
-// The returned stop must be called once cmd.Wait has returned. Group signals address a process
-// group by the leader's PID, so an escalation left pending after the command is reaped could signal
-// a process group that recycled that PID.
+// cmd must come from exec.CommandContext. grace doubles as cmd.WaitDelay and falls back to
+// defaultCancelGrace. Call the returned stop once cmd.Wait has returned, so a pending escalation
+// cannot signal a process group that has since recycled the PID.
 func TerminateGroupOnCancel(cmd *exec.Cmd, grace time.Duration) (stop func()) {
 	return terminateGroupOnCancel(cmd, grace, SignalProcessGroup)
 }
 
-// terminateGroupOnCancel is TerminateGroupOnCancel with the signalling injected, so that tests can
-// observe the escalation without racing real processes.
+// terminateGroupOnCancel takes the signalling function, so tests can observe the escalation.
 func terminateGroupOnCancel(cmd *exec.Cmd, grace time.Duration, signal func(*exec.Cmd, syscall.Signal) error) (stop func()) {
 	SetChildProcessGroup(cmd)
 	if grace <= 0 {
@@ -100,16 +90,14 @@ func terminateGroupOnCancel(cmd *exec.Cmd, grace time.Duration, signal func(*exe
 	stopped := false
 
 	cmd.Cancel = func() error {
-		// Best effort: an already reaped group is nothing to terminate, and returning that from Cancel
-		// would replace the context error Wait reports with a less useful one.
+		// Best effort: reporting a signal error here would mask the context error on Wait.
 		_ = signal(cmd, syscall.SIGTERM)
 		mu.Lock()
 		defer mu.Unlock()
 		if stopped {
 			return nil
 		}
-		// Anything still alive after the grace period is reaped, the same escalation the timeout
-		// path applies.
+		// Reap whatever ignored SIGTERM, as the timeout path does.
 		escalation = time.AfterFunc(grace, func() {
 			mu.Lock()
 			defer mu.Unlock()
@@ -268,9 +256,7 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
-	// Run the command in its own process group so a timeout can reap the whole
-	// group (the command plus any grandchildren it spawned), not just the
-	// direct child. See signalProcessGroup.
+	// Own process group, so a timeout reaps grandchildren too. See SignalProcessGroup.
 	SetChildProcessGroup(cmd)
 
 	start := time.Now()

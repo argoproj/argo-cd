@@ -249,12 +249,10 @@ func NewCommand() *cobra.Command {
 				select {
 				case <-drained:
 				case <-time.After(shutdownDrainTimeout):
-					// GracefulStop waits for handlers to return but never interrupts them, so a long
-					// manifest generation outlives the drain window and is SIGKILLed along with the
-					// container. Cancelling instead lets Git terminate gracefully and remove its lock
-					// files, which nothing else ever reclaims. Whatever still refuses to finish is left
-					// to the kubelet's SIGKILL at the end of terminationGracePeriodSeconds: a deadline
-					// of our own could only cut that cleanup short.
+					// GracefulStop waits for handlers without interrupting them, so a long manifest
+					// generation outlives the grace period and is SIGKILLed with the container.
+					// Cancelling lets git clean up; whatever still refuses to finish is left to the
+					// kubelet's SIGKILL, since a deadline of our own could only cut that short.
 					log.Warnf("drain window of %v elapsed, cancelling in-flight requests", shutdownDrainTimeout)
 					server.CancelRequests()
 				}

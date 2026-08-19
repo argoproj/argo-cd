@@ -41,7 +41,7 @@ type ArgoCDRepoServer struct {
 	// healthCheckClientCert is an ephemeral cert generated at startup for the liveness probe self-connection.
 	// It is nil when mTLS is not enabled.
 	healthCheckClientCert *tls.Certificate
-	// cancelRequests aborts the context of every in-flight request. See CancelRequests.
+	// cancelRequests aborts every in-flight request. See CancelRequests.
 	cancelRequests context.CancelFunc
 }
 
@@ -143,8 +143,7 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 	}, nil
 }
 
-// CancelRequests cancels the context of every in-flight request, so that subprocesses are signalled
-// and get to clean up. Use it when a graceful drain has run out of time.
+// CancelRequests aborts in-flight requests, so their subprocesses are signalled and can clean up.
 func (a *ArgoCDRepoServer) CancelRequests() {
 	a.cancelRequests()
 }

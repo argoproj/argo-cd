@@ -7,13 +7,10 @@ import (
 	"syscall"
 )
 
-// SetChildProcessGroup is a no-op on Windows, which has no POSIX process
-// groups. Timeout handling falls back to signalling the process directly.
+// SetChildProcessGroup is a no-op: Windows has no POSIX process groups.
 func SetChildProcessGroup(_ *exec.Cmd) {}
 
-// SignalProcessGroup signals the process directly on Windows, preserving the
-// previous best-effort behaviour (os.Process.Signal only meaningfully supports
-// Kill on Windows).
+// SignalProcessGroup signals the process alone; os.Process.Signal only implements Kill on Windows.
 func SignalProcessGroup(cmd *exec.Cmd, sig syscall.Signal) error {
 	if cmd.Process == nil {
 		return nil

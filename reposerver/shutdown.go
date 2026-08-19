@@ -6,11 +6,9 @@ import (
 	"google.golang.org/grpc"
 )
 
-// cancelOnShutdownUnaryInterceptor ties every request context to shutdownCtx, so that cancelling it
-// aborts in-flight work. grpc.GracefulStop() only waits for handlers to return, which for repo-server
-// means waiting out a Git operation that may run for minutes - long past the container's termination
-// grace period, at which point the kubelet SIGKILLs the whole cgroup and Git leaves its lock files
-// behind. Cancelling instead lets Git terminate gracefully and clean up.
+// cancelOnShutdownUnaryInterceptor ties request contexts to shutdownCtx, so cancelling it aborts
+// in-flight work. GracefulStop only waits for handlers, so a long git operation instead runs past the
+// container's grace period and loses its cleanup to the kubelet's SIGKILL.
 func cancelOnShutdownUnaryInterceptor(shutdownCtx context.Context) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
 		ctx, cancel := context.WithCancel(ctx)
