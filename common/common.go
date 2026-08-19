@@ -126,6 +126,8 @@ const (
 	ArgoCDUserAgentName = "argocd-client"
 	// ArgoCDSSAManager is the default argocd manager name used by server-side apply syncs
 	ArgoCDSSAManager = "argocd-controller"
+	// ArgoCDStatusManager is the default argocd manager name used for application status updates
+	ArgoCDStatusManager = "argocd-controller-status"
 	// AuthCookieName is the HTTP cookie name where we store our auth token
 	AuthCookieName = "argocd.token"
 	// StateCookieName is the HTTP cookie name that holds temporary nonce tokens for CSRF protection

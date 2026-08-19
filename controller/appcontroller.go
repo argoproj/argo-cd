@@ -2472,7 +2472,7 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 	defer func() {
 		patchDuration = time.Since(start)
 	}()
-	_, err = ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, patch, metav1.PatchOptions{})
+	_, err = ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, patch, metav1.PatchOptions{FieldManager: common.ArgoCDStatusManager})
 	if err != nil {
 		spanErr = err
 		if apierrors.IsRequestEntityTooLargeError(err) {
@@ -2503,7 +2503,7 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 			if !modified {
 				return patchDuration
 			}
-			if _, fbErr := ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, fallbackPatch, metav1.PatchOptions{}); fbErr != nil {
+			if _, fbErr := ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, fallbackPatch, metav1.PatchOptions{FieldManager: common.ArgoCDStatusManager}); fbErr != nil {
 				logCtx.WithError(fbErr).Error("Error persisting fallback status with error condition")
 			}
 			return patchDuration

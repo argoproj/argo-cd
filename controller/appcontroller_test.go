@@ -4463,3 +4463,47 @@ func TestHandleRefreshAnnotation(t *testing.T) {
 		}, capturedPatches[0], "patch without timestamp should only remove the refresh annotation, no test op")
 	})
 }
+
+func TestPersistAppStatus_UsesStatusFieldManager(t *testing.T) {
+	app := newFakeApp()
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	fakeAppCs.ReactionChain = nil
+
+	var capturedFieldManager string
+	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (bool, runtime.Object, error) {
+		if patchActionImpl, ok := action.(kubetesting.PatchActionImpl); ok {
+			capturedFieldManager = patchActionImpl.PatchOptions.FieldManager
+		}
+		return true, app, nil
+	})
+
+	newStatus := app.Status.DeepCopy()
+	newStatus.Sync.Status = v1alpha1.SyncStatusCodeOutOfSync
+	ctrl.persistAppStatus(t.Context(), app, newStatus)
+
+	assert.Equal(t, common.ArgoCDStatusManager, capturedFieldManager, "persistAppStatus must use ArgoCDStatusManager to prevent SSA field ownership collision")
+	assert.NotEqual(t, common.ArgoCDSSAManager, capturedFieldManager, "status field manager must differ from ArgoCDSSAManager")
+}
+
+func TestNormalizeApplication_DoesNotUseStatusFieldManager(t *testing.T) {
+	app := newFakeApp()
+	// Modify spec so normalizeApplication produces a diff and triggers PatchAppWithWriteBack
+	app.Spec.Source.RepoURL = "https://github.com/argoproj/argo-cd.git/"
+
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	fakeAppCs.ReactionChain = nil
+
+	var capturedFieldManager string
+	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (bool, runtime.Object, error) {
+		if patchActionImpl, ok := action.(kubetesting.PatchActionImpl); ok {
+			capturedFieldManager = patchActionImpl.PatchOptions.FieldManager
+		}
+		return true, app, nil
+	})
+
+	ctrl.normalizeApplication(app)
+
+	assert.NotEqual(t, common.ArgoCDStatusManager, capturedFieldManager, "spec normalization patch must not use status field manager")
+}
