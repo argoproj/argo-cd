@@ -77,6 +77,7 @@ func (g *GiteaService) List(ctx context.Context) ([]*PullRequest, error) {
 			HeadSHA:      pr.Head.Sha,
 			Labels:       getGiteaPRLabelNames(pr.Labels),
 			Author:       pr.Poster.UserName,
+			Draft:        pr.Draft,
 		})
 	}
 	return list, nil

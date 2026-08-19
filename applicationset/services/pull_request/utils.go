@@ -31,6 +31,9 @@ func compileFilters(filters []argoprojiov1alpha1.PullRequestGeneratorFilter) ([]
 				return nil, fmt.Errorf("error compiling TitleMatch regexp %q: %w", *filter.TitleMatch, err)
 			}
 		}
+		if filter.IgnoreDraft != nil {
+			outFilter.IgnoreDraft = *filter.IgnoreDraft
+		}
 		outFilters = append(outFilters, outFilter)
 	}
 	return outFilters, nil
@@ -44,6 +47,9 @@ func matchFilter(pullRequest *PullRequest, filter *Filter) bool {
 		return false
 	}
 	if filter.TitleMatch != nil && !filter.TitleMatch.MatchString(pullRequest.Title) {
+		return false
+	}
+	if filter.IgnoreDraft && pullRequest.Draft {
 		return false
 	}
 

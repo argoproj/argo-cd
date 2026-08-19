@@ -781,6 +781,7 @@ type PullRequestGeneratorFilter struct {
 	BranchMatch       *string `json:"branchMatch,omitempty" protobuf:"bytes,1,opt,name=branchMatch"`
 	TargetBranchMatch *string `json:"targetBranchMatch,omitempty" protobuf:"bytes,2,opt,name=targetBranchMatch"`
 	TitleMatch        *string `json:"titleMatch,omitempty" protobuf:"bytes,3,op,name=titleMatch"`
+	IgnoreDraft       *bool   `json:"ignoreDraft,omitempty" protobuf:"varint,4,opt,name=ignoreDraft"`
 }
 
 type PluginConfigMapRef struct {
