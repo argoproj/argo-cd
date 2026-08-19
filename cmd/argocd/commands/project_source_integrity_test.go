@@ -936,14 +936,6 @@ func TestProjectSourceIntegrityGpgInspectRepoCommand_SinglePassingSource(t *test
 		"WARNING: Project does not have strict Git/GPG mode enabled. Strict GPG verification is not actually enforced.",
 		"",
 		"Source passes strict Git/GPG source integrity checks.",
-		"",
-		"To inspect repository:",
-		"  git fetch --tags",
-		"  git checkout abcd1234",
-		"  git log --oneline abcd1234",
-		"",
-		"To create seal commit (this will trust all problematic commits before the seal commit):",
-		"  git commit --allow-empty --signoff --gpg-sign --trailer=\"Argocd-gpg-seal: <justification>\"",
 	}
 	expectedStdout := strings.Join(stdoutParts, "\n") + "\n"
 
