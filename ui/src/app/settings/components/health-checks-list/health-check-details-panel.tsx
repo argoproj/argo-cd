@@ -92,7 +92,7 @@ export const HealthCheckDetailsPanel: React.FC<HealthCheckDetailsPanelProps> = (
                                 />
                             ) : (
                                 <div className='p-3 text-muted' style={{padding: '1em'}}>
-                                    No Lua script source code available for this health check.
+                                    No Lua script source code available or you lack permissions to view Lua script source code.
                                 </div>
                             )}
                         </div>

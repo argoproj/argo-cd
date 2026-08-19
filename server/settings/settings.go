@@ -15,6 +15,7 @@ import (
 	settingspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/settings"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/lua"
+	rbac "github.com/argoproj/argo-cd/v3/util/rbac"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
@@ -23,6 +24,7 @@ type Server struct {
 	mgr                       *settings.SettingsManager
 	repoClient                apiclient.Clientset
 	authenticator             Authenticator
+	enf                       *rbac.Enforcer
 	disableAuth               bool
 	appsInAnyNamespaceEnabled bool
 	hydratorEnabled           bool
@@ -34,12 +36,13 @@ type Authenticator interface {
 }
 
 // NewServer returns a new instance of the Settings service
-func NewServer(mgr *settings.SettingsManager, repoClient apiclient.Clientset, authenticator Authenticator, disableAuth, appsInAnyNamespaceEnabled bool, hydratorEnabled bool, syncWithReplaceAllowed bool) *Server {
-	return &Server{mgr: mgr, repoClient: repoClient, authenticator: authenticator, disableAuth: disableAuth, appsInAnyNamespaceEnabled: appsInAnyNamespaceEnabled, hydratorEnabled: hydratorEnabled, syncWithReplaceAllowed: syncWithReplaceAllowed}
+func NewServer(mgr *settings.SettingsManager, repoClient apiclient.Clientset, authenticator Authenticator, enf *rbac.Enforcer, disableAuth, appsInAnyNamespaceEnabled bool, hydratorEnabled bool, syncWithReplaceAllowed bool) *Server {
+	return &Server{mgr: mgr, repoClient: repoClient, authenticator: authenticator, enf: enf, disableAuth: disableAuth, appsInAnyNamespaceEnabled: appsInAnyNamespaceEnabled, hydratorEnabled: hydratorEnabled, syncWithReplaceAllowed: syncWithReplaceAllowed}
 }
 
 // Get returns Argo CD settings
 func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settingspkg.Settings, error) {
+
 	resourceOverrides, err := s.mgr.GetResourceOverrides()
 	if err != nil {
 		return nil, err
@@ -209,14 +212,27 @@ func (s *Server) GetHealthChecks(ctx context.Context, _ *settingspkg.SettingsQue
 		return nil, fmt.Errorf("error enumerating health checks: %w", err)
 	}
 
+	canViewLua := s.disableAuth
+	if !canViewLua {
+		if s.enf != nil {
+			canViewLua = s.enf.Enforce(ctx.Value("claims"), "settings", "get", "")
+		} else {
+			canViewLua = sessionmgr.LoggedIn(ctx)
+		}
+	}
+
 	var items []*settingspkg.HealthCheckItem
 	for _, def := range healthDefs {
+		luaScript := ""
+		if canViewLua {
+			luaScript = def.LuaScript
+		}
 		items = append(items, &settingspkg.HealthCheckItem{
 			Group:       def.Group,
 			Kind:        def.Kind,
 			Key:         def.Key,
 			Origin:      string(def.Origin),
-			LuaScript:   def.LuaScript,
+			LuaScript:   luaScript,
 			UseOpenLibs: def.UseOpenLibs,
 			IsWildcard:  def.IsWildcard,
 		})
@@ -224,6 +240,8 @@ func (s *Server) GetHealthChecks(ctx context.Context, _ *settingspkg.SettingsQue
 
 	return &settingspkg.HealthChecksListResponse{HealthChecks: items}, nil
 }
+
+
 
 // AuthFuncOverride disables authentication for settings service
 func (s *Server) AuthFuncOverride(ctx context.Context, fullMethodName string) (context.Context, error) {

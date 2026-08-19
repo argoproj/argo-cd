@@ -101,19 +101,22 @@ func EnumerateHealthChecks(overrides ResourceHealthOverrides) ([]HealthCheckDefi
 		group, kind := parseGroupAndKind(key)
 
 		// Determine if key overrides a built-in check
-		isOverride := builtinKeys[key]
-		if !isOverride {
-			if isWildcard {
+		isOverride := false
+		for bKey := range builtinKeys {
+			if key == bKey {
 				isOverride = true
-			} else {
-				for bKey := range builtinKeys {
-					if strings.Contains(bKey, "*") && argoglob.Match(bKey, key) {
-						isOverride = true
-						break
-					}
-				}
+				break
+			}
+			if strings.Contains(bKey, "*") && argoglob.Match(bKey, key) {
+				isOverride = true
+				break
+			}
+			if isWildcard && argoglob.Match(key, bKey) {
+				isOverride = true
+				break
 			}
 		}
+
 
 		origin := HealthCheckOriginCustomLua
 		if isOverride {

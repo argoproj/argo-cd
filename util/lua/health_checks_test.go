@@ -120,6 +120,41 @@ func TestEnumerateHealthChecks_CustomAndOverride(t *testing.T) {
 	assert.Equal(t, "hs = {status = 'Healthy', message = 'Custom GCP Bar'}\nreturn hs", gcpBarDef.LuaScript)
 }
 
+func TestEnumerateHealthChecks_WildcardOrigins(t *testing.T) {
+	overrides := ResourceHealthOverrides{
+		// Custom wildcard with NO built-in overlap -> CustomLua
+		"mycustom.io/*": appv1.ResourceOverride{
+			HealthLua: "hs = {status = 'Healthy'}\nreturn hs",
+		},
+		// Custom wildcard overlapping a built-in definition (apps/Deployment) -> OverrideLua
+		"apps/*": appv1.ResourceOverride{
+			HealthLua: "hs = {status = 'Healthy'}\nreturn hs",
+		},
+	}
+
+	defs, err := EnumerateHealthChecks(overrides)
+	require.NoError(t, err)
+
+	var myCustomWildcard, appsWildcard *HealthCheckDefinition
+	for i := range defs {
+		d := &defs[i]
+		if d.Key == "mycustom.io/*" {
+			myCustomWildcard = d
+		} else if d.Key == "apps/*" {
+			appsWildcard = d
+		}
+	}
+
+	require.NotNil(t, myCustomWildcard, "expected mycustom.io/* def")
+	assert.Equal(t, HealthCheckOriginCustomLua, myCustomWildcard.Origin, "custom wildcard without built-in overlap must be CustomLua")
+	assert.True(t, myCustomWildcard.IsWildcard)
+
+	require.NotNil(t, appsWildcard, "expected apps/* def")
+	assert.Equal(t, HealthCheckOriginOverrideLua, appsWildcard.Origin, "custom wildcard overlapping built-in definitions must be OverrideLua")
+	assert.True(t, appsWildcard.IsWildcard)
+}
+
+
 func TestEnumerateHealthChecks_DeterministicOrderingAndNoDuplicates(t *testing.T) {
 	overrides := ResourceHealthOverrides{
 		"zebra.io/Zebra": appv1.ResourceOverride{HealthLua: "return {}"},
