@@ -189,7 +189,7 @@ func SetProjSpecOptions(flags *pflag.FlagSet, spec *v1alpha1.AppProjectSpec, pro
 			spec.SourceRepos = projOpts.Sources
 		// TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
 		case "signature-keys":
-			log.Warn("Warning: SignatureKeys are deprecated. Use SourceIntegrity instead.")
+			log.Warn("Warning: --signature-keys option is deprecated. Configure Source Integrity instead with: argocd proj source-integrity git policies ...")
 			spec.SignatureKeys = projOpts.GetSignatureKeys() // nolint:staticcheck
 		case "allow-cluster-resource":
 			spec.ClusterResourceWhitelist = projOpts.GetAllowedClusterResources()

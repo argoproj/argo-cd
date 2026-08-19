@@ -71,5 +71,5 @@ func TestProjectOpts_SetProjSpecOptions_SignatureKeysWarns(t *testing.T) {
 
 	assert.Equal(t, 1, visited)
 	assert.Equal(t, []v1alpha1.SignatureKey{{KeyID: "1234ABCD1234ABCD"}}, spec.SignatureKeys) // nolint:staticcheck
-	assert.Equal(t, []string{"Warning: SignatureKeys are deprecated. Use SourceIntegrity instead."}, hook.GetEntries())
+	assert.Equal(t, []string{"Warning: --signature-keys option is deprecated. Configure Source Integrity instead with: argocd proj source-integrity git policies ..."}, hook.GetEntries())
 }
