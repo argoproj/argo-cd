@@ -118,6 +118,12 @@ Custom health checks can be defined in
 ```
 field of `argocd-cm`. If you are using argocd-operator, this is overridden by [the argocd-operator resourceCustomizations](https://argocd-operator.readthedocs.io/en/latest/reference/argocd/#resource-customizations).
 
+> [!NOTE]
+> The `<group>_` prefix is used for resources that belong to an API group (for example, `resource.customizations.health.batch_Job` for `batch/Job`).
+> Core Kubernetes resources (such as `PersistentVolumeClaim`, `Pod`, or `Service`) do not belong to an API group. For core resources, omit the `<group>_` prefix and use the resource kind directly:
+>
+> `resource.customizations.health.PersistentVolumeClaim`
+
 The following example demonstrates a health check for `cert-manager.io/Certificate`.
 
 ```yaml
