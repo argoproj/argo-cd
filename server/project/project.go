@@ -410,13 +410,30 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 	getProjectClusters := func(project string) ([]*v1alpha1.Cluster, error) {
 		return s.db.GetProjectClusters(ctx, project)
 	}
+	projectRepos, err := s.db.GetProjectRepositories(q.Project.Name)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get project repositories: %w", err)
+	}
+	oldProjWithScopedRepos := oldProj.DeepCopy()
+	updatedProjWithScopedRepos := q.Project.DeepCopy()
+	for _, repo := range projectRepos {
+		oldProjWithScopedRepos.Spec.SourceRepos = append(oldProjWithScopedRepos.Spec.SourceRepos, repo.Repo)
+		updatedProjWithScopedRepos.Spec.SourceRepos = append(updatedProjWithScopedRepos.Spec.SourceRepos, repo.Repo)
+	}
 
 	invalidSrcCount := 0
 	invalidDstCount := 0
 
 	for _, a := range argo.FilterByProjects(appsList.Items, []string{q.Project.Name}) {
-		if oldProj.IsSourcePermitted(a.Spec.GetSource()) && !q.Project.IsSourcePermitted(a.Spec.GetSource()) {
-			invalidSrcCount++
+		sources := a.Spec.GetSources()
+		if a.Spec.SourceHydrator != nil {
+			sources = append(sources, a.Spec.SourceHydrator.GetDrySource())
+		}
+		for _, source := range sources {
+			if oldProjWithScopedRepos.IsSourcePermitted(source) && !updatedProjWithScopedRepos.IsSourcePermitted(source) {
+				invalidSrcCount++
+				break
+			}
 		}
 
 		destCluster, err := argo.GetDestinationCluster(ctx, a.Spec.Destination, s.db)
