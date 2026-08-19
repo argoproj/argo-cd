@@ -46,20 +46,20 @@ func TestListPullRequest(t *testing.T) {
 	}
 
 	repoID := uuid.MustParse("11111111-1111-1111-1111-111111111111")
-	repositories := []git.GitRepository{
-		{
-			Id:   &repoID,
-			Name: &repoName,
-		},
-	}
-
 	gitClientMock := &azureMock.Client{}
 	clientFactoryMock := &mocks.AzureDevOpsClientFactory{}
 	clientFactoryMock.EXPECT().GetClient(mock.Anything).Return(gitClientMock, nil)
-	gitClientMock.EXPECT().GetRepositories(mock.Anything, git.GetRepositoriesArgs{
-		Project: &teamProject,
+
+	repository := git.GitRepository{
+		Id:   &repoID,
+		Name: &repoName,
+	}
+
+	gitClientMock.EXPECT().GetRepository(mock.Anything, git.GetRepositoryArgs{
+		Project:      &teamProject,
+		RepositoryId: &repoName,
 	}).
-		Return(&repositories, nil)
+		Return(&repository, nil)
 	gitClientMock.EXPECT().
 		GetPullRequestsByProject(mock.Anything, git.GetPullRequestsByProjectArgs{
 			Project: &teamProject,
@@ -95,13 +95,6 @@ func TestAzureDevOpsListPullRequestPagination(t *testing.T) {
 	teamProject := "myorg_project"
 	repoName := "myorg_project_repo"
 	repoID := uuid.MustParse("11111111-1111-1111-1111-111111111111")
-
-	repositories := []git.GitRepository{
-		{
-			Id:   &repoID,
-			Name: &repoName,
-		},
-	}
 
 	firstPage := make([]git.GitPullRequest, 100)
 	for i := range firstPage {
@@ -148,11 +141,17 @@ func TestAzureDevOpsListPullRequestPagination(t *testing.T) {
 		GetClient(mock.Anything).
 		Return(gitClientMock, nil)
 
+	repository := git.GitRepository{
+		Id:   &repoID,
+		Name: &repoName,
+	}
+
 	gitClientMock.EXPECT().
-		GetRepositories(mock.Anything, git.GetRepositoriesArgs{
-			Project: &teamProject,
+		GetRepository(mock.Anything, git.GetRepositoryArgs{
+			Project:      &teamProject,
+			RepositoryId: &repoName,
 		}).
-		Return(&repositories, nil)
+		Return(&repository, nil)
 
 	firstSkip := 0
 	secondSkip := 100
@@ -199,13 +198,6 @@ func TestListPullRequestFiltersByRepository(t *testing.T) {
 	teamProject := "myorg_project"
 	repoName := "myorg_project_repo"
 	repoID := uuid.MustParse("11111111-1111-1111-1111-111111111111")
-
-	repositories := []git.GitRepository{
-		{
-			Id:   &repoID,
-			Name: &repoName,
-		},
-	}
 
 	targetPRID := 1
 	targetTitle := "target repository PR"
@@ -261,10 +253,16 @@ func TestListPullRequestFiltersByRepository(t *testing.T) {
 
 	clientFactoryMock.EXPECT().GetClient(mock.Anything).Return(gitClientMock, nil)
 
-	gitClientMock.EXPECT().GetRepositories(mock.Anything, git.GetRepositoriesArgs{
-		Project: &teamProject,
+	repository := git.GitRepository{
+		Id:   &repoID,
+		Name: &repoName,
+	}
+
+	gitClientMock.EXPECT().GetRepository(mock.Anything, git.GetRepositoryArgs{
+		Project:      &teamProject,
+		RepositoryId: &repoName,
 	}).
-		Return(&repositories, nil)
+		Return(&repository, nil)
 
 	skip := 0
 	top := 100
@@ -435,8 +433,9 @@ func TestAzureDevOpsListReturnsRepositoryNotFoundError(t *testing.T) {
 		Return(gitClientMock, nil)
 
 	gitClientMock.EXPECT().
-		GetRepositories(mock.Anything, git.GetRepositoriesArgs{
-			Project: &project,
+		GetRepository(mock.Anything, git.GetRepositoryArgs{
+			Project:      &project,
+			RepositoryId: new("nonexistent"),
 		}).
 		Return(nil, errors.New("The following project does not exist:"))
 

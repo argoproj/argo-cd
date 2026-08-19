@@ -6,7 +6,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/google/uuid"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/core"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/git"
@@ -70,28 +69,18 @@ func (a *AzureDevOpsService) List(ctx context.Context) ([]*PullRequest, error) {
 		return nil, fmt.Errorf("failed to get Azure DevOps client: %w", err)
 	}
 
-	repositories, err := client.GetRepositories(ctx, git.GetRepositoriesArgs{
-		Project: &a.project,
+	repository, err := client.GetRepository(ctx, git.GetRepositoryArgs{
+		Project:      &a.project,
+		RepositoryId: &a.repo,
 	})
 	if err != nil {
 		if strings.Contains(err.Error(), AZURE_DEVOPS_PROJECT_NOT_FOUND_ERROR) {
 			return []*PullRequest{}, NewRepositoryNotFoundError(err)
 		}
-		return nil, fmt.Errorf("failed to get Azure Devops Repositories: %w", err)
+		return nil, fmt.Errorf("failed to get Azure Devops Repository %q: %w", a.repo, err)
 	}
 
-	var repositoryID *uuid.UUID
-	for _, repository := range *repositories {
-		if repository.Name != nil && *repository.Name == a.repo {
-			repositoryID = repository.Id
-			break
-		}
-	}
-	if repositoryID == nil {
-		return []*PullRequest{}, NewRepositoryNotFoundError(
-			fmt.Errorf("repository %q not found in project %q", a.repo, a.project),
-		)
-	}
+	repositoryID := repository.Id
 
 	pullRequests := []*PullRequest{}
 	const pageSize = 100
