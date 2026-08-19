@@ -55,10 +55,11 @@ func TestListPullRequest(t *testing.T) {
 	gitClientMock.EXPECT().GetPullRequestsByProject(mock.Anything, args).Return(&pullRequestMock, nil)
 
 	provider := AzureDevOpsService{
-		clientFactory: clientFactoryMock,
-		project:       teamProject,
-		repo:          repoName,
-		labels:        nil,
+		clientFactory:  clientFactoryMock,
+		project:        teamProject,
+		repo:           repoName,
+		labels:         nil,
+		excludedLabels: nil,
 	}
 
 	list, err := provider.List(ctx)
@@ -219,10 +220,11 @@ func TestAzureDevOpsListReturnsRepositoryNotFoundError(t *testing.T) {
 		errors.New("The following project does not exist:"))
 
 	provider := AzureDevOpsService{
-		clientFactory: clientFactoryMock,
-		project:       "nonexistent",
-		repo:          "nonexistent",
-		labels:        nil,
+		clientFactory:  clientFactoryMock,
+		project:        "nonexistent",
+		repo:           "nonexistent",
+		labels:         nil,
+		excludedLabels: nil,
 	}
 
 	prs, err := provider.List(t.Context())
