@@ -4,7 +4,6 @@ $applications-list-label-min: 5.75rem;
 $applications-list-xxlarge: calc(map-get($breakpoints, xxlarge) - 1px);
 
 .applications-table {
-
     .argo-table-list__row {
         line-height: 26px;
         padding-top: 4px;
@@ -46,22 +45,6 @@ $applications-list-xxlarge: calc(map-get($breakpoints, xxlarge) - 1px);
             color: inherit;
             text-decoration: none;
         }
-
-        // CellLink anchors wrap Source / Labels / Destination cell content. They're
-        // visually identical to the divs they replace (the overlay anchor provides
-        // the visual link semantics); block + min-width:0 preserves the prior
-        // flex/truncation behaviour of those cells.
-        .applications-list__table-row__cell-link {
-            display: block;
-            min-width: 0;
-            color: inherit;
-            text-decoration: none;
-
-            &:hover, &:focus, &:visited, &:active {
-                color: inherit;
-                text-decoration: none;
-            }
-        }
     }
 
     .applications-list__table-row__overlay-link {
@@ -71,7 +54,9 @@ $applications-list-xxlarge: calc(map-get($breakpoints, xxlarge) - 1px);
         color: inherit;
         text-decoration: none;
 
-        &:hover, &:visited, &:active {
+        &:hover,
+        &:visited,
+        &:active {
             color: inherit;
             text-decoration: none;
         }
