@@ -34,6 +34,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/errors"
+	executil "github.com/argoproj/argo-cd/v3/util/exec"
 	"github.com/argoproj/argo-cd/v3/util/healthz"
 	"github.com/argoproj/argo-cd/v3/util/profile"
 	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
@@ -251,10 +252,10 @@ func NewCommand() *cobra.Command {
 				case <-time.After(shutdownDrainTimeout):
 					// GracefulStop waits for handlers without interrupting them, so a long manifest
 					// generation outlives the grace period and is SIGKILLed with the container.
-					// Cancelling lets git clean up; whatever still refuses to finish is left to the
+					// Signalling lets git clean up; whatever still refuses to finish is left to the
 					// kubelet's SIGKILL, since a deadline of our own could only cut that short.
-					log.Warnf("drain window of %v elapsed, cancelling in-flight requests", shutdownDrainTimeout)
-					server.CancelRequests()
+					running := executil.Shutdown()
+					log.Warnf("drain window of %v elapsed, terminating %d in-flight commands", shutdownDrainTimeout, running)
 				}
 			})
 
@@ -269,7 +270,7 @@ func NewCommand() *cobra.Command {
 			return nil
 		},
 	}
-	command.Flags().DurationVar(&shutdownDrainTimeout, "shutdown-drain-timeout", env.ParseDurationFromEnv("ARGOCD_REPO_SERVER_SHUTDOWN_DRAIN_TIMEOUT", 10*time.Second, 0, math.MaxInt32*time.Second), "How long to wait for in-flight requests to finish on shutdown before cancelling them; 0 cancels them as soon as the signal arrives. Keep it below the pod's terminationGracePeriodSeconds, so requests are cancelled before the kubelet's SIGKILL.")
+	command.Flags().DurationVar(&shutdownDrainTimeout, "shutdown-drain-timeout", env.ParseDurationFromEnv("ARGOCD_REPO_SERVER_SHUTDOWN_DRAIN_TIMEOUT", 10*time.Second, 0, math.MaxInt32*time.Second), "How long to wait for in-flight requests to finish on shutdown before terminating the commands they are running; 0 terminates them as soon as the signal arrives. Keep it below the pod's terminationGracePeriodSeconds, so requests are cancelled before the kubelet's SIGKILL.")
 	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_REPO_SERVER_LOGFORMAT", "json"), "Set the logging format. One of: json|text")
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_REPO_SERVER_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().Int64Var(&parallelismLimit, "parallelismlimit", int64(env.ParseNumFromEnv("ARGOCD_REPO_SERVER_PARALLELISM_LIMIT", 0, 0, math.MaxInt32)), "Limit on number of concurrent manifests generate requests. Any value less the 1 means no limit.")

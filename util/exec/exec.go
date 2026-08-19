@@ -259,11 +259,19 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 	// Own process group, so a timeout reaps grandchildren too. See SignalProcessGroup.
 	SetChildProcessGroup(cmd)
 
+	select {
+	case <-shutdown:
+		return "", ErrShuttingDown
+	default:
+	}
+
 	start := time.Now()
 	err = cmd.Start()
 	if err != nil {
 		return "", err
 	}
+	inFlight.Add(1)
+	defer inFlight.Add(-1)
 
 	done := make(chan error)
 	go func() { done <- cmd.Wait() }()
@@ -328,6 +336,23 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 		}
 		logCtx.WithFields(logrus.Fields{"duration": time.Since(start)}).Debug(redactor(output))
 		err = newCmdError(redactor(args), fmt.Errorf("timeout after %v", timeout), "")
+		logCtx.Error(err.Error())
+		return strings.TrimSuffix(output, "\n"), err
+	case <-shutdown:
+		// Signal the group so the command can clean up, then reap it if it ignores SIGTERM.
+		_ = SignalProcessGroup(cmd, syscall.SIGTERM)
+		select {
+		case <-done:
+		case <-time.After(CancelGrace()):
+			_ = SignalProcessGroup(cmd, syscall.SIGKILL)
+			<-done
+		}
+		output := stdout.String()
+		if opts.CaptureStderr {
+			output += stderr.String()
+		}
+		logCtx.WithFields(logrus.Fields{"duration": time.Since(start)}).Debug(redactor(output))
+		err = newCmdError(redactor(args), ErrShuttingDown, strings.TrimSpace(redactor(stderr.String())))
 		logCtx.Error(err.Error())
 		return strings.TrimSuffix(output, "\n"), err
 	case err := <-done:

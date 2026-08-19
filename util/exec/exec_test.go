@@ -1,7 +1,9 @@
 package exec
 
 import (
+	"os"
 	"os/exec"
+	"path"
 	"regexp"
 	"sync"
 	"syscall"
@@ -337,4 +339,47 @@ func TestCancelGrace(t *testing.T) {
 		t.Cleanup(initTimeout)
 		assert.Equal(t, 3*time.Second, CancelGrace())
 	})
+}
+
+func TestShutdownTerminatesRunningCommands(t *testing.T) {
+	t.Cleanup(resetShutdown)
+	sentinel := path.Join(t.TempDir(), "started")
+	cmd := exec.CommandContext(t.Context(), "sh", "-c", "touch "+sentinel+"; sleep 30")
+	errCh := make(chan error, 1)
+	go func() {
+		// A timeout long enough that only Shutdown can end this command.
+		_, err := RunCommandExt(cmd, CmdOpts{Timeout: time.Minute})
+		errCh <- err
+	}()
+
+	require.Eventually(t, func() bool {
+		_, err := os.Stat(sentinel)
+		return err == nil
+	}, 10*time.Second, 5*time.Millisecond, "command never started")
+
+	assert.Equal(t, int64(1), Shutdown())
+	select {
+	case err := <-errCh:
+		require.ErrorContains(t, err, ErrShuttingDown.Error())
+	case <-time.After(10 * time.Second):
+		t.Fatal("command outlived Shutdown")
+	}
+}
+
+// TestShutdownRefusesNewCommands covers the retry that would otherwise defeat the whole thing:
+// checkoutRevision starts a fresh fetch and checkout whenever a checkout fails, so a command started
+// after Shutdown would be left for the kubelet to SIGKILL mid-index-write.
+func TestShutdownRefusesNewCommands(t *testing.T) {
+	t.Cleanup(resetShutdown)
+	Shutdown()
+
+	sentinel := path.Join(t.TempDir(), "ran")
+	_, err := RunCommandExt(exec.CommandContext(t.Context(), "touch", sentinel), CmdOpts{Timeout: time.Minute})
+	require.ErrorIs(t, err, ErrShuttingDown)
+	assert.NoFileExists(t, sentinel, "the command must not have been started")
+}
+
+func TestShutdownReportsRunningCount(t *testing.T) {
+	t.Cleanup(resetShutdown)
+	assert.Zero(t, Shutdown(), "nothing is running")
 }
