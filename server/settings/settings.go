@@ -14,6 +14,7 @@ import (
 
 	settingspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/settings"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/lua"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
@@ -194,6 +195,34 @@ func (s *Server) plugins(ctx context.Context) ([]*settingspkg.Plugin, error) {
 	}
 
 	return out, nil
+}
+
+// GetHealthChecks returns all health check definitions
+func (s *Server) GetHealthChecks(ctx context.Context, _ *settingspkg.SettingsQuery) (*settingspkg.HealthChecksListResponse, error) {
+	resourceOverrides, err := s.mgr.GetResourceOverrides()
+	if err != nil {
+		return nil, fmt.Errorf("error retrieving resource overrides: %w", err)
+	}
+
+	healthDefs, err := lua.EnumerateHealthChecks(lua.ResourceHealthOverrides(resourceOverrides))
+	if err != nil {
+		return nil, fmt.Errorf("error enumerating health checks: %w", err)
+	}
+
+	var items []*settingspkg.HealthCheckItem
+	for _, def := range healthDefs {
+		items = append(items, &settingspkg.HealthCheckItem{
+			Group:       def.Group,
+			Kind:        def.Kind,
+			Key:         def.Key,
+			Origin:      string(def.Origin),
+			LuaScript:   def.LuaScript,
+			UseOpenLibs: def.UseOpenLibs,
+			IsWildcard:  def.IsWildcard,
+		})
+	}
+
+	return &settingspkg.HealthChecksListResponse{HealthChecks: items}, nil
 }
 
 // AuthFuncOverride disables authentication for settings service

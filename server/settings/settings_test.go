@@ -12,6 +12,7 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/v3/common"
+	settingspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/settings"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
@@ -200,4 +201,46 @@ func TestGetDexConfig(t *testing.T) {
 			assert.Equal(t, tc.expectedDexAuthConnectorID, resp.DexConfig.DexAuthConnectorID)
 		})
 	}
+}
+
+func TestGetHealthChecks(t *testing.T) {
+	t.Parallel()
+	newServer := func(data map[string]string) *Server {
+		_, settingsMgr := fixtures(t.Context(), data)
+		return NewServer(settingsMgr, nil, nil, false, false, false, false)
+	}
+
+	t.Run("TestGetHealthChecks_BuiltinsAndOverrides", func(t *testing.T) {
+		t.Parallel()
+		settingsServer := newServer(map[string]string{
+			"resource.customizations.health.custom.io_Widget": "hs = {status = 'Healthy'}\nreturn hs",
+			"resource.customizations.health.apps_Deployment":  "hs = {status = 'Healthy', message = 'Custom'}\nreturn hs",
+		})
+		resp, err := settingsServer.GetHealthChecks(t.Context(), nil)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.NotEmpty(t, resp.HealthChecks)
+
+		var widgetItem, deployItem, serviceItem *settingspkg.HealthCheckItem
+		for _, item := range resp.HealthChecks {
+			if item.Key == "custom.io/Widget" {
+				widgetItem = item
+			} else if item.Key == "apps/Deployment" {
+				deployItem = item
+			} else if item.Key == "Service" {
+				serviceItem = item
+			}
+		}
+
+		require.NotNil(t, widgetItem)
+		assert.Equal(t, "CustomLua", widgetItem.Origin)
+		assert.Equal(t, "custom.io", widgetItem.Group)
+		assert.Equal(t, "Widget", widgetItem.Kind)
+
+		require.NotNil(t, deployItem)
+		assert.Equal(t, "OverrideLua", deployItem.Origin)
+
+		require.NotNil(t, serviceItem)
+		assert.Equal(t, "BuiltinGo", serviceItem.Origin)
+	})
 }

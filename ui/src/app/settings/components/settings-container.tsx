@@ -14,6 +14,7 @@ import {ProjectsList} from './projects-list/projects-list';
 import {ReposList} from './repos-list/repos-list';
 import {SettingsOverview} from './settings-overview/settings-overview';
 import {AppearanceList} from './appearance-list/appearance-list';
+import {HealthChecksList} from './health-checks-list/health-checks-list';
 
 export const SettingsContainer = (props: RouteComponentProps<any>) => (
     <KeybindingProvider>
@@ -29,6 +30,7 @@ export const SettingsContainer = (props: RouteComponentProps<any>) => (
             <Route exact={true} path={`${props.match.path}/accounts`} component={AccountsList} />
             <Route exact={true} path={`${props.match.path}/accounts/:name`} component={AccountDetails} />
             <Route exact={true} path={`${props.match.path}/appearance`} component={AppearanceList} />
+            <Route exact={true} path={`${props.match.path}/health-checks`} component={HealthChecksList} />
             <Route exact={true} path={`${props.match.path}/advanced`} component={AdvancedSettings} />
             <Redirect path='*' to={`${props.match.path}`} />
         </Switch>

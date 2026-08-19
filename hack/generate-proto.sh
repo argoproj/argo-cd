@@ -53,6 +53,7 @@ if [ -d /dist/protoc-include ]; then
     protoc_include=/dist/protoc-include
 else
     # local codegen build
+    mkdir -p "${PROJECT_ROOT}/dist/protoc-include"
     protoc_include=${PROJECT_ROOT}/dist/protoc-include
 fi
 
@@ -97,7 +98,8 @@ grpc_gateway_version=$(go list -m github.com/grpc-ecosystem/grpc-gateway | awk '
 GOOGLE_PROTO_API_PATH=${MOD_ROOT}/github.com/grpc-ecosystem/grpc-gateway@${grpc_gateway_version}/third_party/googleapis
 GOGO_PROTOBUF_PATH=${PROJECT_ROOT}/vendor/github.com/gogo/protobuf
 PROTO_FILES=$(find "$PROJECT_ROOT" \( -name "*.proto" -and -path '*/server/*' -or -path '*/reposerver/*' -and -name "*.proto" -or -path '*/cmpserver/*' -and -name "*.proto" -or -path '*/commitserver/*' -and -name "*.proto" -or -path '*/util/askpass/*' -and -name "*.proto" \) | sort)
-for i in ${PROTO_FILES}; do
+while IFS= read -r i; do
+    [ -z "$i" ] && continue
     protoc \
         -I"${PROJECT_ROOT}" \
         -I"${protoc_include}" \
@@ -109,7 +111,7 @@ for i in ${PROTO_FILES}; do
         --grpc-gateway_out=logtostderr=true:"$GOPATH"/src \
         --swagger_out=logtostderr=true:. \
         "$i"
-done
+done <<< "${PROTO_FILES}"
 
 # This file is generated but should not be checked in.
 rm util/askpass/askpass.swagger.json
