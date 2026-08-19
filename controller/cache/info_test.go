@@ -414,6 +414,59 @@ spec:
       port: 8080
 `)
 
+	testHTTPRouteWithHostnames = strToUnstructured(`
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: hostnames-route
+  namespace: default
+spec:
+  parentRefs:
+  - name: example-gateway
+    namespace: default
+  hostnames:
+  - app.example.com
+  - api.example.com
+  rules:
+  - backendRefs:
+    - name: service-a
+      port: 8080
+`)
+
+	testHTTPRouteWithWildcardHostname = strToUnstructured(`
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: wildcard-route
+  namespace: default
+spec:
+  parentRefs:
+  - name: example-gateway
+  hostnames:
+  - "*.example.com"
+  rules:
+  - backendRefs:
+    - name: service-a
+      port: 8080
+`)
+
+	testHTTPRouteIgnoreDefaultLinks = strToUnstructured(`
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: no-links-route
+  namespace: default
+  annotations:
+    argocd.argoproj.io/ignore-default-links: "true"
+spec:
+  hostnames:
+  - app.example.com
+  rules:
+  - backendRefs:
+    - name: service-a
+      port: 8080
+`)
+
 	testGRPCRoute = strToUnstructured(`
 apiVersion: gateway.networking.k8s.io/v1
 kind: GRPCRoute
@@ -1440,36 +1493,6 @@ func TestGetIstioServiceEntryInfo(t *testing.T) {
 	}, info.NetworkingInfo.TargetLabels)
 }
 
-func TestGetHTTPRouteInfo(t *testing.T) {
-	info := &ResourceInfo{}
-	populateNodeInfo(testHTTPRoute, info, []string{})
-	assert.Empty(t, info.Info)
-	require.NotNil(t, info.NetworkingInfo)
-	// Should have Gateway (parentRef) + 2 Services (backendRefs)
-	assert.Len(t, info.NetworkingInfo.TargetRefs, 3)
-	// Check Gateway ref from parentRefs
-	assert.Contains(t, info.NetworkingInfo.TargetRefs, v1alpha1.ResourceRef{
-		Group:     "gateway.networking.k8s.io",
-		Kind:      "Gateway",
-		Namespace: "default",
-		Name:      "example-gateway",
-	})
-	// Check Service refs from backendRefs
-	assert.Contains(t, info.NetworkingInfo.TargetRefs, v1alpha1.ResourceRef{
-		Group:     "",
-		Kind:      kube.ServiceKind,
-		Namespace: "default",
-		Name:      "service-a",
-	})
-	assert.Contains(t, info.NetworkingInfo.TargetRefs, v1alpha1.ResourceRef{
-		Group:     "",
-		Kind:      kube.ServiceKind,
-		Namespace: "default",
-		Name:      "service-b",
-	})
-	assert.Empty(t, info.NetworkingInfo.Ingress)
-}
-
 func TestGetHTTPRouteCrossNamespaceInfo(t *testing.T) {
 	info := &ResourceInfo{}
 	populateNodeInfo(testHTTPRouteCrossNamespace, info, []string{})
@@ -1523,6 +1546,63 @@ func TestGetHTTPRouteCrossNamespaceParent(t *testing.T) {
 		Namespace: "default",
 		Name:      "my-service",
 	})
+}
+
+func TestGetHTTPRouteWithHostnames(t *testing.T) {
+	info := &ResourceInfo{}
+	populateNodeInfo(testHTTPRouteWithHostnames, info, []string{})
+	require.NotNil(t, info.NetworkingInfo)
+	assert.Contains(t, info.NetworkingInfo.ExternalURLs, "http://app.example.com")
+	assert.Contains(t, info.NetworkingInfo.ExternalURLs, "http://api.example.com")
+	assert.Len(t, info.NetworkingInfo.ExternalURLs, 2)
+}
+
+func TestGetHTTPRouteWildcardHostnameNotLinked(t *testing.T) {
+	info := &ResourceInfo{}
+	populateNodeInfo(testHTTPRouteWithWildcardHostname, info, []string{})
+	require.NotNil(t, info.NetworkingInfo)
+	// Wildcard hostname "*.example.com" should not generate a link
+	assert.Empty(t, info.NetworkingInfo.ExternalURLs)
+}
+
+func TestGetHTTPRouteIgnoreDefaultLinks(t *testing.T) {
+	info := &ResourceInfo{}
+	populateNodeInfo(testHTTPRouteIgnoreDefaultLinks, info, []string{})
+	require.NotNil(t, info.NetworkingInfo)
+	// argocd.argoproj.io/ignore-default-links: "true" suppresses hostname links
+	assert.Empty(t, info.NetworkingInfo.ExternalURLs)
+}
+
+func TestGetHTTPRouteInfo(t *testing.T) {
+	info := &ResourceInfo{}
+	populateNodeInfo(testHTTPRoute, info, []string{})
+	assert.Empty(t, info.Info)
+	require.NotNil(t, info.NetworkingInfo)
+	// Should have Gateway (parentRef) + 2 Services (backendRefs)
+	assert.Len(t, info.NetworkingInfo.TargetRefs, 3)
+	// Check Gateway ref from parentRefs
+	assert.Contains(t, info.NetworkingInfo.TargetRefs, v1alpha1.ResourceRef{
+		Group:     "gateway.networking.k8s.io",
+		Kind:      "Gateway",
+		Namespace: "default",
+		Name:      "example-gateway",
+	})
+	// Check Service refs from backendRefs
+	assert.Contains(t, info.NetworkingInfo.TargetRefs, v1alpha1.ResourceRef{
+		Group:     "",
+		Kind:      kube.ServiceKind,
+		Namespace: "default",
+		Name:      "service-a",
+	})
+	assert.Contains(t, info.NetworkingInfo.TargetRefs, v1alpha1.ResourceRef{
+		Group:     "",
+		Kind:      kube.ServiceKind,
+		Namespace: "default",
+		Name:      "service-b",
+	})
+	assert.Empty(t, info.NetworkingInfo.Ingress)
+	// testHTTPRoute has spec.hostnames: [example.com] — should generate a link
+	assert.Contains(t, info.NetworkingInfo.ExternalURLs, "http://example.com")
 }
 
 func TestGetGRPCRoute(t *testing.T) {
