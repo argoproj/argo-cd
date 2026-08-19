@@ -3,6 +3,7 @@
 
 $pod-background-light: $argo-color-teal-3;
 $pod-background-dark: $dark-theme-background-2;
+
 :root {
     --pod-background-light: #{$pod-background-light};
     --pod-background-dark: #{$pod-background-dark};
@@ -33,19 +34,21 @@ $pod-background-dark: $dark-theme-background-2;
             border: none !important;
             width: 12px;
             margin-right: 8px;
+
             input:checked + span,
             input + span {
                 border: none;
                 width: 12px !important;
                 background-color: transparent;
             }
+
             .fa {
                 display: none;
             }
         }
 
         .argo-field {
-            @include themify($themes){
+            @include themify($themes) {
                 background-color: themed('background-2');
             }
         }
@@ -82,6 +85,7 @@ $pod-background-dark: $dark-theme-background-2;
         display: flex;
         margin-bottom: 1em;
         padding-left: 10px;
+
         .page-info {
             margin-left: auto;
             margin-right: auto;
@@ -89,6 +93,7 @@ $pod-background-dark: $dark-theme-background-2;
             text-overflow: clip;
             white-space: nowrap;
         }
+
         .nav-container {
             display: flex;
             align-self: flex-start;
@@ -99,15 +104,18 @@ $pod-background-dark: $dark-theme-background-2;
             justify-content: center;
             border: 1px solid black;
             margin: 0 2px;
+
             &:hover {
                 background-color: black;
                 color: white;
             }
+
             &.disabled {
                 opacity: 0.5;
                 cursor: not-allowed;
             }
         }
+
         i {
             margin-left: 5px;
         }
@@ -115,6 +123,7 @@ $pod-background-dark: $dark-theme-background-2;
         &--inverted {
             i {
                 border-color: white;
+
                 &:hover {
                     background-color: white;
                     color: black;
@@ -138,9 +147,11 @@ $pod-background-dark: $dark-theme-background-2;
             opacity: 0;
             flex-shrink: 0;
             box-shadow: 0 0 0 1px red inset;
+
             &--visible {
                 opacity: 1;
             }
+
             &:hover {
                 color: red;
             }
@@ -152,6 +163,7 @@ $pod-background-dark: $dark-theme-background-2;
             margin-right: 2ch;
             opacity: 0.5;
             cursor: pointer;
+
             &:hover {
                 opacity: 1;
             }
@@ -160,22 +172,27 @@ $pod-background-dark: $dark-theme-background-2;
         &__pod {
             padding-left: 5px;
             padding-right: 5px;
+
             span {
                 display: none;
                 text-overflow: ellipsis;
                 overflow: hidden;
             }
+
             width: 3ch;
             min-width: 3ch;
         }
+
         &__timestamp {
             padding-left: 5px;
             padding-right: 5px;
+
             span {
                 display: none;
                 text-overflow: ellipsis;
                 overflow: hidden;
             }
+
             width: 3ch;
             min-width: 3ch;
         }
@@ -186,21 +203,26 @@ $pod-background-dark: $dark-theme-background-2;
             span {
                 display: inherit;
             }
+
             i {
                 display: none;
             }
+
             width: 30ch;
             min-width: 30ch;
         }
     }
+
     &--pod-timestamp-visible {
         .pod-logs-viewer__line__timestamp {
             span {
                 display: inherit;
             }
+
             i {
                 display: none;
             }
+
             width: 30ch;
             min-width: 30ch;
         }
@@ -217,6 +239,7 @@ $pod-background-dark: $dark-theme-background-2;
     .pod-name-link {
         cursor: pointer;
         transition: opacity 0.2s ease;
+
         &:hover {
             text-decoration: underline;
             opacity: 0.8;
@@ -231,42 +254,49 @@ $pod-background-dark: $dark-theme-background-2;
     background: white;
     border: 1px solid #ccc;
     border-radius: 4px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     z-index: 1000;
-    min-width: 200px;  // Ensure dropdown is wide enough for pod names
+    min-width: 200px; // Ensure dropdown is wide enough for pod names
 
     &.dark-mode {
-        background: #333; /* Dark background for dark mode */
-        border: 1px solid #555; /* Subtle border for dark mode */
-        color: #eee; /* Light text for dark mode */
+        background: #333;
+        /* Dark background for dark mode */
+        border: 1px solid #555;
+        /* Subtle border for dark mode */
+        color: #eee;
+        /* Light text for dark mode */
     }
 }
 
 .select-options {
     max-height: 200px;
     overflow-y: auto;
-    
+
     .select-option {
         padding: 8px 10px;
         cursor: pointer;
-        white-space: nowrap;  // Prevent pod names from wrapping
-        
+        white-space: nowrap; // Prevent pod names from wrapping
+
         &:hover {
             background-color: #f5f5f5;
         }
 
         &.dark-mode {
-            background-color: #444; /* Hover effect in dark mode */
+            background-color: #444;
+
+            /* Hover effect in dark mode */
             &:hover {
                 background-color: #555;
             }
         }
-        
+
         &.selected {
             background-color: #e6f3ff;
         }
+
         &.dark-mode.selected {
-            background-color: #666; /* Selection highlight in dark mode */
+            background-color: #666;
+            /* Selection highlight in dark mode */
         }
     }
 }
@@ -277,7 +307,7 @@ $pod-background-dark: $dark-theme-background-2;
     text-align: center;
     color: #1750d3;
     cursor: pointer;
-    
+
     &:hover {
         background-color: #f0f0f0;
     }
@@ -285,6 +315,7 @@ $pod-background-dark: $dark-theme-background-2;
     &.dark-mode {
         border-top: 1px solid #555;
         color: #5a9bd3;
+
         &:hover {
             background-color: #333;
         }
@@ -295,10 +326,12 @@ $pod-background-dark: $dark-theme-background-2;
     // ARGO_SUCCESS_COLOR
     background-color: #18be94 !important;
 }
+
 .copyFailure {
     // ARGO_FAILED_COLOR
     background-color: #e96d76 !important;
 }
+
 .copyStandard {
     background-color: #6d7f8b !important;
 }
@@ -328,6 +361,16 @@ code {
 
 /* Hide scrollbar for IE, Edge and Firefox */
 .noscroll {
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
+    -ms-overflow-style: none;
+    /* IE and Edge */
+    scrollbar-width: none;
+    /* Firefox */
+}
+
+.pod-highlight-button {
+    .argo-button.disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
 }

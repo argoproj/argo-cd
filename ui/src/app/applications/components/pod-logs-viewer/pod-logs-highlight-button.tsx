@@ -27,10 +27,18 @@ export const PodHighlightButton = ({
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
+    const isDisabled = pods.length <= 1;
 
     return (
         <div ref={dropdownRef} style={{position: 'relative'}}>
-            <ToggleButton title='Select a pod to highlight its logs' onToggle={() => setIsOpen(!isOpen)} icon='highlighter' toggled={selectedPod !== null} />
+            <ToggleButton
+                title={isDisabled ? 'Highlighting only applies when viewing multiple pods' : 'Select a pod to highlight its logs'}
+                onToggle={() => !isDisabled && setIsOpen(!isOpen)}
+                icon='highlighter'
+                toggled={selectedPod !== null}
+                disabled={isDisabled}
+            />
+
             {isOpen && (
                 <div className={`select-container ${darkMode ? 'dark-mode' : ''}`} style={{position: 'absolute', top: '100%', left: 0, zIndex: 1}}>
                     <div className='select-options'>
