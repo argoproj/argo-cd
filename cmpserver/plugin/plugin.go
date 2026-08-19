@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -39,8 +40,8 @@ var tracer = otel.Tracer("github.com/argoproj/argo-cd/v3/cmpserver/plugin")
 // enough time before the client times out to send a meaningful error message.
 const cmpTimeoutBuffer = 100 * time.Millisecond
 
-// pluginCleanupTimeout is how long a plugin command's process group is given to exit after SIGTERM
-// before it is killed.
+// pluginCleanupTimeout is how long the rest of a plugin command's process group is given to exit
+// after SIGTERM before it is killed.
 const pluginCleanupTimeout = 5 * time.Second
 
 // Service implements ConfigManagementPluginService interface
@@ -108,10 +109,8 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
-	// Terminate the whole process group on timeout, so that a plugin's own children are killed
-	// along with it, and give the plugin a moment to clean up before it is reaped.
-	stopEscalation := argoexec.TerminateGroupOnCancel(cmd, pluginCleanupTimeout)
-	defer stopEscalation()
+	// Own process group, so the plugin's children can be signalled along with it.
+	argoexec.SetChildProcessGroup(cmd)
 
 	start := time.Now()
 	err = cmd.Start()
@@ -119,7 +118,25 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 		return "", err
 	}
 
+	// os/exec kills the plugin itself as soon as the context is done. Signal the rest of its group
+	// too, giving those processes pluginCleanupTimeout to exit before they are reaped.
+	waited := make(chan struct{})
+	go func() {
+		select {
+		case <-waited:
+			return
+		case <-ctx.Done():
+		}
+		_ = argoexec.SignalProcessGroup(cmd, syscall.SIGTERM)
+		select {
+		case <-waited:
+		case <-time.After(pluginCleanupTimeout):
+			_ = argoexec.SignalProcessGroup(cmd, syscall.SIGKILL)
+		}
+	}()
+
 	err = cmd.Wait()
+	close(waited)
 
 	duration := time.Since(start)
 	output := stdout.String()
