@@ -96,6 +96,7 @@ func (g *GitLabService) List(ctx context.Context) ([]*PullRequest, error) {
 				HeadSHA:      mr.SHA,
 				Labels:       mr.Labels,
 				Author:       mr.Author.Username,
+				Draft:        mr.Draft,
 			})
 		}
 		if resp.NextPage == 0 {

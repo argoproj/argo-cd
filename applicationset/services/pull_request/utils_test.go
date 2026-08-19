@@ -187,6 +187,35 @@ func TestFilterTitleMatch(t *testing.T) {
 	assert.Equal(t, "three", pullRequests[0].Branch)
 }
 
+func TestFilterIgnoreDraft(t *testing.T) {
+	t.Parallel()
+	provider, _ := NewFakeService(
+		t.Context(),
+		[]*PullRequest{
+			{
+				Number: 1,
+				Branch: "draft",
+				Draft:  true,
+			},
+			{
+				Number: 2,
+				Branch: "ready",
+				Draft:  false,
+			},
+		},
+		nil,
+	)
+	filters := []argoprojiov1alpha1.PullRequestGeneratorFilter{
+		{
+			IgnoreDraft: new(true),
+		},
+	}
+	pullRequests, err := ListPullRequests(t.Context(), provider, filters)
+	require.NoError(t, err)
+	assert.Len(t, pullRequests, 1)
+	assert.Equal(t, "ready", pullRequests[0].Branch)
+}
+
 func TestMultiFilterOrWithTitle(t *testing.T) {
 	t.Parallel()
 	provider, _ := NewFakeService(

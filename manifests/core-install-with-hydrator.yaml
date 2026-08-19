@@ -15642,6 +15642,8 @@ spec:
                                       properties:
                                         branchMatch:
                                           type: string
+                                        ignoreDraft:
+                                          type: boolean
                                         targetBranchMatch:
                                           type: string
                                         titleMatch:
@@ -23396,6 +23398,8 @@ spec:
                                       properties:
                                         branchMatch:
                                           type: string
+                                        ignoreDraft:
+                                          type: boolean
                                         targetBranchMatch:
                                           type: string
                                         titleMatch:
@@ -27487,6 +27491,8 @@ spec:
                             properties:
                               branchMatch:
                                 type: string
+                              ignoreDraft:
+                                type: boolean
                               targetBranchMatch:
                                 type: string
                               titleMatch:

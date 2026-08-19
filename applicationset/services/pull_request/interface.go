@@ -21,6 +21,8 @@ type PullRequest struct {
 	Labels []string
 	// Author is the author of the pull request.
 	Author string
+	// Draft indicates whether the pull request is in draft/WIP state.
+	Draft bool
 }
 
 type PullRequestService interface {
@@ -32,4 +34,5 @@ type Filter struct {
 	BranchMatch       *regexp.Regexp
 	TargetBranchMatch *regexp.Regexp
 	TitleMatch        *regexp.Regexp
+	IgnoreDraft       bool
 }
