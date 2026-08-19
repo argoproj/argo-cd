@@ -352,12 +352,14 @@ spec:
   generators:
   - pullRequest:
       # ...
-      # Include any pull request branch ending with "argocd" 
-      # and pull request title starting with "feat:". (optional)
+      # Include any pull request branch ending with "argocd", 
+      # pull request title starting with "feat:", and exclude drafts. (optional)
+      # Conditions within one filter entry are ANDed; separate filter entries
+      # are ORed, so these must stay in a single entry to combine as intended.
       filters:
       - branchMatch: ".*-argocd"
-      - titleMatch: "^feat:"
-      - ignoreDraft: true
+        titleMatch: "^feat:"
+        ignoreDraft: true
   template:
   # ...
 ```
