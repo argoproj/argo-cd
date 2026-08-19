@@ -13,6 +13,7 @@ metadata:
     app: argocd-redis-ha
 secrets:
 - name: argocd-redis
+
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-haproxy-serviceaccount.yaml
 apiVersion: v1
@@ -25,6 +26,7 @@ metadata:
     release: argocd
     chart: redis-ha-4.35.10
     app: argocd-redis-ha
+
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-ha-configmap.yaml
 apiVersion: v1
@@ -846,6 +848,7 @@ data:
       done
       echo "Failover successful"
     fi
+
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-ha-health-configmap.yaml
 apiVersion: v1
@@ -921,6 +924,7 @@ data:
       exit 1
     fi
     echo "response=$response"
+
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-ha-role.yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -940,6 +944,7 @@ rules:
     - endpoints
   verbs:
     - get
+
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-haproxy-role.yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -960,6 +965,7 @@ rules:
     - endpoints
   verbs:
     - get
+
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-ha-rolebinding.yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -979,6 +985,7 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
   name: argocd-redis-ha
+
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-haproxy-rolebinding.yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -999,6 +1006,7 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
   name: argocd-redis-ha-haproxy
+
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-ha-announce-service.yaml
 apiVersion: v1
@@ -1086,6 +1094,7 @@ spec:
     release: argocd
     app: redis-ha
     "statefulset.kubernetes.io/pod-name": argocd-redis-ha-server-2
+
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-ha-service.yaml
 apiVersion: v1
@@ -1114,6 +1123,7 @@ spec:
   selector:
     release: argocd
     app: redis-ha
+
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-haproxy-service.yaml
 apiVersion: v1
@@ -1142,6 +1152,7 @@ spec:
   selector:
     release: argocd
     app: redis-ha-haproxy
+
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-haproxy-deployment.yaml
 kind: Deployment
@@ -1279,6 +1290,7 @@ spec:
       - name: data
         emptyDir:
           {}
+
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-ha-statefulset.yaml
 apiVersion: apps/v1
