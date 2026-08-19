@@ -6951,3 +6951,46 @@ func TestGenerateManifests_SameRepoTwoRevisions_CacheHit(t *testing.T) {
 	assert.Equal(t, setsAfterFirst, cacheSets(),
 		"second GenerateManifest should hit the manifest cache; a new cache write means the lookup and store keys diverged")
 }
+
+// TestGetAppDetailsCacheHandler_KeysOnResolvedRevisions covers the app-details half of ref-revision
+// invalidation: the handler must key on the commits its refs resolved to, or the Parameters pane
+// keeps serving a referenced branch's old values after someone pushes to it.
+func TestGetAppDetailsCacheHandler_KeysOnResolvedRevisions(t *testing.T) {
+	const (
+		revision  = "1c8c9a06f9400d899d8a3d790fb9a7a6ac554bf4"
+		refRepo   = "https://github.com/foo/bar"
+		oldRefSHA = "aaaa000000000000000000000000000000000000"
+		newRefSHA = "bbbb111111111111111111111111111111111111"
+	)
+
+	cacheMocks := newCacheMocks()
+	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
+	service := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{ParallelismLimit: 1}, &git.NoopCredsStore{}, t.TempDir())
+
+	q := &apiclient.RepoServerAppDetailsQuery{
+		Repo:   &v1alpha1.Repository{Repo: refRepo},
+		Source: &v1alpha1.ApplicationSource{Path: "charts/foo"},
+		RefSources: map[string]*v1alpha1.RefTarget{
+			"$values": {Repo: v1alpha1.Repository{Repo: refRepo}, TargetRevision: "main"},
+		},
+	}
+
+	// Store an entry as the operation closure does, for the ref resolved to oldRefSHA.
+	stored := &apiclient.RepoAppDetailsResponse{Type: "Helm"}
+	require.NoError(t, service.cache.SetAppDetails(revision, q.Source, q.RefSources, stored, "", cache.ResolvedRevisions{refRepo: oldRefSHA}))
+
+	res := &apiclient.RepoAppDetailsResponse{}
+	handler := service.createGetAppDetailsCacheHandler(res, q)
+
+	// Same resolved revision: the entry is found.
+	ok, err := handler(revision, cache.ResolvedRevisions{refRepo: oldRefSHA}, true)
+	require.NoError(t, err)
+	assert.True(t, ok, "entry stored for this resolved revision should be found")
+	assert.Equal(t, "Helm", res.Type)
+
+	// The referenced branch moved: the old entry must not satisfy the lookup. Passing nil here (the
+	// previous behaviour) would make both calls key identically and this assertion would fail.
+	ok, err = handler(revision, cache.ResolvedRevisions{refRepo: newRefSHA}, true)
+	require.NoError(t, err)
+	assert.False(t, ok, "a commit on the referenced branch must invalidate the cached details")
+}

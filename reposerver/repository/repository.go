@@ -367,7 +367,7 @@ func (s *Service) runRepoOperation(
 	source *v1alpha1.ApplicationSource,
 	sourceIntegrity *v1alpha1.SourceIntegrity,
 	cacheFn func(revision string, refSourceCommitSHAs cache.ResolvedRevisions, firstInvocation bool) (bool, error),
-	operation func(repoRoot, commitSHA, revision string, ctxSrc operationContextSrc) error,
+	operation func(repoRoot, commitSHA, revision string, refSourceCommitSHAs cache.ResolvedRevisions, ctxSrc operationContextSrc) error,
 	settings operationSettings,
 	hasMultipleSources bool,
 	refSources map[string]*v1alpha1.RefTarget,
@@ -449,7 +449,7 @@ func (s *Service) runRepoOperation(
 			return err
 		}
 
-		return operation(ociPath, revision, revision, func() (*operationContext, error) {
+		return operation(ociPath, revision, revision, repoRefs, func() (*operationContext, error) {
 			return &operationContext{appPath, "", nil}, nil
 		})
 	} else if source.IsHelm() {
@@ -473,7 +473,7 @@ func (s *Service) runRepoOperation(
 				return outOfBoundsSymlinkError(err, "chart", log.Fields{"chart": source.Chart, "revision": revision})
 			}
 		}
-		return operation(chartPath, revision, revision, func() (*operationContext, error) {
+		return operation(chartPath, revision, revision, repoRefs, func() (*operationContext, error) {
 			return &operationContext{chartPath, "", nil}, nil
 		})
 	}
@@ -512,7 +512,7 @@ func (s *Service) runRepoOperation(
 
 	// Here commitSHA refers to the SHA of the actual commit, whereas revision refers to the branch/tag name etc
 	// We use the commitSHA to generate manifests and store them in cache, and revision to retrieve them from cache
-	return operation(gitClient.Root(), commitSHA, revision, func() (*operationContext, error) {
+	return operation(gitClient.Root(), commitSHA, revision, repoRefs, func() (*operationContext, error) {
 		// Pass in the originalRevision to have access to the eventual tag name. Use resolved revision only if the originalRevision is unspecified.
 		var rev string
 		if unresolvedRevision != "" {
@@ -720,7 +720,9 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	tarConcluded := false
 	var promise *ManifestResponsePromise
 
-	operation := func(repoRoot, commitSHA, revision string, ctxSrc operationContextSrc) error {
+	// The resolved revisions are unused here: manifest generation rebuilds them as it checks out each
+	// ref, and TestGenerateManifests_SameRepoTwoRevisions_CacheHit asserts the two agree.
+	operation := func(repoRoot, commitSHA, revision string, _ cache.ResolvedRevisions, ctxSrc operationContextSrc) error {
 		// do not generate manifests if Path and Chart fields are not set for a source in Multiple Sources
 		if q.HasMultipleSources && q.ApplicationSource.Path == "" && q.ApplicationSource.Chart == "" {
 			log.WithFields(map[string]any{
@@ -2510,7 +2512,7 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 	res := &apiclient.RepoAppDetailsResponse{}
 
 	cacheFn := s.createGetAppDetailsCacheHandler(res, q)
-	operation := func(repoRoot, commitSHA, revision string, ctxSrc operationContextSrc) error {
+	operation := func(repoRoot, commitSHA, revision string, refSourceCommitSHAs cache.ResolvedRevisions, ctxSrc operationContextSrc) error {
 		opContext, err := ctxSrc()
 		if err != nil {
 			return err
@@ -2539,7 +2541,8 @@ func (s *Service) GetAppDetails(ctx context.Context, q *apiclient.RepoServerAppD
 				return fmt.Errorf("failed to populate plugin app details: %w", err)
 			}
 		}
-		_ = s.cache.SetAppDetails(revision, q.Source, q.RefSources, res, v1alpha1.TrackingMethod(q.TrackingMethod), nil)
+		// Same map the lookup keyed on, so a commit to a referenced branch invalidates this entry.
+		_ = s.cache.SetAppDetails(revision, q.Source, q.RefSources, res, v1alpha1.TrackingMethod(q.TrackingMethod), refSourceCommitSHAs)
 		return nil
 	}
 
@@ -2566,9 +2569,9 @@ func toUserInputStatusError(err error) error {
 	return err
 }
 
-func (s *Service) createGetAppDetailsCacheHandler(res *apiclient.RepoAppDetailsResponse, q *apiclient.RepoServerAppDetailsQuery) func(revision string, _ cache.ResolvedRevisions, _ bool) (bool, error) {
-	return func(revision string, _ cache.ResolvedRevisions, _ bool) (bool, error) {
-		err := s.cache.GetAppDetails(revision, q.Source, q.RefSources, res, v1alpha1.TrackingMethod(q.TrackingMethod), nil)
+func (s *Service) createGetAppDetailsCacheHandler(res *apiclient.RepoAppDetailsResponse, q *apiclient.RepoServerAppDetailsQuery) func(revision string, refSourceCommitSHAs cache.ResolvedRevisions, _ bool) (bool, error) {
+	return func(revision string, refSourceCommitSHAs cache.ResolvedRevisions, _ bool) (bool, error) {
+		err := s.cache.GetAppDetails(revision, q.Source, q.RefSources, res, v1alpha1.TrackingMethod(q.TrackingMethod), refSourceCommitSHAs)
 		if err == nil {
 			log.Infof("app details cache hit: %s/%s", revision, q.Source.Path)
 			return true, nil
