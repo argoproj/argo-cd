@@ -942,7 +942,7 @@ func TestProjectSourceIntegrityGpgInspectRepoCommand_SinglePassingSource(t *test
 		"  git checkout abcd1234",
 		"  git log --oneline abcd1234",
 		"",
-		"To create seal commit (this will trust all problematic commits up to this point):",
+		"To create seal commit (this will trust all problematic commits before the seal commit):",
 		"  git commit --allow-empty --signoff --gpg-sign --trailer=\"Argocd-gpg-seal: <justification>\"",
 	}
 	expectedStdout := strings.Join(stdoutParts, "\n") + "\n"
@@ -999,7 +999,7 @@ func TestProjectSourceIntegrityGpgInspectRepoCommand_SingleProblematicCommitsSou
 		"  git log --oneline abcd1234",
 		"  git log -p --no-walk abcd1234 defe2234",
 		"",
-		"To create seal commit (this will trust all problematic commits up to this point):",
+		"To create seal commit (this will trust all problematic commits before the seal commit):",
 		"  git commit --allow-empty --signoff --gpg-sign --trailer=\"Argocd-gpg-seal: <justification>\"",
 	}
 	expectedStdout := strings.Join(stdoutParts, "\n") + "\n"
@@ -1081,7 +1081,7 @@ func TestProjectSourceIntegrityGpgInspectRepoCommand_MultipleSources(t *testing.
 		"",
 		"PROBLEMS: multiple git/gpg policies are configured, invalid configuration",
 		"",
-		"To create seal commit (this will trust all problematic commits up to this point):",
+		"To create seal commit (this will trust all problematic commits before the seal commit):",
 		"  git commit --allow-empty --signoff --gpg-sign --trailer=\"Argocd-gpg-seal: <justification>\"",
 	}
 	expectedStdout := strings.Join(stdoutParts, "\n") + "\n"
