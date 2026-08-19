@@ -256,9 +256,10 @@ const ApplicationsListSearchBar = (props: {content: string; searchRegex: boolean
                     }
                 },
                 renderItem: item => (
-                    <React.Fragment>
-                        <i className='icon argo-icon-application' /> {item.label}
-                    </React.Fragment>
+                    <span title={item.label} style={{display: 'flex', alignItems: 'center', overflow: 'hidden'}}>
+                        <i className='icon argo-icon-application' style={{flexShrink: 0}} />
+                        <span style={{marginLeft: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>{item.label}</span>
+                    </span>
                 )
             }}
         />
