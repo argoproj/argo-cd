@@ -143,3 +143,9 @@ $KUSTOMIZE build "${SRCROOT}/manifests/ha/namespace-install-with-hydrator" >> "$
 
 echo "${AUTOGENMSG}" > "${SRCROOT}/manifests/core-install-with-hydrator.yaml"
 $KUSTOMIZE build "${SRCROOT}/manifests/core-install-with-hydrator" >> "${SRCROOT}/manifests/core-install-with-hydrator.yaml"
+
+# Update Grafana dashboard description with version
+if [ -f "${SRCROOT}/examples/dashboard.json" ]; then
+  DASHBOARD_VERSION="${IMAGE_TAG}"
+  sed -i "s|\"description\": \"Argo CD Dashboard [^\"]*\"|\"description\": \"Argo CD Dashboard ${DASHBOARD_VERSION}\"|" "${SRCROOT}/examples/dashboard.json"
+fi
