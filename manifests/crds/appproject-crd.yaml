@@ -333,12 +333,99 @@ spec:
                 items:
                   type: string
                 type: array
+              syncWindowRefs:
+                description: SyncWindowRefs references external SyncWindow CRDs that
+                  define sync windows for this project.
+                items:
+                  description: |-
+                    SyncWindowProjectRef is a reference to a SyncWindow from an AppProject.
+                    It allows specifying additional filters that restrict which apps the referenced
+                    sync windows apply to.
+                  properties:
+                    applications:
+                      description: Applications restricts which applications the referenced
+                        sync windows apply to (glob patterns supported).
+                      items:
+                        type: string
+                      type: array
+                    clusters:
+                      description: Clusters restricts which clusters the referenced
+                        sync windows apply to (glob patterns supported).
+                      items:
+                        type: string
+                      type: array
+                    namespaces:
+                      description: Namespaces restricts which namespaces the referenced
+                        sync windows apply to (glob patterns supported).
+                      items:
+                        type: string
+                      type: array
+                    ref:
+                      description: Ref references a SyncWindow by name or selector.
+                      properties:
+                        name:
+                          description: Name is the metadata.name of the SyncWindow
+                            to reference.
+                          type: string
+                        selector:
+                          description: |-
+                            Selector is a label selector to match SyncWindow objects.
+                            Either Name or Selector should be specified, not both.
+                          properties:
+                            matchExpressions:
+                              description: matchExpressions is a list of label selector
+                                requirements. The requirements are ANDed.
+                              items:
+                                description: |-
+                                  A label selector requirement is a selector that contains values, a key, and an operator that
+                                  relates the key and values.
+                                properties:
+                                  key:
+                                    description: key is the label key that the selector
+                                      applies to.
+                                    type: string
+                                  operator:
+                                    description: |-
+                                      operator represents a key's relationship to a set of values.
+                                      Valid operators are In, NotIn, Exists and DoesNotExist.
+                                    type: string
+                                  values:
+                                    description: |-
+                                      values is an array of string values. If the operator is In or NotIn,
+                                      the values array must be non-empty. If the operator is Exists or DoesNotExist,
+                                      the values array must be empty. This array is replaced during a strategic
+                                      merge patch.
+                                    items:
+                                      type: string
+                                    type: array
+                                    x-kubernetes-list-type: atomic
+                                required:
+                                - key
+                                - operator
+                                type: object
+                              type: array
+                              x-kubernetes-list-type: atomic
+                            matchLabels:
+                              additionalProperties:
+                                type: string
+                              description: |-
+                                matchLabels is a map of {key,value} pairs. A single {key,value} in the matchLabels
+                                map is equivalent to an element of matchExpressions, whose key field is "key", the
+                                operator is "In", and the values array contains only "value". The requirements are ANDed.
+                              type: object
+                          type: object
+                          x-kubernetes-map-type: atomic
+                      type: object
+                  required:
+                  - ref
+                  type: object
+                type: array
               syncWindows:
                 description: SyncWindows controls when syncs can be run for apps in
                   this project
                 items:
-                  description: SyncWindow contains the kind, time, duration and attributes
-                    that are used to assign the syncWindows to apps
+                  description: InlineSyncWindow contains the kind, time, duration
+                    and attributes that are used to assign the syncWindows to apps
                   properties:
                     andOperator:
                       description: UseAndOperator use AND operator for matching applications,
