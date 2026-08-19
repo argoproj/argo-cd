@@ -277,6 +277,11 @@ func NewClient(opts *ClientOptions) (Client, error) {
 	if opts.HttpRetryMax > 0 {
 		retryClient := retryablehttp.NewClient()
 		retryClient.RetryMax = opts.HttpRetryMax
+		// retryablehttp.NewClient() installs a default logger that writes a line
+		// to stderr for every request, even successful non-retried ones. The
+		// plain http.Client path below is silent, so disable the logger to keep
+		// behavior consistent and avoid per-request noise on the CLI.
+		retryClient.Logger = nil
 		// Apply the TLS transport to the retryable client's inner HTTP client
 		// before wrapping it. StandardClient() returns an *http.Client whose
 		// Transport is the retry RoundTripper, so overwriting Transport after

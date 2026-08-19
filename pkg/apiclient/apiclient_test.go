@@ -300,6 +300,7 @@ func TestNewClient_HttpRetryMax_TLSTransport(t *testing.T) {
 		rt, ok := c.httpClient.Transport.(*retryablehttp.RoundTripper)
 		require.True(t, ok, "expected retryablehttp.RoundTripper, got %T", c.httpClient.Transport)
 		assert.Equal(t, 4, rt.Client.RetryMax)
+		assert.Nil(t, rt.Client.Logger, "NewClient should disable the retryablehttp default logger")
 
 		// TLS config must still be honored via the retry client's inner transport.
 		inner, ok := rt.Client.HTTPClient.Transport.(*http.Transport)
@@ -387,9 +388,11 @@ func TestNewClient_RetriesOn502_OverTLS(t *testing.T) {
 	// Speed up backoff so the test doesn't wait seconds between retries.
 	rt, ok := c.httpClient.Transport.(*retryablehttp.RoundTripper)
 	require.True(t, ok, "expected retryablehttp.RoundTripper, got %T", c.httpClient.Transport)
+	// NewClient disables the retryablehttp logger to avoid per-request stderr
+	// noise; assert that here rather than working around it.
+	assert.Nil(t, rt.Client.Logger, "NewClient should disable the retryablehttp default logger")
 	rt.Client.RetryWaitMin = time.Millisecond
 	rt.Client.RetryWaitMax = 5 * time.Millisecond
-	rt.Client.Logger = nil
 
 	ctx := t.Context()
 	md := metadata.New(map[string]string{})
