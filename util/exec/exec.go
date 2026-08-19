@@ -90,13 +90,14 @@ func terminateGroupOnCancel(cmd *exec.Cmd, grace time.Duration, signal func(*exe
 	stopped := false
 
 	cmd.Cancel = func() error {
-		// Best effort: reporting a signal error here would mask the context error on Wait.
-		_ = signal(cmd, syscall.SIGTERM)
 		mu.Lock()
 		defer mu.Unlock()
 		if stopped {
-			return nil
+			// Already waited for: signalling could hit whatever recycled the PID, and reporting an
+			// error would fail a command that finished cleanly. os/exec skips both for ErrProcessDone.
+			return os.ErrProcessDone
 		}
+		err := signal(cmd, syscall.SIGTERM)
 		// Reap whatever ignored SIGTERM, as the timeout path does.
 		escalation = time.AfterFunc(grace, func() {
 			mu.Lock()
@@ -106,6 +107,10 @@ func terminateGroupOnCancel(cmd *exec.Cmd, grace time.Duration, signal func(*exe
 			}
 			_ = signal(cmd, syscall.SIGKILL)
 		})
+		if errors.Is(err, os.ErrProcessDone) {
+			return err
+		}
+		// Best effort otherwise: reporting e.g. EPERM here would mask the context error on Wait.
 		return nil
 	}
 	cmd.WaitDelay = grace
@@ -185,6 +190,10 @@ func (ce *CmdError) Error() string {
 
 func (ce *CmdError) String() string {
 	return ce.Error()
+}
+
+func (ce *CmdError) Unwrap() error {
+	return ce.Cause
 }
 
 func newCmdError(args string, cause error, stderr string) *CmdError {
@@ -298,6 +307,22 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 		fatalTimeoutCh = time.NewTimer(timeout + fatalTimeout).C
 	}
 
+	finish := func(waitErr error) (string, error) {
+		output := stdout.String()
+		if opts.CaptureStderr {
+			output += stderr.String()
+		}
+		logCtx.WithFields(logrus.Fields{"duration": time.Since(start)}).Debug(redactor(output))
+		if waitErr == nil {
+			return strings.TrimSuffix(output, "\n"), nil
+		}
+		cmdErr := newCmdError(redactor(args), errors.New(redactor(waitErr.Error())), strings.TrimSpace(redactor(stderr.String())))
+		if !opts.SkipErrorLogging {
+			logCtx.Error(cmdErr.Error())
+		}
+		return strings.TrimSuffix(output, "\n"), cmdErr
+	}
+
 	timeoutBehavior := DefaultCmdOpts.TimeoutBehavior
 	fatalTimeoutBehaviour := syscall.SIGKILL
 	if opts.TimeoutBehavior.Signal != syscall.Signal(0) {
@@ -339,6 +364,13 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 		logCtx.Error(err.Error())
 		return strings.TrimSuffix(output, "\n"), err
 	case <-shutdown:
+		// Both cases can be ready at once, and select picks at random: report a command that has
+		// already exited as itself rather than as a shutdown casualty.
+		select {
+		case waitErr := <-done:
+			return finish(waitErr)
+		default:
+		}
 		// Signal the group so the command can clean up, then reap it if it ignores SIGTERM.
 		_ = SignalProcessGroup(cmd, syscall.SIGTERM)
 		select {
@@ -355,27 +387,9 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 		err = newCmdError(redactor(args), ErrShuttingDown, strings.TrimSpace(redactor(stderr.String())))
 		logCtx.Error(err.Error())
 		return strings.TrimSuffix(output, "\n"), err
-	case err := <-done:
-		if err != nil {
-			output := stdout.String()
-			if opts.CaptureStderr {
-				output += stderr.String()
-			}
-			logCtx.WithFields(logrus.Fields{"duration": time.Since(start)}).Debug(redactor(output))
-			err := newCmdError(redactor(args), errors.New(redactor(err.Error())), strings.TrimSpace(redactor(stderr.String())))
-			if !opts.SkipErrorLogging {
-				logCtx.Error(err.Error())
-			}
-			return strings.TrimSuffix(output, "\n"), err
-		}
+	case waitErr := <-done:
+		return finish(waitErr)
 	}
-	output := stdout.String()
-	if opts.CaptureStderr {
-		output += stderr.String()
-	}
-	logCtx.WithFields(logrus.Fields{"duration": time.Since(start)}).Debug(redactor(output))
-
-	return strings.TrimSuffix(output, "\n"), nil
 }
 
 func RunCommand(name string, opts CmdOpts, arg ...string) (string, error) {

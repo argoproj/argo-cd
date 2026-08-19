@@ -308,10 +308,12 @@ func TestTerminateGroupOnCancelStopIsIdempotent(t *testing.T) {
 	// Uncancelled commands still call stop, possibly twice via defer chains.
 	stop()
 	stop()
-	require.NoError(t, cmd.Cancel())
+	// Cancelling afterwards must not signal: the PID may have been recycled, and ErrProcessDone keeps
+	// os/exec from failing a command that finished cleanly.
+	require.ErrorIs(t, cmd.Cancel(), os.ErrProcessDone)
 	stop()
 
-	assert.Equal(t, []syscall.Signal{syscall.SIGTERM}, rec.recorded())
+	assert.Empty(t, rec.recorded())
 }
 
 func TestTerminateGroupOnCancelZeroGraceStillEscalates(t *testing.T) {
@@ -382,4 +384,29 @@ func TestShutdownRefusesNewCommands(t *testing.T) {
 func TestShutdownReportsRunningCount(t *testing.T) {
 	t.Cleanup(resetShutdown)
 	assert.Zero(t, Shutdown(), "nothing is running")
+}
+
+func TestShutdownErrorMatchesSentinel(t *testing.T) {
+	t.Cleanup(resetShutdown)
+	sentinel := path.Join(t.TempDir(), "started")
+	cmd := exec.CommandContext(t.Context(), "sh", "-c", "touch "+sentinel+"; sleep 30")
+	errCh := make(chan error, 1)
+	go func() {
+		_, err := RunCommandExt(cmd, CmdOpts{Timeout: time.Minute})
+		errCh <- err
+	}()
+	require.Eventually(t, func() bool {
+		_, err := os.Stat(sentinel)
+		return err == nil
+	}, 10*time.Second, 5*time.Millisecond, "command never started")
+
+	Shutdown()
+	select {
+	case err := <-errCh:
+		// Callers filter shutdown out - repo-server must not cache it as a generation failure - so it
+		// has to survive the CmdError wrapping.
+		require.ErrorIs(t, err, ErrShuttingDown)
+	case <-time.After(10 * time.Second):
+		t.Fatal("command outlived Shutdown")
+	}
 }
