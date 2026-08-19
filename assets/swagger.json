@@ -9566,6 +9566,9 @@
         "branchMatch": {
           "type": "string"
         },
+        "ignoreDraft": {
+          "type": "boolean"
+        },
         "targetBranchMatch": {
           "type": "string"
         },
