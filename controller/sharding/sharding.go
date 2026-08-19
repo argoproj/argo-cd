@@ -81,7 +81,7 @@ func GetClusterFilter(_ db.ArgoDB, distributionFunction DistributionFunction, re
 }
 
 // GetDistributionFunction returns which DistributionFunction should be used based on the passed algorithm and
-// the current datas.
+// the current data.
 func GetDistributionFunction(clusters clusterAccessor, apps appAccessor, shardingAlgorithm string, replicasCount int) DistributionFunction {
 	log.Debugf("Using filter function:  %s", shardingAlgorithm)
 	distributionFunction := LegacyDistributionFunction(replicasCount)
