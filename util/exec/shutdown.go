@@ -28,6 +28,18 @@ func Shutdown() int64 {
 	return running
 }
 
+// ShuttingDown reports whether Shutdown has been called. Callers use it to tell a command terminated
+// by shutdown from a genuine failure: repo-server must not cache the former as a manifest generation
+// failure, which would pause generation for that revision long after the pod is gone.
+func ShuttingDown() bool {
+	select {
+	case <-shutdown:
+		return true
+	default:
+		return false
+	}
+}
+
 // resetShutdown re-arms Shutdown, so that a test exercising it does not stop every later command in
 // the run.
 func resetShutdown() {

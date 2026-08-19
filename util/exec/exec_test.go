@@ -410,3 +410,10 @@ func TestShutdownErrorMatchesSentinel(t *testing.T) {
 		t.Fatal("command outlived Shutdown")
 	}
 }
+
+func TestShuttingDown(t *testing.T) {
+	t.Cleanup(resetShutdown)
+	require.False(t, ShuttingDown())
+	Shutdown()
+	assert.True(t, ShuttingDown())
+}
