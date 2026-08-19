@@ -87,9 +87,8 @@ func TestCancelOnShutdownStreamInterceptor(t *testing.T) {
 	}
 }
 
-// TestCancelOnShutdownCleansUpGitLocks is the end-to-end claim: when a drain runs out of time and
-// requests are cancelled, Git gets a chance to remove .git/index.lock instead of being SIGKILLed
-// with the container and leaving the repository unusable for the life of the pod.
+// TestCancelOnShutdownCleansUpGitLocks is the end-to-end claim: cancelling on shutdown lets git
+// remove .git/index.lock, which would otherwise outlive a container restart in the pod's emptyDir.
 func TestCancelOnShutdownCleansUpGitLocks(t *testing.T) {
 	t.Parallel()
 	repoDir := t.TempDir()
@@ -106,8 +105,8 @@ func TestCancelOnShutdownCleansUpGitLocks(t *testing.T) {
 	}
 	require.NoError(t, os.WriteFile(path.Join(client.Root(), "manifest.yaml"), []byte("kind: ConfigMap\n"), 0o600))
 	require.NoError(t, os.WriteFile(path.Join(client.Root(), ".gitattributes"), []byte("manifest.yaml filter=slow\n"), 0o600))
-	// Stands in for a checkout slow enough to outlive the drain window. The sentinel marks the point
-	// where Git has registered index.lock for cleanup, so cancelling cannot race that registration.
+	// Slow enough to outlive the drain window; the sentinel marks index.lock as registered for
+	// cleanup, so cancelling cannot race that registration.
 	run("config", "filter.slow.smudge", "sh -c 'touch .filter-started; sleep 10; cat'")
 	run("add", "manifest.yaml", ".gitattributes")
 	run("commit", "-m", "initial commit")

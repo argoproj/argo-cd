@@ -337,8 +337,7 @@ func TestRunWithExecRunOptsStderrWriter(t *testing.T) {
 // child holds a dead TCP connection) keep the argocd-repo-server per-repo lock
 // held for many minutes. Killing the whole process group fixes it.
 func TestRunCommandExtTimeoutReapsProcessGroup(t *testing.T) {
-	// `sleep 15` outlives timeout+fatalTimeout (500ms) by ~30x, so if the
-	// process group is not reaped the call blocks for ~15s instead of ~0.5s.
+	// 15s against a 500ms budget: without group reaping the call blocks ~30x too long.
 	cmd := exec.CommandContext(t.Context(), "sh", "-c", "sleep 15 & wait")
 	opts := CmdOpts{
 		Timeout:      250 * time.Millisecond,
@@ -389,14 +388,12 @@ func TestTerminateGroupOnCancelEscalates(t *testing.T) {
 	assert.Equal(t, []syscall.Signal{syscall.SIGTERM, syscall.SIGKILL}, rec.recorded())
 }
 
-// TestTerminateGroupOnCancelStopPreventsEscalation covers the hazard the stop function exists for:
-// a pending escalation fired after the command was reaped would signal whatever process group had
-// since recycled its PID.
+// TestTerminateGroupOnCancelStopPreventsEscalation covers why stop exists: an escalation firing
+// after the command was reaped would signal whatever group recycled its PID.
 func TestTerminateGroupOnCancelStopPreventsEscalation(t *testing.T) {
 	rec := &signalRecorder{}
 	cmd := exec.CommandContext(t.Context(), "true")
-	// The grace only has to outlast the scheduling gap between Cancel and stop: the point is that
-	// stop wins, not that it wins a race.
+	// Long grace: stop must win outright, not race.
 	stop := terminateGroupOnCancel(cmd, time.Hour, rec.signal)
 
 	require.NoError(t, cmd.Cancel())
@@ -410,7 +407,7 @@ func TestTerminateGroupOnCancelStopIsIdempotent(t *testing.T) {
 	cmd := exec.CommandContext(t.Context(), "true")
 	stop := terminateGroupOnCancel(cmd, time.Hour, rec.signal)
 
-	// Commands that are never cancelled still call stop, possibly more than once via defer chains.
+	// Uncancelled commands still call stop, possibly twice via defer chains.
 	stop()
 	stop()
 	require.NoError(t, cmd.Cancel())
@@ -422,8 +419,7 @@ func TestTerminateGroupOnCancelStopIsIdempotent(t *testing.T) {
 func TestTerminateGroupOnCancelZeroGraceStillEscalates(t *testing.T) {
 	rec := &signalRecorder{}
 	cmd := exec.CommandContext(t.Context(), "true")
-	// ARGOCD_EXEC_FATAL_TIMEOUT=0 must neither SIGKILL immediately - the cleanup window is the point
-	// of this helper - nor leave a command that ignores SIGTERM with nothing to reap it.
+	// ARGOCD_EXEC_FATAL_TIMEOUT=0 must neither kill immediately nor leave nothing to reap the command.
 	stop := terminateGroupOnCancel(cmd, 0, rec.signal)
 	defer stop()
 

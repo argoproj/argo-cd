@@ -7,15 +7,9 @@ import (
 	"syscall"
 )
 
-// SetChildProcessGroup puts the command into its own process group so that the
-// timeout handler can signal the entire group — the command plus any
-// grandchildren it spawned — rather than only the direct child.
-//
-// Without this, a grandchild that inherited the command's stdout/stderr pipes
-// (for example git's git-remote-https helper, which can block on a dead TCP
-// connection) keeps those pipes open after the direct child is killed. That
-// stalls cmd.Wait() until the grandchild exits on its own, long past the
-// configured timeout.
+// SetChildProcessGroup puts the command into its own process group, so signals can reach
+// grandchildren too. One holding the command's pipes - git-remote-https on a dead connection, say -
+// otherwise stalls cmd.Wait long past the timeout.
 func SetChildProcessGroup(cmd *exec.Cmd) {
 	if cmd.SysProcAttr == nil {
 		cmd.SysProcAttr = &syscall.SysProcAttr{}
@@ -23,15 +17,13 @@ func SetChildProcessGroup(cmd *exec.Cmd) {
 	cmd.SysProcAttr.Setpgid = true
 }
 
-// SignalProcessGroup sends sig to the command's whole process group. It relies
-// on SetChildProcessGroup having made the command a process-group leader, so
-// the group ID equals the process ID. If the group signal fails it falls back
-// to signalling just the process.
+// SignalProcessGroup signals the command's whole process group, falling back to the process alone.
+// Requires SetChildProcessGroup, which makes the group ID the process ID.
 func SignalProcessGroup(cmd *exec.Cmd, sig syscall.Signal) error {
 	if cmd.Process == nil {
 		return nil
 	}
-	// A negative PID signals the whole process group. See kill(2).
+	// Negative PID addresses the process group. See kill(2).
 	if err := syscall.Kill(-cmd.Process.Pid, sig); err != nil {
 		return cmd.Process.Signal(sig)
 	}
