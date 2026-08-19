@@ -895,9 +895,15 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 		},
 		func() error {
 			tmpDir := TmpDir()
-			err := os.RemoveAll(tmpDir)
+			entries, err := os.ReadDir(tmpDir)
 			if err != nil {
 				return err
+			}
+			for _, entry := range entries {
+				err := os.RemoveAll(filepath.Join(tmpDir, entry.Name()))
+				if err != nil {
+					return err
+				}
 			}
 			_, err = Run("", "mkdir", "-p", tmpDir)
 			if err != nil {
