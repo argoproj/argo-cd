@@ -333,6 +333,13 @@ message ApplicationSetResourceIgnoreDifferences {
   repeated string jqPathExpressions = 3;
 }
 
+// ApplicationSetRolloutGroup contains steps that may progress concurrently.
+// Groups themselves are evaluated in order; all applications selected by a
+// group must be healthy before the next group can progress.
+message ApplicationSetRolloutGroup {
+  repeated ApplicationSetRolloutStep steps = 1;
+}
+
 message ApplicationSetRolloutStep {
   repeated ApplicationMatchExpression matchExpressions = 1;
 
@@ -341,6 +348,8 @@ message ApplicationSetRolloutStep {
 
 message ApplicationSetRolloutStrategy {
   repeated ApplicationSetRolloutStep steps = 1;
+
+  repeated ApplicationSetRolloutGroup parallelGroups = 2;
 }
 
 // ApplicationSetSpec represents a class of application set state.
