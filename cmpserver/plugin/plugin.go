@@ -127,6 +127,13 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 			return
 		case <-ctx.Done():
 		}
+		// Both can become ready together: skip a group that has just been reaped, whose PID may
+		// since have been recycled.
+		select {
+		case <-waited:
+			return
+		default:
+		}
 		_ = argoexec.SignalProcessGroup(cmd, syscall.SIGTERM)
 		select {
 		case <-waited:
