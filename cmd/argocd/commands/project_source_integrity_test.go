@@ -1092,11 +1092,6 @@ func TestProjectSourceIntegrityGpgInspectRepoCommand_MultipleSources(t *testing.
 		"",
 		"PROBLEMS: multiple git/gpg policies are configured, invalid configuration",
 		"",
-		"To inspect repository:",
-		"  git fetch --tags",
-		"  git checkout v1.0.2",
-		"  git log --oneline v1.0.2",
-		"",
 		"To create seal commit (this will trust all problematic commits up to this point):",
 		"  git commit --allow-empty --signoff --gpg-sign --trailer=\"Argocd-gpg-seal: <justification>\"",
 	}

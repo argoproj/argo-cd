@@ -623,19 +623,21 @@ func printGitGpgSourceIntegrityResponse(w io.Writer, items []*applicationpkg.Ins
 		}
 		fmt.Fprintln(w)
 
-		fmt.Fprintln(w, "To inspect repository:")
-		fmt.Fprintln(w, "  git fetch --tags")
-		fmt.Fprintf(w, "  git checkout %s\n", item.GetResolvedRevision())
-		fmt.Fprintf(w, "  git log --oneline %s\n", item.GetResolvedRevision())
-		revisions := make([]string, 0, len(item.GetCommits()))
-		for _, commit := range item.GetCommits() {
-			revisions = append(revisions, commit.GetRevision())
-		}
-		if len(revisions) > 0 {
-			fmt.Fprintf(w, "  git log -p --no-walk %s\n", strings.Join(revisions, " "))
+		if item.GetErrorMessage() == "" {
+			fmt.Fprintln(w, "To inspect repository:")
+			fmt.Fprintln(w, "  git fetch --tags")
+			fmt.Fprintf(w, "  git checkout %s\n", item.GetResolvedRevision())
+			fmt.Fprintf(w, "  git log --oneline %s\n", item.GetResolvedRevision())
+			revisions := make([]string, 0, len(item.GetCommits()))
+			for _, commit := range item.GetCommits() {
+				revisions = append(revisions, commit.GetRevision())
+			}
+			if len(revisions) > 0 {
+				fmt.Fprintf(w, "  git log -p --no-walk %s\n", strings.Join(revisions, " "))
+			}
+			fmt.Fprintln(w)
 		}
 
-		fmt.Fprintln(w)
 		fmt.Fprintln(w, "To create seal commit (this will trust all problematic commits up to this point):")
 		fmt.Fprintln(w, `  git commit --allow-empty --signoff --gpg-sign --trailer="Argocd-gpg-seal: <justification>"`)
 	}
