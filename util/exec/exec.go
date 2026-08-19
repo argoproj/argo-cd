@@ -97,6 +97,11 @@ func terminateGroupOnCancel(cmd *exec.Cmd, grace time.Duration, signal func(*exe
 			// error would fail a command that finished cleanly. os/exec skips both for ErrProcessDone.
 			return os.ErrProcessDone
 		}
+		if escalation != nil {
+			// Already cancelled. os/exec cancels once, but a direct caller signalling again would
+			// orphan the timer stop needs to reach.
+			return nil
+		}
 		err := signal(cmd, syscall.SIGTERM)
 		// Reap whatever ignored SIGTERM, as the timeout path does.
 		escalation = time.AfterFunc(grace, func() {
@@ -282,7 +287,9 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 	inFlight.Add(1)
 	defer inFlight.Add(-1)
 
-	done := make(chan error)
+	// Buffered: the timeout path returns without reading done when ShouldWait is false, which would
+	// otherwise leave this goroutine blocked on the send, holding the command and its output buffers.
+	done := make(chan error, 1)
 	go func() { done <- cmd.Wait() }()
 
 	// Start timers for timeout

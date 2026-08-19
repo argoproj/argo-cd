@@ -417,3 +417,18 @@ func TestShuttingDown(t *testing.T) {
 	Shutdown()
 	assert.True(t, ShuttingDown())
 }
+
+func TestTerminateGroupOnCancelCancelledTwice(t *testing.T) {
+	rec := &signalRecorder{}
+	cmd := exec.CommandContext(t.Context(), "true")
+	// A grace long enough that stop always beats it, short enough that an orphaned timer would fire
+	// well inside the wait below.
+	stop := terminateGroupOnCancel(cmd, 250*time.Millisecond, rec.signal)
+
+	require.NoError(t, cmd.Cancel())
+	require.NoError(t, cmd.Cancel())
+	stop()
+
+	time.Sleep(750 * time.Millisecond)
+	assert.Equal(t, []syscall.Signal{syscall.SIGTERM}, rec.recorded(), "cancelling twice must not re-signal or leave a timer stop cannot reach")
+}
