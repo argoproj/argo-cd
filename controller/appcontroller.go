@@ -1599,7 +1599,12 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		switch {
 		case state.Phase == synccommon.OperationTerminating:
 			logCtx.Infof("Resuming in-progress operation. phase: %s, message: %s", state.Phase, state.Message)
-			if state.Message != "" {
+			// state.Message is whatever was last recorded on the operation state, which is not
+			// necessarily why termination was requested: the Terminate UI/API action only flips
+			// Phase to Terminating and leaves the previous (e.g. sync status) message untouched.
+			// Only surface it as the termination cause when it's the explicitly identifiable
+			// size-limit fallback message set by setOperationState.
+			if isSizeLimitTerminationCause(state.Message) {
 				terminatingCause = state.Message
 			}
 		case ctrl.syncTimeout != time.Duration(0) && time.Now().After(state.StartedAt.Add(ctrl.syncTimeout)):
@@ -1791,7 +1796,7 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 		alreadyTerminating := app.Status.OperationState != nil && app.Status.OperationState.Phase == synccommon.OperationTerminating
 
 		if isOperationStatePayloadTooLargeError(nonRetryableError) {
-			sizeLimitMessage := "Operation state patch exceeds the Kubernetes resource size limit and could not be persisted. Reduce the number of managed resources, set ApplyOutOfSyncOnly=true, lower spec.revisionHistoryLimit, or split the Application. error: " + nonRetryableError.Error()
+			sizeLimitMessage := operationStateSizeLimitMessagePrefix + " and could not be persisted. Reduce the number of managed resources, set ApplyOutOfSyncOnly=true, lower spec.revisionHistoryLimit, or split the Application. error: " + nonRetryableError.Error()
 
 			if !alreadyTerminating {
 				// Request termination instead of jumping straight to an error state, so the next
@@ -1868,6 +1873,21 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 		ctrl.metricsServer.IncSync(app, destServer, state)
 		ctrl.metricsServer.IncAppSyncDuration(app, destServer, state)
 	}
+}
+
+// operationStateSizeLimitMessagePrefix identifies the fallback message set when an operation
+// is forced into Terminating because its state could not be persisted due to the Kubernetes
+// resource size limit. It lets processRequestedAppOperation distinguish this specific,
+// explicitly-known termination cause from an arbitrary message left over on the operation
+// state (e.g. the last sync status), which the Terminate UI/API action does not overwrite.
+const operationStateSizeLimitMessagePrefix = "Operation state patch exceeds the Kubernetes resource size limit"
+
+// isSizeLimitTerminationCause reports whether message is the fallback message set when an
+// operation was moved to Terminating because its state exceeded the Kubernetes resource size
+// limit. Only this explicitly identifiable cause should be surfaced as "triggered by" on the
+// final operation state; other preserved messages are not termination reasons.
+func isSizeLimitTerminationCause(message string) bool {
+	return strings.HasPrefix(message, operationStateSizeLimitMessagePrefix)
 }
 
 // isOperationStatePayloadTooLargeError returns true when the patch was rejected because the

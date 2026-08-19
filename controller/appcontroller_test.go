@@ -3075,7 +3075,7 @@ func TestProcessRequestedAppOperation_HasRetriesTerminated(t *testing.T) {
 	assert.Equal(t, "Operation terminated", patchedApp.Status.OperationState.Message)
 }
 
-func TestProcessRequestedAppOperation_HasRetriesTerminatedWithMessage(t *testing.T) {
+func TestProcessRequestedAppOperation_HasRetriesTerminatedWithUnrelatedMessage(t *testing.T) {
 	app := newFakeApp()
 	app.Operation = &v1alpha1.Operation{
 		Sync:  &v1alpha1.SyncOperation{},
@@ -3083,6 +3083,9 @@ func TestProcessRequestedAppOperation_HasRetriesTerminatedWithMessage(t *testing
 	}
 	app.Status.OperationState.Operation = *app.Operation
 	app.Status.OperationState.Phase = synccommon.OperationTerminating
+	// The Terminate UI/API action only flips Phase to Terminating; it does not overwrite
+	// Message. This leftover message (e.g. from the prior sync attempt) must not be
+	// mislabeled as the reason termination was requested.
 	app.Status.OperationState.Message = "dummy operation state message"
 
 	data := &fakeData{
@@ -3102,7 +3105,41 @@ func TestProcessRequestedAppOperation_HasRetriesTerminatedWithMessage(t *testing
 	require.NoError(t, err)
 	require.NotNil(t, patchedApp.Status.OperationState)
 	assert.Equal(t, synccommon.OperationFailed, patchedApp.Status.OperationState.Phase)
-	assert.Equal(t, "Operation terminated, triggered by dummy operation state message", patchedApp.Status.OperationState.Message)
+	assert.Equal(t, "Operation terminated", patchedApp.Status.OperationState.Message)
+}
+
+func TestProcessRequestedAppOperation_HasRetriesTerminatedWithSizeLimitCause(t *testing.T) {
+	app := newFakeApp()
+	app.Operation = &v1alpha1.Operation{
+		Sync:  &v1alpha1.SyncOperation{},
+		Retry: v1alpha1.RetryStrategy{Limit: 10},
+	}
+	app.Status.OperationState.Operation = *app.Operation
+	app.Status.OperationState.Phase = synccommon.OperationTerminating
+	// Only the explicitly identifiable size-limit fallback message (set by setOperationState
+	// when the operation state could not be persisted) should be surfaced as the termination
+	// cause on the final state.
+	sizeLimitMessage := operationStateSizeLimitMessagePrefix + " and could not be persisted. error: request entity too large"
+	app.Status.OperationState.Message = sizeLimitMessage
+
+	data := &fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+	}
+	ctrl := newFakeController(t.Context(), data, nil)
+
+	ctrl.processRequestedAppOperation(app)
+
+	patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, patchedApp.Status.OperationState)
+	assert.Equal(t, synccommon.OperationFailed, patchedApp.Status.OperationState.Phase)
+	assert.Equal(t, "Operation terminated, triggered by "+sizeLimitMessage, patchedApp.Status.OperationState.Message)
 }
 
 func TestProcessRequestedAppOperation_Successful(t *testing.T) {
