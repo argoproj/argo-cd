@@ -1207,3 +1207,22 @@ export interface ApplicationSet extends AbstractApplication {
         resourcesCount?: number;
     };
 }
+
+export interface ApplicationDiffSummary {
+    appName: string;
+    project: string;
+    syncStatus: string;
+    diffs: ResourceDiff[];
+    appNamespace: string;
+    isLazy?: boolean;
+    error?: string;
+}
+
+export interface ApplicationDiffResponse {
+    items: ApplicationDiffSummary[];
+}
+
+export interface ApplicationIdentifier {
+    name: string;
+    appNamespace: string;
+}

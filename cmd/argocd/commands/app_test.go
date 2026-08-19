@@ -2393,6 +2393,10 @@ func (f fakeSettingsServiceClient) GetPlugins(_ context.Context, _ *settingspkg.
 
 type fakeAppServiceClient struct{}
 
+func (c *fakeAppServiceClient) GetBatchApplicationDiff(_ context.Context, _ *applicationpkg.ApplicationDiffRequest, _ ...grpc.CallOption) (*applicationpkg.ApplicationDiffResponse, error) {
+	return nil, nil
+}
+
 func (c *fakeAppServiceClient) Get(_ context.Context, _ *applicationpkg.ApplicationQuery, _ ...grpc.CallOption) (*v1alpha1.Application, error) {
 	time := metav1.Date(2020, time.November, 10, 23, 0, 0, 0, time.UTC)
 	return &v1alpha1.Application{
@@ -2868,4 +2872,49 @@ func TestIsContextCanceledErr(t *testing.T) {
 		t.Parallel()
 		assert.False(t, isContextCanceledErr(errors.New("some other error")))
 	})
+}
+
+func TestNewApplicationDiffCommand_Flags(t *testing.T) {
+	cmd := NewApplicationDiffCommand(nil)
+	assert.NotNil(t, cmd)
+
+	flag := cmd.Flags().Lookup("all")
+	assert.NotNil(t, flag)
+	assert.Equal(t, "all", flag.Name)
+
+	flag = cmd.Flags().Lookup("project")
+	assert.NotNil(t, flag)
+	assert.Equal(t, "project", flag.Name)
+
+	flag = cmd.Flags().Lookup("selector")
+	assert.NotNil(t, flag)
+	assert.Equal(t, "selector", flag.Name)
+
+	flag = cmd.Flags().Lookup("concurrency")
+	assert.NotNil(t, flag)
+	assert.Equal(t, "concurrency", flag.Name)
+}
+
+func TestNewApplicationDiffCommand_BatchFormulation(t *testing.T) {
+	cmd := NewApplicationDiffCommand(nil)
+	assert.NotNil(t, cmd)
+
+	err := cmd.ParseFlags([]string{"--all", "--project", "default", "--project", "test-proj", "--selector", "app=foo", "--concurrency", "20"})
+	require.NoError(t, err)
+
+	allVal, err := cmd.Flags().GetBool("all")
+	require.NoError(t, err)
+	assert.True(t, allVal)
+
+	projVal, err := cmd.Flags().GetStringSlice("project")
+	require.NoError(t, err)
+	assert.Equal(t, []string{"default", "test-proj"}, projVal)
+
+	selectorVal, err := cmd.Flags().GetString("selector")
+	require.NoError(t, err)
+	assert.Equal(t, "app=foo", selectorVal)
+
+	concurrencyVal, err := cmd.Flags().GetInt("concurrency")
+	require.NoError(t, err)
+	assert.Equal(t, 20, concurrencyVal)
 }

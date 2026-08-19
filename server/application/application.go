@@ -3228,3 +3228,188 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 		Modified: &modified,
 	}, nil
 }
+
+// GetBatchApplicationDiff returns detailed diffs for a batch of applications
+func (s *Server) GetBatchApplicationDiff(ctx context.Context, q *application.ApplicationDiffRequest) (*application.ApplicationDiffResponse, error) {
+	selector, err := labels.Parse(q.GetSelector())
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "error parsing the selector: %v", err)
+	}
+
+	var apps []*v1alpha1.Application
+	apps, err = s.appLister.List(selector)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "error listing apps: %v", err)
+	}
+
+	// Filter applications by name and namespace if apps is specified
+	if len(q.GetApps()) > 0 {
+		appsMap := make(map[string]bool)
+		for _, appID := range q.GetApps() {
+			ns := appID.GetAppNamespace()
+			if ns == "" {
+				ns = s.ns
+			}
+			key := ns + "/" + appID.GetName()
+			appsMap[key] = true
+		}
+		var filtered []*v1alpha1.Application
+		for _, app := range apps {
+			ns := app.Namespace
+			if ns == "" {
+				ns = s.ns
+			}
+			key := ns + "/" + app.Name
+			if appsMap[key] {
+				filtered = append(filtered, app)
+			}
+		}
+		apps = filtered
+	}
+
+	// Filter applications by projects if specified
+	if len(q.GetProjects()) > 0 {
+		apps = argo.FilterByProjectsP(apps, q.GetProjects())
+	}
+
+	// Filter by namespace enablement and enforce RBAC
+	var allowedApps []*v1alpha1.Application
+	for _, app := range apps {
+		if !s.isNamespaceEnabled(app.Namespace) {
+			continue
+		}
+		// Ensure proper RBAC authorization check (action: get, subresource/resource: applications)
+		if s.enf.Enforce(ctx.Value("claims"), rbac.ResourceApplications, rbac.ActionGet, app.RBACName(s.ns)) {
+			allowedApps = append(allowedApps, app)
+		}
+	}
+	apps = allowedApps
+
+	// Limit to maximum of 50 apps per batch request
+	if len(apps) > 50 {
+		return nil, status.Errorf(codes.InvalidArgument, "request exceeds maximum batch limit of 50 applications (requested %d)", len(apps))
+	}
+
+	// Bounded worker pool (max 10 concurrent requests)
+	type jobResult struct {
+		appName      string
+		project      string
+		appNamespace string
+		summary      *application.ApplicationDiffSummary
+		err          error
+	}
+
+	sem := make(chan struct{}, 10)
+	resultsChan := make(chan jobResult, len(apps))
+
+	for _, app := range apps {
+		go func(app *v1alpha1.Application) {
+			select {
+			case <-ctx.Done():
+				resultsChan <- jobResult{appName: app.Name, project: app.Spec.GetProject(), appNamespace: app.Namespace, err: ctx.Err()}
+				return
+			case sem <- struct{}{}:
+			}
+			defer func() { <-sem }()
+
+			summary, err := s.fetchAppDiffSummary(ctx, app, q.GetRefresh())
+			resultsChan <- jobResult{appName: app.Name, project: app.Spec.GetProject(), appNamespace: app.Namespace, summary: summary, err: err}
+		}(app)
+	}
+
+	var summaries []*application.ApplicationDiffSummary
+	for i := 0; i < len(apps); i++ {
+		select {
+		case <-ctx.Done():
+			return nil, status.Errorf(codes.DeadlineExceeded, "request timed out: %v", ctx.Err())
+		case res := <-resultsChan:
+			if res.err != nil {
+				log.Errorf("failed to fetch diff for app %s: %v", res.appName, res.err)
+				errStr := res.err.Error()
+				syncStatus := "Unknown"
+				summaries = append(summaries, &application.ApplicationDiffSummary{
+					AppName:      &res.appName,
+					Project:      &res.project,
+					SyncStatus:   &syncStatus,
+					AppNamespace: &res.appNamespace,
+					Error:        &errStr,
+				})
+				continue
+			}
+			if res.summary != nil {
+				summaries = append(summaries, res.summary)
+			}
+		}
+	}
+
+	// Sort summaries by application name for consistency
+	sort.Slice(summaries, func(i, j int) bool {
+		return summaries[i].GetAppName() < summaries[j].GetAppName()
+	})
+
+	return &application.ApplicationDiffResponse{
+		Items: summaries,
+	}, nil
+}
+
+func (s *Server) fetchAppDiffSummary(ctx context.Context, app *v1alpha1.Application, refresh string) (*application.ApplicationDiffSummary, error) {
+	refreshedApp := app
+	if refresh != "" {
+		appName := app.GetName()
+		appNamespace := app.GetNamespace()
+		var err error
+		refreshedApp, err = s.Get(ctx, &application.ApplicationQuery{
+			Name:         &appName,
+			AppNamespace: &appNamespace,
+			Refresh:      &refresh,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("error refreshing application %s: %w", app.Name, err)
+		}
+	}
+
+	var items []*v1alpha1.ResourceDiff
+	err := s.getCachedAppState(ctx, refreshedApp, func() error {
+		return s.cache.GetAppManagedResources(refreshedApp.InstanceName(s.ns), &items)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error getting cached app managed resources for %s: %w", refreshedApp.Name, err)
+	}
+
+	var diffs []*v1alpha1.ResourceDiff
+	for _, item := range items {
+		if item.Hook {
+			continue
+		}
+		if isOutOfSyncOrDrifted(refreshedApp, item) {
+			diffs = append(diffs, item)
+		}
+	}
+
+	appName := refreshedApp.Name
+	project := refreshedApp.Spec.GetProject()
+	syncStatus := string(refreshedApp.Status.Sync.Status)
+	appNamespace := refreshedApp.Namespace
+
+	return &application.ApplicationDiffSummary{
+		AppName:      &appName,
+		Project:      &project,
+		SyncStatus:   &syncStatus,
+		Diffs:        diffs,
+		AppNamespace: &appNamespace,
+	}, nil
+}
+
+func isOutOfSyncOrDrifted(app *v1alpha1.Application, diff *v1alpha1.ResourceDiff) bool {
+	if diff.Modified {
+		return true
+	}
+	for _, res := range app.Status.Resources {
+		if res.Group == diff.Group && res.Kind == diff.Kind && res.Namespace == diff.Namespace && res.Name == diff.Name {
+			if res.Status == v1alpha1.SyncStatusCodeOutOfSync || res.RequiresPruning {
+				return true
+			}
+		}
+	}
+	return false
+}
