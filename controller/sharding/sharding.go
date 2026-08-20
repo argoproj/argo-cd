@@ -404,7 +404,7 @@ func getOrUpdateShardNumberForController(shardMappingData []shardApplicationCont
 	if shard == -1 {
 		for i := range shardMappingData {
 			shardMapping := shardMappingData[i]
-			if (shardMapping.ControllerName == "") || (metav1.Now().After(shardMapping.HeartbeatTime.Add(time.Duration(HeartbeatTimeout) * time.Second))) {
+			if (shardMapping.ControllerName == "") || metav1.Now().After(shardMapping.HeartbeatTime.Add(time.Duration(HeartbeatTimeout)*time.Second)) {
 				shard = int(shardMapping.ShardNumber)
 				log.Debugf("Empty shard found %d", shard)
 				shardMapping.ControllerName = hostname

@@ -592,7 +592,7 @@ func resolveReferencedSources(hasMultipleSources bool, source *v1alpha1.Applicat
 		if !strings.HasPrefix(valueFile, "$") {
 			continue
 		}
-		refVar := strings.Split(valueFile, "/")[0]
+		refVar, _, _ := strings.Cut(valueFile, "/")
 
 		refSourceMapping, ok := refSources[refVar]
 		if !ok {
@@ -725,8 +725,7 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 
 	// Convert typed errors to gRPC status codes so callers can use status.Code()
 	// rather than string matching.
-	var globNoMatch *GlobNoMatchError
-	if errors.As(err, &globNoMatch) {
+	if _, ok := errors.AsType[*GlobNoMatchError](err); ok {
 		return nil, status.Error(codes.NotFound, err.Error())
 	}
 	return res, err
@@ -876,7 +875,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 					if !strings.HasPrefix(valueFile, "$") {
 						continue
 					}
-					refVar := strings.Split(valueFile, "/")[0]
+					refVar, _, _ := strings.Cut(valueFile, "/")
 
 					refSourceMapping, ok := q.RefSources[refVar]
 					if !ok {
@@ -3550,7 +3549,7 @@ func (s *Service) UpdateRevisionForPaths(ctx context.Context, request *apiclient
 		if !strings.HasPrefix(valueFile, "$") {
 			continue
 		}
-		refName := strings.Split(valueFile, "/")[0]
+		refName, _, _ := strings.Cut(valueFile, "/")
 		if _, ok := refsToCompare[refName]; ok {
 			continue
 		}
