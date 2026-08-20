@@ -1,0 +1,12 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-labels
+spec: {}
+status:
+  conditions:
+  - lastTransitionTime: "2025-01-17T19:09:11Z"
+    message: 'policy is not ready: some rules failed to load'
+    reason: Failed
+    status: "False"
+    type: Ready
