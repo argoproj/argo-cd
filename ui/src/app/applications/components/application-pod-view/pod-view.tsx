@@ -193,7 +193,9 @@ export function PodView(props: PodViewProps) {
                                                             <div>
                                                                 {group.resourceStatus.health && <HealthStatusIcon state={group.resourceStatus.health} />}
                                                                 &nbsp;
-                                                                {group.resourceStatus.status && <ComparisonStatusIcon status={group.resourceStatus.status} resource={group.resourceStatus} />}
+                                                                {group.resourceStatus.status && (
+                                                                    <ComparisonStatusIcon status={group.resourceStatus.status} resource={group.resourceStatus} />
+                                                                )}
                                                             </div>
                                                         )}
                                                     </div>
