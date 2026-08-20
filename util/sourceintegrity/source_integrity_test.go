@@ -536,7 +536,6 @@ GIT/GPG: Failed verifying revision %s by 'ignored': signed with unallowed key (k
 		t.Run("verify "+test.revision, func(t *testing.T) {
 			// Given repo with a tagged commit
 			gitClient := &gitmocks.Client{}
-			gitClient.EXPECT().IsShallowRepo(mock.Anything).Return(false, nil)
 			gitClient.EXPECT().LsSignatures(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(
 				func(_ context.Context, revision string, deep bool) (info []git.RevisionSignatureInfo, legacy string, err error) {
 					if ret, ok := lsSignatures[deep][revision]; ok {
@@ -582,43 +581,16 @@ gpg: Good signature from "%s" [ultimate]`, "Wed Feb 26 23:22:34 2020 CET", ret[0
 
 func TestGPGStrictShallowRepoFails(t *testing.T) {
 	const revision = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-	const expectedLegacy = "GPG strict mode requires deep clone of the repository, but the repository is shallow"
-	expectedErr := "GIT/GPG: " + expectedLegacy
 
 	gitClient := &gitmocks.Client{}
-	gitClient.EXPECT().IsShallowRepo(mock.Anything).Return(true, nil)
+	gitClient.EXPECT().LsSignatures(mock.Anything, revision, true).Return(nil, "", errors.New("shallow repository lacks history required for deep signature listing"))
 
 	policy := &v1alpha1.SourceIntegrityGitPolicyGPG{
 		Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeStrict,
 		Keys: []string{"1234ABCD1234ABCD"},
 	}
 
-	result, legacy, err := verify(t.Context(), policy, gitClient, revision)
-	require.NoError(t, err) // Expected to have the verification failure in result
-
-	err = result.AsError()
+	_, _, err := verify(t.Context(), policy, gitClient, revision)
 	require.Error(t, err)
-	assert.False(t, result.IsValid())
-	assert.Equal(t, expectedErr, err.Error())
-	assert.Equal(t, expectedLegacy, legacy)
-	assert.Empty(t, result.PassedChecks())
-	gitClient.AssertNotCalled(t, "LsSignatures", mock.Anything, mock.Anything, mock.Anything)
-}
-
-func TestGPGStrictShallowRepoCheckError(t *testing.T) {
-	const revision = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-
-	gitClient := &gitmocks.Client{}
-	gitClient.EXPECT().IsShallowRepo(mock.Anything).Return(false, errors.New("failed to check if repository is shallow"))
-
-	policy := &v1alpha1.SourceIntegrityGitPolicyGPG{
-		Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeStrict,
-		Keys: []string{"1234ABCD1234ABCD"},
-	}
-
-	result, legacy, err := verify(t.Context(), policy, gitClient, revision)
-	require.ErrorContains(t, err, "failed to check if repository is shallow")
-	assert.Nil(t, result)
-	assert.Empty(t, legacy)
-	gitClient.AssertNotCalled(t, "LsSignatures", mock.Anything, mock.Anything, mock.Anything)
+	require.ErrorContains(t, err, "shallow repository lacks history required for deep signature listing")
 }

@@ -167,8 +167,6 @@ type Client interface {
 	AddAndPushNote(ctx context.Context, sha string, namespace string, note string) error
 	// HasFileChanged returns the outout of git diff considering whether it is tracked or un-tracked
 	HasFileChanged(ctx context.Context, filePath string) (bool, error)
-	// IsShallowRepo returns true if the repository is shallow
-	IsShallowRepo(ctx context.Context) (bool, error)
 }
 
 type EventHandlers struct {
@@ -1297,6 +1295,16 @@ func evaluateGpgSignStatus(cmdErr error, tagGpgOut string) (result GPGVerificati
 }
 
 func (m *nativeGitClient) LsSignatures(ctx context.Context, unresolvedRevision string, deep bool) ([]RevisionSignatureInfo, string, error) {
+	if deep {
+		shallow, err := m.isShallowRepo(ctx)
+		if err != nil {
+			return nil, "", err
+		}
+		if shallow {
+			return nil, "", errors.New("shallow repository lacks history required for deep signature listing")
+		}
+	}
+
 	legacyVerification := ""
 
 	// Resolve eventual semantic tag constraint before annotated tag detection
@@ -1748,8 +1756,8 @@ func (m *nativeGitClient) HasFileChanged(ctx context.Context, filePath string) (
 	return false, fmt.Errorf("git diff failed: %w", err)
 }
 
-// IsShallowRepo returns true if the repository is shallow
-func (m *nativeGitClient) IsShallowRepo(ctx context.Context) (bool, error) {
+// isShallowRepo returns true if the repository is shallow
+func (m *nativeGitClient) isShallowRepo(ctx context.Context) (bool, error) {
 	out, err := m.runCmd(ctx, "rev-parse", "--is-shallow-repository")
 	if err != nil {
 		return false, fmt.Errorf("failed to check if repository is shallow: %w", err)

@@ -376,13 +376,13 @@ func TestSyncStrictModeFailsOnShallowRepo(t *testing.T) {
 		When().
 		AddSignedFile("test.yaml", "null").
 		IgnoreErrors().
-		CreateApp().
+		// Shallow + strict fails manifest generation at create; skip validation, assert on sync.
+		CreateApp("--validate=false").
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationError)).
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
-		Expect(HealthIs(health.HealthStatusMissing)).
-		Expect(Condition(ApplicationConditionComparisonError, "GIT/GPG: GPG strict mode requires deep clone of the repository, but the repository is shallow"))
+		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
+		Expect(Condition(ApplicationConditionComparisonError, "shallow repository lacks history required for deep signature listing"))
 }
 
 func TestNamespacedSyncToUnsignedCommit(t *testing.T) {

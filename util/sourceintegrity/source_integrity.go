@@ -133,21 +133,6 @@ func verify(ctx context.Context, g *v1alpha1.SourceIntegrityGitPolicyGPG, gitCli
 	// verify history from the current commit
 	case v1alpha1.SourceIntegrityGitPolicyGPGModeStrict:
 		deep = true
-
-		shallow, err := gitClient.IsShallowRepo(ctx)
-		if err != nil {
-			return nil, "", err
-		}
-		if shallow {
-			msg := "GPG strict mode requires deep clone of the repository, but the repository is shallow"
-
-			return &v1alpha1.SourceIntegrityCheckResult{
-				Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
-					Name:     checkName,
-					Problems: []string{msg},
-				}},
-			}, msg, nil
-		}
 	default:
 		return nil, "", fmt.Errorf("unknown GPG mode %q configured for GIT source integrity", g.Mode)
 	}
