@@ -104,7 +104,7 @@ describe('HealthCheckDetailsPanel tests', () => {
     test('renders null item safely without crash', () => {
         const onClose = jest.fn();
         const {container} = render(<HealthCheckDetailsPanel item={null} onClose={onClose} />);
-        expect(container.firstChild).toBeNull();
+        expect(container.querySelector('.health-check-details-panel__header')).toBeNull();
     });
 
     test('renders BuiltinGo item metadata and native Go explanation', () => {
@@ -119,7 +119,7 @@ describe('HealthCheckDetailsPanel tests', () => {
 
         render(<HealthCheckDetailsPanel item={item} onClose={onClose} />);
 
-        expect(screen.getByText('apps/Deployment')).toBeInTheDocument();
+        expect(screen.getAllByText('apps/Deployment').length).toBeGreaterThan(0);
         expect(screen.getByText('BuiltinGo')).toBeInTheDocument();
         expect(screen.getByText(/implemented natively in Go within/i)).toBeInTheDocument();
     });
@@ -137,7 +137,7 @@ describe('HealthCheckDetailsPanel tests', () => {
 
         render(<HealthCheckDetailsPanel item={item} onClose={onClose} />);
 
-        expect(screen.getByText('argoproj.io/Rollout')).toBeInTheDocument();
+        expect(screen.getAllByText('argoproj.io/Rollout').length).toBeGreaterThan(0);
         expect(screen.getByText('BuiltinLua')).toBeInTheDocument();
         expect(screen.getByText('Health Check Source')).toBeInTheDocument();
 

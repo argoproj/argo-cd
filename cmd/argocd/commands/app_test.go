@@ -2391,6 +2391,10 @@ func (f fakeSettingsServiceClient) GetPlugins(_ context.Context, _ *settingspkg.
 	return nil, nil
 }
 
+func (f fakeSettingsServiceClient) GetHealthChecks(_ context.Context, _ *settingspkg.SettingsQuery, _ ...grpc.CallOption) (*settingspkg.HealthChecksListResponse, error) {
+	return nil, nil
+}
+
 type fakeAppServiceClient struct{}
 
 func (c *fakeAppServiceClient) Get(_ context.Context, _ *applicationpkg.ApplicationQuery, _ ...grpc.CallOption) (*v1alpha1.Application, error) {
