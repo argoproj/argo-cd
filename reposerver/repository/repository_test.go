@@ -49,6 +49,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/reposerver/metrics"
 	fileutil "github.com/argoproj/argo-cd/v3/test/fixture/path"
 	"github.com/argoproj/argo-cd/v3/util/argo"
+	executil "github.com/argoproj/argo-cd/v3/util/exec"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	gitmocks "github.com/argoproj/argo-cd/v3/util/git/mocks"
 	"github.com/argoproj/argo-cd/v3/util/helm"
@@ -990,6 +991,17 @@ func TestGenerateJsonnetImportDeviceFileOutsideRepoRoot(t *testing.T) {
 	case <-time.After(10 * time.Second):
 		t.Fatal("GenerateManifest did not return: import of /dev/zero must be rejected before it is read")
 	}
+}
+
+// A command killed by the repo-server's own shutdown must not be cached as a generation failure: the
+// counter is shared through Redis, so it would outlive the pod that terminated the command.
+func TestCacheGenerationErrorExcludesShutdown(t *testing.T) {
+	assert.True(t, cacheGenerationError(errors.New("rendered manifests contain a resource that already exists")))
+	// What GenerateManifests actually returns: the sentinel behind a CmdError, itself wrapped by the
+	// helm/kustomize/CMP call site.
+	shutdownErr := &executil.CmdError{Args: "git fetch origin", Cause: executil.ErrShuttingDown}
+	assert.False(t, cacheGenerationError(shutdownErr))
+	assert.False(t, cacheGenerationError(fmt.Errorf("failed to generate manifests: %w", shutdownErr)))
 }
 
 func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
