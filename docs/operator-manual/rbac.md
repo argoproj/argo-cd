@@ -216,7 +216,7 @@ The `rollback` action allows rolling back applications to previously synced revi
 
 * Can only rollback to revisions in the application's revision history (up to the configured `revisionHistoryLimit`)
 * Cannot rollback when auto-sync is enabled
-* Uses the application's configured sync options (cannot override with custom options)
+* Supports `dryRun` and `prune` options but cannot override other sync options
 * Cannot use partial sync on specific resources
 
 #### Enabling Separate Rollback Permission
