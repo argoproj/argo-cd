@@ -25,6 +25,8 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 )
 
+const AppSetControllerUsername = "applicationset-controller"
+
 var appEquality = conversion.EqualitiesOrDie(
 	func(a, b resource.Quantity) bool {
 		// Ignore formatting, only care that numeric value stayed the same.
@@ -143,8 +145,8 @@ func CreateOrUpdate(ctx context.Context, logCtx *log.Entry, c client.Client, dif
 	// keeps the leftover filter. Never send Operation through MergeFrom.
 	obj.Operation = cacheOp
 
-	alreadyFullAppSet := cacheOp != nil && cacheOp.InitiatedBy.Username == "applicationset-controller" && cacheOp.Sync != nil && len(cacheOp.Sync.Resources) == 0
-	shouldWriteOp := generatedAssigned && desiredOp != nil && (cacheOp == nil || cacheOp.InitiatedBy.Username == "applicationset-controller") && !alreadyFullAppSet
+	alreadyFullAppSet := cacheOp != nil && cacheOp.InitiatedBy.Username == AppSetControllerUsername && cacheOp.Sync != nil && len(cacheOp.Sync.Resources) == 0
+	shouldWriteOp := generatedAssigned && desiredOp != nil && (cacheOp == nil || cacheOp.InitiatedBy.Username == AppSetControllerUsername) && !alreadyFullAppSet
 
 	// Normalize the live spec to avoid spurious diffs from unimportant differences (e.g. nil vs
 	// empty SyncPolicy). obj.Spec is already normalized by the caller; only the live side needs it.
