@@ -46,6 +46,32 @@ export interface PodGroup extends Partial<ResourceNode> {
     hostLabels?: {[name: string]: string};
 }
 
+function getPodHealthCounts(pods: Pod[]) {
+    return pods.reduce(
+        (counts, pod) => {
+            switch (pod.health) {
+                case 'Healthy':
+                case 'Suspended':
+                    counts.healthy++;
+                    break;
+                case 'Degraded':
+                    counts.degraded++;
+                    break;
+                case 'Progressing':
+                    counts.progressing++;
+                    break;
+            }
+
+            return counts;
+        },
+        {
+            healthy: 0,
+            degraded: 0,
+            progressing: 0
+        }
+    );
+}
+
 export function PodView(props: PodViewProps) {
     const ctx = useContext(Context);
 
@@ -118,6 +144,7 @@ export function PodView(props: PodViewProps) {
                                     if (group.type === 'node' && group.name === 'Unschedulable' && podPrefs.hideUnschedulable) {
                                         return null;
                                     }
+                                    const podHealthCounts = getPodHealthCounts(group.pods);
                                     return (
                                         <div className={`pod-view__node white-box ${group.kind === 'node' && 'pod-view__node--large'}`} key={group.fullName || group.name}>
                                             <div
@@ -132,13 +159,41 @@ export function PodView(props: PodViewProps) {
                                                     </div>
                                                     <div style={{lineHeight: '15px'}}>
                                                         <b style={{wordWrap: 'break-word'}}>{group.name || 'Unknown'}</b>
+
+                                                        <div className='pod-view__node__pod-summary'>
+                                                            {podHealthCounts.healthy > 0 && (
+                                                                <span className='pod-view__node__pod-summary__item'>
+                                                                    <span className='pod-view__node__pod-summary__icon pod-view__node__pod--healthy'>
+                                                                        <PodHealthIcon state={{status: 'Healthy', message: ''}} />
+                                                                    </span>
+                                                                    {podHealthCounts.healthy}
+                                                                </span>
+                                                            )}
+
+                                                            {podHealthCounts.degraded > 0 && (
+                                                                <span className='pod-view__node__pod-summary__item'>
+                                                                    <span className='pod-view__node__pod-summary__icon pod-view__node__pod--degraded'>
+                                                                        <PodHealthIcon state={{status: 'Degraded', message: ''}} />
+                                                                    </span>
+                                                                    {podHealthCounts.degraded}
+                                                                </span>
+                                                            )}
+
+                                                            {podHealthCounts.progressing > 0 && (
+                                                                <span className='pod-view__node__pod-summary__item'>
+                                                                    <span className='pod-view__node__pod-summary__icon pod-view__node__pod--progressing'>
+                                                                        <PodHealthIcon state={{status: 'Progressing', message: ''}} />
+                                                                    </span>
+                                                                    {podHealthCounts.progressing}
+                                                                </span>
+                                                            )}
+                                                        </div>
+
                                                         {group.resourceStatus && (
                                                             <div>
                                                                 {group.resourceStatus.health && <HealthStatusIcon state={group.resourceStatus.health} />}
                                                                 &nbsp;
-                                                                {group.resourceStatus.status && (
-                                                                    <ComparisonStatusIcon status={group.resourceStatus.status} resource={group.resourceStatus} />
-                                                                )}
+                                                                {group.resourceStatus.status && <ComparisonStatusIcon status={group.resourceStatus.status} resource={group.resourceStatus} />}
                                                             </div>
                                                         )}
                                                     </div>
