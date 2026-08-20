@@ -12,8 +12,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"sync"
-	"syscall"
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -41,8 +39,8 @@ var tracer = otel.Tracer("github.com/argoproj/argo-cd/v3/cmpserver/plugin")
 // enough time before the client times out to send a meaningful error message.
 const cmpTimeoutBuffer = 100 * time.Millisecond
 
-// pluginCleanupTimeout is how long the rest of a plugin command's process group is given to exit
-// after SIGTERM before it is killed.
+// pluginCleanupTimeout is how long a cancelled plugin command's process group has to exit before it
+// is killed. It bounds the whole SIGTERM-then-SIGKILL sequence, see exec.TerminateGroupOnCancel.
 const pluginCleanupTimeout = 5 * time.Second
 
 // Service implements ConfigManagementPluginService interface
@@ -110,8 +108,11 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
-	// Own process group, so the plugin's children can be signalled along with it.
-	argoexec.SetChildProcessGroup(cmd)
+	// os/exec would SIGKILL the plugin alone on cancellation, orphaning whatever it spawned. Signal
+	// the whole group instead, from cmd.Cancel: os/exec runs it before Wait returns, so the plugin -
+	// and with it the group ID - is still around, which a goroutine racing the reap cannot promise.
+	// Also puts the command in its own process group.
+	stopEscalation := argoexec.TerminateGroupOnCancel(cmd, pluginCleanupTimeout)
 
 	start := time.Now()
 	err = cmd.Start()
@@ -119,44 +120,8 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 		return "", err
 	}
 
-	// os/exec kills the plugin itself as soon as the context is done. Signal the rest of its group
-	// too, giving those processes pluginCleanupTimeout to exit before they are reaped.
-	var mu sync.Mutex
-	reaped := false
-	waited := make(chan struct{})
-	// signalGroup reports whether it signalled. The lock spans the check and the signal: a reaped
-	// command's PID may since have been recycled, and merely testing waited beforehand would leave
-	// the two racing.
-	signalGroup := func(sig syscall.Signal) bool {
-		mu.Lock()
-		defer mu.Unlock()
-		if reaped {
-			return false
-		}
-		_ = argoexec.SignalProcessGroup(cmd, sig)
-		return true
-	}
-	go func() {
-		select {
-		case <-waited:
-			return
-		case <-ctx.Done():
-		}
-		if !signalGroup(syscall.SIGTERM) {
-			return
-		}
-		select {
-		case <-waited:
-		case <-time.After(pluginCleanupTimeout):
-			signalGroup(syscall.SIGKILL)
-		}
-	}()
-
 	err = cmd.Wait()
-	mu.Lock()
-	reaped = true
-	close(waited)
-	mu.Unlock()
+	stopEscalation()
 
 	duration := time.Since(start)
 	output := stdout.String()
