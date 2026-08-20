@@ -46,7 +46,7 @@ export interface PodGroup extends Partial<ResourceNode> {
     hostLabels?: {[name: string]: string};
 }
 
-function getPodHealthCounts(pods: Pod[]) {
+export function getPodHealthCounts(pods: Pod[]) {
     return pods.reduce(
         (counts, pod) => {
             switch (pod.health) {
