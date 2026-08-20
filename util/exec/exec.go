@@ -87,7 +87,7 @@ func terminateGroupOnCancel(cmd *exec.Cmd, grace time.Duration, signal func(*exe
 
 	var mu sync.Mutex
 	var escalation *time.Timer
-	stopped := false
+	cancelled, stopped := false, false
 
 	cmd.Cancel = func() error {
 		mu.Lock()
@@ -97,12 +97,18 @@ func terminateGroupOnCancel(cmd *exec.Cmd, grace time.Duration, signal func(*exe
 			// error would fail a command that finished cleanly. os/exec skips both for ErrProcessDone.
 			return os.ErrProcessDone
 		}
-		if escalation != nil {
+		if cancelled {
 			// Already cancelled. os/exec cancels once, but a direct caller signalling again would
 			// orphan the timer stop needs to reach.
 			return nil
 		}
+		cancelled = true
 		err := signal(cmd, syscall.SIGTERM)
+		if errors.Is(err, os.ErrProcessDone) {
+			// Already reaped, so there is nothing left to escalate against: an armed timer could
+			// only reach whatever recycled the PID.
+			return err
+		}
 		// Reap whatever ignored SIGTERM, as the timeout path does.
 		escalation = time.AfterFunc(grace, func() {
 			mu.Lock()
@@ -112,9 +118,6 @@ func terminateGroupOnCancel(cmd *exec.Cmd, grace time.Duration, signal func(*exe
 			}
 			_ = signal(cmd, syscall.SIGKILL)
 		})
-		if errors.Is(err, os.ErrProcessDone) {
-			return err
-		}
 		// Best effort otherwise: reporting e.g. EPERM here would mask the context error on Wait.
 		return nil
 	}
@@ -380,11 +383,16 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 		}
 		// Signal the group so the command can clean up, then reap it if it ignores SIGTERM.
 		_ = SignalProcessGroup(cmd, syscall.SIGTERM)
+		var waitErr error
 		select {
-		case <-done:
+		case waitErr = <-done:
 		case <-time.After(CancelGrace()):
 			_ = SignalProcessGroup(cmd, syscall.SIGKILL)
-			<-done
+			waitErr = <-done
+		}
+		if waitErr == nil {
+			// Finished on its own between the check above and the SIGTERM, so it is no casualty.
+			return finish(nil)
 		}
 		output := stdout.String()
 		if opts.CaptureStderr {
@@ -392,7 +400,9 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 		}
 		logCtx.WithFields(logrus.Fields{"duration": time.Since(start)}).Debug(redactor(output))
 		err = newCmdError(redactor(args), ErrShuttingDown, strings.TrimSpace(redactor(stderr.String())))
-		logCtx.Error(err.Error())
+		if !opts.SkipErrorLogging {
+			logCtx.Error(err.Error())
+		}
 		return strings.TrimSuffix(output, "\n"), err
 	case waitErr := <-done:
 		return finish(waitErr)

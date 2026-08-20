@@ -300,6 +300,27 @@ func TestTerminateGroupOnCancelStopPreventsEscalation(t *testing.T) {
 	assert.Equal(t, []syscall.Signal{syscall.SIGTERM}, rec.recorded(), "escalation outlived the command")
 }
 
+// TestTerminateGroupOnCancelDoneProcessSkipsEscalation covers a command reaped just as its context
+// is cancelled: SIGTERM reports ErrProcessDone, so an escalation would only reach a recycled PID.
+func TestTerminateGroupOnCancelDoneProcessSkipsEscalation(t *testing.T) {
+	rec := &signalRecorder{}
+	reaped := func(cmd *exec.Cmd, sig syscall.Signal) error {
+		_ = rec.signal(cmd, sig)
+		return os.ErrProcessDone
+	}
+	grace := 20 * time.Millisecond
+	cmd := exec.CommandContext(t.Context(), "true")
+	stop := terminateGroupOnCancel(cmd, grace, reaped)
+	defer stop()
+
+	require.ErrorIs(t, cmd.Cancel(), os.ErrProcessDone)
+	// Well past the grace: nothing may follow the SIGTERM, with or without stop.
+	assert.Never(t, func() bool {
+		return len(rec.recorded()) > 1
+	}, 10*grace, grace/2, "escalation was armed against an already reaped process")
+	assert.Equal(t, []syscall.Signal{syscall.SIGTERM}, rec.recorded())
+}
+
 func TestTerminateGroupOnCancelStopIsIdempotent(t *testing.T) {
 	rec := &signalRecorder{}
 	cmd := exec.CommandContext(t.Context(), "true")
@@ -341,6 +362,14 @@ func TestCancelGrace(t *testing.T) {
 		t.Cleanup(initTimeout)
 		assert.Equal(t, 3*time.Second, CancelGrace())
 	})
+}
+
+// resetShutdown re-arms Shutdown, so that a test exercising it does not stop every later command in
+// the run. Tests in this package run one at a time, so the unsynchronised write is safe here; a
+// parallel test would have to serialise it against the reads in RunCommandExt.
+func resetShutdown() {
+	shutdown = make(chan struct{})
+	shutdownOnce = sync.Once{}
 }
 
 func TestShutdownTerminatesRunningCommands(t *testing.T) {
@@ -411,11 +440,67 @@ func TestShutdownErrorMatchesSentinel(t *testing.T) {
 	}
 }
 
-func TestShuttingDown(t *testing.T) {
+// TestShutdownKeepsSuccessfulResult covers a command that ignores the shutdown SIGTERM and then
+// exits cleanly: reporting it as a shutdown casualty would turn a successful manifest generation into
+// a cached generation failure.
+func TestShutdownKeepsSuccessfulResult(t *testing.T) {
 	t.Cleanup(resetShutdown)
-	require.False(t, ShuttingDown())
+	sentinel := path.Join(t.TempDir(), "started")
+	// Traps SIGTERM, so the command outlives the signal and exits on its own terms.
+	cmd := exec.CommandContext(t.Context(), "sh", "-c", `trap "" TERM; touch `+sentinel+`; sleep 0.2; echo done`)
+	type result struct {
+		out string
+		err error
+	}
+	resCh := make(chan result, 1)
+	go func() {
+		out, err := RunCommandExt(cmd, CmdOpts{Timeout: time.Minute})
+		resCh <- result{out, err}
+	}()
+
+	require.Eventually(t, func() bool {
+		_, err := os.Stat(sentinel)
+		return err == nil
+	}, 10*time.Second, 5*time.Millisecond, "command never started")
+
 	Shutdown()
-	assert.True(t, ShuttingDown())
+	select {
+	case res := <-resCh:
+		require.NoError(t, res.err, "a command that exited 0 was reported as a shutdown casualty")
+		assert.Equal(t, "done", res.out)
+	case <-time.After(10 * time.Second):
+		t.Fatal("command outlived Shutdown")
+	}
+}
+
+// TestShutdownRespectsSkipErrorLogging covers callers that suppress command failures - util/git probes
+// revisions with SkipErrorLogging - which would otherwise log one error per in-flight command.
+func TestShutdownRespectsSkipErrorLogging(t *testing.T) {
+	t.Cleanup(resetShutdown)
+	hook := test.NewGlobal()
+	sentinel := path.Join(t.TempDir(), "started")
+	cmd := exec.CommandContext(t.Context(), "sh", "-c", "touch "+sentinel+"; sleep 30")
+	errCh := make(chan error, 1)
+	go func() {
+		_, err := RunWithExecRunOpts(cmd, ExecRunOpts{SkipErrorLogging: true})
+		errCh <- err
+	}()
+
+	require.Eventually(t, func() bool {
+		_, err := os.Stat(sentinel)
+		return err == nil
+	}, 10*time.Second, 5*time.Millisecond, "command never started")
+
+	Shutdown()
+	select {
+	case err := <-errCh:
+		require.ErrorIs(t, err, ErrShuttingDown)
+	case <-time.After(10 * time.Second):
+		t.Fatal("command outlived Shutdown")
+	}
+	for _, entry := range hook.Entries {
+		assert.NotEqual(t, log.ErrorLevel, entry.Level, "logged %q despite SkipErrorLogging", entry.Message)
+	}
 }
 
 func TestTerminateGroupOnCancelCancelledTwice(t *testing.T) {
