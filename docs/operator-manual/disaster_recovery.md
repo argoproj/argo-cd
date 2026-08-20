@@ -39,4 +39,5 @@ kubectl apply -f backup.yaml
 ```
 
 > [!NOTE]
-> `--strip-status` only affects the export. `argocd admin import` already leaves `status` untouched on create, and only overwrites it on update when the backup manifest actually has a `status` field, so importing a `--strip-status` backup will not clear the `status` of existing live resources.
+`--strip-status` only affects the export. On update, `argocd admin import` only overwrites the live resource's status when the backup manifest actually contains a status field, so importing a `--strip-status`
+backup will not clear the status of existing live resources. On create, the new resource simply gets whatever status (if any) was present in the backup.
