@@ -55,8 +55,7 @@ func CLIErrorMessage(err error) string {
 		return ""
 	}
 
-	var exitErr *ExitError
-	if errors.As(err, &exitErr) {
+	if exitErr, ok := errors.AsType[*ExitError](err); ok {
 		if exitErr.IsSilent() {
 			return ""
 		}
@@ -70,13 +69,11 @@ func ExitCodeForError(err error) int {
 		return 0 // no error
 	}
 
-	var execErr *exec.ExitError
-	if errors.As(err, &execErr) {
-		return execErr.ExitCode()
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
+		return exitErr.ExitCode()
 	}
 
-	var exitErr *ExitError
-	if errors.As(err, &exitErr) {
+	if exitErr, ok := errors.AsType[*ExitError](err); ok {
 		return exitErr.ExitCode()
 	}
 
