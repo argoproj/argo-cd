@@ -147,7 +147,10 @@ func TestCreate_PreventLoginWithoutPermissions(t *testing.T) {
 			loginPass:    testAlicePass,
 			preventLogin: false,
 			wantCode:     codes.OK,
-			kubeClient:   func(t *testing.T) *fake.Clientset { return newTestKubeClientWithLocalUser(t, "alice", testAlicePass) },
+			kubeClient: func(t *testing.T) *fake.Clientset {
+				t.Helper()
+				return newTestKubeClientWithLocalUser(t, "alice", testAlicePass)
+			},
 		},
 		{
 			name:         "flag enabled, non-admin local user with no permissions — blocked",
@@ -155,7 +158,10 @@ func TestCreate_PreventLoginWithoutPermissions(t *testing.T) {
 			loginPass:    testAlicePass,
 			preventLogin: true,
 			wantCode:     codes.PermissionDenied,
-			kubeClient:   func(t *testing.T) *fake.Clientset { return newTestKubeClientWithLocalUser(t, "alice", testAlicePass) },
+			kubeClient: func(t *testing.T) *fake.Clientset {
+				t.Helper()
+				return newTestKubeClientWithLocalUser(t, "alice", testAlicePass)
+			},
 		},
 		{
 			name:         "flag enabled, non-admin local user with permission — login allowed",
@@ -164,7 +170,10 @@ func TestCreate_PreventLoginWithoutPermissions(t *testing.T) {
 			preventLogin: true,
 			userPolicy:   "p, alice, applications, get, *, allow",
 			wantCode:     codes.OK,
-			kubeClient:   func(t *testing.T) *fake.Clientset { return newTestKubeClientWithLocalUser(t, "alice", testAlicePass) },
+			kubeClient: func(t *testing.T) *fake.Clientset {
+				t.Helper()
+				return newTestKubeClientWithLocalUser(t, "alice", testAlicePass)
+			},
 		},
 	}
 
