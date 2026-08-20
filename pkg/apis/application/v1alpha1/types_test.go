@@ -395,6 +395,24 @@ func TestAppProject_IsNegatedDestinationPermitted(t *testing.T) {
 		}},
 		appDest:     ApplicationDestination{Server: "https://other-test-server", Namespace: "other"},
 		isPermitted: true,
+	}, {
+		// Name deny pattern should NOT apply when namespace doesn't match (regression test for operator precedence fix)
+		projDest: []ApplicationDestination{{
+			Name: "*", Namespace: "*",
+		}, {
+			Name: "!bad", Namespace: "other",
+		}},
+		appDest:     ApplicationDestination{Name: "bad", Namespace: "test"},
+		isPermitted: true,
+	}, {
+		// Name deny pattern should apply when namespace matches
+		projDest: []ApplicationDestination{{
+			Name: "*", Namespace: "*",
+		}, {
+			Name: "!bad", Namespace: "test",
+		}},
+		appDest:     ApplicationDestination{Name: "bad", Namespace: "test"},
+		isPermitted: false,
 	}}
 
 	for _, data := range testData {
