@@ -3,6 +3,10 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"slices"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
@@ -29,19 +33,19 @@ type clusterSecretEventHandler struct {
 }
 
 func (h *clusterSecretEventHandler) Create(ctx context.Context, e event.CreateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
-	h.queueRelatedAppGenerators(ctx, q, e.Object)
+	h.queueRelatedAppGenerators(ctx, q, e.Object, nil)
 }
 
 func (h *clusterSecretEventHandler) Update(ctx context.Context, e event.UpdateEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
-	h.queueRelatedAppGenerators(ctx, q, e.ObjectNew)
+	h.queueRelatedAppGenerators(ctx, q, e.ObjectNew, e.ObjectOld)
 }
 
 func (h *clusterSecretEventHandler) Delete(ctx context.Context, e event.DeleteEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
-	h.queueRelatedAppGenerators(ctx, q, e.Object)
+	h.queueRelatedAppGenerators(ctx, q, e.Object, nil)
 }
 
 func (h *clusterSecretEventHandler) Generic(ctx context.Context, e event.GenericEvent, q workqueue.TypedRateLimitingInterface[reconcile.Request]) {
-	h.queueRelatedAppGenerators(ctx, q, e.Object)
+	h.queueRelatedAppGenerators(ctx, q, e.Object, nil)
 }
 
 // addRateLimitingInterface defines the Add method of workqueue.RateLimitingInterface, allow us to easily mock
@@ -50,15 +54,27 @@ type addRateLimitingInterface[T comparable] interface {
 	Add(item T)
 }
 
-func (h *clusterSecretEventHandler) queueRelatedAppGenerators(ctx context.Context, q addRateLimitingInterface[reconcile.Request], object client.Object) {
+func (h *clusterSecretEventHandler) queueRelatedAppGenerators(ctx context.Context, q addRateLimitingInterface[reconcile.Request], objectNew client.Object, objectOld client.Object) {
+	candidateLabels := make([]labels.Labels, 0, 2)
+
 	// Check for label, lookup all ApplicationSets that might match the cluster, queue them all
-	if object.GetLabels()[common.LabelKeySecretType] != common.LabelValueSecretTypeCluster {
+	if objectNew.GetLabels()[common.LabelKeySecretType] == common.LabelValueSecretTypeCluster {
+		newLabels := labels.Set(objectNew.GetLabels())
+		candidateLabels = append(candidateLabels, newLabels)
+	}
+
+	if objectOld != nil && objectOld.GetLabels()[common.LabelKeySecretType] == common.LabelValueSecretTypeCluster {
+		oldLabels := labels.Set(objectOld.GetLabels())
+		candidateLabels = append(candidateLabels, oldLabels)
+	}
+
+	if len(candidateLabels) == 0 {
 		return
 	}
 
 	h.Log.WithFields(log.Fields{
-		"namespace": object.GetNamespace(),
-		"name":      object.GetName(),
+		"namespace": objectNew.GetNamespace(),
+		"name":      objectNew.GetName(),
 	}).Info("processing event for cluster secret")
 
 	appSetList := &argoprojiov1alpha1.ApplicationSetList{}
@@ -77,12 +93,24 @@ func (h *clusterSecretEventHandler) queueRelatedAppGenerators(ctx context.Contex
 		foundClusterGenerator := false
 		for _, generator := range appSet.Spec.Generators {
 			if generator.Clusters != nil {
-				foundClusterGenerator = true
-				break
+				ok, err := clusterGeneratorMatches(generator.Clusters, candidateLabels)
+				if err != nil {
+					h.Log.
+						WithFields(log.Fields{
+							"namespace": appSet.GetNamespace(),
+							"name":      appSet.GetName(),
+						}).
+						WithError(err).
+						Error("Unable to check if ApplicationSet cluster generator matches cluster labels")
+				}
+				if ok {
+					foundClusterGenerator = true
+					break
+				}
 			}
 
 			if generator.Matrix != nil {
-				ok, err := nestedGeneratorsHaveClusterGenerator(generator.Matrix.Generators)
+				ok, err := nestedGeneratorsHaveClusterGenerator(generator.Matrix.Generators, candidateLabels)
 				if err != nil {
 					h.Log.
 						WithFields(log.Fields{
@@ -99,7 +127,7 @@ func (h *clusterSecretEventHandler) queueRelatedAppGenerators(ctx context.Contex
 			}
 
 			if generator.Merge != nil {
-				ok, err := nestedGeneratorsHaveClusterGenerator(generator.Merge.Generators)
+				ok, err := nestedGeneratorsHaveClusterGenerator(generator.Merge.Generators, candidateLabels)
 				if err != nil {
 					h.Log.
 						WithFields(log.Fields{
@@ -116,7 +144,6 @@ func (h *clusterSecretEventHandler) queueRelatedAppGenerators(ctx context.Contex
 			}
 		}
 		if foundClusterGenerator {
-			// TODO: only queue the AppGenerator if the labels match this cluster
 			req := ctrl.Request{NamespacedName: types.NamespacedName{Namespace: appSet.Namespace, Name: appSet.Name}}
 			q.Add(req)
 		}
@@ -124,9 +151,9 @@ func (h *clusterSecretEventHandler) queueRelatedAppGenerators(ctx context.Contex
 }
 
 // nestedGeneratorsHaveClusterGenerator iterate over provided nested generators to check if they have a cluster generator.
-func nestedGeneratorsHaveClusterGenerator(generators []argoprojiov1alpha1.ApplicationSetNestedGenerator) (bool, error) {
+func nestedGeneratorsHaveClusterGenerator(generators []argoprojiov1alpha1.ApplicationSetNestedGenerator, labelSets []labels.Labels) (bool, error) {
 	for _, generator := range generators {
-		if ok, err := nestedGeneratorHasClusterGenerator(generator); ok || err != nil {
+		if ok, err := nestedGeneratorHasClusterGenerator(generator, labelSets); ok || err != nil {
 			return ok, err
 		}
 	}
@@ -134,9 +161,9 @@ func nestedGeneratorsHaveClusterGenerator(generators []argoprojiov1alpha1.Applic
 }
 
 // nestedGeneratorHasClusterGenerator checks if the provided generator has a cluster generator.
-func nestedGeneratorHasClusterGenerator(nested argoprojiov1alpha1.ApplicationSetNestedGenerator) (bool, error) {
+func nestedGeneratorHasClusterGenerator(nested argoprojiov1alpha1.ApplicationSetNestedGenerator, labelSets []labels.Labels) (bool, error) {
 	if nested.Clusters != nil {
-		return true, nil
+		return clusterGeneratorMatches(nested.Clusters, labelSets)
 	}
 
 	if nested.Matrix != nil {
@@ -145,7 +172,7 @@ func nestedGeneratorHasClusterGenerator(nested argoprojiov1alpha1.ApplicationSet
 			return false, fmt.Errorf("unable to get nested matrix generator: %w", err)
 		}
 		if nestedMatrix != nil {
-			hasClusterGenerator, err := nestedGeneratorsHaveClusterGenerator(nestedMatrix.ToMatrixGenerator().Generators)
+			hasClusterGenerator, err := nestedGeneratorsHaveClusterGenerator(nestedMatrix.ToMatrixGenerator().Generators, labelSets)
 			if err != nil {
 				return false, fmt.Errorf("error evaluating nested matrix generator: %w", err)
 			}
@@ -159,12 +186,29 @@ func nestedGeneratorHasClusterGenerator(nested argoprojiov1alpha1.ApplicationSet
 			return false, fmt.Errorf("unable to get nested merge generator: %w", err)
 		}
 		if nestedMerge != nil {
-			hasClusterGenerator, err := nestedGeneratorsHaveClusterGenerator(nestedMerge.ToMergeGenerator().Generators)
+			hasClusterGenerator, err := nestedGeneratorsHaveClusterGenerator(nestedMerge.ToMergeGenerator().Generators, labelSets)
 			if err != nil {
 				return false, fmt.Errorf("error evaluating nested merge generator: %w", err)
 			}
 			return hasClusterGenerator, nil
 		}
+	}
+
+	return false, nil
+}
+
+// clusterGeneratorMatches checks if a given cluster generator matches the provided secret labels.
+func clusterGeneratorMatches(cluster *argoprojiov1alpha1.ClusterGenerator, labelSets []labels.Labels) (bool, error) {
+	if cluster == nil {
+		return false, nil
+	}
+	selector, err := metav1.LabelSelectorAsSelector(&cluster.Selector)
+	if err != nil {
+		return false, fmt.Errorf("invalid label selector in cluster generator: %w", err)
+	}
+
+	if slices.ContainsFunc(labelSets, selector.Matches) {
+		return true, nil
 	}
 
 	return false, nil
