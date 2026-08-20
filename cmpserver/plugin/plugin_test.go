@@ -412,6 +412,29 @@ func TestRunCommandContextTimeoutWithCleanup(t *testing.T) {
 	assert.Contains(t, output, "cleanup completed")
 }
 
+// TestRunCommandContextCancelSignalsOrphans covers a grandchild that does not hold the command's
+// pipes: the plugin dies on the group SIGTERM and cmd.Wait returns at once, so signalling from
+// anything that races the reap would miss the grandchild and leak it for the container's lifetime.
+func TestRunCommandContextCancelSignalsOrphans(t *testing.T) {
+	t.Parallel()
+	marker := filepath.Join(t.TempDir(), "terminated")
+	ctx, cancel := context.WithTimeout(t.Context(), 300*time.Millisecond)
+	defer cancel()
+
+	// The grandchild redirects its output, so it is not one of the processes cmd.Wait blocks on.
+	command := Command{
+		Command: []string{"sh", "-c"},
+		Args:    []string{fmt.Sprintf(`sh -c 'trap "touch %s; exit" TERM; sleep 30' >/dev/null 2>&1 & sleep 30`, marker)},
+	}
+	_, err := runCommand(ctx, command, "", []string{})
+	require.Error(t, err)
+
+	require.Eventually(t, func() bool {
+		_, err := os.Stat(marker)
+		return err == nil
+	}, 3*time.Second, 20*time.Millisecond, "grandchild was never signalled")
+}
+
 func Test_getParametersAnnouncement_empty_command(t *testing.T) {
 	staticYAML := `
 - name: static-a

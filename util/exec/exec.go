@@ -316,7 +316,9 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 
 	// done only becomes readable a moment after Wait returns, so a command can already be reaped - its
 	// process group free for reuse - while the select below still sees it as running. Same guard as
-	// TerminateGroupOnCancel's stop.
+	// TerminateGroupOnCancel's stop. reaped is set after Wait returns rather than atomically with the
+	// kernel reaping the PID, so this narrows that window rather than closing it; SignalProcessGroup
+	// falling back to Process.Signal keeps an already-empty group harmless.
 	signalGroup := func(sig syscall.Signal) {
 		reapedMu.Lock()
 		defer reapedMu.Unlock()
@@ -373,15 +375,22 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 	select {
 	// noinspection ALL
 	case <-timoutCh:
+		// Both cases can be ready at once, and select picks at random: report a command that has
+		// already exited as itself rather than as a timeout.
+		select {
+		case waitErr := <-done:
+			return finish(waitErr)
+		default:
+		}
 		// send timeout signal to the whole process group
-		_ = SignalProcessGroup(cmd, timeoutBehavior.Signal)
+		signalGroup(timeoutBehavior.Signal)
 		// wait on timeout signal and fallback to fatal timeout signal
 		if timeoutBehavior.ShouldWait {
 			select {
 			case <-done:
 			case <-fatalTimeoutCh:
 				// upgrades to SIGKILL if cmd does not respect SIGTERM
-				_ = SignalProcessGroup(cmd, fatalTimeoutBehaviour)
+				signalGroup(fatalTimeoutBehaviour)
 				// now original cmd should exit immediately after SIGKILL
 				<-done
 				// return error with a marker indicating that cmd exited only after fatal SIGKILL
