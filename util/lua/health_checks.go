@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+
 	"github.com/argoproj/argo-cd/v3/resource_customizations"
 	argoglob "github.com/argoproj/argo-cd/v3/util/glob"
 )
@@ -116,7 +117,6 @@ func EnumerateHealthChecks(overrides ResourceHealthOverrides) ([]HealthCheckDefi
 				break
 			}
 		}
-
 
 		origin := HealthCheckOriginCustomLua
 		if isOverride {

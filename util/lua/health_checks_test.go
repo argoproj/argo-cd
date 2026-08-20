@@ -3,10 +3,11 @@ package lua
 import (
 	"testing"
 
-	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
+	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func TestEnumerateHealthChecks_Builtins(t *testing.T) {
@@ -27,7 +28,7 @@ func TestEnumerateHealthChecks_Builtins(t *testing.T) {
 		if def.Key == "Service" {
 			foundService = true
 			assert.Equal(t, HealthCheckOriginBuiltinGo, def.Origin)
-			assert.Equal(t, "", def.Group)
+			assert.Empty(t, def.Group)
 			assert.Equal(t, "Service", def.Kind)
 		}
 	}
@@ -90,13 +91,14 @@ func TestEnumerateHealthChecks_CustomAndOverride(t *testing.T) {
 	var widgetDef, deployDef, rolloutDef, gcpBarDef *HealthCheckDefinition
 	for i := range defs {
 		d := &defs[i]
-		if d.Key == "custom.io/Widget" {
+		switch d.Key {
+		case "custom.io/Widget":
 			widgetDef = d
-		} else if d.Key == "apps/Deployment" {
+		case "apps/Deployment":
 			deployDef = d
-		} else if d.Key == "argoproj.io/Rollout" {
+		case "argoproj.io/Rollout":
 			rolloutDef = d
-		} else if d.Key == "foo.cnrm.cloud.google.com/Bar" {
+		case "foo.cnrm.cloud.google.com/Bar":
 			gcpBarDef = d
 		}
 	}
@@ -138,9 +140,10 @@ func TestEnumerateHealthChecks_WildcardOrigins(t *testing.T) {
 	var myCustomWildcard, appsWildcard *HealthCheckDefinition
 	for i := range defs {
 		d := &defs[i]
-		if d.Key == "mycustom.io/*" {
+		switch d.Key {
+		case "mycustom.io/*":
 			myCustomWildcard = d
-		} else if d.Key == "apps/*" {
+		case "apps/*":
 			appsWildcard = d
 		}
 	}
@@ -153,7 +156,6 @@ func TestEnumerateHealthChecks_WildcardOrigins(t *testing.T) {
 	assert.Equal(t, HealthCheckOriginOverrideLua, appsWildcard.Origin, "custom wildcard overlapping built-in definitions must be OverrideLua")
 	assert.True(t, appsWildcard.IsWildcard)
 }
-
 
 func TestEnumerateHealthChecks_DeterministicOrderingAndNoDuplicates(t *testing.T) {
 	overrides := ResourceHealthOverrides{

@@ -15,7 +15,7 @@ import (
 	settingspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/settings"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/lua"
-	rbac "github.com/argoproj/argo-cd/v3/util/rbac"
+	"github.com/argoproj/argo-cd/v3/util/rbac"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
@@ -42,7 +42,6 @@ func NewServer(mgr *settings.SettingsManager, repoClient apiclient.Clientset, au
 
 // Get returns Argo CD settings
 func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settingspkg.Settings, error) {
-
 	resourceOverrides, err := s.mgr.GetResourceOverrides()
 	if err != nil {
 		return nil, err
@@ -240,8 +239,6 @@ func (s *Server) GetHealthChecks(ctx context.Context, _ *settingspkg.SettingsQue
 
 	return &settingspkg.HealthChecksListResponse{HealthChecks: items}, nil
 }
-
-
 
 // AuthFuncOverride disables authentication for settings service
 func (s *Server) AuthFuncOverride(ctx context.Context, fullMethodName string) (context.Context, error) {

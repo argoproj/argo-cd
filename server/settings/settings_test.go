@@ -16,13 +16,9 @@ import (
 	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v3/test"
 	"github.com/argoproj/argo-cd/v3/util/assets"
-	rbac "github.com/argoproj/argo-cd/v3/util/rbac"
+	"github.com/argoproj/argo-cd/v3/util/rbac"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
-
-
-
-
 
 const (
 	testNamespace     = "default"
@@ -71,7 +67,6 @@ func TestSettingsServer(t *testing.T) {
 	}
 
 	t.Run("TestGetInstallationID", func(t *testing.T) {
-
 		t.Parallel()
 		settingsServer := newServer(map[string]string{
 			"installationID": "1234567890",
@@ -234,11 +229,12 @@ func TestGetHealthChecks(t *testing.T) {
 
 		var widgetItem, deployItem, serviceItem *settingspkg.HealthCheckItem
 		for _, item := range resp.HealthChecks {
-			if item.Key == "custom.io/Widget" {
+			switch item.Key {
+			case "custom.io/Widget":
 				widgetItem = item
-			} else if item.Key == "apps/Deployment" {
+			case "apps/Deployment":
 				deployItem = item
-			} else if item.Key == "Service" {
+			case "Service":
 				serviceItem = item
 			}
 		}
@@ -291,7 +287,7 @@ func TestGetHealthChecks(t *testing.T) {
 				Namespace: testNamespace,
 			},
 			Data: map[string]string{
-				"policy.csv": "p, role:settings-reader, settings, get, *, allow",
+				"policy.csv": "p, role:settings-reader, settings, get, *, allow\ng, user1, role:settings-reader",
 			},
 		}
 		_, err := kubeClient.CoreV1().ConfigMaps(testNamespace).Create(t.Context(), rbacCM, metav1.CreateOptions{})
@@ -299,15 +295,14 @@ func TestGetHealthChecks(t *testing.T) {
 
 		enforcer := rbac.NewEnforcer(kubeClient, testNamespace, common.ArgoCDRBACConfigMapName, nil)
 		_ = enforcer.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+		_ = enforcer.SetUserPolicy("p, role:settings-reader, settings, get, *, allow\ng, user1, role:settings-reader")
 		rbacEnf := rbacpolicy.NewRBACPolicyEnforcer(enforcer, test.NewFakeProjLister())
 		enforcer.SetClaimsEnforcerFunc(rbacEnf.EnforceClaims)
 		settingsServer := NewServer(settingsMgr, nil, nil, enforcer, false, false, false, false)
 
-
-
 		// 1. Authorized user with settings,get permission
 		//nolint:staticcheck
-		authCtx := context.WithValue(t.Context(), "claims", &jwt.MapClaims{"sub": "user1", "groups": []string{"role:settings-reader"}})
+		authCtx := context.WithValue(t.Context(), "claims", jwt.MapClaims{"sub": "user1", "groups": []string{"role:settings-reader"}})
 		authResp, err := settingsServer.GetHealthChecks(authCtx, nil)
 		require.NoError(t, err)
 		require.NotNil(t, authResp)
@@ -323,7 +318,7 @@ func TestGetHealthChecks(t *testing.T) {
 
 		// 2. Unauthorized user without settings,get permission
 		//nolint:staticcheck
-		unauthCtx := context.WithValue(t.Context(), "claims", &jwt.MapClaims{"sub": "user2", "groups": []string{"role:dev-no-settings"}})
+		unauthCtx := context.WithValue(t.Context(), "claims", jwt.MapClaims{"sub": "user2", "groups": []string{"role:dev-no-settings"}})
 		unauthResp, err := settingsServer.GetHealthChecks(unauthCtx, nil)
 		require.NoError(t, err)
 		require.NotNil(t, unauthResp)
