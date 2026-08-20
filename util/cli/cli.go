@@ -36,9 +36,9 @@ import (
 	utillog "github.com/argoproj/argo-cd/v3/util/log"
 )
 
-func WithSignalContext(run func(c *cobra.Command, args []string, stop context.CancelFunc)) func(c *cobra.Command, args []string) {
-	runE := WithSignalContextE(func(c *cobra.Command, args []string, stop context.CancelFunc) error {
-		run(c, args, stop)
+func WithSignalContext(run func(c *cobra.Command, args []string, cancel context.CancelFunc)) func(c *cobra.Command, args []string) {
+	runE := WithSignalContextE(func(c *cobra.Command, args []string, cancel context.CancelFunc) error {
+		run(c, args, cancel)
 		return nil
 	})
 	return func(c *cobra.Command, args []string) {
@@ -46,7 +46,7 @@ func WithSignalContext(run func(c *cobra.Command, args []string, stop context.Ca
 	}
 }
 
-func WithSignalContextE(run func(c *cobra.Command, args []string, stop context.CancelFunc) error) func(c *cobra.Command, args []string) error {
+func WithSignalContextE(run func(c *cobra.Command, args []string, cancel context.CancelFunc) error) func(c *cobra.Command, args []string) error {
 	return func(c *cobra.Command, args []string) error {
 		ctx, cancel := context.WithCancel(c.Context())
 		defer cancel()

@@ -37,7 +37,7 @@ func NewDashboard() *dashboard {
 }
 
 // Run runs the dashboard and blocks until context is done
-func (ds *dashboard) Run(ctx context.Context, stop context.CancelFunc, config *DashboardConfig) error {
+func (ds *dashboard) Run(ctx context.Context, config *DashboardConfig) error {
 	config.ClientOpts.Core = true
 	println("starting dashboard")
 	shutDownFunc, err := ds.startLocalServer(ctx, config.ClientOpts, config.Context, &config.Port, &config.Address, config.ClientConfig)
@@ -46,7 +46,6 @@ func (ds *dashboard) Run(ctx context.Context, stop context.CancelFunc, config *D
 	}
 	fmt.Printf("Argo CD UI is available at http://%s:%d\n", config.Address, config.Port)
 	<-ctx.Done()
-	stop() // unregister the signal handler as soon as we receive a signal
 	if shutDownFunc != nil {
 		shutDownFunc()
 	}
@@ -63,9 +62,9 @@ func newDashboardCommand(ds *dashboard, clientOpts *argocdclient.ClientOptions) 
 	cmd := &cobra.Command{
 		Use:   "dashboard",
 		Short: "Starts Argo CD Web UI locally",
-		Run: cli.WithSignalContext(func(cmd *cobra.Command, _ []string, stop context.CancelFunc) {
+		Run: cli.WithSignalContext(func(cmd *cobra.Command, _ []string, _ context.CancelFunc) {
 			config.Context = initialize.RetrieveContextIfChanged(cmd.Flag("context"))
-			errors.CheckError(ds.Run(cmd.Context(), stop, config))
+			errors.CheckError(ds.Run(cmd.Context(), config))
 		}),
 		Example: `# Start the Argo CD Web UI locally on the default port and address
 $ argocd admin dashboard

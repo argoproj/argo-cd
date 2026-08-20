@@ -8,6 +8,7 @@ import (
 	"os"
 	"runtime/debug"
 	"strings"
+	"sync"
 
 	"github.com/argoproj/notifications-engine/pkg/controller"
 	"github.com/prometheus/client_golang/prometheus"
@@ -148,8 +149,17 @@ func NewCommand() *cobra.Command {
 				return fmt.Errorf("failed to initialize controller: %w", err)
 			}
 
-			go ctrl.Run(ctx, processorsCount)
+			// join on Run so its deferred queue shutdown happens before we return, and before the
+			// deferred argocdService.Close() tears down the repo-server connection the workers use.
+			// Run does not join its own wait.Until workers and the queue uses ShutDown rather than
+			// ShutDownWithDrain, so in-flight items are not drained.
+			wg := sync.WaitGroup{}
+			wg.Go(func() {
+				ctrl.Run(ctx, processorsCount)
+			})
+
 			<-ctx.Done()
+			wg.Wait()
 			return nil
 		}),
 	}
