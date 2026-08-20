@@ -3470,6 +3470,23 @@ func (s *Service) gitSourceHasChanges(ctx context.Context, repo *v1alpha1.Reposi
 	return revision, syncedRevision, changed, nil
 }
 
+// ociSourceHasChanges resolves the requested OCI revision to a digest and compares it against the
+// digest recorded at sync time. Unlike git, there is no cheap changed-files diff for an OCI
+// artifact, so any digest difference is conservatively reported as a change to force manifest
+// regeneration.
+func (s *Service) ociSourceHasChanges(ctx context.Context, repo *v1alpha1.Repository, revision, syncedRevision string, noRevisionCache bool) (string, string, bool, error) {
+	if repo == nil {
+		return revision, syncedRevision, true, status.Error(codes.InvalidArgument, "must pass a valid repo")
+	}
+
+	_, resolvedRevision, err := s.newOCIClientResolveRevision(ctx, repo, revision, noRevisionCache)
+	if err != nil {
+		return revision, syncedRevision, true, status.Errorf(codes.Internal, "unable to resolve oci revision %s: %v", revision, err)
+	}
+
+	return resolvedRevision, syncedRevision, resolvedRevision != syncedRevision, nil
+}
+
 // UpdateRevisionForPaths compares git revisions for single and multi-source applications
 // and determines whether files in the specified paths have changed.
 //
@@ -3582,8 +3599,18 @@ func (s *Service) UpdateRevisionForPaths(ctx context.Context, request *apiclient
 		var sourceHasChanges bool
 		var err error
 
-		if sRefSource.TargetRevision != request.RefSources[refName].TargetRevision {
-			resolvedRevision, syncedRevision, sourceHasChanges, err = s.gitSourceHasChanges(ctx, &sRefSource.Repo, request.RefSources[refName].TargetRevision, sRefSource.TargetRevision, refreshPaths, gitClientOpts)
+		// SyncedRefSources holds the revision resolved at sync time (an OCI digest for OCI
+		// sources); RefSources holds the requested target (typically a tag). When they differ we
+		// must re-resolve and compare, branching by source type: an OCI ref must go through the
+		// OCI client, not the git resolver, otherwise creating a git client for an oci:// URL
+		// fails and breaks reconciliation.
+		requestedRevision := request.RefSources[refName].TargetRevision
+		if sRefSource.TargetRevision != requestedRevision {
+			if sRefSource.Repo.IsOCI() {
+				resolvedRevision, syncedRevision, sourceHasChanges, err = s.ociSourceHasChanges(ctx, &sRefSource.Repo, requestedRevision, sRefSource.TargetRevision, request.NoRevisionCache)
+			} else {
+				resolvedRevision, syncedRevision, sourceHasChanges, err = s.gitSourceHasChanges(ctx, &sRefSource.Repo, requestedRevision, sRefSource.TargetRevision, refreshPaths, gitClientOpts)
+			}
 			if err != nil {
 				return nil, err
 			}
@@ -3600,8 +3627,9 @@ func (s *Service) UpdateRevisionForPaths(ctx context.Context, request *apiclient
 				}, nil
 			}
 		}
-		// Store resolved revision for cache update
-		normalizedURL := git.NormalizeGitURL(sRefSource.Repo.Repo)
+		// Store resolved revision for cache update. Use NormalizeRepoURL so OCI refs key off the
+		// normalized OCI URL, consistent with resolveReferencedSources and runManifestGenAsync.
+		normalizedURL := sRefSource.Repo.NormalizeRepoURL()
 		newRepoRefs[normalizedURL] = resolvedRevision
 		oldRepoRefs[normalizedURL] = syncedRevision
 	}
