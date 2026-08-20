@@ -61,6 +61,7 @@ import (
 	apppathutil "github.com/argoproj/argo-cd/v3/util/app/path"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/cmp"
+	executil "github.com/argoproj/argo-cd/v3/util/exec"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/glob"
 	"github.com/argoproj/argo-cd/v3/util/grpc"
@@ -85,6 +86,14 @@ const (
 )
 
 var ErrExceededMaxCombinedManifestFileSize = errors.New("exceeded max combined manifest file size")
+
+// cacheGenerationError reports whether a manifest generation error should count towards
+// PauseGenerationAfterFailedGenerationAttempts. A command terminated by our own shutdown says nothing
+// about the manifests, and the counter outlives the process in Redis, so caching it would pause
+// generation for apps that were only unlucky about when the pod went down.
+func cacheGenerationError(err error) bool {
+	return !errors.Is(err, executil.ErrShuttingDown)
+}
 
 var tracer = otel.Tracer("github.com/argoproj/argo-cd/v3/reposerver/repository")
 
@@ -977,7 +986,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 
 	if err != nil {
 		// If manifest generation error caching is enabled
-		if s.initConstants.PauseGenerationAfterFailedGenerationAttempts > 0 {
+		if s.initConstants.PauseGenerationAfterFailedGenerationAttempts > 0 && cacheGenerationError(err) {
 			logCtx.Debug("getting manifests cache: GenerateManifests error")
 
 			// Retrieve a new copy (if available) of the cached response: this ensures we are updating the latest copy of the cache,

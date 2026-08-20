@@ -256,6 +256,10 @@ func NewCommand() *cobra.Command {
 					// kubelet's SIGKILL, since a deadline of our own could only cut that short.
 					running := executil.Shutdown()
 					log.Warnf("drain window of %v elapsed, terminating %d in-flight commands", shutdownDrainTimeout, running)
+					// Terminating only wakes each command's own goroutine, which then has to signal
+					// its group and wait out the grace period, so the process has to outlive that -
+					// exiting here would take git down before it can remove .git/index.lock.
+					<-drained
 				}
 			})
 
