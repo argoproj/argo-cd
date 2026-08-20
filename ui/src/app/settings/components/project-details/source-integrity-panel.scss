@@ -1,0 +1,31 @@
+@import 'node_modules/argo-ui/src/styles/config';
+
+.white-box__details-row {
+    .columns--no-border {
+        border: none;
+    }
+}
+
+.theme-light {
+    .source-integrity-panel__policy {
+        background-color: rgba(0, 0, 0, 0.05);
+
+        .white-box__details-row .columns {
+            border-color: #bfcfd9;
+        }
+    }
+}
+
+.theme-dark {
+    .source-integrity-panel__policy {
+        background-color: rgba(255, 255, 255, 0.05);
+
+        .white-box__details-row .columns {
+            border-color: #576775;
+        }
+    }
+}
+.source-integrity-panel--empty code {
+    font-family: monospace;
+    padding: 0 0.35em;
+}

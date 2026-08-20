@@ -888,6 +888,28 @@ export interface ProjectSignatureKey {
     keyID: string;
 }
 
+export interface ProjectSourceIntegrity {
+    git?: SourceIntegrityGit;
+}
+
+export interface SourceIntegrityGit {
+    policies: SourceIntegrityGitPolicy[];
+}
+
+export interface SourceIntegrityGitPolicy {
+    repos: SourceIntegrityGitPolicyRepo[];
+    gpg?: SourceIntegrityGitPolicyGPG;
+}
+
+export interface SourceIntegrityGitPolicyRepo {
+    url: string;
+}
+
+export interface SourceIntegrityGitPolicyGPG {
+    mode: 'none' | 'head' | 'strict';
+    keys: string[];
+}
+
 export interface ProjectSpec {
     sourceRepos: string[];
     sourceNamespaces: string[];
@@ -900,6 +922,7 @@ export interface ProjectSpec {
     namespaceResourceBlacklist: GroupKind[];
     namespaceResourceWhitelist: GroupKind[];
     signatureKeys: ProjectSignatureKey[];
+    sourceIntegrity?: ProjectSourceIntegrity;
     orphanedResources?: {warn?: boolean; ignore: OrphanedResource[]};
     syncWindows?: SyncWindows;
 }
