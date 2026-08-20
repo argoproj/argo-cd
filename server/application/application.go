@@ -1145,8 +1145,7 @@ func (s *Server) getAppProject(ctx context.Context, a *v1alpha1.Application, log
 		return nil, vagueError
 	}
 
-	var applicationNotAllowedToUseProjectErr *argo.ErrApplicationNotAllowedToUseProject
-	if errors.As(err, &applicationNotAllowedToUseProjectErr) {
+	if _, ok := errors.AsType[*argo.ErrApplicationNotAllowedToUseProject](err); ok {
 		return nil, vagueError
 	}
 
@@ -3208,12 +3207,13 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 		}
 
 		responseDiffs = append(responseDiffs, &v1alpha1.ResourceDiff{
-			Group:           group,
-			Kind:            kind,
-			Namespace:       namespace,
-			Name:            name,
-			TargetState:     targetState,
-			LiveState:       liveState,
+			Group:       group,
+			Kind:        kind,
+			Namespace:   namespace,
+			Name:        name,
+			TargetState: targetState,
+			LiveState:   liveState,
+			//nolint:staticcheck // SA1019: Diff is deprecated, but we still need to support it for backward compatibility.
 			Diff:            "", // Diff string is generated client-side
 			Hook:            hook,
 			Modified:        diffRes.Modified,
