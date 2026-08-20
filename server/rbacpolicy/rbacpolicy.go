@@ -2,10 +2,12 @@ package rbacpolicy
 
 import (
 	"strings"
+	"sync/atomic"
 
 	"github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	applister "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
@@ -18,11 +20,6 @@ import (
 // only applies to the local `sally` account and not to an SSO user named `sally`.
 const LocalUserRBACSuffix = "@local"
 
-// localAccountIssuer is the value of the "iss" claim for Argo CD local account tokens. It mirrors
-// session.SessionManagerClaimsIssuer, which cannot be imported here because the session package
-// already imports this package (which would create an import cycle).
-const localAccountIssuer = "argocd"
-
 // RBACPolicyEnforcer provides an RBAC Claims Enforcer which additionally consults AppProject
 // roles, jwt tokens, and groups. It is backed by a AppProject informer/lister cache and does not
 // make any API calls during enforcement.
@@ -30,7 +27,7 @@ type RBACPolicyEnforcer struct {
 	enf                       *rbac.Enforcer
 	projLister                applister.AppProjectNamespaceLister
 	scopes                    []string
-	enableLocalUserStrictMode bool
+	enableLocalUserStrictMode atomic.Bool
 }
 
 // NewRBACPolicyEnforcer returns a new RBAC Enforcer for the Argo CD API Server
@@ -57,7 +54,12 @@ func (p *RBACPolicyEnforcer) GetScopes() []string {
 // SetEnableLocalUserStrictMode toggles whether local account names are suffixed with
 // LocalUserRBACSuffix ("@local") during RBAC enforcement to disambiguate them from SSO users.
 func (p *RBACPolicyEnforcer) SetEnableLocalUserStrictMode(enabled bool) {
-	p.enableLocalUserStrictMode = enabled
+	p.enableLocalUserStrictMode.Store(enabled)
+}
+
+// GetEnableLocalUserStrictMode reports whether local-user strict mode is enabled.
+func (p *RBACPolicyEnforcer) GetEnableLocalUserStrictMode() bool {
+	return p.enableLocalUserStrictMode.Load()
 }
 
 func IsProjectSubject(subject string) bool {
@@ -76,7 +78,7 @@ func GetProjectRoleFromSubject(subject string) (string, string, bool) {
 // isLocalAccount returns true if the claims belong to an Argo CD local account token (as opposed
 // to an SSO/IDP token), determined by the token issuer.
 func isLocalAccount(mapClaims jwt.MapClaims) bool {
-	return jwtutil.StringField(mapClaims, "iss") == localAccountIssuer
+	return jwtutil.StringField(mapClaims, "iss") == common.ArgoCDSessionClaimsIssuer
 }
 
 // EnforceClaims is an RBAC claims enforcer specific to the Argo CD API server
@@ -89,7 +91,7 @@ func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, rvals ...any) bool
 	subject := jwtutil.GetUserIdentifier(mapClaims)
 	// When strict mode is enabled, disambiguate local accounts from SSO users by appending the
 	// "@local" suffix to the subject. Project tokens (proj:...) are left untouched.
-	if p.enableLocalUserStrictMode && isLocalAccount(mapClaims) && !IsProjectSubject(subject) {
+	if p.enableLocalUserStrictMode.Load() && isLocalAccount(mapClaims) && !IsProjectSubject(subject) {
 		subject += LocalUserRBACSuffix
 	}
 	// Check if the request is for an application resource. We have special enforcement which takes

@@ -65,7 +65,7 @@ type MetricsRegistry interface {
 
 const (
 	// SessionManagerClaimsIssuer fills the "iss" field of the token.
-	SessionManagerClaimsIssuer = "argocd"
+	SessionManagerClaimsIssuer = common.ArgoCDSessionClaimsIssuer
 	AuthErrorCtxKey            = "auth-error"
 
 	// invalidLoginError, for security purposes, doesn't say whether the username or password was invalid.  This does not mitigate the potential for timing attacks to determine which is which.

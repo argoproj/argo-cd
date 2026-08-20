@@ -2,6 +2,7 @@ package rbacpolicy
 
 import (
 	"fmt"
+	"sync"
 	"testing"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -243,7 +244,7 @@ func Test_getProjectFromRequest(t *testing.T) {
 }
 
 func TestIsLocalAccount(t *testing.T) {
-	assert.True(t, isLocalAccount(jwt.MapClaims{"iss": localAccountIssuer}))
+	assert.True(t, isLocalAccount(jwt.MapClaims{"iss": common.ArgoCDSessionClaimsIssuer}))
 	assert.False(t, isLocalAccount(jwt.MapClaims{"iss": "https://accounts.google.com"}))
 	assert.False(t, isLocalAccount(jwt.MapClaims{"iss": "sso"}))
 	assert.False(t, isLocalAccount(jwt.MapClaims{}))
@@ -251,11 +252,29 @@ func TestIsLocalAccount(t *testing.T) {
 
 func TestSetEnableLocalUserStrictMode(t *testing.T) {
 	rbacEnf := NewRBACPolicyEnforcer(nil, nil)
-	assert.False(t, rbacEnf.enableLocalUserStrictMode)
+	assert.False(t, rbacEnf.GetEnableLocalUserStrictMode())
 	rbacEnf.SetEnableLocalUserStrictMode(true)
-	assert.True(t, rbacEnf.enableLocalUserStrictMode)
+	assert.True(t, rbacEnf.GetEnableLocalUserStrictMode())
 	rbacEnf.SetEnableLocalUserStrictMode(false)
-	assert.False(t, rbacEnf.enableLocalUserStrictMode)
+	assert.False(t, rbacEnf.GetEnableLocalUserStrictMode())
+}
+
+// TestEnableLocalUserStrictModeConcurrency exercises concurrent reads and writes of the strict-mode
+// flag. It is meant to be run under the race detector (`go test -race`) to guard against the data
+// race that would occur if the flag were a plain bool written from the settings-watch goroutine
+// while being read during RBAC enforcement.
+func TestEnableLocalUserStrictModeConcurrency(t *testing.T) {
+	rbacEnf := NewRBACPolicyEnforcer(nil, nil)
+	claims := jwt.MapClaims{"sub": "sally", "iss": common.ArgoCDSessionClaimsIssuer}
+
+	var wg sync.WaitGroup
+	for i := 0; i < 50; i++ {
+		wg.Add(3)
+		go func(enabled bool) { defer wg.Done(); rbacEnf.SetEnableLocalUserStrictMode(enabled) }(i%2 == 0)
+		go func() { defer wg.Done(); _ = rbacEnf.GetEnableLocalUserStrictMode() }()
+		go func() { defer wg.Done(); _ = isLocalAccount(claims) }()
+	}
+	wg.Wait()
 }
 
 // TestEnforceLocalUserStrictMode verifies that, when strict mode is enabled, an RBAC policy bound
@@ -274,7 +293,7 @@ func TestEnforceLocalUserStrictMode(t *testing.T) {
 		return enf, rbacEnf
 	}
 
-	localClaims := jwt.MapClaims{"sub": "sally", "iss": localAccountIssuer}
+	localClaims := jwt.MapClaims{"sub": "sally", "iss": common.ArgoCDSessionClaimsIssuer}
 	ssoClaims := jwt.MapClaims{"sub": "sally", "iss": "https://accounts.google.com"}
 
 	t.Run("strict mode: only the local account matches an @local binding", func(t *testing.T) {

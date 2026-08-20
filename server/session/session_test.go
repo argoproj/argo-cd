@@ -41,6 +41,7 @@ func newTestSessionServer(t *testing.T, cmData map[string]string) *Server {
 	settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, ns)
 	enf := rbac.NewEnforcer(kubeClient, ns, common.ArgoCDConfigMapName, nil)
 	policyEnf := rbacpolicy.NewRBACPolicyEnforcer(enf, nil)
+	policyEnf.SetEnableLocalUserStrictMode(cmData["rbac.local.user.strictmode"] == "true")
 	return NewServer(nil, settingsMgr, nil, policyEnf, nil)
 }
 
@@ -53,11 +54,12 @@ func TestGetUserInfo_LocalUserStrictMode(t *testing.T) {
 	localClaims := jwt.MapClaims{"sub": "sally", "iss": sessionmgr.SessionManagerClaimsIssuer}
 	ssoClaims := jwt.MapClaims{"sub": "sally", "iss": "https://accounts.google.com", "email": "sally@example.com"}
 
-	t.Run("strict mode appends @local for local accounts", func(t *testing.T) {
+	t.Run("strict mode: username stays real, rbacSubject carries @local for local accounts", func(t *testing.T) {
 		s := newTestSessionServer(t, map[string]string{"rbac.local.user.strictmode": "true"})
 		resp, err := s.GetUserInfo(ctxWithClaims(localClaims), nil)
 		require.NoError(t, err)
-		assert.Equal(t, "sally@local", resp.Username)
+		assert.Equal(t, "sally", resp.Username, "username must remain the real account name so clients can resolve the account")
+		assert.Equal(t, "sally@local", resp.RbacSubject)
 		assert.Equal(t, sessionmgr.SessionManagerClaimsIssuer, resp.Iss)
 	})
 
@@ -66,12 +68,14 @@ func TestGetUserInfo_LocalUserStrictMode(t *testing.T) {
 		resp, err := s.GetUserInfo(ctxWithClaims(ssoClaims), nil)
 		require.NoError(t, err)
 		assert.Equal(t, "sally@example.com", resp.Username)
+		assert.Equal(t, "sally@example.com", resp.RbacSubject, "SSO users are not suffixed; rbacSubject mirrors username")
 	})
 
-	t.Run("strict mode disabled leaves local username unchanged", func(t *testing.T) {
+	t.Run("strict mode disabled: username and rbacSubject are both the real name", func(t *testing.T) {
 		s := newTestSessionServer(t, map[string]string{})
 		resp, err := s.GetUserInfo(ctxWithClaims(localClaims), nil)
 		require.NoError(t, err)
 		assert.Equal(t, "sally", resp.Username)
+		assert.Equal(t, "sally", resp.RbacSubject)
 	})
 }
