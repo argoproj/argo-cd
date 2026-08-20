@@ -4,13 +4,7 @@ import {getPodHealthCounts} from './pod-view';
 
 describe('getPodHealthCounts', () => {
     it('counts healthy, degraded, and progressing pods', () => {
-        const pods = [
-            {health: 'Healthy'},
-            {health: 'Healthy'},
-            {health: 'Degraded'},
-            {health: 'Progressing'},
-            {health: 'Progressing'}
-        ] as Pod[];
+        const pods = [{health: 'Healthy'}, {health: 'Healthy'}, {health: 'Degraded'}, {health: 'Progressing'}, {health: 'Progressing'}] as Pod[];
 
         expect(getPodHealthCounts(pods)).toEqual({
             healthy: 2,
