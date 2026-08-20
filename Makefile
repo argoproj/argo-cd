@@ -285,12 +285,27 @@ actionsdocsgen:
 resourceiconsgen:
 	hack/generate-icons-typescript.sh
 
+.PHONY: declarative-api-docs
+declarative-api-docs:
+	GOPATH=$$(go env GOPATH); \
+	GOPATH_PROJECT_ROOT="$${GOPATH}/src/github.com/argoproj/argo-cd"; \
+	if [ ! -L "$${GOPATH_PROJECT_ROOT}" ] && [ ! -d "$${GOPATH_PROJECT_ROOT}" ]; then \
+		mkdir -p "$$(dirname "$${GOPATH_PROJECT_ROOT}")"; \
+		ln -sf $(CURRENT_DIR) "$${GOPATH_PROJECT_ROOT}"; \
+	fi; \
+	cd "$${GOPATH_PROJECT_ROOT}" && \
+	go run github.com/ahmetb/gen-crd-api-reference-docs@v0.3.0 \
+		-api-dir ./pkg/apis/application/v1alpha1 \
+		-config hack/api-docs/config.json \
+		-template-dir hack/api-docs/template \
+		-out-file docs/operator-manual/declarative-api-reference.md
+
 .PHONY: codegen-local
-codegen-local: mod-vendor-local gogen protogen clientgen openapigen clidocsgen mockgen actionsdocsgen resourceiconsgen manifests-local notification-docs notification-catalog
+codegen-local: mod-vendor-local gogen protogen clientgen openapigen clidocsgen mockgen actionsdocsgen resourceiconsgen manifests-local notification-docs notification-catalog declarative-api-docs
 	rm -rf vendor/
 
 .PHONY: codegen-local-fast
-codegen-local-fast: gogen protogen-fast clientgen openapigen clidocsgen mockgen manifests-local notification-docs notification-catalog
+codegen-local-fast: gogen protogen-fast clientgen openapigen clidocsgen mockgen manifests-local notification-docs notification-catalog declarative-api-docs
 
 # Recompiles the GitHub Agentics workflow lock files after editing issue-triage.md or aw.json.
 # Only needed by maintainers working on GitHub Agentics workflows; requires an installed and
