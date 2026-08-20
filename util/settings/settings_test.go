@@ -280,6 +280,33 @@ func TestApplicationFineGrainedRBACInheritanceDisabled(t *testing.T) {
 	assert.False(t, flag)
 }
 
+func TestGetServerRBACRollbackEnforceEnable(t *testing.T) {
+	t.Run("defaults to false when key absent", func(t *testing.T) {
+		_, settingsManager := fixtures(t.Context(), nil)
+		enabled, err := settingsManager.GetServerRBACRollbackEnforceEnable()
+		require.NoError(t, err)
+		assert.False(t, enabled)
+	})
+
+	t.Run("returns true when set to true", func(t *testing.T) {
+		_, settingsManager := fixtures(t.Context(), map[string]string{
+			"server.rbac.rollback.enforce.enable": "true",
+		})
+		enabled, err := settingsManager.GetServerRBACRollbackEnforceEnable()
+		require.NoError(t, err)
+		assert.True(t, enabled)
+	})
+
+	t.Run("returns false when explicitly set to false", func(t *testing.T) {
+		_, settingsManager := fixtures(t.Context(), map[string]string{
+			"server.rbac.rollback.enforce.enable": "false",
+		})
+		enabled, err := settingsManager.GetServerRBACRollbackEnforceEnable()
+		require.NoError(t, err)
+		assert.False(t, enabled)
+	})
+}
+
 func TestGetIsIgnoreResourceUpdatesEnabled(t *testing.T) {
 	_, settingsManager := fixtures(t.Context(), nil)
 	ignoreResourceUpdatesEnabled, err := settingsManager.GetIsIgnoreResourceUpdatesEnabled()
@@ -3160,6 +3187,101 @@ func TestSettingsManager_GetWebhookRefreshJitter(t *testing.T) {
 			_, settingsManager := fixtures(t.Context(), configMap)
 			jitter := settingsManager.GetWebhookRefreshJitter()
 			assert.Equal(t, tt.output, jitter)
+		})
+	}
+}
+
+func Test_getDexAuthConnectorID(t *testing.T) {
+	tests := []struct {
+		name              string
+		cmData            map[string]string
+		expectedConnector string
+	}{
+		{
+			name:              "dexConfig missing",
+			cmData:            map[string]string{},
+			expectedConnector: "",
+		},
+		{
+			name: "dexConfig invalid YAML",
+			cmData: map[string]string{
+				settingDexConfigKey:          "invalid: [",
+				settingDexAuthConnectorIDKey: "github",
+			},
+			expectedConnector: "",
+		},
+		{
+			name: "connectors not a slice",
+			cmData: map[string]string{
+				settingDexConfigKey:          "connectors: foo",
+				settingDexAuthConnectorIDKey: "github",
+			},
+			expectedConnector: "",
+		},
+		{
+			name: "connector not a map",
+			cmData: map[string]string{
+				settingDexConfigKey:          "connectors: [github]",
+				settingDexAuthConnectorIDKey: "github",
+			},
+			expectedConnector: "",
+		},
+		{
+			name: "connector id matches",
+			cmData: map[string]string{
+				settingDexConfigKey:          "connectors: [{id: github}]",
+				settingDexAuthConnectorIDKey: "github",
+			},
+			expectedConnector: "github",
+		},
+		{
+			name: "connector id does not match",
+			cmData: map[string]string{
+				settingDexConfigKey:          "connectors: [{id: github}]",
+				settingDexAuthConnectorIDKey: "gitlab",
+			},
+			expectedConnector: "",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := getDexAuthConnectorID(tc.cmData)
+			assert.Equal(t, tc.expectedConnector, got)
+		})
+	}
+}
+
+func Test_updateSettingsFromConfigMap_DexAuthConnectorID(t *testing.T) {
+	tests := []struct {
+		name                string
+		cmData              map[string]string
+		expectedConnectorID string
+	}{
+		{
+			name: "bundled Dex active, connector forced",
+			cmData: map[string]string{
+				settingDexConfigKey:          "connectors: [{id: github}]",
+				settingDexAuthConnectorIDKey: "github",
+			},
+			expectedConnectorID: "github",
+		},
+		{
+			name: "external OIDC configured takes precedence over Dex, connector not forced",
+			cmData: map[string]string{
+				settingsOIDCConfigKey:        "name: Okta\nissuer: https://example.com\nclientID: aaa\nclientSecret: bbb\n",
+				settingDexConfigKey:          "connectors: [{id: github}]",
+				settingDexAuthConnectorIDKey: "github",
+			},
+			expectedConnectorID: "",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			settings := &ArgoCDSettings{}
+			updateSettingsFromConfigMap(settings, &corev1.ConfigMap{Data: tc.cmData})
+			assert.Equal(t, tc.expectedConnectorID, settings.DexAuthConnectorID)
 		})
 	}
 }

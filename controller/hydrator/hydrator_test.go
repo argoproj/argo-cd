@@ -583,12 +583,7 @@ func TestProcessAppHydrateQueueItem_HydrationNeeded_NoCurrentOperation(t *testin
 	// appNeedsHydration returns true if no CurrentOperation
 	app.Status.SourceHydrator.CurrentOperation = nil
 
-	var persistedStatus *v1alpha1.SourceHydratorStatus
-	d.EXPECT().PersistHydrationStatus(mock.Anything, mock.Anything).Run(func(_ *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus) {
-		persistedStatus = newStatus
-	}).Return().Once()
 	d.EXPECT().AddHydrationQueueItem(mock.Anything).Return().Once()
-
 	h := &Hydrator{
 		dependencies:         d,
 		statusRefreshTimeout: time.Minute,
@@ -596,16 +591,16 @@ func TestProcessAppHydrateQueueItem_HydrationNeeded_NoCurrentOperation(t *testin
 
 	h.ProcessAppHydrateQueueItem(app)
 
-	d.AssertCalled(t, "PersistHydrationStatus", mock.Anything, mock.Anything)
+	// It no longer persists the status (unless last compared dry revision differs
+	// from resolved revision) and does not remove the annotations
+	// (it moved to ProcessHydrationQueueItem)
+	d.AssertNotCalled(t, "PersistHydrationStatus", mock.Anything, mock.Anything)
+	d.AssertNotCalled(t, "RemoveHydrationAnnotations", mock.Anything)
 	d.AssertCalled(t, "AddHydrationQueueItem", mock.Anything)
 
-	require.NotNil(t, persistedStatus)
 	// ProcessAppHydrateQueueItem no longer marks the app Hydrating — that work moved to
 	// ProcessHydrationQueueItem so it can happen atomically across the whole app group
-	// (https://github.com/argoproj/argo-cd/issues/27926). All we persist here is the consumed
-	// hydrate annotation; CurrentOperation stays nil until the hydration worker picks the key up.
-	assert.Nil(t, persistedStatus.CurrentOperation)
-	assert.Empty(t, persistedStatus.LastComparedDryRevision)
+	// (https://github.com/argoproj/argo-cd/issues/27926).
 }
 
 func TestProcessAppHydrateQueueItem_HydrationNeeded_HydrationPassedTimeout(t *testing.T) {
@@ -626,7 +621,6 @@ func TestProcessAppHydrateQueueItem_HydrationNeeded_HydrationPassedTimeout(t *te
 	}
 
 	d.EXPECT().AddHydrationQueueItem(mock.Anything).Return().Once()
-	d.EXPECT().PersistHydrationStatus(app, &app.Status.SourceHydrator).Return().Once()
 
 	h := &Hydrator{
 		dependencies:         d,
@@ -636,7 +630,11 @@ func TestProcessAppHydrateQueueItem_HydrationNeeded_HydrationPassedTimeout(t *te
 	h.ProcessAppHydrateQueueItem(app)
 
 	d.AssertCalled(t, "AddHydrationQueueItem", mock.Anything)
-	d.AssertCalled(t, "PersistHydrationStatus", mock.Anything, mock.Anything)
+	// It no longer persists the status (unless last compared dry revision differs
+	// from resolved revision) and does not remove the annotations
+	// (it moved to ProcessHydrationQueueItem)
+	d.AssertNotCalled(t, "PersistHydrationStatus", mock.Anything, mock.Anything)
+	d.AssertNotCalled(t, "RemoveHydrationAnnotations", mock.Anything)
 }
 
 func TestProcessAppHydrateQueueItem_HydrationNotNeeded_NoSourceHydrator(t *testing.T) {
@@ -650,10 +648,10 @@ func TestProcessAppHydrateQueueItem_HydrationNotNeeded_NoSourceHydrator(t *testi
 		statusRefreshTimeout: time.Minute,
 	}
 	h.ProcessAppHydrateQueueItem(app)
-
 	// Should not call anything
 	d.AssertNotCalled(t, "PersistHydrationStatus", mock.Anything, mock.Anything)
 	d.AssertNotCalled(t, "AddHydrationQueueItem", mock.Anything)
+	d.AssertNotCalled(t, "RemoveHydrationAnnotations", mock.Anything)
 }
 
 func TestProcessAppHydrateQueueItem_HydrationNotNeeded_AlreadyHydrating(t *testing.T) {
@@ -670,16 +668,15 @@ func TestProcessAppHydrateQueueItem_HydrationNotNeeded_AlreadyHydrating(t *testi
 		},
 	}
 
-	d.EXPECT().PersistHydrationStatus(app, &app.Status.SourceHydrator).Return().Once()
-
 	h := &Hydrator{
 		dependencies:         d,
 		statusRefreshTimeout: time.Minute,
 	}
 	h.ProcessAppHydrateQueueItem(app)
 
-	d.AssertCalled(t, "PersistHydrationStatus", mock.Anything, mock.Anything)
+	d.AssertNotCalled(t, "PersistHydrationStatus", mock.Anything, mock.Anything)
 	d.AssertNotCalled(t, "AddHydrationQueueItem", mock.Anything)
+	d.AssertNotCalled(t, "RemoveHydrationAnnotations", mock.Anything)
 }
 
 func TestProcessAppHydrateQueueItem_HydrationNeeded_RevisionChanges(t *testing.T) {
@@ -709,6 +706,7 @@ func TestProcessAppHydrateQueueItem_HydrationNeeded_RevisionChanges(t *testing.T
 	h.ProcessAppHydrateQueueItem(app)
 
 	d.AssertCalled(t, "PersistHydrationStatus", mock.Anything, mock.Anything)
+	d.AssertNotCalled(t, "RemoveHydrationAnnotations", mock.Anything)
 	d.AssertCalled(t, "AddHydrationQueueItem", mock.Anything)
 
 	require.NotNil(t, persistedStatus)
@@ -736,11 +734,7 @@ func TestProcessAppHydrateQueueItem_HydrationNotNeeded_NoRevisionChanges(t *test
 
 	d.EXPECT().GetProcessableAppProj(mock.Anything).Return(proj, nil).Once()
 	d.EXPECT().EvaluateAppRevisionsChanges(mock.Anything, mock.Anything, mock.Anything, app.Spec.SourceHydrator.DrySource.TargetRevision, proj, mock.Anything).Return(false, "old-sha", nil).Once()
-	var persisted *v1alpha1.SourceHydratorStatus
-	d.EXPECT().PersistHydrationStatus(mock.Anything, mock.Anything).Run(func(_ *v1alpha1.Application, st *v1alpha1.SourceHydratorStatus) {
-		persisted = st
-	}).Return()
-
+	d.EXPECT().RemoveHydrationAnnotations(mock.Anything).Return()
 	h := &Hydrator{
 		dependencies:         d,
 		statusRefreshTimeout: time.Minute,
@@ -748,8 +742,9 @@ func TestProcessAppHydrateQueueItem_HydrationNotNeeded_NoRevisionChanges(t *test
 	h.ProcessAppHydrateQueueItem(app)
 
 	d.AssertNotCalled(t, "AddHydrationQueueItem", mock.Anything)
-	require.NotNil(t, persisted)
-	assert.Equal(t, "old-sha", persisted.LastComparedDryRevision)
+	// Status Persist is not called when there is no change in dry revision
+	d.AssertNotCalled(t, "PersistHydrationStatus", mock.Anything, mock.Anything)
+	d.AssertCalled(t, "RemoveHydrationAnnotations", mock.Anything)
 }
 
 func TestProcessHydrationQueueItem_ValidationFails(t *testing.T) {
@@ -777,6 +772,7 @@ func TestProcessHydrationQueueItem_ValidationFails(t *testing.T) {
 			persistedStatus2 = newStatus
 		}
 	}).Return().Twice()
+	d.EXPECT().RemoveHydrationAnnotations(mock.Anything).Return().Twice()
 
 	h.ProcessHydrationQueueItem(hydrationKey)
 
@@ -821,6 +817,7 @@ func TestProcessHydrationQueueItem_HydrateFails_AppSpecificError(t *testing.T) {
 			persistedStatus2 = newStatus
 		}
 	}).Return().Twice()
+	d.EXPECT().RemoveHydrationAnnotations(mock.Anything).Return().Twice()
 
 	h.ProcessHydrationQueueItem(hydrationKey)
 
@@ -834,6 +831,7 @@ func TestProcessHydrationQueueItem_HydrateFails_AppSpecificError(t *testing.T) {
 	assert.Equal(t, v1alpha1.HydrateOperationPhaseFailed, persistedStatus1.CurrentOperation.Phase)
 
 	d.AssertNumberOfCalls(t, "PersistHydrationStatus", 2)
+	d.AssertNumberOfCalls(t, "RemoveHydrationAnnotations", 2)
 	d.AssertNotCalled(t, "RequestAppRefresh", mock.Anything, mock.Anything)
 }
 
@@ -866,6 +864,7 @@ func TestProcessHydrationQueueItem_HydrateFails_CommonError(t *testing.T) {
 			persistedStatus2 = newStatus
 		}
 	}).Return().Twice()
+	d.EXPECT().RemoveHydrationAnnotations(mock.Anything).Return().Twice()
 
 	h.ProcessHydrationQueueItem(hydrationKey)
 
@@ -881,6 +880,7 @@ func TestProcessHydrationQueueItem_HydrateFails_CommonError(t *testing.T) {
 	assert.Equal(t, "abc123", persistedStatus1.CurrentOperation.DrySHA)
 
 	d.AssertNumberOfCalls(t, "PersistHydrationStatus", 2)
+	d.AssertNumberOfCalls(t, "RemoveHydrationAnnotations", 2)
 	d.AssertNotCalled(t, "RequestAppRefresh", mock.Anything, mock.Anything)
 }
 
@@ -901,6 +901,7 @@ func TestProcessHydrationQueueItem_SuccessfulHydration(t *testing.T) {
 	d.EXPECT().PersistHydrationStatus(mock.Anything, mock.Anything).Run(func(_ *v1alpha1.Application, newStatus *v1alpha1.SourceHydratorStatus) {
 		persistedStatus = newStatus
 	}).Return().Once()
+	d.EXPECT().RemoveHydrationAnnotations(mock.Anything).Return().Once()
 	d.EXPECT().RequestAppRefresh(app.Name, app.Namespace).Return(nil).Once()
 	d.EXPECT().GetRepoObjs(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, &repoclient.ManifestResponse{
 		Revision: "abc123",
@@ -917,6 +918,7 @@ func TestProcessHydrationQueueItem_SuccessfulHydration(t *testing.T) {
 	h.ProcessHydrationQueueItem(hydrationKey)
 
 	d.AssertCalled(t, "PersistHydrationStatus", mock.Anything, mock.Anything)
+	d.AssertCalled(t, "RemoveHydrationAnnotations", mock.Anything)
 	d.AssertCalled(t, "RequestAppRefresh", app.Name, app.Namespace)
 	assert.NotNil(t, persistedStatus)
 	assert.Equal(t, app.Status.SourceHydrator.CurrentOperation.StartedAt, persistedStatus.CurrentOperation.StartedAt)
@@ -948,6 +950,7 @@ func TestProcessHydrationQueueItem_SuccessfulHydration_DestinationRepoCredential
 	h := &Hydrator{dependencies: d, repoGetter: r, commitClientset: &commitservermocks.Clientset{CommitServiceClient: cc}, repoClientset: &reposervermocks.Clientset{RepoServerServiceClient: rc}}
 
 	d.EXPECT().PersistHydrationStatus(mock.Anything, mock.Anything).Return().Once()
+	d.EXPECT().RemoveHydrationAnnotations(mock.Anything).Return().Once()
 	d.EXPECT().RequestAppRefresh(app.Name, app.Namespace).Return(nil).Once()
 	d.EXPECT().GetRepoObjs(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil, &repoclient.ManifestResponse{
 		Revision: "abc123",
@@ -1741,6 +1744,7 @@ func TestProcessHydrationQueueItem_MarksAllAppsHydratingThenHydrated(t *testing.
 		}
 		events = append(events, fmt.Sprintf("%s:%s", orig.Name, phase))
 	}).Return()
+	d.EXPECT().RemoveHydrationAnnotations(mock.Anything).Return().Twice()
 	d.EXPECT().RequestAppRefresh(mock.Anything, mock.Anything).Return(nil).Times(2)
 
 	h := &Hydrator{dependencies: d, repoGetter: r, commitClientset: &commitservermocks.Clientset{CommitServiceClient: cc}, repoClientset: &reposervermocks.Clientset{RepoServerServiceClient: rc}}
@@ -1781,6 +1785,7 @@ func TestProcessHydrationQueueItem_MarksHydratingBeforeValidation(t *testing.T) 
 		require.NotNil(t, s.CurrentOperation, "every persist after markAppsHydrating must have a populated CurrentOperation")
 		phases = append(phases, s.CurrentOperation.Phase)
 	}).Return().Times(2)
+	d.EXPECT().RemoveHydrationAnnotations(mock.Anything).Return().Once()
 
 	h := &Hydrator{dependencies: d}
 	require.NotPanics(t, func() {
@@ -1835,6 +1840,7 @@ func TestProcessHydrationQueueItem_CommitsCompletePathSet(t *testing.T) {
 
 	// fresh-app: Hydrating then Hydrated (2). ready-app: only the final Hydrated stamp (1).
 	d.EXPECT().PersistHydrationStatus(mock.Anything, mock.Anything).Return().Times(3)
+	d.EXPECT().RemoveHydrationAnnotations(mock.Anything).Return().Times(2)
 	d.EXPECT().RequestAppRefresh(mock.Anything, mock.Anything).Return(nil).Times(2)
 
 	h := &Hydrator{dependencies: d, repoGetter: r, commitClientset: &commitservermocks.Clientset{CommitServiceClient: cc}, repoClientset: &reposervermocks.Clientset{RepoServerServiceClient: rc}}
@@ -1883,6 +1889,7 @@ func TestProcessHydrationQueueItem_LargeGroupAllAppsPersisted(t *testing.T) {
 			hydrated[orig.Name] = true
 		}
 	}).Return()
+	d.EXPECT().RemoveHydrationAnnotations(mock.Anything).Return().Times(totalApps)
 	d.EXPECT().RequestAppRefresh(mock.Anything, mock.Anything).Return(nil).Times(totalApps)
 
 	h := &Hydrator{dependencies: d, repoGetter: r, commitClientset: &commitservermocks.Clientset{CommitServiceClient: cc}, repoClientset: &reposervermocks.Clientset{RepoServerServiceClient: rc}}
