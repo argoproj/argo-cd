@@ -18,7 +18,7 @@ spec:
       source:
         repoURL: https://github.com/argoproj/argo-cd.git
         targetRevision: HEAD
-        path: applicationset/examples/list-generator/guestbook/{{cluster}}
+        path: 'applicationset/examples/list-generator/guestbook/{{cluster}}'
       destination:
         server: '{{url}}'
         namespace: guestbook
