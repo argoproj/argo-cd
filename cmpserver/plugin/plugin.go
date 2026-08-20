@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -120,30 +121,42 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 
 	// os/exec kills the plugin itself as soon as the context is done. Signal the rest of its group
 	// too, giving those processes pluginCleanupTimeout to exit before they are reaped.
+	var mu sync.Mutex
+	reaped := false
 	waited := make(chan struct{})
+	// signalGroup reports whether it signalled. The lock spans the check and the signal: a reaped
+	// command's PID may since have been recycled, and merely testing waited beforehand would leave
+	// the two racing.
+	signalGroup := func(sig syscall.Signal) bool {
+		mu.Lock()
+		defer mu.Unlock()
+		if reaped {
+			return false
+		}
+		_ = argoexec.SignalProcessGroup(cmd, sig)
+		return true
+	}
 	go func() {
 		select {
 		case <-waited:
 			return
 		case <-ctx.Done():
 		}
-		// Both can become ready together: skip a group that has just been reaped, whose PID may
-		// since have been recycled.
-		select {
-		case <-waited:
+		if !signalGroup(syscall.SIGTERM) {
 			return
-		default:
 		}
-		_ = argoexec.SignalProcessGroup(cmd, syscall.SIGTERM)
 		select {
 		case <-waited:
 		case <-time.After(pluginCleanupTimeout):
-			_ = argoexec.SignalProcessGroup(cmd, syscall.SIGKILL)
+			signalGroup(syscall.SIGKILL)
 		}
 	}()
 
 	err = cmd.Wait()
+	mu.Lock()
+	reaped = true
 	close(waited)
+	mu.Unlock()
 
 	duration := time.Since(start)
 	output := stdout.String()
