@@ -37,7 +37,7 @@ export function revisionUrl(url: string, revision: string, forPath: boolean): st
     } catch {
         return null;
     }
-    let urlSubPath = isSHA(revision) ? 'commit' : 'tree';
+    let urlSubPath = isSHA(revision) && !forPath ? 'commit' : 'tree';
 
     if (url.indexOf('bitbucket') >= 0) {
         // The reason for the condition of 'forPath' is that when we build nested path, we need to use 'src'
