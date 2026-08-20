@@ -321,6 +321,19 @@ func TestTerminateGroupOnCancelDoneProcessSkipsEscalation(t *testing.T) {
 	assert.Equal(t, []syscall.Signal{syscall.SIGTERM}, rec.recorded())
 }
 
+// TestTerminateGroupOnCancelEscalatesBeforeWaitDelay covers a grandchild that survives the SIGTERM
+// holding the inherited pipes: WaitDelay makes Wait return, callers run stop on that return, and stop
+// cancels the escalation - so the group SIGKILL has to be armed strictly earlier.
+func TestTerminateGroupOnCancelEscalatesBeforeWaitDelay(t *testing.T) {
+	cmd := exec.CommandContext(t.Context(), "true")
+	grace := 20 * time.Millisecond
+	stop := terminateGroupOnCancel(cmd, grace, (&signalRecorder{}).signal)
+	defer stop()
+
+	assert.Equal(t, grace, cmd.WaitDelay)
+	assert.Less(t, cancelEscalation(grace), cmd.WaitDelay)
+}
+
 func TestTerminateGroupOnCancelStopIsIdempotent(t *testing.T) {
 	rec := &signalRecorder{}
 	cmd := exec.CommandContext(t.Context(), "true")
@@ -468,6 +481,34 @@ func TestShutdownKeepsSuccessfulResult(t *testing.T) {
 	case res := <-resCh:
 		require.NoError(t, res.err, "a command that exited 0 was reported as a shutdown casualty")
 		assert.Equal(t, "done", res.out)
+	case <-time.After(10 * time.Second):
+		t.Fatal("command outlived Shutdown")
+	}
+}
+
+// TestShutdownKeepsExitError covers a command that ignores the shutdown SIGTERM and then fails on its
+// own terms: callers read the exit error - util/git takes "exit status 1" from git diff to mean
+// "changes found" - so it has to survive alongside the sentinel.
+func TestShutdownKeepsExitError(t *testing.T) {
+	t.Cleanup(resetShutdown)
+	sentinel := path.Join(t.TempDir(), "started")
+	cmd := exec.CommandContext(t.Context(), "sh", "-c", `trap "" TERM; touch `+sentinel+`; sleep 0.2; exit 1`)
+	errCh := make(chan error, 1)
+	go func() {
+		_, err := RunCommandExt(cmd, CmdOpts{Timeout: time.Minute})
+		errCh <- err
+	}()
+
+	require.Eventually(t, func() bool {
+		_, err := os.Stat(sentinel)
+		return err == nil
+	}, 10*time.Second, 5*time.Millisecond, "command never started")
+
+	Shutdown()
+	select {
+	case err := <-errCh:
+		require.ErrorIs(t, err, ErrShuttingDown)
+		assert.Contains(t, err.Error(), "exit status 1")
 	case <-time.After(10 * time.Second):
 		t.Fatal("command outlived Shutdown")
 	}

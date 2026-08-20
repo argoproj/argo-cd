@@ -68,14 +68,25 @@ func CancelGrace() time.Duration {
 }
 
 // TerminateGroupOnCancel terminates cmd's process group when its context is cancelled: SIGTERM,
-// then SIGKILL after grace. os/exec instead SIGKILLs the command at once, skipping its cleanup - git
+// then SIGKILL partway through grace. os/exec instead SIGKILLs the command at once, skipping its cleanup - git
 // leaves .git/index.lock behind, and nothing ever reclaims a stale one.
 //
-// cmd must come from exec.CommandContext. grace doubles as cmd.WaitDelay and falls back to
-// defaultCancelGrace. Call the returned stop once cmd.Wait has returned, so a pending escalation
-// cannot signal a process group that has since recycled the PID.
+// cmd must come from exec.CommandContext. grace bounds the whole sequence as cmd.WaitDelay and falls
+// back to defaultCancelGrace; the SIGKILL lands partway through it, see cancelEscalation. Call the
+// returned stop once cmd.Wait has returned, so a pending escalation cannot signal a process group that
+// has since recycled the PID.
 func TerminateGroupOnCancel(cmd *exec.Cmd, grace time.Duration) (stop func()) {
 	return terminateGroupOnCancel(cmd, grace, SignalProcessGroup)
+}
+
+// cancelEscalation is when the SIGKILL fires within grace. It has to land strictly before WaitDelay,
+// which lets Wait return - with a grandchild still holding the inherited pipes, os/exec reports
+// ErrWaitDelay at exactly WaitDelay - because callers run stop on that return and it would cancel the
+// escalation the surviving group still needs. So the SIGTERM gets the first half of grace to clean up
+// and the SIGKILL the second half to take effect, leaving CancelGrace the whole window callers budget
+// around.
+func cancelEscalation(grace time.Duration) time.Duration {
+	return grace / 2
 }
 
 // terminateGroupOnCancel takes the signalling function, so tests can observe the escalation.
@@ -110,7 +121,7 @@ func terminateGroupOnCancel(cmd *exec.Cmd, grace time.Duration, signal func(*exe
 			return err
 		}
 		// Reap whatever ignored SIGTERM, as the timeout path does.
-		escalation = time.AfterFunc(grace, func() {
+		escalation = time.AfterFunc(cancelEscalation(grace), func() {
 			mu.Lock()
 			defer mu.Unlock()
 			if stopped {
@@ -293,7 +304,27 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 	// Buffered: the timeout path returns without reading done when ShouldWait is false, which would
 	// otherwise leave this goroutine blocked on the send, holding the command and its output buffers.
 	done := make(chan error, 1)
-	go func() { done <- cmd.Wait() }()
+	var reapedMu sync.Mutex
+	reaped := false
+	go func() {
+		waitErr := cmd.Wait()
+		reapedMu.Lock()
+		reaped = true
+		reapedMu.Unlock()
+		done <- waitErr
+	}()
+
+	// done only becomes readable a moment after Wait returns, so a command can already be reaped - its
+	// process group free for reuse - while the select below still sees it as running. Same guard as
+	// TerminateGroupOnCancel's stop.
+	signalGroup := func(sig syscall.Signal) {
+		reapedMu.Lock()
+		defer reapedMu.Unlock()
+		if reaped {
+			return
+		}
+		_ = SignalProcessGroup(cmd, sig)
+	}
 
 	// Start timers for timeout
 	timeout := DefaultCmdOpts.Timeout
@@ -382,12 +413,12 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 		default:
 		}
 		// Signal the group so the command can clean up, then reap it if it ignores SIGTERM.
-		_ = SignalProcessGroup(cmd, syscall.SIGTERM)
+		signalGroup(syscall.SIGTERM)
 		var waitErr error
 		select {
 		case waitErr = <-done:
 		case <-time.After(CancelGrace()):
-			_ = SignalProcessGroup(cmd, syscall.SIGKILL)
+			signalGroup(syscall.SIGKILL)
 			waitErr = <-done
 		}
 		if waitErr == nil {
@@ -399,7 +430,11 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 			output += stderr.String()
 		}
 		logCtx.WithFields(logrus.Fields{"duration": time.Since(start)}).Debug(redactor(output))
-		err = newCmdError(redactor(args), ErrShuttingDown, strings.TrimSpace(redactor(stderr.String())))
+		// Keep the exit error behind the sentinel: callers match on its text - git reads "exit status 1"
+		// from git diff as "changes found" - and a command that failed on its own during the drain must
+		// still report why.
+		cause := fmt.Errorf("%w: %w", ErrShuttingDown, errors.New(redactor(waitErr.Error())))
+		err = newCmdError(redactor(args), cause, strings.TrimSpace(redactor(stderr.String())))
 		if !opts.SkipErrorLogging {
 			logCtx.Error(err.Error())
 		}
