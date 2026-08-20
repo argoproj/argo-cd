@@ -95,10 +95,13 @@ func (s *Server) Delete(_ context.Context, _ *session.SessionDeleteRequest) (*se
 // Without this function here, ArgoCDServer.authenticate would be invoked and credentials checked.
 // Since this service is generally invoked when the user has _no_ credentials, that would create a
 // chicken-and-egg situation if we didn't place this here to allow traffic to pass through.
-func (s *Server) AuthFuncOverride(ctx context.Context, _ string) (context.Context, error) {
+func (s *Server) AuthFuncOverride(ctx context.Context, fullMethodName string) (context.Context, error) {
 	// this authenticates the user, but ignores any error, so that we have claims populated
-	ctx, _ = s.authenticator.Authenticate(ctx)
-	return ctx, nil
+	ctx, err := s.authenticator.Authenticate(ctx)
+	if fullMethodName != "/session.SessionService/GetUserInfo" {
+		err = nil
+	}
+	return ctx, err
 }
 
 func (s *Server) GetUserInfo(ctx context.Context, _ *session.GetUserInfoRequest) (*session.GetUserInfoResponse, error) {
