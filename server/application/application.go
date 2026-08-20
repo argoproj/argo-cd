@@ -42,6 +42,7 @@ import (
 
 	argocommon "github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	kubeutil "github.com/argoproj/argo-cd/v3/util/kube"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
@@ -2958,7 +2959,7 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 		return nil, fmt.Errorf("failed to get OpenAPI schema: %w", err)
 	}
 
-	applier, cleanup, err := s.kubectl.ManageServerSideDiffDryRuns(clusterConfig)
+	applier, cleanup, err := kubeutil.ManageServerSideDiffDryRuns(clusterConfig, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error creating server-side dry run applier: %w", err)
 	}
