@@ -112,7 +112,7 @@ func TestCreateServiceAccount(t *testing.T) {
 }
 
 func _MockK8STokenController(objects kubetesting.ObjectTracker) kubetesting.ReactionFunc {
-	return (func(action kubetesting.Action) (bool, runtime.Object, error) {
+	return func(action kubetesting.Action) (bool, runtime.Object, error) {
 		secret, ok := action.(kubetesting.CreateAction).GetObject().(*corev1.Secret)
 		if !ok {
 			return false, nil, nil
@@ -131,7 +131,7 @@ func _MockK8STokenController(objects kubetesting.ObjectTracker) kubetesting.Reac
 			secret.Data[corev1.ServiceAccountTokenKey] = []byte(testToken)
 		}
 		return false, secret, nil
-	})
+	}
 }
 
 func TestInstallClusterManagerRBAC(t *testing.T) {
