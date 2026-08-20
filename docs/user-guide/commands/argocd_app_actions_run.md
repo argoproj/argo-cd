@@ -28,6 +28,7 @@ argocd app actions run APPNAME ACTION [flags]
   -h, --help                   help for run
       --kind string            Kind of the resource on which the action should be run
       --namespace string       Namespace of the resource on which the action should be run
+      --param stringArray      Action parameter in key=value format (e.g. replicas=2). This flag may be repeated
       --resource-name string   Name of resource on which the action should be run
 ```
 
