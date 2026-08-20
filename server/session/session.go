@@ -78,7 +78,7 @@ func (s *Server) Create(_ context.Context, q *session.SessionCreateRequest) (*se
 		if !s.policyEnf.UserHasAnyPermission(q.Username, nil) {
 			s.mgr.IncLoginRequestCounter(failure)
 			return nil, status.Errorf(codes.PermissionDenied,
-				"account has no permissions. Contact your administrator.")
+				"account has no permissions; contact your administrator")
 		}
 	}
 
@@ -132,7 +132,7 @@ func (s *Server) GetUserInfo(ctx context.Context, _ *session.GetUserInfoRequest)
 			rbacSubject := sessionmgr.GetUserIdentifier(ctx)
 			if !s.policyEnf.UserHasAnyPermission(rbacSubject, groups) {
 				return nil, status.Errorf(codes.PermissionDenied,
-					"account has no permissions. Contact your administrator.")
+					"account has no permissions; contact your administrator")
 			}
 		}
 	}

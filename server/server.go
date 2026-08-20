@@ -905,6 +905,11 @@ func (server *ArgoCDServer) watchSettings() {
 }
 
 func (server *ArgoCDServer) rbacPolicyLoader(ctx context.Context) {
+	// Flush the permission-check cache only after the new Casbin policy is fully installed. Registering the hook here
+	// ensure that it is going to be execited on the initial load as well as every update.
+	server.enf.SetAfterPolicyInstalled(func(resourceVersion string) {
+		server.policyEnforcer.FlushPermCheckCache(resourceVersion)
+	})
 	err := server.enf.RunPolicyLoader(ctx, func(cm *corev1.ConfigMap) error {
 		var scopes []string
 		if scopesStr, ok := cm.Data[rbac.ConfigMapScopesKey]; scopesStr != "" && ok {
@@ -914,9 +919,7 @@ func (server *ArgoCDServer) rbacPolicyLoader(ctx context.Context) {
 				return fmt.Errorf("error unmarshalling scopes: %w", err)
 			}
 		}
-
 		server.policyEnforcer.SetScopes(scopes)
-		server.policyEnforcer.FlushPermCheckCache(cm.ResourceVersion)
 		return nil
 	})
 	errorsutil.CheckError(err)

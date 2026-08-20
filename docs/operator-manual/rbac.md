@@ -49,6 +49,12 @@ When the flag is enabled:
 - **Local users** — the check runs once at login time (`argocd login` / the UI login form). A user with no matching `allow` rule receives a `PermissionDenied` error and no token is issued.
 - **SSO users** — because SSO authentication is handled externally, there is no local login step. Instead, the check runs on each user-info fetch (i.e., each UI page navigation). Permission changes (grants and revocations) take effect as soon as `argocd-rbac-cm` is saved; the 60-second TTL on the cached result is only a safety net for cases where the cache flush is missed (e.g., if Redis is temporarily unavailable).
 
+> [!WARNING]
+> Enabling this flag takes effect immediately for existing SSO sessions.
+> SSO users who are already logged in will be blocked on their next page load if they have no `allow`
+> permissions. Before enabling this on a live cluster, make sure all active SSO users have the
+> required RBAC permissions assigned, or they will be locked out on next navigation.
+
 > [!NOTE]
 > `admin` is a built-in superuser and is never affected by this flag.
 

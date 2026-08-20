@@ -636,3 +636,15 @@ func TestHasAnyAllowPermission(t *testing.T) {
 		})
 	}
 }
+
+func TestPreventLoginWithoutPermissions(t *testing.T) {
+	enf := NewEnforcer(fake.NewClientset(), fakeNamespace, fakeConfigMapName, nil)
+
+	assert.False(t, enf.GetPreventLoginWithoutPermissions())
+
+	enf.SetPreventLoginWithoutPermissions(true)
+	assert.True(t, enf.GetPreventLoginWithoutPermissions())
+
+	enf.SetPreventLoginWithoutPermissions(false)
+	assert.False(t, enf.GetPreventLoginWithoutPermissions())
+}
