@@ -142,6 +142,9 @@ type Enforcer struct {
 	defaultRole                    string
 	matchMode                      string
 	preventLoginWithoutPermissions atomic.Bool
+	// afterPolicyInstalled is called once SetUserPolicy completes, so that the
+	// permission-check cache is only flushed when the new Casbin policy is live.
+	afterPolicyInstalled func(resourceVersion string)
 }
 
 // cachedEnforcer holds the Casbin enforcer instances and optional custom project policy
@@ -555,13 +558,24 @@ func PolicyCSV(data map[string]string) string {
 // syncUpdate updates the enforcer
 func (e *Enforcer) syncUpdate(cm *corev1.ConfigMap, onUpdated func(cm *corev1.ConfigMap) error) error {
 	if err := onUpdated(cm); err != nil {
-		return err
+		return fmt.Errorf("error running policy update callback: %w", err)
 	}
 	e.SetDefaultRole(cm.Data[ConfigMapPolicyDefaultKey])
 	e.SetMatchMode(cm.Data[ConfigMapMatchModeKey])
 	e.preventLoginWithoutPermissions.Store(cm.Data[ConfigMapPreventLoginWithoutPermissions] == "true")
 	policyCSV := PolicyCSV(cm.Data)
-	return e.SetUserPolicy(policyCSV)
+	if err := e.SetUserPolicy(policyCSV); err != nil {
+		return err
+	}
+	// The following code is executed after SetUserPolicy to make sure that any cache flush happens only once the new
+	// policy is active.
+	e.lock.Lock()
+	fn := e.afterPolicyInstalled
+	e.lock.Unlock()
+	if fn != nil {
+		fn(cm.ResourceVersion)
+	}
+	return nil
 }
 
 func (e *Enforcer) GetDefaultRole() string {
@@ -578,11 +592,24 @@ func (e *Enforcer) SetPreventLoginWithoutPermissions(v bool) {
 	e.preventLoginWithoutPermissions.Store(v)
 }
 
+// SetAfterPolicyInstalled registers a callback which is invoked after every successful SetUserPolicy call inside syncUpdate.
+// Use this to flush caches that depend on the active Casbin policy — the callback will run only once the new policy is live,
+// so cached results written between the callback and SetUserPolicy cannot be stale.
+func (e *Enforcer) SetAfterPolicyInstalled(fn func(resourceVersion string)) {
+	e.lock.Lock()
+	defer e.lock.Unlock()
+	e.afterPolicyInstalled = fn
+}
+
 // GetImplicitPermissionsForUser returns all permissions for a user,
 // including those inherited transitively through role assignments (g policies).
 // Each entry is a policy row without the subject field: [resource, action, object, effect].
 func (e *Enforcer) GetImplicitPermissionsForUser(user string) ([][]string, error) {
-	return e.getCasbinEnforcer("", "").GetImplicitPermissionsForUser(user)
+	enf, err := e.tryGetCasbinEnforcer("", "")
+	if err != nil {
+		return nil, err
+	}
+	return enf.GetImplicitPermissionsForUser(user)
 }
 
 // HasAnyAllowPermission reports whether a subject has at least one "allow" rule in the current

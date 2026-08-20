@@ -188,7 +188,8 @@ func (p *Enforcer) UserHasAnyPermission(username string, groups []string) bool {
 }
 
 func (p *Enforcer) userHasAnyPermissionUncached(username string, groups []string) bool {
-	// The built-in admin is a superuser and is never subject to this check.
+	// "admin" is always assigned role:admin in the builtin policy (builtin-policy.csv), so
+	// the Casbin check below would return true regardless — this is just an optimization.
 	if username == common.ArgoCDAdminUsername {
 		return true
 	}
@@ -218,7 +219,9 @@ func (p *Enforcer) hasAnyProjectPermission(username string, groups []string) boo
 	if err != nil {
 		return false
 	}
-	subjects := append([]string{username}, groups...)
+	subjects := make([]string, 0, 1+len(groups))
+	subjects = append(subjects, username)
+	subjects = append(subjects, groups...)
 	for _, proj := range projects {
 		policy := proj.ProjectPoliciesString()
 		if policy == "" {

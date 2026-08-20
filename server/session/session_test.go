@@ -26,6 +26,7 @@ import (
 const (
 	testNamespace  = "argocd"
 	testAdminPass  = "test-password"
+	testAlicePass  = "alice-password"
 	testSecretKey  = "test-secret-key"
 	testRBACCMName = "argocd-rbac-cm"
 )
@@ -60,6 +61,38 @@ func newTestKubeClient(t *testing.T) *fake.Clientset {
 	)
 }
 
+func newTestKubeClientWithLocalUser(t *testing.T, username, pass string) *fake.Clientset {
+	t.Helper()
+	adminHashed, err := password.HashPassword(testAdminPass)
+	require.NoError(t, err)
+	userHashed, err := password.HashPassword(pass)
+	require.NoError(t, err)
+	return fake.NewClientset(
+		&corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "argocd-cm",
+				Namespace: testNamespace,
+				Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
+			},
+			Data: map[string]string{
+				"admin.enabled":        "true",
+				"accounts." + username: "login",
+			},
+		},
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "argocd-secret",
+				Namespace: testNamespace,
+			},
+			Data: map[string][]byte{
+				"admin.password":                     []byte(adminHashed),
+				"server.secretkey":                   []byte(testSecretKey),
+				"accounts." + username + ".password": []byte(userHashed),
+			},
+		},
+	)
+}
+
 // newTestEnforcer creates an RBAC enforcer whose prevent-login-without-permissions
 // flag and user policy are controlled by the caller.
 func newTestEnforcer(t *testing.T, preventLogin bool, userPolicy string) *rbacpolicy.Enforcer {
@@ -76,33 +109,68 @@ func newTestEnforcer(t *testing.T, preventLogin bool, userPolicy string) *rbacpo
 func TestCreate_PreventLoginWithoutPermissions(t *testing.T) {
 	tests := []struct {
 		name         string
+		loginAs      string
+		loginPass    string
 		preventLogin bool
 		userPolicy   string
 		wantCode     codes.Code
+		kubeClient   func(t *testing.T) *fake.Clientset
 	}{
 		{
 			name:         "flag disabled, no permissions — login allowed",
+			loginAs:      "admin",
+			loginPass:    testAdminPass,
 			preventLogin: false,
-			userPolicy:   "",
 			wantCode:     codes.OK,
+			kubeClient:   newTestKubeClient,
 		},
 		{
 			name:         "flag enabled, admin no explicit policy — login allowed (admin is superuser)",
+			loginAs:      "admin",
+			loginPass:    testAdminPass,
 			preventLogin: true,
-			userPolicy:   "",
 			wantCode:     codes.OK,
+			kubeClient:   newTestKubeClient,
 		},
 		{
 			name:         "flag enabled, admin has explicit permissions — login allowed",
+			loginAs:      "admin",
+			loginPass:    testAdminPass,
 			preventLogin: true,
 			userPolicy:   "p, admin, applications, get, *, allow",
 			wantCode:     codes.OK,
+			kubeClient:   newTestKubeClient,
+		},
+		{
+			name:         "flag disabled, non-admin local user with no permissions — login allowed",
+			loginAs:      "alice",
+			loginPass:    testAlicePass,
+			preventLogin: false,
+			wantCode:     codes.OK,
+			kubeClient:   func(t *testing.T) *fake.Clientset { return newTestKubeClientWithLocalUser(t, "alice", testAlicePass) },
+		},
+		{
+			name:         "flag enabled, non-admin local user with no permissions — blocked",
+			loginAs:      "alice",
+			loginPass:    testAlicePass,
+			preventLogin: true,
+			wantCode:     codes.PermissionDenied,
+			kubeClient:   func(t *testing.T) *fake.Clientset { return newTestKubeClientWithLocalUser(t, "alice", testAlicePass) },
+		},
+		{
+			name:         "flag enabled, non-admin local user with permission — login allowed",
+			loginAs:      "alice",
+			loginPass:    testAlicePass,
+			preventLogin: true,
+			userPolicy:   "p, alice, applications, get, *, allow",
+			wantCode:     codes.OK,
+			kubeClient:   func(t *testing.T) *fake.Clientset { return newTestKubeClientWithLocalUser(t, "alice", testAlicePass) },
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			kubeclientset := newTestKubeClient(t)
+			kubeclientset := tt.kubeClient(t)
 			settingsMgr := settings.NewSettingsManager(t.Context(), kubeclientset, testNamespace)
 			redisClient, closer := test.NewInMemoryRedis()
 			t.Cleanup(closer)
@@ -111,8 +179,8 @@ func TestCreate_PreventLoginWithoutPermissions(t *testing.T) {
 
 			srv := NewServer(mgr, settingsMgr, nil, policyEnf, nil)
 			_, err := srv.Create(t.Context(), &sessionpb.SessionCreateRequest{
-				Username: "admin",
-				Password: testAdminPass,
+				Username: tt.loginAs,
+				Password: tt.loginPass,
 			})
 
 			if tt.wantCode == codes.OK {
@@ -193,7 +261,7 @@ func TestGetUserInfo_PreventLoginWithoutPermissions(t *testing.T) {
 
 			ctx := t.Context()
 			if tt.loggedIn {
-				// nolint:staticcheck // it's ok to use bulti-in type in a test
+				// nolint:staticcheck // it's ok to use built-in type in a test
 				ctx = context.WithValue(ctx, "claims", jwt.MapClaims{
 					"sub": tt.username,
 					"iss": tt.iss,
