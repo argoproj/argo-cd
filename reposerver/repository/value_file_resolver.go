@@ -15,8 +15,8 @@ import (
 	pathutil "github.com/argoproj/argo-cd/v3/util/io/path"
 )
 
-// ValueFileResolver handles resolution of Helm value files from various sources
-type ValueFileResolver struct {
+// valueFileResolver handles resolution of Helm value files from various sources
+type valueFileResolver struct {
 	appPath                  string
 	repoRoot                 string
 	env                      *v1alpha1.Env
@@ -27,8 +27,8 @@ type ValueFileResolver struct {
 	ignoreMissingValueFiles  bool
 }
 
-// NewValueFileResolver creates a new instance of ValueFileResolver
-func NewValueFileResolver(
+// newValueFileResolver creates a new instance of valueFileResolver
+func newValueFileResolver(
 	appPath string,
 	repoRoot string,
 	env *v1alpha1.Env,
@@ -37,8 +37,8 @@ func NewValueFileResolver(
 	gitRepoPaths utilio.TempPaths,
 	ociPaths utilio.TempPaths,
 	ignoreMissingValueFiles bool,
-) *ValueFileResolver {
-	return &ValueFileResolver{
+) *valueFileResolver {
+	return &valueFileResolver{
 		appPath:                  appPath,
 		repoRoot:                 repoRoot,
 		env:                      env,
@@ -52,7 +52,7 @@ func NewValueFileResolver(
 
 // ResolveValueFiles resolves a list of raw value file paths to their resolved paths,
 // handling local files, $ref Git/OCI sources, and glob expansion.
-func (r *ValueFileResolver) ResolveValueFiles(rawValueFiles []string) ([]pathutil.ResolvedFilePath, error) {
+func (r *valueFileResolver) ResolveValueFiles(rawValueFiles []string) ([]pathutil.ResolvedFilePath, error) {
 	// Pre-collect resolved paths for all explicit (non-glob) entries. This allows glob
 	// expansion to skip files that also appear explicitly, so the explicit entry controls
 	// the final position. For example, with ["*.yaml", "c.yaml"], c.yaml is excluded from
@@ -135,7 +135,7 @@ type resolveRawPathResult struct {
 // globs or checking for existence. It returns whether the path is a remote URL and the
 // effective repository root used for the glob symlink-boundary check (the external repo's
 // checkout directory for $ref Git sources, otherwise the main repo root).
-func (r *ValueFileResolver) resolveRawPath(rawValueFile string) (*resolveRawPathResult, error) {
+func (r *valueFileResolver) resolveRawPath(rawValueFile string) (*resolveRawPathResult, error) {
 	referencedSource := getReferencedSource(rawValueFile, r.refSources)
 	effectiveRoot := r.repoRoot
 
@@ -188,7 +188,7 @@ func (r *ValueFileResolver) resolveRawPath(rawValueFile string) (*resolveRawPath
 }
 
 // checkFileExists checks if a file exists and determines if it should be skipped
-func (r *ValueFileResolver) checkFileExists(resolvedPath pathutil.ResolvedFilePath) bool {
+func (r *valueFileResolver) checkFileExists(resolvedPath pathutil.ResolvedFilePath) bool {
 	_, err := os.Stat(string(resolvedPath))
 	if os.IsNotExist(err) {
 		if r.ignoreMissingValueFiles {

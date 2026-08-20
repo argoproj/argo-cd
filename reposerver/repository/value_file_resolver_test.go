@@ -51,7 +51,7 @@ func TestValueFileResolver_ResolveValueFiles(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resolver := NewValueFileResolver(
+			resolver := newValueFileResolver(
 				appPath,
 				repoRoot,
 				&v1alpha1.Env{},
@@ -82,7 +82,7 @@ func TestValueFileResolver_resolveRawPath_local(t *testing.T) {
 	testFile := filepath.Join(appPath, "test.yaml")
 	require.NoError(t, os.WriteFile(testFile, []byte("test"), 0o644))
 
-	resolver := NewValueFileResolver(
+	resolver := newValueFileResolver(
 		appPath,
 		repoRoot,
 		&v1alpha1.Env{},
@@ -139,7 +139,7 @@ func TestValueFileResolver_checkFileExists(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resolver := &ValueFileResolver{
+			resolver := &valueFileResolver{
 				ignoreMissingValueFiles: tt.ignoreMissingValueFiles,
 			}
 
@@ -153,7 +153,7 @@ func TestValueFileResolver_resolveRawPath_referenced(t *testing.T) {
 	// Test verifies resolution of referenced value files from both Git and OCI repositories.
 	// Neither ref source is present in the temp paths, so resolution returns an error rather
 	// than panicking - the point is that the ref branch is exercised for both URL schemes.
-	resolver := NewValueFileResolver(
+	resolver := newValueFileResolver(
 		"/app",
 		"/repo",
 		&v1alpha1.Env{},
@@ -186,7 +186,7 @@ func TestValueFileResolver_resolveRawPath_OCIEffectiveRoot(t *testing.T) {
 	ociPaths := utilio.NewRandomizedTempPaths(t.TempDir())
 	ociPaths.Add(v1alpha1.NormalizeOCIURL("oci://registry.example.com/chart"), ociDir)
 
-	resolver := NewValueFileResolver(
+	resolver := newValueFileResolver(
 		"/app",
 		"/repo",
 		&v1alpha1.Env{},
@@ -219,7 +219,7 @@ func TestValueFileResolver_ResolveValueFiles_OCIGlob(t *testing.T) {
 	ociPaths := utilio.NewRandomizedTempPaths(t.TempDir())
 	ociPaths.Add(v1alpha1.NormalizeOCIURL("oci://registry.example.com/chart"), ociDir)
 
-	resolver := NewValueFileResolver(
+	resolver := newValueFileResolver(
 		appPath,
 		repoRoot,
 		&v1alpha1.Env{},
