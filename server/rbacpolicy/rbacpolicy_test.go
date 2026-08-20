@@ -268,13 +268,16 @@ func TestEnableLocalUserStrictModeConcurrency(t *testing.T) {
 	claims := jwt.MapClaims{"sub": "sally", "iss": common.ArgoCDSessionClaimsIssuer}
 
 	var wg sync.WaitGroup
-	for i := 0; i < 50; i++ {
+	for i := range 50 {
 		wg.Add(3)
 		go func(enabled bool) { defer wg.Done(); rbacEnf.SetEnableLocalUserStrictMode(enabled) }(i%2 == 0)
 		go func() { defer wg.Done(); _ = rbacEnf.GetEnableLocalUserStrictMode() }()
 		go func() { defer wg.Done(); _ = isLocalAccount(claims) }()
 	}
 	wg.Wait()
+
+	rbacEnf.SetEnableLocalUserStrictMode(true)
+	assert.True(t, rbacEnf.GetEnableLocalUserStrictMode())
 }
 
 // TestEnforceLocalUserStrictMode verifies that, when strict mode is enabled, an RBAC policy bound
