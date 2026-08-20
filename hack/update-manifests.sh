@@ -147,5 +147,7 @@ $KUSTOMIZE build "${SRCROOT}/manifests/core-install-with-hydrator" >> "${SRCROOT
 # Update Grafana dashboard description with version
 if [ -f "${SRCROOT}/examples/dashboard.json" ]; then
   DASHBOARD_VERSION="${IMAGE_TAG}"
-  sed -i "s|\"description\": \"Argo CD Dashboard [^\"]*\"|\"description\": \"Argo CD Dashboard ${DASHBOARD_VERSION}\"|" "${SRCROOT}/examples/dashboard.json"
+  jq --arg ver "${DASHBOARD_VERSION}" '.description = "Argo CD Dashboard " + $ver' \
+    "${SRCROOT}/examples/dashboard.json" > "${SRCROOT}/examples/dashboard.json.tmp" \
+    && mv "${SRCROOT}/examples/dashboard.json.tmp" "${SRCROOT}/examples/dashboard.json"
 fi
