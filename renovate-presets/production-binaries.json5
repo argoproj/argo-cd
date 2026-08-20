@@ -1,0 +1,115 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Production runtime binaries shipped in the Argo CD image",
+  "packageRules": [
+    {
+      "description": "Enable production binary updates from GitHub releases",
+      "matchDatasources": [
+        "github-releases"
+      ],
+      "matchPackageNames": [
+        "helm/helm",
+        "kubernetes-sigs/kustomize",
+        "git-lfs/git-lfs"
+      ],
+      "enabled": true,
+      "automerge": false,
+      "addLabels": [
+        "production-binary"
+      ]
+    },
+    {
+      "description": "Refresh helm checksum files after version bump",
+      "matchDatasources": [
+        "github-releases"
+      ],
+      "matchPackageNames": [
+        "helm/helm"
+      ],
+      "postUpgradeTasks": {
+        "commands": [
+          "hack/installers/checksums/add-helm-checksums.sh {{newVersion}}"
+        ],
+        "fileFilters": [
+          "hack/installers/checksums/**"
+        ],
+        "executionMode": "branch"
+      }
+    },
+    {
+      "description": "Refresh kustomize checksum files after version bump",
+      "matchDatasources": [
+        "github-releases"
+      ],
+      "matchPackageNames": [
+        "kubernetes-sigs/kustomize"
+      ],
+      "postUpgradeTasks": {
+        "commands": [
+          "hack/installers/checksums/add-kustomize-checksums.sh {{newVersion}}"
+        ],
+        "fileFilters": [
+          "hack/installers/checksums/**"
+        ],
+        "executionMode": "branch"
+      }
+    },
+    {
+      "description": "Refresh git-lfs checksum files after version bump",
+      "matchDatasources": [
+        "github-releases"
+      ],
+      "matchPackageNames": [
+        "git-lfs/git-lfs"
+      ],
+      "postUpgradeTasks": {
+        "commands": [
+          "hack/installers/checksums/add-git-lfs-checksums.sh {{newVersion}}"
+        ],
+        "fileFilters": [
+          "hack/installers/checksums/**"
+        ],
+        "executionMode": "branch"
+      }
+    },
+    {
+      "description": "Enable git apt package updates on Ubuntu base images",
+      "matchDatasources": [
+        "deb"
+      ],
+      "matchDepNames": [
+        "git"
+      ],
+      "matchFileNames": [
+        "Dockerfile",
+        "test/container/Dockerfile",
+        "test/remote/Dockerfile"
+      ],
+      "enabled": true,
+      "automerge": false,
+      "groupName": "git apt ubuntu",
+      "addLabels": [
+        "production-binary"
+      ]
+    },
+    {
+      "description": "Enable git apt package updates on Debian-based builder images",
+      "matchDatasources": [
+        "deb"
+      ],
+      "matchDepNames": [
+        "git"
+      ],
+      "matchFileNames": [
+        "Dockerfile",
+        "Dockerfile.tilt"
+      ],
+      "enabled": true,
+      "automerge": false,
+      "groupName": "git apt debian",
+      "addLabels": [
+        "production-binary"
+      ]
+    }
+  ]
+}

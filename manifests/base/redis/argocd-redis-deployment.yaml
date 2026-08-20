@@ -40,7 +40,8 @@ spec:
       serviceAccountName: argocd-redis        
       containers:
       - name: redis
-        image: redis:8.2.3-alpine
+        # renovate: datasource=docker packageName=docker.io/library/redis
+        image: redis:8.10.0-alpine
         imagePullPolicy: Always
         args:
         - "--save"

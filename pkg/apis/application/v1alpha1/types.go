@@ -22,9 +22,9 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
-	synccommon "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	"github.com/cespare/xxhash/v2"
 	"github.com/robfig/cron/v3"
 	log "github.com/sirupsen/logrus"
@@ -937,11 +937,17 @@ type ApplicationSourceDirectory struct {
 	Exclude string `json:"exclude,omitempty" protobuf:"bytes,3,opt,name=exclude"`
 	// Include contains a glob pattern to match paths against that should be explicitly included during manifest generation
 	Include string `json:"include,omitempty" protobuf:"bytes,4,opt,name=include"`
+	// DisableExtensionFilter controls whether the built-in file-extension filter is skipped during
+	// manifest generation. When false (the default), only files with a .yaml, .yml, .json, or
+	// .jsonnet extension are considered as potential manifests. Set it to true to disable the filter
+	// so that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude
+	// glob patterns instead.
+	DisableExtensionFilter bool `json:"disableExtensionFilter,omitempty" protobuf:"bytes,5,opt,name=disableExtensionFilter"`
 }
 
 // IsZero returns true if the ApplicationSourceDirectory is considered empty
 func (d *ApplicationSourceDirectory) IsZero() bool {
-	return d == nil || !d.Recurse && d.Jsonnet.IsZero()
+	return d == nil || !d.Recurse && d.Jsonnet.IsZero() && !d.DisableExtensionFilter
 }
 
 type OptionalMap struct {
@@ -1587,7 +1593,7 @@ func (r *RetryStrategy) NextRetryAt(lastAttempt time.Time, retryCounts int64) (t
 	// Formula: timeToWait = duration * factor^retry_number
 	// Note that timeToWait should equal to duration for the first retry attempt.
 	// When timeToWait is more than maxDuration retry should be performed at maxDuration.
-	timeToWait := float64(duration) * (math.Pow(float64(factor), float64(retryCounts)))
+	timeToWait := float64(duration) * math.Pow(float64(factor), float64(retryCounts))
 	if maxDuration > 0 {
 		timeToWait = math.Min(float64(maxDuration), timeToWait)
 	}
@@ -1890,9 +1896,9 @@ const (
 )
 
 // ApplicationConditionType represents type of application condition. Type name has following convention:
-// prefix "Error" means error condition
-// prefix "Warning" means warning condition
-// prefix "Info" means informational condition
+// suffix "Error" means error condition
+// suffix "Warning" means warning condition
+// suffix "Info" means informational condition
 type ApplicationConditionType = string
 
 const (
@@ -1955,8 +1961,6 @@ type AppHealthStatus struct {
 	// Status holds the status code of the application
 	Status health.HealthStatusCode `json:"status,omitempty" protobuf:"bytes,1,opt,name=status"`
 	// Message is a human-readable informational message describing the health status
-	//
-	// Deprecated: this field is not used and will be removed in a future release.
 	Message string `json:"message,omitempty" protobuf:"bytes,2,opt,name=message"`
 	// LastTransitionTime is the time the HealthStatus was set or updated
 	LastTransitionTime *metav1.Time `json:"lastTransitionTime,omitempty" protobuf:"bytes,3,opt,name=lastTransitionTime"`
@@ -2706,6 +2710,7 @@ var validActions = map[string]bool{
 	rbac.ActionDelete:   true,
 	rbac.ActionSync:     true,
 	rbac.ActionOverride: true,
+	rbac.ActionRollback: true,
 	"*":                 true,
 }
 
