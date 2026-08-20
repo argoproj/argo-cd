@@ -124,7 +124,6 @@ func TestFindRevisionHistoryWithoutPassedId(t *testing.T) {
 		Conditions:     nil,
 		ReconciledAt:   nil,
 		OperationState: nil,
-		ObservedAt:     nil,
 		SourceType:     "",
 		Summary:        v1alpha1.ApplicationSummary{},
 	}
@@ -232,7 +231,6 @@ func TestFindRevisionHistoryWithoutPassedIdWithMultipleSources(t *testing.T) {
 		Conditions:     nil,
 		ReconciledAt:   nil,
 		OperationState: nil,
-		ObservedAt:     nil,
 		SourceType:     "",
 		Summary:        v1alpha1.ApplicationSummary{},
 	}
@@ -285,7 +283,6 @@ func TestFindRevisionHistoryWithoutPassedIdAndEmptyHistoryList(t *testing.T) {
 		Conditions:     nil,
 		ReconciledAt:   nil,
 		OperationState: nil,
-		ObservedAt:     nil,
 		SourceType:     "",
 		Summary:        v1alpha1.ApplicationSummary{},
 	}
@@ -316,7 +313,6 @@ func TestFindRevisionHistoryWithPassedId(t *testing.T) {
 		Conditions:     nil,
 		ReconciledAt:   nil,
 		OperationState: nil,
-		ObservedAt:     nil,
 		SourceType:     "",
 		Summary:        v1alpha1.ApplicationSummary{},
 	}
@@ -346,7 +342,6 @@ func TestFindRevisionHistoryWithPassedIdThatNotExist(t *testing.T) {
 		Conditions:     nil,
 		ReconciledAt:   nil,
 		OperationState: nil,
-		ObservedAt:     nil,
 		SourceType:     "",
 		Summary:        v1alpha1.ApplicationSummary{},
 	}
