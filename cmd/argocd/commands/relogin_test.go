@@ -69,10 +69,10 @@ func TestNewReloginCommand(t *testing.T) {
 	require.NoError(t, err, "Failed to convert sso-port flag value to integer")
 	assert.Equal(t, 8085, port, "Unexpected default value for --sso-port flag")
 
-	browserlessFlag := cmd.Flags().Lookup("browserless")
-	assert.NotNil(t, browserlessFlag, "Expected flag --browserless to be defined")
-	assert.Equal(t, "false", browserlessFlag.Value.String(), "Expected --browserless to default to false")
-	assert.Equal(t, "Perform SSO relogin without a browser using the device code flow", browserlessFlag.Usage)
+	noBrowserFlag := cmd.Flags().Lookup("no-browser")
+	assert.NotNil(t, noBrowserFlag, "Expected flag --no-browser to be defined")
+	assert.Equal(t, "false", noBrowserFlag.Value.String(), "Expected --no-browser to default to false")
+	assert.Equal(t, "Perform SSO relogin without a browser using the device code flow", noBrowserFlag.Usage)
 }
 
 func TestNewReloginCommandWithClientOptions(t *testing.T) {
@@ -106,10 +106,10 @@ func TestNewReloginCommandWithClientOptions(t *testing.T) {
 	assert.Equal(t, 8085, port, "Unexpected default value for --sso-port flag")
 }
 
-// TestReloginBrowserlessFlagIgnoredForPasswordLogin verifies that --browserless
+// TestReloginNoBrowserFlagIgnoredForPasswordLogin verifies that --no-browser
 // has no effect when the stored token was issued by ArgoCD itself (password
 // login): the command should fall through to passwordLogin regardless.
-func TestReloginBrowserlessFlagIgnoredForPasswordLogin(t *testing.T) {
+func TestReloginNoBrowserFlagIgnoredForPasswordLogin(t *testing.T) {
 	lc := net.ListenConfig{}
 	lis, err := lc.Listen(t.Context(), "tcp", "127.0.0.1:0")
 	require.NoError(t, err)
@@ -140,9 +140,9 @@ func TestReloginBrowserlessFlagIgnoredForPasswordLogin(t *testing.T) {
 
 	clientOpts := &argocdclient.ClientOptions{ConfigPath: configFile}
 	cmd := NewReloginCommand(clientOpts)
-	// --browserless is set but the stored token is an ArgoCD password token,
+	// --no-browser is set but the stored token is an ArgoCD password token,
 	// so the SSO branch is never reached.
-	cmd.SetArgs([]string{"--password", "test-password", "--browserless"})
+	cmd.SetArgs([]string{"--password", "test-password", "--no-browser"})
 	cmd.SetContext(context.Background())
 	require.NoError(t, cmd.Execute())
 

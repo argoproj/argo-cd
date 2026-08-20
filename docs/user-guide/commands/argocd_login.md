@@ -22,7 +22,7 @@ argocd login cd.argoproj.io
 argocd login cd.argoproj.io --sso
 
 # Login to Argo CD using SSO without a browser (device code flow)
-argocd login cd.argoproj.io --sso --browserless
+argocd login cd.argoproj.io --sso --no-browser
 
 # Configure direct access using Kubernetes API server
 argocd login cd.argoproj.io --core
@@ -31,10 +31,10 @@ argocd login cd.argoproj.io --core
 ### Options
 
 ```
-      --browserless          Perform SSO login without a browser using the device code flow (requires --sso)
       --callback string      Scheme, Host and Port for the callback URL
   -h, --help                 help for login
       --name string          Name to use for the context
+      --no-browser           Perform SSO login without a browser using the device code flow (requires --sso)
       --password string      The password of an account to authenticate
       --skip-test-tls        Skip testing whether the server is configured with TLS (this can help when the command hangs for no apparent reason)
       --sso                  Perform SSO login

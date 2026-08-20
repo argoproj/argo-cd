@@ -544,10 +544,10 @@ CLI from the browser used to complete authentication:
 
 ```bash
 # First-time login
-argocd login <server> --sso --browserless
+argocd login <server> --sso --no-browser
 
 # Refresh an expired token
-argocd relogin --browserless
+argocd relogin --no-browser
 ```
 
 The CLI prints a URL like:

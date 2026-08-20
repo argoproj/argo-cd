@@ -27,7 +27,7 @@ func NewReloginCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		callback         string
 		ssoPort          int
 		ssoLaunchBrowser bool
-		browserless      bool
+		noBrowser        bool
 	)
 	command := &cobra.Command{
 		Use:   "relogin",
@@ -83,10 +83,10 @@ func NewReloginCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				errors.CheckError(err)
 				oauth2conf, provider, err := acdClient.OIDCConfig(ctx, acdSet)
 				errors.CheckError(err)
-				if !browserless {
+				if !noBrowser {
 					tokenString, refreshToken = oauth2Login(ctx, callback, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider, ssoLaunchBrowser, acdSet.GetDexConfig().GetDexAuthConnectorID())
 				} else {
-					tokenString, refreshToken = oauth2LoginBrowserless(ctx, acdSet.GetOIDCConfig(), oauth2conf, httpClient)
+					tokenString, refreshToken = oauth2LoginNoBrowser(ctx, acdSet.GetOIDCConfig(), oauth2conf, httpClient)
 				}
 			}
 
@@ -116,6 +116,6 @@ argocd login cd.argoproj.io --core
 	command.Flags().IntVar(&ssoPort, "sso-port", DefaultSSOLocalPort, "Port to run local OAuth2 login application")
 	command.Flags().StringVar(&callback, "callback", "", "Host and Port for the callback URL")
 	command.Flags().BoolVar(&ssoLaunchBrowser, "sso-launch-browser", true, "Automatically launch the default browser when performing SSO login")
-	command.Flags().BoolVar(&browserless, "browserless", false, "Perform SSO relogin without a browser using the device code flow")
+	command.Flags().BoolVar(&noBrowser, "no-browser", false, "Perform SSO relogin without a browser using the device code flow")
 	return command
 }

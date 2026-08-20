@@ -32,9 +32,9 @@ argocd login cd.argoproj.io --core
 ### Options
 
 ```
-      --browserless          Perform SSO relogin without a browser using the device code flow
       --callback string      Host and Port for the callback URL
   -h, --help                 help for relogin
+      --no-browser           Perform SSO relogin without a browser using the device code flow
       --password string      The password of an account to authenticate
       --sso-launch-browser   Automatically launch the default browser when performing SSO login (default true)
       --sso-port int         Port to run local OAuth2 login application (default 8085)

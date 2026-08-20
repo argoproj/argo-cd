@@ -52,7 +52,7 @@ func NewLoginCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		ssoPort          int
 		skipTestTLS      bool
 		ssoLaunchBrowser bool
-		browserless      bool
+		noBrowser        bool
 	)
 	command := &cobra.Command{
 		Use:   "login SERVER",
@@ -65,7 +65,7 @@ argocd login cd.argoproj.io
 argocd login cd.argoproj.io --sso
 
 # Login to Argo CD using SSO without a browser (device code flow)
-argocd login cd.argoproj.io --sso --browserless
+argocd login cd.argoproj.io --sso --no-browser
 
 # Configure direct access using Kubernetes API server
 argocd login cd.argoproj.io --core`,
@@ -149,16 +149,16 @@ argocd login cd.argoproj.io --core`,
 					errors.CheckError(err)
 					oauth2conf, provider, err := acdClient.OIDCConfig(ctx, acdSet)
 					errors.CheckError(err)
-					if !browserless {
+					if !noBrowser {
 						tokenString, refreshToken = oauth2Login(ctx, callback, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider, ssoLaunchBrowser, acdSet.GetDexConfig().GetDexAuthConnectorID())
 					} else {
 						if c.Flags().Changed("sso-port") {
-							log.Warn("--sso-port is ignored when --browserless is used")
+							log.Warn("--sso-port is ignored when --no-browser is used")
 						}
 						if c.Flags().Changed("callback") {
-							log.Warn("--callback is ignored when --browserless is used")
+							log.Warn("--callback is ignored when --no-browser is used")
 						}
-						tokenString, refreshToken = oauth2LoginBrowserless(ctx, acdSet.GetOIDCConfig(), oauth2conf, httpClient)
+						tokenString, refreshToken = oauth2LoginNoBrowser(ctx, acdSet.GetOIDCConfig(), oauth2conf, httpClient)
 					}
 				}
 				parser := jwt.NewParser(jwt.WithoutClaimsValidation())
@@ -205,7 +205,7 @@ argocd login cd.argoproj.io --core`,
 	command.Flags().StringVar(&username, "username", "", "The username of an account to authenticate")
 	command.Flags().StringVar(&password, "password", "", "The password of an account to authenticate")
 	command.Flags().BoolVar(&sso, "sso", false, "Perform SSO login")
-	command.Flags().BoolVar(&browserless, "browserless", false, "Perform SSO login without a browser using the device code flow (requires --sso)")
+	command.Flags().BoolVar(&noBrowser, "no-browser", false, "Perform SSO login without a browser using the device code flow (requires --sso)")
 	command.Flags().IntVar(&ssoPort, "sso-port", DefaultSSOLocalPort, "Port to run local OAuth2 login application")
 	command.Flags().StringVar(&callback, "callback", "", "Scheme, Host and Port for the callback URL")
 	command.Flags().BoolVar(&skipTestTLS, "skip-test-tls", false, "Skip testing whether the server is configured with TLS (this can help when the command hangs for no apparent reason)")
@@ -517,10 +517,10 @@ func buildVerificationPrompt(uriComplete, uri, userCode string) string {
 	return fmt.Sprintf("  %s\n\n  Or visit %s and enter the code: %s", u.String(), uri, userCode)
 }
 
-// oauth2LoginBrowserless implements the OAuth 2.0 Device Authorization Grant
+// oauth2LoginNoBrowser implements the OAuth 2.0 Device Authorization Grant
 // (RFC 8628). It prints a verification URL for the user to open in a browser
 // and polls the token endpoint until authentication completes or is cancelled.
-func oauth2LoginBrowserless(
+func oauth2LoginNoBrowser(
 	ctx context.Context,
 	oidcSettings *settingspkg.OIDCConfig,
 	oauth2conf *oauth2.Config,

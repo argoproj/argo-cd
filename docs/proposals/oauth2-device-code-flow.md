@@ -14,7 +14,7 @@ last-updated: 2026-08-14
 
 ## Summary
 
-Add `--browserless` flag to `argocd login` and `argocd relogin` that uses the
+Add `--no-browser` flag to `argocd login` and `argocd relogin` that uses the
 [OAuth 2.0 Device Code Authorization Grant (RFC 8628)](https://www.rfc-editor.org/rfc/rfc8628)
 instead of the standard PKCE browser redirect flow.
 
@@ -33,9 +33,9 @@ pre-registration impractical without wildcards.
 
 ### Goals
 
-- `argocd login <server> --sso --browserless` works from any environment without a locally reachable
+- `argocd login <server> --sso --no-browser` works from any environment without a locally reachable
   port.
-- `argocd relogin --browserless` refreshes an expired token the same way.
+- `argocd relogin --no-browser` refreshes an expired token the same way.
 - Works with bundled Dex and external OIDC providers (Keycloak, Okta, Azure AD, etc.).
 - No operator configuration required for standards-compliant providers.
 
@@ -50,15 +50,15 @@ pre-registration impractical without wildcards.
 
 #### Use case 1
 A developer working inside Red Hat DevSpaces wants to use the Argo CD CLI to manage applications.
-They run `argocd login argocd.example.com --sso --browserless`, open the printed URL in their local
+They run `argocd login argocd.example.com --sso --no-browser`, open the printed URL in their local
 browser, approve the request, and the CLI stores the token automatically.
 
 ### Implementation Details
 
 **CLI (`cmd/argocd/commands/login.go`, `relogin.go`)**
 
-- Add `--browserless bool` flag to both commands.
-- When set with `--sso`, call `oauth2LoginBrowserless` instead of `oauth2Login`.
+- Add `--no-browser bool` flag to both commands.
+- When set with `--sso`, call `oauth2LoginNoBrowser` instead of `oauth2Login`.
 - Device authorization endpoint is resolved in priority order:
   1. `oauth2conf.Endpoint.DeviceAuthURL` — auto-discovered from `device_authorization_endpoint`
      in the OIDC discovery document (populated automatically by `go-oidc/v3`).
@@ -90,7 +90,7 @@ The `argo-cd-cli` static client in Dex is updated to include:
 
 - Purely additive: new flag, no changes to existing behaviour.
 - Dex `redirectURIs` change is backward-compatible; existing clients are unaffected.
-- Downgrading: `--browserless` flag will not exist in older CLI versions; users fall back to `--sso`.
+- Downgrading: `--no-browser` flag will not exist in older CLI versions; users fall back to `--sso`.
 
 ## Alternatives
 
