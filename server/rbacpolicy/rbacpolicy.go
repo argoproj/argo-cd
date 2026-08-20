@@ -219,8 +219,7 @@ func (p *Enforcer) hasAnyProjectPermission(username string, groups []string) boo
 	if err != nil {
 		return false
 	}
-	subjects := make([]string, 0, 1+len(groups))
-	subjects = append(subjects, username)
+	subjects := []string{username}
 	subjects = append(subjects, groups...)
 	for _, proj := range projects {
 		policy := proj.ProjectPoliciesString()
