@@ -86,7 +86,8 @@ func (a *argoCDService) GetDirectories(ctx context.Context, repoURL, revision, p
 		Revision:         revision,
 		NoRevisionCache:  noRevisionCache,
 		SourceIntegrity:  sourceIntegrity,
-		VerifyCommit:     sourceIntegrity != nil,
+		//nolint:staticcheck // SA1019: VerifyCommit is deprecated, but we still need to support it for backward compatibility.
+		VerifyCommit: sourceIntegrity != nil,
 	}
 
 	dirResponse, err := a.getGitDirectoriesFromRepoServer(ctx, dirRequest)
