@@ -249,9 +249,10 @@ func Test_nativeGitClient_cleanupOrphanedTempPackfiles(t *testing.T) {
 	root := t.TempDir()
 	packDir := filepath.Join(root, ".git", "objects", "pack")
 	require.NoError(t, os.MkdirAll(packDir, 0o755))
-	// gitCleanupGracePeriod defaults to 2 * 90s = 3m, so an hour-old file is
-	// safely stale and a just-written one is safely fresh.
-	old := time.Now().Add(-time.Hour)
+	// Age relative to the actual (env-dependent) gitCleanupGracePeriod, rather
+	// than a fixed duration, so this is correct regardless of what
+	// ARGOCD_EXEC_TIMEOUT happens to be set to wherever the test runs.
+	old := time.Now().Add(-2 * gitCleanupGracePeriod)
 
 	// Stale temp files git's index-pack can strand when a fetch is killed before
 	// it finalizes the pack. All must be removed once past the grace window.
@@ -317,7 +318,7 @@ func Test_nativeGitClient_Fetch_cleansOrphanedTempPacksOnError(t *testing.T) {
 	// removes them.
 	packDir := filepath.Join(root, ".git", "objects", "pack")
 	require.NoError(t, os.MkdirAll(packDir, 0o755))
-	old := time.Now().Add(-time.Hour)
+	old := time.Now().Add(-2 * gitCleanupGracePeriod)
 	orphanPack := filepath.Join(packDir, "tmp_pack_orphan")
 	orphanIdx := filepath.Join(packDir, "tmp_idx_orphan")
 	for _, p := range []string{orphanPack, orphanIdx} {
@@ -331,6 +332,93 @@ func Test_nativeGitClient_Fetch_cleansOrphanedTempPacksOnError(t *testing.T) {
 	require.Error(t, err, "fetch against a missing remote must fail")
 	assert.NoFileExists(t, orphanPack, "orphaned temp pack should be cleaned up after a failed fetch")
 	assert.NoFileExists(t, orphanIdx, "orphaned temp index should be cleaned up after a failed fetch")
+}
+
+func Test_nativeGitClient_cleanupOrphanedShallowLock(t *testing.T) {
+	root := t.TempDir()
+	gitDir := filepath.Join(root, ".git")
+	require.NoError(t, os.MkdirAll(gitDir, 0o755))
+	// Age relative to the actual (env-dependent) gitCleanupGracePeriod, rather
+	// than a fixed duration, so this is correct regardless of what
+	// ARGOCD_EXEC_TIMEOUT happens to be set to wherever the test runs.
+	old := time.Now().Add(-2 * gitCleanupGracePeriod)
+
+	lockPath := filepath.Join(gitDir, "shallow.lock")
+	require.NoError(t, os.WriteFile(lockPath, []byte(""), 0o644))
+	require.NoError(t, os.Chtimes(lockPath, old, old))
+
+	client := &nativeGitClient{root: root, repoURL: "https://example.com/repo.git"}
+	client.cleanupOrphanedShallowLock()
+
+	assert.NoFileExists(t, lockPath, "stale shallow.lock should be removed")
+}
+
+func Test_nativeGitClient_cleanupOrphanedShallowLock_withinGracePeriod(t *testing.T) {
+	root := t.TempDir()
+	gitDir := filepath.Join(root, ".git")
+	require.NoError(t, os.MkdirAll(gitDir, 0o755))
+
+	lockPath := filepath.Join(gitDir, "shallow.lock")
+	require.NoError(t, os.WriteFile(lockPath, []byte(""), 0o644))
+
+	client := &nativeGitClient{root: root, repoURL: "https://example.com/repo.git"}
+	client.cleanupOrphanedShallowLock()
+
+	assert.FileExists(t, lockPath, "shallow.lock within the grace window may belong to a concurrent fetch and must be preserved")
+}
+
+func Test_nativeGitClient_cleanupOrphanedShallowLock_noLockFile(t *testing.T) {
+	// A repository with no shallow.lock present must not panic or error.
+	client := &nativeGitClient{root: t.TempDir(), repoURL: "https://example.com/repo.git"}
+	assert.NotPanics(t, client.cleanupOrphanedShallowLock)
+}
+
+func Test_nativeGitClient_Fetch_cleansOrphanedShallowLockOnError(t *testing.T) {
+	ctx := t.Context()
+	root := t.TempDir()
+
+	require.NoError(t, runCmd(ctx, root, "git", "init"))
+	// Point origin at a non-existent path so the fetch fails deterministically.
+	badRemote := filepath.Join(root, "does-not-exist")
+	require.NoError(t, runCmd(ctx, root, "git", "remote", "add", "origin", "file://"+badRemote))
+
+	// A real shallow.lock left by a killed --depth fetch cannot be reproduced
+	// deterministically in a unit test, so stand in for it directly, aged past
+	// the grace window, and assert the failed fetch removes it.
+	gitDir := filepath.Join(root, ".git")
+	lockPath := filepath.Join(gitDir, "shallow.lock")
+	require.NoError(t, os.WriteFile(lockPath, []byte(""), 0o644))
+	old := time.Now().Add(-2 * gitCleanupGracePeriod)
+	require.NoError(t, os.Chtimes(lockPath, old, old))
+
+	client := &nativeGitClient{root: root, repoURL: "file://" + badRemote, creds: NopCreds{}}
+
+	err := client.Fetch(t.Context(), "", 1)
+	require.Error(t, err, "fetch against a missing remote must fail")
+	assert.NoFileExists(t, lockPath, "orphaned shallow.lock should be cleaned up after a failed shallow fetch")
+}
+
+func Test_nativeGitClient_Fetch_leavesShallowLockOnNonShallowFetchError(t *testing.T) {
+	ctx := t.Context()
+	root := t.TempDir()
+
+	require.NoError(t, runCmd(ctx, root, "git", "init"))
+	badRemote := filepath.Join(root, "does-not-exist")
+	require.NoError(t, runCmd(ctx, root, "git", "remote", "add", "origin", "file://"+badRemote))
+
+	// A shallow.lock left behind is only relevant to shallow (--depth) fetches;
+	// a failed non-shallow fetch must not touch it, even if stale.
+	gitDir := filepath.Join(root, ".git")
+	lockPath := filepath.Join(gitDir, "shallow.lock")
+	require.NoError(t, os.WriteFile(lockPath, []byte(""), 0o644))
+	old := time.Now().Add(-2 * gitCleanupGracePeriod)
+	require.NoError(t, os.Chtimes(lockPath, old, old))
+
+	client := &nativeGitClient{root: root, repoURL: "file://" + badRemote, creds: NopCreds{}}
+
+	err := client.Fetch(t.Context(), "", 0)
+	require.Error(t, err, "fetch against a missing remote must fail")
+	assert.FileExists(t, lockPath, "shallow.lock must not be touched by a non-shallow fetch")
 }
 
 func Test_nativeGitClient_Fetch(t *testing.T) {
