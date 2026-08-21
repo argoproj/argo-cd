@@ -276,16 +276,19 @@ func (rt *resourceTracking) Normalize(config, live *unstructured.Unstructured, l
 		return nil
 	}
 
-	if kubeutil.IsCRD(live) {
-		// CRDs don't get tracking annotations.
-		return nil
-	}
-
 	liveAnnotation, err := kube.GetAppInstanceAnnotation(live, common.AnnotationKeyAppInstance)
 	if err != nil {
 		return err
 	}
 	if liveAnnotation == "" {
+		// This check takes place here due to the option for allowing tracking labels on CRDs
+		// if it is out of this if block then if there is a tracking label on the CRD it will
+		// always show as OutOfSync which is incorrect and misleading.
+		if kubeutil.IsCRD(live) {
+			// CRDs don't get tracking annotations.
+			return nil
+		}
+
 		// The live resource carries the instance label but no tracking annotation,
 		// which happens when it was last synced under label-based tracking.
 		// Backfill the desired annotation so that migrating to annotation-based

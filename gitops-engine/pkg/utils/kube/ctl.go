@@ -57,6 +57,12 @@ type APIResourceInfo struct {
 	GroupVersionResource schema.GroupVersionResource
 }
 
+type JSONPatchOperation struct {
+	Op    string `json:"op"`
+	Path  string `json:"path"`
+	Value string `json:"value,omitempty"`
+}
+
 type filterFunc func(apiResource *metav1.APIResource) bool
 
 func (k *KubectlCmd) filterAPIResources(config *rest.Config, preferred bool, resourceFilter ResourceFilter, filter filterFunc) ([]APIResourceInfo, error) {
