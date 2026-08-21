@@ -28,7 +28,7 @@ import * as AppUtils from '../utils';
 import {ApplicationResourceList, ApplicationResourceParentRef} from './application-resource-list';
 import {APPLICATION_DETAILS_SORT_KEY, ApplicationResourceSortKey, compareApplicationResource, GROUPED_NODES_DETAILS_SORT_KEY} from './application-resource-sort';
 import {useListSort} from '../../../shared/hooks/use-list-sort';
-import {Filters, FiltersProps} from './application-resource-filter';
+import {Filters, FiltersProps, OWNERSHIP_MANAGED, OWNERSHIP_ORPHANED} from './application-resource-filter';
 import {getAppDefaultSource, getAppCurrentVersion, urlPattern} from '../utils';
 import {ChartDetails, OCIMetadata} from '../../../shared/models';
 import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown';
@@ -61,6 +61,7 @@ interface FilterInput {
     health: string[];
     sync: string[];
     namespace: string[];
+    ownership: string[];
 }
 
 const ApplicationDetailsFilters = (props: FiltersProps) => {
@@ -658,8 +659,18 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                             pref.view = appDefaultView;
                                         }
                                     }
-                                    if (params.get('orphaned') != null) {
-                                        pref.orphanedResources = params.get('orphaned') === 'true';
+                                    // `orphaned` is superseded by the ownership resource filter. Keep honouring the legacy
+                                    // URL parameter and the persisted preference so old links keep working. The guard below
+                                    // is required: this block re-runs on every emission, and appending unconditionally
+                                    // would keep growing resourceFilter because `pref` is a shared, mutable object.
+                                    const orphanedParam = params.get('orphaned');
+                                    const orphanedLegacy = orphanedParam != null ? orphanedParam === 'true' : !!pref.orphanedResources;
+                                    if (orphanedLegacy && !(pref.resourceFilter || []).some(f => f.startsWith('ownership:'))) {
+                                        pref.resourceFilter = (pref.resourceFilter || []).concat(`ownership:${OWNERSHIP_MANAGED}`, `ownership:${OWNERSHIP_ORPHANED}`);
+                                    }
+                                    if (pref.orphanedResources) {
+                                        // Drop the legacy preference so the migration above cannot run again.
+                                        services.viewPreferences.updatePreferences({appDetails: {...pref, orphanedResources: false, resourceFilter: pref.resourceFilter}});
                                     }
                                     if (params.get('podSortMode') != null) {
                                         pref.podView.sortMode = params.get('podSortMode') as PodGroupType;
@@ -679,6 +690,8 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                             tree.nodes = tree.nodes || [];
                             const isApplication = isApp(application);
                             const treeFilter = getTreeFilter(pref.resourceFilter);
+                            // Orphaned resources stay hidden until explicitly asked for, as they are not part of the application.
+                            const showOrphanedResources = treeFilter.ownership.includes(OWNERSHIP_ORPHANED);
                             const setFilter = (items: string[]) => {
                                 appContext.navigation.goto('.', {resource: items.join(',')}, {replace: true});
                                 services.viewPreferences.updatePreferences({appDetails: {...pref, resourceFilter: items}});
@@ -718,7 +731,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                 const resources = new Map<string, any>();
                                 tree.nodes
                                     .map(node => ({...node, orphaned: false}))
-                                    .concat(((pref.orphanedResources && tree.orphanedNodes) || []).map(node => ({...node, orphaned: true})))
+                                    .concat(((showOrphanedResources && tree.orphanedNodes) || []).map(node => ({...node, orphaned: true})))
                                     .forEach(node => {
                                         const resource: any = {...node};
                                         resource.uid = node.uid;
@@ -797,7 +810,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                 getApplicationActionMenu(application as appModels.Application, false, true)
                                             ),
                                         app: application as appModels.Application,
-                                        showOrphanedResources: pref.orphanedResources,
+                                        showOrphanedResources,
                                         showAppSetParent: pref.showAppSetParent,
                                         useNetworkingHierarchy: pref.view === 'network',
                                         podGroupCount: pref.podGroupCount
@@ -1474,9 +1487,11 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
 
             const root = node.root || ({} as ResourceTreeNode);
             const hook = root && root.hook;
+            const ownership = node.orphaned ? OWNERSHIP_ORPHANED : OWNERSHIP_MANAGED;
             if (
                 (filterInput.name.length === 0 || nodeNameMatchesWildcardFilters(node.name, filterInput.name)) &&
                 (filterInput.kind.length === 0 || filterInput.kind.indexOf(node.kind) > -1) &&
+                (filterInput.ownership.length === 0 || filterInput.ownership.indexOf(ownership) > -1) &&
                 // include if node's root sync matches filter
                 (syncStatuses.length === 0 || hook || (root.status && syncStatuses.indexOf(root.status) > -1)) &&
                 // include if node or node's root health matches filter
@@ -1579,6 +1594,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
         const health = new Array<string>();
         const sync = new Array<string>();
         const namespace = new Array<string>();
+        const ownership = new Array<string>();
         for (const item of filterInput || []) {
             const [type, val] = item.split(':');
             switch (type) {
@@ -1597,9 +1613,12 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                 case 'namespace':
                     namespace.push(val);
                     break;
+                case 'ownership':
+                    ownership.push(val);
+                    break;
             }
         }
-        return {kind, health, sync, namespace, name};
+        return {kind, health, sync, namespace, name, ownership};
     }, []);
 
     // Return the render function
