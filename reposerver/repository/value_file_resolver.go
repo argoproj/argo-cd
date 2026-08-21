@@ -121,7 +121,9 @@ func (r *valueFileResolver) ResolveValueFiles(rawValueFiles []string) ([]pathuti
 
 		appendUnique(resolved.Path)
 	}
-	log.Infof("resolved value files: %v", resolvedValueFiles)
+	// Log only the count: resolved paths may point inside the randomized OCI extraction
+	// directories, which must not leak the reposerver filesystem layout into logs.
+	log.Infof("resolved %d value files", len(resolvedValueFiles))
 	return resolvedValueFiles, nil
 }
 

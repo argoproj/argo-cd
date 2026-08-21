@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -277,5 +278,45 @@ func TestGetResolvedOCIRefValueFile_RejectsPathWithoutFile(t *testing.T) {
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), "no file path after the ref name")
 		})
+	}
+}
+
+func TestValueFileResolver_ResolveValueFiles_DoesNotLogResolvedPaths(t *testing.T) {
+	// Regression: resolved OCI value files live under the randomized extraction directory.
+	// Logging them leaked the reposerver filesystem layout, so only the count is logged.
+	repoRoot := t.TempDir()
+	appPath := filepath.Join(repoRoot, "app")
+	require.NoError(t, os.MkdirAll(appPath, 0o755))
+
+	ociDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(ociDir, "a.yaml"), []byte("a: 1"), 0o644))
+
+	ociPaths := utilio.NewRandomizedTempPaths(t.TempDir())
+	ociPaths.Add(v1alpha1.NormalizeOCIURL("oci://registry.example.com/chart"), ociDir)
+
+	resolver := newValueFileResolver(
+		appPath,
+		repoRoot,
+		&v1alpha1.Env{},
+		[]string{"https"},
+		map[string]*v1alpha1.RefTarget{
+			"$oci": {Repo: v1alpha1.Repository{Repo: "oci://registry.example.com/chart"}},
+		},
+		utilio.NewRandomizedTempPaths(t.TempDir()),
+		ociPaths,
+		false,
+	)
+
+	hook := logtest.NewGlobal()
+	t.Cleanup(hook.Reset)
+
+	result, err := resolver.ResolveValueFiles([]string{"$oci/a.yaml"})
+	require.NoError(t, err)
+	require.Len(t, result, 1)
+
+	for _, entry := range hook.AllEntries() {
+		msg, err := entry.String()
+		require.NoError(t, err)
+		assert.NotContains(t, msg, ociDir, "log entry leaked the OCI extraction directory")
 	}
 }
