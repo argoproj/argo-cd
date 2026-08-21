@@ -18,6 +18,7 @@ All resources, including `Application` and `AppProject` specs, have to be instal
 | [`argocd-rbac-cm.yaml`](argocd-rbac-cm-yaml.md)                       | argocd-rbac-cm                                                                     | ConfigMap | RBAC Configuration                                                                   |
 | [`argocd-tls-certs-cm.yaml`](argocd-tls-certs-cm-yaml.md)             | argocd-tls-certs-cm                                                                | ConfigMap | Custom TLS certificates for connecting Git repositories via HTTPS (v1.2 and later)   |
 | [`argocd-ssh-known-hosts-cm.yaml`](argocd-ssh-known-hosts-cm-yaml.md) | argocd-ssh-known-hosts-cm                                                          | ConfigMap | SSH known hosts data for connecting Git repositories via SSH (v1.2 and later)        |
+| [`argocd-default-ca-cm.yaml`](argocd-default-ca-cm-yaml.md)         | argocd-default-ca-cm                                                               | ConfigMap | Default CA bundle for Kubernetes cluster connections                                  |
 
 For each specific kind of ConfigMap and Secret resource, there is only a single supported resource name (as listed in the above table) - if you need to merge things you need to do it before creating them.
 
@@ -597,6 +598,30 @@ tlsClientConfig:
 # Disable automatic compression for requests to the cluster 
 disableCompression: boolean
 ```
+
+> [!NOTE]
+> **Default CA Bundle (`argocd-default-ca-cm`)**
+>
+> You can configure a default CA bundle for all cluster connections by creating a ConfigMap named `argocd-default-ca-cm` with a `ca.crt` key containing PEM-encoded certificate bytes:
+>
+> ```yaml
+> apiVersion: v1
+> kind: ConfigMap
+> metadata:
+>   name: argocd-default-ca-cm
+>   labels:
+>     app.kubernetes.io/part-of: argocd
+> data:
+>   ca.crt: |
+>     -----BEGIN CERTIFICATE-----
+>     ... (PEM-encoded CA certificate bundle)
+>     -----END CERTIFICATE-----
+> ```
+>
+> **Fallback & Precedence Rules:**
+> - If a cluster secret defines its own `tlsClientConfig.caData`, the cluster's `caData` takes precedence and the default CA bundle is completely ignored (**no CA merging occurs**).
+> - The default CA bundle is used as a fallback only when a cluster's `tlsClientConfig.caData` is empty or unset.
+> - If neither cluster `caData` nor `argocd-default-ca-cm` is configured, standard system root CA verification applies.
 
 > [!IMPORTANT]
 > When `namespaces` is set, Argo CD will perform a separate list/watch operation for each namespace. This can cause

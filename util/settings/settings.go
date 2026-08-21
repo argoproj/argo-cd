@@ -1993,6 +1993,22 @@ func (mgr *SettingsManager) SaveGPGPublicKeyData(ctx context.Context, gpgPublicK
 	return mgr.ResyncInformers()
 }
 
+// GetDefaultCABundle returns the default CA bundle byte slice stored in argocd-default-ca-cm (key: ca.crt).
+// If the ConfigMap or key does not exist, an empty byte slice is returned without error.
+func (mgr *SettingsManager) GetDefaultCABundle() ([]byte, error) {
+	cm, err := mgr.GetConfigMapByName(common.ArgoCDDefaultCAConfigMapName)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	if caStr, ok := cm.Data["ca.crt"]; ok && strings.TrimSpace(caStr) != "" {
+		return []byte(caStr), nil
+	}
+	return nil, nil
+}
+
 type SettingsManagerOpts func(mgs *SettingsManager)
 
 func WithRepoOrClusterChangedHandler(handler func()) SettingsManagerOpts {

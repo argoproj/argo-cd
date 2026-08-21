@@ -123,7 +123,7 @@ func isArgoCDSecret(un unstructured.Unstructured) bool {
 // isArgoCDConfigMap returns true if the configmap name is one of argo cd's well known configmaps
 func isArgoCDConfigMap(name string) bool {
 	switch name {
-	case common.ArgoCDConfigMapName, common.ArgoCDRBACConfigMapName, common.ArgoCDKnownHostsConfigMapName, common.ArgoCDTLSCertsConfigMapName:
+	case common.ArgoCDConfigMapName, common.ArgoCDRBACConfigMapName, common.ArgoCDKnownHostsConfigMapName, common.ArgoCDTLSCertsConfigMapName, common.ArgoCDDefaultCAConfigMapName:
 		return true
 	}
 	return false
