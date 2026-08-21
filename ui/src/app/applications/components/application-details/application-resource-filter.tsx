@@ -14,6 +14,10 @@ function toOption(label: string) {
     return {label};
 }
 
+export function withoutKindResourceFilters(filters: string[]): string[] {
+    return (filters || []).filter(f => !f.startsWith('kind:'));
+}
+
 export interface FiltersProps {
     children?: React.ReactNode;
     pref: AppDetailsPreferences;
@@ -126,7 +130,12 @@ export const Filters = (props: FiltersProps) => {
     };
 
     return (
-        <FiltersGroup title='Resource filters' content={props.children} appliedFilter={pref.resourceFilter} onClearFilter={onClearFilter} collapsed={props.collapsed}>
+        <FiltersGroup
+            title='Resource filters'
+            content={props.children}
+            appliedFilter={hideKindFilter ? withoutKindResourceFilters(resourceFilter) : pref.resourceFilter}
+            onClearFilter={onClearFilter}
+            collapsed={props.collapsed}>
             {ResourceFilter({label: 'NAME', prefix: 'name', options: names.map(toOption), field: true})}
             {!hideKindFilter &&
                 ResourceFilter({
