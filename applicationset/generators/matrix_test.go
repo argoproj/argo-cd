@@ -1362,3 +1362,111 @@ func getGenerators() (*v1alpha1.GitGenerator, *generatorsMock.Generator, *v1alph
 	}
 	return gitGeneratorSpec, genMock, clusterGeneratorSpec
 }
+
+// TestMatrixGenerator_ClusterXCluster_ValuesFromOwnAnnotations is a regression test for
+// https://github.com/argoproj/argo-cd/issues/28546.  When a Matrix contains two
+// ClusterGenerators, the second generator's Values templates that reference cluster-own
+// metadata (e.g. metadata.annotations) must be resolved using the *second* cluster's own
+// annotations, not the first cluster's.
+func TestMatrixGenerator_ClusterXCluster_ValuesFromOwnAnnotations(t *testing.T) {
+	devopsSecret := &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{Kind: "Secret", APIVersion: "v1"},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "devops-cluster",
+			Namespace: "argocd",
+			Labels: map[string]string{
+				"argocd.argoproj.io/secret-type": "cluster",
+				"type":                           "DevOps",
+			},
+			Annotations: map[string]string{
+				"cluster_name":        "DevOps",
+				"baseurl":             "devops.example.com",
+				"applications_branch": "main",
+			},
+		},
+		Data: map[string][]byte{
+			"config": []byte("{}"),
+			"name":   []byte("devops-cluster"),
+			"server": []byte("https://devops.example.com"),
+		},
+		Type: corev1.SecretType("Opaque"),
+	}
+
+	developSecret := &corev1.Secret{
+		TypeMeta: metav1.TypeMeta{Kind: "Secret", APIVersion: "v1"},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "develop-cluster",
+			Namespace: "argocd",
+			Labels: map[string]string{
+				"argocd.argoproj.io/secret-type": "cluster",
+				"type":                           "Develop",
+			},
+			Annotations: map[string]string{
+				"cluster_name": "Develop",
+				"baseurl":      "develop.example.com",
+			},
+		},
+		Data: map[string][]byte{
+			"config": []byte("{}"),
+			"name":   []byte("develop-cluster"),
+			"server": []byte("https://develop.example.com"),
+		},
+		Type: corev1.SecretType("Opaque"),
+	}
+
+	fakeClient := fake.NewClientBuilder().WithObjects([]client.Object{devopsSecret, developSecret}...).Build()
+	clusterGenerator := NewClusterGenerator(fakeClient, "argocd")
+
+	matrixGenerator := NewMatrixGenerator(map[string]Generator{
+		"Clusters": clusterGenerator,
+	})
+
+	appSet := &v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "argocd"},
+		Spec: v1alpha1.ApplicationSetSpec{
+			GoTemplate:        true,
+			GoTemplateOptions: []string{"missingkey=error"},
+		},
+	}
+
+	params, err := matrixGenerator.GenerateParams(&v1alpha1.ApplicationSetGenerator{
+		Matrix: &v1alpha1.MatrixGenerator{
+			Generators: []v1alpha1.ApplicationSetNestedGenerator{
+				{
+					Clusters: &v1alpha1.ClusterGenerator{
+						Selector: metav1.LabelSelector{
+							MatchLabels: map[string]string{"type": "DevOps"},
+						},
+						Values: map[string]string{
+							"applicationsBranch": `{{ index .metadata.annotations "applications_branch" }}`,
+						},
+					},
+				},
+				{
+					Clusters: &v1alpha1.ClusterGenerator{
+						Selector: metav1.LabelSelector{
+							MatchLabels: map[string]string{"type": "Develop"},
+						},
+						Values: map[string]string{
+							// These must resolve from the Develop cluster's own annotations, not DevOps's.
+							"clusterName": `{{ index .metadata.annotations "cluster_name" }}`,
+							"baseUrl":     `{{ index .metadata.annotations "baseurl" }}`,
+						},
+					},
+				},
+			},
+		},
+	}, appSet, fakeClient)
+
+	require.NoError(t, err)
+	require.Len(t, params, 1, "expected exactly one combined param set (DevOps × Develop)")
+
+	values, ok := params[0]["values"].(map[string]string)
+	require.True(t, ok, "expected values to be map[string]string")
+
+	// The second cluster generator's Values must use Develop's own annotations.
+	assert.Equal(t, "Develop", values["clusterName"], "clusterName must come from Develop cluster annotations, not DevOps")
+	assert.Equal(t, "develop.example.com", values["baseUrl"], "baseUrl must come from Develop cluster annotations, not DevOps")
+	// Cross-generator Values from the first generator must still resolve correctly.
+	assert.Equal(t, "main", values["applicationsBranch"], "applicationsBranch must come from DevOps cluster annotations")
+}
