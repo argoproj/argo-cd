@@ -4,7 +4,7 @@ import * as ReactDOM from 'react-dom';
 import {KeybindingProvider} from 'argo-ui/v2';
 import {RouteComponentProps} from 'react-router';
 import {combineLatest, from, merge, Observable} from 'rxjs';
-import {bufferTime, delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
+import {bufferTime, filter, map, mergeMap} from 'rxjs/operators';
 import {ClusterCtx, DataLoader, EmptyState, Page, Paginate, SearchBar, Spinner} from '../../../shared/components';
 import {AuthSettingsCtx, Consumer, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
@@ -29,7 +29,6 @@ import {isInvalidRegex} from '../../../shared/utils';
 import './applications-list.scss';
 
 const EVENTS_BUFFER_TIMEOUT = 500;
-const WATCH_RETRY_TIMEOUT = 500;
 
 // The applications list/watch API supports only selected set of fields.
 // Make sure to register any new fields in the `appFields` map of `pkg/apiclient/application/forwarder_overwrite.go`.
@@ -67,8 +66,6 @@ function loadApplications(projects: string[], appNamespace: string): Observable<
                 from([applications]),
                 services.applications
                     .watch('application', {projects, resourceVersion: applicationsList.metadata.resourceVersion}, {fields: APP_WATCH_FIELDS})
-                    .pipe(repeat())
-                    .pipe(retryWhen(errors => errors.pipe(delay(WATCH_RETRY_TIMEOUT))))
                     // batch events to avoid constant re-rendering and improve UI performance
                     .pipe(bufferTime(EVENTS_BUFFER_TIMEOUT))
                     .pipe(
