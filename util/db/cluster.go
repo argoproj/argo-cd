@@ -60,7 +60,20 @@ func (db *db) getLocalCluster() *appv1.Cluster {
 	cluster := localCluster.DeepCopy()
 	now := metav1.Now()
 	cluster.Info.ConnectionState.ModifiedAt = &now
+	db.attachDefaultCABundle(cluster)
 	return cluster
+}
+
+func (db *db) attachDefaultCABundle(clusters ...*appv1.Cluster) {
+	defaultCA, err := db.settingsMgr.GetDefaultCABundle()
+	if err != nil || len(defaultCA) == 0 {
+		return
+	}
+	for _, c := range clusters {
+		if c != nil {
+			c.DefaultCABundle = defaultCA
+		}
+	}
 }
 
 // ListClusters returns list of clusters
@@ -93,6 +106,9 @@ func (db *db) ListClusters(_ context.Context) (*appv1.ClusterList, error) {
 	}
 	if inClusterEnabled && !hasInClusterCredentials {
 		clusterList.Items = append(clusterList.Items, *db.getLocalCluster())
+	}
+	for i := range clusterList.Items {
+		db.attachDefaultCABundle(&clusterList.Items[i])
 	}
 	return &clusterList, nil
 }
@@ -256,6 +272,7 @@ func (db *db) GetCluster(_ context.Context, server string) (*appv1.Cluster, erro
 		// If so, use that instead of the hardcoded local cluster
 		cluster, err := informer.GetClusterByURL(server)
 		if err == nil {
+			db.attachDefaultCABundle(cluster)
 			return cluster, nil
 		}
 		if !apierrors.IsNotFound(err) {
@@ -273,7 +290,7 @@ func (db *db) GetCluster(_ context.Context, server string) (*appv1.Cluster, erro
 		}
 		return nil, status.Errorf(codes.Internal, "failed to get cluster %q: %v", server, err)
 	}
-
+	db.attachDefaultCABundle(cluster)
 	return cluster, nil
 }
 
@@ -287,6 +304,7 @@ func (db *db) GetProjectClusters(_ context.Context, project string) ([]*appv1.Cl
 	if err != nil {
 		return nil, fmt.Errorf("failed to get index by project clusters for project %q: %w", project, err)
 	}
+	db.attachDefaultCABundle(clusters...)
 	return clusters, nil
 }
 
@@ -367,6 +385,11 @@ func (db *db) DeleteCluster(ctx context.Context, server string) error {
 	}
 
 	return db.settingsMgr.ResyncInformers()
+}
+
+// GetDefaultCABundle returns default CA bundle for cluster connections
+func (db *db) GetDefaultCABundle(_ context.Context) ([]byte, error) {
+	return db.settingsMgr.GetDefaultCABundle()
 }
 
 // clusterToSecret converts a cluster object to string data for serialization to a secret

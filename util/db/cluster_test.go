@@ -869,3 +869,111 @@ func TestClusterRaceConditionClusterSecrets(t *testing.T) {
 		time.Sleep(time.Millisecond * 500)
 	}
 }
+
+func TestDB_GetCluster_AttachDefaultCABundle(t *testing.T) {
+	ctx := t.Context()
+	defaultCABytes := []byte("-----BEGIN CERTIFICATE-----\nDEFAULT_CA_BUNDLE\n-----END CERTIFICATE-----")
+	clusterSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "cluster-ext-12345",
+			Namespace: "default",
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+			},
+		},
+		Data: map[string][]byte{
+			"server": []byte("https://ext.example.com"),
+			"name":   []byte("ext-cluster"),
+			"config": []byte(`{"tlsClientConfig":{"insecure":false}}`),
+		},
+	}
+
+	defaultCAMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      common.ArgoCDDefaultCAConfigMapName,
+			Namespace: "default",
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
+			},
+		},
+		Data: map[string]string{
+			"ca.crt": string(defaultCABytes),
+		},
+	}
+
+	kubeClient := fake.NewClientset(
+		&corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      common.ArgoCDConfigMapName,
+				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+		},
+		&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      common.ArgoCDSecretName,
+				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+		},
+		defaultCAMap,
+		clusterSecret,
+	)
+
+	settingsManager := settings.NewSettingsManager(ctx, kubeClient, "default")
+	db := NewDB("default", settingsManager, kubeClient)
+
+	t.Run("GetCluster attaches default CA bundle to cluster without caData", func(t *testing.T) {
+		c, err := db.GetCluster(ctx, "https://ext.example.com")
+		require.NoError(t, err)
+		assert.Equal(t, defaultCABytes, c.DefaultCABundle)
+
+		restConfig, err := c.RawRestConfig()
+		require.NoError(t, err)
+		assert.Equal(t, defaultCABytes, restConfig.TLSClientConfig.CAData)
+	})
+
+	t.Run("ListClusters attaches default CA bundle to all returned clusters", func(t *testing.T) {
+		list, err := db.ListClusters(ctx)
+		require.NoError(t, err)
+		require.NotEmpty(t, list.Items)
+		for _, item := range list.Items {
+			assert.Equal(t, defaultCABytes, item.DefaultCABundle)
+		}
+	})
+
+	t.Run("getLocalCluster receives default CA bundle", func(t *testing.T) {
+		c, err := db.GetCluster(ctx, v1alpha1.KubernetesInternalAPIServerAddr)
+		require.NoError(t, err)
+		assert.Equal(t, defaultCABytes, c.DefaultCABundle)
+	})
+
+	t.Run("Safe when default CA ConfigMap is missing", func(t *testing.T) {
+		kubeClientNoCA := fake.NewClientset(
+			&corev1.ConfigMap{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      common.ArgoCDConfigMapName,
+					Namespace: "default",
+					Labels: map[string]string{
+						"app.kubernetes.io/part-of": "argocd",
+					},
+				},
+			},
+			clusterSecret,
+		)
+		settingsMgrNoCA := settings.NewSettingsManager(ctx, kubeClientNoCA, "default")
+		dbNoCA := NewDB("default", settingsMgrNoCA, kubeClientNoCA)
+
+		c, err := dbNoCA.GetCluster(ctx, "https://ext.example.com")
+		require.NoError(t, err)
+		assert.Nil(t, c.DefaultCABundle)
+
+		restConfig, err := c.RawRestConfig()
+		require.NoError(t, err)
+		assert.Nil(t, restConfig.TLSClientConfig.CAData)
+	})
+}

@@ -586,6 +586,26 @@ func (_c *ArgoDB_DeleteCluster_Call) RunAndReturn(run func(ctx context.Context, 
 	return _c
 }
 
+// GetDefaultCABundle provides a mock function for the type ArgoDB
+func (_mock *ArgoDB) GetDefaultCABundle(ctx context.Context) ([]byte, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetDefaultCABundle")
+	}
+
+	var r0 []byte
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]byte, error)); ok {
+		return returnFunc(ctx)
+	}
+	if ret.Get(0) != nil {
+		r0 = ret.Get(0).([]byte)
+	}
+	r1 = ret.Error(1)
+	return r0, r1
+}
+
 // DeleteGPGPublicKey provides a mock function for the type ArgoDB
 func (_mock *ArgoDB) DeleteGPGPublicKey(ctx context.Context, keyID string) error {
 	ret := _mock.Called(ctx, keyID)

@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-default-ca-cm
+  labels:
+    app.kubernetes.io/part-of: argocd
+data:
+  ca.crt: |
+    -----BEGIN CERTIFICATE-----
+    MIID... (PEM encoded CA certificate bundle)
+    -----END CERTIFICATE-----

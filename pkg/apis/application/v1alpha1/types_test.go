@@ -1,9 +1,15 @@
 package v1alpha1
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
+	"math/big"
 	"os"
 	"path"
 	"testing"
@@ -6221,4 +6227,133 @@ func TestGetDrySource_PreservesAllFields(t *testing.T) {
 			}
 		})
 	}
+}
+
+func generateSelfSignedCertPEM(cn string) []byte {
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		panic(err)
+	}
+	template := x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			CommonName: cn,
+		},
+		NotBefore:             time.Now().Add(-time.Hour),
+		NotAfter:              time.Now().Add(time.Hour),
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageDigitalSignature,
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+	}
+	certBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &privateKey.PublicKey, privateKey)
+	if err != nil {
+		panic(err)
+	}
+	return pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certBytes})
+}
+
+func TestCluster_RawRestConfig_FallbackCA(t *testing.T) {
+	clusterCA := generateSelfSignedCertPEM("cluster.local")
+	defaultCA := generateSelfSignedCertPEM("default.local")
+
+	t.Run("CASE 1: cluster CAData takes precedence and default CA bundle is ignored (no merging)", func(t *testing.T) {
+		c := &Cluster{
+			Server: "https://1.2.3.4",
+			Config: ClusterConfig{
+				TLSClientConfig: TLSClientConfig{
+					CAData: clusterCA,
+				},
+			},
+		}
+
+		restConfig, err := c.RawRestConfig(defaultCA)
+		require.NoError(t, err)
+		assert.Equal(t, clusterCA, restConfig.TLSClientConfig.CAData)
+
+		// Also test via RESTConfig wrapper
+		restConfigTuned, err := c.RESTConfig(defaultCA)
+		require.NoError(t, err)
+		assert.NotNil(t, restConfigTuned.Transport)
+	})
+
+	t.Run("CASE 2: default CA bundle is used when cluster CAData is empty", func(t *testing.T) {
+		c := &Cluster{
+			Server: "https://1.2.3.4",
+			Config: ClusterConfig{
+				TLSClientConfig: TLSClientConfig{
+					CAData: nil,
+				},
+			},
+		}
+
+		restConfig, err := c.RawRestConfig(defaultCA)
+		require.NoError(t, err)
+		assert.Equal(t, defaultCA, restConfig.TLSClientConfig.CAData)
+
+		// Also test via RESTConfig wrapper
+		restConfigTuned, err := c.RESTConfig(defaultCA)
+		require.NoError(t, err)
+		assert.NotNil(t, restConfigTuned.Transport)
+	})
+
+	t.Run("CASE 3: existing behavior preserved when both cluster CAData and default CA bundle are empty", func(t *testing.T) {
+		c := &Cluster{
+			Server: "https://1.2.3.4",
+			Config: ClusterConfig{
+				TLSClientConfig: TLSClientConfig{
+					CAData: nil,
+				},
+			},
+		}
+
+		restConfig, err := c.RawRestConfig()
+		require.NoError(t, err)
+		assert.Nil(t, restConfig.TLSClientConfig.CAData)
+
+		restConfigEmptyDefault, err := c.RawRestConfig([]byte(""))
+		require.NoError(t, err)
+		assert.Nil(t, restConfigEmptyDefault.TLSClientConfig.CAData)
+	})
+
+	t.Run("CASE 4: cluster DefaultCABundle field is used when no argument is supplied", func(t *testing.T) {
+		c := &Cluster{
+			Server:          "https://1.2.3.4",
+			DefaultCABundle: defaultCA,
+			Config: ClusterConfig{
+				TLSClientConfig: TLSClientConfig{
+					CAData: nil,
+				},
+			},
+		}
+
+		restConfig, err := c.RawRestConfig()
+		require.NoError(t, err)
+		assert.Equal(t, defaultCA, restConfig.TLSClientConfig.CAData)
+
+		// When cluster CAData is present, DefaultCABundle on struct is ignored
+		cWithClusterCA := &Cluster{
+			Server:          "https://1.2.3.4",
+			DefaultCABundle: defaultCA,
+			Config: ClusterConfig{
+				TLSClientConfig: TLSClientConfig{
+					CAData: clusterCA,
+				},
+			},
+		}
+		restConfigClusterWin, err := cWithClusterCA.RawRestConfig()
+		require.NoError(t, err)
+		assert.Equal(t, clusterCA, restConfigClusterWin.TLSClientConfig.CAData)
+	})
+
+	t.Run("DefaultCABundle is not serialized in JSON", func(t *testing.T) {
+		c := &Cluster{
+			Server:          "https://1.2.3.4",
+			Name:            "test-cluster",
+			DefaultCABundle: defaultCA,
+		}
+		bytes, err := json.Marshal(c)
+		require.NoError(t, err)
+		assert.NotContains(t, string(bytes), "DefaultCABundle")
+		assert.NotContains(t, string(bytes), string(defaultCA))
+	})
 }
