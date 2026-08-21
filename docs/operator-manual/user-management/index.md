@@ -391,6 +391,13 @@ data:
     # Default is false.
     enablePKCEAuthentication: true
 
+    # Optional. If the OIDC provider advertises the offline_access scope in its
+    # scopes_supported, Argo CD CLI automatically requests it, which for some
+    # providers (e.g. Keycloak) creates long-lived offline sessions that survive
+    # logout. Set this to true to prevent Argo CD from requesting that scope.
+    # Default is false.
+    disableOfflineAccessScopeInjection: true
+
     # Optional. Argo CD uses this threshold to refresh an OIDC ID token before it expires, using the
     # cached refresh token, so the session isn't interrupted. Must be shorter than the ID
     # token's lifetime, or a new token will be requested on every request.

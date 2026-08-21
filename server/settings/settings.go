@@ -162,6 +162,7 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 			set.OIDCConfig.IDTokenClaims = argoCDSettings.OIDCConfig().RequestedIDTokenClaims
 		}
 	}
+	set.DisableOfflineAccessScopeInjection = argoCDSettings.DisableOfflineAccessScopeInjection
 	return &set, nil
 }
 
