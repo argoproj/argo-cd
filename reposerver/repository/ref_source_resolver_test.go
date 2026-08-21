@@ -11,7 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	gitmocks "github.com/argoproj/argo-cd/v3/util/git/mocks"
 	helmmocks "github.com/argoproj/argo-cd/v3/util/helm/mocks"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
@@ -27,7 +26,6 @@ func ociRefRequest(t *testing.T, repo string) refSourceResolveRequest {
 		TargetRevision: "v1.0.0",
 	}
 	return refSourceResolveRequest{
-		q:                 &apiclient.ManifestRequest{ApplicationSource: &v1alpha1.ApplicationSource{}},
 		refSourceMapping:  refSource,
 		normalizedRepoURL: refSource.Repo.NormalizeRepoURL(),
 		refVar:            "$ref",
@@ -119,10 +117,8 @@ func TestResolveGitRefSource(t *testing.T) {
 			TargetRevision: "main",
 		}
 		return refSourceResolveRequest{
-			q: &apiclient.ManifestRequest{
-				ApplicationSource: &v1alpha1.ApplicationSource{RepoURL: repo},
-				Revision:          "primary-revision",
-			},
+			appRepoURL:        repo,
+			appRevision:       "primary-revision",
 			refSourceMapping:  refSource,
 			normalizedRepoURL: refSource.Repo.NormalizeRepoURL(),
 			refVar:            "$ref",
@@ -170,7 +166,7 @@ func TestResolveGitRefSource(t *testing.T) {
 		}, ".")
 
 		req := gitRefRequest()
-		req.q.NoCache = true // bypass the symlink-check cache so this test is self-contained
+		req.noCache = true // bypass the symlink-check cache so this test is self-contained
 		_, _, err := service.resolveGitRefSource(t.Context(), req)
 		require.ErrorContains(t, err, "repository contains out-of-bounds symlinks")
 	})
@@ -188,7 +184,7 @@ func TestResolveGitRefSource(t *testing.T) {
 		}, ".")
 
 		req := gitRefRequest()
-		req.q.NoCache = true
+		req.noCache = true
 		ref, closer, err := service.resolveGitRefSource(t.Context(), req)
 		require.NoError(t, err)
 		require.NotNil(t, closer)

@@ -3794,7 +3794,7 @@ func Test_populateHelmAppDetails(t *testing.T) {
 	}
 	appPath, err := filepath.Abs("./testdata/values-files/")
 	require.NoError(t, err)
-	err = service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, sha, "main", &q, emptyTempPaths, emptyTempPaths)
+	err = service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, sha, "main", &q, emptyTempPaths)
 	require.NoError(t, err)
 	assert.Len(t, res.Helm.Parameters, 3)
 	assert.Len(t, res.Helm.ValueFiles, 5)
@@ -3806,6 +3806,7 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 	refRepoURL := "https://github.com/foo/baz"
 	unusedRefRepoURL := "https://github.com/unused/baz"
 	ociRepoURL := "oci://foocr.io"
+	ociDigest := "sha256:5f2f0e9f7f9b6ee0f0b0a0e0d0c0b0a0900000000000000000000000000000000"
 	repoRoot := "./testdata/my-chart/"
 	refRoot := "./testdata/values-files/"
 	refName := "$values"
@@ -3818,6 +3819,8 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 	refTargetRevision2 := "dev"
 	refSha := "999932039659e542ed7de0c170a4fcc1c5799999"
 	refSha2 := "777732039659e542ed7de0c170a4fcc1c5777777"
+	absRefRoot, err := filepath.Abs(refRoot)
+	require.NoError(t, err)
 	queryTemplate := apiclient.RepoServerAppDetailsQuery{
 		Repo: &v1alpha1.Repository{
 			Repo: repoURL,
@@ -3836,7 +3839,6 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 			},
 		},
 	}
-	var err error
 	var appPath string
 	var res apiclient.RepoAppDetailsResponse
 
@@ -3844,7 +3846,7 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 		name        string
 		makeQuery   func() apiclient.RepoServerAppDetailsQuery
 		testResults func(t *testing.T)
-		mockOpts    func(_ *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths)
+		mockOpts    clientFunc
 		// make new client for accessing the referenced repository
 		newGitClient func(_ string, _ string, _ git.Creds, _ bool, _ bool, _ string, _ string, _ ...git.ClientOpts) (client git.Client, e error)
 	}{
@@ -4008,9 +4010,13 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 			},
 		},
 		{
-			name: "not_a_git_referenced_repo",
+			name: "oci_referenced_repo_is_extracted",
 			makeQuery: func() apiclient.RepoServerAppDetailsQuery {
 				query := queryTemplate
+				// Own the Source rather than mutating the template shared with the other cases.
+				query.Source = &v1alpha1.ApplicationSource{
+					Helm: &v1alpha1.ApplicationSourceHelm{ValueFiles: []string{"$values/dir/values.yaml"}},
+				}
 				query.RefSources = map[string]*v1alpha1.RefTarget{
 					refName: {
 						Repo: v1alpha1.Repository{
@@ -4022,9 +4028,10 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 				}
 				return query
 			},
-			mockOpts: func(_ *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+			mockOpts: func(_ *gitmocks.Client, _ *helmmocks.Client, ociClient *ocimocks.Client, paths *iomocks.TempPaths) {
 				paths.EXPECT().GetPath(repoURL).Return(repoRoot, nil)
-				paths.EXPECT().GetPathIfExists(ociRepoURL).Return("")
+				ociClient.EXPECT().ResolveRevision(mock.Anything, refTargetRevision2, mock.Anything).Return(ociDigest, nil)
+				ociClient.EXPECT().Extract(mock.Anything, ociDigest).Return(absRefRoot, utilio.NopCloser, nil)
 			},
 			newGitClient: func(_ string, _ string, _ git.Creds, _ bool, _ bool, _ string, _ string, _ ...git.ClientOpts) (gitClient git.Client, e error) {
 				client := gitmocks.Client{}
@@ -4032,7 +4039,8 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 			},
 			testResults: func(t *testing.T) {
 				t.Helper()
-				require.Error(t, fmt.Errorf("failed to find repo %q", ociRepoURL))
+				require.NoError(t, err)
+				assert.Len(t, res.Helm.Parameters, 1)
 			},
 		},
 		{
@@ -4094,10 +4102,125 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 			appPath, err = filepath.Abs(repoRoot)
 			require.NoError(t, err)
 			res = apiclient.RepoAppDetailsResponse{}
-			err = service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, sha, "main", &query, service.gitRepoPaths, service.ociPaths)
+			err = service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, sha, "main", &query, service.gitRepoPaths)
 			tc.testResults(t)
 		})
 	}
+}
+
+// GetAppDetails must resolve and extract OCI $ref sources itself: the service-wide s.ociPaths is
+// keyed by repo URL + digest for the OCI client's cache and can never satisfy the normalized-URL
+// lookup done when resolving $ref value files.
+func Test_populateHelmAppDetailsWithOCIRef(t *testing.T) {
+	const ociRepoURL = "oci://foocr.io/values"
+	const digest = "sha256:5f2f0e9f7f9b6ee0f0b0a0e0d0c0b0a0900000000000000000000000000000000"
+
+	appPath, err := filepath.Abs("./testdata/my-chart/")
+	require.NoError(t, err)
+	emptyTempPaths := utilio.NewRandomizedTempPaths(t.TempDir())
+
+	ociRef := func(revision string) *v1alpha1.RefTarget {
+		return &v1alpha1.RefTarget{
+			Repo:           v1alpha1.Repository{Type: "oci", Repo: ociRepoURL},
+			TargetRevision: revision,
+		}
+	}
+	newQuery := func(refSources map[string]*v1alpha1.RefTarget, valueFiles ...string) apiclient.RepoServerAppDetailsQuery {
+		return apiclient.RepoServerAppDetailsQuery{
+			Repo:       &v1alpha1.Repository{Type: "git", Repo: "https://github.com/foo/bar"},
+			Source:     &v1alpha1.ApplicationSource{Helm: &v1alpha1.ApplicationSourceHelm{ValueFiles: valueFiles}},
+			RefSources: refSources,
+		}
+	}
+	// extractedDir returns a directory standing in for the extracted OCI artifact.
+	extractedDir := func(t *testing.T) string {
+		t.Helper()
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "values.yaml"), []byte("from: oci\n"), 0o644))
+		return dir
+	}
+
+	t.Run("value file is resolved from the extracted artifact", func(t *testing.T) {
+		ociDir := extractedDir(t)
+		service, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, ociClient *ocimocks.Client, _ *iomocks.TempPaths) {
+			ociClient.EXPECT().ResolveRevision(mock.Anything, "v1.0.0", mock.Anything).Return(digest, nil)
+			ociClient.EXPECT().Extract(mock.Anything, digest).Return(ociDir, utilio.NopCloser, nil)
+		}, ".")
+
+		q := newQuery(map[string]*v1alpha1.RefTarget{"$values": ociRef("v1.0.0")}, "$values/values.yaml")
+		res := apiclient.RepoAppDetailsResponse{}
+		require.NoError(t, service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, "sha", "main", &q, emptyTempPaths))
+		assert.Equal(t, []*v1alpha1.HelmParameter{{Name: "from", Value: "oci"}}, res.Helm.Parameters)
+	})
+
+	t.Run("extracted artifact is released once the request completes", func(t *testing.T) {
+		ociDir := extractedDir(t)
+		closed := false
+		service, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, ociClient *ocimocks.Client, _ *iomocks.TempPaths) {
+			ociClient.EXPECT().ResolveRevision(mock.Anything, "v1.0.0", mock.Anything).Return(digest, nil)
+			ociClient.EXPECT().Extract(mock.Anything, digest).Return(ociDir, utilio.NewCloser(func() error {
+				closed = true
+				return nil
+			}), nil)
+		}, ".")
+
+		q := newQuery(map[string]*v1alpha1.RefTarget{"$values": ociRef("v1.0.0")}, "$values/values.yaml")
+		res := apiclient.RepoAppDetailsResponse{}
+		require.NoError(t, service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, "sha", "main", &q, emptyTempPaths))
+		assert.True(t, closed, "the OCI closer must run before populateHelmAppDetails returns")
+	})
+
+	t.Run("a repository referenced twice is extracted once", func(t *testing.T) {
+		ociDir := extractedDir(t)
+		var ociClient *ocimocks.Client
+		service, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, c *ocimocks.Client, _ *iomocks.TempPaths) {
+			ociClient = c
+			c.EXPECT().ResolveRevision(mock.Anything, "v1.0.0", mock.Anything).Return(digest, nil)
+			c.EXPECT().Extract(mock.Anything, digest).Return(ociDir, utilio.NopCloser, nil)
+		}, ".")
+
+		q := newQuery(map[string]*v1alpha1.RefTarget{"$a": ociRef("v1.0.0"), "$b": ociRef("v1.0.0")}, "$a/values.yaml", "$b/values.yaml")
+		res := apiclient.RepoAppDetailsResponse{}
+		require.NoError(t, service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, "sha", "main", &q, emptyTempPaths))
+		ociClient.AssertNumberOfCalls(t, "Extract", 1)
+	})
+
+	t.Run("conflicting revisions for the same repository are rejected", func(t *testing.T) {
+		ociDir := extractedDir(t)
+		service, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, ociClient *ocimocks.Client, _ *iomocks.TempPaths) {
+			ociClient.EXPECT().ResolveRevision(mock.Anything, "v1.0.0", mock.Anything).Return(digest, nil)
+			ociClient.EXPECT().Extract(mock.Anything, digest).Return(ociDir, utilio.NopCloser, nil)
+		}, ".")
+
+		q := newQuery(map[string]*v1alpha1.RefTarget{"$a": ociRef("v1.0.0"), "$b": ociRef("v2.0.0")}, "$a/values.yaml", "$b/values.yaml")
+		res := apiclient.RepoAppDetailsResponse{}
+		err := service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, "sha", "main", &q, emptyTempPaths)
+		require.ErrorContains(t, err, "cannot reference multiple revisions for the same repository")
+	})
+
+	t.Run("extraction failure is surfaced", func(t *testing.T) {
+		service, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, ociClient *ocimocks.Client, _ *iomocks.TempPaths) {
+			ociClient.EXPECT().ResolveRevision(mock.Anything, "v1.0.0", mock.Anything).Return(digest, nil)
+			ociClient.EXPECT().Extract(mock.Anything, digest).Return("", nil, errors.New("layer digest mismatch"))
+		}, ".")
+
+		q := newQuery(map[string]*v1alpha1.RefTarget{"$values": ociRef("v1.0.0")}, "$values/values.yaml")
+		res := apiclient.RepoAppDetailsResponse{}
+		err := service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, "sha", "main", &q, emptyTempPaths)
+		require.ErrorContains(t, err, "failed to extract OCI image")
+		// The underlying cause must not leak to the client.
+		assert.NotContains(t, err.Error(), "layer digest mismatch")
+	})
+
+	t.Run("an OCI ref that is not referenced by any value file is not extracted", func(t *testing.T) {
+		service, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, _ *iomocks.TempPaths) {
+			// No OCI expectations: touching the registry here would fail the test.
+		}, ".")
+
+		q := newQuery(map[string]*v1alpha1.RefTarget{"$values": ociRef("v1.0.0")}, "my-chart-values.yaml")
+		res := apiclient.RepoAppDetailsResponse{}
+		require.NoError(t, service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, "sha", "main", &q, emptyTempPaths))
+	})
 }
 
 func Test_populateHelmAppDetails_values_symlinks(t *testing.T) {
@@ -4107,7 +4230,7 @@ func Test_populateHelmAppDetails_values_symlinks(t *testing.T) {
 	t.Run("inbound", func(t *testing.T) {
 		res := apiclient.RepoAppDetailsResponse{}
 		q := apiclient.RepoServerAppDetailsQuery{Repo: &v1alpha1.Repository{}, Source: &v1alpha1.ApplicationSource{}}
-		err := service.populateHelmAppDetails(t.Context(), &res, "./testdata/in-bounds-values-file-link/", "./testdata/in-bounds-values-file-link/", "dummy_sha", "main", &q, emptyTempPaths, emptyTempPaths)
+		err := service.populateHelmAppDetails(t.Context(), &res, "./testdata/in-bounds-values-file-link/", "./testdata/in-bounds-values-file-link/", "dummy_sha", "main", &q, emptyTempPaths)
 		require.NoError(t, err)
 		assert.NotEmpty(t, res.Helm.Values)
 		assert.NotEmpty(t, res.Helm.Parameters)
@@ -4116,7 +4239,7 @@ func Test_populateHelmAppDetails_values_symlinks(t *testing.T) {
 	t.Run("out of bounds", func(t *testing.T) {
 		res := apiclient.RepoAppDetailsResponse{}
 		q := apiclient.RepoServerAppDetailsQuery{Repo: &v1alpha1.Repository{}, Source: &v1alpha1.ApplicationSource{}}
-		err := service.populateHelmAppDetails(t.Context(), &res, "./testdata/out-of-bounds-values-file-link/", "./testdata/out-of-bounds-values-file-link/", sha, "main", &q, emptyTempPaths, emptyTempPaths)
+		err := service.populateHelmAppDetails(t.Context(), &res, "./testdata/out-of-bounds-values-file-link/", "./testdata/out-of-bounds-values-file-link/", sha, "main", &q, emptyTempPaths)
 		require.NoError(t, err)
 		assert.Empty(t, res.Helm.Values)
 		assert.Empty(t, res.Helm.Parameters)
