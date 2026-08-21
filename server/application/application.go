@@ -1145,8 +1145,7 @@ func (s *Server) getAppProject(ctx context.Context, a *v1alpha1.Application, log
 		return nil, vagueError
 	}
 
-	var applicationNotAllowedToUseProjectErr *argo.ErrApplicationNotAllowedToUseProject
-	if errors.As(err, &applicationNotAllowedToUseProjectErr) {
+	if _, ok := errors.AsType[*argo.ErrApplicationNotAllowedToUseProject](err); ok {
 		return nil, vagueError
 	}
 
@@ -2279,7 +2278,15 @@ func (s *Server) resolveSourceRevisions(ctx context.Context, a *v1alpha1.Applica
 }
 
 func (s *Server) Rollback(ctx context.Context, rollbackReq *application.ApplicationRollbackRequest) (*v1alpha1.Application, error) {
-	a, _, err := s.getApplicationEnforceRBACClient(ctx, rbac.ActionSync, rollbackReq.GetProject(), rollbackReq.GetAppNamespace(), rollbackReq.GetName(), "")
+	rollbackEnforceEnable, err := s.settingsMgr.GetServerRBACRollbackEnforceEnable()
+	if err != nil {
+		return nil, fmt.Errorf("error getting server.rbac.rollback.enforce.enable config: %w", err)
+	}
+	action := rbac.ActionSync
+	if rollbackEnforceEnable {
+		action = rbac.ActionRollback
+	}
+	a, _, err := s.getApplicationEnforceRBACClient(ctx, action, rollbackReq.GetProject(), rollbackReq.GetAppNamespace(), rollbackReq.GetName(), "")
 	if err != nil {
 		return nil, err
 	}
@@ -3245,12 +3252,13 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 		}
 
 		responseDiffs = append(responseDiffs, &v1alpha1.ResourceDiff{
-			Group:           group,
-			Kind:            kind,
-			Namespace:       namespace,
-			Name:            name,
-			TargetState:     targetState,
-			LiveState:       liveState,
+			Group:       group,
+			Kind:        kind,
+			Namespace:   namespace,
+			Name:        name,
+			TargetState: targetState,
+			LiveState:   liveState,
+			//nolint:staticcheck // SA1019: Diff is deprecated, but we still need to support it for backward compatibility.
 			Diff:            "", // Diff string is generated client-side
 			Hook:            hook,
 			Modified:        diffRes.Modified,
