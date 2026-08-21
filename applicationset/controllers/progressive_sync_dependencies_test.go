@@ -882,6 +882,29 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				},
 			},
 		},
+		{
+			// Regression test for https://github.com/argoproj/argo-cd/issues/28511:
+			// An Application with DeletionTimestamp must not be included in appStatuses so
+			// that the progressive-sync wave logic does not treat it as Waiting/Pending and
+			// trigger a sync operation that fights the ongoing deletion.
+			name: "ignores apps that are being deleted (DeletionTimestamp set)",
+			appSet: newDefaultAppSet(1, []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application: "app-deleting",
+					Status:      v1alpha1.ProgressiveSyncHealthy,
+					Step:        "1",
+				},
+			}),
+			apps: func() []v1alpha1.Application {
+				deletionTime := metav1.NewTime(time.Now())
+				app := newApp("app-deleting", health.HealthStatusProgressing, v1alpha1.SyncStatusCodeOutOfSync, "abc123", nil)
+				app.DeletionTimestamp = &deletionTime
+				app.Finalizers = []string{"resources-finalizer.argocd.argoproj.io"}
+				return []v1alpha1.Application{app}
+			}(),
+			appStepMap:        map[string]int{"app-deleting": 0},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{},
+		},
 	} {
 		t.Run(cc.name, func(t *testing.T) {
 			t.Parallel()
