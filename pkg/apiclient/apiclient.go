@@ -404,15 +404,17 @@ func (c *client) HTTPClient() (*http.Client, error) {
 		headers.Set("User-Agent", c.UserAgent)
 	}
 
+	d := &net.Dialer{
+		Timeout:   30 * time.Second,
+		KeepAlive: 30 * time.Second,
+	}
+
 	return &http.Client{
 		Transport: &http_util.TransportWithHeader{
 			RoundTripper: &http.Transport{
-				TLSClientConfig: tlsConfig,
-				Proxy:           http.ProxyFromEnvironment,
-				Dial: (&net.Dialer{
-					Timeout:   30 * time.Second,
-					KeepAlive: 30 * time.Second,
-				}).Dial,
+				TLSClientConfig:       tlsConfig,
+				Proxy:                 http.ProxyFromEnvironment,
+				DialContext:           d.DialContext,
 				TLSHandshakeTimeout:   10 * time.Second,
 				ExpectContinueTimeout: 1 * time.Second,
 			},

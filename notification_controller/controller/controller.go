@@ -101,7 +101,7 @@ func NewController(
 		appProjInformer:   appProjInformer,
 	}
 	skipProcessingOpt := controller.WithSkipProcessing(func(obj metav1.Object) (bool, string) {
-		app, ok := (obj).(*unstructured.Unstructured)
+		app, ok := obj.(*unstructured.Unstructured)
 		if !ok {
 			return false, ""
 		}
@@ -133,7 +133,7 @@ func checkAppNotInAdditionalNamespaces(app *unstructured.Unstructured, namespace
 }
 
 func (c *notificationController) alterDestinations(obj metav1.Object, destinations services.Destinations, cfg api.Config) services.Destinations {
-	app, ok := (obj).(*unstructured.Unstructured)
+	app, ok := obj.(*unstructured.Unstructured)
 	if !ok {
 		return destinations
 	}
@@ -148,11 +148,11 @@ func (c *notificationController) alterDestinations(obj metav1.Object, destinatio
 func newInformer(resClient dynamic.ResourceInterface, controllerNamespace string, applicationNamespaces []string, selector string) cache.SharedIndexInformer {
 	informer := cache.NewSharedIndexInformer(
 		&cache.ListWatch{
-			ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
 				// We are only interested in apps that exist in namespaces the
 				// user wants to be enabled.
 				options.LabelSelector = selector
-				appList, err := resClient.List(context.TODO(), options)
+				appList, err := resClient.List(ctx, options)
 				if err != nil {
 					return nil, fmt.Errorf("failed to list applications: %w", err)
 				}
@@ -165,9 +165,9 @@ func newInformer(resClient dynamic.ResourceInterface, controllerNamespace string
 				appList.Items = newItems
 				return appList, nil
 			},
-			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
 				options.LabelSelector = selector
-				return resClient.Watch(context.TODO(), options)
+				return resClient.Watch(ctx, options)
 			},
 		},
 		&unstructured.Unstructured{},
