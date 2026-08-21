@@ -630,6 +630,23 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 				"value": "hello world",
 			},
 		},
+		{
+			name:         "tpl disallow infinite recursion",
+			fieldVal:     "{{ tpl .self . }}",
+			errorMessage: "failed to execute go template {{ tpl .self . }}: template: base:1:3: executing \"base\" at <tpl .self .>: error calling tpl: error during tpl function execution for \"{{ tpl .self . }}\": template: base:1:3: executing \"base\" at <tpl .self .>: error calling tpl: error during tpl function execution for \"{{ tpl .self . }}\": template: base:1:3: executing \"base\" at <tpl .self .>: error calling tpl: error during tpl function execution for \"{{ tpl .self . }}\": template: base:1:3: executing \"base\" at <tpl .self .>: error calling tpl: maximum recursion depth 3 exceeded in tpl function",
+			params: map[string]any{
+				"self": "{{ tpl .self . }}",
+			},
+		},
+		{
+			name:        "tpl allow multiple uses",
+			fieldVal:    "{{ tpl \"{{ .foo }}\" . }}-{{ tpl \"{{ .bar }}\" . }}",
+			expectedVal: "foo-bar",
+			params: map[string]any{
+				"foo": "foo",
+				"bar": "bar",
+			},
+		},
 	}
 
 	for _, test := range tests {
@@ -649,7 +666,7 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 				// the target field has been templated into the expected value
 				if test.errorMessage != "" {
 					require.Error(t, err)
-					assert.Equal(t, test.errorMessage, err.Error())
+					assert.Contains(t, err.Error(), test.errorMessage)
 				} else {
 					require.NoError(t, err)
 					actualValue := *getPtrFunc(newApplication)

@@ -9,6 +9,8 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+const TPL_FUNC_MAX_RECURSION_DEPTH = 3
+
 // SanitizeName sanitizes the name in accordance with the below rules
 // 1. contain no more than 253 characters
 // 2. contain only lowercase alphanumeric characters, '-' or '.'
@@ -75,7 +77,17 @@ func fromYAMLArray(str string) ([]any, error) {
 // This has been copied from helm but adapted to our needs as we have a more limited use case for
 // https://github.com/helm/helm/blob/ee018608f6fbf381fac1bae9759164a65c6a0b1f/pkg/engine/engine.go#L153-L195
 func tplFun(parent *template.Template) func(string, any) (string, error) {
+	callDepth := 0
 	return func(tpl string, vals any) (string, error) {
+		callDepth++
+		defer func() {
+			callDepth--
+		}()
+
+		if callDepth > TPL_FUNC_MAX_RECURSION_DEPTH {
+			return "", fmt.Errorf("maximum recursion depth %d exceeded in tpl function", TPL_FUNC_MAX_RECURSION_DEPTH)
+		}
+
 		t, err := parent.Clone()
 		if err != nil {
 			return "", fmt.Errorf("cannot clone template: %w", err)
