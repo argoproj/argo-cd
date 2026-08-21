@@ -18,6 +18,10 @@ export function withoutKindResourceFilters(filters: string[]): string[] {
     return (filters || []).filter(f => !f.startsWith('kind:'));
 }
 
+export function getEffectiveResourceFilter(isApplication: boolean, resourceFilter?: string[]): string[] {
+    return isApplication ? resourceFilter || [] : withoutKindResourceFilters(resourceFilter);
+}
+
 export interface FiltersProps {
     children?: React.ReactNode;
     pref: AppDetailsPreferences;

@@ -28,7 +28,7 @@ import * as AppUtils from '../utils';
 import {ApplicationResourceList, ApplicationResourceParentRef} from './application-resource-list';
 import {APPLICATION_DETAILS_SORT_KEY, ApplicationResourceSortKey, compareApplicationResource, GROUPED_NODES_DETAILS_SORT_KEY} from './application-resource-sort';
 import {useListSort} from '../../../shared/hooks/use-list-sort';
-import {Filters, FiltersProps, withoutKindResourceFilters} from './application-resource-filter';
+import {Filters, FiltersProps, getEffectiveResourceFilter} from './application-resource-filter';
 import {getAppDefaultSource, getAppCurrentVersion, urlPattern} from '../utils';
 import {ChartDetails, OCIMetadata} from '../../../shared/models';
 import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown';
@@ -678,20 +678,13 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                         {({application, tree, pref}: {application: appModels.AbstractApplication; tree: appModels.ApplicationTree; pref: AppDetailsPreferences}) => {
                             tree.nodes = tree.nodes || [];
                             const isApplication = isApp(application);
-                            const effectiveResourceFilter = isApplication ? pref.resourceFilter || [] : withoutKindResourceFilters(pref.resourceFilter);
+                            const effectiveResourceFilter = getEffectiveResourceFilter(isApplication, pref.resourceFilter);
                             const treeFilter = getTreeFilter(effectiveResourceFilter);
                             const setFilter = (items: string[]) => {
                                 appContext.navigation.goto('.', {resource: items.join(',')}, {replace: true});
                                 services.viewPreferences.updatePreferences({appDetails: {...pref, resourceFilter: items}});
                             };
-                            const clearFilter = () => {
-                                if (isApplication) {
-                                    setFilter([]);
-                                    return;
-                                }
-                                const kindFilters = (pref.resourceFilter || []).filter(f => f.startsWith('kind:'));
-                                setFilter(kindFilters);
-                            };
+                            const clearFilter = () => setFilter([]);
                             const refreshing = application.metadata.annotations && application.metadata.annotations[appModels.AnnotationRefreshKey];
                             const appNodesByName = isApplication ? groupAppNodesByKey(application as appModels.Application, tree) : new Map();
                             // For ApplicationSets, add the appset itself to the map
