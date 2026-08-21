@@ -226,7 +226,7 @@ if (isProd) {
     };
 }
 
-if (!isProd) {
+if (!isProd && reactCompiler) {
     config.plugins.push(new ReactRefreshWebpackPlugin());
 }
 
