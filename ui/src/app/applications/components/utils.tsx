@@ -2162,3 +2162,40 @@ export function formatResourceInfo(name: string, value: string): {displayValue: 
         tooltipValue: `${name}: ${value}`
     };
 }
+
+export function getAppParentName(app: appModels.Application): string | null {
+    const instanceLabel = app.metadata.labels?.['app.kubernetes.io/instance'];
+    if (instanceLabel && instanceLabel.trim() !== '' && instanceLabel.trim() !== app.metadata.name) {
+        return instanceLabel.trim();
+    }
+    const trackingId = app.metadata.annotations?.['argocd.argoproj.io/tracking-id'];
+    if (trackingId) {
+        const name = trackingId.split(':')[0].trim();
+        if (name && name !== app.metadata.name) {
+            return name;
+        }
+    }
+    return null;
+}
+
+export async function loadAppAncestors(app: appModels.Application, directParentName: string): Promise<Array<{name: string; namespace: string}>> {
+    const ancestors: Array<{name: string; namespace: string}> = [];
+    let currentName = directParentName;
+    let currentNamespace = app.metadata.namespace;
+    const visited = new Set<string>([`${app.metadata.namespace}/${app.metadata.name}`]);
+    for (let i = 0; i < 10; i++) {
+        if (!currentName) break;
+        const key = `${currentNamespace}/${currentName}`;
+        if (visited.has(key)) break;
+        ancestors.unshift({name: currentName, namespace: currentNamespace});
+        visited.add(key);
+        try {
+            const parentApp = (await services.applications.get(currentName, currentNamespace, 'application')) as appModels.Application;
+            currentName = getAppParentName(parentApp);
+            currentNamespace = parentApp.metadata.namespace;
+        } catch {
+            break;
+        }
+    }
+    return ancestors;
+}

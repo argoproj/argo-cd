@@ -17,7 +17,7 @@ import {
     RevisionHelpIcon
 } from '../../../shared/components';
 import {BadgePanel} from '../../../shared/components';
-import {AuthSettingsCtx, Consumer, ContextApis} from '../../../shared/context';
+import {AuthSettingsCtx, Consumer, Context, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {isValidURL} from '../../../shared/utils';
@@ -33,7 +33,9 @@ import {
     getAppDefaultSource,
     getAppSpecDefaultSource,
     getHydratorSyncSourceRepoURL,
-    appRBACName
+    appRBACName,
+    getAppParentName,
+    loadAppAncestors
 } from '../utils';
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
 import {ApplicationRetryView} from '../application-retry-view/application-retry-view';
@@ -76,6 +78,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
     const [isHydratorEnabled, setIsHydratorEnabled] = React.useState(!!app.spec.sourceHydrator);
     const [savedSyncSource, setSavedSyncSource] = React.useState(app.spec.sourceHydrator?.syncSource || {targetBranch: '', path: ''});
 
+    const ctx = React.useContext(Context);
     const notificationSubscriptions = useEditNotificationSubscriptions(app.metadata.annotations || {});
     const updateApp = notificationSubscriptions.withNotificationSubscriptions(props.updateApp);
 
@@ -91,6 +94,8 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
     const isHydrator = isHydratorEnabled;
     const repoType = source.repoURL.startsWith('oci://') ? 'oci' : (source.hasOwnProperty('chart') && 'helm') || 'git';
 
+    const directParentName = getAppParentName(app);
+
     const attributes = [
         {
             title: 'PROJECT',
@@ -101,6 +106,46 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                 </DataLoader>
             )
         },
+        ...(directParentName
+            ? [
+                  {
+                      title: 'PARENT APP',
+                      view: (
+                          <DataLoader
+                              input={`${app.metadata.name}/${app.metadata.namespace}`}
+                              load={() => loadAppAncestors(app, directParentName)}>
+                              {(ancestors: Array<{name: string; namespace: string}>) => {
+                                  const chain = ancestors.filter(a => a.name !== app.metadata.name);
+                                  if (chain.length === 0) return null;
+                                  const directParent = chain[chain.length - 1];
+                                  const higher = chain.slice(0, chain.length - 1);
+                                  return (
+                                      <span style={{display: 'flex', alignItems: 'center', gap: '4px'}}>
+                                          {higher.length > 0 && (
+                                              <React.Fragment>
+                                                  <DropDownMenu
+                                                      anchor={() => (
+                                                          <a style={{cursor: 'pointer'}}>
+                                                              +{higher.length}
+                                                          </a>
+                                                      )}
+                                                      items={higher.map(a => ({
+                                                          title: a.name,
+                                                          action: () => ctx.navigation.goto(`/applications/${a.namespace}/${a.name}`)
+                                                      }))}
+                                                  />
+                                                  <span style={{opacity: 0.5}}>›</span>
+                                              </React.Fragment>
+                                          )}
+                                          <Link to={`/applications/${directParent.namespace}/${directParent.name}`}>{directParent.name}</Link>
+                                      </span>
+                                  );
+                              }}
+                          </DataLoader>
+                      )
+                  }
+              ]
+            : []),
         {
             title: 'LABELS',
             view: Object.keys(app.metadata.labels || {})
