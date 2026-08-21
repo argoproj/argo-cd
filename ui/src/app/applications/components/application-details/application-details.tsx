@@ -1039,6 +1039,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                                     onClearFilter={clearFilter}
                                                                     collapsed={viewPref.hideSidebar}
                                                                     resourceNodes={state.filteredGraph}
+                                                                    hideKindFilter={!isApplication}
                                                                 />
                                                             )}
                                                         </DataLoader>
@@ -1144,6 +1145,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                                         onClearFilter={clearFilter}
                                                                         collapsed={viewPref.hideSidebar}
                                                                         resourceNodes={filteredRes}
+                                                                        hideKindFilter={!isApplication}
                                                                     />
                                                                 )}
                                                             </DataLoader>

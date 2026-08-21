@@ -22,12 +22,13 @@ export interface FiltersProps {
     onSetFilter: (items: string[]) => void;
     onClearFilter: () => void;
     collapsed?: boolean;
+    hideKindFilter?: boolean;
 }
 
 export const Filters = (props: FiltersProps) => {
     const ctx = React.useContext(Context);
 
-    const {pref, tree, onSetFilter} = props;
+    const {pref, tree, onSetFilter, hideKindFilter} = props;
 
     const onClearFilter = () => {
         setLoading(true);
@@ -127,16 +128,17 @@ export const Filters = (props: FiltersProps) => {
     return (
         <FiltersGroup title='Resource filters' content={props.children} appliedFilter={pref.resourceFilter} onClearFilter={onClearFilter} collapsed={props.collapsed}>
             {ResourceFilter({label: 'NAME', prefix: 'name', options: names.map(toOption), field: true})}
-            {ResourceFilter({
-                label: 'KINDS',
-                prefix: 'kind',
-                options: kinds.map(label => ({
-                    label,
-                    count: getOptionCount(label, 'Kind')
-                })),
-                abbreviations: resources,
-                field: true
-            })}
+            {!hideKindFilter &&
+                ResourceFilter({
+                    label: 'KINDS',
+                    prefix: 'kind',
+                    options: kinds.map(label => ({
+                        label,
+                        count: getOptionCount(label, 'Kind')
+                    })),
+                    abbreviations: resources,
+                    field: true
+                })}
             {ResourceFilter({
                 label: 'SYNC STATUS',
                 prefix: 'sync',
