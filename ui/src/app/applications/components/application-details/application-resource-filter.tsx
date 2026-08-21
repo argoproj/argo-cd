@@ -1,14 +1,25 @@
 import * as React from 'react';
-import {Checkbox} from 'argo-ui/v2';
 import {ApplicationTree, HealthStatusCode, HealthStatuses, SyncStatusCode, SyncStatuses} from '../../../shared/models';
-import {AppDetailsPreferences, services} from '../../../shared/services';
-import {Context} from '../../../shared/context';
+import {AppDetailsPreferences} from '../../../shared/services';
 import {Filter, FiltersGroup} from '../filter/filter';
 import {ComparisonStatusIcon, HealthStatusIcon} from '../utils';
+import {COLORS} from '../../../shared/components';
 import {resources} from '../resources';
 import * as models from '../../../shared/models';
 
 const uniq = (value: string, index: number, self: string[]) => self.indexOf(value) === index;
+
+// Ownership describes how a resource relates to the application, which is orthogonal to its sync status.
+// Orphaned resources are not part of `status.resources` and therefore have no sync status at all.
+export const OWNERSHIP_MANAGED = 'Managed';
+export const OWNERSHIP_ORPHANED = 'Orphaned';
+
+const OwnershipIcon = ({ownership}: {ownership: string}) =>
+    ownership === OWNERSHIP_ORPHANED ? (
+        <i title='Not managed by any application' className='fa fa-child' style={{color: COLORS.sync.unknown}} />
+    ) : (
+        <i title='Managed by this application' className='fa fa-sitemap' style={{color: COLORS.sync.synced}} />
+    );
 
 function toOption(label: string) {
     return {label};
@@ -25,8 +36,6 @@ export interface FiltersProps {
 }
 
 export const Filters = (props: FiltersProps) => {
-    const ctx = React.useContext(Context);
-
     const {pref, tree, onSetFilter} = props;
 
     const onClearFilter = () => {
@@ -88,6 +97,10 @@ export const Filters = (props: FiltersProps) => {
     // otherwise the user will not be able to clear them from this panel
     const alreadyFilteredOn = (prefix: string) => resourceFilter.filter(f => f.startsWith(prefix + ':')).map(removePrefix(prefix));
 
+    const selectedFor = (prefix: string) => {
+        return groupedFilters[prefix] ? groupedFilters[prefix].split(',').map(removePrefix(prefix)) : [];
+    };
+
     const kinds = tree.nodes
         .map(x => x.kind)
         .concat(alreadyFilteredOn('kind'))
@@ -107,9 +120,16 @@ export const Filters = (props: FiltersProps) => {
         .filter(uniq)
         .sort();
 
-    const selectedFor = (prefix: string) => {
-        return groupedFilters[prefix] ? groupedFilters[prefix].split(',').map(removePrefix(prefix)) : [];
-    };
+    // Ownership is only meaningful when the project reports orphaned resources for this application.
+    // Keep it visible while a stale ownership filter is applied so the user can still clear it.
+    const showOwnershipFilter = (tree.orphanedNodes || []).length > 0 || alreadyFilteredOn('ownership').length > 0;
+
+    // Orphaned resources are absent from `status.resources`, so they have no sync status. They do carry a health
+    // status, so only the sync group is hidden when the view is narrowed down to orphaned resources only. It stays
+    // visible while a sync filter is applied so it can still be cleared.
+    const selectedOwnership = selectedFor('ownership');
+    const orphanedOnly = selectedOwnership.length === 1 && selectedOwnership[0] === OWNERSHIP_ORPHANED;
+    const showSyncFilter = !orphanedOnly || alreadyFilteredOn('sync').length > 0;
 
     const getOptionCount = (label: string, filterType: string): number => {
         switch (filterType) {
@@ -119,6 +139,9 @@ export const Filters = (props: FiltersProps) => {
                 return props.resourceNodes.filter(res => res.health?.status === HealthStatuses[label]).length;
             case 'Kind':
                 return props.resourceNodes.reduce((count, res) => (res.group && label === 'Pod' ? res.group.length : res.kind === label ? count + 1 : count), 0);
+            case 'Ownership':
+                // Orphaned nodes are only present in resourceNodes once the filter is selected, so count them from the tree.
+                return label === OWNERSHIP_ORPHANED ? (tree.orphanedNodes || []).length : props.resourceNodes.filter(res => !res.orphaned).length;
             default:
                 return 0;
         }
@@ -137,15 +160,16 @@ export const Filters = (props: FiltersProps) => {
                 abbreviations: resources,
                 field: true
             })}
-            {ResourceFilter({
-                label: 'SYNC STATUS',
-                prefix: 'sync',
-                options: ['Synced', 'OutOfSync'].map(label => ({
-                    label,
-                    count: getOptionCount(label, 'Sync'),
-                    icon: <ComparisonStatusIcon status={label as SyncStatusCode} noSpin={true} />
-                }))
-            })}
+            {showSyncFilter &&
+                ResourceFilter({
+                    label: 'SYNC STATUS',
+                    prefix: 'sync',
+                    options: ['Synced', 'OutOfSync'].map(label => ({
+                        label,
+                        count: getOptionCount(label, 'Sync'),
+                        icon: <ComparisonStatusIcon status={label as SyncStatusCode} noSpin={true} />
+                    }))
+                })}
             {ResourceFilter({
                 label: 'HEALTH STATUS',
                 prefix: 'health',
@@ -155,23 +179,17 @@ export const Filters = (props: FiltersProps) => {
                     icon: <HealthStatusIcon state={{status: label as HealthStatusCode, message: ''}} noSpin={true} />
                 }))
             })}
+            {showOwnershipFilter &&
+                ResourceFilter({
+                    label: 'OWNERSHIP',
+                    prefix: 'ownership',
+                    options: [OWNERSHIP_MANAGED, OWNERSHIP_ORPHANED].map(label => ({
+                        label,
+                        count: getOptionCount(label, 'Ownership'),
+                        icon: <OwnershipIcon ownership={label} />
+                    }))
+                })}
             {namespaces.length > 1 && ResourceFilter({label: 'NAMESPACES', prefix: 'namespace', options: (namespaces || []).filter(l => l && l !== '').map(toOption), field: true})}
-            {(tree.orphanedNodes || []).length > 0 && (
-                <div className={`filter filter__item ${pref.orphanedResources ? 'filter__item--selected' : ''}`}>
-                    <Checkbox
-                        value={!!pref.orphanedResources}
-                        onChange={val => {
-                            ctx.navigation.goto('.', {orphaned: val}, {replace: true});
-                            services.viewPreferences.updatePreferences({appDetails: {...pref, orphanedResources: val}});
-                        }}
-                        style={{
-                            marginRight: '8px',
-                            marginLeft: '8px'
-                        }}
-                    />
-                    <div className='filter__item__label'>Show Orphaned</div>
-                </div>
-            )}
         </FiltersGroup>
     );
 };
