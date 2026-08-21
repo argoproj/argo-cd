@@ -274,7 +274,7 @@ func TestTgz_HelmChartInclusionExclusions(t *testing.T) {
 		t.Parallel()
 		f := setup(t)
 		defer teardown(f)
-		inclusions := []string{"*.yaml", "*.yml", "*.json", "charts/**/*.yaml", "charts/**/*.yml", "charts/**/*.tpl"}
+		inclusions := []string{"*.yaml", "*.yml", "*.json", "*.tpl", "Chart.lock"}
 
 		_, err := files.Tgz(helmAppDir, inclusions, nil, f.file)
 		require.NoError(t, err)
@@ -282,8 +282,12 @@ func TestTgz_HelmChartInclusionExclusions(t *testing.T) {
 		got, err := read(f.file)
 		require.NoError(t, err)
 
+		assert.Contains(t, got, "templates/_helpers.tpl",
+			"root chart _helpers.tpl should be included by *.tpl pattern")
 		assert.Contains(t, got, "charts/podinfo/templates/_helpers.tpl",
-			"_helpers.tpl should be included by charts/**/*.tpl pattern")
+			"sub-chart _helpers.tpl should be included by *.tpl pattern")
+		assert.Contains(t, got, "Chart.lock",
+			"Chart.lock should be included by Chart.lock pattern")
 		assert.Contains(t, got, "charts/podinfo/templates/deployment.yaml")
 		assert.Contains(t, got, "charts/podinfo/Chart.yaml")
 		assert.Contains(t, got, "charts/podinfo/values.yaml")

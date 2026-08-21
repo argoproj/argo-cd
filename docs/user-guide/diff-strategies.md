@@ -118,13 +118,16 @@ argocd app diff my-app --local ./path --server-side-generate
 
 **Controlling which files are uploaded with `--local-include`**
 
-By default, the CLI sends files matching `*.yaml`, `*.yml`, `*.json`, `charts/**/*.yaml`, `charts/**/*.yml`, and `charts/**/*.tpl`. You can override this with `--local-include`:
+By default, the CLI sends files matching `*.yaml`, `*.yml`, `*.json`, `*.tpl`, and `Chart.lock`. You can override this with `--local-include`:
 
-- Patterns **without** a path separator (e.g. `*.yaml`) match on the **filename alone**, regardless of directory depth.
-- Patterns **with** a path separator (e.g. `charts/**/*.tpl`) match against the **relative path** and support `**` to span multiple directory levels.
+- Patterns **without** a path separator (e.g. `*.yaml`, `*.tpl`) match on the **filename alone**, regardless of directory depth.
+- Patterns **with** a path separator (e.g. `charts/**`) match against the **relative path** and support `**` to span multiple directory levels.
 
 > [!WARNING]
 > `--local-include` **replaces** the default set entirely. Re-specify any defaults you want to keep alongside your custom patterns.
+
+> [!NOTE]
+> Kustomize apps that reference non-YAML source files in `configMapGenerator` or `secretGenerator` (e.g. `*.env`, `*.properties`) must add those patterns explicitly — no generic default covers all possible filenames and extensions.
 
 Examples:
 
@@ -132,12 +135,14 @@ Examples:
 # Include all files under charts/ (e.g. when charts/ contains non-YAML assets)
 argocd app diff my-app --local ./path --server-side-generate \
   --local-include "*.yaml" --local-include "*.yml" --local-include "*.json" \
+  --local-include "*.tpl" --local-include "Chart.lock" \
   --local-include "charts/**"
 
-# Add non-YAML Kustomize assets in base/ and overlays/
+# Add non-YAML Kustomize source files (e.g. configMapGenerator env files)
 argocd app diff my-app --local ./path --server-side-generate \
   --local-include "*.yaml" --local-include "*.yml" --local-include "*.json" \
-  --local-include "base/**" --local-include "overlays/**"
+  --local-include "*.tpl" --local-include "Chart.lock" \
+  --local-include "*.env"
 ```
 
 ### Mutation Webhooks

@@ -314,7 +314,7 @@ func supportedFileMode(fi os.FileInfo) bool {
 func matchesExclusionPattern(pattern, relativePath string) (bool, error) {
 	normPattern := filepath.ToSlash(pattern)
 	if strings.Contains(normPattern, "/") {
-		return matchPath(pattern, relativePath)
+		return matchPath(normPattern, relativePath)
 	}
-	return filepath.Match(normPattern, filepath.Base(relativePath))
+	return filepath.Match(normPattern, relativePath)
 }

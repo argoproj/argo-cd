@@ -278,10 +278,10 @@ func TestMatchesExclusionPattern(t *testing.T) {
 			expected:     true,
 		},
 		{
-			name:         "slug-less glob matches nested file by basename",
+			name:         "slug-less glob does not match nested file (no basename matching)",
 			pattern:      "*.yaml",
 			relativePath: "charts/podinfo/values.yaml",
-			expected:     true,
+			expected:     false,
 		},
 		{
 			name:         "slug-less exact name matches root-level file",
@@ -290,10 +290,10 @@ func TestMatchesExclusionPattern(t *testing.T) {
 			expected:     true,
 		},
 		{
-			name:         "slug-less exact name matches nested file with same basename",
+			name:         "slug-less exact name does not match nested file with same basename",
 			pattern:      "README.md",
 			relativePath: "docs/README.md",
-			expected:     true,
+			expected:     false,
 		},
 		{
 			name:         "slash pattern with ** matches nested file",
@@ -350,10 +350,10 @@ func TestMatchesExclusionPattern(t *testing.T) {
 			expected:     true,
 		},
 		{
-			name:         "OS-native separator slug-less pattern matches nested file by basename",
+			name:         "OS-native separator slug-less pattern does not match nested file (no basename matching)",
 			pattern:      filepath.FromSlash("*.yaml"),
 			relativePath: "charts/podinfo/values.yaml",
-			expected:     true,
+			expected:     false,
 		},
 		{
 			name:         "OS-native separator slash pattern matches nested file",
