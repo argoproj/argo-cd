@@ -98,6 +98,20 @@ message OIDCConfig {
     bool enablePKCEAuthentication = 7;
 }
 
+message HealthCheckItem {
+    string group = 1;
+    string kind = 2;
+    string key = 3;
+    string origin = 4;
+    string luaScript = 5;
+    bool useOpenLibs = 6;
+    bool isWildcard = 7;
+}
+
+message HealthChecksListResponse {
+    repeated HealthCheckItem healthChecks = 1;
+}
+
 // SettingsService
 service SettingsService {
 
@@ -109,5 +123,10 @@ service SettingsService {
     // Get returns Argo CD plugins
     rpc GetPlugins(SettingsQuery) returns (SettingsPluginsResponse) {
         option (google.api.http).get = "/api/v1/settings/plugins";
+    }
+
+    // GetHealthChecks returns all health check definitions
+    rpc GetHealthChecks(SettingsQuery) returns (HealthChecksListResponse) {
+        option (google.api.http).get = "/api/v1/settings/health-checks";
     }
 }

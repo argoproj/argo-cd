@@ -12,6 +12,11 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/v3/common"
+	settingspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/settings"
+	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v3/test"
+	"github.com/argoproj/argo-cd/v3/util/assets"
+	"github.com/argoproj/argo-cd/v3/util/rbac"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
@@ -58,7 +63,7 @@ func TestSettingsServer(t *testing.T) {
 	t.Parallel()
 	newServer := func(data map[string]string) *Server {
 		_, settingsMgr := fixtures(t.Context(), data)
-		return NewServer(settingsMgr, nil, nil, false, false, false, false)
+		return NewServer(settingsMgr, nil, nil, nil, false, false, false, false)
 	}
 
 	t.Run("TestGetInstallationID", func(t *testing.T) {
@@ -137,7 +142,7 @@ func TestGetDexConfig(t *testing.T) {
 	t.Parallel()
 	newServer := func(data map[string]string) *Server {
 		_, settingsMgr := fixtures(t.Context(), data)
-		return NewServer(settingsMgr, nil, nil, false, false, false, false)
+		return NewServer(settingsMgr, nil, nil, nil, false, false, false, false)
 	}
 
 	const dexConfig = `connectors:
@@ -200,4 +205,132 @@ func TestGetDexConfig(t *testing.T) {
 			assert.Equal(t, tc.expectedDexAuthConnectorID, resp.DexConfig.DexAuthConnectorID)
 		})
 	}
+}
+
+func TestGetHealthChecks(t *testing.T) {
+	t.Parallel()
+	newServer := func(data map[string]string) *Server {
+		_, settingsMgr := fixtures(t.Context(), data)
+		return NewServer(settingsMgr, nil, nil, nil, false, false, false, false)
+	}
+
+	t.Run("TestGetHealthChecks_BuiltinsAndOverrides_LoggedIn", func(t *testing.T) {
+		t.Parallel()
+		//nolint:staticcheck // built-in type string key for testing context
+		loggedInContext := context.WithValue(t.Context(), "claims", &jwt.MapClaims{"iss": "qux", "sub": "foo", "email": "bar"})
+		settingsServer := newServer(map[string]string{
+			"resource.customizations.health.custom.io_Widget": "hs = {status = 'Healthy'}\nreturn hs",
+			"resource.customizations.health.apps_Deployment":  "hs = {status = 'Healthy', message = 'Custom'}\nreturn hs",
+		})
+		resp, err := settingsServer.GetHealthChecks(loggedInContext, nil)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.NotEmpty(t, resp.HealthChecks)
+
+		var widgetItem, deployItem, serviceItem *settingspkg.HealthCheckItem
+		for _, item := range resp.HealthChecks {
+			switch item.Key {
+			case "custom.io/Widget":
+				widgetItem = item
+			case "apps/Deployment":
+				deployItem = item
+			case "Service":
+				serviceItem = item
+			}
+		}
+
+		require.NotNil(t, widgetItem)
+		assert.Equal(t, "CustomLua", widgetItem.Origin)
+		assert.Equal(t, "custom.io", widgetItem.Group)
+		assert.Equal(t, "Widget", widgetItem.Kind)
+		assert.NotEmpty(t, widgetItem.LuaScript)
+
+		require.NotNil(t, deployItem)
+		assert.Equal(t, "OverrideLua", deployItem.Origin)
+		assert.NotEmpty(t, deployItem.LuaScript)
+
+		require.NotNil(t, serviceItem)
+		assert.Equal(t, "BuiltinGo", serviceItem.Origin)
+		assert.Empty(t, serviceItem.LuaScript)
+	})
+
+	t.Run("TestGetHealthChecks_NotLoggedIn_RedactsLuaSource", func(t *testing.T) {
+		t.Parallel()
+		settingsServer := newServer(map[string]string{
+			"resource.customizations.health.custom.io_Widget": "hs = {status = 'Healthy'}\nreturn hs",
+		})
+		resp, err := settingsServer.GetHealthChecks(t.Context(), nil)
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+
+		var widgetItem *settingspkg.HealthCheckItem
+		for _, item := range resp.HealthChecks {
+			if item.Key == "custom.io/Widget" {
+				widgetItem = item
+			}
+		}
+		require.NotNil(t, widgetItem)
+		assert.Equal(t, "CustomLua", widgetItem.Origin)
+		assert.Equal(t, "custom.io", widgetItem.Group)
+		assert.Equal(t, "Widget", widgetItem.Kind)
+		assert.Empty(t, widgetItem.LuaScript, "LuaScript must be redacted for unauthenticated users")
+	})
+
+	t.Run("TestGetHealthChecks_RBACEnforcer_AuthorizedVsUnauthorized", func(t *testing.T) {
+		t.Parallel()
+		kubeClient, settingsMgr := fixtures(t.Context(), map[string]string{
+			"resource.customizations.health.custom.io_Widget": "hs = {status = 'Healthy'}\nreturn hs",
+		})
+		rbacCM := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      common.ArgoCDRBACConfigMapName,
+				Namespace: testNamespace,
+			},
+			Data: map[string]string{
+				"policy.csv": "p, role:settings-reader, settings, get, *, allow\ng, user1, role:settings-reader",
+			},
+		}
+		_, err := kubeClient.CoreV1().ConfigMaps(testNamespace).Create(t.Context(), rbacCM, metav1.CreateOptions{})
+		require.NoError(t, err)
+
+		enforcer := rbac.NewEnforcer(kubeClient, testNamespace, common.ArgoCDRBACConfigMapName, nil)
+		_ = enforcer.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+		_ = enforcer.SetUserPolicy("p, role:settings-reader, settings, get, *, allow\ng, user1, role:settings-reader")
+		rbacEnf := rbacpolicy.NewRBACPolicyEnforcer(enforcer, test.NewFakeProjLister())
+		enforcer.SetClaimsEnforcerFunc(rbacEnf.EnforceClaims)
+		settingsServer := NewServer(settingsMgr, nil, nil, enforcer, false, false, false, false)
+
+		// 1. Authorized user with settings,get permission
+		//nolint:staticcheck
+		authCtx := context.WithValue(t.Context(), "claims", jwt.MapClaims{"sub": "user1", "groups": []string{"role:settings-reader"}})
+		authResp, err := settingsServer.GetHealthChecks(authCtx, nil)
+		require.NoError(t, err)
+		require.NotNil(t, authResp)
+
+		var authWidget *settingspkg.HealthCheckItem
+		for _, item := range authResp.HealthChecks {
+			if item.Key == "custom.io/Widget" {
+				authWidget = item
+			}
+		}
+		require.NotNil(t, authWidget)
+		assert.NotEmpty(t, authWidget.LuaScript, "Authorized user with settings,get must receive Lua script source")
+
+		// 2. Unauthorized user without settings,get permission
+		//nolint:staticcheck
+		unauthCtx := context.WithValue(t.Context(), "claims", jwt.MapClaims{"sub": "user2", "groups": []string{"role:dev-no-settings"}})
+		unauthResp, err := settingsServer.GetHealthChecks(unauthCtx, nil)
+		require.NoError(t, err)
+		require.NotNil(t, unauthResp)
+
+		var unauthWidget *settingspkg.HealthCheckItem
+		for _, item := range unauthResp.HealthChecks {
+			if item.Key == "custom.io/Widget" {
+				unauthWidget = item
+			}
+		}
+		require.NotNil(t, unauthWidget)
+		assert.Equal(t, "CustomLua", unauthWidget.Origin, "Metadata remains visible to unauthorized users")
+		assert.Empty(t, unauthWidget.LuaScript, "LuaScript source must be redacted for unauthorized users")
+	})
 }

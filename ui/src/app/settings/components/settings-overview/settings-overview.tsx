@@ -42,6 +42,11 @@ const settings = [
         path: './appearance'
     },
     {
+        title: 'Health Checks',
+        description: 'View built-in and custom resource health check definitions',
+        path: './health-checks'
+    },
+    {
         title: 'Advanced',
         description: 'View Argo CD instance configuration',
         path: './advanced'
@@ -50,6 +55,7 @@ const settings = [
 
 export const SettingsOverview: React.FC = () => {
     const context = React.useContext(Context);
+
     return (
         <Page title='Settings' toolbar={{breadcrumbs: [{title: 'Settings'}]}}>
             <div className='settings-overview'>

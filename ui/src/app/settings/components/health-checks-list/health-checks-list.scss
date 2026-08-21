@@ -1,0 +1,51 @@
+.health-checks-list {
+    &__origin {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        color: #fff;
+        background-color: #6d7f8b;
+
+        &--builtin-go {
+            background-color: #007bb8;
+        }
+
+        &--builtin-lua {
+            background-color: #18a558;
+        }
+
+        &--custom-lua {
+            background-color: #7b42f6;
+        }
+
+        &--override-lua {
+            background-color: #e67e22;
+        }
+    }
+
+    &__wildcard-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        color: #e67e22;
+        font-weight: 600;
+    }
+}
+
+.health-check-details-panel {
+    &__header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+
+        h4 {
+            margin: 0;
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+    }
+}

@@ -288,6 +288,19 @@ The following resources have Go-based health checks:
 * extensions/Ingress
 * networking.k8s.io/Ingress
 
+## Viewing Health Checks in the UI
+
+Operators can inspect all active health check definitions in the Argo CD web UI under **Settings → Health Checks** (`/settings/health-checks`).
+
+The Health Checks page enumerates all registered health checks, including:
+* **Built-in Go health checks** (`BuiltinGo`) implemented natively in `gitops-engine`.
+* **Embedded Lua health checks** (`BuiltinLua`) bundled with Argo CD.
+* **Custom Lua health checks** (`CustomLua`) configured in `argocd-cm`.
+* **Lua health check overrides** (`OverrideLua`) overriding default built-in checks.
+
+Clicking any health check row opens a detail panel displaying metadata (Group, Kind, Key, Origin, and Wildcard status). For Lua-based health checks (`BuiltinLua`, `CustomLua`, `OverrideLua`), the detail panel provides a read-only viewer displaying the Lua source code. Built-in Go health checks explicitly indicate that they are implemented natively in Go within `gitops-engine` and do not have a Lua source script.
+
+
 ## Health Checks
 
 Argo CD App health is inferred from the health of its immediate child resources as represented in the application source.  
