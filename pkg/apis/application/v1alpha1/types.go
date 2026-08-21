@@ -2322,6 +2322,8 @@ type ConnectionState struct {
 type Cluster struct {
 	// ID is an internal field cluster identifier. Not exposed via API.
 	ID string `json:"-"`
+	// DefaultCABundle holds optional default CA bundle to fall back on when Config.CAData is empty. Not exposed via API.
+	DefaultCABundle []byte `json:"-"`
 	// Server is the API server URL of the Kubernetes cluster
 	Server string `json:"server" protobuf:"bytes,1,opt,name=server"`
 	// Name of the cluster. If omitted, will use the server address
@@ -3961,9 +3963,19 @@ func ParseProxyUrl(proxyUrl string) (*url.URL, error) { //nolint:revive //FIXME(
 }
 
 // RawRestConfig returns a go-client REST config from cluster that might be serialized into the file using kube.WriteKubeConfig method.
-func (c *Cluster) RawRestConfig() (*rest.Config, error) {
+// If defaultCABundle is provided and cluster.Config.CAData is empty, defaultCABundle will be used as fallback CAData.
+func (c *Cluster) RawRestConfig(defaultCABundle ...[]byte) (*rest.Config, error) {
 	var config *rest.Config
 	var err error
+
+	var caData []byte
+	if len(c.Config.CAData) > 0 {
+		caData = c.Config.CAData
+	} else if len(defaultCABundle) > 0 && len(defaultCABundle[0]) > 0 {
+		caData = defaultCABundle[0]
+	} else if len(c.DefaultCABundle) > 0 {
+		caData = c.DefaultCABundle
+	}
 
 	switch {
 	case c.Server == KubernetesInternalAPIServerAddr && env.ParseBoolFromEnv(EnvVarFakeInClusterConfig, false):
@@ -3994,7 +4006,7 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 			ServerName: c.Config.ServerName,
 			CertData:   c.Config.CertData,
 			KeyData:    c.Config.KeyData,
-			CAData:     c.Config.CAData,
+			CAData:     caData,
 		}
 		switch {
 		case c.Config.AWSAuthConfig != nil:
@@ -4076,8 +4088,8 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 }
 
 // RESTConfig returns a go-client REST config from cluster with tuned throttling and HTTP client settings.
-func (c *Cluster) RESTConfig() (*rest.Config, error) {
-	config, err := c.RawRestConfig()
+func (c *Cluster) RESTConfig(defaultCABundle ...[]byte) (*rest.Config, error) {
+	config, err := c.RawRestConfig(defaultCABundle...)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get K8s RAW REST config: %w", err)
 	}

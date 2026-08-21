@@ -96,6 +96,12 @@ func NewExportCommand() *cobra.Command {
 			acdTLSCertsConfigMap, err := acdClients.configMaps.Get(ctx, common.ArgoCDTLSCertsConfigMapName, metav1.GetOptions{})
 			errors.CheckError(err)
 			export(writer, *acdTLSCertsConfigMap, namespace)
+			acdDefaultCAConfigMap, err := acdClients.configMaps.Get(ctx, common.ArgoCDDefaultCAConfigMapName, metav1.GetOptions{})
+			if err == nil {
+				export(writer, *acdDefaultCAConfigMap, namespace)
+			} else if !apierrors.IsNotFound(err) {
+				errors.CheckError(err)
+			}
 
 			secrets, err := acdClients.secrets.List(ctx, metav1.ListOptions{})
 			errors.CheckError(err)

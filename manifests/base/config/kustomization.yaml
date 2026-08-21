@@ -9,4 +9,5 @@ resources:
 - argocd-ssh-known-hosts-cm.yaml
 - argocd-tls-certs-cm.yaml
 - argocd-gpg-keys-cm.yaml
+- argocd-default-ca-cm.yaml
 
