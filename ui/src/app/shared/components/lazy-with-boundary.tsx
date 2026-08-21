@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import {Spinner} from '.';
+import {Spinner} from './spinner';
 import {ErrorBoundary} from './error-boundary/error-boundary';
 
 export function lazyWithBoundary<P extends object>(Component: React.LazyExoticComponent<React.ComponentType<P>>, message: string): React.FC<P> {
