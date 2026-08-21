@@ -2603,9 +2603,9 @@ func (s *Server) getUnstructuredLiveResourceOrApp(ctx context.Context, rbacReque
 		if err != nil {
 			return nil, nil, nil, nil, err
 		}
-		config, err = s.getApplicationClusterConfig(ctx, app, p)
+		config, err = rest.InClusterConfig()
 		if err != nil {
-			return nil, nil, nil, nil, fmt.Errorf("error getting application cluster config: %w", err)
+			return nil, nil, nil, nil, fmt.Errorf("error getting local cluster config: %w", err)
 		}
 		obj, err = kube.ToUnstructured(app)
 	} else {
