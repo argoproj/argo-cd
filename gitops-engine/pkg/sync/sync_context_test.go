@@ -1,6 +1,7 @@
 package sync
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -16,20 +17,26 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/go-logr/logr"
+	openapi_v2 "github.com/google/gnostic-models/openapiv2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/client-go/discovery"
 	fakedisco "k8s.io/client-go/discovery/fake"
 	"k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/rest"
 	testcore "k8s.io/client-go/testing"
 	"k8s.io/klog/v2/textlogger"
+	openapiproto "k8s.io/kube-openapi/pkg/util/proto"
+	"sigs.k8s.io/structured-merge-diff/v6/fieldpath"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff/testdata"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/hook"
@@ -1220,6 +1227,8 @@ func TestSync_HookWithReplaceAndBeforeHookCreation_AlreadyDeleted(t *testing.T) 
 }
 
 func TestSync_ServerSideApply(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name            string
 		target          *unstructured.Unstructured
@@ -2992,6 +3001,162 @@ func TestPerformCSAUpgradeMigration_ConflictRetry(t *testing.T) {
 	err := syncCtx.performCSAUpgradeMigration(context.Background(), obj, "kubectl-client-side-apply")
 	assert.NoError(t, err, "Migration should succeed after retrying on conflict")
 	assert.Equal(t, 2, patchAttempt, "Expected exactly 2 patch attempts (1 conflict + 1 success)")
+}
+
+func buildGVKParser(t *testing.T) *managedfields.GvkParser {
+	t.Helper()
+	document := &openapi_v2.Document{}
+	require.NoError(t, proto.Unmarshal(testdata.OpenAPIV2Doc, document))
+	models, err := openapiproto.NewOpenAPIData(document)
+	require.NoError(t, err)
+	gvkParser, err := managedfields.NewGVKParser(models, false)
+	require.NoError(t, err)
+	return gvkParser
+}
+
+func TestBuildManagedFieldsEntryFromLastApplied(t *testing.T) {
+	t.Run("returns nil when there is no last-applied-configuration annotation", func(t *testing.T) {
+		obj := testingutils.NewPod()
+
+		entry, err := newTestSyncCtx(nil).buildManagedFieldsEntryFromLastApplied(obj)
+		require.NoError(t, err)
+		assert.Nil(t, entry)
+	})
+
+	t.Run("reconstructs an Update entry owning declared fields plus the last-applied annotation", func(t *testing.T) {
+		obj := testingutils.NewPod()
+		obj.SetNamespace(testingutils.FakeArgoCDNamespace)
+		lastApplied := `{"apiVersion":"v1","kind":"Pod","metadata":{"name":"my-pod","namespace":"fake-argocd-ns","labels":{"app":"foo"}},"spec":{"containers":[{"name":"nginx","image":"nginx:1.7.9"}]}}`
+		obj.SetAnnotations(map[string]string{corev1.LastAppliedConfigAnnotation: lastApplied})
+
+		entry, err := newTestSyncCtx(nil).buildManagedFieldsEntryFromLastApplied(obj)
+		require.NoError(t, err)
+		require.NotNil(t, entry)
+		assert.Equal(t, synccommon.SeededClientSideApplyManager, entry.Manager)
+		assert.Equal(t, metav1.ManagedFieldsOperationUpdate, entry.Operation)
+		assert.Equal(t, "v1", entry.APIVersion)
+		assert.Equal(t, "FieldsV1", entry.FieldsType)
+		require.NotNil(t, entry.FieldsV1)
+
+		var set fieldpath.Set
+		require.NoError(t, set.FromJSON(bytes.NewReader(entry.FieldsV1.Raw)))
+		// Owns a field declared in the last-applied-configuration.
+		assert.True(t, set.Has(fieldpath.MakePathOrDie("metadata", "labels", "app")),
+			"reconstructed entry should own the declared label")
+		// Owns the last-applied-configuration annotation itself so the in-apply CSA-to-SSA
+		// migration recognizes it as the client-side-apply manager.
+		assert.True(t, set.Has(fieldpath.MakePathOrDie("metadata", "annotations", corev1.LastAppliedConfigAnnotation)),
+			"reconstructed entry should own the last-applied-configuration annotation")
+		// Must not own fields that were not part of the last-applied-configuration.
+		assert.False(t, set.Has(fieldpath.MakePathOrDie("metadata", "annotations", "eks.amazonaws.com/role-arn")),
+			"reconstructed entry must not own foreign annotations")
+	})
+
+	t.Run("without a schema, associative lists are owned atomically", func(t *testing.T) {
+		obj := testingutils.NewPod()
+		lastApplied := `{"apiVersion":"v1","kind":"Pod","metadata":{"name":"my-pod"},"spec":{"containers":[{"name":"nginx","image":"nginx:1.7.9"}]}}`
+		obj.SetAnnotations(map[string]string{corev1.LastAppliedConfigAnnotation: lastApplied})
+
+		// No GVK parser => schemaless deduced parser => the whole list is a single atomic member.
+		entry, err := newTestSyncCtx(nil).buildManagedFieldsEntryFromLastApplied(obj)
+		require.NoError(t, err)
+		require.NotNil(t, entry)
+
+		var set fieldpath.Set
+		require.NoError(t, set.FromJSON(bytes.NewReader(entry.FieldsV1.Raw)))
+		assert.True(t, set.Has(fieldpath.MakePathOrDie("spec", "containers")),
+			"deduced parser should own the containers list atomically")
+		assert.NotContains(t, string(entry.FieldsV1.Raw), `k:{`,
+			"deduced parser should not produce per-element keyed list ownership")
+	})
+
+	t.Run("with the real schema, associative lists are owned per element", func(t *testing.T) {
+		obj := testingutils.NewPod()
+		lastApplied := `{"apiVersion":"v1","kind":"Pod","metadata":{"name":"my-pod"},"spec":{"containers":[{"name":"nginx","image":"nginx:1.7.9"}]}}`
+		obj.SetAnnotations(map[string]string{corev1.LastAppliedConfigAnnotation: lastApplied})
+
+		syncCtx := newTestSyncCtx(nil, WithGVKParser(buildGVKParser(t)))
+		entry, err := syncCtx.buildManagedFieldsEntryFromLastApplied(obj)
+		require.NoError(t, err)
+		require.NotNil(t, entry)
+
+		// spec.containers is x-kubernetes-list-type=map keyed by name, so ownership is recorded
+		// per element rather than for the whole list. The keyed selector is JSON-escaped in the
+		// serialized FieldsV1 (e.g. "k:{\"name\":\"nginx\"}").
+		assert.Contains(t, string(entry.FieldsV1.Raw), `k:{`,
+			"schema-based parser should own the container element keyed by name")
+
+		var set fieldpath.Set
+		require.NoError(t, set.FromJSON(bytes.NewReader(entry.FieldsV1.Raw)))
+		assert.False(t, set.Has(fieldpath.MakePathOrDie("spec", "containers")),
+			"schema-based parser should not own the containers list atomically")
+	})
+}
+
+func TestSeedManagedFieldsFromLastApplied_Seeds(t *testing.T) {
+	scheme := runtime.NewScheme()
+	_ = corev1.AddToScheme(scheme)
+
+	obj := testingutils.NewPod()
+	obj.SetNamespace(testingutils.FakeArgoCDNamespace)
+	lastApplied := `{"apiVersion":"v1","kind":"Pod","metadata":{"name":"my-pod","namespace":"fake-argocd-ns","labels":{"app":"foo"}},"spec":{"containers":[{"name":"nginx","image":"nginx:1.7.9"}]}}`
+	obj.SetAnnotations(map[string]string{corev1.LastAppliedConfigAnnotation: lastApplied})
+	obj.SetManagedFields(nil)
+
+	dynamicClient := fake.NewSimpleDynamicClient(scheme, obj)
+
+	syncCtx := newTestSyncCtx(nil)
+	syncCtx.serverSideApplyManager = "argocd-controller"
+	syncCtx.dynamicIf = dynamicClient
+	syncCtx.disco = &fakedisco.FakeDiscovery{
+		Fake: &testcore.Fake{Resources: testingutils.StaticAPIResources},
+	}
+
+	err := syncCtx.seedManagedFieldsFromLastApplied(context.Background(), &syncTask{liveObj: obj})
+	require.NoError(t, err)
+
+	// The server object carries the seeded entry.
+	gvr := schema.GroupVersionResource{Group: "", Version: "v1", Resource: "pods"}
+	updatedObj, err := dynamicClient.Resource(gvr).Namespace(obj.GetNamespace()).Get(context.TODO(), obj.GetName(), metav1.GetOptions{})
+	require.NoError(t, err)
+	mf := updatedObj.GetManagedFields()
+	require.Len(t, mf, 1)
+	assert.Equal(t, synccommon.SeededClientSideApplyManager, mf[0].Manager)
+	assert.Equal(t, metav1.ManagedFieldsOperationUpdate, mf[0].Operation)
+}
+
+func TestSeedManagedFieldsFromLastApplied_NoOp(t *testing.T) {
+	t.Run("nil live object", func(t *testing.T) {
+		syncCtx := newTestSyncCtx(nil)
+		require.NoError(t, syncCtx.seedManagedFieldsFromLastApplied(context.Background(), &syncTask{}))
+	})
+
+	t.Run("no last-applied-configuration annotation", func(t *testing.T) {
+		obj := testingutils.NewPod()
+		obj.SetManagedFields(nil)
+
+		syncCtx := newTestSyncCtx(nil)
+		require.NoError(t, syncCtx.seedManagedFieldsFromLastApplied(context.Background(), &syncTask{liveObj: obj}))
+		assert.Empty(t, obj.GetManagedFields())
+	})
+
+	t.Run("managed fields already present", func(t *testing.T) {
+		obj := testingutils.NewPod()
+		obj.SetAnnotations(map[string]string{corev1.LastAppliedConfigAnnotation: `{"apiVersion":"v1","kind":"Pod","metadata":{"name":"my-pod","labels":{"app":"foo"}}}`})
+		obj.SetManagedFields([]metav1.ManagedFieldsEntry{
+			{
+				Manager:   "kubectl-client-side-apply",
+				Operation: metav1.ManagedFieldsOperationUpdate,
+				FieldsV1:  &metav1.FieldsV1{Raw: []byte(`{"f:metadata":{"f:labels":{"f:app":{}}}}`)},
+			},
+		})
+
+		syncCtx := newTestSyncCtx(nil)
+		require.NoError(t, syncCtx.seedManagedFieldsFromLastApplied(context.Background(), &syncTask{liveObj: obj}))
+
+		require.Len(t, obj.GetManagedFields(), 1)
+		assert.Equal(t, "kubectl-client-side-apply", obj.GetManagedFields()[0].Manager)
+	})
 }
 
 func diffResultListClusterResource() *diff.DiffResultList {

@@ -21,6 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/discovery"
@@ -30,6 +31,8 @@ import (
 	"k8s.io/client-go/util/retry"
 	"k8s.io/klog/v2/textlogger"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"sigs.k8s.io/structured-merge-diff/v6/fieldpath"
+	"sigs.k8s.io/structured-merge-diff/v6/typed"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
@@ -37,6 +40,7 @@ import (
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/hook"
 	resourceutil "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/resource"
 	kubeutil "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube/scheme"
 )
 
 var tracer = otel.Tracer("github.com/argoproj/argo-cd/gitops-engine/pkg/sync")
@@ -242,6 +246,12 @@ func WithClientSideApplyMigration(enabled bool, manager string) SyncOpt {
 	}
 }
 
+func WithGVKParser(parser *managedfields.GvkParser) SyncOpt {
+	return func(ctx *syncContext) {
+		ctx.gvkParser = parser
+	}
+}
+
 // NewSyncContext creates new instance of a SyncContext
 func NewSyncContext(
 	revision string,
@@ -415,6 +425,7 @@ type syncContext struct {
 	defaultPruneOption              *string
 	clientSideApplyMigrationManager string
 	enableClientSideApplyMigration  bool
+	gvkParser                       *managedfields.GvkParser
 
 	syncRes   map[string]common.ResourceSyncResult
 	startedAt time.Time
@@ -1413,6 +1424,140 @@ func (sc *syncContext) performCSAUpgradeMigration(ctx context.Context, liveObj *
 	})
 }
 
+// seedManagedFieldsFromLastApplied reconstructs a synthetic client-side-apply managed-fields
+// entry from the object's last-applied-configuration annotation and patches it onto the server,
+// but only when the live object currently has no managed fields. This prevents the API
+// server from synthesizing a catch-all "before-first-apply" manager (owning every field on the
+// live object) during the first server-side apply, which would otherwise cause fields not present
+// in the desired manifest to be pruned. It is a no-op when managed fields already exist or when
+// there is no last-applied-configuration annotation to reconstruct from.
+//
+// The catch-all "before-first-apply" manager is created by the API server here (only when the
+// object has no managed fields), building the entry from the entire live object:
+// https://github.com/kubernetes/apimachinery/blob/v0.34.0/pkg/util/managedfields/internal/skipnonapplied.go#L76-L92
+func (sc *syncContext) seedManagedFieldsFromLastApplied(ctx context.Context, t *syncTask) error {
+	liveObj := t.liveObj
+	if liveObj == nil {
+		return nil
+	}
+	// Only act when there are no managed fields; otherwise the API server will not
+	// synthesize the catch-all before-first-apply manager.
+	if len(liveObj.GetManagedFields()) != 0 {
+		return nil
+	}
+	if _, ok := liveObj.GetAnnotations()[corev1.LastAppliedConfigAnnotation]; !ok {
+		return nil
+	}
+
+	resIf, err := sc.getResourceIf(t, "patch")
+	if err != nil {
+		return err
+	}
+
+	//nolint:wrapcheck // error is wrapped inside the retry function
+	return retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		freshObj, getErr := resIf.Get(ctx, liveObj.GetName(), metav1.GetOptions{})
+		if getErr != nil {
+			return fmt.Errorf("failed to get fresh object for managed fields seeding: %w", getErr)
+		}
+		// Re-check on the fresh state: skip if managed fields already exist.
+		if len(freshObj.GetManagedFields()) != 0 {
+			return nil
+		}
+
+		entry, buildErr := sc.buildManagedFieldsEntryFromLastApplied(freshObj)
+		if buildErr != nil {
+			return buildErr
+		}
+		if entry == nil {
+			return nil
+		}
+
+		patchData, marshalErr := json.Marshal([]map[string]any{
+			{
+				"op":    "add",
+				"path":  "/metadata/managedFields",
+				"value": []metav1.ManagedFieldsEntry{*entry},
+			},
+			{
+				// Guard patch against a concurrent modification
+				"op":    "replace",
+				"path":  "/metadata/resourceVersion",
+				"value": freshObj.GetResourceVersion(),
+			},
+		})
+		if marshalErr != nil {
+			return fmt.Errorf("failed to marshal managed fields seed patch: %w", marshalErr)
+		}
+
+		if _, patchErr := resIf.Patch(ctx, freshObj.GetName(), types.JSONPatchType, patchData, metav1.PatchOptions{FieldManager: common.SeededClientSideApplyManager}); patchErr != nil {
+			// Return the error unmodified so RetryOnConflict can identify conflicts correctly.
+			return patchErr
+		}
+
+		// Only the server state is updated (like performCSAUpgradeMigration). The cached live
+		// object is intentionally left untouched: the subsequent apply operates against the
+		// server, and the API server rewrites/prunes these managed fields during its in-apply
+		// CSA-to-SSA migration, so mutating the local copy would only produce a stale view.
+		sc.log.WithValues("resource", kubeutil.GetResourceKey(liveObj)).V(1).Info(
+			"Seeded synthetic client-side-apply manager from last-applied-configuration")
+		return nil
+	})
+}
+
+// buildManagedFieldsEntryFromLastApplied builds an "Update" managed-fields entry whose owned
+// field set is reconstructed from the object's last-applied-configuration annotation. The
+// last-applied-configuration annotation field itself is included in the owned set so that the
+// in-apply CSA-to-SSA migration recognizes this entry as the client-side-apply manager and
+// unions it into the server-side apply manager. Returns (nil, nil) when there is no annotation.
+func (sc *syncContext) buildManagedFieldsEntryFromLastApplied(liveObj *unstructured.Unstructured) (*metav1.ManagedFieldsEntry, error) {
+	lastApplied, err := diff.GetLastAppliedConfigAnnotation(liveObj)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read last-applied-configuration: %w", err)
+	}
+	if lastApplied == nil {
+		return nil, nil
+	}
+
+	set, err := sc.lastAppliedFieldSet(lastApplied)
+	if err != nil {
+		return nil, err
+	}
+	set.Insert(fieldpath.MakePathOrDie("metadata", "annotations", corev1.LastAppliedConfigAnnotation))
+
+	raw, err := set.ToJSON()
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize reconstructed field set: %w", err)
+	}
+
+	return &metav1.ManagedFieldsEntry{
+		Manager:    common.SeededClientSideApplyManager,
+		Operation:  metav1.ManagedFieldsOperationUpdate,
+		APIVersion: liveObj.GetAPIVersion(),
+		Time:       &metav1.Time{Time: time.Now().UTC()},
+		FieldsType: "FieldsV1",
+		FieldsV1:   &metav1.FieldsV1{Raw: raw},
+	}, nil
+}
+
+func (sc *syncContext) lastAppliedFieldSet(obj *unstructured.Unstructured) (*fieldpath.Set, error) {
+	gvk := obj.GroupVersionKind()
+	typedValue, err := scheme.ResolveParseableType(gvk, sc.gvkParser).FromUnstructured(obj.UnstructuredContent())
+	if err != nil {
+		sc.log.V(1).Info("falling back to deduced parser for managed fields reconstruction",
+			"gvk", gvk.String(), "error", err.Error())
+		typedValue, err = typed.DeducedParseableType.FromUnstructured(obj.UnstructuredContent())
+		if err != nil {
+			return nil, fmt.Errorf("failed to build typed value from last-applied-configuration: %w", err)
+		}
+	}
+	set, err := typedValue.ToFieldSet()
+	if err != nil {
+		return nil, fmt.Errorf("failed to build field set from last-applied-configuration: %w", err)
+	}
+	return set, nil
+}
+
 func (sc *syncContext) applyObject(ctx context.Context, t *syncTask, dryRun, validate bool) (common.ResultCode, string) {
 	ctx, span := tracer.Start(ctx, "sync.apply")
 	if span.IsRecording() {
@@ -1441,6 +1586,9 @@ func (sc *syncContext) applyObject(ctx context.Context, t *syncTask, dryRun, val
 	// This uses csaupgrade to directly patch managedFields, transferring ownership
 	// from CSA managers (operation: Update) to the SSA manager (argocd-controller)
 	if serverSideApply && !dryRun && sc.enableClientSideApplyMigration {
+		if err = sc.seedManagedFieldsFromLastApplied(ctx, t); err != nil {
+			return common.ResultCodeSyncFailed, fmt.Sprintf("Failed to seed managed fields for %s: %v", kubeutil.GetResourceKey(t.liveObj), err)
+		}
 		if sc.needsClientSideApplyMigration(t.liveObj, sc.clientSideApplyMigrationManager) {
 			err = sc.performCSAUpgradeMigration(ctx, t.liveObj, sc.clientSideApplyMigrationManager)
 			if err != nil {
