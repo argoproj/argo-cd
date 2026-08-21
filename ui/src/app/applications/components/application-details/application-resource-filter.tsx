@@ -24,6 +24,33 @@ export interface FiltersProps {
     collapsed?: boolean;
 }
 
+export interface ResourceCounts {
+    health: Map<string, number>;
+    kind: Map<string, number>;
+    sync: Map<string, number>;
+}
+
+export const getResourceCounts = (resourceNodes: models.ResourceStatus[]): ResourceCounts => {
+    const counts: ResourceCounts = {
+        health: new Map<string, number>(),
+        kind: new Map<string, number>(),
+        sync: new Map<string, number>()
+    };
+    const increment = (values: Map<string, number>, key: string, amount = 1) => {
+        if (key) {
+            values.set(key, (values.get(key) || 0) + amount);
+        }
+    };
+
+    resourceNodes.forEach(resource => {
+        increment(counts.sync, resource.status);
+        increment(counts.health, resource.health?.status);
+        increment(counts.kind, resource.kind);
+    });
+
+    return counts;
+};
+
 export const Filters = (props: FiltersProps) => {
     const ctx = React.useContext(Context);
 
@@ -111,14 +138,15 @@ export const Filters = (props: FiltersProps) => {
         return groupedFilters[prefix] ? groupedFilters[prefix].split(',').map(removePrefix(prefix)) : [];
     };
 
+    const resourceCounts = React.useMemo(() => getResourceCounts(props.resourceNodes), [props.resourceNodes]);
     const getOptionCount = (label: string, filterType: string): number => {
         switch (filterType) {
             case 'Sync':
-                return props.resourceNodes.filter(res => res.status === SyncStatuses[label]).length;
+                return resourceCounts.sync.get(SyncStatuses[label]) || 0;
             case 'Health':
-                return props.resourceNodes.filter(res => res.health?.status === HealthStatuses[label]).length;
+                return resourceCounts.health.get(HealthStatuses[label]) || 0;
             case 'Kind':
-                return props.resourceNodes.reduce((count, res) => (res.group && label === 'Pod' ? res.group.length : res.kind === label ? count + 1 : count), 0);
+                return resourceCounts.kind.get(label) || 0;
             default:
                 return 0;
         }
