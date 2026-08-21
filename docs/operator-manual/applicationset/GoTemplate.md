@@ -138,6 +138,8 @@ generators' templating:
 - `{{ path.filename }}` becomes `{{ .path.filename }}`
 - `{{ path.filenameNormalized }}` becomes `{{ .path.filenameNormalized }}`
 - `{{ path[n] }}` becomes `{{ index .path.segments n }}`
+- `{{ path.repoURL }}` becomes `{{ .path.repoURL }}`
+- `{{ path.revision }}` becomes `{{ .path.revision }}`
 - `{{ values }}` if being used in the file generator becomes `{{ .values }}`
 
 Here is an example:
@@ -208,6 +210,8 @@ It is also possible to use Sprig functions to construct the path variables manua
 | `{{path.basenameNormalized}}` | `{{.path.basenameNormalized}}` | `{{normalize .path.path}}` |
 | `{{path.filenameNormalized}}` | `{{.path.filenameNormalized}}` | `{{normalize .path.filename}}` |
 | `{{path[N]}}` | `-` | `{{index .path.segments N}}` |
+| `{{path.repoURL}}` | `{{.path.repoURL}}` | `{{.path.repoURL}}` |
+| `{{path.revision}}` | `{{.path.revision}}` | `{{.path.revision}}` |
 
 ## Available template functions
 
