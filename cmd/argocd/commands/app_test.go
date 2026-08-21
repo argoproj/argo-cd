@@ -2644,7 +2644,7 @@ func (c *fakeAcdClient) NewSettingsClient() (io.Closer, settingspkg.SettingsServ
 }
 
 func (c *fakeAcdClient) NewSettingsClientOrDie() (io.Closer, settingspkg.SettingsServiceClient) {
-	return nil, nil
+	return &fakeConnection{}, &fakeSettingsServiceClient{}
 }
 
 func (c *fakeAcdClient) NewVersionClient() (io.Closer, versionpkg.VersionServiceClient, error) {
