@@ -181,6 +181,14 @@ spec:
                       directory:
                         description: Directory holds path/directory specific options
                         properties:
+                          disableExtensionFilter:
+                            description: |-
+                              DisableExtensionFilter controls whether the built-in file-extension filter is skipped during
+                              manifest generation. When false (the default), only files with a .yaml, .yml, .json, or
+                              .jsonnet extension are considered as potential manifests. Set it to true to disable the filter
+                              so that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude
+                              glob patterns instead.
+                            type: boolean
                           exclude:
                             description: Exclude contains a glob pattern to match
                               paths against that should be explicitly excluded from
@@ -411,12 +419,12 @@ spec:
                               apply common labels to resource selectors or not
                             type: boolean
                           namePrefix:
-                            description: NamePrefix is a prefix appended to resources
-                              for Kustomize apps
+                            description: NamePrefix overrides the namePrefix in the
+                              kustomization.yaml for Kustomize apps
                             type: string
                           nameSuffix:
-                            description: NameSuffix is a suffix appended to resources
-                              for Kustomize apps
+                            description: NameSuffix overrides the nameSuffix in the
+                              kustomization.yaml for Kustomize apps
                             type: string
                           namespace:
                             description: Namespace sets the namespace that Kustomize
@@ -542,6 +550,13 @@ spec:
                         description: RepoURL is the URL to the repository (Git or
                           Helm) that contains the application manifests
                         type: string
+                      tagPrefix:
+                        description: |-
+                          TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                          The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                          For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                          "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
+                        type: string
                       targetRevision:
                         description: |-
                           TargetRevision defines the revision of the source to sync the application to.
@@ -566,6 +581,14 @@ spec:
                         directory:
                           description: Directory holds path/directory specific options
                           properties:
+                            disableExtensionFilter:
+                              description: |-
+                                DisableExtensionFilter controls whether the built-in file-extension filter is skipped during
+                                manifest generation. When false (the default), only files with a .yaml, .yml, .json, or
+                                .jsonnet extension are considered as potential manifests. Set it to true to disable the filter
+                                so that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude
+                                glob patterns instead.
+                              type: boolean
                             exclude:
                               description: Exclude contains a glob pattern to match
                                 paths against that should be explicitly excluded from
@@ -800,12 +823,12 @@ spec:
                                 to apply common labels to resource selectors or not
                               type: boolean
                             namePrefix:
-                              description: NamePrefix is a prefix appended to resources
-                                for Kustomize apps
+                              description: NamePrefix overrides the namePrefix in
+                                the kustomization.yaml for Kustomize apps
                               type: string
                             nameSuffix:
-                              description: NameSuffix is a suffix appended to resources
-                                for Kustomize apps
+                              description: NameSuffix overrides the nameSuffix in
+                                the kustomization.yaml for Kustomize apps
                               type: string
                             namespace:
                               description: Namespace sets the namespace that Kustomize
@@ -930,6 +953,13 @@ spec:
                         repoURL:
                           description: RepoURL is the URL to the repository (Git or
                             Helm) that contains the application manifests
+                          type: string
+                        tagPrefix:
+                          description: |-
+                            TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                            The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                            For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                            "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
                           type: string
                         targetRevision:
                           description: |-
@@ -1073,6 +1103,14 @@ spec:
                   directory:
                     description: Directory holds path/directory specific options
                     properties:
+                      disableExtensionFilter:
+                        description: |-
+                          DisableExtensionFilter controls whether the built-in file-extension filter is skipped during
+                          manifest generation. When false (the default), only files with a .yaml, .yml, .json, or
+                          .jsonnet extension are considered as potential manifests. Set it to true to disable the filter
+                          so that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude
+                          glob patterns instead.
+                        type: boolean
                       exclude:
                         description: Exclude contains a glob pattern to match paths
                           against that should be explicitly excluded from being used
@@ -1299,11 +1337,11 @@ spec:
                           common labels to resource selectors or not
                         type: boolean
                       namePrefix:
-                        description: NamePrefix is a prefix appended to resources
+                        description: NamePrefix overrides the namePrefix in the kustomization.yaml
                           for Kustomize apps
                         type: string
                       nameSuffix:
-                        description: NameSuffix is a suffix appended to resources
+                        description: NameSuffix overrides the nameSuffix in the kustomization.yaml
                           for Kustomize apps
                         type: string
                       namespace:
@@ -1426,6 +1464,13 @@ spec:
                     description: RepoURL is the URL to the repository (Git or Helm)
                       that contains the application manifests
                     type: string
+                  tagPrefix:
+                    description: |-
+                      TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                      The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                      For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                      "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
+                    type: string
                   targetRevision:
                     description: |-
                       TargetRevision defines the revision of the source to sync the application to.
@@ -1446,6 +1491,14 @@ spec:
                       directory:
                         description: Directory specifies path/directory specific options
                         properties:
+                          disableExtensionFilter:
+                            description: |-
+                              DisableExtensionFilter controls whether the built-in file-extension filter is skipped during
+                              manifest generation. When false (the default), only files with a .yaml, .yml, .json, or
+                              .jsonnet extension are considered as potential manifests. Set it to true to disable the filter
+                              so that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude
+                              glob patterns instead.
+                            type: boolean
                           exclude:
                             description: Exclude contains a glob pattern to match
                               paths against that should be explicitly excluded from
@@ -1676,12 +1729,12 @@ spec:
                               apply common labels to resource selectors or not
                             type: boolean
                           namePrefix:
-                            description: NamePrefix is a prefix appended to resources
-                              for Kustomize apps
+                            description: NamePrefix overrides the namePrefix in the
+                              kustomization.yaml for Kustomize apps
                             type: string
                           nameSuffix:
-                            description: NameSuffix is a suffix appended to resources
-                              for Kustomize apps
+                            description: NameSuffix overrides the nameSuffix in the
+                              kustomization.yaml for Kustomize apps
                             type: string
                           namespace:
                             description: Namespace sets the namespace that Kustomize
@@ -1831,6 +1884,11 @@ spec:
                         minLength: 1
                         pattern: ^.{2,}|[^./]$
                         type: string
+                      repoURL:
+                        description: |-
+                          RepoURL is the URL to the git repository that contains the hydrated manifests. If not set, defaults to
+                          the DrySource.RepoURL.
+                        type: string
                       targetBranch:
                         description: |-
                           TargetBranch is the branch from which hydrated manifests will be synced.
@@ -1858,6 +1916,14 @@ spec:
                     directory:
                       description: Directory holds path/directory specific options
                       properties:
+                        disableExtensionFilter:
+                          description: |-
+                            DisableExtensionFilter controls whether the built-in file-extension filter is skipped during
+                            manifest generation. When false (the default), only files with a .yaml, .yml, .json, or
+                            .jsonnet extension are considered as potential manifests. Set it to true to disable the filter
+                            so that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude
+                            glob patterns instead.
+                          type: boolean
                         exclude:
                           description: Exclude contains a glob pattern to match paths
                             against that should be explicitly excluded from being
@@ -2087,12 +2153,12 @@ spec:
                             common labels to resource selectors or not
                           type: boolean
                         namePrefix:
-                          description: NamePrefix is a prefix appended to resources
-                            for Kustomize apps
+                          description: NamePrefix overrides the namePrefix in the
+                            kustomization.yaml for Kustomize apps
                           type: string
                         nameSuffix:
-                          description: NameSuffix is a suffix appended to resources
-                            for Kustomize apps
+                          description: NameSuffix overrides the nameSuffix in the
+                            kustomization.yaml for Kustomize apps
                           type: string
                         namespace:
                           description: Namespace sets the namespace that Kustomize
@@ -2216,6 +2282,13 @@ spec:
                     repoURL:
                       description: RepoURL is the URL to the repository (Git or Helm)
                         that contains the application manifests
+                      type: string
+                    tagPrefix:
+                      description: |-
+                        TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                        The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                        For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                        "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
                       type: string
                     targetRevision:
                       description: |-
@@ -2349,10 +2422,8 @@ spec:
                     format: date-time
                     type: string
                   message:
-                    description: |-
-                      Message is a human-readable informational message describing the health status
-
-                      Deprecated: this field is not used and will be removed in a future release.
+                    description: Message is a human-readable informational message
+                      describing the health status
                     type: string
                   status:
                     description: Status holds the status code of the application
@@ -2412,6 +2483,14 @@ spec:
                         directory:
                           description: Directory holds path/directory specific options
                           properties:
+                            disableExtensionFilter:
+                              description: |-
+                                DisableExtensionFilter controls whether the built-in file-extension filter is skipped during
+                                manifest generation. When false (the default), only files with a .yaml, .yml, .json, or
+                                .jsonnet extension are considered as potential manifests. Set it to true to disable the filter
+                                so that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude
+                                glob patterns instead.
+                              type: boolean
                             exclude:
                               description: Exclude contains a glob pattern to match
                                 paths against that should be explicitly excluded from
@@ -2646,12 +2725,12 @@ spec:
                                 to apply common labels to resource selectors or not
                               type: boolean
                             namePrefix:
-                              description: NamePrefix is a prefix appended to resources
-                                for Kustomize apps
+                              description: NamePrefix overrides the namePrefix in
+                                the kustomization.yaml for Kustomize apps
                               type: string
                             nameSuffix:
-                              description: NameSuffix is a suffix appended to resources
-                                for Kustomize apps
+                              description: NameSuffix overrides the nameSuffix in
+                                the kustomization.yaml for Kustomize apps
                               type: string
                             namespace:
                               description: Namespace sets the namespace that Kustomize
@@ -2777,6 +2856,13 @@ spec:
                           description: RepoURL is the URL to the repository (Git or
                             Helm) that contains the application manifests
                           type: string
+                        tagPrefix:
+                          description: |-
+                            TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                            The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                            For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                            "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
+                          type: string
                         targetRevision:
                           description: |-
                             TargetRevision defines the revision of the source to sync the application to.
@@ -2800,6 +2886,14 @@ spec:
                           directory:
                             description: Directory holds path/directory specific options
                             properties:
+                              disableExtensionFilter:
+                                description: |-
+                                  DisableExtensionFilter controls whether the built-in file-extension filter is skipped during
+                                  manifest generation. When false (the default), only files with a .yaml, .yml, .json, or
+                                  .jsonnet extension are considered as potential manifests. Set it to true to disable the filter
+                                  so that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude
+                                  glob patterns instead.
+                                type: boolean
                               exclude:
                                 description: Exclude contains a glob pattern to match
                                   paths against that should be explicitly excluded
@@ -3039,12 +3133,12 @@ spec:
                                   not
                                 type: boolean
                               namePrefix:
-                                description: NamePrefix is a prefix appended to resources
-                                  for Kustomize apps
+                                description: NamePrefix overrides the namePrefix in
+                                  the kustomization.yaml for Kustomize apps
                                 type: string
                               nameSuffix:
-                                description: NameSuffix is a suffix appended to resources
-                                  for Kustomize apps
+                                description: NameSuffix overrides the nameSuffix in
+                                  the kustomization.yaml for Kustomize apps
                                 type: string
                               namespace:
                                 description: Namespace sets the namespace that Kustomize
@@ -3173,6 +3267,13 @@ spec:
                             description: RepoURL is the URL to the repository (Git
                               or Helm) that contains the application manifests
                             type: string
+                          tagPrefix:
+                            description: |-
+                              TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                              The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                              For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                              "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
+                            type: string
                           targetRevision:
                             description: |-
                               TargetRevision defines the revision of the source to sync the application to.
@@ -3191,6 +3292,7 @@ spec:
               observedAt:
                 description: |-
                   ObservedAt indicates when the application state was updated without querying latest git state
+
                   Deprecated: controller no longer updates ObservedAt field
                 format: date-time
                 type: string
@@ -3339,6 +3441,14 @@ spec:
                                 description: Directory holds path/directory specific
                                   options
                                 properties:
+                                  disableExtensionFilter:
+                                    description: |-
+                                      DisableExtensionFilter controls whether the built-in file-extension filter is skipped during
+                                      manifest generation. When false (the default), only files with a .yaml, .yml, .json, or
+                                      .jsonnet extension are considered as potential manifests. Set it to true to disable the filter
+                                      so that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude
+                                      glob patterns instead.
+                                    type: boolean
                                   exclude:
                                     description: Exclude contains a glob pattern to
                                       match paths against that should be explicitly
@@ -3587,12 +3697,12 @@ spec:
                                       or not
                                     type: boolean
                                   namePrefix:
-                                    description: NamePrefix is a prefix appended to
-                                      resources for Kustomize apps
+                                    description: NamePrefix overrides the namePrefix
+                                      in the kustomization.yaml for Kustomize apps
                                     type: string
                                   nameSuffix:
-                                    description: NameSuffix is a suffix appended to
-                                      resources for Kustomize apps
+                                    description: NameSuffix overrides the nameSuffix
+                                      in the kustomization.yaml for Kustomize apps
                                     type: string
                                   namespace:
                                     description: Namespace sets the namespace that
@@ -3723,6 +3833,13 @@ spec:
                                 description: RepoURL is the URL to the repository
                                   (Git or Helm) that contains the application manifests
                                 type: string
+                              tagPrefix:
+                                description: |-
+                                  TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                                  The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                                  For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                                  "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
+                                type: string
                               targetRevision:
                                 description: |-
                                   TargetRevision defines the revision of the source to sync the application to.
@@ -3749,6 +3866,14 @@ spec:
                                   description: Directory holds path/directory specific
                                     options
                                   properties:
+                                    disableExtensionFilter:
+                                      description: |-
+                                        DisableExtensionFilter controls whether the built-in file-extension filter is skipped during
+                                        manifest generation. When false (the default), only files with a .yaml, .yml, .json, or
+                                        .jsonnet extension are considered as potential manifests. Set it to true to disable the filter
+                                        so that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude
+                                        glob patterns instead.
+                                      type: boolean
                                     exclude:
                                       description: Exclude contains a glob pattern
                                         to match paths against that should be explicitly
@@ -4000,12 +4125,12 @@ spec:
                                         selectors or not
                                       type: boolean
                                     namePrefix:
-                                      description: NamePrefix is a prefix appended
-                                        to resources for Kustomize apps
+                                      description: NamePrefix overrides the namePrefix
+                                        in the kustomization.yaml for Kustomize apps
                                       type: string
                                     nameSuffix:
-                                      description: NameSuffix is a suffix appended
-                                        to resources for Kustomize apps
+                                      description: NameSuffix overrides the nameSuffix
+                                        in the kustomization.yaml for Kustomize apps
                                       type: string
                                     namespace:
                                       description: Namespace sets the namespace that
@@ -4137,6 +4262,13 @@ spec:
                                 repoURL:
                                   description: RepoURL is the URL to the repository
                                     (Git or Helm) that contains the application manifests
+                                  type: string
+                                tagPrefix:
+                                  description: |-
+                                    TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                                    The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                                    For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                                    "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
                                   type: string
                                 targetRevision:
                                   description: |-
@@ -4291,6 +4423,14 @@ spec:
                           directory:
                             description: Directory holds path/directory specific options
                             properties:
+                              disableExtensionFilter:
+                                description: |-
+                                  DisableExtensionFilter controls whether the built-in file-extension filter is skipped during
+                                  manifest generation. When false (the default), only files with a .yaml, .yml, .json, or
+                                  .jsonnet extension are considered as potential manifests. Set it to true to disable the filter
+                                  so that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude
+                                  glob patterns instead.
+                                type: boolean
                               exclude:
                                 description: Exclude contains a glob pattern to match
                                   paths against that should be explicitly excluded
@@ -4530,12 +4670,12 @@ spec:
                                   not
                                 type: boolean
                               namePrefix:
-                                description: NamePrefix is a prefix appended to resources
-                                  for Kustomize apps
+                                description: NamePrefix overrides the namePrefix in
+                                  the kustomization.yaml for Kustomize apps
                                 type: string
                               nameSuffix:
-                                description: NameSuffix is a suffix appended to resources
-                                  for Kustomize apps
+                                description: NameSuffix overrides the nameSuffix in
+                                  the kustomization.yaml for Kustomize apps
                                 type: string
                               namespace:
                                 description: Namespace sets the namespace that Kustomize
@@ -4664,6 +4804,13 @@ spec:
                             description: RepoURL is the URL to the repository (Git
                               or Helm) that contains the application manifests
                             type: string
+                          tagPrefix:
+                            description: |-
+                              TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                              The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                              For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                              "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
+                            type: string
                           targetRevision:
                             description: |-
                               TargetRevision defines the revision of the source to sync the application to.
@@ -4688,6 +4835,14 @@ spec:
                               description: Directory holds path/directory specific
                                 options
                               properties:
+                                disableExtensionFilter:
+                                  description: |-
+                                    DisableExtensionFilter controls whether the built-in file-extension filter is skipped during
+                                    manifest generation. When false (the default), only files with a .yaml, .yml, .json, or
+                                    .jsonnet extension are considered as potential manifests. Set it to true to disable the filter
+                                    so that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude
+                                    glob patterns instead.
+                                  type: boolean
                                 exclude:
                                   description: Exclude contains a glob pattern to
                                     match paths against that should be explicitly
@@ -4934,12 +5089,12 @@ spec:
                                     not
                                   type: boolean
                                 namePrefix:
-                                  description: NamePrefix is a prefix appended to
-                                    resources for Kustomize apps
+                                  description: NamePrefix overrides the namePrefix
+                                    in the kustomization.yaml for Kustomize apps
                                   type: string
                                 nameSuffix:
-                                  description: NameSuffix is a suffix appended to
-                                    resources for Kustomize apps
+                                  description: NameSuffix overrides the nameSuffix
+                                    in the kustomization.yaml for Kustomize apps
                                   type: string
                                 namespace:
                                   description: Namespace sets the namespace that Kustomize
@@ -5068,6 +5223,13 @@ spec:
                             repoURL:
                               description: RepoURL is the URL to the repository (Git
                                 or Helm) that contains the application manifests
+                              type: string
+                            tagPrefix:
+                              description: |-
+                                TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                                The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                                For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                                "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
                               type: string
                             targetRevision:
                               description: |-
@@ -5210,6 +5372,14 @@ spec:
                                 description: Directory specifies path/directory specific
                                   options
                                 properties:
+                                  disableExtensionFilter:
+                                    description: |-
+                                      DisableExtensionFilter controls whether the built-in file-extension filter is skipped during
+                                      manifest generation. When false (the default), only files with a .yaml, .yml, .json, or
+                                      .jsonnet extension are considered as potential manifests. Set it to true to disable the filter
+                                      so that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude
+                                      glob patterns instead.
+                                    type: boolean
                                   exclude:
                                     description: Exclude contains a glob pattern to
                                       match paths against that should be explicitly
@@ -5459,12 +5629,12 @@ spec:
                                       or not
                                     type: boolean
                                   namePrefix:
-                                    description: NamePrefix is a prefix appended to
-                                      resources for Kustomize apps
+                                    description: NamePrefix overrides the namePrefix
+                                      in the kustomization.yaml for Kustomize apps
                                     type: string
                                   nameSuffix:
-                                    description: NameSuffix is a suffix appended to
-                                      resources for Kustomize apps
+                                    description: NameSuffix overrides the nameSuffix
+                                      in the kustomization.yaml for Kustomize apps
                                     type: string
                                   namespace:
                                     description: Namespace sets the namespace that
@@ -5617,6 +5787,11 @@ spec:
                                 minLength: 1
                                 pattern: ^.{2,}|[^./]$
                                 type: string
+                              repoURL:
+                                description: |-
+                                  RepoURL is the URL to the git repository that contains the hydrated manifests. If not set, defaults to
+                                  the DrySource.RepoURL.
+                                type: string
                               targetBranch:
                                 description: |-
                                   TargetBranch is the branch from which hydrated manifests will be synced.
@@ -5639,6 +5814,11 @@ spec:
                     - message
                     - phase
                     type: object
+                  lastComparedDryRevision:
+                    description: |-
+                      LastComparedDryRevision holds the resolved revision from the most recent dry source comparison.
+                      This is updated on every evaluation, even when hydration is skipped due to no changes.
+                    type: string
                   lastSuccessfulOperation:
                     description: LastSuccessfulOperation holds info about the most
                       recent successful hydration
@@ -5663,6 +5843,14 @@ spec:
                                 description: Directory specifies path/directory specific
                                   options
                                 properties:
+                                  disableExtensionFilter:
+                                    description: |-
+                                      DisableExtensionFilter controls whether the built-in file-extension filter is skipped during
+                                      manifest generation. When false (the default), only files with a .yaml, .yml, .json, or
+                                      .jsonnet extension are considered as potential manifests. Set it to true to disable the filter
+                                      so that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude
+                                      glob patterns instead.
+                                    type: boolean
                                   exclude:
                                     description: Exclude contains a glob pattern to
                                       match paths against that should be explicitly
@@ -5912,12 +6100,12 @@ spec:
                                       or not
                                     type: boolean
                                   namePrefix:
-                                    description: NamePrefix is a prefix appended to
-                                      resources for Kustomize apps
+                                    description: NamePrefix overrides the namePrefix
+                                      in the kustomization.yaml for Kustomize apps
                                     type: string
                                   nameSuffix:
-                                    description: NameSuffix is a suffix appended to
-                                      resources for Kustomize apps
+                                    description: NameSuffix overrides the nameSuffix
+                                      in the kustomization.yaml for Kustomize apps
                                     type: string
                                   namespace:
                                     description: Namespace sets the namespace that
@@ -6069,6 +6257,11 @@ spec:
                                   hydrated manifests will be synced.
                                 minLength: 1
                                 pattern: ^.{2,}|[^./]$
+                                type: string
+                              repoURL:
+                                description: |-
+                                  RepoURL is the URL to the git repository that contains the hydrated manifests. If not set, defaults to
+                                  the DrySource.RepoURL.
                                 type: string
                               targetBranch:
                                 description: |-
@@ -6111,6 +6304,10 @@ spec:
                     items:
                       type: string
                     type: array
+                  isAppOfApps:
+                    description: IsAppOfApps holds true if the application has any
+                      application for child resource.
+                    type: boolean
                 type: object
               sync:
                 description: Sync contains information about the application's current
@@ -6186,6 +6383,14 @@ spec:
                           directory:
                             description: Directory holds path/directory specific options
                             properties:
+                              disableExtensionFilter:
+                                description: |-
+                                  DisableExtensionFilter controls whether the built-in file-extension filter is skipped during
+                                  manifest generation. When false (the default), only files with a .yaml, .yml, .json, or
+                                  .jsonnet extension are considered as potential manifests. Set it to true to disable the filter
+                                  so that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude
+                                  glob patterns instead.
+                                type: boolean
                               exclude:
                                 description: Exclude contains a glob pattern to match
                                   paths against that should be explicitly excluded
@@ -6425,12 +6630,12 @@ spec:
                                   not
                                 type: boolean
                               namePrefix:
-                                description: NamePrefix is a prefix appended to resources
-                                  for Kustomize apps
+                                description: NamePrefix overrides the namePrefix in
+                                  the kustomization.yaml for Kustomize apps
                                 type: string
                               nameSuffix:
-                                description: NameSuffix is a suffix appended to resources
-                                  for Kustomize apps
+                                description: NameSuffix overrides the nameSuffix in
+                                  the kustomization.yaml for Kustomize apps
                                 type: string
                               namespace:
                                 description: Namespace sets the namespace that Kustomize
@@ -6559,6 +6764,13 @@ spec:
                             description: RepoURL is the URL to the repository (Git
                               or Helm) that contains the application manifests
                             type: string
+                          tagPrefix:
+                            description: |-
+                              TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                              The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                              For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                              "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
+                            type: string
                           targetRevision:
                             description: |-
                               TargetRevision defines the revision of the source to sync the application to.
@@ -6583,6 +6795,14 @@ spec:
                               description: Directory holds path/directory specific
                                 options
                               properties:
+                                disableExtensionFilter:
+                                  description: |-
+                                    DisableExtensionFilter controls whether the built-in file-extension filter is skipped during
+                                    manifest generation. When false (the default), only files with a .yaml, .yml, .json, or
+                                    .jsonnet extension are considered as potential manifests. Set it to true to disable the filter
+                                    so that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude
+                                    glob patterns instead.
+                                  type: boolean
                                 exclude:
                                   description: Exclude contains a glob pattern to
                                     match paths against that should be explicitly
@@ -6829,12 +7049,12 @@ spec:
                                     not
                                   type: boolean
                                 namePrefix:
-                                  description: NamePrefix is a prefix appended to
-                                    resources for Kustomize apps
+                                  description: NamePrefix overrides the namePrefix
+                                    in the kustomization.yaml for Kustomize apps
                                   type: string
                                 nameSuffix:
-                                  description: NameSuffix is a suffix appended to
-                                    resources for Kustomize apps
+                                  description: NameSuffix overrides the nameSuffix
+                                    in the kustomization.yaml for Kustomize apps
                                   type: string
                                 namespace:
                                   description: Namespace sets the namespace that Kustomize
@@ -6963,6 +7183,13 @@ spec:
                             repoURL:
                               description: RepoURL is the URL to the repository (Git
                                 or Helm) that contains the application manifests
+                              type: string
+                            tagPrefix:
+                              description: |-
+                                TagPrefix filters git tags to only those with this prefix before evaluating targetRevision as a semver constraint.
+                                The prefix is stripped from tag names before comparison and re-added to the resolved version.
+                                For example, with tagPrefix "component-b/" and targetRevision "1.0.*", tags like "component-b/1.0.0" and
+                                "component-b/1.0.1" are candidates, and the constraint resolves to "component-b/1.0.1".
                               type: string
                             targetRevision:
                               description: |-
@@ -7155,6 +7382,8 @@ spec:
                                       type: string
                                     directory:
                                       properties:
+                                        disableExtensionFilter:
+                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -7383,6 +7612,8 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    tagPrefix:
+                                      type: string
                                     targetRevision:
                                       type: string
                                   required:
@@ -7394,6 +7625,8 @@ spec:
                                       properties:
                                         directory:
                                           properties:
+                                            disableExtensionFilter:
+                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -7638,6 +7871,8 @@ spec:
                                           minLength: 1
                                           pattern: ^.{2,}|[^./]$
                                           type: string
+                                        repoURL:
+                                          type: string
                                         targetBranch:
                                           type: string
                                       required:
@@ -7655,6 +7890,8 @@ spec:
                                         type: string
                                       directory:
                                         properties:
+                                          disableExtensionFilter:
+                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -7882,6 +8119,8 @@ spec:
                                       ref:
                                         type: string
                                       repoURL:
+                                        type: string
+                                      tagPrefix:
                                         type: string
                                       targetRevision:
                                         type: string
@@ -8063,6 +8302,8 @@ spec:
                                       type: string
                                     directory:
                                       properties:
+                                        disableExtensionFilter:
+                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -8291,6 +8532,8 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    tagPrefix:
+                                      type: string
                                     targetRevision:
                                       type: string
                                   required:
@@ -8302,6 +8545,8 @@ spec:
                                       properties:
                                         directory:
                                           properties:
+                                            disableExtensionFilter:
+                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -8546,6 +8791,8 @@ spec:
                                           minLength: 1
                                           pattern: ^.{2,}|[^./]$
                                           type: string
+                                        repoURL:
+                                          type: string
                                         targetBranch:
                                           type: string
                                       required:
@@ -8563,6 +8810,8 @@ spec:
                                         type: string
                                       directory:
                                         properties:
+                                          disableExtensionFilter:
+                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -8790,6 +9039,8 @@ spec:
                                       ref:
                                         type: string
                                       repoURL:
+                                        type: string
+                                      tagPrefix:
                                         type: string
                                       targetRevision:
                                         type: string
@@ -8972,6 +9223,8 @@ spec:
                                       type: string
                                     directory:
                                       properties:
+                                        disableExtensionFilter:
+                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -9200,6 +9453,8 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    tagPrefix:
+                                      type: string
                                     targetRevision:
                                       type: string
                                   required:
@@ -9211,6 +9466,8 @@ spec:
                                       properties:
                                         directory:
                                           properties:
+                                            disableExtensionFilter:
+                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -9455,6 +9712,8 @@ spec:
                                           minLength: 1
                                           pattern: ^.{2,}|[^./]$
                                           type: string
+                                        repoURL:
+                                          type: string
                                         targetBranch:
                                           type: string
                                       required:
@@ -9472,6 +9731,8 @@ spec:
                                         type: string
                                       directory:
                                         properties:
+                                          disableExtensionFilter:
+                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -9699,6 +9960,8 @@ spec:
                                       ref:
                                         type: string
                                       repoURL:
+                                        type: string
+                                      tagPrefix:
                                         type: string
                                       targetRevision:
                                         type: string
@@ -9859,6 +10122,8 @@ spec:
                                       type: string
                                     directory:
                                       properties:
+                                        disableExtensionFilter:
+                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -10087,6 +10352,8 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    tagPrefix:
+                                      type: string
                                     targetRevision:
                                       type: string
                                   required:
@@ -10098,6 +10365,8 @@ spec:
                                       properties:
                                         directory:
                                           properties:
+                                            disableExtensionFilter:
+                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -10342,6 +10611,8 @@ spec:
                                           minLength: 1
                                           pattern: ^.{2,}|[^./]$
                                           type: string
+                                        repoURL:
+                                          type: string
                                         targetBranch:
                                           type: string
                                       required:
@@ -10359,6 +10630,8 @@ spec:
                                         type: string
                                       directory:
                                         properties:
+                                          disableExtensionFilter:
+                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -10586,6 +10859,8 @@ spec:
                                       ref:
                                         type: string
                                       repoURL:
+                                        type: string
+                                      tagPrefix:
                                         type: string
                                       targetRevision:
                                         type: string
@@ -10771,6 +11046,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -10999,6 +11276,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -11010,6 +11289,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -11254,6 +11535,8 @@ spec:
                                                     minLength: 1
                                                     pattern: ^.{2,}|[^./]$
                                                     type: string
+                                                  repoURL:
+                                                    type: string
                                                   targetBranch:
                                                     type: string
                                                 required:
@@ -11271,6 +11554,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -11498,6 +11783,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -11679,6 +11966,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -11907,6 +12196,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -11918,6 +12209,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -12162,6 +12455,8 @@ spec:
                                                     minLength: 1
                                                     pattern: ^.{2,}|[^./]$
                                                     type: string
+                                                  repoURL:
+                                                    type: string
                                                   targetBranch:
                                                     type: string
                                                 required:
@@ -12179,6 +12474,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -12406,6 +12703,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -12588,6 +12887,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -12816,6 +13117,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -12827,6 +13130,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -13071,6 +13376,8 @@ spec:
                                                     minLength: 1
                                                     pattern: ^.{2,}|[^./]$
                                                     type: string
+                                                  repoURL:
+                                                    type: string
                                                   targetBranch:
                                                     type: string
                                                 required:
@@ -13088,6 +13395,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -13315,6 +13624,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -13475,6 +13786,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -13703,6 +14016,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -13714,6 +14029,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -13958,6 +14275,8 @@ spec:
                                                     minLength: 1
                                                     pattern: ^.{2,}|[^./]$
                                                     type: string
+                                                  repoURL:
+                                                    type: string
                                                   targetBranch:
                                                     type: string
                                                 required:
@@ -13975,6 +14294,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -14202,6 +14523,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -14370,6 +14693,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -14598,6 +14923,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -14609,6 +14936,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -14853,6 +15182,8 @@ spec:
                                                     minLength: 1
                                                     pattern: ^.{2,}|[^./]$
                                                     type: string
+                                                  repoURL:
+                                                    type: string
                                                   targetBranch:
                                                     type: string
                                                 required:
@@ -14870,6 +15201,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -15097,6 +15430,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -15492,6 +15827,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -15720,6 +16057,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -15731,6 +16070,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -15975,6 +16316,8 @@ spec:
                                                     minLength: 1
                                                     pattern: ^.{2,}|[^./]$
                                                     type: string
+                                                  repoURL:
+                                                    type: string
                                                   targetBranch:
                                                     type: string
                                                 required:
@@ -15992,6 +16335,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -16219,6 +16564,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -16440,6 +16787,8 @@ spec:
                                         type: boolean
                                       api:
                                         type: string
+                                      excludeArchivedRepos:
+                                        type: boolean
                                       insecure:
                                         type: boolean
                                       owner:
@@ -16466,6 +16815,8 @@ spec:
                                         type: string
                                       appSecretName:
                                         type: string
+                                      excludeArchivedRepos:
+                                        type: boolean
                                       organization:
                                         type: string
                                       tokenRef:
@@ -16499,6 +16850,8 @@ spec:
                                         type: object
                                       group:
                                         type: string
+                                      includeArchivedRepos:
+                                        type: boolean
                                       includeSharedProjects:
                                         type: boolean
                                       includeSubgroups:
@@ -16605,6 +16958,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -16833,6 +17188,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -16844,6 +17201,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -17088,6 +17447,8 @@ spec:
                                                     minLength: 1
                                                     pattern: ^.{2,}|[^./]$
                                                     type: string
+                                                  repoURL:
+                                                    type: string
                                                   targetBranch:
                                                     type: string
                                                 required:
@@ -17105,6 +17466,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -17333,6 +17696,8 @@ spec:
                                                   type: string
                                                 repoURL:
                                                   type: string
+                                                tagPrefix:
+                                                  type: string
                                                 targetRevision:
                                                   type: string
                                               required:
@@ -17509,6 +17874,8 @@ spec:
                                       type: string
                                     directory:
                                       properties:
+                                        disableExtensionFilter:
+                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -17737,6 +18104,8 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    tagPrefix:
+                                      type: string
                                     targetRevision:
                                       type: string
                                   required:
@@ -17748,6 +18117,8 @@ spec:
                                       properties:
                                         directory:
                                           properties:
+                                            disableExtensionFilter:
+                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -17992,6 +18363,8 @@ spec:
                                           minLength: 1
                                           pattern: ^.{2,}|[^./]$
                                           type: string
+                                        repoURL:
+                                          type: string
                                         targetBranch:
                                           type: string
                                       required:
@@ -18009,6 +18382,8 @@ spec:
                                         type: string
                                       directory:
                                         properties:
+                                          disableExtensionFilter:
+                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -18236,6 +18611,8 @@ spec:
                                       ref:
                                         type: string
                                       repoURL:
+                                        type: string
+                                      tagPrefix:
                                         type: string
                                       targetRevision:
                                         type: string
@@ -18423,6 +18800,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -18651,6 +19030,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -18662,6 +19043,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -18906,6 +19289,8 @@ spec:
                                                     minLength: 1
                                                     pattern: ^.{2,}|[^./]$
                                                     type: string
+                                                  repoURL:
+                                                    type: string
                                                   targetBranch:
                                                     type: string
                                                 required:
@@ -18923,6 +19308,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -19150,6 +19537,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -19331,6 +19720,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -19559,6 +19950,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -19570,6 +19963,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -19814,6 +20209,8 @@ spec:
                                                     minLength: 1
                                                     pattern: ^.{2,}|[^./]$
                                                     type: string
+                                                  repoURL:
+                                                    type: string
                                                   targetBranch:
                                                     type: string
                                                 required:
@@ -19831,6 +20228,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -20058,6 +20457,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -20240,6 +20641,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -20468,6 +20871,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -20479,6 +20884,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -20723,6 +21130,8 @@ spec:
                                                     minLength: 1
                                                     pattern: ^.{2,}|[^./]$
                                                     type: string
+                                                  repoURL:
+                                                    type: string
                                                   targetBranch:
                                                     type: string
                                                 required:
@@ -20740,6 +21149,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -20967,6 +21378,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -21127,6 +21540,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -21355,6 +21770,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -21366,6 +21783,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -21610,6 +22029,8 @@ spec:
                                                     minLength: 1
                                                     pattern: ^.{2,}|[^./]$
                                                     type: string
+                                                  repoURL:
+                                                    type: string
                                                   targetBranch:
                                                     type: string
                                                 required:
@@ -21627,6 +22048,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -21854,6 +22277,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -22022,6 +22447,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -22250,6 +22677,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -22261,6 +22690,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -22505,6 +22936,8 @@ spec:
                                                     minLength: 1
                                                     pattern: ^.{2,}|[^./]$
                                                     type: string
+                                                  repoURL:
+                                                    type: string
                                                   targetBranch:
                                                     type: string
                                                 required:
@@ -22522,6 +22955,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -22749,6 +23184,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -23144,6 +23581,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -23372,6 +23811,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -23383,6 +23824,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -23627,6 +24070,8 @@ spec:
                                                     minLength: 1
                                                     pattern: ^.{2,}|[^./]$
                                                     type: string
+                                                  repoURL:
+                                                    type: string
                                                   targetBranch:
                                                     type: string
                                                 required:
@@ -23644,6 +24089,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -23871,6 +24318,8 @@ spec:
                                                 ref:
                                                   type: string
                                                 repoURL:
+                                                  type: string
+                                                tagPrefix:
                                                   type: string
                                                 targetRevision:
                                                   type: string
@@ -24092,6 +24541,8 @@ spec:
                                         type: boolean
                                       api:
                                         type: string
+                                      excludeArchivedRepos:
+                                        type: boolean
                                       insecure:
                                         type: boolean
                                       owner:
@@ -24118,6 +24569,8 @@ spec:
                                         type: string
                                       appSecretName:
                                         type: string
+                                      excludeArchivedRepos:
+                                        type: boolean
                                       organization:
                                         type: string
                                       tokenRef:
@@ -24151,6 +24604,8 @@ spec:
                                         type: object
                                       group:
                                         type: string
+                                      includeArchivedRepos:
+                                        type: boolean
                                       includeSharedProjects:
                                         type: boolean
                                       includeSubgroups:
@@ -24257,6 +24712,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -24485,6 +24942,8 @@ spec:
                                                 type: string
                                               repoURL:
                                                 type: string
+                                              tagPrefix:
+                                                type: string
                                               targetRevision:
                                                 type: string
                                             required:
@@ -24496,6 +24955,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -24740,6 +25201,8 @@ spec:
                                                     minLength: 1
                                                     pattern: ^.{2,}|[^./]$
                                                     type: string
+                                                  repoURL:
+                                                    type: string
                                                   targetBranch:
                                                     type: string
                                                 required:
@@ -24757,6 +25220,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -24985,6 +25450,8 @@ spec:
                                                   type: string
                                                 repoURL:
                                                   type: string
+                                                tagPrefix:
+                                                  type: string
                                                 targetRevision:
                                                   type: string
                                               required:
@@ -25165,6 +25632,8 @@ spec:
                                       type: string
                                     directory:
                                       properties:
+                                        disableExtensionFilter:
+                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -25393,6 +25862,8 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    tagPrefix:
+                                      type: string
                                     targetRevision:
                                       type: string
                                   required:
@@ -25404,6 +25875,8 @@ spec:
                                       properties:
                                         directory:
                                           properties:
+                                            disableExtensionFilter:
+                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -25648,6 +26121,8 @@ spec:
                                           minLength: 1
                                           pattern: ^.{2,}|[^./]$
                                           type: string
+                                        repoURL:
+                                          type: string
                                         targetBranch:
                                           type: string
                                       required:
@@ -25665,6 +26140,8 @@ spec:
                                         type: string
                                       directory:
                                         properties:
+                                          disableExtensionFilter:
+                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -25892,6 +26369,8 @@ spec:
                                       ref:
                                         type: string
                                       repoURL:
+                                        type: string
+                                      tagPrefix:
                                         type: string
                                       targetRevision:
                                         type: string
@@ -26059,6 +26538,8 @@ spec:
                                       type: string
                                     directory:
                                       properties:
+                                        disableExtensionFilter:
+                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -26287,6 +26768,8 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    tagPrefix:
+                                      type: string
                                     targetRevision:
                                       type: string
                                   required:
@@ -26298,6 +26781,8 @@ spec:
                                       properties:
                                         directory:
                                           properties:
+                                            disableExtensionFilter:
+                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -26542,6 +27027,8 @@ spec:
                                           minLength: 1
                                           pattern: ^.{2,}|[^./]$
                                           type: string
+                                        repoURL:
+                                          type: string
                                         targetBranch:
                                           type: string
                                       required:
@@ -26559,6 +27046,8 @@ spec:
                                         type: string
                                       directory:
                                         properties:
+                                          disableExtensionFilter:
+                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -26786,6 +27275,8 @@ spec:
                                       ref:
                                         type: string
                                       repoURL:
+                                        type: string
+                                      tagPrefix:
                                         type: string
                                       targetRevision:
                                         type: string
@@ -27181,6 +27672,8 @@ spec:
                                       type: string
                                     directory:
                                       properties:
+                                        disableExtensionFilter:
+                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -27409,6 +27902,8 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    tagPrefix:
+                                      type: string
                                     targetRevision:
                                       type: string
                                   required:
@@ -27420,6 +27915,8 @@ spec:
                                       properties:
                                         directory:
                                           properties:
+                                            disableExtensionFilter:
+                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -27664,6 +28161,8 @@ spec:
                                           minLength: 1
                                           pattern: ^.{2,}|[^./]$
                                           type: string
+                                        repoURL:
+                                          type: string
                                         targetBranch:
                                           type: string
                                       required:
@@ -27681,6 +28180,8 @@ spec:
                                         type: string
                                       directory:
                                         properties:
+                                          disableExtensionFilter:
+                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -27908,6 +28409,8 @@ spec:
                                       ref:
                                         type: string
                                       repoURL:
+                                        type: string
+                                      tagPrefix:
                                         type: string
                                       targetRevision:
                                         type: string
@@ -28129,6 +28632,8 @@ spec:
                               type: boolean
                             api:
                               type: string
+                            excludeArchivedRepos:
+                              type: boolean
                             insecure:
                               type: boolean
                             owner:
@@ -28155,6 +28660,8 @@ spec:
                               type: string
                             appSecretName:
                               type: string
+                            excludeArchivedRepos:
+                              type: boolean
                             organization:
                               type: string
                             tokenRef:
@@ -28188,6 +28695,8 @@ spec:
                               type: object
                             group:
                               type: string
+                            includeArchivedRepos:
+                              type: boolean
                             includeSharedProjects:
                               type: boolean
                             includeSubgroups:
@@ -28294,6 +28803,8 @@ spec:
                                       type: string
                                     directory:
                                       properties:
+                                        disableExtensionFilter:
+                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -28522,6 +29033,8 @@ spec:
                                       type: string
                                     repoURL:
                                       type: string
+                                    tagPrefix:
+                                      type: string
                                     targetRevision:
                                       type: string
                                   required:
@@ -28533,6 +29046,8 @@ spec:
                                       properties:
                                         directory:
                                           properties:
+                                            disableExtensionFilter:
+                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -28777,6 +29292,8 @@ spec:
                                           minLength: 1
                                           pattern: ^.{2,}|[^./]$
                                           type: string
+                                        repoURL:
+                                          type: string
                                         targetBranch:
                                           type: string
                                       required:
@@ -28794,6 +29311,8 @@ spec:
                                         type: string
                                       directory:
                                         properties:
+                                          disableExtensionFilter:
+                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -29021,6 +29540,8 @@ spec:
                                       ref:
                                         type: string
                                       repoURL:
+                                        type: string
+                                      tagPrefix:
                                         type: string
                                       targetRevision:
                                         type: string
@@ -29275,6 +29796,8 @@ spec:
                             type: string
                           directory:
                             properties:
+                              disableExtensionFilter:
+                                type: boolean
                               exclude:
                                 type: string
                               include:
@@ -29503,6 +30026,8 @@ spec:
                             type: string
                           repoURL:
                             type: string
+                          tagPrefix:
+                            type: string
                           targetRevision:
                             type: string
                         required:
@@ -29514,6 +30039,8 @@ spec:
                             properties:
                               directory:
                                 properties:
+                                  disableExtensionFilter:
+                                    type: boolean
                                   exclude:
                                     type: string
                                   include:
@@ -29758,6 +30285,8 @@ spec:
                                 minLength: 1
                                 pattern: ^.{2,}|[^./]$
                                 type: string
+                              repoURL:
+                                type: string
                               targetBranch:
                                 type: string
                             required:
@@ -29775,6 +30304,8 @@ spec:
                               type: string
                             directory:
                               properties:
+                                disableExtensionFilter:
+                                  type: boolean
                                 exclude:
                                   type: string
                                 include:
@@ -30003,6 +30534,8 @@ spec:
                               type: string
                             repoURL:
                               type: string
+                            tagPrefix:
+                              type: string
                             targetRevision:
                               type: string
                           required:
@@ -30119,6 +30652,16 @@ spec:
                   - type
                   type: object
                 type: array
+              health:
+                properties:
+                  lastTransitionTime:
+                    format: date-time
+                    type: string
+                  message:
+                    type: string
+                  status:
+                    type: string
+                type: object
               resources:
                 items:
                   properties:
@@ -30425,11 +30968,15 @@ spec:
                   type: object
                 type: array
               signatureKeys:
-                description: SignatureKeys contains a list of PGP key IDs that commits
-                  in Git must be signed with in order to be allowed for sync
+                description: |-
+                  SignatureKeys contains a list of PGP key IDs that commits in Git must be signed with in order to be allowed for sync
+
+                  Deprecated: Use SourceIntegrity instead. SignatureKeys will be removed with the next major version.
                 items:
-                  description: SignatureKey is the specification of a key required
-                    to verify commit signatures with
+                  description: |-
+                    SignatureKey is the specification of a key required to verify commit signatures with
+
+                    Deprecated: Use SourceIntegrity instead. SignatureKeys will be removed with the next major version.
                   properties:
                     keyID:
                       description: The ID of the key in hexadecimal notation
@@ -30438,6 +30985,55 @@ spec:
                   - keyID
                   type: object
                 type: array
+              sourceIntegrity:
+                description: |-
+                  SourceIntegrity represents a constraint on manifest sources integrity to be met before they can be used.
+                  Do not access directly, use EffectiveSourceIntegrity() for correct backwards compatibility handling.
+                properties:
+                  git:
+                    description: Git - policies for git source verification
+                    properties:
+                      policies:
+                        items:
+                          properties:
+                            gpg:
+                              description: Verify GPG commit/tag signatures
+                              properties:
+                                keys:
+                                  description: List of key IDs to trust. The keys
+                                    need to be in the repository server keyring.
+                                  items:
+                                    type: string
+                                  type: array
+                                mode:
+                                  type: string
+                              required:
+                              - keys
+                              - mode
+                              type: object
+                            repos:
+                              description: List of repository criteria restricting
+                                repositories the policy will apply to
+                              items:
+                                properties:
+                                  url:
+                                    description: URL specifier, glob.
+                                    type: string
+                                required:
+                                - url
+                                type: object
+                              type: array
+                          required:
+                          - gpg
+                          - repos
+                          type: object
+                        type: array
+                    required:
+                    - policies
+                    type: object
+                required:
+                - git
+                type: object
               sourceNamespaces:
                 description: SourceNamespaces defines the namespaces application resources
                   are allowed to be created in
@@ -30499,6 +31095,12 @@ spec:
                       description: Schedule is the time the window will begin, specified
                         in cron format
                       type: string
+                    syncOverrun:
+                      description: |-
+                        SyncOverrun allows ongoing syncs to continue in two scenarios:
+                        For deny windows: allows syncs that started before the deny window became active to continue running
+                        For allow windows: allows syncs that started during the allow window to continue after the window ends
+                      type: boolean
                     timeZone:
                       description: TimeZone of the sync that will be applied to the
                         schedule
@@ -31016,6 +31618,12 @@ rules:
   - get
   - patch
 - apiGroups:
+  - '*'
+  resources:
+  - '*/finalizers'
+  verbs:
+  - update
+- apiGroups:
   - ""
   resources:
   - events
@@ -31237,7 +31845,9 @@ data:
     jqPathExpressions:
       - '.metadata.annotations."notified.notifications.argoproj.io"'
       - '.metadata.annotations."argocd.argoproj.io/refresh"'
+      - '.metadata.annotations."argocd.argoproj.io/refresh-timestamp"'
       - '.metadata.annotations."argocd.argoproj.io/hydrate"'
+      - '.metadata.annotations."argocd.argoproj.io/hydrate-timestamp"'
       - '.operation'
   resource.customizations.ignoreResourceUpdates.argoproj.io_Rollout: |
     jqPathExpressions:
@@ -31353,7 +31963,7 @@ metadata:
 apiVersion: v1
 data:
   fix-split-brain.sh: |
-    HOSTNAME="$(hostname)"
+    HOSTNAME="$(cat /proc/sys/kernel/hostname)"
     INDEX="${HOSTNAME##*-}"
     SENTINEL_PORT=26379
     ANNOUNCE_IP=''
@@ -31366,8 +31976,11 @@ data:
     SENTINEL_CONF=/data/conf/sentinel.conf
     SENTINEL_TLS_PORT=
     SERVICE=argocd-redis-ha
+    NAMESPACE="argocd"
     SENTINEL_TLS_REPLICATION_ENABLED=false
     REDIS_TLS_REPLICATION_ENABLED=false
+    RESOLVE_HOSTNAMES=false
+    ANNOUNCE_HOSTNAMES=false
 
     ROLE=''
     REDIS_MASTER=''
@@ -31376,11 +31989,21 @@ data:
     sentinel_get_master() {
     set +e
         if [ "$SENTINEL_PORT" -eq 0 ]; then
-            redis-cli -h "${SERVICE}" -p "${SENTINEL_TLS_PORT}"  --tls --cacert /tls-certs/ca.crt  --cert /tls-certs/redis.crt --key /tls-certs/redis.key sentinel get-master-addr-by-name "${MASTER_GROUP}" |\
-            grep -E '((^\s*((([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))\s*$)|(^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?s*$))'
+            if [ "$RESOLVE_HOSTNAMES" = true ]; then
+                redis-cli -h "${SERVICE}" -p "${SENTINEL_TLS_PORT}"  --tls --cacert /tls-certs/ca.crt  --cert /tls-certs/redis.crt --key /tls-certs/redis.key sentinel get-master-addr-by-name "${MASTER_GROUP}" |\
+                head -n 1 | grep -E '^\s*[a-zA-Z0-9.-]+\s*$'
+            else
+                redis-cli -h "${SERVICE}" -p "${SENTINEL_TLS_PORT}"  --tls --cacert /tls-certs/ca.crt  --cert /tls-certs/redis.crt --key /tls-certs/redis.key sentinel get-master-addr-by-name "${MASTER_GROUP}" |\
+                head -n 1 | grep -E '((^\s*((([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))\s*$)|(^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?s*$))'
+            fi
         else
-            redis-cli -h "${SERVICE}" -p "${SENTINEL_PORT}"  sentinel get-master-addr-by-name "${MASTER_GROUP}" |\
-            grep -E '((^\s*((([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))\s*$)|(^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?s*$))'
+            if [ "$RESOLVE_HOSTNAMES" = true ]; then
+                redis-cli -h "${SERVICE}" -p "${SENTINEL_PORT}"  sentinel get-master-addr-by-name "${MASTER_GROUP}" |\
+                head -n 1 | grep -E '^\s*[a-zA-Z0-9.-]+\s*$'
+            else
+                redis-cli -h "${SERVICE}" -p "${SENTINEL_PORT}"  sentinel get-master-addr-by-name "${MASTER_GROUP}" |\
+                head -n 1 | grep -E '((^\s*((([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))\s*$)|(^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?s*$))'
+            fi
         fi
     set -e
     }
@@ -31467,16 +32090,23 @@ data:
             echo "  make sure ${ANNOUNCE_IP} is not a slave (slaveof no one)"
             sed -i "s/^.*slaveof.*//" "${REDIS_CONF}"
         else
-            echo "Getting redis master ip.."
-            echo "  blindly assuming (${SERVICE}-announce-0) or (${SERVICE}-server-0) are master"
-            DEFAULT_MASTER="$(getent_hosts 0 | awk '{ print $1 }')"
-            if [ -z "${DEFAULT_MASTER}" ]; then
-                echo "Error: Unable to resolve redis master (getent hosts)."
-                exit 1
+            if [ "$RESOLVE_HOSTNAMES" = true ]; then
+                echo "Getting redis master hostname.."
+                echo "  blindly assuming (${SERVICE}-announce-0.${NAMESPACE}.svc) is master"
+                DEFAULT_MASTER="${SERVICE}-announce-0.${NAMESPACE}.svc"
+                echo "  identified redis (may be redis master) hostname (${DEFAULT_MASTER})"
+            else
+                echo "Getting redis master ip.."
+                echo "  blindly assuming (${SERVICE}-announce-0) or (${SERVICE}-server-0) are master"
+                DEFAULT_MASTER="$(getent_hosts 0 | awk '{ print $1 }')"
+                if [ -z "${DEFAULT_MASTER}" ]; then
+                    echo "Error: Unable to resolve redis master (getent hosts)."
+                    exit 1
+                fi
+                echo "  identified redis (may be redis master) ip (${DEFAULT_MASTER})"
             fi
-            echo "  identified redis (may be redis master) ip (${DEFAULT_MASTER})"
             echo "Setting default slave config for redis and sentinel.."
-            echo "  using master ip (${DEFAULT_MASTER})"
+            echo "  using master address (${DEFAULT_MASTER})"
             redis_update "${DEFAULT_MASTER}"
             sentinel_update "${DEFAULT_MASTER}"
         fi
@@ -31571,14 +32201,24 @@ data:
     getent_hosts() {
         index=${1:-${INDEX}}
         service="${SERVICE}-announce-${index}"
-        host=$(getent hosts "${service}")
-        echo "${host}"
+        if [ "$RESOLVE_HOSTNAMES" = true ]; then
+            echo "${service}.${NAMESPACE}.svc"
+        else
+            host=$(getent hosts "${service}")
+            echo "${host}"
+        fi
     }
 
     identify_announce_ip() {
-        echo "Identify announce ip for this pod.."
-        echo "  using (${SERVICE}-announce-${INDEX}) or (${SERVICE}-server-${INDEX})"
-        ANNOUNCE_IP=$(getent_hosts | awk '{ print $1 }')
+        if [ "$ANNOUNCE_HOSTNAMES" = true ]; then
+            echo "Identify announce hostname for this pod.."
+            echo "  using (${SERVICE}-announce-${INDEX}.${NAMESPACE}.svc)"
+            ANNOUNCE_IP="${SERVICE}-announce-${INDEX}.${NAMESPACE}.svc"
+        else
+            echo "Identify announce ip for this pod.."
+            echo "  using (${SERVICE}-announce-${INDEX}) or (${SERVICE}-server-${INDEX})"
+            ANNOUNCE_IP=$(getent_hosts | awk '{ print $1 }')
+        fi
         echo "  identified announce (${ANNOUNCE_IP})"
     }
 
@@ -31617,7 +32257,7 @@ data:
     identify_announce_ip
 
     while [ -z "${ANNOUNCE_IP}" ]; do
-        echo "Error: Could not resolve the announce ip for this pod."
+        echo "Error: Could not resolve the announce address for this pod."
         sleep 30
         identify_announce_ip
     done
@@ -31658,7 +32298,7 @@ data:
         fi
     done
   haproxy.cfg: "defaults REDIS\n  mode tcp\n  timeout connect 4s\n  timeout server
-    6m\n  timeout client 6m\n  timeout check 2s\n\nlisten health_check_http_url\n
+    6m\n  timeout client 6m\n  timeout check 2s\n  timeout tunnel 1h\n\nlisten health_check_http_url\n
     \ bind :8888  \n  mode http\n  monitor-uri /healthz\n  option      dontlognull\n#
     Check Sentinel and whether they are nominated master\nbackend check_if_redis_is_master_0\n
     \ mode tcp\n  option tcp-check\n  tcp-check connect\n  tcp-check send PING\\r\\n\n
@@ -31702,7 +32342,7 @@ data:
     done
     ANNOUNCE_IP0=$(getent hosts "argocd-redis-ha-announce-0" | awk '{ print $1 }')
     if [ -z "$ANNOUNCE_IP0" ]; then
-      echo "Could not resolve the announce ip for argocd-redis-ha-announce-0"
+      echo "Could not resolve the announce address for argocd-redis-ha-announce-0"
       exit 1
     fi
     sed -i "s/REPLACE_ANNOUNCE0/$ANNOUNCE_IP0/" "$HAPROXY_CONF"
@@ -31712,7 +32352,7 @@ data:
     done
     ANNOUNCE_IP1=$(getent hosts "argocd-redis-ha-announce-1" | awk '{ print $1 }')
     if [ -z "$ANNOUNCE_IP1" ]; then
-      echo "Could not resolve the announce ip for argocd-redis-ha-announce-1"
+      echo "Could not resolve the announce address for argocd-redis-ha-announce-1"
       exit 1
     fi
     sed -i "s/REPLACE_ANNOUNCE1/$ANNOUNCE_IP1/" "$HAPROXY_CONF"
@@ -31722,13 +32362,13 @@ data:
     done
     ANNOUNCE_IP2=$(getent hosts "argocd-redis-ha-announce-2" | awk '{ print $1 }')
     if [ -z "$ANNOUNCE_IP2" ]; then
-      echo "Could not resolve the announce ip for argocd-redis-ha-announce-2"
+      echo "Could not resolve the announce address for argocd-redis-ha-announce-2"
       exit 1
     fi
     sed -i "s/REPLACE_ANNOUNCE2/$ANNOUNCE_IP2/" "$HAPROXY_CONF"
   init.sh: |
     echo "$(date) Start..."
-    HOSTNAME="$(hostname)"
+    HOSTNAME="$(cat /proc/sys/kernel/hostname)"
     INDEX="${HOSTNAME##*-}"
     SENTINEL_PORT=26379
     ANNOUNCE_IP=''
@@ -31741,18 +32381,31 @@ data:
     SENTINEL_CONF=/data/conf/sentinel.conf
     SENTINEL_TLS_PORT=
     SERVICE=argocd-redis-ha
+    NAMESPACE="argocd"
     SENTINEL_TLS_REPLICATION_ENABLED=false
     REDIS_TLS_REPLICATION_ENABLED=false
+    RESOLVE_HOSTNAMES=false
+    ANNOUNCE_HOSTNAMES=false
 
     set -eu
     sentinel_get_master() {
     set +e
         if [ "$SENTINEL_PORT" -eq 0 ]; then
-            redis-cli -h "${SERVICE}" -p "${SENTINEL_TLS_PORT}"  --tls --cacert /tls-certs/ca.crt  --cert /tls-certs/redis.crt --key /tls-certs/redis.key sentinel get-master-addr-by-name "${MASTER_GROUP}" |\
-            grep -E '((^\s*((([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))\s*$)|(^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?s*$))'
+            if [ "$RESOLVE_HOSTNAMES" = true ]; then
+                redis-cli -h "${SERVICE}" -p "${SENTINEL_TLS_PORT}"  --tls --cacert /tls-certs/ca.crt  --cert /tls-certs/redis.crt --key /tls-certs/redis.key sentinel get-master-addr-by-name "${MASTER_GROUP}" |\
+                head -n 1 | grep -E '^\s*[a-zA-Z0-9.-]+\s*$'
+            else
+                redis-cli -h "${SERVICE}" -p "${SENTINEL_TLS_PORT}"  --tls --cacert /tls-certs/ca.crt  --cert /tls-certs/redis.crt --key /tls-certs/redis.key sentinel get-master-addr-by-name "${MASTER_GROUP}" |\
+                head -n 1 | grep -E '((^\s*((([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))\s*$)|(^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?s*$))'
+            fi
         else
-            redis-cli -h "${SERVICE}" -p "${SENTINEL_PORT}"  sentinel get-master-addr-by-name "${MASTER_GROUP}" |\
-            grep -E '((^\s*((([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))\s*$)|(^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?s*$))'
+            if [ "$RESOLVE_HOSTNAMES" = true ]; then
+                redis-cli -h "${SERVICE}" -p "${SENTINEL_PORT}"  sentinel get-master-addr-by-name "${MASTER_GROUP}" |\
+                head -n 1 | grep -E '^\s*[a-zA-Z0-9.-]+\s*$'
+            else
+                redis-cli -h "${SERVICE}" -p "${SENTINEL_PORT}"  sentinel get-master-addr-by-name "${MASTER_GROUP}" |\
+                head -n 1 | grep -E '((^\s*((([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]))\s*$)|(^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?s*$))'
+            fi
         fi
     set -e
     }
@@ -31839,16 +32492,23 @@ data:
             echo "  make sure ${ANNOUNCE_IP} is not a slave (slaveof no one)"
             sed -i "s/^.*slaveof.*//" "${REDIS_CONF}"
         else
-            echo "Getting redis master ip.."
-            echo "  blindly assuming (${SERVICE}-announce-0) or (${SERVICE}-server-0) are master"
-            DEFAULT_MASTER="$(getent_hosts 0 | awk '{ print $1 }')"
-            if [ -z "${DEFAULT_MASTER}" ]; then
-                echo "Error: Unable to resolve redis master (getent hosts)."
-                exit 1
+            if [ "$RESOLVE_HOSTNAMES" = true ]; then
+                echo "Getting redis master hostname.."
+                echo "  blindly assuming (${SERVICE}-announce-0.${NAMESPACE}.svc) is master"
+                DEFAULT_MASTER="${SERVICE}-announce-0.${NAMESPACE}.svc"
+                echo "  identified redis (may be redis master) hostname (${DEFAULT_MASTER})"
+            else
+                echo "Getting redis master ip.."
+                echo "  blindly assuming (${SERVICE}-announce-0) or (${SERVICE}-server-0) are master"
+                DEFAULT_MASTER="$(getent_hosts 0 | awk '{ print $1 }')"
+                if [ -z "${DEFAULT_MASTER}" ]; then
+                    echo "Error: Unable to resolve redis master (getent hosts)."
+                    exit 1
+                fi
+                echo "  identified redis (may be redis master) ip (${DEFAULT_MASTER})"
             fi
-            echo "  identified redis (may be redis master) ip (${DEFAULT_MASTER})"
             echo "Setting default slave config for redis and sentinel.."
-            echo "  using master ip (${DEFAULT_MASTER})"
+            echo "  using master address (${DEFAULT_MASTER})"
             redis_update "${DEFAULT_MASTER}"
             sentinel_update "${DEFAULT_MASTER}"
         fi
@@ -31943,14 +32603,24 @@ data:
     getent_hosts() {
         index=${1:-${INDEX}}
         service="${SERVICE}-announce-${index}"
-        host=$(getent hosts "${service}")
-        echo "${host}"
+        if [ "$RESOLVE_HOSTNAMES" = true ]; then
+            echo "${service}.${NAMESPACE}.svc"
+        else
+            host=$(getent hosts "${service}")
+            echo "${host}"
+        fi
     }
 
     identify_announce_ip() {
-        echo "Identify announce ip for this pod.."
-        echo "  using (${SERVICE}-announce-${INDEX}) or (${SERVICE}-server-${INDEX})"
-        ANNOUNCE_IP=$(getent_hosts | awk '{ print $1 }')
+        if [ "$ANNOUNCE_HOSTNAMES" = true ]; then
+            echo "Identify announce hostname for this pod.."
+            echo "  using (${SERVICE}-announce-${INDEX}.${NAMESPACE}.svc)"
+            ANNOUNCE_IP="${SERVICE}-announce-${INDEX}.${NAMESPACE}.svc"
+        else
+            echo "Identify announce ip for this pod.."
+            echo "  using (${SERVICE}-announce-${INDEX}) or (${SERVICE}-server-${INDEX})"
+            ANNOUNCE_IP=$(getent_hosts | awk '{ print $1 }')
+        fi
         echo "  identified announce (${ANNOUNCE_IP})"
     }
 
@@ -31965,7 +32635,7 @@ data:
     identify_announce_ip
 
     if [ -z "${ANNOUNCE_IP}" ]; then
-        "Error: Could not resolve the announce ip for this pod"
+        echo "Error: Could not resolve the announce address for this pod"
         exit 1
     elif [ "${MASTER}" ]; then
         find_master
@@ -32006,10 +32676,10 @@ data:
     dir "/data"
     port 26379
     bind 0.0.0.0
-        sentinel down-after-milliseconds argocd 10000
-        sentinel failover-timeout argocd 180000
-        maxclients 10000
-        sentinel parallel-syncs argocd 5
+    sentinel down-after-milliseconds argocd 10000
+    sentinel failover-timeout argocd 180000
+    maxclients 10000
+    sentinel parallel-syncs argocd 5
     sentinel auth-pass argocd replace-default-auth
   trigger-failover-if-master.sh: |
     get_redis_role() {
@@ -32473,6 +33143,12 @@ spec:
       - args:
         - /usr/local/bin/argocd-applicationset-controller
         env:
+        - name: GRPC_ENABLE_TXT_SERVICE_CONFIG
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.grpc.enable.txt.service.config
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_ANNOTATIONS
           valueFrom:
             configMapKeyRef:
@@ -32537,6 +33213,48 @@ spec:
               key: log.format.timestamp
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_K8S_CLIENT_QPS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.k8s.client.qps
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_CLIENT_BURST
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.k8s.client.burst
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_CLIENT_MAX_IDLE_CONNECTIONS
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.k8s.client.max.idle.connections
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_TCP_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.k8s.tcp.timeout
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_TCP_KEEPALIVE
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.k8s.tcp.keepalive
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_TLS_HANDSHAKE_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.k8s.tls.handshake.timeout
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_TCP_IDLE_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.k8s.tcp.idle.timeout
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATIONSET_CONTROLLER_DRY_RUN
           valueFrom:
             configMapKeyRef:
@@ -32577,6 +33295,24 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: applicationsetcontroller.repo.server.strict.tls
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_CA_CERT_PATH
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.repo.server.ca.cert.path
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_CLIENT_CERT_PATH
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.repo.server.client.cert.path
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_CLIENT_CERT_KEY_PATH
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.repo.server.client.cert.key.path
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS
@@ -32669,6 +33405,8 @@ spec:
           name: tmp
         - mountPath: /app/config/reposerver/tls
           name: argocd-repo-server-tls
+        - mountPath: /app/config/reposerver/mtls
+          name: argocd-repo-server-mtls
         - mountPath: /home/argocd/params
           name: argocd-cmd-params-cm
       nodeSelector:
@@ -32699,6 +33437,17 @@ spec:
             path: ca.crt
           optional: true
           secretName: argocd-repo-server-tls
+      - name: argocd-repo-server-mtls
+        secret:
+          items:
+          - key: client.crt
+            path: client.crt
+          - key: client.key
+            path: client.key
+          - key: server-ca.crt
+            path: server-ca.crt
+          optional: true
+          secretName: argocd-repo-server-mtls
       - configMap:
           items:
           - key: applicationsetcontroller.profile.enabled
@@ -32744,6 +33493,12 @@ spec:
       - args:
         - /usr/local/bin/argocd-commit-server
         env:
+        - name: GRPC_ENABLE_TXT_SERVICE_CONFIG
+          valueFrom:
+            configMapKeyRef:
+              key: commitserver.grpc.enable.txt.service.config
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_COMMIT_SERVER_LISTEN_ADDRESS
           valueFrom:
             configMapKeyRef:
@@ -32896,7 +33651,13 @@ spec:
               key: dexserver.disable.tls
               name: argocd-cmd-params-cm
               optional: true
-        image: ghcr.io/dexidp/dex:v2.43.0
+        - name: DEX_CONTINUE_ON_CONNECTOR_FAILURE
+          valueFrom:
+            configMapKeyRef:
+              key: dexserver.connector.failure.continue
+              name: argocd-cmd-params-cm
+              optional: true
+        image: ghcr.io/dexidp/dex:v2.45.1
         imagePullPolicy: Always
         name: dex
         ports:
@@ -32910,6 +33671,7 @@ spec:
             - ALL
           readOnlyRootFilesystem: true
           runAsNonRoot: true
+          runAsUser: 1001
           seccompProfile:
             type: RuntimeDefault
         volumeMounts:
@@ -32997,6 +33759,12 @@ spec:
               key: notificationscontroller.log.level
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_NOTIFICATION_CONTROLLER_PROCESSORS_COUNT
+          valueFrom:
+            configMapKeyRef:
+              key: notificationscontroller.processors.count
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_LOG_FORMAT_TIMESTAMP
           valueFrom:
             configMapKeyRef:
@@ -33021,6 +33789,24 @@ spec:
               key: notificationscontroller.repo.server.plaintext
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_NOTIFICATION_CONTROLLER_REPO_SERVER_CA_CERT_PATH
+          valueFrom:
+            configMapKeyRef:
+              key: notificationscontroller.repo.server.ca.cert.path
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_NOTIFICATION_CONTROLLER_REPO_SERVER_CLIENT_CERT_PATH
+          valueFrom:
+            configMapKeyRef:
+              key: notificationscontroller.repo.server.client.cert.path
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_NOTIFICATION_CONTROLLER_REPO_SERVER_CLIENT_CERT_KEY_PATH
+          valueFrom:
+            configMapKeyRef:
+              key: notificationscontroller.repo.server.client.cert.key.path
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
@@ -33038,6 +33824,8 @@ spec:
           name: tls-certs
         - mountPath: /app/config/reposerver/tls
           name: argocd-repo-server-tls
+        - mountPath: /app/config/reposerver/mtls
+          name: argocd-repo-server-mtls
         workingDir: /app
       nodeSelector:
         kubernetes.io/os: linux
@@ -33061,6 +33849,17 @@ spec:
             path: ca.crt
           optional: true
           secretName: argocd-repo-server-tls
+      - name: argocd-repo-server-mtls
+        secret:
+          items:
+          - key: client.crt
+            path: client.crt
+          - key: client.key
+            path: client.key
+          - key: server-ca.crt
+            path: server-ca.crt
+          optional: true
+          secretName: argocd-repo-server-mtls
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -33081,7 +33880,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config: cd6508bdf9819601c454d0cc491fb77a209e3a88761d92514d105b6681829953
+        checksum/config: cda181423e5fd3b17fbdaa2433890ba317affcdb717c9c12ec3ded1fd6875177
         prometheus.io/path: /metrics
         prometheus.io/port: "9101"
         prometheus.io/scrape: "true"
@@ -33234,6 +34033,12 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
+        - name: GRPC_ENABLE_TXT_SERVICE_CONFIG
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.grpc.enable.txt.service.config
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_RECONCILIATION_TIMEOUT
           valueFrom:
             configMapKeyRef:
@@ -33300,6 +34105,12 @@ spec:
               key: reposerver.tls.ciphers
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_REPO_SERVER_CLIENT_CA_PATH
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.client.ca.path
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_REPO_CACHE_EXPIRATION
           valueFrom:
             configMapKeyRef:
@@ -33312,6 +34123,18 @@ spec:
               key: redis.server
               name: argocd-cmd-params-cm
               optional: true
+        - name: REDIS_SENTINEL_HOSTS
+          valueFrom:
+            configMapKeyRef:
+              key: redis.sentinel.hosts
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: REDIS_SENTINEL_MASTER
+          valueFrom:
+            configMapKeyRef:
+              key: redis.sentinel.master
+              name: argocd-cmd-params-cm
+              optional: true
         - name: REDIS_COMPRESSION
           valueFrom:
             configMapKeyRef:
@@ -33322,6 +34145,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: redis.db
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REDIS_KEY_PREFIX
+          valueFrom:
+            configMapKeyRef:
+              key: redis.key.prefix
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_DEFAULT_CACHE_EXPIRATION
@@ -33352,6 +34181,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: otlp.attrs
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REPO_SERVER_OTLP_SAMPLE_RATIO
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.sample.ratio
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE
@@ -33462,6 +34297,12 @@ spec:
               key: reposerver.include.hidden.directories
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_HELM_USER_AGENT
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.helm.user.agent
+              name: argocd-cmd-params-cm
+              optional: true
         - name: HELM_CACHE_HOME
           value: /helm-working-dir
         - name: HELM_CONFIG_HOME
@@ -33508,16 +34349,20 @@ spec:
           name: gpg-keyring
         - mountPath: /app/config/reposerver/tls
           name: argocd-repo-server-tls
+        - mountPath: /app/config/reposerver/mtls
+          name: argocd-repo-server-mtls
         - mountPath: /tmp
           name: tmp
         - mountPath: /helm-working-dir
           name: helm-working-dir
         - mountPath: /home/argocd/cmp-server/plugins
           name: plugins
+        - mountPath: /home/argocd/params
+          name: argocd-cmd-params-cm
       initContainers:
       - args:
-        - /bin/cp --update=none /usr/local/bin/argocd /var/run/argocd/argocd && /bin/ln
-          -s /var/run/argocd/argocd /var/run/argocd/argocd-cmp-server
+        - /bin/cp /usr/local/bin/argocd /var/run/argocd/argocd && /bin/ln -sf /var/run/argocd/argocd
+          /var/run/argocd/argocd-cmp-server
         command:
         - sh
         - -c
@@ -33565,10 +34410,24 @@ spec:
             path: ca.crt
           optional: true
           secretName: argocd-repo-server-tls
+      - name: argocd-repo-server-mtls
+        secret:
+          items:
+          - key: client-ca.crt
+            path: client-ca.crt
+          optional: true
+          secretName: argocd-repo-server-mtls
       - emptyDir: {}
         name: var-files
       - emptyDir: {}
         name: plugins
+      - configMap:
+          items:
+          - key: reposerver.profile.enabled
+            path: profiler.enabled
+          name: argocd-cmd-params-cm
+          optional: true
+        name: argocd-cmd-params-cm
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -33613,6 +34472,12 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
+        - name: GRPC_ENABLE_TXT_SERVICE_CONFIG
+          valueFrom:
+            configMapKeyRef:
+              key: server.grpc.enable.txt.service.config
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_SERVER_INSECURE
           valueFrom:
             configMapKeyRef:
@@ -33643,6 +34508,48 @@ spec:
               key: server.log.level
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_K8S_CLIENT_QPS
+          valueFrom:
+            configMapKeyRef:
+              key: server.k8s.client.qps
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_CLIENT_BURST
+          valueFrom:
+            configMapKeyRef:
+              key: server.k8s.client.burst
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_CLIENT_MAX_IDLE_CONNECTIONS
+          valueFrom:
+            configMapKeyRef:
+              key: server.k8s.client.max.idle.connections
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_TCP_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: server.k8s.tcp.timeout
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_TCP_KEEPALIVE
+          valueFrom:
+            configMapKeyRef:
+              key: server.k8s.tcp.keepalive
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_TLS_HANDSHAKE_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: server.k8s.tls.handshake.timeout
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_TCP_IDLE_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: server.k8s.tcp.idle.timeout
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_SERVER_REPO_SERVER
           valueFrom:
             configMapKeyRef:
@@ -33659,6 +34566,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: server.disable.auth
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_SERVER_DISABLE_SWAGGER_UI
+          valueFrom:
+            configMapKeyRef:
+              key: server.disable.swagger.ui
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_SERVER_ENABLE_GZIP
@@ -33695,6 +34608,24 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: server.repo.server.strict.tls
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_SERVER_REPO_SERVER_CA_CERT_PATH
+          valueFrom:
+            configMapKeyRef:
+              key: server.repo.server.ca.cert.path
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_SERVER_REPO_SERVER_CLIENT_CERT_PATH
+          valueFrom:
+            configMapKeyRef:
+              key: server.repo.server.client.cert.path
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_SERVER_REPO_SERVER_CLIENT_CERT_KEY_PATH
+          valueFrom:
+            configMapKeyRef:
+              key: server.repo.server.client.cert.key.path
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_SERVER_DEX_SERVER_PLAINTEXT
@@ -33757,6 +34688,18 @@ spec:
               key: redis.server
               name: argocd-cmd-params-cm
               optional: true
+        - name: REDIS_SENTINEL_HOSTS
+          valueFrom:
+            configMapKeyRef:
+              key: redis.sentinel.hosts
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: REDIS_SENTINEL_MASTER
+          valueFrom:
+            configMapKeyRef:
+              key: redis.sentinel.master
+              name: argocd-cmd-params-cm
+              optional: true
         - name: REDIS_COMPRESSION
           valueFrom:
             configMapKeyRef:
@@ -33767,6 +34710,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: redis.db
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REDIS_KEY_PREFIX
+          valueFrom:
+            configMapKeyRef:
+              key: redis.key.prefix
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_DEFAULT_CACHE_EXPIRATION
@@ -33817,6 +34766,12 @@ spec:
               key: otlp.attrs
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_SERVER_OTLP_SAMPLE_RATIO
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.sample.ratio
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATION_NAMESPACES
           valueFrom:
             configMapKeyRef:
@@ -33851,6 +34806,18 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: server.webhook.parallelism.limit
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_SERVER_GLOB_CACHE_SIZE
+          valueFrom:
+            configMapKeyRef:
+              key: server.glob.cache.size
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_SERVER_WEBHOOK_REFRESH_WORKERS
+          valueFrom:
+            configMapKeyRef:
+              key: server.webhook.refresh.workers
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_GIT_FILE_GLOBBING
@@ -33930,6 +34897,8 @@ spec:
           name: tls-certs
         - mountPath: /app/config/server/tls
           name: argocd-repo-server-tls
+        - mountPath: /app/config/reposerver/mtls
+          name: argocd-repo-server-mtls
         - mountPath: /app/config/dex/tls
           name: argocd-dex-server-tls
         - mountPath: /home/argocd
@@ -33972,6 +34941,17 @@ spec:
             path: ca.crt
           optional: true
           secretName: argocd-dex-server-tls
+      - name: argocd-repo-server-mtls
+        secret:
+          items:
+          - key: client.crt
+            path: client.crt
+          - key: client.key
+            path: client.key
+          - key: server-ca.crt
+            path: server-ca.crt
+          optional: true
+          secretName: argocd-repo-server-mtls
       - configMap:
           items:
           - key: server.profile.enabled
@@ -34023,6 +35003,12 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
+        - name: GRPC_ENABLE_TXT_SERVICE_CONFIG
+          valueFrom:
+            configMapKeyRef:
+              key: controller.grpc.enable.txt.service.config
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_CONTROLLER_REPLICAS
           value: "1"
         - name: ARGOCD_RECONCILIATION_TIMEOUT
@@ -34073,6 +35059,12 @@ spec:
               key: controller.operation.processors
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_HYDRATION_PROCESSORS
+          valueFrom:
+            configMapKeyRef:
+              key: controller.hydration.processors
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_LOGFORMAT
           valueFrom:
             configMapKeyRef:
@@ -34091,10 +35083,70 @@ spec:
               key: log.format.timestamp
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_K8S_CLIENT_QPS
+          valueFrom:
+            configMapKeyRef:
+              key: controller.k8s.client.qps
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_CLIENT_BURST
+          valueFrom:
+            configMapKeyRef:
+              key: controller.k8s.client.burst
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_CLIENT_MAX_IDLE_CONNECTIONS
+          valueFrom:
+            configMapKeyRef:
+              key: controller.k8s.client.max.idle.connections
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_TCP_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: controller.k8s.tcp.timeout
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_TCP_KEEPALIVE
+          valueFrom:
+            configMapKeyRef:
+              key: controller.k8s.tcp.keepalive
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_TLS_HANDSHAKE_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: controller.k8s.tls.handshake.timeout
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_K8S_TCP_IDLE_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: controller.k8s.tcp.idle.timeout
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_METRICS_CACHE_EXPIRATION
           valueFrom:
             configMapKeyRef:
               key: controller.metrics.cache.expiration
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_METRICS_APPLICATION_LABELS
+          valueFrom:
+            configMapKeyRef:
+              key: controller.metrics.application.labels
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_METRICS_APPLICATION_CONDITIONS
+          valueFrom:
+            configMapKeyRef:
+              key: controller.metrics.application.conditions
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_METRICS_CLUSTER_LABELS
+          valueFrom:
+            configMapKeyRef:
+              key: controller.metrics.cluster.labels
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_TIMEOUT_SECONDS
@@ -34151,6 +35203,24 @@ spec:
               key: controller.repo.server.strict.tls
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_CA_CERT_PATH
+          valueFrom:
+            configMapKeyRef:
+              key: controller.repo.server.ca.cert.path
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_CLIENT_CERT_PATH
+          valueFrom:
+            configMapKeyRef:
+              key: controller.repo.server.client.cert.path
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_CLIENT_CERT_KEY_PATH
+          valueFrom:
+            configMapKeyRef:
+              key: controller.repo.server.client.cert.key.path
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_PERSIST_RESOURCE_HEALTH
           valueFrom:
             configMapKeyRef:
@@ -34169,6 +35239,18 @@ spec:
               key: redis.server
               name: argocd-cmd-params-cm
               optional: true
+        - name: REDIS_SENTINEL_HOSTS
+          valueFrom:
+            configMapKeyRef:
+              key: redis.sentinel.hosts
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: REDIS_SENTINEL_MASTER
+          valueFrom:
+            configMapKeyRef:
+              key: redis.sentinel.master
+              name: argocd-cmd-params-cm
+              optional: true
         - name: REDIS_COMPRESSION
           valueFrom:
             configMapKeyRef:
@@ -34179,6 +35261,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: redis.db
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REDIS_KEY_PREFIX
+          valueFrom:
+            configMapKeyRef:
+              key: redis.key.prefix
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_DEFAULT_CACHE_EXPIRATION
@@ -34209,6 +35297,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: otlp.attrs
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_OTLP_SAMPLE_RATIO
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.sample.ratio
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATION_NAMESPACES
@@ -34302,6 +35396,8 @@ spec:
         volumeMounts:
         - mountPath: /app/config/controller/tls
           name: argocd-repo-server-tls
+        - mountPath: /app/config/reposerver/mtls
+          name: argocd-repo-server-mtls
         - mountPath: /home/argocd
           name: argocd-home
         - mountPath: /home/argocd/params
@@ -34328,6 +35424,17 @@ spec:
             path: ca.crt
           optional: true
           secretName: argocd-repo-server-tls
+      - name: argocd-repo-server-mtls
+        secret:
+          items:
+          - key: client.crt
+            path: client.crt
+          - key: client.key
+            path: client.key
+          - key: server-ca.crt
+            path: server-ca.crt
+          optional: true
+          secretName: argocd-repo-server-mtls
       - configMap:
           items:
           - key: controller.profile.enabled
@@ -34354,7 +35461,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/init-config: fd74f7d84e39b3f6eac1d7ce5deb0083e58f218376faf363343d91a0fb4f2563
+        checksum/init-config: cb9ebad11d288a7327d836f5f0fa63a61806e11078082ffaf78cd15e5b6f04fa
       labels:
         app.kubernetes.io/name: argocd-redis-ha
     spec:
@@ -34377,7 +35484,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:8.2.3-alpine
+        image: public.ecr.aws/docker/library/redis:8.10.0-alpine
         imagePullPolicy: IfNotPresent
         lifecycle:
           preStop:
@@ -34448,7 +35555,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:8.2.3-alpine
+        image: public.ecr.aws/docker/library/redis:8.10.0-alpine
         imagePullPolicy: IfNotPresent
         lifecycle:
           postStart:
@@ -34523,9 +35630,30 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:8.2.3-alpine
+        image: public.ecr.aws/docker/library/redis:8.10.0-alpine
         imagePullPolicy: IfNotPresent
+        livenessProbe:
+          exec:
+            command:
+            - cat
+            - /readonly-config/redis.conf
+          failureThreshold: 5
+          initialDelaySeconds: 30
+          periodSeconds: 15
+          successThreshold: 1
+          timeoutSeconds: 15
         name: split-brain-fix
+        readinessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - test -d /proc/1
+          failureThreshold: 5
+          initialDelaySeconds: 30
+          periodSeconds: 15
+          successThreshold: 1
+          timeoutSeconds: 15
         resources: {}
         securityContext:
           allowPrivilegeEscalation: false
@@ -34558,7 +35686,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:8.2.3-alpine
+        image: public.ecr.aws/docker/library/redis:8.10.0-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
         securityContext:

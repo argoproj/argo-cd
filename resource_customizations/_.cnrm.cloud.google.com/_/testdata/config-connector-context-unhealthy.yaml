@@ -1,0 +1,11 @@
+apiVersion: core.cnrm.cloud.google.com/v1beta1
+kind: ConfigConnectorContext
+metadata:
+  generation: 1
+  name: configconnectorcontext.core.cnrm.cloud.google.com
+  namespace: foo
+spec:
+  googleServiceAccount: foo@bar.iam.gserviceaccount.com
+status:
+  healthy: false
+  observedGeneration: 1

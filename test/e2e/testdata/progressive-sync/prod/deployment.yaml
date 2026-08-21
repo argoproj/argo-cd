@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dev-app
+spec:
+  replicas: 1
+  progressDeadlineSeconds: 10
+  selector:
+    matchLabels:
+      app: dev
+  template:
+    metadata:
+      labels:
+        app: dev
+    spec:
+      containers:
+        - name: main
+          command: ["sleep", "999"]
+          image: alpine:invalid!  # Bad image - will be stuck Progressing
+          imagePullPolicy: IfNotPresent

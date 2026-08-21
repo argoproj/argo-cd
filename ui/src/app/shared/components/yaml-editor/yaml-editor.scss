@@ -1,3 +1,5 @@
+@import 'node_modules/argo-ui/src/styles/theme';
+
 .yaml-editor {
     position: relative;
 
@@ -14,5 +16,11 @@
         right: 1em;
         top: 1em;
         z-index: 1;
+
+        .argo-button--base-o {
+            @include themify($themes) {
+                background-color: themed('background-2');
+            }
+        }
     }
 }

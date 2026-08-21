@@ -53,7 +53,7 @@ export const notificationSubscriptionsParser = {
 };
 
 /**
- * split the notification subscription related annotation to have it in seperate edit field
+ * split the notification subscription related annotation to have it in separate edit field
  * this hook will emit notification subscription state, controller & merge utility to core annotations helpful when final submit
  */
 export const useEditNotificationSubscriptions = (annotations: models.Application['metadata']['annotations']) => {

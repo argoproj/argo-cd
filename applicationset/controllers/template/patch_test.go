@@ -96,7 +96,7 @@ func Test_ApplyTemplatePatch(t *testing.T) {
 					},
 					SyncPolicy: &appv1.SyncPolicy{
 						Automated: &appv1.SyncPolicyAutomated{
-							Prune: true,
+							Prune: new(true),
 						},
 					},
 				},
@@ -172,7 +172,7 @@ spec:
 					},
 					SyncPolicy: &appv1.SyncPolicy{
 						Automated: &appv1.SyncPolicyAutomated{
-							Prune: true,
+							Prune: new(true),
 						},
 					},
 				},
@@ -241,6 +241,7 @@ spec:
 }
 
 func TestError(t *testing.T) {
+	t.Parallel()
 	app := &appv1.Application{}
 
 	result, err := applyTemplatePatch(app, "hello world")

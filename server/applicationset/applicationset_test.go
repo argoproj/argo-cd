@@ -7,7 +7,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	cr_fake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	"github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 	"github.com/argoproj/pkg/v2/sync"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -25,6 +25,7 @@ import (
 	apps "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
 	appinformer "github.com/argoproj/argo-cd/v3/pkg/client/informers/externalversions"
 	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v3/test"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/assets"
 	"github.com/argoproj/argo-cd/v3/util/db"
@@ -143,7 +144,7 @@ func newTestAppSetServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforce
 	// populate the app informer with the fake objects
 	appInformer := factory.Argoproj().V1alpha1().Applications().Informer()
 	// TODO(jessesuen): probably should return cancel function so tests can stop background informer
-	// ctx, cancel := context.WithCancel(context.Background())
+	// ctx, cancel := context.WithCancel(t.Context())
 	go appInformer.Run(ctx.Done())
 	if !k8scache.WaitForCacheSync(ctx.Done(), appInformer.HasSynced) {
 		panic("Timed out waiting for caches to sync")
@@ -152,7 +153,7 @@ func newTestAppSetServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforce
 	appsetInformer := factory.Argoproj().V1alpha1().ApplicationSets().Informer()
 	go appsetInformer.Run(ctx.Done())
 	if !k8scache.WaitForCacheSync(ctx.Done(), appsetInformer.HasSynced) {
-		panic("Timed out waiting for caches to sync")
+		t.Fatal("Timed out waiting for caches to sync")
 	}
 
 	scheme := runtime.NewScheme()
@@ -160,6 +161,24 @@ func newTestAppSetServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforce
 	require.NoError(t, err)
 	err = corev1.AddToScheme(scheme)
 	require.NoError(t, err)
+
+	// Add the fake cluster secret so the ClusterGenerator can find it via controller-runtime client
+	fakeClusterSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "cluster-cluster-api.example.com-2aborni",
+			Namespace: testNamespace,
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+			},
+		},
+		Data: map[string][]byte{
+			"name":   []byte("fake-cluster"),
+			"server": []byte("https://cluster-api.example.com"),
+			"config": []byte("{}"),
+		},
+	}
+	objects = append(objects, fakeClusterSecret)
+
 	crClient := cr_fake.NewClientBuilder().WithScheme(scheme).WithObjects(objects...).Build()
 
 	projInformer := factory.Argoproj().V1alpha1().AppProjects().Informer()
@@ -167,6 +186,12 @@ func newTestAppSetServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforce
 	if !k8scache.WaitForCacheSync(ctx.Done(), projInformer.HasSynced) {
 		panic("Timed out waiting for caches to sync")
 	}
+
+	clusterInformer, err := settings.NewClusterInformer(kubeclientset, testNamespace)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer test.StartInformer(clusterInformer)()
 
 	server := NewServer(
 		db,
@@ -176,8 +201,9 @@ func newTestAppSetServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforce
 		enforcer,
 		nil,
 		fakeAppsClientset,
-		appInformer,
+		appsetInformer,
 		factory.Argoproj().V1alpha1().ApplicationSets().Lister(),
+		nil,
 		testNamespace,
 		sync.NewKeyLock(),
 		[]string{testNamespace, "external-namespace"},
@@ -188,6 +214,7 @@ func newTestAppSetServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforce
 		true,
 		true,
 		testEnableEventList,
+		clusterInformer,
 	)
 	return server.(*Server), kubeclientset
 }
@@ -805,11 +832,12 @@ func TestListResourceEvents(t *testing.T) {
 
 		res, err := appSetServer.ListResourceEvents(t.Context(), &appsetQuery)
 		require.NoError(t, err)
-		assert.NotEmpty(t, res.Items)
 		assert.Len(t, res.Items, 2)
 
-		// Verify the returned events have the expected content
-		eventNames := []string{res.Items[0].Name, res.Items[1].Name}
+		eventNames := make([]string, 0, len(res.Items))
+		for _, item := range res.Items {
+			eventNames = append(eventNames, item.Metadata.Name)
+		}
 		assert.Contains(t, eventNames, "appset1-event-1")
 		assert.Contains(t, eventNames, "appset1-event-2")
 	})

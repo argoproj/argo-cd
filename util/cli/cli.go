@@ -9,13 +9,16 @@ import (
 	stderrors "errors"
 	"flag"
 	"fmt"
+	"math"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path"
 	"strconv"
 	"strings"
+	"syscall"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/text"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/text"
 	"github.com/google/shlex"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -32,6 +35,32 @@ import (
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	utillog "github.com/argoproj/argo-cd/v3/util/log"
 )
+
+func WithSignalContext(run func(c *cobra.Command, args []string, stop context.CancelFunc)) func(c *cobra.Command, args []string) {
+	runE := WithSignalContextE(func(c *cobra.Command, args []string, stop context.CancelFunc) error {
+		run(c, args, stop)
+		return nil
+	})
+	return func(c *cobra.Command, args []string) {
+		_ = runE(c, args)
+	}
+}
+
+func WithSignalContextE(run func(c *cobra.Command, args []string, stop context.CancelFunc) error) func(c *cobra.Command, args []string) error {
+	return func(c *cobra.Command, args []string) error {
+		ctx, stop := signal.NotifyContext(c.Context(), syscall.SIGINT, syscall.SIGTERM)
+		defer stop()
+		c.SetContext(ctx)
+
+		// after the first signal, unregister so a second Ctrl+C falls through to the default handler and kills the process
+		go func() {
+			<-ctx.Done()
+			stop()
+		}()
+
+		return run(c, args, stop)
+	}
+}
 
 // NewVersionCmd returns a new `version` command to be used as a sub-command to root
 func NewVersionCmd(cliName string) *cobra.Command {
@@ -207,6 +236,9 @@ func SetLogLevel(logLevel string) {
 // SetGLogLevel set the glog level for the k8s go-client
 func SetGLogLevel(glogLevel int) {
 	klog.InitFlags(nil)
+	// Opt into fixed stderrthreshold behavior (kubernetes/klog#212).
+	_ = flag.Set("legacy_stderr_threshold_behavior", "false")
+	_ = flag.Set("stderrthreshold", "INFO")
 	_ = flag.Set("logtostderr", "true")
 	_ = flag.Set("v", strconv.Itoa(glogLevel))
 }
@@ -247,7 +279,7 @@ const (
 func setComments(input []byte, comments string) []byte {
 	input = stripComments(input)
 	var commentLines []string
-	for _, line := range strings.Split(comments, "\n") {
+	for line := range strings.SplitSeq(comments, "\n") {
 		if line != "" {
 			commentLines = append(commentLines, "# "+line)
 		}
@@ -345,4 +377,36 @@ func PrintDiff(name string, live *unstructured.Unstructured, target *unstructure
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
 	return cmd.Run()
+}
+
+// boundedFloat64Value is a pflag.Value that accepts a float64 within [min, max].
+type boundedFloat64Value struct {
+	val      *float64
+	min, max float64
+}
+
+func (b *boundedFloat64Value) Set(s string) error {
+	v, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return err
+	}
+	// NaN must be rejected explicitly: NaN comparisons are always false, so it would
+	// otherwise slip past the range check below.
+	if math.IsNaN(v) || v < b.min || v > b.max {
+		return fmt.Errorf("%s is out of range [%g, %g]", s, b.min, b.max)
+	}
+	*b.val = v
+	return nil
+}
+
+func (*boundedFloat64Value) Type() string { return "float" }
+
+func (b *boundedFloat64Value) String() string { return strconv.FormatFloat(*b.val, 'g', -1, 64) }
+
+// BoundedFloat64Var defines a float64 flag constrained to [min, max], rejecting out-of-range
+// or NaN input at parse time. It mirrors the signature of pflag's Float64Var. The default
+// value is not validated, matching pflag's behavior (Set runs only for an explicit flag).
+func BoundedFloat64Var(fs *pflag.FlagSet, p *float64, name string, value, minimum, maximum float64, usage string) {
+	*p = value
+	fs.Var(&boundedFloat64Value{val: p, min: minimum, max: maximum}, name, usage)
 }

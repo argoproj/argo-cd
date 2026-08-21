@@ -183,9 +183,9 @@ func getAdditionalNamespaces(ctx context.Context, configMapsClient dynamic.Resou
 	namespacesListFromString := func(namespaces string) []string {
 		listOfNamespaces := []string{}
 
-		ss := strings.Split(namespaces, ",")
+		ss := strings.SplitSeq(namespaces, ",")
 
-		for _, namespace := range ss {
+		for namespace := range ss {
 			if namespace != "" {
 				listOfNamespaces = append(listOfNamespaces, strings.TrimSpace(namespace))
 			}

@@ -14,4 +14,6 @@ The following environment variables can be used with `argocd` CLI:
 | `ARGOCD_REDIS_NAME`                  | the Argo CD Redis name (default "argocd-redis")                                                                                                                                                           |
 | `ARGOCD_REDIS_SERVER`                | the address of an external Redis server to use in --core mode. If set, the CLI bypasses in-cluster pod discovery and port-forwarding. <br> eg. `ARGOCD_REDIS_SERVER=localhost:6379`                      |
 | `ARGOCD_REDIS_HAPROXY_NAME`          | the Argo CD Redis HA Proxy name (default "argocd-redis-ha-haproxy")                                                                                                                                       |
+| `ARGOCD_REDIS_KEY_PREFIX`            | the Argo CD Redis keys prefix (default "")
+|
 | `ARGOCD_GRPC_KEEP_ALIVE_MIN`         | defines the GRPCKeepAliveEnforcementMinimum, used in the grpc.KeepaliveEnforcementPolicy. Expects a "Duration" format (default `10s`).                                                                    |

@@ -8,6 +8,7 @@ import (
 )
 
 func TestValueInterpolation(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name     string
 		values   map[string]string
@@ -55,6 +56,7 @@ func TestValueInterpolation(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
 			err := appendTemplatedValues(testCase.values, testCase.params, false, nil)
 			require.NoError(t, err)
 			assert.Equal(t, testCase.expected, testCase.params)
@@ -63,6 +65,7 @@ func TestValueInterpolation(t *testing.T) {
 }
 
 func TestValueInterpolationWithGoTemplating(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name     string
 		values   map[string]string
@@ -116,6 +119,7 @@ func TestValueInterpolationWithGoTemplating(t *testing.T) {
 
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
 			err := appendTemplatedValues(testCase.values, testCase.params, true, nil)
 			require.NoError(t, err)
 			assert.Equal(t, testCase.expected, testCase.params)

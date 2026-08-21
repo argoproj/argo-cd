@@ -9,40 +9,41 @@ import (
 	"os"
 
 	"code.gitea.io/sdk/gitea"
+
+	"github.com/argoproj/argo-cd/v3/util/proxy"
 )
 
 type GiteaProvider struct {
-	client      *gitea.Client
-	owner       string
-	allBranches bool
+	client               *gitea.Client
+	owner                string
+	allBranches          bool
+	excludeArchivedRepos bool
 }
 
 var _ SCMProviderService = &GiteaProvider{}
 
-func NewGiteaProvider(owner, token, url string, allBranches, insecure bool) (*GiteaProvider, error) {
+func NewGiteaProvider(owner, token, url string, allBranches, insecure, excludeArchivedRepos bool, proxyURL, noProxy string) (*GiteaProvider, error) {
 	if token == "" {
 		token = os.Getenv("GITEA_TOKEN")
 	}
-	httpClient := &http.Client{}
+
+	transport := http.DefaultTransport.(*http.Transport).Clone()
 	if insecure {
-		cookieJar, _ := cookiejar.New(nil)
-
-		tr := http.DefaultTransport.(*http.Transport).Clone()
-		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
-
-		httpClient = &http.Client{
-			Jar:       cookieJar,
-			Transport: tr,
-		}
+		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
 	}
+	transport.Proxy = proxy.GetCallback(proxyURL, noProxy)
+
+	cookieJar, _ := cookiejar.New(nil)
+	httpClient := &http.Client{Jar: cookieJar, Transport: transport}
 	client, err := gitea.NewClient(url, gitea.SetToken(token), gitea.SetHTTPClient(httpClient))
 	if err != nil {
 		return nil, fmt.Errorf("error creating a new gitea client: %w", err)
 	}
 	return &GiteaProvider{
-		client:      client,
-		owner:       owner,
-		allBranches: allBranches,
+		client:               client,
+		owner:                owner,
+		allBranches:          allBranches,
+		excludeArchivedRepos: excludeArchivedRepos,
 	}, nil
 }
 
@@ -114,6 +115,11 @@ func (g *GiteaProvider) ListRepos(_ context.Context, cloneProtocol string) ([]*R
 		for _, label := range giteaLabels {
 			labels = append(labels, label.Name)
 		}
+
+		if g.excludeArchivedRepos && repo.Archived {
+			continue
+		}
+
 		repos = append(repos, &Repository{
 			Organization: g.owner,
 			Repository:   repo.Name,

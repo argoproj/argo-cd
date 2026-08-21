@@ -251,6 +251,8 @@ export interface ApplicationSource {
     ref?: string;
 
     name?: string;
+
+    tagPrefix?: string;
 }
 
 export interface SourceHydrator {
@@ -262,12 +264,17 @@ export interface SourceHydrator {
 export interface DrySource {
     repoURL: string;
     targetRevision: string;
-    path: string;
+    path?: string;
+    helm?: ApplicationSourceHelm;
+    kustomize?: ApplicationSourceKustomize;
+    plugin?: ApplicationSourcePlugin;
+    directory?: ApplicationSourceDirectory;
 }
 
 export interface SyncSource {
     targetBranch: string;
     path: string;
+    repoURL?: string;
 }
 
 export interface HydrateTo {
@@ -344,7 +351,7 @@ export interface Info {
 
 export interface ApplicationSpec {
     project: string;
-    source: ApplicationSource;
+    source?: ApplicationSource;
     sources: ApplicationSource[];
     sourceHydrator?: SourceHydrator;
     destination: ApplicationDestination;
@@ -438,6 +445,14 @@ export interface ResourceStatus {
     orphaned?: boolean;
 }
 
+export interface Resource extends ResourceStatus {
+    appProject?: string;
+    appName?: string;
+    appNamespace?: string;
+    clusterName?: string;
+    clusterServer?: string;
+}
+
 export interface ResourceRef {
     uid: string;
     kind: string;
@@ -519,6 +534,7 @@ export interface ApplicationCondition {
 export interface ApplicationSummary {
     externalURLs?: string[];
     images?: string[];
+    isAppOfApps?: boolean;
 }
 
 export interface ApplicationStatus {
@@ -543,7 +559,9 @@ export interface HydrateOperation {
     finishedAt?: models.Time;
     phase: HydrateOperationPhase;
     message: string;
+    // drySHA is the sha of the DRY commit being hydrated. This will be empty if the operation is not successful.
     drySHA: string;
+    // hydratedSHA is the sha of the hydrated commit. This will be empty if the operation is not successful.
     hydratedSHA: string;
     sourceHydrator: SourceHydrator;
 }
@@ -594,9 +612,11 @@ export interface AuthSettings {
     };
     dexConfig: {
         connectors: {
+            id?: string;
             name: string;
             type: string;
         }[];
+        dexAuthConnectorID?: string;
     };
     oidcConfig: {
         name: string;
@@ -613,10 +633,18 @@ export interface AuthSettings {
     uiBannerURL: string;
     uiBannerPermanent: boolean;
     uiBannerPosition: string;
+    uiLoginButtonText: string;
     execEnabled: boolean;
     appsInAnyNamespaceEnabled: boolean;
     hydratorEnabled: boolean;
     syncWithReplaceAllowed: boolean;
+    resourceViewEnabled: boolean;
+    appLabelKey: string;
+    trackingMethod: string;
+    additionalUrls: string[];
+    impersonationEnabled: boolean;
+    controllerNamespace: string;
+    installationID: string;
 }
 
 export interface UserInfo {
@@ -670,6 +698,11 @@ export interface Repository {
     insecureOCIForceHttp?: boolean;
     enableOCI: boolean;
     useAzureWorkloadIdentity: boolean;
+    depth?: number;
+    azureServicePrincipalClientId?: string;
+    azureServicePrincipalClientSecret?: string;
+    azureServicePrincipalTenantId?: string;
+    azureActiveDirectoryEndpoint?: string;
 }
 
 export interface RepositoryList extends ItemsList<Repository> {}
@@ -678,6 +711,8 @@ export interface RepoCreds {
     url: string;
     username?: string;
     bearerToken?: string;
+    type?: string;
+    enableOCI?: boolean;
 }
 
 export interface RepoCredsList extends ItemsList<RepoCreds> {}
@@ -882,6 +917,7 @@ export interface SyncWindow {
     timeZone: string;
     andOperator: boolean;
     description: string;
+    syncOverrun: boolean;
 }
 
 export interface Project {
@@ -1168,5 +1204,6 @@ export interface ApplicationSet extends AbstractApplication {
             targetRevisions?: string[];
         }>;
         resources?: ApplicationSetResource[];
+        resourcesCount?: number;
     };
 }

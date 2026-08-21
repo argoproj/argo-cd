@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -58,13 +59,7 @@ func matchFilter(ctx context.Context, provider SCMProviderService, repo *Reposit
 	}
 
 	if filter.LabelMatch != nil {
-		found := false
-		for _, label := range repo.Labels {
-			if filter.LabelMatch.MatchString(label) {
-				found = true
-				break
-			}
-		}
+		found := slices.ContainsFunc(repo.Labels, filter.LabelMatch.MatchString)
 		if !found {
 			return false, nil
 		}

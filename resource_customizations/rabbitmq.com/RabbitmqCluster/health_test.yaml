@@ -4,12 +4,12 @@ tests:
     message: Unknown 'foo' parameter
   inputPath: testdata/degraded_badconfig.yaml
 - healthStatus:
-    status: Degraded
-    message: No statefulset or endpoints found
+    status: Progressing
+    message: Waiting for RabbitMQ cluster readiness (conditions unknown)
   inputPath: testdata/degraded_cluster_unknown.yaml
 - healthStatus:
-    status: Degraded
-    message: No statefulset or endpoints found
+    status: Progressing
+    message: Waiting for RabbitMQ cluster readiness (conditions unknown)
   inputPath: testdata/degraded_replicas_unknown.yaml
 - healthStatus:
     status: Progressing

@@ -1,0 +1,28 @@
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  generation: 1
+  name: basic
+spec:
+  virtualhost:
+    fqdn: foo-basic.bar.com
+  includes:
+  - name: unimportant
+status:
+  conditions:
+    - errors:
+      - message: include unimportant not found
+        reason: IncludeNotFound
+        status: "True"
+        type: IncludeError
+      type: Valid
+      status: "False"
+      observedGeneration: 1
+      lastTransitionTime: "2025-04-07T10:00:00Z"
+      reason: ErrorPresent
+      message: At least one error present, see Errors for details
+  currentStatus: invalid
+  description: At least one error present, see Errors for details
+  loadBalancer:
+    ingress:
+      - hostname: www.example.com

@@ -242,6 +242,36 @@ stringData:
   useAzureWorkloadIdentity: "true"
 ```
 
+### Azure Devops using Service Principal
+
+Azure DevOps repositories can be accessed using credentials from a Service Principal. Refer to steps 1,2 and 3 from the [Use service principals and managed identities in Azure DevOps](https://learn.microsoft.com/en-us/azure/devops/integrate/get-started/authentication/service-principal-managed-identity?view=azure-devops) documentation on how to create a service principal and configure access to Azure DevOps.
+
+> [!NOTE]
+> Ensure your service principal has at least `Project Readers` permissions to the `Project` that contains the repository. This is the minimum requirement.
+
+You can configure access to your Git repository hosted on Azure DevOps with Service Principal by either using the CLI or the UI.
+
+Using the CLI:
+
+```
+argocd repo add https://dev.azure.com/my-devops-organization/my-devops-project/_git/my-devops-repo --azure-service-principal-tenant-id 12345678-1234-1234-1234-123456789012 --azure-service-principal-client-id 12345678-1234-1234-1234-123456789012 --azure-service-principal-client-secret test
+```
+
+> [!NOTE]
+> To use an Azure cloud other than the default public cloud using the CLI add `--azure-active-directory-endpoint https://login.microsoftonline.de` flag.
+
+Using the UI:
+
+1. Navigate to `Settings/Repositories`
+
+    ![connect repo overview](../assets/repo-add-overview.png)
+
+2. Click `Connect Repo` button, choose connection method: `Via Azure Service Principal`, enter the URL, Tenant Id, Client Id, Client Secret, and Active Directory Endpoint if not using default Azure public cloud.
+
+    ![connect repo](../assets/repo-add-azure-service-principal.png)
+
+3. Click `Connect` to test the connection and have the repository added
+
 ## Credential templates
 
 You can also set up credentials to serve as templates for connecting repositories, without having to repeat credential configuration. For example, if you setup credential templates for the URL prefix `https://github.com/argoproj`, these credentials will be used for all repositories with this URL as prefix (e.g. `https://github.com/argoproj/argocd-example-apps`) that do not have their own credentials configured.
@@ -361,7 +391,7 @@ It is possible to add and remove TLS certificates using the ArgoCD web UI:
 ### Managing TLS certificates using declarative configuration
 
 You can also manage TLS certificates in a declarative, self-managed ArgoCD setup. All TLS certificates are stored in the ConfigMap object `argocd-tls-certs-cm`.
-Please refer to the [Operator Manual](../../operator-manual/declarative-setup/#repositories-using-self-signed-tls-certificates-or-are-signed-by-custom-ca) for more information.
+Please refer to the [Operator Manual](../operator-manual/declarative-setup.md#repositories-using-self-signed-tls-certificates-or-are-signed-by-custom-ca) for more information.
 
 ## Unknown SSH Hosts
 
@@ -486,6 +516,29 @@ argocd repo add registry-1.docker.io/bitnamicharts --type=helm --enable-oci=true
 Using the UI:
 
 Select the _Enable OCI_ checkbox when adding a HTTPS based _helm_ repository.
+
+### Custom HTTP User-Agent
+
+Some Helm repository providers (like Wikimedia) require a specific User-Agent header as part of their robot access policies. Argo CD automatically sends a default User-Agent header (`argocd-repo-server/<version> (<platform>)`) for all Helm repository requests.
+
+If you need to customize the User-Agent (for example, to include your organization name or contact information), set the `ARGOCD_HELM_USER_AGENT` environment variable on the `argocd-repo-server` deployment:
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-repo-server
+spec:
+  template:
+    spec:
+      containers:
+      - name: argocd-repo-server
+        env:
+        - name: ARGOCD_HELM_USER_AGENT
+          value: "my-org/argocd (team@example.com)"
+```
+
+This environment variable applies globally to all Helm repository requests.
 
 ## Git Submodules
 

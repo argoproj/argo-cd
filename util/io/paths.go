@@ -1,6 +1,7 @@
 package io
 
 import (
+	"maps"
 	"path/filepath"
 	"sync"
 
@@ -65,8 +66,6 @@ func (p *RandomizedTempPaths) GetPaths() map[string]string {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 	paths := map[string]string{}
-	for k, v := range p.paths {
-		paths[k] = v
-	}
+	maps.Copy(paths, p.paths)
 	return paths
 }

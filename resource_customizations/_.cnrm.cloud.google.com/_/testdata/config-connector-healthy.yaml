@@ -1,0 +1,12 @@
+apiVersion: core.cnrm.cloud.google.com/v1beta1
+kind: ConfigConnector
+metadata:
+  finalizers:
+  - configconnector.cnrm.cloud.google.com/finalizer
+  generation: 2
+  name: configconnector.core.cnrm.cloud.google.com
+spec:
+  mode: namespaced
+status:
+  healthy: true
+  observedGeneration: 2

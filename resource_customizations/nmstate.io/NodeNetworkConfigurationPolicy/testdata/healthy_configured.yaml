@@ -1,0 +1,30 @@
+apiVersion: nmstate.io/v1
+kind: NodeNetworkConfigurationPolicy
+metadata:
+  name: test-node-network-configuration-policy
+spec:
+  nodeSelector:
+    kubernetes.io/hostname: node1
+  desiredState:
+    interfaces:
+      - name: eth1
+        type: ethernet
+        state: up
+status:
+  conditions:
+    - lastHeartbeatTime: '2026-02-18T13:41:43Z'
+      lastTransitionTime: '2026-02-18T13:41:43Z'
+      message: 1/1 nodes successfully configured
+      reason: SuccessfullyConfigured
+      status: 'True'
+      type: Available
+    - lastHeartbeatTime: '2026-02-18T13:41:43Z'
+      lastTransitionTime: '2026-02-18T13:41:43Z'
+      reason: SuccessfullyConfigured
+      status: 'False'
+      type: Degraded
+    - lastHeartbeatTime: '2026-02-18T13:41:43Z'
+      lastTransitionTime: '2026-02-18T13:41:43Z'
+      reason: ConfigurationProgressing
+      status: 'False'
+      type: Progressing

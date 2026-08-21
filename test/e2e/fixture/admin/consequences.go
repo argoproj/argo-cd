@@ -14,13 +14,13 @@ type Consequences struct {
 }
 
 func (c *Consequences) And(block func()) *Consequences {
-	c.context.t.Helper()
+	c.context.T().Helper()
 	block()
 	return c
 }
 
 func (c *Consequences) AndCLIOutput(block func(output string, err error)) *Consequences {
-	c.context.t.Helper()
+	c.context.T().Helper()
 	block(c.actions.lastOutput, c.actions.lastError)
 	return c
 }

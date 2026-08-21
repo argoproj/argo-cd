@@ -14,8 +14,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 )
 
-var tenSec = int64(10)
-
 func TestSimpleClusterDecisionResourceGeneratorExternalNamespace(t *testing.T) {
 	externalNamespace := string(utils.ArgoCDExternalNamespace)
 
@@ -63,9 +61,6 @@ func TestSimpleClusterDecisionResourceGeneratorExternalNamespace(t *testing.T) {
 		StatusUpdatePlacementDecision("my-placementdecision", clusterList).
 		SwitchToExternalNamespace(utils.ArgoCDExternalNamespace).
 		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "simple-cluster-generator",
-			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-guestbook"},
@@ -122,7 +117,7 @@ func TestSimpleClusterDecisionResourceGeneratorExternalNamespace(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewNamespace}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewNamespace}))
 }
 
 func TestSimpleClusterDecisionResourceGenerator(t *testing.T) {
@@ -169,9 +164,6 @@ func TestSimpleClusterDecisionResourceGenerator(t *testing.T) {
 		CreatePlacementDecision("my-placementdecision").
 		StatusUpdatePlacementDecision("my-placementdecision", clusterList).
 		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "simple-cluster-generator",
-			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-guestbook"},
@@ -224,7 +216,7 @@ func TestSimpleClusterDecisionResourceGenerator(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewNamespace}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewNamespace}))
 }
 
 func TestSimpleClusterDecisionResourceGeneratorAddingCluster(t *testing.T) {
@@ -280,9 +272,6 @@ func TestSimpleClusterDecisionResourceGeneratorAddingCluster(t *testing.T) {
 		CreatePlacementDecision("my-placementdecision").
 		StatusUpdatePlacementDecision("my-placementdecision", clusterList).
 		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "simple-cluster-generator",
-			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-guestbook"},
@@ -305,7 +294,7 @@ func TestSimpleClusterDecisionResourceGeneratorAddingCluster(t *testing.T) {
 						ClusterDecisionResource: &v1alpha1.DuckTypeGenerator{
 							ConfigMapRef:        "my-configmap",
 							Name:                "my-placementdecision",
-							RequeueAfterSeconds: &tenSec,
+							RequeueAfterSeconds: new(int64(10)),
 						},
 					},
 				},
@@ -319,7 +308,7 @@ func TestSimpleClusterDecisionResourceGeneratorAddingCluster(t *testing.T) {
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedAppCluster1, expectedAppCluster2}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedAppCluster1, expectedAppCluster2}))
 }
 
 func TestSimpleClusterDecisionResourceGeneratorDeletingClusterSecret(t *testing.T) {
@@ -376,9 +365,6 @@ func TestSimpleClusterDecisionResourceGeneratorDeletingClusterSecret(t *testing.
 		CreatePlacementDecision("my-placementdecision").
 		StatusUpdatePlacementDecision("my-placementdecision", clusterList).
 		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "simple-cluster-generator",
-			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-guestbook"},
@@ -401,7 +387,7 @@ func TestSimpleClusterDecisionResourceGeneratorDeletingClusterSecret(t *testing.
 						ClusterDecisionResource: &v1alpha1.DuckTypeGenerator{
 							ConfigMapRef:        "my-configmap",
 							Name:                "my-placementdecision",
-							RequeueAfterSeconds: &tenSec,
+							RequeueAfterSeconds: new(int64(10)),
 						},
 					},
 				},
@@ -416,7 +402,7 @@ func TestSimpleClusterDecisionResourceGeneratorDeletingClusterSecret(t *testing.
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedAppCluster1}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedAppCluster1}))
 }
 
 func TestSimpleClusterDecisionResourceGeneratorDeletingClusterFromResource(t *testing.T) {
@@ -480,9 +466,6 @@ func TestSimpleClusterDecisionResourceGeneratorDeletingClusterFromResource(t *te
 		CreatePlacementDecision("my-placementdecision").
 		StatusUpdatePlacementDecision("my-placementdecision", clusterList).
 		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "simple-cluster-generator",
-			},
 			Spec: v1alpha1.ApplicationSetSpec{
 				Template: v1alpha1.ApplicationSetTemplate{
 					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{name}}-guestbook"},
@@ -505,7 +488,7 @@ func TestSimpleClusterDecisionResourceGeneratorDeletingClusterFromResource(t *te
 						ClusterDecisionResource: &v1alpha1.DuckTypeGenerator{
 							ConfigMapRef:        "my-configmap",
 							Name:                "my-placementdecision",
-							RequeueAfterSeconds: &tenSec,
+							RequeueAfterSeconds: new(int64(10)),
 						},
 					},
 				},
@@ -520,5 +503,5 @@ func TestSimpleClusterDecisionResourceGeneratorDeletingClusterFromResource(t *te
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
-		Delete().Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedAppCluster1}))
+		Delete(metav1.DeletePropagationForeground).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedAppCluster1}))
 }

@@ -3,6 +3,7 @@ package settings
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"strings"
 
 	"github.com/argoproj/notifications-engine/pkg/api"
@@ -229,8 +230,6 @@ func injectLegacyVar(ctx map[string]string, serviceType string) map[string]strin
 	res := map[string]string{
 		"notificationType": serviceType,
 	}
-	for k, v := range ctx {
-		res[k] = v
-	}
+	maps.Copy(res, ctx)
 	return res
 }

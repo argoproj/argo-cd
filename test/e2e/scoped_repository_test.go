@@ -16,22 +16,22 @@ import (
 )
 
 func TestCreateRepositoryWithProject(t *testing.T) {
-	prjConsequence := projectFixture.Given(t).
+	ctx := projectFixture.Given(t).Name("argo-project")
+	prjConsequence := ctx.
 		When().
-		Name("argo-project").
 		Create().
 		Then()
 
 	path := "https://github.com/argoproj/argo-cd.git"
-	repoFixture.GivenWithSameState(t).
+	repoFixture.GivenWithSameState(ctx).
 		When().
 		Path(path).
-		Project("argo-project").
+		Project(ctx.GetName()).
 		Create().
 		Then().
 		And(func(r *Repository, _ error) {
-			assert.Equal(t, r.Repo, path)
-			assert.Equal(t, "argo-project", r.Project)
+			assert.Equal(t, path, r.Repo)
+			assert.Equal(t, ctx.GetName(), r.Project)
 
 			prjConsequence.And(func(projectResponse *project.DetailedProjectsResponse, _ error) {
 				assert.Len(t, projectResponse.Repositories, 1)
@@ -41,14 +41,14 @@ func TestCreateRepositoryWithProject(t *testing.T) {
 }
 
 func TestCreateRepositoryNonAdminUserPermissionDenied(t *testing.T) {
-	accountFixture.Given(t).
-		Name("test").
+	ctx := accountFixture.Given(t)
+	ctx.Name("test").
 		When().
 		Create().
 		Login()
 
 	path := "https://github.com/argoproj/argo-cd.git"
-	repoFixture.GivenWithSameState(t).
+	repoFixture.GivenWithSameState(ctx).
 		When().
 		Path(path).
 		Project("argo-project").
@@ -61,8 +61,8 @@ func TestCreateRepositoryNonAdminUserPermissionDenied(t *testing.T) {
 }
 
 func TestCreateRepositoryNonAdminUserWithWrongProject(t *testing.T) {
-	accountFixture.Given(t).
-		Name("test").
+	ctx := accountFixture.Given(t)
+	ctx.Name("test").
 		When().
 		Create().
 		Login().
@@ -75,7 +75,7 @@ func TestCreateRepositoryNonAdminUserWithWrongProject(t *testing.T) {
 		}, "org-admin")
 
 	path := "https://github.com/argoproj/argo-cd.git"
-	repoFixture.GivenWithSameState(t).
+	repoFixture.GivenWithSameState(ctx).
 		When().
 		Path(path).
 		Project("argo-project").
@@ -88,8 +88,8 @@ func TestCreateRepositoryNonAdminUserWithWrongProject(t *testing.T) {
 }
 
 func TestDeleteRepositoryRbacAllowed(t *testing.T) {
-	accountFixture.Given(t).
-		Name("test").
+	ctx := accountFixture.Given(t)
+	ctx.Name("test").
 		When().
 		Create().
 		Login().
@@ -112,7 +112,7 @@ func TestDeleteRepositoryRbacAllowed(t *testing.T) {
 		}, "org-admin")
 
 	path := "https://github.com/argoproj/argo-cd.git"
-	repoFixture.GivenWithSameState(t).
+	repoFixture.GivenWithSameState(ctx).
 		When().
 		Path(path).
 		Project("argo-project").
@@ -131,8 +131,8 @@ func TestDeleteRepositoryRbacAllowed(t *testing.T) {
 }
 
 func TestDeleteRepositoryRbacDenied(t *testing.T) {
-	accountFixture.Given(t).
-		Name("test").
+	ctx := accountFixture.Given(t)
+	ctx.Name("test").
 		When().
 		Create().
 		Login().
@@ -155,7 +155,7 @@ func TestDeleteRepositoryRbacDenied(t *testing.T) {
 		}, "org-admin")
 
 	path := "https://github.com/argoproj/argo-cd.git"
-	repoFixture.GivenWithSameState(t).
+	repoFixture.GivenWithSameState(ctx).
 		When().
 		Path(path).
 		Project("argo-project").
@@ -234,22 +234,22 @@ git         https://github.com/argoproj/argo-cd.git  false     false  false  fal
 }
 
 func TestCreateRepoWithSameURLInTwoProjects(t *testing.T) {
-	projectFixture.Given(t).
+	ctx := projectFixture.Given(t)
+	ctx.Name("project-one").
 		When().
-		Name("project-one").
 		Create().
 		Then()
 
 	projectFixture.Given(t).
-		When().
 		Name("project-two").
+		When().
 		Create().
 		Then()
 
 	path := "https://github.com/argoproj/argo-cd.git"
 
 	// Create repository in first project
-	repoFixture.GivenWithSameState(t).
+	repoFixture.GivenWithSameState(ctx).
 		When().
 		Path(path).
 		Project("project-one").
@@ -260,7 +260,7 @@ func TestCreateRepoWithSameURLInTwoProjects(t *testing.T) {
 		})
 
 	// Create repository with same URL in second project
-	repoFixture.GivenWithSameState(t).
+	repoFixture.GivenWithSameState(ctx).
 		When().
 		Path(path).
 		Project("project-two").

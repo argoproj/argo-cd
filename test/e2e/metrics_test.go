@@ -27,10 +27,10 @@ func TestKubectlMetrics(t *testing.T) {
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		And(func(app *Application) {
-			assert.Equal(t, fixture.Name(), app.Name)
+			assert.Equal(t, ctx.GetName(), app.Name)
 			assert.Equal(t, fixture.RepoURL(fixture.RepoURLTypeFile), app.Spec.GetSource().RepoURL)
 			assert.Equal(t, guestbookPath, app.Spec.GetSource().Path)
-			assert.Equal(t, fixture.DeploymentNamespace(), app.Spec.Destination.Namespace)
+			assert.Equal(t, ctx.DeploymentNamespace(), app.Spec.Destination.Namespace)
 			assert.Equal(t, KubernetesInternalAPIServerAddr, app.Spec.Destination.Server)
 		}).
 		Expect(Event(argo.EventReasonResourceCreated, "create")).
@@ -38,7 +38,7 @@ func TestKubectlMetrics(t *testing.T) {
 			// app should be listed
 			output, err := fixture.RunCli("app", "list")
 			require.NoError(t, err)
-			assert.Contains(t, output, fixture.Name())
+			assert.Contains(t, output, ctx.GetName())
 		}).
 		When().
 		// ensure that create is idempotent

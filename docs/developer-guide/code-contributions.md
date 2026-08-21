@@ -88,6 +88,10 @@ to discuss the proposal with us.
 
 Also, issues that we find to require a more formal design document will be moved to this column.
 
+## Use of Generative AI
+
+Contributors using generative AI tools (for example ChatGPT) to help prepare contributions must follow the [Argo project Generative AI policy](https://github.com/argoproj/argoproj/blob/main/community/genai.md).
+
 ## Design documents
 
 For some enhancement proposals (especially those that will change behavior of Argo CD substantially, are attached with some caveats or where upgrade/downgrade paths are not clear), a more formal design document will be required in order to fully discuss and understand the enhancement in the broader community. This requirement is usually determined during triage. If you submitted an enhancement proposal, we may ask you to provide this more formal write down, along with some concerns or topics that need to be addressed.
@@ -96,9 +100,9 @@ Design documents are usually submitted as PR and use [this template](https://git
 
 ## Regular contributor meeting
 
-Our community regularly meets virtually to discuss issues, ideas and enhancements around Argo CD. We do invite you to join this virtual meetings if you want to bring up certain things (including your enhancement proposals), participate in our triaging or just want to get to know other contributors.
+Our community regularly meets virtually to discuss issues, ideas and enhancements around Argo CD. We do invite you to join this virtual meetings if you want to bring up certain things (including your enhancement proposals), participate in our triage, or just want to get to know other contributors.
 
-The current cadence of our meetings is weekly, every Thursday at 8:15AM Pacific Time ([click here to check in your current timezone][1]). We use Zoom to conduct these meetings.
+The current cadence of our meetings is weekly, every Thursday at 8:15AM Pacific Time ([convert to your current timezone][1]). We use Zoom to conduct these meetings.
 
 * [Agenda document (Google Docs, includes Zoom link)](https://docs.google.com/document/d/1xkoFkVviB70YBzSEa4bDnu-rUZ1sIFtwKKG1Uw8XsY8)
 

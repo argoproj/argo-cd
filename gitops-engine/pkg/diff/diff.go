@@ -26,11 +26,11 @@ import (
 	"sigs.k8s.io/structured-merge-diff/v6/merge"
 	"sigs.k8s.io/structured-merge-diff/v6/typed"
 
-	"github.com/argoproj/gitops-engine/internal/kubernetes_vendor/pkg/api/v1/endpoints"
-	"github.com/argoproj/gitops-engine/pkg/diff/internal/fieldmanager"
-	"github.com/argoproj/gitops-engine/pkg/sync/resource"
-	jsonutil "github.com/argoproj/gitops-engine/pkg/utils/json"
-	gescheme "github.com/argoproj/gitops-engine/pkg/utils/kube/scheme"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/internal/kubernetes_vendor/pkg/api/v1/endpoints"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff/internal/fieldmanager"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/resource"
+	jsonutil "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/json"
+	gescheme "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube/scheme"
 )
 
 const (
@@ -73,7 +73,7 @@ func GetNoopNormalizer() Normalizer {
 
 // Diff performs a diff on two unstructured objects. If the live object happens to have a
 // "kubectl.kubernetes.io/last-applied-configuration", then perform a three way diff.
-func Diff(config, live *unstructured.Unstructured, opts ...Option) (*DiffResult, error) {
+func Diff(ctx context.Context, config, live *unstructured.Unstructured, opts ...Option) (*DiffResult, error) {
 	preDiffOpts := opts
 	o := applyOptions(opts)
 	// If server-side diff is enabled, we need to skip full normalization (including ignore differences)
@@ -91,7 +91,7 @@ func Diff(config, live *unstructured.Unstructured, opts ...Option) (*DiffResult,
 	}
 
 	if o.serverSideDiff {
-		r, err := ServerSideDiff(config, live, opts...)
+		r, err := ServerSideDiff(ctx, config, live, opts...)
 		if err != nil {
 			return nil, fmt.Errorf("error calculating server side diff: %w", err)
 		}
@@ -137,9 +137,9 @@ func Diff(config, live *unstructured.Unstructured, opts ...Option) (*DiffResult,
 // given config. The result will be compared with given live resource to determine
 // diff. If config or live are nil it means resource creation or deletion. In this
 // no call will be made to kube-api and a simple diff will be returned.
-func ServerSideDiff(config, live *unstructured.Unstructured, opts ...Option) (*DiffResult, error) {
+func ServerSideDiff(ctx context.Context, config, live *unstructured.Unstructured, opts ...Option) (*DiffResult, error) {
 	if live != nil && config != nil {
-		result, err := serverSideDiff(config, live, opts...)
+		result, err := serverSideDiff(ctx, config, live, opts...)
 		if err != nil {
 			return nil, fmt.Errorf("serverSideDiff error: %w", err)
 		}
@@ -162,12 +162,12 @@ func ServerSideDiff(config, live *unstructured.Unstructured, opts ...Option) (*D
 // given config. The result will be compared with given live resource to determine
 // diff. Modifications done by mutation webhooks are removed from the diff by default.
 // This behaviour can be customized with Option.WithIgnoreMutationWebhook.
-func serverSideDiff(config, live *unstructured.Unstructured, opts ...Option) (*DiffResult, error) {
+func serverSideDiff(ctx context.Context, config, live *unstructured.Unstructured, opts ...Option) (*DiffResult, error) {
 	o := applyOptions(opts)
 	if o.serverSideDryRunner == nil {
 		return nil, errors.New("serverSideDryRunner is null")
 	}
-	predictedLiveStr, err := o.serverSideDryRunner.Run(context.Background(), config, o.manager)
+	predictedLiveStr, err := o.serverSideDryRunner.Run(ctx, config, o.manager)
 	if err != nil {
 		return nil, fmt.Errorf("error running server side apply in dryrun mode for resource %s/%s: %w", config.GetKind(), config.GetName(), err)
 	}
@@ -188,14 +188,19 @@ func serverSideDiff(config, live *unstructured.Unstructured, opts ...Option) (*D
 
 	Normalize(predictedLive, opts...)
 	unstructured.RemoveNestedField(predictedLive.Object, "metadata", "managedFields")
+	unstructured.RemoveNestedField(predictedLive.Object, "metadata", "resourceVersion")
+	unstructured.RemoveNestedField(predictedLive.Object, "metadata", "annotations", AnnotationLastAppliedConfig)
+
+	Normalize(live, opts...)
+	unstructured.RemoveNestedField(live.Object, "metadata", "managedFields")
+	unstructured.RemoveNestedField(live.Object, "metadata", "resourceVersion")
+	unstructured.RemoveNestedField(live.Object, "metadata", "annotations", AnnotationLastAppliedConfig)
 
 	predictedLiveBytes, err := json.Marshal(predictedLive)
 	if err != nil {
 		return nil, fmt.Errorf("error marshaling predicted live for resource %s/%s: %w", config.GetKind(), config.GetName(), err)
 	}
 
-	Normalize(live, opts...)
-	unstructured.RemoveNestedField(live.Object, "metadata", "managedFields")
 	liveBytes, err := json.Marshal(live)
 	if err != nil {
 		return nil, fmt.Errorf("error marshaling live resource %s/%s: %w", config.GetKind(), config.GetName(), err)
@@ -258,6 +263,14 @@ func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkPa
 	// Remove fields from predicted live that are not managed by the provided manager
 	nonArgoFieldsSet := predictedLiveFieldSet.Difference(managerFieldsSet)
 
+	// Some ancestor paths in nonArgoFieldsSet may have manager-owned descendants
+	// that are absent from the set (e.g. fields under x-kubernetes-preserve-unknown-fields,
+	// where Kubernetes records only the leaf paths owned by a manager, not every
+	// intermediate container path). RemoveItems deletes a path's entire subtree
+	// once the path itself is present, so such ancestors must be excluded here to
+	// avoid deleting the manager-owned descendants along with them.
+	nonArgoFieldsSet = excludeManagerOwnedAncestors(nonArgoFieldsSet, managerFieldsSet)
+
 	// Compare the predicted live with the live resource
 	comparison, err := typedLive.Compare(typedPredictedLive)
 	if err != nil {
@@ -276,13 +289,13 @@ func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkPa
 	// Apply the predicted live state to the live state to get a diff without mutation webhook fields
 	typedPredictedLive, err = typedLive.Merge(typedPredictedLive)
 
-	// After applying the predicted live to live state, this would cause any removed fields to be restored.
-	// We need to re-remove these from predicted live.
-	typedPredictedLive = typedPredictedLive.RemoveItems(comparison.Removed)
-
 	if err != nil {
 		return nil, fmt.Errorf("error applying predicted live to live state: %w", err)
 	}
+
+	// After applying the predicted live to live state, this would cause any removed fields to be restored.
+	// We need to re-remove these from predicted live.
+	typedPredictedLive = typedPredictedLive.RemoveItems(comparison.Removed)
 
 	plu := typedPredictedLive.AsValue().Unstructured()
 	pl, ok := plu.(map[string]any)
@@ -290,6 +303,32 @@ func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkPa
 		return nil, fmt.Errorf("error converting live typedValue: expected map got %T", plu)
 	}
 	return &unstructured.Unstructured{Object: pl}, nil
+}
+
+// excludeManagerOwnedAncestors removes any path from toRemove that has at
+// least one strict descendant present in managerFieldsSet, i.e. owned by the
+// manager. This is needed because a *fieldpath.Set can contain a path as a
+// member of an ancestor's set even when a descendant of that path is a
+// separate, distinct member of the manager's set: removing the ancestor would
+// otherwise drop the manager-owned descendant too. Paths in toRemove are
+// assumed to already exclude exact matches in managerFieldsSet (the caller
+// builds toRemove via Difference(managerFieldsSet)), so only strict
+// descendants need to be considered here.
+func excludeManagerOwnedAncestors(toRemove, managerFieldsSet *fieldpath.Set) *fieldpath.Set {
+	filtered := fieldpath.NewSet()
+	toRemove.Iterate(func(path fieldpath.Path) {
+		ownedSubtree := managerFieldsSet
+		for _, pe := range path {
+			ownedSubtree = ownedSubtree.WithPrefix(pe)
+			if ownedSubtree.Empty() {
+				break
+			}
+		}
+		if ownedSubtree.Empty() {
+			filtered.Insert(path)
+		}
+	})
+	return filtered
 }
 
 // filterOutCompositeKeyFields filters out fields that are part of composite keys in associative lists.
@@ -505,7 +544,7 @@ func normalizeTypedValue(tv *typed.TypedValue) ([]byte, error) {
 
 func buildDiffResult(predictedBytes []byte, liveBytes []byte) *DiffResult {
 	return &DiffResult{
-		Modified:       string(liveBytes) != string(predictedBytes),
+		Modified:       !bytes.Equal(liveBytes, predictedBytes),
 		NormalizedLive: liveBytes,
 		PredictedLive:  predictedBytes,
 	}
@@ -839,7 +878,7 @@ func GetLastAppliedConfigAnnotation(live *unstructured.Unstructured) (*unstructu
 
 // DiffArray performs a diff on a list of unstructured objects. Objects are expected to match
 // environments
-func DiffArray(configArray, liveArray []*unstructured.Unstructured, opts ...Option) (*DiffResultList, error) {
+func DiffArray(ctx context.Context, configArray, liveArray []*unstructured.Unstructured, opts ...Option) (*DiffResultList, error) {
 	numItems := len(configArray)
 	if len(liveArray) != numItems {
 		return nil, errors.New("left and right arrays have mismatched lengths")
@@ -848,10 +887,10 @@ func DiffArray(configArray, liveArray []*unstructured.Unstructured, opts ...Opti
 	diffResultList := DiffResultList{
 		Diffs: make([]DiffResult, numItems),
 	}
-	for i := 0; i < numItems; i++ {
+	for i := range numItems {
 		config := configArray[i]
 		live := liveArray[i]
-		diffRes, err := Diff(config, live, opts...)
+		diffRes, err := Diff(ctx, config, live, opts...)
 		if err != nil {
 			return nil, err
 		}
@@ -1048,21 +1087,29 @@ func CreateTwoWayMergePatch(orig, new, dataStruct any) ([]byte, bool, error) {
 	return patch, string(patch) != "{}", nil
 }
 
-// HideSecretData replaces secret data & optional annotations values in specified target, live secrets and in last applied configuration of live secret with plus(+). Also preserves differences between
+// HideSecretData replaces secret data & optional annotations values in specified target, live secrets and in the last
+// applied configuration annotation of both the target and live secrets with plus(+). Also preserves differences between
 // target, live and last applied config values. E.g. if all three are equal the values would be replaced with same number of plus(+). If all are different then number of plus(+)
 // in replacement should be different.
 func HideSecretData(target *unstructured.Unstructured, live *unstructured.Unstructured, hideAnnotations map[string]bool) (*unstructured.Unstructured, *unstructured.Unstructured, error) {
 	var liveLastAppliedAnnotation *unstructured.Unstructured
+	var targetLastAppliedAnnotation *unstructured.Unstructured
+	var liveLastAppliedInvalid, targetLastAppliedInvalid bool
 	if live != nil {
-		liveLastAppliedAnnotation, _ = GetLastAppliedConfigAnnotation(live)
+		var err error
+		liveLastAppliedAnnotation, err = GetLastAppliedConfigAnnotation(live)
+		liveLastAppliedInvalid = err != nil
 		live = live.DeepCopy()
 	}
 	if target != nil {
+		var err error
+		targetLastAppliedAnnotation, err = GetLastAppliedConfigAnnotation(target)
+		targetLastAppliedInvalid = err != nil
 		target = target.DeepCopy()
 	}
 
 	keys := map[string]bool{}
-	for _, obj := range []*unstructured.Unstructured{target, live, liveLastAppliedAnnotation} {
+	for _, obj := range []*unstructured.Unstructured{target, live, targetLastAppliedAnnotation, liveLastAppliedAnnotation} {
 		if obj == nil {
 			continue
 		}
@@ -1075,23 +1122,23 @@ func HideSecretData(target *unstructured.Unstructured, live *unstructured.Unstru
 	}
 
 	var err error
-	target, live, liveLastAppliedAnnotation, err = hide(target, live, liveLastAppliedAnnotation, keys, "data")
+	target, live, targetLastAppliedAnnotation, liveLastAppliedAnnotation, err = hide(target, live, targetLastAppliedAnnotation, liveLastAppliedAnnotation, keys, "data")
 	if err != nil {
 		return nil, nil, err
 	}
 
-	target, live, liveLastAppliedAnnotation, err = hide(target, live, liveLastAppliedAnnotation, hideAnnotations, "metadata", "annotations")
+	target, live, targetLastAppliedAnnotation, liveLastAppliedAnnotation, err = hide(target, live, targetLastAppliedAnnotation, liveLastAppliedAnnotation, hideAnnotations, "metadata", "annotations")
 	if err != nil {
 		return nil, nil, err
 	}
 
-	if live != nil && liveLastAppliedAnnotation != nil {
+	if live != nil && (liveLastAppliedAnnotation != nil || liveLastAppliedInvalid) {
 		annotations := live.GetAnnotations()
 		if annotations == nil {
 			annotations = make(map[string]string)
 		}
 		// special case: hide "kubectl.kubernetes.io/last-applied-configuration" annotation
-		if _, ok := hideAnnotations[corev1.LastAppliedConfigAnnotation]; ok {
+		if _, ok := hideAnnotations[corev1.LastAppliedConfigAnnotation]; ok || liveLastAppliedInvalid {
 			annotations[corev1.LastAppliedConfigAnnotation] = replacement
 		} else {
 			lastAppliedData, err := json.Marshal(liveLastAppliedAnnotation)
@@ -1102,15 +1149,32 @@ func HideSecretData(target *unstructured.Unstructured, live *unstructured.Unstru
 		}
 		live.SetAnnotations(annotations)
 	}
+	if target != nil && (targetLastAppliedAnnotation != nil || targetLastAppliedInvalid) {
+		annotations := target.GetAnnotations()
+		if annotations == nil {
+			annotations = make(map[string]string)
+		}
+		// special case: hide "kubectl.kubernetes.io/last-applied-configuration" annotation
+		if _, ok := hideAnnotations[corev1.LastAppliedConfigAnnotation]; ok || targetLastAppliedInvalid {
+			annotations[corev1.LastAppliedConfigAnnotation] = replacement
+		} else {
+			lastAppliedData, err := json.Marshal(targetLastAppliedAnnotation)
+			if err != nil {
+				return nil, nil, fmt.Errorf("error marshaling json: %w", err)
+			}
+			annotations[corev1.LastAppliedConfigAnnotation] = string(lastAppliedData)
+		}
+		target.SetAnnotations(annotations)
+	}
 	return target, live, nil
 }
 
-func hide(target, live, liveLastAppliedAnnotation *unstructured.Unstructured, keys map[string]bool, fields ...string) (*unstructured.Unstructured, *unstructured.Unstructured, *unstructured.Unstructured, error) {
+func hide(target, live, targetLastAppliedAnnotation, liveLastAppliedAnnotation *unstructured.Unstructured, keys map[string]bool, fields ...string) (*unstructured.Unstructured, *unstructured.Unstructured, *unstructured.Unstructured, *unstructured.Unstructured, error) {
 	for k := range keys {
 		// we use "+" rather than the more common "*"
 		nextReplacement := replacement
 		valToReplacement := make(map[string]string)
-		for _, obj := range []*unstructured.Unstructured{target, live, liveLastAppliedAnnotation} {
+		for _, obj := range []*unstructured.Unstructured{target, live, targetLastAppliedAnnotation, liveLastAppliedAnnotation} {
 			var data map[string]any
 			if obj != nil {
 				// handles an edge case when secret data has nil value
@@ -1124,7 +1188,7 @@ func hide(target, live, liveLastAppliedAnnotation *unstructured.Unstructured, ke
 				var err error
 				data, _, err = unstructured.NestedMap(obj.Object, fields...)
 				if err != nil {
-					return nil, nil, nil, fmt.Errorf("unstructured.NestedMap error: %w", err)
+					return nil, nil, nil, nil, fmt.Errorf("unstructured.NestedMap error: %w", err)
 				}
 			}
 			if data == nil {
@@ -1144,11 +1208,11 @@ func hide(target, live, liveLastAppliedAnnotation *unstructured.Unstructured, ke
 			data[k] = replacement
 			err := unstructured.SetNestedField(obj.Object, data, fields...)
 			if err != nil {
-				return nil, nil, nil, fmt.Errorf("unstructured.SetNestedField error: %w", err)
+				return nil, nil, nil, nil, fmt.Errorf("unstructured.SetNestedField error: %w", err)
 			}
 		}
 	}
-	return target, live, liveLastAppliedAnnotation, nil
+	return target, live, targetLastAppliedAnnotation, liveLastAppliedAnnotation, nil
 }
 
 func toString(val any) string {

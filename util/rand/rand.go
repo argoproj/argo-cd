@@ -18,7 +18,7 @@ func String(n int) (string, error) {
 func StringFromCharset(n int, charset string) (string, error) {
 	b := make([]byte, n)
 	maxIdx := big.NewInt(int64(len(charset)))
-	for i := 0; i < n; i++ {
+	for i := range n {
 		randIdx, err := rand.Int(rand.Reader, maxIdx)
 		if err != nil {
 			return "", fmt.Errorf("failed to generate random string: %w", err)

@@ -86,6 +86,9 @@ func (c *client) executeRequest(ctx context.Context, fullMethodName string, msg 
 		return nil, err
 	}
 	if resp.StatusCode != http.StatusOK {
+		if resp.Body != nil {
+			utilio.Close(resp.Body)
+		}
 		return nil, fmt.Errorf("%s %s failed with status code %d", req.Method, req.URL, resp.StatusCode)
 	}
 	var code codes.Code
@@ -97,6 +100,9 @@ func (c *client) executeRequest(ctx context.Context, fullMethodName string, msg 
 			code = codes.Code(statusInt)
 		}
 		if code != codes.OK {
+			if resp.Body != nil {
+				utilio.Close(resp.Body)
+			}
 			return nil, status.Error(code, resp.Header.Get("Grpc-Message"))
 		}
 	}

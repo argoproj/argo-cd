@@ -83,7 +83,7 @@ type ArgoDB_AddGPGPublicKey_Call struct {
 // AddGPGPublicKey is a helper method to define mock.On call
 //   - ctx context.Context
 //   - keyData string
-func (_e *ArgoDB_Expecter) AddGPGPublicKey(ctx interface{}, keyData interface{}) *ArgoDB_AddGPGPublicKey_Call {
+func (_e *ArgoDB_Expecter) AddGPGPublicKey(ctx any, keyData any) *ArgoDB_AddGPGPublicKey_Call {
 	return &ArgoDB_AddGPGPublicKey_Call{Call: _e.mock.On("AddGPGPublicKey", ctx, keyData)}
 }
 
@@ -151,7 +151,7 @@ type ArgoDB_CreateCluster_Call struct {
 // CreateCluster is a helper method to define mock.On call
 //   - ctx context.Context
 //   - c *v1alpha1.Cluster
-func (_e *ArgoDB_Expecter) CreateCluster(ctx interface{}, c interface{}) *ArgoDB_CreateCluster_Call {
+func (_e *ArgoDB_Expecter) CreateCluster(ctx any, c any) *ArgoDB_CreateCluster_Call {
 	return &ArgoDB_CreateCluster_Call{Call: _e.mock.On("CreateCluster", ctx, c)}
 }
 
@@ -220,7 +220,7 @@ type ArgoDB_CreateRepoCertificate_Call struct {
 //   - ctx context.Context
 //   - certificate *v1alpha1.RepositoryCertificateList
 //   - upsert bool
-func (_e *ArgoDB_Expecter) CreateRepoCertificate(ctx interface{}, certificate interface{}, upsert interface{}) *ArgoDB_CreateRepoCertificate_Call {
+func (_e *ArgoDB_Expecter) CreateRepoCertificate(ctx any, certificate any, upsert any) *ArgoDB_CreateRepoCertificate_Call {
 	return &ArgoDB_CreateRepoCertificate_Call{Call: _e.mock.On("CreateRepoCertificate", ctx, certificate, upsert)}
 }
 
@@ -293,7 +293,7 @@ type ArgoDB_CreateRepository_Call struct {
 // CreateRepository is a helper method to define mock.On call
 //   - ctx context.Context
 //   - r *v1alpha1.Repository
-func (_e *ArgoDB_Expecter) CreateRepository(ctx interface{}, r interface{}) *ArgoDB_CreateRepository_Call {
+func (_e *ArgoDB_Expecter) CreateRepository(ctx any, r any) *ArgoDB_CreateRepository_Call {
 	return &ArgoDB_CreateRepository_Call{Call: _e.mock.On("CreateRepository", ctx, r)}
 }
 
@@ -361,7 +361,7 @@ type ArgoDB_CreateRepositoryCredentials_Call struct {
 // CreateRepositoryCredentials is a helper method to define mock.On call
 //   - ctx context.Context
 //   - r *v1alpha1.RepoCreds
-func (_e *ArgoDB_Expecter) CreateRepositoryCredentials(ctx interface{}, r interface{}) *ArgoDB_CreateRepositoryCredentials_Call {
+func (_e *ArgoDB_Expecter) CreateRepositoryCredentials(ctx any, r any) *ArgoDB_CreateRepositoryCredentials_Call {
 	return &ArgoDB_CreateRepositoryCredentials_Call{Call: _e.mock.On("CreateRepositoryCredentials", ctx, r)}
 }
 
@@ -429,7 +429,7 @@ type ArgoDB_CreateWriteRepository_Call struct {
 // CreateWriteRepository is a helper method to define mock.On call
 //   - ctx context.Context
 //   - r *v1alpha1.Repository
-func (_e *ArgoDB_Expecter) CreateWriteRepository(ctx interface{}, r interface{}) *ArgoDB_CreateWriteRepository_Call {
+func (_e *ArgoDB_Expecter) CreateWriteRepository(ctx any, r any) *ArgoDB_CreateWriteRepository_Call {
 	return &ArgoDB_CreateWriteRepository_Call{Call: _e.mock.On("CreateWriteRepository", ctx, r)}
 }
 
@@ -497,7 +497,7 @@ type ArgoDB_CreateWriteRepositoryCredentials_Call struct {
 // CreateWriteRepositoryCredentials is a helper method to define mock.On call
 //   - ctx context.Context
 //   - r *v1alpha1.RepoCreds
-func (_e *ArgoDB_Expecter) CreateWriteRepositoryCredentials(ctx interface{}, r interface{}) *ArgoDB_CreateWriteRepositoryCredentials_Call {
+func (_e *ArgoDB_Expecter) CreateWriteRepositoryCredentials(ctx any, r any) *ArgoDB_CreateWriteRepositoryCredentials_Call {
 	return &ArgoDB_CreateWriteRepositoryCredentials_Call{Call: _e.mock.On("CreateWriteRepositoryCredentials", ctx, r)}
 }
 
@@ -554,7 +554,7 @@ type ArgoDB_DeleteCluster_Call struct {
 // DeleteCluster is a helper method to define mock.On call
 //   - ctx context.Context
 //   - server string
-func (_e *ArgoDB_Expecter) DeleteCluster(ctx interface{}, server interface{}) *ArgoDB_DeleteCluster_Call {
+func (_e *ArgoDB_Expecter) DeleteCluster(ctx any, server any) *ArgoDB_DeleteCluster_Call {
 	return &ArgoDB_DeleteCluster_Call{Call: _e.mock.On("DeleteCluster", ctx, server)}
 }
 
@@ -611,7 +611,7 @@ type ArgoDB_DeleteGPGPublicKey_Call struct {
 // DeleteGPGPublicKey is a helper method to define mock.On call
 //   - ctx context.Context
 //   - keyID string
-func (_e *ArgoDB_Expecter) DeleteGPGPublicKey(ctx interface{}, keyID interface{}) *ArgoDB_DeleteGPGPublicKey_Call {
+func (_e *ArgoDB_Expecter) DeleteGPGPublicKey(ctx any, keyID any) *ArgoDB_DeleteGPGPublicKey_Call {
 	return &ArgoDB_DeleteGPGPublicKey_Call{Call: _e.mock.On("DeleteGPGPublicKey", ctx, keyID)}
 }
 
@@ -669,7 +669,7 @@ type ArgoDB_DeleteRepository_Call struct {
 //   - ctx context.Context
 //   - name string
 //   - project string
-func (_e *ArgoDB_Expecter) DeleteRepository(ctx interface{}, name interface{}, project interface{}) *ArgoDB_DeleteRepository_Call {
+func (_e *ArgoDB_Expecter) DeleteRepository(ctx any, name any, project any) *ArgoDB_DeleteRepository_Call {
 	return &ArgoDB_DeleteRepository_Call{Call: _e.mock.On("DeleteRepository", ctx, name, project)}
 }
 
@@ -731,7 +731,7 @@ type ArgoDB_DeleteRepositoryCredentials_Call struct {
 // DeleteRepositoryCredentials is a helper method to define mock.On call
 //   - ctx context.Context
 //   - name string
-func (_e *ArgoDB_Expecter) DeleteRepositoryCredentials(ctx interface{}, name interface{}) *ArgoDB_DeleteRepositoryCredentials_Call {
+func (_e *ArgoDB_Expecter) DeleteRepositoryCredentials(ctx any, name any) *ArgoDB_DeleteRepositoryCredentials_Call {
 	return &ArgoDB_DeleteRepositoryCredentials_Call{Call: _e.mock.On("DeleteRepositoryCredentials", ctx, name)}
 }
 
@@ -789,7 +789,7 @@ type ArgoDB_DeleteWriteRepository_Call struct {
 //   - ctx context.Context
 //   - name string
 //   - project string
-func (_e *ArgoDB_Expecter) DeleteWriteRepository(ctx interface{}, name interface{}, project interface{}) *ArgoDB_DeleteWriteRepository_Call {
+func (_e *ArgoDB_Expecter) DeleteWriteRepository(ctx any, name any, project any) *ArgoDB_DeleteWriteRepository_Call {
 	return &ArgoDB_DeleteWriteRepository_Call{Call: _e.mock.On("DeleteWriteRepository", ctx, name, project)}
 }
 
@@ -851,7 +851,7 @@ type ArgoDB_DeleteWriteRepositoryCredentials_Call struct {
 // DeleteWriteRepositoryCredentials is a helper method to define mock.On call
 //   - ctx context.Context
 //   - name string
-func (_e *ArgoDB_Expecter) DeleteWriteRepositoryCredentials(ctx interface{}, name interface{}) *ArgoDB_DeleteWriteRepositoryCredentials_Call {
+func (_e *ArgoDB_Expecter) DeleteWriteRepositoryCredentials(ctx any, name any) *ArgoDB_DeleteWriteRepositoryCredentials_Call {
 	return &ArgoDB_DeleteWriteRepositoryCredentials_Call{Call: _e.mock.On("DeleteWriteRepositoryCredentials", ctx, name)}
 }
 
@@ -918,7 +918,7 @@ type ArgoDB_GetAllHelmRepositoryCredentials_Call struct {
 
 // GetAllHelmRepositoryCredentials is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *ArgoDB_Expecter) GetAllHelmRepositoryCredentials(ctx interface{}) *ArgoDB_GetAllHelmRepositoryCredentials_Call {
+func (_e *ArgoDB_Expecter) GetAllHelmRepositoryCredentials(ctx any) *ArgoDB_GetAllHelmRepositoryCredentials_Call {
 	return &ArgoDB_GetAllHelmRepositoryCredentials_Call{Call: _e.mock.On("GetAllHelmRepositoryCredentials", ctx)}
 }
 
@@ -980,7 +980,7 @@ type ArgoDB_GetAllOCIRepositoryCredentials_Call struct {
 
 // GetAllOCIRepositoryCredentials is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *ArgoDB_Expecter) GetAllOCIRepositoryCredentials(ctx interface{}) *ArgoDB_GetAllOCIRepositoryCredentials_Call {
+func (_e *ArgoDB_Expecter) GetAllOCIRepositoryCredentials(ctx any) *ArgoDB_GetAllOCIRepositoryCredentials_Call {
 	return &ArgoDB_GetAllOCIRepositoryCredentials_Call{Call: _e.mock.On("GetAllOCIRepositoryCredentials", ctx)}
 }
 
@@ -1087,7 +1087,7 @@ type ArgoDB_GetCluster_Call struct {
 // GetCluster is a helper method to define mock.On call
 //   - ctx context.Context
 //   - server string
-func (_e *ArgoDB_Expecter) GetCluster(ctx interface{}, server interface{}) *ArgoDB_GetCluster_Call {
+func (_e *ArgoDB_Expecter) GetCluster(ctx any, server any) *ArgoDB_GetCluster_Call {
 	return &ArgoDB_GetCluster_Call{Call: _e.mock.On("GetCluster", ctx, server)}
 }
 
@@ -1155,7 +1155,7 @@ type ArgoDB_GetClusterServersByName_Call struct {
 // GetClusterServersByName is a helper method to define mock.On call
 //   - ctx context.Context
 //   - name string
-func (_e *ArgoDB_Expecter) GetClusterServersByName(ctx interface{}, name interface{}) *ArgoDB_GetClusterServersByName_Call {
+func (_e *ArgoDB_Expecter) GetClusterServersByName(ctx any, name any) *ArgoDB_GetClusterServersByName_Call {
 	return &ArgoDB_GetClusterServersByName_Call{Call: _e.mock.On("GetClusterServersByName", ctx, name)}
 }
 
@@ -1223,7 +1223,7 @@ type ArgoDB_GetProjectClusters_Call struct {
 // GetProjectClusters is a helper method to define mock.On call
 //   - ctx context.Context
 //   - project string
-func (_e *ArgoDB_Expecter) GetProjectClusters(ctx interface{}, project interface{}) *ArgoDB_GetProjectClusters_Call {
+func (_e *ArgoDB_Expecter) GetProjectClusters(ctx any, project any) *ArgoDB_GetProjectClusters_Call {
 	return &ArgoDB_GetProjectClusters_Call{Call: _e.mock.On("GetProjectClusters", ctx, project)}
 }
 
@@ -1290,7 +1290,7 @@ type ArgoDB_GetProjectRepositories_Call struct {
 
 // GetProjectRepositories is a helper method to define mock.On call
 //   - project string
-func (_e *ArgoDB_Expecter) GetProjectRepositories(project interface{}) *ArgoDB_GetProjectRepositories_Call {
+func (_e *ArgoDB_Expecter) GetProjectRepositories(project any) *ArgoDB_GetProjectRepositories_Call {
 	return &ArgoDB_GetProjectRepositories_Call{Call: _e.mock.On("GetProjectRepositories", project)}
 }
 
@@ -1352,7 +1352,7 @@ type ArgoDB_GetProjectWriteRepositories_Call struct {
 
 // GetProjectWriteRepositories is a helper method to define mock.On call
 //   - project string
-func (_e *ArgoDB_Expecter) GetProjectWriteRepositories(project interface{}) *ArgoDB_GetProjectWriteRepositories_Call {
+func (_e *ArgoDB_Expecter) GetProjectWriteRepositories(project any) *ArgoDB_GetProjectWriteRepositories_Call {
 	return &ArgoDB_GetProjectWriteRepositories_Call{Call: _e.mock.On("GetProjectWriteRepositories", project)}
 }
 
@@ -1416,7 +1416,7 @@ type ArgoDB_GetRepository_Call struct {
 //   - ctx context.Context
 //   - url string
 //   - project string
-func (_e *ArgoDB_Expecter) GetRepository(ctx interface{}, url interface{}, project interface{}) *ArgoDB_GetRepository_Call {
+func (_e *ArgoDB_Expecter) GetRepository(ctx any, url any, project any) *ArgoDB_GetRepository_Call {
 	return &ArgoDB_GetRepository_Call{Call: _e.mock.On("GetRepository", ctx, url, project)}
 }
 
@@ -1489,7 +1489,7 @@ type ArgoDB_GetRepositoryCredentials_Call struct {
 // GetRepositoryCredentials is a helper method to define mock.On call
 //   - ctx context.Context
 //   - name string
-func (_e *ArgoDB_Expecter) GetRepositoryCredentials(ctx interface{}, name interface{}) *ArgoDB_GetRepositoryCredentials_Call {
+func (_e *ArgoDB_Expecter) GetRepositoryCredentials(ctx any, name any) *ArgoDB_GetRepositoryCredentials_Call {
 	return &ArgoDB_GetRepositoryCredentials_Call{Call: _e.mock.On("GetRepositoryCredentials", ctx, name)}
 }
 
@@ -1558,7 +1558,7 @@ type ArgoDB_GetWriteRepository_Call struct {
 //   - ctx context.Context
 //   - url string
 //   - project string
-func (_e *ArgoDB_Expecter) GetWriteRepository(ctx interface{}, url interface{}, project interface{}) *ArgoDB_GetWriteRepository_Call {
+func (_e *ArgoDB_Expecter) GetWriteRepository(ctx any, url any, project any) *ArgoDB_GetWriteRepository_Call {
 	return &ArgoDB_GetWriteRepository_Call{Call: _e.mock.On("GetWriteRepository", ctx, url, project)}
 }
 
@@ -1631,7 +1631,7 @@ type ArgoDB_GetWriteRepositoryCredentials_Call struct {
 // GetWriteRepositoryCredentials is a helper method to define mock.On call
 //   - ctx context.Context
 //   - name string
-func (_e *ArgoDB_Expecter) GetWriteRepositoryCredentials(ctx interface{}, name interface{}) *ArgoDB_GetWriteRepositoryCredentials_Call {
+func (_e *ArgoDB_Expecter) GetWriteRepositoryCredentials(ctx any, name any) *ArgoDB_GetWriteRepositoryCredentials_Call {
 	return &ArgoDB_GetWriteRepositoryCredentials_Call{Call: _e.mock.On("GetWriteRepositoryCredentials", ctx, name)}
 }
 
@@ -1698,7 +1698,7 @@ type ArgoDB_ListClusters_Call struct {
 
 // ListClusters is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *ArgoDB_Expecter) ListClusters(ctx interface{}) *ArgoDB_ListClusters_Call {
+func (_e *ArgoDB_Expecter) ListClusters(ctx any) *ArgoDB_ListClusters_Call {
 	return &ArgoDB_ListClusters_Call{Call: _e.mock.On("ListClusters", ctx)}
 }
 
@@ -1760,7 +1760,7 @@ type ArgoDB_ListConfiguredGPGPublicKeys_Call struct {
 
 // ListConfiguredGPGPublicKeys is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *ArgoDB_Expecter) ListConfiguredGPGPublicKeys(ctx interface{}) *ArgoDB_ListConfiguredGPGPublicKeys_Call {
+func (_e *ArgoDB_Expecter) ListConfiguredGPGPublicKeys(ctx any) *ArgoDB_ListConfiguredGPGPublicKeys_Call {
 	return &ArgoDB_ListConfiguredGPGPublicKeys_Call{Call: _e.mock.On("ListConfiguredGPGPublicKeys", ctx)}
 }
 
@@ -1822,7 +1822,7 @@ type ArgoDB_ListHelmRepositories_Call struct {
 
 // ListHelmRepositories is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *ArgoDB_Expecter) ListHelmRepositories(ctx interface{}) *ArgoDB_ListHelmRepositories_Call {
+func (_e *ArgoDB_Expecter) ListHelmRepositories(ctx any) *ArgoDB_ListHelmRepositories_Call {
 	return &ArgoDB_ListHelmRepositories_Call{Call: _e.mock.On("ListHelmRepositories", ctx)}
 }
 
@@ -1884,7 +1884,7 @@ type ArgoDB_ListOCIRepositories_Call struct {
 
 // ListOCIRepositories is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *ArgoDB_Expecter) ListOCIRepositories(ctx interface{}) *ArgoDB_ListOCIRepositories_Call {
+func (_e *ArgoDB_Expecter) ListOCIRepositories(ctx any) *ArgoDB_ListOCIRepositories_Call {
 	return &ArgoDB_ListOCIRepositories_Call{Call: _e.mock.On("ListOCIRepositories", ctx)}
 }
 
@@ -1947,7 +1947,7 @@ type ArgoDB_ListRepoCertificates_Call struct {
 // ListRepoCertificates is a helper method to define mock.On call
 //   - ctx context.Context
 //   - selector *db.CertificateListSelector
-func (_e *ArgoDB_Expecter) ListRepoCertificates(ctx interface{}, selector interface{}) *ArgoDB_ListRepoCertificates_Call {
+func (_e *ArgoDB_Expecter) ListRepoCertificates(ctx any, selector any) *ArgoDB_ListRepoCertificates_Call {
 	return &ArgoDB_ListRepoCertificates_Call{Call: _e.mock.On("ListRepoCertificates", ctx, selector)}
 }
 
@@ -2014,7 +2014,7 @@ type ArgoDB_ListRepositories_Call struct {
 
 // ListRepositories is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *ArgoDB_Expecter) ListRepositories(ctx interface{}) *ArgoDB_ListRepositories_Call {
+func (_e *ArgoDB_Expecter) ListRepositories(ctx any) *ArgoDB_ListRepositories_Call {
 	return &ArgoDB_ListRepositories_Call{Call: _e.mock.On("ListRepositories", ctx)}
 }
 
@@ -2076,7 +2076,7 @@ type ArgoDB_ListRepositoryCredentials_Call struct {
 
 // ListRepositoryCredentials is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *ArgoDB_Expecter) ListRepositoryCredentials(ctx interface{}) *ArgoDB_ListRepositoryCredentials_Call {
+func (_e *ArgoDB_Expecter) ListRepositoryCredentials(ctx any) *ArgoDB_ListRepositoryCredentials_Call {
 	return &ArgoDB_ListRepositoryCredentials_Call{Call: _e.mock.On("ListRepositoryCredentials", ctx)}
 }
 
@@ -2138,7 +2138,7 @@ type ArgoDB_ListWriteRepositories_Call struct {
 
 // ListWriteRepositories is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *ArgoDB_Expecter) ListWriteRepositories(ctx interface{}) *ArgoDB_ListWriteRepositories_Call {
+func (_e *ArgoDB_Expecter) ListWriteRepositories(ctx any) *ArgoDB_ListWriteRepositories_Call {
 	return &ArgoDB_ListWriteRepositories_Call{Call: _e.mock.On("ListWriteRepositories", ctx)}
 }
 
@@ -2200,7 +2200,7 @@ type ArgoDB_ListWriteRepositoryCredentials_Call struct {
 
 // ListWriteRepositoryCredentials is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *ArgoDB_Expecter) ListWriteRepositoryCredentials(ctx interface{}) *ArgoDB_ListWriteRepositoryCredentials_Call {
+func (_e *ArgoDB_Expecter) ListWriteRepositoryCredentials(ctx any) *ArgoDB_ListWriteRepositoryCredentials_Call {
 	return &ArgoDB_ListWriteRepositoryCredentials_Call{Call: _e.mock.On("ListWriteRepositoryCredentials", ctx)}
 }
 
@@ -2263,7 +2263,7 @@ type ArgoDB_RemoveRepoCertificates_Call struct {
 // RemoveRepoCertificates is a helper method to define mock.On call
 //   - ctx context.Context
 //   - selector *db.CertificateListSelector
-func (_e *ArgoDB_Expecter) RemoveRepoCertificates(ctx interface{}, selector interface{}) *ArgoDB_RemoveRepoCertificates_Call {
+func (_e *ArgoDB_Expecter) RemoveRepoCertificates(ctx any, selector any) *ArgoDB_RemoveRepoCertificates_Call {
 	return &ArgoDB_RemoveRepoCertificates_Call{Call: _e.mock.On("RemoveRepoCertificates", ctx, selector)}
 }
 
@@ -2330,7 +2330,7 @@ type ArgoDB_RepositoryExists_Call struct {
 //   - ctx context.Context
 //   - repoURL string
 //   - project string
-func (_e *ArgoDB_Expecter) RepositoryExists(ctx interface{}, repoURL interface{}, project interface{}) *ArgoDB_RepositoryExists_Call {
+func (_e *ArgoDB_Expecter) RepositoryExists(ctx any, repoURL any, project any) *ArgoDB_RepositoryExists_Call {
 	return &ArgoDB_RepositoryExists_Call{Call: _e.mock.On("RepositoryExists", ctx, repoURL, project)}
 }
 
@@ -2403,7 +2403,7 @@ type ArgoDB_UpdateCluster_Call struct {
 // UpdateCluster is a helper method to define mock.On call
 //   - ctx context.Context
 //   - c *v1alpha1.Cluster
-func (_e *ArgoDB_Expecter) UpdateCluster(ctx interface{}, c interface{}) *ArgoDB_UpdateCluster_Call {
+func (_e *ArgoDB_Expecter) UpdateCluster(ctx any, c any) *ArgoDB_UpdateCluster_Call {
 	return &ArgoDB_UpdateCluster_Call{Call: _e.mock.On("UpdateCluster", ctx, c)}
 }
 
@@ -2471,7 +2471,7 @@ type ArgoDB_UpdateRepository_Call struct {
 // UpdateRepository is a helper method to define mock.On call
 //   - ctx context.Context
 //   - r *v1alpha1.Repository
-func (_e *ArgoDB_Expecter) UpdateRepository(ctx interface{}, r interface{}) *ArgoDB_UpdateRepository_Call {
+func (_e *ArgoDB_Expecter) UpdateRepository(ctx any, r any) *ArgoDB_UpdateRepository_Call {
 	return &ArgoDB_UpdateRepository_Call{Call: _e.mock.On("UpdateRepository", ctx, r)}
 }
 
@@ -2539,7 +2539,7 @@ type ArgoDB_UpdateRepositoryCredentials_Call struct {
 // UpdateRepositoryCredentials is a helper method to define mock.On call
 //   - ctx context.Context
 //   - r *v1alpha1.RepoCreds
-func (_e *ArgoDB_Expecter) UpdateRepositoryCredentials(ctx interface{}, r interface{}) *ArgoDB_UpdateRepositoryCredentials_Call {
+func (_e *ArgoDB_Expecter) UpdateRepositoryCredentials(ctx any, r any) *ArgoDB_UpdateRepositoryCredentials_Call {
 	return &ArgoDB_UpdateRepositoryCredentials_Call{Call: _e.mock.On("UpdateRepositoryCredentials", ctx, r)}
 }
 
@@ -2607,7 +2607,7 @@ type ArgoDB_UpdateWriteRepository_Call struct {
 // UpdateWriteRepository is a helper method to define mock.On call
 //   - ctx context.Context
 //   - r *v1alpha1.Repository
-func (_e *ArgoDB_Expecter) UpdateWriteRepository(ctx interface{}, r interface{}) *ArgoDB_UpdateWriteRepository_Call {
+func (_e *ArgoDB_Expecter) UpdateWriteRepository(ctx any, r any) *ArgoDB_UpdateWriteRepository_Call {
 	return &ArgoDB_UpdateWriteRepository_Call{Call: _e.mock.On("UpdateWriteRepository", ctx, r)}
 }
 
@@ -2675,7 +2675,7 @@ type ArgoDB_UpdateWriteRepositoryCredentials_Call struct {
 // UpdateWriteRepositoryCredentials is a helper method to define mock.On call
 //   - ctx context.Context
 //   - r *v1alpha1.RepoCreds
-func (_e *ArgoDB_Expecter) UpdateWriteRepositoryCredentials(ctx interface{}, r interface{}) *ArgoDB_UpdateWriteRepositoryCredentials_Call {
+func (_e *ArgoDB_Expecter) UpdateWriteRepositoryCredentials(ctx any, r any) *ArgoDB_UpdateWriteRepositoryCredentials_Call {
 	return &ArgoDB_UpdateWriteRepositoryCredentials_Call{Call: _e.mock.On("UpdateWriteRepositoryCredentials", ctx, r)}
 }
 
@@ -2734,7 +2734,7 @@ type ArgoDB_WatchClusters_Call struct {
 //   - handleAddEvent func(cluster *v1alpha1.Cluster)
 //   - handleModEvent func(oldCluster *v1alpha1.Cluster, newCluster *v1alpha1.Cluster)
 //   - handleDeleteEvent func(clusterServer string)
-func (_e *ArgoDB_Expecter) WatchClusters(ctx interface{}, handleAddEvent interface{}, handleModEvent interface{}, handleDeleteEvent interface{}) *ArgoDB_WatchClusters_Call {
+func (_e *ArgoDB_Expecter) WatchClusters(ctx any, handleAddEvent any, handleModEvent any, handleDeleteEvent any) *ArgoDB_WatchClusters_Call {
 	return &ArgoDB_WatchClusters_Call{Call: _e.mock.On("WatchClusters", ctx, handleAddEvent, handleModEvent, handleDeleteEvent)}
 }
 
@@ -2811,7 +2811,7 @@ type ArgoDB_WriteRepositoryExists_Call struct {
 //   - ctx context.Context
 //   - repoURL string
 //   - project string
-func (_e *ArgoDB_Expecter) WriteRepositoryExists(ctx interface{}, repoURL interface{}, project interface{}) *ArgoDB_WriteRepositoryExists_Call {
+func (_e *ArgoDB_Expecter) WriteRepositoryExists(ctx any, repoURL any, project any) *ArgoDB_WriteRepositoryExists_Call {
 	return &ArgoDB_WriteRepositoryExists_Call{Call: _e.mock.On("WriteRepositoryExists", ctx, repoURL, project)}
 }
 
