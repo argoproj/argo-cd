@@ -666,7 +666,7 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 				// the target field has been templated into the expected value
 				if test.errorMessage != "" {
 					require.Error(t, err)
-					assert.Contains(t, err.Error(), test.errorMessage)
+					assert.Equal(t, test.errorMessage, err.Error())
 				} else {
 					require.NoError(t, err)
 					actualValue := *getPtrFunc(newApplication)
