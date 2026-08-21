@@ -216,6 +216,11 @@
             max-width: 100%;
         }
 
+        &__revision-main > a,
+        &__revision-main > a:hover,
+        &__revision-main > a:focus,
+        &__revision-main > a:visited,
+        &__revision-main > a:active,
         &__revision-main > span {
             color: inherit;
         }
