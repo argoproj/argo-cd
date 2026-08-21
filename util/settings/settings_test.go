@@ -68,6 +68,66 @@ func TestDocumentedArgoCDConfigMapIsValid(t *testing.T) {
 	updateSettingsFromConfigMap(&settings, argocdCM)
 }
 
+// TestShippedDefaultResourceExclusions guards the resource.exclusions defaults shipped in
+// manifests/base/config/argocd-cm.yaml. Those defaults change what the application controller
+// watches on every managed cluster, so a silent edit there is a user-facing behaviour change.
+func TestShippedDefaultResourceExclusions(t *testing.T) {
+	t.Parallel()
+
+	data, err := os.ReadFile("../../manifests/base/config/argocd-cm.yaml")
+	require.NoError(t, err)
+
+	var argocdCM *corev1.ConfigMap
+	require.NoError(t, yaml.Unmarshal(data, &argocdCM))
+
+	raw, ok := argocdCM.Data[resourceExclusionsKey]
+	require.True(t, ok, "%s must be present in the shipped argocd-cm", resourceExclusionsKey)
+
+	var exclusions []FilteredResource
+	require.NoError(t, yaml.Unmarshal([]byte(raw), &exclusions))
+
+	rf := &ResourcesFilter{ResourceExclusions: exclusions}
+
+	const cluster = "https://kubernetes.default.svc"
+
+	testCases := []struct {
+		name     string
+		apiGroup string
+		kind     string
+		excluded bool
+	}{
+		// Crossplane providers each publish their own API group, so the wildcard apiGroup has
+		// to catch ProviderConfigUsage regardless of which provider created it.
+		{"crossplane core provider", "kubernetes.crossplane.io", "ProviderConfigUsage", true},
+		{"upbound aws provider", "aws.upbound.io", "ProviderConfigUsage", true},
+		{"upbound gcp provider", "gcp.upbound.io", "ProviderConfigUsage", true},
+		{"unknown future provider", "some-provider.example.com", "ProviderConfigUsage", true},
+
+		// The wildcard apiGroup must not widen the exclusion beyond that single kind.
+		{"managed resource stays watched", "aws.upbound.io", "Bucket", false},
+		{"provider stays watched", "pkg.crossplane.io", "Provider", false},
+		{"provider config stays watched", "aws.upbound.io", "ProviderConfig", false},
+		{"core kinds stay watched", "", "ConfigMap", false},
+
+		// Pre-existing defaults must survive additions to the list.
+		{"endpoints", "", "Endpoints", true},
+		{"endpoint slices", "discovery.k8s.io", "EndpointSlice", true},
+		{"leases", "coordination.k8s.io", "Lease", true},
+		{"subject access reviews", "authorization.k8s.io", "SubjectAccessReview", true},
+		{"certificate signing requests", "certificates.k8s.io", "CertificateSigningRequest", true},
+		{"cert-manager certificate requests", "cert-manager.io", "CertificateRequest", true},
+		{"cilium identities", "cilium.io", "CiliumIdentity", true},
+		{"kyverno policy reports", "kyverno.io", "PolicyReport", true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.excluded, rf.IsExcludedResource(tc.apiGroup, tc.kind, cluster))
+		})
+	}
+}
+
 func TestGetConfigMapByName(t *testing.T) {
 	t.Run("data is never nil", func(t *testing.T) {
 		_, settingsManager := fixtures(t.Context(), nil)
