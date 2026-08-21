@@ -12,6 +12,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
+	"syscall"
 	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -38,6 +40,10 @@ var tracer = otel.Tracer("github.com/argoproj/argo-cd/v3/cmpserver/plugin")
 // cmpTimeoutBuffer is the amount of time before the request deadline to timeout server-side work. It makes sure there's
 // enough time before the client times out to send a meaningful error message.
 const cmpTimeoutBuffer = 100 * time.Millisecond
+
+// pluginCleanupTimeout is how long the rest of a plugin command's process group is given to exit
+// after SIGTERM before it is killed.
+const pluginCleanupTimeout = 5 * time.Second
 
 // Service implements ConfigManagementPluginService interface
 type Service struct {
@@ -104,8 +110,8 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
-	// Make sure the command is killed immediately on timeout. https://stackoverflow.com/a/38133948/684776
-	cmd.SysProcAttr = newSysProcAttr(true)
+	// Own process group, so the plugin's children can be signalled along with it.
+	argoexec.SetChildProcessGroup(cmd)
 
 	start := time.Now()
 	err = cmd.Start()
@@ -113,22 +119,44 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 		return "", err
 	}
 
+	// os/exec kills the plugin itself as soon as the context is done. Signal the rest of its group
+	// too, giving those processes pluginCleanupTimeout to exit before they are reaped.
+	var mu sync.Mutex
+	reaped := false
+	waited := make(chan struct{})
+	// signalGroup reports whether it signalled. The lock spans the check and the signal: a reaped
+	// command's PID may since have been recycled, and merely testing waited beforehand would leave
+	// the two racing.
+	signalGroup := func(sig syscall.Signal) bool {
+		mu.Lock()
+		defer mu.Unlock()
+		if reaped {
+			return false
+		}
+		_ = argoexec.SignalProcessGroup(cmd, sig)
+		return true
+	}
 	go func() {
-		<-ctx.Done()
-		// Kill by group ID to make sure child processes are killed. The - tells `kill` that it's a group ID.
-		// Since we didn't set Pgid in SysProcAttr, the group ID is the same as the process ID. https://pkg.go.dev/syscall#SysProcAttr
-
-		// Sending a TERM signal first to allow any potential cleanup if needed, and then sending a KILL signal
-		_ = sysCallTerm(-cmd.Process.Pid)
-
-		// modify cleanup timeout to allow process to cleanup
-		cleanupTimeout := 5 * time.Second
-		time.Sleep(cleanupTimeout)
-
-		_ = sysCallKill(-cmd.Process.Pid)
+		select {
+		case <-waited:
+			return
+		case <-ctx.Done():
+		}
+		if !signalGroup(syscall.SIGTERM) {
+			return
+		}
+		select {
+		case <-waited:
+		case <-time.After(pluginCleanupTimeout):
+			signalGroup(syscall.SIGKILL)
+		}
 	}()
 
 	err = cmd.Wait()
+	mu.Lock()
+	reaped = true
+	close(waited)
+	mu.Unlock()
 
 	duration := time.Since(start)
 	output := stdout.String()

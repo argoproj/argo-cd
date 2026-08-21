@@ -56,6 +56,7 @@ argocd-repo-server [flags]
       --revision-cache-lock-timeout duration           Cache TTL for locks to prevent duplicate requests on revisions, set to 0 to disable (default 10s)
       --sentinel stringArray                           Redis sentinel hostname and port (e.g. argocd-redis-ha-announce-0:6379). 
       --sentinelmaster string                          Redis sentinel master group name. (default "master")
+      --shutdown-drain-timeout duration                How long to wait for in-flight requests to finish on shutdown before terminating the commands they are running; 0 terminates them as soon as the signal arrives. Keep it below the pod's terminationGracePeriodSeconds, so requests are cancelled before the kubelet's SIGKILL. (default 10s)
       --streamed-manifest-max-extracted-size string    Maximum size of streamed manifest archives when extracted (default "1G")
       --streamed-manifest-max-tar-size string          Maximum size of streamed manifest archives (default "100M")
       --tlsciphers string                              The list of acceptable ciphers to be used when establishing TLS connections. Use 'list' to list available ciphers. (default "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384")

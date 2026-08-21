@@ -34,6 +34,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/errors"
+	executil "github.com/argoproj/argo-cd/v3/util/exec"
 	"github.com/argoproj/argo-cd/v3/util/healthz"
 	"github.com/argoproj/argo-cd/v3/util/profile"
 	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
@@ -84,6 +85,7 @@ func NewCommand() *cobra.Command {
 		enableBuiltinGitConfig             bool
 		clientCAPath                       string
 		disableTLS                         bool
+		shutdownDrainTimeout               time.Duration
 	)
 	command := cobra.Command{
 		Use:               common.CommandRepoServer,
@@ -238,8 +240,27 @@ func NewCommand() *cobra.Command {
 			wg := sync.WaitGroup{}
 			wg.Go(func() {
 				s := <-sigCh
-				log.Printf("got signal %v, attempting graceful shutdown", s)
-				grpc.GracefulStop()
+				log.Infof("got signal %v, draining for up to %v", s, shutdownDrainTimeout)
+				drained := make(chan struct{})
+				go func() {
+					defer close(drained)
+					grpc.GracefulStop()
+				}()
+
+				select {
+				case <-drained:
+				case <-time.After(shutdownDrainTimeout):
+					// GracefulStop waits for handlers without interrupting them, so a long manifest
+					// generation outlives the grace period and is SIGKILLed with the container.
+					// Signalling lets git clean up; whatever still refuses to finish is left to the
+					// kubelet's SIGKILL, since a deadline of our own could only cut that short.
+					running := executil.Shutdown()
+					log.Warnf("drain window of %v elapsed, terminating %d in-flight commands", shutdownDrainTimeout, running)
+					// Terminating only wakes each command's own goroutine, which then has to signal
+					// its group and wait out the grace period, so the process has to outlive that -
+					// exiting here would take git down before it can remove .git/index.lock.
+					<-drained
+				}
 			})
 
 			log.Println("starting grpc server")
@@ -253,6 +274,7 @@ func NewCommand() *cobra.Command {
 			return nil
 		},
 	}
+	command.Flags().DurationVar(&shutdownDrainTimeout, "shutdown-drain-timeout", env.ParseDurationFromEnv("ARGOCD_REPO_SERVER_SHUTDOWN_DRAIN_TIMEOUT", 10*time.Second, 0, math.MaxInt32*time.Second), "How long to wait for in-flight requests to finish on shutdown before terminating the commands they are running; 0 terminates them as soon as the signal arrives. Keep it below the pod's terminationGracePeriodSeconds, so requests are cancelled before the kubelet's SIGKILL.")
 	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_REPO_SERVER_LOGFORMAT", "json"), "Set the logging format. One of: json|text")
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_REPO_SERVER_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().Int64Var(&parallelismLimit, "parallelismlimit", int64(env.ParseNumFromEnv("ARGOCD_REPO_SERVER_PARALLELISM_LIMIT", 0, 0, math.MaxInt32)), "Limit on number of concurrent manifests generate requests. Any value less the 1 means no limit.")
