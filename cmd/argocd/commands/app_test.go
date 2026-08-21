@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -49,11 +50,12 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
-	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 )
 
-var now = metav1.Now()
-var later = metav1.NewTime(now.Add(time.Hour))
+var (
+	now   = metav1.Now()
+	later = metav1.NewTime(now.Add(time.Hour))
+)
 
 func Test_getInfos(t *testing.T) {
 	testCases := []struct {
@@ -2740,46 +2742,46 @@ func TestIsContextCanceledErr(t *testing.T) {
 
 func TestFormatPendingResources(t *testing.T) {
 	tests := []struct {
-		name      string
-		pending   []string
+		name       string
+		pending    []string
 		maxPending uint
-		expected  string
+		expected   string
 	}{
 		{
-			name:      "empty list",
-			pending:   []string{},
+			name:       "empty list",
+			pending:    []string{},
 			maxPending: 10,
-			expected:  "",
+			expected:   "",
 		},
 		{
-			name:      "below limit",
-			pending:   []string{"a", "b", "c"},
+			name:       "below limit",
+			pending:    []string{"a", "b", "c"},
 			maxPending: 10,
-			expected:  "a, b, c",
+			expected:   "a, b, c",
 		},
 		{
-			name:      "exactly at limit",
-			pending:   []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j"},
+			name:       "exactly at limit",
+			pending:    []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j"},
 			maxPending: 10,
-			expected:  "a, b, c, d, e, f, g, h, i, j",
+			expected:   "a, b, c, d, e, f, g, h, i, j",
 		},
 		{
-			name:      "above limit",
-			pending:   []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"},
+			name:       "above limit",
+			pending:    []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"},
 			maxPending: 10,
-			expected:  "a, b, c, d, e, f, g, h, i, j, ... and 1 more",
+			expected:   "a, b, c, d, e, f, g, h, i, j, ... and 1 more",
 		},
 		{
-			name:      "custom maxPending=5",
-			pending:   []string{"a", "b", "c", "d", "e", "f", "g"},
+			name:       "custom maxPending=5",
+			pending:    []string{"a", "b", "c", "d", "e", "f", "g"},
 			maxPending: 5,
-			expected:  "a, b, c, d, e, ... and 2 more",
+			expected:   "a, b, c, d, e, ... and 2 more",
 		},
 		{
-			name:      "zero maxPending defaults to 10",
-			pending:   []string{"a", "b", "c"},
+			name:       "zero maxPending defaults to 10",
+			pending:    []string{"a", "b", "c"},
 			maxPending: 0,
-			expected:  "a, b, c",
+			expected:   "a, b, c",
 		},
 	}
 

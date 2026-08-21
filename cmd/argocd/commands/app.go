@@ -2215,8 +2215,8 @@ func filterAppResources(app *argoappv1.Application, selectedResources []*argoapp
 	if app != nil && len(selectedResources) > 0 {
 		for i := range app.Status.Resources {
 			appResource := app.Status.Resources[i]
-			if (argo.IncludeResource(appResource.Name, appResource.Namespace,
-				schema.GroupVersionKind{Group: appResource.Group, Kind: appResource.Kind}, selectedResources)) {
+			if argo.IncludeResource(appResource.Name, appResource.Namespace,
+				schema.GroupVersionKind{Group: appResource.Group, Kind: appResource.Kind}, selectedResources) {
 				filteredResources = append(filteredResources, &argoappv1.SyncOperationResource{
 					Group:     appResource.Group,
 					Kind:      appResource.Kind,
