@@ -20,9 +20,18 @@ secret-based implementation.
 
 ## Open Questions
 
-* **Promotion path from `v1alpha0`.** The CRDs are introduced under the `argoproj.io/v1alpha0` API version to make
-  clear they are experimental. The criteria and mechanics for promoting to `v1alpha2`+ (including any conversion
-  story) are not yet defined.
+* **API version, and the `Repository` name collision behind it.** `argoproj.io/v1alpha0` is an unconventional first
+  version; it is used because `pkg/apis/application/v1alpha1` already declares a `Repository` Go type (the config
+  struct serialized into Secrets and exposed over gRPC/REST), so codegen cannot add a second one there. The clash is
+  purely the Go identifier — `v1alpha1.Repository` is not a `runtime.Object` and that kind is not registered in the
+  scheme — and `RepositoryCredential` is unaffected. `v1alpha0` defers rather than resolves it: promoting to
+  `v1alpha1` needs the colliding name. Options, cheapest first:
+  - **Skip `v1alpha1` on promotion** (`v1alpha0` → `v1alpha2`/`v1beta1` → `v1`): free, but the odd version stays.
+  - **New group** `repository.argoproj.io/v1alpha1`: frees the name, keeps kind `Repository` and `kubectl get
+    repositories`; small codegen change, but a second group to maintain and an `apiGroups` entry in every Role.
+  - **Different kind** (e.g. `RepositoryConfig` in `argoproj.io/v1alpha1`): no collision, no new group, loses the
+    `kubectl get repositories` UX.
+  - **Rename the existing `Repository` struct**: easy-peasy but is technically a breaking change
 * **Per-controlplane status above the retention cap.** Eviction keeps `clusterConnectionStates` bounded, but every
   controlplane still probes and still wants a slot, so once the fleet exceeds the cap the retained set churns on
   each interval: an evicted controlplane re-claims a slot on its next probe and evicts someone else, costing writes
@@ -64,58 +73,37 @@ maintains a rich, multi-controlplane-aware status on the `Repository` resource.
 
 2. **Backwards Compatibility**
     - Existing secret-based repositories continue to work (`secret` remains the default mode everywhere)
-    - No breaking changes to CLI commands (`repo add`, etc.)
-    - No changes to gRPC/REST API contracts
+    - No breaking changes to CLI commands (`repo add`, etc.) or to the gRPC/REST API contracts
     - `hybrid` mode reads from both CRDs and Secrets simultaneously, with CRDs taking precedence
 
 3. **Gradual Migration**
     - Operators can migrate at their own pace by opting into `hybrid` mode
     - Automatic migration on update: updating a secret-backed repository in hybrid mode creates the CRD and then
-      deletes the legacy Secret, so stale credentials do not linger in the old store. The delete is best-effort —
-      the CRD already takes precedence, so a failed delete is logged rather than failing the update, and leaves a
-      Secret that components still in `secret` mode keep serving until it is removed by hand
+      deletes the legacy Secret. The delete is best-effort — a failure is logged rather than failing the update, and
+      leaves a Secret that components still in `secret` mode keep serving
     - Every component that resolves repositories (API server, application controller, applicationset controller,
       notifications controller) takes the same flag/env, so the fleet can be switched consistently
 
 4. **Security Parity**
-    - Credentials stored in Secret references (not in CRD spec); the referenced Secret carries *only* credential
-      material, everything else lives in the spec
-    - Status is a subresource: client-side or server-side applies of the resource cannot influence status, and
-      writing it requires an explicit `repositories/status` RBAC grant (held only by the application controller)
+    - Credential material stays in the referenced Secret; everything else lives in the spec
+    - Status is a subresource, writable only with an explicit `repositories/status` grant (see Security
+      Considerations)
     - Read (`spec.write: false`) and write/push (`spec.write: true`, used by the source hydrator) repositories and
-      credentials are distinct objects, and every lookup filters on the marker so the two credential sets can never
-      shadow each other
-    - Same encryption-at-rest guarantees; no reduction in security posture
+      credentials are distinct objects, filtered on in every lookup so the two sets cannot shadow each other
+    - Same encryption-at-rest guarantees
 
 ### Non-Goals
 
-1. **Changing Internal API Types**
-    - `pkg/apis/application/v1alpha1.Repository` remains unchanged for now
-    - Internal code continues using same structs; a single shared conversion
-      (`util/db/repository_crd_conversion.go`) maps CRD ↔ internal types for both the DB layer and the repository
-      controller
-    - This is purely an external storage change
-    - **Note:** CRD schema organizes fields differently (nested by type) but maps to same internal types
-
-2. **Immediate Secret Deprecation**
-    - Secret-based storage remains supported indefinitely and remains the default
-    - No forced migration in this phase
-    - Future deprecation would be separate proposal
-
-3. **API Contract Changes**
-    - CLI commands (`argocd repo add`) behavior unchanged
-    - gRPC/REST API remains identical
-    - Client SDKs unaffected
-
-4. **Multi-Tenancy Redesign**
-    - Project scoping mechanism unchanged
-    - Namespace isolation (aka "repositories-in-any-namespace") is not addressed here
-    - Future work could build on this foundation
-
-5. **Workload identity support**
-    - There are already some ad-hoc workload identity solutions present, which will be unchanged for this proposal
-      (`spec.useAzureWorkloadIdentity` is carried through, as with secrets today)
-    - Future work could build on this foundation for a more holistic solution
+1. **Changing internal API types.** `pkg/apis/application/v1alpha1.Repository` is unchanged; a single shared
+   conversion (`util/db/repository_crd_conversion.go`) maps CRD ↔ internal types for both the DB layer and the
+   repository controller. The CRD schema groups fields by type but maps onto the same structs.
+2. **Immediate Secret deprecation.** Secret-based storage stays supported and remains the default; deprecating it
+   would be a separate proposal.
+3. **API contract changes.** CLI behavior, the gRPC/REST API and client SDKs are all unaffected.
+4. **Multi-tenancy redesign.** Project scoping is unchanged, and namespace isolation
+   ("repositories-in-any-namespace") is not addressed — though the namespaced CRD shape leaves room for it.
+5. **Workload identity.** Existing ad-hoc support is carried through as-is (`spec.useAzureWorkloadIdentity`, as
+   with secrets today); a holistic solution is future work.
 
 ## Proposal
 
@@ -133,8 +121,7 @@ clusters.
 #### Backend selection
 
 * The storage backend is resolved at the command edges only: each binary registers a `--repository-backend-mode`
-  flag whose default comes from `ARGOCD_REPOSITORY_BACKEND`; nothing below the commands reads the environment. An
-  explicit flag always wins over the env var. Invalid or unset values fall back to `secret`.
+  flag whose default comes from `ARGOCD_REPOSITORY_BACKEND`.
 * `db.NewDB` validates the mode/clientset pairing once: crd/hybrid without an application clientset downgrades to
   the secrets backend with a warning instead of failing at first use.
 * Components that only read *cluster* data (sharding, several admin commands) intentionally stay on the secrets
@@ -162,15 +149,28 @@ clusters.
   (default 30s), `--repo-controller-status-entry-ttl` (default 1h, `0` disables pruning) and `--controlplane-name`
   (env `ARGOCD_CONTROLPLANE_NAME`; must be unique for each application controller writing repository status to the
   same control plane).
-* The controller is the **single writer** of `Repository` status. Each periodic probe invokes the repo-server's
-  `TestRepository` with the repository converted through the shared conversion (i.e. exactly the credentials
-  manifest generation would use).
-* Status is written in two server-side applies, both under the controlplane's field manager:
+* The repository controller is the **only component** that writes `Repository` status — no other component does,
+  and everything else (the API server, reconciliation) only reads it or feeds the controller's work queue. In
+  agent-based architectures there is one such controller per controlplane, each writing its own entry. Each
+  periodic probe invokes the repo-server's `TestRepository` with the repository converted through the shared
+  conversion (i.e. exactly the credentials manifest generation would use).
+* **Status writes use server-side apply, one field manager per controlplane** — the manager being the
+  controlplane's `--controlplane-name`, which is also its `clusterConnectionStates` entry key. SSA rather than
+  read-modify-write of the status subresource: GET/mutate/UPDATE makes every controlplane contend for the whole
+  object and a lost race silently drops a peer's entry, whereas an apply carries only this controlplane's fields and
+  the server merges. Every apply targets the `status` subresource with `force: true`; the only competing writers are
+  peers running this same code. Each probe writes twice:
   1. apply only this controlplane's `clusterConnectionStates` entry (`listType=map` keyed by `name`, so the API
      server merges entries across controlplanes); the patch response is the authoritative post-merge object;
   2. roll the aggregate `connectionState` and the `Ready` condition up from that response and apply them.
-  Computing the rollup from the apply response rather than the informer cache means any controlplane can own a
-  write without regressing the aggregate to a stale view.
+  Rolling up from the apply response rather than the informer cache means any controlplane can own a write without
+  regressing the aggregate to a stale view.
+* Two SSA properties the design leans on: **omission deletes** — fields a manager stops asserting are removed by the
+  server, which is what makes prune and eviction possible (force-adopt the doomed entry, then apply without it) and
+  why each apply must assert every field this controlplane still owns; and the **aggregate and `Ready` are shared,
+  last-writer-wins**, deliberately not partitioned per manager, since both derive from the merged entry list and so
+  converge regardless of write order. Controlplane-specific detail stays in the entry that controlplane owns. Each
+  writing controlplane also adds a `metadata.managedFields` entry — part of why the list needs a cap.
 * Test failures are classified into condition reasons: gRPC `Unauthenticated`/`PermissionDenied` and well-known
   git/SSH/HTTP authentication failure messages map to `CredentialsInvalid`; a spec referencing a nonexistent
   credentials Secret maps to `CredentialsMissing`; everything else is `ConnectionFailed`.
@@ -192,57 +192,44 @@ clusters.
   reporting for longer than the status-entry TTL (decommissioned clusters) are pruned by whichever controlplane
   notices, using a two-step apply (force-adopt the abandoned entries, then apply without them). The TTL must
   comfortably exceed every controlplane's test interval.
-  With a capped list the two steps must assert *only* the entries being removed, not the pruner's own entry
-  alongside them: asserting `stale + 1` items means a controlplane that does not yet hold a slot is rejected by the
-  very apply that would have freed one, and a list whose slots all belong to dead names could then never be pruned
-  by anyone — leaving that `Repository`'s status permanently unwritable. The pruner asserts its own entry only after
-  the drop, so it never needs a slot it does not already own.
-* **Bounded status:** `clusterConnectionStates` holds one entry per reporting controlplane, so left unbounded the
-  `Repository` object grows with the fleet — and a large agent-based deployment can genuinely have hundreds or
-  thousands of controlplanes, well past what one object can hold. The list therefore has a hard `maxItems` (100),
-  and each entry's `message` a `maxLength` of 1024 (the controller truncates before writing, since a repo-server
-  error can be arbitrarily long), which caps a worst-case status at roughly 130 KiB — inside etcd's ~1.5 MiB
-  per-object limit with room for the `managedFields` entry every writing controlplane also adds. The cap is a
-  *retention budget*, not a supported fleet size: above it, per-controlplane detail is a sample and the aggregate is
-  the fleet-wide answer.
-* **Retention policy: evict the least-recently-*changed* entry.** A steady-state `Successful` entry carries no
-  information the aggregate does not already give, so when a controlplane needs a slot in a full list it evicts the
-  entry whose state has been unchanged the longest. Three things this requires:
-  - **A recency key that is not `attemptedAt`.** The heartbeat refreshes `attemptedAt` on every probe, so it is
-    always fresh and useless for ranking. Each entry gains a `lastTransitionTime` — when that entry's `status` last
-    *changed* — which is what eviction orders on.
-  - **Failures are pinned.** A `Failed` entry is never evicted to make room for a `Successful` one, however stale
-    its transition: the failing controlplanes are the reason the per-entry detail exists. Eviction therefore ranks
-    `Successful` entries first (oldest `lastTransitionTime` first, entry name as tiebreak so concurrent writers pick
-    the same victim), and only considers `Failed` entries when every retained entry is already failing.
-  - **The aggregate must not silently undercount.** `totalClusters`/`successfulClusters`/`failedClusters` are
-    derived from the entries, so once entries are evicted they describe the retained sample, not the fleet. The
-    aggregate carries an explicit marker (`truncated: true`) so a consumer can tell "2 of 2 clusters" from "2 of 2
-    *retained* clusters", rather than reading an evicted fleet as a healthy one.
-  Eviction reuses the two-step apply from stale-entry GC above — a victim's entry is owned by another field
-  manager, so it must be force-adopted before it can be dropped. Eviction bounds the object, but it does not by
-  itself make a fleet larger than the cap behave well — see the open question below.
+  Under a capped list both steps must assert *only* the entries being removed: asserting `stale + 1` items means a
+  controlplane holding no slot is rejected by the very apply that would have freed one, so a list full of dead names
+  could never be pruned by anyone. The pruner asserts its own entry after the drop.
+* **Bounded status:** one entry per reporting controlplane means an unbounded `clusterConnectionStates` grows with
+  the fleet, and a large agent-based deployment can have hundreds or thousands of controlplanes. The list therefore
+  has a hard `maxItems` (100) and each entry's `message` a `maxLength` of 1024 (the controller truncates; a
+  repo-server error is otherwise unbounded), capping a worst-case status near 130 KiB — inside etcd's ~1.5 MiB
+  per-object limit with room for the `managedFields` entries. The cap is a *retention budget*, not a supported fleet
+  size: above it the per-entry detail is a sample and the aggregate is the fleet-wide answer.
+* **Retention policy: evict the least-recently-*changed* entry.** A steady-state `Successful` entry says nothing the
+  aggregate does not, so a controlplane needing a slot in a full list evicts the entry unchanged the longest. This
+  requires:
+  - **A recency key that is not `attemptedAt`** — the heartbeat keeps that fresh on every probe. Each entry gains a
+    `lastTransitionTime`, moving only when its `status` changes, and eviction orders on that.
+  - **Failures pinned.** A `Failed` entry is never evicted for a `Successful` one, however stale — failing
+    controlplanes are why per-entry detail exists. Ranking is `Successful` first, oldest `lastTransitionTime` first,
+    entry name as tiebreak so concurrent writers pick the same victim.
+  - **An aggregate that does not silently undercount.** `totalClusters`/`successfulClusters`/`failedClusters` derive
+    from the entries, so once entries are evicted they describe the retained sample; a `truncated: true` marker
+    keeps "2 of 2 clusters" distinguishable from "2 of 2 *retained* clusters".
+  Eviction reuses the two-step apply from stale-entry GC — the victim's entry belongs to another field manager, so
+  it must be force-adopted before it can be dropped. Eviction bounds the object but does not by itself make a fleet
+  larger than the cap behave well; see the open question above.
 * Spec changes (generation bumps) trigger prompt re-tests via the informer; the controller's own status writes do
   not bump the generation and are filtered out, so there is no self-triggering write loop.
 * **Credentials the probe actually uses:** a repository without its own credentials inherits them from the
   `RepositoryCredential` whose URL is the longest prefix of its own (the same longest-prefix rule the CRD backend
   applies), so the probe cannot report `Ready=True` for a repository that manifest generation would fail to read.
-* **Credential-change detection:** the controller also watches `RepositoryCredential` and the credential Secrets,
-  and maps both back to the repositories they feed:
-  - a `RepositoryCredential` spec change enqueues every repository its URL covers — both before and after the
-    change, so a moved `spec.url` re-tests the repositories it stopped covering as well;
-  - a Secret whose *contents* change enqueues every repository that reads it, directly via `spec.secretRef` or
-    through a covering credential. Rotating a Secret touches neither CR, so without this the new material would
-    only be verified at the next periodic probe. Only `data` changes count: comparing it discards the informer
-    resync's synthetic updates and metadata-only writes by other controllers. Secret creation and deletion are
-    handled too (a created Secret can clear `CredentialsMissing`; a deleted one should report it promptly), with
-    Adds that predate controller startup ignored so the informer's initial LIST is not read as a fleet-wide
-    rotation.
-  The Secret watch is the one the settings manager already runs in every component — every non-cluster Secret in
-  the control-plane namespace — so this adds no watch surface, and no RBAC beyond the `secrets` get/list/watch the
-  application controller already holds. Rotation deliberately emits **no** event: every controlplane watching the
-  Secret would emit its own duplicate, and the re-test's own transition events (`CredentialsInvalid`,
-  `ConnectionRecovered`) already report the outcome operators act on.
+* **Credential-change detection:** the controller also watches credential Secrets, mapping them back to the repositories
+they feed:
+  - a Secret whose `data` changes enqueues every repository that reads it, directly or through a covering
+    credential — rotation touches neither CR, so otherwise the new material waits for the next periodic probe.
+    Comparing `data` discards resync-synthetic updates and metadata-only writes. Creation and deletion are handled
+    too (a created Secret can clear `CredentialsMissing`), with Adds predating startup ignored so the informer's
+    initial LIST is not read as a fleet-wide rotation.
+  This reuses the Secret watch the settings manager already runs in every component — every non-cluster Secret in
+  the control-plane namespace — so it adds no watch surface and no RBAC. Rotation emits **no** event: every
+  controlplane would emit its own duplicate, and the re-test's transition events already report the outcome.
 
 #### Events
 
@@ -250,28 +237,23 @@ clusters.
   - `RepositoryCreated`: new `Repository` registered (including a hybrid-mode migration creating the CRD)
   - `RepositoryUpdated`: `Repository` specification changed
   - `CredentialsCreated`: new `RepositoryCredential` registered
-  - `CredentialsUpdated`: `RepositoryCredential` changed
+  - `CredentialsUpdated`: `RepositoryCredential` changed — the resource only; a rotation of the referenced Secret's
+    contents is detected and re-tested (see above) but not announced
 
-Lifecycle events are deliberately emitted by the write path rather than the repository controller: an
-informer-driven emitter would re-announce every existing resource on each controller restart, and in
-multi-controlplane setups every controlplane would emit duplicates for a single write.
+Emitted by the write path rather than the controller: an informer-driven emitter would re-announce every existing
+resource on each controller restart, and every controlplane would duplicate events for a single write.
 
 ##### Connection health events (emitted by the repository controller on state *transitions* of its own entry)
   - `ConnectionSuccessful`: repository became accessible (first result, or from unknown state)
   - `ConnectionFailed`: cannot connect to repository (unclassified failure)
   - `ConnectionRecovered`: connection restored after failure
 
-Note that `CredentialsUpdated` covers changes to the `RepositoryCredential` resource only. A rotation of the
-referenced Secret's contents is detected and re-tested (see the repository controller above) but not announced as a
-lifecycle event, because the detection is informer-driven and would duplicate per controlplane.
-
 ##### Credential events (emitted by the repository controller, classified from the test failure)
   - `CredentialsInvalid`: authentication failed
   - `CredentialsMissing`: referenced secret not found
 
-There is deliberately no `CredentialsValid` event: a successful connection test cannot distinguish "credentials
-verified" from "repository allows anonymous access", and recovery from a credentials problem is already covered by
-`ConnectionRecovered`.
+There is deliberately no `CredentialsValid` event: a successful test cannot distinguish "credentials verified" from
+"anonymous access allowed", and recovery is already covered by `ConnectionRecovered`.
 
 #### RBAC
 
@@ -430,9 +412,9 @@ status:
 
 * **Two writers of repository configuration (CRD + legacy Secret) during migration.** Mitigated by strict
   precedence (CRDs win in hybrid mode) and by the migration deleting the legacy Secret once the CRD is created, so
-  in the normal case the overlap window is a single update. Because that delete is best-effort and is not retried,
-  a repository can be left with both representations; components in `hybrid`/`crd` mode are unaffected (the CRD
-  wins), but any component still in `secret` mode keeps serving the stale copy.
+  the overlap is normally a single update. That delete is best-effort and not retried, so a repository can keep both
+  representations; `hybrid`/`crd` components are unaffected, but anything still in `secret` mode serves the stale
+  copy.
 * **Status write amplification.** Every controlplane probes every repository each interval (default 3m) and writes
   two status patches. This is also the heartbeat that makes stale-entry GC possible; the interval and worker count
   are tunable.
@@ -445,11 +427,10 @@ status:
 
 * **Upgrading** requires applying the new CRDs (they are part of the install manifests) but changes no behavior:
   every component defaults to the `secret` backend, and the repository controller only starts in crd/hybrid modes.
-* **There is no bulk migration.** Existing secret-backed repositories become CRDs one at a time, when something
-  updates them. `hybrid` mode is therefore the only safe way in: it reads both stores, so nothing is lost while the
-  fleet converges. Switching a fleet straight from `secret` to `crd` makes every not-yet-migrated repository
-  invisible — `crd` mode has no Secret fallback — and the applications using them fail to resolve their sources. A
-  migration command that converts every secret-backed repository in one pass is left to a follow-up.
+* **There is no bulk migration.** Repositories become CRDs one at a time, when something updates them, so `hybrid`
+  is the only safe way in: it reads both stores. Going straight from `secret` to `crd` makes every unmigrated
+  repository invisible (no Secret fallback) and their applications fail to resolve sources. A one-pass migration
+  command is left to a follow-up.
 * **Downgrading** while still in `secret` mode is safe. After running in `hybrid` mode, note that updating a
   repository migrates it to a CRD **and deletes the legacy Secret** — so before downgrading to a version without
   CRD support, migrated repositories must be exported back to secrets (or re-created). Downgrading from `crd` mode
