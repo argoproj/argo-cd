@@ -51,7 +51,7 @@ func VerifyGit(ctx context.Context, si *v1alpha1.SourceIntegrity, gitClient git.
 }
 
 func lookupGit(si *v1alpha1.SourceIntegrity, repoURL string) gitFunc {
-	policies := findMatchingGitPolicies(si.Git, repoURL)
+	policies := FindMatchingGitPolicies(si.Git, repoURL)
 	nPolicies := len(policies)
 	if nPolicies == 0 {
 		log.Infof("No git source integrity policies found for repo URL: %s", repoURL)
@@ -89,7 +89,7 @@ func lookupGit(si *v1alpha1.SourceIntegrity, repoURL string) gitFunc {
 	return nil
 }
 
-func findMatchingGitPolicies(si *v1alpha1.SourceIntegrityGit, repoURL string) (policies []*v1alpha1.SourceIntegrityGitPolicy) {
+func FindMatchingGitPolicies(si *v1alpha1.SourceIntegrityGit, repoURL string) (policies []*v1alpha1.SourceIntegrityGitPolicy) {
 	for _, p := range si.Policies {
 		include := false
 		for _, r := range p.Repos {
@@ -213,11 +213,20 @@ func describeProblems(g *v1alpha1.SourceIntegrityGitPolicyGPG, signatureInfos []
 // gpgProblemMessage generates a message describing GPG verification issues for a specific revision signature and the configured policy.
 // When an empty string is returned, it means there is no problem - the validation has passed.
 func gpgProblemMessage(g *v1alpha1.SourceIntegrityGitPolicyGPG, signatureInfo git.RevisionSignatureInfo) string {
+	msg, valid := VerifyGPGSignatureInfo(g, signatureInfo)
+	if valid {
+		return ""
+	}
+
+	return fmt.Sprintf(
+		"Failed verifying revision %s by '%s': %s",
+		signatureInfo.Revision, signatureInfo.AuthorIdentity, msg,
+	)
+}
+
+func VerifyGPGSignatureInfo(g *v1alpha1.SourceIntegrityGitPolicyGPG, signatureInfo git.RevisionSignatureInfo) (string, bool) {
 	if signatureInfo.VerificationResult != git.GPGVerificationResultGood {
-		return fmt.Sprintf(
-			"Failed verifying revision %s by '%s': %s (key_id=%s)",
-			signatureInfo.Revision, signatureInfo.AuthorIdentity, signatureInfo.VerificationResult, signatureInfo.SignatureKeyID,
-		)
+		return fmt.Sprintf("%s (key_id=%s)", signatureInfo.VerificationResult, signatureInfo.SignatureKeyID), false
 	}
 
 	for _, allowedKey := range g.Keys {
@@ -227,14 +236,11 @@ func gpgProblemMessage(g *v1alpha1.SourceIntegrityGitPolicyGPG, signatureInfo gi
 			continue
 		}
 		if allowedKey == signatureInfo.SignatureKeyID {
-			return ""
+			return fmt.Sprintf("%s (key_id=%s)", signatureInfo.VerificationResult, signatureInfo.SignatureKeyID), true
 		}
 	}
 
-	return fmt.Sprintf(
-		"Failed verifying revision %s by '%s': signed with unallowed key (key_id=%s)",
-		signatureInfo.Revision, signatureInfo.AuthorIdentity, signatureInfo.SignatureKeyID,
-	)
+	return fmt.Sprintf("signed with unallowed key (key_id=%s)", signatureInfo.SignatureKeyID), false
 }
 
 // IsGPGEnabled returns true if the GPG feature is enabled

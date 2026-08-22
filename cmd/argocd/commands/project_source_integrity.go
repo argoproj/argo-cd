@@ -11,14 +11,18 @@ import (
 	"strconv"
 	"strings"
 	"text/tabwriter"
+	"time"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
 	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
+	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/gpgkey"
 	projectpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/cli"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
@@ -50,6 +54,9 @@ var (
 	newGpgKeyClient = func(clientOpts *argocdclient.ClientOptions, c *cobra.Command) (io.Closer, gpgkey.GPGKeyServiceClient) {
 		return headless.NewClientOrDie(clientOpts, c).NewGPGKeyClientOrDieWithContext(c.Context())
 	}
+	newApplicationClient = func(clientOpts *argocdclient.ClientOptions, c *cobra.Command) (io.Closer, applicationpkg.ApplicationServiceClient) {
+		return headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDieWithContext(c.Context())
+	}
 )
 
 // NewProjectSourceIntegrityCommand returns a new instance of an `argocd proj source-integrity` command
@@ -79,6 +86,7 @@ func NewProjectSourceIntegrityGitCommand(clientOpts *argocdclient.ClientOptions)
 		},
 	}
 	command.AddCommand(NewProjectSourceIntegrityGitPoliciesCommand(clientOpts))
+	command.AddCommand(NewProjectSourceIntegrityGitGpgInspectRepoCommand(clientOpts))
 	return command
 }
 
@@ -528,6 +536,152 @@ func NewProjectSourceIntegrityGitPoliciesUpdateCommand(clientOpts *argocdclient.
 	command.Flags().StringSliceVar(&deleteGPGKeys, "delete-gpg-key", []string{}, "Delete GPG key ID")
 	command.Flags().BoolVarP(&yes, "yes", "y", false, "Skip explicit confirmation")
 	return command
+}
+
+func NewProjectSourceIntegrityGitGpgInspectRepoCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	var appNamespace string
+	command := &cobra.Command{
+		Use:   "gpg-inspect-repo PROJECT APPNAME",
+		Short: "Inspect the Git/GPG source integrity of an application in a project",
+		Args: func(c *cobra.Command, args []string) error {
+			if len(args) != 2 {
+				c.HelpFunc()(c, args)
+				return NewExitError(1, nil)
+			}
+
+			return nil
+		},
+		RunE: cli.WithSignalContextE(func(c *cobra.Command, args []string, _ context.CancelFunc) error {
+			ctx := c.Context()
+
+			cleanup, applicationClient := newApplicationClient(clientOpts, c)
+			defer utilio.Close(cleanup)
+
+			projName := args[0]
+			appName, appNs := argo.ParseFromQualifiedName(args[1], appNamespace)
+
+			data, err := applicationClient.InspectGitGPGSourceIntegrity(ctx, &applicationpkg.InspectGitGPGSourceIntegrityQuery{
+				Name:         &appName,
+				Project:      &projName,
+				AppNamespace: &appNs,
+			})
+			if err != nil {
+				return fmt.Errorf("failed inspecting git gpg source integrity for application %q: %w", appName, err)
+			}
+
+			if len(data.GetItems()) == 0 {
+				fmt.Fprintf(c.ErrOrStderr(), "Git/GPG source integrity is not configured for any source of application %q, check the project and application configuration.\n", appName)
+				return NewExitError(3, nil)
+			}
+
+			hasSourceIntegrityProblems := printGitGpgSourceIntegrityResponse(c.OutOrStdout(), data.GetItems())
+			if hasSourceIntegrityProblems {
+				return NewExitError(2, nil)
+			}
+
+			return nil
+		}),
+	}
+	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only inspect application in namespace")
+	return command
+}
+
+func printGitGpgSourceIntegrityResponse(w io.Writer, items []*applicationpkg.InspectGitGPGSourceIntegrityResponse) bool {
+	hasSourceIntegrityProblems := false
+
+	for i, item := range items {
+		gpgPolicy := item.GetGitGpgPolicy()
+		isStrictMode := gpgPolicy != nil && gpgPolicy.Mode == v1alpha1.SourceIntegrityGitPolicyGPGModeStrict
+		if i > 0 {
+			fmt.Fprint(w, "\n--------------------------------\n\n")
+		}
+
+		printGitGpgSourceIntegrityItemHeader(w, item)
+
+		if item.GetErrorMessage() != "" {
+			hasSourceIntegrityProblems = true
+			fmt.Fprintf(w, "\nPROBLEMS: %s\n", item.GetErrorMessage())
+		}
+
+		if gpgPolicy != nil && !isStrictMode {
+			fmt.Fprintln(w, "\nWARNING: Project does not have strict Git/GPG mode enabled. Strict GPG verification is not actually enforced.")
+		}
+
+		if len(item.GetCommits()) > 0 {
+			hasSourceIntegrityProblems = true
+
+			fmt.Fprintln(w, "\nPROBLEMATIC COMMITS:")
+			tabW := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
+			fmt.Fprint(tabW, "  Revision\tDate\tAuthor\tSubject\tResult\n")
+			for _, commit := range item.GetCommits() {
+				fmt.Fprintf(tabW, "  %s\t%s\t%s\t%s\t%s\n", commit.GetRevision(), formatCommitDate(commit.GetDate()), commit.GetAuthor(), commit.GetSubject(), commit.GetVerificationResult())
+			}
+			tabW.Flush()
+		} else if item.GetErrorMessage() == "" {
+			// if there is error message the source integrity check won't pass
+			fmt.Fprintln(w, "\nSource passes strict Git/GPG source integrity checks.")
+		}
+
+		// no need to inspect repository if there are no problems or there are problems with source integrity config
+		if hasSourceIntegrityProblems && item.GetErrorMessage() == "" {
+			fmt.Fprintln(w)
+			fmt.Fprintln(w, "To inspect repository:")
+			fmt.Fprintln(w, "  git fetch --tags")
+			fmt.Fprintf(w, "  git checkout %s\n", item.GetResolvedRevision())
+			fmt.Fprintf(w, "  git log --oneline %s\n", item.GetResolvedRevision())
+			revisions := make([]string, 0, len(item.GetCommits()))
+			for _, commit := range item.GetCommits() {
+				revisions = append(revisions, commit.GetRevision())
+			}
+			if len(revisions) > 0 {
+				fmt.Fprintf(w, "  git log -p --no-walk %s\n", strings.Join(revisions, " "))
+			}
+		}
+	}
+
+	if hasSourceIntegrityProblems {
+		fmt.Fprintln(w)
+		fmt.Fprintln(w, "To create seal commit (this will trust all problematic commits before the seal commit):")
+		fmt.Fprintln(w, `  git commit --allow-empty --signoff --gpg-sign --trailer="Argocd-gpg-seal: <justification>"`)
+	}
+
+	return hasSourceIntegrityProblems
+}
+
+func printGitGpgSourceIntegrityItemHeader(w io.Writer, item *applicationpkg.InspectGitGPGSourceIntegrityResponse) {
+	fmt.Fprintf(w, "Repo URL: %s\n", item.GetRepoUrl())
+	fmt.Fprintf(w, "Target Revision: %s\n", item.GetTargetRevision())
+	if item.GetErrorMessage() == "" {
+		fmt.Fprintf(w, "Resolved Revision: %s\n", item.GetResolvedRevision())
+	}
+
+	gpgPolicy := item.GetGitGpgPolicy()
+	isStrictMode := gpgPolicy != nil && gpgPolicy.Mode == v1alpha1.SourceIntegrityGitPolicyGPGModeStrict
+
+	if gpgPolicy != nil {
+		fmt.Fprintf(w, "GPG Mode: %s", gpgPolicy.Mode)
+		if !isStrictMode {
+			fmt.Fprint(w, " (SIMULATED STRICT MODE)")
+		}
+		fmt.Fprintln(w)
+
+		fmt.Fprintln(w, "GPG Keys:")
+		for _, key := range gpgPolicy.Keys {
+			fmt.Fprintf(w, "  %s\n", key)
+		}
+	}
+}
+
+func formatCommitDate(date string) string {
+	const gitRFC2822Layout = "Mon, _2 Jan 2006 15:04:05 -0700"
+	const RFC2822FixedWidthLayout = "Mon, 02 Jan 2006 15:04:05 -0700"
+
+	parsed, err := time.Parse(gitRFC2822Layout, date)
+	if err != nil {
+		log.Warnf("failed parsing commit date %s: %v", date, err)
+		return date
+	}
+	return parsed.Format(RFC2822FixedWidthLayout)
 }
 
 // warnOnProblems checks if a policy has empty repo URLs or GPG keys and prints warnings

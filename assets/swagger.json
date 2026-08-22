@@ -1937,6 +1937,47 @@
         }
       }
     },
+    "/api/v1/applications/{name}/source-integrity/git/gpg/inspect": {
+      "get": {
+        "tags": [
+          "ApplicationService"
+        ],
+        "summary": "Inspect the Git/GPG source integrity status for an application (problematic signatures)",
+        "operationId": "ApplicationService_InspectGitGPGSourceIntegrity",
+        "parameters": [
+          {
+            "type": "string",
+            "name": "name",
+            "in": "path",
+            "required": true
+          },
+          {
+            "type": "string",
+            "name": "project",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "name": "appNamespace",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/applicationInspectGitGPGSourceIntegrityListResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/applications/{name}/spec": {
       "put": {
         "tags": [
@@ -5344,6 +5385,66 @@
         "chunk": {
           "type": "string",
           "format": "byte"
+        }
+      }
+    },
+    "applicationGitGPGCommitInfo": {
+      "type": "object",
+      "properties": {
+        "author": {
+          "type": "string"
+        },
+        "date": {
+          "type": "string"
+        },
+        "keyId": {
+          "type": "string"
+        },
+        "revision": {
+          "type": "string"
+        },
+        "subject": {
+          "type": "string"
+        },
+        "verificationResult": {
+          "type": "string"
+        }
+      }
+    },
+    "applicationInspectGitGPGSourceIntegrityListResponse": {
+      "type": "object",
+      "properties": {
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/applicationInspectGitGPGSourceIntegrityResponse"
+          }
+        }
+      }
+    },
+    "applicationInspectGitGPGSourceIntegrityResponse": {
+      "type": "object",
+      "properties": {
+        "commits": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/applicationGitGPGCommitInfo"
+          }
+        },
+        "errorMessage": {
+          "type": "string"
+        },
+        "gitGpgPolicy": {
+          "$ref": "#/definitions/v1alpha1SourceIntegrityGitPolicyGPG"
+        },
+        "repoUrl": {
+          "type": "string"
+        },
+        "resolvedRevision": {
+          "type": "string"
+        },
+        "targetRevision": {
+          "type": "string"
         }
       }
     },

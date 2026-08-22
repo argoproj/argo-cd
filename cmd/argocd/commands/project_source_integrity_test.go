@@ -3,8 +3,10 @@ package commands
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -14,6 +16,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	applicationmocks "github.com/argoproj/argo-cd/v3/pkg/apiclient/application/mocks"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/gpgkey"
 	gpgkeymocks "github.com/argoproj/argo-cd/v3/pkg/apiclient/gpgkey/mocks"
 	projectmocks "github.com/argoproj/argo-cd/v3/pkg/apiclient/project/mocks"
@@ -92,6 +96,15 @@ func mockKeyring(mockClient *gpgkeymocks.GPGKeyServiceClient, keys ...string) *m
 	return mockClient.On("List", mock.Anything, mock.Anything).Return(keyring, nil).Maybe()
 }
 
+func mockApplicationClient(t *testing.T) *applicationmocks.ApplicationServiceClient {
+	t.Helper()
+	mockClient := applicationmocks.NewApplicationServiceClient(t)
+	newApplicationClient = func(_ *argocdclient.ClientOptions, _ *cobra.Command) (io.Closer, application.ApplicationServiceClient) {
+		return io.NopCloser(nil), mockClient
+	}
+	return mockClient
+}
+
 func runCmd(t *testing.T, cmd *cobra.Command, args ...string) (stdout string, stderr string, e error) {
 	t.Helper()
 	cmd.SilenceErrors = true
@@ -108,7 +121,9 @@ func runCmd(t *testing.T, cmd *cobra.Command, args ...string) (stdout string, st
 	// Make sure the messare from the error reported by Command.RunE() is appended to the errbuf for verification (same as in main.go)
 	if err != nil {
 		errMsg, _ := NewDefaultPluginHandler().HandleCommandExecutionError(err, true, args)
-		errbuf.WriteString(errMsg)
+		if errMsg != "" {
+			errbuf.WriteString(errMsg)
+		}
 	}
 
 	return outbuf.String(), errbuf.String(), err
@@ -620,4 +635,528 @@ func captureProjectUpdate(t *testing.T, projects *projectmocks.ProjectServiceCli
 
 	projects.AssertCalled(t, "Update", mock.Anything, capture)
 	return updatedProject
+}
+
+func TestProjectSourceIntegrityGpgInspectRepoCommand_WarningsAndReturnCodes(t *testing.T) {
+	projectName := "test-project"
+	applicationName := "test-app"
+	emptyNamespace := ""
+	appNamespace := "test-namespace"
+
+	usageMessageParts := []string{
+		"Inspect the Git/GPG source integrity of an application in a project",
+		"Usage:",
+		"gpg-inspect-repo PROJECT APPNAME [flags]",
+	}
+
+	tests := []struct {
+		name           string
+		mockSetup      func(appClient *applicationmocks.ApplicationServiceClient)
+		args           []string
+		expectedError  error
+		expectedStdout []string
+		expectedStderr []string
+	}{
+		{
+			name:           "no args",
+			args:           []string{},
+			mockSetup:      nil,
+			expectedError:  NewExitError(1, nil),
+			expectedStdout: usageMessageParts,
+			expectedStderr: []string{},
+		},
+		{
+			name:           "single arg",
+			args:           []string{projectName},
+			mockSetup:      nil,
+			expectedError:  NewExitError(1, nil),
+			expectedStdout: usageMessageParts,
+			expectedStderr: []string{},
+		},
+		{
+			name:           "three args",
+			args:           []string{projectName, applicationName, "test-repo"},
+			mockSetup:      nil,
+			expectedError:  NewExitError(1, nil),
+			expectedStdout: usageMessageParts,
+			expectedStderr: []string{},
+		},
+		{
+			name: "rpc fails",
+			args: []string{projectName, applicationName},
+			mockSetup: func(appClient *applicationmocks.ApplicationServiceClient) {
+				appClient.EXPECT().
+					InspectGitGPGSourceIntegrity(mock.Anything, &application.InspectGitGPGSourceIntegrityQuery{Name: &applicationName, Project: &projectName, AppNamespace: &emptyNamespace}).
+					Return(nil, errors.New("rpc error"))
+			},
+			expectedError:  errors.New("failed inspecting git gpg source integrity for application \"test-app\": rpc error"),
+			expectedStdout: []string{},
+			expectedStderr: []string{`Error: failed inspecting git gpg source integrity for application "test-app": rpc error`},
+		},
+		{
+			name: "source integrity not configured for any source",
+			args: []string{projectName, applicationName},
+			mockSetup: func(appClient *applicationmocks.ApplicationServiceClient) {
+				appClient.EXPECT().
+					InspectGitGPGSourceIntegrity(mock.Anything, &application.InspectGitGPGSourceIntegrityQuery{Name: &applicationName, Project: &projectName, AppNamespace: &emptyNamespace}).
+					Return(&application.InspectGitGPGSourceIntegrityListResponse{Items: []*application.InspectGitGPGSourceIntegrityResponse{}}, nil)
+			},
+			expectedError:  NewExitError(3, nil),
+			expectedStdout: []string{},
+			expectedStderr: []string{`Git/GPG source integrity is not configured for any source of application "test-app", check the project and application configuration.`},
+		},
+		{
+			name: "source integrity has problems",
+			args: []string{projectName, applicationName},
+			mockSetup: func(appClient *applicationmocks.ApplicationServiceClient) {
+				appClient.EXPECT().
+					InspectGitGPGSourceIntegrity(mock.Anything, &application.InspectGitGPGSourceIntegrityQuery{Name: &applicationName, Project: &projectName, AppNamespace: &emptyNamespace}).
+					Return(&application.InspectGitGPGSourceIntegrityListResponse{
+						Items: []*application.InspectGitGPGSourceIntegrityResponse{
+							prepareInspectGitGPGSourceIntegrityResponse(
+								"https://github.com/argoproj/argo-cd.git",
+								"v1.0.0",
+								"abcd1234",
+								nil,
+								[]*application.GitGPGCommitInfo{},
+								"multiple git/gpg policies are configured, invalid configuration",
+							),
+						},
+					}, nil)
+			},
+			expectedError:  NewExitError(2, nil),
+			expectedStdout: []string{"PROBLEMS: multiple git/gpg policies are configured, invalid configuration"},
+			expectedStderr: []string{},
+		},
+		{
+			name: "source integrity in head mode",
+			args: []string{projectName, applicationName},
+			mockSetup: func(appClient *applicationmocks.ApplicationServiceClient) {
+				appClient.EXPECT().
+					InspectGitGPGSourceIntegrity(mock.Anything, &application.InspectGitGPGSourceIntegrityQuery{Name: &applicationName, Project: &projectName, AppNamespace: &emptyNamespace}).
+					Return(&application.InspectGitGPGSourceIntegrityListResponse{
+						Items: []*application.InspectGitGPGSourceIntegrityResponse{
+							prepareInspectGitGPGSourceIntegrityResponse(
+								"https://github.com/argoproj/argo-cd.git",
+								"v1.0.0",
+								"abcd1234",
+								&appsv1.SourceIntegrityGitPolicyGPG{
+									Mode: appsv1.SourceIntegrityGitPolicyGPGModeHead,
+									Keys: []string{"ABCD1234ABCD1234"},
+								},
+								[]*application.GitGPGCommitInfo{},
+								"",
+							),
+						},
+					}, nil)
+			},
+			expectedError: nil, // verification passed, with just a warning - no error return code
+			expectedStdout: []string{
+				"Repo URL: https://github.com/argoproj/argo-cd.git",
+				"Resolved Revision: v1.0.0",
+				"Target Revision: abcd1234",
+				"GPG Mode: head (SIMULATED STRICT MODE)",
+				"GPG Keys:",
+				"ABCD1234ABCD1234",
+				`WARNING: Project does not have strict Git/GPG mode enabled. Strict GPG verification is not actually enforced.`,
+				"Source passes strict Git/GPG source integrity checks.",
+			},
+			expectedStderr: []string{},
+		},
+		{
+			name: "source integrity in none mode",
+			args: []string{projectName, applicationName},
+			mockSetup: func(appClient *applicationmocks.ApplicationServiceClient) {
+				appClient.EXPECT().
+					InspectGitGPGSourceIntegrity(mock.Anything, &application.InspectGitGPGSourceIntegrityQuery{Name: &applicationName, Project: &projectName, AppNamespace: &emptyNamespace}).
+					Return(&application.InspectGitGPGSourceIntegrityListResponse{
+						Items: []*application.InspectGitGPGSourceIntegrityResponse{
+							prepareInspectGitGPGSourceIntegrityResponse(
+								"https://github.com/argoproj/argo-cd.git",
+								"v1.0.0",
+								"abcd1234",
+								&appsv1.SourceIntegrityGitPolicyGPG{
+									Mode: appsv1.SourceIntegrityGitPolicyGPGModeNone,
+									Keys: []string{"ABCD1234ABCD1234"},
+								},
+								[]*application.GitGPGCommitInfo{},
+								"",
+							),
+						},
+					}, nil)
+			},
+			expectedError: nil, // verification passed, with just a warning - no error return code
+			expectedStdout: []string{
+				"Repo URL: https://github.com/argoproj/argo-cd.git",
+				"Resolved Revision: v1.0.0",
+				"Target Revision: abcd1234",
+				"GPG Mode: none (SIMULATED STRICT MODE)",
+				"GPG Keys:",
+				"ABCD1234ABCD1234",
+				`WARNING: Project does not have strict Git/GPG mode enabled. Strict GPG verification is not actually enforced.`,
+				"Source passes strict Git/GPG source integrity checks.",
+			},
+			expectedStderr: []string{},
+		},
+		{
+			name: "source integrity in strict mode",
+			args: []string{projectName, applicationName},
+			mockSetup: func(appClient *applicationmocks.ApplicationServiceClient) {
+				appClient.EXPECT().
+					InspectGitGPGSourceIntegrity(mock.Anything, &application.InspectGitGPGSourceIntegrityQuery{Name: &applicationName, Project: &projectName, AppNamespace: &emptyNamespace}).
+					Return(&application.InspectGitGPGSourceIntegrityListResponse{
+						Items: []*application.InspectGitGPGSourceIntegrityResponse{
+							prepareInspectGitGPGSourceIntegrityResponse(
+								"https://github.com/argoproj/argo-cd.git",
+								"v1.0.0",
+								"abcd1234",
+								&appsv1.SourceIntegrityGitPolicyGPG{
+									Mode: appsv1.SourceIntegrityGitPolicyGPGModeStrict,
+									Keys: []string{"ABCD1234ABCD1234"},
+								},
+								[]*application.GitGPGCommitInfo{},
+								"",
+							),
+						},
+					}, nil)
+			},
+			expectedError: nil, // verification passed
+			expectedStdout: []string{
+				"Repo URL: https://github.com/argoproj/argo-cd.git",
+				"Resolved Revision: v1.0.0",
+				"Target Revision: abcd1234",
+				"GPG Mode: strict",
+				"GPG Keys:",
+				"ABCD1234ABCD1234",
+				"Source passes strict Git/GPG source integrity checks.",
+			},
+			expectedStderr: []string{},
+		},
+		{
+			name: "app namespace flag",
+			args: []string{projectName, applicationName, "--app-namespace", appNamespace},
+			mockSetup: func(appClient *applicationmocks.ApplicationServiceClient) {
+				appClient.EXPECT().
+					InspectGitGPGSourceIntegrity(mock.Anything, &application.InspectGitGPGSourceIntegrityQuery{Name: &applicationName, Project: &projectName, AppNamespace: &appNamespace}).
+					Return(&application.InspectGitGPGSourceIntegrityListResponse{
+						Items: []*application.InspectGitGPGSourceIntegrityResponse{
+							prepareInspectGitGPGSourceIntegrityResponse(
+								"https://github.com/argoproj/argo-cd.git",
+								"v1.0.0",
+								"abcd1234",
+								&appsv1.SourceIntegrityGitPolicyGPG{
+									Mode: appsv1.SourceIntegrityGitPolicyGPGModeStrict,
+									Keys: []string{"ABCD1234ABCD1234"},
+								},
+								[]*application.GitGPGCommitInfo{},
+								"",
+							),
+						},
+					}, nil)
+			},
+			expectedError: nil, // verification passed
+			expectedStdout: []string{
+				"Repo URL: https://github.com/argoproj/argo-cd.git",
+				"Resolved Revision: v1.0.0",
+				"Target Revision: abcd1234",
+				"GPG Mode: strict",
+				"GPG Keys:",
+				"ABCD1234ABCD1234",
+				"Source passes strict Git/GPG source integrity checks.",
+			},
+			expectedStderr: []string{},
+		},
+		{
+			name: "app namespace qualified name",
+			args: []string{projectName, fmt.Sprintf("%s/%s", appNamespace, applicationName)},
+			mockSetup: func(appClient *applicationmocks.ApplicationServiceClient) {
+				appClient.EXPECT().
+					InspectGitGPGSourceIntegrity(mock.Anything, &application.InspectGitGPGSourceIntegrityQuery{Name: &applicationName, Project: &projectName, AppNamespace: &appNamespace}).
+					Return(&application.InspectGitGPGSourceIntegrityListResponse{
+						Items: []*application.InspectGitGPGSourceIntegrityResponse{
+							prepareInspectGitGPGSourceIntegrityResponse(
+								"https://github.com/argoproj/argo-cd.git",
+								"v1.0.0",
+								"abcd1234",
+								&appsv1.SourceIntegrityGitPolicyGPG{
+									Mode: appsv1.SourceIntegrityGitPolicyGPGModeStrict,
+									Keys: []string{"ABCD1234ABCD1234"},
+								},
+								[]*application.GitGPGCommitInfo{},
+								"",
+							),
+						},
+					}, nil)
+			},
+			expectedError: nil, // verification passed
+			expectedStdout: []string{
+				"Repo URL: https://github.com/argoproj/argo-cd.git",
+				"Resolved Revision: v1.0.0",
+				"Target Revision: abcd1234",
+				"GPG Mode: strict",
+				"GPG Keys:",
+				"ABCD1234ABCD1234",
+				"Source passes strict Git/GPG source integrity checks.",
+			},
+			expectedStderr: []string{},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			applications := mockApplicationClient(t)
+			if test.mockSetup != nil {
+				test.mockSetup(applications)
+			}
+
+			cmd := NewProjectSourceIntegrityGitGpgInspectRepoCommand(&argocdclient.ClientOptions{})
+			stdout, stderr, err := runCmd(t, cmd, test.args...)
+
+			assert.Equal(t, ExitCodeForError(test.expectedError), ExitCodeForError(err))
+			assert.Equal(t, CLIErrorMessage(test.expectedError), CLIErrorMessage(err))
+			assertContainsAllParts(t, test.expectedStderr, stderr)
+			assertContainsAllParts(t, test.expectedStdout, stdout)
+		})
+	}
+}
+
+func TestProjectSourceIntegrityGpgInspectRepoCommand_SinglePassingSource(t *testing.T) {
+	projectName := "test-project"
+	applicationName := "test-app"
+	emptyNamespace := ""
+
+	stdoutParts := []string{
+		"Repo URL: https://github.com/argoproj/argo-cd.git",
+		"Target Revision: v1.0.0",
+		"Resolved Revision: abcd1234",
+		"GPG Mode: head (SIMULATED STRICT MODE)",
+		"GPG Keys:",
+		"  ABCD1234ABCD1234",
+		"",
+		"WARNING: Project does not have strict Git/GPG mode enabled. Strict GPG verification is not actually enforced.",
+		"",
+		"Source passes strict Git/GPG source integrity checks.",
+	}
+	expectedStdout := strings.Join(stdoutParts, "\n") + "\n"
+
+	applications := mockApplicationClient(t)
+	applications.EXPECT().
+		InspectGitGPGSourceIntegrity(mock.Anything, &application.InspectGitGPGSourceIntegrityQuery{Name: &applicationName, Project: &projectName, AppNamespace: &emptyNamespace}).
+		Return(&application.InspectGitGPGSourceIntegrityListResponse{
+			Items: []*application.InspectGitGPGSourceIntegrityResponse{
+				prepareInspectGitGPGSourceIntegrityResponse(
+					"https://github.com/argoproj/argo-cd.git",
+					"abcd1234",
+					"v1.0.0",
+					&appsv1.SourceIntegrityGitPolicyGPG{
+						Mode: appsv1.SourceIntegrityGitPolicyGPGModeHead,
+						Keys: []string{"ABCD1234ABCD1234"},
+					},
+					[]*application.GitGPGCommitInfo{},
+					"",
+				),
+			},
+		}, nil)
+
+	cmd := NewProjectSourceIntegrityGitGpgInspectRepoCommand(&argocdclient.ClientOptions{})
+	stdout, stderr, err := runCmd(t, cmd, projectName, applicationName)
+
+	assert.Equal(t, ExitCodeForError(nil), ExitCodeForError(err))
+	assert.Equal(t, CLIErrorMessage(nil), CLIErrorMessage(err))
+	assert.Empty(t, stderr)
+	assert.Equal(t, expectedStdout, stdout)
+}
+
+func TestProjectSourceIntegrityGpgInspectRepoCommand_SingleProblematicCommitsSource(t *testing.T) {
+	projectName := "test-project"
+	applicationName := "test-app"
+	emptyNamespace := ""
+
+	stdoutParts := []string{
+		"Repo URL: https://github.com/argoproj/argo-cd.git",
+		"Target Revision: v1.0.0",
+		"Resolved Revision: abcd1234",
+		"GPG Mode: strict",
+		"GPG Keys:",
+		"  ABCD1234ABCD1234",
+		"",
+		"PROBLEMATIC COMMITS:",
+		"  Revision  Date                             Author                             Subject          Result",
+		"  abcd1234  Fri, 02 Jan 2026 15:55:44 +0200  Jim Smith <jim.smith@example.com>  Add test commit  unsigned(key_id=)",
+		"  defe2234  Sun, 14 Dec 2025 15:50:22 +0000  John Doe <john.doe@example.com>    Fix app port     unsigned(key_id=)",
+		"",
+		"To inspect repository:",
+		"  git fetch --tags",
+		"  git checkout abcd1234",
+		"  git log --oneline abcd1234",
+		"  git log -p --no-walk abcd1234 defe2234",
+		"",
+		"To create seal commit (this will trust all problematic commits before the seal commit):",
+		"  git commit --allow-empty --signoff --gpg-sign --trailer=\"Argocd-gpg-seal: <justification>\"",
+	}
+	expectedStdout := strings.Join(stdoutParts, "\n") + "\n"
+	expectedErr := NewExitError(2, nil)
+
+	applications := mockApplicationClient(t)
+	applications.EXPECT().
+		InspectGitGPGSourceIntegrity(mock.Anything, &application.InspectGitGPGSourceIntegrityQuery{Name: &applicationName, Project: &projectName, AppNamespace: &emptyNamespace}).
+		Return(&application.InspectGitGPGSourceIntegrityListResponse{
+			Items: []*application.InspectGitGPGSourceIntegrityResponse{
+				prepareInspectGitGPGSourceIntegrityResponse(
+					"https://github.com/argoproj/argo-cd.git",
+					"abcd1234",
+					"v1.0.0",
+					&appsv1.SourceIntegrityGitPolicyGPG{
+						Mode: appsv1.SourceIntegrityGitPolicyGPGModeStrict,
+						Keys: []string{"ABCD1234ABCD1234"},
+					},
+					[]*application.GitGPGCommitInfo{
+						prepareGitGPGCommitInfo("abcd1234", "Fri, 2 Jan 2026 15:55:44 +0200", "Jim Smith <jim.smith@example.com>", "Add test commit", "unsigned(key_id=)"),
+						prepareGitGPGCommitInfo("defe2234", "Sun, 14 Dec 2025 15:50:22 +0000", "John Doe <john.doe@example.com>", "Fix app port", "unsigned(key_id=)"),
+					},
+					"",
+				),
+			},
+		}, nil)
+
+	cmd := NewProjectSourceIntegrityGitGpgInspectRepoCommand(&argocdclient.ClientOptions{})
+	stdout, stderr, err := runCmd(t, cmd, projectName, applicationName)
+
+	assert.Equal(t, ExitCodeForError(expectedErr), ExitCodeForError(err))
+	assert.Equal(t, CLIErrorMessage(expectedErr), CLIErrorMessage(err))
+	assert.Empty(t, stderr)
+	assert.Equal(t, expectedStdout, stdout)
+}
+
+func TestProjectSourceIntegrityGpgInspectRepoCommand_MultipleSources(t *testing.T) {
+	projectName := "test-project"
+	applicationName := "test-app"
+	emptyNamespace := ""
+
+	stdoutParts := []string{
+		"Repo URL: https://github.com/argoproj/argo-cd.git",
+		"Target Revision: v1.0.0",
+		"Resolved Revision: abcd1234",
+		"GPG Mode: strict",
+		"GPG Keys:",
+		"  1234ABCD1234ABCD",
+		"",
+		"Source passes strict Git/GPG source integrity checks.",
+		"",
+		"--------------------------------",
+		"",
+		"Repo URL: https://github.com/argoproj/argo-cd-fork.git",
+		"Target Revision: v1.0.1",
+		"Resolved Revision: eef2234",
+		"GPG Mode: head (SIMULATED STRICT MODE)",
+		"GPG Keys:",
+		"  ABCD1234ABCD1234",
+		"  1234ABCD1234ABCD",
+		"",
+		"WARNING: Project does not have strict Git/GPG mode enabled. Strict GPG verification is not actually enforced.",
+		"",
+		"PROBLEMATIC COMMITS:",
+		"  Revision  Date                             Author                             Subject          Result",
+		"  abcd1234  Fri, 02 Jan 2026 15:55:44 +0200  Jim Smith <jim.smith@example.com>  Add test commit  unsigned(key_id=)",
+		"  defe2234  Sun, 14 Dec 2025 15:50:22 +0000  John Doe <john.doe@example.com>    Fix app port     signed with expired key(key_id=ABCD1234ABCD1234)",
+		"",
+		"To inspect repository:",
+		"  git fetch --tags",
+		"  git checkout eef2234",
+		"  git log --oneline eef2234",
+		"  git log -p --no-walk abcd1234 defe2234",
+		"",
+		"--------------------------------",
+		"",
+		"Repo URL: https://github.com/argoproj/argo-cd-fork2.git",
+		"Target Revision: v1.0.2",
+		"",
+		"PROBLEMS: multiple git/gpg policies are configured, invalid configuration",
+		"",
+		"To create seal commit (this will trust all problematic commits before the seal commit):",
+		"  git commit --allow-empty --signoff --gpg-sign --trailer=\"Argocd-gpg-seal: <justification>\"",
+	}
+	expectedStdout := strings.Join(stdoutParts, "\n") + "\n"
+	expectedErr := NewExitError(2, nil)
+
+	applications := mockApplicationClient(t)
+	applications.EXPECT().
+		InspectGitGPGSourceIntegrity(mock.Anything, &application.InspectGitGPGSourceIntegrityQuery{Name: &applicationName, Project: &projectName, AppNamespace: &emptyNamespace}).
+		Return(&application.InspectGitGPGSourceIntegrityListResponse{
+			Items: []*application.InspectGitGPGSourceIntegrityResponse{
+				prepareInspectGitGPGSourceIntegrityResponse(
+					"https://github.com/argoproj/argo-cd.git",
+					"abcd1234",
+					"v1.0.0",
+					&appsv1.SourceIntegrityGitPolicyGPG{
+						Mode: appsv1.SourceIntegrityGitPolicyGPGModeStrict,
+						Keys: []string{"1234ABCD1234ABCD"},
+					},
+					[]*application.GitGPGCommitInfo{},
+					"",
+				),
+				prepareInspectGitGPGSourceIntegrityResponse(
+					"https://github.com/argoproj/argo-cd-fork.git",
+					"eef2234",
+					"v1.0.1",
+					&appsv1.SourceIntegrityGitPolicyGPG{
+						Mode: appsv1.SourceIntegrityGitPolicyGPGModeHead,
+						Keys: []string{"ABCD1234ABCD1234", "1234ABCD1234ABCD"},
+					},
+					[]*application.GitGPGCommitInfo{
+						prepareGitGPGCommitInfo("abcd1234", "Fri, 2 Jan 2026 15:55:44 +0200", "Jim Smith <jim.smith@example.com>", "Add test commit", "unsigned(key_id=)"),
+						prepareGitGPGCommitInfo("defe2234", "Sun, 14 Dec 2025 15:50:22 +0000", "John Doe <john.doe@example.com>", "Fix app port", "signed with expired key(key_id=ABCD1234ABCD1234)"),
+					},
+					"",
+				),
+				prepareInspectGitGPGSourceIntegrityResponse(
+					"https://github.com/argoproj/argo-cd-fork2.git",
+					"v1.0.2",
+					"v1.0.2",
+					nil,
+					[]*application.GitGPGCommitInfo{},
+					"multiple git/gpg policies are configured, invalid configuration",
+				),
+			},
+		}, nil)
+
+	cmd := NewProjectSourceIntegrityGitGpgInspectRepoCommand(&argocdclient.ClientOptions{})
+	stdout, stderr, err := runCmd(t, cmd, projectName, applicationName)
+
+	assert.Equal(t, ExitCodeForError(expectedErr), ExitCodeForError(err))
+	assert.Equal(t, CLIErrorMessage(expectedErr), CLIErrorMessage(err))
+	assert.Empty(t, stderr)
+	assert.Equal(t, expectedStdout, stdout)
+}
+
+func prepareInspectGitGPGSourceIntegrityResponse(repoUrl string, resolvedRevision string, targetRevision string, gitGpgPolicy *appsv1.SourceIntegrityGitPolicyGPG, commits []*application.GitGPGCommitInfo, errorMessage string) *application.InspectGitGPGSourceIntegrityResponse {
+	return &application.InspectGitGPGSourceIntegrityResponse{
+		RepoUrl:          &repoUrl,
+		ResolvedRevision: &resolvedRevision,
+		TargetRevision:   &targetRevision,
+		GitGpgPolicy:     gitGpgPolicy,
+		Commits:          commits,
+		ErrorMessage:     &errorMessage,
+	}
+}
+
+func prepareGitGPGCommitInfo(revision string, date string, author string, subject string, verificationResult string) *application.GitGPGCommitInfo {
+	return &application.GitGPGCommitInfo{
+		Revision:           &revision,
+		Date:               &date,
+		Author:             &author,
+		Subject:            &subject,
+		VerificationResult: &verificationResult,
+	}
+}
+
+func assertContainsAllParts(t *testing.T, expected []string, actual string) {
+	t.Helper()
+	if len(expected) == 0 {
+		assert.Empty(t, actual)
+		return
+	}
+	for _, expected := range expected {
+		assert.Contains(t, actual, expected)
+	}
 }

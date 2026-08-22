@@ -3652,3 +3652,65 @@ func (s *Service) ociClientStandardOpts() []oci.ClientOpts {
 		oci.WithEventHandlers(metrics.NewOCIClientEventHandlers(s.metricsServer)),
 	}
 }
+
+func (s *Service) InspectGitGPGSourceIntegrity(ctx context.Context, request *apiclient.InspectGitGPGSourceIntegrityRequest) (*apiclient.InspectGitGPGSourceIntegrityResponse, error) {
+	repo := request.GetRepo()
+	policy := request.GetPolicy()
+	if repo == nil {
+		return nil, status.Error(codes.InvalidArgument, "must pass a valid repo")
+	}
+	if policy == nil {
+		return nil, status.Error(codes.InvalidArgument, "must pass a valid git/gpg source integrity policy")
+	}
+	gitClient, resolvedRevision, err := s.newClientResolveRevision(repo, request.GetRevision(), git.WithTagPrefix(request.GetTagPrefix()))
+	if err != nil {
+		return nil, err
+	}
+
+	revision := request.GetRevision()
+	if revision == "" {
+		revision = resolvedRevision
+	}
+
+	s.metricsServer.IncPendingRepoRequest(repo.Repo)
+	defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
+
+	closer, err := s.repoLock.Lock(gitClient.Root(), resolvedRevision, true, func(clean bool) (goio.Closer, error) {
+		return s.checkoutRevision(ctx, gitClient, resolvedRevision, s.initConstants.SubmoduleEnabled, repo.Depth, clean)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error acquiring repo lock: %w", err)
+	}
+	defer utilio.Close(closer)
+
+	// passing original revision so we can resolve tags
+	signatures, _, err := gitClient.LsSignatures(ctx, revision, policy.Mode == v1alpha1.SourceIntegrityGitPolicyGPGModeStrict)
+	if err != nil {
+		return nil, fmt.Errorf("error listing signatures: %w", err)
+	}
+
+	commits := make([]*apiclient.GitGPGCommitInfo, 0, len(signatures))
+
+	for _, signature := range signatures {
+		verificationResult, valid := sourceintegrity.VerifyGPGSignatureInfo(policy, signature)
+
+		if valid {
+			// only report problematic signatures
+			continue
+		}
+
+		commits = append(commits, &apiclient.GitGPGCommitInfo{
+			Revision:           signature.Revision,
+			Author:             signature.AuthorIdentity,
+			Date:               signature.Date,
+			Subject:            signature.Subject,
+			KeyId:              signature.SignatureKeyID,
+			VerificationResult: verificationResult,
+		})
+	}
+
+	return &apiclient.InspectGitGPGSourceIntegrityResponse{
+		ResolvedRevision: resolvedRevision,
+		Commits:          commits,
+	}, nil
+}

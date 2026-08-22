@@ -312,6 +312,28 @@ message UpdateRevisionForPathsResponse {
     string revision = 2;
 }
 
+
+message InspectGitGPGSourceIntegrityRequest {
+    github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Repository repo = 1;
+    string revision = 2;
+    github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.SourceIntegrityGitPolicyGPG policy = 3;
+    string tagPrefix = 4;
+}
+
+message GitGPGCommitInfo {
+    string revision = 1;
+    string author = 2;
+    string date = 3;
+    string subject = 4;
+    string keyId = 5;
+    string verificationResult = 6;
+}
+
+message InspectGitGPGSourceIntegrityResponse {
+    string resolvedRevision = 1;
+    repeated GitGPGCommitInfo commits = 2;
+}
+
 // ManifestService
 service RepoServerService {
 
@@ -377,5 +399,10 @@ service RepoServerService {
 
     // UpdateRevisionForPaths will compare two revisions and update the cache with the new revision if no changes are detected in the provided paths
     rpc UpdateRevisionForPaths(UpdateRevisionForPathsRequest) returns (UpdateRevisionForPathsResponse) {
+    }
+
+    // InspectGitGPGSourceIntegrity resolves a revision and lists git commit GPG signature
+    // information for seal-signing / source-integrity inspection.
+    rpc InspectGitGPGSourceIntegrity(InspectGitGPGSourceIntegrityRequest) returns (InspectGitGPGSourceIntegrityResponse) {
     }
 }

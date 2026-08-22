@@ -4,11 +4,9 @@ import (
 	"bufio"
 	"context"
 	"crypto/tls"
-	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"math"
 	"net/http"
 	"net/mail"
@@ -1165,6 +1163,7 @@ type (
 		SignatureKeyID     string
 		Date               string
 		AuthorIdentity     string
+		Subject            string
 	}
 )
 
@@ -1231,7 +1230,7 @@ var gpgKeyIdRegexp = regexp.MustCompile("[0-9a-zA-Z]{16}")
 func (m *nativeGitClient) tagSignature(ctx context.Context, tagRevision string) (*RevisionSignatureInfo, error) {
 	// Unlike for commits, there is no elegant way to slurp all signature info for tag. So this extracts details needed
 	// for RevisionSignatureInfo from 2 different git invocations.
-	cmd := m.cmdWithGPG(ctx, "git", "for-each-ref", "refs/tags/"+tagRevision, `--format=%(taggerdate),%(taggername) "%(taggeremail)"`)
+	cmd := m.cmdWithGPG(ctx, "git", "for-each-ref", "refs/tags/"+tagRevision, `--format=%(taggerdate:rfc2822)%00%(taggername) %(taggeremail)%00%(subject)`)
 	tagOut, err := m.runCmdOutput(cmd, runOpts{})
 	if err != nil {
 		return nil, err
@@ -1239,8 +1238,8 @@ func (m *nativeGitClient) tagSignature(ctx context.Context, tagRevision string) 
 	if tagOut == "" {
 		return nil, fmt.Errorf("no tag found: %q", tagRevision)
 	}
-	tagInfo := strings.Split(tagOut, ",")
-	if len(tagInfo) != 2 {
+	tagInfo := strings.SplitN(tagOut, "\x00", 3)
+	if len(tagInfo) != 3 {
 		return nil, fmt.Errorf("failed to parse tag %q for revisions %q", tagOut, tagRevision)
 	}
 
@@ -1253,7 +1252,7 @@ func (m *nativeGitClient) tagSignature(ctx context.Context, tagRevision string) 
 	if err != nil {
 		return nil, fmt.Errorf("gpg failed verifying git tag %q: %s", tagRevision, err.Error())
 	}
-	info, err := newRevisionSignatureInfo(tagRevision, status, keyId, tagInfo[0], tagInfo[1])
+	info, err := newRevisionSignatureInfo(tagRevision, status, keyId, tagInfo[0], tagInfo[1], tagInfo[2])
 	if err != nil {
 		return nil, fmt.Errorf("failed building revision gpg signature info for tag %q: %s", tagRevision, err.Error())
 	}
@@ -1334,18 +1333,10 @@ func (m *nativeGitClient) LsSignatures(ctx context.Context, unresolvedRevision s
 	}
 
 	// Final LF will be cut by executil
-	csvR := csv.NewReader(strings.NewReader(commitSignaturesRawOut))
-	for {
-		r, err := csvR.Read()
-		// EOF means parsing had ended
-		if errors.Is(err, io.EOF) {
-			break
-		}
-		if err != nil {
-			return nil, "", err
-		}
+	for line := range strings.SplitSeq(commitSignaturesRawOut, "\n") {
+		r := strings.SplitN(line, "\x00", 6)
 
-		if len(r) < 5 {
+		if len(r) < 6 {
 			return nil, "", fmt.Errorf("invalid rev-list output for %q (fields=%d)", unresolvedRevision, len(r))
 		}
 
@@ -1354,7 +1345,7 @@ func (m *nativeGitClient) LsSignatures(ctx context.Context, unresolvedRevision s
 		if err != nil {
 			return nil, "", err
 		}
-		signatureInfo, err := newRevisionSignatureInfo(revision, result, r[2], r[3], r[4])
+		signatureInfo, err := newRevisionSignatureInfo(revision, result, r[2], r[3], r[4], r[5])
 		if err != nil {
 			return nil, "", fmt.Errorf("failed building revision gpg signature info for %q at %q: %s", unresolvedRevision, revision, err.Error())
 		}
@@ -1365,7 +1356,7 @@ func (m *nativeGitClient) LsSignatures(ctx context.Context, unresolvedRevision s
 }
 
 // newRevisionSignatureInfo builds valid RevisionSignatureInfo
-func newRevisionSignatureInfo(revision string, verificationResult GPGVerificationResult, signatureKeyID string, date string, authorIdentity string) (*RevisionSignatureInfo, error) {
+func newRevisionSignatureInfo(revision string, verificationResult GPGVerificationResult, signatureKeyID string, date string, authorIdentity string, subject string) (*RevisionSignatureInfo, error) {
 	if revision == "" {
 		return nil, errors.New("no revision specified")
 	}
@@ -1392,6 +1383,7 @@ func newRevisionSignatureInfo(revision string, verificationResult GPGVerificatio
 		SignatureKeyID:     signatureKeyID,
 		Date:               date,
 		AuthorIdentity:     authorIdentity,
+		Subject:            subject,
 	}, nil
 }
 
@@ -1432,7 +1424,7 @@ func (m *nativeGitClient) listRawSignatures(ctx context.Context, deep bool) (str
 	}
 
 	// Find all commits until the criteria, including
-	lsArgs := append([]string{"rev-list", `--pretty=format:%H,%G?,%GK,"%aD","%an <%ae>"`, "--no-commit-header"}, commitFilterArgs...)
+	lsArgs := append([]string{"rev-list", `--pretty=format:%H%x00%G?%x00%GK%x00%aD%x00%an <%ae>%x00%s`, "--no-commit-header"}, commitFilterArgs...)
 	commitSignaturesRawOut, err := m.runCmdOutput(m.cmdWithGPG(ctx, "git", lsArgs...), runOpts{})
 	if err != nil {
 		return "", err

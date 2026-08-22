@@ -81,6 +81,7 @@ var LsSignaturesMockOk = func(_ context.Context, _ string, _ bool) (info []git.R
 			SignatureKeyID:     "f24e21389b25a3c1",
 			Date:               "Fri Oct 31 14:42:39 2025 +0100",
 			AuthorIdentity:     "Jane Doe <jdoe@acme.com>",
+			Subject:            "Add tests",
 		},
 	}, "", nil
 }
@@ -92,12 +93,14 @@ var LsSignaturesMockGitError = func(_ context.Context, _ string, _ bool) (info [
 		SignatureKeyID:     "EXPIRED",
 		Date:               "Fri Oct 31 14:42:39 2025 +0100",
 		AuthorIdentity:     "Late Fred <lfred@acme.com>",
+		Subject:            "Expired key",
 	}, {
 		Revision:           "111589b8001a0bd78bb311cb03c9d129c6f91de1",
 		VerificationResult: git.GPGVerificationResultUnsigned,
 		SignatureKeyID:     "",
 		Date:               "Fri Oct 31 14:42:39 2025 +0100",
 		AuthorIdentity:     "Unsigned <unsigned@acme.com>",
+		Subject:            "Unsigned commit",
 	}}, "", nil
 }
 
@@ -6365,4 +6368,182 @@ func TestGetHelmRepos_InsecureOCIForceHttpPropagatedFromRepoCreds(t *testing.T) 
 
 	require.Len(t, helmRepos, 1)
 	assert.True(t, helmRepos[0].InsecureOCIForceHttp)
+}
+
+const (
+	inspectTargetRevision   = "v1.0.0"
+	inspectResolvedRevision = "632039659e542ed7de0c170a4fcc1c571b288fc0"
+)
+
+func defaultInspectGPGPolicy() *v1alpha1.SourceIntegrityGitPolicyGPG {
+	return &v1alpha1.SourceIntegrityGitPolicyGPG{
+		Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeStrict,
+		Keys: []string{"f24e21389b25a3c1"},
+	}
+}
+
+func defaultInspectGPGRequest() *apiclient.InspectGitGPGSourceIntegrityRequest {
+	return &apiclient.InspectGitGPGSourceIntegrityRequest{
+		Repo: &v1alpha1.Repository{
+			Repo: "https://github.com/argoproj/argo-cd.git",
+		},
+		Revision: inspectTargetRevision,
+		Policy:   defaultInspectGPGPolicy(),
+	}
+}
+
+func setupInspectGitGPGService(t *testing.T, configure func(*gitmocks.Client)) *Service {
+	t.Helper()
+	root := t.TempDir()
+	service, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+		paths.EXPECT().GetPath(mock.Anything).Return(root, nil)
+		gitClient.EXPECT().LsRemote(inspectTargetRevision).Return(inspectResolvedRevision, nil)
+		gitClient.EXPECT().Root().Return(root)
+		gitClient.EXPECT().IsRevisionPresent(mock.Anything, inspectResolvedRevision).Return(false)
+		configure(gitClient)
+	}, root)
+	return service
+}
+
+func expectInspectGitGPGFetchAndCheckout(gitClient *gitmocks.Client) {
+	gitClient.EXPECT().Init().Return(nil)
+	gitClient.EXPECT().Fetch(mock.Anything, "", mock.Anything).Return(nil).Once()
+	gitClient.EXPECT().Checkout(mock.Anything, inspectResolvedRevision, mock.Anything, mock.Anything).Return("", nil).Once()
+}
+
+func TestInspectGitGPGSourceIntegrity(t *testing.T) {
+	t.Run("invalid request repo nil", func(t *testing.T) {
+		service := setupInspectGitGPGService(t, func(_ *gitmocks.Client) { /* no-op */ })
+		_, err := service.InspectGitGPGSourceIntegrity(t.Context(), &apiclient.InspectGitGPGSourceIntegrityRequest{
+			Repo:      nil,
+			Policy:    defaultInspectGPGPolicy(),
+			Revision:  inspectTargetRevision,
+			TagPrefix: "",
+		})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "must pass a valid repo")
+	})
+	t.Run("invalid request policy nil", func(t *testing.T) {
+		service := setupInspectGitGPGService(t, func(_ *gitmocks.Client) { /* no-op */ })
+		_, err := service.InspectGitGPGSourceIntegrity(t.Context(), &apiclient.InspectGitGPGSourceIntegrityRequest{
+			Repo: &v1alpha1.Repository{
+				Repo: "https://github.com/argoproj/argo-cd.git",
+			},
+			Policy:    nil,
+			Revision:  inspectTargetRevision,
+			TagPrefix: "",
+		})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "must pass a valid git/gpg source integrity policy")
+	})
+
+	t.Run("all valid has empty commits in resp", func(t *testing.T) {
+		service := setupInspectGitGPGService(t, func(gitClient *gitmocks.Client) {
+			expectInspectGitGPGFetchAndCheckout(gitClient)
+			gitClient.EXPECT().
+				LsSignatures(mock.Anything, inspectTargetRevision, true).
+				RunAndReturn(LsSignaturesMockOk)
+		})
+
+		resp, err := service.InspectGitGPGSourceIntegrity(t.Context(), defaultInspectGPGRequest())
+		require.NoError(t, err)
+		assert.Equal(t, inspectResolvedRevision, resp.ResolvedRevision)
+		assert.Empty(t, resp.Commits)
+	})
+
+	t.Run("all invalid has all in resp", func(t *testing.T) {
+		service := setupInspectGitGPGService(t, func(gitClient *gitmocks.Client) {
+			expectInspectGitGPGFetchAndCheckout(gitClient)
+			gitClient.EXPECT().
+				LsSignatures(mock.Anything, inspectTargetRevision, true).
+				RunAndReturn(LsSignaturesMockGitError)
+		})
+
+		resp, err := service.InspectGitGPGSourceIntegrity(t.Context(), defaultInspectGPGRequest())
+		require.NoError(t, err)
+		require.Len(t, resp.Commits, 2)
+		assert.Equal(t, "171589b8001a0bd78bb311cb03c9d129c6f91de1", resp.Commits[0].Revision)
+		assert.Equal(t, "Late Fred <lfred@acme.com>", resp.Commits[0].Author)
+		assert.Equal(t, "Fri Oct 31 14:42:39 2025 +0100", resp.Commits[0].Date)
+		assert.Equal(t, "EXPIRED", resp.Commits[0].KeyId)
+		assert.Equal(t, "Expired key", resp.Commits[0].Subject)
+		assert.Equal(t, "signed with expired key (key_id=EXPIRED)", resp.Commits[0].VerificationResult)
+		assert.Equal(t, "111589b8001a0bd78bb311cb03c9d129c6f91de1", resp.Commits[1].Revision)
+		assert.Equal(t, "Unsigned <unsigned@acme.com>", resp.Commits[1].Author)
+		assert.Equal(t, "Fri Oct 31 14:42:39 2025 +0100", resp.Commits[1].Date)
+		assert.Empty(t, resp.Commits[1].KeyId)
+		assert.Equal(t, "unsigned (key_id=)", resp.Commits[1].VerificationResult)
+		assert.Equal(t, "Unsigned commit", resp.Commits[1].Subject)
+	})
+
+	t.Run("some valid some invalid has only invalid in resp", func(t *testing.T) {
+		service := setupInspectGitGPGService(t, func(gitClient *gitmocks.Client) {
+			expectInspectGitGPGFetchAndCheckout(gitClient)
+			gitClient.EXPECT().
+				LsSignatures(mock.Anything, inspectTargetRevision, true).
+				RunAndReturn(func(_ context.Context, _ string, _ bool) ([]git.RevisionSignatureInfo, string, error) {
+					return []git.RevisionSignatureInfo{
+						{
+							Revision:           "d71589b8001a0bd78bb311cb03c9d129c6f91de1",
+							VerificationResult: git.GPGVerificationResultGood,
+							SignatureKeyID:     "f24e21389b25a3c1",
+							Date:               "Fri Oct 31 14:42:39 2025 +0100",
+							AuthorIdentity:     "Jane Doe <jdoe@acme.com>",
+							Subject:            "Add test commit",
+						},
+						{
+							Revision:           "111589b8001a0bd78bb311cb03c9d129c6f91de1",
+							VerificationResult: git.GPGVerificationResultUnsigned,
+							SignatureKeyID:     "",
+							Date:               "Fri Oct 31 14:42:39 2025 +0100",
+							AuthorIdentity:     "Unsigned <unsigned@acme.com>",
+							Subject:            "Fix app port",
+						},
+					}, "", nil
+				})
+		})
+
+		resp, err := service.InspectGitGPGSourceIntegrity(t.Context(), defaultInspectGPGRequest())
+		require.NoError(t, err)
+		require.Len(t, resp.Commits, 1)
+		assert.Equal(t, "111589b8001a0bd78bb311cb03c9d129c6f91de1", resp.Commits[0].Revision)
+		assert.Equal(t, "unsigned (key_id=)", resp.Commits[0].VerificationResult)
+		assert.Equal(t, "Fix app port", resp.Commits[0].Subject)
+	})
+
+	t.Run("error listing signatures", func(t *testing.T) {
+		service := setupInspectGitGPGService(t, func(gitClient *gitmocks.Client) {
+			expectInspectGitGPGFetchAndCheckout(gitClient)
+			gitClient.EXPECT().
+				LsSignatures(mock.Anything, inspectTargetRevision, true).
+				Return(nil, "", errors.New("boom"))
+		})
+
+		_, err := service.InspectGitGPGSourceIntegrity(t.Context(), defaultInspectGPGRequest())
+		require.ErrorContains(t, err, "error listing signatures:")
+		require.ErrorContains(t, err, "boom")
+	})
+
+	t.Run("error acquiring repo lock", func(t *testing.T) {
+		service := setupInspectGitGPGService(t, func(gitClient *gitmocks.Client) {
+			gitClient.EXPECT().Init().Return(errors.New("init failed"))
+		})
+
+		_, err := service.InspectGitGPGSourceIntegrity(t.Context(), defaultInspectGPGRequest())
+		require.ErrorContains(t, err, "error acquiring repo lock:")
+		require.ErrorContains(t, err, "init failed")
+	})
+
+	t.Run("LsRemote failure", func(t *testing.T) {
+		root := t.TempDir()
+		service, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+			paths.EXPECT().GetPath(mock.Anything).Return(root, nil)
+			gitClient.EXPECT().LsRemote(inspectTargetRevision).Return("", errors.New("ls-remote failed"))
+			gitClient.EXPECT().Root().Return(root)
+		}, root)
+
+		_, err := service.InspectGitGPGSourceIntegrity(t.Context(), defaultInspectGPGRequest())
+		require.Error(t, err)
+		require.ErrorContains(t, err, "ls-remote failed")
+	})
 }

@@ -90,6 +90,12 @@ func (a *Actions) AddSignedFile(fileName, fileContents string) *Actions {
 	return a
 }
 
+func (a *Actions) AddSignedSealCommit() *Actions {
+	a.context.T().Helper()
+	fixture.AddSignedSealCommit(a.context.T())
+	return a
+}
+
 func (a *Actions) AddSignedTag(name string) *Actions {
 	a.context.T().Helper()
 	fixture.AddSignedTag(a.context.T(), name)
