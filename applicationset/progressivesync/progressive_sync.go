@@ -150,44 +150,10 @@ func (m *Manager) PerformProgressiveSyncs(ctx context.Context, logCtx *log.Entry
 	if progressingCondition != nil &&
 		progressingCondition.Reason == argov1alpha1.ApplicationSetReasonApplicationSetRolloutComplete &&
 		allAppStatusesHealthy(&appset) {
-		if startStr, ok := appset.Annotations[AnnotationKeyRolloutStartTime]; ok {
-			startTime, parseErr := time.Parse(time.RFC3339, startStr)
-			if parseErr == nil {
-				m.dependencies.ObserveRolloutDuration(&appset, time.Since(startTime))
-			} else {
-				logCtx.WithError(parseErr).Warn("Failed to parse rollout start time annotation")
-			}
-			if removeErr := m.removeRolloutStartAnnotation(ctx, &appset); removeErr != nil {
-				logCtx.WithError(removeErr).Warn("Failed to remove rollout start time annotation")
-			}
-		}
+		m.observeRolloutCompletion(ctx, logCtx, &appset)
 	}
 
-	stepStartTimes, parseErr := getStepStartTimesFromAnnotation(&appset)
-	if parseErr != nil {
-		logCtx.WithError(parseErr).Warn("Failed to parse step start times annotation")
-	} else if len(stepStartTimes) > 0 {
-		completedSteps := getCompletedSteps(&appset)
-		updated := false
-		for step, startTime := range stepStartTimes {
-			if completedSteps[step] {
-				m.dependencies.ObserveStepCompletionDuration(&appset, step, time.Since(startTime))
-				delete(stepStartTimes, step)
-				updated = true
-			}
-		}
-		if updated {
-			if len(stepStartTimes) == 0 {
-				if removeErr := m.removeStepStartTimesAnnotation(ctx, &appset); removeErr != nil {
-					logCtx.WithError(removeErr).Warn("Failed to remove step start times annotation")
-				}
-			} else {
-				if setErr := m.setStepStartTimes(ctx, &appset, stepStartTimes); setErr != nil {
-					logCtx.WithError(setErr).Warn("Failed to update step start times annotation")
-				}
-			}
-		}
-	}
+	m.observeStepCompletions(ctx, logCtx, &appset)
 
 	return appsToSync, nil
 }
@@ -851,6 +817,47 @@ func (m *Manager) removeRolloutStartAnnotation(ctx context.Context, appset *argo
 	return m.Client.Patch(ctx, patch, client.MergeFrom(appset))
 }
 
+func (m *Manager) observeRolloutCompletion(ctx context.Context, logCtx *log.Entry, appset *argov1alpha1.ApplicationSet) {
+	startStr, ok := appset.Annotations[AnnotationKeyRolloutStartTime]
+	if !ok {
+		return
+	}
+	startTime, err := time.Parse(time.RFC3339, startStr)
+	if err != nil {
+		logCtx.WithError(err).Warn("Failed to parse rollout start time from annotation")
+		return
+	}
+	m.dependencies.ObserveRolloutDuration(appset, time.Since(startTime))
+	if err := m.removeRolloutStartAnnotation(ctx, appset); err != nil {
+		logCtx.WithError(err).Warn("Failed to remove rollout start time annotation")
+	}
+}
+
+func (m *Manager) observeStepCompletions(ctx context.Context, logCtx *log.Entry, appset *argov1alpha1.ApplicationSet) {
+	stepStartTimes, err := getStepStartTimesFromAnnotation(appset)
+	if err != nil {
+		logCtx.WithError(err).Warn("Failed to parse step start times annotation")
+		return
+	}
+	if len(stepStartTimes) == 0 {
+		return
+	}
+	completedSteps := getCompletedSteps(appset)
+	before := len(stepStartTimes)
+	for step, startTime := range stepStartTimes {
+		if completedSteps[step] {
+			m.dependencies.ObserveStepCompletionDuration(appset, step, time.Since(startTime))
+			delete(stepStartTimes, step)
+		}
+	}
+	if len(stepStartTimes) == before { // no step was completed
+		return
+	}
+	if err := m.setStepStartTimes(ctx, appset, stepStartTimes); err != nil {
+		logCtx.WithError(err).Warn("Failed to update remove completed step's start time in annotation")
+	}
+}
+
 func getStepStartTimesFromAnnotation(appset *argov1alpha1.ApplicationSet) (map[string]time.Time, error) {
 	raw, ok := appset.Annotations[AnnotationKeyStepStartTimes]
 	if !ok {
@@ -884,28 +891,23 @@ func getCompletedSteps(appset *argov1alpha1.ApplicationSet) map[string]bool {
 }
 
 func (m *Manager) setStepStartTimes(ctx context.Context, appset *argov1alpha1.ApplicationSet, times map[string]time.Time) error {
-	raw := make(map[string]string, len(times))
-	for step, t := range times {
-		raw[step] = t.UTC().Format(time.RFC3339)
-	}
-	data, err := json.Marshal(raw)
-	if err != nil {
-		return err
-	}
 	patch := appset.DeepCopy()
 	if patch.Annotations == nil {
 		patch.Annotations = make(map[string]string)
 	}
-	patch.Annotations[AnnotationKeyStepStartTimes] = string(data)
-	return m.Client.Patch(ctx, patch, client.MergeFrom(appset))
-}
-
-func (m *Manager) removeStepStartTimesAnnotation(ctx context.Context, appset *argov1alpha1.ApplicationSet) error {
-	if _, ok := appset.Annotations[AnnotationKeyStepStartTimes]; !ok {
-		return nil
+	if len(times) == 0 {
+		delete(patch.Annotations, AnnotationKeyStepStartTimes)
+	} else {
+		raw := make(map[string]string, len(times))
+		for step, t := range times {
+			raw[step] = t.UTC().Format(time.RFC3339)
+		}
+		data, err := json.Marshal(raw)
+		if err != nil {
+			return err
+		}
+		patch.Annotations[AnnotationKeyStepStartTimes] = string(data)
 	}
-	patch := appset.DeepCopy()
-	delete(patch.Annotations, AnnotationKeyStepStartTimes)
 	return m.Client.Patch(ctx, patch, client.MergeFrom(appset))
 }
 
