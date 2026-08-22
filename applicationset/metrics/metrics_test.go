@@ -231,6 +231,46 @@ argocd_appset_reconcile_count{name="test1",namespace="argocd"} 1
 `)
 }
 
+func TestObserveRolloutDuration(t *testing.T) {
+	appsetList := newFakeAppsets(fakeAppsetList)
+	client := initializeClient(appsetList)
+	metrics.Registry = prometheus.NewRegistry()
+
+	appsetMetrics := NewApplicationsetMetrics(utils.NewAppsetLister(client), collectedLabels, filter)
+
+	appsetMetrics.ObserveRolloutDuration(&appsetList[0], 120*time.Second)
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", http.NoBody)
+	require.NoError(t, err)
+	rr := httptest.NewRecorder()
+	handler := promhttp.HandlerFor(metrics.Registry, promhttp.HandlerOpts{})
+	handler.ServeHTTP(rr, req)
+
+	body := rr.Body.String()
+	assert.Contains(t, body, `argocd_appset_progressive_sync_rollout_duration_seconds_count{name="test1",namespace="argocd"} 1`)
+	assert.Contains(t, body, `argocd_appset_progressive_sync_rollout_duration_seconds_sum{name="test1",namespace="argocd"} 120`)
+}
+
+func TestObserveStepCompletionDuration(t *testing.T) {
+	appsetList := newFakeAppsets(fakeAppsetList)
+	client := initializeClient(appsetList)
+	metrics.Registry = prometheus.NewRegistry()
+
+	appsetMetrics := NewApplicationsetMetrics(utils.NewAppsetLister(client), collectedLabels, filter)
+
+	appsetMetrics.ObserveStepCompletionDuration(&appsetList[0], "1", 45*time.Second)
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", http.NoBody)
+	require.NoError(t, err)
+	rr := httptest.NewRecorder()
+	handler := promhttp.HandlerFor(metrics.Registry, promhttp.HandlerOpts{})
+	handler.ServeHTTP(rr, req)
+
+	body := rr.Body.String()
+	assert.Contains(t, body, `argocd_appset_progressive_sync_step_duration_seconds_count{name="test1",namespace="argocd",step="1"} 1`)
+	assert.Contains(t, body, `argocd_appset_progressive_sync_step_duration_seconds_sum{name="test1",namespace="argocd",step="1"} 45`)
+}
+
 func initializeClient(appsets []argoappv1.ApplicationSet) ctrlclient.WithWatch {
 	scheme := runtime.NewScheme()
 	err := argoappv1.AddToScheme(scheme)

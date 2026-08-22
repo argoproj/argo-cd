@@ -15,7 +15,25 @@ func NewFakeAppsetMetrics() *ApplicationsetMetrics {
 		[]string{"name", "namespace"},
 	)
 
+	rolloutDurationHistogram := prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name: "argocd_appset_progressive_sync_rollout_duration_seconds",
+			Help: "Duration of a full progressive sync rollout across all steps in seconds.",
+		},
+		[]string{"namespace", "name"},
+	)
+
+	stepCompletionDurationHistogram := prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name: "argocd_appset_progressive_sync_step_duration_seconds",
+			Help: "Duration of a step to complete - all applications within this step are healthy",
+		},
+		[]string{"namespace", "name", "step"},
+	)
+
 	return &ApplicationsetMetrics{
-		reconcileHistogram: reconcileHistogram,
+		reconcileHistogram:                             reconcileHistogram,
+		progressiveSyncRolloutDurationHistogram:        rolloutDurationHistogram,
+		progressiveSyncStepCompletionDurationHistogram: stepCompletionDurationHistogram,
 	}
 }
