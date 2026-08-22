@@ -4,6 +4,7 @@ package db
 
 import (
 	"testing"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -17,10 +18,12 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
+const (
+	watchTestTimeout        = 20 * time.Second
+	watchTestNoEventTimeout = 5 * time.Second
+)
+
 func TestWatchClusters_CreateRemoveCluster(t *testing.T) {
-	// !race:
-	// Intermittent failure when running TestWatchClusters_LocalClusterModifications with -race, likely due to race condition
-	// https://github.com/argoproj/argo-cd/issues/4755
 	emptyArgoCDConfigMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDConfigMapName,
@@ -47,7 +50,7 @@ func TestWatchClusters_CreateRemoveCluster(t *testing.T) {
 	kubeclientset := fake.NewClientset(emptyArgoCDConfigMap, argoCDSecret)
 	settingsManager := settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace)
 	db := NewDB(fakeNamespace, settingsManager, kubeclientset)
-	completed := runWatchTest(t, db, []func(old *v1alpha1.Cluster, new *v1alpha1.Cluster){
+	completed := runWatchTest(t, db, watchTestTimeout, []func(old *v1alpha1.Cluster, new *v1alpha1.Cluster){
 		func(old *v1alpha1.Cluster, new *v1alpha1.Cluster) {
 			assert.Nil(t, old)
 			assert.Equal(t, v1alpha1.KubernetesInternalAPIServerAddr, new.Server)
@@ -74,9 +77,6 @@ func TestWatchClusters_CreateRemoveCluster(t *testing.T) {
 }
 
 func TestWatchClusters_LocalClusterModifications(t *testing.T) {
-	// !race:
-	// Intermittent failure when running TestWatchClusters_LocalClusterModifications with -race, likely due to race condition
-	// https://github.com/argoproj/argo-cd/issues/4755
 	emptyArgoCDConfigMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDConfigMapName,
@@ -103,7 +103,7 @@ func TestWatchClusters_LocalClusterModifications(t *testing.T) {
 	kubeclientset := fake.NewClientset(emptyArgoCDConfigMap, argoCDSecret)
 	settingsManager := settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace)
 	db := NewDB(fakeNamespace, settingsManager, kubeclientset)
-	completed := runWatchTest(t, db, []func(old *v1alpha1.Cluster, new *v1alpha1.Cluster){
+	completed := runWatchTest(t, db, watchTestTimeout, []func(old *v1alpha1.Cluster, new *v1alpha1.Cluster){
 		func(old *v1alpha1.Cluster, new *v1alpha1.Cluster) {
 			assert.Nil(t, old)
 			assert.Equal(t, v1alpha1.KubernetesInternalAPIServerAddr, new.Server)
@@ -130,9 +130,6 @@ func TestWatchClusters_LocalClusterModifications(t *testing.T) {
 }
 
 func TestWatchClusters_MissingServerSecretKey(t *testing.T) {
-	// !race:
-	// Intermittent failure when running with -race, likely due to race condition
-	// https://github.com/argoproj/argo-cd/issues/4755
 	emptyArgoCDConfigMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDConfigMapName,
@@ -158,7 +155,7 @@ func TestWatchClusters_MissingServerSecretKey(t *testing.T) {
 	kubeclientset := fake.NewClientset(emptyArgoCDConfigMap, argoCDSecretWithoutSecretKey)
 	settingsManager := settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace)
 	db := NewDB(fakeNamespace, settingsManager, kubeclientset)
-	completed := runWatchTest(t, db, []func(old *v1alpha1.Cluster, new *v1alpha1.Cluster){
+	completed := runWatchTest(t, db, watchTestTimeout, []func(old *v1alpha1.Cluster, new *v1alpha1.Cluster){
 		func(old *v1alpha1.Cluster, new *v1alpha1.Cluster) {
 			assert.Nil(t, old)
 			assert.Equal(t, v1alpha1.KubernetesInternalAPIServerAddr, new.Server)
@@ -168,9 +165,6 @@ func TestWatchClusters_MissingServerSecretKey(t *testing.T) {
 }
 
 func TestWatchClusters_LocalClusterModificationsWhenDisabled(t *testing.T) {
-	// !race:
-	// Intermittent failure when running TestWatchClusters_LocalClusterModifications with -race, likely due to race condition
-	// https://github.com/argoproj/argo-cd/issues/4755
 	argoCDConfigMapWithInClusterServerAddressDisabled := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDConfigMapName,
@@ -197,7 +191,7 @@ func TestWatchClusters_LocalClusterModificationsWhenDisabled(t *testing.T) {
 	kubeclientset := fake.NewClientset(argoCDConfigMapWithInClusterServerAddressDisabled, argoCDSecret)
 	settingsManager := settings.NewSettingsManager(t.Context(), kubeclientset, fakeNamespace)
 	db := NewDB(fakeNamespace, settingsManager, kubeclientset)
-	completed := runWatchTest(t, db, []func(_ *v1alpha1.Cluster, _ *v1alpha1.Cluster){
+	completed := runWatchTest(t, db, watchTestNoEventTimeout, []func(_ *v1alpha1.Cluster, _ *v1alpha1.Cluster){
 		func(_ *v1alpha1.Cluster, _ *v1alpha1.Cluster) {
 			assert.Fail(t, "The in-cluster should not be added when disabled")
 		},
