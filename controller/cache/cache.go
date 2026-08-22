@@ -459,8 +459,7 @@ func isResourceQuotaConflictErr(err error) bool {
 }
 
 func isTransientNetworkErr(err error) bool {
-	var netErr net.Error
-	if errors.As(err, &netErr) {
+	if _, ok := errors.AsType[net.Error](err); ok {
 		var dnsErr *net.DNSError
 		var opErr *net.OpError
 		var unknownNetworkErr net.UnknownNetworkError
@@ -476,8 +475,7 @@ func isTransientNetworkErr(err error) bool {
 	}
 
 	errorString := err.Error()
-	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 		errorString = fmt.Sprintf("%s %s", errorString, exitErr.Stderr)
 	}
 	if strings.Contains(errorString, "net/http: TLS handshake timeout") ||

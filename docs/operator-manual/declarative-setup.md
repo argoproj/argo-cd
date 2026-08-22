@@ -1187,7 +1187,7 @@ In addition to the environment variables above, argocd-k8s-auth accepts two extr
 |AAD_ENVIRONMENT_NAME|The azure environment to use, default of AzurePublicCloud|
 |AAD_SERVER_APPLICATION_ID|The optional AAD server application ID, defaults to 6dae42f8-4368-4678-94ff-3960e28e3630|
 
-This is an example of using the [federated workload login flow](https://github.com/Azure/kubelogin#azure-workload-federated-identity-non-interactive).  The federated token file needs to be mounted as a secret into argoCD, so it can be used in the flow.  The location of the token file needs to be set in the environment variable AZURE_FEDERATED_TOKEN_FILE.
+This is an example of using the [federated workload login flow](https://github.com/Azure/kubelogin#azure-workload-federated-identity-non-interactive).  The federated token file needs to be mounted as a secret into Argo CD, so it can be used in the flow.  The location of the token file needs to be set in the environment variable AZURE_FEDERATED_TOKEN_FILE.
 
 If your AKS cluster utilizes the [Mutating Admission Webhook](https://azure.github.io/azure-workload-identity/docs/installation/mutating-admission-webhook.html) from the Azure Workload Identity project, follow these steps to enable the `argocd-application-controller` and `argocd-server` pods to use the federated identity:
 
@@ -1197,7 +1197,7 @@ If your AKS cluster utilizes the [Mutating Admission Webhook](https://azure.gith
 
 3. **Add Annotations to Service Account** Add `"azure.workload.identity/client-id": "$CLIENT_ID"` and `"azure.workload.identity/tenant-id": "$TENANT_ID"` annotations to the `argocd-application-controller` and `argocd-server` service accounts using the details from the federated credential.
 
-4. **Set the AZURE_CLIENT_ID**: Update the `AZURE_CLIENT_ID` in the cluster secret to match the client id of the newly created federated identity credential.
+4. **Set the AZURE_CLIENT_ID**: Update the `AZURE_CLIENT_ID` in the cluster secret to match the client ID of the newly created federated identity credential.
 
 
 ```yaml
@@ -1423,11 +1423,12 @@ An optional comma-separated list of `metadata.annotations` keys can be configure
 ## Auto respect RBAC for controller
 
 Argo CD controller can be restricted from discovering/syncing specific resources using just controller RBAC, without having to manually configure resource exclusions.
-This feature can be enabled by setting `resource.respectRBAC` key in argocd cm, once it is set the controller will automatically stop watching for resources 
+This feature can be enabled by setting `resource.respectRBAC` key in `argocd-cm` ConfigMap, once it is set the controller will automatically stop watching for resources 
 that it does not have the permission to list/access. Possible values for `resource.respectRBAC` are:
-    - `strict` : This setting checks whether the list call made by controller is forbidden/unauthorized and if it is, it will cross-check the permission by making a `SelfSubjectAccessReview` call for the resource.
-    - `normal` : This will only check whether the list call response is forbidden/unauthorized and skip `SelfSubjectAccessReview` call, to minimize any extra api-server calls.
-    - unset/empty (default) : This will disable the feature and controller will continue to monitor all resources.
+
+- `strict`: This setting checks whether the list call made by controller is forbidden/unauthorized and if it is, it will cross-check the permission by making a `SelfSubjectAccessReview` call for the resource.
+- `normal`: This will only check whether the list call response is forbidden/unauthorized and skip `SelfSubjectAccessReview` call, to minimize any extra api-server calls.
+- unset/empty (default): This will disable the feature and controller will continue to monitor all resources.
 
 Users who are comfortable with an increase in kube api-server calls can opt for `strict` option while users who are concerned with higher api calls and are willing to compromise on the accuracy can opt for the `normal` option.
 
@@ -1436,7 +1437,7 @@ Notes:
 * When set to use `strict` mode controller must have RBAC permission to `create` a `SelfSubjectAccessReview` resource 
 * The `SelfSubjectAccessReview` request will be only made for the `list` verb, it is assumed that if `list` is allowed for a resource then all other permissions are also available to the controller.
 
-Example argocd cm with `resource.respectRBAC` set to `strict`:
+Example `argocd-cm` ConfigMap with `resource.respectRBAC` set to `strict`:
 
 ```yaml
 apiVersion: v1

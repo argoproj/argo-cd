@@ -1331,7 +1331,8 @@ func TestNoSourceIntegrity(t *testing.T) {
 				Server:                test.FakeClusterURL,
 				Revision:              "abc123",
 				SourceIntegrityResult: nil, // No verification requested
-				VerifyResult:          "",
+				//nolint:staticcheck // SA1019: VerifyResult is deprecated, but we still need to support it for backward compatibility.
+				VerifyResult: "",
 			},
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}
@@ -1935,6 +1936,32 @@ func TestUseDiffCache(t *testing.T) {
 			}),
 			manifestRevisions:    []string{"rev1"},
 			statusRefreshTimeout: time.Hour * 24,
+			expectedUseCache:     false,
+			serverSideDiff:       false,
+		},
+		{
+			testName:             "will use diff cache if status refresh timeout is disabled",
+			noCache:              false,
+			manifestInfos:        manifestInfos("rev1"),
+			sources:              sources(),
+			app:                  app("httpbin", "rev1", false, nil),
+			manifestRevisions:    []string{"rev1"},
+			statusRefreshTimeout: 0,
+			expectedUseCache:     true,
+			serverSideDiff:       false,
+		},
+		{
+			testName:      "will return false if never reconciled and status refresh timeout is disabled",
+			noCache:       false,
+			manifestInfos: manifestInfos("rev1"),
+			sources:       sources(),
+			app: app("httpbin", "rev1", false, &v1alpha1.Application{
+				Status: v1alpha1.ApplicationStatus{
+					ReconciledAt: nil,
+				},
+			}),
+			manifestRevisions:    []string{"rev1"},
+			statusRefreshTimeout: 0,
 			expectedUseCache:     false,
 			serverSideDiff:       false,
 		},
