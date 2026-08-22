@@ -1,0 +1,92 @@
+tests:
+# Basic tests
+- healthStatus:
+    status: Progressing
+    message: "Waiting for KubeadmControlPlane status"
+  inputPath: testdata/progressing_no_status.yaml
+- healthStatus:
+    status: Progressing
+    message: "Machines not ready"
+  inputPath: testdata/progressing_machines_not_ready.yaml
+- healthStatus:
+    status: Progressing
+    message: "Rolling out"
+  inputPath: testdata/progressing_rolling_out.yaml
+- healthStatus:
+    status: Progressing
+    message: "Updating: 2/3 updated, 2 ready"
+  inputPath: testdata/progressing_updating.yaml
+- healthStatus:
+    status: Degraded
+    message: "Etcd cluster is unhealthy"
+  inputPath: testdata/degraded_etcd_unhealthy.yaml
+- healthStatus:
+    status: Healthy
+    message: "Control plane is healthy"
+  inputPath: testdata/healthy.yaml
+
+# Priority tests - etcd takes precedence over other failures
+- healthStatus:
+    status: Degraded
+    message: "Etcd cluster is unhealthy"
+  inputPath: testdata/degraded_multiple_failures.yaml
+
+# Missing condition coverage
+- healthStatus:
+    status: Progressing
+    message: "Updating machines"
+  inputPath: testdata/progressing_machines_uptodate_false.yaml
+- healthStatus:
+    status: Progressing
+    message: "Control plane components unhealthy"
+  inputPath: testdata/progressing_components_unhealthy.yaml
+
+# Replica edge cases
+- healthStatus:
+    status: Healthy
+    message: "Control plane is healthy"
+  inputPath: testdata/healthy_zero_replicas.yaml
+- healthStatus:
+    status: Progressing
+    message: "1/3 ready"
+  inputPath: testdata/progressing_ready_not_equal.yaml
+- healthStatus:
+    status: Progressing
+    message: "Updating: 3/5 updated, 5 ready"
+  inputPath: testdata/progressing_partial_update.yaml
+
+# Missing conditions arrays
+- healthStatus:
+    status: Healthy
+    message: "Control plane is healthy"
+  inputPath: testdata/healthy_no_v1beta2.yaml
+- healthStatus:
+    status: Healthy
+    message: "Control plane is healthy"
+  inputPath: testdata/healthy_no_legacy.yaml
+- healthStatus:
+    status: Healthy
+    message: "Control plane is healthy"
+  inputPath: testdata/healthy_empty_conditions.yaml
+
+# Scaling scenarios
+- healthStatus:
+    status: Progressing
+    message: "Updating: 1/3 updated, 1 ready"
+  inputPath: testdata/progressing_scaling_up.yaml
+- healthStatus:
+    status: Progressing
+    message: "3/1 ready"
+  inputPath: testdata/progressing_scaling_down.yaml
+
+# Missing replica counts (defaults to 0)
+- healthStatus:
+    status: Progressing
+    message: "Updating: 0/3 updated, 0 ready"
+  inputPath: testdata/progressing_missing_replica_counts.yaml
+
+# Unknown condition status (not True/False)
+- healthStatus:
+    status: Progressing
+    message: "Machines not ready"
+  inputPath: testdata/progressing_unknown_condition.yaml
