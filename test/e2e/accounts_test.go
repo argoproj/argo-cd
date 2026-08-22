@@ -1,10 +1,12 @@
 package e2e
 
 import (
+	"context"
 	"encoding/json"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -119,6 +121,106 @@ test   true     login, apiKey`, output)
 	require.NoError(t, err)
 
 	assert.Equal(t, "test", info.Username)
+}
+
+func waitForLoginStatus(t *testing.T, username, password string, expectBlocked bool) {
+	t.Helper()
+	deadline := time.Now().Add(15 * time.Second)
+	for time.Now().Before(deadline) {
+		closer, sessionClient := ArgoCDClientset.NewSessionClientOrDie()
+		_, err := sessionClient.Create(context.Background(), &session.SessionCreateRequest{
+			Username: username,
+			Password: password,
+		})
+		utilio.Close(closer)
+		if expectBlocked {
+			if st, ok := status.FromError(err); ok && st.Code() == codes.PermissionDenied {
+				return
+			}
+		} else {
+			if err == nil {
+				return
+			}
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	if expectBlocked {
+		t.Fatal("expected login to be blocked with PermissionDenied within 15s but it was not")
+	}
+
+	t.Fatal("expected login to succeed within 15s but it failed")
+}
+
+func createTestUser(t *testing.T) {
+	t.Helper()
+	require.NoError(t, SetAccounts(map[string][]string{"test": {"login"}}))
+	_, err := RunCli("account", "update-password",
+		"--account", "test",
+		"--current-password", AdminPassword,
+		"--new-password", DefaultTestUserPassword,
+	)
+	require.NoError(t, err)
+}
+
+// TestPreventLoginFlagDisabledPermitsLoginWithNoPermissions verifies that when the feature flag is
+// off (the default), a user with no RBAC permissions can still log in.
+func TestPreventLoginFlagDisabledPermitsLoginWithNoPermissions(t *testing.T) {
+	EnsureCleanState(t)
+	createTestUser(t)
+
+	closer, sessionClient := ArgoCDClientset.NewSessionClientOrDie()
+	defer utilio.Close(closer)
+	_, err := sessionClient.Create(context.Background(), &session.SessionCreateRequest{
+		Username: "test",
+		Password: DefaultTestUserPassword,
+	})
+	require.NoError(t, err)
+}
+
+// TestPreventLoginFlagBlocksLoginWithNoPermissions verifies that when the feature flag is enabled,
+// a user with no RBAC permissions is denied login with PermissionDenied.
+func TestPreventLoginFlagBlocksLoginWithNoPermissions(t *testing.T) {
+	EnsureCleanState(t)
+	createTestUser(t)
+	require.NoError(t, SetParamInRBACConfigMap("policy.prevent-login-without-permissions", "true"))
+
+	waitForLoginStatus(t, "test", DefaultTestUserPassword, true)
+}
+
+// TestPreventLoginFlagPermitsLoginWithPermissions verifies that when the feature flag is enabled,
+// a user who has at least one allow rule is not blocked.
+func TestPreventLoginFlagPermitsLoginWithPermissions(t *testing.T) {
+	EnsureCleanState(t)
+	createTestUser(t)
+	require.NoError(t, SetPermissions([]ACL{{Resource: "applications", Action: "get", Scope: "*/*"}}, "test", "test-role"))
+	require.NoError(t, SetParamInRBACConfigMap("policy.prevent-login-without-permissions", "true"))
+
+	waitForLoginStatus(t, "test", DefaultTestUserPassword, false)
+}
+
+// TestPreventLoginDenyOverrideBlocksLogin verifies that a user whose allowed rules are all
+// overridden by a denied rule is still blocked — regression test for the HasAnyAllowPermission fix.
+func TestPreventLoginDenyOverrideBlocksLogin(t *testing.T) {
+	EnsureCleanState(t)
+	createTestUser(t)
+	require.NoError(t, SetRawPolicyCsv("p, test, applications, get, *, allow\np, test, *, *, *, deny"))
+	require.NoError(t, SetParamInRBACConfigMap("policy.prevent-login-without-permissions", "true"))
+
+	waitForLoginStatus(t, "test", DefaultTestUserPassword, true)
+}
+
+// TestPreventLoginFlagToggleUnblocksLogin verifies that disabling the flag at runtime (without a
+// server restart) allows a previously blocked user to log in again.
+func TestPreventLoginFlagToggleUnblocksLogin(t *testing.T) {
+	EnsureCleanState(t)
+	createTestUser(t)
+	require.NoError(t, SetParamInRBACConfigMap("policy.prevent-login-without-permissions", "true"))
+
+	waitForLoginStatus(t, "test", DefaultTestUserPassword, true)
+
+	require.NoError(t, SetParamInRBACConfigMap("policy.prevent-login-without-permissions", "false"))
+
+	waitForLoginStatus(t, "test", DefaultTestUserPassword, false)
 }
 
 func TestLoginBadCredentials(t *testing.T) {

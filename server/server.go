@@ -196,7 +196,7 @@ type ArgoCDServer struct {
 	enf             *rbac.Enforcer
 	projInformer    cache.SharedIndexInformer
 	projLister      applisters.AppProjectNamespaceLister
-	policyEnforcer  *rbacpolicy.RBACPolicyEnforcer
+	policyEnforcer  *rbacpolicy.Enforcer
 	clusterInformer *settings_util.ClusterInformer
 	appInformer     cache.SharedIndexInformer
 	appLister       applisters.ApplicationLister
@@ -358,6 +358,10 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 
 	policyEnf := rbacpolicy.NewRBACPolicyEnforcer(enf, projLister)
 	enf.SetClaimsEnforcerFunc(policyEnf.EnforceClaims)
+	if opts.RedisClient != nil {
+		permCache := cacheutil.NewCache(cacheutil.NewRedisCache(opts.RedisClient, rbacpolicy.PermCheckCacheTTL, cacheutil.RedisCompressionNone))
+		policyEnf.SetPermCheckCache(permCache)
+	}
 
 	staticFS, err := fs.Sub(ui.Embedded, "dist/app")
 	errorsutil.CheckError(err)
@@ -901,6 +905,11 @@ func (server *ArgoCDServer) watchSettings() {
 }
 
 func (server *ArgoCDServer) rbacPolicyLoader(ctx context.Context) {
+	// Flush the permission-check cache only after the new Casbin policy is fully installed. Registering the hook here
+	// ensure that it is going to be execited on the initial load as well as every update.
+	server.enf.SetAfterPolicyInstalled(func(resourceVersion string) {
+		server.policyEnforcer.FlushPermCheckCache(resourceVersion)
+	})
 	err := server.enf.RunPolicyLoader(ctx, func(cm *corev1.ConfigMap) error {
 		var scopes []string
 		if scopesStr, ok := cm.Data[rbac.ConfigMapScopesKey]; scopesStr != "" && ok {
@@ -910,7 +919,6 @@ func (server *ArgoCDServer) rbacPolicyLoader(ctx context.Context) {
 				return fmt.Errorf("error unmarshalling scopes: %w", err)
 			}
 		}
-
 		server.policyEnforcer.SetScopes(scopes)
 		return nil
 	})

@@ -571,3 +571,103 @@ func TestLoadPolicyLine(t *testing.T) {
 		require.Error(t, loadPolicyLine(policy, model))
 	})
 }
+
+func TestHasAnyAllowPermission(t *testing.T) {
+	tests := []struct {
+		name          string
+		builtinPolicy string
+		userPolicy    string
+		subject       string
+		expected      bool
+	}{
+		{
+			name:     "no policy — denied",
+			subject:  "alice",
+			expected: false,
+		},
+		{
+			name:       "direct allow rule",
+			userPolicy: "p, alice, applications, get, *, allow",
+			subject:    "alice",
+			expected:   true,
+		},
+		{
+			name:       "deny-only rule",
+			userPolicy: "p, alice, applications, get, *, deny",
+			subject:    "alice",
+			expected:   false,
+		},
+		{
+			name:       "uppercase ALLOW not recognized by Casbin — denied",
+			userPolicy: "p, alice, applications, get, *, ALLOW",
+			subject:    "alice",
+			expected:   false,
+		},
+		{
+			name:       "rule for different subject — denied",
+			userPolicy: "p, bob, applications, get, *, allow",
+			subject:    "alice",
+			expected:   false,
+		},
+		{
+			name:       "allow via inherited role",
+			userPolicy: "p, role:viewer, applications, get, *, allow\ng, alice, role:viewer",
+			subject:    "alice",
+			expected:   true,
+		},
+		{
+			name:          "admin inherits allow permissions from built-in role:admin",
+			builtinPolicy: assets.BuiltinPolicyCSV,
+			subject:       "admin",
+			expected:      true,
+		},
+		{
+			name:          "user bound to built-in role:readonly via user policy",
+			builtinPolicy: assets.BuiltinPolicyCSV,
+			userPolicy:    "g, alice, role:readonly",
+			subject:       "alice",
+			expected:      true,
+		},
+		{
+			name:       "allow rule overridden by blanket deny — denied",
+			userPolicy: "p, alice, applications, get, *, allow\np, alice, *, *, *, deny",
+			subject:    "alice",
+			expected:   false,
+		},
+		{
+			name:       "allow via role but blanket deny on subject — denied",
+			userPolicy: "p, role:viewer, applications, get, *, allow\ng, alice, role:viewer\np, alice, *, *, *, deny",
+			subject:    "alice",
+			expected:   false,
+		},
+		{
+			name:       "deny on unrelated resource does not block other allows",
+			userPolicy: "p, alice, applications, get, *, allow\np, alice, clusters, get, *, deny",
+			subject:    "alice",
+			expected:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			enf := NewEnforcer(fake.NewClientset(), fakeNamespace, fakeConfigMapName, nil)
+			if tt.builtinPolicy != "" {
+				require.NoError(t, enf.SetBuiltinPolicy(tt.builtinPolicy))
+			}
+			require.NoError(t, enf.SetUserPolicy(tt.userPolicy))
+			assert.Equal(t, tt.expected, enf.HasAnyAllowPermission(tt.subject))
+		})
+	}
+}
+
+func TestPreventLoginWithoutPermissions(t *testing.T) {
+	enf := NewEnforcer(fake.NewClientset(), fakeNamespace, fakeConfigMapName, nil)
+
+	assert.False(t, enf.GetPreventLoginWithoutPermissions())
+
+	enf.SetPreventLoginWithoutPermissions(true)
+	assert.True(t, enf.GetPreventLoginWithoutPermissions())
+
+	enf.SetPreventLoginWithoutPermissions(false)
+	assert.False(t, enf.GetPreventLoginWithoutPermissions())
+}

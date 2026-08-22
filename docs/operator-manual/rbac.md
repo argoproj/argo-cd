@@ -30,6 +30,37 @@ When a user is authenticated in Argo CD, it will be granted the role specified i
 > by a `deny` rule.** It is recommended to create a new `role:authenticated` with the minimum set of permissions possible,
 > then grant permissions to individual roles as needed.
 
+## Prevent Login Without Permissions
+
+By default, a user can log in to Argo CD even if they have no RBAC permissions at all. Once logged in they will simply see an empty UI. To enforce that a user must have at least one `allow` permission before they can log in, set `policy.prevent-login-without-permissions` to `"true"` in `argocd-rbac-cm`:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-rbac-cm
+  namespace: argocd
+data:
+  policy.prevent-login-without-permissions: "true"
+```
+
+When the flag is enabled:
+
+- **Local users** — the check runs once at login time (`argocd login` / the UI login form). A user with no matching `allow` rule receives a `PermissionDenied` error and no token is issued.
+- **SSO users** — because SSO authentication is handled externally, there is no local login step. Instead, the check runs on each user-info fetch (i.e., each UI page navigation). Permission changes (grants and revocations) take effect as soon as `argocd-rbac-cm` is saved; the 60-second TTL on the cached result is only a safety net for cases where the cache flush is missed (e.g., if Redis is temporarily unavailable).
+
+> [!WARNING]
+> Enabling this flag takes effect immediately for existing SSO sessions.
+> SSO users who are already logged in will be blocked on their next page load if they have no `allow`
+> permissions. Before enabling this on a live cluster, make sure all active SSO users have the
+> required RBAC permissions assigned, or they will be locked out on next navigation.
+
+> [!NOTE]
+> `admin` is a built-in superuser and is never affected by this flag.
+
+> [!WARNING]
+> If `policy.default` is set to a role such as `role:readonly`, every authenticated user already inherits those permissions, which means the flag will **not** block them — all users will satisfy the "has at least one allow" check. Set `policy.default` to `""` when you want this flag to have effect.
+
 ## Anonymous Access
 
 Enabling anonymous access to the Argo CD instance allows users to assume the default role permissions specified by `policy.default` **without being authenticated**.

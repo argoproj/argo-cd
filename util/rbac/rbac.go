@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/argoproj/argo-cd/v3/util/assets"
@@ -33,12 +34,13 @@ import (
 )
 
 const (
-	ConfigMapPolicyCSVKey     = "policy.csv"
-	ConfigMapPolicyDefaultKey = "policy.default"
-	ConfigMapScopesKey        = "scopes"
-	ConfigMapMatchModeKey     = "policy.matchMode"
-	GlobMatchMode             = "glob"
-	RegexMatchMode            = "regex"
+	ConfigMapPolicyCSVKey                   = "policy.csv"
+	ConfigMapPolicyDefaultKey               = "policy.default"
+	ConfigMapScopesKey                      = "scopes"
+	ConfigMapMatchModeKey                   = "policy.matchMode"
+	ConfigMapPreventLoginWithoutPermissions = "policy.prevent-login-without-permissions"
+	GlobMatchMode                           = "glob"
+	RegexMatchMode                          = "regex"
 
 	defaultRBACSyncPeriod = 10 * time.Minute
 )
@@ -127,18 +129,22 @@ var ProjectScoped = map[string]bool{
 // * supports a user-defined policy
 // * supports a custom JWT claims enforce function
 type Enforcer struct {
-	lock               sync.Mutex
-	enforcerCache      *gocache.Cache
-	adapter            *argocdAdapter
-	enableLog          bool
-	enabled            bool
-	clientset          kubernetes.Interface
-	namespace          string
-	configmap          string
-	claimsEnforcerFunc ClaimsEnforcerFunc
-	model              model.Model
-	defaultRole        string
-	matchMode          string
+	lock                           sync.Mutex
+	enforcerCache                  *gocache.Cache
+	adapter                        *argocdAdapter
+	enableLog                      bool
+	enabled                        bool
+	clientset                      kubernetes.Interface
+	namespace                      string
+	configmap                      string
+	claimsEnforcerFunc             ClaimsEnforcerFunc
+	model                          model.Model
+	defaultRole                    string
+	matchMode                      string
+	preventLoginWithoutPermissions atomic.Bool
+	// afterPolicyInstalled is called once SetUserPolicy completes, so that the
+	// permission-check cache is only flushed when the new Casbin policy is live.
+	afterPolicyInstalled func(resourceVersion string)
 }
 
 // cachedEnforcer holds the Casbin enforcer instances and optional custom project policy
@@ -551,13 +557,81 @@ func PolicyCSV(data map[string]string) string {
 
 // syncUpdate updates the enforcer
 func (e *Enforcer) syncUpdate(cm *corev1.ConfigMap, onUpdated func(cm *corev1.ConfigMap) error) error {
-	e.SetDefaultRole(cm.Data[ConfigMapPolicyDefaultKey])
-	e.SetMatchMode(cm.Data[ConfigMapMatchModeKey])
-	policyCSV := PolicyCSV(cm.Data)
 	if err := onUpdated(cm); err != nil {
 		return fmt.Errorf("error running policy update callback: %w", err)
 	}
-	return e.SetUserPolicy(policyCSV)
+	e.SetDefaultRole(cm.Data[ConfigMapPolicyDefaultKey])
+	e.SetMatchMode(cm.Data[ConfigMapMatchModeKey])
+	e.preventLoginWithoutPermissions.Store(cm.Data[ConfigMapPreventLoginWithoutPermissions] == "true")
+	policyCSV := PolicyCSV(cm.Data)
+	if err := e.SetUserPolicy(policyCSV); err != nil {
+		return err
+	}
+	// The following code is executed after SetUserPolicy to make sure that any cache flush happens only once the new
+	// policy is active.
+	e.lock.Lock()
+	fn := e.afterPolicyInstalled
+	e.lock.Unlock()
+	if fn != nil {
+		fn(cm.ResourceVersion)
+	}
+	return nil
+}
+
+func (e *Enforcer) GetDefaultRole() string {
+	e.lock.Lock()
+	defer e.lock.Unlock()
+	return e.defaultRole
+}
+
+func (e *Enforcer) GetPreventLoginWithoutPermissions() bool {
+	return e.preventLoginWithoutPermissions.Load()
+}
+
+func (e *Enforcer) SetPreventLoginWithoutPermissions(v bool) {
+	e.preventLoginWithoutPermissions.Store(v)
+}
+
+// SetAfterPolicyInstalled registers a callback which is invoked after every successful SetUserPolicy call inside syncUpdate.
+// Use this to flush caches that depend on the active Casbin policy — the callback will run only once the new policy is live,
+// so cached results written between the callback and SetUserPolicy cannot be stale.
+func (e *Enforcer) SetAfterPolicyInstalled(fn func(resourceVersion string)) {
+	e.lock.Lock()
+	defer e.lock.Unlock()
+	e.afterPolicyInstalled = fn
+}
+
+// GetImplicitPermissionsForUser returns all permissions for a user,
+// including those inherited transitively through role assignments (g policies).
+// Each entry is a full policy row: [subject, resource, action, object, effect].
+func (e *Enforcer) GetImplicitPermissionsForUser(user string) ([][]string, error) {
+	enf, err := e.tryGetCasbinEnforcer("", "")
+	if err != nil {
+		return nil, err
+	}
+	return enf.GetImplicitPermissionsForUser(user)
+}
+
+// HasAnyAllowPermission reports whether a subject has at least one effective "allow" permission
+// in the current policy, including permissions inherited transitively from roles. It calls
+// Enforce() for each allow tuple so that deny rules (which override allows per the model's
+// effect `some(allow) && !some(deny)`) are respected. A subject with only deny-overridden allows
+// correctly returns false.
+func (e *Enforcer) HasAnyAllowPermission(subject string) bool {
+	perms, err := e.GetImplicitPermissionsForUser(subject)
+	if err != nil {
+		return false
+	}
+	// Each row is [subject, resource, action, object, effect].
+	for _, row := range perms {
+		if len(row) < 5 || !strings.EqualFold(row[4], "allow") {
+			continue
+		}
+		if e.Enforce(subject, row[1], row[2], row[3]) {
+			return true
+		}
+	}
+	return false
 }
 
 // ValidatePolicy verifies a policy string is acceptable to casbin
