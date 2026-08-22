@@ -1,0 +1,13 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: "VPA recommendation provided"
+    inputPath: testdata/healthy.yaml
+  - healthStatus:
+      status: Degraded
+      message: "No pods match the VPA selector"
+    inputPath: testdata/nopods.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Waiting for VPA recommendation"
+    inputPath: testdata/progressing.yaml
