@@ -810,7 +810,6 @@ func (m *Manager) UpdateApplicationSetApplicationStatusProgress(ctx context.Cont
 					logCtx.WithError(setErr).Warn("Failed to set step start times annotation")
 				}
 			}
-
 		}
 	}
 

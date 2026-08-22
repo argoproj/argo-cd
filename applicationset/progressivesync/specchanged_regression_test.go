@@ -93,7 +93,8 @@ func (regressionDeps) SetApplicationSetStatusCondition(_ context.Context, _ *arg
 
 func (regressionDeps) ObserveRolloutDuration(_ *argov1alpha1.ApplicationSet, _ time.Duration) {}
 
-func (regressionDeps) ObserveStepCompletionDuration(_ *argov1alpha1.ApplicationSet, _ string, _ time.Duration) {}
+func (regressionDeps) ObserveStepCompletionDuration(_ *argov1alpha1.ApplicationSet, _ string, _ time.Duration) {
+}
 
 func regressionManager(t *testing.T, appSet *argov1alpha1.ApplicationSet) *Manager {
 	t.Helper()
