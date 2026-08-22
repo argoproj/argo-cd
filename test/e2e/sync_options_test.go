@@ -271,3 +271,83 @@ func TestNamespaceCreationWithSSA(t *testing.T) {
 		Expect(ResourceHealthWithNamespaceIs("Service", "guestbook-ui", namespace, health.HealthStatusHealthy)).
 		Expect(ResourceSyncStatusWithNamespaceIs("Service", "guestbook-ui", namespace, SyncStatusCodeSynced))
 }
+
+// TestPartialSyncDoesNotRunHooksByDefault verifies that hooks are excluded during partial sync
+// when RunHooksOnPartialSync option is not set
+func TestPartialSyncDoesNotRunHooksByDefault(t *testing.T) {
+	ctx := Given(t)
+	ctx.
+		Path("hook").
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		// Verify both the pod and hook were created during full sync
+		Expect(ResourceResultNumbering(2)).
+		When().
+		// Now perform a partial sync on just the pod resource
+		Sync("--resource", ":Pod:pod").
+		Then().
+		// Partial sync should succeed
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		// Only the pod should be synced, not the hook
+		Expect(ResourceResultNumbering(1))
+}
+
+// TestPartialSyncRunsHooksWithOption verifies that hooks are included during partial sync
+// when RunHooksOnPartialSync=true option is set
+func TestPartialSyncRunsHooksWithOption(t *testing.T) {
+	ctx := Given(t)
+	ctx.
+		Path("hook").
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		// Verify both the pod and hook were created during full sync
+		Expect(ResourceResultNumbering(2)).
+		When().
+		// Delete the hook pod so we can verify it gets recreated
+		And(func() {
+			errors.NewHandler(t).FailOnErr(Run("", "kubectl", "delete", "pod", "hook", "-n", ctx.DeploymentNamespace(), "--ignore-not-found"))
+		}).
+		// Now perform a partial sync with RunHooksOnPartialSync=true
+		Sync("--resource", ":Pod:pod", "--sync-option", "RunHooksOnPartialSync=true").
+		Then().
+		// Partial sync should succeed
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		// Both the pod and the hook should be synced when option is enabled
+		Expect(ResourceResultNumbering(2))
+}
+
+// TestPartialSyncWithPreSyncHook verifies that PreSync hooks are executed during partial sync
+// when RunHooksOnPartialSync=true option is set
+func TestPartialSyncWithPreSyncHook(t *testing.T) {
+	ctx := Given(t)
+	ctx.
+		Path("hook").
+		When().
+		// Make the hook a PreSync hook
+		PatchFile("hook.yaml", `[{"op": "replace", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/hook": "PreSync"}}]`).
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		// Delete the hook pod so we can verify it gets recreated
+		And(func() {
+			errors.NewHandler(t).FailOnErr(Run("", "kubectl", "delete", "pod", "hook", "-n", ctx.DeploymentNamespace(), "--ignore-not-found"))
+		}).
+		// Perform partial sync with RunHooksOnPartialSync - PreSync hook should run
+		Sync("--resource", ":Pod:pod", "--sync-option", "RunHooksOnPartialSync=true").
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		// Both resources should be in result: the PreSync hook and the pod
+		Expect(ResourceResultNumbering(2)).
+		Expect(ResourceResultIs(ResourceResult{Version: "v1", Kind: "Pod", Namespace: ctx.DeploymentNamespace(), Name: "hook", Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.1"}, Message: "pod/hook created", HookType: HookTypePreSync, Status: ResultCodeSynced, HookPhase: OperationSucceeded, SyncPhase: SyncPhasePreSync}))
+}
