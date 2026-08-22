@@ -598,10 +598,10 @@ func TestHasAnyAllowPermission(t *testing.T) {
 			expected:   false,
 		},
 		{
-			name:       "case-insensitive ALLOW",
+			name:       "uppercase ALLOW not recognized by Casbin — denied",
 			userPolicy: "p, alice, applications, get, *, ALLOW",
 			subject:    "alice",
-			expected:   true,
+			expected:   false,
 		},
 		{
 			name:       "rule for different subject — denied",
@@ -627,6 +627,24 @@ func TestHasAnyAllowPermission(t *testing.T) {
 			userPolicy:    "g, alice, role:readonly",
 			subject:       "alice",
 			expected:      true,
+		},
+		{
+			name:       "allow rule overridden by blanket deny — denied",
+			userPolicy: "p, alice, applications, get, *, allow\np, alice, *, *, *, deny",
+			subject:    "alice",
+			expected:   false,
+		},
+		{
+			name:       "allow via role but blanket deny on subject — denied",
+			userPolicy: "p, role:viewer, applications, get, *, allow\ng, alice, role:viewer\np, alice, *, *, *, deny",
+			subject:    "alice",
+			expected:   false,
+		},
+		{
+			name:       "deny on unrelated resource does not block other allows",
+			userPolicy: "p, alice, applications, get, *, allow\np, alice, clusters, get, *, deny",
+			subject:    "alice",
+			expected:   true,
 		},
 	}
 
