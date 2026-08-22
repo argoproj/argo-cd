@@ -1593,6 +1593,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		resources    []string
 		output       string
 		appNamespace string
+		maxPending   uint
 	)
 	command := &cobra.Command{
 		Use:   "wait [APPNAME.. | -l selector]",
@@ -1645,7 +1646,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				if appNamespace != "" && !strings.Contains(appName, "/") {
 					appName = appNamespace + "/" + appName
 				}
-				_, _, err := waitOnApplicationStatus(ctx, acdClient, appName, timeout, watch, selectedResources, output)
+				_, _, err := waitOnApplicationStatus(ctx, acdClient, appName, timeout, watch, selectedResources, output, maxPending)
 				if err != nil {
 					if isContextCanceledErr(err) {
 						log.Fatalf("timed out (%ds) waiting for app %q to match the expected conditions", timeout, appName)
@@ -1667,6 +1668,7 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only wait for an application  in namespace")
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|tree|tree=detailed")
+	command.Flags().UintVar(&maxPending, "max-pending-resources", 10, "Maximum number of pending resources to display in timeout error messages")
 	return command
 }
 
@@ -1731,6 +1733,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		ignoreNormalizerOpts      normalizers.IgnoreNormalizerOpts
 		serverSideDiffConcurrency int
 		serverSideDiffMaxBatchKB  int
+		maxPending                uint
 	)
 	command := &cobra.Command{
 		Use:   "sync [APPNAME... | -l selector | --project project-name]",
@@ -2039,7 +2042,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				errors.CheckError(err)
 
 				if !async {
-					app, opState, err := waitOnApplicationStatus(ctx, acdClient, appQualifiedName, timeout, watchOpts{operation: true}, selectedResources, output)
+					app, opState, err := waitOnApplicationStatus(ctx, acdClient, appQualifiedName, timeout, watchOpts{operation: true}, selectedResources, output, maxPending)
 					errors.CheckError(err)
 
 					if !dryRun {
@@ -2088,6 +2091,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().Int64SliceVar(&sourcePositions, "source-positions", []int64{}, "List of source positions. Default is empty array. Counting start at 1.")
 	command.Flags().StringArrayVar(&sourceNames, "source-names", []string{}, "List of source names. Default is an empty array.")
 	addServerSideDiffPerfFlags(command, &serverSideDiffConcurrency, &serverSideDiffMaxBatchKB)
+	command.Flags().UintVar(&maxPending, "max-pending-resources", 10, "Maximum number of pending resources to display in timeout error messages")
 	return command
 }
 
@@ -2308,33 +2312,35 @@ func (a *AppWithLock) GetApp() *argoappv1.Application {
 	return a.app
 }
 
+// isOperationInProgress reports whether the application has a pending or
+// recently-finished operation that still needs controller reconciliation.
+func isOperationInProgress(app *argoappv1.Application) bool {
+	if app.Operation != nil {
+		// operation was just requested
+		return true
+	}
+	if app.Status.OperationState != nil {
+		if app.Status.OperationState.FinishedAt == nil {
+			// operation is not finished yet
+			return true
+		}
+		if !app.Status.OperationState.Operation.DryRun() && (app.Status.ReconciledAt == nil || app.Status.ReconciledAt.Before(app.Status.OperationState.FinishedAt)) {
+			// operation just finished but controller hasn't reconciled yet
+			return true
+		}
+	}
+	return false
+}
+
 // checkAppWaitConditions evaluates whether an application currently matches the
 // conditions requested by `argocd app wait`. It returns whether the conditions
 // are met (ready) and whether a sync/refresh operation is still in progress.
 // It does not mutate any state — callers are responsible for any side effects
 // such as triggering a status refresh before printing the final summary.
 func checkAppWaitConditions(app *argoappv1.Application, watch watchOpts, selectedResources []*argoappv1.SyncOperationResource) (ready, operationInProgress bool) {
-	if app.Operation != nil {
-		// if it just got requested
-		operationInProgress = true
-	} else if app.Status.OperationState != nil {
-		if app.Status.OperationState.FinishedAt == nil {
-			// if it is not finished yet
-			operationInProgress = true
-		} else if !app.Status.OperationState.Operation.DryRun() && (app.Status.ReconciledAt == nil || app.Status.ReconciledAt.Before(app.Status.OperationState.FinishedAt)) {
-			// if it is just finished and we need to wait for controller to reconcile app once after syncing
-			operationInProgress = true
-		}
-	}
+	operationInProgress = isOperationInProgress(app)
 
-	// LastSuccessfulOperation is only populated after a successful hydration,
-	// so it can be nil while CurrentOperation is set. Guard against the nil
-	// dereference before comparing the two.
-	hydrationFinished := app.Status.SourceHydrator.CurrentOperation != nil &&
-		app.Status.SourceHydrator.LastSuccessfulOperation != nil &&
-		app.Status.SourceHydrator.CurrentOperation.Phase == argoappv1.HydrateOperationPhaseHydrated &&
-		app.Status.SourceHydrator.CurrentOperation.SourceHydrator.DeepEquals(app.Status.SourceHydrator.LastSuccessfulOperation.SourceHydrator) &&
-		app.Status.SourceHydrator.CurrentOperation.DrySHA == app.Status.SourceHydrator.LastSuccessfulOperation.DrySHA
+	hydrationFinished := appHydrationFinished(app)
 
 	if len(selectedResources) > 0 {
 		ready = true
@@ -2352,10 +2358,43 @@ func checkAppWaitConditions(app *argoappv1.Application, watch watchOpts, selecte
 	return ready, operationInProgress
 }
 
+// appHydrationFinished reports whether the app's current hydration operation
+// has completed successfully. LastSuccessfulOperation is only populated after
+// a successful hydration, so it can be nil while CurrentOperation is set.
+func appHydrationFinished(app *argoappv1.Application) bool {
+	return app.Status.SourceHydrator.CurrentOperation != nil &&
+		app.Status.SourceHydrator.LastSuccessfulOperation != nil &&
+		app.Status.SourceHydrator.CurrentOperation.Phase == argoappv1.HydrateOperationPhaseHydrated &&
+		app.Status.SourceHydrator.CurrentOperation.SourceHydrator.DeepEquals(app.Status.SourceHydrator.LastSuccessfulOperation.SourceHydrator) &&
+		app.Status.SourceHydrator.CurrentOperation.DrySHA == app.Status.SourceHydrator.LastSuccessfulOperation.DrySHA
+}
+
+// formatPendingResources builds a summary string for resources that have not
+// reached the desired state. If there are more than maxPending entries the
+// list is truncated and a count of the remaining items is appended.
+func formatPendingResources(pending []string, maxPending uint) string {
+	if maxPending == 0 {
+		maxPending = 10
+	}
+	if uint(len(pending)) > maxPending {
+		return strings.Join(pending[:maxPending], ", ") + fmt.Sprintf(", ... and %d more", len(pending)-int(maxPending))
+	}
+	return strings.Join(pending, ", ")
+}
+
+// formatResourceStateLabel returns a human-readable label for a resource state.
+// Hook resources use phase/result labels; regular resources use sync/health.
+func formatResourceStateLabel(state *resourceState) string {
+	if state.Hook != "" {
+		return fmt.Sprintf("%s (hook: %s, result: %s)", state.Key(), state.Status, state.Health)
+	}
+	return fmt.Sprintf("%s (sync: %s, health: %s)", state.Key(), state.Status, state.Health)
+}
+
 // waitOnApplicationStatus watches an application and blocks until either the desired watch conditions
 // are fulfilled or we reach the timeout. Returns the app once desired conditions have been filled.
 // Additionally return the operationState at time of fulfilment (which may be different than returned app).
-func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client, appName string, timeout uint, watch watchOpts, selectedResources []*argoappv1.SyncOperationResource, output string) (*argoappv1.Application, *argoappv1.OperationState, error) {
+func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client, appName string, timeout uint, watch watchOpts, selectedResources []*argoappv1.SyncOperationResource, output string, maxPending uint) (*argoappv1.Application, *argoappv1.OperationState, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -2536,7 +2575,52 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 		_ = w.Flush()
 	}
 	_ = printFinalStatus(appWithLock.GetApp())
-	return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q match desired state", timeout, appName)
+	app = appWithLock.GetApp()
+
+	// Collect the state that kept the wait from completing so the timeout
+	// error carries actionable information.
+	hydrationFinished := appHydrationFinished(app)
+	if len(selectedResources) > 0 {
+		var pending []string
+		for _, state := range getResourceStates(app, selectedResources) {
+			if !checkResourceStatus(watch, state.Health, state.Status, app.Operation, hydrationFinished) {
+				pending = append(pending, formatResourceStateLabel(state))
+			}
+		}
+		if len(pending) > 0 {
+			return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q to match desired state. resources not ready: %s", timeout, appName, formatPendingResources(pending, maxPending))
+		}
+		return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q to match desired state", timeout, appName)
+	}
+
+	var conditions []string
+	if watch.sync {
+		conditions = append(conditions, fmt.Sprintf("sync status: %s", app.Status.Sync.Status))
+	}
+	if watch.health || watch.suspended || watch.degraded {
+		conditions = append(conditions, fmt.Sprintf("health status: %s", app.Status.Health.Status))
+	}
+	if watch.operation && isOperationInProgress(app) {
+		conditions = append(conditions, "operation: still in progress")
+	}
+	if watch.hydrated {
+		conditions = append(conditions, fmt.Sprintf("hydrated: %t", hydrationFinished))
+	}
+	detail := "app " + strings.Join(conditions, ", ")
+
+	var pending []string
+	for _, state := range getResourceStates(app, nil) {
+		if state.Hook != "" && state.Status == string(common.OperationSucceeded) {
+			continue
+		}
+		if !checkResourceStatus(watch, state.Health, state.Status, app.Operation, hydrationFinished) {
+			pending = append(pending, formatResourceStateLabel(state))
+		}
+	}
+	if len(pending) > 0 {
+		detail += ", resources not ready: " + formatPendingResources(pending, maxPending)
+	}
+	return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q to match desired state. %s", timeout, appName, detail)
 }
 
 // isContextCanceledErr returns true if the error is a context cancellation or deadline exceeded,
@@ -2713,6 +2797,7 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 		timeout      uint
 		output       string
 		appNamespace string
+		maxPending   uint
 	)
 	command := &cobra.Command{
 		Use:   "rollback APPNAME [ID]",
@@ -2752,7 +2837,7 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 
 			_, _, err = waitOnApplicationStatus(ctx, acdClient, app.QualifiedName(), timeout, watchOpts{
 				operation: true,
-			}, nil, output)
+			}, nil, output, maxPending)
 			errors.CheckError(err)
 		}),
 	}
@@ -2760,6 +2845,7 @@ func NewApplicationRollbackCommand(clientOpts *argocdclient.ClientOptions) *cobr
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|tree|tree=detailed")
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Rollback application in namespace")
+	command.Flags().UintVar(&maxPending, "max-pending-resources", 10, "Maximum number of pending resources to display in timeout error messages")
 	return command
 }
 
