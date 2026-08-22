@@ -4,6 +4,7 @@ import {ApplicationDetails} from './application-details/application-details';
 import {ApplicationFullscreenLogs} from './application-fullscreen-logs/application-fullscreen-logs';
 import {ApplicationsList} from './applications-list/applications-list';
 import {ApplicationSetsList} from './applications-list/application-sets-list';
+import {GlobalDiffsView} from './global-diffs-view/global-diffs-view';
 
 export const ApplicationsContainer = (props: RouteComponentProps<any>) => {
     // Determine objectListKind from the route path
@@ -16,6 +17,7 @@ export const ApplicationsContainer = (props: RouteComponentProps<any>) => {
                 path={`${props.match.path}`}
                 render={() => (objectListKind === 'application' ? <ApplicationsList {...(props as any)} /> : <ApplicationSetsList {...(props as any)} />)}
             />
+            <Route exact={true} path={`${props.match.path}/diffs`} render={routeProps => <GlobalDiffsView {...(routeProps as any)} />} />
             <Route exact={true} path={`${props.match.path}/:name`} render={routeProps => <ApplicationDetails objectListKind={objectListKind} {...(routeProps as any)} />} />
             <Route
                 exact={true}
