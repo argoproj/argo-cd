@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"context"
 	"testing"
 
 	log "github.com/sirupsen/logrus"
@@ -364,4 +365,181 @@ func TestCreateOrUpdateDoesNotRevertIgnoredKustomizeImagesMultiSource(t *testing
 	require.NoError(t, c.Get(t.Context(), client.ObjectKeyFromObject(live), persisted))
 	require.NotNil(t, persisted.Spec.Sources[1].Kustomize, "the ignored kustomize.images override must survive in the cluster")
 	require.Equal(t, live.Spec.Sources[1].Kustomize.Images, persisted.Spec.Sources[1].Kustomize.Images)
+}
+
+// staleGetClient returns an older snapshot from Get while Patch/Create apply to
+// the inner client's stored object. Models AppSet's cache-backed Get lagging
+// the API server (spec Test 1).
+type staleGetClient struct {
+	client.Client
+	stale *v1alpha1.Application
+}
+
+func (s staleGetClient) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+	app, ok := obj.(*v1alpha1.Application)
+	if !ok {
+		return s.Client.Get(ctx, key, obj, opts...)
+	}
+	s.stale.DeepCopyInto(app)
+	return nil
+}
+
+func testApp(name string, op *v1alpha1.Operation) *v1alpha1.Application {
+	return &v1alpha1.Application{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "argoproj.io/v1alpha1",
+			Kind:       "Application",
+		},
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "argocd"},
+		Spec:       v1alpha1.ApplicationSpec{Project: "default"},
+		Operation:  op,
+	}
+}
+
+func fullAppSetOp() *v1alpha1.Operation {
+	return &v1alpha1.Operation{
+		InitiatedBy: v1alpha1.OperationInitiator{Username: AppSetControllerUsername, Automated: true},
+		Info: []*v1alpha1.Info{{
+			Name:  "Reason",
+			Value: "ApplicationSet RollingSync triggered a sync of this Application resource",
+		}},
+		Sync:  &v1alpha1.SyncOperation{},
+		Retry: v1alpha1.RetryStrategy{Limit: 5},
+	}
+}
+
+func filteredOp(username string) *v1alpha1.Operation {
+	return &v1alpha1.Operation{
+		InitiatedBy: v1alpha1.OperationInitiator{Username: username, Automated: username == AppSetControllerUsername},
+		Sync: &v1alpha1.SyncOperation{
+			Resources: []v1alpha1.SyncOperationResource{{
+				Group: "batch", Kind: "Job", Name: "cilium-post-sync", Namespace: "kube-system",
+			}},
+		},
+	}
+}
+
+// Covers the stale-Get window (Operation==nil in cache while the API already has a
+// filtered op): AppSet must overwrite. That is not the user-op preserve guarantee
+// (OperationGuard case 5).
+func TestCreateOrUpdate_StaleBaseClearsFilteredOperation(t *testing.T) {
+	t.Parallel()
+
+	scheme := runtime.NewScheme()
+	require.NoError(t, v1alpha1.AddToScheme(scheme))
+
+	stored := testApp("demo", filteredOp("admin"))
+	stale := testApp("demo", nil) // Get predates the filtered op
+
+	inner := fake.NewClientBuilder().WithScheme(scheme).WithObjects(stored.DeepCopy()).Build()
+	c := staleGetClient{Client: inner, stale: stale}
+
+	obj := testApp("demo", nil)
+	logCtx := log.NewEntry(log.New())
+	_, err := CreateOrUpdate(t.Context(), logCtx, c, nil, obj, func() error {
+		obj.Spec = stored.Spec
+		obj.Operation = fullAppSetOp()
+		return nil
+	})
+	require.NoError(t, err)
+
+	got := &v1alpha1.Application{}
+	require.NoError(t, inner.Get(t.Context(), client.ObjectKeyFromObject(stored), got))
+	require.NotNil(t, got.Operation)
+	require.NotNil(t, got.Operation.Sync)
+	assert.Empty(t, got.Operation.Sync.Resources)
+	assert.Equal(t, AppSetControllerUsername, got.Operation.InitiatedBy.Username)
+}
+
+func TestCreateOrUpdate_OperationGuard(t *testing.T) {
+	t.Parallel()
+
+	scheme := runtime.NewScheme()
+	require.NoError(t, v1alpha1.AddToScheme(scheme))
+
+	tests := []struct {
+		name           string
+		liveOp         *v1alpha1.Operation
+		desiredOp      *v1alpha1.Operation
+		wantUser       string
+		wantRes        int
+		wantResult     controllerutil.OperationResult
+		checkResult    bool
+		wantRetryLimit int64
+		checkRetry     bool
+	}{
+		{
+			name:      "2 live nil generated set -> live gets generated",
+			liveOp:    nil,
+			desiredOp: fullAppSetOp(),
+			wantUser:  AppSetControllerUsername,
+			wantRes:   0,
+		},
+		{
+			name:      "3 generated nil live user op -> live user op unchanged",
+			liveOp:    filteredOp("admin"),
+			desiredOp: nil,
+			wantUser:  "admin",
+			wantRes:   1,
+		},
+		{
+			name:      "4 live AppSet-initiated filtered + generated full -> filter gone",
+			liveOp:    filteredOp(AppSetControllerUsername),
+			desiredOp: fullAppSetOp(),
+			wantUser:  AppSetControllerUsername,
+			wantRes:   0,
+		},
+		{
+			name:      "5 live user-initiated + generated full -> live user op unchanged",
+			liveOp:    filteredOp("admin"),
+			desiredOp: fullAppSetOp(),
+			wantUser:  "admin",
+			wantRes:   1,
+		},
+		{
+			name:   "6 live already-full AppSet op + generated full -> do not re-add",
+			liveOp: fullAppSetOp(),
+			desiredOp: func() *v1alpha1.Operation {
+				op := fullAppSetOp()
+				op.Retry.Limit = 9
+				return op
+			}(),
+			wantUser:       AppSetControllerUsername,
+			wantRes:        0,
+			wantResult:     controllerutil.OperationResultNone,
+			checkResult:    true,
+			wantRetryLimit: 5,
+			checkRetry:     true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			live := testApp("demo", tc.liveOp)
+			c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(live.DeepCopy()).Build()
+			obj := testApp("demo", nil)
+			result, err := CreateOrUpdate(t.Context(), log.NewEntry(log.New()), c, nil, obj, func() error {
+				obj.Spec = live.Spec
+				if tc.desiredOp != nil {
+					obj.Operation = tc.desiredOp
+				}
+				return nil
+			})
+			require.NoError(t, err)
+			if tc.checkResult {
+				assert.Equal(t, tc.wantResult, result)
+			}
+
+			got := &v1alpha1.Application{}
+			require.NoError(t, c.Get(t.Context(), client.ObjectKeyFromObject(live), got))
+			require.NotNil(t, got.Operation)
+			assert.Equal(t, tc.wantUser, got.Operation.InitiatedBy.Username)
+			require.NotNil(t, got.Operation.Sync)
+			assert.Len(t, got.Operation.Sync.Resources, tc.wantRes)
+			if tc.checkRetry {
+				assert.Equal(t, tc.wantRetryLimit, got.Operation.Retry.Limit)
+			}
+		})
+	}
 }
