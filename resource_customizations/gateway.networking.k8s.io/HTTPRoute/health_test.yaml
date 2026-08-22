@@ -19,3 +19,15 @@ tests:
     status: Healthy
     message: HTTPRoute is healthy
   inputPath: testdata/healthy_multiple_generations.yaml
+- healthStatus:
+    status: Healthy
+    message: No status reported by the Gateway controller; assuming HTTPRoute is healthy
+  inputPath: testdata/healthy_no_status.yaml
+- healthStatus:
+    status: Healthy
+    message: No status reported by the Gateway controller; assuming HTTPRoute is healthy
+  inputPath: testdata/healthy_empty_parents.yaml
+- healthStatus:
+    status: Progressing
+    message: Waiting for HTTPRoute status
+  inputPath: testdata/progressing_no_conditions.yaml

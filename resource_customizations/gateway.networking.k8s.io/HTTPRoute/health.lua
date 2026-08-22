@@ -93,6 +93,17 @@ if obj.status ~= nil then
   end
 end
 
+-- Some Gateway API implementations never populate .status.parents even though the
+-- route is functional. A health check cannot time out, so reporting "Progressing"
+-- here would leave the Application progressing forever (see issue #28352). When no
+-- controller has reported any parent status, assume the route is healthy, matching
+-- how Argo CD treats resources without a health check.
+if obj.status == nil or obj.status.parents == nil or #obj.status.parents == 0 then
+  hs.status = "Healthy"
+  hs.message = "No status reported by the Gateway controller; assuming HTTPRoute is healthy"
+  return hs
+end
+
 hs.status = "Progressing"
 hs.message = "Waiting for HTTPRoute status"
 return hs
