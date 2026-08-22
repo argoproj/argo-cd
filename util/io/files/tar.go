@@ -178,6 +178,10 @@ func untar(dstPath string, r io.Reader, preserveFileMode bool) error {
 				f.Close()
 				return fmt.Errorf("error writing tgz file: %w", err)
 			}
+			if err := w.Flush(); err != nil {
+				f.Close()
+				return fmt.Errorf("error flushing tgz file: %w", err)
+			}
 			f.Close()
 		}
 	}
