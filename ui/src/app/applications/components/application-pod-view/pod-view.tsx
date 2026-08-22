@@ -300,7 +300,8 @@ function menuItemsFor(modes: PodGroupType[], prefs: ViewPreferences, ctx: Contex
     }));
 }
 
-function processTree(
+/** Exported for unit tests (unschedulable group metadata, grouping). */
+export function processTree(
     sortMode: PodGroupType,
     initNodes: Node[],
     tree: ApplicationTree,
@@ -394,10 +395,7 @@ function processTree(
                         kind: 'node',
                         name: 'Unschedulable',
                         pods: [p],
-                        info: [
-                            {name: 'Kernel Version', value: 'N/A'},
-                            {name: 'OS/Arch', value: 'N/A'}
-                        ],
+                        info: [],
                         hostResourcesInfo: [],
                         hostLabels: {}
                     };
