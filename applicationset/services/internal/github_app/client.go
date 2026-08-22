@@ -15,7 +15,10 @@ import (
 
 // getInstallationClient creates a new GitHub client with the specified installation ID.
 // It also returns a ghinstallation.Transport, which can be used for git requests.
-func getInstallationClient(g github_app_auth.Authentication, url string, httpClient ...*http.Client) (*github.Client, error) {
+// When enableTokenCache is true, token acquisition requests are intercepted so that
+// a valid installation access token is reused for its lifetime instead of being
+// refetched on every call.
+func getInstallationClient(g github_app_auth.Authentication, url string, enableTokenCache bool, httpClient ...*http.Client) (*github.Client, error) {
 	if g.InstallationId <= 0 {
 		return nil, errors.New("installation ID is required for github")
 	}
@@ -26,6 +29,13 @@ func getInstallationClient(g github_app_auth.Authentication, url string, httpCli
 		transport = httpClient[0].Transport
 	} else {
 		transport = http.DefaultTransport
+	}
+
+	// Optionally add caching layer to avoid refetching the installation access token
+	// on every call. Gated by the same flag as the HTTP response cache so operators
+	// can opt in or out of both caching layers together.
+	if enableTokenCache {
+		transport = NewGitHubAppCacheTokenTransport(transport, g.Id, g.InstallationId, url)
 	}
 
 	itr, err := ghinstallation.New(transport, g.Id, g.InstallationId, []byte(g.PrivateKey))
@@ -52,14 +62,19 @@ func getInstallationClient(g github_app_auth.Authentication, url string, httpCli
 }
 
 // Client builds a github client for the given app authentication.
-func Client(ctx context.Context, g github_app_auth.Authentication, url, org string, optionalHTTPClient ...*http.Client) (*github.Client, error) {
+// enableTokenCache controls whether the installation access token is cached for
+// its lifetime (up to ~1 h) to avoid a token-acquisition round-trip on every call.
+// This is particularly useful for GitHub App authentication, where the token
+// changes on every reconciliation. For token-based or anonymous auth the response
+// cache still functions independently of this flag.
+func Client(ctx context.Context, g github_app_auth.Authentication, url, org string, enableTokenCache bool, optionalHTTPClient ...*http.Client) (*github.Client, error) {
 	if url == "" {
 		url = g.EnterpriseBaseURL
 	}
 
 	// If an installation ID is already provided, use it directly.
 	if g.InstallationId != 0 {
-		return getInstallationClient(g, url, optionalHTTPClient...)
+		return getInstallationClient(g, url, enableTokenCache, optionalHTTPClient...)
 	}
 
 	// Auto-discover installation ID using shared utility
@@ -70,5 +85,5 @@ func Client(ctx context.Context, g github_app_auth.Authentication, url, org stri
 	}
 
 	g.InstallationId = installationId
-	return getInstallationClient(g, url, optionalHTTPClient...)
+	return getInstallationClient(g, url, enableTokenCache, optionalHTTPClient...)
 }
