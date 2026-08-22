@@ -146,6 +146,250 @@ spec:
         path: '{{.path.path}}'
         repoURL: https://github.com/test/test.git
         targetRevision: HEAD
+---
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: appset-progressive-sync-enabled
+  namespace: argocd
+spec:
+  generators:
+  - list:
+      elements:
+      - environment: dev
+        name: app1
+      - environment: dev
+        name: app2
+      - environment: staging
+        name: app3
+      - environment: staging
+        name: app4
+      - environment: staging
+        name: app5
+      - environment: prod
+        name: app6
+      - environment: prod
+        name: app7
+      - environment: prod
+        name: app8
+      - environment: prod
+        name: app9
+  goTemplate: true
+  goTemplateOptions:
+  - missingkey=error
+  strategy:
+    rollingSync:
+      steps:
+      - matchExpressions:
+        - key: environment
+          operator: In
+          values:
+          - dev
+      - matchExpressions:
+        - key: environmen
+          operator: In
+          values:
+          - staging
+      - matchExpressions:
+        - key: environment
+          operator: In
+          values:
+          - prod
+    type: RollingSync
+  template:
+    metadata:
+      labels:
+        environment: '{{ .environment }}'
+      name: refresh-{{ .environment }}-{{ .name }}
+    spec:
+      destination:
+        namespace: refresh-{{ .environment }}-{{ .name }}
+        server: https://kubernetes.default.svc
+      project: default
+      source:
+        path: guestbook
+        repoURL: https://github.com/test/test.git
+        targetRevision: HEAD
+      syncPolicy:
+        syncOptions:
+        - CreateNamespace=true
+status:
+  applicationStatus:
+  - application: refresh-dev-app1
+    lastTransitionTime: "2026-08-04T02:28:30Z"
+    message: Application resource became Healthy, updating status from Progressing
+      to Healthy
+    status: Healthy
+    step: "1"
+    targetRevisions:
+    - 6a7e2a01addf0f9eed142fae6d6c2a6cf7ca3f1b
+  - application: refresh-dev-app2
+    lastTransitionTime: "2026-08-04T02:28:29Z"
+    message: Application resource became Healthy, updating status from Progressing
+      to Healthy
+    status: Healthy
+    step: "1"
+    targetRevisions:
+    - 6a7e2a01addf0f9eed142fae6d6c2a6cf7ca3f1b
+  - application: refresh-prod-app6
+    lastTransitionTime: "2026-08-04T02:28:33Z"
+    message: Application resource became Healthy, updating status from Progressing
+      to Healthy
+    status: Healthy
+    step: "3"
+    targetRevisions:
+    - 6a7e2a01addf0f9eed142fae6d6c2a6cf7ca3f1b
+  - application: refresh-prod-app7
+    lastTransitionTime: "2026-08-04T02:28:33Z"
+    message: Application resource became Healthy, updating status from Progressing
+      to Healthy
+    status: Healthy
+    step: "3"
+    targetRevisions:
+    - 6a7e2a01addf0f9eed142fae6d6c2a6cf7ca3f1b
+  - application: refresh-prod-app8
+    lastTransitionTime: "2026-08-04T02:28:33Z"
+    message: Application resource became Healthy, updating status from Progressing
+      to Healthy
+    status: Healthy
+    step: "3"
+    targetRevisions:
+    - 6a7e2a01addf0f9eed142fae6d6c2a6cf7ca3f1b
+  - application: refresh-prod-app9
+    lastTransitionTime: "2026-08-04T02:28:33Z"
+    message: Application resource became Healthy, updating status from Progressing
+      to Healthy
+    status: Healthy
+    step: "3"
+    targetRevisions:
+    - 6a7e2a01addf0f9eed142fae6d6c2a6cf7ca3f1b
+  - application: refresh-staging-app3
+    lastTransitionTime: "2026-08-04T02:28:33Z"
+    message: Application resource became Healthy, updating status from Progressing
+      to Healthy
+    status: Healthy
+    step: "2"
+    targetRevisions:
+    - 6a7e2a01addf0f9eed142fae6d6c2a6cf7ca3f1b
+  - application: refresh-staging-app4
+    lastTransitionTime: "2026-08-04T02:28:33Z"
+    message: Application resource became Healthy, updating status from Progressing
+      to Healthy
+    status: Healthy
+    step: "2"
+    targetRevisions:
+    - 6a7e2a01addf0f9eed142fae6d6c2a6cf7ca3f1b
+  - application: refresh-staging-app5
+    lastTransitionTime: "2026-08-04T02:28:33Z"
+    message: Application resource became Healthy, updating status from Progressing
+      to Healthy
+    status: Healthy
+    step: "2"
+    targetRevisions:
+    - 6a7e2a01addf0f9eed142fae6d6c2a6cf7ca3f1b
+  conditions:
+  - lastTransitionTime: "2026-08-04T02:28:22Z"
+    message: All applications have been generated successfully
+    reason: ApplicationSetUpToDate
+    status: "False"
+    type: ErrorOccurred
+  - lastTransitionTime: "2026-08-04T02:28:22Z"
+    message: ''
+    reason: ApplicationSetInvalidRolloutConfig
+    status: "False"
+    type: InvalidRolloutConfig
+  - lastTransitionTime: "2026-08-04T02:28:22Z"
+    message: Successfully generated parameters for all Applications
+    reason: ParametersGenerated
+    status: "True"
+    type: ParametersGenerated
+  - lastTransitionTime: "2026-08-04T02:28:22Z"
+    message: All applications have been generated successfully
+    reason: ApplicationSetUpToDate
+    status: "True"
+    type: ResourcesUpToDate
+  - lastTransitionTime: "2026-08-04T02:28:33Z"
+    message: ApplicationSet Rollout has completed
+    reason: ApplicationSetRolloutComplete
+    status: "False"
+    type: RolloutProgressing
+  health:
+    message: All applications have been generated successfully
+    status: Healthy
+  resources:
+  - group: argoproj.io
+    health:
+      status: Healthy
+    kind: Application
+    name: refresh-dev-app1
+    namespace: argocd
+    status: Synced
+    version: v1alpha1
+  - group: argoproj.io
+    health:
+      status: Healthy
+    kind: Application
+    name: refresh-dev-app2
+    namespace: argocd
+    status: Synced
+    version: v1alpha1
+  - group: argoproj.io
+    health:
+      status: Healthy
+    kind: Application
+    name: refresh-prod-app6
+    namespace: argocd
+    status: Synced
+    version: v1alpha1
+  - group: argoproj.io
+    health:
+      status: Healthy
+    kind: Application
+    name: refresh-prod-app7
+    namespace: argocd
+    status: Synced
+    version: v1alpha1
+  - group: argoproj.io
+    health:
+      status: Healthy
+    kind: Application
+    name: refresh-prod-app8
+    namespace: argocd
+    status: Synced
+    version: v1alpha1
+  - group: argoproj.io
+    health:
+      status: Healthy
+    kind: Application
+    name: refresh-prod-app9
+    namespace: argocd
+    status: Synced
+    version: v1alpha1
+  - group: argoproj.io
+    health:
+      status: Healthy
+    kind: Application
+    name: refresh-staging-app3
+    namespace: argocd
+    status: Synced
+    version: v1alpha1
+  - group: argoproj.io
+    health:
+      status: Healthy
+    kind: Application
+    name: refresh-staging-app4
+    namespace: argocd
+    status: Synced
+    version: v1alpha1
+  - group: argoproj.io
+    health:
+      status: Healthy
+    kind: Application
+    name: refresh-staging-app5
+    namespace: argocd
+    status: Synced
+    version: v1alpha1
+  resourcesCount: 9
 `
 
 func newFakeAppsets(fakeAppsetYAML string) []argoappv1.ApplicationSet {
@@ -229,6 +473,56 @@ argocd_appset_reconcile_sum{name="test1",namespace="argocd"} 5
 	assert.Contains(t, rr.Body.String(), `
 argocd_appset_reconcile_count{name="test1",namespace="argocd"} 1
 `)
+}
+
+func TestObserveRolloutDuration(t *testing.T) {
+	appsetList := newFakeAppsets(fakeAppsetList)
+	client := initializeClient(appsetList)
+	metrics.Registry = prometheus.NewRegistry()
+
+	appsetMetrics := NewApplicationsetMetrics(utils.NewAppsetLister(client), collectedLabels, filter)
+
+	appsetMetrics.ObserveRolloutDuration(&appsetList[3], 120*time.Second)
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", http.NoBody)
+	require.NoError(t, err)
+	rr := httptest.NewRecorder()
+	handler := promhttp.HandlerFor(metrics.Registry, promhttp.HandlerOpts{})
+	handler.ServeHTTP(rr, req)
+
+	body := rr.Body.String()
+	assert.Contains(t, body, `argocd_appset_progressive_sync_rollout_duration_seconds_bucket{name="appset-progressive-sync-enabled",namespace="argocd",le="120"} 1`)
+	assert.Contains(t, body, `argocd_appset_progressive_sync_rollout_duration_seconds_count{name="appset-progressive-sync-enabled",namespace="argocd"} 1`)
+	assert.Contains(t, body, `argocd_appset_progressive_sync_rollout_duration_seconds_sum{name="appset-progressive-sync-enabled",namespace="argocd"} 120`)
+}
+
+func TestObserveStepCompletionDuration(t *testing.T) {
+	appsetList := newFakeAppsets(fakeAppsetList)
+	client := initializeClient(appsetList)
+	metrics.Registry = prometheus.NewRegistry()
+
+	appsetMetrics := NewApplicationsetMetrics(utils.NewAppsetLister(client), collectedLabels, filter)
+
+	appsetMetrics.ObserveStepCompletionDuration(&appsetList[3], "1", 45*time.Second)
+	appsetMetrics.ObserveStepCompletionDuration(&appsetList[3], "2", 10*time.Second)
+	appsetMetrics.ObserveStepCompletionDuration(&appsetList[3], "3", 30*time.Second)
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", http.NoBody)
+	require.NoError(t, err)
+	rr := httptest.NewRecorder()
+	handler := promhttp.HandlerFor(metrics.Registry, promhttp.HandlerOpts{})
+	handler.ServeHTTP(rr, req)
+
+	body := rr.Body.String()
+	assert.Contains(t, body, `argocd_appset_progressive_sync_step_duration_seconds_bucket{name="appset-progressive-sync-enabled",namespace="argocd",step="1",le="60"} 1`)
+	assert.Contains(t, body, `argocd_appset_progressive_sync_step_duration_seconds_count{name="appset-progressive-sync-enabled",namespace="argocd",step="1"} 1`)
+	assert.Contains(t, body, `argocd_appset_progressive_sync_step_duration_seconds_sum{name="appset-progressive-sync-enabled",namespace="argocd",step="1"} 45`)
+	assert.Contains(t, body, `argocd_appset_progressive_sync_step_duration_seconds_bucket{name="appset-progressive-sync-enabled",namespace="argocd",step="2",le="10"} 1`)
+	assert.Contains(t, body, `argocd_appset_progressive_sync_step_duration_seconds_count{name="appset-progressive-sync-enabled",namespace="argocd",step="2"} 1`)
+	assert.Contains(t, body, `argocd_appset_progressive_sync_step_duration_seconds_sum{name="appset-progressive-sync-enabled",namespace="argocd",step="2"} 10`)
+	assert.Contains(t, body, `argocd_appset_progressive_sync_step_duration_seconds_bucket{name="appset-progressive-sync-enabled",namespace="argocd",step="3",le="30"} 1`)
+	assert.Contains(t, body, `argocd_appset_progressive_sync_step_duration_seconds_count{name="appset-progressive-sync-enabled",namespace="argocd",step="3"} 1`)
+	assert.Contains(t, body, `argocd_appset_progressive_sync_step_duration_seconds_sum{name="appset-progressive-sync-enabled",namespace="argocd",step="3"} 30`)
 }
 
 func initializeClient(appsets []argoappv1.ApplicationSet) ctrlclient.WithWatch {

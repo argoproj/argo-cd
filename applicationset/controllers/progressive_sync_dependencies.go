@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 
@@ -35,4 +36,12 @@ func (r *ApplicationSetReconciler) SetApplicationSetStatusCondition(
 ) error {
 	// Delegate to existing controller method
 	return r.setApplicationSetStatusCondition(ctx, applicationSet, conditions, parametersGenerated)
+}
+
+func (r *ApplicationSetReconciler) ObserveRolloutDuration(appset *argov1alpha1.ApplicationSet, duration time.Duration) {
+	r.Metrics.ObserveRolloutDuration(appset, duration)
+}
+
+func (r *ApplicationSetReconciler) ObserveStepCompletionDuration(appset *argov1alpha1.ApplicationSet, step string, duration time.Duration) {
+	r.Metrics.ObserveStepCompletionDuration(appset, step, duration)
 }
