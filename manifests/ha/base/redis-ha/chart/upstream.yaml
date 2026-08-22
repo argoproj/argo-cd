@@ -1028,7 +1028,6 @@ spec:
     release: argocd
     app: redis-ha
     "statefulset.kubernetes.io/pod-name": argocd-redis-ha-server-0
-
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-ha-announce-service.yaml
 apiVersion: v1
@@ -1058,7 +1057,6 @@ spec:
     release: argocd
     app: redis-ha
     "statefulset.kubernetes.io/pod-name": argocd-redis-ha-server-1
-
 ---
 # Source: redis-ha/charts/redis-ha/templates/redis-ha-announce-service.yaml
 apiVersion: v1
