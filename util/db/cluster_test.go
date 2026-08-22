@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -258,21 +259,22 @@ func runWatchTest(t *testing.T, db ArgoDB, timeout time.Duration, actions []func
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
-	allDone := make(chan bool, 1)
+	allDone := make(chan bool)
+	var signalDoneOnce sync.Once
+	signalDone := func() {
+		signalDoneOnce.Do(func() { close(allDone) })
+	}
 
 	doNext := func(old *v1alpha1.Cluster, new *v1alpha1.Cluster) {
 		if len(actions) == 0 {
 			assert.Fail(t, "Unexpected event")
+			return
 		}
 		next := actions[0]
+		actions = actions[1:]
 		next(old, new)
-		if t.Failed() {
-			allDone <- true
-		}
-		if len(actions) == 1 {
-			allDone <- true
-		} else {
-			actions = actions[1:]
+		if t.Failed() || len(actions) == 0 {
+			signalDone()
 		}
 	}
 
