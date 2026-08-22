@@ -237,7 +237,7 @@ func (c *Cache) SetGitReferences(repo string, references []*plumbing.Reference) 
 
 // Converts raw cache items to plumbing.Reference objects
 func GitRefCacheItemToReferences(cacheItem [][2]string) *[]*plumbing.Reference {
-	var res []*plumbing.Reference
+	res := make([]*plumbing.Reference, 0, len(cacheItem))
 	for i := range cacheItem {
 		// Skip empty data
 		if cacheItem[i][0] != "" || cacheItem[i][1] != "" {
@@ -281,6 +281,10 @@ func (c *Cache) GetGitReferences(repo string, references *[]*plumbing.Reference)
 	// Key is locked
 	case valueExists:
 		return input[0][1], nil
+	// An empty value is a valid cached ref result.
+	case err == nil:
+		*references = *GitRefCacheItemToReferences(input)
+		return "", nil
 	// No key or empty key
 	default:
 		return "", nil
@@ -294,12 +298,14 @@ func (c *Cache) GetOrLockGitReferences(repo string, lockId string, references *[
 	waitUntil := time.Now().Add(c.revisionCacheLockTimeout)
 	// Wait only the maximum amount of time configured for the lock
 	// if the configured time is zero then the for loop will never run and instead act as the owner immediately
+	// GetGitReferences leaves references nil for a cache miss or lock. It initializes
+	// references for a valid cache hit, including an empty ref list.
 	for time.Now().Before(waitUntil) {
 		// Get current cache state
-		if foundLockId, err := c.GetGitReferences(repo, references); foundLockId == lockId || err != nil || (references != nil && len(*references) > 0) {
+		if foundLockId, err := c.GetGitReferences(repo, references); foundLockId == lockId || err != nil || (references != nil && *references != nil) {
 			return foundLockId, err
 		}
-		if foundLockId, err := c.TryLockGitRefCache(repo, lockId, references); foundLockId == lockId || err != nil || (references != nil && len(*references) > 0) {
+		if foundLockId, err := c.TryLockGitRefCache(repo, lockId, references); foundLockId == lockId || err != nil || (references != nil && *references != nil) {
 			return foundLockId, err
 		}
 		time.Sleep(1 * time.Second)
