@@ -10,6 +10,8 @@ _kustomize_version=${KUSTOMIZE_VERSION:-}
 
 KUSTOMIZE_VERSION=${_kustomize_version:-$KUSTOMIZE_VERSION}
 
+INSTALL_SUDO=${INSTALL_SUDO:-sudo}
+
 INSTALL_PATH="${BIN:-$INSTALL_PATH}"
 INSTALL_PATH="${INSTALL_PATH:-$PROJECT_ROOT/dist}"
 PATH="${INSTALL_PATH}:${PATH}"
@@ -34,7 +36,7 @@ case $ARCHITECTURE in
       [ -e "${DOWNLOADS}/${TARGET_FILE}" ] || curl -sLf --retry 3 -o "${DOWNLOADS}/${TARGET_FILE}" "$URL"
       "$INSTALLERS/compare-chksum.sh"
       tar -C /tmp -xf "${DOWNLOADS}/${TARGET_FILE}"
-      sudo install -m 0755 /tmp/kustomize "$INSTALL_PATH/$BINNAME"
+      ${INSTALL_SUDO} install -m 0755 /tmp/kustomize "$INSTALL_PATH/$BINNAME"
       ;;
   *)
     case $KUSTOMIZE_VERSION in
@@ -44,7 +46,7 @@ case $ARCHITECTURE in
         BINNAME=kustomize2
         [ -e "${DOWNLOADS}/${TARGET_FILE}" ] || curl -sLf --retry 3 -o "${DOWNLOADS}/${TARGET_FILE}" "$URL"
         "$INSTALLERS/compare-chksum.sh"
-        sudo install -m 0755 "${DOWNLOADS}/${TARGET_FILE}" "$INSTALL_PATH/$BINNAME"
+        ${INSTALL_SUDO} install -m 0755 "${DOWNLOADS}/${TARGET_FILE}" "$INSTALL_PATH/$BINNAME"
         ;;
       *)
         export TARGET_FILE=kustomize_${KUSTOMIZE_VERSION}_${INSTALL_OS}_${ARCHITECTURE}.tar.gz
@@ -53,7 +55,7 @@ case $ARCHITECTURE in
         [ -e "${DOWNLOADS}/${TARGET_FILE}" ] || curl -sLf --retry 3 -o "${DOWNLOADS}/${TARGET_FILE}" "$URL"
         "$INSTALLERS/compare-chksum.sh"
         tar -C /tmp -xf "${DOWNLOADS}/${TARGET_FILE}"
-        sudo install -m 0755 /tmp/kustomize "$INSTALL_PATH/$BINNAME"
+        ${INSTALL_SUDO} install -m 0755 /tmp/kustomize "$INSTALL_PATH/$BINNAME"
         ;;
     esac
     ;;

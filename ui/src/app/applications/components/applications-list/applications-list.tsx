@@ -257,7 +257,10 @@ const ApplicationsListSearchBar = (props: {content: string; searchRegex: boolean
                 },
                 renderItem: item => (
                     <React.Fragment>
-                        <i className='icon argo-icon-application' /> {item.label}
+                        <i className='icon argo-icon-application' style={{flexShrink: 0}} />
+                        <span title={item.label} style={{overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>
+                            {item.label}
+                        </span>
                     </React.Fragment>
                 )
             }}
@@ -433,6 +436,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                             return (
                                                 <React.Fragment>
                                                     <FlexTopBar
+                                                        key={`toolbar-${healthBarPrefs.showHealthStatusBar}-${pref.view}`}
                                                         toolbar={{
                                                             tools: <ApplicationsToolbar applications={applications} pref={pref} ctx={ctx} healthBarPrefs={healthBarPrefs} />,
                                                             options: <ViewTypeSwitcher pref={pref} ctx={ctx} />,
