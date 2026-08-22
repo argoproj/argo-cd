@@ -108,9 +108,15 @@ func getRefTargetRevisionMappingForCacheKey(refTargetRevisionMapping appv1.RefTa
 	res := make(refTargetRevisionMappingForCacheKey)
 
 	for k, v := range refTargetRevisionMapping {
-		// forcefully update TargetRevision based on refSourceCommitSHAs so that the resolved revision is always stored in the cache
-		v.TargetRevision = refSourceCommitSHAs[git.NormalizeGitURL(v.Repo.Repo)]
-		res[k] = refTargetForCacheKeyFromRefTarget(v)
+		// Copy first: v points into the caller's request, and overwriting TargetRevision in place
+		// would change the revision they go on to check out.
+		refTarget := *v
+		// Worktree-backed refs are keyed "<url>@<sha>", so there is no plain-URL entry to substitute;
+		// their commits still reach the key through refSourceCommitSHAs.
+		if resolvedRevision, ok := refSourceCommitSHAs[git.NormalizeGitURL(refTarget.Repo.Repo)]; ok {
+			refTarget.TargetRevision = resolvedRevision
+		}
+		res[k] = refTargetForCacheKeyFromRefTarget(&refTarget)
 	}
 	return res
 }

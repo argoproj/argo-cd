@@ -86,3 +86,35 @@ at that URL. If the `path` field is not set, Argo CD will use the repository sol
 
 > [!NOTE]
 > Even when the `ref` field is configured with the `path` field, `$value` still represents the root of sources with the `ref` field. Consequently, `valueFiles` must be specified as relative paths from the root of sources.
+
+## Same repository at different revisions
+
+A `ref` source may point at the *same* repository as the source that consumes it, at a different
+target revision. This allows pinning a chart to a stable revision while tracking value files on a
+moving branch:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+spec:
+  sources:
+    - repoURL: 'https://git.example.com/org/repo.git'
+      targetRevision: v1.2.3        # chart pinned to a tag
+      path: charts/my-chart
+      helm:
+        valueFiles:
+          - $values/charts/my-chart/values-dev.yaml
+    - repoURL: 'https://git.example.com/org/repo.git'
+      targetRevision: main          # value files follow a branch
+      ref: values
+```
+
+Argo CD checks the additional revision out in a git worktree alongside the primary checkout, sharing
+the repository's object database. Worktrees are transient: they are created for the request that
+needs them, shared between concurrent requests at the same commit, and removed afterwards.
+
+> [!WARNING]
+> Submodule and Git LFS content is not populated for a `ref` source that is served from a worktree
+> (that is, when it resolves to a different commit than the source consuming it). Value files that
+> live in a submodule, or that are stored in LFS, will not resolve. Keep such files in the
+> repository proper, or point the `ref` source at the same revision as the consuming source.
