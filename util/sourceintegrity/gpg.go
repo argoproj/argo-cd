@@ -534,6 +534,36 @@ func GetInstalledPGPKeys(kids []string) ([]*appsv1.GnuPGPublicKey, error) {
 	return keys, nil
 }
 
+// PrimaryKeyID resolves the long key ID (16 hex chars, the trailing 64 bits of
+// the fingerprint) of the primary key that signingKeyID belongs to, using the
+// local keyring. git/gpg signs a commit with a dedicated signing subkey when one
+// exists, while operators normally list the primary key in their source
+// integrity policy; resolving a signing subkey back to its primary lets such a
+// signature still match the policy. gpg matches a subkey's key ID to the whole
+// key block, whose `pub` record carries the primary key ID.
+func PrimaryKeyID(signingKeyID string) (string, error) {
+	cmd := exec.CommandContext(context.Background(), "gpg", "--no-permission-warning", "--with-colons", "--list-keys", signingKeyID)
+	cmd.Env = getGPGEnviron()
+
+	out, err := executil.Run(cmd)
+	if err != nil {
+		return "", err
+	}
+
+	// In the colon format the record type is field 1 and the long key ID is
+	// field 5. The first `pub` record is the primary key.
+	for line := range strings.SplitSeq(out, "\n") {
+		fields := strings.Split(line, ":")
+		if len(fields) < 5 || fields[0] != "pub" {
+			continue
+		}
+		if fields[4] != "" {
+			return fields[4], nil
+		}
+	}
+	return "", fmt.Errorf("no primary key found in gpg output for key %s", signingKeyID)
+}
+
 // SyncKeyRingFromDirectory will sync the GPG keyring with files in a directory. This is a one-way sync,
 // with the configuration being the leading information.
 // Files must have a file name matching their Key ID. Keys that are found in the directory but are not
@@ -671,6 +701,27 @@ var (
 	verificationStatusMatch = regexp.MustCompile(`^gpg: ([a-zA-Z]+) signature from "([^"]+)" \[([a-zA-Z]+)\]$`)
 )
 
+// legacyKeyAllowed reports whether keyID matches any of the configured keys. Key IDs are hex
+// and case-insensitive, so the comparison ignores case. keyID is normalized through KeyID so a
+// 40-char fingerprint (as modern gpg prints in "using RSA key ...") compares equal to the
+// 16-char key IDs derived from the configured keys.
+// TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
+func legacyKeyAllowed(validKeys []string, keyID string) bool {
+	if normalized, err := KeyID(keyID); err == nil {
+		keyID = normalized
+	}
+	for _, k := range validKeys {
+		declared, err := KeyID(k)
+		if err != nil || declared == "" {
+			continue
+		}
+		if strings.EqualFold(declared, keyID) {
+			return true
+		}
+	}
+	return false
+}
+
 // TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
 func VerifyGnuPGSignature(revision string, validKeys []string, verifyResult string) (condition *appsv1.ApplicationCondition) { // nolint:staticcheck
 	now := metav1.Now()
@@ -680,13 +731,13 @@ func VerifyGnuPGSignature(revision string, validKeys []string, verifyResult stri
 		switch verifyResult.Result {
 		case verifyResultGood:
 			// This is the only case we allow to sync to, but we need to make sure signing key is allowed
-			validKey := false
-			for _, k := range validKeys {
-				declared, _ := KeyID(k)
-				present, _ := KeyID(verifyResult.KeyID)
-				if declared == present && declared != "" {
-					validKey = true
-					break
+			validKey := legacyKeyAllowed(validKeys, verifyResult.KeyID)
+			// git signs with a dedicated signing subkey when the key has one, but operators normally
+			// list the primary key. Resolve the signing key back to its primary and allow it if that
+			// primary is in the configured keys.
+			if !validKey {
+				if primary, err := lookupPrimaryKeyID(verifyResult.KeyID); err == nil && !strings.EqualFold(primary, verifyResult.KeyID) {
+					validKey = legacyKeyAllowed(validKeys, primary)
 				}
 			}
 			if !validKey {
