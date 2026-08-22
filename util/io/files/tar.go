@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -184,6 +185,58 @@ func untar(dstPath string, r io.Reader, preserveFileMode bool) error {
 	return nil
 }
 
+// pathMatchesInclusion reports whether relativePath is selected by pattern.
+// Patterns are matched against the path relative to the tar root (not basename):
+// exact match, directory prefix, or filepath.Match glob.
+func pathMatchesInclusion(relativePath, pattern string) bool {
+	if pattern == "" || pattern == "." {
+		return true
+	}
+	if relativePath == pattern {
+		return true
+	}
+	sep := string(filepath.Separator)
+	if strings.HasPrefix(relativePath, pattern+sep) {
+		return true
+	}
+	if matched, err := filepath.Match(pattern, relativePath); err == nil && matched {
+		return true
+	}
+	return false
+}
+
+// dirMayContainInclusion returns false when no inclusion can exist under dirRel,
+// allowing the walk to SkipDir and avoid scanning unrelated trees (e.g. monorepo bulk dirs).
+func dirMayContainInclusion(dirRel string, inclusions []string) bool {
+	if dirRel == "." || len(inclusions) == 0 {
+		return true
+	}
+	sep := string(filepath.Separator)
+	for _, pattern := range inclusions {
+		if pattern == "" || pattern == "." {
+			return true
+		}
+		if strings.ContainsAny(pattern, "*?[") {
+			// Globs are hard to prune precisely; only skip when the literal directory
+			// prefix before the first meta character cannot match this dir.
+			metaIdx := strings.IndexAny(pattern, "*?[")
+			literal := pattern
+			if metaIdx >= 0 {
+				literal = pattern[:metaIdx]
+				literal = strings.TrimSuffix(literal, sep)
+			}
+			if literal == "" || dirRel == literal || strings.HasPrefix(dirRel, literal+sep) || strings.HasPrefix(literal, dirRel+sep) {
+				return true
+			}
+			continue
+		}
+		if dirRel == pattern || strings.HasPrefix(pattern, dirRel+sep) || strings.HasPrefix(dirRel, pattern+sep) {
+			return true
+		}
+	}
+	return false
+}
+
 // tgzFile is used as a filepath.WalkFunc implementing the logic to write
 // the given file in the tgz.tarWriter applying the exclusion pattern defined
 // in tgz.exclusions, or the inclusion pattern defined in tgz.inclusions.
@@ -193,27 +246,27 @@ func (t *tgz) tgzFile(path string, fi os.FileInfo, err error) error {
 		return fmt.Errorf("error walking in %q: %w", t.srcPath, err)
 	}
 
-	base := filepath.Base(path)
-
 	relativePath, err := RelativePath(path, t.srcPath)
 	if err != nil {
 		return fmt.Errorf("relative path error: %w", err)
 	}
 
-	if t.inclusions != nil && base != "." && !fi.IsDir() {
-		included := false
-		for _, inclusionPattern := range t.inclusions {
-			found, err := filepath.Match(inclusionPattern, base)
-			if err != nil {
-				return fmt.Errorf("error verifying inclusion pattern %q: %w", inclusionPattern, err)
+	if t.inclusions != nil && relativePath != "." {
+		if fi.IsDir() {
+			if !dirMayContainInclusion(relativePath, t.inclusions) {
+				return filepath.SkipDir
 			}
-			if found {
-				included = true
-				break
+		} else {
+			included := false
+			for _, inclusionPattern := range t.inclusions {
+				if pathMatchesInclusion(relativePath, inclusionPattern) {
+					included = true
+					break
+				}
 			}
-		}
-		if !included {
-			return nil
+			if !included {
+				return nil
+			}
 		}
 	}
 	if t.exclusions != nil {

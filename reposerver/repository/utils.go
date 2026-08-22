@@ -83,3 +83,30 @@ func getPaths(q *apiclient.ManifestRequest, appPath, repoPath string) []string {
 	}
 	return paths
 }
+// getManifestGenerateIncludeRels returns paths relative to rootPath that should be
+// packed into the CMP tar when use-manifest-generate-paths is enabled.
+// Returns nil when the annotation is empty (no extra filtering beyond rootPath).
+func getManifestGenerateIncludeRels(q *apiclient.ManifestRequest, appPath, rootPath, repoPath string) []string {
+	paths := getPaths(q, appPath, repoPath)
+	if len(paths) == 0 {
+		return nil
+	}
+
+	// Always include the application path so the plugin working directory exists.
+	candidates := append([]string{appPath}, paths...)
+	seen := map[string]struct{}{}
+	var rels []string
+	for _, p := range candidates {
+		rel, err := files.RelativePath(p, rootPath)
+		if err != nil {
+			log.Errorf("error building include relative path for %q under %q: %v", p, rootPath, err)
+			continue
+		}
+		if _, ok := seen[rel]; ok {
+			continue
+		}
+		seen[rel] = struct{}{}
+		rels = append(rels, rel)
+	}
+	return rels
+}
