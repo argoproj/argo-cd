@@ -341,7 +341,7 @@ spec:
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: argocd-repo-server-metrics
+  name: argocd-repo-server
   labels:
     release: prometheus-operator
 spec:
@@ -356,7 +356,7 @@ spec:
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: argocd-applicationset-controller-metrics
+  name: argocd-applicationset-controller
   labels:
     release: prometheus-operator
 spec:
@@ -403,7 +403,7 @@ For notifications controller, you need to additionally add following:
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: argocd-notifications-controller
+  name: argocd-notifications-controller-metrics
   labels:
     release: prometheus-operator
 spec:
@@ -420,7 +420,7 @@ For the optional [Source Hydrator](../user-guide/source-hydrator.md) commit serv
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
-  name: argocd-commit-server-metrics
+  name: argocd-commit-server
   labels:
     release: prometheus-operator
 spec:
