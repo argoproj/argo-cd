@@ -138,18 +138,15 @@ export const AdvancedSettings = () => {
                         title='Advanced'
                         toolbar={{
                             breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Advanced'}],
-                            actionMenu:
-                                selectedTab === 'configuration'
-                                    ? {
-                                          items: [
-                                              {
-                                                  title: showAll ? 'Show Configured Only' : 'Show All Options',
-                                                  iconClassName: 'fa fa-filter',
-                                                  action: () => setShowAll(prev => !prev)
-                                              }
-                                          ]
-                                      }
-                                    : undefined,
+                            actionMenu: {
+                                items: [
+                                    {
+                                        title: showAll ? 'Show Configured Only' : 'Show All Options',
+                                        iconClassName: 'fa fa-filter',
+                                        action: () => setShowAll(prev => !prev)
+                                    }
+                                ]
+                            },
                             tools: <AuthOption />
                         }}>
                         <Tabs
