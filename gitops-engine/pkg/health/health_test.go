@@ -55,6 +55,7 @@ func TestDaemonSetOnDeleteHealth(t *testing.T) {
 func TestPVCHealth(t *testing.T) {
 	assertAppHealth(t, "./testdata/pvc-bound.yaml", HealthStatusHealthy)
 	assertAppHealth(t, "./testdata/pvc-pending.yaml", HealthStatusProgressing)
+	assertAppHealth(t, "./testdata/pvc-pending-wait-for-first-consumer.yaml", HealthStatusHealthy)
 }
 
 func TestServiceHealth(t *testing.T) {
