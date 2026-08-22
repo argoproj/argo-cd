@@ -603,7 +603,7 @@ func (e *Enforcer) SetAfterPolicyInstalled(fn func(resourceVersion string)) {
 
 // GetImplicitPermissionsForUser returns all permissions for a user,
 // including those inherited transitively through role assignments (g policies).
-// Each entry is a policy row without the subject field: [resource, action, object, effect].
+// Each entry is a full policy row: [subject, resource, action, object, effect].
 func (e *Enforcer) GetImplicitPermissionsForUser(user string) ([][]string, error) {
 	enf, err := e.tryGetCasbinEnforcer("", "")
 	if err != nil {
@@ -612,17 +612,22 @@ func (e *Enforcer) GetImplicitPermissionsForUser(user string) ([][]string, error
 	return enf.GetImplicitPermissionsForUser(user)
 }
 
-// HasAnyAllowPermission reports whether a subject has at least one "allow" rule in the current
-// policy, including permissions inherited transitively from roles. This is the standard way to
-// check if a "user has any permission at all" — it avoids callers having to parse Casbin's raw
-// policy rows and know the field layout.
+// HasAnyAllowPermission reports whether a subject has at least one effective "allow" permission
+// in the current policy, including permissions inherited transitively from roles. It calls
+// Enforce() for each allow tuple so that deny rules (which override allows per the model's
+// effect `some(allow) && !some(deny)`) are respected. A subject with only deny-overridden allows
+// correctly returns false.
 func (e *Enforcer) HasAnyAllowPermission(subject string) bool {
 	perms, err := e.GetImplicitPermissionsForUser(subject)
 	if err != nil {
 		return false
 	}
+	// Each row is [subject, resource, action, object, effect].
 	for _, row := range perms {
-		if len(row) > 0 && strings.EqualFold(row[len(row)-1], "allow") {
+		if len(row) < 5 || !strings.EqualFold(row[4], "allow") {
+			continue
+		}
+		if e.Enforce(subject, row[1], row[2], row[3]) {
 			return true
 		}
 	}

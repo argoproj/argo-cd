@@ -551,6 +551,13 @@ func SetAccounts(accounts map[string][]string) error {
 	})
 }
 
+func SetRawPolicyCsv(csv string) error {
+	return updateRBACConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data["policy.csv"] = csv
+		return nil
+	})
+}
+
 func SetPermissions(permissions []ACL, username string, roleName string) error {
 	return updateRBACConfigMap(func(cm *corev1.ConfigMap) error {
 		var aclstr strings.Builder
