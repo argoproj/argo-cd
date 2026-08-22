@@ -5,7 +5,7 @@ import {filter, map, repeat, retry} from 'rxjs/operators';
 import * as models from '../models';
 import {isValidURL} from '../utils';
 import requests from './requests';
-import {getRootPathByApp, isApp} from '../../applications/components/utils';
+import {getRootPathByApp, isApp} from '../components/app-utils';
 import {namespaceQuery, namespaceQueryKey} from './applications-service.namespace';
 
 interface QueryOptions {
