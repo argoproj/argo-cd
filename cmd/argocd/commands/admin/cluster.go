@@ -90,6 +90,20 @@ func loadClusters(ctx context.Context, kubeClient kubernetes.Interface, appClien
 	if err != nil {
 		return nil, err
 	}
+
+	if shardingAlgorithm == "" {
+		cm, err := settingsMgr.GetConfigMapByName(common.ArgoCDCmdParamsConfigMapName)
+		if err == nil {
+			var exists bool
+			shardingAlgorithm, exists = cm.Data["controller.sharding.algorithm"]
+			if !exists {
+				shardingAlgorithm = common.DefaultShardingAlgorithm
+			}
+		} else {
+			log.Warnf("%s was not found in namespace %s, using default sharding algorithm of legacy", common.ArgoCDCmdParamsConfigMapName, namespace)
+			shardingAlgorithm = common.DefaultShardingAlgorithm
+		}
+	}
 	clusterShardingCache := sharding.NewClusterSharding(argoDB, shard, replicas, shardingAlgorithm)
 	clusterShardingCache.Init(clustersList, appItems)
 	clusterShards := clusterShardingCache.GetDistribution()
@@ -122,7 +136,18 @@ func loadClusters(ctx context.Context, kubeClient kubernetes.Interface, appClien
 		}
 	}
 
-	apps := appItems.Items
+	namespacesByServer := map[string]map[string]bool{}
+	for _, app := range appItems.Items {
+		destCluster, resolveErr := argo.GetDestinationCluster(ctx, app.Spec.Destination, argoDB)
+		if resolveErr != nil {
+			log.Warnf("Skipping application %q because its destination cluster could not be resolved: %v", app.QualifiedName(), resolveErr)
+			continue
+		}
+		if namespacesByServer[destCluster.Server] == nil {
+			namespacesByServer[destCluster.Server] = map[string]bool{}
+		}
+		namespacesByServer[destCluster.Server][app.Spec.Destination.Namespace] = true
+	}
 	clusters := make([]ClusterWithInfo, len(clustersList.Items))
 
 	batchSize := 10
@@ -142,18 +167,8 @@ func loadClusters(ctx context.Context, kubeClient kubernetes.Interface, appClien
 			if shard != -1 && clusterShard != shard {
 				return nil
 			}
-			nsSet := map[string]bool{}
-			for _, app := range apps {
-				destCluster, err := argo.GetDestinationCluster(ctx, app.Spec.Destination, argoDB)
-				if err != nil {
-					return fmt.Errorf("error validating application destination: %w", err)
-				}
-				if destCluster.Server == cluster.Server {
-					nsSet[app.Spec.Destination.Namespace] = true
-				}
-			}
 			var namespaces []string
-			for ns := range nsSet {
+			for ns := range namespacesByServer[cluster.Server] {
 				namespaces = append(namespaces, ns)
 			}
 			_ = cache.GetClusterInfo(cluster.Server, &cluster.Info)
@@ -199,7 +214,7 @@ func NewClusterShardsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 			kubeClient := kubernetes.NewForConfigOrDie(clientCfg)
 			appClient := versioned.NewForConfigOrDie(clientCfg)
 
-			if replicas == 0 {
+			if replicas <= 0 {
 				replicas, err = getControllerReplicas(ctx, kubeClient, namespace, clientOpts.AppControllerName)
 				errors.CheckError(err)
 			}
@@ -212,13 +227,13 @@ func NewClusterShardsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 				return
 			}
 
-			printStatsSummary(clusters)
+			printStatsSummary(clusters, replicas)
 		},
 	}
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
 	command.Flags().IntVar(&shard, "shard", -1, "Cluster shard filter")
 	command.Flags().IntVar(&replicas, "replicas", 0, "Application controller replicas count. Inferred from number of running controller pods if not specified")
-	command.Flags().StringVar(&shardingAlgorithm, "sharding-method", common.DefaultShardingAlgorithm, "Sharding method. Defaults: legacy. Supported sharding methods are : [legacy, round-robin, consistent-hashing] ")
+	command.Flags().StringVar(&shardingAlgorithm, "sharding-method", "", "Sharding method. Defaults to what is set for sharding algorithm in argocd-cmd-params (legacy if not provided). Supported sharding methods are : [legacy, round-robin, consistent-hashing] ")
 	command.Flags().BoolVar(&portForwardRedis, "port-forward-redis", true, "Automatically port-forward ha proxy redis from current namespace?")
 
 	cacheSrc = appstatecache.AddCacheFlagsToCmd(&command)
@@ -230,7 +245,7 @@ func NewClusterShardsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 	return &command
 }
 
-func printStatsSummary(clusters []ClusterWithInfo) {
+func printStatsSummary(clusters []ClusterWithInfo, replicas int) {
 	totalResourcesCount := int64(0)
 	resourcesCountByShard := map[int]int64{}
 	for _, c := range clusters {
@@ -238,13 +253,21 @@ func printStatsSummary(clusters []ClusterWithInfo) {
 		resourcesCountByShard[c.Shard] += c.Info.CacheInfo.ResourcesCount
 	}
 
-	avgResourcesByShard := totalResourcesCount / int64(len(resourcesCountByShard))
+	for replica := range replicas {
+		_, exists := resourcesCountByShard[replica]
+		if !exists {
+			resourcesCountByShard[replica] = 0
+		}
+	}
+
+	avgResourcesByShard := totalResourcesCount / int64(replicas)
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprint(w, "SHARD\tRESOURCES COUNT\n")
+	_, _ = fmt.Fprintf(w, "SHARD\tRESOURCES COUNT\t%% OF TOTAL\t%% OF AVG PER SHARD (%d)\n", avgResourcesByShard)
 	for shard := 0; shard < len(resourcesCountByShard); shard++ {
 		cnt := resourcesCountByShard[shard]
-		percent := (float64(cnt) / float64(avgResourcesByShard)) * 100.0
-		_, _ = fmt.Fprintf(w, "%d\t%s\n", shard, fmt.Sprintf("%d (%.0f%%)", cnt, percent))
+		totalPercent := (float64(cnt) / float64(totalResourcesCount)) * 100.0
+		avgPercent := (float64(cnt) / float64(avgResourcesByShard)) * 100.0
+		_, _ = fmt.Fprintf(w, "%d\t%d\t%.0f%%\t%.0f%%\n", shard, cnt, totalPercent, avgPercent)
 	}
 	_ = w.Flush()
 }
@@ -487,7 +510,7 @@ argocd admin cluster stats target-cluster`,
 
 			kubeClient := kubernetes.NewForConfigOrDie(clientCfg)
 			appClient := versioned.NewForConfigOrDie(clientCfg)
-			if replicas == 0 {
+			if replicas <= 0 {
 				replicas, err = getControllerReplicas(ctx, kubeClient, namespace, clientOpts.AppControllerName)
 				errors.CheckError(err)
 			}
@@ -505,7 +528,7 @@ argocd admin cluster stats target-cluster`,
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
 	command.Flags().IntVar(&shard, "shard", -1, "Cluster shard filter")
 	command.Flags().IntVar(&replicas, "replicas", 0, "Application controller replicas count. Inferred from number of running controller pods if not specified")
-	command.Flags().StringVar(&shardingAlgorithm, "sharding-method", common.DefaultShardingAlgorithm, "Sharding method. Defaults: legacy. Supported sharding methods are : [legacy, round-robin, consistent-hashing] ")
+	command.Flags().StringVar(&shardingAlgorithm, "sharding-method", "", "Sharding method. Defaults to what is set for sharding algorithm in argocd-cmd-params (legacy if not provided). Supported sharding methods are : [legacy, round-robin, consistent-hashing] ")
 	command.Flags().BoolVar(&portForwardRedis, "port-forward-redis", true, "Automatically port-forward ha proxy redis from current namespace?")
 	cacheSrc = appstatecache.AddCacheFlagsToCmd(&command)
 

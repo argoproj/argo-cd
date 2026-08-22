@@ -38,11 +38,11 @@ jobs:
     steps:
       - name: Harden the runner (Audit all outbound calls)
         if: ${{ vars.disable_harden_runner != 'true' }}
-        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -106,7 +106,7 @@ jobs:
     with:
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
       # renovate: datasource=golang-version packageName=golang
-      go-version: 1.26.5
+      go-version: 1.26.6
       platforms: ${{ needs.set-vars.outputs.platforms }}
       push: false
 
@@ -123,7 +123,7 @@ jobs:
       ghcr_image_name: ${{ needs.set-vars.outputs.ghcr_image_name }}
       # Note: cannot use env variables to set go-version (https://docs.github.com/en/actions/using-workflows/reusing-workflows#limitations)
       # renovate: datasource=golang-version packageName=golang
-      go-version: 1.26.5
+      go-version: 1.26.6
       platforms: ${{ needs.set-vars.outputs.platforms }}
       push: true
     secrets:
@@ -161,7 +161,7 @@ jobs:
     if: ${{ github.repository == 'argoproj/argo-cd' && github.event_name == 'push' }}
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - run: git clone "https://$TOKEN@github.com/argoproj/argoproj-deployments"
@@ -171,7 +171,7 @@ jobs:
           docker run -u $(id -u):$(id -g) -v $(pwd):/src -w /src --rm -t ghcr.io/argoproj/argo-cd/argocd:${NEEDS_SET_VARS_OUTPUTS_IMAGE_TAG} kustomize edit set image quay.io/argoproj/argocd=ghcr.io/argoproj/argo-cd/argocd:${NEEDS_SET_VARS_OUTPUTS_IMAGE_TAG}
           git config --global user.email 'ci@argoproj.com'
           git config --global user.name 'CI'
-          git diff --exit-code && echo 'Already deployed' || (git commit -am 'Upgrade argocd to ${NEEDS_SET_VARS_OUTPUTS_IMAGE_TAG}' && git push)
+          git diff --exit-code && echo 'Already deployed' || (git commit -am "Upgrade argocd to ${NEEDS_SET_VARS_OUTPUTS_IMAGE_TAG}" && git push)
         working-directory: argoproj-deployments/argocd
         env:
           NEEDS_SET_VARS_OUTPUTS_IMAGE_TAG: ${{ needs.set-vars.outputs.image-tag }}
