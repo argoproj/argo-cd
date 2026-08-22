@@ -1,0 +1,21 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: "Volume is attached and healthy"
+    inputPath: testdata/attached_healthy.yaml
+  - healthStatus:
+      status: Healthy
+      message: "Volume is detached"
+    inputPath: testdata/detached.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Volume is degraded (rebuilding replicas)"
+    inputPath: testdata/degraded.yaml
+  - healthStatus:
+      status: Degraded
+      message: "Volume is faulted"
+    inputPath: testdata/faulted.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Volume is attaching"
+    inputPath: testdata/attaching.yaml
