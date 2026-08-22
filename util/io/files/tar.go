@@ -72,10 +72,6 @@ func writeFile(srcPath string, inclusions []string, exclusions []string, writer 
 //   - points to an empty directory or
 //   - points to a non-existing directory
 func Untgz(dstPath string, r io.Reader, maxSize int64, preserveFileMode bool) error {
-	if !filepath.IsAbs(dstPath) {
-		return fmt.Errorf("dstPath points to a relative path: %s", dstPath)
-	}
-
 	gzr, err := gzip.NewReader(r)
 	if err != nil {
 		return fmt.Errorf("error reading file: %w", err)
@@ -90,10 +86,6 @@ func Untgz(dstPath string, r io.Reader, maxSize int64, preserveFileMode bool) er
 //   - points to an empty directory or
 //   - points to a non-existing directory
 func Untar(dstPath string, r io.Reader, maxSize int64, preserveFileMode bool) error {
-	if !filepath.IsAbs(dstPath) {
-		return fmt.Errorf("dstPath points to a relative path: %s", dstPath)
-	}
-
 	return untar(dstPath, io.LimitReader(r, maxSize), preserveFileMode)
 }
 
@@ -103,6 +95,16 @@ func Untar(dstPath string, r io.Reader, maxSize int64, preserveFileMode bool) er
 //   - points to an empty directory or
 //   - points to a non existing directory
 func untar(dstPath string, r io.Reader, preserveFileMode bool) error {
+	if !filepath.IsAbs(dstPath) {
+		return fmt.Errorf("dstPath points to a relative path: %s", dstPath)
+	}
+	// Make sure the destination path is resolved to the real path
+	// so that the inbound checks using EvalSymlinks compare the same path.
+	resolvedPath, err := resolveSymlinks(dstPath)
+	if err != nil {
+		return fmt.Errorf("error evaluating symlinks for %s: %w", dstPath, err)
+	}
+	dstPath = resolvedPath
 	tr := tar.NewReader(r)
 
 	for {
@@ -286,4 +288,39 @@ func supportedFileMode(fi os.FileInfo) bool {
 		return true
 	}
 	return false
+}
+
+// resolveSymlinks returns path with symlinks in existing path components resolved.
+// If the final component does not exist yet, ancestors are still resolved so the
+// returned path is suitable for Inbound checks against EvalSymlinks'd targets.
+func resolveSymlinks(path string) (string, error) {
+	// Clean the path to make sure it has no trailing slashes which would cause
+	// the last component to get duplicated in the resolved path if it does not
+	// exist yet (e.g. /foo/bar/baz/ -> /foo/bar/baz/baz).
+	path = filepath.Clean(path)
+	resolved, err := filepath.EvalSymlinks(path)
+	if err == nil {
+		return resolved, nil
+	}
+	if !os.IsNotExist(err) {
+		return "", err
+	}
+
+	missing := make([]string, 0, 4)
+	current := path
+	for {
+		missing = append([]string{filepath.Base(current)}, missing...)
+		parent := filepath.Dir(current)
+		if parent == current {
+			return "", err
+		}
+		resolvedParent, parentErr := filepath.EvalSymlinks(parent)
+		if parentErr == nil {
+			return filepath.Join(append([]string{resolvedParent}, missing...)...), nil
+		}
+		if !os.IsNotExist(parentErr) {
+			return "", parentErr
+		}
+		current = parent
+	}
 }
