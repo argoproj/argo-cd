@@ -1521,6 +1521,86 @@ func (_c *ArgoDB_GetRepositoryCredentials_Call) RunAndReturn(run func(ctx contex
 	return _c
 }
 
+// GetRepositoryForSource provides a mock function for the type ArgoDB
+func (_mock *ArgoDB) GetRepositoryForSource(ctx context.Context, url string, project string, source *v1alpha1.ApplicationSource) (*v1alpha1.Repository, error) {
+	ret := _mock.Called(ctx, url, project, source)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetRepositoryForSource")
+	}
+
+	var r0 *v1alpha1.Repository
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, *v1alpha1.ApplicationSource) (*v1alpha1.Repository, error)); ok {
+		return returnFunc(ctx, url, project, source)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string, string, *v1alpha1.ApplicationSource) *v1alpha1.Repository); ok {
+		r0 = returnFunc(ctx, url, project, source)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*v1alpha1.Repository)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string, string, *v1alpha1.ApplicationSource) error); ok {
+		r1 = returnFunc(ctx, url, project, source)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// ArgoDB_GetRepositoryForSource_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetRepositoryForSource'
+type ArgoDB_GetRepositoryForSource_Call struct {
+	*mock.Call
+}
+
+// GetRepositoryForSource is a helper method to define mock.On call
+//   - ctx context.Context
+//   - url string
+//   - project string
+//   - source *v1alpha1.ApplicationSource
+func (_e *ArgoDB_Expecter) GetRepositoryForSource(ctx any, url any, project any, source any) *ArgoDB_GetRepositoryForSource_Call {
+	return &ArgoDB_GetRepositoryForSource_Call{Call: _e.mock.On("GetRepositoryForSource", ctx, url, project, source)}
+}
+
+func (_c *ArgoDB_GetRepositoryForSource_Call) Run(run func(ctx context.Context, url string, project string, source *v1alpha1.ApplicationSource)) *ArgoDB_GetRepositoryForSource_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 string
+		if args[2] != nil {
+			arg2 = args[2].(string)
+		}
+		var arg3 *v1alpha1.ApplicationSource
+		if args[3] != nil {
+			arg3 = args[3].(*v1alpha1.ApplicationSource)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *ArgoDB_GetRepositoryForSource_Call) Return(repository *v1alpha1.Repository, err error) *ArgoDB_GetRepositoryForSource_Call {
+	_c.Call.Return(repository, err)
+	return _c
+}
+
+func (_c *ArgoDB_GetRepositoryForSource_Call) RunAndReturn(run func(ctx context.Context, url string, project string, source *v1alpha1.ApplicationSource) (*v1alpha1.Repository, error)) *ArgoDB_GetRepositoryForSource_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetWriteRepository provides a mock function for the type ArgoDB
 func (_mock *ArgoDB) GetWriteRepository(ctx context.Context, url string, project string) (*v1alpha1.Repository, error) {
 	ret := _mock.Called(ctx, url, project)
