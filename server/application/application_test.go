@@ -2813,6 +2813,61 @@ func TestGetManifests_SourceHydrator(t *testing.T) {
 	mockRepoServiceClient.AssertExpectations(t)
 }
 
+// TestRevisionMetadata_SourceHydrator_CrossRepo covers https://github.com/argoproj/argo-cd/issues/29218: when the
+// hydrator's syncSource.repoURL points to a different repo than drySource.repoURL, requesting revision metadata for
+// the dry source SHA (sourceIndex -1) must resolve against the dry source's repo, not the sync source's repo.
+func TestRevisionMetadata_SourceHydrator_CrossRepo(t *testing.T) {
+	testApp := newTestApp()
+	testApp.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+		DrySource: v1alpha1.DrySource{
+			RepoURL:        "https://github.com/org/dry-repo",
+			Path:           "manifests/dry",
+			TargetRevision: "main",
+		},
+		SyncSource: v1alpha1.SyncSource{
+			RepoURL:      "https://github.com/org/sync-repo",
+			Path:         "manifests/sync",
+			TargetBranch: "env/prod",
+		},
+	}
+	testApp.Status.History = []v1alpha1.RevisionHistory{
+		{
+			ID:       1,
+			Source:   testApp.Spec.SourceHydrator.GetSyncSource(),
+			Revision: "sync-revision",
+		},
+	}
+
+	testCases := []struct {
+		name      string
+		versionId *int32
+	}{
+		{name: "no version ID"},
+		{name: "with version ID", versionId: new(int32(1))},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			appServer := newTestAppServer(t, testApp)
+
+			mockRepoServiceClient := mocks.RepoServerServiceClient{}
+			mockRepoServiceClient.On("GetRevisionMetadata", mock.Anything, mock.MatchedBy(func(mr *apiclient.RepoServerRevisionMetadataRequest) bool {
+				return mr.Repo.Repo == "https://github.com/org/dry-repo" && mr.Revision == "dry-revision"
+			})).Return(&v1alpha1.RevisionMetadata{}, nil)
+			appServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: &mockRepoServiceClient}
+
+			_, err := appServer.RevisionMetadata(t.Context(), &application.RevisionMetadataQuery{
+				Name:        &testApp.Name,
+				Revision:    new("dry-revision"),
+				SourceIndex: new(int32(-1)),
+				VersionId:   tc.versionId,
+			})
+			require.NoError(t, err)
+			mockRepoServiceClient.AssertExpectations(t)
+		})
+	}
+}
+
 func TestRollbackApp(t *testing.T) {
 	testApp := newTestApp()
 	testApp.Status.History = []v1alpha1.RevisionHistory{{
