@@ -1423,7 +1423,7 @@ An optional comma-separated list of `metadata.annotations` keys can be configure
 ## Auto respect RBAC for controller
 
 Argo CD controller can be restricted from discovering/syncing specific resources using just controller RBAC, without having to manually configure resource exclusions.
-This feature can be enabled by setting `resource.respectRBAC` key in argocd-cm, once it is set the controller will automatically stop watching for resources 
+This feature can be enabled by setting `resource.respectRBAC` key in `argocd-cm` ConfigMap, once it is set the controller will automatically stop watching for resources 
 that it does not have the permission to list/access. Possible values for `resource.respectRBAC` are:
     - `strict` : This setting checks whether the list call made by controller is forbidden/unauthorized and if it is, it will cross-check the permission by making a `SelfSubjectAccessReview` call for the resource.
     - `normal` : This will only check whether the list call response is forbidden/unauthorized and skip `SelfSubjectAccessReview` call, to minimize any extra api-server calls.
