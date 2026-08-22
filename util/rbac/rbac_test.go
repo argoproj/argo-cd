@@ -124,6 +124,7 @@ func TestBuiltinPolicyEnforcer(t *testing.T) {
 		{"role:readonly", "applications", "get", "foo/bar"},
 		{"role:admin", "applications", "get", "foo/bar"},
 		{"role:admin", "applications", "delete", "foo/bar"},
+		{"role:admin", "applications", "rollback", "foo/bar"},
 	}
 	for _, a := range allowed {
 		if !assert.True(t, enf.Enforce(a...)) {
@@ -134,6 +135,7 @@ func TestBuiltinPolicyEnforcer(t *testing.T) {
 	disallowed := [][]any{
 		{"role:readonly", "applications", "create", "foo/bar"},
 		{"role:readonly", "applications", "delete", "foo/bar"},
+		{"role:readonly", "applications", "rollback", "foo/bar"},
 	}
 	for _, a := range disallowed {
 		if !assert.False(t, enf.Enforce(a...)) {
