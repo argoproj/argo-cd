@@ -1,0 +1,8 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Backup
+metadata:
+  name: test-backup
+  namespace: default
+spec:
+  cluster:
+    name: test-cluster
