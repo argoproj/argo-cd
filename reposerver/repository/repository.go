@@ -3568,21 +3568,18 @@ func (s *Service) gitSourceHasChanges(ctx context.Context, repo *v1alpha1.Reposi
 	return revision, syncedRevision, changed, nil
 }
 
-// ociSourceHasChanges resolves the requested OCI revision to a digest and compares it against the
-// digest recorded at sync time. Unlike git, there is no cheap changed-files diff for an OCI
-// artifact, so any digest difference is conservatively reported as a change to force manifest
-// regeneration.
-func (s *Service) ociSourceHasChanges(ctx context.Context, repo *v1alpha1.Repository, revision, syncedRevision string, noRevisionCache bool) (string, string, bool, error) {
+// resolveOCIRevision resolves the requested OCI revision (typically a tag) to its digest.
+func (s *Service) resolveOCIRevision(ctx context.Context, repo *v1alpha1.Repository, revision string, noRevisionCache bool) (string, error) {
 	if repo == nil {
-		return revision, syncedRevision, true, status.Error(codes.InvalidArgument, "must pass a valid repo")
+		return "", status.Error(codes.InvalidArgument, "must pass a valid repo")
 	}
 
-	_, resolvedRevision, err := s.newOCIClientResolveRevision(ctx, repo, revision, noRevisionCache)
+	_, digest, err := s.newOCIClientResolveRevision(ctx, repo, revision, noRevisionCache)
 	if err != nil {
-		return revision, syncedRevision, true, status.Errorf(codes.Internal, "unable to resolve oci revision %s: %v", revision, err)
+		return "", status.Errorf(codes.Internal, "unable to resolve oci revision %s: %v", revision, err)
 	}
 
-	return resolvedRevision, syncedRevision, resolvedRevision != syncedRevision, nil
+	return digest, nil
 }
 
 // UpdateRevisionForPaths compares git revisions for single and multi-source applications
@@ -3705,7 +3702,11 @@ func (s *Service) UpdateRevisionForPaths(ctx context.Context, request *apiclient
 		requestedRevision := request.RefSources[refName].TargetRevision
 		if sRefSource.TargetRevision != requestedRevision {
 			if sRefSource.Repo.IsOCI() {
-				resolvedRevision, syncedRevision, sourceHasChanges, err = s.ociSourceHasChanges(ctx, &sRefSource.Repo, requestedRevision, sRefSource.TargetRevision, request.NoRevisionCache)
+				// Unlike git, there is no cheap changed-files diff for an OCI artifact, so any
+				// digest difference is conservatively reported as a change to force manifest
+				// regeneration.
+				resolvedRevision, err = s.resolveOCIRevision(ctx, &sRefSource.Repo, requestedRevision, request.NoRevisionCache)
+				sourceHasChanges = err == nil && resolvedRevision != syncedRevision
 			} else {
 				resolvedRevision, syncedRevision, sourceHasChanges, err = s.gitSourceHasChanges(ctx, &sRefSource.Repo, requestedRevision, sRefSource.TargetRevision, refreshPaths, gitClientOpts)
 			}
