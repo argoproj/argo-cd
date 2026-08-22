@@ -13,11 +13,11 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// ghcrParser parses webhook payloads sent by GitHub Container Registry (GHCR).
+// GHCRParser parses webhook payloads sent by GitHub Container Registry (GHCR).
 //
 // It extracts container image publication events from GitHub package webhooks
 // and converts them into a normalized RegistryEvent structure.
-type ghcrParser struct {
+type GHCRParser struct {
 	secret string
 }
 
@@ -41,22 +41,22 @@ type GHCRPayload struct {
 	} `json:"package"`
 }
 
-// newGHCRParser creates a new ghcrParser instance.
+// NewGHCRParser creates a new ghcrParser instance.
 //
 // The parser supports GitHub package webhook events for container images
 // published to GitHub Container Registry (ghcr.io).
-func newGHCRParser(secret string) *ghcrParser {
+func NewGHCRParser(secret string) *GHCRParser {
 	if secret == "" {
 		log.Warn("GHCR webhook secret is not configured; incoming webhook events will not be validated")
 	}
-	return &ghcrParser{secret: secret}
+	return &GHCRParser{secret: secret}
 }
 
 // CanHandle reports whether the HTTP request corresponds to a GHCR webhook.
 //
 // It checks the GitHub event header and returns true for package-related
 // events that may contain container registry updates.
-func (p *ghcrParser) CanHandle(r *http.Request) bool {
+func (p *GHCRParser) CanHandle(r *http.Request) bool {
 	return r.Header.Get("X-GitHub-Event") == "package"
 }
 
@@ -69,7 +69,7 @@ func (p *ghcrParser) CanHandle(r *http.Request) bool {
 // intentionally skipped (unsupported actions, non-container packages, or
 // missing tags). Only returns an error for genuinely malformed payloads or
 // signature verification failures.
-func (p *ghcrParser) Parse(r *http.Request) (any, error) {
+func (p *GHCRParser) Parse(r *http.Request) (any, error) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		return nil, err
@@ -113,7 +113,7 @@ func (p *ghcrParser) Parse(r *http.Request) (any, error) {
 // against the computed signature of the request body. An error is returned if
 // the signature is missing or does not match. If no secret is configured,
 // validation is skipped.
-func (p *ghcrParser) validateSignature(r *http.Request, body []byte) error {
+func (p *GHCRParser) validateSignature(r *http.Request, body []byte) error {
 	if p.secret != "" {
 		signature := r.Header.Get("X-Hub-Signature-256")
 		if signature == "" {
