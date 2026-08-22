@@ -218,7 +218,7 @@ func (s *Service) initGitClient(ctx context.Context, logCtx *log.Entry, r *apicl
 	}
 
 	logCtx.Debugf("Fetching repo %s", r.Repo.Repo)
-	err = gitClient.Fetch(ctx, "", 0)
+	err = gitClient.Fetch(ctx, "")
 	if err != nil {
 		cleanupOrLog()
 		return nil, "", nil, fmt.Errorf("failed to clone repo: %w", err)
