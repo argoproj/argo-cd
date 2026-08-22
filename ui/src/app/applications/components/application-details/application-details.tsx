@@ -26,7 +26,7 @@ import {ResourceDetails} from '../resource-details/resource-details';
 import {AppSetResourceDetails} from '../resource-details/appset-resource-details';
 import * as AppUtils from '../utils';
 import {ApplicationResourceList} from './application-resource-list';
-import {Filters, FiltersProps} from './application-resource-filter';
+import {Filters, FiltersProps, getEffectiveResourceFilter} from './application-resource-filter';
 import {getAppDefaultSource, getAppCurrentVersion, urlPattern} from '../utils';
 import {ChartDetails, OCIMetadata, ResourceStatus} from '../../../shared/models';
 import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown';
@@ -660,7 +660,8 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                         {({application, tree, pref}: {application: appModels.AbstractApplication; tree: appModels.ApplicationTree; pref: AppDetailsPreferences}) => {
                             tree.nodes = tree.nodes || [];
                             const isApplication = isApp(application);
-                            const treeFilter = getTreeFilter(pref.resourceFilter);
+                            const effectiveResourceFilter = getEffectiveResourceFilter(isApplication, pref.resourceFilter);
+                            const treeFilter = getTreeFilter(effectiveResourceFilter);
                             const setFilter = (items: string[]) => {
                                 appContext.navigation.goto('.', {resource: items.join(',')}, {replace: true});
                                 services.viewPreferences.updatePreferences({appDetails: {...pref, resourceFilter: items}});
@@ -747,7 +748,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                     appContext: {...appContext, apis: appContext} as unknown as AppContext,
                                     nameDirection: state.truncateNameOnRight,
                                     nameWrap: state.showFullNodeName,
-                                    filters: pref.resourceFilter,
+                                    filters: pref.resourceFilter || [],
                                     setTreeFilterGraph: setFilterGraph,
                                     updateUsrHelpTipMsgs: updateHelpTipState,
                                     setShowCompactNodes,
@@ -1018,7 +1019,8 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                                     onSetFilter={setFilter}
                                                                     onClearFilter={clearFilter}
                                                                     collapsed={viewPref.hideSidebar}
-                                                                    resourceNodes={state.filteredGraph}
+                                                                    resourceNodes={filteredRes}
+                                                                    hideKindFilter={!isApplication}
                                                                 />
                                                             )}
                                                         </DataLoader>
@@ -1124,6 +1126,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                                         onClearFilter={clearFilter}
                                                                         collapsed={viewPref.hideSidebar}
                                                                         resourceNodes={filteredRes}
+                                                                        hideKindFilter={!isApplication}
                                                                     />
                                                                 )}
                                                             </DataLoader>
