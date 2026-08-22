@@ -90,13 +90,15 @@ func (regressionDeps) SetApplicationSetStatusCondition(_ context.Context, _ *arg
 	return nil
 }
 
+func (regressionDeps) IncRefreshTriggeredCount(_ *argov1alpha1.ApplicationSet, _ string) {}
+
 func regressionManager(t *testing.T, appSet *argov1alpha1.ApplicationSet) *Manager {
 	t.Helper()
 	scheme := runtime.NewScheme()
 	require.NoError(t, argov1alpha1.AddToScheme(scheme))
 
 	c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(appSet).WithStatusSubresource(appSet).Build()
-	return NewManager(c, c, regressionDeps{})
+	return NewManager(c, c, nil, regressionDeps{})
 }
 
 // Defect 1: the status path must honour ignoreApplicationDifferences, exactly as

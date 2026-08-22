@@ -631,3 +631,42 @@ func (a *Actions) RemoveFinalizerFromApps(appNames []string, finalizer string) *
 	a.verifyAction()
 	return a
 }
+
+func (a *Actions) RefreshApp(appNames []string) *Actions {
+	a.context.T().Helper()
+	for _, appName := range appNames {
+		a.runCli("app", "get", appName, "--refresh")
+	}
+	return a
+}
+
+func (a *Actions) AddAppAnnotation(appName, key, value string) *Actions {
+	a.context.T().Helper()
+	fixtureClient := utils.GetE2EFixtureK8sClient(a.context.T())
+
+	namespace := fixture.TestNamespace()
+	if a.context.switchToNamespace != "" {
+		namespace = string(a.context.switchToNamespace)
+	}
+
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		app, err := fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(namespace).Get(
+			a.context.T().Context(), appName, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		if app.Annotations == nil {
+			app.Annotations = map[string]string{}
+		}
+		app.Annotations[key] = value
+		_, err = fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(namespace).Update(
+			a.context.T().Context(), app, metav1.UpdateOptions{})
+		return err
+	})
+	if err != nil {
+		a.lastError = err
+	}
+	a.describeAction = fmt.Sprintf("adding annotation %s=%s to app %s", key, value, appName)
+	a.verifyAction()
+	return a
+}
