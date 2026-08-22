@@ -641,6 +641,13 @@ export class ApplicationsService {
             .then(res => res.body as models.ApplicationSet);
     }
 
+    public refreshApplicationSet(name: string, namespace: string): Promise<models.ApplicationSet> {
+        return requests
+            .post(`/applicationsets/${name}/refresh`)
+            .send({appsetNamespace: namespace})
+            .then(res => this.parseAppFields(res.body, false) as models.ApplicationSet);
+    }
+
     public async listApplicationSets(): Promise<models.ApplicationSetList> {
         return requests.get(`/applicationsets`).then(res => res.body as models.ApplicationSetList);
     }
