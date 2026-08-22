@@ -26,12 +26,26 @@ export const Expandable = (props: Props) => {
 
         // Re-measure when the content resizes (e.g. async data loads or the window resizes)
         // so the toggle appears/disappears as the actual overflow changes.
-        let observer: ResizeObserver | undefined;
+        const cleanups: Array<() => void> = [];
         if (typeof ResizeObserver !== 'undefined' && contentEl.current) {
-            observer = new ResizeObserver(() => measure());
+            const observer = new ResizeObserver(() => measure());
             observer.observe(contentEl.current);
+            cleanups.push(() => observer.disconnect());
+        } else {
+            // Fallback for environments without ResizeObserver: watch DOM mutations
+            // (async content changes) and window resizes (wrap-driven height changes)
+            // so overflow detection stays accurate beyond the initial measurement.
+            if (typeof MutationObserver !== 'undefined' && contentEl.current) {
+                const mutationObserver = new MutationObserver(() => measure());
+                mutationObserver.observe(contentEl.current, {childList: true, subtree: true, characterData: true});
+                cleanups.push(() => mutationObserver.disconnect());
+            }
+            if (typeof window !== 'undefined') {
+                window.addEventListener('resize', measure);
+                cleanups.push(() => window.removeEventListener('resize', measure));
+            }
         }
-        return () => observer?.disconnect();
+        return () => cleanups.forEach(cleanup => cleanup());
     }, [props.children]);
 
     // Only offer the expand/collapse toggle when the content actually overflows the
@@ -40,9 +54,13 @@ export const Expandable = (props: Props) => {
     const overflowing = contentHeight > collapsedHeight;
     const collapsed = overflowing && !expanded;
 
+    // Drive the `transition: max-height` in expandable.scss by keeping max-height a
+    // concrete number in both states while overflowing: collapse to the fixed height,
+    // expand to the measured content height. CSS cannot animate to/from `none`, so the
+    // expanded state must use an explicit height rather than leaving max-height unset.
     const style: React.CSSProperties = {};
-    if (collapsed) {
-        style.maxHeight = collapsedHeight;
+    if (overflowing) {
+        style.maxHeight = collapsed ? collapsedHeight : contentHeight;
     }
 
     return (

@@ -43,4 +43,42 @@ describe('Expandable', () => {
         expect(container.querySelector('.expandable__handle')?.classList.contains('fa-chevron-up')).toBe(true);
         expect(container.querySelector('.expandable--collapsed')).toBeNull();
     });
+
+    it('detects overflow on mount even when ResizeObserver is unavailable', () => {
+        // jsdom has no ResizeObserver; explicitly assert the non-RO fallback path so the
+        // toggle is driven by the on-mount measurement rather than an observer callback.
+        const original = (global as any).ResizeObserver;
+        (global as any).ResizeObserver = undefined;
+        try {
+            mockScrollHeight(200);
+            const {container} = render(<Expandable height={48}>a lot of content that overflows without a ResizeObserver</Expandable>);
+
+            expect(container.querySelector('.expandable__handle')).not.toBeNull();
+            expect(container.querySelector('.expandable--collapsed')).not.toBeNull();
+        } finally {
+            (global as any).ResizeObserver = original;
+        }
+    });
+
+    it('keeps max-height numeric in both states so the CSS transition can animate', () => {
+        mockScrollHeight(200);
+        const {container} = render(<Expandable height={48}>a lot of content that overflows</Expandable>);
+
+        const root = container.querySelector('.expandable') as HTMLElement;
+        // Collapsed: max-height pinned to the collapsed height.
+        expect(root.style.maxHeight).toBe('48px');
+
+        fireEvent.click(container.querySelector('.expandable a') as HTMLElement);
+        // Expanded: max-height is the measured content height (a concrete number), not
+        // `none`/`auto`, so `transition: max-height` still animates.
+        expect(root.style.maxHeight).toBe('200px');
+    });
+
+    it('does not constrain max-height when content fits within the collapsed height', () => {
+        mockScrollHeight(20);
+        const {container} = render(<Expandable height={48}>short annotation</Expandable>);
+
+        const root = container.querySelector('.expandable') as HTMLElement;
+        expect(root.style.maxHeight).toBe('');
+    });
 });
