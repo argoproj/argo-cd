@@ -215,6 +215,7 @@ Execute getparams with curl :
 curl http://localhost:4355/api/v1/getparams.execute -H "Authorization: Bearer strong-password" -d \
 '{
   "applicationSetName": "fake-appset",
+  "applicationSetNamespace": "fake-namespace",
   "input": {
     "parameters": {
       "param1": "value1"
@@ -228,6 +229,7 @@ Some things to note here:
 - You only need to implement the calls `/api/v1/getparams.execute`
 - You should check that the `Authorization` header contains the same bearer value as `/var/run/argo/token`. Return 403 if not
 - The input parameters are included in the request body and can be accessed using the `input.parameters` variable.
+- `applicationSetName` and `applicationSetNamespace` are also included in the request body if you need to use them for your plugin logic or logging.
 - The output must always be a list of object maps nested under the `output.parameters` key in a map.
 - `generator.input.parameters` and `values` are reserved keys. If present in the plugin output, these keys will be overwritten by the
   contents of the `input.parameters` and `values` keys in the ApplicationSet's Plugin generator spec.
