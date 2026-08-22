@@ -35,6 +35,8 @@ message ApplicationQuery {
 	optional string appNamespace = 7;
 	// the project names to restrict returned list applications (legacy name for backwards-compatibility)
 	repeated string project = 8;
+	// the application names to restrict returned list applications (used by the UI favorites filter)
+	repeated string names = 9;
 }
 
 message NodeQuery {
