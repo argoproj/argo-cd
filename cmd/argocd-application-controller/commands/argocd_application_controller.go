@@ -4,10 +4,8 @@ import (
 	"context"
 	"fmt"
 	"math"
-	"os"
-	"os/signal"
 	"runtime/debug"
-	"syscall"
+	"sync"
 	"time"
 
 	"github.com/argoproj/pkg/v2/stats"
@@ -105,7 +103,7 @@ func NewCommand() *cobra.Command {
 		Short:             "Run ArgoCD Application Controller",
 		Long:              "ArgoCD application controller is a Kubernetes controller that continuously monitors running applications and compares the current, live state against the desired target state (as specified in the repo). This command runs Application Controller in the foreground.  It can be configured by following options.",
 		DisableAutoGenTag: true,
-		RunE: func(c *cobra.Command, _ []string) error {
+		RunE: cli.WithSignalContextE(func(c *cobra.Command, _ []string, _ context.CancelFunc) error {
 			ctx, cancel := context.WithCancel(c.Context())
 			defer cancel()
 
@@ -237,23 +235,20 @@ func NewCommand() *cobra.Command {
 				defer closeTracer()
 			}
 
-			// Graceful shutdown code
-			sigCh := make(chan os.Signal, 1)
-			signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
-			go func() {
-				s := <-sigCh
-				log.Printf("got signal %v, attempting graceful shutdown", s)
-				cancel()
-			}()
-
-			go appController.Run(ctx, statusProcessors, operationProcessors, hydrationProcessors)
+			// join on Run so its deferred queue shutdowns happen before we return (and before any
+			// deferred tracer flush). Run does not join its own wait.Until workers and the queues
+			// use ShutDown rather than ShutDownWithDrain, so in-flight items are not drained.
+			wg := sync.WaitGroup{}
+			wg.Go(func() {
+				appController.Run(ctx, statusProcessors, operationProcessors, hydrationProcessors)
+			})
 
 			<-ctx.Done()
-
+			wg.Wait()
 			log.Println("clean shutdown")
 
 			return nil
-		},
+		}),
 	}
 
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)

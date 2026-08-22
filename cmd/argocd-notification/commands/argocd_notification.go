@@ -6,11 +6,9 @@ import (
 	"math"
 	"net/http"
 	"os"
-	"os/signal"
 	"runtime/debug"
 	"strings"
 	"sync"
-	"syscall"
 
 	"github.com/argoproj/notifications-engine/pkg/controller"
 	"github.com/prometheus/client_golang/prometheus"
@@ -56,9 +54,8 @@ func NewCommand() *cobra.Command {
 	command := cobra.Command{
 		Use:   common.CommandNotifications,
 		Short: "Starts Argo CD Notifications controller",
-		RunE: func(_ *cobra.Command, _ []string) error {
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+		RunE: cli.WithSignalContextE(func(c *cobra.Command, _ []string, _ context.CancelFunc) error {
+			ctx := c.Context()
 
 			vers := common.GetVersion()
 			namespace, _, err := clientConfig.Namespace()
@@ -152,19 +149,19 @@ func NewCommand() *cobra.Command {
 				return fmt.Errorf("failed to initialize controller: %w", err)
 			}
 
-			sigCh := make(chan os.Signal, 1)
-			signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+			// join on Run so its deferred queue shutdown happens before we return, and before the
+			// deferred argocdService.Close() tears down the repo-server connection the workers use.
+			// Run does not join its own wait.Until workers and the queue uses ShutDown rather than
+			// ShutDownWithDrain, so in-flight items are not drained.
 			wg := sync.WaitGroup{}
 			wg.Go(func() {
-				s := <-sigCh
-				log.Printf("got signal %v, attempting graceful shutdown", s)
-				cancel()
+				ctrl.Run(ctx, processorsCount)
 			})
 
-			go ctrl.Run(ctx, processorsCount)
 			<-ctx.Done()
+			wg.Wait()
 			return nil
-		},
+		}),
 	}
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
 	command.Flags().IntVar(&processorsCount, "processors-count", env.ParseNumFromEnv("ARGOCD_NOTIFICATION_CONTROLLER_PROCESSORS_COUNT", 1, 1, math.MaxInt32), "Processors count.")
