@@ -3329,3 +3329,72 @@ func TestTerminate_Hooks_Error(t *testing.T) {
 	assert.Equal(t, synccommon.OperationError, results[0].HookPhase)
 	assert.Contains(t, results[0].Message, "update failed")
 }
+
+func TestIsPruningDisabled(t *testing.T) {
+	pruneFalse := synccommon.SyncValueFalse
+
+	t.Run("object annotation false", func(t *testing.T) {
+		obj := &unstructured.Unstructured{Object: map[string]any{
+			"metadata": map[string]any{
+				"annotations": map[string]any{
+					synccommon.AnnotationSyncOptions: "Prune=false",
+				},
+			},
+		}}
+		assert.True(t, IsPruningDisabled(obj, nil))
+	})
+
+	t.Run("falls back to default when object has no annotation", func(t *testing.T) {
+		assert.True(t, IsPruningDisabled(&unstructured.Unstructured{}, &pruneFalse))
+	})
+
+	t.Run("object annotation overrides a non-false default", func(t *testing.T) {
+		pruneConfirm := synccommon.SyncValueConfirm
+		obj := &unstructured.Unstructured{Object: map[string]any{
+			"metadata": map[string]any{
+				"annotations": map[string]any{
+					synccommon.AnnotationSyncOptions: "Prune=false",
+				},
+			},
+		}}
+		assert.True(t, IsPruningDisabled(obj, &pruneConfirm))
+	})
+
+	t.Run("neither object nor default set", func(t *testing.T) {
+		assert.False(t, IsPruningDisabled(&unstructured.Unstructured{Object: map[string]any{
+			"metadata": map[string]any{"name": "x", "namespace": "ns"},
+		}}, nil))
+	})
+
+	t.Run("nil object, no default", func(t *testing.T) {
+		assert.False(t, IsPruningDisabled(nil, nil))
+	})
+}
+
+func TestObjRequiresPruneConfirmation(t *testing.T) {
+	pruneConfirm := synccommon.SyncValueConfirm
+	pruneFalse := synccommon.SyncValueFalse
+
+	t.Run("object annotation confirm", func(t *testing.T) {
+		obj := &unstructured.Unstructured{Object: map[string]any{
+			"metadata": map[string]any{
+				"annotations": map[string]any{
+					synccommon.AnnotationSyncOptions: "Prune=confirm",
+				},
+			},
+		}}
+		assert.True(t, ObjRequiresPruneConfirmation(obj, nil))
+	})
+
+	t.Run("default confirm", func(t *testing.T) {
+		assert.True(t, ObjRequiresPruneConfirmation(&unstructured.Unstructured{}, &pruneConfirm))
+	})
+
+	t.Run("default false", func(t *testing.T) {
+		assert.False(t, ObjRequiresPruneConfirmation(&unstructured.Unstructured{}, &pruneFalse))
+	})
+
+	t.Run("nil object, no default", func(t *testing.T) {
+		assert.False(t, ObjRequiresPruneConfirmation(nil, nil))
+	})
+}
