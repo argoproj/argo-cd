@@ -212,7 +212,7 @@ func buildConfigFromFS(templatesDir string, triggersDir string) (map[string]serv
 		if err != nil {
 			return fmt.Errorf("error reading the template file: %s : %w", p, err)
 		}
-		name := strings.Split(path.Base(p), ".")[0]
+		name, _, _ := strings.Cut(path.Base(p), ".")
 		var template services.Notification
 		if err := yaml.Unmarshal(data, &template); err != nil {
 			return fmt.Errorf("error unmarshaling the data from file: %s : %w", p, err)
@@ -236,7 +236,7 @@ func buildConfigFromFS(templatesDir string, triggersDir string) (map[string]serv
 		if err != nil {
 			return fmt.Errorf("error reading the trigger file: %s : %w", p, err)
 		}
-		name := strings.Split(path.Base(p), ".")[0]
+		name, _, _ := strings.Cut(path.Base(p), ".")
 		var trigger []triggers.Condition
 		if err := yaml.Unmarshal(data, &trigger); err != nil {
 			return fmt.Errorf("error unmarshaling the data from file: %s : %w", p, err)
