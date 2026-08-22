@@ -95,10 +95,16 @@ type MockKubectl struct {
 
 	DeletedResources []kube.ResourceKey
 	CreatedResources []*unstructured.Unstructured
+	// CreateErrors maps a resource name to the error CreateResource returns instead
+	// of delegating, so a test can simulate the API server rejecting a create.
+	CreateErrors map[string]error
 }
 
 func (m *MockKubectl) CreateResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, obj *unstructured.Unstructured, createOptions metav1.CreateOptions, subresources ...string) (*unstructured.Unstructured, error) {
 	m.CreatedResources = append(m.CreatedResources, obj)
+	if err, ok := m.CreateErrors[name]; ok {
+		return nil, err
+	}
 	return m.Kubectl.CreateResource(ctx, config, gvk, name, namespace, obj, createOptions, subresources...)
 }
 
@@ -1252,6 +1258,44 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		// pre-delete hook is created
 		require.Len(t, ctrl.kubectl.(*MockKubectl).CreatedResources, 1)
 		require.Equal(t, "pre-delete-hook", ctrl.kubectl.(*MockKubectl).CreatedResources[0].GetName())
+	})
+
+	t.Run("PreDelete_HookAlreadyExistsIsNotCompletion", func(t *testing.T) {
+		// Regression test for https://github.com/argoproj/argo-cd/issues/29100.
+		// An earlier pass created the hook, but this pass still sees an empty
+		// cluster cache, so the create is rejected with AlreadyExists. That proves
+		// the live state is stale, and the phase must not be reported complete:
+		// doing so drops the finalizer and cascade deletion takes the hook with it.
+		app := newFakeApp()
+		app.SetPreDeleteFinalizer()
+		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
+		ctrl := newFakeController(t.Context(), &fakeData{
+			manifestResponses: []*apiclient.ManifestResponse{{
+				Manifests: []string{fakePreDeleteHook},
+			}},
+			apps:            []runtime.Object{app, &defaultProj},
+			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{},
+		}, nil)
+		ctrl.kubectl.(*MockKubectl).CreateErrors = map[string]error{
+			"pre-delete-hook": apierrors.NewAlreadyExists(schema.GroupResource{Resource: "pods"}, "pre-delete-hook"),
+		}
+
+		patched := false
+		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+		defaultReactor := fakeAppCs.ReactionChain[0]
+		fakeAppCs.ReactionChain = nil
+		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			return defaultReactor.React(action)
+		})
+		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+			patched = true
+			return true, &v1alpha1.Application{}, nil
+		})
+		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
+			return []*v1alpha1.Cluster{}, nil
+		})
+		require.NoError(t, err)
+		assert.False(t, patched, "finalizer must stay until the hook is observed in the live state")
 	})
 
 	t.Run("PreDelete_HookIsCreatedForLongAppName", func(t *testing.T) {
