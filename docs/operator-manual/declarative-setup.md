@@ -1436,7 +1436,7 @@ Notes:
 * When set to use `strict` mode controller must have RBAC permission to `create` a `SelfSubjectAccessReview` resource 
 * The `SelfSubjectAccessReview` request will be only made for the `list` verb, it is assumed that if `list` is allowed for a resource then all other permissions are also available to the controller.
 
-Example argocd-cm with `resource.respectRBAC` set to `strict`:
+Example `argocd-cm` ConfigMap with `resource.respectRBAC` set to `strict`:
 
 ```yaml
 apiVersion: v1
