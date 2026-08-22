@@ -1,6 +1,6 @@
 import {NotificationType, SlidingPanel, Tooltip, SplitButtonAction} from 'argo-ui';
 import classNames from 'classnames';
-import React, {useState, useEffect, useCallback, useRef, useContext, FC} from 'react';
+import React, {useState, useEffect, useCallback, useMemo, useRef, useContext, FC} from 'react';
 import * as ReactDOM from 'react-dom';
 import * as models from '../../../shared/models';
 import {RouteComponentProps} from 'react-router';
@@ -207,11 +207,15 @@ export const ApplicationDetails: FC<RouteComponentProps<{appnamespace: string; n
         });
     }, []);
 
+    // Set-backed so the lookup is O(1): the resource tree asks this once per node while building the
+    // graph, where a linear scan of the collapsed list showed up on large applications.
+    const collapsedNodeSet = useMemo(() => new Set(state.collapsedNodes), [state.collapsedNodes]);
+
     const getNodeExpansion = useCallback(
         (node: string): boolean => {
-            return state.collapsedNodes.indexOf(node) < 0;
+            return !collapsedNodeSet.has(node);
         },
-        [state.collapsedNodes]
+        [collapsedNodeSet]
     );
 
     const closeGroupedNodesPanel = useCallback(() => {
@@ -855,44 +859,101 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                             const toggleNameDirection = () => {
                                 setState(prevState => ({...prevState, truncateNameOnRight: !prevState.truncateNameOnRight}));
                             };
-                            const expandAll = () => {
-                                setState(prevState => ({...prevState, collapsedNodes: []}));
+                            // Depth of every resource, counting what the application owns directly as level
+                            // one. Collapsing a node hides its children, so showing the tree down to level
+                            // L means collapsing everything at level L and deeper.
+                            const nodeDepths = () => {
+                                const managedKeys = isApplication ? new Set((application as appModels.Application).status.resources.map(AppUtils.nodeKey)) : new Set<string>();
+                                const all = (tree.nodes || []).concat(tree.orphanedNodes || []);
+                                const byUid = new Map<string, appModels.ResourceNode>();
+                                all.forEach(node => node.uid && byUid.set(node.uid, node));
+                                const depths = new Map<string, number>();
+                                const hasChildren = new Set<string>();
+                                all.forEach(node =>
+                                    (node.parentRefs || []).forEach(ref => {
+                                        if (byUid.has(ref.uid)) {
+                                            hasChildren.add(ref.uid);
+                                        }
+                                    })
+                                );
+                                const depthOf = (node: appModels.ResourceNode, seen: Set<string>): number => {
+                                    if (depths.has(node.uid)) {
+                                        return depths.get(node.uid);
+                                    }
+                                    const parents = (node.parentRefs || []).filter(ref => byUid.has(ref.uid));
+                                    let depth = 1;
+                                    // A cycle in parentRefs would otherwise recurse forever.
+                                    if (parents.length > 0 && !managedKeys.has(AppUtils.nodeKey(node)) && !seen.has(node.uid)) {
+                                        seen.add(node.uid);
+                                        depth = 1 + Math.min(...parents.map(ref => depthOf(byUid.get(ref.uid), seen)));
+                                        seen.delete(node.uid);
+                                    }
+                                    depths.set(node.uid, depth);
+                                    return depth;
+                                };
+                                all.forEach(node => node.uid && depthOf(node, new Set<string>()));
+                                // Only parents are collapsible, so only they belong in the result.
+                                Array.from(depths.keys()).forEach(uid => {
+                                    if (!hasChildren.has(uid)) {
+                                        depths.delete(uid);
+                                    }
+                                });
+                                return depths;
                             };
-                            const collapseAll = () => {
-                                const nodes = new Array<ResourceTreeNode>();
-                                tree.nodes
-                                    .map(node => ({...node, orphaned: false}))
-                                    .concat((tree.orphanedNodes || []).map(node => ({...node, orphaned: true})))
-                                    .forEach(node => {
-                                        const resourceNode: ResourceTreeNode = {...node};
-                                        nodes.push(resourceNode);
-                                    });
-                                const collapsedNodesList = state.collapsedNodes.slice();
-                                if (pref.view === 'network') {
-                                    const networkNodes = nodes.filter(node => node.networkingInfo);
-                                    networkNodes.forEach(parent => {
-                                        const parentId = parent.uid;
-                                        if (collapsedNodesList.indexOf(parentId) < 0) {
-                                            collapsedNodesList.push(parentId);
-                                        }
-                                    });
-                                    setState(prevState => ({...prevState, collapsedNodes: collapsedNodesList}));
-                                } else {
-                                    const managedKeys = isApplication ? new Set((application as appModels.Application).status.resources.map(AppUtils.nodeKey)) : new Set<string>();
-                                    nodes.forEach(node => {
-                                        if (!((node.parentRefs || []).length === 0 || managedKeys.has(AppUtils.nodeKey(node)))) {
-                                            node.parentRefs.forEach(parent => {
-                                                const parentId = parent.uid;
-                                                if (collapsedNodesList.indexOf(parentId) < 0) {
-                                                    collapsedNodesList.push(parentId);
-                                                }
-                                            });
-                                        }
-                                    });
-                                    collapsedNodesList.push(application.kind + '-' + application.metadata.namespace + '-' + application.metadata.name);
-                                    setState(prevState => ({...prevState, collapsedNodes: collapsedNodesList}));
+
+                            // One level at a time, in both directions. Collapsing every parent at once
+                            // left nothing for a second click to do, which reads as a broken control, and
+                            // it collapsed the application node too, emptying the view entirely.
+                            const setVisibleDepth = (step: number) => {
+                                const depths = nodeDepths();
+                                if (depths.size === 0) {
+                                    return;
                                 }
+                                // Reduced rather than spread: one argument per node overflows the call
+                                // stack on a large application.
+                                const collapsed = new Set(state.collapsedNodes);
+                                let maxDepth = 1;
+                                let current = Number.MAX_SAFE_INTEGER;
+                                depths.forEach((depth, uid) => {
+                                    maxDepth = Math.max(maxDepth, depth);
+                                    if (collapsed.has(uid)) {
+                                        current = Math.min(current, depth);
+                                    }
+                                });
+                                // Nothing collapsed means everything below the deepest parent is already
+                                // showing, so a further "show more" has nothing left to give.
+                                if (current === Number.MAX_SAFE_INTEGER) {
+                                    if (step > 0) {
+                                        return;
+                                    }
+                                    current = maxDepth + 1;
+                                }
+                                const next = Math.min(maxDepth + 1, Math.max(1, current + step));
+                                const collapsedNodes = Array.from(depths.entries())
+                                    .filter(([, depth]) => depth >= next)
+                                    .map(([uid]) => uid);
+                                setState(prevState => ({...prevState, collapsedNodes}));
                             };
+                            // The level control describes an ownership hierarchy. The network view draws
+                            // parents from networkingInfo instead, where these depths would collapse the
+                            // wrong nodes, so there it keeps the all-or-nothing behaviour it always had.
+                            const collapseAllNetwork = () => {
+                                const collapsedNodes = state.collapsedNodes.slice();
+                                // Orphans too: the tree draws them when orphaned resources are enabled, so a
+                                // control that claims to collapse everything has to reach them. Collapsing a
+                                // uid that is not drawn costs nothing, which is why this does not consult the
+                                // preference, and it matches how the depths above are gathered.
+                                (tree.nodes || []).concat(tree.orphanedNodes || []).forEach(node => {
+                                    if (node.networkingInfo && node.uid && collapsedNodes.indexOf(node.uid) < 0) {
+                                        collapsedNodes.push(node.uid);
+                                    }
+                                });
+                                setState(prevState => ({...prevState, collapsedNodes}));
+                            };
+                            const isNetworkView = pref.view === 'network';
+                            const expandAll = () => (isNetworkView ? setState(prevState => ({...prevState, collapsedNodes: []})) : setVisibleDepth(1));
+                            const collapseAll = () => (isNetworkView ? collapseAllNetwork() : setVisibleDepth(-1));
+
                             const appFullName = AppUtils.nodeKey({
                                 group: 'argoproj.io',
                                 kind: application.kind,
@@ -1098,10 +1159,10 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                                 </a>
                                                             )}
                                                             <span className={`separator`} />
-                                                            <a className={`group-nodes-button`} onClick={() => expandAll()} title='Expand all child nodes of all parent nodes'>
+                                                            <a className={`group-nodes-button`} onClick={() => expandAll()} title='Show one more level of child nodes'>
                                                                 <i className='fa fa-plus fa-fw' />
                                                             </a>
-                                                            <a className={`group-nodes-button`} onClick={() => collapseAll()} title='Collapse all child nodes of all parent nodes'>
+                                                            <a className={`group-nodes-button`} onClick={() => collapseAll()} title='Hide the deepest level of child nodes'>
                                                                 <i className='fa fa-minus fa-fw' />
                                                             </a>
                                                             <span className={`separator`} />
@@ -1115,7 +1176,14 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                                 <div className={`zoom-value`}>{zoomNum}%</div>
                                                             </span>
                                                         </div>
-                                                        <ApplicationResourceTree {...getResourceTreeProps()} />
+                                                        {/* Keyed by view and application: one element serves both the tree and the
+                                                            network view, so without a key a kind drilled into in one of them keeps
+                                                            filtering the other, and a budget raised for one application follows you
+                                                            to the next. */}
+                                                        <ApplicationResourceTree
+                                                            key={`${pref.view}/${application.metadata.namespace}/${application.metadata.name}`}
+                                                            {...getResourceTreeProps()}
+                                                        />
                                                     </>
                                                 )) ||
                                                     (isApplication && pref.view === 'pods' && (
