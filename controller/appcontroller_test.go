@@ -3051,6 +3051,9 @@ func TestProcessRequestedAppOperation_HasRetriesTerminated(t *testing.T) {
 	}
 	app.Status.OperationState.Operation = *app.Operation
 	app.Status.OperationState.Phase = synccommon.OperationTerminating
+	// No termination reason recorded on the operation state; the final message should not
+	// gain a spurious "triggered by" suffix from unrelated leftover state.
+	app.Status.OperationState.Message = ""
 
 	data := &fakeData{
 		apps: []runtime.Object{app, &defaultProj},
@@ -3070,6 +3073,36 @@ func TestProcessRequestedAppOperation_HasRetriesTerminated(t *testing.T) {
 	require.NotNil(t, patchedApp.Status.OperationState)
 	assert.Equal(t, synccommon.OperationFailed, patchedApp.Status.OperationState.Phase)
 	assert.Equal(t, "Operation terminated", patchedApp.Status.OperationState.Message)
+}
+
+func TestProcessRequestedAppOperation_HasRetriesTerminatedWithMessage(t *testing.T) {
+	app := newFakeApp()
+	app.Operation = &v1alpha1.Operation{
+		Sync:  &v1alpha1.SyncOperation{},
+		Retry: v1alpha1.RetryStrategy{Limit: 10},
+	}
+	app.Status.OperationState.Operation = *app.Operation
+	app.Status.OperationState.Phase = synccommon.OperationTerminating
+	app.Status.OperationState.Message = "dummy operation state message"
+
+	data := &fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+	}
+	ctrl := newFakeController(t.Context(), data, nil)
+
+	ctrl.processRequestedAppOperation(app)
+
+	patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, patchedApp.Status.OperationState)
+	assert.Equal(t, synccommon.OperationFailed, patchedApp.Status.OperationState.Phase)
+	assert.Equal(t, "Operation terminated, triggered by dummy operation state message", patchedApp.Status.OperationState.Message)
 }
 
 func TestProcessRequestedAppOperation_Successful(t *testing.T) {
@@ -4462,4 +4495,134 @@ func TestHandleRefreshAnnotation(t *testing.T) {
 			{Op: "remove", Path: refreshPath},
 		}, capturedPatches[0], "patch without timestamp should only remove the refresh annotation, no test op")
 	})
+}
+
+func TestIsOperationStatePayloadTooLargeError(t *testing.T) {
+	// "etcdserver: request is too large" — carried by rpctypes.ErrGRPCRequestTooLarge
+	t.Run("etcdserver: request is too large", func(t *testing.T) {
+		assert.True(t, isOperationStatePayloadTooLargeError(
+			&apierrors.StatusError{
+				ErrStatus: metav1.Status{
+					Status:  metav1.StatusFailure,
+					Reason:  "",
+					Message: "etcdserver: request is too large",
+				},
+			},
+		))
+	})
+
+	// "rpc error: code = ResourceExhausted desc = trying to send message larger than max" —
+	// arrives as a plain string after being unwrapped through the REST layer
+	t.Run("rpc error: code = ResourceExhausted desc = trying to send message larger than max", func(t *testing.T) {
+		err := errors.New("rpc error: code = ResourceExhausted desc = trying to send message larger than max")
+		assert.True(t, isOperationStatePayloadTooLargeError(err))
+	})
+
+	// "Request entity too large: limit is 3145728" — HTTP 413 from kube-apiserver
+	t.Run("Request entity too large: limit is 3145728", func(t *testing.T) {
+		err := apierrors.NewRequestEntityTooLargeError("limit is 3145728")
+		assert.True(t, isOperationStatePayloadTooLargeError(err))
+	})
+
+	t.Run("unrelated error returns false", func(t *testing.T) {
+		assert.False(t, isOperationStatePayloadTooLargeError(errors.New("some other error")))
+	})
+
+	t.Run("error is nil, returns false", func(t *testing.T) {
+		assert.False(t, isOperationStatePayloadTooLargeError(nil))
+	})
+}
+
+func TestSetOperationStateTooLargeRequest(t *testing.T) {
+	newState := &v1alpha1.OperationState{
+		Operation: v1alpha1.Operation{
+			Sync: &v1alpha1.SyncOperation{Revision: "HEAD"},
+		},
+		Phase:   synccommon.OperationRunning,
+		Message: "running",
+	}
+
+	tests := []struct {
+		name          string
+		setupApp      func() *v1alpha1.Application
+		wantPhase     string
+		wantOperation bool // whether "operation" should remain set (not cleared) in the patch
+	}{
+		{
+			name: "operationState is nil",
+			setupApp: func() *v1alpha1.Application {
+				app := newFakeApp()
+				app.Status.OperationState = nil
+				return app
+			},
+			// First time we see the size error, we ask the operation to terminate instead of
+			// erroring out immediately, so the operation is left in place.
+			wantPhase:     string(synccommon.OperationTerminating),
+			wantOperation: true,
+		},
+		{
+			name:          "operationState is not nil and not already terminating",
+			setupApp:      newFakeApp,
+			wantPhase:     string(synccommon.OperationTerminating),
+			wantOperation: true,
+		},
+		{
+			name: "operationState is already terminating",
+			setupApp: func() *v1alpha1.Application {
+				app := newFakeApp()
+				app.Status.OperationState.Phase = synccommon.OperationTerminating
+				return app
+			},
+			// Once termination has already been requested and the patch still fails, we give up
+			// and finalize as an error, clearing the operation so the controller stops retrying.
+			wantPhase:     string(synccommon.OperationError),
+			wantOperation: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := tt.setupApp()
+			ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+
+			patchCallCount := 0
+			fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+			defaultReactor := fakeAppCs.ReactionChain[0]
+			fakeAppCs.ReactionChain = nil
+			fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+				return defaultReactor.React(action)
+			})
+			var capturedPatch []byte
+			fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+				patchCallCount++
+				if patchCallCount == 1 {
+					return true, nil, apierrors.NewRequestEntityTooLargeError("limit is 3145728")
+				}
+				capturedPatch = action.(kubetesting.PatchAction).GetPatch()
+				return defaultReactor.React(action)
+			})
+
+			ctrl.setOperationState(t.Context(), app, newState)
+
+			assert.Equal(t, 2, patchCallCount)
+
+			var patchedObj map[string]any
+			require.NoError(t, json.Unmarshal(capturedPatch, &patchedObj))
+			phase, _, _ := unstructured.NestedString(patchedObj, "status", "operationState", "phase")
+			message, _, _ := unstructured.NestedString(patchedObj, "status", "operationState", "message")
+			assert.Equal(t, tt.wantPhase, phase)
+			assert.Contains(t, message, "exceeds the Kubernetes resource size limit")
+
+			_, hasOperation := patchedObj["operation"]
+			if tt.wantOperation {
+				assert.False(t, hasOperation, "operation should not be cleared while termination is still pending")
+			} else {
+				assert.True(t, hasOperation, "operation should be cleared once the operation has finalized")
+				assert.Nil(t, patchedObj["operation"])
+			}
+
+			resources, _, _ := unstructured.NestedSlice(patchedObj, "status", "operationState", "syncResult", "resources")
+			assert.Nil(t, resources)
+		})
+	}
 }

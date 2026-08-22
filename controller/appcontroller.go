@@ -1599,6 +1599,9 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		switch {
 		case state.Phase == synccommon.OperationTerminating:
 			logCtx.Infof("Resuming in-progress operation. phase: %s, message: %s", state.Phase, state.Message)
+			if state.Message != "" {
+				terminatingCause = state.Message
+			}
 		case ctrl.syncTimeout != time.Duration(0) && time.Now().After(state.StartedAt.Add(ctrl.syncTimeout)):
 			state.Phase = synccommon.OperationTerminating
 			state.Message = "operation is terminating due to timeout"
@@ -1752,11 +1755,17 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 		return
 	}
 
+	var nonRetryableError error
 	kube.RetryUntilSucceed(ctx, updateOperationStateTimeout, "Update application operation state", logutils.NewLogrusLogger(logutils.NewWithCurrentConfig()), func() error {
 		_, err := ctrl.PatchAppWithWriteBack(ctx, app.Name, app.Namespace, types.JSONPatchType, patchJSON, metav1.PatchOptions{})
 		if err != nil {
 			// Stop retrying updating deleted application
 			if apierrors.IsNotFound(err) {
+				return nil
+			}
+
+			if isOperationStatePayloadTooLargeError(err) {
+				nonRetryableError = err
 				return nil
 			}
 			// kube.RetryUntilSucceed logs failed attempts at "debug" level, but we want to know if this fails. Log a
@@ -1766,6 +1775,66 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 		}
 		return nil
 	})
+
+	if nonRetryableError != nil {
+		fallbackStatus := &appv1.OperationState{}
+		if app.Status.OperationState != nil {
+			fallbackStatus = app.Status.OperationState.DeepCopy()
+		}
+		fallbackStatus.Phase = synccommon.OperationError
+		fallbackStatus.Message = nonRetryableError.Error()
+
+		// alreadyTerminating is true once we've already asked the operation to terminate
+		// (below) and are back here because even the terminated state was too large to
+		// persist. In that case we give up and finalize as an error instead of terminating
+		// again, which would otherwise loop forever.
+		alreadyTerminating := app.Status.OperationState != nil && app.Status.OperationState.Phase == synccommon.OperationTerminating
+
+		if isOperationStatePayloadTooLargeError(nonRetryableError) {
+			sizeLimitMessage := "Operation state patch exceeds the Kubernetes resource size limit and could not be persisted. Reduce the number of managed resources, set ApplyOutOfSyncOnly=true, lower spec.revisionHistoryLimit, or split the Application. error: " + nonRetryableError.Error()
+
+			if !alreadyTerminating {
+				// Request termination instead of jumping straight to an error state, so the next
+				// reconcile drives the operation through the normal Terminating path (same as the
+				// "Terminate" UI/API action) and cleans up any in-flight hooks before we give up.
+				logCtx.WithError(nonRetryableError).Warn("Application operation status exceeds the Kubernetes resource size limit; requesting operation termination")
+				fallbackStatus.Phase = synccommon.OperationTerminating
+			} else {
+				logCtx.WithError(nonRetryableError).Warn("Application operation status still exceeds the Kubernetes resource size limit after termination; falling back to operation error")
+				fallbackStatus.Phase = synccommon.OperationError
+			}
+			fallbackStatus.Message = sizeLimitMessage
+
+			// Drop resources so the fallback patch, itself doesn't hit the same size limit.
+			if fallbackStatus.SyncResult != nil {
+				fallbackStatus.SyncResult.Resources = nil
+			}
+		}
+
+		fallbackPatch := map[string]any{
+			"status": map[string]any{
+				"operationState": fallbackStatus,
+			},
+		}
+		if fallbackStatus.Phase.Completed() {
+			// Mirrors the completed-phase handling above: once the operation has reached a
+			// terminal phase, clear the requested operation so the controller doesn't
+			// immediately re-attempt the same sync and hit the same size failure again.
+			fallbackPatch["operation"] = nil
+		}
+
+		fallbackPatchJSON, err := json.Marshal(fallbackPatch)
+		if err != nil {
+			logCtx.WithError(err).Error("Error marshaling fallback patch")
+			return
+		}
+
+		if _, fbErr := ctrl.PatchAppWithWriteBack(context.Background(), app.Name, app.Namespace, types.MergePatchType, fallbackPatchJSON, metav1.PatchOptions{}); fbErr != nil {
+			logCtx.WithError(fbErr).Error("Error persisting fallback status with error condition")
+			return
+		}
+		return
+	}
 
 	logCtx.Infof("updated '%s' operation (phase: %s)", app.QualifiedName(), state.Phase)
 	if state.Phase.Completed() {
@@ -1799,6 +1868,33 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 		ctrl.metricsServer.IncSync(app, destServer, state)
 		ctrl.metricsServer.IncAppSyncDuration(app, destServer, state)
 	}
+}
+
+// isOperationStatePayloadTooLargeError returns true when the patch was rejected because the
+// payload exceeds the allowed size. This covers two paths:
+//   - HTTP 413 from the kube-apiserver (StatusReasonRequestEntityTooLarge)
+//   - gRPC ResourceExhausted from etcd, forwarded as a 500 whose message contains the gRPC
+//     error string (e.g. "rpc error: code = ResourceExhausted desc = trying to send message
+//     larger than max"). status.FromError won't decode it because the error was already
+//     unwrapped through the REST layer, so we fall back to string matching.
+//   - etcdserver: request is too large
+func isOperationStatePayloadTooLargeError(err error) bool {
+	if err == nil {
+		return false
+	}
+	if apierrors.IsRequestEntityTooLargeError(err) {
+		return true
+	}
+
+	if strings.Contains(err.Error(), "etcdserver: request is too large") {
+		return true
+	}
+
+	if strings.Contains(err.Error(), "rpc error: code = ResourceExhausted desc = trying to send message larger than max") {
+		return true
+	}
+
+	return false
 }
 
 // writeBackToInformer writes a just recently updated App back into the informer cache.
