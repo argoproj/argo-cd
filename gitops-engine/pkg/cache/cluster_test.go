@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -12,13 +13,16 @@ import (
 	"golang.org/x/sync/semaphore"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
 
+	"github.com/go-logr/logr"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	appsv1 "k8s.io/api/apps/v1"
+	authorizationv1 "k8s.io/api/authorization/v1"
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -26,7 +30,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/fake"
+	kubefake "k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	testcore "k8s.io/client-go/testing"
@@ -93,7 +99,7 @@ func newCluster(tb testing.TB, objs ...runtime.Object) *clusterCache {
 	return cache
 }
 
-func newClusterWithOptions(_ testing.TB, opts []UpdateSettingsFunc, objs ...runtime.Object) *clusterCache {
+func newClusterWithOptions(tb testing.TB, opts []UpdateSettingsFunc, objs ...runtime.Object) *clusterCache {
 	client := fake.NewSimpleDynamicClient(scheme.Scheme, objs...)
 	reactor := client.ReactionChain[0]
 	client.PrependReactor("list", "*", func(action testcore.Action) (handled bool, ret runtime.Object, err error) {
@@ -136,6 +142,7 @@ func newClusterWithOptions(_ testing.TB, opts []UpdateSettingsFunc, objs ...runt
 		&rest.Config{Host: "https://test"},
 		opts...,
 	)
+	tb.Cleanup(func() { cache.Invalidate() })
 	return cache
 }
 
@@ -2854,6 +2861,635 @@ func BenchmarkIncrementalIndexBuild(b *testing.B) {
 					cluster.addToParentUIDToChildren(child.parentUID, child.childKey)
 				}
 			}
+		})
+	}
+}
+
+func TestSync_DeletedNamespace_DoesNotBlockSync(t *testing.T) {
+	deletedNamespace := "deleted-ns"
+	validNamespace := "default"
+
+	pod := testPod1()
+	pod.SetNamespace(validNamespace)
+	validNs := &corev1.Namespace{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Namespace",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name: validNamespace,
+		},
+	}
+
+	kubeFake := kubefake.NewSimpleClientset()
+	kubeFake.PrependReactor("create", "selfsubjectaccessreviews", func(action testcore.Action) (bool, runtime.Object, error) {
+		sar := action.(testcore.CreateAction).GetObject().(*authorizationv1.SelfSubjectAccessReview)
+		sar.Status.Allowed = false
+		sar.Status.Denied = true
+		return true, sar, nil
+	})
+
+	cluster := newClusterWithOptions(t, []UpdateSettingsFunc{setClientset(kubeFake)}, pod, validNs)
+
+	fakeClient := cluster.kubectl.(*kubetest.MockKubectlCmd).DynamicClient.(*fake.FakeDynamicClient)
+	fakeClient.PrependReactor("list", "*", func(action testcore.Action) (bool, runtime.Object, error) {
+		if action.GetNamespace() == deletedNamespace {
+			return true, nil, apierrors.NewForbidden(
+				schema.GroupResource{Resource: action.GetResource().Resource}, "",
+				fmt.Errorf("namespace %q not found", deletedNamespace),
+			)
+		}
+		return false, nil, nil
+	})
+	cluster.namespaces = []string{validNamespace, deletedNamespace}
+
+	err := cluster.sync()
+
+	require.NoError(t, err)
+	_, ok := cluster.resources[getResourceKey(t, pod)]
+	assert.True(t, ok, "the default pod should be cached")
+	assert.Equal(t, []string{validNamespace, deletedNamespace}, cluster.namespaces, "namespaces must not be pruned")
+	info := cluster.GetClusterInfo()
+	assert.Contains(t, strings.Join(info.SyncWarnings, "; "), deletedNamespace, "a warning should mention %q", deletedNamespace)
+	ssarConsulted := false
+	for _, a := range kubeFake.Actions() {
+		if a.Matches("create", "selfsubjectaccessreviews") {
+			ssarConsulted = true
+			break
+		}
+	}
+	assert.True(t, ssarConsulted, "sync should consult SSAR before skipping a forbidden (GVK, namespace) pair")
+}
+
+func TestCheckNamespacePermission_Denied(t *testing.T) {
+	kubeFake := kubefake.NewSimpleClientset()
+	kubeFake.PrependReactor("create", "selfsubjectaccessreviews", func(action testcore.Action) (bool, runtime.Object, error) {
+		sar := action.(testcore.CreateAction).GetObject().(*authorizationv1.SelfSubjectAccessReview)
+		sar.Status.Allowed = false
+		sar.Status.Denied = true
+		return true, sar, nil
+	})
+
+	api := kube.APIResourceInfo{
+		GroupVersionResource: schema.GroupVersionResource{
+			Group:    "apps",
+			Version:  "v1",
+			Resource: "deployments",
+		},
+		Meta: metav1.APIResource{Namespaced: true},
+	}
+
+	c := &clusterCache{}
+	allowed, err := c.checkNamespacePermission(context.Background(), kubeFake.AuthorizationV1().SelfSubjectAccessReviews(), api, "restricted-ns")
+
+	require.NoError(t, err)
+	assert.False(t, allowed)
+}
+
+func TestCheckNamespacePermission_NoOpinionTreatedAsDenied(t *testing.T) {
+	kubeFake := kubefake.NewSimpleClientset()
+	kubeFake.PrependReactor("create", "selfsubjectaccessreviews", func(action testcore.Action) (bool, runtime.Object, error) {
+		sar := action.(testcore.CreateAction).GetObject().(*authorizationv1.SelfSubjectAccessReview)
+		// Neither Allowed nor Denied, e.g. a deleted namespace where the
+		// Role was garbage-collected and no deny rule exists.
+		sar.Status.Allowed = false
+		sar.Status.Denied = false
+		return true, sar, nil
+	})
+
+	api := kube.APIResourceInfo{
+		GroupVersionResource: schema.GroupVersionResource{
+			Group:    "apps",
+			Version:  "v1",
+			Resource: "deployments",
+		},
+		Meta: metav1.APIResource{Namespaced: true},
+	}
+
+	c := &clusterCache{}
+	allowed, err := c.checkNamespacePermission(context.Background(), kubeFake.AuthorizationV1().SelfSubjectAccessReviews(), api, "ambiguous-ns")
+
+	require.NoError(t, err, "no opinion should be treated as denied, not as an error")
+	assert.False(t, allowed)
+}
+
+func TestProcessApi_SkipSentinel_ContinuesToNextNamespace(t *testing.T) {
+	// processApi must:
+	// - continue to remaining namespaces when callback returns errSkipNamespace
+	// - return an ordinary error immediately (fail-fast)
+	api := kube.APIResourceInfo{
+		GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "pods"},
+		Meta:                 metav1.APIResource{Namespaced: true},
+	}
+
+	tests := []struct {
+		name          string
+		firstNsErr    error
+		wantBothCalls bool
+		wantErr       bool
+	}{
+		{
+			name:          "skip sentinel continues to second namespace",
+			firstNsErr:    errSkipNamespace,
+			wantBothCalls: true,
+			wantErr:       false,
+		},
+		{
+			name:          "ordinary error short-circuits",
+			firstNsErr:    fmt.Errorf("unexpected failure"),
+			wantBothCalls: false,
+			wantErr:       true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			c := newCluster(t)
+			c.namespaces = []string{"ns1", "ns2"}
+
+			dynamicClient := c.kubectl.(*kubetest.MockKubectlCmd).DynamicClient
+
+			var calledFor []string
+			err := c.processApi(dynamicClient, api, func(resClient dynamic.ResourceInterface, ns string) error {
+				calledFor = append(calledFor, ns)
+				if ns == "ns1" {
+					return tc.firstNsErr
+				}
+				return nil
+			})
+
+			if tc.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+
+			if tc.wantBothCalls {
+				assert.Equal(t, []string{"ns1", "ns2"}, calledFor, "both namespaces should be visited")
+			} else {
+				assert.Equal(t, []string{"ns1"}, calledFor, "second namespace must not be visited after ordinary error")
+			}
+		})
+	}
+}
+
+func TestHandleNamespacedListError(t *testing.T) {
+	api := kube.APIResourceInfo{
+		GroupVersionResource: schema.GroupVersionResource{
+			Group:    "apps",
+			Version:  "v1",
+			Resource: "deployments",
+		},
+		Meta: metav1.APIResource{Namespaced: true},
+	}
+	namespace := "target-ns"
+	forbiddenErr := apierrors.NewForbidden(
+		schema.GroupResource{Group: api.GroupVersionResource.Group, Resource: api.GroupVersionResource.Resource},
+		"",
+		fmt.Errorf("namespace %q not found", namespace),
+	)
+	unauthorizedErr := apierrors.NewUnauthorized("nope")
+	ssarBackendErr := fmt.Errorf("SSAR backend error")
+	genericErr := fmt.Errorf("generic connection failure")
+
+	tests := []struct {
+		name           string
+		listErr        error
+		ssarAllowed    bool
+		ssarDenied     bool
+		ssarReactorErr error
+		wantErr        error
+		wantWarning    string
+		wantSSARCall   bool
+	}{
+		{
+			name:         "forbidden + SSAR denied → skip namespace with warning",
+			listErr:      forbiddenErr,
+			ssarAllowed:  false,
+			ssarDenied:   true,
+			wantErr:      errSkipNamespace,
+			wantWarning:  "cannot list",
+			wantSSARCall: true,
+		},
+		{
+			name:         "forbidden + SSAR allowed → propagate original (genuine 403)",
+			listErr:      forbiddenErr,
+			ssarAllowed:  true,
+			wantErr:      forbiddenErr,
+			wantSSARCall: true,
+		},
+		{
+			name:           "forbidden + SSAR backend failure → propagate wrapped SSAR error",
+			listErr:        forbiddenErr,
+			ssarReactorErr: ssarBackendErr,
+			wantErr:        ssarBackendErr,
+			wantSSARCall:   true,
+		},
+		{
+			name:         "generic error → propagate unchanged",
+			listErr:      genericErr,
+			wantErr:      genericErr,
+			wantSSARCall: false,
+		},
+		{
+			name:         "Unauthorized → propagate unchanged",
+			listErr:      unauthorizedErr,
+			wantErr:      unauthorizedErr,
+			wantSSARCall: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			kubeFake := kubefake.NewSimpleClientset()
+			kubeFake.PrependReactor("create", "selfsubjectaccessreviews", func(action testcore.Action) (bool, runtime.Object, error) {
+				if tc.ssarReactorErr != nil {
+					return true, nil, tc.ssarReactorErr
+				}
+				sar := action.(testcore.CreateAction).GetObject().(*authorizationv1.SelfSubjectAccessReview)
+				sar.Status.Allowed = tc.ssarAllowed
+				sar.Status.Denied = tc.ssarDenied
+				return true, sar, nil
+			})
+
+			c := &clusterCache{
+				log:           logr.Discard(),
+				syncSkippedNs: make(map[string]map[schema.GroupKind]struct{}),
+			}
+
+			got := c.handleNamespacedListError(
+				context.Background(),
+				kubeFake.AuthorizationV1().SelfSubjectAccessReviews(),
+				api,
+				namespace,
+				tc.listErr,
+			)
+
+			assert.ErrorIs(t, got, tc.wantErr)
+
+			if tc.wantWarning != "" {
+				require.Contains(t, c.syncSkippedNs, namespace, "expected namespace to be recorded as skipped")
+				assert.NotEmpty(t, c.syncSkippedNs[namespace], "expected at least one denied GroupKind")
+			} else {
+				assert.Empty(t, c.syncSkippedNs)
+			}
+
+			ssarCalled := false
+			for _, a := range kubeFake.Actions() {
+				if a.Matches("create", "selfsubjectaccessreviews") {
+					ssarCalled = true
+					break
+				}
+			}
+			assert.Equal(t, tc.wantSSARCall, ssarCalled)
+		})
+	}
+}
+
+func TestSync_RestrictedGVK_SkipsOnlyThatPair(t *testing.T) {
+	restrictedPod := testPod1()
+	restrictedPod.SetNamespace("restricted-ns")
+	restrictedPod.SetName("pod-in-restricted-ns")
+	restrictedPod.SetUID("pod-restricted-uid")
+
+	restrictedDeploy := testDeploy()
+	restrictedDeploy.SetNamespace("restricted-ns")
+	restrictedDeploy.SetName("deploy-in-restricted-ns")
+	restrictedDeploy.SetUID("deploy-restricted-uid")
+
+	defaultDeploy := testDeploy()
+	defaultDeploy.SetNamespace("default")
+	defaultDeploy.SetName("deploy-in-default")
+	defaultDeploy.SetUID("deploy-default-uid")
+
+	kubeFake := kubefake.NewSimpleClientset()
+	kubeFake.PrependReactor("create", "selfsubjectaccessreviews", func(action testcore.Action) (bool, runtime.Object, error) {
+		sar := action.(testcore.CreateAction).GetObject().(*authorizationv1.SelfSubjectAccessReview)
+		ra := sar.Spec.ResourceAttributes
+		denied := ra.Group == "apps" && ra.Resource == "deployments" && ra.Namespace == "restricted-ns"
+		sar.Status.Allowed = !denied
+		sar.Status.Denied = denied
+		return true, sar, nil
+	})
+
+	cluster := newClusterWithOptions(t, []UpdateSettingsFunc{setClientset(kubeFake)}, restrictedPod, restrictedDeploy, defaultDeploy)
+	cluster.namespaces = []string{"default", "restricted-ns"}
+
+	fakeClient := cluster.kubectl.(*kubetest.MockKubectlCmd).DynamicClient.(*fake.FakeDynamicClient)
+	fakeClient.PrependReactor("list", "*", func(action testcore.Action) (bool, runtime.Object, error) {
+		if action.GetResource().Resource == "deployments" && action.GetNamespace() == "restricted-ns" {
+			return true, nil, apierrors.NewForbidden(
+				schema.GroupResource{Group: "apps", Resource: "deployments"}, "",
+				fmt.Errorf("forbidden"),
+			)
+		}
+		return false, nil, nil
+	})
+
+	err := cluster.sync()
+
+	require.NoError(t, err)
+
+	_, podCached := cluster.resources[getResourceKey(t, restrictedPod)]
+	assert.True(t, podCached, "Pod in restricted-ns must still be cached")
+
+	_, deployCached := cluster.resources[getResourceKey(t, restrictedDeploy)]
+	assert.False(t, deployCached, "Deployment in restricted-ns must be skipped")
+
+	joined := strings.Join(cluster.GetClusterInfo().SyncWarnings, "; ")
+	assert.Contains(t, joined, "restricted-ns", "warning must mention the restricted namespace")
+	assert.Contains(t, joined, "Deployment.apps", "warning must mention the denied GroupKind")
+	assert.Contains(t, joined, "inaccessible", "warning must indicate the namespace was inaccessible")
+
+	_, defaultDeployCached := cluster.resources[getResourceKey(t, defaultDeploy)]
+	assert.True(t, defaultDeployCached, "Deployment in default must still be cached as skip is per-(GVK,namespace) pair, not cluster-wide")
+}
+
+func TestSync_ForbiddenWithSSARAllowed_FailsSync(t *testing.T) {
+	pod := testPod1()
+
+	kubeFake := kubefake.NewSimpleClientset()
+	kubeFake.PrependReactor("create", "selfsubjectaccessreviews", func(action testcore.Action) (bool, runtime.Object, error) {
+		sar := action.(testcore.CreateAction).GetObject().(*authorizationv1.SelfSubjectAccessReview)
+		sar.Status.Allowed = true
+		return true, sar, nil
+	})
+
+	cluster := newClusterWithOptions(t, []UpdateSettingsFunc{setClientset(kubeFake)}, pod)
+	cluster.namespaces = []string{"default"}
+
+	fakeClient := cluster.kubectl.(*kubetest.MockKubectlCmd).DynamicClient.(*fake.FakeDynamicClient)
+	fakeClient.PrependReactor("list", "*", func(action testcore.Action) (bool, runtime.Object, error) {
+		if action.GetResource().Resource == "pods" && action.GetNamespace() == "default" {
+			return true, nil, apierrors.NewForbidden(
+				schema.GroupResource{Resource: "pods"}, "",
+				fmt.Errorf("forbidden but allowed by RBAC"),
+			)
+		}
+		return false, nil, nil
+	})
+
+	err := cluster.sync()
+
+	require.Error(t, err)
+	// The propagated error must be the original 403 Forbidden
+	assert.True(t, apierrors.IsForbidden(err), "the original 403 Forbidden must propagate")
+
+	assert.Empty(t, cluster.GetClusterInfo().SyncWarnings)
+
+	ssarConsulted := false
+	for _, a := range kubeFake.Actions() {
+		if a.Matches("create", "selfsubjectaccessreviews") {
+			ssarConsulted = true
+			break
+		}
+	}
+	assert.True(t, ssarConsulted, "sync should consult SSAR before deciding to propagate a forbidden (GVK, namespace) error")
+}
+
+func TestStartMissingWatches_InaccessibleNamespace_Skips(t *testing.T) {
+	pod := testPod1()
+
+	kubeFake := kubefake.NewSimpleClientset()
+	kubeFake.PrependReactor("create", "selfsubjectaccessreviews", func(action testcore.Action) (bool, runtime.Object, error) {
+		sar := action.(testcore.CreateAction).GetObject().(*authorizationv1.SelfSubjectAccessReview)
+		ra := sar.Spec.ResourceAttributes
+		denied := ra != nil && ra.Resource == "pods" && ra.Namespace == "default"
+		sar.Status.Allowed = !denied
+		sar.Status.Denied = denied
+		return true, sar, nil
+	})
+
+	cluster := newClusterWithOptions(t, []UpdateSettingsFunc{setClientset(kubeFake)}, pod)
+	cluster.namespaces = []string{"default"}
+
+	// Initial clean sync populates apisMeta, no 403 yet
+	require.NoError(t, cluster.EnsureSynced())
+
+	// Make Pods "missing": stopWatching removes apisMeta[gk].
+	podGK := pod.GroupVersionKind().GroupKind()
+	cluster.stopWatching(podGK, "default")
+
+	fakeClient := cluster.kubectl.(*kubetest.MockKubectlCmd).DynamicClient.(*fake.FakeDynamicClient)
+	fakeClient.PrependReactor("list", "*", func(action testcore.Action) (bool, runtime.Object, error) {
+		if action.GetResource().Resource == "pods" && action.GetNamespace() == "default" {
+			return true, nil, apierrors.NewForbidden(
+				schema.GroupResource{Resource: "pods"}, "",
+				fmt.Errorf("namespace inaccessible"),
+			)
+		}
+		return false, nil, nil
+	})
+
+	err := runSynced(&cluster.lock, func() error {
+		return cluster.startMissingWatches()
+	})
+
+	require.NoError(t, err)
+
+	joined := strings.Join(cluster.GetClusterInfo().SyncWarnings, "; ")
+	assert.Contains(t, joined, "default", "warning must mention the namespace")
+	assert.Contains(t, joined, "Pod", "warning must mention the resource kind")
+
+	ssarConsulted := false
+	for _, a := range kubeFake.Actions() {
+		if a.Matches("create", "selfsubjectaccessreviews") {
+			ssarConsulted = true
+			break
+		}
+	}
+	assert.True(t, ssarConsulted, "startMissingWatches must consult SSAR before skipping a forbidden (GVK, namespace) pair")
+}
+
+func TestSync_SyncWarnings_ResetBetweenSyncs(t *testing.T) {
+	pod := testPod1()
+
+	kubeFake := kubefake.NewSimpleClientset()
+	kubeFake.PrependReactor("create", "selfsubjectaccessreviews", func(action testcore.Action) (bool, runtime.Object, error) {
+		sar := action.(testcore.CreateAction).GetObject().(*authorizationv1.SelfSubjectAccessReview)
+		ra := sar.Spec.ResourceAttributes
+		denied := ra != nil && ra.Namespace == "deleted-ns"
+		sar.Status.Allowed = !denied
+		sar.Status.Denied = denied
+		return true, sar, nil
+	})
+
+	cluster := newClusterWithOptions(t, []UpdateSettingsFunc{setClientset(kubeFake)}, pod)
+	cluster.namespaces = []string{"default", "deleted-ns"}
+
+	fakeClient := cluster.kubectl.(*kubetest.MockKubectlCmd).DynamicClient.(*fake.FakeDynamicClient)
+
+	fakeClient.PrependReactor("list", "*", func(action testcore.Action) (bool, runtime.Object, error) {
+		if action.GetNamespace() == "deleted-ns" {
+			return true, nil, apierrors.NewForbidden(
+				schema.GroupResource{Resource: action.GetResource().Resource}, "",
+				fmt.Errorf("namespace %q not found", "deleted-ns"),
+			)
+		}
+		return false, nil, nil
+	})
+
+	require.NoError(t, cluster.sync())
+	require.NotEmpty(t, cluster.GetClusterInfo().SyncWarnings, "first sync should record warnings for deleted-ns")
+
+	cluster.namespaces = []string{"default"}
+
+	require.NoError(t, cluster.sync())
+	assert.Empty(t, cluster.GetClusterInfo().SyncWarnings, "second clean sync must reset warnings from previous sync")
+}
+
+func TestCheckNamespacePermission_SSARIsGVKSpecific(t *testing.T) {
+	tests := []struct {
+		name string
+		gvr  schema.GroupVersionResource
+		ns   string
+	}{
+		{
+			name: "apps/v1 deployments in ns1",
+			gvr:  schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"},
+			ns:   "ns1",
+		},
+		{
+			name: "extensions/v1beta1 deployments in ns1 — same resource name, different group",
+			gvr:  schema.GroupVersionResource{Group: "extensions", Version: "v1beta1", Resource: "deployments"},
+			ns:   "ns1",
+		},
+		{
+			name: "core v1 pods in ns2",
+			gvr:  schema.GroupVersionResource{Group: "", Version: "v1", Resource: "pods"},
+			ns:   "ns2",
+		},
+		{
+			name: "example.com/v1 widgets in ns3 (CRD-like)",
+			gvr:  schema.GroupVersionResource{Group: "example.com", Version: "v1", Resource: "widgets"},
+			ns:   "ns3",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			kubeFake := kubefake.NewSimpleClientset()
+			var captured *authorizationv1.ResourceAttributes
+			kubeFake.PrependReactor("create", "selfsubjectaccessreviews", func(action testcore.Action) (bool, runtime.Object, error) {
+				sar := action.(testcore.CreateAction).GetObject().(*authorizationv1.SelfSubjectAccessReview)
+				captured = sar.Spec.ResourceAttributes
+				sar.Status.Allowed = true
+				return true, sar, nil
+			})
+
+			api := kube.APIResourceInfo{
+				GroupVersionResource: tc.gvr,
+				Meta:                 metav1.APIResource{Namespaced: true},
+			}
+
+			c := &clusterCache{}
+
+			_, err := c.checkNamespacePermission(
+				context.Background(),
+				kubeFake.AuthorizationV1().SelfSubjectAccessReviews(),
+				api,
+				tc.ns,
+			)
+
+			require.NoError(t, err)
+			require.NotNil(t, captured, "SSAR must have been sent")
+			assert.Equal(t, tc.gvr.Group, captured.Group, "SSAR must carry the api's Group")
+			assert.Equal(t, tc.gvr.Resource, captured.Resource, "SSAR must carry the api's Resource")
+			assert.Equal(t, tc.ns, captured.Namespace, "SSAR must carry the given Namespace")
+			assert.Equal(t, "list", captured.Verb, "SSAR Verb must be \"list\"")
+		})
+	}
+}
+
+func TestRenderSkippedNamespaces(t *testing.T) {
+	gk := func(group, kind string) schema.GroupKind {
+		return schema.GroupKind{Group: group, Kind: kind}
+	}
+
+	tests := []struct {
+		name  string
+		input map[string]map[schema.GroupKind]struct{}
+		want  []string
+	}{
+		{
+			name:  "nil map",
+			input: nil,
+			want:  nil,
+		},
+		{
+			name:  "empty map",
+			input: map[string]map[schema.GroupKind]struct{}{},
+			want:  nil,
+		},
+		{
+			name: "empty inner map skipped",
+			input: map[string]map[schema.GroupKind]struct{}{
+				"ns1": {},
+			},
+			want: []string{},
+		},
+		{
+			name: "1 GVK — lists name",
+			input: map[string]map[schema.GroupKind]struct{}{
+				"ns1": {gk("apps", "Deployment"): {}},
+			},
+			want: []string{`namespace "ns1": skipped, inaccessible (Deployment.apps)`},
+		},
+		{
+			name: "3 GVKs — names sorted",
+			input: map[string]map[schema.GroupKind]struct{}{
+				"ns1": {
+					gk("", "Secret"):         {},
+					gk("apps", "Deployment"): {},
+					gk("", "ConfigMap"):      {},
+				},
+			},
+			want: []string{`namespace "ns1": skipped, inaccessible (ConfigMap, Deployment.apps, Secret)`},
+		},
+		{
+			name: "5 GVKs — still lists names",
+			input: map[string]map[schema.GroupKind]struct{}{
+				"ns1": {
+					gk("apps", "Deployment"): {},
+					gk("", "Pod"):            {},
+					gk("", "Service"):        {},
+					gk("", "ConfigMap"):      {},
+					gk("", "Secret"):         {},
+				},
+			},
+			want: []string{`namespace "ns1": skipped, inaccessible (ConfigMap, Deployment.apps, Pod, Secret, Service)`},
+		},
+		{
+			name: "6 GVKs — count with action hint",
+			input: map[string]map[schema.GroupKind]struct{}{
+				"ns1": {
+					gk("apps", "Deployment"): {},
+					gk("", "Pod"):            {},
+					gk("", "Service"):        {},
+					gk("", "ConfigMap"):      {},
+					gk("", "Secret"):         {},
+					gk("batch", "Job"):       {},
+				},
+			},
+			want: []string{`namespace "ns1": skipped, inaccessible (6 resource types). If deleted, remove from cluster secret.`},
+		},
+		{
+			name: "multiple namespaces sorted",
+			input: map[string]map[schema.GroupKind]struct{}{
+				"z-ns": {gk("", "Pod"): {}},
+				"a-ns": {gk("apps", "Deployment"): {}},
+			},
+			want: []string{
+				`namespace "a-ns": skipped, inaccessible (Deployment.apps)`,
+				`namespace "z-ns": skipped, inaccessible (Pod)`,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := renderSkippedNamespaces(tc.input)
+			assert.Equal(t, tc.want, got)
 		})
 	}
 }
