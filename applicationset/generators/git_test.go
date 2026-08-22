@@ -22,6 +22,8 @@ foo:
 `)
 	type args struct {
 		filePath          string
+		repoURL           string
+		revision          string
 		fileContent       []byte
 		values            map[string]string
 		useGoTemplate     bool
@@ -38,6 +40,8 @@ foo:
 			name: "empty file returns path parameters",
 			args: args{
 				filePath:      "path/dir/file_name.yaml",
+				repoURL:       "https://github.com/example/repo.git",
+				revision:      "main",
 				fileContent:   []byte(""),
 				values:        map[string]string{},
 				useGoTemplate: false,
@@ -49,6 +53,8 @@ foo:
 					"path.filename":           "file_name.yaml",
 					"path.basenameNormalized": "dir",
 					"path.filenameNormalized": "file-name.yaml",
+					"path.repoURL":            "https://github.com/example/repo.git",
+					"path.revision":           "main",
 					"path[0]":                 "path",
 					"path[1]":                 "dir",
 				},
@@ -68,6 +74,8 @@ foo:
 			name: "file parameters are added to params",
 			args: args{
 				filePath:      "path/dir/file_name.yaml",
+				repoURL:       "https://github.com/example/repo.git",
+				revision:      "main",
 				fileContent:   defaultContent,
 				values:        map[string]string{},
 				useGoTemplate: false,
@@ -80,6 +88,8 @@ foo:
 					"path.filename":           "file_name.yaml",
 					"path.basenameNormalized": "dir",
 					"path.filenameNormalized": "file-name.yaml",
+					"path.repoURL":            "https://github.com/example/repo.git",
+					"path.revision":           "main",
 					"path[0]":                 "path",
 					"path[1]":                 "dir",
 				},
@@ -89,6 +99,8 @@ foo:
 			name: "path parameter are prefixed",
 			args: args{
 				filePath:        "path/dir/file_name.yaml",
+				repoURL:         "https://github.com/example/repo.git",
+				revision:        "main",
 				fileContent:     defaultContent,
 				values:          map[string]string{},
 				useGoTemplate:   false,
@@ -102,6 +114,8 @@ foo:
 					"myRepo.path.filename":           "file_name.yaml",
 					"myRepo.path.basenameNormalized": "dir",
 					"myRepo.path.filenameNormalized": "file-name.yaml",
+					"myRepo.path.repoURL":            "https://github.com/example/repo.git",
+					"myRepo.path.revision":           "main",
 					"myRepo.path[0]":                 "path",
 					"myRepo.path[1]":                 "dir",
 				},
@@ -111,6 +125,8 @@ foo:
 			name: "file parameters are added to params with go template",
 			args: args{
 				filePath:    "path/dir/file_name.yaml",
+				repoURL:     "https://github.com/example/repo.git",
+				revision:    "main",
 				fileContent: defaultContent,
 				values: map[string]string{
 					"somekey": "{{.path.basename}}",
@@ -131,6 +147,8 @@ foo:
 						"filename":           "file_name.yaml",
 						"basenameNormalized": "dir",
 						"filenameNormalized": "file-name.yaml",
+						"repoURL":            "https://github.com/example/repo.git",
+						"revision":           "main",
 						"segments": []string{
 							"path",
 							"dir",
@@ -143,6 +161,8 @@ foo:
 			name: "path parameter are prefixed with go template",
 			args: args{
 				filePath:        "path/dir/file_name.yaml",
+				repoURL:         "https://github.com/example/repo.git",
+				revision:        "main",
 				fileContent:     defaultContent,
 				values:          map[string]string{},
 				useGoTemplate:   true,
@@ -160,6 +180,8 @@ foo:
 							"filename":           "file_name.yaml",
 							"basenameNormalized": "dir",
 							"filenameNormalized": "file-name.yaml",
+							"repoURL":            "https://github.com/example/repo.git",
+							"revision":           "main",
 							"segments": []string{
 								"path",
 								"dir",
@@ -173,6 +195,8 @@ foo:
 			name: "path parameter are prefixed with go template and values",
 			args: args{
 				filePath:    "path/dir/file_name.yaml",
+				repoURL:     "https://github.com/example/repo.git",
+				revision:    "main",
 				fileContent: defaultContent,
 				values: map[string]string{
 					"somekey": "{{.myRepo.path.basename}}",
@@ -192,6 +216,8 @@ foo:
 							"filename":           "file_name.yaml",
 							"basenameNormalized": "dir",
 							"filenameNormalized": "file-name.yaml",
+							"repoURL":            "https://github.com/example/repo.git",
+							"revision":           "main",
 							"segments": []string{
 								"path",
 								"dir",
@@ -204,10 +230,84 @@ foo:
 				},
 			},
 		},
+		{
+			// Regression test: a user's own `values` entries named "repoURL"/"revision" must
+			// keep working unchanged, since they live under the separate "values.*" namespace
+			// and are never merged into "path.*". This guards against the new path.repoURL/
+			// path.revision fields silently breaking existing ApplicationSets.
+			name: "user-defined values named repoURL/revision are not clobbered by the new path fields",
+			args: args{
+				filePath:    "path/dir/file_name.yaml",
+				repoURL:     "https://github.com/example/repo.git",
+				revision:    "main",
+				fileContent: defaultContent,
+				values: map[string]string{
+					"repoURL":  "user-supplied-repo-url",
+					"revision": "user-supplied-revision",
+				},
+				useGoTemplate: false,
+			},
+			want: []map[string]any{
+				{
+					"foo.bar":                 "baz",
+					"path":                    "path/dir",
+					"path.basename":           "dir",
+					"path.filename":           "file_name.yaml",
+					"path.basenameNormalized": "dir",
+					"path.filenameNormalized": "file-name.yaml",
+					"path.repoURL":            "https://github.com/example/repo.git",
+					"path.revision":           "main",
+					"path[0]":                 "path",
+					"path[1]":                 "dir",
+					"values.repoURL":          "user-supplied-repo-url",
+					"values.revision":         "user-supplied-revision",
+				},
+			},
+		},
+		{
+			// Same regression test as above, but for go template mode, where user values land
+			// under the separate params["values"] map instead of params["path"].
+			name: "user-defined values named repoURL/revision are not clobbered by the new path fields with go template",
+			args: args{
+				filePath:    "path/dir/file_name.yaml",
+				repoURL:     "https://github.com/example/repo.git",
+				revision:    "main",
+				fileContent: defaultContent,
+				values: map[string]string{
+					"repoURL":  "user-supplied-repo-url",
+					"revision": "user-supplied-revision",
+				},
+				useGoTemplate: true,
+			},
+			want: []map[string]any{
+				{
+					"values": map[string]string{
+						"repoURL":  "user-supplied-repo-url",
+						"revision": "user-supplied-revision",
+					},
+					"foo": map[string]any{
+						"bar": "baz",
+					},
+					"path": map[string]any{
+						"path":               "path/dir",
+						"basename":           "dir",
+						"filename":           "file_name.yaml",
+						"basenameNormalized": "dir",
+						"filenameNormalized": "file-name.yaml",
+						"repoURL":            "https://github.com/example/repo.git",
+						"revision":           "main",
+						"segments": []string{
+							"path",
+							"dir",
+						},
+					},
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			params, err := (*GitGenerator)(nil).generateParamsFromGitFile(tt.args.filePath, tt.args.fileContent, tt.args.values, tt.args.useGoTemplate, tt.args.goTemplateOptions, tt.args.pathParamPrefix)
+			params, err := (*GitGenerator)(nil).generateParamsFromGitFile(tt.args.filePath, tt.args.repoURL, tt.args.revision, tt.args.fileContent, tt.args.values, tt.args.useGoTemplate, tt.args.goTemplateOptions, tt.args.pathParamPrefix)
 			if tt.wantErr {
 				assert.Error(t, err, "GitGenerator.generateParamsFromGitFile()")
 			} else {
@@ -241,9 +341,9 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 				"p1/app4",
 			},
 			expected: []map[string]any{
-				{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1"},
-				{"path": "app2", "path.basename": "app2", "path.basenameNormalized": "app2", "path[0]": "app2"},
-				{"path": "app_3", "path.basename": "app_3", "path.basenameNormalized": "app-3", "path[0]": "app_3"},
+				{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path.repoURL": "RepoURL", "path.revision": "Revision", "path[0]": "app1"},
+				{"path": "app2", "path.basename": "app2", "path.basenameNormalized": "app2", "path.repoURL": "RepoURL", "path.revision": "Revision", "path[0]": "app2"},
+				{"path": "app_3", "path.basename": "app_3", "path.basenameNormalized": "app-3", "path.repoURL": "RepoURL", "path.revision": "Revision", "path[0]": "app_3"},
 			},
 			expectedError: nil,
 		},
@@ -259,9 +359,9 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 			},
 			repoError: nil,
 			expected: []map[string]any{
-				{"myRepo.path": "app1", "myRepo.path.basename": "app1", "myRepo.path.basenameNormalized": "app1", "myRepo.path[0]": "app1"},
-				{"myRepo.path": "app2", "myRepo.path.basename": "app2", "myRepo.path.basenameNormalized": "app2", "myRepo.path[0]": "app2"},
-				{"myRepo.path": "app_3", "myRepo.path.basename": "app_3", "myRepo.path.basenameNormalized": "app-3", "myRepo.path[0]": "app_3"},
+				{"myRepo.path": "app1", "myRepo.path.basename": "app1", "myRepo.path.basenameNormalized": "app1", "myRepo.path.repoURL": "RepoURL", "myRepo.path.revision": "Revision", "myRepo.path[0]": "app1"},
+				{"myRepo.path": "app2", "myRepo.path.basename": "app2", "myRepo.path.basenameNormalized": "app2", "myRepo.path.repoURL": "RepoURL", "myRepo.path.revision": "Revision", "myRepo.path[0]": "app2"},
+				{"myRepo.path": "app_3", "myRepo.path.basename": "app_3", "myRepo.path.basenameNormalized": "app-3", "myRepo.path.repoURL": "RepoURL", "myRepo.path.revision": "Revision", "myRepo.path[0]": "app_3"},
 			},
 			expectedError: nil,
 		},
@@ -275,8 +375,8 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 				"p1/p2/p3/app4",
 			},
 			expected: []map[string]any{
-				{"path": "p1/app2", "path.basename": "app2", "path[0]": "p1", "path[1]": "app2", "path.basenameNormalized": "app2"},
-				{"path": "p1/p2/app3", "path.basename": "app3", "path[0]": "p1", "path[1]": "p2", "path[2]": "app3", "path.basenameNormalized": "app3"},
+				{"path": "p1/app2", "path.basename": "app2", "path[0]": "p1", "path[1]": "app2", "path.basenameNormalized": "app2", "path.repoURL": "RepoURL", "path.revision": "Revision"},
+				{"path": "p1/p2/app3", "path.basename": "app3", "path[0]": "p1", "path[1]": "p2", "path[2]": "app3", "path.basenameNormalized": "app3", "path.repoURL": "RepoURL", "path.revision": "Revision"},
 			},
 			expectedError: nil,
 		},
@@ -292,9 +392,9 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 			},
 			repoError: nil,
 			expected: []map[string]any{
-				{"path": "app1", "path.basename": "app1", "path[0]": "app1", "path.basenameNormalized": "app1"},
-				{"path": "app2", "path.basename": "app2", "path[0]": "app2", "path.basenameNormalized": "app2"},
-				{"path": "p2/app3", "path.basename": "app3", "path[0]": "p2", "path[1]": "app3", "path.basenameNormalized": "app3"},
+				{"path": "app1", "path.basename": "app1", "path[0]": "app1", "path.basenameNormalized": "app1", "path.repoURL": "RepoURL", "path.revision": "Revision"},
+				{"path": "app2", "path.basename": "app2", "path[0]": "app2", "path.basenameNormalized": "app2", "path.repoURL": "RepoURL", "path.revision": "Revision"},
+				{"path": "p2/app3", "path.basename": "app3", "path[0]": "p2", "path[1]": "app3", "path.basenameNormalized": "app3", "path.repoURL": "RepoURL", "path.revision": "Revision"},
 			},
 			expectedError: nil,
 		},
@@ -310,9 +410,9 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 			},
 			repoError: nil,
 			expected: []map[string]any{
-				{"path": "app1", "path.basename": "app1", "path[0]": "app1", "path.basenameNormalized": "app1"},
-				{"path": "app2", "path.basename": "app2", "path[0]": "app2", "path.basenameNormalized": "app2"},
-				{"path": "p2/app3", "path.basename": "app3", "path[0]": "p2", "path[1]": "app3", "path.basenameNormalized": "app3"},
+				{"path": "app1", "path.basename": "app1", "path[0]": "app1", "path.basenameNormalized": "app1", "path.repoURL": "RepoURL", "path.revision": "Revision"},
+				{"path": "app2", "path.basename": "app2", "path[0]": "app2", "path.basenameNormalized": "app2", "path.repoURL": "RepoURL", "path.revision": "Revision"},
+				{"path": "p2/app3", "path.basename": "app3", "path[0]": "p2", "path[1]": "app3", "path.basenameNormalized": "app3", "path.repoURL": "RepoURL", "path.revision": "Revision"},
 			},
 			expectedError: nil,
 		},
@@ -330,8 +430,8 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 				"no-op": "{{ this-does-not-exist }}",
 			},
 			expected: []map[string]any{
-				{"values.foo": "bar", "values.no-op": "{{ this-does-not-exist }}", "values.aaa": "app1", "path": "app1", "path.basename": "app1", "path[0]": "app1", "path.basenameNormalized": "app1"},
-				{"values.foo": "bar", "values.no-op": "{{ this-does-not-exist }}", "values.aaa": "p1", "path": "p1/app2", "path.basename": "app2", "path[0]": "p1", "path[1]": "app2", "path.basenameNormalized": "app2"},
+				{"values.foo": "bar", "values.no-op": "{{ this-does-not-exist }}", "values.aaa": "app1", "path": "app1", "path.basename": "app1", "path[0]": "app1", "path.basenameNormalized": "app1", "path.repoURL": "RepoURL", "path.revision": "Revision"},
+				{"values.foo": "bar", "values.no-op": "{{ this-does-not-exist }}", "values.aaa": "p1", "path": "p1/app2", "path.basename": "app2", "path[0]": "p1", "path[1]": "app2", "path.basenameNormalized": "app2", "path.repoURL": "RepoURL", "path.revision": "Revision"},
 			},
 			expectedError: nil,
 		},
@@ -428,6 +528,8 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 						"path":               "app1",
 						"basename":           "app1",
 						"basenameNormalized": "app1",
+						"repoURL":            "RepoURL",
+						"revision":           "Revision",
 						"segments": []string{
 							"app1",
 						},
@@ -438,6 +540,8 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 						"path":               "app2",
 						"basename":           "app2",
 						"basenameNormalized": "app2",
+						"repoURL":            "RepoURL",
+						"revision":           "Revision",
 						"segments": []string{
 							"app2",
 						},
@@ -448,6 +552,8 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 						"path":               "app_3",
 						"basename":           "app_3",
 						"basenameNormalized": "app-3",
+						"repoURL":            "RepoURL",
+						"revision":           "Revision",
 						"segments": []string{
 							"app_3",
 						},
@@ -474,6 +580,8 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 							"path":               "app1",
 							"basename":           "app1",
 							"basenameNormalized": "app1",
+							"repoURL":            "RepoURL",
+							"revision":           "Revision",
 							"segments": []string{
 								"app1",
 							},
@@ -486,6 +594,8 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 							"path":               "app2",
 							"basename":           "app2",
 							"basenameNormalized": "app2",
+							"repoURL":            "RepoURL",
+							"revision":           "Revision",
 							"segments": []string{
 								"app2",
 							},
@@ -498,6 +608,8 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 							"path":               "app_3",
 							"basename":           "app_3",
 							"basenameNormalized": "app-3",
+							"repoURL":            "RepoURL",
+							"revision":           "Revision",
 							"segments": []string{
 								"app_3",
 							},
@@ -523,6 +635,8 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 						"path":               "p1/app2",
 						"basename":           "app2",
 						"basenameNormalized": "app2",
+						"repoURL":            "RepoURL",
+						"revision":           "Revision",
 						"segments": []string{
 							"p1",
 							"app2",
@@ -534,6 +648,8 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 						"path":               "p1/p2/app3",
 						"basename":           "app3",
 						"basenameNormalized": "app3",
+						"repoURL":            "RepoURL",
+						"revision":           "Revision",
 						"segments": []string{
 							"p1",
 							"p2",
@@ -561,6 +677,8 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 						"path":               "app1",
 						"basename":           "app1",
 						"basenameNormalized": "app1",
+						"repoURL":            "RepoURL",
+						"revision":           "Revision",
 						"segments": []string{
 							"app1",
 						},
@@ -571,6 +689,8 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 						"path":               "app2",
 						"basename":           "app2",
 						"basenameNormalized": "app2",
+						"repoURL":            "RepoURL",
+						"revision":           "Revision",
 						"segments": []string{
 							"app2",
 						},
@@ -581,6 +701,8 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 						"path":               "p2/app3",
 						"basename":           "app3",
 						"basenameNormalized": "app3",
+						"repoURL":            "RepoURL",
+						"revision":           "Revision",
 						"segments": []string{
 							"p2",
 							"app3",
@@ -607,6 +729,8 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 						"path":               "app1",
 						"basename":           "app1",
 						"basenameNormalized": "app1",
+						"repoURL":            "RepoURL",
+						"revision":           "Revision",
 						"segments": []string{
 							"app1",
 						},
@@ -617,6 +741,8 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 						"path":               "app2",
 						"basename":           "app2",
 						"basenameNormalized": "app2",
+						"repoURL":            "RepoURL",
+						"revision":           "Revision",
 						"segments": []string{
 							"app2",
 						},
@@ -627,6 +753,8 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 						"path":               "p2/app3",
 						"basename":           "app3",
 						"basenameNormalized": "app3",
+						"repoURL":            "RepoURL",
+						"revision":           "Revision",
 						"segments": []string{
 							"p2",
 							"app3",
@@ -760,6 +888,8 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 					"path.basenameNormalized": "production",
 					"path.filename":           "config.json",
 					"path.filenameNormalized": "config.json",
+					"path.repoURL":            "RepoURL",
+					"path.revision":           "Revision",
 				},
 				{
 					"cluster.owner":           "foo.bar@example.com",
@@ -772,6 +902,8 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 					"path.basenameNormalized": "staging",
 					"path.filename":           "config.json",
 					"path.filenameNormalized": "config.json",
+					"path.repoURL":            "RepoURL",
+					"path.revision":           "Revision",
 				},
 			},
 			expectedError: nil,
@@ -824,6 +956,8 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 					"path.basenameNormalized": "production",
 					"path.filename":           "config.json",
 					"path.filenameNormalized": "config.json",
+					"path.repoURL":            "RepoURL",
+					"path.revision":           "Revision",
 					"values.aaa":              "john.doe@example.com",
 					"values.no-op":            "{{ this-does-not-exist }}",
 				},
@@ -838,6 +972,8 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 					"path.basenameNormalized": "staging",
 					"path.filename":           "config.json",
 					"path.filenameNormalized": "config.json",
+					"path.repoURL":            "RepoURL",
+					"path.revision":           "Revision",
 					"values.aaa":              "foo.bar@example.com",
 					"values.no-op":            "{{ this-does-not-exist }}",
 				},
@@ -901,6 +1037,8 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 					"path.basenameNormalized": "production",
 					"path.filename":           "config.json",
 					"path.filenameNormalized": "config.json",
+					"path.repoURL":            "RepoURL",
+					"path.revision":           "Revision",
 				},
 				{
 					"cluster.owner":           "john.doe@example.com",
@@ -913,6 +1051,8 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 					"path.basenameNormalized": "production",
 					"path.filename":           "config.json",
 					"path.filenameNormalized": "config.json",
+					"path.repoURL":            "RepoURL",
+					"path.revision":           "Revision",
 				},
 			},
 			expectedError: nil,
@@ -955,6 +1095,8 @@ cluster:
 					"path.basenameNormalized": "production",
 					"path.filename":           "config.yaml",
 					"path.filenameNormalized": "config.yaml",
+					"path.repoURL":            "RepoURL",
+					"path.revision":           "Revision",
 				},
 				{
 					"cluster.owner":           "foo.bar@example.com",
@@ -967,6 +1109,8 @@ cluster:
 					"path.basenameNormalized": "staging",
 					"path.filename":           "config.yaml",
 					"path.filenameNormalized": "config.yaml",
+					"path.repoURL":            "RepoURL",
+					"path.revision":           "Revision",
 				},
 			},
 			expectedError: nil,
@@ -1001,6 +1145,8 @@ cluster:
 					"path.basenameNormalized": "production",
 					"path.filename":           "config.yaml",
 					"path.filenameNormalized": "config.yaml",
+					"path.repoURL":            "RepoURL",
+					"path.revision":           "Revision",
 				},
 				{
 					"cluster.owner":           "john.doe@example.com",
@@ -1013,6 +1159,8 @@ cluster:
 					"path.basenameNormalized": "production",
 					"path.filename":           "config.yaml",
 					"path.filenameNormalized": "config.yaml",
+					"path.repoURL":            "RepoURL",
+					"path.revision":           "Revision",
 				},
 			},
 			expectedError: nil,
@@ -1179,6 +1327,8 @@ func TestGitGeneratorParamsFromFilesWithExcludeOptionWithNewGlobbing(t *testing.
 					"path.basenameNormalized": "production",
 					"path.filename":           "config.json",
 					"path.filenameNormalized": "config.json",
+					"path.repoURL":            "RepoURL",
+					"path.revision":           "Revision",
 				},
 			},
 		},
@@ -1222,6 +1372,8 @@ func TestGitGeneratorParamsFromFilesWithExcludeOptionWithNewGlobbing(t *testing.
 					"path.basenameNormalized": "p1",
 					"path.filename":           "config.json",
 					"path.filenameNormalized": "config.json",
+					"path.repoURL":            "RepoURL",
+					"path.revision":           "Revision",
 				},
 			},
 		},
@@ -1266,6 +1418,8 @@ cluster:
 					"path.basenameNormalized": "prod",
 					"path.filename":           "config.json",
 					"path.filenameNormalized": "config.json",
+					"path.repoURL":            "RepoURL",
+					"path.revision":           "Revision",
 				},
 			},
 		},
@@ -1303,6 +1457,8 @@ cluster:
 					"path.basenameNormalized": "some-path",
 					"path.filename":           "values.yaml",
 					"path.filenameNormalized": "values.yaml",
+					"path.repoURL":            "RepoURL",
+					"path.revision":           "Revision",
 				},
 			},
 			expectedError: nil,
@@ -1342,6 +1498,8 @@ env: testing
 					"path.basename":           "mychart",
 					"path.filename":           "values.yaml",
 					"path.basenameNormalized": "mychart",
+					"path.repoURL":            "RepoURL",
+					"path.revision":           "Revision",
 				},
 				{
 					"env":                     "prod",
@@ -1353,6 +1511,8 @@ env: testing
 					"path.basename":           "myotherchart",
 					"path.filename":           "values.yaml",
 					"path.basenameNormalized": "myotherchart",
+					"path.repoURL":            "RepoURL",
+					"path.revision":           "Revision",
 				},
 			},
 			expectedError: nil,
@@ -1521,6 +1681,8 @@ func TestGitGeneratorParamsFromFilesWithExcludeOptionWithOldGlobbing(t *testing.
 					"path.basenameNormalized": "production",
 					"path.filename":           "config.json",
 					"path.filenameNormalized": "config.json",
+					"path.repoURL":            "RepoURL",
+					"path.revision":           "Revision",
 				},
 			},
 		},
@@ -1564,6 +1726,8 @@ func TestGitGeneratorParamsFromFilesWithExcludeOptionWithOldGlobbing(t *testing.
 					"path.basenameNormalized": "p1",
 					"path.filename":           "config.json",
 					"path.filenameNormalized": "config.json",
+					"path.repoURL":            "RepoURL",
+					"path.revision":           "Revision",
 				},
 			},
 		},
@@ -1608,6 +1772,8 @@ cluster:
 					"path.basenameNormalized": "prod",
 					"path.filename":           "config.json",
 					"path.filenameNormalized": "config.json",
+					"path.repoURL":            "RepoURL",
+					"path.revision":           "Revision",
 				},
 			},
 		},
@@ -1643,6 +1809,8 @@ cluster:
 					"path.basenameNormalized": "some-path",
 					"path.filename":           "values.yaml",
 					"path.filenameNormalized": "values.yaml",
+					"path.repoURL":            "RepoURL",
+					"path.revision":           "Revision",
 				},
 				{
 					"cluster.owner":           "foo.bar@example.com",
@@ -1655,6 +1823,8 @@ cluster:
 					"path.basenameNormalized": "staging",
 					"path.filename":           "values.yaml",
 					"path.filenameNormalized": "values.yaml",
+					"path.repoURL":            "RepoURL",
+					"path.revision":           "Revision",
 				},
 			},
 			expectedError: nil,
@@ -1845,6 +2015,8 @@ func TestGitGeneratorParamsFromFilesWithExcludeOptionGoTemplate(t *testing.T) {
 						"filename":           "config.json",
 						"basenameNormalized": "production",
 						"filenameNormalized": "config.json",
+						"repoURL":            "RepoURL",
+						"revision":           "Revision",
 						"segments": []string{
 							"cluster-config",
 							"production",
@@ -1918,6 +2090,8 @@ func TestGitGeneratorParamsFromFilesWithExcludeOptionGoTemplate(t *testing.T) {
 						"filename":           "config.json",
 						"basenameNormalized": "p1",
 						"filenameNormalized": "config.json",
+						"repoURL":            "RepoURL",
+						"revision":           "Revision",
 						"segments": []string{
 							"p1",
 						},
@@ -2048,6 +2222,8 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 						"filename":           "config.json",
 						"basenameNormalized": "production",
 						"filenameNormalized": "config.json",
+						"repoURL":            "RepoURL",
+						"revision":           "Revision",
 						"segments": []string{
 							"cluster-config",
 							"production",
@@ -2066,6 +2242,8 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 						"filename":           "config.json",
 						"basenameNormalized": "staging",
 						"filenameNormalized": "config.json",
+						"repoURL":            "RepoURL",
+						"revision":           "Revision",
 						"segments": []string{
 							"cluster-config",
 							"staging",
@@ -2135,6 +2313,8 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 						"filename":           "config.json",
 						"basenameNormalized": "production",
 						"filenameNormalized": "config.json",
+						"repoURL":            "RepoURL",
+						"revision":           "Revision",
 						"segments": []string{
 							"cluster-config",
 							"production",
@@ -2153,6 +2333,8 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 						"filename":           "config.json",
 						"basenameNormalized": "production",
 						"filenameNormalized": "config.json",
+						"repoURL":            "RepoURL",
+						"revision":           "Revision",
 						"segments": []string{
 							"cluster-config",
 							"production",
@@ -2205,6 +2387,8 @@ cluster:
 						"filename":           "config.yaml",
 						"basenameNormalized": "production",
 						"filenameNormalized": "config.yaml",
+						"repoURL":            "RepoURL",
+						"revision":           "Revision",
 						"segments": []string{
 							"cluster-config",
 							"production",
@@ -2223,6 +2407,8 @@ cluster:
 						"filename":           "config.yaml",
 						"basenameNormalized": "staging",
 						"filenameNormalized": "config.yaml",
+						"repoURL":            "RepoURL",
+						"revision":           "Revision",
 						"segments": []string{
 							"cluster-config",
 							"staging",
@@ -2265,6 +2451,8 @@ cluster:
 						"filename":           "config.yaml",
 						"basenameNormalized": "production",
 						"filenameNormalized": "config.yaml",
+						"repoURL":            "RepoURL",
+						"revision":           "Revision",
 						"segments": []string{
 							"cluster-config",
 							"production",
@@ -2283,6 +2471,8 @@ cluster:
 						"filename":           "config.yaml",
 						"basenameNormalized": "production",
 						"filenameNormalized": "config.yaml",
+						"repoURL":            "RepoURL",
+						"revision":           "Revision",
 						"segments": []string{
 							"cluster-config",
 							"production",
@@ -2387,7 +2577,7 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 				},
 			},
 			callGetDirectories: true,
-			expected:           []map[string]any{{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1", "values.foo": "bar"}},
+			expected:           []map[string]any{{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path.repoURL": "RepoURL", "path.revision": "Revision", "path[0]": "app1", "values.foo": "bar"}},
 			expectedError:      nil,
 		},
 		{
@@ -2421,7 +2611,7 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 				},
 			},
 			callGetDirectories: false,
-			expected:           []map[string]any{{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1", "values.foo": "bar"}},
+			expected:           []map[string]any{{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path.repoURL": "RepoURL", "path.revision": "Revision", "path[0]": "app1", "values.foo": "bar"}},
 			expectedError:      errors.New("error getting project project: appprojects.argoproj.io \"project\" not found"),
 		},
 		{
@@ -2461,7 +2651,7 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 					},
 				},
 			},
-			expected:        []map[string]any{{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1", "values.foo": "bar"}},
+			expected:        []map[string]any{{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path.repoURL": "RepoURL", "path.revision": "Revision", "path[0]": "app1", "values.foo": "bar"}},
 			expectedProject: new("project"),
 			expectedError:   nil,
 		},
@@ -2495,7 +2685,7 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 					},
 				},
 			},
-			expected:        []map[string]any{{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1", "values.foo": "bar"}},
+			expected:        []map[string]any{{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path.repoURL": "RepoURL", "path.revision": "Revision", "path[0]": "app1", "values.foo": "bar"}},
 			expectedProject: new(""),
 			expectedError:   nil,
 		},
