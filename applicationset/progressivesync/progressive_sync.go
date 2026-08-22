@@ -833,7 +833,7 @@ func disableAutomatedSync(app *argov1alpha1.Application) {
 	app.Spec.SyncPolicy.Automated.Enabled = new(false)
 }
 
-func (m *Manager) SyncDesiredApplications(logCtx *log.Entry, applicationSet *argov1alpha1.ApplicationSet, appsToSync map[string]bool, desiredApplications []argov1alpha1.Application) []argov1alpha1.Application {
+func (m *Manager) SyncDesiredApplications(ctx context.Context, logCtx *log.Entry, applicationSet *argov1alpha1.ApplicationSet, appsToSync map[string]bool, desiredApplications []argov1alpha1.Application) []argov1alpha1.Application {
 	rolloutApps := []argov1alpha1.Application{}
 	for i := range desiredApplications {
 		pruneEnabled := false
@@ -853,6 +853,20 @@ func (m *Manager) SyncDesiredApplications(logCtx *log.Entry, applicationSet *arg
 
 		// check appsToSync to determine which Applications are ready to be updated and which should be skipped
 		if appsToSync[desiredApplications[i].Name] && appSetStatusPending {
+			// honor the AppProject's sync windows: RollingSync must not queue an operation that
+			// the application controller's sync window gate would immediately block. The operation
+			// has not started yet, so both isManual and operationStartTime are the zero values.
+			prevented, err := m.syncWindowPreventsSync(ctx, logCtx, &desiredApplications[i], applicationSet)
+			if err != nil {
+				logCtx.WithError(err).Errorf("failed to evaluate sync windows for application: %v; skipping sync trigger", desiredApplications[i].Name)
+				rolloutApps = append(rolloutApps, desiredApplications[i])
+				continue
+			}
+			if prevented {
+				logCtx.Infof("skipping sync trigger for application: %v, sync is blocked by a sync window", desiredApplications[i].Name)
+				rolloutApps = append(rolloutApps, desiredApplications[i])
+				continue
+			}
 			logCtx.Infof("triggering sync for application: %v, prune enabled: %v", desiredApplications[i].Name, pruneEnabled)
 			desiredApplications[i] = syncApplication(desiredApplications[i], pruneEnabled)
 		}
@@ -860,6 +874,45 @@ func (m *Manager) SyncDesiredApplications(logCtx *log.Entry, applicationSet *arg
 		rolloutApps = append(rolloutApps, desiredApplications[i])
 	}
 	return rolloutApps
+}
+
+// syncWindowPreventsSync reports whether the given Application's project sync windows
+// currently deny an automated sync from starting. It mirrors the application controller's
+// gate (controller/sync.go syncWindowPreventsSync) for the not-yet-started case: the
+// operation has no start time, so sync overrun does not apply. A missing AppProject
+// (including the virtual "default" project) never blocks, matching the controller which
+// only enforces windows from an actually configured project.
+func (m *Manager) syncWindowPreventsSync(ctx context.Context, logCtx *log.Entry, app *argov1alpha1.Application, applicationSet *argov1alpha1.ApplicationSet) (bool, error) {
+	projectName := app.Spec.GetProject()
+	if projectName == "" || projectName == argov1alpha1.DefaultAppProjectName {
+		// The virtual "default" project has no SyncWindows of its own; nothing to enforce.
+		return false, nil
+	}
+	// The AppProject is a namespaced resource. Generated Applications inherit the
+	// namespace of their ApplicationSet; fall back to the Application's own namespace
+	// when the ApplicationSet has none set.
+	ns := applicationSet.Namespace
+	if ns == "" {
+		ns = app.Namespace
+	}
+	proj := &argov1alpha1.AppProject{}
+	if err := m.Client.Get(ctx, types.NamespacedName{Namespace: ns, Name: projectName}, proj); err != nil {
+		if apierrors.IsNotFound(err) {
+			// A missing project cannot configure windows; keep the historical behavior
+			// of letting the application controller surface the misconfiguration.
+			logCtx.Debugf("app project %q not found in namespace %q; skipping sync window check", projectName, ns)
+			return false, nil
+		}
+		return true, err
+	}
+	window := proj.Spec.SyncWindows.Matches(app)
+	// This path triggers a *new* operation: nothing has started, so the manual flag is
+	// false and there is no operation start time for the sync-overrun carve-out.
+	canSync, err := window.CanSync(false, nil)
+	if err != nil {
+		return true, err
+	}
+	return !canSync, nil
 }
 
 // used by the RollingSync Progressive Sync strategy to trigger a sync of a particular Application resource

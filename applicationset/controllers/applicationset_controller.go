@@ -330,7 +330,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	if r.EnableProgressiveSyncs {
 		// trigger appropriate application syncs if RollingSync strategy is enabled
 		if progressivesync.RollingSyncStrategyEnabled(&applicationSetInfo) {
-			validApps = r.ProgressiveSyncManager.SyncDesiredApplications(logCtx, &applicationSetInfo, appSyncMap, validApps)
+			validApps = r.ProgressiveSyncManager.SyncDesiredApplications(ctx, logCtx, &applicationSetInfo, appSyncMap, validApps)
 		}
 	}
 
