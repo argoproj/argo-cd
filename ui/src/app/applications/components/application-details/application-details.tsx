@@ -754,6 +754,17 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                 }));
                             };
 
+                            // For ApplicationSets, clicking an Application node navigates to its details page; otherwise the node is selected in place.
+                            const handleNodeClick = (fullName: string) => {
+                                const parts = fullName.split('/');
+                                const [group, kind, namespace, name] = parts;
+                                if (!isApplication && group === 'argoproj.io' && kind === 'Application' && namespace && name) {
+                                    appContext.navigation.goto(`/applications/${namespace}/${name}`);
+                                } else {
+                                    selectNode(fullName);
+                                }
+                            };
+
                             // Helper to get ApplicationResourceTree props based on resource type
                             const getResourceTreeProps = () => {
                                 const commonProps = {
@@ -806,16 +817,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                 } else {
                                     return {
                                         ...commonProps,
-                                        onNodeClick: (fullName: string) => {
-                                            // For ApplicationSets, navigate to Application details if clicking an Application node
-                                            const parts = fullName.split('/');
-                                            const [group, kind, namespace, name] = parts;
-                                            if (group === 'argoproj.io' && kind === 'Application' && namespace && name) {
-                                                appContext.navigation.goto(`/applications/${namespace}/${name}`);
-                                            } else {
-                                                selectNode(fullName);
-                                            }
-                                        },
+                                        onNodeClick: handleNodeClick,
                                         app: application,
                                         showOrphanedResources: false,
                                         useNetworkingHierarchy: false,
@@ -1162,7 +1164,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                                     {data => (
                                                                         <ApplicationResourceList
                                                                             pref={pref}
-                                                                            onNodeClick={fullName => selectNode(fullName)}
+                                                                            onNodeClick={handleNodeClick}
                                                                             selectedNodeFullName={highlightNodeKey || undefined}
                                                                             sortKey={resourceSort.sortKey}
                                                                             requestSort={resourceSort.requestSort}
