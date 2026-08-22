@@ -1,0 +1,13 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: AWS endpoint service and endpoint are available
+  inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for AWS endpoint service and endpoint to become available"
+  inputPath: testdata/progressing_creating.yaml
+- healthStatus:
+    status: Degraded
+    message: "NLB kube-apiserver not found in account"
+  inputPath: testdata/degraded_error.yaml
