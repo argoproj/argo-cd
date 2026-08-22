@@ -511,15 +511,61 @@ start-e2e: test-tools-image
 	mkdir -p ${GOCACHE}
 	$(call run-in-test-server,make ARGOCD_PROCFILE=test/container/Procfile start-e2e-local)
 
+# Builds and loads the ArgoCD image for e2e testing (for conversion webhook)
+.PHONY: build-e2e-image
+build-e2e-image:
+	DOCKER_BUILDKIT=1 $(DOCKER) build -t argocd-e2e:latest --platform=$(TARGET_ARCH) .
+	@echo "Built argocd-e2e:latest image"
+	@echo "If using k3d, load the image with: k3d image import argocd-e2e:latest"
+
+# The e2e manifests pin the conversion webhook to the locally-built
+# argocd-e2e:latest image (see test/manifests/base/kustomization.yaml). CI
+# builds that image and imports it into k3s itself; for local k3d clusters,
+# build and import it here so start-e2e-local works on a fresh cluster instead
+# of stalling on an ImagePullBackOff webhook rollout. Non-k3d, non-CI setups
+# get a hint rather than a guess.
+.PHONY: ensure-e2e-image
+ensure-e2e-image:
+	@current_context=$$(kubectl config current-context 2>/dev/null || true); \
+	case "$$current_context" in \
+	k3d-*) \
+		if ! $(DOCKER) image inspect argocd-e2e:latest >/dev/null 2>&1; then \
+			echo "argocd-e2e:latest image not found locally; building it (this takes a while)..."; \
+			$(MAKE) build-e2e-image; \
+		fi; \
+		echo "Importing argocd-e2e:latest into k3d cluster '$${current_context#k3d-}'..."; \
+		k3d image import argocd-e2e:latest -c "$${current_context#k3d-}"; \
+		;; \
+	*) \
+		echo "Context '$$current_context' is not a k3d cluster; assuming argocd-e2e:latest is already available in the cluster."; \
+		echo "If the conversion webhook fails with ImagePullBackOff below, run 'make build-e2e-image' and load the image into your cluster."; \
+		;; \
+	esac
+
 # Starts e2e server locally (or within a container)
 .PHONY: start-e2e-local
-start-e2e-local: mod-vendor-local dep-ui-local cli-local
+start-e2e-local: mod-vendor-local dep-ui-local cli-local ensure-e2e-image
+	kubectl create ns argocd || true
 	kubectl create ns argocd-e2e || true
 	kubectl create ns argocd-e2e-external || true
 	kubectl create ns argocd-e2e-external-2 || true
 	kubectl config set-context --current --namespace=argocd-e2e
 	kustomize build test/manifests/base | kubectl apply --server-side --force-conflicts -f -
 	kubectl apply -f https://raw.githubusercontent.com/open-cluster-management/api/a6845f2ebcb186ec26b832f60c988537a58f3859/cluster/v1alpha1/0000_04_clusters.open-cluster-management.io_placementdecisions.crd.yaml
+	# Wait for conversion webhook to be ready. It is a hard requirement: the
+	# Application CRD has webhook conversion configured, so v1beta1 requests
+	# (and the v1beta1 e2e package) fail confusingly without it — fail fast here.
+	@echo "Waiting for conversion webhook to be ready..."
+	@kubectl -n argocd rollout status deployment/argocd-conversion-webhook --timeout=120s || \
+		(echo "======================================================================"; \
+		 echo "Conversion webhook failed to become ready:"; \
+		 kubectl -n argocd get pods -l app.kubernetes.io/name=argocd-conversion-webhook; \
+		 echo "If pods show ImagePullBackOff, the argocd-e2e:latest image is missing"; \
+		 echo "from the cluster. Build and load it with:"; \
+		 echo "  make build-e2e-image"; \
+		 echo "  k3d image import argocd-e2e:latest -c <cluster>   # for k3d"; \
+		 echo "======================================================================"; \
+		 exit 1)
 	# Create GPG keys and source directories
 	if test -d $(ARGOCD_E2E_DIR)/app/config/gpg; then rm -rf $(ARGOCD_E2E_DIR)/app/config/gpg/*; fi
 	mkdir -p $(ARGOCD_E2E_DIR)/app/config/gpg/keys && chmod 0700 $(ARGOCD_E2E_DIR)/app/config/gpg/keys
@@ -588,6 +634,16 @@ start-local: mod-vendor-local dep-ui-local cli-local
 	ARGOCD_E2E_TEST=false \
 	ARGOCD_APPLICATION_NAMESPACES=$(ARGOCD_APPLICATION_NAMESPACES) \
 		goreman -f $(ARGOCD_PROCFILE) start ${ARGOCD_START}
+
+# Deploy the conversion webhook for local development
+# This deploys the webhook into the cluster so that conversion works when running start-local
+.PHONY: deploy-conversion-webhook
+deploy-conversion-webhook:
+	kubectl create ns argocd || true
+	kustomize build manifests/base/conversion-webhook | kubectl apply -n argocd -f -
+	kubectl apply -f manifests/crds/application-crd.yaml --server-side
+	@echo "Conversion webhook deployed. The webhook will auto-generate TLS certs and inject the CA bundle."
+	@echo "You can now run 'make start-local' to start ArgoCD locally."
 
 # Run goreman start with exclude option , provide exclude env variable with list of services
 .PHONY: run
