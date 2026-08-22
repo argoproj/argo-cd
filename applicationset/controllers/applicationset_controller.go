@@ -141,6 +141,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
+	effectivePolicy := utils.DefaultPolicy(applicationSetInfo.Spec.SyncPolicy, r.Policy, r.EnablePolicyOverride)
 
 	defer func() {
 		r.Metrics.ObserveReconcile(&applicationSetInfo, time.Since(startTime))
@@ -150,7 +151,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	if applicationSetInfo.DeletionTimestamp != nil {
 		appsetName := applicationSetInfo.Name
 		logCtx.Debugf("DeletionTimestamp is set on %s", appsetName)
-		deleteAllowed := utils.DefaultPolicy(applicationSetInfo.Spec.SyncPolicy, r.Policy, r.EnablePolicyOverride).AllowDelete()
+		deleteAllowed := effectivePolicy.AllowDelete()
 		if !deleteAllowed {
 			logCtx.Debugf("ApplicationSet policy does not allow to delete")
 			if err := r.removeOwnerReferencesOnDeleteAppSet(ctx, applicationSetInfo); err != nil {
@@ -274,7 +275,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				)
 				return ctrl.Result{RequeueAfter: ReconcileRequeueOnValidationError}, nil
 			}
-			appSyncMap, err = r.ProgressiveSyncManager.PerformProgressiveSyncs(ctx, logCtx, applicationSetInfo, currentApplications, generatedApplications)
+			appSyncMap, err = r.ProgressiveSyncManager.PerformProgressiveSyncs(ctx, logCtx, applicationSetInfo, currentApplications, generatedApplications, effectivePolicy)
 			if err != nil {
 				return ctrl.Result{}, fmt.Errorf("failed to perform progressive sync reconciliation for application set: %w", err)
 			}
@@ -339,7 +340,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return validApps[i].Name < validApps[j].Name
 	})
 
-	if utils.DefaultPolicy(applicationSetInfo.Spec.SyncPolicy, r.Policy, r.EnablePolicyOverride).AllowUpdate() {
+	if effectivePolicy.AllowUpdate() {
 		err = r.createOrUpdateInCluster(ctx, logCtx, applicationSetInfo, validApps)
 		if err != nil {
 			_ = r.setApplicationSetStatusCondition(ctx,
@@ -373,7 +374,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 	}
 
-	if utils.DefaultPolicy(applicationSetInfo.Spec.SyncPolicy, r.Policy, r.EnablePolicyOverride).AllowDelete() {
+	if effectivePolicy.AllowDelete() {
 		// Delete the generatedApplications instead of the validApps because we want to be able to delete applications in error/invalid state
 		err = r.deleteInCluster(ctx, logCtx, applicationSetInfo, generatedApplications)
 		if err != nil {
