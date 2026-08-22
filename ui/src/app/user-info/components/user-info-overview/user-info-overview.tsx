@@ -105,6 +105,7 @@ export const UserInfoComponent = ({userInfo}: {userInfo: UserInfo}) => {
                             {userInfo.loggedIn ? (
                                 <>
                                     <p>Username: {userInfo.username}</p>
+                                    {userInfo.rbacSubject && userInfo.rbacSubject !== userInfo.username && <p>RBAC subject: {userInfo.rbacSubject}</p>}
                                     <p>Issuer: {userInfo.iss}</p>
                                     {userInfo.groups && userInfo.groups.length > 0 && (
                                         <>
@@ -140,7 +141,8 @@ export const UserInfoComponent = ({userInfo}: {userInfo: UserInfo}) => {
                         }>
                         <h4>Update account password</h4>
                         <Form
-                            onSubmit={(params: PasswordFormData) => changePassword(userInfo.username, params.currentPassword, params.newPassword)}
+                            // Empty name performs a self-service change; the backend resolves the account from the authenticated token.
+                            onSubmit={(params: PasswordFormData) => changePassword('', params.currentPassword, params.newPassword)}
                             getApi={api => (formApiPassword.current = api)}
                             validateError={validatePasswordForm}>
                             {formApi => (

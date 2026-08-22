@@ -33,6 +33,10 @@ message GetUserInfoResponse {
   string username = 2;
   string iss = 3;
   repeated string groups = 4;
+  // rbacSubject is the identity to reference in RBAC policies for the current user. It matches
+  // username except when local-user strict mode is enabled, where local accounts are suffixed with
+  // "@local" (e.g. "sally@local"). It is intended for display only; username remains the real account name.
+  string rbacSubject = 5;
 }
 
 // SessionService 
