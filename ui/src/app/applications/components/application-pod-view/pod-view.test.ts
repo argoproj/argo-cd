@@ -1,5 +1,5 @@
-import {Application, ApplicationTree, Node, ResourceName} from '../../../shared/models';
-import {PodGroup, processTree} from './pod-view';
+import {Application, ApplicationTree, Node} from '../../../shared/models';
+import {processTree} from './pod-view';
 
 function bareApp(): Application {
     return {
