@@ -104,7 +104,7 @@ func TestSessionManager_AdminToken(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, newToken)
 
-	mapClaims := *(claims.(*jwt.MapClaims))
+	mapClaims := *claims.(*jwt.MapClaims)
 	subject := mapClaims["sub"].(string)
 	if subject != "admin" {
 		t.Errorf("Token claim subject %q does not match expected subject %q.", subject, "admin")
@@ -130,7 +130,7 @@ func TestSessionManager_AdminToken_ExpiringSoon(t *testing.T) {
 	claims, _, err := mgr.Parse(newToken)
 	require.NoError(t, err)
 
-	mapClaims := *(claims.(*jwt.MapClaims))
+	mapClaims := *claims.(*jwt.MapClaims)
 	subject := mapClaims["sub"].(string)
 	assert.Equal(t, "admin", subject)
 }
@@ -1564,4 +1564,48 @@ func Test_PickFailureAttemptWhenOverflowed(t *testing.T) {
 			assert.Equal(t, "test2", *user)
 		}
 	})
+}
+
+func TestTokenUniqueID(t *testing.T) {
+	testCases := []struct {
+		name   string
+		claims jwt.MapClaims
+		want   string
+	}{
+		{
+			name:   "jti present",
+			claims: jwt.MapClaims{"jti": "abc123"},
+			want:   "abc123",
+		},
+		{
+			name:   "uti fallback when jti absent (Entra ID)",
+			claims: jwt.MapClaims{"uti": "xyz789"},
+			want:   "xyz789",
+		},
+		{
+			name:   "jti preferred over uti",
+			claims: jwt.MapClaims{"jti": "abc123", "uti": "xyz789"},
+			want:   "abc123",
+		},
+		{
+			name:   "empty jti falls back to uti",
+			claims: jwt.MapClaims{"jti": "", "uti": "xyz789"},
+			want:   "xyz789",
+		},
+		{
+			name:   "neither present",
+			claims: jwt.MapClaims{"sub": "user"},
+			want:   "",
+		},
+		{
+			name:   "non-string jti ignored, uti used",
+			claims: jwt.MapClaims{"jti": 123, "uti": "xyz789"},
+			want:   "xyz789",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, tokenUniqueID(tc.claims))
+		})
+	}
 }

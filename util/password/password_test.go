@@ -20,17 +20,20 @@ func testPasswordHasher(t *testing.T, h PasswordHasher) {
 }
 
 func TestBcryptPasswordHasher(t *testing.T) {
+	t.Parallel()
 	// Use the default work factor
 	h := BcryptPasswordHasher{0}
 	testPasswordHasher(t, h)
 }
 
 func TestDummyPasswordHasher(t *testing.T) {
+	t.Parallel()
 	h := DummyPasswordHasher{}
 	testPasswordHasher(t, h)
 }
 
 func TestPasswordHashing(t *testing.T) {
+	t.Parallel()
 	const (
 		defaultPassword = "Hello, world!"
 		blankPassword   = ""

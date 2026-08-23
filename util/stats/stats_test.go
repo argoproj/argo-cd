@@ -8,6 +8,7 @@ import (
 )
 
 func TestTimingStats(t *testing.T) {
+	t.Parallel()
 	start := time.Now()
 	now = func() time.Time {
 		return start

@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	stderrors "errors"
 	"fmt"
 	"os"
@@ -102,13 +103,19 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 
   # Add a private Git repository on Google Cloud Sources via GCP service account credentials
   argocd repo add https://source.developers.google.com/p/my-google-cloud-project/r/my-repo --gcp-service-account-key-path service-account-key.json
+
+  # Add a private Git repository on Azure Devops via Azure Service Principal credentials
+  argocd repo add https://dev.azure.com/my-devops-organization/my-devops-project/_git/my-devops-repo --azure-service-principal-client-id 12345678-1234-1234-1234-123456789012 --azure-service-principal-client-secret test --azure-service-principal-tenant-id 12345678-1234-1234-1234-123456789012
+
+  # Add a private Git repository on Azure Devops via Azure Service Principal credentials when not using default Azure public cloud
+  argocd repo add https://dev.azure.com/my-devops-organization/my-devops-project/_git/my-devops-repo --azure-service-principal-client-id 12345678-1234-1234-1234-123456789012 --azure-service-principal-client-secret test --azure-service-principal-tenant-id 12345678-1234-1234-1234-123456789012 --azure-active-directory-endpoint https://login.microsoftonline.de
 `
 
 	command := &cobra.Command{
 		Use:     "add REPOURL",
 		Short:   "Add git, oci or helm repository connection parameters",
 		Example: repoAddExamples,
-		Run: func(c *cobra.Command, args []string) {
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) != 1 {
@@ -191,6 +198,10 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			repoOpts.Repo.NoProxy = repoOpts.NoProxy
 			repoOpts.Repo.ForceHttpBasicAuth = repoOpts.ForceHttpBasicAuth
 			repoOpts.Repo.UseAzureWorkloadIdentity = repoOpts.UseAzureWorkloadIdentity
+			repoOpts.Repo.AzureServicePrincipalTenantId = repoOpts.AzureServicePrincipalTenantId
+			repoOpts.Repo.AzureServicePrincipalClientId = repoOpts.AzureServicePrincipalClientId
+			repoOpts.Repo.AzureServicePrincipalClientSecret = repoOpts.AzureServicePrincipalClientSecret
+			repoOpts.Repo.AzureActiveDirectoryEndpoint = repoOpts.AzureActiveDirectoryEndpoint
 			repoOpts.Repo.Depth = repoOpts.Depth
 			repoOpts.Repo.WebhookManifestCacheWarmDisabled = repoOpts.WebhookManifestCacheWarmDisabled
 
@@ -198,11 +209,13 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				errors.Fatal(errors.ErrorGeneric, "Must specify --name for repos of type 'helm'")
 			}
 
-			if repoOpts.Repo.Type == "oci" && repoOpts.InsecureOCIForceHTTP {
+			if repoOpts.InsecureOCIForceHTTP {
+				err := cmdutil.ValidateInsecureOCIForceHTTP(repoOpts.InsecureOCIForceHTTP, repoOpts.Repo.Type, repoOpts.Repo.EnableOCI)
+				errors.CheckError(err)
 				repoOpts.Repo.InsecureOCIForceHttp = repoOpts.InsecureOCIForceHTTP
 			}
 
-			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDie()
+			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
 
 			// If the user set a username, but didn't supply password via --password,
@@ -226,27 +239,31 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			// are high that we do not have the given URL pointing to a valid Git
 			// repo anyway.
 			repoAccessReq := repositorypkg.RepoAccessQuery{
-				Repo:                       repoOpts.Repo.Repo,
-				Type:                       repoOpts.Repo.Type,
-				Name:                       repoOpts.Repo.Name,
-				Username:                   repoOpts.Repo.Username,
-				Password:                   repoOpts.Repo.Password,
-				BearerToken:                repoOpts.Repo.BearerToken,
-				SshPrivateKey:              repoOpts.Repo.SSHPrivateKey,
-				TlsClientCertData:          repoOpts.Repo.TLSClientCertData,
-				TlsClientCertKey:           repoOpts.Repo.TLSClientCertKey,
-				Insecure:                   repoOpts.Repo.IsInsecure(),
-				EnableOci:                  repoOpts.Repo.EnableOCI,
-				GithubAppPrivateKey:        repoOpts.Repo.GithubAppPrivateKey,
-				GithubAppID:                repoOpts.Repo.GithubAppId,
-				GithubAppInstallationID:    repoOpts.Repo.GithubAppInstallationId,
-				GithubAppEnterpriseBaseUrl: repoOpts.Repo.GitHubAppEnterpriseBaseURL,
-				Proxy:                      repoOpts.Proxy,
-				Project:                    repoOpts.Repo.Project,
-				GcpServiceAccountKey:       repoOpts.Repo.GCPServiceAccountKey,
-				ForceHttpBasicAuth:         repoOpts.Repo.ForceHttpBasicAuth,
-				UseAzureWorkloadIdentity:   repoOpts.Repo.UseAzureWorkloadIdentity,
-				InsecureOciForceHttp:       repoOpts.Repo.InsecureOCIForceHttp,
+				Repo:                              repoOpts.Repo.Repo,
+				Type:                              repoOpts.Repo.Type,
+				Name:                              repoOpts.Repo.Name,
+				Username:                          repoOpts.Repo.Username,
+				Password:                          repoOpts.Repo.Password,
+				BearerToken:                       repoOpts.Repo.BearerToken,
+				SshPrivateKey:                     repoOpts.Repo.SSHPrivateKey,
+				TlsClientCertData:                 repoOpts.Repo.TLSClientCertData,
+				TlsClientCertKey:                  repoOpts.Repo.TLSClientCertKey,
+				Insecure:                          repoOpts.Repo.IsInsecure(),
+				EnableOci:                         repoOpts.Repo.EnableOCI,
+				GithubAppPrivateKey:               repoOpts.Repo.GithubAppPrivateKey,
+				GithubAppID:                       repoOpts.Repo.GithubAppId,
+				GithubAppInstallationID:           repoOpts.Repo.GithubAppInstallationId,
+				GithubAppEnterpriseBaseUrl:        repoOpts.Repo.GitHubAppEnterpriseBaseURL,
+				Proxy:                             repoOpts.Proxy,
+				Project:                           repoOpts.Repo.Project,
+				GcpServiceAccountKey:              repoOpts.Repo.GCPServiceAccountKey,
+				ForceHttpBasicAuth:                repoOpts.Repo.ForceHttpBasicAuth,
+				UseAzureWorkloadIdentity:          repoOpts.Repo.UseAzureWorkloadIdentity,
+				InsecureOciForceHttp:              repoOpts.Repo.InsecureOCIForceHttp,
+				AzureServicePrincipalTenantId:     repoOpts.Repo.AzureServicePrincipalTenantId,
+				AzureServicePrincipalClientId:     repoOpts.Repo.AzureServicePrincipalClientId,
+				AzureServicePrincipalClientSecret: repoOpts.Repo.AzureServicePrincipalClientSecret,
+				AzureActiveDirectoryEndpoint:      repoOpts.Repo.AzureActiveDirectoryEndpoint,
 			}
 			_, err = repoIf.ValidateAccess(ctx, &repoAccessReq)
 			errors.CheckError(err)
@@ -259,7 +276,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			createdRepo, err := repoIf.CreateRepository(ctx, &repoCreateReq)
 			errors.CheckError(err)
 			fmt.Printf("Repository '%s' added\n", createdRepo.Repo)
-		},
+		}),
 	}
 	command.Flags().BoolVar(&repoOpts.Upsert, "upsert", false, "Override an existing repository with the same name even if the spec differs")
 	cmdutil.AddRepoFlags(command, &repoOpts)
@@ -285,14 +302,14 @@ func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
   # Remove repository using SSH URL
   argocd repo rm git@github.com:yourusername/your-repo.git
 `,
-		Run: func(c *cobra.Command, args []string) {
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDie()
+			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
 
 			promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
@@ -306,7 +323,7 @@ func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 					fmt.Printf("The command to delete '%s' was cancelled.\n", repoURL)
 				}
 			}
-		},
+		}),
 	}
 	command.Flags().StringVar(&project, "project", "", "project of the repository")
 	return command
@@ -315,7 +332,7 @@ func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 // Print table of repo info
 func printRepoTable(repos appsv1.Repositories) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintf(w, "TYPE\tNAME\tREPO\tINSECURE\tOCI\tLFS\tCREDS\tSTATUS\tMESSAGE\tPROJECT\n")
+	_, _ = fmt.Fprint(w, "TYPE\tNAME\tREPO\tINSECURE\tOCI\tLFS\tCREDS\tSTATUS\tMESSAGE\tPROJECT\n")
 	for _, r := range repos {
 		var hasCreds string
 		if r.InheritedCreds {
@@ -364,10 +381,10 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
   # Force refresh of cached repository connection status
   argocd repo list --refresh hard
 `,
-		Run: func(c *cobra.Command, _ []string) {
+		Run: cli.WithSignalContext(func(c *cobra.Command, _ []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
-			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDie()
+			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
 			forceRefresh := false
 
@@ -395,7 +412,7 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			default:
 				errors.CheckError(fmt.Errorf("unknown output format: %s. Supported formats: yaml|json|url|wide", output))
 			}
-		},
+		}),
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. Supported formats: yaml|json|url|wide")
 	command.Flags().StringVar(&refresh, "refresh", "", "Force a cache refresh on connection status. Supported values: hard")
@@ -429,7 +446,7 @@ func NewRepoGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		Use:     "get REPO",
 		Short:   "Get a configured repository by URL",
 		Example: repoGetExamples,
-		Run: func(c *cobra.Command, args []string) {
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) != 1 {
@@ -439,7 +456,7 @@ func NewRepoGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 
 			// Repository URL
 			repoURL := args[0]
-			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDie()
+			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
 			forceRefresh := false
 			switch refresh {
@@ -465,7 +482,7 @@ func NewRepoGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			default:
 				errors.CheckError(fmt.Errorf("unknown output format: %s. Supported formats: yaml|json|url|wide", output))
 			}
-		},
+		}),
 	}
 
 	command.Flags().StringVar(&project, "project", "", "project of the repository")

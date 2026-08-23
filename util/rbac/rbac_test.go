@@ -3,6 +3,7 @@ package rbac
 import (
 	"context"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -123,6 +124,7 @@ func TestBuiltinPolicyEnforcer(t *testing.T) {
 		{"role:readonly", "applications", "get", "foo/bar"},
 		{"role:admin", "applications", "get", "foo/bar"},
 		{"role:admin", "applications", "delete", "foo/bar"},
+		{"role:admin", "applications", "rollback", "foo/bar"},
 	}
 	for _, a := range allowed {
 		if !assert.True(t, enf.Enforce(a...)) {
@@ -133,6 +135,7 @@ func TestBuiltinPolicyEnforcer(t *testing.T) {
 	disallowed := [][]any{
 		{"role:readonly", "applications", "create", "foo/bar"},
 		{"role:readonly", "applications", "delete", "foo/bar"},
+		{"role:readonly", "applications", "rollback", "foo/bar"},
 	}
 	for _, a := range disallowed {
 		if !assert.False(t, enf.Enforce(a...)) {
@@ -188,6 +191,53 @@ func TestDefaultRole(t *testing.T) {
 	// after setting the default role to be the read-only role, this should now pass
 	enf.SetDefaultRole("role:readonly")
 	assert.True(t, enf.Enforce("bob", "applications", "get", "foo/bar"))
+}
+
+// TestConcurrentEnforceAndSyncUpdate exercises the same access pattern that produced
+// a -race failure on the 3.2 branch: gRPC handler goroutines calling Enforce while the
+// RBAC configmap informer goroutine drives SetDefaultRole via syncUpdate, alongside
+// SetClaimsEnforcerFunc as a second concurrent writer. Without locking around
+// defaultRole and claimsEnforcerFunc this trips the race detector.
+func TestConcurrentEnforceAndSyncUpdate(t *testing.T) {
+	kubeclientset := fake.NewClientset()
+	enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
+	require.NoError(t, enf.syncUpdate(fakeConfigMap(), noOpUpdate))
+	require.NoError(t, enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV))
+
+	cm := fakeConfigMap()
+	cm.Data[ConfigMapPolicyDefaultKey] = "role:readonly"
+
+	done := make(chan struct{})
+	var wg sync.WaitGroup
+	// Ensure worker goroutines are stopped and reaped even if a require.* below
+	// short-circuits the test via t.FailNow.
+	t.Cleanup(func() {
+		select {
+		case <-done:
+		default:
+			close(done)
+		}
+		wg.Wait()
+	})
+
+	for range 4 {
+		wg.Go(func() {
+			for {
+				select {
+				case <-done:
+					return
+				default:
+					_ = enf.Enforce("bob", "applications", "get", "foo/bar")
+				}
+			}
+		})
+	}
+
+	for range 200 {
+		require.NoError(t, enf.syncUpdate(cm, noOpUpdate))
+		enf.SetClaimsEnforcerFunc(func(_ jwt.Claims, _ ...any) bool { return false })
+	}
+	close(done)
 }
 
 // TestURLAsObjectName tests the ability to have a URL as an object name
@@ -285,9 +335,8 @@ g, depB, role:depB
 `
 	hook := test.LogHook{}
 	log.AddHook(&hook)
-	t.Cleanup(func() {
-		log.StandardLogger().ReplaceHooks(log.LevelHooks{})
-	})
+	t.Cleanup(hook.CleanupHook)
+
 	require.NoError(t, ValidatePolicy(policy))
 	assert.Empty(t, hook.GetRegexMatchesInEntries("user defined roles not found in policies"))
 

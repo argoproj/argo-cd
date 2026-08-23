@@ -290,7 +290,7 @@ In fact, it does not harm UX *and* improves security with:
 #### Git history *sealing* for strict verification mode
 
 A sealing commit is a gpg signed commit that works as a "seal of approval" attesting that all its ancestor commits were either signed by a trusted key, or reviewed and trusted by the commit author.
-Argo CD verifying gpg signatures would then progres only as far back in the history as the most recent "seal" commits in each individual ancestral branch.
+Argo CD verifying gpg signatures would then progress only as far back in the history as the most recent "seal" commits in each individual ancestral branch.
 
 In practice, a commiter reviews all commits that are not signed or signed with untrusted keys from the previous "seal" and creates a (possibly empty) commit with a custom trailer.
 Such commits can have the following organization level semantics:
