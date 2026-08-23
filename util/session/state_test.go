@@ -12,6 +12,7 @@ import (
 )
 
 func TestUserStateStorage_LoadRevokedTokens(t *testing.T) {
+	t.Parallel()
 	redis, closer := test.NewInMemoryRedis()
 	defer closer()
 

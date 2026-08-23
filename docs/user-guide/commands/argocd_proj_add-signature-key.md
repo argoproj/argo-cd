@@ -2,7 +2,7 @@
 
 ## argocd proj add-signature-key
 
-Add GnuPG signature key to project
+Add GnuPG signature key to project (DEPRECATED)
 
 ```
 argocd proj add-signature-key PROJECT KEY-ID [flags]

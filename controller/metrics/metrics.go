@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/robfig/cron/v3"
@@ -123,7 +123,7 @@ var (
 			Name: "argocd_redis_request_total",
 			Help: "Number of redis requests executed during application reconciliation.",
 		},
-		[]string{"hostname", "initiator", "failed"},
+		[]string{"hostname", "initiator", "command", "failed"},
 	)
 
 	redisRequestHistogram = prometheus.NewHistogramVec(
@@ -299,8 +299,8 @@ func (m *MetricsServer) IncKubernetesRequest(app *argoappv1.Application, server,
 	).Inc()
 }
 
-func (m *MetricsServer) IncRedisRequest(failed bool) {
-	m.redisRequestCounter.WithLabelValues(m.hostname, common.CommandApplicationController, strconv.FormatBool(failed)).Inc()
+func (m *MetricsServer) IncRedisRequest(command string, failed bool) {
+	m.redisRequestCounter.WithLabelValues(m.hostname, common.CommandApplicationController, command, strconv.FormatBool(failed)).Inc()
 }
 
 // ObserveRedisRequestDuration observes redis request duration

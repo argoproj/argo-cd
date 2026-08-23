@@ -32,9 +32,11 @@ Here is a graphical overview of the sync process:
 
 You can use this simple lifecycle method in various scenarios. For example you can run an essential check as a PreSync hook. If it fails then the whole sync operation will stop preventing the deployment from taking place. In a similar manner you can run smoke tests as PostSync hooks. If they succeed you know that your application has passed the validation. If they fail then the whole deployment will be marked as failed and Argo CD can then notify you in order to take further actions.
 
-Hooks at the SyncFail phase can be used for cleanup actions and other housekeeping tasks. Note that if they themselves fail, Argo CD will not do anything special (other than marking the whole operation as failed).
+Hooks do not run during a selective sync operation. During the SyncFail phase, hooks can be used for cleanup and other housekeeping tasks. If a SyncFail hook itself fails, Argo CD does not take any additional action beyond marking the overall operation as failed.
 
-Note that hooks do not run during a selective sync operation.
+During pruning, the wave order is reversed from the creation order. Resources in higher waves are pruned first.
+If pruning any resource in a wave fails, the operation is marked as failed, and resources in lower waves are not processed.
+This ensures that dependent resources are deleted in the correct order.
 
 ## Hook lifecycle and cleanup
 
@@ -57,7 +59,6 @@ When Helm hook annotations are mapped onto Argo CD hooks, delete-policy evaluati
 ### PreDelete Hooks
 
 PreDelete hooks execute before an Application and its resources are deleted. They run only during Application deletion (e.g., `kubectl delete application` or `argocd app delete`), not during normal sync operations, even when pruning is enabled.
-
 **Behavior:**
 
 1. When an Application is deleted, Argo CD checks for PreDelete hooks defined in the Application's manifests
@@ -108,6 +109,8 @@ When a sync operation takes place, Argo CD will:
 2. Apply the resources according to the resulting sequence
 
 There is currently a delay between each sync wave in order to give other controllers a chance to react to the spec change that was just applied. This also prevents Argo CD from assessing resource health too quickly (against the stale object), causing hooks to fire prematurely. The current delay between each sync wave is 2 seconds and can be configured via the environment variable ARGOCD_SYNC_WAVE_DELAY.
+
+
 
 ## Combining Sync waves and hooks
 

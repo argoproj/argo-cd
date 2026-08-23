@@ -2,6 +2,7 @@ package helm
 
 import (
 	"errors"
+	"io"
 	"log"
 	"os/exec"
 	"strings"
@@ -18,6 +19,7 @@ func Test_cmd_redactor(t *testing.T) {
 }
 
 func TestCmd_template_kubeVersion(t *testing.T) {
+	t.Parallel()
 	cmd, err := NewCmdWithVersion(".", false, "", "")
 	require.NoError(t, err)
 	s, _, err := cmd.template("testdata/redis", &TemplateOpts{
@@ -28,6 +30,7 @@ func TestCmd_template_kubeVersion(t *testing.T) {
 }
 
 func TestCmd_template_noApiVersionsInError(t *testing.T) {
+	t.Parallel()
 	cmd, err := NewCmdWithVersion(".", false, "", "")
 	require.NoError(t, err)
 	_, _, err = cmd.template("testdata/chart-does-not-exist", &TemplateOpts{
@@ -40,12 +43,14 @@ func TestCmd_template_noApiVersionsInError(t *testing.T) {
 }
 
 func TestNewCmd_helmInvalidVersion(t *testing.T) {
+	t.Parallel()
 	_, err := NewCmd(".", "abcd", "", "")
 	log.Println(err)
-	assert.EqualError(t, err, "helm chart version 'abcd' is not supported")
+	assert.EqualError(t, err, "helm version 'abcd' is not supported")
 }
 
 func TestNewCmd_withProxy(t *testing.T) {
+	t.Parallel()
 	cmd, err := NewCmd(".", "", "https://proxy:8888", ".argoproj.io")
 	require.NoError(t, err)
 	assert.Equal(t, "https://proxy:8888", cmd.proxy)
@@ -53,25 +58,30 @@ func TestNewCmd_withProxy(t *testing.T) {
 }
 
 func TestRegistryLogin(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
-		name        string
-		repo        string
-		creds       *HelmCreds
-		execErr     error
-		expectedErr error
-		expectedOut string
+		name          string
+		repo          string
+		creds         *HelmCreds
+		plainHTTP     bool
+		execErr       error
+		expectedErr   error
+		expectedOut   string
+		expectedStdin string
 	}{
 		{
-			name:        "username and password",
-			repo:        "my.registry.com/repo",
-			creds:       &HelmCreds{Username: "user", Password: "pass"},
-			expectedOut: "helm registry login my.registry.com --username user --password pass",
+			name:          "username and password",
+			repo:          "my.registry.com/repo",
+			creds:         &HelmCreds{Username: "user", Password: "pass"},
+			expectedOut:   "helm registry login my.registry.com --username user --password-stdin",
+			expectedStdin: "pass",
 		},
 		{
-			name:        "username and password with just the hostname",
-			repo:        "my.registry.com",
-			creds:       &HelmCreds{Username: "user", Password: "pass"},
-			expectedOut: "helm registry login my.registry.com --username user --password pass",
+			name:          "username and password with just the hostname",
+			repo:          "my.registry.com",
+			creds:         &HelmCreds{Username: "user", Password: "pass"},
+			expectedOut:   "helm registry login my.registry.com --username user --password-stdin",
+			expectedStdin: "pass",
 		},
 		{
 			name:        "ca file path",
@@ -98,10 +108,11 @@ func TestRegistryLogin(t *testing.T) {
 			expectedErr: errors.New("failed to parse registry URL: parse \":///bad-url\": missing protocol scheme"),
 		},
 		{
-			name:        "username & password",
-			repo:        "my.registry.com/repo",
-			creds:       &HelmCreds{Username: "user", Password: "pass"},
-			expectedOut: "helm registry login my.registry.com --username user --password pass",
+			name:          "username & password",
+			repo:          "my.registry.com/repo",
+			creds:         &HelmCreds{Username: "user", Password: "pass"},
+			expectedOut:   "helm registry login my.registry.com --username user --password-stdin",
+			expectedStdin: "pass",
 		},
 		{
 			name: "combined flags",
@@ -112,19 +123,46 @@ func TestRegistryLogin(t *testing.T) {
 				CAPath:             "/ca",
 				InsecureSkipVerify: true,
 			},
-			expectedOut: "helm registry login my.registry.com:5000 --username u --password p --ca-file /ca --insecure",
+			expectedOut:   "helm registry login my.registry.com:5000 --username u --password-stdin --ca-file /ca --insecure",
+			expectedStdin: "p",
+		},
+		{
+			name:          "plain-http",
+			repo:          "my.registry.com/repo",
+			creds:         &HelmCreds{Username: "user", Password: "pass"},
+			plainHTTP:     true,
+			expectedOut:   "helm registry login my.registry.com --plain-http --username user --password-stdin",
+			expectedStdin: "pass",
+		},
+		{
+			name:        "insecure and plain-http both set",
+			repo:        "my.registry.com/repo",
+			creds:       &HelmCreds{InsecureSkipVerify: true},
+			plainHTTP:   true,
+			expectedOut: "helm registry login my.registry.com --plain-http --insecure",
 		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			c, err := newCmdWithVersion(".", false, "", "", func(cmd *exec.Cmd, _ func(_ string) string) (string, error) {
+				var stdin []byte
+				if cmd.Stdin != nil {
+					var readErr error
+					stdin, readErr = io.ReadAll(cmd.Stdin)
+					require.NoError(t, readErr)
+				}
+				assert.Equal(t, tc.expectedStdin, string(stdin))
+				if tc.expectedStdin != "" {
+					assert.NotContains(t, cmd.Args, tc.expectedStdin)
+				}
 				if tc.execErr != nil {
 					return "", tc.execErr
 				}
 				return strings.Join(cmd.Args, " "), nil
 			})
 			require.NoError(t, err)
-			out, err := c.RegistryLogin(tc.repo, tc.creds)
+			out, err := c.RegistryLogin(t.Context(), tc.repo, tc.creds, tc.plainHTTP)
 			assert.Equal(t, tc.expectedOut, out)
 			if tc.expectedErr != nil {
 				require.EqualError(t, err, tc.expectedErr.Error())
@@ -135,21 +173,36 @@ func TestRegistryLogin(t *testing.T) {
 	}
 }
 
-func TestDependencyBuild(t *testing.T) {
+func TestPullOCI(t *testing.T) {
 	tests := []struct {
 		name        string
-		insecure    bool
+		creds       HelmCreds
+		plainHTTP   bool
 		expectedOut string
 	}{
 		{
-			name:        "without insecure",
-			insecure:    false,
-			expectedOut: "helm dependency build",
+			name:        "without flags",
+			creds:       HelmCreds{},
+			plainHTTP:   false,
+			expectedOut: "helm pull oci://my.registry.com/myrepo/mychart --version 1.0.0 --destination /tmp/dest",
 		},
 		{
-			name:        "with insecure",
-			insecure:    true,
-			expectedOut: "helm dependency build --insecure-skip-tls-verify",
+			name:        "insecure skip verify",
+			creds:       HelmCreds{InsecureSkipVerify: true},
+			plainHTTP:   false,
+			expectedOut: "helm pull oci://my.registry.com/myrepo/mychart --version 1.0.0 --destination /tmp/dest --insecure-skip-tls-verify",
+		},
+		{
+			name:        "plain-http",
+			creds:       HelmCreds{},
+			plainHTTP:   true,
+			expectedOut: "helm pull oci://my.registry.com/myrepo/mychart --version 1.0.0 --destination /tmp/dest --plain-http",
+		},
+		{
+			name:        "insecure and plain-http both set",
+			creds:       HelmCreds{InsecureSkipVerify: true},
+			plainHTTP:   true,
+			expectedOut: "helm pull oci://my.registry.com/myrepo/mychart --version 1.0.0 --destination /tmp/dest --insecure-skip-tls-verify --plain-http",
 		},
 	}
 	for _, tc := range tests {
@@ -158,7 +211,52 @@ func TestDependencyBuild(t *testing.T) {
 				return strings.Join(cmd.Args, " "), nil
 			})
 			require.NoError(t, err)
-			out, err := c.dependencyBuild(tc.insecure)
+			out, err := c.PullOCI("my.registry.com/myrepo", "mychart", "1.0.0", "/tmp/dest", &tc.creds, tc.plainHTTP)
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedOut, out)
+		})
+	}
+}
+
+func TestDependencyBuild(t *testing.T) {
+	tests := []struct {
+		name        string
+		insecure    bool
+		plainHTTP   bool
+		expectedOut string
+	}{
+		{
+			name:        "without flags",
+			insecure:    false,
+			plainHTTP:   false,
+			expectedOut: "helm dependency build",
+		},
+		{
+			name:        "with insecure",
+			insecure:    true,
+			plainHTTP:   false,
+			expectedOut: "helm dependency build --insecure-skip-tls-verify",
+		},
+		{
+			name:        "with plain-http",
+			insecure:    false,
+			plainHTTP:   true,
+			expectedOut: "helm dependency build --plain-http",
+		},
+		{
+			name:        "with insecure and plain-http both set",
+			insecure:    true,
+			plainHTTP:   true,
+			expectedOut: "helm dependency build --insecure-skip-tls-verify --plain-http",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			c, err := newCmdWithVersion(".", false, "", "", func(cmd *exec.Cmd, _ func(_ string) string) (string, error) {
+				return strings.Join(cmd.Args, " "), nil
+			})
+			require.NoError(t, err)
+			out, err := c.dependencyBuild(tc.insecure, tc.plainHTTP)
 			require.NoError(t, err)
 			assert.Equal(t, tc.expectedOut, out)
 		})
@@ -166,6 +264,7 @@ func TestDependencyBuild(t *testing.T) {
 }
 
 func TestRegistryLogout(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		repo        string
@@ -187,6 +286,7 @@ func TestRegistryLogout(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			c, err := newCmdWithVersion(".", false, "", "", func(cmd *exec.Cmd, _ func(_ string) string) (string, error) {
 				if tc.execErr != nil {
 					return "", tc.execErr

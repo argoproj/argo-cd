@@ -12,14 +12,15 @@ import (
 )
 
 type GithubProvider struct {
-	client       *github.Client
-	organization string
-	allBranches  bool
+	client               *github.Client
+	organization         string
+	allBranches          bool
+	excludeArchivedRepos bool
 }
 
 var _ SCMProviderService = &GithubProvider{}
 
-func NewGithubProvider(organization string, token string, url string, allBranches bool, optionalHTTPClient ...*http.Client) (*GithubProvider, error) {
+func NewGithubProvider(organization string, token string, url string, allBranches bool, excludeArchivedRepos bool, optionalHTTPClient ...*http.Client) (*GithubProvider, error) {
 	// Undocumented environment variable to set a default token, to be used in testing to dodge anonymous rate limits.
 	if token == "" {
 		token = os.Getenv("GITHUB_TOKEN")
@@ -45,7 +46,7 @@ func NewGithubProvider(organization string, token string, url string, allBranche
 			return nil, err
 		}
 	}
-	return &GithubProvider{client: client, organization: organization, allBranches: allBranches}, nil
+	return &GithubProvider{client: client, organization: organization, allBranches: allBranches, excludeArchivedRepos: excludeArchivedRepos}, nil
 }
 
 func (g *GithubProvider) GetBranches(ctx context.Context, repo *Repository) ([]*Repository, error) {
@@ -90,6 +91,11 @@ func (g *GithubProvider) ListRepos(ctx context.Context, cloneProtocol string) ([
 			default:
 				return nil, fmt.Errorf("unknown clone protocol for GitHub %v", cloneProtocol)
 			}
+
+			if g.excludeArchivedRepos && githubRepo.GetArchived() {
+				continue
+			}
+
 			repos = append(repos, &Repository{
 				Organization: githubRepo.Owner.GetLogin(),
 				Repository:   githubRepo.GetName(),

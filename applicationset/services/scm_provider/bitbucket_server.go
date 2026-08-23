@@ -21,7 +21,7 @@ type BitbucketServerProvider struct {
 
 var _ SCMProviderService = &BitbucketServerProvider{}
 
-func NewBitbucketServerProviderBasicAuth(ctx context.Context, username, password, url, projectKey string, allBranches bool, scmRootCAPath string, insecure bool, caCerts []byte) (*BitbucketServerProvider, error) {
+func NewBitbucketServerProviderBasicAuth(ctx context.Context, username, password, url, projectKey string, allBranches bool, scmRootCAPath string, insecure bool, caCerts []byte, proxyURL, noProxy string) (*BitbucketServerProvider, error) {
 	bitbucketConfig := bitbucketv1.NewConfiguration(url)
 	// Avoid the XSRF check
 	bitbucketConfig.AddDefaultHeader("x-atlassian-token", "no-check")
@@ -31,25 +31,25 @@ func NewBitbucketServerProviderBasicAuth(ctx context.Context, username, password
 		UserName: username,
 		Password: password,
 	})
-	return newBitbucketServerProvider(ctx, bitbucketConfig, projectKey, allBranches, scmRootCAPath, insecure, caCerts)
+	return newBitbucketServerProvider(ctx, bitbucketConfig, projectKey, allBranches, scmRootCAPath, insecure, caCerts, proxyURL, noProxy)
 }
 
-func NewBitbucketServerProviderBearerToken(ctx context.Context, bearerToken, url, projectKey string, allBranches bool, scmRootCAPath string, insecure bool, caCerts []byte) (*BitbucketServerProvider, error) {
+func NewBitbucketServerProviderBearerToken(ctx context.Context, bearerToken, url, projectKey string, allBranches bool, scmRootCAPath string, insecure bool, caCerts []byte, proxyURL, noProxy string) (*BitbucketServerProvider, error) {
 	bitbucketConfig := bitbucketv1.NewConfiguration(url)
 	// Avoid the XSRF check
 	bitbucketConfig.AddDefaultHeader("x-atlassian-token", "no-check")
 	bitbucketConfig.AddDefaultHeader("x-requested-with", "XMLHttpRequest")
 
 	ctx = context.WithValue(ctx, bitbucketv1.ContextAccessToken, bearerToken)
-	return newBitbucketServerProvider(ctx, bitbucketConfig, projectKey, allBranches, scmRootCAPath, insecure, caCerts)
+	return newBitbucketServerProvider(ctx, bitbucketConfig, projectKey, allBranches, scmRootCAPath, insecure, caCerts, proxyURL, noProxy)
 }
 
-func NewBitbucketServerProviderNoAuth(ctx context.Context, url, projectKey string, allBranches bool, scmRootCAPath string, insecure bool, caCerts []byte) (*BitbucketServerProvider, error) {
-	return newBitbucketServerProvider(ctx, bitbucketv1.NewConfiguration(url), projectKey, allBranches, scmRootCAPath, insecure, caCerts)
+func NewBitbucketServerProviderNoAuth(ctx context.Context, url, projectKey string, allBranches bool, scmRootCAPath string, insecure bool, caCerts []byte, proxyURL, noProxy string) (*BitbucketServerProvider, error) {
+	return newBitbucketServerProvider(ctx, bitbucketv1.NewConfiguration(url), projectKey, allBranches, scmRootCAPath, insecure, caCerts, proxyURL, noProxy)
 }
 
-func newBitbucketServerProvider(ctx context.Context, bitbucketConfig *bitbucketv1.Configuration, projectKey string, allBranches bool, scmRootCAPath string, insecure bool, caCerts []byte) (*BitbucketServerProvider, error) {
-	bbClient := services.SetupBitbucketClient(ctx, bitbucketConfig, scmRootCAPath, insecure, caCerts)
+func newBitbucketServerProvider(ctx context.Context, bitbucketConfig *bitbucketv1.Configuration, projectKey string, allBranches bool, scmRootCAPath string, insecure bool, caCerts []byte, proxyURL, noProxy string) (*BitbucketServerProvider, error) {
+	bbClient := services.SetupBitbucketClient(ctx, bitbucketConfig, scmRootCAPath, insecure, caCerts, proxyURL, noProxy)
 
 	return &BitbucketServerProvider{
 		client:      bbClient,

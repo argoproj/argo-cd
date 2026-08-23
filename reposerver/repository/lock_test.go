@@ -34,6 +34,7 @@ func numberOfInits(initializedTimes *int) func(_ bool) (io.Closer, error) {
 }
 
 func TestLock_SameRevision(t *testing.T) {
+	t.Parallel()
 	lock := NewRepositoryLock()
 	initializedTimes := 0
 	init := numberOfInits(&initializedTimes)
@@ -61,6 +62,7 @@ func TestLock_SameRevision(t *testing.T) {
 }
 
 func TestLock_DifferentRevisions(t *testing.T) {
+	t.Parallel()
 	lock := NewRepositoryLock()
 	initializedTimes := 0
 	init := numberOfInits(&initializedTimes)
@@ -93,6 +95,7 @@ func TestLock_DifferentRevisions(t *testing.T) {
 }
 
 func TestLock_NoConcurrentWithSameRevision(t *testing.T) {
+	t.Parallel()
 	lock := NewRepositoryLock()
 	initializedTimes := 0
 	init := numberOfInits(&initializedTimes)
@@ -117,6 +120,7 @@ func TestLock_NoConcurrentWithSameRevision(t *testing.T) {
 }
 
 func TestLock_FailedInitialization(t *testing.T) {
+	t.Parallel()
 	lock := NewRepositoryLock()
 
 	closer1, done := lockQuickly(func() (io.Closer, error) {
@@ -145,6 +149,7 @@ func TestLock_FailedInitialization(t *testing.T) {
 }
 
 func TestLock_SameRevisionFirstNotConcurrent(t *testing.T) {
+	t.Parallel()
 	lock := NewRepositoryLock()
 	initializedTimes := 0
 	init := numberOfInits(&initializedTimes)
@@ -170,6 +175,7 @@ func TestLock_SameRevisionFirstNotConcurrent(t *testing.T) {
 }
 
 func TestLock_CleanForNonConcurrent(t *testing.T) {
+	t.Parallel()
 	lock := NewRepositoryLock()
 	initClean := false
 	init := func(clean bool) (io.Closer, error) {

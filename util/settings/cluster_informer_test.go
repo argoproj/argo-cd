@@ -23,6 +23,7 @@ import (
 )
 
 func TestClusterInformer_ConcurrentAccess(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
@@ -67,6 +68,7 @@ func TestClusterInformer_ConcurrentAccess(t *testing.T) {
 }
 
 func TestClusterInformer_TransformErrors(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
@@ -104,6 +106,7 @@ func TestClusterInformer_TransformErrors(t *testing.T) {
 }
 
 func TestClusterInformer_TransformErrors_MixedSecrets(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
@@ -157,6 +160,7 @@ func TestClusterInformer_TransformErrors_MixedSecrets(t *testing.T) {
 }
 
 func TestClusterInformer_DynamicUpdates(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
@@ -216,6 +220,7 @@ func TestClusterInformer_DynamicUpdates(t *testing.T) {
 }
 
 func TestClusterInformer_URLNormalization(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
@@ -254,6 +259,7 @@ func TestClusterInformer_URLNormalization(t *testing.T) {
 }
 
 func TestClusterInformer_GetClusterServersByName(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
@@ -303,6 +309,7 @@ func TestClusterInformer_GetClusterServersByName(t *testing.T) {
 }
 
 func TestClusterInformer_RaceCondition(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
@@ -421,6 +428,7 @@ func TestClusterInformer_RaceCondition(t *testing.T) {
 }
 
 func TestClusterInformer_DeepCopyIsolation(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
@@ -470,6 +478,7 @@ func TestClusterInformer_DeepCopyIsolation(t *testing.T) {
 }
 
 func TestClusterInformer_EdgeCases(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		secrets  []runtime.Object
@@ -675,8 +684,9 @@ func TestClusterInformer_EdgeCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			ctx, cancel := context.WithCancel(t.Context())
-			defer cancel()
+			t.Cleanup(cancel)
 
 			clientset := fake.NewClientset(tt.secrets...)
 			informer, err := NewClusterInformer(clientset, "argocd")
@@ -691,6 +701,7 @@ func TestClusterInformer_EdgeCases(t *testing.T) {
 }
 
 func TestClusterInformer_SecretDeletion(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
@@ -755,6 +766,7 @@ func TestClusterInformer_SecretDeletion(t *testing.T) {
 }
 
 func TestClusterInformer_ComplexConfig(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
@@ -879,8 +891,9 @@ func BenchmarkClusterInformer_GetClusterByURL(b *testing.B) {
 }
 
 func TestClusterInformer_GetProjectClusters(t *testing.T) {
+	t.Parallel()
 	ctx, cancel := context.WithCancel(t.Context())
-	defer cancel()
+	t.Cleanup(cancel)
 
 	secrets := []runtime.Object{
 		&corev1.Secret{
@@ -932,6 +945,7 @@ func TestClusterInformer_GetProjectClusters(t *testing.T) {
 	cache.WaitForCacheSync(ctx.Done(), informer.HasSynced)
 
 	t.Run("returns clusters for matching project", func(t *testing.T) {
+		t.Parallel()
 		clusters, err := informer.GetProjectClusters("project-a")
 		require.NoError(t, err)
 		assert.Len(t, clusters, 2)
@@ -945,6 +959,7 @@ func TestClusterInformer_GetProjectClusters(t *testing.T) {
 	})
 
 	t.Run("does not return clusters from other projects", func(t *testing.T) {
+		t.Parallel()
 		clusters, err := informer.GetProjectClusters("project-b")
 		require.NoError(t, err)
 		assert.Len(t, clusters, 1)
@@ -952,12 +967,14 @@ func TestClusterInformer_GetProjectClusters(t *testing.T) {
 	})
 
 	t.Run("returns empty for non-existent project", func(t *testing.T) {
+		t.Parallel()
 		clusters, err := informer.GetProjectClusters("no-such-project")
 		require.NoError(t, err)
 		assert.Empty(t, clusters)
 	})
 
 	t.Run("returned clusters are isolated from cache", func(t *testing.T) {
+		t.Parallel()
 		clusters, err := informer.GetProjectClusters("project-a")
 		require.NoError(t, err)
 		require.Len(t, clusters, 2)
