@@ -2,6 +2,7 @@ package rbacpolicy
 
 import (
 	"fmt"
+	"sync"
 	"testing"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -240,4 +241,99 @@ func Test_getProjectFromRequest(t *testing.T) {
 			require.Equal(t, fp.Name, project.Name)
 		})
 	}
+}
+
+func TestIsLocalAccount(t *testing.T) {
+	assert.True(t, isLocalAccount(jwt.MapClaims{"iss": common.ArgoCDSessionClaimsIssuer}))
+	assert.False(t, isLocalAccount(jwt.MapClaims{"iss": "https://accounts.google.com"}))
+	assert.False(t, isLocalAccount(jwt.MapClaims{"iss": "sso"}))
+	assert.False(t, isLocalAccount(jwt.MapClaims{}))
+}
+
+func TestSetEnableLocalUserStrictMode(t *testing.T) {
+	rbacEnf := NewRBACPolicyEnforcer(nil, nil)
+	assert.False(t, rbacEnf.GetEnableLocalUserStrictMode())
+	rbacEnf.SetEnableLocalUserStrictMode(true)
+	assert.True(t, rbacEnf.GetEnableLocalUserStrictMode())
+	rbacEnf.SetEnableLocalUserStrictMode(false)
+	assert.False(t, rbacEnf.GetEnableLocalUserStrictMode())
+}
+
+// TestEnableLocalUserStrictModeConcurrency exercises concurrent reads and writes of the strict-mode
+// flag. It is meant to be run under the race detector (`go test -race`) to guard against the data
+// race that would occur if the flag were a plain bool written from the settings-watch goroutine
+// while being read during RBAC enforcement.
+func TestEnableLocalUserStrictModeConcurrency(t *testing.T) {
+	rbacEnf := NewRBACPolicyEnforcer(nil, nil)
+	claims := jwt.MapClaims{"sub": "sally", "iss": common.ArgoCDSessionClaimsIssuer}
+
+	var wg sync.WaitGroup
+	for i := range 50 {
+		wg.Add(3)
+		go func(enabled bool) { defer wg.Done(); rbacEnf.SetEnableLocalUserStrictMode(enabled) }(i%2 == 0)
+		go func() { defer wg.Done(); _ = rbacEnf.GetEnableLocalUserStrictMode() }()
+		go func() { defer wg.Done(); _ = isLocalAccount(claims) }()
+	}
+	wg.Wait()
+
+	rbacEnf.SetEnableLocalUserStrictMode(true)
+	assert.True(t, rbacEnf.GetEnableLocalUserStrictMode())
+}
+
+// TestEnforceLocalUserStrictMode verifies that, when strict mode is enabled, an RBAC policy bound
+// to `sally@local` only grants permissions to the local `sally` account (iss=argocd) and not to an
+// SSO user who happens to also be named `sally`. With strict mode disabled, both match the plain
+// `sally` binding (the pre-existing, ambiguous behavior).
+func TestEnforceLocalUserStrictMode(t *testing.T) {
+	newEnforcer := func(t *testing.T) (*rbac.Enforcer, *RBACPolicyEnforcer) {
+		t.Helper()
+		kubeclientset := fake.NewClientset(test.NewFakeConfigMap())
+		projLister := test.NewFakeProjLister(newFakeProj())
+		enf := rbac.NewEnforcer(kubeclientset, test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
+		enf.EnableLog(true)
+		rbacEnf := NewRBACPolicyEnforcer(enf, projLister)
+		enf.SetClaimsEnforcerFunc(rbacEnf.EnforceClaims)
+		return enf, rbacEnf
+	}
+
+	localClaims := jwt.MapClaims{"sub": "sally", "iss": common.ArgoCDSessionClaimsIssuer}
+	ssoClaims := jwt.MapClaims{"sub": "sally", "iss": "https://accounts.google.com"}
+
+	t.Run("strict mode: only the local account matches an @local binding", func(t *testing.T) {
+		enf, rbacEnf := newEnforcer(t)
+		rbacEnf.SetEnableLocalUserStrictMode(true)
+		_ = enf.SetBuiltinPolicy(`p, sally@local, applications, create, my-proj/*, allow`)
+
+		assert.True(t, enf.Enforce(localClaims, "applications", "create", "my-proj/my-app"),
+			"local sally should match the @local binding")
+		assert.False(t, enf.Enforce(ssoClaims, "applications", "create", "my-proj/my-app"),
+			"SSO sally must not inherit the local user's role")
+	})
+
+	t.Run("strict mode: a plain binding no longer matches the local account", func(t *testing.T) {
+		enf, rbacEnf := newEnforcer(t)
+		rbacEnf.SetEnableLocalUserStrictMode(true)
+		_ = enf.SetBuiltinPolicy(`p, sally, applications, create, my-proj/*, allow`)
+
+		assert.False(t, enf.Enforce(localClaims, "applications", "create", "my-proj/my-app"),
+			"local sally is enforced as sally@local and should not match the plain binding")
+		assert.True(t, enf.Enforce(ssoClaims, "applications", "create", "my-proj/my-app"),
+			"SSO sally is not suffixed and still matches the plain binding")
+	})
+
+	t.Run("strict mode disabled: both local and SSO match a plain binding", func(t *testing.T) {
+		enf, _ := newEnforcer(t)
+		_ = enf.SetBuiltinPolicy(`p, sally, applications, create, my-proj/*, allow`)
+
+		assert.True(t, enf.Enforce(localClaims, "applications", "create", "my-proj/my-app"))
+		assert.True(t, enf.Enforce(ssoClaims, "applications", "create", "my-proj/my-app"))
+	})
+
+	t.Run("strict mode: project tokens are left untouched", func(t *testing.T) {
+		enf, rbacEnf := newEnforcer(t)
+		rbacEnf.SetEnableLocalUserStrictMode(true)
+		claims := jwt.MapClaims{"sub": "proj:my-proj:my-role", "iat": 1234}
+		assert.True(t, enf.Enforce(claims, "applications", "create", "my-proj/my-app"),
+			"project role tokens must not be suffixed with @local")
+	})
 }

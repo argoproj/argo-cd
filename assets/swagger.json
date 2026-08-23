@@ -6525,6 +6525,10 @@
         "loggedIn": {
           "type": "boolean"
         },
+        "rbacSubject": {
+          "description": "rbacSubject is the identity to reference in RBAC policies for the current user. It matches\nusername except when local-user strict mode is enabled, where local accounts are suffixed with\n\"@local\" (e.g. \"sally@local\"). It is intended for display only; username remains the real account name.",
+          "type": "string"
+        },
         "username": {
           "type": "string"
         }
