@@ -2,25 +2,27 @@
 
 package db
 
+// These WatchClusters tests remain excluded from the race detector. The dropped-event
+// flake they originally suffered (#4755) is fixed by waiting for the secret informer to
+// sync before emitting events. They still exercise a rapid create -> delete cycle that
+// can trip a separate resync race in SettingsManager (ResyncInformers/ensureSynced)
+// under the race detector's altered timing
+
 import (
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/argoproj/argo-cd/v3/common"
-
 	"github.com/stretchr/testify/assert"
 	"k8s.io/client-go/kubernetes/fake"
 
+	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 func TestWatchClusters_CreateRemoveCluster(t *testing.T) {
-	// !race:
-	// Intermittent failure when running TestWatchClusters_LocalClusterModifications with -race, likely due to race condition
-	// https://github.com/argoproj/argo-cd/issues/4755
 	emptyArgoCDConfigMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDConfigMapName,
@@ -74,9 +76,6 @@ func TestWatchClusters_CreateRemoveCluster(t *testing.T) {
 }
 
 func TestWatchClusters_LocalClusterModifications(t *testing.T) {
-	// !race:
-	// Intermittent failure when running TestWatchClusters_LocalClusterModifications with -race, likely due to race condition
-	// https://github.com/argoproj/argo-cd/issues/4755
 	emptyArgoCDConfigMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDConfigMapName,
@@ -130,9 +129,6 @@ func TestWatchClusters_LocalClusterModifications(t *testing.T) {
 }
 
 func TestWatchClusters_MissingServerSecretKey(t *testing.T) {
-	// !race:
-	// Intermittent failure when running with -race, likely due to race condition
-	// https://github.com/argoproj/argo-cd/issues/4755
 	emptyArgoCDConfigMap := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDConfigMapName,
@@ -168,9 +164,6 @@ func TestWatchClusters_MissingServerSecretKey(t *testing.T) {
 }
 
 func TestWatchClusters_LocalClusterModificationsWhenDisabled(t *testing.T) {
-	// !race:
-	// Intermittent failure when running TestWatchClusters_LocalClusterModifications with -race, likely due to race condition
-	// https://github.com/argoproj/argo-cd/issues/4755
 	argoCDConfigMapWithInClusterServerAddressDisabled := &corev1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      common.ArgoCDConfigMapName,

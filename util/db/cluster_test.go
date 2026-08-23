@@ -2,6 +2,7 @@ package db
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -20,6 +21,8 @@ import (
 
 const (
 	fakeNamespace = "fake-ns"
+
+	watchTestTimeout = 5 * time.Second
 )
 
 func Test_URIToSecretName(t *testing.T) {
@@ -258,27 +261,34 @@ func runWatchTest(t *testing.T, db ArgoDB, actions []func(old *v1alpha1.Cluster,
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
-	timeout := time.Second * 5
+	allDone := make(chan bool)
+	var signalDoneOnce sync.Once
+	signalDone := func() {
+		signalDoneOnce.Do(func() { close(allDone) })
+	}
 
-	allDone := make(chan bool, 1)
-
+	var actionsMu sync.Mutex
 	doNext := func(old *v1alpha1.Cluster, new *v1alpha1.Cluster) {
+		actionsMu.Lock()
 		if len(actions) == 0 {
+			actionsMu.Unlock()
 			assert.Fail(t, "Unexpected event")
+			return
 		}
 		next := actions[0]
+		actions = actions[1:]
+		remaining := len(actions)
+		actionsMu.Unlock()
+
 		next(old, new)
-		if t.Failed() {
-			allDone <- true
-		}
-		if len(actions) == 1 {
-			allDone <- true
-		} else {
-			actions = actions[1:]
+		if t.Failed() || remaining == 0 {
+			signalDone()
 		}
 	}
 
+	watchReturned := make(chan struct{})
 	go func() {
+		defer close(watchReturned)
 		assert.NoError(t, db.WatchClusters(ctx, func(cluster *v1alpha1.Cluster) {
 			doNext(nil, cluster)
 		}, func(oldCluster *v1alpha1.Cluster, newCluster *v1alpha1.Cluster) {
@@ -290,10 +300,14 @@ func runWatchTest(t *testing.T, db ArgoDB, actions []func(old *v1alpha1.Cluster,
 
 	select {
 	case <-allDone:
-		return true
-	case <-time.After(timeout):
-		return false
+		completed = true
+	case <-time.After(watchTestTimeout):
+		completed = false
 	}
+
+	cancel()
+	<-watchReturned
+	return completed
 }
 
 func TestGetCluster(t *testing.T) {
