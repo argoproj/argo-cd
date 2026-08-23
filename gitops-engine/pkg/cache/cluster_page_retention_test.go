@@ -34,7 +34,7 @@ func (m *pagedListResourceInterface) List(_ context.Context, _ metav1.ListOption
 }
 
 // TestLoadInitialStateDoesNotRetainListPage asserts that caching a manifest does not pin the list
-// page it arrived in, which happens when using pager.EachListItem rather than poager.EachListItemWithAlloc
+// page it arrived in, which happens when using pager.EachListItem rather than pager.EachListItemWithAlloc
 func TestLoadInitialStateDoesNotRetainListPage(t *testing.T) {
 	t.Parallel()
 
