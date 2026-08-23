@@ -245,6 +245,26 @@ func TestRunCommandErrCaptureStderrStripsAnsi(t *testing.T) {
 	assert.NotContains(t, err.Error(), "\x1b")
 }
 
+func TestRunCommandTimeoutStripsAnsi(t *testing.T) {
+	// A command that emits ANSI color codes and then exceeds the timeout must
+	// have the codes stripped from the returned output.
+	output, err := RunCommand("sh", CmdOpts{Timeout: 200 * time.Millisecond, CaptureStderr: true}, "-c", `printf '\033[1;31mred error\033[0m\n'; sleep 5`)
+	require.ErrorContains(t, err, "timeout after 200ms")
+	assert.NotContains(t, output, "\x1b[")
+	assert.Contains(t, output, "red error")
+}
+
+func TestRunCommandFatalTimeoutStripsAnsi(t *testing.T) {
+	// A command that emits ANSI color codes, ignores SIGTERM and is eventually
+	// SIGKILLed must have the codes stripped from the returned output.
+	timeoutBehavior := TimeoutBehavior{Signal: syscall.SIGTERM, ShouldWait: true}
+	opts := CmdOpts{Timeout: 200 * time.Millisecond, FatalTimeout: 100 * time.Millisecond, CaptureStderr: true, TimeoutBehavior: timeoutBehavior}
+	output, err := RunCommand("sh", opts, "-c", `printf '\033[1;31mred error\033[0m\n'; trap 'trap - 15 && sleep 10' 15 && sleep 2`)
+	require.ErrorContains(t, err, "fatal timeout after 300ms")
+	assert.NotContains(t, output, "\x1b[")
+	assert.Contains(t, output, "red error")
+}
+
 func TestRunCaptureStderr(t *testing.T) {
 	output, err := RunCommand("sh", CmdOpts{CaptureStderr: true}, "-c", "echo hello world && echo my-error >&2 && exit 0")
 	assert.Equal(t, "hello world\nmy-error", output)

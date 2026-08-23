@@ -252,9 +252,9 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 				// now original cmd should exit immediately after SIGKILL
 				<-done
 				// return error with a marker indicating that cmd exited only after fatal SIGKILL
-				output := stdout.String()
+				output := stripAnsi(stdout.String())
 				if opts.CaptureStderr {
-					output += stderr.String()
+					output += stripAnsi(stderr.String())
 				}
 				logCtx.WithFields(logrus.Fields{"duration": time.Since(start)}).Debug(redactor(output))
 				err = newCmdError(redactor(args), fmt.Errorf("fatal timeout after %v", timeout+fatalTimeout), "")
@@ -263,9 +263,9 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 			}
 		}
 		// either did not wait for timeout or cmd did respect SIGTERM
-		output := stdout.String()
+		output := stripAnsi(stdout.String())
 		if opts.CaptureStderr {
-			output += stderr.String()
+			output += stripAnsi(stderr.String())
 		}
 		logCtx.WithFields(logrus.Fields{"duration": time.Since(start)}).Debug(redactor(output))
 		err = newCmdError(redactor(args), fmt.Errorf("timeout after %v", timeout), "")
