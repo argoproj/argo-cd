@@ -193,6 +193,15 @@ func TestWebhookHandler(t *testing.T) {
 			expectedStatusCode: http.StatusOK,
 			expectedRefresh:    true,
 		},
+		{
+			desc:               "WebHook from GHCR via package published event",
+			headerKey:          "X-GitHub-Event",
+			headerValue:        "package",
+			payloadFile:        "ghcr-package-event.json",
+			effectedAppSets:    []string{"oci-ghcr", "plugin", "matrix-pull-request-github-plugin"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    true,
+		},
 	}
 
 	namespace := "test"
@@ -221,6 +230,7 @@ func TestWebhookHandler(t *testing.T) {
 				fakeAppWithGitlabPullRequestGenerator("pull-request-gitlab", namespace, "100500"),
 				fakeAppWithAzureDevOpsPullRequestGenerator("pull-request-azure-devops", namespace, "DefaultCollection", "Fabrikam"),
 				fakeAppWithPluginGenerator("plugin", namespace),
+				fakeAppWithOciGenerator("oci-ghcr", namespace, "oci://ghcr.io/org/image", "1.0.0"),
 				fakeAppWithMatrixAndGitGenerator("matrix-git-github", namespace, "https://github.com/org/repo"),
 				fakeAppWithMatrixAndPullRequestGenerator("matrix-pull-request-github", namespace, "Codertocat", "Hello-World"),
 				fakeAppWithMatrixAndScmWithGitGenerator("matrix-scm-git-github", namespace, "org"),
@@ -276,6 +286,7 @@ func mockGenerators() map[string]generators.Generator {
 	generatorMockGit := &generatorMock{}
 	generatorMockPR := &generatorMock{}
 	generatorMockPlugin := &generatorMock{}
+	generatorMockOCI := &generatorMock{}
 	mockSCMProvider := &scm_provider.MockProvider{
 		Repos: []*scm_provider.Repository{
 			{
@@ -302,6 +313,7 @@ func mockGenerators() map[string]generators.Generator {
 		"SCMProvider": generatorMockSCM,
 		"PullRequest": generatorMockPR,
 		"Plugin":      generatorMockPlugin,
+		"Oci":         generatorMockOCI,
 	}
 
 	nestedGenerators := map[string]generators.Generator{
@@ -310,6 +322,7 @@ func mockGenerators() map[string]generators.Generator {
 		"SCMProvider": terminalMockGenerators["SCMProvider"],
 		"PullRequest": terminalMockGenerators["PullRequest"],
 		"Plugin":      terminalMockGenerators["Plugin"],
+		"Oci":         terminalMockGenerators["Oci"],
 		"Matrix":      generators.NewMatrixGenerator(terminalMockGenerators),
 		"Merge":       generators.NewMergeGenerator(terminalMockGenerators),
 	}
@@ -320,6 +333,7 @@ func mockGenerators() map[string]generators.Generator {
 		"SCMProvider": terminalMockGenerators["SCMProvider"],
 		"PullRequest": terminalMockGenerators["PullRequest"],
 		"Plugin":      terminalMockGenerators["Plugin"],
+		"Oci":         terminalMockGenerators["Oci"],
 		"Matrix":      generators.NewMatrixGenerator(nestedGenerators),
 		"Merge":       generators.NewMergeGenerator(nestedGenerators),
 	}
@@ -747,6 +761,25 @@ func fakeAppWithPluginGenerator(name, namespace string) *v1alpha1.ApplicationSet
 						ConfigMapRef: v1alpha1.PluginConfigMapRef{
 							Name: "test",
 						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func fakeAppWithOciGenerator(name, namespace, repoURL, revision string) *v1alpha1.ApplicationSet {
+	return &v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+		},
+		Spec: v1alpha1.ApplicationSetSpec{
+			Generators: []v1alpha1.ApplicationSetGenerator{
+				{
+					Oci: &v1alpha1.OciGenerator{
+						RepoURL:  repoURL,
+						Revision: revision,
 					},
 				},
 			},
