@@ -274,7 +274,7 @@ func TestGenerate(t *testing.T) {
 		cert, err := x509.ParseCertificate(certBytes)
 		require.NoError(t, err)
 		assert.NotNil(t, cert)
-		assert.GreaterOrEqual(t, (time.Now().Unix())+int64(1*time.Hour), cert.NotBefore.Unix())
+		assert.GreaterOrEqual(t, time.Now().Unix()+int64(1*time.Hour), cert.NotBefore.Unix())
 	})
 
 	for _, year := range []int{1, 2, 3, 10} {
