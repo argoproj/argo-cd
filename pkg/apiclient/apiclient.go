@@ -377,7 +377,7 @@ func (c *client) OIDCConfig(ctx context.Context, set *settingspkg.Settings) (*oa
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to parse provider config: %w", err)
 	}
-	if oidcutil.OfflineAccess(oidcConf.ScopesSupported) {
+	if (set.OIDCConfig == nil || !set.DisableOfflineAccessScopeInjection) && oidcutil.OfflineAccess(oidcConf.ScopesSupported) {
 		scopes = append(scopes, oidc.ScopeOfflineAccess)
 	}
 	oauth2conf := oauth2.Config{

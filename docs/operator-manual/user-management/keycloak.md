@@ -78,6 +78,7 @@ Make sure that:
 - __clientID__ is set to the Client ID you configured in Keycloak
 - __clientSecret__ points to the right key you created in the _argocd-secret_ Secret
 - __requestedScopes__ contains the _groups_ claim if you didn't add it to the Default scopes
+- If you don't want Argo CD to automatically request the _offline_access_ scope (which Keycloak uses to issue long-lived refresh tokens that survive logout), set __disableOfflineAccessScopeInjection: true__ in the OIDC config
 - __refreshTokenThreshold__ is less than the client token lifetime.  If this setting is not less than the token lifetime, a new token will be obtained for every request.  Keycloak sets the client token lifetime to 5 minutes by default.
 
 ## Keycloak and Argo CD with PKCE
@@ -151,6 +152,7 @@ Make sure that:
 - __issuer__ on Keycloak releases older than version 17 the URL must include /auth (in this example /auth/realms/master)
 - __clientID__ is set to the Client ID you configured in Keycloak
 - __enablePKCEAuthentication__ must be set to true to enable correct Argo CD behaviour with PKCE
+- If you don't want Argo CD to automatically request the _offline_access_ scope (which Keycloak uses to issue long-lived refresh tokens that survive logout), set __disableOfflineAccessScopeInjection: true__ in the OIDC config
 - __requestedScopes__ contains the _groups_ claim if you didn't add it to the Default scopes
 - __refreshTokenThreshold__ is less than the client token lifetime.  If this setting is not less than the token lifetime, a new token will be obtained for every request.  Keycloak sets the client token lifetime to 5 minutes by default.
 

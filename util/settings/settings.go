@@ -176,6 +176,7 @@ type ArgoCDSettings struct {
 	// RequireOverridePrivilegeForRevisionSync indicates whether giving an external revision during snyc is considered an override.
 	// Up to revision 3.2, this was always false. It is now still false by default, in order to not breaking existing usage.
 	RequireOverridePrivilegeForRevisionSync bool `json:"requireOverridePrivilegeForRevisionSync"`
+	DisableOfflineAccessScopeInjection      bool `json:"disableOfflineAccessScopeInjection,omitempty"`
 }
 
 type GoogleAnalytics struct {
@@ -452,7 +453,8 @@ const (
 	// settingDexAuthConnectorIDKey designates the key for the default dex auth connector ID
 	settingDexAuthConnectorIDKey = "dex.auth.connectorId"
 	// settingsOIDCConfigKey designates the key for OIDC config
-	settingsOIDCConfigKey = "oidc.config"
+	settingsOIDCConfigKey                         = "oidc.config"
+	settingsDisableOfflineAccessScopeInjectionKey = "disableOfflineAccessScopeInjection"
 	// statusBadgeEnabledKey holds the key which enables of disables status badge feature
 	statusBadgeEnabledKey = "statusbadge.enabled"
 	// statusBadgeRootURLKey holds the key for the root badge URL override
@@ -1767,6 +1769,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 	settings.ExtensionConfig = getExtensionConfigs(argoCDCM.Data)
 	settings.ImpersonationEnabled = argoCDCM.Data[impersonationEnabledKey] == "true"
 	settings.RequireOverridePrivilegeForRevisionSync = argoCDCM.Data[requireOverridePrivilegeForRevisionSyncKey] == "true"
+	settings.DisableOfflineAccessScopeInjection = argoCDCM.Data[settingsDisableOfflineAccessScopeInjectionKey] == "true"
 }
 
 func getExtensionConfigs(cmData map[string]string) map[string]string {

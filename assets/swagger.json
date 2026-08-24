@@ -5724,6 +5724,9 @@
         "dexConfig": {
           "$ref": "#/definitions/clusterDexConfig"
         },
+        "disableOfflineAccessScopeInjection": {
+          "type": "boolean"
+        },
         "execEnabled": {
           "type": "boolean"
         },
