@@ -539,10 +539,26 @@ func NewProjectSourceIntegrityGitPoliciesUpdateCommand(clientOpts *argocdclient.
 }
 
 func NewProjectSourceIntegrityGitGpgInspectRepoCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	const shortDescription = "Inspect the Git/GPG source integrity of an application in a project"
+
 	var appNamespace string
 	command := &cobra.Command{
 		Use:   "gpg-inspect-repo PROJECT APPNAME",
-		Short: "Inspect the Git/GPG source integrity of an application in a project",
+		Short: shortDescription,
+		Long: shortDescription + `
+
+Inspects each Git source of the application without syncing. Verification is always
+evaluated as strict mode, even when the project uses head or none.
+
+Requires get RBAC permission for the application.
+
+Exit codes:
+
+- 0: no problems found
+- 1: usage error, API/client error, or project has no git source integrity configured
+- 2: problematic commits or configuration errors
+- 3: no git sources to inspect (e.g. multisource app with helm only sources)
+`,
 		Args: func(c *cobra.Command, args []string) error {
 			if len(args) != 2 {
 				c.HelpFunc()(c, args)

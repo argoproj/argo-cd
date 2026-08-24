@@ -4,6 +4,23 @@
 
 Inspect the Git/GPG source integrity of an application in a project
 
+### Synopsis
+
+Inspect the Git/GPG source integrity of an application in a project
+
+Inspects each Git source of the application without syncing. Verification is always
+evaluated as strict mode, even when the project uses head or none.
+
+Requires get RBAC permission for the application.
+
+Exit codes:
+
+- 0: no problems found
+- 1: usage error, API/client error, or project has no git source integrity configured
+- 2: problematic commits or configuration errors
+- 3: no git sources to inspect (e.g. multisource app with helm only sources)
+
+
 ```
 argocd proj source-integrity git gpg-inspect-repo PROJECT APPNAME [flags]
 ```
