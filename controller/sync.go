@@ -95,7 +95,7 @@ func (m *appStateManager) getServerSideDiffDryRunApplier(cluster *v1alpha1.Clust
 func (m *appStateManager) applyDiffImpersonationConfig(config *rest.Config, project *v1alpha1.AppProject, app *v1alpha1.Application, destCluster *v1alpha1.Cluster) error {
 	logEntry := log.WithFields(applog.GetAppLogFields(app))
 
-	impersonationEnabled, err := m.settingsMgr.IsImpersonationEnabled()
+	impersonationEnabled, err := m.configProvider.IsImpersonationEnabled(context.Background())
 	if err != nil {
 		return fmt.Errorf("error getting impersonation setting: %w", err)
 	}
@@ -108,7 +108,7 @@ func (m *appStateManager) applyDiffImpersonationConfig(config *rest.Config, proj
 	}
 	if serviceAccountToImpersonate == "" {
 		// No matching service account found - check enforcement.
-		impersonationEnforced, err := m.settingsMgr.IsImpersonationEnforced()
+		impersonationEnforced, err := m.configProvider.IsImpersonationEnforced(context.Background())
 		if err != nil {
 			return fmt.Errorf("error getting impersonation enforcement setting: %w", err)
 		}
