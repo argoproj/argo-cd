@@ -494,10 +494,11 @@ func Test_CommitHydratedManifests_Signing(t *testing.T) {
 		c := gitmocks.NewClient(t)
 		commonMockExpectations(c)
 		c.EXPECT().Commit("test commit message", signingCfg.KeyID).Return("", nil).Once()
-		c.EXPECT().HeadSignatureStatus().Return("G", signingCfg.Fingerprint, nil).Once()
+		c.EXPECT().CommitSHA(mock.Anything).Return("signed-sha", nil).Twice()
+		// The signature check must be pinned to the exact SHA just created, not HEAD.
+		c.EXPECT().CommitSignatureStatus(mock.Anything, "signed-sha").Return("G", signingCfg.Fingerprint, nil).Once()
 		c.EXPECT().Push("main").Return("", nil).Once()
 		c.EXPECT().AddAndPushNote(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
-		c.EXPECT().CommitSHA(mock.Anything).Return("signed-sha", nil).Twice()
 		mockRepoClientFactory.EXPECT().NewClient(mock.Anything, mock.Anything).Return(c, nil).Once()
 
 		resp, err := service.CommitHydratedManifests(t.Context(), baseRequest)
@@ -511,8 +512,8 @@ func Test_CommitHydratedManifests_Signing(t *testing.T) {
 		c := gitmocks.NewClient(t)
 		commonMockExpectations(c)
 		c.EXPECT().Commit("test commit message", signingCfg.KeyID).Return("", nil).Once()
-		c.EXPECT().HeadSignatureStatus().Return("B", signingCfg.Fingerprint, nil).Once()
-		c.EXPECT().CommitSHA(mock.Anything).Return("never-pushed-sha", nil).Once()
+		c.EXPECT().CommitSHA(mock.Anything).Return("never-pushed-sha", nil).Twice()
+		c.EXPECT().CommitSignatureStatus(mock.Anything, "never-pushed-sha").Return("B", signingCfg.Fingerprint, nil).Once()
 		mockRepoClientFactory.EXPECT().NewClient(mock.Anything, mock.Anything).Return(c, nil).Once()
 
 		_, err := service.CommitHydratedManifests(t.Context(), baseRequest)
@@ -528,8 +529,8 @@ func Test_CommitHydratedManifests_Signing(t *testing.T) {
 		c := gitmocks.NewClient(t)
 		commonMockExpectations(c)
 		c.EXPECT().Commit("test commit message", signingCfg.KeyID).Return("", nil).Once()
-		c.EXPECT().HeadSignatureStatus().Return("", "", errors.New("git boom")).Once()
-		c.EXPECT().CommitSHA(mock.Anything).Return("never-pushed-sha", nil).Once()
+		c.EXPECT().CommitSHA(mock.Anything).Return("never-pushed-sha", nil).Twice()
+		c.EXPECT().CommitSignatureStatus(mock.Anything, "never-pushed-sha").Return("", "", errors.New("git boom")).Once()
 		mockRepoClientFactory.EXPECT().NewClient(mock.Anything, mock.Anything).Return(c, nil).Once()
 
 		_, err := service.CommitHydratedManifests(t.Context(), baseRequest)
@@ -545,8 +546,8 @@ func Test_CommitHydratedManifests_Signing(t *testing.T) {
 		c.EXPECT().Commit("test commit message", signingCfg.KeyID).Return("", nil).Once()
 		// "N" is git's %G? code for "no signature"; it must be rejected like any
 		// other non-good status so an unsigned commit is never pushed.
-		c.EXPECT().HeadSignatureStatus().Return("N", "", nil).Once()
-		c.EXPECT().CommitSHA(mock.Anything).Return("never-pushed-sha", nil).Once()
+		c.EXPECT().CommitSHA(mock.Anything).Return("never-pushed-sha", nil).Twice()
+		c.EXPECT().CommitSignatureStatus(mock.Anything, "never-pushed-sha").Return("N", "", nil).Once()
 		mockRepoClientFactory.EXPECT().NewClient(mock.Anything, mock.Anything).Return(c, nil).Once()
 
 		_, err := service.CommitHydratedManifests(t.Context(), baseRequest)
@@ -562,8 +563,8 @@ func Test_CommitHydratedManifests_Signing(t *testing.T) {
 		c := gitmocks.NewClient(t)
 		commonMockExpectations(c)
 		c.EXPECT().Commit("test commit message", signingCfg.KeyID).Return("", nil).Once()
-		c.EXPECT().HeadSignatureStatus().Return("G", "DEADBEEFDEADBEEF", nil).Once()
-		c.EXPECT().CommitSHA(mock.Anything).Return("never-pushed-sha", nil).Once()
+		c.EXPECT().CommitSHA(mock.Anything).Return("never-pushed-sha", nil).Twice()
+		c.EXPECT().CommitSignatureStatus(mock.Anything, "never-pushed-sha").Return("G", "DEADBEEFDEADBEEF", nil).Once()
 		mockRepoClientFactory.EXPECT().NewClient(mock.Anything, mock.Anything).Return(c, nil).Once()
 
 		_, err := service.CommitHydratedManifests(t.Context(), baseRequest)

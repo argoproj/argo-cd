@@ -204,11 +204,20 @@ func (s *Service) handleCommitRequest(ctx context.Context, logCtx *log.Entry, r 
 		return out, "", fmt.Errorf("failed to commit: %w", err)
 	}
 
+	logCtx.Debug("Getting commit SHA")
+	sha, err := gitClient.CommitSHA(ctx)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get commit SHA: %w", err)
+	}
+
 	if s.signingConfig != nil {
 		// Verify locally that the freshly-created commit is signed by the
 		// expected key before pushing. If anything looks off, we fail here —
 		// we must never push an unsigned (or wrongly-signed) hydrated commit.
-		status, keyID, sigErr := gitClient.HeadSignatureStatus()
+		// The check names the exact SHA we just created rather than HEAD, so
+		// it is self-evident which commit is being validated. (The worktree is
+		// ours alone, so HEAD would resolve to the same commit either way.)
+		status, keyID, sigErr := gitClient.CommitSignatureStatus(ctx, sha)
 		if sigErr != nil {
 			s.metricsServer.IncSigningFailure(r.Repo.Repo, metrics.SigningFailureReasonVerify)
 			return out, "", fmt.Errorf("failed to verify signature of hydrated commit: %w", sigErr)
@@ -229,11 +238,6 @@ func (s *Service) handleCommitRequest(ctx context.Context, logCtx *log.Entry, r 
 		return out, "", fmt.Errorf("failed to push: %w", err)
 	}
 
-	logCtx.Debug("Getting commit SHA")
-	sha, err := gitClient.CommitSHA(ctx)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to get commit SHA: %w", err)
-	}
 	// add the commit note
 	logCtx.Debug("Adding commit note")
 	err = AddNote(ctx, gitClient, r.DrySha, sha)

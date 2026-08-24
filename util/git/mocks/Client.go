@@ -535,6 +535,78 @@ func (_c *Client_CommitSHA_Call) RunAndReturn(run func(ctx context.Context) (str
 	return _c
 }
 
+// CommitSignatureStatus provides a mock function for the type Client
+func (_mock *Client) CommitSignatureStatus(ctx context.Context, revision string) (string, string, error) {
+	ret := _mock.Called(ctx, revision)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CommitSignatureStatus")
+	}
+
+	var r0 string
+	var r1 string
+	var r2 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (string, string, error)); ok {
+		return returnFunc(ctx, revision)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) string); ok {
+		r0 = returnFunc(ctx, revision)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string) string); ok {
+		r1 = returnFunc(ctx, revision)
+	} else {
+		r1 = ret.Get(1).(string)
+	}
+	if returnFunc, ok := ret.Get(2).(func(context.Context, string) error); ok {
+		r2 = returnFunc(ctx, revision)
+	} else {
+		r2 = ret.Error(2)
+	}
+	return r0, r1, r2
+}
+
+// Client_CommitSignatureStatus_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CommitSignatureStatus'
+type Client_CommitSignatureStatus_Call struct {
+	*mock.Call
+}
+
+// CommitSignatureStatus is a helper method to define mock.On call
+//   - ctx context.Context
+//   - revision string
+func (_e *Client_Expecter) CommitSignatureStatus(ctx any, revision any) *Client_CommitSignatureStatus_Call {
+	return &Client_CommitSignatureStatus_Call{Call: _e.mock.On("CommitSignatureStatus", ctx, revision)}
+}
+
+func (_c *Client_CommitSignatureStatus_Call) Run(run func(ctx context.Context, revision string)) *Client_CommitSignatureStatus_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *Client_CommitSignatureStatus_Call) Return(status string, keyID string, err error) *Client_CommitSignatureStatus_Call {
+	_c.Call.Return(status, keyID, err)
+	return _c
+}
+
+func (_c *Client_CommitSignatureStatus_Call) RunAndReturn(run func(ctx context.Context, revision string) (string, string, error)) *Client_CommitSignatureStatus_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Fetch provides a mock function for the type Client
 func (_mock *Client) Fetch(ctx context.Context, revision string, depth int64) error {
 	ret := _mock.Called(ctx, revision, depth)
@@ -732,65 +804,6 @@ func (_c *Client_HasFileChanged_Call) Return(b bool, err error) *Client_HasFileC
 }
 
 func (_c *Client_HasFileChanged_Call) RunAndReturn(run func(ctx context.Context, filePath string) (bool, error)) *Client_HasFileChanged_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// HeadSignatureStatus provides a mock function for the type Client
-func (_mock *Client) HeadSignatureStatus() (string, string, error) {
-	ret := _mock.Called()
-
-	if len(ret) == 0 {
-		panic("no return value specified for HeadSignatureStatus")
-	}
-
-	var r0 string
-	var r1 string
-	var r2 error
-	if returnFunc, ok := ret.Get(0).(func() (string, string, error)); ok {
-		return returnFunc()
-	}
-	if returnFunc, ok := ret.Get(0).(func() string); ok {
-		r0 = returnFunc()
-	} else {
-		r0 = ret.Get(0).(string)
-	}
-	if returnFunc, ok := ret.Get(1).(func() string); ok {
-		r1 = returnFunc()
-	} else {
-		r1 = ret.Get(1).(string)
-	}
-	if returnFunc, ok := ret.Get(2).(func() error); ok {
-		r2 = returnFunc()
-	} else {
-		r2 = ret.Error(2)
-	}
-	return r0, r1, r2
-}
-
-// Client_HeadSignatureStatus_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'HeadSignatureStatus'
-type Client_HeadSignatureStatus_Call struct {
-	*mock.Call
-}
-
-// HeadSignatureStatus is a helper method to define mock.On call
-func (_e *Client_Expecter) HeadSignatureStatus() *Client_HeadSignatureStatus_Call {
-	return &Client_HeadSignatureStatus_Call{Call: _e.mock.On("HeadSignatureStatus")}
-}
-
-func (_c *Client_HeadSignatureStatus_Call) Run(run func()) *Client_HeadSignatureStatus_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run()
-	})
-	return _c
-}
-
-func (_c *Client_HeadSignatureStatus_Call) Return(status string, keyID string, err error) *Client_HeadSignatureStatus_Call {
-	_c.Call.Return(status, keyID, err)
-	return _c
-}
-
-func (_c *Client_HeadSignatureStatus_Call) RunAndReturn(run func() (string, string, error)) *Client_HeadSignatureStatus_Call {
 	_c.Call.Return(run)
 	return _c
 }

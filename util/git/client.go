@@ -54,7 +54,7 @@ var (
 	ErrRevisionNotFound = errors.New("revision not found")
 )
 
-// Values returned by HeadSignatureStatus for the GPG signature status code
+// Values returned by CommitSignatureStatus for the GPG signature status code
 // (git's %G? placeholder). The full set is documented under PRETTY FORMATS
 // in git-log(1); only G and U represent good signatures that callers should
 // accept (U = good but unknown trust, expected when the signing key has not
@@ -176,12 +176,13 @@ type Client interface {
 	Commit(message, signingKeyID string) (string, error)
 	// Push pushes the target branch to origin.
 	Push(branch string) (string, error)
-	// HeadSignatureStatus returns git's signature status code (%G?) and the
-	// long key ID used to sign HEAD (%GK). Used to assert a freshly created
-	// signed commit was produced by the expected key before pushing. See the
-	// SignatureStatus* constants for the values that indicate a usable
-	// signature.
-	HeadSignatureStatus() (status, keyID string, err error)
+	// CommitSignatureStatus returns git's signature status code (%G?) and the
+	// long key ID used to sign the given revision (%GK). Used to assert a
+	// freshly created signed commit was produced by the expected key before
+	// pushing. Pass an exact commit SHA so the check is pinned to the commit
+	// being verified. See the SignatureStatus* constants for the values that
+	// indicate a usable signature.
+	CommitSignatureStatus(ctx context.Context, revision string) (status, keyID string, err error)
 	// GetCommitNote gets the note associated with the DRY sha stored in the specific namespace
 	GetCommitNote(ctx context.Context, sha string, namespace string) (string, error)
 	// AddAndPushNote adds a note to a DRY sha and then pushes it.
@@ -1670,16 +1671,16 @@ func (m *nativeGitClient) Push(branch string) (string, error) {
 	return "", nil
 }
 
-// HeadSignatureStatus returns the GPG signature status code (%G?) and the
-// signing key ID (%GK) for HEAD. Status is empty (and keyID "") when HEAD
-// carries no signature. See man git-log under PRETTY FORMATS for codes; for
-// our purposes "G" (good) and "U" (good but unknown trust) are acceptable.
-func (m *nativeGitClient) HeadSignatureStatus() (string, string, error) {
-	ctx := context.Background()
-	cmd := m.cmdWithGPG(ctx, "git", "log", "-1", "--pretty=format:%G?:%GK", "HEAD")
+// CommitSignatureStatus returns the GPG signature status code (%G?) and the
+// signing key ID (%GK) for the given revision. Status is "N" (and keyID "")
+// when the commit carries no signature. See man git-log under PRETTY FORMATS
+// for codes; for our purposes "G" (good) and "U" (good but unknown trust) are
+// acceptable and everything else — including "N" — must be rejected.
+func (m *nativeGitClient) CommitSignatureStatus(ctx context.Context, revision string) (string, string, error) {
+	cmd := m.cmdWithGPG(ctx, "git", "log", "-1", "--pretty=format:%G?:%GK", revision, "--")
 	out, err := m.runCmdOutput(cmd, runOpts{})
 	if err != nil {
-		return "", "", fmt.Errorf("failed to read HEAD signature status: %w", err)
+		return "", "", fmt.Errorf("failed to read signature status of %q: %w", revision, err)
 	}
 	parts := strings.SplitN(strings.TrimSpace(out), ":", 2)
 	if len(parts) != 2 {
