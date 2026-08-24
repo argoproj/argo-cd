@@ -42,6 +42,7 @@ import (
 	applog "github.com/argoproj/argo-cd/v3/util/app/log"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/collections"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/github_app"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
@@ -53,27 +54,20 @@ import (
 )
 
 type Server struct {
-	ns                       string
-	db                       db.ArgoDB
-	enf                      *rbac.Enforcer
-	k8sClient                kubernetes.Interface
-	dynamicClient            dynamic.Interface
-	client                   client.Client
-	repoClientSet            repoapiclient.Clientset
-	appclientset             appclientset.Interface
-	appsetInformer           cache.SharedIndexInformer
-	appsetLister             applisters.ApplicationSetLister
-	appSetBroadcaster        broadcast.Broadcaster[v1alpha1.ApplicationSetWatchEvent]
-	auditLogger              *argo.AuditLogger
-	projectLock              sync.KeyLock
-	enabledNamespaces        []string
-	clusterInformer          *settings.ClusterInformer
-	GitSubmoduleEnabled      bool
-	EnableNewGitFileGlobbing bool
-	ScmRootCAPath            string
-	AllowedScmProviders      []string
-	EnableScmProviders       bool
-	EnableGitHubAPIMetrics   bool
+	ns                string
+	db                db.ArgoDB
+	enf               *rbac.Enforcer
+	k8sClient         kubernetes.Interface
+	dynamicClient     dynamic.Interface
+	client            client.Client
+	repoClientSet     repoapiclient.Clientset
+	appclientset      appclientset.Interface
+	appsetInformer    cache.SharedIndexInformer
+	appsetLister      applisters.ApplicationSetLister
+	appSetBroadcaster broadcast.Broadcaster[v1alpha1.ApplicationSetWatchEvent]
+	projectLock       sync.KeyLock
+	configProvider    configbus.Provider
+	clusterInformer   *settings.ClusterInformer
 }
 
 func (s *Server) Watch(q *applicationset.ApplicationSetWatchQuery, ws applicationset.ApplicationSetService_WatchServer) error {
@@ -99,7 +93,7 @@ func (s *Server) Watch(q *applicationset.ApplicationSetWatchQuery, ws applicatio
 		}
 	}
 	sendIfPermitted := func(a v1alpha1.ApplicationSet, eventType watch.EventType) {
-		permitted := s.isApplicationsetPermitted(selector, minVersion, claims, appsetName, appsetNs, projects, a)
+		permitted := s.isApplicationsetPermitted(ws.Context(), selector, minVersion, claims, appsetName, appsetNs, projects, a)
 		if !permitted {
 			return
 		}
@@ -139,7 +133,7 @@ func (s *Server) Watch(q *applicationset.ApplicationSetWatchQuery, ws applicatio
 }
 
 // isApplicationsetPermitted checks if an appset is permitted
-func (s *Server) isApplicationsetPermitted(selector labels.Selector, minVersion int, claims any, appsetName, appsetNs string, projects map[string]bool, appset v1alpha1.ApplicationSet) bool {
+func (s *Server) isApplicationsetPermitted(ctx context.Context, selector labels.Selector, minVersion int, claims any, appsetName, appsetNs string, projects map[string]bool, appset v1alpha1.ApplicationSet) bool {
 	if len(projects) > 0 && !projects[appset.Spec.Template.Spec.Project] {
 		return false
 	}
@@ -156,7 +150,7 @@ func (s *Server) isApplicationsetPermitted(selector labels.Selector, minVersion 
 	}
 	// Skip any applicationsets that is neither in the control plane's namespace
 	// nor in the list of enabled namespaces.
-	if !security.IsNamespaceEnabled(appset.Namespace, s.ns, s.enabledNamespaces) {
+	if enabled, err := s.isNamespaceEnabled(ctx, appset.Namespace); err != nil || !enabled {
 		return false
 	}
 
@@ -181,14 +175,7 @@ func NewServer(
 	appSetBroadcaster broadcast.Broadcaster[v1alpha1.ApplicationSetWatchEvent],
 	namespace string,
 	projectLock sync.KeyLock,
-	enabledNamespaces []string,
-	gitSubmoduleEnabled bool,
-	enableNewGitFileGlobbing bool,
-	scmRootCAPath string,
-	allowedScmProviders []string,
-	enableScmProviders bool,
-	enableGitHubAPIMetrics bool,
-	enableK8sEvent []string,
+	configProvider configbus.Provider,
 	clusterInformer *settings.ClusterInformer,
 ) applicationset.ApplicationSetServiceServer {
 	if appSetBroadcaster == nil {
@@ -206,29 +193,30 @@ func NewServer(
 		log.Error(err)
 	}
 	s := &Server{
-		ns:                       namespace,
-		db:                       db,
-		enf:                      enf,
-		dynamicClient:            dynamicClientset,
-		client:                   kubeControllerClientset,
-		k8sClient:                kubeclientset,
-		repoClientSet:            repoClientSet,
-		appclientset:             appclientset,
-		appsetInformer:           appsetInformer,
-		appsetLister:             appsetLister,
-		appSetBroadcaster:        appSetBroadcaster,
-		projectLock:              projectLock,
-		auditLogger:              argo.NewAuditLogger(kubeclientset, namespace, "argocd-server", enableK8sEvent),
-		enabledNamespaces:        enabledNamespaces,
-		clusterInformer:          clusterInformer,
-		GitSubmoduleEnabled:      gitSubmoduleEnabled,
-		EnableNewGitFileGlobbing: enableNewGitFileGlobbing,
-		ScmRootCAPath:            scmRootCAPath,
-		AllowedScmProviders:      allowedScmProviders,
-		EnableScmProviders:       enableScmProviders,
-		EnableGitHubAPIMetrics:   enableGitHubAPIMetrics,
+		ns:                namespace,
+		db:                db,
+		enf:               enf,
+		dynamicClient:     dynamicClientset,
+		client:            kubeControllerClientset,
+		k8sClient:         kubeclientset,
+		repoClientSet:     repoClientSet,
+		appclientset:      appclientset,
+		appsetInformer:    appsetInformer,
+		appsetLister:      appsetLister,
+		appSetBroadcaster: appSetBroadcaster,
+		projectLock:       projectLock,
+		configProvider:    configProvider,
+		clusterInformer:   clusterInformer,
 	}
 	return s
+}
+
+func (s *Server) auditLogger(ctx context.Context) (*argo.AuditLogger, error) {
+	enableK8sEvent, err := s.configProvider.EnableK8sEvent(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return argo.NewAuditLogger(s.k8sClient, s.ns, "argocd-server", enableK8sEvent), nil
 }
 
 func (s *Server) Get(ctx context.Context, q *applicationset.ApplicationSetGetQuery) (*v1alpha1.ApplicationSet, error) {
@@ -258,7 +246,11 @@ func (s *Server) List(ctx context.Context, q *applicationset.ApplicationSetListQ
 	for _, a := range appsets {
 		// Skip any applicationsets that is neither in the conrol plane's namespace
 		// nor in the list of enabled namespaces.
-		if !security.IsNamespaceEnabled(a.Namespace, s.ns, s.enabledNamespaces) {
+		enabled, err := s.isNamespaceEnabled(ctx, a.Namespace)
+		if err != nil {
+			return nil, err
+		}
+		if !enabled {
 			continue
 		}
 
@@ -297,7 +289,11 @@ func (s *Server) Create(ctx context.Context, q *applicationset.ApplicationSetCre
 
 	namespace := s.appsetNamespaceOrDefault(appset.Namespace)
 
-	if !s.isNamespaceEnabled(namespace) {
+	enabled, err := s.isNamespaceEnabled(ctx, namespace)
+	if err != nil {
+		return nil, err
+	}
+	if !enabled {
 		return nil, security.NamespaceNotPermittedError(namespace)
 	}
 
@@ -369,8 +365,33 @@ func (s *Server) Create(ctx context.Context, q *applicationset.ApplicationSetCre
 func (s *Server) generateApplicationSetApps(ctx context.Context, logEntry *log.Entry, appset v1alpha1.ApplicationSet) ([]v1alpha1.Application, error) {
 	argoCDDB := s.db
 
-	scmConfig := generators.NewSCMConfig(s.ScmRootCAPath, s.AllowedScmProviders, s.EnableScmProviders, s.EnableGitHubAPIMetrics, github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)), true)
-	argoCDService := services.NewArgoCDService(s.db, s.GitSubmoduleEnabled, s.repoClientSet, s.EnableNewGitFileGlobbing)
+	scmRootCAPath, err := s.configProvider.ScmRootCAPath(ctx)
+	if err != nil {
+		return nil, err
+	}
+	allowedScmProviders, err := s.configProvider.AllowedScmProviders(ctx)
+	if err != nil {
+		return nil, err
+	}
+	enableScmProviders, err := s.configProvider.EnableScmProviders(ctx)
+	if err != nil {
+		return nil, err
+	}
+	enableGitHubAPIMetrics, err := s.configProvider.EnableGitHubAPIMetrics(ctx)
+	if err != nil {
+		return nil, err
+	}
+	gitSubmoduleEnabled, err := s.configProvider.GitSubmoduleEnabled(ctx)
+	if err != nil {
+		return nil, err
+	}
+	enableNewGitFileGlobbing, err := s.configProvider.EnableNewGitFileGlobbing(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	scmConfig := generators.NewSCMConfig(scmRootCAPath, allowedScmProviders, enableScmProviders, enableGitHubAPIMetrics, github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)), true)
+	argoCDService := services.NewArgoCDService(s.db, gitSubmoduleEnabled, s.repoClientSet, enableNewGitFileGlobbing)
 	appSetGenerators := generators.GetGenerators(ctx, s.client, s.k8sClient, s.ns, argoCDService, s.dynamicClient, scmConfig, s.clusterInformer)
 
 	apps, _, err := appsettemplate.GenerateApplications(logEntry, appset, appSetGenerators, &appsetutils.Render{}, s.client)
@@ -466,7 +487,11 @@ func (s *Server) Generate(ctx context.Context, q *applicationset.ApplicationSetG
 	// However, when trying to generate params, the server namespace needs
 	// to be passed.
 	namespace := s.appsetNamespaceOrDefault(appset.Namespace)
-	if !s.isNamespaceEnabled(namespace) {
+	enabled, err := s.isNamespaceEnabled(ctx, namespace)
+	if err != nil {
+		return nil, err
+	}
+	if !enabled {
 		return nil, security.NamespaceNotPermittedError(namespace)
 	}
 
@@ -603,7 +628,12 @@ func (s *Server) logAppSetEvent(ctx context.Context, a *v1alpha1.ApplicationSet,
 		user = "Unknown user"
 	}
 	message := fmt.Sprintf("%s %s", user, action)
-	s.auditLogger.LogAppSetEvent(a, eventInfo, message, user)
+	auditLogger, err := s.auditLogger(ctx)
+	if err != nil {
+		log.Errorf("failed to resolve audit logger: %v", err)
+		return
+	}
+	auditLogger.LogAppSetEvent(a, eventInfo, message, user)
 }
 
 func (s *Server) appsetNamespaceOrDefault(appNs string) string {
@@ -613,8 +643,12 @@ func (s *Server) appsetNamespaceOrDefault(appNs string) string {
 	return appNs
 }
 
-func (s *Server) isNamespaceEnabled(namespace string) bool {
-	return security.IsNamespaceEnabled(namespace, s.ns, s.enabledNamespaces)
+func (s *Server) isNamespaceEnabled(ctx context.Context, namespace string) (bool, error) {
+	applicationNamespaces, err := s.configProvider.ApplicationNamespaces(ctx)
+	if err != nil {
+		return false, err
+	}
+	return security.IsNamespaceEnabled(namespace, s.ns, applicationNamespaces), nil
 }
 
 // getAppSetEnforceRBAC gets the ApplicationSet with the given name in the given namespace and
@@ -624,7 +658,11 @@ func (s *Server) isNamespaceEnabled(namespace string) bool {
 // The RBAC name is derived from the template's project field, but there is no project-level isolation
 // or validation (e.g., verifying the AppSet belongs to the claimed project)
 func (s *Server) getAppSetEnforceRBAC(ctx context.Context, action, namespace, name string) (*v1alpha1.ApplicationSet, error) {
-	if !s.isNamespaceEnabled(namespace) {
+	enabled, err := s.isNamespaceEnabled(ctx, namespace)
+	if err != nil {
+		return nil, err
+	}
+	if !enabled {
 		return nil, security.NamespaceNotPermittedError(namespace)
 	}
 

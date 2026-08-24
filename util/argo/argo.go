@@ -1,4 +1,3 @@
-//nolint:staticcheck // SA1019: ValidateRepo still on SettingsManager until server-layer configbus cutover
 package argo
 
 import (
@@ -316,7 +315,7 @@ func ValidateRepo(
 	db db.ArgoDB,
 	kubectl kube.Kubectl,
 	proj *argoappv1.AppProject,
-	settingsMgr *settings.SettingsManager,
+	configProvider configbus.Provider,
 ) ([]argoappv1.ApplicationCondition, error) {
 	spec := &app.Spec
 
@@ -329,10 +328,11 @@ func ValidateRepo(
 	}
 	defer utilio.Close(conn)
 
-	helmOptions, err := settingsMgr.GetHelmSettings()
+	helmOptions, err := configProvider.HelmSettings(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("error getting helm settings: %w", err)
+		return nil, fmt.Errorf("failed to resolve HelmSettings: %w", err)
 	}
+	helmOptionsPtr := &helmOptions
 
 	helmRepos, err := db.ListHelmRepositories(ctx)
 	if err != nil {
@@ -387,9 +387,9 @@ func ValidateRepo(
 	if err != nil {
 		return nil, fmt.Errorf("error getting API resources: %w", err)
 	}
-	enabledSourceTypes, err := settingsMgr.GetEnabledSourceTypes()
+	enabledSourceTypes, err := configProvider.EnabledSourceTypes(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("error getting enabled source types: %w", err)
+		return nil, fmt.Errorf("failed to resolve EnabledSourceTypes: %w", err)
 	}
 
 	sourceCondition, err := validateRepo(
@@ -400,14 +400,14 @@ func ValidateRepo(
 		repoClient,
 		permittedHelmRepos,
 		permittedOCIRepos,
-		helmOptions,
+		helmOptionsPtr,
 		destCluster,
 		apiGroups,
 		proj,
 		permittedHelmCredentials,
 		permittedOCICredentials,
 		enabledSourceTypes,
-		settingsMgr)
+		configProvider)
 	if err != nil {
 		return nil, err
 	}
@@ -453,7 +453,7 @@ func validateRepo(ctx context.Context,
 	permittedHelmCredentials []*argoappv1.RepoCreds,
 	permittedOCICredentials []*argoappv1.RepoCreds,
 	enabledSourceTypes map[string]bool,
-	settingsMgr *settings.SettingsManager,
+	configProvider configbus.Provider,
 ) ([]argoappv1.ApplicationCondition, error) {
 	conditions := []argoappv1.ApplicationCondition{}
 	errMessage := ""
@@ -520,7 +520,7 @@ func validateRepo(ctx context.Context,
 		permittedHelmCredentials,
 		permittedOCICredentials,
 		enabledSourceTypes,
-		settingsMgr,
+		configProvider,
 		refSources)...)
 
 	return conditions, nil
@@ -831,12 +831,12 @@ func verifyGenerateManifests(
 	repositoryCredentials []*argoappv1.RepoCreds,
 	ociRepositoryCredentials []*argoappv1.RepoCreds,
 	enableGenerateManifests map[string]bool,
-	settingsMgr *settings.SettingsManager,
+	configProvider configbus.Provider,
 	refSources argoappv1.RefTargetRevisionMapping,
 ) []argoappv1.ApplicationCondition {
 	var conditions []argoappv1.ApplicationCondition
 	// If source is Kustomize add build options
-	kustomizeSettings, err := settingsMgr.GetKustomizeSettings()
+	kustomizeSettings, err := configProvider.KustomizeSettings(ctx)
 	if err != nil {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
@@ -844,6 +844,7 @@ func verifyGenerateManifests(
 		})
 		return conditions // Can't perform the next check without settings.
 	}
+	kustomizeSettingsPtr := &kustomizeSettings
 
 	for _, source := range sources {
 		repoRes, err := db.GetRepository(ctx, source.RepoURL, proj.Name)
@@ -854,7 +855,7 @@ func verifyGenerateManifests(
 			})
 			continue
 		}
-		installationID, err := settingsMgr.GetInstallationID()
+		installationID, err := configProvider.InstallationID(ctx)
 		if err != nil {
 			conditions = append(conditions, argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,
@@ -863,7 +864,7 @@ func verifyGenerateManifests(
 			continue
 		}
 
-		appLabelKey, err := settingsMgr.GetAppInstanceLabelKey()
+		appLabelKey, err := configProvider.AppInstanceLabelKey(ctx)
 		if err != nil {
 			conditions = append(conditions, argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,
@@ -872,7 +873,7 @@ func verifyGenerateManifests(
 			continue
 		}
 
-		trackingMethod, err := settingsMgr.GetTrackingMethod()
+		trackingMethod, err := configProvider.TrackingMethod(ctx)
 		if err != nil {
 			conditions = append(conditions, argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,
@@ -907,7 +908,7 @@ func verifyGenerateManifests(
 			Namespace:                       app.Spec.Destination.Namespace,
 			ApplicationSource:               &source,
 			AppLabelKey:                     appLabelKey,
-			KustomizeOptions:                kustomizeSettings,
+			KustomizeOptions:                kustomizeSettingsPtr,
 			KubeVersion:                     kubeVersion,
 			ApiVersions:                     apiVersions,
 			HelmOptions:                     helmOptions,

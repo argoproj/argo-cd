@@ -17,9 +17,48 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
+// controllerResolvedMethods are Provider getters the application-controller
+// chain must resolve. Other-component methods may still return ErrNotConfigured
+// on this binary's chain.
+var controllerResolvedMethods = map[string]struct{}{
+	"AllowedNodeLabels":                   {},
+	"AppInstanceLabelKey":                 {},
+	"CommitAuthorEmail":                   {},
+	"CommitAuthorName":                    {},
+	"EnabledSourceTypes":                  {},
+	"GitRequestTimeout":                   {},
+	"HardReconciliationTimeout":           {},
+	"HelmSettings":                        {},
+	"HydratorReadmeTemplate":              {},
+	"IgnoreNormalizerJQTimeout":           {},
+	"IgnoreResourceUpdatesOverrides":      {},
+	"InstallationID":                      {},
+	"IsIgnoreResourceUpdatesEnabled":      {},
+	"IsImpersonationEnabled":              {},
+	"IsImpersonationEnforced":             {},
+	"KustomizeSettings":                   {},
+	"MetricsClusterLabels":                {},
+	"PersistResourceHealth":               {},
+	"ReconciliationJitter":                {},
+	"ReconciliationTimeout":               {},
+	"RepoErrorGracePeriod":                {},
+	"ResourceCompareOptions":              {},
+	"ResourceCustomLabels":                {},
+	"ResourceOverrides":                   {},
+	"ResourcesFilter":                     {},
+	"RespectRBAC":                         {},
+	"SelfHealRetry":                       {},
+	"SelfHealTimeout":                     {},
+	"SensitiveAnnotations":                {},
+	"ServerSideDiff":                      {},
+	"SourceHydratorCommitMessageTemplate": {},
+	"SyncTimeout":                         {},
+	"TrackingMethod":                      {},
+}
+
 // TestControllerChainResolvesAllFields asserts the application-controller
-// production chain resolves every Provider field getter without leaking
-// ErrNotConfigured.
+// production chain resolves every controller-owned Provider field getter
+// without leaking ErrNotConfigured.
 func TestControllerChainResolvesAllFields(t *testing.T) {
 	t.Parallel()
 	ctx := t.Context()
@@ -67,23 +106,18 @@ func TestControllerChainResolvesAllFields(t *testing.T) {
 		configbus.NewEnvProvider(),
 	)
 
-	assertProviderFullyResolved(t, chain)
+	assertProviderResolves(t, chain, controllerResolvedMethods)
 }
 
-func assertProviderFullyResolved(t *testing.T, p configbus.Provider) {
+func assertProviderResolves(t *testing.T, p configbus.Provider, required map[string]struct{}) {
 	t.Helper()
-	pt := reflect.TypeFor[configbus.Provider]()
 	pv := reflect.ValueOf(p)
 	ctx := context.Background()
-	for m := range pt.Methods() {
-		switch m.Name {
-		case "Subscribe", "Unsubscribe":
-			continue
-		}
-		method := pv.MethodByName(m.Name)
-		require.True(t, method.IsValid(), m.Name)
+	for name := range required {
+		method := pv.MethodByName(name)
+		require.True(t, method.IsValid(), name)
 		in := make([]reflect.Value, method.Type().NumIn())
-		for j := 0; j < method.Type().NumIn(); j++ {
+		for j := range method.Type().NumIn() {
 			argType := method.Type().In(j)
 			if argType.String() == "context.Context" {
 				in[j] = reflect.ValueOf(ctx)
@@ -92,13 +126,13 @@ func assertProviderFullyResolved(t *testing.T, p configbus.Provider) {
 			in[j] = reflect.Zero(argType)
 		}
 		out := method.Call(in)
-		require.NotEmpty(t, out, m.Name)
+		require.NotEmpty(t, out, name)
 		errVal := out[len(out)-1]
 		if errVal.IsNil() {
 			continue
 		}
 		err, ok := errVal.Interface().(error)
-		require.True(t, ok, m.Name)
-		require.NotErrorIs(t, err, configbus.ErrNotConfigured, "%s leaked ErrNotConfigured: %v", m.Name, err)
+		require.True(t, ok, name)
+		require.NotErrorIs(t, err, configbus.ErrNotConfigured, "%s leaked ErrNotConfigured: %v", name, err)
 	}
 }

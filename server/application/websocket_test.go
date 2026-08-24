@@ -14,6 +14,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/util/assets"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -114,12 +115,9 @@ func TestVerifyAndReconnectDisableAuthTrue(t *testing.T) {
 	t.Parallel()
 	validate := func(w http.ResponseWriter, r *http.Request) {
 		ts := newTestTerminalSession(w, r)
-		// Currently testing only the usecase of disableAuth: true since the disableAuth: false case
-		// requires a valid token to be passed in the request.
-		// Note that running with disableAuth: false will surprisingly succeed as well, because
-		// the underlying token nil pointer dereference is swallowed in a location I didn't find,
-		// or even swallowed by the test framework.
-		ts.terminalOpts = &TerminalOptions{DisableAuth: true}
+		ts.configProvider = &configbus.StaticProvider{Fields: configbus.StaticFields{
+			DisableAuth: configbus.Ptr(true),
+		}}
 		code, err := ts.performValidationsAndReconnect([]byte{})
 		assert.Equal(t, 0, code)
 		require.NoError(t, err)

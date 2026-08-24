@@ -100,6 +100,7 @@ func (mgr *SettingsManager) saveAccount(name string, account Account) error {
 
 // AddAccount save an account with the given name and properties.
 func (mgr *SettingsManager) AddAccount(name string, account Account) error {
+	//nolint:staticcheck // SA1019: SettingsManager account helpers still compose GetAccounts.
 	accounts, err := mgr.GetAccounts()
 	if err != nil {
 		return fmt.Errorf("error getting accounts: %w", err)
@@ -112,6 +113,7 @@ func (mgr *SettingsManager) AddAccount(name string, account Account) error {
 
 // GetAccount return an account info by the specified name.
 func (mgr *SettingsManager) GetAccount(name string) (*Account, error) {
+	//nolint:staticcheck // SA1019: SettingsManager account helpers still compose GetAccounts.
 	accounts, err := mgr.GetAccounts()
 	if err != nil {
 		return nil, err
@@ -140,6 +142,8 @@ func (mgr *SettingsManager) UpdateAccount(name string, callback func(account *Ac
 }
 
 // GetAccounts returns list of configured accounts
+//
+// Deprecated: use configbus.Provider.Accounts instead.
 func (mgr *SettingsManager) GetAccounts() (map[string]Account, error) {
 	cm, err := mgr.getConfigMap()
 	if err != nil {

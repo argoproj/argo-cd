@@ -6,6 +6,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 )
 
 // TestWithRootPathEmptyRootPath tests that withRootPath returns the original handler when RootPath is empty
@@ -16,15 +19,14 @@ func TestWithRootPathEmptyRootPath(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	// Create a server with empty RootPath
-	server := &ArgoCDServer{
-		ArgoCDServerOpts: ArgoCDServerOpts{
-			RootPath: "",
-		},
-	}
+	server := &ArgoCDServer{}
+	server.configProvider = &configbus.StaticProvider{Fields: configbus.StaticFields{
+		RootPath: configbus.Ptr(""),
+	}}
 
 	// Call withRootPath
-	handler := withRootPath(originalHandler, server)
+	handler, err := withRootPath(originalHandler, server)
+	require.NoError(t, err)
 
 	// Verify that the returned handler is the original handler
 	// Since we can't directly compare function references, we'll use a type assertion
@@ -40,15 +42,14 @@ func TestWithRootPathNonEmptyRootPath(t *testing.T) {
 		w.WriteHeader(http.StatusOK)
 	})
 
-	// Create a server with non-empty RootPath
-	server := &ArgoCDServer{
-		ArgoCDServerOpts: ArgoCDServerOpts{
-			RootPath: "/argocd",
-		},
-	}
+	server := &ArgoCDServer{}
+	server.configProvider = &configbus.StaticProvider{Fields: configbus.StaticFields{
+		RootPath: configbus.Ptr("/argocd"),
+	}}
 
 	// Call withRootPath
-	handler := withRootPath(originalHandler, server)
+	handler, err := withRootPath(originalHandler, server)
+	require.NoError(t, err)
 
 	// Verify that the returned handler is a ServeMux
 	_, isServeMux := handler.(*http.ServeMux)

@@ -3,6 +3,7 @@ package configbus
 
 import (
 	"context"
+	"time"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/settings"
@@ -44,14 +45,48 @@ func withMgr[T any](p *SettingsManagerProvider, fn func(*settings.SettingsManage
 	return fn(p.mgr)
 }
 
+func (p *SettingsManagerProvider) Accounts(_ context.Context) (map[string]settings.Account, error) {
+	return withMgr(p, (*settings.SettingsManager).GetAccounts)
+}
+
+func (p *SettingsManagerProvider) AdditionalURLs(_ context.Context) ([]string, error) {
+	return withMgr(p, func(mgr *settings.SettingsManager) ([]string, error) {
+		sett, err := mgr.GetSettings()
+		if err != nil {
+			return nil, err
+		}
+		return sett.AdditionalURLs, nil
+	})
+}
+
 func (p *SettingsManagerProvider) AllowedNodeLabels(_ context.Context) ([]string, error) {
 	return withMgr(p, func(mgr *settings.SettingsManager) ([]string, error) {
 		return mgr.GetAllowedNodeLabels(), nil
 	})
 }
 
+func (p *SettingsManagerProvider) AnonymousUserEnabled(_ context.Context) (bool, error) {
+	return withMgr(p, func(mgr *settings.SettingsManager) (bool, error) {
+		sett, err := mgr.GetSettings()
+		if err != nil {
+			return false, err
+		}
+		return sett.AnonymousUserEnabled, nil
+	})
+}
+
 func (p *SettingsManagerProvider) AppInstanceLabelKey(_ context.Context) (string, error) {
 	return withMgr(p, (*settings.SettingsManager).GetAppInstanceLabelKey)
+}
+
+func (p *SettingsManagerProvider) ApplicationDeepLinks(_ context.Context) ([]settings.DeepLink, error) {
+	return withMgr(p, func(mgr *settings.SettingsManager) ([]settings.DeepLink, error) {
+		return mgr.GetDeepLinks(settings.ApplicationDeepLinks)
+	})
+}
+
+func (p *SettingsManagerProvider) ApplicationFineGrainedRBACInheritanceDisabled(_ context.Context) (bool, error) {
+	return withMgr(p, (*settings.SettingsManager).ApplicationFineGrainedRBACInheritanceDisabled)
 }
 
 func (p *SettingsManagerProvider) CommitAuthorEmail(_ context.Context) (string, error) {
@@ -72,8 +107,51 @@ func (p *SettingsManagerProvider) ExcludeEventLabelKeys(_ context.Context) ([]st
 	})
 }
 
+func (p *SettingsManagerProvider) ExecEnabled(_ context.Context) (bool, error) {
+	return withMgr(p, func(mgr *settings.SettingsManager) (bool, error) {
+		sett, err := mgr.GetSettings()
+		if err != nil {
+			return false, err
+		}
+		return sett.ExecEnabled, nil
+	})
+}
+
+func (p *SettingsManagerProvider) ExecShells(_ context.Context) ([]string, error) {
+	return withMgr(p, func(mgr *settings.SettingsManager) ([]string, error) {
+		sett, err := mgr.GetSettings()
+		if err != nil {
+			return nil, err
+		}
+		return sett.ExecShells, nil
+	})
+}
+
+func (p *SettingsManagerProvider) ExtensionConfig(_ context.Context) (map[string]string, error) {
+	return withMgr(p, func(mgr *settings.SettingsManager) (map[string]string, error) {
+		sett, err := mgr.GetSettings()
+		if err != nil {
+			return nil, err
+		}
+		return sett.ExtensionConfig, nil
+	})
+}
+
 func (p *SettingsManagerProvider) GlobalProjectsSettings(_ context.Context) ([]settings.GlobalProjectSettings, error) {
 	return withMgr(p, (*settings.SettingsManager).GetGlobalProjectsSettings)
+}
+
+func (p *SettingsManagerProvider) GoogleAnalytics(_ context.Context) (settings.GoogleAnalytics, error) {
+	return withMgr(p, func(mgr *settings.SettingsManager) (settings.GoogleAnalytics, error) {
+		ga, err := mgr.GetGoogleAnalytics()
+		if err != nil {
+			return settings.GoogleAnalytics{}, err
+		}
+		if ga == nil {
+			return settings.GoogleAnalytics{}, nil
+		}
+		return *ga, nil
+	})
 }
 
 func (p *SettingsManagerProvider) HelmSettings(_ context.Context) (v1alpha1.HelmOptions, error) {
@@ -89,12 +167,29 @@ func (p *SettingsManagerProvider) HelmSettings(_ context.Context) (v1alpha1.Helm
 	})
 }
 
+func (p *SettingsManagerProvider) Help(_ context.Context) (settings.Help, error) {
+	return withMgr(p, func(mgr *settings.SettingsManager) (settings.Help, error) {
+		help, err := mgr.GetHelp()
+		if err != nil {
+			return settings.Help{}, err
+		}
+		if help == nil {
+			return settings.Help{}, nil
+		}
+		return *help, nil
+	})
+}
+
 func (p *SettingsManagerProvider) HydratorReadmeTemplate(_ context.Context) (string, error) {
 	return withMgr(p, (*settings.SettingsManager).GetHydratorReadmeTemplate)
 }
 
 func (p *SettingsManagerProvider) IgnoreResourceUpdatesOverrides(_ context.Context) (map[string]v1alpha1.ResourceOverride, error) {
 	return withMgr(p, (*settings.SettingsManager).GetIgnoreResourceUpdatesOverrides)
+}
+
+func (p *SettingsManagerProvider) InClusterEnabled(_ context.Context) (bool, error) {
+	return withMgr(p, (*settings.SettingsManager).IsInClusterEnabled)
 }
 
 func (p *SettingsManagerProvider) IncludeEventLabelKeys(_ context.Context) ([]string, error) {
@@ -132,12 +227,55 @@ func (p *SettingsManagerProvider) KustomizeSettings(_ context.Context) (v1alpha1
 	})
 }
 
+func (p *SettingsManagerProvider) MaxPodLogsToRender(_ context.Context) (int64, error) {
+	return withMgr(p, (*settings.SettingsManager).GetMaxPodLogsToRender)
+}
+
+func (p *SettingsManagerProvider) MaxWebhookPayloadSize(_ context.Context) (int64, error) {
+	return withMgr(p, func(mgr *settings.SettingsManager) (int64, error) {
+		return mgr.GetMaxWebhookPayloadSize(), nil
+	})
+}
+
+func (p *SettingsManagerProvider) OIDCLogoutURL(_ context.Context) (string, error) {
+	return withMgr(p, func(mgr *settings.SettingsManager) (string, error) {
+		sett, err := mgr.GetSettings()
+		if err != nil {
+			return "", err
+		}
+		if oidcConfig := sett.OIDCConfig(); oidcConfig != nil {
+			return oidcConfig.LogoutURL, nil
+		}
+		return "", nil
+	})
+}
+
+func (p *SettingsManagerProvider) PasswordPattern(_ context.Context) (string, error) {
+	return withMgr(p, (*settings.SettingsManager).GetPasswordPattern)
+}
+
+func (p *SettingsManagerProvider) ProjectDeepLinks(_ context.Context) ([]settings.DeepLink, error) {
+	return withMgr(p, func(mgr *settings.SettingsManager) ([]settings.DeepLink, error) {
+		return mgr.GetDeepLinks(settings.ProjectDeepLinks)
+	})
+}
+
+func (p *SettingsManagerProvider) RequireOverridePrivilegeForRevisionSync(_ context.Context) (bool, error) {
+	return withMgr(p, (*settings.SettingsManager).RequireOverridePrivilegeForRevisionSync)
+}
+
 func (p *SettingsManagerProvider) ResourceCompareOptions(_ context.Context) (settings.ArgoCDDiffOptions, error) {
 	return withMgr(p, (*settings.SettingsManager).GetResourceCompareOptions)
 }
 
 func (p *SettingsManagerProvider) ResourceCustomLabels(_ context.Context) ([]string, error) {
 	return withMgr(p, (*settings.SettingsManager).GetResourceCustomLabels)
+}
+
+func (p *SettingsManagerProvider) ResourceDeepLinks(_ context.Context) ([]settings.DeepLink, error) {
+	return withMgr(p, func(mgr *settings.SettingsManager) ([]settings.DeepLink, error) {
+		return mgr.GetDeepLinks(settings.ResourceDeepLinks)
+	})
 }
 
 func (p *SettingsManagerProvider) ResourceOverrides(_ context.Context) (map[string]v1alpha1.ResourceOverride, error) {
@@ -167,10 +305,52 @@ func (p *SettingsManagerProvider) SensitiveAnnotations(_ context.Context) (map[s
 	})
 }
 
+func (p *SettingsManagerProvider) ServerURL(_ context.Context) (string, error) {
+	return withMgr(p, func(mgr *settings.SettingsManager) (string, error) {
+		sett, err := mgr.GetSettings()
+		if err != nil {
+			return "", err
+		}
+		return sett.URL, nil
+	})
+}
+
 func (p *SettingsManagerProvider) SourceHydratorCommitMessageTemplate(_ context.Context) (string, error) {
 	return withMgr(p, (*settings.SettingsManager).GetSourceHydratorCommitMessageTemplate)
 }
 
+func (p *SettingsManagerProvider) StatusBadgeEnabled(_ context.Context) (bool, error) {
+	return withMgr(p, func(mgr *settings.SettingsManager) (bool, error) {
+		sett, err := mgr.GetSettings()
+		if err != nil {
+			return false, err
+		}
+		return sett.StatusBadgeEnabled, nil
+	})
+}
+
 func (p *SettingsManagerProvider) TrackingMethod(_ context.Context) (string, error) {
 	return withMgr(p, (*settings.SettingsManager).GetTrackingMethod)
+}
+
+func (p *SettingsManagerProvider) UserSessionDuration(_ context.Context) (time.Duration, error) {
+	return withMgr(p, func(mgr *settings.SettingsManager) (time.Duration, error) {
+		sett, err := mgr.GetSettings()
+		if err != nil {
+			return 0, err
+		}
+		return sett.UserSessionDuration, nil
+	})
+}
+
+func (p *SettingsManagerProvider) WebhookRefreshJitter(_ context.Context) (time.Duration, error) {
+	return withMgr(p, func(mgr *settings.SettingsManager) (time.Duration, error) {
+		return mgr.GetWebhookRefreshJitter(), nil
+	})
+}
+
+func (p *SettingsManagerProvider) WebhookRefreshJitterThreshold(_ context.Context) (int, error) {
+	return withMgr(p, func(mgr *settings.SettingsManager) (int, error) {
+		return mgr.GetWebhookRefreshJitterThreshold(), nil
+	})
 }

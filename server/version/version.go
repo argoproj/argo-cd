@@ -2,6 +2,7 @@ package version
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/google/go-jsonnet"
@@ -9,6 +10,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/version"
 	"github.com/argoproj/argo-cd/v3/server/settings"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/helm"
 	"github.com/argoproj/argo-cd/v3/util/kustomize"
 	sessionmgr "github.com/argoproj/argo-cd/v3/util/session"
@@ -19,22 +21,37 @@ type Server struct {
 	helmVersion      string
 	jsonnetVersion   string
 	authenticator    settings.Authenticator
-	disableAuth      func() (bool, error)
+	configProvider   configbus.Provider
 }
 
-func NewServer(authenticator settings.Authenticator, disableAuth func() (bool, error)) *Server {
-	return &Server{authenticator: authenticator, disableAuth: disableAuth}
+func NewServer(authenticator settings.Authenticator, configProvider configbus.Provider) *Server {
+	return &Server{authenticator: authenticator, configProvider: configProvider}
+}
+
+func (s *Server) allowUnauthenticated(ctx context.Context) (bool, error) {
+	disableAuth, err := s.configProvider.DisableAuth(ctx)
+	if err != nil {
+		return false, fmt.Errorf("failed to resolve DisableAuth: %w", err)
+	}
+	if disableAuth {
+		return true, nil
+	}
+	anonymousUserEnabled, err := s.configProvider.AnonymousUserEnabled(ctx)
+	if err != nil {
+		return false, fmt.Errorf("failed to resolve AnonymousUserEnabled: %w", err)
+	}
+	return anonymousUserEnabled, nil
 }
 
 // Version returns the version of the API server
 func (s *Server) Version(ctx context.Context, _ *empty.Empty) (*version.VersionMessage, error) {
 	vers := common.GetVersion()
-	disableAuth, err := s.disableAuth()
+	allowUnauthenticated, err := s.allowUnauthenticated(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to resolve whether unauthenticated version is allowed: %w", err)
 	}
 
-	if !sessionmgr.LoggedIn(ctx) && !disableAuth {
+	if !sessionmgr.LoggedIn(ctx) && !allowUnauthenticated {
 		return &version.VersionMessage{Version: vers.Version}, nil
 	}
 

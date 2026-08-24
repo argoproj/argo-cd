@@ -14,18 +14,16 @@ import (
 
 	settingspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/settings"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 // Server provides a Settings service
 type Server struct {
-	mgr                       *settings.SettingsManager
-	repoClient                apiclient.Clientset
-	authenticator             Authenticator
-	disableAuth               bool
-	appsInAnyNamespaceEnabled bool
-	hydratorEnabled           bool
-	syncWithReplaceAllowed    bool
+	mgr            *settings.SettingsManager
+	repoClient     apiclient.Clientset
+	authenticator  Authenticator
+	configProvider configbus.Provider
 }
 
 type Authenticator interface {
@@ -33,41 +31,41 @@ type Authenticator interface {
 }
 
 // NewServer returns a new instance of the Settings service
-func NewServer(mgr *settings.SettingsManager, repoClient apiclient.Clientset, authenticator Authenticator, disableAuth, appsInAnyNamespaceEnabled bool, hydratorEnabled bool, syncWithReplaceAllowed bool) *Server {
-	return &Server{mgr: mgr, repoClient: repoClient, authenticator: authenticator, disableAuth: disableAuth, appsInAnyNamespaceEnabled: appsInAnyNamespaceEnabled, hydratorEnabled: hydratorEnabled, syncWithReplaceAllowed: syncWithReplaceAllowed}
+func NewServer(mgr *settings.SettingsManager, repoClient apiclient.Clientset, authenticator Authenticator, configProvider configbus.Provider) *Server {
+	return &Server{mgr: mgr, repoClient: repoClient, authenticator: authenticator, configProvider: configProvider}
 }
 
 // Get returns Argo CD settings
 func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settingspkg.Settings, error) {
-	resourceOverrides, err := s.mgr.GetResourceOverrides()
+	resourceOverrides, err := s.configProvider.ResourceOverrides(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to resolve ResourceOverrides: %w", err)
 	}
 	overrides := make(map[string]*v1alpha1.ResourceOverride)
 	for k := range resourceOverrides {
 		val := resourceOverrides[k]
 		overrides[k] = &val
 	}
-	appInstanceLabelKey, err := s.mgr.GetAppInstanceLabelKey()
+	appInstanceLabelKey, err := s.configProvider.AppInstanceLabelKey(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to resolve AppInstanceLabelKey: %w", err)
 	}
 	argoCDSettings, err := s.mgr.GetSettings()
 	if err != nil {
 		return nil, err
 	}
-	gaSettings, err := s.mgr.GetGoogleAnalytics()
+	gaSettings, err := s.configProvider.GoogleAnalytics(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to resolve GoogleAnalytics: %w", err)
 	}
-	help, err := s.mgr.GetHelp()
+	help, err := s.configProvider.Help(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to resolve Help: %w", err)
 	}
 	userLoginsDisabled := true
-	accounts, err := s.mgr.GetAccounts()
+	accounts, err := s.configProvider.Accounts(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to resolve Accounts: %w", err)
 	}
 	for _, account := range accounts {
 		if account.Enabled && account.HasCapability(settings.AccountCapabilityLogin) {
@@ -76,33 +74,72 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 		}
 	}
 
-	kustomizeSettings, err := s.mgr.GetKustomizeSettings()
+	kustomizeSettings, err := s.configProvider.KustomizeSettings(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to resolve KustomizeSettings: %w", err)
 	}
 	var kustomizeVersions []string
 	for i := range kustomizeSettings.Versions {
 		kustomizeVersions = append(kustomizeVersions, kustomizeSettings.Versions[i].Name)
 	}
 
-	trackingMethod, err := s.mgr.GetTrackingMethod()
+	trackingMethod, err := s.configProvider.TrackingMethod(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to resolve TrackingMethod: %w", err)
 	}
 
-	installationID, err := s.mgr.GetInstallationID()
+	installationID, err := s.configProvider.InstallationID(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to resolve InstallationID: %w", err)
+	}
+
+	statusBadgeEnabled, err := s.configProvider.StatusBadgeEnabled(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve StatusBadgeEnabled: %w", err)
+	}
+	execEnabled, err := s.configProvider.ExecEnabled(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve ExecEnabled: %w", err)
+	}
+	impersonationEnabled, err := s.configProvider.IsImpersonationEnabled(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve IsImpersonationEnabled: %w", err)
+	}
+
+	applicationNamespaces, err := s.configProvider.ApplicationNamespaces(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve ApplicationNamespaces: %w", err)
+	}
+	hydratorEnabled, err := s.configProvider.HydratorEnabled(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve HydratorEnabled: %w", err)
+	}
+	syncWithReplaceAllowed, err := s.configProvider.SyncWithReplaceAllowed(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve SyncWithReplaceAllowed: %w", err)
+	}
+	disableAuth, err := s.configProvider.DisableAuth(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve DisableAuth: %w", err)
+	}
+
+	serverURL, err := s.configProvider.ServerURL(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve ServerURL: %w", err)
+	}
+	additionalURLs, err := s.configProvider.AdditionalURLs(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve AdditionalURLs: %w", err)
 	}
 
 	set := settingspkg.Settings{
-		URL:                argoCDSettings.URL,
-		AdditionalURLs:     argoCDSettings.AdditionalURLs,
+		URL:                serverURL,
+		AdditionalURLs:     additionalURLs,
 		AppLabelKey:        appInstanceLabelKey,
-		StatusBadgeEnabled: argoCDSettings.StatusBadgeEnabled,
+		StatusBadgeEnabled: statusBadgeEnabled,
 		StatusBadgeRootUrl: argoCDSettings.StatusBadgeRootUrl,
 		KustomizeOptions: &v1alpha1.KustomizeOptions{
-			BuildOptions: argoCDSettings.KustomizeBuildOptions,
+			BuildOptions: kustomizeSettings.BuildOptions,
 		},
 		GoogleAnalytics: &settingspkg.GoogleAnalyticsConfig{
 			TrackingID:     gaSettings.TrackingID,
@@ -119,15 +156,15 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 		UiLoginButtonText:         argoCDSettings.UiLoginButtonText,
 		TrackingMethod:            trackingMethod,
 		InstallationID:            installationID,
-		ExecEnabled:               argoCDSettings.ExecEnabled,
-		AppsInAnyNamespaceEnabled: s.appsInAnyNamespaceEnabled,
-		ImpersonationEnabled:      argoCDSettings.ImpersonationEnabled,
-		HydratorEnabled:           s.hydratorEnabled,
-		SyncWithReplaceAllowed:    s.syncWithReplaceAllowed,
+		ExecEnabled:               execEnabled,
+		AppsInAnyNamespaceEnabled: len(applicationNamespaces) > 0,
+		ImpersonationEnabled:      impersonationEnabled,
+		HydratorEnabled:           hydratorEnabled,
+		SyncWithReplaceAllowed:    syncWithReplaceAllowed,
 		ResourceViewEnabled:       argoCDSettings.ResourceViewEnabled,
 	}
 
-	if sessionmgr.LoggedIn(ctx) || s.disableAuth {
+	if sessionmgr.LoggedIn(ctx) || disableAuth {
 		set.UiBannerContent = argoCDSettings.UiBannerContent
 		set.UiBannerURL = argoCDSettings.UiBannerURL
 		set.UiBannerPermanent = argoCDSettings.UiBannerPermanent
@@ -136,7 +173,11 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 		set.ResourceOverrides = overrides
 	}
 	if sessionmgr.LoggedIn(ctx) {
-		set.PasswordPattern = argoCDSettings.PasswordPattern
+		passwordPattern, err := s.configProvider.PasswordPattern(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve PasswordPattern: %w", err)
+		}
+		set.PasswordPattern = passwordPattern
 	}
 	if argoCDSettings.DexConfig != "" {
 		var cfg settingspkg.DexConfig

@@ -10,6 +10,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/commitserver/metrics"
 	versionpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/version"
 	"github.com/argoproj/argo-cd/v3/server/version"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/git"
 )
 
@@ -26,9 +27,9 @@ func NewServer(gitCredsStore git.CredsStore, metricsServer *metrics.Server) *Arg
 // CreateGRPC creates a new gRPC server.
 func (a *ArgoCDCommitServer) CreateGRPC() *grpc.Server {
 	server := grpc.NewServer(grpc.MaxRecvMsgSize(apiclient.MaxGRPCMessageSize))
-	versionpkg.RegisterVersionServiceServer(server, version.NewServer(nil, func() (bool, error) {
-		return true, nil
-	}))
+	versionpkg.RegisterVersionServiceServer(server, version.NewServer(nil, &configbus.StaticProvider{Fields: configbus.StaticFields{
+		DisableAuth: configbus.Ptr(true),
+	}}))
 	apiclient.RegisterCommitServiceServer(server, a.commitService)
 
 	healthService := health.NewServer()

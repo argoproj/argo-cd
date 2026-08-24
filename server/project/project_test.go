@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/db"
 
 	"github.com/argoproj/pkg/v2/sync"
@@ -38,6 +39,12 @@ import (
 const testNamespace = "default"
 
 var testEnableEventList = argo.DefaultEnableEventList()
+
+func testProjectConfigProvider() configbus.Provider {
+	return &configbus.StaticProvider{Fields: configbus.StaticFields{
+		EnableK8sEvent: configbus.Ptr(testEnableEventList),
+	}}
+}
 
 func TestProjectServer(t *testing.T) {
 	kubeclientset := fake.NewClientset(&corev1.ConfigMap{
@@ -129,7 +136,7 @@ func TestProjectServer(t *testing.T) {
 		role1 := v1alpha1.ProjectRole{Name: roleName, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: 1}}}
 		projectWithRole.Spec.Roles = append(projectWithRole.Spec.Roles, role1)
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
-		projectServer := NewServer("default", fake.NewClientset(), apps.NewSimpleClientset(projectWithRole), enforcer, sync.NewKeyLock(), sessionMgr, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
+		projectServer := NewServer("default", fake.NewClientset(), apps.NewSimpleClientset(projectWithRole), enforcer, sync.NewKeyLock(), sessionMgr, nil, projInformer, argoDB, testProjectConfigProvider())
 		err := projectServer.NormalizeProjs()
 		require.NoError(t, err)
 
@@ -143,7 +150,7 @@ func TestProjectServer(t *testing.T) {
 		enforcer.SetDefaultRole("role:projects")
 		_ = enforcer.SetBuiltinPolicy("p, role:projects, projects, update, *, allow")
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, sync.NewKeyLock(), nil, nil, projInformer, argoDB, testProjectConfigProvider())
 
 		updatedProj := existingProj.DeepCopy()
 		updatedProj.Spec.Destinations = nil
@@ -157,7 +164,7 @@ func TestProjectServer(t *testing.T) {
 		enforcer.SetDefaultRole("role:projects")
 		_ = enforcer.SetBuiltinPolicy("p, role:projects, projects, update, *, allow")
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, sync.NewKeyLock(), nil, nil, projInformer, argoDB, testProjectConfigProvider())
 
 		updatedProj := existingProj.DeepCopy()
 		updatedProj.Spec.SourceRepos = nil
@@ -171,7 +178,7 @@ func TestProjectServer(t *testing.T) {
 		enforcer.SetDefaultRole("role:projects")
 		_ = enforcer.SetBuiltinPolicy("p, role:projects, projects, update, *, allow")
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, sync.NewKeyLock(), nil, nil, projInformer, argoDB, testProjectConfigProvider())
 
 		updatedProj := existingProj.DeepCopy()
 		updatedProj.Spec.ClusterResourceWhitelist = []v1alpha1.ClusterResourceRestrictionItem{{}}
@@ -185,7 +192,7 @@ func TestProjectServer(t *testing.T) {
 		enforcer.SetDefaultRole("role:projects")
 		_ = enforcer.SetBuiltinPolicy("p, role:projects, projects, update, *, allow")
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, sync.NewKeyLock(), nil, nil, projInformer, argoDB, testProjectConfigProvider())
 
 		updatedProj := existingProj.DeepCopy()
 		updatedProj.Spec.NamespaceResourceBlacklist = []metav1.GroupKind{{}}
@@ -204,7 +211,7 @@ func TestProjectServer(t *testing.T) {
 		}
 
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, sync.NewKeyLock(), nil, nil, projInformer, argoDB, testProjectConfigProvider())
 
 		updatedProj := existingProj.DeepCopy()
 		updatedProj.Spec.Destinations = updatedProj.Spec.Destinations[1:]
@@ -221,7 +228,7 @@ func TestProjectServer(t *testing.T) {
 		}
 
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, sync.NewKeyLock(), nil, nil, projInformer, argoDB, testProjectConfigProvider())
 
 		updatedProj := existingProj.DeepCopy()
 		updatedProj.Spec.Destinations = updatedProj.Spec.Destinations[1:]
@@ -241,7 +248,7 @@ func TestProjectServer(t *testing.T) {
 		}
 
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, sync.NewKeyLock(), nil, nil, projInformer, argoDB, testProjectConfigProvider())
 
 		updatedProj := existingProj.DeepCopy()
 		updatedProj.Spec.SourceRepos = []string{}
@@ -258,7 +265,7 @@ func TestProjectServer(t *testing.T) {
 		}
 
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, sync.NewKeyLock(), nil, nil, projInformer, argoDB, testProjectConfigProvider())
 
 		updatedProj := existingProj.DeepCopy()
 		updatedProj.Spec.SourceRepos = []string{}
@@ -279,7 +286,7 @@ func TestProjectServer(t *testing.T) {
 			Spec:       v1alpha1.ApplicationSpec{Destination: v1alpha1.ApplicationDestination{Server: "https://server1"}, Project: "test", Source: &v1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argo-cd.git"}},
 		}
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(proj, &existingApp), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(proj, &existingApp), enforcer, sync.NewKeyLock(), nil, nil, projInformer, argoDB, testProjectConfigProvider())
 
 		updatedProj := proj.DeepCopy()
 		updatedProj.Spec.SourceRepos = []string{"https://github.com/argoproj/*"}
@@ -306,7 +313,7 @@ func TestProjectServer(t *testing.T) {
 
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
 
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(proj, &existingApp), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(proj, &existingApp), enforcer, sync.NewKeyLock(), nil, nil, projInformer, argoDB, testProjectConfigProvider())
 
 		updatedProj := proj.DeepCopy()
 		updatedProj.Spec.Destinations = []v1alpha1.ApplicationDestination{
@@ -321,7 +328,7 @@ func TestProjectServer(t *testing.T) {
 
 	t.Run("TestDeleteProjectSuccessful", func(t *testing.T) {
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj), enforcer, sync.NewKeyLock(), nil, nil, projInformer, argoDB, testProjectConfigProvider())
 
 		_, err := projectServer.Delete(t.Context(), &project.ProjectQuery{Name: "test"})
 
@@ -334,7 +341,7 @@ func TestProjectServer(t *testing.T) {
 			Spec:       v1alpha1.AppProjectSpec{},
 		}
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&defaultProj), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&defaultProj), enforcer, sync.NewKeyLock(), nil, nil, projInformer, argoDB, testProjectConfigProvider())
 
 		_, err := projectServer.Delete(t.Context(), &project.ProjectQuery{Name: defaultProj.Name})
 		statusCode, _ := status.FromError(err)
@@ -348,7 +355,7 @@ func TestProjectServer(t *testing.T) {
 		}
 
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(&existingProj, &existingApp), enforcer, sync.NewKeyLock(), nil, nil, projInformer, argoDB, testProjectConfigProvider())
 
 		_, err := projectServer.Delete(t.Context(), &project.ProjectQuery{Name: "test"})
 
@@ -376,7 +383,7 @@ func TestProjectServer(t *testing.T) {
 		projectWithRole.Spec.Roles = []v1alpha1.ProjectRole{{Name: tokenName}}
 
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithRole), enforcer, sync.NewKeyLock(), sessionMgr, policyEnf, projInformer, settingsMgr, argoDB, testEnableEventList)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithRole), enforcer, sync.NewKeyLock(), sessionMgr, policyEnf, projInformer, argoDB, testProjectConfigProvider())
 		_, err := projectServer.CreateToken(ctx, &project.ProjectTokenCreateRequest{Project: projectWithRole.Name, Role: tokenName, ExpiresIn: 1})
 		assert.EqualError(t, err, "rpc error: code = PermissionDenied desc = permission denied: projects, update, test")
 	})
@@ -386,7 +393,7 @@ func TestProjectServer(t *testing.T) {
 		projectWithRole := existingProj.DeepCopy()
 		projectWithRole.Spec.Roles = []v1alpha1.ProjectRole{{Name: tokenName, Groups: []string{"my-group"}}}
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithRole), enforcer, sync.NewKeyLock(), sessionMgr, policyEnf, projInformer, settingsMgr, argoDB, testEnableEventList)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithRole), enforcer, sync.NewKeyLock(), sessionMgr, policyEnf, projInformer, argoDB, testProjectConfigProvider())
 		_, err := projectServer.CreateToken(ctx, &project.ProjectTokenCreateRequest{Project: projectWithRole.Name, Role: tokenName, ExpiresIn: 1})
 		require.NoError(t, err)
 	})
@@ -400,7 +407,7 @@ func TestProjectServer(t *testing.T) {
 
 		sessionMgr := session.NewSessionManager(settingsMgr, test.NewFakeProjListerFromInterface(clientset.ArgoprojV1alpha1().AppProjects("default")), "", nil, session.NewUserStateStorage(nil))
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
-		projectServer := NewServer("default", fake.NewSimpleClientset(), clientset, enforcer, sync.NewKeyLock(), sessionMgr, policyEnf, projInformer, settingsMgr, argoDB, testEnableEventList)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), clientset, enforcer, sync.NewKeyLock(), sessionMgr, policyEnf, projInformer, argoDB, testProjectConfigProvider())
 		tokenResponse, err := projectServer.CreateToken(t.Context(), &project.ProjectTokenCreateRequest{Project: projectWithRole.Name, Role: tokenName, ExpiresIn: 100})
 		require.NoError(t, err)
 		claims, _, err := sessionMgr.Parse(tokenResponse.Token)
@@ -421,7 +428,7 @@ func TestProjectServer(t *testing.T) {
 
 		sessionMgr := session.NewSessionManager(settingsMgr, test.NewFakeProjListerFromInterface(clientset.ArgoprojV1alpha1().AppProjects("default")), "", nil, session.NewUserStateStorage(nil))
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
-		projectServer := NewServer("default", fake.NewSimpleClientset(), clientset, enforcer, sync.NewKeyLock(), sessionMgr, policyEnf, projInformer, settingsMgr, argoDB, testEnableEventList)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), clientset, enforcer, sync.NewKeyLock(), sessionMgr, policyEnf, projInformer, argoDB, testProjectConfigProvider())
 		tokenResponse, err := projectServer.CreateToken(t.Context(), &project.ProjectTokenCreateRequest{Project: projectWithRole.Name, Role: tokenName, ExpiresIn: 1, Id: id})
 		require.NoError(t, err)
 		claims, _, err := sessionMgr.Parse(tokenResponse.Token)
@@ -442,7 +449,7 @@ func TestProjectServer(t *testing.T) {
 
 		sessionMgr := session.NewSessionManager(settingsMgr, test.NewFakeProjListerFromInterface(clientset.ArgoprojV1alpha1().AppProjects("default")), "", nil, session.NewUserStateStorage(nil))
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
-		projectServer := NewServer("default", fake.NewSimpleClientset(), clientset, enforcer, sync.NewKeyLock(), sessionMgr, policyEnf, projInformer, settingsMgr, argoDB, testEnableEventList)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), clientset, enforcer, sync.NewKeyLock(), sessionMgr, policyEnf, projInformer, argoDB, testProjectConfigProvider())
 		tokenResponse, err := projectServer.CreateToken(t.Context(), &project.ProjectTokenCreateRequest{Project: projectWithRole.Name, Role: tokenName, ExpiresIn: 1, Id: id})
 
 		require.NoError(t, err)
@@ -471,7 +478,7 @@ func TestProjectServer(t *testing.T) {
 		token := v1alpha1.ProjectRole{Name: tokenName, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: issuedAt}, {IssuedAt: secondIssuedAt}}}
 		projWithToken.Spec.Roles = append(projWithToken.Spec.Roles, token)
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, sync.NewKeyLock(), sessionMgr, policyEnf, projInformer, settingsMgr, argoDB, testEnableEventList)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, sync.NewKeyLock(), sessionMgr, policyEnf, projInformer, argoDB, testProjectConfigProvider())
 		_, err := projectServer.DeleteToken(ctx, &project.ProjectTokenDeleteRequest{Project: projWithToken.Name, Role: tokenName, Iat: issuedAt})
 		assert.EqualError(t, err, "rpc error: code = PermissionDenied desc = permission denied: projects, update, test")
 	})
@@ -484,7 +491,7 @@ func TestProjectServer(t *testing.T) {
 		token := v1alpha1.ProjectRole{Name: tokenName, Groups: []string{"my-group"}, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: issuedAt}, {IssuedAt: secondIssuedAt}}}
 		projWithToken.Spec.Roles = append(projWithToken.Spec.Roles, token)
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, sync.NewKeyLock(), sessionMgr, policyEnf, projInformer, settingsMgr, argoDB, testEnableEventList)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, sync.NewKeyLock(), sessionMgr, policyEnf, projInformer, argoDB, testProjectConfigProvider())
 		_, err := projectServer.DeleteToken(ctx, &project.ProjectTokenDeleteRequest{Project: projWithToken.Name, Role: tokenName, Iat: issuedAt})
 		require.NoError(t, err)
 	})
@@ -500,7 +507,7 @@ p, role:admin, projects, update, *, allow`)
 		token := v1alpha1.ProjectRole{Name: tokenName, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: issuedAt}, {IssuedAt: secondIssuedAt}}}
 		projWithToken.Spec.Roles = append(projWithToken.Spec.Roles, token)
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, sync.NewKeyLock(), sessionMgr, policyEnf, projInformer, settingsMgr, argoDB, testEnableEventList)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, sync.NewKeyLock(), sessionMgr, policyEnf, projInformer, argoDB, testProjectConfigProvider())
 		_, err := projectServer.DeleteToken(ctx, &project.ProjectTokenDeleteRequest{Project: projWithToken.Name, Role: tokenName, Iat: issuedAt})
 		require.NoError(t, err)
 		projWithoutToken, err := projectServer.Get(t.Context(), &project.ProjectQuery{Name: projWithToken.Name})
@@ -524,7 +531,7 @@ p, role:admin, projects, update, *, allow`)
 		token := v1alpha1.ProjectRole{Name: tokenName, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: issuedAt, ID: id}, {IssuedAt: secondIssuedAt, ID: secondId}}}
 		projWithToken.Spec.Roles = append(projWithToken.Spec.Roles, token)
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, sync.NewKeyLock(), sessionMgr, policyEnf, projInformer, settingsMgr, argoDB, testEnableEventList)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, sync.NewKeyLock(), sessionMgr, policyEnf, projInformer, argoDB, testProjectConfigProvider())
 		_, err := projectServer.DeleteToken(ctx, &project.ProjectTokenDeleteRequest{Project: projWithToken.Name, Role: tokenName, Iat: secondIssuedAt, Id: id})
 		require.NoError(t, err)
 		projWithoutToken, err := projectServer.Get(t.Context(), &project.ProjectQuery{Name: projWithToken.Name})
@@ -543,7 +550,7 @@ p, role:admin, projects, update, *, allow`)
 		token := v1alpha1.ProjectRole{Name: tokenName, JWTTokens: []v1alpha1.JWTToken{{IssuedAt: 1}}}
 		projWithToken.Spec.Roles = append(projWithToken.Spec.Roles, token)
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, sync.NewKeyLock(), sessionMgr, policyEnf, projInformer, settingsMgr, argoDB, testEnableEventList)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithToken), enforcer, sync.NewKeyLock(), sessionMgr, policyEnf, projInformer, argoDB, testProjectConfigProvider())
 		_, err := projectServer.CreateToken(t.Context(), &project.ProjectTokenCreateRequest{Project: projWithToken.Name, Role: tokenName})
 		require.NoError(t, err)
 		projWithTwoTokens, err := projectServer.Get(t.Context(), &project.ProjectQuery{Name: projWithToken.Name})
@@ -557,7 +564,7 @@ p, role:admin, projects, update, *, allow`)
 		wildSourceRepo := "*"
 		proj.Spec.SourceRepos = append(proj.Spec.SourceRepos, wildSourceRepo)
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(proj), enforcer, sync.NewKeyLock(), nil, policyEnf, projInformer, settingsMgr, argoDB, testEnableEventList)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(proj), enforcer, sync.NewKeyLock(), nil, policyEnf, projInformer, argoDB, testProjectConfigProvider())
 		request := &project.ProjectUpdateRequest{Project: proj}
 		updatedProj, err := projectServer.Update(t.Context(), request)
 		require.NoError(t, err)
@@ -576,7 +583,7 @@ p, role:admin, projects, update, *, allow`)
 		role.Policies = append(role.Policies, policy)
 		projWithRole.Spec.Roles = append(projWithRole.Spec.Roles, role)
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, sync.NewKeyLock(), nil, policyEnf, projInformer, settingsMgr, argoDB, testEnableEventList)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, sync.NewKeyLock(), nil, policyEnf, projInformer, argoDB, testProjectConfigProvider())
 		request := &project.ProjectUpdateRequest{Project: projWithRole}
 		_, err := projectServer.Update(t.Context(), request)
 		require.NoError(t, err)
@@ -598,7 +605,7 @@ p, role:admin, projects, update, *, allow`)
 		role.Policies = append(role.Policies, policy)
 		projWithRole.Spec.Roles = append(projWithRole.Spec.Roles, role)
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, sync.NewKeyLock(), nil, nil, projInformer, argoDB, testProjectConfigProvider())
 		request := &project.ProjectUpdateRequest{Project: projWithRole}
 		_, err := projectServer.Update(t.Context(), request)
 		expectedErr := fmt.Sprintf("rpc error: code = AlreadyExists desc = policy '%s' already exists for role '%s'", policy, roleName)
@@ -618,7 +625,7 @@ p, role:admin, projects, update, *, allow`)
 		role.Policies = append(role.Policies, policy)
 		projWithRole.Spec.Roles = append(projWithRole.Spec.Roles, role)
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, sync.NewKeyLock(), nil, nil, projInformer, argoDB, testProjectConfigProvider())
 		request := &project.ProjectUpdateRequest{Project: projWithRole}
 		_, err := projectServer.Update(t.Context(), request)
 		assert.ErrorContains(t, err, "object must be of form 'test/*', 'test[/<NAMESPACE>]/<APPNAME>' or 'test/<APPNAME>'")
@@ -637,7 +644,7 @@ p, role:admin, projects, update, *, allow`)
 		role.Policies = append(role.Policies, invalidPolicy)
 		projWithRole.Spec.Roles = append(projWithRole.Spec.Roles, role)
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, sync.NewKeyLock(), nil, nil, projInformer, argoDB, testProjectConfigProvider())
 		request := &project.ProjectUpdateRequest{Project: projWithRole}
 		_, err := projectServer.Update(t.Context(), request)
 		assert.ErrorContains(t, err, "policy subject must be: 'proj:test:testRole'")
@@ -656,7 +663,7 @@ p, role:admin, projects, update, *, allow`)
 		role.Policies = append(role.Policies, invalidPolicy)
 		projWithRole.Spec.Roles = append(projWithRole.Spec.Roles, role)
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, sync.NewKeyLock(), nil, nil, projInformer, argoDB, testProjectConfigProvider())
 		request := &project.ProjectUpdateRequest{Project: projWithRole}
 		_, err := projectServer.Update(t.Context(), request)
 		assert.ErrorContains(t, err, "policy subject must be: 'proj:test:testRole'")
@@ -674,7 +681,7 @@ p, role:admin, projects, update, *, allow`)
 		role.Policies = append(role.Policies, invalidPolicy)
 		projWithRole.Spec.Roles = append(projWithRole.Spec.Roles, role)
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, sync.NewKeyLock(), nil, nil, projInformer, argoDB, testProjectConfigProvider())
 		request := &project.ProjectUpdateRequest{Project: projWithRole}
 		_, err := projectServer.Update(t.Context(), request)
 		assert.ErrorContains(t, err, "effect must be: 'allow' or 'deny'")
@@ -693,7 +700,7 @@ p, role:admin, projects, update, *, allow`)
 		role.Policies = append(role.Policies, invalidPolicy)
 		projWithRole.Spec.Roles = append(projWithRole.Spec.Roles, role)
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, sync.NewKeyLock(), nil, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projWithRole), enforcer, sync.NewKeyLock(), nil, nil, projInformer, argoDB, testProjectConfigProvider())
 		request := &project.ProjectUpdateRequest{Project: projWithRole}
 		updateProj, err := projectServer.Update(t.Context(), request)
 		require.NoError(t, err)
@@ -708,7 +715,7 @@ p, role:admin, projects, update, *, allow`)
 		win := &v1alpha1.InlineSyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "1h"}
 		projectWithSyncWindows.Spec.SyncWindows = append(projectWithSyncWindows.Spec.SyncWindows, win)
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithSyncWindows), enforcer, sync.NewKeyLock(), sessionMgr, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithSyncWindows), enforcer, sync.NewKeyLock(), sessionMgr, nil, projInformer, argoDB, testProjectConfigProvider())
 		res, err := projectServer.GetSyncWindowsState(ctx, &project.SyncWindowsQuery{Name: projectWithSyncWindows.Name})
 		require.NoError(t, err)
 		assert.Len(t, res.Windows, 1)
@@ -721,7 +728,7 @@ p, role:admin, projects, update, *, allow`)
 		win := &v1alpha1.InlineSyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "1h"}
 		projectWithSyncWindows.Spec.SyncWindows = append(projectWithSyncWindows.Spec.SyncWindows, win)
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithSyncWindows), enforcer, sync.NewKeyLock(), sessionMgr, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithSyncWindows), enforcer, sync.NewKeyLock(), sessionMgr, nil, projInformer, argoDB, testProjectConfigProvider())
 		res, err := projectServer.GetSyncWindowsState(ctx, &project.SyncWindowsQuery{Name: "incorrect"})
 		require.ErrorContains(t, err, "not found")
 		assert.Nil(t, res)
@@ -739,7 +746,7 @@ p, role:admin, projects, update, *, allow`)
 		win := &v1alpha1.InlineSyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "1h"}
 		projectWithSyncWindows.Spec.SyncWindows = append(projectWithSyncWindows.Spec.SyncWindows, win)
 		argoDB := db.NewDB("default", settingsMgr, kubeclientset)
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithSyncWindows), enforcer, sync.NewKeyLock(), sessionMgr, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithSyncWindows), enforcer, sync.NewKeyLock(), sessionMgr, nil, projInformer, argoDB, testProjectConfigProvider())
 		_, err := projectServer.GetSyncWindowsState(ctx, &project.SyncWindowsQuery{Name: projectWithSyncWindows.Name})
 		assert.EqualError(t, err, "rpc error: code = PermissionDenied desc = permission denied: projects, get, test")
 	})
@@ -755,7 +762,7 @@ p, role:admin, projects, update, *, allow`)
 			ObjectMeta: metav1.ObjectMeta{Name: "test-invalid", Namespace: "default"},
 			Spec:       v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}, Project: "test", Destination: v1alpha1.ApplicationDestination{Namespace: "ns3", Server: "https://server4"}},
 		}
-		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithAppWithInvalidCluster, &invalidApp), enforcer, sync.NewKeyLock(), sessionMgr, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
+		projectServer := NewServer("default", fake.NewSimpleClientset(), apps.NewSimpleClientset(projectWithAppWithInvalidCluster, &invalidApp), enforcer, sync.NewKeyLock(), sessionMgr, nil, projInformer, argoDB, testProjectConfigProvider())
 
 		// Add sync window
 		syncWindow := v1alpha1.InlineSyncWindow{
@@ -819,7 +826,7 @@ func TestListEvents(t *testing.T) {
 		go projInformer.Run(t.Context().Done())
 		k8scache.WaitForCacheSync(t.Context().Done(), projInformer.HasSynced)
 
-		projectServer := NewServer(testNamespace, kubeclientset, apps.NewSimpleClientset(existingProj), enforcer, sync.NewKeyLock(), sessionMgr, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
+		projectServer := NewServer(testNamespace, kubeclientset, apps.NewSimpleClientset(existingProj), enforcer, sync.NewKeyLock(), sessionMgr, nil, projInformer, argoDB, testProjectConfigProvider())
 
 		res, err := projectServer.ListEvents(t.Context(), &project.ProjectQuery{Name: existingProj.Name})
 		require.NoError(t, err)
@@ -879,7 +886,7 @@ func TestListEvents(t *testing.T) {
 		go projInformer.Run(t.Context().Done())
 		k8scache.WaitForCacheSync(t.Context().Done(), projInformer.HasSynced)
 
-		projectServer := NewServer(testNamespace, kubeclientset, apps.NewSimpleClientset(existingProj), enforcer, sync.NewKeyLock(), sessionMgr, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
+		projectServer := NewServer(testNamespace, kubeclientset, apps.NewSimpleClientset(existingProj), enforcer, sync.NewKeyLock(), sessionMgr, nil, projInformer, argoDB, testProjectConfigProvider())
 
 		res, err := projectServer.ListEvents(t.Context(), &project.ProjectQuery{Name: existingProj.Name})
 		require.NoError(t, err)
@@ -917,7 +924,7 @@ func TestListEvents(t *testing.T) {
 		go projInformer.Run(t.Context().Done())
 		k8scache.WaitForCacheSync(t.Context().Done(), projInformer.HasSynced)
 
-		projectServer := NewServer(testNamespace, kubeclientset, apps.NewSimpleClientset(existingProj), enforcer, sync.NewKeyLock(), sessionMgr, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
+		projectServer := NewServer(testNamespace, kubeclientset, apps.NewSimpleClientset(existingProj), enforcer, sync.NewKeyLock(), sessionMgr, nil, projInformer, argoDB, testProjectConfigProvider())
 
 		_, err := projectServer.ListEvents(t.Context(), &project.ProjectQuery{Name: "non-existent"})
 		require.Error(t, err)
@@ -947,7 +954,7 @@ func TestListEvents(t *testing.T) {
 		go projInformer.Run(t.Context().Done())
 		k8scache.WaitForCacheSync(t.Context().Done(), projInformer.HasSynced)
 
-		projectServer := NewServer(testNamespace, kubeclientset, apps.NewSimpleClientset(existingProj), enforcer, sync.NewKeyLock(), sessionMgr, nil, projInformer, settingsMgr, argoDB, testEnableEventList)
+		projectServer := NewServer(testNamespace, kubeclientset, apps.NewSimpleClientset(existingProj), enforcer, sync.NewKeyLock(), sessionMgr, nil, projInformer, argoDB, testProjectConfigProvider())
 
 		//nolint:staticcheck
 		ctx := context.WithValue(t.Context(), "claims", &jwt.MapClaims{"groups": []string{"my-group"}})

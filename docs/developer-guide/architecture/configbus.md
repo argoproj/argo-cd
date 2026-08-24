@@ -139,7 +139,8 @@ precedence, and a total-resolution coverage test for the controller chain.
 | Binary | Status |
 | --- | --- |
 | Application controller | Wired: `NewChainProvider(Static, SettingsManager, Env)` in `controller/appcontroller.go` |
-| API server, repo-server, ApplicationSet, notifications, commit-server | Follow the same pattern when cut over |
+| API server | Wired: `NewChainProvider(Static, SettingsManager, Env)` in `server/server.go`; child handlers/services receive `configProvider` and resolve JIT |
+| Repo-server, ApplicationSet, notifications, commit-server | Follow the same pattern when cut over |
 
 ### Sources of truth (controller)
 

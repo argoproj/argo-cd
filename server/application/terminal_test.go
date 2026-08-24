@@ -14,6 +14,7 @@ import (
 
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/security"
 )
 
@@ -331,7 +332,9 @@ func TestTerminalHandler_ServeHTTP_empty_params(t *testing.T) {
 }
 
 func TestTerminalHandler_ServeHTTP_disallowed_namespace(t *testing.T) {
-	handler := terminalHandler{namespace: "argocd", enabledNamespaces: []string{"allowed"}}
+	handler := terminalHandler{namespace: "argocd", configProvider: &configbus.StaticProvider{Fields: configbus.StaticFields{
+		ApplicationNamespaces: configbus.Ptr([]string{"allowed"}),
+	}}}
 	request := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://argocd.example.com/api/v1/terminal?pod=valid&container=valid&appName=valid&projectName=valid&namespace=test&appNamespace=disallowed", http.NoBody)
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, request)

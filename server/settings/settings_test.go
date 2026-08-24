@@ -12,6 +12,7 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
@@ -58,7 +59,15 @@ func TestSettingsServer(t *testing.T) {
 	t.Parallel()
 	newServer := func(data map[string]string) *Server {
 		_, settingsMgr := fixtures(t.Context(), data)
-		return NewServer(settingsMgr, nil, nil, false, false, false, false)
+		return NewServer(settingsMgr, nil, nil, configbus.NewChainProvider(
+			&configbus.StaticProvider{Fields: configbus.StaticFields{
+				ApplicationNamespaces:  configbus.Ptr([]string{}),
+				DisableAuth:            configbus.Ptr(false),
+				HydratorEnabled:        configbus.Ptr(false),
+				SyncWithReplaceAllowed: configbus.Ptr(false),
+			}},
+			configbus.NewSettingsManagerProvider(settingsMgr),
+		))
 	}
 
 	t.Run("TestGetInstallationID", func(t *testing.T) {
@@ -137,7 +146,15 @@ func TestGetDexConfig(t *testing.T) {
 	t.Parallel()
 	newServer := func(data map[string]string) *Server {
 		_, settingsMgr := fixtures(t.Context(), data)
-		return NewServer(settingsMgr, nil, nil, false, false, false, false)
+		return NewServer(settingsMgr, nil, nil, configbus.NewChainProvider(
+			&configbus.StaticProvider{Fields: configbus.StaticFields{
+				ApplicationNamespaces:  configbus.Ptr([]string{}),
+				DisableAuth:            configbus.Ptr(false),
+				HydratorEnabled:        configbus.Ptr(false),
+				SyncWithReplaceAllowed: configbus.Ptr(false),
+			}},
+			configbus.NewSettingsManagerProvider(settingsMgr),
+		))
 	}
 
 	const dexConfig = `connectors:
