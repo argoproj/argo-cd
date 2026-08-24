@@ -5,7 +5,7 @@ import {MemoryRouter, Route} from 'react-router';
 
 import {ApplicationFullscreenLogs} from './application-fullscreen-logs';
 
-jest.mock('../../../shared/components', () => ({
+jest.mock('../../../shared/components/spinner', () => ({
     Spinner: () => {
         const ReactLib = require('react');
         return ReactLib.createElement('div', null, 'loading spinner');
