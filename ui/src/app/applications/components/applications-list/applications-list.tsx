@@ -51,6 +51,7 @@ const APP_FIELDS = [
     'status.sync.revision',
     'status.health',
     'status.operationState.phase',
+    'status.operationState.operation.sync',
     'status.operationState.startedAt',
     'status.operationState.finishedAt'
 ];
