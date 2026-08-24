@@ -71,8 +71,12 @@ var appFields = map[string]func(app *v1alpha1.Application) any{
 		return nil
 	},
 	"status.operationState.operation.sync": func(app *v1alpha1.Application) any {
-		if app.Status.OperationState != nil {
-			return app.Status.OperationState.SyncResult
+		if app.Status.OperationState != nil && app.Status.OperationState.Operation.Sync != nil {
+			// The UI only needs the field's presence to classify the operation type,
+			// so project an empty object as a pure presence marker and drop the
+			// potentially large fields such as resources, manifests and sources to
+			// keep the list/watch payload small.
+			return &v1alpha1.SyncOperation{}
 		}
 		return nil
 	},
