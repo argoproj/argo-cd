@@ -1,13 +1,8 @@
 import {SlidingPanel} from 'argo-ui';
 import * as React from 'react';
 import {FormApi} from 'argo-ui';
-import {lazyWithBoundary} from '../../../shared/components/lazy-with-boundary';
 import * as models from '../../../shared/models';
-
-const ApplicationsRefreshPanelBody = lazyWithBoundary(
-    React.lazy(() => import(/* webpackChunkName: "apps-refresh-panel" */ './applications-refresh-panel-body').then(m => ({default: m.ApplicationsRefreshPanelBody}))),
-    'Failed to load refresh panel. Please reload and try again.'
-);
+import {ApplicationsRefreshPanelBody} from './applications-refresh-panel-body';
 
 export const ApplicationsRefreshPanel = ({show, apps, hide}: {show: boolean; apps: models.Application[]; hide: () => void}) => {
     const [form, setForm] = React.useState<FormApi>(null);

@@ -2,15 +2,10 @@ import {SlidingPanel} from 'argo-ui';
 import * as React from 'react';
 import {FormApi} from 'argo-ui';
 import {Spinner} from '../../../shared/components';
-import {lazyWithBoundary} from '../../../shared/components/lazy-with-boundary';
 import {Consumer, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {confirmSyncingAppOfApps} from '../utils';
-
-const ApplicationsSyncPanelBody = lazyWithBoundary(
-    React.lazy(() => import(/* webpackChunkName: "apps-sync-panel" */ './applications-sync-panel-body').then(m => ({default: m.ApplicationsSyncPanelBody}))),
-    'Failed to load sync panel. Please reload and try again.'
-);
+import {ApplicationsSyncPanelBody} from './applications-sync-panel-body';
 
 export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: models.Application[]; hide: () => void}) => {
     const [form, setForm] = React.useState<FormApi>(null);

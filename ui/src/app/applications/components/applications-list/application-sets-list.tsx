@@ -27,7 +27,7 @@ import './applications-table.scss';
 import './applications-tiles.scss';
 
 const ApplicationSetsSummary = lazyWithBoundary(
-    React.lazy(() => import(/* webpackChunkName: "apps-summary" */ './application-sets-summary').then(m => ({default: m.ApplicationSetsSummary}))),
+    React.lazy(() => import(/* webpackChunkName: "appset-summary" */ './application-sets-summary').then(m => ({default: m.ApplicationSetsSummary}))),
     'Failed to load application sets summary. Please reload and try again.'
 );
 

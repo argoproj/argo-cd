@@ -3,15 +3,10 @@ import * as React from 'react';
 import {FormApi} from 'argo-ui';
 
 import {Spinner} from '../../../shared/components';
-import {lazyWithBoundary} from '../../../shared/components/lazy-with-boundary';
 import * as models from '../../../shared/models';
+import {ApplicationSyncPanelBody} from './application-sync-panel-body';
 
 import './application-sync-panel.scss';
-
-const ApplicationSyncPanelBody = lazyWithBoundary(
-    React.lazy(() => import(/* webpackChunkName: "app-sync-panel" */ './application-sync-panel-body').then(m => ({default: m.ApplicationSyncPanelBody}))),
-    'Failed to load sync panel. Please reload and try again.'
-);
 
 export const ApplicationSyncPanel = ({application, selectedResource, hide}: {application: models.Application; selectedResource: string; hide: () => any}) => {
     const [form, setForm] = React.useState<FormApi>(null);
