@@ -1228,9 +1228,12 @@ func gpgVerificationFromGitRevParse(oneLetter string) (GPGVerificationResult, er
 var gpgKeyIdRegexp = regexp.MustCompile("[0-9a-zA-Z]{16}")
 
 func (m *nativeGitClient) tagSignature(ctx context.Context, tagRevision string) (*RevisionSignatureInfo, error) {
+	const zeroByte = "\x00"
+	const gitFormatZeroByte = "%00"
+
 	// Unlike for commits, there is no elegant way to slurp all signature info for tag. So this extracts details needed
 	// for RevisionSignatureInfo from 2 different git invocations.
-	cmd := m.cmdWithGPG(ctx, "git", "for-each-ref", "refs/tags/"+tagRevision, `--format=%(taggerdate:rfc2822)%00%(taggername) %(taggeremail)%00%(subject)`)
+	cmd := m.cmdWithGPG(ctx, "git", "for-each-ref", "refs/tags/"+tagRevision, `--format=%(taggerdate:rfc2822)`+gitFormatZeroByte+`%(taggername) %(taggeremail)`+gitFormatZeroByte+`%(subject)`)
 	tagOut, err := m.runCmdOutput(cmd, runOpts{})
 	if err != nil {
 		return nil, err
@@ -1238,7 +1241,7 @@ func (m *nativeGitClient) tagSignature(ctx context.Context, tagRevision string) 
 	if tagOut == "" {
 		return nil, fmt.Errorf("no tag found: %q", tagRevision)
 	}
-	tagInfo := strings.SplitN(tagOut, "\x00", 3)
+	tagInfo := strings.SplitN(tagOut, zeroByte, 3)
 	if len(tagInfo) != 3 {
 		return nil, fmt.Errorf("failed to parse tag %q for revisions %q", tagOut, tagRevision)
 	}
