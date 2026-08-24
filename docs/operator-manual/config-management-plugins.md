@@ -390,8 +390,9 @@ the speedup for monorepos comes from.
 
 Two consequences are worth knowing about:
 
-* The annotation has to list every path the plugin reads, including the targets of symlinks it follows. Symlink targets found under the
-  selected paths are added to the stream automatically, but a symlink pointing outside the common root can never be sent.
+* The annotation has to list every path the plugin reads, including the targets of the symlinks it follows. A symlink is sent like any
+  other file, so its target is only sent when the annotation selects it as well. This is the same requirement the annotation already
+  has for refresh and cache filtering, which match the paths reported by Git and never resolve symlinks.
 * If none of the paths match a file, the whole common root is sent instead and a warning is logged, so a misconfigured annotation
   degrades performance rather than breaking manifest generation.
 

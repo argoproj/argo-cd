@@ -158,21 +158,27 @@ func TestTgzWithOptions(t *testing.T) {
 			unexpected:   []string{"README.md", "applicationset/readme-symlink"},
 		},
 		{
-			name: "will include everything below a directory matched by a glob",
-			opts: files.TarOptions{IncludePaths: []string{"applicationset/*"}},
-			// The symlink is matched by the glob, so its target is included too.
-			filesWritten: 3,
+			name:         "will include everything below a directory matched by a glob",
+			opts:         files.TarOptions{IncludePaths: []string{"applicationset/*"}},
+			filesWritten: 2,
 			expected: []string{
 				"applicationset/latest/kustomization.yaml",
 				"applicationset/stable/kustomization.yaml",
 				"applicationset/readme-symlink",
-				"README.md",
 			},
+			unexpected: []string{"README.md"},
 		},
 		{
-			name: "will include the target of an included symlink",
+			name: "will not include the target of an included symlink",
 			opts: files.TarOptions{IncludePaths: []string{"applicationset"}},
-			// README.md is outside the included path, but the symlink needs it.
+			// The symlink is included, but its target has to be selected on its own.
+			filesWritten: 2,
+			expected:     []string{"applicationset/readme-symlink"},
+			unexpected:   []string{"README.md"},
+		},
+		{
+			name:         "will include a symlink together with its selected target",
+			opts:         files.TarOptions{IncludePaths: []string{"applicationset", "README.md"}},
 			filesWritten: 3,
 			expected:     []string{"applicationset/readme-symlink", "README.md"},
 		},
@@ -230,7 +236,7 @@ func TestTgzWithOptions(t *testing.T) {
 		})
 	}
 
-	t.Run("will keep the link target of an included symlink", func(t *testing.T) {
+	t.Run("will keep the link name of an included symlink", func(t *testing.T) {
 		// given
 		t.Parallel()
 		f, err := os.CreateTemp(getTestDataDir(t), "")
