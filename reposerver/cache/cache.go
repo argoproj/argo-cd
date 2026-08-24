@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -19,6 +20,7 @@ import (
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/hash"
@@ -30,15 +32,61 @@ var (
 )
 
 type Cache struct {
-	cache                    *cacheutil.Cache
-	repoCacheExpiration      time.Duration
-	revisionCacheExpiration  time.Duration
+	cache          *cacheutil.Cache
+	configProvider configbus.Provider
+	// Deprecated: use configProvider.RepoCacheExpiration.
+	repoCacheExpiration time.Duration
+	// Deprecated: use configProvider.RevisionCacheExpiration.
+	revisionCacheExpiration time.Duration
+	// Deprecated: use configProvider.RevisionCacheLockTimeout.
 	revisionCacheLockTimeout time.Duration
 }
 
+// SetConfigProvider attaches the configbus Provider used for cache TTL reads.
+// Must be called after NewService wires the Provider (Cache is constructed first).
+func (c *Cache) SetConfigProvider(p configbus.Provider) {
+	c.configProvider = p
+}
+
+func (c *Cache) repoCacheExpirationResolved() (time.Duration, error) {
+	if c.configProvider != nil {
+		return c.configProvider.RepoCacheExpiration(context.Background())
+	}
+	return c.LegacyRepoCacheExpiration(), nil
+}
+
+func (c *Cache) revisionCacheExpirationResolved() (time.Duration, error) {
+	if c.configProvider != nil {
+		return c.configProvider.RevisionCacheExpiration(context.Background())
+	}
+	return c.LegacyRevisionCacheExpiration(), nil
+}
+
+func (c *Cache) revisionCacheLockTimeoutResolved() (time.Duration, error) {
+	if c.configProvider != nil {
+		return c.configProvider.RevisionCacheLockTimeout(context.Background())
+	}
+	return c.LegacyRevisionCacheLockTimeout(), nil
+}
+
 // GetRepoCacheExpiration returns the repository cache expiration duration.
-func (c *Cache) GetRepoCacheExpiration() time.Duration {
+func (c *Cache) GetRepoCacheExpiration() (time.Duration, error) {
+	return c.repoCacheExpirationResolved()
+}
+
+//nolint:staticcheck // SA1019: sole allowed reader of deprecated repoCacheExpiration
+func (c *Cache) LegacyRepoCacheExpiration() time.Duration {
 	return c.repoCacheExpiration
+}
+
+//nolint:staticcheck // SA1019: sole allowed reader of deprecated revisionCacheExpiration
+func (c *Cache) LegacyRevisionCacheExpiration() time.Duration {
+	return c.revisionCacheExpiration
+}
+
+//nolint:staticcheck // SA1019: sole allowed reader of deprecated revisionCacheLockTimeout
+func (c *Cache) LegacyRevisionCacheLockTimeout() time.Duration {
+	return c.revisionCacheLockTimeout
 }
 
 // ClusterRuntimeInfo holds cluster runtime information
@@ -63,7 +111,12 @@ type CachedManifestResponse struct {
 }
 
 func NewCache(cache *cacheutil.Cache, repoCacheExpiration time.Duration, revisionCacheExpiration time.Duration, revisionCacheLockTimeout time.Duration) *Cache {
-	return &Cache{cache, repoCacheExpiration, revisionCacheExpiration, revisionCacheLockTimeout}
+	return &Cache{
+		cache:                     cache,
+		repoCacheExpiration:       repoCacheExpiration,
+		revisionCacheExpiration:   revisionCacheExpiration,
+		revisionCacheLockTimeout:  revisionCacheLockTimeout,
+	}
 }
 
 func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...cacheutil.Options) func() (*Cache, error) {
@@ -171,11 +224,15 @@ func (c *Cache) ListApps(repoURL, revision string) (map[string]string, error) {
 }
 
 func (c *Cache) SetApps(repoURL, revision string, apps map[string]string) error {
+	expiration, err := c.repoCacheExpirationResolved()
+	if err != nil {
+		return fmt.Errorf("failed to resolve repo cache expiration: %w", err)
+	}
 	return c.cache.SetItem(
 		listApps(repoURL, revision),
 		apps,
 		&cacheutil.CacheActionOpts{
-			Expiration: c.repoCacheExpiration,
+			Expiration: expiration,
 			Delete:     apps == nil,
 		})
 }
@@ -194,10 +251,14 @@ func (c *Cache) SetHelmIndex(repo string, indexData []byte) error {
 		// Logged as warning upstream
 		return errors.New("helm index data is nil, skipping cache")
 	}
+	expiration, err := c.revisionCacheExpirationResolved()
+	if err != nil {
+		return fmt.Errorf("failed to resolve revision cache expiration: %w", err)
+	}
 	return c.cache.SetItem(
 		helmIndexRefsKey(repo),
 		indexData,
-		&cacheutil.CacheActionOpts{Expiration: c.revisionCacheExpiration})
+		&cacheutil.CacheActionOpts{Expiration: expiration})
 }
 
 // GetHelmIndex retrieves helm repository index.yaml content from cache
@@ -211,10 +272,14 @@ func (c *Cache) SetOCITags(repo string, indexData []byte) error {
 		// Logged as warning upstream
 		return errors.New("oci index data is nil, skipping cache")
 	}
+	expiration, err := c.revisionCacheExpirationResolved()
+	if err != nil {
+		return fmt.Errorf("failed to resolve revision cache expiration: %w", err)
+	}
 	return c.cache.SetItem(
 		ociTagsKey(repo),
 		indexData,
-		&cacheutil.CacheActionOpts{Expiration: c.revisionCacheExpiration})
+		&cacheutil.CacheActionOpts{Expiration: expiration})
 }
 
 // GetOCITags retrieves oci image tags from cache
@@ -232,7 +297,11 @@ func (c *Cache) SetGitReferences(repo string, references []*plumbing.Reference) 
 	for i := range references {
 		input = append(input, references[i].Strings())
 	}
-	return c.cache.SetItem(gitRefsKey(repo), input, &cacheutil.CacheActionOpts{Expiration: c.revisionCacheExpiration})
+	expiration, err := c.revisionCacheExpirationResolved()
+	if err != nil {
+		return fmt.Errorf("failed to resolve revision cache expiration: %w", err)
+	}
+	return c.cache.SetItem(gitRefsKey(repo), input, &cacheutil.CacheActionOpts{Expiration: expiration})
 }
 
 // Converts raw cache items to plumbing.Reference objects
@@ -253,8 +322,12 @@ func (c *Cache) TryLockGitRefCache(repo string, lockId string, references *[]*pl
 	// This try set with DisableOverwrite is important for making sure that only one process is able to claim ownership
 	// A normal get + set, or just set would cause ownership to go to whoever the last writer was, and during race conditions
 	// leads to duplicate requests
-	err := c.cache.SetItem(gitRefsKey(repo), [][2]string{{cacheutil.CacheLockedValue, lockId}}, &cacheutil.CacheActionOpts{
-		Expiration:       c.revisionCacheLockTimeout,
+	lockTimeout, err := c.revisionCacheLockTimeoutResolved()
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve revision cache lock timeout: %w", err)
+	}
+	err = c.cache.SetItem(gitRefsKey(repo), [][2]string{{cacheutil.CacheLockedValue, lockId}}, &cacheutil.CacheActionOpts{
+		Expiration:       lockTimeout,
 		DisableOverwrite: true,
 	})
 	if err != nil {
@@ -291,7 +364,11 @@ func (c *Cache) GetGitReferences(repo string, references *[]*plumbing.Reference)
 // Returns isLockOwner, localLockId, error
 func (c *Cache) GetOrLockGitReferences(repo string, lockId string, references *[]*plumbing.Reference) (string, error) {
 	// Value matches the ttl on the lock in TryLockGitRefCache
-	waitUntil := time.Now().Add(c.revisionCacheLockTimeout)
+	lockTimeout, err := c.revisionCacheLockTimeoutResolved()
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve revision cache lock timeout: %w", err)
+	}
+	waitUntil := time.Now().Add(lockTimeout)
 	// Wait only the maximum amount of time configured for the lock
 	// if the configured time is zero then the for loop will never run and instead act as the owner immediately
 	for time.Now().Before(waitUntil) {
@@ -305,7 +382,7 @@ func (c *Cache) GetOrLockGitReferences(repo string, lockId string, references *[
 		time.Sleep(1 * time.Second)
 	}
 	// If configured time is 0 then this is expected
-	if c.revisionCacheLockTimeout > 0 {
+	if lockTimeout > 0 {
 		log.Debug("Repository cache was unable to acquire lock or valid data within timeout")
 	}
 	// Timeout waiting for lock
@@ -390,8 +467,28 @@ func trackingKey(appLabelKey string, trackingMethod string) string {
 	return trackingKey
 }
 
+// LogDebugManifestCacheKeyFields logs all the information included in a manifest cache key. It's intended to be run
+// before every manifest cache operation to help debug cache misses.
+func LogDebugManifestCacheKeyFields(message string, reason string, manifestKey manifestKey) {
+	if log.IsLevelEnabled(log.DebugLevel) {
+		log.WithFields(log.Fields{
+			"revision":    manifestKey.Revision,
+			"appSrc":      appSourceKeyJSON(manifestKey.AppSource, manifestKey.RefSources, manifestKey.RefSourceCommitSHAs),
+			"namespace":   manifestKey.Namespace,
+			"trackingKey": trackingKey(manifestKey.AppLabelKey, manifestKey.TrackingMethod),
+			"appName":     manifestKey.AppName,
+			"clusterInfo": clusterRuntimeInfoKeyUnhashed(manifestKey.ClusterInfo),
+			"reason":      reason,
+		}).Debug(message)
+	}
+}
+
 func (c *Cache) SetNewRevisionManifests(oldKey, newKey manifestKey) error {
-	return c.cache.RenameItem(oldKey.String(), newKey.String(), c.repoCacheExpiration)
+	expiration, err := c.repoCacheExpirationResolved()
+	if err != nil {
+		return fmt.Errorf("failed to resolve repo cache expiration: %w", err)
+	}
+	return c.cache.RenameItem(oldKey.String(), newKey.String(), expiration)
 }
 
 func (c *Cache) GetManifests(manifestKey manifestKey, res *CachedManifestResponse) error {
@@ -442,11 +539,15 @@ func (c *Cache) SetManifests(manifestKey manifestKey, res *CachedManifestRespons
 		res.CacheEntryHash = hash
 	}
 
+	expiration, err := c.repoCacheExpirationResolved()
+	if err != nil {
+		return fmt.Errorf("failed to resolve repo cache expiration: %w", err)
+	}
 	return c.cache.SetItem(
 		manifestKey.String(),
 		res,
 		&cacheutil.CacheActionOpts{
-			Expiration: c.repoCacheExpiration,
+			Expiration: expiration,
 			Delete:     res == nil,
 		})
 }
@@ -470,11 +571,15 @@ func (c *Cache) GetAppDetails(revision string, appSrc *appv1.ApplicationSource, 
 }
 
 func (c *Cache) SetAppDetails(revision string, appSrc *appv1.ApplicationSource, srcRefs appv1.RefTargetRevisionMapping, res *apiclient.RepoAppDetailsResponse, trackingMethod appv1.TrackingMethod, refSourceCommitSHAs ResolvedRevisions) error {
+	expiration, err := c.repoCacheExpirationResolved()
+	if err != nil {
+		return fmt.Errorf("failed to resolve repo cache expiration: %w", err)
+	}
 	return c.cache.SetItem(
 		appDetailsCacheKey(revision, appSrc, srcRefs, trackingMethod, refSourceCommitSHAs),
 		res,
 		&cacheutil.CacheActionOpts{
-			Expiration: c.repoCacheExpiration,
+			Expiration: expiration,
 			Delete:     res == nil,
 		})
 }
@@ -489,10 +594,14 @@ func (c *Cache) GetRevisionMetadata(repoURL, revision string) (*appv1.RevisionMe
 }
 
 func (c *Cache) SetRevisionMetadata(repoURL, revision string, item *appv1.RevisionMetadata) error {
+	expiration, err := c.repoCacheExpirationResolved()
+	if err != nil {
+		return fmt.Errorf("failed to resolve repo cache expiration: %w", err)
+	}
 	return c.cache.SetItem(
 		revisionMetadataKey(repoURL, revision),
 		item,
-		&cacheutil.CacheActionOpts{Expiration: c.repoCacheExpiration})
+		&cacheutil.CacheActionOpts{Expiration: expiration})
 }
 
 func revisionChartDetailsKey(repoURL, chart, revision string) string {
@@ -505,10 +614,14 @@ func (c *Cache) GetRevisionChartDetails(repoURL, chart, revision string) (*appv1
 }
 
 func (c *Cache) SetRevisionChartDetails(repoURL, chart, revision string, item *appv1.ChartDetails) error {
+	expiration, err := c.repoCacheExpirationResolved()
+	if err != nil {
+		return fmt.Errorf("failed to resolve repo cache expiration: %w", err)
+	}
 	return c.cache.SetItem(
 		revisionChartDetailsKey(repoURL, chart, revision),
 		item,
-		&cacheutil.CacheActionOpts{Expiration: c.repoCacheExpiration})
+		&cacheutil.CacheActionOpts{Expiration: expiration})
 }
 
 func ociMetadataKey(repoURL, revision string) string {
@@ -521,10 +634,14 @@ func (c *Cache) GetOCIMetadata(repoURL, revision string) (*appv1.OCIMetadata, er
 }
 
 func (c *Cache) SetOCIMetadata(repoURL, revision string, item *appv1.OCIMetadata) error {
+	expiration, err := c.repoCacheExpirationResolved()
+	if err != nil {
+		return fmt.Errorf("failed to resolve repo cache expiration: %w", err)
+	}
 	return c.cache.SetItem(
 		ociMetadataKey(repoURL, revision),
 		item,
-		&cacheutil.CacheActionOpts{Expiration: c.repoCacheExpiration})
+		&cacheutil.CacheActionOpts{Expiration: expiration})
 }
 
 func gitFilesKey(repoURL, revision, pattern string) string {
@@ -532,10 +649,14 @@ func gitFilesKey(repoURL, revision, pattern string) string {
 }
 
 func (c *Cache) SetGitFiles(repoURL, revision, pattern string, files map[string][]byte) error {
+	expiration, err := c.repoCacheExpirationResolved()
+	if err != nil {
+		return fmt.Errorf("failed to resolve repo cache expiration: %w", err)
+	}
 	return c.cache.SetItem(
 		gitFilesKey(repoURL, revision, pattern),
 		&files,
-		&cacheutil.CacheActionOpts{Expiration: c.repoCacheExpiration})
+		&cacheutil.CacheActionOpts{Expiration: expiration})
 }
 
 func (c *Cache) GetGitFiles(repoURL, revision, pattern string) (map[string][]byte, error) {
@@ -549,10 +670,14 @@ func gitDirectoriesKey(repoURL, revision string) string {
 }
 
 func (c *Cache) SetGitDirectories(repoURL, revision string, directories []string) error {
+	expiration, err := c.repoCacheExpirationResolved()
+	if err != nil {
+		return fmt.Errorf("failed to resolve repo cache expiration: %w", err)
+	}
 	return c.cache.SetItem(
 		gitDirectoriesKey(repoURL, revision),
 		&directories,
-		&cacheutil.CacheActionOpts{Expiration: c.repoCacheExpiration})
+		&cacheutil.CacheActionOpts{Expiration: expiration})
 }
 
 func (c *Cache) GetGitDirectories(repoURL, revision string) ([]string, error) {
@@ -566,10 +691,14 @@ func getGitFilesChangesKey(repoURL, revision, targetRevision string) string {
 }
 
 func (c *Cache) SetGitFilesChanges(repoURL, revision, targetRevision string, files []string) error {
+	expiration, err := c.repoCacheExpirationResolved()
+	if err != nil {
+		return fmt.Errorf("failed to resolve repo cache expiration: %w", err)
+	}
 	return c.cache.SetItem(
 		getGitFilesChangesKey(repoURL, revision, targetRevision),
 		&files,
-		&cacheutil.CacheActionOpts{Expiration: c.repoCacheExpiration})
+		&cacheutil.CacheActionOpts{Expiration: expiration})
 }
 
 func (c *Cache) GetGitFilesChanges(repoURL, revision, targetRevision string) ([]string, error) {

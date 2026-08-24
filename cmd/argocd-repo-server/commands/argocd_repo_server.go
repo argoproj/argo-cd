@@ -119,7 +119,8 @@ func NewCommand() *cobra.Command {
 
 			cache, err := cacheSrc()
 			errors.CheckError(err)
-			repoCacheExpiration := cache.GetRepoCacheExpiration()
+			repoCacheExpiration, err := cache.GetRepoCacheExpiration()
+			errors.CheckError(err)
 			maxCombinedDirectoryManifestsQuantity, err := resource.ParseQuantity(maxCombinedDirectoryManifestsSize)
 			errors.CheckError(err)
 
@@ -160,6 +161,7 @@ func NewCommand() *cobra.Command {
 				HelmRegistryMaxIndexSize:                     helmRegistryMaxIndexSizeQuantity.ToDec().Value(),
 				OCIManifestMaxExtractedSize:                  ociManifestMaxExtractedSizeQuantity.ToDec().Value(),
 				DisableOCIManifestMaxExtractedSize:           disableOCIManifestMaxExtractedSize,
+				DisableHelmManifestMaxExtractedSize:          disableManifestMaxExtractedSize,
 				IncludeHiddenDirectories:                     includeHiddenDirectories,
 				CMPUseManifestGeneratePaths:                  cmpUseManifestGeneratePaths,
 				OCIMediaTypes:                                ociMediaTypes,

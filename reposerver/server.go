@@ -26,6 +26,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/reposerver/metrics"
 	"github.com/argoproj/argo-cd/v3/reposerver/repository"
 	"github.com/argoproj/argo-cd/v3/server/version"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
@@ -138,9 +139,9 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 // CreateGRPC creates new configured grpc server
 func (a *ArgoCDRepoServer) CreateGRPC() *grpc.Server {
 	server := grpc.NewServer(a.opts...)
-	versionpkg.RegisterVersionServiceServer(server, version.NewServer(nil, func() (bool, error) {
-		return true, nil
-	}))
+	versionpkg.RegisterVersionServiceServer(server, version.NewServer(nil, &configbus.StaticProvider{Fields: configbus.StaticFields{
+		DisableAuth: configbus.Ptr(true),
+	}}))
 	apiclient.RegisterRepoServerServiceServer(server, a.repoService)
 
 	healthService := health.NewServer()
