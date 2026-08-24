@@ -33,8 +33,8 @@ var (
 	ansiEscapeRegex = regexp.MustCompile(`\x1b\[[0-9;?]*[a-zA-Z]`)
 )
 
-// stripAnsi removes ANSI escape sequences from s.
-func stripAnsi(s string) string {
+// StripAnsi removes ANSI escape sequences from s.
+func StripAnsi(s string) string {
 	return ansiEscapeRegex.ReplaceAllString(s, "")
 }
 
@@ -278,9 +278,9 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 				// now original cmd should exit immediately after SIGKILL
 				<-done //nolint:errcheck
 				// return error with a marker indicating that cmd exited only after fatal SIGKILL
-				output := stripAnsi(stdout.String())
+				output := StripAnsi(stdout.String())
 				if opts.CaptureStderr {
-					output += stripAnsi(stderr.String())
+					output += StripAnsi(stderr.String())
 				}
 				logCtx.WithFields(logrus.Fields{"duration": time.Since(start)}).Debug(redactor(output))
 				err = newCmdError(redactor(args), fmt.Errorf("fatal timeout after %v", timeout+fatalTimeout), "")
@@ -292,9 +292,9 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 			// here used to race with os/exec still copying command output.
 			<-done //nolint:errcheck // the timeout error replaces the process exit error
 		}
-		output := stripAnsi(stdout.String())
+		output := StripAnsi(stdout.String())
 		if opts.CaptureStderr {
-			output += stripAnsi(stderr.String())
+			output += StripAnsi(stderr.String())
 		}
 		logCtx.WithFields(logrus.Fields{"duration": time.Since(start)}).Debug(redactor(output))
 		err = newCmdError(redactor(args), fmt.Errorf("timeout after %v", timeout), "")
@@ -302,8 +302,8 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 		return strings.TrimSuffix(output, "\n"), err
 	case err := <-done:
 		if err != nil {
-			stderrStr := stripAnsi(stderr.String())
-			output := stripAnsi(stdout.String())
+			stderrStr := StripAnsi(stderr.String())
+			output := StripAnsi(stdout.String())
 			if opts.CaptureStderr {
 				output += stderrStr
 			}
