@@ -578,6 +578,36 @@ func (c *ChainProvider) MetricsPort(ctx context.Context) (int, error) {
 	}, c.links)
 }
 
+func (c *ChainProvider) NotificationsAppLabelSelector(ctx context.Context) (string, error) {
+	return firstConfigured(func(p Provider) (string, error) {
+		return p.NotificationsAppLabelSelector(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) NotificationsApplicationNamespaces(ctx context.Context) ([]string, error) {
+	return firstConfigured(func(p Provider) ([]string, error) {
+		return p.NotificationsApplicationNamespaces(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) NotificationsConfigMapName(ctx context.Context) (string, error) {
+	return firstConfigured(func(p Provider) (string, error) {
+		return p.NotificationsConfigMapName(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) NotificationsSecretName(ctx context.Context) (string, error) {
+	return firstConfigured(func(p Provider) (string, error) {
+		return p.NotificationsSecretName(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) NotificationsSelfserviceEnabled(ctx context.Context) (bool, error) {
+	return firstConfigured(func(p Provider) (bool, error) {
+		return p.NotificationsSelfserviceEnabled(ctx)
+	}, c.links)
+}
+
 func (c *ChainProvider) OCIManifestMaxExtractedSize(ctx context.Context) (int64, error) {
 	return firstConfigured(func(p Provider) (int64, error) {
 		return p.OCIManifestMaxExtractedSize(ctx)
