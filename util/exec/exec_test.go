@@ -214,14 +214,20 @@ func TestRedact(t *testing.T) {
 }
 
 func TestStripAnsi(t *testing.T) {
-	cases := map[string]string{
-		"":                             "",
-		"plain text":                   "plain text",
-		"\x1b[1;31mError\x1b[0m: oops": "Error: oops",
-		"\x1b[KNo newline clear":       "No newline clear",
+	cases := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{name: "empty string", input: "", expected: ""},
+		{name: "plain text", input: "plain text", expected: "plain text"},
+		{name: "color codes", input: "\x1b[1;31mError\x1b[0m: oops", expected: "Error: oops"},
+		{name: "erase in line", input: "\x1b[KNo newline clear", expected: "No newline clear"},
 	}
-	for in, want := range cases {
-		assert.Equal(t, want, stripAnsi(in))
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, StripAnsi(tc.input))
+		})
 	}
 }
 
