@@ -226,6 +226,8 @@ func getAppProj(app *unstructured.Unstructured, appProjInformer cache.SharedInde
 	if !ok {
 		return nil
 	}
+	// Informer cache objects are shared; deep-copy before mutating.
+	proj = proj.DeepCopy()
 	if proj.GetAnnotations() == nil {
 		proj.SetAnnotations(map[string]string{})
 	}
