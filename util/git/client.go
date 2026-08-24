@@ -1335,9 +1335,11 @@ func (m *nativeGitClient) LsSignatures(ctx context.Context, unresolvedRevision s
 		return nil, "", err
 	}
 
+	const zeroByte = "\x00"
+
 	// Final LF will be cut by executil
 	for line := range strings.SplitSeq(commitSignaturesRawOut, "\n") {
-		r := strings.SplitN(line, "\x00", 6)
+		r := strings.SplitN(line, zeroByte, 6)
 
 		if len(r) < 6 {
 			return nil, "", fmt.Errorf("invalid rev-list output for %q (fields=%d)", unresolvedRevision, len(r))
@@ -1390,6 +1392,7 @@ func newRevisionSignatureInfo(revision string, verificationResult GPGVerificatio
 	}, nil
 }
 
+// returns raw output of the git rev-list command with zero byte separated fields
 func (m *nativeGitClient) listRawSignatures(ctx context.Context, deep bool) (string, error) {
 	revisionSha, err := m.CommitSHA(ctx)
 	if err != nil {
@@ -1426,8 +1429,10 @@ func (m *nativeGitClient) listRawSignatures(ctx context.Context, deep bool) (str
 		commitFilterArgs = []string{revisionSha, "-1", "--"}
 	}
 
+	const gitPrettyFormatZeroByte = "%x00"
+
 	// Find all commits until the criteria, including
-	lsArgs := append([]string{"rev-list", `--pretty=format:%H%x00%G?%x00%GK%x00%aD%x00%an <%ae>%x00%s`, "--no-commit-header"}, commitFilterArgs...)
+	lsArgs := append([]string{"rev-list", `--pretty=format:%H` + gitPrettyFormatZeroByte + `%G?` + gitPrettyFormatZeroByte + `%GK` + gitPrettyFormatZeroByte + `%aD` + gitPrettyFormatZeroByte + `%an <%ae>` + gitPrettyFormatZeroByte + `%s`, "--no-commit-header"}, commitFilterArgs...)
 	commitSignaturesRawOut, err := m.runCmdOutput(m.cmdWithGPG(ctx, "git", lsArgs...), runOpts{})
 	if err != nil {
 		return "", err
