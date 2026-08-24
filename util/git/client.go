@@ -1255,7 +1255,14 @@ func (m *nativeGitClient) tagSignature(ctx context.Context, tagRevision string) 
 	if err != nil {
 		return nil, fmt.Errorf("gpg failed verifying git tag %q: %s", tagRevision, err.Error())
 	}
-	info, err := newRevisionSignatureInfo(tagRevision, status, keyId, tagInfo[0], tagInfo[1], tagInfo[2])
+	info, err := validateRevisionSignatureInfo(&RevisionSignatureInfo{
+		Revision:           tagRevision,
+		VerificationResult: status,
+		SignatureKeyID:     keyId,
+		Date:               tagInfo[0],
+		AuthorIdentity:     tagInfo[1],
+		Subject:            tagInfo[2],
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed building revision gpg signature info for tag %q: %s", tagRevision, err.Error())
 	}
@@ -1350,7 +1357,14 @@ func (m *nativeGitClient) LsSignatures(ctx context.Context, unresolvedRevision s
 		if err != nil {
 			return nil, "", err
 		}
-		signatureInfo, err := newRevisionSignatureInfo(revision, result, r[2], r[3], r[4], r[5])
+		signatureInfo, err := validateRevisionSignatureInfo(&RevisionSignatureInfo{
+			Revision:           revision,
+			VerificationResult: result,
+			SignatureKeyID:     r[2],
+			Date:               r[3],
+			AuthorIdentity:     r[4],
+			Subject:            r[5],
+		})
 		if err != nil {
 			return nil, "", fmt.Errorf("failed building revision gpg signature info for %q at %q: %s", unresolvedRevision, revision, err.Error())
 		}
@@ -1360,36 +1374,29 @@ func (m *nativeGitClient) LsSignatures(ctx context.Context, unresolvedRevision s
 	return signatures, legacyVerification, nil
 }
 
-// newRevisionSignatureInfo builds valid RevisionSignatureInfo
-func newRevisionSignatureInfo(revision string, verificationResult GPGVerificationResult, signatureKeyID string, date string, authorIdentity string, subject string) (*RevisionSignatureInfo, error) {
-	if revision == "" {
+// validateRevisionSignatureInfo makes sure the RevisionSignatureInfo is valid
+func validateRevisionSignatureInfo(info *RevisionSignatureInfo) (*RevisionSignatureInfo, error) {
+	if info.Revision == "" {
 		return nil, errors.New("no revision specified")
 	}
-	if date == "" {
+	if info.Date == "" {
 		return nil, errors.New("no date specified")
 	}
-	if authorIdentity == "" {
+	if info.AuthorIdentity == "" {
 		return nil, errors.New("no author specified")
 	}
 	// Unsigned have no key ID, other states must have key ID
-	if verificationResult == GPGVerificationResultUnsigned {
-		if signatureKeyID != "" {
-			return nil, fmt.Errorf("a gpg signing key id %q specified for unsigned commit", signatureKeyID)
+	if info.VerificationResult == GPGVerificationResultUnsigned {
+		if info.SignatureKeyID != "" {
+			return nil, fmt.Errorf("a gpg signing key id %q specified for unsigned commit", info.SignatureKeyID)
 		}
 	} else {
-		if !gpgKeyIdRegexp.MatchString(signatureKeyID) {
-			return nil, fmt.Errorf("invalid gpg signing key %q", signatureKeyID)
+		if !gpgKeyIdRegexp.MatchString(info.SignatureKeyID) {
+			return nil, fmt.Errorf("invalid gpg signing key %q", info.SignatureKeyID)
 		}
 	}
 
-	return &RevisionSignatureInfo{
-		Revision:           revision,
-		VerificationResult: verificationResult,
-		SignatureKeyID:     signatureKeyID,
-		Date:               date,
-		AuthorIdentity:     authorIdentity,
-		Subject:            subject,
-	}, nil
+	return info, nil
 }
 
 // returns raw output of the git rev-list command with zero byte separated fields
