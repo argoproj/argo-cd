@@ -192,7 +192,7 @@ func newMockHandler(reactor *reactorDef, applicationNamespaces []string, maxPayl
 		1*time.Minute,
 		1*time.Minute,
 		10*time.Second,
-	), servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute), argoDB)
+	), servercache.NewCache(appstate.NewCache(cacheClient, time.Minute), time.Minute, time.Minute), argoDB, &fakeProjectNamespaceLister{clientset: appClientset, namespace: "argocd"})
 	if err != nil {
 		panic(err)
 	}
@@ -1185,6 +1185,7 @@ func TestHandleEvent(t *testing.T) {
 				repoCache,
 				serverCache,
 				mockDB,
+				&fakeProjectNamespaceLister{clientset: appClientset, namespace: "argocd"},
 			)
 			require.NoError(t, err)
 
@@ -1408,11 +1409,9 @@ func Test_storePreviouslyCachedManifests(t *testing.T) {
 			mockDB.EXPECT().ListRepositories(mock.Anything).Return([]*v1alpha1.Repository{}, nil).Maybe()
 			mockDB.EXPECT().GetRepository(mock.Anything, mock.Anything, mock.Anything).Return(&v1alpha1.Repository{}, nil).Maybe()
 
-			h := NewHandler(
+			h, err := NewHandler(
 				"argocd",
-				[]string{},
-				10,
-				5,
+				testWebhookConfigProvider([]string{}),
 				appClientset,
 				&fakeAppsLister{clientset: appClientset},
 				&settings.ArgoCDSettings{},
@@ -1420,11 +1419,9 @@ func Test_storePreviouslyCachedManifests(t *testing.T) {
 				repoCache,
 				serverCache,
 				&mockDB,
-				int64(50)*1024*1024,
-				2*time.Second,
-				100, // High threshold - won't be exceeded
 				&fakeProjectNamespaceLister{clientset: appClientset, namespace: "argocd"},
 			)
+			require.NoError(t, err)
 
 			if tt.seedCache {
 				setupTestCache(t, repoCache, tt.app.Name, source, tt.project.EffectiveSourceIntegrity(), []string{"test-manifest"})
