@@ -7,6 +7,7 @@ package github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1;
 
 import "k8s.io/api/core/v1/generated.proto";
 import "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1/generated.proto";
+import "k8s.io/apimachinery/pkg/api/resource/generated.proto";
 import "k8s.io/apimachinery/pkg/apis/meta/v1/generated.proto";
 import "k8s.io/apimachinery/pkg/runtime/generated.proto";
 import "k8s.io/apimachinery/pkg/runtime/schema/generated.proto";
@@ -25,6 +26,32 @@ message AWSAuthConfig {
 
   // Profile contains optional role ARN. If set then AWS IAM Authenticator uses the profile to perform cluster operations instead of the default AWS credential provider chain.
   optional string profile = 3;
+}
+
+// AccountConfig configures a local (non-SSO) user account (argocd-cm: accounts.*).
+// The built-in admin user is also represented here (legacy admin.enabled).
+message AccountConfig {
+  // Name is the local account username (max 32 characters in Argo CD),
+  // e.g. "admin", "ci-bot". Legacy: suffix of accounts.<name>.
+  // +kubebuilder:validation:Required
+  // +kubebuilder:validation:MinLength=1
+  optional string name = 1;
+
+  // Enabled enables or disables the account (argocd-cm: accounts.<name>.enabled
+  // or admin.enabled for the built-in admin user). Accounts are enabled by
+  // default when the accounts.<name> entry exists.
+  // Migration: if set, takes precedence over argocd-cm accounts.
+  // +optional
+  optional bool enabled = 2;
+
+  // Capabilities is the set of actions the account may perform: "login" (UI)
+  // and/or "apiKey" (generate tokens). Legacy: comma-separated value of
+  // accounts.<name> (e.g. "apiKey, login"). Entries must be unique.
+  // Migration: if present, takes precedence over argocd-cm accounts.<name> capabilities; replaces the whole collection.
+  // +optional
+  // +listType=set
+  // +kubebuilder:validation:items:Enum=login;apiKey
+  repeated string capabilities = 3;
 }
 
 // AppHealthStatus contains information about the currently observed health state of an application
@@ -260,6 +287,173 @@ message ApplicationSetCondition {
   optional string reason = 5;
 }
 
+// ApplicationSetConfig holds ApplicationSet controller settings.
+message ApplicationSetConfig {
+  // NamespaceGlobs are additional namespaces where ApplicationSets may live
+  // (cmd-params: applicationsetcontroller.namespaces). Supports globs.
+  // Migration: if present, takes precedence over argocd-cmd-params-cm applicationsetcontroller.namespaces; replaces the whole collection.
+  // +optional
+  repeated string namespaceGlobs = 1;
+
+  // Policy is the default ApplicationSet sync policy when not overridden:
+  // create-only, create-update, create-delete, or sync (create+update+delete).
+  // Empty means sync (cmd-params: applicationsetcontroller.policy).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm applicationsetcontroller.policy.
+  // +optional
+  // +kubebuilder:validation:Enum=;create-only;create-update;create-delete;sync
+  optional string policy = 2;
+
+  // AllowedSCMProviderURLs allowlists SCM provider base URLs for SCM/PR generators
+  // (cmd-params: applicationsetcontroller.allowed.scm.providers).
+  // Migration: if present, takes precedence over argocd-cmd-params-cm applicationsetcontroller.allowed.scm.providers; replaces the whole collection.
+  // +optional
+  // +listType=atomic
+  // +kubebuilder:validation:MaxItems=64
+  // +kubebuilder:validation:items:MaxLength=2048
+  // +kubebuilder:validation:items:Pattern=`^https?://.+`
+  repeated string allowedSCMProviderURLs = 3;
+
+  // GlobalPreserved holds annotation and label keys preserved on generated Applications.
+  // Migration: if non-nil, takes precedence over argocd-cmd-params-cm applicationsetcontroller.global.preserved.* as a group.
+  // +optional
+  optional GlobalPreservedKeysConfig globalPreserved = 4;
+
+  // SCMProvidersEnabled enables SCM provider generators
+  // (cmd-params: applicationsetcontroller.enable.scm.providers).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm applicationsetcontroller.enable.scm.providers.
+  // +optional
+  optional bool scmProvidersEnabled = 5;
+
+  // PolicyOverrideEnabled allows ApplicationSets to override the controller policy
+  // (cmd-params: applicationsetcontroller.enable.policy.override).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm applicationsetcontroller.enable.policy.override.
+  // +optional
+  optional bool policyOverrideEnabled = 6;
+
+  // ProgressiveSyncs holds progressive syncs settings
+  // (cmd-params: applicationsetcontroller.enable.progressive.syncs).
+  // Migration: if non-nil, takes precedence over argocd-cmd-params-cm applicationsetcontroller.enable.progressive.syncs as a group.
+  // +optional
+  optional ProgressiveSyncsConfig progressiveSyncs = 7;
+
+  // GitSubmoduleEnabled controls git submodule support
+  // (cmd-params: applicationsetcontroller.enable.git.submodule). On by default.
+  // Migration: if set, takes precedence over argocd-cmd-params-cm applicationsetcontroller.enable.git.submodule.
+  // +optional
+  optional bool gitSubmoduleEnabled = 8;
+
+  // NewGitFileGlobbingEnabled enables the new git file globbing behavior
+  // (cmd-params: applicationsetcontroller.enable.new.git.file.globbing).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm applicationsetcontroller.enable.new.git.file.globbing.
+  // +optional
+  optional bool newGitFileGlobbingEnabled = 9;
+
+  // TokenRefStrictModeEnabled enables strict token ref validation
+  // (cmd-params: applicationsetcontroller.enable.tokenref.strict.mode).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm applicationsetcontroller.enable.tokenref.strict.mode.
+  // +optional
+  optional bool tokenRefStrictModeEnabled = 10;
+
+  // GitHubAPIMetricsEnabled enables GitHub API Prometheus metrics
+  // (cmd-params: applicationsetcontroller.enable.github.api.metrics).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm applicationsetcontroller.enable.github.api.metrics.
+  // +optional
+  optional bool gitHubAPIMetricsEnabled = 11;
+
+  // DryRun runs ApplicationSet reconciliation without writing Applications
+  // (cmd-params: applicationsetcontroller.dryrun).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm applicationsetcontroller.dryrun.
+  // +optional
+  optional bool dryRun = 12;
+
+  // LeaderElectionEnabled enables leader election
+  // (cmd-params: applicationsetcontroller.enable.leader.election).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm applicationsetcontroller.enable.leader.election.
+  // +optional
+  optional bool leaderElectionEnabled = 13;
+
+  // ReconciliationsParallelismLimit caps concurrent ApplicationSet reconciles
+  // (cmd-params: applicationsetcontroller.concurrent.reconciliations.max).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm applicationsetcontroller.concurrent.reconciliations.max.
+  // +optional
+  // +kubebuilder:validation:Minimum=1
+  optional int32 reconciliationsParallelismLimit = 14;
+
+  // RequeueAfter is the default requeue interval
+  // (cmd-params: applicationsetcontroller.requeue.after).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm applicationsetcontroller.requeue.after.
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Duration requeueAfter = 15;
+
+  // WebhookParallelismLimit caps concurrent webhook processing
+  // (cmd-params: applicationsetcontroller.webhook.parallelism.limit).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm applicationsetcontroller.webhook.parallelism.limit.
+  // +optional
+  // +kubebuilder:validation:Minimum=1
+  optional int32 webhookParallelismLimit = 16;
+
+  // StatusMaxResourcesCount caps resources reported in ApplicationSet status
+  // (cmd-params: applicationsetcontroller.status.max.resources.count).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm applicationsetcontroller.status.max.resources.count.
+  // +optional
+  // +kubebuilder:validation:Minimum=0
+  optional int32 statusMaxResourcesCount = 17;
+
+  // SCMRootCAPath is the path to a root CA for SCM TLS
+  // (cmd-params: applicationsetcontroller.scm.root.ca.path).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm applicationsetcontroller.scm.root.ca.path.
+  // +optional
+  optional string scmRootCAPath = 18;
+
+  // Log holds ApplicationSet controller log format and level
+  // (cmd-params: applicationsetcontroller.log.*).
+  // Migration: if non-nil, takes precedence over argocd-cmd-params-cm applicationsetcontroller.log.* as a group.
+  // +optional
+  optional LogConfig log = 19;
+
+  // ProfileEnabled enables pprof profiling endpoints
+  // (cmd-params: applicationsetcontroller.profile.enabled).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm applicationsetcontroller.profile.enabled.
+  // +optional
+  optional bool profileEnabled = 20;
+
+  // GRPCTXTServiceConfigEnabled enables gRPC TXT service config
+  // (cmd-params: applicationsetcontroller.grpc.enable.txt.service.config).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm applicationsetcontroller.grpc.enable.txt.service.config.
+  // +optional
+  optional bool grpcTXTServiceConfigEnabled = 21;
+
+  // K8sClient holds Kubernetes client tuning for the ApplicationSet controller
+  // (cmd-params: applicationsetcontroller.k8s.*).
+  // Migration: organizational subgroup; no legacy key — see child fields.
+  // +optional
+  optional K8sClientConfig k8sClient = 22;
+
+  // RepoServerClient holds mTLS cert paths when connecting to the repo-server
+  // (cmd-params: applicationsetcontroller.repo.server.*). Named distinctly from
+  // spec.repoServer (the repo-server itself) to avoid overloaded keys.
+  // Migration: organizational subgroup; no legacy key — see child fields.
+  // +optional
+  optional MTLSCertConfig repoServerClient = 23;
+
+  // Metrics holds ApplicationSet Prometheus metrics listen settings
+  // (flags: --metrics-addr, --metrics-applicationset-labels).
+  // Migration: if non-nil, takes precedence over ApplicationSet --metrics-addr /
+  // --metrics-applicationset-labels as a group. Does not round-trip through ConfigMaps.
+  // +optional
+  optional ApplicationSetMetricsConfig metrics = 24;
+
+  // ProbeAddr is the health/readiness probe listen address (flag: --probe-addr).
+  // Migration: if set, takes precedence over ApplicationSet --probe-addr. Does not round-trip through ConfigMaps.
+  // +optional
+  optional string probeAddr = 25;
+
+  // WebhookAddr is the webhook listen address (flag: --webhook-addr).
+  // Migration: if set, takes precedence over ApplicationSet --webhook-addr. Does not round-trip through ConfigMaps.
+  // +optional
+  optional string webhookAddr = 26;
+}
+
 // ApplicationSetGenerator represents a generator at the top level of an ApplicationSet.
 message ApplicationSetGenerator {
   optional ListGenerator list = 1;
@@ -291,6 +485,20 @@ message ApplicationSetList {
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
 
   repeated ApplicationSet items = 2;
+}
+
+// ApplicationSetMetricsConfig holds ApplicationSet metrics listen settings (flag-only).
+message ApplicationSetMetricsConfig {
+  // Address is the metrics listen address (flag: --metrics-addr).
+  // Migration: if set, takes precedence over ApplicationSet --metrics-addr. Does not round-trip through ConfigMaps.
+  // +optional
+  optional string address = 1;
+
+  // ApplicationSetLabels are ApplicationSet label keys exported as Prometheus labels
+  // (flag: --metrics-applicationset-labels).
+  // Migration: if present, takes precedence over ApplicationSet --metrics-applicationset-labels; replaces the whole collection. Does not round-trip through ConfigMaps.
+  // +optional
+  repeated string applicationSetLabels = 2;
 }
 
 // ApplicationSetNestedGenerator represents a generator nested within a combination-type generator (MatrixGenerator or
@@ -782,6 +990,32 @@ message ApplicationSummary {
   optional bool isAppOfApps = 3;
 }
 
+// ApplicationSyncConfig holds application sync policy and controller sync timing.
+message ApplicationSyncConfig {
+  // Impersonation holds service-account impersonation policy during sync.
+  // Migration: if non-nil, takes precedence over argocd-cm application.sync.impersonation.* as a group.
+  // +optional
+  optional SyncImpersonationConfig impersonation = 1;
+
+  // RequireOverridePrivilegeForRevisionSync requires the "override" RBAC privilege
+  // to sync a revision other than the one declared in the Application
+  // (argocd-cm: application.sync.requireOverridePrivilegeForRevisionSync).
+  // Migration: if set, takes precedence over argocd-cm application.sync.requireOverridePrivilegeForRevisionSync.
+  // +optional
+  optional bool requireOverridePrivilegeForRevisionSync = 2;
+
+  // Timeout is the maximum duration of a sync operation
+  // (cmd-params: controller.sync.timeout.seconds). Zero means no timeout.
+  // Migration: if set, takes precedence over argocd-cmd-params-cm controller.sync.timeout.seconds.
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Duration timeout = 3;
+
+  // Wave holds sync-wave settings (cmd-params: controller.sync.wave.*).
+  // Migration: if non-nil, takes precedence over argocd-cmd-params-cm controller.sync.wave.* as a group.
+  // +optional
+  optional SyncWaveConfig wave = 4;
+}
+
 // ApplicationTree represents the hierarchical structure of resources associated with an Argo CD application.
 message ApplicationTree {
   // Nodes contains a list of resources that are either directly managed by the application
@@ -813,6 +1047,181 @@ message ApplicationWatchEvent {
   optional Application application = 2;
 }
 
+// ArgoCDConfiguration is the Schema for the argocdconfigurations API.
+// It is a pure data store (spec only; no status subresource).
+//
+// +genclient
+// +genclient:noStatus
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:object:root=true
+// +kubebuilder:resource:path=argocdconfigurations,scope=Namespaced,shortName=argocdconfig
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
+// +kubebuilder:validation:XValidation:rule="self.metadata.name == 'argocd-config'",message="ArgoCDConfiguration must be named 'argocd-config'"
+message ArgoCDConfiguration {
+  // Standard object's metadata.
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ObjectMeta metadata = 1;
+
+  // Spec holds Argo CD configuration values that replace or override
+  // argocd-cm, argocd-cmd-params-cm, and argocd-rbac-cm.
+  optional ArgoCDConfigurationSpec spec = 2;
+}
+
+// ArgoCDConfigurationList contains a list of ArgoCDConfiguration.
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// +kubebuilder:object:root=true
+message ArgoCDConfigurationList {
+  // Standard list metadata.
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
+
+  // Items is the list of ArgoCDConfiguration objects.
+  repeated ArgoCDConfiguration items = 2;
+}
+
+// ArgoCDConfigurationSpec holds Argo CD configuration.
+//
+// Fields remain optional so unset (absent) is distinguishable from empty and
+// gradual CRD adoption is possible. Where set, values are validated maximally
+// in the CRD (CEL / OpenAPI) rather than only in application code.
+//
+// Naming conventions:
+//   - *URL — absolute URL; CEL-validated (usually http/https)
+//   - *Glob — value may contain glob wildcards (*, ?)
+//   - *Regex — regular expression string (Go RE2 / regexp); distinguished from Glob
+//   - *Expr — expression language string (e.g. deep-link "if" condition)
+//   - *Template — Go text/template (or similar); not validated as a plain URL
+//   - *Lua — string whose value is a Lua script (not a YAML/document wrapper)
+//   - *Size — byte/payload size as resource.Quantity (not unit-suffixed ints)
+//   - tlsEnabled — whether TLS is used (server or client); not "insecure"/"plaintext"
+//   - insecureSkipVerify — skip cert verification; not inverted "strictTLS"
+//   - *Enabled — past-tense suffix for feature toggles (e.g. tlsEnabled, profileEnabled);
+//     not enable*/disable* prefixes and not *Disabled double-negatives.
+//     Bare "enabled" OK on a feature settings object. Invert mapping when the legacy key
+//     uses the opposite polarity (disable.*, *.insecure, *.plaintext).
+//   - *ParallelismLimit — concurrency caps (bare parallelismLimit when the parent is the
+//     limited component; otherwise subjectParallelismLimit). Not concurrent*Max.
+//
+// Secrets that Argo owns end-to-end use SecretKeySelector. $string interpolation
+// is reserved for opaque/external structures (Dex connector config) or intentional
+// partial string insertion.
+message ArgoCDConfigurationSpec {
+  // Server holds API server, UI, and auth-facing settings (argocd-server).
+  // Migration: component group; no legacy key — see child fields.
+  // +optional
+  optional ServerConfig server = 1;
+
+  // Controller holds application-controller settings and application/resource
+  // product configuration historically stored in argocd-cm.
+  // Migration: component group; no legacy key — see child fields.
+  // +optional
+  optional ControllerConfig controller = 2;
+
+  // RepoServer holds repo-server address, client TLS, and manifest-tool settings.
+  // Migration: component group; no legacy key — see child fields.
+  // +optional
+  optional RepoServerConfig repoServer = 3;
+
+  // CommitServer holds commit-server address and hydrator commit identity.
+  // Migration: component group; no legacy key — see child fields.
+  // +optional
+  optional CommitServerConfig commitServer = 4;
+
+  // ApplicationSet holds ApplicationSet controller settings.
+  // Migration: component group; no legacy key — see child fields.
+  // +optional
+  optional ApplicationSetConfig applicationSet = 5;
+
+  // Cluster holds cluster-registration policy (argocd-cm: cluster.*).
+  // Migration: component group; no legacy key — see child fields.
+  // +optional
+  optional ClusterRegistrationConfig cluster = 6;
+
+  // Redis holds shared Redis connection settings used by multiple components.
+  // Migration: component group; no legacy key — see child fields.
+  // +optional
+  optional RedisConfig redis = 7;
+
+  // OTLP holds OpenTelemetry collector settings shared across components.
+  // Migration: component group; no legacy key — see child fields.
+  // +optional
+  optional OTLPConfig otlp = 8;
+
+  // ApplicationNamespaceGlobs lists additional namespaces where Applications may
+  // be created and reconciled (cmd-params: application.namespaces). Supports
+  // globs such as "team-*". The Argo CD install namespace is always allowed.
+  // Migration: if present, takes precedence over argocd-cmd-params-cm application.namespaces; replaces the whole collection.
+  // +optional
+  repeated string applicationNamespaceGlobs = 9;
+
+  // InstallationID uniquely identifies this Argo CD installation for resource
+  // tracking (argocd-cm: installationID). Empty disables the feature.
+  // Migration: if set, takes precedence over argocd-cm installationID.
+  // +optional
+  optional string installationID = 10;
+
+  // ExecTimeout is the shared timeout for forked commands (git, helm, kustomize,
+  // CMP, GPG, …) via util/exec (env: ARGOCD_EXEC_TIMEOUT; default 90s).
+  // This is not the UI pod-terminal feature under server.exec.
+  // Migration: if set, takes precedence over env ARGOCD_EXEC_TIMEOUT. Does not round-trip through ConfigMaps.
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Duration execTimeout = 11;
+
+  // DexServer holds Dex server process runtime settings (cmd-params: dexserver.*).
+  // Migration: component group; no legacy key — see child fields.
+  // +optional
+  optional DexServerConfig dexServer = 12;
+
+  // Notifications holds notifications-controller settings
+  // (cmd-params: notificationscontroller.*).
+  // Migration: component group; no legacy key — see child fields.
+  // +optional
+  optional NotificationsConfig notifications = 13;
+
+  // Logging holds cross-component logging options (e.g. shared timestamp format).
+  // Migration: component group; no legacy key — see child fields.
+  // +optional
+  optional LoggingConfig logging = 14;
+}
+
+// AzureOIDCConfig holds Azure Active Directory / Entra ID–specific OIDC settings.
+message AzureOIDCConfig {
+  // UseWorkloadIdentity authenticates to Azure AD using Kubernetes workload
+  // identity instead of a client secret (oidc.config azure.useWorkloadIdentity).
+  // Default false. Migration: composite child of oidc.config.
+  // +optional
+  optional bool useWorkloadIdentity = 1;
+
+  // UserGroupOverageClaim resolves Azure AD group overage (>200 groups) via
+  // Microsoft Graph when the token indicates groups were truncated.
+  // Migration: composite child of oidc.config.
+  // +optional
+  optional AzureUserGroupOverageClaimConfig userGroupOverageClaim = 2;
+
+  // GraphAPIEndpointURL overrides the Microsoft Graph API base URL for sovereign
+  // clouds (oidc.config azure.graphApiEndpoint).
+  // Default https://graph.microsoft.com/v1.0.
+  // Migration: composite child of oidc.config.
+  // +optional
+  // +kubebuilder:validation:MaxLength=2048
+  // +kubebuilder:validation:Pattern=`^$|^https?://.+`
+  optional string graphAPIEndpointURL = 3;
+}
+
+// AzureUserGroupOverageClaimConfig holds Azure AD group overage resolution settings.
+message AzureUserGroupOverageClaimConfig {
+  // Enabled resolves group overage via Microsoft Graph
+  // (oidc.config azure.enableUserGroupOverageClaim). Default false.
+  // Migration: composite child of oidc.config.
+  // +optional
+  optional bool enabled = 1;
+
+  // CacheExpiration is the cache TTL for Graph-resolved group IDs
+  // (oidc.config azure.userGroupOverageClaimCacheExpiration).
+  // When unset (0), falls back to token expiry.
+  // Migration: composite child of oidc.config.
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Duration cacheExpiration = 2;
+}
+
 // Backoff is the backoff strategy to use on subsequent retries for failing syncs
 message Backoff {
   // Duration is the amount to back off. Default unit is seconds, but could also be a duration (e.g. "2m", "1h")
@@ -823,6 +1232,32 @@ message Backoff {
 
   // MaxDuration is the maximum amount of time allowed for the backoff strategy
   optional string maxDuration = 3;
+}
+
+// BackoffConfig is exponential backoff used for retries (mirrors Application sync
+// retry backoff naming: duration / factor / maxDuration).
+// Use this shape for any retry/backoff settings group rather than ad-hoc
+// timeout/cap/baseBackoff field names.
+message BackoffConfig {
+  // Duration is the initial / base wait before the first retry.
+  // Self-heal: controller.self.heal.backoff.timeout.seconds (default 2s).
+  // K8s client: *.k8sclient.retry.base.backoff (default 100ms; doubles each
+  // retry up to an internal 10s cap — only Duration is used for k8s client).
+  // Application sync: backoff.duration.
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Duration duration = 1;
+
+  // Factor multiplies the wait after each failed attempt.
+  // Self-heal: controller.self.heal.backoff.factor (default 3).
+  // Unused for current k8s client retry (reserved for shape consistency).
+  // +optional
+  optional int32 factor = 2;
+
+  // MaxDuration is the maximum wait between retries.
+  // Self-heal: controller.self.heal.backoff.cap.seconds (default 300s).
+  // Unused for current k8s client retry (hard-capped at 10s in code).
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Duration maxDuration = 3;
 }
 
 // BasicAuthBitbucketServer defines the username/(password or personal access token) for Basic auth.
@@ -855,6 +1290,25 @@ message ChartDetails {
 
   // List of maintainer details, name and email, e.g. ["John Doe <john_doe@my-company.com>"]
   repeated string maintainers = 3;
+}
+
+// ClientRetryConfig is retry policy for a Kubernetes API client.
+// Organizational subgroup: max attempts and backoff migrate independently.
+message ClientRetryConfig {
+  // Max is the maximum number of client retries
+  // (cmd-params: *.k8sclient.retry.max). Default 0 — only the initial attempt.
+  // Migration: if set, takes precedence over the component *.k8sclient.retry.max key.
+  // +optional
+  // +kubebuilder:validation:Minimum=0
+  optional int32 max = 1;
+
+  // Backoff is the wait between retries. Only Duration is used by current
+  // Argo CD cmd-params (*.k8sclient.retry.base.backoff; default 100ms);
+  // Factor/MaxDuration are reserved for a consistent BackoffConfig shape.
+  // Delay doubles each retry and is hard-capped at 10s in Argo CD.
+  // Migration: if non-nil, takes precedence over the component *.k8sclient.retry.base.backoff key via backoff.duration.
+  // +optional
+  optional BackoffConfig backoff = 2;
 }
 
 // Cluster is the definition of a cluster resource
@@ -983,6 +1437,16 @@ message ClusterList {
   repeated Cluster items = 2;
 }
 
+// ClusterRegistrationConfig holds cluster-address policy settings (argocd-cm: cluster.*).
+message ClusterRegistrationConfig {
+  // InClusterEnabled controls whether the Kubernetes in-cluster API server
+  // address (kubernetes.default.svc) may be registered as a cluster
+  // (argocd-cm: cluster.inClusterEnabled).
+  // Migration: if set, takes precedence over argocd-cm cluster.inClusterEnabled.
+  // +optional
+  optional bool inClusterEnabled = 1;
+}
+
 // ClusterResourceRestrictionItem is a cluster resource that is restricted by the project's whitelist or blacklist
 message ClusterResourceRestrictionItem {
   optional string group = 1;
@@ -999,6 +1463,29 @@ message Command {
   repeated string command = 1;
 
   repeated string args = 2;
+}
+
+// CommitAuthor is the commit author identity (argocd-cm: commit.author.*).
+message CommitAuthor {
+  // Name is the git author name (argocd-cm: commit.author.name).
+  // Migration: if set, takes precedence over argocd-cm commit.author.name.
+  // +optional
+  optional string name = 1;
+
+  // Email is the git author email (argocd-cm: commit.author.email).
+  // Migration: if set, takes precedence over argocd-cm commit.author.email.
+  // +optional
+  // +kubebuilder:validation:Format=email
+  optional string email = 2;
+}
+
+// CommitConfig holds commit identity settings for the hydrator/commit-server
+// (argocd-cm: commit.author.*).
+message CommitConfig {
+  // Author is the git author used for hydrator-created commits
+  // (argocd-cm: commit.author.name / commit.author.email).
+  // +optional
+  optional CommitAuthor author = 1;
 }
 
 // CommitMetadata contains metadata about a commit that is related in some way to another commit.
@@ -1030,6 +1517,62 @@ message CommitMetadata {
   // This value is not validated and should not be used to construct UI links unless it is properly
   // validated and/or sanitized first.
   optional string repoUrl = 6;
+}
+
+// CommitServerConfig holds commit-server runtime settings and commit identity.
+message CommitServerConfig {
+  // Address is the commit-server host:port (cmd-params: commit.server).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm commit.server.
+  // +optional
+  optional string address = 1;
+
+  // Listen holds commit-server and metrics listen addresses
+  // (cmd-params: commitserver.listen.address, commitserver.metrics.listen.address).
+  // Migration: if non-nil, takes precedence over argocd-cmd-params-cm commitserver.listen.address /
+  // commitserver.metrics.listen.address as a group.
+  // +optional
+  optional ListenConfig listen = 2;
+
+  // GRPCTXTServiceConfigEnabled enables gRPC TXT service config
+  // (cmd-params: commitserver.grpc.enable.txt.service.config).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm commitserver.grpc.enable.txt.service.config.
+  // +optional
+  optional bool grpcTXTServiceConfigEnabled = 3;
+
+  // Commit holds author identity used for hydrator-created commits.
+  // Migration: if non-nil, takes precedence over argocd-cm commit.author.* as a group (children apply from the CR; no merge with legacy siblings under that family).
+  // +optional
+  optional CommitConfig commit = 4;
+
+  // Log holds commit-server log format and level (cmd-params: commitserver.log.*).
+  // Migration: if non-nil, takes precedence over argocd-cmd-params-cm commitserver.log.* as a group.
+  // +optional
+  optional LogConfig log = 5;
+}
+
+// CompareOptions controls how live vs desired state are compared
+// (argocd-cm: resource.compareoptions).
+message CompareOptions {
+  // IgnoreAggregatedRoles ignores RBAC differences caused by aggregated
+  // ClusterRoles (resource.compareoptions ignoreAggregatedRoles). Default false.
+  // Migration: composite child of resource.compareoptions.
+  // +optional
+  optional bool ignoreAggregatedRoles = 1;
+
+  // IgnoreResourceStatusField controls ignoring .status during diff:
+  // "all" (default in Argo CD), "crd" (CustomResourceDefinitions only), or "none".
+  // Legacy: resource.compareoptions ignoreResourceStatusField.
+  // Migration: composite child of resource.compareoptions.
+  // +optional
+  // +kubebuilder:validation:Enum=all;crd;none
+  optional string ignoreResourceStatusField = 2;
+
+  // IgnoreDifferencesOnResourceUpdates applies ignoreDifferences rules when
+  // deciding whether a watched resource update should trigger reconcile
+  // (resource.compareoptions ignoreDifferencesOnResourceUpdates). Default true.
+  // Migration: composite child of resource.compareoptions.
+  // +optional
+  optional bool ignoreDifferencesOnResourceUpdates = 3;
 }
 
 // ComparedTo contains application source and target which was used for resources comparison
@@ -1086,6 +1629,449 @@ message ConnectionState {
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time attemptedAt = 3;
 }
 
+// ControllerCacheConfig holds controller Redis cache TTLs.
+message ControllerCacheConfig {
+  // AppStateExpiration is the app state (tree / managed resources) cache TTL
+  // (cmd-params: controller.app.state.cache.expiration).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm controller.app.state.cache.expiration.
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Duration appStateExpiration = 1;
+
+  // DefaultExpiration is the default Redis cache TTL for the controller
+  // (cmd-params: controller.default.cache.expiration).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm controller.default.cache.expiration.
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Duration defaultExpiration = 2;
+}
+
+// ControllerClusterCacheConfig tunes cluster informer event batching.
+message ControllerClusterCacheConfig {
+  // BatchEventsProcessing enables batching of cluster cache events
+  // (cmd-params: controller.cluster.cache.batch.events.processing).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm controller.cluster.cache.batch.events.processing.
+  // +optional
+  optional bool batchEventsProcessing = 1;
+
+  // EventsProcessingInterval is how often batched events are processed
+  // (cmd-params: controller.cluster.cache.events.processing.interval).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm controller.cluster.cache.events.processing.interval.
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Duration eventsProcessingInterval = 2;
+}
+
+// ControllerConfig holds application-controller runtime and product settings.
+message ControllerConfig {
+  // Reconciliation holds periodic app reconciliation / git poll timing
+  // (argocd-cm: timeout.reconciliation, timeout.reconciliation.jitter).
+  // Migration: if non-nil, takes precedence over argocd-cm timeout.reconciliation* as a group.
+  // +optional
+  optional ReconciliationConfig reconciliation = 1;
+
+  // Sharding holds controller shard balancing settings
+  // (cmd-params: controller.sharding.*).
+  // Migration: if non-nil, takes precedence over argocd-cmd-params-cm controller.sharding.* as a group.
+  // +optional
+  optional ControllerShardingConfig sharding = 2;
+
+  // Processors holds parallel worker counts for status, operations, and hydration.
+  // Migration: if non-nil, takes precedence over argocd-cmd-params-cm controller.*.processors as a group.
+  // +optional
+  optional ControllerProcessorsConfig processors = 3;
+
+  // Log holds controller log format and level (cmd-params: controller.log.*).
+  // Migration: if non-nil, takes precedence over argocd-cmd-params-cm controller.log.* as a group.
+  // +optional
+  optional LogConfig log = 4;
+
+  // Metrics configures which labels/conditions are exported as Prometheus metrics.
+  // Migration: organizational subgroup; no legacy key — see child fields.
+  // +optional
+  optional ControllerMetricsConfig metrics = 5;
+
+  // SelfHeal configures automated self-heal attempt timing and backoff.
+  // Migration: if non-nil, takes precedence over argocd-cmd-params-cm controller.self.heal.* as a group (children apply from the CR; no merge with legacy siblings under that family).
+  // +optional
+  optional SelfHealConfig selfHeal = 6;
+
+  // Cache holds controller Redis cache TTLs (cmd-params: controller.app.state.cache.expiration,
+  // controller.default.cache.expiration).
+  // Migration: if non-nil, takes precedence over argocd-cmd-params-cm controller.*.cache.expiration as a group.
+  // +optional
+  optional ControllerCacheConfig cache = 7;
+
+  // ResourceHealthPersist stores per-resource health in the Application CR
+  // (cmd-params: controller.resource.health.persist). Increases CR update load.
+  // Migration: if set, takes precedence over argocd-cmd-params-cm controller.resource.health.persist.
+  // +optional
+  optional bool resourceHealthPersist = 8;
+
+  // KubectlParallelismLimit caps concurrent kubectl fork/execs
+  // (cmd-params: controller.kubectl.parallelism.limit). Zero means unlimited.
+  // Migration: if set, takes precedence over argocd-cmd-params-cm controller.kubectl.parallelism.limit.
+  // +optional
+  // +kubebuilder:validation:Minimum=0
+  optional int32 kubectlParallelismLimit = 9;
+
+  // Diff holds server-side diff and global ignore-differences settings.
+  // Migration: organizational subgroup; no legacy key — see child fields.
+  // +optional
+  optional ControllerDiffConfig diff = 10;
+
+  // ProfileEnabled enables pprof profiling endpoints
+  // (cmd-params: controller.profile.enabled).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm controller.profile.enabled.
+  // +optional
+  optional bool profileEnabled = 11;
+
+  // ProfilerFilePath enables the Go profiler and writes profiles to this path
+  // (env: ARGOCD_ENABLE_PROFILER_FILE_PATH).
+  // Migration: if set, takes precedence over env ARGOCD_ENABLE_PROFILER_FILE_PATH. Does not round-trip through ConfigMaps.
+  // +optional
+  optional string profilerFilePath = 12;
+
+  // GRPCTXTServiceConfigEnabled enables gRPC TXT service config
+  // (cmd-params: controller.grpc.enable.txt.service.config).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm controller.grpc.enable.txt.service.config.
+  // +optional
+  optional bool grpcTXTServiceConfigEnabled = 13;
+
+  // RepoErrorGracePeriod is how long the controller tolerates repo-server errors
+  // before failing an operation (cmd-params: controller.repo.error.grace.period.seconds).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm controller.repo.error.grace.period.seconds.
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Duration repoErrorGracePeriod = 14;
+
+  // ClusterCache tunes cluster cache event batching
+  // (cmd-params: controller.cluster.cache.*).
+  // Migration: if non-nil, takes precedence over argocd-cmd-params-cm controller.cluster.cache.* as a group (children apply from the CR; no merge with legacy siblings under that family).
+  // +optional
+  optional ControllerClusterCacheConfig clusterCache = 15;
+
+  // K8sClient holds Kubernetes client tuning for the application controller
+  // (cmd-params: controller.k8s.* / controller.k8sclient.*).
+  // Migration: organizational subgroup; no legacy key — see child fields.
+  // +optional
+  optional K8sClientConfig k8sClient = 16;
+
+  // Resource holds watch filters and per-GVK customizations.
+  // Migration: organizational subgroup; no legacy key — see child fields.
+  // +optional
+  optional ResourceConfig resource = 17;
+
+  // InstanceLabelKey is the label key used to track managed resources
+  // (argocd-cm: application.instanceLabelKey). Default is app.kubernetes.io/instance.
+  // Migration: if set, takes precedence over argocd-cm application.instanceLabelKey.
+  // +optional
+  // +kubebuilder:validation:Pattern=`^$|^([A-Za-z0-9]([-A-Za-z0-9_.]*[A-Za-z0-9])?/)?([A-Za-z0-9]([-A-Za-z0-9_.]*[A-Za-z0-9])?)$`
+  optional string instanceLabelKey = 18;
+
+  // ResourceTrackingMethod selects how ownership is recorded on managed resources:
+  // "label", "annotation", or "annotation+label"
+  // (argocd-cm: application.resourceTrackingMethod).
+  // Migration: if set, takes precedence over argocd-cm application.resourceTrackingMethod.
+  // +optional
+  // +kubebuilder:validation:Enum=annotation;label;annotation+label
+  optional string resourceTrackingMethod = 19;
+
+  // AllowedNodeLabelKeys are node label keys shown in the application pod view
+  // (argocd-cm: application.allowedNodeLabels).
+  // Migration: if present, takes precedence over argocd-cm application.allowedNodeLabels; replaces the whole collection.
+  // +optional
+  // +kubebuilder:validation:items:Pattern=`^([A-Za-z0-9]([-A-Za-z0-9_.]*[A-Za-z0-9])?/)?([A-Za-z0-9]([-A-Za-z0-9_.]*[A-Za-z0-9])?)$`
+  repeated string allowedNodeLabelKeys = 20;
+
+  // Sync holds sync impersonation policy and sync timing.
+  // Migration: organizational subgroup; no legacy key — see child fields.
+  // +optional
+  optional ApplicationSyncConfig sync = 21;
+
+  // GlobalProjects defines global AppProjects applied to matching projects by
+  // label selector (argocd-cm: globalProjects).
+  // Migration: if present, takes precedence over argocd-cm globalProjects; replaces the whole collection.
+  // +optional
+  // +listType=map
+  // +listMapKey=projectName
+  repeated GlobalProjectConfig globalProjects = 22;
+
+  // SourceHydrator configures the beta manifest source hydrator.
+  // Migration: organizational subgroup; no legacy key — see child fields.
+  // +optional
+  optional SourceHydratorConfig sourceHydrator = 23;
+}
+
+// ControllerDiffConfig holds server-side diff and global ignore-differences settings.
+message ControllerDiffConfig {
+  // ServerSide holds server-side diff via server-side apply dry-run when the
+  // diff cache is unavailable (cmd-params: controller.diff.server.side).
+  // Migration: if non-nil, takes precedence over argocd-cmd-params-cm controller.diff.server.side as a group.
+  // +optional
+  optional DiffServerSideConfig serverSide = 1;
+
+  // CompareOptions controls default diff behavior (argocd-cm: resource.compareoptions).
+  // Migration: if non-nil, takes precedence over argocd-cm resource.compareoptions as a whole, including all child fields.
+  // +optional
+  optional CompareOptions compareOptions = 2;
+
+  // IgnoreResourceUpdatesEnabled is the master switch for ignoreResourceUpdates
+  // rules that skip reconciles on watched updates
+  // (argocd-cm: resource.ignoreResourceUpdatesEnabled). Default true in Argo CD —
+  // when false, all resource updates are applied to the cluster cache.
+  // Migration: if set, takes precedence over argocd-cm resource.ignoreResourceUpdatesEnabled.
+  // +optional
+  optional bool ignoreResourceUpdatesEnabled = 3;
+
+  // IgnoreNormalizerJQTimeout is the max time to evaluate a JQPathExpression
+  // ignore-differences rule (cmd-params: controller.ignore.normalizer.jq.timeout).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm controller.ignore.normalizer.jq.timeout.
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Duration ignoreNormalizerJQTimeout = 4;
+}
+
+// ControllerMetricsApplicationConfig holds Application metric label/condition export settings.
+message ControllerMetricsApplicationConfig {
+  // LabelKeys are Application label keys exported on the argocd_app_labels metric
+  // (cmd-params: controller.metrics.application.labels).
+  // High-cardinality labels can degrade Prometheus performance.
+  // Migration: if present, takes precedence over argocd-cmd-params-cm controller.metrics.application.labels; replaces the whole collection.
+  // +optional
+  // +kubebuilder:validation:items:Pattern=`^([A-Za-z0-9]([-A-Za-z0-9_.]*[A-Za-z0-9])?/)?([A-Za-z0-9]([-A-Za-z0-9_.]*[A-Za-z0-9])?)$`
+  repeated string labelKeys = 1;
+
+  // Conditions are Application condition types exported on the argocd_app_conditions metric
+  // (cmd-params: controller.metrics.application.conditions).
+  // Migration: if present, takes precedence over argocd-cmd-params-cm controller.metrics.application.conditions; replaces the whole collection.
+  // +optional
+  repeated string conditions = 2;
+}
+
+// ControllerMetricsClusterConfig holds Cluster metric label export settings.
+message ControllerMetricsClusterConfig {
+  // LabelKeys are Cluster Secret label keys exported on the argocd_cluster_labels metric
+  // (cmd-params: controller.metrics.cluster.labels).
+  // Migration: if present, takes precedence over argocd-cmd-params-cm controller.metrics.cluster.labels; replaces the whole collection.
+  // +optional
+  // +kubebuilder:validation:items:Pattern=`^([A-Za-z0-9]([-A-Za-z0-9_.]*[A-Za-z0-9])?/)?([A-Za-z0-9]([-A-Za-z0-9_.]*[A-Za-z0-9])?)$`
+  repeated string labelKeys = 1;
+}
+
+// ControllerMetricsConfig holds controller Prometheus metric label/condition lists.
+message ControllerMetricsConfig {
+  // CacheExpiration is the Prometheus metrics cache TTL
+  // (cmd-params: controller.metrics.cache.expiration).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm controller.metrics.cache.expiration.
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Duration cacheExpiration = 1;
+
+  // Application configures Application-scoped Prometheus metrics export.
+  // Migration: organizational subgroup; no legacy key — see child fields.
+  // +optional
+  optional ControllerMetricsApplicationConfig application = 2;
+
+  // Cluster configures Cluster-scoped Prometheus metrics export.
+  // Migration: organizational subgroup; no legacy key — see child fields.
+  // +optional
+  optional ControllerMetricsClusterConfig cluster = 3;
+}
+
+// ControllerProcessorsConfig holds parallel worker counts for the application controller.
+message ControllerProcessorsConfig {
+  // Status is the number of parallel application status processors
+  // (cmd-params: controller.status.processors).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm controller.status.processors.
+  // +optional
+  // +kubebuilder:validation:Minimum=1
+  optional int32 status = 1;
+
+  // Operation is the number of parallel sync/operation processors
+  // (cmd-params: controller.operation.processors).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm controller.operation.processors.
+  // +optional
+  // +kubebuilder:validation:Minimum=1
+  optional int32 operation = 2;
+
+  // Hydration is the number of manifest hydration workers when the source hydrator is enabled
+  // (cmd-params: controller.hydration.processors).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm controller.hydration.processors.
+  // +optional
+  // +kubebuilder:validation:Minimum=1
+  optional int32 hydration = 3;
+}
+
+// ControllerShardingConfig holds how clusters are balanced across controller shards.
+message ControllerShardingConfig {
+  // Algorithm selects how clusters are balanced across controller shards
+  // (cmd-params: controller.sharding.algorithm).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm controller.sharding.algorithm.
+  // +optional
+  // +kubebuilder:validation:Enum=legacy;round-robin;consistent-hashing
+  optional string algorithm = 1;
+}
+
+// DeepLink is one custom UI deep link. URLTemplate and ConditionExpr may use
+// Go templates / expr-lang expressions evaluated against application/project/resource context.
+message DeepLink {
+  // URLTemplate is the link target and may include Go text/template expressions
+  // (e.g. {{.app.spec.destination.namespace}}); not CEL-validated as a plain URL.
+  // Legacy: <location>.links[].url.
+  // +kubebuilder:validation:Required
+  // +kubebuilder:validation:MinLength=1
+  optional string urlTemplate = 1;
+
+  // Title is the link text / tag shown in the UI (legacy: title).
+  // +kubebuilder:validation:Required
+  // +kubebuilder:validation:MinLength=1
+  optional string title = 2;
+
+  // Description is optional explanatory text for the link (legacy: description).
+  // +optional
+  optional string description = 3;
+
+  // IconClass is an optional Font Awesome CSS class for dropdown display
+  // (legacy: icon.class).
+  // +optional
+  optional string iconClass = 4;
+
+  // ConditionExpr is an expr-lang expression; the link is shown only when true
+  // (legacy: if). Omitted = always show.
+  // +optional
+  optional string conditionExpr = 5;
+}
+
+// DeepLinksConfig holds custom deep links for application, project, and resource views
+// (argocd-cm: application.links / project.links / resource.links).
+// See docs/operator-manual/deep_links.md in argo-cd.
+// Organizational subgroup: each link collection migrates independently.
+message DeepLinksConfig {
+  // Application links appear in the application summary tab
+  // (argocd-cm: application.links). Template context: app/application, cluster.
+  // Migration: if present, takes precedence over argocd-cm application.links; replaces the whole collection.
+  // +optional
+  // +listType=map
+  // +listMapKey=title
+  repeated DeepLink application = 1;
+
+  // Project links appear in the project tab (argocd-cm: project.links).
+  // Template context: project.
+  // Migration: if present, takes precedence over argocd-cm project.links; replaces the whole collection.
+  // +optional
+  // +listType=map
+  // +listMapKey=title
+  repeated DeepLink project = 2;
+
+  // Resource links appear in the resource summary tab (argocd-cm: resource.links).
+  // Template context: resource, application, cluster, project. Secret data fields
+  // are redacted but other fields remain accessible for templating.
+  // Migration: if present, takes precedence over argocd-cm resource.links; replaces the whole collection.
+  // +optional
+  // +listType=map
+  // +listMapKey=title
+  repeated DeepLink resource = 3;
+}
+
+// DexConfig is the Dex SSO configuration (argocd-cm: dex.config).
+// Connectors use a typed envelope; per-connector config stays opaque and may
+// contain $string secret interpolation (Dex-owned schema).
+message DexConfig {
+  // Connectors is the list of Dex identity connectors (GitHub, OIDC, SAML, LDAP, …).
+  // See https://dexidp.io/docs/connectors/. Migration: composite child of dex.config.
+  // +optional
+  // +listType=map
+  // +listMapKey=id
+  repeated DexConnector connectors = 1;
+
+  // StaticClients are additional Dex static OAuth clients for reuse with other
+  // services (e.g. Argo Workflows). Argo CD also injects its own static clients
+  // when Dex is enabled. Migration: composite child of dex.config (staticClients).
+  // +optional
+  // +listType=atomic
+  // +kubebuilder:pruning:PreserveUnknownFields
+  repeated .k8s.io.apimachinery.pkg.runtime.RawExtension staticClients = 2;
+
+  // Extra holds any additional top-level Dex config keys not modeled above
+  // (e.g. issuer, storage). Opaque; preserved as-is from dex.config.
+  // Migration: composite child of dex.config (unmodeled root keys).
+  // +optional
+  // +kubebuilder:pruning:PreserveUnknownFields
+  optional .k8s.io.apimachinery.pkg.runtime.RawExtension extra = 3;
+}
+
+// DexConnectionConfig is how the API server reaches Dex (cmd-params: server.dex.server*).
+message DexConnectionConfig {
+  // Address is the Dex server host:port (cmd-params: server.dex.server).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm server.dex.server.
+  // +optional
+  optional string address = 1;
+
+  // TLSEnabled controls TLS when connecting to Dex (cmd-params: server.dex.server.plaintext —
+  // inverted: plaintext=true means tlsEnabled=false).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm server.dex.server.plaintext (inverted).
+  // +optional
+  optional bool tlsEnabled = 2;
+
+  // InsecureSkipVerify skips verification of the Dex TLS certificate
+  // (cmd-params: server.dex.server.strict.tls — inverted: strict.tls=true means skip=false).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm server.dex.server.strict.tls (inverted).
+  // +optional
+  optional bool insecureSkipVerify = 3;
+}
+
+// DexConnector is one Dex identity connector entry (dex.config connectors[]).
+message DexConnector {
+  // Type is the Dex connector type (e.g. "github", "oidc", "saml", "ldap").
+  // Migration: composite child of dex.config (connectors[].type).
+  // +kubebuilder:validation:Required
+  // +kubebuilder:validation:MinLength=1
+  optional string type = 1;
+
+  // ID is the connector's unique identifier within Dex (login routing / internal use).
+  // Migration: composite child of dex.config (connectors[].id).
+  // +kubebuilder:validation:Required
+  // +kubebuilder:validation:MinLength=1
+  optional string id = 2;
+
+  // Name is the human-readable connector name shown on the login page.
+  // Migration: composite child of dex.config (connectors[].name).
+  // +kubebuilder:validation:Required
+  // +kubebuilder:validation:MinLength=1
+  optional string name = 3;
+
+  // Config is opaque Dex connector configuration (client IDs, org filters, etc.).
+  // $string / $secret:key refs are allowed. Schema is owned by Dex, not Argo CD.
+  // When set from Go, Raw must be JSON bytes.
+  // Migration: composite child of dex.config (connectors[].config).
+  // +optional
+  // +kubebuilder:pruning:PreserveUnknownFields
+  optional .k8s.io.apimachinery.pkg.runtime.RawExtension config = 4;
+}
+
+// DexServerConfig holds Dex server process runtime settings (cmd-params: dexserver.*).
+message DexServerConfig {
+  // Log holds Dex server log format and level (cmd-params: dexserver.log.*).
+  // Migration: if non-nil, takes precedence over argocd-cmd-params-cm dexserver.log.* as a group.
+  // +optional
+  optional LogConfig log = 1;
+
+  // TLSEnabled controls whether the Dex server serves TLS (cmd-params: dexserver.disable.tls —
+  // inverted: disable.tls=true means tlsEnabled=false). TLS is on by default.
+  // Migration: if set, takes precedence over argocd-cmd-params-cm dexserver.disable.tls (inverted).
+  // +optional
+  optional bool tlsEnabled = 2;
+
+  // ConnectorFailureContinue continues serving when a connector fails to initialize
+  // (cmd-params: dexserver.connector.failure.continue).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm dexserver.connector.failure.continue.
+  // +optional
+  optional bool connectorFailureContinue = 3;
+}
+
+// DiffServerSideConfig holds server-side diff enablement.
+message DiffServerSideConfig {
+  // Enabled enables server-side diff (cmd-params: controller.diff.server.side).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm controller.diff.server.side.
+  // +optional
+  optional bool enabled = 1;
+}
+
 // DrySource specifies a location for dry "don't repeat yourself" manifest source information.
 message DrySource {
   // RepoURL is the URL to the git repository that contains the application manifests
@@ -1139,6 +2125,35 @@ message EnvEntry {
   optional string value = 2;
 }
 
+// EventLabelsConfig holds label key globs for event propagation.
+message EventLabelsConfig {
+  // IncludeKeyGlobs are label key globs copied onto emitted Kubernetes events
+  // (argocd-cm: resource.includeEventLabelKeys).
+  // Migration: if present, takes precedence over argocd-cm resource.includeEventLabelKeys; replaces the whole collection.
+  // +optional
+  repeated string includeKeyGlobs = 1;
+
+  // ExcludeKeyGlobs are label key globs excluded from event propagation
+  // (argocd-cm: resource.excludeEventLabelKeys).
+  // Migration: if present, takes precedence over argocd-cm resource.excludeEventLabelKeys; replaces the whole collection.
+  // +optional
+  repeated string excludeKeyGlobs = 2;
+}
+
+// ExecConfig configures the UI pod terminal (exec) feature.
+message ExecConfig {
+  // Enabled turns on pod exec from the UI (argocd-cm: exec.enabled).
+  // Migration: if set, takes precedence over argocd-cm exec.enabled.
+  // +optional
+  optional bool enabled = 1;
+
+  // Shells are preferred shells tried in order for exec sessions
+  // (argocd-cm: exec.shells), e.g. bash, sh, powershell, cmd.
+  // Migration: if present, takes precedence over argocd-cm exec.shells; replaces the whole collection.
+  // +optional
+  repeated string shells = 2;
+}
+
 // ExecProviderConfig is config used to call an external command to perform cluster authentication
 // See: https://godoc.org/k8s.io/client-go/tools/clientcmd/api#ExecConfig
 message ExecProviderConfig {
@@ -1173,6 +2188,124 @@ message ExecProviderConfig {
   optional .k8s.io.apimachinery.pkg.runtime.RawExtension config = 7;
 }
 
+// ExtensionCluster selects a destination cluster for an extension backend.
+message ExtensionCluster {
+  // ServerURL is the cluster API server URL to match against Application
+  // destination.server (legacy: cluster.server).
+  // +optional
+  // +kubebuilder:validation:MaxLength=2048
+  // +kubebuilder:validation:Pattern=`^$|^[a-zA-Z][a-zA-Z0-9+.-]*:.+`
+  optional string serverURL = 1;
+
+  // Name is the Argo CD cluster name to match against Application
+  // destination.name (legacy: cluster.name).
+  // +optional
+  optional string name = 2;
+}
+
+// ExtensionConfig configures one UI proxy extension (argocd-cm: extension.config).
+// Requires server.proxyExtensionEnabled (cmd-params: server.enable.proxy.extension).
+// Transport fields are hoisted onto the extension (legacy CM still nests them under backend).
+message ExtensionConfig {
+  // Name is the extension identifier; registers the proxy route at
+  // <argocd-host>/api/v1/extensions/<name> and is used in RBAC.
+  // Legacy: extension.config extensions[].name.
+  // +kubebuilder:validation:Required
+  // +kubebuilder:validation:MinLength=1
+  optional string name = 1;
+
+  // Services are upstream backends the proxy may forward to (optionally
+  // filtered by Application destination cluster).
+  // Legacy: extension.config extensions[].backend.services.
+  // +optional
+  // +listType=map
+  // +listMapKey=url
+  repeated ExtensionService services = 2;
+
+  // ConnectionTimeout is the max dial time to the upstream extension server
+  // (legacy: backend.connectionTimeout / backend.transport.connectionTimeout; default 2s).
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Duration connectionTimeout = 3;
+
+  // KeepAlive is the HTTP keep-alive probe interval for upstream connections
+  // (legacy: backend.keepAlive; default 15s).
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Duration keepAlive = 4;
+
+  // IdleConnectionTimeout is how long idle upstream connections are kept
+  // (legacy: backend.idleConnectionTimeout; default 60s).
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Duration idleConnectionTimeout = 5;
+
+  // MaxIdleConnections is the max idle connections in the upstream pool
+  // (legacy: backend.maxIdleConnections; default 30).
+  // +optional
+  // +kubebuilder:validation:Minimum=0
+  optional int32 maxIdleConnections = 6;
+}
+
+// ExtensionHeader is an HTTP header injected into extension proxy requests.
+message ExtensionHeader {
+  // Name is the HTTP header name (legacy: headers[].name).
+  // +kubebuilder:validation:Required
+  // +kubebuilder:validation:MinLength=1
+  optional string name = 1;
+
+  // Value is the header value; may include $secret.key interpolation
+  // (legacy: headers[].value).
+  // +kubebuilder:validation:Required
+  optional string value = 2;
+}
+
+// ExtensionService is one upstream URL for an extension.
+message ExtensionService {
+  // URL is the upstream extension service base URL (mandatory).
+  // Legacy: extension.config ...services[].url.
+  // +kubebuilder:validation:Required
+  // +kubebuilder:validation:MaxLength=2048
+  // +kubebuilder:validation:Pattern=`^https?://.+`
+  optional string url = 1;
+
+  // Cluster optionally restricts this backend to Applications whose destination
+  // matches. Required when multiple services are configured; ignored when only
+  // one service exists. Legacy: ...services[].cluster.
+  // +optional
+  optional ExtensionCluster cluster = 2;
+
+  // Headers are extra HTTP headers injected on outgoing proxy requests
+  // (override same-named incoming headers; reserved names are ignored).
+  // Values may use $secret.key for argocd-secret lookup.
+  // Legacy: ...services[].headers.
+  // +optional
+  // +listType=map
+  // +listMapKey=name
+  repeated ExtensionHeader headers = 3;
+}
+
+// FilteredResource selects resources by API group, kind, and/or cluster for
+// resource.exclusions / resource.inclusions. Omitting a field matches all values
+// for that dimension. events.k8s.io and metrics.k8s.io are excluded by default
+// even when this list is empty.
+message FilteredResource {
+  // APIGroups are API groups to match ("" for core, "*" for any).
+  // Omitted = match all groups. Legacy: resource.exclusions/inclusions apiGroups.
+  // +optional
+  // +kubebuilder:validation:items:Pattern=`^([a-z0-9]([-a-z0-9]*[a-z0-9])?([.][a-z0-9]([-a-z0-9]*[a-z0-9])?)*|[*])?$`
+  repeated string apiGroups = 1;
+
+  // Kinds are Kubernetes Kind names to match ("*" for any).
+  // Omitted = match all kinds. Legacy: resource.exclusions/inclusions kinds.
+  // +optional
+  // +kubebuilder:validation:items:Pattern=`^([A-Z][A-Za-z0-9]*|[*])$`
+  repeated string kinds = 2;
+
+  // Clusters are cluster server URLs or names this filter applies to
+  // (supports globs such as "*.local"). Omitted = all clusters.
+  // Legacy: resource.exclusions/inclusions clusters.
+  // +optional
+  repeated string clusters = 3;
+}
+
 message GitDirectoryGeneratorItem {
   optional string path = 1;
 
@@ -1204,6 +2337,41 @@ message GitGenerator {
   map<string, string> values = 8;
 }
 
+// GlobalPreservedKeysConfig holds keys preserved on ApplicationSet-generated Applications.
+message GlobalPreservedKeysConfig {
+  // AnnotationKeys are annotation keys preserved on generated Applications
+  // (cmd-params: applicationsetcontroller.global.preserved.annotations).
+  // Migration: if present, takes precedence over argocd-cmd-params-cm applicationsetcontroller.global.preserved.annotations; replaces the whole collection.
+  // +optional
+  // +kubebuilder:validation:items:Pattern=`^([A-Za-z0-9]([-A-Za-z0-9_.]*[A-Za-z0-9])?/)?([A-Za-z0-9]([-A-Za-z0-9_.]*[A-Za-z0-9])?)$`
+  repeated string annotationKeys = 1;
+
+  // LabelKeys are label keys preserved on generated Applications
+  // (cmd-params: applicationsetcontroller.global.preserved.labels).
+  // Migration: if present, takes precedence over argocd-cmd-params-cm applicationsetcontroller.global.preserved.labels; replaces the whole collection.
+  // +optional
+  // +kubebuilder:validation:items:Pattern=`^([A-Za-z0-9]([-A-Za-z0-9_.]*[A-Za-z0-9])?/)?([A-Za-z0-9]([-A-Za-z0-9_.]*[A-Za-z0-9])?)$`
+  repeated string labelKeys = 2;
+}
+
+// GlobalProjectConfig applies a global AppProject's defaults to matching projects
+// (argocd-cm: globalProjects). Inherited settings include namespace/cluster resource
+// black/whitelists, syncWindows, sourceRepos, destinations, and
+// destinationServiceAccounts.
+message GlobalProjectConfig {
+  // ProjectName is the name of the global AppProject to apply
+  // (legacy: globalProjects[].projectName). Required as a listMapKey.
+  // +kubebuilder:validation:Required
+  // +kubebuilder:validation:MinLength=1
+  // +kubebuilder:validation:Pattern=`^[a-z0-9]([-a-z0-9]*[a-z0-9])?$`
+  optional string projectName = 1;
+
+  // LabelSelector selects which AppProjects receive this global project's settings
+  // (In, NotIn, Exists, DoesNotExist). Legacy: globalProjects[].labelSelector.
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.LabelSelector labelSelector = 2;
+}
+
 // GnuPGPublicKey is a representation of a GnuPG public key
 message GnuPGPublicKey {
   // KeyID specifies the key ID, in hexadecimal string format
@@ -1232,6 +2400,21 @@ message GnuPGPublicKeyList {
   repeated GnuPGPublicKey items = 2;
 }
 
+// GoogleAnalyticsConfig holds optional Google Analytics settings.
+message GoogleAnalyticsConfig {
+  // TrackingID is the Google Analytics tracking / measurement ID
+  // (argocd-cm: ga.trackingid).
+  // Migration: if set, takes precedence over argocd-cm ga.trackingid.
+  // +optional
+  optional string trackingID = 1;
+
+  // AnonymizeUsers anonymizes user identifiers sent to Google Analytics
+  // (argocd-cm: ga.anonymizeusers).
+  // Migration: if set, takes precedence over argocd-cm ga.anonymizeusers.
+  // +optional
+  optional bool anonymizeUsers = 2;
+}
+
 // HealthStatus contains information about the currently observed health state of a resource
 message HealthStatus {
   // Status holds the status code of the resource
@@ -1246,6 +2429,32 @@ message HealthStatus {
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.Time lastTransitionTime = 3;
 }
 
+// HelmConfig holds Helm tool settings (argocd-cm: helm.* and cmd-params: reposerver.helm.*).
+// Organizational subgroup: children migrate independently.
+message HelmConfig {
+  // Enabled enables Helm as a manifest source tool (argocd-cm: helm.enable).
+  // Migration: if set, takes precedence over argocd-cm helm.enable.
+  // +optional
+  optional bool enabled = 1;
+
+  // ValuesFileSchemes are URI schemes allowed for remote Helm values files
+  // (argocd-cm: helm.valuesFileSchemes), e.g. "https", "http".
+  // Migration: if present, takes precedence over argocd-cm helm.valuesFileSchemes; replaces the whole collection.
+  // +optional
+  repeated string valuesFileSchemes = 2;
+
+  // UserAgent is the User-Agent header for Helm registry/HTTP requests
+  // (cmd-params: reposerver.helm.user.agent).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm reposerver.helm.user.agent.
+  // +optional
+  optional string userAgent = 3;
+
+  // Manifest holds Helm chart extracted-size limits (cmd-params: reposerver.helm.manifest.max.*).
+  // Migration: if non-nil, takes precedence over argocd-cmd-params-cm reposerver.helm.manifest.max.* as a group.
+  // +optional
+  optional HelmManifestConfig manifest = 4;
+}
+
 // HelmFileParameter is a file parameter that's passed to helm template during manifest generation
 message HelmFileParameter {
   // Name is the name of the Helm parameter
@@ -1253,6 +2462,22 @@ message HelmFileParameter {
 
   // Path is the path to the file containing the values for the Helm parameter
   optional string path = 2;
+}
+
+// HelmManifestConfig holds Helm chart extracted-size limits.
+message HelmManifestConfig {
+  // MaxExtractedSize caps extracted Helm chart size
+  // (cmd-params: reposerver.helm.manifest.max.extracted.size).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm reposerver.helm.manifest.max.extracted.size.
+  // +optional
+  optional .k8s.io.apimachinery.pkg.api.resource.Quantity maxExtractedSize = 1;
+
+  // MaxExtractedSizeEnabled controls the extracted size limit
+  // (cmd-params: reposerver.disable.helm.manifest.max.extracted.size —
+  // inverted: disable...=true means enabled=false). Limit is on by default.
+  // Migration: if set, takes precedence over argocd-cmd-params-cm reposerver.disable.helm.manifest.max.extracted.size (inverted).
+  // +optional
+  optional bool maxExtractedSizeEnabled = 2;
 }
 
 // HelmOptions holds helm options
@@ -1270,6 +2495,37 @@ message HelmParameter {
 
   // ForceString determines whether to tell Helm to interpret booleans and numbers as strings
   optional bool forceString = 3;
+}
+
+// HelpChatConfig holds support chat link settings.
+message HelpChatConfig {
+  // URL is the support chat / community link (argocd-cm: help.chatUrl).
+  // Migration: if set, takes precedence over argocd-cm help.chatUrl.
+  // +optional
+  // +kubebuilder:validation:MaxLength=2048
+  // +kubebuilder:validation:Pattern=`^$|^https?://.+`
+  optional string url = 1;
+
+  // Text is the display text for URL (argocd-cm: help.chatText).
+  // Migration: if set, takes precedence over argocd-cm help.chatText.
+  // +optional
+  optional string text = 2;
+}
+
+// HelpConfig configures the UI help panel and CLI download links.
+// Organizational subgroup: children migrate independently.
+message HelpConfig {
+  // Chat holds support chat / community link settings (argocd-cm: help.chatUrl, help.chatText).
+  // Migration: if non-nil, takes precedence over argocd-cm help.chat* as a group.
+  // +optional
+  optional HelpChatConfig chat = 1;
+
+  // BinaryURLs maps architecture name to a CLI binary download path or URL
+  // (argocd-cm: help.download.<arch>). Values may be absolute http(s) URLs or paths —
+  // not CEL-validated as absolute URLs.
+  // Migration: if present, takes precedence over argocd-cm help.download.*; replaces the whole collection.
+  // +optional
+  map<string, string> binaryURLs = 2;
 }
 
 // HostInfo holds metadata and resource usage metrics for a specific host in the cluster.
@@ -1400,6 +2656,14 @@ message JWTTokens {
   repeated JWTToken items = 1;
 }
 
+// JsonnetConfig holds Jsonnet tool settings (argocd-cm: jsonnet.*).
+message JsonnetConfig {
+  // Enabled enables Jsonnet as a manifest source tool (argocd-cm: jsonnet.enable).
+  // Migration: if set, takes precedence over argocd-cm jsonnet.enable.
+  // +optional
+  optional bool enabled = 1;
+}
+
 // JsonnetVar represents a variable to be passed to jsonnet during manifest generation
 message JsonnetVar {
   optional string name = 1;
@@ -1409,17 +2673,100 @@ message JsonnetVar {
   optional bool code = 3;
 }
 
+// K8sClientConfig holds Kubernetes API client tuning shared by components.
+// Organizational subgroup: children migrate independently.
+message K8sClientConfig {
+  // QPS is the client queries-per-second limit (cmd-params: *.k8s.client.qps).
+  // Stored as a decimal string because CRDs discourage float types; may be
+  // fractional (e.g. "50" or "12.5").
+  // Migration: if set, takes precedence over the component *.k8s.client.qps key.
+  // +optional
+  // +kubebuilder:validation:Pattern=`^[0-9]+(\.[0-9]+)?$`
+  optional string qps = 1;
+
+  // Burst is the client burst size (cmd-params: *.k8s.client.burst).
+  // Migration: if set, takes precedence over the component *.k8s.client.burst key.
+  // +optional
+  optional int32 burst = 2;
+
+  // MaxIdleConnections is the max idle connections in the HTTP pool
+  // (cmd-params: *.k8s.client.max.idle.connections).
+  // Migration: if set, takes precedence over the component *.k8s.client.max.idle.connections key.
+  // +optional
+  // +kubebuilder:validation:Minimum=0
+  optional int32 maxIdleConnections = 3;
+
+  // TCP holds TCP dial, keep-alive, and idle timeout settings (cmd-params: *.k8s.tcp.*).
+  // Migration: if non-nil, takes precedence over the component *.k8s.tcp.* keys as a group.
+  // +optional
+  optional K8sClientTCPConfig tcp = 4;
+
+  // TLSHandshakeTimeout is the TLS handshake timeout
+  // (cmd-params: *.k8s.tls.handshake.timeout).
+  // Migration: if set, takes precedence over the component *.k8s.tls.handshake.timeout key.
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Duration tlsHandshakeTimeout = 5;
+
+  // Retry holds Kubernetes client retry limits and backoff
+  // (cmd-params: *.k8sclient.retry.*).
+  // Migration: organizational subgroup; no legacy key — see child fields.
+  // +optional
+  optional ClientRetryConfig retry = 6;
+}
+
+// K8sClientTCPConfig holds TCP tuning for a Kubernetes API client.
+message K8sClientTCPConfig {
+  // Timeout is the TCP dial timeout (cmd-params: *.k8s.tcp.timeout).
+  // Migration: if set, takes precedence over the component *.k8s.tcp.timeout key.
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Duration timeout = 1;
+
+  // KeepAlive is the TCP keep-alive period (cmd-params: *.k8s.tcp.keepalive).
+  // Migration: if set, takes precedence over the component *.k8s.tcp.keepalive key.
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Duration keepAlive = 2;
+
+  // IdleTimeout is the idle connection timeout (cmd-params: *.k8s.tcp.idle.timeout).
+  // Migration: if set, takes precedence over the component *.k8s.tcp.idle.timeout key.
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Duration idleTimeout = 3;
+}
+
 // KnownTypeField contains a mapping between a Custom Resource Definition (CRD) field
 // and a well-known Kubernetes type. This mapping is primarily used for unit conversions
 // in resources where the type is not explicitly defined (e.g., converting "0.1" to "100m" for CPU requests).
 message KnownTypeField {
   // Field represents the JSON path to the specific field in the CRD that requires type conversion.
   // Example: "spec.resources.requests.cpu"
+  // Default empty string keeps this valid as an ArgoCDConfiguration listMapKey.
+  // +kubebuilder:default=""
   optional string field = 1;
 
   // Type specifies the expected Kubernetes type for the field, such as "cpu" or "memory".
   // This helps in converting values between different formats (e.g., "0.1" to "100m" for CPU).
   optional string type = 2;
+}
+
+// KustomizeConfig holds Kustomize tool settings (argocd-cm: kustomize.*).
+message KustomizeConfig {
+  // Enabled enables Kustomize as a manifest source tool (argocd-cm: kustomize.enable).
+  // Migration: if set, takes precedence over argocd-cm kustomize.enable.
+  // +optional
+  optional bool enabled = 1;
+
+  // BuildOptions are default options passed to `kustomize build`
+  // (argocd-cm: kustomize.buildOptions).
+  // Migration: if set, takes precedence over argocd-cm kustomize.buildOptions.
+  // +optional
+  optional string buildOptions = 2;
+
+  // Versions lists alternate Kustomize binaries and per-version build options
+  // (argocd-cm: kustomize.path.* / kustomize.buildOptions.*).
+  // Applications select a version via source.kustomize.version.
+  // +optional
+  // +listType=map
+  // +listMapKey=name
+  repeated KustomizeVersion versions = 3;
 }
 
 message KustomizeGvk {
@@ -1502,6 +2849,67 @@ message ListGenerator {
   optional string elementsYaml = 3;
 }
 
+// ListenConfig holds HTTP listen and metrics listen host addresses
+// (cmd-params: *.listen.address / *.metrics.listen.address). Bind host only —
+// not host:port. Server listen ports live on ServerListenConfig.
+message ListenConfig {
+  // Address is the primary listen host (cmd-params: *.listen.address), e.g. "0.0.0.0".
+  // Migration: if set, takes precedence over the component's argocd-cmd-params-cm *.listen.address key.
+  // +optional
+  optional string address = 1;
+
+  // MetricsAddress is the metrics listen host (cmd-params: *.metrics.listen.address).
+  // Migration: if set, takes precedence over the component's argocd-cmd-params-cm *.metrics.listen.address key.
+  // +optional
+  optional string metricsAddress = 2;
+}
+
+// LogConfig holds per-component log format and level (cmd-params: *.log.format / *.log.level).
+message LogConfig {
+  // Format is the log format (cmd-params: *.log.format).
+  // Migration: if set, takes precedence over the corresponding argocd-cmd-params-cm *.log.format key.
+  // +optional
+  // +kubebuilder:validation:Enum=json;text
+  optional string format = 1;
+
+  // Level is the log level (cmd-params: *.log.level).
+  // Migration: if set, takes precedence over the corresponding argocd-cmd-params-cm *.log.level key.
+  // +optional
+  // +kubebuilder:validation:Enum=debug;info;warn;error
+  optional string level = 2;
+}
+
+// LoggingConfig holds cross-component logging options.
+message LoggingConfig {
+  // FormatTimestamp is the shared log timestamp format for all components
+  // (cmd-params: log.format.timestamp). Empty means RFC3339.
+  // See https://pkg.go.dev/time#pkg-constants.
+  // Migration: if set, takes precedence over argocd-cmd-params-cm log.format.timestamp.
+  // +optional
+  optional string formatTimestamp = 1;
+}
+
+// MTLSCertConfig holds mTLS certificate paths.
+message MTLSCertConfig {
+  // CACertPath is the path to a CA certificate for verifying the peer
+  // (cmd-params: *.repo.server.ca.cert.path).
+  // Migration: if set, takes precedence over the component's argocd-cmd-params-cm *.repo.server.ca.cert.path.
+  // +optional
+  optional string caCertPath = 1;
+
+  // ClientCertPath is the path to the client certificate for mTLS
+  // (cmd-params: *.repo.server.client.cert.path).
+  // Migration: if set, takes precedence over the component's argocd-cmd-params-cm *.repo.server.client.cert.path.
+  // +optional
+  optional string clientCertPath = 2;
+
+  // ClientCertKeyPath is the path to the client certificate key for mTLS
+  // (cmd-params: *.repo.server.client.cert.key.path).
+  // Migration: if set, takes precedence over the component's argocd-cmd-params-cm *.repo.server.client.cert.key.path.
+  // +optional
+  optional string clientCertKeyPath = 3;
+}
+
 message ManagedNamespaceMetadata {
   map<string, string> labels = 1;
 
@@ -1558,6 +2966,93 @@ message NestedMergeGenerator {
   repeated string mergeKeys = 2;
 }
 
+// NotificationsConfig holds notifications-controller settings.
+message NotificationsConfig {
+  // Log holds notifications-controller log format and level
+  // (cmd-params: notificationscontroller.log.*).
+  // Migration: if non-nil, takes precedence over argocd-cmd-params-cm notificationscontroller.log.* as a group.
+  // +optional
+  optional LogConfig log = 1;
+
+  // ProcessorsCount is the number of notification processors
+  // (cmd-params: notificationscontroller.processors.count).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm notificationscontroller.processors.count.
+  // +optional
+  // +kubebuilder:validation:Minimum=1
+  optional int32 processorsCount = 2;
+
+  // SelfServiceEnabled enables notifications self-service
+  // (cmd-params: notificationscontroller.selfservice.enabled).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm notificationscontroller.selfservice.enabled.
+  // +optional
+  optional bool selfServiceEnabled = 3;
+
+  // TLSEnabled controls TLS when connecting to the repo-server
+  // (cmd-params: notificationscontroller.repo.server.plaintext —
+  // inverted: plaintext=true means tlsEnabled=false).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm notificationscontroller.repo.server.plaintext (inverted).
+  // +optional
+  optional bool tlsEnabled = 4;
+
+  // RepoServerClient holds mTLS cert paths when connecting to the repo-server
+  // (cmd-params: notificationscontroller.repo.server.*). Named distinctly from
+  // spec.repoServer (the repo-server itself) to avoid overloaded keys.
+  // Migration: organizational subgroup; no legacy key — see child fields.
+  // +optional
+  optional MTLSCertConfig repoServerClient = 5;
+
+  // AppLabelSelector restricts which Applications the notifications controller watches
+  // (flag: --app-label-selector).
+  // Migration: if set, takes precedence over notifications --app-label-selector. Does not round-trip through ConfigMaps.
+  // +optional
+  optional string appLabelSelector = 6;
+
+  // RepoServerAddress is the repo-server host:port
+  // (flag: --argocd-repo-server).
+  // Migration: if set, takes precedence over notifications --argocd-repo-server. Does not round-trip through ConfigMaps.
+  // +optional
+  optional string repoServerAddress = 7;
+
+  // RepoServerStrictTLS requires a verified TLS connection to the repo-server
+  // (flag: --argocd-repo-server-strict-tls).
+  // Migration: if set, takes precedence over notifications --argocd-repo-server-strict-tls. Does not round-trip through ConfigMaps.
+  // +optional
+  optional bool repoServerStrictTLS = 8;
+
+  // ConfigMapName is the notifications ConfigMap name (flag: --config-map-name).
+  // Migration: if set, takes precedence over notifications --config-map-name. Does not round-trip through ConfigMaps.
+  // +optional
+  optional string configMapName = 9;
+
+  // SecretName is the notifications Secret name (flag: --secret-name).
+  // Migration: if set, takes precedence over notifications --secret-name. Does not round-trip through ConfigMaps.
+  // +optional
+  optional string secretName = 10;
+
+  // MetricsPort is the metrics listen port (flag: --metrics-port).
+  // Migration: if set, takes precedence over notifications --metrics-port. Does not round-trip through ConfigMaps.
+  // +optional
+  // +kubebuilder:validation:Minimum=1
+  // +kubebuilder:validation:Maximum=65535
+  optional int32 metricsPort = 11;
+}
+
+// OCIManifestConfig holds OCI manifest size limits.
+message OCIManifestConfig {
+  // MaxExtractedSize caps extracted OCI manifest size
+  // (cmd-params: reposerver.oci.manifest.max.extracted.size).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm reposerver.oci.manifest.max.extracted.size.
+  // +optional
+  optional .k8s.io.apimachinery.pkg.api.resource.Quantity maxExtractedSize = 1;
+
+  // MaxExtractedSizeEnabled controls the extracted size limit
+  // (cmd-params: reposerver.disable.oci.manifest.max.extracted.size —
+  // inverted: disable...=true means enabled=false). Limit is on by default.
+  // Migration: if set, takes precedence over argocd-cmd-params-cm reposerver.disable.oci.manifest.max.extracted.size (inverted).
+  // +optional
+  optional bool maxExtractedSizeEnabled = 2;
+}
+
 // OCIMetadata contains metadata for a specific revision in an OCI repository
 message OCIMetadata {
   optional string createdAt = 1;
@@ -1573,6 +3068,205 @@ message OCIMetadata {
   optional string version = 6;
 
   optional string description = 7;
+}
+
+// OIDCClaim describes a requested ID token claim (OIDC Claims Parameter).
+message OIDCClaim {
+  // Essential marks the claim as essential in the OIDC claims request
+  // (oidc.config requestedIDTokenClaims.<claim>.essential).
+  // Migration: composite child of oidc.config.
+  // +optional
+  optional bool essential = 1;
+
+  // Value requests a single specific claim value
+  // (oidc.config requestedIDTokenClaims.<claim>.value).
+  // Migration: composite child of oidc.config.
+  // +optional
+  optional string value = 2;
+
+  // Values requests that the claim match one of several allowed values
+  // (oidc.config requestedIDTokenClaims.<claim>.values).
+  // Migration: composite child of oidc.config.
+  // +optional
+  repeated string values = 3;
+}
+
+// OIDCConfig is direct OIDC SSO configuration (argocd-cm: oidc.config).
+// When non-nil it replaces oidc.config wholesale.
+// See docs/operator-manual/user-management/ in argo-cd.
+message OIDCConfig {
+  // Name is the provider display name shown on the SSO login button
+  // (oidc.config name). Migration: composite child of oidc.config.
+  // +optional
+  optional string name = 1;
+
+  // IssuerURL is the OIDC issuer URL that must expose
+  // .well-known/openid-configuration (oidc.config issuer).
+  // Migration: composite child of oidc.config.
+  // +optional
+  // +kubebuilder:validation:MaxLength=2048
+  // +kubebuilder:validation:Pattern=`^$|^https?://.+`
+  optional string issuerURL = 2;
+
+  // ClientID is the OAuth 2.0 client ID registered with the IdP for the Argo CD
+  // server callback (/auth/callback) (oidc.config clientID).
+  // Migration: composite child of oidc.config.
+  // +optional
+  optional string clientID = 3;
+
+  // ClientSecretRef references the OIDC client secret in a Kubernetes Secret.
+  // Raw secrets and $string refs are not accepted here — use a SecretKeySelector.
+  // Legacy oidc.config clientSecret ($secret:key in argocd-cm) must become an
+  // explicit secret ref. Migration: composite child of oidc.config.
+  // +optional
+  optional .k8s.io.api.core.v1.SecretKeySelector clientSecretRef = 4;
+
+  // CLIClientID is a separate OAuth client ID for the Argo CD CLI (localhost
+  // callback). When omitted, the CLI reuses ClientID (oidc.config cliClientID).
+  // Migration: composite child of oidc.config.
+  // +optional
+  optional string cliClientID = 5;
+
+  // UserInfo holds UserInfo endpoint settings for group membership lookup when
+  // groups are absent from the ID token. Migration: composite child of oidc.config.
+  // +optional
+  optional OIDCUserInfoConfig userInfo = 6;
+
+  // RequestedScopes are OIDC scopes requested at login (oidc.config requestedScopes).
+  // When omitted, Argo CD defaults to ["openid", "profile", "email", "groups"].
+  // Migration: composite child of oidc.config.
+  // +optional
+  repeated string requestedScopes = 7;
+
+  // RequestedIDTokenClaims requests additional claims via the OIDC Claims
+  // Parameter on the ID token (e.g. groups) (oidc.config requestedIDTokenClaims).
+  // Migration: composite child of oidc.config.
+  // +optional
+  map<string, OIDCClaim> requestedIDTokenClaims = 8;
+
+  // LogoutURL is an optional IdP logout URL. May include {{token}} and
+  // {{logoutRedirectURL}} placeholders (oidc.config logoutURL).
+  // Migration: composite child of oidc.config.
+  // +optional
+  // +kubebuilder:validation:MaxLength=2048
+  // +kubebuilder:validation:Pattern=`^$|^[a-zA-Z][a-zA-Z0-9+.-]*:.+`
+  optional string logoutURL = 9;
+
+  // RootCA is a PEM-encoded root CA used to verify the OIDC provider's TLS
+  // certificate when it is not signed by a well-known CA (oidc.config rootCA).
+  // Migration: composite child of oidc.config.
+  // +optional
+  optional string rootCA = 10;
+
+  // PKCEAuthenticationEnabled enables PKCE for the authorization code flow
+  // (oidc.config enablePKCEAuthentication). Default false.
+  // Migration: composite child of oidc.config.
+  // +optional
+  optional bool pkceAuthenticationEnabled = 11;
+
+  // DomainHint is sent to the IdP as the domain_hint authorization parameter
+  // (common with Microsoft Entra ID) (oidc.config domainHint). Empty = not sent.
+  // Migration: composite child of oidc.config.
+  // +optional
+  optional string domainHint = 12;
+
+  // Azure holds Azure AD / Entra ID–specific OIDC options (workload identity,
+  // group overage). Migration: composite child of oidc.config (azure).
+  // +optional
+  optional AzureOIDCConfig azure = 13;
+
+  // RefreshTokenThreshold refreshes the ID token this long before expiry using
+  // the refresh token (oidc.config refreshTokenThreshold). Default 0s refreshes
+  // only after expiry; must be shorter than token lifetime.
+  // Migration: composite child of oidc.config.
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Duration refreshTokenThreshold = 14;
+
+  // AllowedAudiences are accepted JWT aud values for tokens presented to Argo CD
+  // (oidc.config allowedAudiences). When omitted/empty, defaults to
+  // [clientID, cliClientID].
+  // Migration: composite child of oidc.config.
+  // +optional
+  repeated string allowedAudiences = 15;
+
+  // SkipAudienceCheckWhenTokenHasNoAudience accepts tokens that omit the aud
+  // claim when true (oidc.config skipAudienceCheckWhenTokenHasNoAudience).
+  // Default false for direct OIDC (Argo CD ≥ 2.6).
+  // Migration: composite child of oidc.config.
+  // +optional
+  optional bool skipAudienceCheckWhenTokenHasNoAudience = 16;
+
+  // InsecureSkipVerify skips TLS certificate verification when talking to the
+  // OIDC provider or bundled Dex (argocd-cm: oidc.tls.insecure.skip.verify).
+  // This is a separate legacy key from oidc.config; nested under oidc for
+  // discoverability. Pointer so it can migrate independently of the composite blob.
+  // Default false. Migration: if set, takes precedence over argocd-cm oidc.tls.insecure.skip.verify.
+  // +optional
+  optional bool insecureSkipVerify = 17;
+}
+
+// OIDCUserInfoConfig holds UserInfo endpoint settings for OIDC group lookup.
+message OIDCUserInfoConfig {
+  // GroupsEnabled fetches group membership from the UserInfo endpoint when groups
+  // are absent from the ID token (oidc.config enableUserInfoGroups). Default false.
+  // Migration: composite child of oidc.config.
+  // +optional
+  optional bool groupsEnabled = 1;
+
+  // BaseURL overrides the UserInfo endpoint base URL when it differs from the issuer
+  // (oidc.config userInfoBaseURL). Empty uses the issuer URL.
+  // Migration: composite child of oidc.config.
+  // +optional
+  // +kubebuilder:validation:MaxLength=2048
+  // +kubebuilder:validation:Pattern=`^$|^https?://.+`
+  optional string baseURL = 2;
+
+  // Path is the UserInfo path appended to BaseURL or the issuer URL
+  // (oidc.config userInfoPath). Must be set (with GroupsEnabled) to enable
+  // UserInfo lookup; there is no hardcoded default in Argo CD.
+  // Migration: composite child of oidc.config.
+  // +optional
+  optional string path = 3;
+
+  // CacheExpiration is how long cached UserInfo group results are kept
+  // (oidc.config userInfoCacheExpiration). Zero falls back to ID token lifetime.
+  // Migration: composite child of oidc.config.
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Duration cacheExpiration = 4;
+}
+
+// OTLPConfig holds OpenTelemetry collector settings shared across components.
+message OTLPConfig {
+  // Address is the collector host:port (cmd-params: otlp.address), e.g. "otel:4317".
+  // Migration: if set, takes precedence over argocd-cmd-params-cm otlp.address.
+  // +optional
+  optional string address = 1;
+
+  // TLSEnabled enables TLS when exporting to the collector (cmd-params: otlp.insecure —
+  // inverted: insecure=true means TLSEnabled=false). Default legacy behavior is insecure.
+  // Migration: if set, takes precedence over argocd-cmd-params-cm otlp.insecure (inverted).
+  // +optional
+  optional bool tlsEnabled = 2;
+
+  // Headers are extra headers sent to the collector (cmd-params: otlp.headers),
+  // historically "key=value,key2=value2".
+  // Migration: if present, takes precedence over argocd-cmd-params-cm otlp.headers; replaces the whole collection.
+  // +optional
+  map<string, string> headers = 3;
+
+  // Attrs are resource attributes attached to spans (cmd-params: otlp.attrs),
+  // historically "key:value,key2:value2".
+  // Migration: if present, takes precedence over argocd-cmd-params-cm otlp.attrs; replaces the whole collection.
+  // +optional
+  map<string, string> attrs = 4;
+
+  // SampleRatio is the trace sampling ratio between 0.0 and 1.0
+  // (cmd-params: otlp.sample.ratio). Stored as a decimal string because CRDs
+  // discourage float types (cross-language JSON number issues).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm otlp.sample.ratio.
+  // +optional
+  // +kubebuilder:validation:Pattern=`^(0(\.[0-9]+)?|1(\.0+)?)$`
+  optional string sampleRatio = 5;
 }
 
 // Operation contains information about a requested or running operation
@@ -1692,6 +3386,15 @@ message PluginInput {
   // Parameters contains the information to pass to the plugin. It is a map. The keys must be strings, and the
   // values can be any type.
   map<string, .k8s.io.apiextensions_apiserver.pkg.apis.apiextensions.v1.JSON> parameters = 1;
+}
+
+// ProgressiveSyncsConfig holds ApplicationSet progressive syncs settings.
+message ProgressiveSyncsConfig {
+  // Enabled enables progressive syncs
+  // (cmd-params: applicationsetcontroller.enable.progressive.syncs).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm applicationsetcontroller.enable.progressive.syncs.
+  // +optional
+  optional bool enabled = 1;
 }
 
 // ProjectRole represents a role that has access to a project
@@ -1884,6 +3587,129 @@ message PullRequestGeneratorGithub {
   repeated string labels = 6;
 }
 
+// RBACConfig holds authorization policy (argocd-rbac-cm).
+// Organizational subgroup: children migrate independently.
+message RBACConfig {
+  // Default is the default role assigned when no policy matches
+  // (argocd-rbac-cm: policy.default), e.g. "role:readonly".
+  // Migration: if set, takes precedence over argocd-rbac-cm policy.default.
+  // +optional
+  optional string default = 1;
+
+  // Scopes are OIDC scopes/claims examined for group membership
+  // (argocd-rbac-cm: scopes). Default is typically [groups].
+  // Migration: if present, takes precedence over argocd-rbac-cm scopes; replaces the whole collection.
+  // +optional
+  repeated string scopes = 2;
+
+  // MatchMode selects the Casbin matcher: "glob" (default) or "regex"
+  // (argocd-rbac-cm: policy.matchMode).
+  // Migration: if set, takes precedence over argocd-rbac-cm policy.matchMode.
+  // +optional
+  // +kubebuilder:validation:Enum=glob;regex
+  optional string matchMode = 3;
+
+  // PolicyCSV is the main Casbin policy.csv contents (roles and bindings).
+  // Migration: if set, takes precedence over argocd-rbac-cm policy.csv.
+  // +optional
+  optional string policyCSV = 4;
+
+  // PolicyOverlays are additional named policy.csv fragments concatenated
+  // after the main policy (argocd-rbac-cm: policy.<name>.csv).
+  // Migration: if present, takes precedence over argocd-rbac-cm policy.<name>.csv; replaces the whole collection.
+  // +optional
+  // +listType=map
+  // +listMapKey=name
+  repeated RBACPolicyOverlay policyOverlays = 5;
+
+  // ApplicationFineGrainedInheritanceEnabled controls inheriting project roles
+  // for fine-grained application RBAC
+  // (argocd-cm: server.rbac.disableApplicationFineGrainedRBACInheritance —
+  // inverted: disable...=true means enabled=false). Inheritance is on by default.
+  // Migration: if set, takes precedence over argocd-cm server.rbac.disableApplicationFineGrainedRBACInheritance (inverted).
+  // +optional
+  optional bool applicationFineGrainedInheritanceEnabled = 6;
+}
+
+// RBACPolicyOverlay is a named extra policy.csv fragment concatenated after the
+// main policy (argocd-rbac-cm: policy.<name>.csv).
+message RBACPolicyOverlay {
+  // Name is the overlay identifier (maps to policy.<name>.csv in argocd-rbac-cm).
+  // +kubebuilder:validation:Required
+  // +kubebuilder:validation:MinLength=1
+  optional string name = 1;
+
+  // CSV is the Casbin CSV policy content for this overlay (roles, bindings,
+  // and resource rules). Maps to argocd-rbac-cm policy.<name>.csv.
+  // +kubebuilder:validation:Required
+  optional string csv = 2;
+}
+
+// ReconciliationConfig holds controller reconciliation timing.
+message ReconciliationConfig {
+  // Timeout is the periodic app reconciliation / git poll interval
+  // (argocd-cm: timeout.reconciliation). Also used as the repo-server git revision cache TTL.
+  // Zero disables polling.
+  // Migration: if set, takes precedence over argocd-cm timeout.reconciliation.
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Duration timeout = 1;
+
+  // HardTimeout is the hard resync interval that forces reconciliation even when
+  // the repo has not changed (argocd-cm: timeout.hard.reconciliation).
+  // Migration: if set, takes precedence over argocd-cm timeout.hard.reconciliation.
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Duration hardTimeout = 2;
+
+  // Jitter is random additional delay added to reconciliation (argocd-cm: timeout.reconciliation.jitter).
+  // Migration: if set, takes precedence over argocd-cm timeout.reconciliation.jitter.
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Duration jitter = 3;
+}
+
+// RedisConfig holds shared Redis connection settings.
+message RedisConfig {
+  // Server is the Redis host:port (cmd-params: redis.server). Not a full URL.
+  // Migration: if set, takes precedence over argocd-cmd-params-cm redis.server.
+  // +optional
+  optional string server = 1;
+
+  // Compression is the algorithm used for values written to Redis
+  // (cmd-params: redis.compression): "gzip" or "none".
+  // Migration: if set, takes precedence over argocd-cmd-params-cm redis.compression.
+  // +optional
+  // +kubebuilder:validation:Enum=gzip;none
+  optional string compression = 2;
+
+  // Sentinel holds Redis Sentinel connection settings (cmd-params: redis.sentinel.*).
+  // Migration: if non-nil, takes precedence over argocd-cmd-params-cm redis.sentinel.* as a group.
+  // +optional
+  optional RedisSentinelConfig sentinel = 3;
+
+  // DB is the Redis database number (cmd-params: redis.db).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm redis.db.
+  // +optional
+  // +kubebuilder:validation:Minimum=0
+  optional int32 db = 4;
+
+  // KeyPrefix is prepended to Redis keys (cmd-params: redis.key.prefix).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm redis.key.prefix.
+  // +optional
+  optional string keyPrefix = 5;
+}
+
+// RedisSentinelConfig holds Redis Sentinel connection settings.
+message RedisSentinelConfig {
+  // Hosts are Redis Sentinel addresses (cmd-params: redis.sentinel.hosts).
+  // Migration: if present, takes precedence over argocd-cmd-params-cm redis.sentinel.hosts; replaces the whole collection.
+  // +optional
+  repeated string hosts = 1;
+
+  // Master is the Sentinel master group name (cmd-params: redis.sentinel.master).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm redis.sentinel.master.
+  // +optional
+  optional string master = 2;
+}
+
 message RefTarget {
   optional Repository repo = 1;
 
@@ -1969,6 +3795,242 @@ message RepoCredsList {
   optional .k8s.io.apimachinery.pkg.apis.meta.v1.ListMeta metadata = 1;
 
   repeated RepoCreds items = 2;
+}
+
+// RepoServerCacheConfig holds repo-server Redis cache TTLs.
+message RepoServerCacheConfig {
+  // DefaultExpiration is the default Redis cache TTL for the repo-server
+  // (cmd-params: reposerver.default.cache.expiration).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm reposerver.default.cache.expiration.
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Duration defaultExpiration = 1;
+
+  // RepoExpiration is the repository cache TTL
+  // (cmd-params: reposerver.repo.cache.expiration).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm reposerver.repo.cache.expiration.
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Duration repoExpiration = 2;
+}
+
+// RepoServerClientConfig is how other components connect to the repo-server.
+message RepoServerClientConfig {
+  // Timeout is the RPC timeout when calling the repo-server
+  // (cmd-params: *.repo.server.timeout.seconds).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm *.repo.server.timeout.seconds.
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Duration timeout = 1;
+
+  // TLSEnabled controls TLS when connecting to the repo-server
+  // (cmd-params: *.repo.server.plaintext — inverted: plaintext=true means tlsEnabled=false).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm *.repo.server.plaintext (inverted).
+  // +optional
+  optional bool tlsEnabled = 2;
+
+  // InsecureSkipVerify skips verification of the repo-server TLS certificate
+  // (cmd-params: *.repo.server.strict.tls — inverted: strict.tls=true means skip=false).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm *.repo.server.strict.tls (inverted).
+  // +optional
+  optional bool insecureSkipVerify = 3;
+
+  // MTLS holds mTLS certificate paths for connecting to the repo-server.
+  // Migration: if non-nil, takes precedence over argocd-cmd-params-cm *.repo.server.*.cert.path as a group.
+  // +optional
+  optional MTLSCertConfig mtls = 4;
+}
+
+// RepoServerConfig holds repo-server address, client, and manifest-tool settings.
+message RepoServerConfig {
+  // Address is the repo-server host:port (cmd-params: repo.server). Not a full URL.
+  // Migration: if set, takes precedence over argocd-cmd-params-cm repo.server.
+  // +optional
+  // +kubebuilder:validation:MinLength=1
+  optional string address = 1;
+
+  // Client holds shared TLS/timeout settings used by components connecting to
+  // the repo-server (controller.repo.server.* / server.repo.server.*).
+  // Migration: organizational subgroup; no legacy key — see child fields.
+  // +optional
+  optional RepoServerClientConfig client = 2;
+
+  // ParallelismLimit caps concurrent manifest generation requests
+  // (cmd-params: reposerver.parallelism.limit). Zero means unlimited.
+  // Migration: if set, takes precedence over argocd-cmd-params-cm reposerver.parallelism.limit.
+  // +optional
+  // +kubebuilder:validation:Minimum=0
+  optional int32 parallelismLimit = 3;
+
+  // Listen holds repo-server and metrics listen addresses
+  // (cmd-params: reposerver.listen.address, reposerver.metrics.listen.address).
+  // Migration: if non-nil, takes precedence over argocd-cmd-params-cm reposerver.listen.address /
+  // reposerver.metrics.listen.address as a group.
+  // +optional
+  optional ListenConfig listen = 4;
+
+  // TLSEnabled controls whether the repo-server serves TLS (cmd-params: reposerver.disable.tls —
+  // inverted: disable.tls=true means tlsEnabled=false). TLS is on by default.
+  // Migration: if set, takes precedence over argocd-cmd-params-cm reposerver.disable.tls (inverted).
+  // +optional
+  optional bool tlsEnabled = 5;
+
+  // Git holds git submodule, timeout, and built-in config settings.
+  // Migration: if non-nil, takes precedence over argocd-cmd-params-cm reposerver.enable.git.submodule /
+  // reposerver.git.* / reposerver.enable.builtin.git.config as a group.
+  // +optional
+  optional RepoServerGitConfig git = 6;
+
+  // AllowOOBSymlinks allows out-of-bounds symlinks in repos
+  // (cmd-params: reposerver.allow.oob.symlinks).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm reposerver.allow.oob.symlinks.
+  // +optional
+  optional bool allowOOBSymlinks = 7;
+
+  // IncludeHiddenDirectories includes hidden directories when generating manifests
+  // (cmd-params: reposerver.include.hidden.directories).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm reposerver.include.hidden.directories.
+  // +optional
+  optional bool includeHiddenDirectories = 8;
+
+  // Cache holds repo-server Redis cache TTLs (cmd-params: reposerver.default.cache.expiration,
+  // reposerver.repo.cache.expiration).
+  // Migration: if non-nil, takes precedence over argocd-cmd-params-cm reposerver.*.cache.expiration as a group.
+  // +optional
+  optional RepoServerCacheConfig cache = 9;
+
+  // MaxCombinedDirectoryManifestsSize caps combined directory manifests size
+  // (cmd-params: reposerver.max.combined.directory.manifests.size).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm reposerver.max.combined.directory.manifests.size.
+  // +optional
+  optional .k8s.io.apimachinery.pkg.api.resource.Quantity maxCombinedDirectoryManifestsSize = 10;
+
+  // StreamedManifest caps streamed manifest tar and extracted sizes
+  // (cmd-params: reposerver.streamed.manifest.max.*).
+  // Migration: if non-nil, takes precedence over argocd-cmd-params-cm reposerver.streamed.manifest.max.* as a group.
+  // +optional
+  optional StreamedManifestConfig streamedManifest = 11;
+
+  // Plugin holds config management plugin settings.
+  // Migration: if non-nil, takes precedence over argocd-cmd-params-cm reposerver.plugin.* as a group.
+  // +optional
+  optional RepoServerPluginConfig plugin = 12;
+
+  // ProfileEnabled enables pprof profiling endpoints
+  // (cmd-params: reposerver.profile.enabled).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm reposerver.profile.enabled.
+  // +optional
+  optional bool profileEnabled = 13;
+
+  // GRPCTXTServiceConfigEnabled enables gRPC TXT service config
+  // (cmd-params: reposerver.grpc.enable.txt.service.config).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm reposerver.grpc.enable.txt.service.config.
+  // +optional
+  optional bool grpcTXTServiceConfigEnabled = 14;
+
+  // ClientCAPath is the path to a client CA for mTLS
+  // (cmd-params: reposerver.client.ca.path).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm reposerver.client.ca.path.
+  // +optional
+  optional string clientCAPath = 15;
+
+  // TLS holds repo-server TLS cipher/version settings (cmd-params: reposerver.tls.*).
+  // Migration: if non-nil, takes precedence over argocd-cmd-params-cm reposerver.tls.* as a group (children apply from the CR; no merge with legacy siblings under that family).
+  // +optional
+  optional TLSVersionConfig tls = 16;
+
+  // OCI holds OCI registry size and media-type limits (cmd-params: reposerver.oci.*).
+  // Migration: organizational subgroup; no legacy key — see child fields.
+  // +optional
+  optional RepoServerOCIConfig oci = 17;
+
+  // GRPCMaxSize caps gRPC response message size for the repo-server
+  // (cmd-params: reposerver.grpc.max.size; historically an integer megabyte count).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm reposerver.grpc.max.size.
+  // +optional
+  optional .k8s.io.apimachinery.pkg.api.resource.Quantity grpcMaxSize = 18;
+
+  // RevisionCacheLockTimeout is how long to wait for the revision-cache lock
+  // (cmd-params: reposerver.revision.cache.lock.timeout).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm reposerver.revision.cache.lock.timeout.
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Duration revisionCacheLockTimeout = 19;
+
+  // Jsonnet holds Jsonnet tool enablement (argocd-cm: jsonnet.enable).
+  // Migration: if non-nil, takes precedence over argocd-cm jsonnet.* as a group (children apply from the CR; no merge with legacy siblings under that family).
+  // +optional
+  optional JsonnetConfig jsonnet = 20;
+
+  // Log holds repo-server log format and level (cmd-params: reposerver.log.*).
+  // Migration: if non-nil, takes precedence over argocd-cmd-params-cm reposerver.log.* as a group.
+  // +optional
+  optional LogConfig log = 21;
+
+  // Kustomize holds Kustomize enablement, build options, and version binaries.
+  // Migration: organizational subgroup; no legacy key — see child fields.
+  // +optional
+  optional KustomizeConfig kustomize = 22;
+
+  // Helm holds Helm enablement, values-file schemes, and repo-server Helm limits.
+  // Migration: organizational subgroup; no legacy key — see child fields.
+  // +optional
+  optional HelmConfig helm = 23;
+}
+
+// RepoServerGitConfig holds repo-server git tool settings.
+message RepoServerGitConfig {
+  // SubmoduleEnabled controls git submodule support
+  // (cmd-params: reposerver.enable.git.submodule). Submodules are on by default.
+  // Migration: if set, takes precedence over argocd-cmd-params-cm reposerver.enable.git.submodule.
+  // +optional
+  optional bool submoduleEnabled = 1;
+
+  // RequestTimeout is the timeout for git network operations
+  // (cmd-params: reposerver.git.request.timeout; also env ARGOCD_GIT_REQUEST_TIMEOUT).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm reposerver.git.request.timeout.
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Duration requestTimeout = 2;
+
+  // LSRemoteParallelismLimit caps concurrent git ls-remote calls
+  // (cmd-params: reposerver.git.lsremote.parallelism.limit; also env ARGOCD_GIT_LS_REMOTE_PARALLELISM_LIMIT).
+  // Zero means unlimited.
+  // Migration: if set, takes precedence over argocd-cmd-params-cm reposerver.git.lsremote.parallelism.limit.
+  // +optional
+  // +kubebuilder:validation:Minimum=0
+  optional int32 lsRemoteParallelismLimit = 3;
+
+  // BuiltinConfigEnabled controls Argo CD's built-in git config
+  // (cmd-params: reposerver.enable.builtin.git.config). On by default.
+  // Migration: if set, takes precedence over argocd-cmd-params-cm reposerver.enable.builtin.git.config.
+  // +optional
+  optional bool builtinConfigEnabled = 4;
+}
+
+// RepoServerOCIConfig holds OCI pull size and media-type limits.
+// Organizational subgroup: children migrate independently.
+message RepoServerOCIConfig {
+  // Manifest holds OCI manifest size limits (cmd-params: reposerver.oci.manifest.max.*).
+  // Migration: if non-nil, takes precedence over argocd-cmd-params-cm reposerver.oci.manifest.max.* as a group.
+  // +optional
+  optional OCIManifestConfig manifest = 1;
+
+  // LayerMediaTypes lists allowed OCI layer media types
+  // (cmd-params: reposerver.oci.layer.media.types).
+  // Migration: if present, takes precedence over argocd-cmd-params-cm reposerver.oci.layer.media.types; replaces the whole collection.
+  // +optional
+  repeated string layerMediaTypes = 2;
+}
+
+// RepoServerPluginConfig holds config management plugin settings.
+message RepoServerPluginConfig {
+  // UseManifestGeneratePaths enables CMP manifest-generate-paths support
+  // (cmd-params: reposerver.plugin.use.manifest.generate.paths).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm reposerver.plugin.use.manifest.generate.paths.
+  // +optional
+  optional bool useManifestGeneratePaths = 1;
+
+  // TarExclusionGlobs are path globs excluded from tarballs streamed to config management plugins
+  // (cmd-params: reposerver.plugin.tar.exclusions; legacy separator is ';').
+  // Migration: if present, takes precedence over argocd-cmd-params-cm reposerver.plugin.tar.exclusions; replaces the whole collection.
+  // +optional
+  repeated string tarExclusionGlobs = 2;
 }
 
 // Repository is a repository holding application configurations
@@ -2156,6 +4218,136 @@ message ResourceActions {
   optional bool mergeBuiltinActions = 3;
 }
 
+// ResourceActionsCustomization is a per-GVK custom-actions override: discovery plus
+// named action definitions (argocd-cm: resource.customizations.actions.<group_kind>).
+message ResourceActionsCustomization {
+  // Group is the API group ("" for core, "*" for wildcard).
+  // Default empty string is required because group is a listMapKey.
+  // +optional
+  // +kubebuilder:default=""
+  // +kubebuilder:validation:Pattern=`^$|^([a-z0-9]([-a-z0-9]*[a-z0-9])?([.][a-z0-9]([-a-z0-9]*[a-z0-9])?)*|[*])$`
+  optional string group = 1;
+
+  // Kind is the Kubernetes Kind ("*" for wildcard). Required.
+  // +kubebuilder:validation:Required
+  // +kubebuilder:validation:Pattern=`^([A-Z][A-Za-z0-9]*|[*])$`
+  optional string kind = 2;
+
+  // DiscoveryLua is a Lua script that returns which custom actions are available
+  // (and optional disabled flags) for the resource (legacy: discovery.lua).
+  // +optional
+  optional string discoveryLua = 3;
+
+  // MergeBuiltinActions merges custom actions with built-in ones instead of
+  // replacing them (Argo CD ≥ 2.13; legacy: mergeBuiltinActions). Default false.
+  // +optional
+  optional bool mergeBuiltinActions = 4;
+
+  // Definitions are named custom resource actions (legacy: definitions[] in the
+  // resource.customizations.actions.<group_kind> YAML blob).
+  // +optional
+  // +listType=map
+  // +listMapKey=name
+  repeated ResourceActionDefinition definitions = 5;
+}
+
+// ResourceConfig holds resource watch filters, customizations, and UI display options.
+// Organizational subgroup: children migrate independently.
+message ResourceConfig {
+  // Exclusions lists group/kind/cluster filters for resources excluded from
+  // the cluster watch cache (argocd-cm: resource.exclusions).
+  // Migration: if present, takes precedence over argocd-cm resource.exclusions; replaces the whole collection.
+  // +optional
+  // +listType=atomic
+  repeated FilteredResource exclusions = 1;
+
+  // Inclusions, when set, limits the watch cache to only these group/kind/cluster
+  // filters (argocd-cm: resource.inclusions).
+  // Migration: if present, takes precedence over argocd-cm resource.inclusions; replaces the whole collection.
+  // +optional
+  // +listType=atomic
+  repeated FilteredResource inclusions = 2;
+
+  // Health is per-GVK health Lua overrides (argocd-cm: resource.customizations.health.*
+  // and useOpenLibs.*). Listed by concern so you edit health without scanning mixed GVK rows.
+  // Migration: if present, takes precedence over argocd-cm resource.customizations.health.*
+  // and resource.customizations.useOpenLibs.*; replaces those collections.
+  // +optional
+  // +listType=map
+  // +listMapKey=group
+  // +listMapKey=kind
+  repeated ResourceHealthCustomization health = 3;
+
+  // Actions is per-GVK custom resource actions: discovery script plus named definitions
+  // (argocd-cm: resource.customizations.actions.*). Discovery and definitions stay grouped
+  // because they form one actions blob per GVK in Argo CD.
+  // Migration: if present, takes precedence over argocd-cm resource.customizations.actions.*;
+  // replaces the whole collection.
+  // +optional
+  // +listType=map
+  // +listMapKey=group
+  // +listMapKey=kind
+  repeated ResourceActionsCustomization actions = 4;
+
+  // IgnoreDifferences is per-GVK sync-diff ignore rules
+  // (argocd-cm: resource.customizations.ignoreDifferences.*).
+  // Migration: if present, takes precedence over argocd-cm resource.customizations.ignoreDifferences.*;
+  // replaces the whole collection.
+  // +optional
+  // +listType=map
+  // +listMapKey=group
+  // +listMapKey=kind
+  repeated ResourceIgnoreCustomization ignoreDifferences = 5;
+
+  // IgnoreResourceUpdates is per-GVK rules for fields whose changes should not trigger
+  // reconcile (argocd-cm: resource.customizations.ignoreResourceUpdates.*).
+  // Migration: if present, takes precedence over argocd-cm resource.customizations.ignoreResourceUpdates.*;
+  // replaces the whole collection.
+  // +optional
+  // +listType=map
+  // +listMapKey=group
+  // +listMapKey=kind
+  repeated ResourceIgnoreCustomization ignoreResourceUpdates = 6;
+
+  // KnownTypeFields is per-GVK typed-field declarations for structured diff
+  // (argocd-cm: resource.customizations.knownTypeFields.*).
+  // Migration: if present, takes precedence over argocd-cm resource.customizations.knownTypeFields.*;
+  // replaces the whole collection.
+  // +optional
+  // +listType=map
+  // +listMapKey=group
+  // +listMapKey=kind
+  repeated ResourceKnownTypesCustomization knownTypeFields = 7;
+
+  // RespectRBAC limits watched resources to those the controller can list:
+  // empty (off), "normal", or "strict" (argocd-cm: resource.respectRBAC).
+  // Migration: if set, takes precedence over argocd-cm resource.respectRBAC.
+  // +optional
+  // +kubebuilder:validation:Enum=;normal;strict
+  optional string respectRBAC = 8;
+
+  // SensitiveMaskAnnotationKeys are Secret annotation keys masked in the UI/CLI
+  // (argocd-cm: resource.sensitive.mask.annotations).
+  // Migration: if present, takes precedence over argocd-cm resource.sensitive.mask.annotations; replaces the whole collection.
+  // +optional
+  // +kubebuilder:validation:items:Pattern=`^([A-Za-z0-9]([-A-Za-z0-9_.]*[A-Za-z0-9])?/)?([A-Za-z0-9]([-A-Za-z0-9_.]*[A-Za-z0-9])?)$`
+  repeated string sensitiveMaskAnnotationKeys = 9;
+
+  // CustomLabelKeys are resource label keys shown in the resource node info panel
+  // (argocd-cm: resource.customLabels).
+  // Migration: if present, takes precedence over argocd-cm resource.customLabels; replaces the whole collection.
+  // +optional
+  // +kubebuilder:validation:items:Pattern=`^([A-Za-z0-9]([-A-Za-z0-9_.]*[A-Za-z0-9])?/)?([A-Za-z0-9]([-A-Za-z0-9_.]*[A-Za-z0-9])?)$`
+  repeated string customLabelKeys = 10;
+
+  // EventLabels controls which Application/AppProject label keys are copied onto
+  // emitted Kubernetes events (argocd-cm: resource.includeEventLabelKeys /
+  // resource.excludeEventLabelKeys).
+  // Migration: if non-nil, takes precedence over argocd-cm resource.*EventLabelKeys as a group.
+  // +optional
+  optional EventLabelsConfig eventLabels = 11;
+}
+
 // ResourceDiff holds the diff between a live and target resource object in Argo CD.
 // It is used to compare the desired state (from Git/Helm) with the actual state in the cluster.
 message ResourceDiff {
@@ -2200,6 +4392,68 @@ message ResourceDiff {
   optional bool modified = 12;
 }
 
+// ResourceHealthCustomization is a per-GVK health Lua override
+// (argocd-cm: resource.customizations.health.<group_kind> /
+// resource.customizations.useOpenLibs.<group_kind>).
+message ResourceHealthCustomization {
+  // Group is the API group ("" for core, "*" for wildcard).
+  // Default empty string is required because group is a listMapKey.
+  // +optional
+  // +kubebuilder:default=""
+  // +kubebuilder:validation:Pattern=`^$|^([a-z0-9]([-a-z0-9]*[a-z0-9])?([.][a-z0-9]([-a-z0-9]*[a-z0-9])?)*|[*])$`
+  optional string group = 1;
+
+  // Kind is the Kubernetes Kind ("*" for wildcard). Required.
+  // Wildcards are only valid in the unified resource.customizations YAML blob,
+  // not in split ConfigMap keys.
+  // +kubebuilder:validation:Required
+  // +kubebuilder:validation:Pattern=`^([A-Z][A-Za-z0-9]*|[*])$`
+  optional string kind = 2;
+
+  // HealthLua is a Lua script that overrides built-in health assessment for this GVK.
+  // Must return a table with status (Healthy/Progressing/Degraded/…) and optional message.
+  // When absent, default health is Progressing until a status is produced.
+  // Legacy: resource.customizations.health.<group_kind> or health.lua in the unified blob.
+  // +optional
+  optional string healthLua = 3;
+
+  // UseOpenLibs enables standard Lua libraries for health and action scripts for this GVK
+  // (disabled by default for security). Legacy: resource.customizations.useOpenLibs.<group_kind>
+  // or health.lua.useOpenLibs. Default false. Lives on the health entry because Argo CD's
+  // monolithic blob nests it under health.lua; the flag still applies to action scripts too.
+  // +optional
+  optional bool useOpenLibs = 4;
+}
+
+// ResourceIgnoreCustomization is a per-GVK ignoreDifferences or ignoreResourceUpdates
+// override (argocd-cm: resource.customizations.ignoreDifferences.<group_kind> /
+// ignoreResourceUpdates.<group_kind>).
+message ResourceIgnoreCustomization {
+  // Group is the API group ("" for core, "*" for wildcard).
+  // Default empty string is required because group is a listMapKey.
+  // +optional
+  // +kubebuilder:default=""
+  // +kubebuilder:validation:Pattern=`^$|^([a-z0-9]([-a-z0-9]*[a-z0-9])?([.][a-z0-9]([-a-z0-9]*[a-z0-9])?)*|[*])$`
+  optional string group = 1;
+
+  // Kind is the Kubernetes Kind ("*" for wildcard). Required.
+  // +kubebuilder:validation:Required
+  // +kubebuilder:validation:Pattern=`^([A-Z][A-Za-z0-9]*|[*])$`
+  optional string kind = 2;
+
+  // JSONPointers are RFC 6901 JSON Pointers to ignore (e.g. /spec/replicas).
+  // +optional
+  repeated string jsonPointers = 3;
+
+  // JQPathExpressions are jq expressions selecting fields to ignore.
+  // +optional
+  repeated string jqPathExpressions = 4;
+
+  // ManagedFieldsManagers ignores fields owned by these managedFields managers.
+  // +optional
+  repeated string managedFieldsManagers = 5;
+}
+
 // ResourceIgnoreDifferences contains resource filter and list of json paths which should be ignored during comparison with live state.
 message ResourceIgnoreDifferences {
   optional string group = 1;
@@ -2217,6 +4471,29 @@ message ResourceIgnoreDifferences {
   // ManagedFieldsManagers is a list of trusted managers. Fields mutated by those managers will take precedence over the
   // desired state defined in the SCM and won't be displayed in diffs
   repeated string managedFieldsManagers = 7;
+}
+
+// ResourceKnownTypesCustomization is a per-GVK knownTypeFields override
+// (argocd-cm: resource.customizations.knownTypeFields.<group_kind>).
+message ResourceKnownTypesCustomization {
+  // Group is the API group ("" for core, "*" for wildcard).
+  // Default empty string is required because group is a listMapKey.
+  // +optional
+  // +kubebuilder:default=""
+  // +kubebuilder:validation:Pattern=`^$|^([a-z0-9]([-a-z0-9]*[a-z0-9])?([.][a-z0-9]([-a-z0-9]*[a-z0-9])?)*|[*])$`
+  optional string group = 1;
+
+  // Kind is the Kubernetes Kind ("*" for wildcard). Required.
+  // +kubebuilder:validation:Required
+  // +kubebuilder:validation:Pattern=`^([A-Z][A-Za-z0-9]*|[*])$`
+  optional string kind = 2;
+
+  // Fields declares typed fields used for structured diff normalization
+  // (e.g. treating a nested object as core/v1/PodSpec).
+  // +optional
+  // +listType=map
+  // +listMapKey=field
+  repeated KnownTypeField fields = 3;
 }
 
 // ResourceNetworkingInfo holds networking-related information for a resource.
@@ -2662,6 +4939,320 @@ message SecretRef {
   optional string key = 2;
 }
 
+// SelfHealConfig holds controller self-heal timing (cmd-params: controller.self.heal.*).
+message SelfHealConfig {
+  // Timeout is the minimum interval between self-heal attempts
+  // (cmd-params: controller.self.heal.timeout.seconds). Zero means no minimum
+  // (Argo CD default).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm controller.self.heal.timeout.seconds.
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Duration timeout = 1;
+
+  // Cooldown maps to controller.self.heal.backoff.cooldown.seconds.
+  // Deprecated in Argo CD: the CLI flag is marked deprecated and has no effect.
+  // Kept for ConfigMap round-trip compatibility only.
+  // Migration: if set, takes precedence over argocd-cmd-params-cm controller.self.heal.backoff.cooldown.seconds.
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Duration cooldown = 2;
+
+  // Backoff configures exponential backoff between self-heal attempts
+  // (cmd-params: controller.self.heal.backoff.*). Defaults in Argo CD:
+  // duration 2s, factor 3, maxDuration 300s.
+  // Migration: if non-nil, takes precedence over argocd-cmd-params-cm controller.self.heal.backoff.* as a group (children apply from the CR; no merge with legacy siblings under that family).
+  // +optional
+  optional BackoffConfig backoff = 3;
+}
+
+// ServerCacheConfig holds API server cache TTLs and sizes.
+// Organizational subgroup: children migrate independently.
+message ServerCacheConfig {
+  // AppStateExpiration is the app state cache TTL (cmd-params: server.app.state.cache.expiration).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm server.app.state.cache.expiration.
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Duration appStateExpiration = 1;
+
+  // ConnectionStatusExpiration is the connection status cache TTL
+  // (cmd-params: server.connection.status.cache.expiration).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm server.connection.status.cache.expiration.
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Duration connectionStatusExpiration = 2;
+
+  // DefaultExpiration is the default Redis cache TTL (cmd-params: server.default.cache.expiration).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm server.default.cache.expiration.
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Duration defaultExpiration = 3;
+
+  // OIDCExpiration is the OIDC cache TTL (cmd-params: server.oidc.cache.expiration).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm server.oidc.cache.expiration.
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Duration oidcExpiration = 4;
+
+  // GlobCacheSize is the glob matcher cache size (cmd-params: server.glob.cache.size).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm server.glob.cache.size.
+  // +optional
+  // +kubebuilder:validation:Minimum=0
+  optional int32 globCacheSize = 5;
+}
+
+// ServerConfig holds API server, UI, and auth-facing settings.
+message ServerConfig {
+  // URLs are externally facing base URLs for this Argo CD instance
+  // (argocd-cm: url + additionalUrls). The first entry is the primary URL used for
+  // SSO redirects (argocd-cm: url); any further entries are additional SSO-capable
+  // base URLs (argocd-cm: additionalUrls).
+  // Migration: if present, takes precedence over argocd-cm url and additionalUrls as a pair; replaces both.
+  // +optional
+  // +listType=atomic
+  // +kubebuilder:validation:MaxItems=32
+  // +kubebuilder:validation:items:MaxLength=2048
+  // +kubebuilder:validation:items:Pattern=`^https?://.+`
+  repeated string urls = 1;
+
+  // TLSEnabled controls whether the API server serves TLS (cmd-params: server.insecure —
+  // inverted: insecure=true means tlsEnabled=false). TLS is on by default.
+  // Migration: if set, takes precedence over argocd-cmd-params-cm server.insecure (inverted).
+  // +optional
+  optional bool tlsEnabled = 2;
+
+  // Log holds API server log format and level (cmd-params: server.log.*).
+  // Migration: if non-nil, takes precedence over argocd-cmd-params-cm server.log.* as a group.
+  // +optional
+  optional LogConfig log = 3;
+
+  // BaseHref is the path Argo CD is hosted under with a reverse proxy that
+  // cannot strip prefixes (cmd-params: server.basehref). Example: "/argo-cd".
+  // Migration: if set, takes precedence over argocd-cmd-params-cm server.basehref.
+  // +optional
+  optional string baseHref = 4;
+
+  // RootPath is the path Argo CD is hosted under when the reverse proxy strips
+  // the prefix (cmd-params: server.rootpath). Example: "/argo-cd".
+  // Migration: if set, takes precedence over argocd-cmd-params-cm server.rootpath.
+  // +optional
+  optional string rootPath = 5;
+
+  // StaticAssetsPath is the directory of UI static assets
+  // (cmd-params: server.staticassets).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm server.staticassets.
+  // +optional
+  optional string staticAssetsPath = 6;
+
+  // Listen holds API server listen host/port and metrics listen host/port
+  // (cmd-params: server.listen.address, server.metrics.listen.address;
+  // flags: --port, --metrics-port).
+  // Migration: organizational subgroup; no legacy key — see child fields.
+  // +optional
+  optional ServerListenConfig listen = 7;
+
+  // AuthEnabled controls API authentication (cmd-params: server.disable.auth —
+  // inverted: disable.auth=true means authEnabled=false). Auth is on by default.
+  // Migration: if set, takes precedence over argocd-cmd-params-cm server.disable.auth (inverted).
+  // +optional
+  optional bool authEnabled = 8;
+
+  // Compression is the HTTP response compression algorithm
+  // (cmd-params: server.enable.gzip): "disabled" or "gzip". Gzip is on by default in Argo CD.
+  // Migration: if set, takes precedence over argocd-cmd-params-cm server.enable.gzip
+  // (true maps to gzip, false to disabled).
+  // +optional
+  // +kubebuilder:validation:Enum=disabled;gzip
+  optional string compression = 9;
+
+  // ProxyExtensionEnabled enables UI proxy extensions
+  // (cmd-params: server.enable.proxy.extension).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm server.enable.proxy.extension.
+  // +optional
+  optional bool proxyExtensionEnabled = 10;
+
+  // SyncReplaceAllowed allows clients to request sync with replace
+  // (cmd-params: server.sync.replace.allowed).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm server.sync.replace.allowed.
+  // +optional
+  optional bool syncReplaceAllowed = 11;
+
+  // XFrameOptions sets the X-Frame-Options HTTP header
+  // (cmd-params: server.x.frame.options).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm server.x.frame.options.
+  // +optional
+  optional string xFrameOptions = 12;
+
+  // APIContentTypes is the Content-Type allowlist for API requests
+  // (cmd-params: server.api.content.types).
+  // Migration: if present, takes precedence over argocd-cmd-params-cm server.api.content.types; replaces the whole collection.
+  // +optional
+  repeated string apiContentTypes = 13;
+
+  // ContentSecurityPolicy sets the Content-Security-Policy HTTP header
+  // (cmd-params: server.content.security.policy).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm server.content.security.policy.
+  // +optional
+  optional string contentSecurityPolicy = 14;
+
+  // HTTPCookieMaxNumber caps the number of cookies the API server will accept
+  // (cmd-params: server.http.cookie.maxnumber).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm server.http.cookie.maxnumber.
+  // +optional
+  // +kubebuilder:validation:Minimum=0
+  optional int32 httpCookieMaxNumber = 15;
+
+  // ApplicationTreeShardSize is the max number of resources stored in one
+  // application-tree cache shard (env: ARGOCD_APPLICATION_TREE_SHARD_SIZE).
+  // Migration: if set, takes precedence over env ARGOCD_APPLICATION_TREE_SHARD_SIZE. Does not round-trip through ConfigMaps.
+  // +optional
+  // +kubebuilder:validation:Minimum=0
+  // +kubebuilder:validation:Maximum=1000
+  optional int32 applicationTreeShardSize = 16;
+
+  // ProfileEnabled enables pprof profiling endpoints (cmd-params: server.profile.enabled).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm server.profile.enabled.
+  // +optional
+  optional bool profileEnabled = 17;
+
+  // GRPCTXTServiceConfigEnabled enables gRPC TXT service config
+  // (cmd-params: server.grpc.enable.txt.service.config).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm server.grpc.enable.txt.service.config.
+  // +optional
+  optional bool grpcTXTServiceConfigEnabled = 18;
+
+  // DexConnection holds how the API server connects to Dex
+  // (cmd-params: server.dex.server*). Named distinctly from spec.dexServer
+  // (Dex process runtime) to avoid overloaded keys.
+  // Migration: if non-nil, takes precedence over argocd-cmd-params-cm server.dex.server* as a group (children apply from the CR; no merge with legacy siblings under that family).
+  // +optional
+  optional DexConnectionConfig dexConnection = 19;
+
+  // Cache holds API server cache TTLs and sizes (cmd-params: server.*.cache.*).
+  // Migration: organizational subgroup; no legacy key — see child fields.
+  // +optional
+  optional ServerCacheConfig cache = 20;
+
+  // TLS holds API server TLS cipher/version settings (cmd-params: server.tls.*).
+  // Migration: if non-nil, takes precedence over argocd-cmd-params-cm server.tls.* as a group (children apply from the CR; no merge with legacy siblings under that family).
+  // +optional
+  optional TLSVersionConfig tls = 21;
+
+  // K8sClient holds Kubernetes client tuning for the API server
+  // (cmd-params: server.k8s.* / server.k8sclient.*).
+  // Migration: organizational subgroup; no legacy key — see child fields.
+  // +optional
+  optional K8sClientConfig k8sClient = 22;
+
+  // Logs holds UI pod-log viewing settings (argocd-cm: server.maxPodLogsToRender).
+  // Migration: if non-nil, takes precedence over argocd-cm server.maxPodLogsToRender as a group.
+  // +optional
+  optional ServerLogsConfig logs = 23;
+
+  // Dex replaces dex.config wholesale when non-nil.
+  // Migration: if non-nil, takes precedence over argocd-cm dex.config as a whole, including all child fields.
+  // +optional
+  optional DexConfig dex = 24;
+
+  // OIDC replaces oidc.config wholesale when non-nil (direct OIDC, alternative to Dex).
+  // Migration: if non-nil, takes precedence over argocd-cm oidc.config as a whole, including all child fields.
+  // Note: InsecureSkipVerify maps to a separate argocd-cm key (oidc.tls.insecure.skip.verify),
+  // not the oidc.config blob — it is nested here for discoverability.
+  // +optional
+  optional OIDCConfig oidc = 25;
+
+  // RBAC holds authorization policy from argocd-rbac-cm.
+  // Migration: organizational subgroup; no legacy key — see child fields.
+  // +optional
+  optional RBACConfig rbac = 26;
+
+  // UI holds web UI customization (banner, CSS, login button text).
+  // Migration: organizational subgroup; no legacy key — see child fields.
+  // +optional
+  optional UIConfig ui = 27;
+
+  // Accounts configures local (non-SSO) user accounts and their capabilities.
+  // Migration: if present, takes precedence over argocd-cm accounts.* / admin.enabled; replaces the whole collection.
+  // +optional
+  // +listType=map
+  // +listMapKey=name
+  repeated AccountConfig accounts = 28;
+
+  // Extensions configures UI proxy extensions (argocd-cm: extension.config).
+  // Migration: if present, takes precedence over argocd-cm extension.config; replaces the whole collection.
+  // +optional
+  // +listType=map
+  // +listMapKey=name
+  repeated ExtensionConfig extensions = 29;
+
+  // DeepLinks configures custom deep links shown in application, project, and
+  // resource views (argocd-cm: application.links / project.links / resource.links).
+  // Migration: organizational subgroup; no legacy key — see child fields.
+  // +optional
+  optional DeepLinksConfig deepLinks = 30;
+
+  // Help configures the UI help/chat panel and CLI download links.
+  // Migration: organizational subgroup; no legacy key — see child fields.
+  // +optional
+  optional HelpConfig help = 31;
+
+  // Users holds anonymous access, session duration, and password policy.
+  // Migration: organizational subgroup; no legacy key — see child fields.
+  // +optional
+  optional UsersConfig users = 32;
+
+  // GoogleAnalytics holds optional Google Analytics tracking settings.
+  // Migration: if non-nil, takes precedence over argocd-cm ga.* as a group (children apply from the CR; no merge with legacy siblings under that family).
+  // +optional
+  optional GoogleAnalyticsConfig googleAnalytics = 33;
+
+  // Webhook holds SCM webhook payload, jitter, and server webhook worker settings.
+  // Migration: organizational subgroup; no legacy key — see child fields.
+  // +optional
+  optional WebhookConfig webhook = 34;
+
+  // Exec configures the UI pod terminal (exec) feature.
+  // Migration: if non-nil, takes precedence over argocd-cm exec.* as a group (children apply from the CR; no merge with legacy siblings under that family).
+  // +optional
+  optional ExecConfig exec = 35;
+
+  // StatusBadge configures application/project status badge URLs.
+  // Migration: if non-nil, takes precedence over argocd-cm statusbadge.* as a group (children apply from the CR; no merge with legacy siblings under that family).
+  // +optional
+  optional StatusBadgeConfig statusBadge = 36;
+}
+
+// ServerListenConfig holds argocd-server listen host and port settings.
+// Organizational subgroup: children migrate independently (cmd-params hosts vs flag ports).
+message ServerListenConfig {
+  // Address is the API server listen host (cmd-params: server.listen.address), e.g. "0.0.0.0".
+  // Migration: if set, takes precedence over argocd-cmd-params-cm server.listen.address.
+  // +optional
+  optional string address = 1;
+
+  // Port is the API server listen port (flag: --port).
+  // Migration: if set, takes precedence over server --port. Does not round-trip through ConfigMaps.
+  // +optional
+  // +kubebuilder:validation:Minimum=1
+  // +kubebuilder:validation:Maximum=65535
+  optional int32 port = 2;
+
+  // MetricsAddress is the metrics listen host (cmd-params: server.metrics.listen.address).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm server.metrics.listen.address.
+  // +optional
+  optional string metricsAddress = 3;
+
+  // MetricsPort is the metrics listen port (flag: --metrics-port).
+  // Migration: if set, takes precedence over server --metrics-port. Does not round-trip through ConfigMaps.
+  // +optional
+  // +kubebuilder:validation:Minimum=1
+  // +kubebuilder:validation:Maximum=65535
+  optional int32 metricsPort = 4;
+}
+
+// ServerLogsConfig holds UI pod-log viewing settings.
+message ServerLogsConfig {
+  // MaxPodsToRender is the maximum number of pod log lines the UI renders
+  // before truncation (argocd-cm: server.maxPodLogsToRender).
+  // Migration: if set, takes precedence over argocd-cm server.maxPodLogsToRender.
+  // +optional
+  // +kubebuilder:validation:Minimum=0
+  optional int64 maxPodsToRender = 1;
+}
+
 // SignatureKey is the specification of a key required to verify commit signatures with
 //
 // Deprecated: Use SourceIntegrity instead. SignatureKeys will be removed with the next major version.
@@ -2682,6 +5273,26 @@ message SourceHydrator {
   // HydrateTo specifies an optional "staging" location to push hydrated manifests to. An external system would then
   // have to move manifests to the SyncSource, e.g. by pull request.
   optional HydrateTo hydrateTo = 3;
+}
+
+// SourceHydratorConfig configures the beta manifest source hydrator.
+message SourceHydratorConfig {
+  // Enabled turns on the manifest hydrator feature (cmd-params: hydrator.enabled).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm hydrator.enabled.
+  // +optional
+  optional bool enabled = 1;
+
+  // CommitMessageTemplate is a Go template for commits created by the hydrator
+  // (argocd-cm: sourceHydrator.commitMessageTemplate).
+  // Migration: if set, takes precedence over argocd-cm sourceHydrator.commitMessageTemplate.
+  // +optional
+  optional string commitMessageTemplate = 2;
+
+  // ReadmeMessageTemplate is a Go template for the hydrator-generated README.md
+  // (argocd-cm: sourceHydrator.readmeMessageTemplate).
+  // Migration: if set, takes precedence over argocd-cm sourceHydrator.readmeMessageTemplate.
+  // +optional
+  optional string readmeMessageTemplate = 3;
 }
 
 // SourceHydratorStatus contains information about the current state of source hydration
@@ -2751,6 +5362,37 @@ message SourceIntegrityGitPolicyRepo {
   optional string url = 1;
 }
 
+// StatusBadgeConfig configures application/project status badges.
+message StatusBadgeConfig {
+  // Enabled turns on status badge endpoints (argocd-cm: statusbadge.enabled).
+  // Migration: if set, takes precedence over argocd-cm statusbadge.enabled.
+  // +optional
+  optional bool enabled = 1;
+
+  // URL is an optional custom root URL for status badge links
+  // (argocd-cm: statusbadge.url).
+  // Migration: if set, takes precedence over argocd-cm statusbadge.url.
+  // +optional
+  // +kubebuilder:validation:MaxLength=2048
+  // +kubebuilder:validation:Pattern=`^$|^https?://.+`
+  optional string url = 2;
+}
+
+// StreamedManifestConfig caps streamed manifest tar and extracted sizes.
+message StreamedManifestConfig {
+  // MaxTarSize caps streamed manifest tar size
+  // (cmd-params: reposerver.streamed.manifest.max.tar.size).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm reposerver.streamed.manifest.max.tar.size.
+  // +optional
+  optional .k8s.io.apimachinery.pkg.api.resource.Quantity maxTarSize = 1;
+
+  // MaxExtractedSize caps extracted streamed manifest size
+  // (cmd-params: reposerver.streamed.manifest.max.extracted.size).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm reposerver.streamed.manifest.max.extracted.size.
+  // +optional
+  optional .k8s.io.apimachinery.pkg.api.resource.Quantity maxExtractedSize = 2;
+}
+
 // SuccessfulHydrateOperation contains information about the most recent successful hydrate operation
 message SuccessfulHydrateOperation {
   // DrySHA holds the resolved revision (sha) of the dry source as of the most recent reconciliation
@@ -2761,6 +5403,19 @@ message SuccessfulHydrateOperation {
 
   // SourceHydrator holds the hydrator config used for the hydrate operation
   optional SourceHydrator sourceHydrator = 7;
+}
+
+// SyncImpersonationConfig holds sync impersonation policy.
+message SyncImpersonationConfig {
+  // Mode controls sync service-account impersonation
+  // (argocd-cm: application.sync.impersonation.enabled / .enforced):
+  // disabled — impersonation off;
+  // optional — enabled with enforced=false (fall back to controller SA when no destination SA);
+  // required — enabled with enforced=true or enforced omitted (Argo CD default when enabled).
+  // Migration: if set, takes precedence over argocd-cm application.sync.impersonation.enabled and .enforced as a pair.
+  // +optional
+  // +kubebuilder:validation:Enum=disabled;optional;required
+  optional string mode = 1;
 }
 
 // SyncOperation contains details about a sync operation.
@@ -2926,6 +5581,15 @@ message SyncStrategyHook {
   optional SyncStrategyApply syncStrategyApply = 1;
 }
 
+// SyncWaveConfig holds sync-wave timing and related settings.
+message SyncWaveConfig {
+  // Delay is the pause between sync waves so other controllers can react
+  // (cmd-params: controller.sync.wave.delay.seconds).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm controller.sync.wave.delay.seconds.
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Duration delay = 1;
+}
+
 // TLSClientConfig contains settings to enable transport layer security
 message TLSClientConfig {
   // Insecure specifies that the server should be accessed without verifying the TLS certificate. For testing only.
@@ -2949,9 +5613,148 @@ message TLSClientConfig {
   optional bytes caData = 5;
 }
 
+// TLSVersionConfig holds TLS min/max version and cipher suites for a component
+// (cmd-params: server.tls.* / reposerver.tls.*).
+message TLSVersionConfig {
+  // MinVersion is the minimum accepted TLS version: "1.0", "1.1", "1.2", or "1.3"
+  // (cmd-params: *.tls.minversion). Default "1.2".
+  // +optional
+  // +kubebuilder:validation:Enum="1.0";"1.1";"1.2";"1.3"
+  optional string minVersion = 1;
+
+  // MaxVersion is the maximum accepted TLS version: "1.0", "1.1", "1.2", or "1.3"
+  // (cmd-params: *.tls.maxversion). Default "1.3".
+  // +optional
+  // +kubebuilder:validation:Enum="1.0";"1.1";"1.2";"1.3"
+  optional string maxVersion = 2;
+
+  // Ciphers lists allowed TLS cipher suite names
+  // (cmd-params: *.tls.ciphers). Default typically
+  // TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384; use "list" with the Argo CD CLI
+  // to enumerate available ciphers.
+  // +optional
+  repeated string ciphers = 3;
+}
+
 message TagFilter {
   optional string key = 1;
 
   optional string value = 2;
+}
+
+// UIBannerConfig holds UI banner display settings.
+message UIBannerConfig {
+  // Content is the banner message shown in the UI (argocd-cm: ui.bannercontent).
+  // Migration: if set, takes precedence over argocd-cm ui.bannercontent.
+  // +optional
+  optional string content = 1;
+
+  // URL is an optional link target for the banner text (argocd-cm: ui.bannerurl).
+  // Migration: if set, takes precedence over argocd-cm ui.bannerurl.
+  // +optional
+  // +kubebuilder:validation:MaxLength=2048
+  // +kubebuilder:validation:Pattern=`^$|^https?://.+`
+  optional string url = 2;
+
+  // Permanent makes the banner non-dismissible (argocd-cm: ui.bannerpermanent).
+  // Migration: if set, takes precedence over argocd-cm ui.bannerpermanent.
+  // +optional
+  optional bool permanent = 3;
+
+  // Position is where the banner appears: top, bottom, or both (argocd-cm: ui.bannerposition).
+  // Migration: if set, takes precedence over argocd-cm ui.bannerposition.
+  // +optional
+  // +kubebuilder:validation:Enum=top;bottom;both
+  optional string position = 4;
+}
+
+// UIConfig holds web UI customization (argocd-cm: ui.*).
+// Organizational subgroup: children migrate independently.
+message UIConfig {
+  // CSSURL is a local path (relative to /shared/app) or remote http(s) URL for custom CSS
+  // (argocd-cm: ui.cssurl). Not CEL-validated as an absolute URL — relative paths are valid.
+  // Migration: if set, takes precedence over argocd-cm ui.cssurl.
+  // +optional
+  optional string cssURL = 1;
+
+  // Banner holds the UI banner message, link, and display options (argocd-cm: ui.banner*).
+  // Migration: if non-nil, takes precedence over argocd-cm ui.banner* as a group.
+  // +optional
+  optional UIBannerConfig banner = 2;
+
+  // LoginButtonText overrides the SSO login button label
+  // (argocd-cm: ui.loginButtonText).
+  // Migration: if set, takes precedence over argocd-cm ui.loginButtonText.
+  // +optional
+  optional string loginButtonText = 3;
+}
+
+// UsersConfig holds anonymous access, session, and password policy settings.
+// Organizational subgroup: children migrate independently.
+message UsersConfig {
+  // AnonymousEnabled allows unauthenticated access with the default RBAC role
+  // (argocd-cm: users.anonymous.enabled).
+  // Migration: if set, takes precedence over argocd-cm users.anonymous.enabled.
+  // +optional
+  optional bool anonymousEnabled = 1;
+
+  // SessionDuration is how long user sessions / tokens remain valid
+  // (argocd-cm: users.session.duration). Default is typically 24h.
+  // Migration: if set, takes precedence over argocd-cm users.session.duration.
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Duration sessionDuration = 2;
+
+  // PasswordRegex is a Go regexp that local account passwords must match
+  // (argocd-cm: passwordPattern).
+  // Migration: if set, takes precedence over argocd-cm passwordPattern.
+  // +optional
+  optional string passwordRegex = 3;
+}
+
+// WebhookConfig holds SCM webhook payload limits, refresh jitter, and server workers.
+// Organizational subgroup: children migrate independently (argocd-cm + cmd-params).
+message WebhookConfig {
+  // MaxPayloadSize is the maximum webhook HTTP body size (argocd-cm:
+  // webhook.maxPayloadSizeMB). Use a Kubernetes resource.Quantity (e.g. "50M").
+  // Legacy CM values in megabytes map to/from decimal megabytes.
+  // Migration: if set, takes precedence over argocd-cm webhook.maxPayloadSizeMB.
+  // +optional
+  optional .k8s.io.apimachinery.pkg.api.resource.Quantity maxPayloadSize = 1;
+
+  // Refresh holds webhook-triggered refresh jitter and worker settings.
+  // Migration: if non-nil, takes precedence over argocd-cm webhook.refresh.* and
+  // argocd-cmd-params-cm server.webhook.refresh.workers as a group.
+  // +optional
+  optional WebhookRefreshConfig refresh = 2;
+
+  // ParallelismLimit caps concurrent webhook processing on the API server
+  // (cmd-params: server.webhook.parallelism.limit).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm server.webhook.parallelism.limit.
+  // +optional
+  // +kubebuilder:validation:Minimum=1
+  optional int32 parallelismLimit = 3;
+}
+
+// WebhookRefreshConfig holds webhook refresh jitter and worker settings.
+message WebhookRefreshConfig {
+  // Jitter is the maximum random delay before webhook-triggered app refreshes
+  // (argocd-cm: webhook.refresh.jitter), spreading load.
+  // Migration: if set, takes precedence over argocd-cm webhook.refresh.jitter.
+  // +optional
+  optional .k8s.io.apimachinery.pkg.apis.meta.v1.Duration jitter = 1;
+
+  // JitterThreshold is the minimum number of affected apps before jitter is applied
+  // (argocd-cm: webhook.refresh.jitter.threshold).
+  // Migration: if set, takes precedence over argocd-cm webhook.refresh.jitter.threshold.
+  // +optional
+  // +kubebuilder:validation:Minimum=0
+  optional int32 jitterThreshold = 2;
+
+  // Workers is the number of workers handling webhook refreshes
+  // (cmd-params: server.webhook.refresh.workers).
+  // Migration: if set, takes precedence over argocd-cmd-params-cm server.webhook.refresh.workers.
+  // +optional
+  // +kubebuilder:validation:Minimum=1
+  optional int32 workers = 3;
 }
 

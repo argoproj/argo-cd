@@ -10,7 +10,7 @@ import (
 
 var (
 	// SchemeGroupVersion is group version used to register these objects
-	SchemeGroupVersion                   = schema.GroupVersion{Group: application.Group, Version: "v1alpha1"}
+	SchemeGroupVersion                        = schema.GroupVersion{Group: application.Group, Version: "v1alpha1"}
 	ApplicationSchemaGroupVersionKind         = schema.GroupVersionKind{Group: application.Group, Version: "v1alpha1", Kind: application.ApplicationKind}
 	AppProjectSchemaGroupVersionKind          = schema.GroupVersionKind{Group: application.Group, Version: "v1alpha1", Kind: application.AppProjectKind}
 	ApplicationSetSchemaGroupVersionKind      = schema.GroupVersionKind{Group: application.Group, Version: "v1alpha1", Kind: application.ApplicationSetKind}

@@ -1,7 +1,6 @@
 package configbus
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -15,9 +14,9 @@ import (
 func TestStaticCRDSource_Absent(t *testing.T) {
 	src := StaticCRDSource{}
 	assert.False(t, src.HasReconciliationTimeout())
-	assert.Equal(t, time.Duration(0), src.ReconciliationTimeout(context.Background()))
+	assert.Equal(t, time.Duration(0), src.ReconciliationTimeout())
 	assert.False(t, src.HasResourceOverrides())
-	overrides, err := src.ResourceOverrides(context.Background())
+	overrides, err := src.ResourceOverrides()
 	require.NoError(t, err)
 	assert.Nil(t, overrides)
 }
@@ -33,7 +32,7 @@ func TestStaticCRDSource_ReconciliationTimeout(t *testing.T) {
 		},
 	}}
 	assert.True(t, src.HasReconciliationTimeout())
-	assert.Equal(t, 2*time.Minute, src.ReconciliationTimeout(context.Background()))
+	assert.Equal(t, 2*time.Minute, src.ReconciliationTimeout())
 	assert.False(t, src.HasResourceOverrides())
 }
 
@@ -61,7 +60,7 @@ func TestStaticCRDSource_ResourceOverrides(t *testing.T) {
 		},
 	}}
 	assert.True(t, src.HasResourceOverrides())
-	overrides, err := src.ResourceOverrides(context.Background())
+	overrides, err := src.ResourceOverrides()
 	require.NoError(t, err)
 	require.Contains(t, overrides, "apps/Deployment")
 	dep := overrides["apps/Deployment"]

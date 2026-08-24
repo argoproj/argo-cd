@@ -12,7 +12,6 @@ API rule violation: list_type_missing,github.com/argoproj/argo-cd/v3/pkg/apis/ap
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1,ApplicationPreservedFields,Annotations
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1,ApplicationPreservedFields,Labels
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1,ApplicationSetApplicationStatus,TargetRevisions
-API rule violation: list_type_missing,github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1,ApplicationSetConfig,AllowedSCMProviderURLs
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1,ApplicationSetConfig,NamespaceGlobs
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1,ApplicationSetMetricsConfig,ApplicationSetLabels
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1,ApplicationSetResourceIgnoreDifferences,JQPathExpressions
@@ -68,6 +67,9 @@ API rule violation: list_type_missing,github.com/argoproj/argo-cd/v3/pkg/apis/ap
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1,HelmConfig,ValuesFileSchemes
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1,HelmOptions,ValuesFileSchemes
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1,HostInfo,ResourcesInfo
+API rule violation: list_type_missing,github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1,InlineSyncWindow,Applications
+API rule violation: list_type_missing,github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1,InlineSyncWindow,Clusters
+API rule violation: list_type_missing,github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1,InlineSyncWindow,Namespaces
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1,JWTTokens,Items
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1,KustomizeOptions,Versions
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1,ListGenerator,Elements
@@ -132,9 +134,6 @@ API rule violation: list_type_missing,github.com/argoproj/argo-cd/v3/pkg/apis/ap
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1,SyncOperation,Revisions
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1,SyncOperationResult,Revisions
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1,SyncStatus,Revisions
-API rule violation: list_type_missing,github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1,SyncWindow,Applications
-API rule violation: list_type_missing,github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1,SyncWindow,Clusters
-API rule violation: list_type_missing,github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1,SyncWindow,Namespaces
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1,TLSVersionConfig,Ciphers
 API rule violation: list_type_missing,github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1,rawResourceOverride,KnownTypeFields
 API rule violation: names_match,github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1,ApplicationSetTemplate,ApplicationSetTemplateMeta
@@ -144,6 +143,7 @@ API rule violation: names_match,github.com/argoproj/argo-cd/v3/pkg/apis/applicat
 API rule violation: names_match,github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1,CommitMetadata,RepoURL
 API rule violation: names_match,github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1,ConnectionState,ModifiedAt
 API rule violation: names_match,github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1,HelmOptions,ValuesFileSchemes
+API rule violation: names_match,github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1,InlineSyncWindow,UseAndOperator
 API rule violation: names_match,github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1,JWTToken,ExpiresAt
 API rule violation: names_match,github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1,JWTToken,IssuedAt
 API rule violation: names_match,github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1,KustomizeOptions,BinaryPath
@@ -177,7 +177,6 @@ API rule violation: names_match,github.com/argoproj/argo-cd/v3/pkg/apis/applicat
 API rule violation: names_match,github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1,SourceIntegrityCheckResultItem,Name
 API rule violation: names_match,github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1,SourceIntegrityCheckResultItem,Problems
 API rule violation: names_match,github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1,SyncOperation,SelfHealAttemptsCount
-API rule violation: names_match,github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1,SyncWindow,UseAndOperator
 API rule violation: names_match,github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1,objectMeta,Name
 API rule violation: names_match,github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1,rawResourceOverride,HealthLua
 API rule violation: names_match,github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1,rawResourceOverride,UseOpenLibs

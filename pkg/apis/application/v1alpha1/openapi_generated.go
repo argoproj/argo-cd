@@ -139,10 +139,13 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.HydrateTo":                               schema_pkg_apis_application_v1alpha1_HydrateTo(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.Info":                                    schema_pkg_apis_application_v1alpha1_Info(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.InfoItem":                                schema_pkg_apis_application_v1alpha1_InfoItem(ref),
+		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.InlineSyncWindow":                        schema_pkg_apis_application_v1alpha1_InlineSyncWindow(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.JWTToken":                                schema_pkg_apis_application_v1alpha1_JWTToken(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.JWTTokens":                               schema_pkg_apis_application_v1alpha1_JWTTokens(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.JsonnetConfig":                           schema_pkg_apis_application_v1alpha1_JsonnetConfig(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.JsonnetVar":                              schema_pkg_apis_application_v1alpha1_JsonnetVar(ref),
+		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.K8SClientConfig":                         schema_pkg_apis_application_v1alpha1_K8SClientConfig(ref),
+		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.K8SClientTCPConfig":                      schema_pkg_apis_application_v1alpha1_K8SClientTCPConfig(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.K8sClientConfig":                         schema_pkg_apis_application_v1alpha1_K8sClientConfig(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.K8sClientTCPConfig":                      schema_pkg_apis_application_v1alpha1_K8sClientTCPConfig(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.KnownTypeField":                          schema_pkg_apis_application_v1alpha1_KnownTypeField(ref),
@@ -272,7 +275,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncStrategyApply":                       schema_pkg_apis_application_v1alpha1_SyncStrategyApply(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncStrategyHook":                        schema_pkg_apis_application_v1alpha1_SyncStrategyHook(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncWaveConfig":                          schema_pkg_apis_application_v1alpha1_SyncWaveConfig(ref),
-		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncWindow":                              schema_pkg_apis_application_v1alpha1_SyncWindow(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.TLSClientConfig":                         schema_pkg_apis_application_v1alpha1_TLSClientConfig(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.TLSVersionConfig":                        schema_pkg_apis_application_v1alpha1_TLSVersionConfig(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.TagFilter":                               schema_pkg_apis_application_v1alpha1_TagFilter(ref),
@@ -691,7 +693,7 @@ func schema_pkg_apis_application_v1alpha1_AppProjectSpec(ref common.ReferenceCal
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ApplicationDestination", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ApplicationDestinationServiceAccount", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ClusterResourceRestrictionItem", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.OrphanedResourcesMonitorSettings", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ProjectRole", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SignatureKey", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SourceIntegrity", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncWindow", "k8s.io/apimachinery/pkg/apis/meta/v1.GroupKind"},
+			"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ApplicationDestination", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ApplicationDestinationServiceAccount", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ClusterResourceRestrictionItem", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.InlineSyncWindow", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.OrphanedResourcesMonitorSettings", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ProjectRole", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SignatureKey", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SourceIntegrity", "k8s.io/apimachinery/pkg/apis/meta/v1.GroupKind"},
 	}
 }
 
@@ -1221,6 +1223,11 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSetConfig(ref common.Refere
 						},
 					},
 					"allowedSCMProviderURLs": {
+						VendorExtensible: spec.VendorExtensible{
+							Extensions: spec.Extensions{
+								"x-kubernetes-list-type": "atomic",
+							},
+						},
 						SchemaProps: spec.SchemaProps{
 							Description: "AllowedSCMProviderURLs allowlists SCM provider base URLs for SCM/PR generators (cmd-params: applicationsetcontroller.allowed.scm.providers). Migration: if present, takes precedence over argocd-cmd-params-cm applicationsetcontroller.allowed.scm.providers; replaces the whole collection.",
 							Type:        []string{"array"},
@@ -2285,6 +2292,13 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSourceDirectory(ref common.
 						SchemaProps: spec.SchemaProps{
 							Description: "Include contains a glob pattern to match paths against that should be explicitly included during manifest generation",
 							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"disableExtensionFilter": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DisableExtensionFilter controls whether the built-in file-extension filter is skipped during manifest generation. When false (the default), only files with a .yaml, .yml, .json, or .jsonnet extension are considered as potential manifests. Set it to true to disable the filter so that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude glob patterns instead.",
+							Type:        []string{"boolean"},
 							Format:      "",
 						},
 					},
@@ -6050,7 +6064,8 @@ func schema_pkg_apis_application_v1alpha1_GlobalProjectConfig(ref common.Referen
 				Properties: map[string]spec.Schema{
 					"projectName": {
 						SchemaProps: spec.SchemaProps{
-							Description: "ProjectName is the name of the global AppProject to apply (legacy: globalProjects[].projectName).",
+							Description: "ProjectName is the name of the global AppProject to apply (legacy: globalProjects[].projectName). Required as a listMapKey.",
+							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -6062,6 +6077,7 @@ func schema_pkg_apis_application_v1alpha1_GlobalProjectConfig(ref common.Referen
 						},
 					},
 				},
+				Required: []string{"projectName"},
 			},
 		},
 		Dependencies: []string{
@@ -6695,6 +6711,120 @@ func schema_pkg_apis_application_v1alpha1_InfoItem(ref common.ReferenceCallback)
 	}
 }
 
+func schema_pkg_apis_application_v1alpha1_InlineSyncWindow(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "InlineSyncWindow contains the kind, time, duration and attributes that are used to assign the syncWindows to apps",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind defines if the window allows or blocks syncs",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"schedule": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Schedule is the time the window will begin, specified in cron format",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"duration": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Duration is the amount of time the sync window will be open",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"applications": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Applications contains a list of applications that the window will apply to",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"namespaces": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Namespaces contains a list of namespaces that the window will apply to",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"clusters": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Clusters contains a list of clusters that the window will apply to",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: "",
+										Type:    []string{"string"},
+										Format:  "",
+									},
+								},
+							},
+						},
+					},
+					"manualSync": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ManualSync enables manual syncs when they would otherwise be blocked",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"timeZone": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TimeZone of the sync that will be applied to the schedule",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"andOperator": {
+						SchemaProps: spec.SchemaProps{
+							Description: "UseAndOperator use AND operator for matching applications, namespaces and clusters instead of the default OR operator",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"description": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Description of the sync that will be applied to the schedule, can be used to add any information such as a ticket number for example",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"syncOverrun": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SyncOverrun allows ongoing syncs to continue in two scenarios: For deny windows: allows syncs that started before the deny window became active to continue running For allow windows: allows syncs that started during the allow window to continue after the window ends",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
 func schema_pkg_apis_application_v1alpha1_JWTToken(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -6810,6 +6940,94 @@ func schema_pkg_apis_application_v1alpha1_JsonnetVar(ref common.ReferenceCallbac
 	}
 }
 
+func schema_pkg_apis_application_v1alpha1_K8SClientConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "K8sClientConfig holds Kubernetes API client tuning shared by components. Organizational subgroup: children migrate independently.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"qps": {
+						SchemaProps: spec.SchemaProps{
+							Description: "QPS is the client queries-per-second limit (cmd-params: *.k8s.client.qps). Stored as a decimal string because CRDs discourage float types; may be fractional (e.g. \"50\" or \"12.5\"). Migration: if set, takes precedence over the component *.k8s.client.qps key.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"burst": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Burst is the client burst size (cmd-params: *.k8s.client.burst). Migration: if set, takes precedence over the component *.k8s.client.burst key.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"maxIdleConnections": {
+						SchemaProps: spec.SchemaProps{
+							Description: "MaxIdleConnections is the max idle connections in the HTTP pool (cmd-params: *.k8s.client.max.idle.connections). Migration: if set, takes precedence over the component *.k8s.client.max.idle.connections key.",
+							Type:        []string{"integer"},
+							Format:      "int32",
+						},
+					},
+					"tcp": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TCP holds TCP dial, keep-alive, and idle timeout settings (cmd-params: *.k8s.tcp.*). Migration: if non-nil, takes precedence over the component *.k8s.tcp.* keys as a group.",
+							Ref:         ref("github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.K8SClientTCPConfig"),
+						},
+					},
+					"tlsHandshakeTimeout": {
+						SchemaProps: spec.SchemaProps{
+							Description: "TLSHandshakeTimeout is the TLS handshake timeout (cmd-params: *.k8s.tls.handshake.timeout). Migration: if set, takes precedence over the component *.k8s.tls.handshake.timeout key.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Duration"),
+						},
+					},
+					"retry": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Retry holds Kubernetes client retry limits and backoff (cmd-params: *.k8sclient.retry.*). Migration: organizational subgroup; no legacy key — see child fields.",
+							Ref:         ref("github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ClientRetryConfig"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ClientRetryConfig", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.K8SClientTCPConfig", "k8s.io/apimachinery/pkg/apis/meta/v1.Duration"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_K8SClientTCPConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "K8sClientTCPConfig holds TCP tuning for a Kubernetes API client.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"timeout": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Timeout is the TCP dial timeout (cmd-params: *.k8s.tcp.timeout). Migration: if set, takes precedence over the component *.k8s.tcp.timeout key.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Duration"),
+						},
+					},
+					"keepAlive": {
+						SchemaProps: spec.SchemaProps{
+							Description: "KeepAlive is the TCP keep-alive period (cmd-params: *.k8s.tcp.keepalive). Migration: if set, takes precedence over the component *.k8s.tcp.keepalive key.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Duration"),
+						},
+					},
+					"idleTimeout": {
+						SchemaProps: spec.SchemaProps{
+							Description: "IdleTimeout is the idle connection timeout (cmd-params: *.k8s.tcp.idle.timeout). Migration: if set, takes precedence over the component *.k8s.tcp.idle.timeout key.",
+							Ref:         ref("k8s.io/apimachinery/pkg/apis/meta/v1.Duration"),
+						},
+					},
+				},
+			},
+		},
+		Dependencies: []string{
+			"k8s.io/apimachinery/pkg/apis/meta/v1.Duration"},
+	}
+}
+
 func schema_pkg_apis_application_v1alpha1_K8sClientConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -6906,7 +7124,7 @@ func schema_pkg_apis_application_v1alpha1_KnownTypeField(ref common.ReferenceCal
 				Properties: map[string]spec.Schema{
 					"field": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Field represents the JSON path to the specific field in the CRD that requires type conversion. Example: \"spec.resources.requests.cpu\"",
+							Description: "Field represents the JSON path to the specific field in the CRD that requires type conversion. Example: \"spec.resources.requests.cpu\" Default empty string keeps this valid as an ArgoCDConfiguration listMapKey.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -10458,7 +10676,7 @@ func schema_pkg_apis_application_v1alpha1_ResourceActionsCustomization(ref commo
 				Properties: map[string]spec.Schema{
 					"group": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Group is the API group (\"\" for core, \"*\" for wildcard).",
+							Description: "Group is the API group (\"\" for core, \"*\" for wildcard). Default empty string is required because group is a listMapKey.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -10833,7 +11051,7 @@ func schema_pkg_apis_application_v1alpha1_ResourceHealthCustomization(ref common
 				Properties: map[string]spec.Schema{
 					"group": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Group is the API group (\"\" for core, \"*\" for wildcard).",
+							Description: "Group is the API group (\"\" for core, \"*\" for wildcard). Default empty string is required because group is a listMapKey.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -10876,7 +11094,7 @@ func schema_pkg_apis_application_v1alpha1_ResourceIgnoreCustomization(ref common
 				Properties: map[string]spec.Schema{
 					"group": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Group is the API group (\"\" for core, \"*\" for wildcard).",
+							Description: "Group is the API group (\"\" for core, \"*\" for wildcard). Default empty string is required because group is a listMapKey.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -11032,7 +11250,7 @@ func schema_pkg_apis_application_v1alpha1_ResourceKnownTypesCustomization(ref co
 				Properties: map[string]spec.Schema{
 					"group": {
 						SchemaProps: spec.SchemaProps{
-							Description: "Group is the API group (\"\" for core, \"*\" for wildcard).",
+							Description: "Group is the API group (\"\" for core, \"*\" for wildcard). Default empty string is required because group is a listMapKey.",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -13814,120 +14032,6 @@ func schema_pkg_apis_application_v1alpha1_SyncWaveConfig(ref common.ReferenceCal
 		},
 		Dependencies: []string{
 			"k8s.io/apimachinery/pkg/apis/meta/v1.Duration"},
-	}
-}
-
-func schema_pkg_apis_application_v1alpha1_SyncWindow(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "InlineSyncWindow contains the kind, time, duration and attributes that are used to assign the syncWindows to apps",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"kind": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Kind defines if the window allows or blocks syncs",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"schedule": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Schedule is the time the window will begin, specified in cron format",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"duration": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Duration is the amount of time the sync window will be open",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"applications": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Applications contains a list of applications that the window will apply to",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
-									},
-								},
-							},
-						},
-					},
-					"namespaces": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Namespaces contains a list of namespaces that the window will apply to",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
-									},
-								},
-							},
-						},
-					},
-					"clusters": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Clusters contains a list of clusters that the window will apply to",
-							Type:        []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
-									},
-								},
-							},
-						},
-					},
-					"manualSync": {
-						SchemaProps: spec.SchemaProps{
-							Description: "ManualSync enables manual syncs when they would otherwise be blocked",
-							Type:        []string{"boolean"},
-							Format:      "",
-						},
-					},
-					"timeZone": {
-						SchemaProps: spec.SchemaProps{
-							Description: "TimeZone of the sync that will be applied to the schedule",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"andOperator": {
-						SchemaProps: spec.SchemaProps{
-							Description: "UseAndOperator use AND operator for matching applications, namespaces and clusters instead of the default OR operator",
-							Type:        []string{"boolean"},
-							Format:      "",
-						},
-					},
-					"description": {
-						SchemaProps: spec.SchemaProps{
-							Description: "Description of the sync that will be applied to the schedule, can be used to add any information such as a ticket number for example",
-							Type:        []string{"string"},
-							Format:      "",
-						},
-					},
-					"syncOverrun": {
-						SchemaProps: spec.SchemaProps{
-							Description: "SyncOverrun allows ongoing syncs to continue in two scenarios: For deny windows: allows syncs that started before the deny window became active to continue running For allow windows: allows syncs that started during the allow window to continue after the window ends",
-							Type:        []string{"boolean"},
-							Format:      "",
-						},
-					},
-				},
-			},
-		},
 	}
 }
 
