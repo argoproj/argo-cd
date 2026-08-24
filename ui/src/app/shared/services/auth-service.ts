@@ -1,4 +1,4 @@
-import {AuthSettings, Plugin} from '../models';
+import {AuthSettings, HealthCheckItem, Plugin} from '../models';
 import requests from './requests';
 
 export class AuthService {
@@ -8,5 +8,9 @@ export class AuthService {
 
     public plugins(): Promise<Plugin[]> {
         return requests.get('/settings/plugins').then(res => (res.body.plugins || []) as Plugin[]);
+    }
+
+    public healthChecks(): Promise<HealthCheckItem[]> {
+        return requests.get('/settings/health-checks').then(res => (res.body.healthChecks || []) as HealthCheckItem[]);
     }
 }

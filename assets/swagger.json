@@ -4221,6 +4221,29 @@
         }
       }
     },
+    "/api/v1/settings/health-checks": {
+      "get": {
+        "tags": [
+          "SettingsService"
+        ],
+        "summary": "GetHealthChecks returns all health check definitions",
+        "operationId": "SettingsService_GetHealthChecks",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/clusterHealthChecksListResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/runtimeError"
+            }
+          }
+        }
+      }
+    },
     "/api/v1/settings/plugins": {
       "get": {
         "tags": [
@@ -5630,6 +5653,43 @@
         },
         "trackingID": {
           "type": "string"
+        }
+      }
+    },
+    "clusterHealthCheckItem": {
+      "type": "object",
+      "properties": {
+        "group": {
+          "type": "string"
+        },
+        "isWildcard": {
+          "type": "boolean"
+        },
+        "key": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "luaScript": {
+          "type": "string"
+        },
+        "origin": {
+          "type": "string"
+        },
+        "useOpenLibs": {
+          "type": "boolean"
+        }
+      }
+    },
+    "clusterHealthChecksListResponse": {
+      "type": "object",
+      "properties": {
+        "healthChecks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/clusterHealthCheckItem"
+          }
         }
       }
     },

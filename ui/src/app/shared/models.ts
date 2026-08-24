@@ -602,6 +602,20 @@ export interface Plugin {
     name: string;
 }
 
+export interface HealthCheckItem {
+    group: string;
+    kind: string;
+    key: string;
+    origin: string;
+    luaScript?: string;
+    useOpenLibs?: boolean;
+    isWildcard?: boolean;
+}
+
+export interface HealthChecksListResponse {
+    healthChecks: HealthCheckItem[];
+}
+
 export interface AuthSettings {
     url: string;
     statusBadgeEnabled: boolean;

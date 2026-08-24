@@ -100,53 +100,32 @@ func GetResourceHealth(obj *unstructured.Unstructured, healthOverride HealthOver
 	return health, err
 }
 
+var builtinHealthChecks = map[schema.GroupKind]func(obj *unstructured.Unstructured) (*HealthStatus, error){
+	{Group: "apps", Kind: kube.DeploymentKind}:                     getDeploymentHealth,
+	{Group: "apps", Kind: kube.StatefulSetKind}:                    getStatefulSetHealth,
+	{Group: "apps", Kind: kube.ReplicaSetKind}:                     getReplicaSetHealth,
+	{Group: "apps", Kind: kube.DaemonSetKind}:                      getDaemonSetHealth,
+	{Group: "extensions", Kind: kube.IngressKind}:                  getIngressHealth,
+	{Group: "argoproj.io", Kind: "Workflow"}:                       getArgoWorkflowHealth,
+	{Group: "apiregistration.k8s.io", Kind: kube.APIServiceKind}:   getAPIServiceHealth,
+	{Group: "networking.k8s.io", Kind: kube.IngressKind}:           getIngressHealth,
+	{Group: "", Kind: kube.ServiceKind}:                            getServiceHealth,
+	{Group: "", Kind: kube.PersistentVolumeClaimKind}:              getPVCHealth,
+	{Group: "", Kind: kube.PodKind}:                                getPodHealth,
+	{Group: "batch", Kind: kube.JobKind}:                           getJobHealth,
+	{Group: "autoscaling", Kind: kube.HorizontalPodAutoscalerKind}: getHPAHealth,
+}
+
+// GetBuiltinHealthCheckGVKs returns a copy of the GroupVersionKind list for built-in Go health checks
+func GetBuiltinHealthCheckGVKs() []schema.GroupVersionKind {
+	gvks := make([]schema.GroupVersionKind, 0, len(builtinHealthChecks))
+	for gk := range builtinHealthChecks {
+		gvks = append(gvks, schema.GroupVersionKind{Group: gk.Group, Kind: gk.Kind})
+	}
+	return gvks
+}
+
 // GetHealthCheckFunc returns built-in health check function or nil if health check is not supported
 func GetHealthCheckFunc(gvk schema.GroupVersionKind) func(obj *unstructured.Unstructured) (*HealthStatus, error) {
-	switch gvk.Group {
-	case "apps":
-		switch gvk.Kind {
-		case kube.DeploymentKind:
-			return getDeploymentHealth
-		case kube.StatefulSetKind:
-			return getStatefulSetHealth
-		case kube.ReplicaSetKind:
-			return getReplicaSetHealth
-		case kube.DaemonSetKind:
-			return getDaemonSetHealth
-		}
-	case "extensions":
-		if gvk.Kind == kube.IngressKind {
-			return getIngressHealth
-		}
-	case "argoproj.io":
-		if gvk.Kind == "Workflow" {
-			return getArgoWorkflowHealth
-		}
-	case "apiregistration.k8s.io":
-		if gvk.Kind == kube.APIServiceKind {
-			return getAPIServiceHealth
-		}
-	case "networking.k8s.io":
-		if gvk.Kind == kube.IngressKind {
-			return getIngressHealth
-		}
-	case "":
-		switch gvk.Kind {
-		case kube.ServiceKind:
-			return getServiceHealth
-		case kube.PersistentVolumeClaimKind:
-			return getPVCHealth
-		case kube.PodKind:
-			return getPodHealth
-		}
-	case "batch":
-		if gvk.Kind == kube.JobKind {
-			return getJobHealth
-		}
-	case "autoscaling":
-		if gvk.Kind == kube.HorizontalPodAutoscalerKind {
-			return getHPAHealth
-		}
-	}
-	return nil
+	return builtinHealthChecks[gvk.GroupKind()]
 }

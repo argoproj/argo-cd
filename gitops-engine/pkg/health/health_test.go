@@ -175,3 +175,13 @@ func TestGetArgoWorkflowHealth(t *testing.T) {
 	assert.Equal(t, HealthStatusProgressing, health.Status)
 	assert.Empty(t, health.Message)
 }
+
+func TestGetBuiltinHealthCheckGVKs(t *testing.T) {
+	gvks := GetBuiltinHealthCheckGVKs()
+	assert.Len(t, gvks, 13)
+
+	for _, gvk := range gvks {
+		fn := GetHealthCheckFunc(gvk)
+		assert.NotNil(t, fn, "expected non-nil health check func for %s", gvk.String())
+	}
+}
