@@ -76,8 +76,9 @@ func ReceiveRepoStream(ctx context.Context, receiver StreamReceiver, destDir str
 type SenderOption func(*senderOption)
 
 type senderOption struct {
-	chunkSize   int
-	tarDoneChan chan<- bool
+	chunkSize    int
+	tarDoneChan  chan<- bool
+	includePaths []string
 }
 
 func newSenderOption(opts ...SenderOption) *senderOption {
@@ -93,6 +94,15 @@ func newSenderOption(opts ...SenderOption) *senderOption {
 func WithTarDoneChan(ch chan<- bool) SenderOption {
 	return func(opt *senderOption) {
 		opt.tarDoneChan = ch
+	}
+}
+
+// WithIncludePaths restricts the files sent to the cmp-server to the given
+// paths, relative to rootPath. Directories are sent with everything below them.
+// If none of the paths match a file, the whole rootPath is sent instead.
+func WithIncludePaths(includePaths []string) SenderOption {
+	return func(opt *senderOption) {
+		opt.includePaths = includePaths
 	}
 }
 
@@ -131,12 +141,31 @@ func SendRepoStream(ctx context.Context, appPath, rootPath string, sender Stream
 }
 
 func GetCompressedRepoAndMetadata(rootPath string, appPath string, env []string, excludedGlobs []string, opt *senderOption) (*os.File, *pluginclient.AppStreamRequest, error) {
-	// compress all files in rootPath in tgz
-	tgz, filesWritten, checksum, err := tgzstream.CompressFiles(rootPath, nil, excludedGlobs)
+	var includePaths []string
+	if opt != nil {
+		includePaths = opt.includePaths
+	}
+
+	// compress the files in rootPath selected by includePaths in tgz
+	tgz, filesWritten, checksum, err := tgzstream.CompressFilesWithOptions(rootPath, files.TarOptions{
+		IncludePaths: includePaths,
+		Exclusions:   excludedGlobs,
+	})
 	if err != nil {
 		return nil, nil, fmt.Errorf("error compressing repo files: %w", err)
 	}
+	if filesWritten == 0 && len(includePaths) > 0 {
+		// Sending an empty archive fails manifest generation, so fall back to
+		// the whole rootPath rather than trusting the selected paths blindly.
+		log.Warnf("no files under %q matched %v, sending all of them instead", rootPath, includePaths)
+		tgzstream.CloseAndDelete(tgz)
+		tgz, filesWritten, checksum, err = tgzstream.CompressFilesWithOptions(rootPath, files.TarOptions{Exclusions: excludedGlobs})
+		if err != nil {
+			return nil, nil, fmt.Errorf("error compressing repo files: %w", err)
+		}
+	}
 	if filesWritten == 0 {
+		tgzstream.CloseAndDelete(tgz)
 		return nil, nil, fmt.Errorf("no files to send(%s)", rootPath)
 	}
 	if opt != nil && opt.tarDoneChan != nil {

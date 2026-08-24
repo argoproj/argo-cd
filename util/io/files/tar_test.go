@@ -104,6 +104,153 @@ func TestTgz(t *testing.T) {
 		assert.Len(t, files, 5)
 		assert.Contains(t, files, "applicationset/stable/kustomization.yaml")
 	})
+	t.Run("will match the inclusion list against file names, not paths", func(t *testing.T) {
+		// given
+		t.Parallel()
+		inclusions := []string{"*.yaml"}
+		f := setup(t)
+		defer teardown(f)
+
+		// when
+		filesWritten, err := files.Tgz(getTestAppDir(t), inclusions, nil, f.file)
+
+		// then
+		assert.Equal(t, 2, filesWritten)
+		require.NoError(t, err)
+		prepareRead(f)
+		files, err := read(f.file)
+		require.NoError(t, err)
+		assert.Contains(t, files, "applicationset/latest/kustomization.yaml")
+		assert.Contains(t, files, "applicationset/stable/kustomization.yaml")
+		assert.NotContains(t, files, "README.md")
+	})
+}
+
+func TestTgzWithOptions(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name         string
+		opts         files.TarOptions
+		filesWritten int
+		expected     []string
+		unexpected   []string
+	}{
+		{
+			name:         "will include a directory with everything below it",
+			opts:         files.TarOptions{IncludePaths: []string{"applicationset/stable"}},
+			filesWritten: 1,
+			expected:     []string{"applicationset/stable/kustomization.yaml"},
+			unexpected:   []string{"README.md", "applicationset/latest", "applicationset/latest/kustomization.yaml"},
+		},
+		{
+			name:         "will include a single file",
+			opts:         files.TarOptions{IncludePaths: []string{"README.md"}},
+			filesWritten: 1,
+			expected:     []string{"README.md"},
+			unexpected:   []string{"applicationset", "applicationset/stable/kustomization.yaml"},
+		},
+		{
+			name:         "will include the files matched by a glob",
+			opts:         files.TarOptions{IncludePaths: []string{"applicationset/*/kustomization.yaml"}},
+			filesWritten: 2,
+			expected:     []string{"applicationset/latest/kustomization.yaml", "applicationset/stable/kustomization.yaml"},
+			unexpected:   []string{"README.md", "applicationset/readme-symlink"},
+		},
+		{
+			name: "will include everything below a directory matched by a glob",
+			opts: files.TarOptions{IncludePaths: []string{"applicationset/*"}},
+			// The symlink is matched by the glob, so its target is included too.
+			filesWritten: 3,
+			expected: []string{
+				"applicationset/latest/kustomization.yaml",
+				"applicationset/stable/kustomization.yaml",
+				"applicationset/readme-symlink",
+				"README.md",
+			},
+		},
+		{
+			name: "will include the target of an included symlink",
+			opts: files.TarOptions{IncludePaths: []string{"applicationset"}},
+			// README.md is outside the included path, but the symlink needs it.
+			filesWritten: 3,
+			expected:     []string{"applicationset/readme-symlink", "README.md"},
+		},
+		{
+			name:         "will include everything for the archive root",
+			opts:         files.TarOptions{IncludePaths: []string{"."}},
+			filesWritten: 3,
+			expected:     []string{"README.md", "applicationset/latest/kustomization.yaml"},
+		},
+		{
+			name:         "will write no file when no path matches",
+			opts:         files.TarOptions{IncludePaths: []string{"does-not-exist"}},
+			filesWritten: 0,
+			unexpected:   []string{"README.md", "applicationset", "applicationset/stable/kustomization.yaml"},
+		},
+		{
+			name: "will exclude files from an included path",
+			opts: files.TarOptions{
+				IncludePaths: []string{"applicationset/latest", "applicationset/stable"},
+				Exclusions:   []string{"applicationset/latest"},
+			},
+			filesWritten: 1,
+			expected:     []string{"applicationset/stable/kustomization.yaml"},
+			unexpected:   []string{"applicationset/latest/kustomization.yaml"},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// given
+			t.Parallel()
+			f, err := os.CreateTemp(getTestDataDir(t), "")
+			require.NoError(t, err)
+			defer func() {
+				f.Close()
+				os.Remove(f.Name())
+			}()
+
+			// when
+			filesWritten, err := files.TgzWithOptions(getTestAppDir(t), tc.opts, f)
+
+			// then
+			require.NoError(t, err)
+			assert.Equal(t, tc.filesWritten, filesWritten)
+			_, err = f.Seek(0, io.SeekStart)
+			require.NoError(t, err)
+			names, err := read(f)
+			require.NoError(t, err)
+			for _, name := range tc.expected {
+				assert.Contains(t, names, name)
+			}
+			for _, name := range tc.unexpected {
+				assert.NotContains(t, names, name)
+			}
+		})
+	}
+
+	t.Run("will keep the link target of an included symlink", func(t *testing.T) {
+		// given
+		t.Parallel()
+		f, err := os.CreateTemp(getTestDataDir(t), "")
+		require.NoError(t, err)
+		defer func() {
+			f.Close()
+			os.Remove(f.Name())
+		}()
+
+		// when
+		_, err = files.TgzWithOptions(getTestAppDir(t), files.TarOptions{IncludePaths: []string{"applicationset"}}, f)
+
+		// then
+		require.NoError(t, err)
+		_, err = f.Seek(0, io.SeekStart)
+		require.NoError(t, err)
+		names, err := read(f)
+		require.NoError(t, err)
+		assert.Equal(t, "../README.md", names["applicationset/readme-symlink"])
+	})
 }
 
 func TestUntgz(t *testing.T) {
