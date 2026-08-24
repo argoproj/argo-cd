@@ -141,6 +141,21 @@ func ServerSideDiff(ctx context.Context, config, live *unstructured.Unstructured
 	if live != nil && config != nil {
 		result, err := serverSideDiff(ctx, config, live, opts...)
 		if err != nil {
+			// When a resource is annotated with Force=true,Replace=true sync-options
+			// (e.g., a Job with an immutable spec.template field), the server-side
+			// dry-run apply fails with an error like "field is immutable". Fall back
+			// to the regular diff instead of failing the comparison, since the resource
+			// will be recreated on sync anyway.
+			syncOptAnnotation := "argocd.argoproj.io/sync-options"
+			if resource.HasAnnotationOption(config, syncOptAnnotation, "Force=true") &&
+				resource.HasAnnotationOption(config, syncOptAnnotation, "Replace=true") {
+				fallbackOpts := make([]Option, 0, len(opts)+1)
+				fallbackOpts = append(fallbackOpts, opts...)
+				fallbackOpts = append(fallbackOpts, func(o *options) {
+					o.serverSideDiff = false
+				})
+				return Diff(ctx, config, live, fallbackOpts...)
+			}
 			return nil, fmt.Errorf("serverSideDiff error: %w", err)
 		}
 		return result, nil
