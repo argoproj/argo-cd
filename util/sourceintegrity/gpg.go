@@ -701,10 +701,9 @@ var (
 	verificationStatusMatch = regexp.MustCompile(`^gpg: ([a-zA-Z]+) signature from "([^"]+)" \[([a-zA-Z]+)\]$`)
 )
 
-// legacyKeyAllowed reports whether keyID matches any of the configured keys. Key IDs are hex
-// and case-insensitive, so the comparison ignores case. keyID is normalized through KeyID so a
-// 40-char fingerprint (as modern gpg prints in "using RSA key ...") compares equal to the
-// 16-char key IDs derived from the configured keys.
+// legacyKeyAllowed reports whether keyID matches any of the configured keys. keyID is normalized
+// through KeyID so a 40-char fingerprint (as modern gpg prints in "using RSA key ...") compares
+// equal to the 16-char key IDs derived from the configured keys.
 // TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
 func legacyKeyAllowed(validKeys []string, keyID string) bool {
 	if normalized, err := KeyID(keyID); err == nil {
@@ -715,7 +714,7 @@ func legacyKeyAllowed(validKeys []string, keyID string) bool {
 		if err != nil || declared == "" {
 			continue
 		}
-		if strings.EqualFold(declared, keyID) {
+		if declared == keyID {
 			return true
 		}
 	}
@@ -736,7 +735,7 @@ func VerifyGnuPGSignature(revision string, validKeys []string, verifyResult stri
 			// list the primary key. Resolve the signing key back to its primary and allow it if that
 			// primary is in the configured keys.
 			if !validKey {
-				if primary, err := lookupPrimaryKeyID(verifyResult.KeyID); err == nil && !strings.EqualFold(primary, verifyResult.KeyID) {
+				if primary, err := lookupPrimaryKeyID(verifyResult.KeyID); err == nil && primary != verifyResult.KeyID {
 					validKey = legacyKeyAllowed(validKeys, primary)
 				}
 			}

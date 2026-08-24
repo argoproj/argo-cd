@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"slices"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
@@ -216,6 +215,21 @@ func describeProblems(g *v1alpha1.SourceIntegrityGitPolicyGPG, signatureInfos []
 // process-wide, only swap it from serial (non-t.Parallel) tests.
 var lookupPrimaryKeyID = PrimaryKeyID
 
+// keyAllowed reports whether keyID is one of the keys configured in the policy.
+func keyAllowed(keys []string, keyID string) bool {
+	for _, key := range keys {
+		allowedKeyID, err := KeyID(key)
+		if err != nil {
+			log.Error(err.Error())
+			continue
+		}
+		if allowedKeyID == keyID {
+			return true
+		}
+	}
+	return false
+}
+
 // gpgProblemMessage generates a message describing GPG verification issues for a specific revision signature and the configured policy.
 // When an empty string is returned, it means there is no problem - the validation has passed.
 func gpgProblemMessage(g *v1alpha1.SourceIntegrityGitPolicyGPG, signatureInfo git.RevisionSignatureInfo) string {
@@ -226,36 +240,21 @@ func gpgProblemMessage(g *v1alpha1.SourceIntegrityGitPolicyGPG, signatureInfo gi
 		)
 	}
 
-	// Key IDs are hex and case-insensitive; normalize so policy keys match the git/gpg
-	// output regardless of the case the operator used in the policy.
-	allowedKeyIDs := make([]string, 0, len(g.Keys))
-	for _, allowedKey := range g.Keys {
-		allowedKeyID, err := KeyID(allowedKey)
-		if err != nil {
-			log.Error(err.Error())
-			continue
-		}
-		allowedKeyIDs = append(allowedKeyIDs, strings.ToUpper(allowedKeyID))
-	}
-
-	// git/gpg may report the signing key as a 40-char fingerprint or a 16-char key ID; normalize
-	// it the same way as the policy keys so the comparison (and the keyring lookup below) is robust.
-	signatureKeyID := signatureInfo.SignatureKeyID
-	if normalized, err := KeyID(signatureKeyID); err == nil {
-		signatureKeyID = normalized
-	}
-
-	if slices.Contains(allowedKeyIDs, strings.ToUpper(signatureKeyID)) {
+	if keyAllowed(g.Keys, signatureInfo.SignatureKeyID) {
 		return ""
 	}
 
 	// git signs with a dedicated signing subkey when the key has one, but operators normally
 	// list the primary key in the policy. Resolve the signing key back to its primary and
-	// allow the signature if that primary key is in the policy.
-	if primaryKeyID, err := lookupPrimaryKeyID(signatureKeyID); err != nil {
-		log.Debugf("could not resolve primary key for signing key %s: %v", signatureKeyID, err)
-	} else if !strings.EqualFold(primaryKeyID, signatureKeyID) && slices.Contains(allowedKeyIDs, strings.ToUpper(primaryKeyID)) {
-		return ""
+	// allow the signature if that primary key is in the policy. The lookup is restricted to
+	// 16-char key IDs, the form git's %GK emits, so it cannot widen matching to key formats
+	// that were not accepted before.
+	if IsShortKeyID(signatureInfo.SignatureKeyID) {
+		if primaryKeyID, err := lookupPrimaryKeyID(signatureInfo.SignatureKeyID); err != nil {
+			log.Debugf("could not resolve primary key for signing key %s: %v", signatureInfo.SignatureKeyID, err)
+		} else if primaryKeyID != signatureInfo.SignatureKeyID && keyAllowed(g.Keys, primaryKeyID) {
+			return ""
+		}
 	}
 
 	return fmt.Sprintf(

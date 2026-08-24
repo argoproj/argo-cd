@@ -3,7 +3,6 @@ package sourceintegrity
 import (
 	"context"
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -356,35 +355,6 @@ func TestGPGSubkeySignature(t *testing.T) {
 		assert.False(t, result.IsValid())
 		require.ErrorContains(t, result.AsError(), "signed with unallowed key (key_id="+subkeyID+")")
 	})
-
-	t.Run("primary match is case-insensitive", func(t *testing.T) {
-		// gpg emits key IDs in upper case; the operator may have used a different case in the policy.
-		gpg := &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead, Keys: []string{strings.ToUpper(primaryKeyID)}}
-		result, _, err := verify(t.Context(), gpg, subkeySignature(), "1.0")
-		require.NoError(t, err)
-		assert.True(t, result.IsValid())
-		require.NoError(t, result.AsError())
-	})
-
-	t.Run("40-char fingerprint matches a configured key without keyring lookup", func(t *testing.T) {
-		// git may report the signing key as a full 40-char fingerprint. Verification must normalize
-		// it to the 16-char key ID before comparing, without depending on the keyring (the primary
-		// lookup deterministically fails for this fingerprint).
-		fingerprint := "abcd1234abcd1234abcd1234" + primaryKeyID
-		gitClient := &gitmocks.Client{}
-		gitClient.EXPECT().LsSignatures(mock.Anything, mock.Anything, mock.Anything).Return(
-			[]git.RevisionSignatureInfo{{
-				Revision: "1.0", VerificationResult: git.GPGVerificationResultGood, SignatureKeyID: fingerprint, Date: "ignored", AuthorIdentity: "ignored",
-			}},
-			`gpg: Good signature from "test user <testuser@example.com>" [ultimate]`,
-			nil,
-		)
-		gpg := &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead, Keys: []string{primaryKeyID}}
-		result, _, err := verify(t.Context(), gpg, gitClient, "1.0")
-		require.NoError(t, err)
-		assert.True(t, result.IsValid())
-		require.NoError(t, result.AsError())
-	})
 }
 
 // TestVerifyGnuPGSignatureSubkey covers the deprecated legacy verification path: a commit signed
@@ -413,17 +383,6 @@ gpg: Good signature from "test user <testuser@example.com>" [ultimate]`
 		cond := VerifyGnuPGSignature("rev", []string{unrelatedKeyID}, verifyResult)
 		require.NotNil(t, cond)
 		assert.Contains(t, cond.Message, "not allowed in AppProject")
-	})
-
-	t.Run("40-char fingerprint emitted by gpg matches a configured key", func(t *testing.T) {
-		// Modern gpg prints the full 40-char fingerprint in "using RSA key ...".
-		// Verification must normalize it to the 16-char key ID before comparing,
-		// without relying on the keyring (the primary lookup deterministically fails here).
-		const fingerprint = "abcd1234abcd1234abcd1234" + primaryKeyID
-		fpResult := `gpg: Signature made Wed Feb 26 23:22:34 2020 CET
-gpg:                using RSA key ` + fingerprint + `
-gpg: Good signature from "test user <testuser@example.com>" [ultimate]`
-		assert.Nil(t, VerifyGnuPGSignature("rev", []string{primaryKeyID}, fpResult))
 	})
 }
 
