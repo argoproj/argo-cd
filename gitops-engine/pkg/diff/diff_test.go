@@ -1333,6 +1333,63 @@ func TestServerSideDiff(t *testing.T) {
 		assert.NotContains(t, string(result.NormalizedLive), annotationOnlySecret,
 			"NormalizedLive must not contain secret values embedded only in last-applied-configuration")
 	})
+	t.Run("will fall back to normal diff when dry-run fails on immutable field with ForceReplace", func(t *testing.T) {
+		t.Parallel()
+
+		dryRunner := mocks.NewServerSideDryRunner(t)
+		dryRunner.EXPECT().Run(mock.Anything, mock.AnythingOfType("*unstructured.Unstructured"), "argocd-controller").
+			Return("", fmt.Errorf("Job.batch \"test-job\" is invalid: spec.template: field is immutable"))
+
+		gvkParser := buildGVKParser(t)
+		manager := "argocd-controller"
+
+		config := StrToUnstructured(`
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: test-job
+  annotations:
+    argocd.argoproj.io/sync-options: Force=true,Replace=true
+spec:
+  template:
+    spec:
+      containers:
+      - name: test
+        image: test:v2
+      restartPolicy: Never
+  backoffLimit: 4
+`)
+
+		live := StrToUnstructured(`
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: test-job
+spec:
+  template:
+    spec:
+      containers:
+      - name: test
+        image: test:v1
+      restartPolicy: Never
+  backoffLimit: 4
+`)
+
+		opts := []Option{
+			WithGVKParser(gvkParser),
+			WithManager(manager),
+			WithServerSideDryRunner(dryRunner),
+		}
+
+		// when
+		result, err := ServerSideDiff(t.Context(), config, live, opts...)
+
+		// then
+		require.NoError(t, err)
+		require.NotNil(t, result)
+		assert.True(t, result.Modified)
+	})
+
 }
 
 // mustMarshalUnstructured marshals an unstructured object to a JSON string, failing the test on error.
