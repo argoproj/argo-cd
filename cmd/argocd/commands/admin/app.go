@@ -381,6 +381,7 @@ func reconcileApplications(
 			IgnoreNormalizerJQTimeout: configbus.Ptr(ignoreNormalizerOpts.JQExecutionTimeout),
 			ServerSideDiff:            configbus.Ptr(serverSideDiff),
 		}},
+		configbus.NewCRDProvider(nil),
 		configbus.NewSettingsManagerProvider(settingsMgr),
 		configbus.NewEnvProvider(),
 		&configbus.StaticProvider{Fields: configbus.StaticFields{

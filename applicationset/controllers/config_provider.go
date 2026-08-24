@@ -10,10 +10,10 @@ import (
 // InitConfigProvider wires the configbus provider after the reconciler struct is
 // built. scmConfig and argoCDService supply SCM / git settings captured into
 // StaticFields at construction.
-func (r *ApplicationSetReconciler) InitConfigProvider(settingsMgr *settings.SettingsManager, scmConfig *generators.SCMConfig, argoCDService *services.ArgoCDService) {
+func (r *ApplicationSetReconciler) InitConfigProvider(settingsMgr *settings.SettingsManager, scmConfig *generators.SCMConfig, argoCDService *services.ArgoCDService, crd configbus.CRDSource) {
 	r.scmConfig = scmConfig
 	r.argoCDService = argoCDService
-	r.configProvider = r.newChainProvider(settingsMgr)
+	r.configProvider = r.newChainProvider(settingsMgr, crd)
 	generators.SetDefaultRequeueProvider(r.configProvider)
 	if scmConfig != nil {
 		scmConfig.SetConfigProvider(r.configProvider)
@@ -28,7 +28,7 @@ func (r *ApplicationSetReconciler) InitConfigProvider(settingsMgr *settings.Sett
 // hit this path so configProvider getters remain usable.
 func (r *ApplicationSetReconciler) ensureConfigProvider() {
 	if r.configProvider == nil {
-		r.configProvider = r.newChainProvider(nil)
+		r.configProvider = r.newChainProvider(nil, nil)
 		generators.SetDefaultRequeueProvider(r.configProvider)
 		if r.scmConfig != nil {
 			r.scmConfig.SetConfigProvider(r.configProvider)
@@ -39,9 +39,10 @@ func (r *ApplicationSetReconciler) ensureConfigProvider() {
 	}
 }
 
-func (r *ApplicationSetReconciler) newChainProvider(settingsMgr *settings.SettingsManager) configbus.Provider {
+func (r *ApplicationSetReconciler) newChainProvider(settingsMgr *settings.SettingsManager, crd configbus.CRDSource) configbus.Provider {
 	static := r.staticFields()
 	links := []configbus.Provider{
+		configbus.NewCRDProvider(crd),
 		&configbus.StaticProvider{Fields: static},
 	}
 	if settingsMgr != nil {

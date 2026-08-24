@@ -124,7 +124,9 @@ func Test_StaticHeaders(t *testing.T) {
 	{
 		s, closer := fakeServer(t)
 		defer closer()
-		withStaticHeaderOverrides(t, s, "deny", "frame-ancestors 'none';")
+		s.XFrameOptions = "deny"
+		s.ContentSecurityPolicy = "frame-ancestors 'none';"
+		s.rebuildConfigProviderFromFields()
 		cancelInformer := test.StartInformer(s.projInformer)
 		defer cancelInformer()
 		lns, err := s.Listen()
@@ -152,7 +154,9 @@ func Test_StaticHeaders(t *testing.T) {
 	{
 		s, closer := fakeServer(t)
 		defer closer()
-		withStaticHeaderOverrides(t, s, "", "")
+		s.XFrameOptions = ""
+		s.ContentSecurityPolicy = ""
+		s.rebuildConfigProviderFromFields()
 		cancelInformer := test.StartInformer(s.projInformer)
 		defer cancelInformer()
 		lns, err := s.Listen()

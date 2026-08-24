@@ -2319,7 +2319,7 @@ type Provider_CommitserverGrpcEnableTxtServiceConfig_Call struct {
 
 // CommitserverGrpcEnableTxtServiceConfig is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Provider_Expecter) CommitserverGrpcEnableTxtServiceConfig(ctx interface{}) *Provider_CommitserverGrpcEnableTxtServiceConfig_Call {
+func (_e *Provider_Expecter) CommitserverGrpcEnableTxtServiceConfig(ctx any) *Provider_CommitserverGrpcEnableTxtServiceConfig_Call {
 	return &Provider_CommitserverGrpcEnableTxtServiceConfig_Call{Call: _e.mock.On("CommitserverGrpcEnableTxtServiceConfig", ctx)}
 }
 
@@ -2379,7 +2379,7 @@ type Provider_CommitserverListenAddress_Call struct {
 
 // CommitserverListenAddress is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Provider_Expecter) CommitserverListenAddress(ctx interface{}) *Provider_CommitserverListenAddress_Call {
+func (_e *Provider_Expecter) CommitserverListenAddress(ctx any) *Provider_CommitserverListenAddress_Call {
 	return &Provider_CommitserverListenAddress_Call{Call: _e.mock.On("CommitserverListenAddress", ctx)}
 }
 
@@ -2439,7 +2439,7 @@ type Provider_CommitserverListenPort_Call struct {
 
 // CommitserverListenPort is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Provider_Expecter) CommitserverListenPort(ctx interface{}) *Provider_CommitserverListenPort_Call {
+func (_e *Provider_Expecter) CommitserverListenPort(ctx any) *Provider_CommitserverListenPort_Call {
 	return &Provider_CommitserverListenPort_Call{Call: _e.mock.On("CommitserverListenPort", ctx)}
 }
 
@@ -2499,7 +2499,7 @@ type Provider_CommitserverLogFormat_Call struct {
 
 // CommitserverLogFormat is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Provider_Expecter) CommitserverLogFormat(ctx interface{}) *Provider_CommitserverLogFormat_Call {
+func (_e *Provider_Expecter) CommitserverLogFormat(ctx any) *Provider_CommitserverLogFormat_Call {
 	return &Provider_CommitserverLogFormat_Call{Call: _e.mock.On("CommitserverLogFormat", ctx)}
 }
 
@@ -2559,7 +2559,7 @@ type Provider_CommitserverLogLevel_Call struct {
 
 // CommitserverLogLevel is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Provider_Expecter) CommitserverLogLevel(ctx interface{}) *Provider_CommitserverLogLevel_Call {
+func (_e *Provider_Expecter) CommitserverLogLevel(ctx any) *Provider_CommitserverLogLevel_Call {
 	return &Provider_CommitserverLogLevel_Call{Call: _e.mock.On("CommitserverLogLevel", ctx)}
 }
 
@@ -2619,7 +2619,7 @@ type Provider_CommitserverMetricsListenAddress_Call struct {
 
 // CommitserverMetricsListenAddress is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Provider_Expecter) CommitserverMetricsListenAddress(ctx interface{}) *Provider_CommitserverMetricsListenAddress_Call {
+func (_e *Provider_Expecter) CommitserverMetricsListenAddress(ctx any) *Provider_CommitserverMetricsListenAddress_Call {
 	return &Provider_CommitserverMetricsListenAddress_Call{Call: _e.mock.On("CommitserverMetricsListenAddress", ctx)}
 }
 
@@ -2679,7 +2679,7 @@ type Provider_CommitserverMetricsPort_Call struct {
 
 // CommitserverMetricsPort is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Provider_Expecter) CommitserverMetricsPort(ctx interface{}) *Provider_CommitserverMetricsPort_Call {
+func (_e *Provider_Expecter) CommitserverMetricsPort(ctx any) *Provider_CommitserverMetricsPort_Call {
 	return &Provider_CommitserverMetricsPort_Call{Call: _e.mock.On("CommitserverMetricsPort", ctx)}
 }
 
@@ -2702,6 +2702,68 @@ func (_c *Provider_CommitserverMetricsPort_Call) Return(n int, err error) *Provi
 }
 
 func (_c *Provider_CommitserverMetricsPort_Call) RunAndReturn(run func(ctx context.Context) (int, error)) *Provider_CommitserverMetricsPort_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// Configuration provides a mock function for the type Provider
+func (_mock *Provider) Configuration(ctx context.Context) (*v1alpha1.ArgoCDConfiguration, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for Configuration")
+	}
+
+	var r0 *v1alpha1.ArgoCDConfiguration
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (*v1alpha1.ArgoCDConfiguration, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) *v1alpha1.ArgoCDConfiguration); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*v1alpha1.ArgoCDConfiguration)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_Configuration_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Configuration'
+type Provider_Configuration_Call struct {
+	*mock.Call
+}
+
+// Configuration is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) Configuration(ctx any) *Provider_Configuration_Call {
+	return &Provider_Configuration_Call{Call: _e.mock.On("Configuration", ctx)}
+}
+
+func (_c *Provider_Configuration_Call) Run(run func(ctx context.Context)) *Provider_Configuration_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_Configuration_Call) Return(argoCDConfiguration *v1alpha1.ArgoCDConfiguration, err error) *Provider_Configuration_Call {
+	_c.Call.Return(argoCDConfiguration, err)
+	return _c
+}
+
+func (_c *Provider_Configuration_Call) RunAndReturn(run func(ctx context.Context) (*v1alpha1.ArgoCDConfiguration, error)) *Provider_Configuration_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -5879,7 +5941,7 @@ type Provider_NotificationsAppLabelSelector_Call struct {
 
 // NotificationsAppLabelSelector is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Provider_Expecter) NotificationsAppLabelSelector(ctx interface{}) *Provider_NotificationsAppLabelSelector_Call {
+func (_e *Provider_Expecter) NotificationsAppLabelSelector(ctx any) *Provider_NotificationsAppLabelSelector_Call {
 	return &Provider_NotificationsAppLabelSelector_Call{Call: _e.mock.On("NotificationsAppLabelSelector", ctx)}
 }
 
@@ -5941,7 +6003,7 @@ type Provider_NotificationsApplicationNamespaces_Call struct {
 
 // NotificationsApplicationNamespaces is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Provider_Expecter) NotificationsApplicationNamespaces(ctx interface{}) *Provider_NotificationsApplicationNamespaces_Call {
+func (_e *Provider_Expecter) NotificationsApplicationNamespaces(ctx any) *Provider_NotificationsApplicationNamespaces_Call {
 	return &Provider_NotificationsApplicationNamespaces_Call{Call: _e.mock.On("NotificationsApplicationNamespaces", ctx)}
 }
 
@@ -6001,7 +6063,7 @@ type Provider_NotificationsConfigMapName_Call struct {
 
 // NotificationsConfigMapName is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Provider_Expecter) NotificationsConfigMapName(ctx interface{}) *Provider_NotificationsConfigMapName_Call {
+func (_e *Provider_Expecter) NotificationsConfigMapName(ctx any) *Provider_NotificationsConfigMapName_Call {
 	return &Provider_NotificationsConfigMapName_Call{Call: _e.mock.On("NotificationsConfigMapName", ctx)}
 }
 
@@ -6061,7 +6123,7 @@ type Provider_NotificationsSecretName_Call struct {
 
 // NotificationsSecretName is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Provider_Expecter) NotificationsSecretName(ctx interface{}) *Provider_NotificationsSecretName_Call {
+func (_e *Provider_Expecter) NotificationsSecretName(ctx any) *Provider_NotificationsSecretName_Call {
 	return &Provider_NotificationsSecretName_Call{Call: _e.mock.On("NotificationsSecretName", ctx)}
 }
 
@@ -6121,7 +6183,7 @@ type Provider_NotificationsSelfserviceEnabled_Call struct {
 
 // NotificationsSelfserviceEnabled is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *Provider_Expecter) NotificationsSelfserviceEnabled(ctx interface{}) *Provider_NotificationsSelfserviceEnabled_Call {
+func (_e *Provider_Expecter) NotificationsSelfserviceEnabled(ctx any) *Provider_NotificationsSelfserviceEnabled_Call {
 	return &Provider_NotificationsSelfserviceEnabled_Call{Call: _e.mock.On("NotificationsSelfserviceEnabled", ctx)}
 }
 
@@ -8360,6 +8422,46 @@ func (_c *Provider_Subscribe_Call) RunAndReturn(run func(subCh chan<- *settings.
 	return _c
 }
 
+// SubscribeCRD provides a mock function for the type Provider
+func (_mock *Provider) SubscribeCRD(subCh chan<- struct{}) {
+	_mock.Called(subCh)
+	return
+}
+
+// Provider_SubscribeCRD_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'SubscribeCRD'
+type Provider_SubscribeCRD_Call struct {
+	*mock.Call
+}
+
+// SubscribeCRD is a helper method to define mock.On call
+//   - subCh chan<- struct{}
+func (_e *Provider_Expecter) SubscribeCRD(subCh any) *Provider_SubscribeCRD_Call {
+	return &Provider_SubscribeCRD_Call{Call: _e.mock.On("SubscribeCRD", subCh)}
+}
+
+func (_c *Provider_SubscribeCRD_Call) Run(run func(subCh chan<- struct{})) *Provider_SubscribeCRD_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 chan<- struct{}
+		if args[0] != nil {
+			arg0 = args[0].(chan<- struct{})
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_SubscribeCRD_Call) Return() *Provider_SubscribeCRD_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *Provider_SubscribeCRD_Call) RunAndReturn(run func(subCh chan<- struct{})) *Provider_SubscribeCRD_Call {
+	_c.Run(run)
+	return _c
+}
+
 // SyncTimeout provides a mock function for the type Provider
 func (_mock *Provider) SyncTimeout(ctx context.Context) (time.Duration, error) {
 	ret := _mock.Called(ctx)
@@ -8576,6 +8678,46 @@ func (_c *Provider_Unsubscribe_Call) Return() *Provider_Unsubscribe_Call {
 }
 
 func (_c *Provider_Unsubscribe_Call) RunAndReturn(run func(subCh chan<- *settings.ArgoCDSettings)) *Provider_Unsubscribe_Call {
+	_c.Run(run)
+	return _c
+}
+
+// UnsubscribeCRD provides a mock function for the type Provider
+func (_mock *Provider) UnsubscribeCRD(subCh chan<- struct{}) {
+	_mock.Called(subCh)
+	return
+}
+
+// Provider_UnsubscribeCRD_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'UnsubscribeCRD'
+type Provider_UnsubscribeCRD_Call struct {
+	*mock.Call
+}
+
+// UnsubscribeCRD is a helper method to define mock.On call
+//   - subCh chan<- struct{}
+func (_e *Provider_Expecter) UnsubscribeCRD(subCh any) *Provider_UnsubscribeCRD_Call {
+	return &Provider_UnsubscribeCRD_Call{Call: _e.mock.On("UnsubscribeCRD", subCh)}
+}
+
+func (_c *Provider_UnsubscribeCRD_Call) Run(run func(subCh chan<- struct{})) *Provider_UnsubscribeCRD_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 chan<- struct{}
+		if args[0] != nil {
+			arg0 = args[0].(chan<- struct{})
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_UnsubscribeCRD_Call) Return() *Provider_UnsubscribeCRD_Call {
+	_c.Call.Return()
+	return _c
+}
+
+func (_c *Provider_UnsubscribeCRD_Call) RunAndReturn(run func(subCh chan<- struct{})) *Provider_UnsubscribeCRD_Call {
 	_c.Run(run)
 	return _c
 }

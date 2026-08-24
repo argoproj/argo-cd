@@ -5,11 +5,10 @@ import (
 	"errors"
 	"time"
 
-	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/apimachinery/pkg/util/wait"
-
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/settings"
+	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 // ErrNotConfigured is returned by a leaf Provider when it does not own / does
@@ -42,8 +41,13 @@ type Provider interface {
 	// Subscribe registers for argocd-cm/secret change notifications when the
 	// backing implementation supports it (SettingsManagerProvider / ChainProvider).
 	Subscribe(subCh chan<- *settings.ArgoCDSettings)
+	// SubscribeCRD registers for ArgoCDConfiguration change notifications when
+	// the CRD source supports it (InformerCRDSource). No-op otherwise.
+	SubscribeCRD(subCh chan<- struct{})
 	// Unsubscribe unregisters a settings change subscriber.
 	Unsubscribe(subCh chan<- *settings.ArgoCDSettings)
+	// UnsubscribeCRD unregisters an ArgoCDConfiguration change subscriber.
+	UnsubscribeCRD(subCh chan<- struct{})
 
 	Accounts(ctx context.Context) (map[string]settings.Account, error)
 	AdditionalURLs(ctx context.Context) ([]string, error)
@@ -89,6 +93,7 @@ type Provider interface {
 	CommitserverLogLevel(ctx context.Context) (string, error)
 	CommitserverMetricsListenAddress(ctx context.Context) (string, error)
 	CommitserverMetricsPort(ctx context.Context) (int, error)
+	Configuration(ctx context.Context) (*v1alpha1.ArgoCDConfiguration, error)
 	ContentSecurityPolicy(ctx context.Context) (string, error)
 	ContentTypes(ctx context.Context) ([]string, error)
 	DexServerAddr(ctx context.Context) (string, error)

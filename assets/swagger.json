@@ -8992,7 +8992,7 @@
       "properties": {
         "field": {
           "type": "string",
-          "title": "Field represents the JSON path to the specific field in the CRD that requires type conversion.\nExample: \"spec.resources.requests.cpu\""
+          "title": "Field represents the JSON path to the specific field in the CRD that requires type conversion.\nExample: \"spec.resources.requests.cpu\"\nDefault empty string keeps this valid as an ArgoCDConfiguration listMapKey.\n+kubebuilder:default=\"\""
         },
         "type": {
           "description": "Type specifies the expected Kubernetes type for the field, such as \"cpu\" or \"memory\".\nThis helps in converting values between different formats (e.g., \"0.1\" to \"100m\" for CPU).",

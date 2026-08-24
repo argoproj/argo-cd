@@ -5,8 +5,9 @@ import (
 )
 
 // InitConfigProvider wires the configbus provider after Config is retained.
-func (a *ArgoCDCommitServer) InitConfigProvider() {
+func (a *ArgoCDCommitServer) InitConfigProvider(crd configbus.CRDSource) {
 	a.configProvider = configbus.NewChainProvider(
+		configbus.NewCRDProvider(crd),
 		&configbus.StaticProvider{Fields: configbus.StaticFields{
 			CommitserverGrpcEnableTxtServiceConfig: configbus.Ptr(a.Config.GrpcEnableTxtServiceConfig),
 			CommitserverListenAddress:              configbus.Ptr(a.Config.ListenHost),

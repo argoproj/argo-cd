@@ -38,9 +38,21 @@ func (c *ChainProvider) Subscribe(subCh chan<- *settings.ArgoCDSettings) {
 	}
 }
 
+func (c *ChainProvider) SubscribeCRD(subCh chan<- struct{}) {
+	for _, l := range c.links {
+		l.SubscribeCRD(subCh)
+	}
+}
+
 func (c *ChainProvider) Unsubscribe(subCh chan<- *settings.ArgoCDSettings) {
 	for _, l := range c.links {
 		l.Unsubscribe(subCh)
+	}
+}
+
+func (c *ChainProvider) UnsubscribeCRD(subCh chan<- struct{}) {
+	for _, l := range c.links {
+		l.UnsubscribeCRD(subCh)
 	}
 }
 
@@ -305,6 +317,12 @@ func (c *ChainProvider) CommitserverMetricsListenAddress(ctx context.Context) (s
 func (c *ChainProvider) CommitserverMetricsPort(ctx context.Context) (int, error) {
 	return firstConfigured(func(p Provider) (int, error) {
 		return p.CommitserverMetricsPort(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) Configuration(ctx context.Context) (*v1alpha1.ArgoCDConfiguration, error) {
+	return firstConfigured(func(p Provider) (*v1alpha1.ArgoCDConfiguration, error) {
+		return p.Configuration(ctx)
 	}, c.links)
 }
 
@@ -626,10 +644,9 @@ func (c *ChainProvider) NotificationsAppLabelSelector(ctx context.Context) (stri
 	}, c.links)
 }
 
+// NotificationsApplicationNamespaces is an alias for ApplicationNamespaces for call sites that predate the shared getter.
 func (c *ChainProvider) NotificationsApplicationNamespaces(ctx context.Context) ([]string, error) {
-	return firstConfigured(func(p Provider) ([]string, error) {
-		return p.NotificationsApplicationNamespaces(ctx)
-	}, c.links)
+	return c.ApplicationNamespaces(ctx)
 }
 
 func (c *ChainProvider) NotificationsConfigMapName(ctx context.Context) (string, error) {

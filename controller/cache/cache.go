@@ -783,26 +783,37 @@ func (c *liveStateCache) watchSettings(ctx context.Context) {
 	updateCh := make(chan *settings.ArgoCDSettings, 1)
 	c.configProvider.Subscribe(updateCh)
 
+	crdUpdateCh := make(chan struct{}, 1)
+	if c.configProvider != nil {
+		c.configProvider.SubscribeCRD(crdUpdateCh)
+	}
+
+	reload := func() {
+		nextCacheSettings, err := c.loadCacheSettings()
+		if err != nil {
+			log.Warnf("Failed to read updated settings: %v", err)
+			return
+		}
+
+		c.lock.Lock()
+		needInvalidate := false
+		if !reflect.DeepEqual(c.cacheSettings, *nextCacheSettings) {
+			c.cacheSettings = *nextCacheSettings
+			needInvalidate = true
+		}
+		c.lock.Unlock()
+		if needInvalidate {
+			c.invalidate(*nextCacheSettings)
+		}
+	}
+
 	done := false
 	for !done {
 		select {
 		case <-updateCh:
-			nextCacheSettings, err := c.loadCacheSettings()
-			if err != nil {
-				log.Warnf("Failed to read updated settings: %v", err)
-				continue
-			}
-
-			c.lock.Lock()
-			needInvalidate := false
-			if !reflect.DeepEqual(c.cacheSettings, *nextCacheSettings) {
-				c.cacheSettings = *nextCacheSettings
-				needInvalidate = true
-			}
-			c.lock.Unlock()
-			if needInvalidate {
-				c.invalidate(*nextCacheSettings)
-			}
+			reload()
+		case <-crdUpdateCh:
+			reload()
 		case <-ctx.Done():
 			done = true
 		}
@@ -810,6 +821,10 @@ func (c *liveStateCache) watchSettings(ctx context.Context) {
 	log.Info("shutting down settings watch")
 	c.configProvider.Unsubscribe(updateCh)
 	close(updateCh)
+	if c.configProvider != nil {
+		c.configProvider.UnsubscribeCRD(crdUpdateCh)
+		close(crdUpdateCh)
+	}
 }
 
 func (c *liveStateCache) Init() error {

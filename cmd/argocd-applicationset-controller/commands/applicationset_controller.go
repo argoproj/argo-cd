@@ -43,7 +43,9 @@ import (
 	appsetmetrics "github.com/argoproj/argo-cd/v3/applicationset/metrics"
 	"github.com/argoproj/argo-cd/v3/applicationset/services"
 	appv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v3/util/cli"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	argosettings "github.com/argoproj/argo-cd/v3/util/settings"
@@ -191,6 +193,8 @@ func NewCommand() *cobra.Command {
 			errors.CheckError(err)
 			k8sClient, err := kubernetes.NewForConfig(mgr.GetConfig())
 			errors.CheckError(err)
+			appClient := appclientset.NewForConfigOrDie(mgr.GetConfig())
+			crdSource := configbus.NewOptionalInformerCRDSource(ctx, appClient, namespace)
 
 			argoSettingsMgr := argosettings.NewSettingsManager(ctx, k8sClient, namespace)
 			argoCDDB := db.NewDB(namespace, argoSettingsMgr, k8sClient)
@@ -207,7 +211,7 @@ func NewCommand() *cobra.Command {
 				os.Exit(1)
 			}
 
-			scmConfig := generators.NewSCMConfig(
+			scmConfigVal := generators.NewSCMConfig(
 				scmRootCAPath,
 				allowedScmProviders,
 				enableScmProviders,
@@ -215,6 +219,7 @@ func NewCommand() *cobra.Command {
 				github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)),
 				tokenRefStrictMode, generators.WithProxyURL(scmProxyURL),
 				generators.WithNoProxyList(scmNoProxy))
+			scmConfig := &scmConfigVal
 
 			tlsConfig, err := repoServerClientTLSConfigSrc()
 			errors.CheckError(err)
@@ -233,17 +238,7 @@ func NewCommand() *cobra.Command {
 			repoClientset := apiclient.NewRepoServerClientset(argocdRepoServer, repoServerTimeoutSeconds, tlsConfig)
 			argoCDService := services.NewArgoCDService(argoCDDB, gitSubmoduleEnabled, repoClientset, enableNewGitFileGlobbing)
 
-			topLevelGenerators := generators.GetGenerators(ctx, mgr.GetClient(), k8sClient, namespace, argoCDService, dynamicClient, scmConfig, clusterInformer)
 			cacheSyncClient := utils.NewCacheSyncingClient(mgr.GetClient(), mgr.GetCache())
-
-			// start a webhook server that listens to incoming webhook payloads
-			webhookHandler, err := webhook.NewWebhookHandler(webhookParallelism, argoSettingsMgr, mgr.GetClient(), topLevelGenerators)
-			if err != nil {
-				log.Error(err, "failed to create webhook handler")
-			}
-			if webhookHandler != nil {
-				startWebhookServer(webhookHandler, webhookAddr)
-			}
 
 			metrics := appsetmetrics.NewApplicationsetMetrics(
 				utils.NewAppsetLister(mgr.GetClient()),
@@ -252,9 +247,8 @@ func NewCommand() *cobra.Command {
 					return utils.IsNamespaceAllowed(applicationSetNamespaces, appset.Namespace)
 				})
 			appsetReconciler := &controllers.ApplicationSetReconciler{
-				Generators: topLevelGenerators,
-				Client:     cacheSyncClient,
-				Scheme:     mgr.GetScheme(),
+				Client: cacheSyncClient,
+				Scheme: mgr.GetScheme(),
 				// FIXME: record.EventRecorder -> events.EventRecorder
 				// nolint:staticcheck
 				Recorder:                     mgr.GetEventRecorderFor("applicationset-controller"),
@@ -273,8 +267,25 @@ func NewCommand() *cobra.Command {
 				MaxResourcesStatusCount:      maxResourcesStatusCount,
 				ClusterInformer:              clusterInformer,
 				ConcurrentApplicationUpdates: concurrentApplicationUpdates,
+				MetricsAddr:                  metricsAddr,
+				ProbeAddr:                    probeBindAddr,
+				WebhookAddr:                  webhookAddr,
+				MetricsApplicationsetLabels:  metricsAplicationsetLabels,
 			}
+			// Wire Provider before GetGenerators so SCMConfig copies include configProvider.
+			appsetReconciler.InitConfigProvider(argoSettingsMgr, scmConfig, argoCDService, crdSource)
+			topLevelGenerators := generators.GetGenerators(ctx, mgr.GetClient(), k8sClient, namespace, argoCDService, dynamicClient, *scmConfig, clusterInformer)
+			appsetReconciler.Generators = topLevelGenerators
 			appsetReconciler.ProgressiveSyncManager = progressivesync.NewManager(cacheSyncClient, mgr.GetAPIReader(), appsetReconciler)
+
+			// start a webhook server that listens to incoming webhook payloads
+			webhookHandler, err := webhook.NewWebhookHandler(webhookParallelism, argoSettingsMgr, mgr.GetClient(), topLevelGenerators)
+			if err != nil {
+				log.Error(err, "failed to create webhook handler")
+			}
+			if webhookHandler != nil {
+				startWebhookServer(webhookHandler, webhookAddr)
+			}
 
 			if err = appsetReconciler.SetupWithManager(mgr, enableProgressiveSyncs, maxConcurrentReconciliations); err != nil {
 				log.Error(err, "unable to create controller", "controller", "ApplicationSet")
