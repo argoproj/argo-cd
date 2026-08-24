@@ -2745,16 +2745,24 @@ func (s *Server) RunResourceActionV2(ctx context.Context, q *application.Resourc
 		return nil, err
 	}
 
-	// config addresses the live object, which for an action on an Application is the control plane
-	// cluster. Resources created by the action are a different matter: verifyResourcePermitted below
-	// authorizes them against destCluster, so they must also be created there, otherwise destination
-	// permissions would authorize writes to the control plane. This config is resolved only when the
-	// action actually creates something, so that a patch-only action on an Application is not subject
-	// to destination impersonation enforcement.
+	// createConfig is the cluster that resources created by the action are written to. It must be the
+	// destination cluster, because verifyResourcePermitted below authorizes those resources against
+	// destCluster; creating them anywhere else would let destination permissions authorize writes to
+	// another cluster.
+	//
+	// For an action on a live resource, config is already the destination cluster, so there is
+	// nothing to do. For an action on the Application itself, config is the control plane cluster
+	// (that is where an Application is stored), so the destination config has to be resolved
+	// separately here — control plane for the Application patch, destination for what it creates.
+	// Despite its name, getApplicationClusterConfig returns the config of the cluster the Application
+	// deploys to, not the one it is stored on.
+	//
+	// That resolution applies destination impersonation and fails when enforcement finds no matching
+	// service account, so it is skipped unless the action actually creates something. Otherwise a
+	// patch-only action such as toggle-auto-sync would be rejected over a destination service
+	// account it never uses.
 	createConfig := config
-	if res == nil && slices.ContainsFunc(newObjects, func(r lua.ImpactedResource) bool {
-		return r.K8SOperation == lua.CreateOperation
-	}) {
+	if res == nil && actionCreatesResources(newObjects) {
 		createConfig, err = s.getApplicationClusterConfig(ctx, a, proj)
 		if err != nil {
 			return nil, fmt.Errorf("error getting application cluster config: %w", err)
@@ -2858,6 +2866,14 @@ func (s *Server) patchResource(ctx context.Context, config *rest.Config, liveObj
 		}
 	}
 	return &application.ApplicationResponse{}, nil
+}
+
+// actionCreatesResources reports whether a resource action returned at least one resource to create,
+// as opposed to only patching the resource the action was run on.
+func actionCreatesResources(newObjects []lua.ImpactedResource) bool {
+	return slices.ContainsFunc(newObjects, func(r lua.ImpactedResource) bool {
+		return r.K8SOperation == lua.CreateOperation
+	})
 }
 
 func (s *Server) verifyResourcePermitted(ctx context.Context, destCluster *v1alpha1.Cluster, proj *v1alpha1.AppProject, obj *unstructured.Unstructured) error {
