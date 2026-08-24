@@ -91,6 +91,9 @@ func (a *ArgoCDCMPServer) Run() {
 	errors.CheckError(err)
 	log.Infof("argocd-cmp-server %s serving on %s", common.GetVersion(), listener.Addr())
 
+	// Start zombie reaper before any plugin tooling can fork children.
+	StartZombieReaper()
+
 	signal.Notify(a.stopCh, syscall.SIGINT, syscall.SIGTERM)
 	go a.Shutdown(config.Address())
 
