@@ -49,10 +49,12 @@ import (
 	"github.com/argoproj/argo-cd/v3/applicationset/generators"
 	"github.com/argoproj/argo-cd/v3/applicationset/metrics"
 	"github.com/argoproj/argo-cd/v3/applicationset/progressivesync"
+	"github.com/argoproj/argo-cd/v3/applicationset/services"
 	"github.com/argoproj/argo-cd/v3/applicationset/status"
 	"github.com/argoproj/argo-cd/v3/applicationset/utils"
 	"github.com/argoproj/argo-cd/v3/common"
 	applog "github.com/argoproj/argo-cd/v3/util/app/log"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 
@@ -90,25 +92,53 @@ var defaultPreservedAnnotations = []string{
 // ApplicationSetReconciler reconciles a ApplicationSet object
 type ApplicationSetReconciler struct {
 	client.Client
-	Scheme               *runtime.Scheme
-	Recorder             record.EventRecorder
-	Generators           map[string]generators.Generator
-	ArgoDB               db.ArgoDB
-	KubeClientset        kubernetes.Interface
-	Policy               argov1alpha1.ApplicationsSyncPolicy
+	Scheme        *runtime.Scheme
+	Recorder      record.EventRecorder
+	Generators    map[string]generators.Generator
+	ArgoDB        db.ArgoDB
+	KubeClientset kubernetes.Interface
+	// Deprecated: use configProvider.ApplicationsetPolicy.
+	Policy argov1alpha1.ApplicationsSyncPolicy
+	// Deprecated: use configProvider.ApplicationsetEnablePolicyOverride.
 	EnablePolicyOverride bool
 	utils.Renderer
-	ArgoCDNamespace              string
-	ApplicationSetNamespaces     []string
-	EnableProgressiveSyncs       bool
-	SCMRootCAPath                string
-	GlobalPreservedAnnotations   []string
-	GlobalPreservedLabels        []string
-	Metrics                      *metrics.ApplicationsetMetrics
-	MaxResourcesStatusCount      int
-	ClusterInformer              *settings.ClusterInformer
+	ArgoCDNamespace string
+	// Deprecated: use configProvider.ApplicationsetNamespaces.
+	ApplicationSetNamespaces []string
+	// Deprecated: use configProvider.ApplicationsetEnableProgressiveSyncs.
+	EnableProgressiveSyncs bool
+	// SCMRootCAPath is unused on the reconciler (dead field). The live value lives
+	// on generators.SCMConfig; LegacyScmRootCAPath reads from scmConfig. Kept for
+	// command wiring / API compatibility — do not remove in this PR.
+	SCMRootCAPath string
+	// Deprecated: use configProvider.ApplicationsetGlobalPreservedAnnotations.
+	GlobalPreservedAnnotations []string
+	// Deprecated: use configProvider.ApplicationsetGlobalPreservedLabels.
+	GlobalPreservedLabels []string
+	Metrics               *metrics.ApplicationsetMetrics
+	// Deprecated: use configProvider.ApplicationsetMaxResourcesStatusCount.
+	MaxResourcesStatusCount int
+	ClusterInformer         *settings.ClusterInformer
+	// Deprecated: use configProvider.ApplicationsetConcurrentApplicationUpdates.
 	ConcurrentApplicationUpdates int
 	ProgressiveSyncManager       *progressivesync.Manager
+
+	configProvider configbus.Provider
+	// scmConfig and argoCDService supply SCM / git settings captured into
+	// StaticFields at InitConfigProvider.
+	scmConfig     *generators.SCMConfig
+	argoCDService *services.ArgoCDService
+
+	// Pure flag-only settings retained for registry SourceFlagOnly descriptors.
+
+	// Deprecated: use configProvider.ApplicationsetMetricsAddr.
+	MetricsAddr string
+	// Deprecated: use configProvider.ApplicationsetProbeAddr.
+	ProbeAddr string
+	// Deprecated: use configProvider.ApplicationsetWebhookAddr.
+	WebhookAddr string
+	// Deprecated: use configProvider.ApplicationsetMetricsApplicationsetLabels.
+	MetricsApplicationsetLabels []string
 }
 
 var _ progressivesync.Dependencies = (*ApplicationSetReconciler)(nil)
@@ -146,11 +176,26 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		r.Metrics.ObserveReconcile(&applicationSetInfo, time.Since(startTime))
 	}()
 
+	r.ensureConfigProvider()
+	policyStr, err := r.configProvider.ApplicationsetPolicy(ctx)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to resolve applicationset policy: %w", err)
+	}
+	policy := argov1alpha1.ApplicationsSyncPolicy(policyStr)
+	enablePolicyOverride, err := r.configProvider.ApplicationsetEnablePolicyOverride(ctx)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to resolve applicationset enable policy override: %w", err)
+	}
+	enableProgressiveSyncs, err := r.configProvider.ApplicationsetEnableProgressiveSyncs(ctx)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to resolve applicationset enable progressive syncs: %w", err)
+	}
+
 	// Do not attempt to further reconcile the ApplicationSet if it is being deleted.
 	if applicationSetInfo.DeletionTimestamp != nil {
 		appsetName := applicationSetInfo.Name
 		logCtx.Debugf("DeletionTimestamp is set on %s", appsetName)
-		deleteAllowed := utils.DefaultPolicy(applicationSetInfo.Spec.SyncPolicy, r.Policy, r.EnablePolicyOverride).AllowDelete()
+		deleteAllowed := utils.DefaultPolicy(applicationSetInfo.Spec.SyncPolicy, policy, enablePolicyOverride).AllowDelete()
 		if !deleteAllowed {
 			logCtx.Debugf("ApplicationSet policy does not allow to delete")
 			if err := r.removeOwnerReferencesOnDeleteAppSet(ctx, applicationSetInfo); err != nil {
@@ -184,7 +229,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	// ensure finalizer exists if deletionOrder is set as Reverse
-	if r.EnableProgressiveSyncs && progressivesync.IsDeletionOrderReversed(&applicationSetInfo) {
+	if enableProgressiveSyncs && progressivesync.IsDeletionOrderReversed(&applicationSetInfo) {
 		if !controllerutil.ContainsFinalizer(&applicationSetInfo, argov1alpha1.ResourcesFinalizerName) {
 			controllerutil.AddFinalizer(&applicationSetInfo, argov1alpha1.ResourcesFinalizerName)
 			if err := r.Update(ctx, &applicationSetInfo); err != nil {
@@ -249,7 +294,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// appSyncMap tracks which apps will be synced during this reconciliation.
 	appSyncMap := map[string]bool{}
 
-	if r.EnableProgressiveSyncs {
+	if enableProgressiveSyncs {
 		if !progressivesync.IsRollingSyncStrategy(&applicationSetInfo) && len(applicationSetInfo.Status.ApplicationStatus) > 0 {
 			// If an appset was previously syncing with a `RollingSync` strategy but it has switched to the default strategy, clean up the progressive sync application statuses
 			logCtx.Infof("Removing %v unnecessary AppStatus entries from ApplicationSet %v", len(applicationSetInfo.Status.ApplicationStatus), applicationSetInfo.Name)
@@ -327,7 +372,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 	}
 
-	if r.EnableProgressiveSyncs {
+	if enableProgressiveSyncs {
 		// trigger appropriate application syncs if RollingSync strategy is enabled
 		if progressivesync.RollingSyncStrategyEnabled(&applicationSetInfo) {
 			validApps = r.ProgressiveSyncManager.SyncDesiredApplications(logCtx, &applicationSetInfo, appSyncMap, validApps)
@@ -339,7 +384,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return validApps[i].Name < validApps[j].Name
 	})
 
-	if utils.DefaultPolicy(applicationSetInfo.Spec.SyncPolicy, r.Policy, r.EnablePolicyOverride).AllowUpdate() {
+	if utils.DefaultPolicy(applicationSetInfo.Spec.SyncPolicy, policy, enablePolicyOverride).AllowUpdate() {
 		err = r.createOrUpdateInCluster(ctx, logCtx, applicationSetInfo, validApps)
 		if err != nil {
 			_ = r.setApplicationSetStatusCondition(ctx,
@@ -373,7 +418,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 	}
 
-	if utils.DefaultPolicy(applicationSetInfo.Spec.SyncPolicy, r.Policy, r.EnablePolicyOverride).AllowDelete() {
+	if utils.DefaultPolicy(applicationSetInfo.Spec.SyncPolicy, policy, enablePolicyOverride).AllowDelete() {
 		// Delete the generatedApplications instead of the validApps because we want to be able to delete applications in error/invalid state
 		err = r.deleteInCluster(ctx, logCtx, applicationSetInfo, generatedApplications)
 		if err != nil {
@@ -675,6 +720,12 @@ func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager, enableProg
 		return fmt.Errorf("error setting up with manager: %w", err)
 	}
 
+	r.ensureConfigProvider()
+	applicationSetNamespaces, err := r.configProvider.ApplicationsetNamespaces(context.Background())
+	if err != nil {
+		return fmt.Errorf("failed to resolve applicationset namespaces: %w", err)
+	}
+
 	appOwnsHandler := getApplicationOwnsHandler(enableProgressiveSyncs)
 	appSetOwnsHandler := getApplicationSetOwnsHandler(enableProgressiveSyncs)
 
@@ -682,13 +733,13 @@ func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager, enableProg
 		MaxConcurrentReconciles: maxConcurrentReconciliations,
 	}).For(&argov1alpha1.ApplicationSet{}, builder.WithPredicates(appSetOwnsHandler)).
 		Owns(&argov1alpha1.Application{}, builder.WithPredicates(appOwnsHandler)).
-		WithEventFilter(ignoreNotAllowedNamespaces(r.ApplicationSetNamespaces)).
+		WithEventFilter(ignoreNotAllowedNamespaces(applicationSetNamespaces)).
 		Watches(
 			&corev1.Secret{},
 			&clusterSecretEventHandler{
 				Client:                   mgr.GetClient(),
 				Log:                      log.WithField("type", "createSecretEventHandler"),
-				ApplicationSetNamespaces: r.ApplicationSetNamespaces,
+				ApplicationSetNamespaces: applicationSetNamespaces,
 			}).
 		Complete(r)
 }
@@ -705,8 +756,21 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 		return fmt.Errorf("failed to build ignore diff config: %w", err)
 	}
 
+	r.ensureConfigProvider()
+	globalPreservedAnnotations, err := r.configProvider.ApplicationsetGlobalPreservedAnnotations(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to resolve applicationset global preserved annotations: %w", err)
+	}
+	globalPreservedLabels, err := r.configProvider.ApplicationsetGlobalPreservedLabels(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to resolve applicationset global preserved labels: %w", err)
+	}
+
 	g, ctx := errgroup.WithContext(ctx)
-	concurrency := r.concurrency()
+	concurrency, err := r.concurrency()
+	if err != nil {
+		return err
+	}
 	g.SetLimit(concurrency)
 
 	var appErrorsMu sync.Mutex
@@ -746,12 +810,12 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 					preservedLabels = append(preservedLabels, applicationSet.Spec.PreservedFields.Labels...)
 				}
 
-				if len(r.GlobalPreservedAnnotations) > 0 {
-					preservedAnnotations = append(preservedAnnotations, r.GlobalPreservedAnnotations...)
+				if len(globalPreservedAnnotations) > 0 {
+					preservedAnnotations = append(preservedAnnotations, globalPreservedAnnotations...)
 				}
 
-				if len(r.GlobalPreservedLabels) > 0 {
-					preservedLabels = append(preservedLabels, r.GlobalPreservedLabels...)
+				if len(globalPreservedLabels) > 0 {
+					preservedLabels = append(preservedLabels, globalPreservedLabels...)
 				}
 
 				// Preserve specially treated argo cd annotations:
@@ -885,7 +949,10 @@ func (r *ApplicationSetReconciler) deleteInCluster(ctx context.Context, logCtx *
 	}
 
 	g, ctx := errgroup.WithContext(ctx)
-	concurrency := r.concurrency()
+	concurrency, err := r.concurrency()
+	if err != nil {
+		return err
+	}
 	g.SetLimit(concurrency)
 
 	var appErrorsMu sync.Mutex
@@ -941,11 +1008,16 @@ func (r *ApplicationSetReconciler) deleteInCluster(ctx context.Context, logCtx *
 }
 
 // concurrency returns the configured number of concurrent application updates, defaulting to 1.
-func (r *ApplicationSetReconciler) concurrency() int {
-	if r.ConcurrentApplicationUpdates <= 0 {
-		return 1
+func (r *ApplicationSetReconciler) concurrency() (int, error) {
+	r.ensureConfigProvider()
+	n, err := r.configProvider.ApplicationsetConcurrentApplicationUpdates(context.Background())
+	if err != nil {
+		return 0, fmt.Errorf("failed to resolve applicationset concurrent application updates: %w", err)
 	}
-	return r.ConcurrentApplicationUpdates
+	if n <= 0 {
+		return 1, nil
+	}
+	return n, nil
 }
 
 // firstAppError returns the error associated with the lexicographically smallest application name
@@ -1101,14 +1173,19 @@ func (r *ApplicationSetReconciler) updateResourcesStatus(ctx context.Context, lo
 		return statuses[i].Name < statuses[j].Name
 	})
 	resourcesCount := int64(len(statuses))
-	if r.MaxResourcesStatusCount > 0 && len(statuses) > r.MaxResourcesStatusCount {
-		logCtx.Warnf("Truncating ApplicationSet %s resource status from %d to max allowed %d entries", appset.Name, len(statuses), r.MaxResourcesStatusCount)
-		statuses = statuses[:r.MaxResourcesStatusCount]
+	r.ensureConfigProvider()
+	maxResourcesStatusCount, err := r.configProvider.ApplicationsetMaxResourcesStatusCount(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to resolve applicationset max resources status count: %w", err)
+	}
+	if maxResourcesStatusCount > 0 && len(statuses) > maxResourcesStatusCount {
+		logCtx.Warnf("Truncating ApplicationSet %s resource status from %d to max allowed %d entries", appset.Name, len(statuses), maxResourcesStatusCount)
+		statuses = statuses[:maxResourcesStatusCount]
 	}
 	appset.Status.Resources = statuses
 	appset.Status.ResourcesCount = resourcesCount
 	// DefaultRetry will retry 5 times with a backoff factor of 1, jitter of 0.1 and a duration of 10ms
-	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+	err = retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		namespacedName := types.NamespacedName{Namespace: appset.Namespace, Name: appset.Name}
 		updatedAppset := &argov1alpha1.ApplicationSet{}
 		if err := r.Get(ctx, namespacedName, updatedAppset); err != nil {

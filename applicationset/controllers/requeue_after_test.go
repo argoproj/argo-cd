@@ -23,6 +23,11 @@ import (
 )
 
 func TestRequeueAfter(t *testing.T) {
+	// Prefer env-based defaults for this suite; other tests may have wired a
+	// package-level Provider via ensureConfigProvider / InitConfigProvider.
+	t.Cleanup(func() { generators.SetDefaultRequeueProvider(nil) })
+	generators.SetDefaultRequeueProvider(nil)
+
 	mockServer := &mocks.Repos{}
 	ctx := t.Context()
 	scheme := runtime.NewScheme()

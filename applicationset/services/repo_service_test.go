@@ -77,7 +77,7 @@ func TestGetDirectories(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			a := &argoCDService{
+			a := &ArgoCDService{
 				getRepository:                   tt.fields.getRepository,
 				submoduleEnabled:                tt.fields.submoduleEnabled,
 				getGitDirectoriesFromRepoServer: tt.fields.getGitDirectories,
@@ -158,7 +158,7 @@ func TestGetFiles(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			a := &argoCDService{
+			a := &ArgoCDService{
 				getRepository:             tt.fields.getRepository,
 				submoduleEnabled:          tt.fields.submoduleEnabled,
 				getGitFilesFromRepoServer: tt.fields.getGitFiles,

@@ -1,12 +1,15 @@
 package generators
 
 import (
+	"context"
 	"errors"
+	"sync"
 	"time"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/env"
 )
 
@@ -35,7 +38,28 @@ const (
 	DefaultRequeueAfter = 3 * time.Minute
 )
 
+var (
+	defaultRequeueProviderMu sync.RWMutex
+	defaultRequeueProvider   configbus.Provider
+)
+
+// SetDefaultRequeueProvider attaches the configbus Provider used for the
+// ApplicationSet default requeue interval.
+func SetDefaultRequeueProvider(p configbus.Provider) {
+	defaultRequeueProviderMu.Lock()
+	defer defaultRequeueProviderMu.Unlock()
+	defaultRequeueProvider = p
+}
+
 func getDefaultRequeueAfter() time.Duration {
+	defaultRequeueProviderMu.RLock()
+	p := defaultRequeueProvider
+	defaultRequeueProviderMu.RUnlock()
+	if p != nil {
+		if d, err := p.ApplicationsetRequeueAfter(context.Background()); err == nil {
+			return d
+		}
+	}
 	// Default is 3 minutes, min is 1 second, max is 1 year
 	return env.ParseDurationFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_REQUEUE_AFTER", DefaultRequeueAfter, 1*time.Second, 8760*time.Hour)
 }
