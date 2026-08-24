@@ -1,4 +1,4 @@
-import {DataLoader, DropDown, Tab, Tabs} from 'argo-ui';
+import {DataLoader, DropDown, MockupList, Tab, Tabs} from 'argo-ui';
 import * as React from 'react';
 import {useState} from 'react';
 import {BehaviorSubject} from 'rxjs';
@@ -13,6 +13,7 @@ import {NodeInfo, SelectNode} from '../application-details/application-details';
 import {ApplicationNodeInfo} from '../application-node-info/application-node-info';
 import {ApplicationParameters} from '../application-parameters/application-parameters';
 import {ApplicationResourceEvents} from '../application-resource-events/application-resource-events';
+import {ApplicationResourceHealthCheck} from '../application-resource-health-check/application-resource-health-check';
 import {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 import {ApplicationResourcesDiff} from '../application-resources-diff/application-resources-diff';
 import {ApplicationSummary} from '../application-summary/application-summary';
@@ -67,6 +68,8 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
         state: State,
         podState: State,
         events: Event[],
+        healthDefinition: models.ResourceHealthDefinition,
+        healthDefinitionError: any,
         extensionTabs: ResourceTabExtension[],
         tabs: Tab[],
         execEnabled: boolean,
@@ -89,6 +92,12 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         <EventsList events={events} />
                     </div>
                 )
+            });
+            tabs.push({
+                title: 'HEALTH CHECK',
+                icon: 'fa fa-heartbeat',
+                key: 'health-check',
+                content: <ApplicationResourceHealthCheck definition={healthDefinition} error={healthDefinitionError} />
             });
         }
         if (podState && podState.metadata && podState.spec) {
@@ -266,6 +275,7 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                 <DataLoader
                     noLoaderOnInputChange={true}
                     input={selectedNode.resourceVersion}
+                    loadingRenderer={() => <MockupList height={50} marginTop={10} />}
                     load={async () => {
                         const managedResources = await services.applications.managedResources(application.metadata.name, application.metadata.namespace, {
                             id: {
@@ -291,6 +301,15 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     uid: liveState.metadata.uid
                                 }))) ||
                             [];
+                        // Captured separately (rather than collapsed to null) so the tab can tell a genuine "no
+                        // health check" response apart from a failed fetch (e.g. an RBAC or network error) and
+                        // avoid reporting one as the other.
+                        const healthDefinitionResult = liveState
+                            ? await services.applications
+                                  .getResourceHealthDefinition(application.metadata.name, application.metadata.namespace, selectedNode)
+                                  .then(value => ({value, error: null as any}))
+                                  .catch(error => ({value: null as models.ResourceHealthDefinition, error}))
+                            : {value: null as models.ResourceHealthDefinition, error: null as any};
                         let podState: State;
                         let childResources: models.ResourceNode[] = [];
                         if (selectedNode.kind === 'Pod') {
@@ -309,7 +328,20 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         const execAllowed = execEnabled && (await services.accounts.canI('exec', 'create', AppUtils.appRBACName(application)));
                         const links = await services.applications.getResourceLinks(application.metadata.name, application.metadata.namespace, selectedNode).catch((): null => null);
                         const resourceActionsMenuItems = await AppUtils.getResourceActionsMenuItems(selectedNode, application.metadata, appContext);
-                        return {controlledState, liveState, events, podState, execEnabled, execAllowed, logsAllowed, links, childResources, resourceActionsMenuItems};
+                        return {
+                            controlledState,
+                            liveState,
+                            events,
+                            healthDefinition: healthDefinitionResult.value,
+                            healthDefinitionError: healthDefinitionResult.error,
+                            podState,
+                            execEnabled,
+                            execAllowed,
+                            logsAllowed,
+                            links,
+                            childResources,
+                            resourceActionsMenuItems
+                        };
                     }}>
                     {data => (
                         <React.Fragment>
@@ -375,6 +407,8 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     data.liveState,
                                     data.podState,
                                     data.events,
+                                    data.healthDefinition,
+                                    data.healthDefinitionError,
                                     extensions,
                                     [
                                         {

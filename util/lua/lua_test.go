@@ -288,6 +288,50 @@ func TestGetHealthScriptNoPredefined(t *testing.T) {
 	assert.Empty(t, script)
 }
 
+func TestGetHealthScriptWithSource(t *testing.T) {
+	t.Parallel()
+
+	t.Run("custom override", func(t *testing.T) {
+		t.Parallel()
+		testObj := StrToUnstructured(objJSON)
+		vm := VM{
+			ResourceOverrides: map[string]appv1.ResourceOverride{
+				"argoproj.io/Rollout": {
+					HealthLua:   newHealthStatusFunction,
+					UseOpenLibs: false,
+				},
+			},
+		}
+		script, useOpenLibs, source, err := vm.GetHealthScriptWithSource(testObj)
+		require.NoError(t, err)
+		assert.False(t, useOpenLibs)
+		assert.Equal(t, newHealthStatusFunction, script)
+		assert.Equal(t, HealthCheckSourceCustom, source)
+	})
+
+	t.Run("built-in script", func(t *testing.T) {
+		t.Parallel()
+		testObj := StrToUnstructured(objJSON)
+		vm := VM{}
+		script, useOpenLibs, source, err := vm.GetHealthScriptWithSource(testObj)
+		require.NoError(t, err)
+		assert.True(t, useOpenLibs)
+		assert.NotEmpty(t, script)
+		assert.Equal(t, HealthCheckSourceBuiltIn, source)
+	})
+
+	t.Run("no script defined", func(t *testing.T) {
+		t.Parallel()
+		testObj := StrToUnstructured(objWithNoScriptJSON)
+		vm := VM{}
+		script, useOpenLibs, source, err := vm.GetHealthScriptWithSource(testObj)
+		require.NoError(t, err)
+		assert.False(t, useOpenLibs)
+		assert.Empty(t, script)
+		assert.Equal(t, HealthCheckSourceNone, source)
+	})
+}
+
 func TestGetResourceActionPredefined(t *testing.T) {
 	t.Parallel()
 	testObj := StrToUnstructured(objJSON)

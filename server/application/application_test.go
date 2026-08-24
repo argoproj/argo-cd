@@ -1027,6 +1027,24 @@ func TestNoAppEnumeration(t *testing.T) {
 		assert.EqualError(t, err, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", "when the request specifies a project, we can return the standard k8s error message")
 	})
 
+	t.Run("GetResourceHealthDefinition", func(t *testing.T) {
+		// A resource that's actually part of the app's tree.
+		_, err := appServer.GetResourceHealthDefinition(adminCtx, &application.ApplicationResourceRequest{Name: new("test"), ResourceName: new("test"), Group: new("apps"), Kind: new("Deployment"), Namespace: new("test")})
+		require.NoError(t, err)
+		// The Application-as-resource special case (Name == ResourceName): used when a resource panel
+		// is opened on the Application object itself, rather than one of its managed resources.
+		_, err = appServer.GetResourceHealthDefinition(adminCtx, &application.ApplicationResourceRequest{Name: new("test"), ResourceName: new("test"), Group: new("argoproj.io"), Kind: new("Application")})
+		require.NoError(t, err)
+		_, err = appServer.GetResourceHealthDefinition(noRoleCtx, &application.ApplicationResourceRequest{Name: new("test")})
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		_, err = appServer.GetResourceHealthDefinition(noRoleCtx, &application.ApplicationResourceRequest{Name: new("test"), ResourceName: new("test"), Group: new("argoproj.io"), Kind: new("Application")})
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		_, err = appServer.GetResourceHealthDefinition(adminCtx, &application.ApplicationResourceRequest{Name: new("doest-not-exist")})
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error(), "error message must be _only_ the permission error, to avoid leaking information about app existence")
+		_, err = appServer.GetResourceHealthDefinition(adminCtx, &application.ApplicationResourceRequest{Name: new("doest-not-exist"), Project: new("test")})
+		assert.EqualError(t, err, "rpc error: code = NotFound desc = applications.argoproj.io \"doest-not-exist\" not found", "when the request specifies a project, we can return the standard k8s error message")
+	})
+
 	//nolint:staticcheck // SA1019: RunResourceAction is deprecated, but we still need to support it for backward compatibility.
 	t.Run("RunResourceAction", func(t *testing.T) {
 		_, err := appServer.RunResourceAction(adminCtx, &application.ResourceActionRunRequest{Name: new("test"), ResourceName: new("test"), Group: new("apps"), Kind: new("Deployment"), Namespace: new("test"), Action: new("restart")})
@@ -5371,6 +5389,62 @@ func TestGetUnstructuredLiveResourceOrAppWithImpersonation(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "system:serviceaccount:"+test.FakeDestNamespace+":test-sa", config.Impersonate.UserName)
+}
+
+func TestGetResourceHealthDefinition(t *testing.T) {
+	rolloutObj := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "argoproj.io/v1alpha1",
+		"kind":       "Rollout",
+		"metadata":   map[string]any{"name": "my-rollout"},
+	}}
+	deploymentObj := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "apps/v1",
+		"kind":       "Deployment",
+		"metadata":   map[string]any{"name": "my-deployment"},
+	}}
+	widgetObj := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "example.com/v1",
+		"kind":       "Widget",
+		"metadata":   map[string]any{"name": "my-widget"},
+	}}
+
+	s := &Server{}
+
+	t.Run("custom override defined in argocd-cm", func(t *testing.T) {
+		overrides := map[string]v1alpha1.ResourceOverride{
+			"argoproj.io/Rollout": {HealthLua: "hs = {}\nhs.status = \"Healthy\"\nreturn hs"},
+		}
+		resp, err := s.getResourceHealthDefinition(overrides, rolloutObj)
+		require.NoError(t, err)
+		require.NotNil(t, resp.Source)
+		assert.Equal(t, "custom", *resp.Source)
+		require.NotNil(t, resp.Script)
+		assert.Contains(t, *resp.Script, "Healthy")
+	})
+
+	t.Run("built-in Lua script bundled with Argo CD", func(t *testing.T) {
+		resp, err := s.getResourceHealthDefinition(nil, rolloutObj)
+		require.NoError(t, err)
+		require.NotNil(t, resp.Source)
+		assert.Equal(t, "built-in", *resp.Source)
+		require.NotNil(t, resp.Script)
+		assert.NotEmpty(t, *resp.Script)
+	})
+
+	t.Run("built-in Go health check with no Lua script", func(t *testing.T) {
+		resp, err := s.getResourceHealthDefinition(nil, deploymentObj)
+		require.NoError(t, err)
+		require.NotNil(t, resp.Source)
+		assert.Equal(t, "built-in-go", *resp.Source)
+		assert.Nil(t, resp.Script)
+	})
+
+	t.Run("no health check defined for this kind", func(t *testing.T) {
+		resp, err := s.getResourceHealthDefinition(nil, widgetObj)
+		require.NoError(t, err)
+		assert.Nil(t, resp.Source)
+		assert.Nil(t, resp.Script)
+	})
 }
 
 func TestRollbackRBACPermissions(t *testing.T) {
