@@ -22,7 +22,7 @@ import (
 type Service interface {
 	GetCommitMetadata(ctx context.Context, repoURL string, commitSHA string, project string) (*shared.CommitMetadata, error)
 	GetAppDetails(ctx context.Context, app *v1alpha1.Application) (*shared.AppDetail, error)
-	GetAppProject(ctx context.Context, projectName string, namespace string) (*unstructured.Unstructured, error)
+	GetAppProject(ctx context.Context, projectName string) (*unstructured.Unstructured, error)
 }
 
 func NewArgoCDService(clientset kubernetes.Interface, dynamicClient dynamic.Interface, namespace string, repoClientset apiclient.Clientset) (*argoCDService, error) {
@@ -125,13 +125,13 @@ func (svc *argoCDService) GetAppDetails(ctx context.Context, app *v1alpha1.Appli
 	}, nil
 }
 
-func (svc *argoCDService) GetAppProject(ctx context.Context, projectName string, namespace string) (*unstructured.Unstructured, error) {
+func (svc *argoCDService) GetAppProject(ctx context.Context, projectName string) (*unstructured.Unstructured, error) {
 	if projectName == "" {
 		projectName = "default"
 	}
 
 	resource := v1alpha1.AppProjectSchemaGroupVersionKind.GroupVersion().WithResource(application.AppProjectPlural)
-	obj, err := svc.dynamicClient.Resource(resource).Namespace(namespace).Get(ctx, projectName, metav1.GetOptions{})
+	obj, err := svc.dynamicClient.Resource(resource).Namespace(svc.namespace).Get(ctx, projectName, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("cannot get application project %w", err)
 	}

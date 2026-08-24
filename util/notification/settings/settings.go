@@ -126,27 +126,19 @@ func getAppProjectForTemplate(argocdService service.Service, obj map[string]any)
 		projectName = "default"
 	}
 
-	// Extract namespace from app.metadata.namespace
 	metadata, ok := obj["metadata"].(map[string]any)
 	if !ok {
 		return nil
 	}
 
-	namespace, ok := metadata["namespace"].(string)
-	if !ok || namespace == "" {
-		return nil
-	}
-
-	// Extract app name for logging context
 	appName, _ := metadata["name"].(string)
 
 	// Fetch the AppProject
-	appProjectObj, err := argocdService.GetAppProject(ctx, projectName, namespace)
+	appProjectObj, err := argocdService.GetAppProject(ctx, projectName)
 	if err != nil {
 		log.WithFields(log.Fields{
-			"app":       appName,
-			"project":   projectName,
-			"namespace": namespace,
+			"app":     appName,
+			"project": projectName,
 		}).Warnf("Failed to get AppProject for notification template: %v", err)
 		return nil
 	}
