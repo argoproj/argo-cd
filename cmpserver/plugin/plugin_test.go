@@ -389,6 +389,34 @@ func TestRunCommandEmptyCommand(t *testing.T) {
 	require.ErrorContains(t, err, "Command is empty")
 }
 
+// TestRunCommandErrStripsAnsi reproduces the config-management-plugin scenario from
+// issue #4770: a plugin command fails and emits ANSI color codes on stderr. The
+// codes must be stripped from the surfaced error.
+func TestRunCommandErrStripsAnsi(t *testing.T) {
+	t.Parallel()
+	command := Command{
+		Command: []string{"sh", "-c"},
+		Args:    []string{`printf '\033[1;31mred error\033[0m\n' >&2; exit 1`},
+	}
+	_, err := runCommand(t.Context(), command, "", []string{})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "red error")
+	assert.NotContains(t, err.Error(), "\x1b[")
+}
+
+// TestRunCommandOutputStripsAnsi makes sure ANSI escape codes are stripped from the
+// stdout of a successful plugin command before it is returned.
+func TestRunCommandOutputStripsAnsi(t *testing.T) {
+	t.Parallel()
+	command := Command{
+		Command: []string{"sh", "-c"},
+		Args:    []string{`printf '\033[1;32mgreen output\033[0m\n'`},
+	}
+	output, err := runCommand(t.Context(), command, "", []string{})
+	require.NoError(t, err)
+	assert.Equal(t, "green output", output)
+}
+
 // TestRunCommandContextTimeoutWithCleanup makes sure that the process is given enough time to cleanup before sending SIGKILL.
 func TestRunCommandContextTimeoutWithCleanup(t *testing.T) {
 	t.Parallel()
