@@ -24,6 +24,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/common"
 	notificationscontroller "github.com/argoproj/argo-cd/v3/notification_controller/controller"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/env"
@@ -75,6 +76,14 @@ func NewCommand() *cobra.Command {
 				return fmt.Errorf("failed to create REST client config: %w", err)
 			}
 			restConfig.UserAgent = fmt.Sprintf("argocd-notifications-controller/%s (%s)", vers.Version, vers.Platform)
+			// Apply Argo CD's shared client defaults (QPS/burst, transport, timeouts)
+			// like the other components. client-go's defaults (QPS 5 / burst 10) are
+			// far too low and throttle the per-app PATCH that persists the `notified`
+			// annotation; SetK8SConfigDefaults raises them to K8sClientConfigQPS/Burst
+			// (50/100, tunable via ARGOCD_K8S_CLIENT_QPS / ARGOCD_K8S_CLIENT_BURST).
+			if err := v1alpha1.SetK8SConfigDefaults(restConfig); err != nil {
+				return fmt.Errorf("failed to apply K8s client defaults: %w", err)
+			}
 			dynamicClient, err := dynamic.NewForConfig(restConfig)
 			if err != nil {
 				return fmt.Errorf("failed to create dynamic client: %w", err)
