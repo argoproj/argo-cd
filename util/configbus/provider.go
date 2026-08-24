@@ -1,117 +1,106 @@
 package configbus
 
 import (
+	"context"
 	"errors"
 	"time"
+
+	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
-// LegacyValues holds component-resolved flag/env/default values that the
-// provider must not re-derive. Nil fields mean "not supplied by this component".
-type LegacyValues struct {
-	ReconciliationTimeout     *time.Duration
-	HardReconciliationTimeout *time.Duration
-	ReconciliationJitter      *time.Duration
-	// Controller is the live application controller (or test fake).
-	Controller ControllerLegacy
+// ErrNotConfigured is returned by a leaf Provider when it does not own / does
+// not have a value for a field. ChainProvider skips links that return this
+// sentinel and continues to the next link.
+var ErrNotConfigured = errors.New("config: not configured")
+
+// SelfHealRetry is the self-heal retry policy. A nil Backoff means use a flat
+// SelfHealTimeout rather than exponential backoff.
+type SelfHealRetry struct {
+	Backoff *wait.Backoff
 }
 
-// Provider is the typed config API for one component process. Methods read
-// SettingsManager and LegacyValues directly — there is no global setting registry.
-type Provider struct {
-	settingsMgr *settings.SettingsManager
-	legacy      *LegacyValues
+// Provider is the typed config API for one Argo CD process.
+//
+// Construction rules (for reviewers and contributors):
+//
+//   - Each method is the smallest migrateable unit: when its backing CRD field
+//     is set, every nested value under that field is considered migrated.
+//   - Method names are alphabetical so each component layer can insert receivers
+//     in a predictable place and PRs stay skimmable.
+//   - Every config getter returns (T, error) and accepts context.Context for
+//     future Kubernetes/informer-backed reads and logging. Implementations must
+//     never omit the error return.
+//
+// Production processes compose leaf providers with ChainProvider (Static /
+// SettingsManagerProvider / Env; CRD is inserted once wired). Tests typically
+// inject mocks.Provider from mockery, or a StaticProvider literal.
+type Provider interface {
+	// Subscribe registers for argocd-cm/secret change notifications when the
+	// backing implementation supports it (SettingsManagerProvider / ChainProvider).
+	Subscribe(subCh chan<- *settings.ArgoCDSettings)
+	// Unsubscribe unregisters a settings change subscriber.
+	Unsubscribe(subCh chan<- *settings.ArgoCDSettings)
+
+	AllowedNodeLabels(ctx context.Context) ([]string, error)
+	AppInstanceLabelKey(ctx context.Context) (string, error)
+	CommitAuthorEmail(ctx context.Context) (string, error)
+	CommitAuthorName(ctx context.Context) (string, error)
+	EnabledSourceTypes(ctx context.Context) (map[string]bool, error)
+	ExcludeEventLabelKeys(ctx context.Context) ([]string, error)
+	GitRequestTimeout(ctx context.Context) (time.Duration, error)
+	GlobalProjectsSettings(ctx context.Context) ([]settings.GlobalProjectSettings, error)
+	HardReconciliationTimeout(ctx context.Context) (time.Duration, error)
+	HelmSettings(ctx context.Context) (v1alpha1.HelmOptions, error)
+	HydratorReadmeTemplate(ctx context.Context) (string, error)
+	IgnoreNormalizerJQTimeout(ctx context.Context) (time.Duration, error)
+	IgnoreResourceUpdatesOverrides(ctx context.Context) (map[string]v1alpha1.ResourceOverride, error)
+	IncludeEventLabelKeys(ctx context.Context) ([]string, error)
+	InstallationID(ctx context.Context) (string, error)
+	IsIgnoreResourceUpdatesEnabled(ctx context.Context) (bool, error)
+	IsImpersonationEnabled(ctx context.Context) (bool, error)
+	IsImpersonationEnforced(ctx context.Context) (bool, error)
+	KustomizeSettings(ctx context.Context) (v1alpha1.KustomizeOptions, error)
+	MetricsClusterLabels(ctx context.Context) ([]string, error)
+	PersistResourceHealth(ctx context.Context) (bool, error)
+	ReconciliationJitter(ctx context.Context) (time.Duration, error)
+	ReconciliationTimeout(ctx context.Context) (time.Duration, error)
+	RepoErrorGracePeriod(ctx context.Context) (time.Duration, error)
+	ResourceCompareOptions(ctx context.Context) (settings.ArgoCDDiffOptions, error)
+	ResourceCustomLabels(ctx context.Context) ([]string, error)
+	ResourceOverrides(ctx context.Context) (map[string]v1alpha1.ResourceOverride, error)
+	ResourcesFilter(ctx context.Context) (settings.ResourcesFilter, error)
+	RespectRBAC(ctx context.Context) (int, error)
+	SelfHealRetry(ctx context.Context) (SelfHealRetry, error)
+	SelfHealTimeout(ctx context.Context) (time.Duration, error)
+	SensitiveAnnotations(ctx context.Context) (map[string]bool, error)
+	ServerSideDiff(ctx context.Context) (bool, error)
+	SourceHydratorCommitMessageTemplate(ctx context.Context) (string, error)
+	SyncTimeout(ctx context.Context) (time.Duration, error)
+	TrackingMethod(ctx context.Context) (string, error)
 }
 
-// NewProvider constructs a Provider.
-func NewProvider(settingsMgr *settings.SettingsManager, legacy *LegacyValues) *Provider {
-	if legacy == nil {
-		legacy = &LegacyValues{}
+// firstConfigured tries each link in order and returns the first result that is
+// not ErrNotConfigured. Other errors propagate immediately. If every link
+// returns ErrNotConfigured, that sentinel is returned.
+func firstConfigured[T any](fn func(Provider) (T, error), links []Provider) (T, error) {
+	var zero T
+	var lastNotConfigured error
+	for _, link := range links {
+		v, err := fn(link)
+		if err == nil {
+			return v, nil
+		}
+		if errors.Is(err, ErrNotConfigured) {
+			lastNotConfigured = err
+			continue
+		}
+		return zero, err
 	}
-	return &Provider{
-		settingsMgr: settingsMgr,
-		legacy:      legacy,
+	if lastNotConfigured != nil {
+		return zero, lastNotConfigured
 	}
-}
-
-// SettingsManager returns the underlying settings manager (for gradual migration).
-func (p *Provider) SettingsManager() *settings.SettingsManager {
-	return p.settingsMgr
-}
-
-// Legacy returns the component-supplied legacy values.
-func (p *Provider) Legacy() *LegacyValues {
-	return p.legacy
-}
-
-// Subscribe wraps SettingsManager.Subscribe for hot-reload consumers.
-func (p *Provider) Subscribe(subCh chan<- *settings.ArgoCDSettings) {
-	if p.settingsMgr != nil {
-		p.settingsMgr.Subscribe(subCh)
-	}
-}
-
-// Unsubscribe wraps SettingsManager.Unsubscribe.
-func (p *Provider) Unsubscribe(subCh chan<- *settings.ArgoCDSettings) {
-	if p.settingsMgr != nil {
-		p.settingsMgr.Unsubscribe(subCh)
-	}
-}
-
-func (p *Provider) requireSettingsMgr() (*settings.SettingsManager, error) {
-	if p == nil || p.settingsMgr == nil {
-		return nil, errors.New("config: SettingsManager is nil")
-	}
-	return p.settingsMgr, nil
-}
-
-func (p *Provider) requireControllerLegacy() (ControllerLegacy, error) {
-	if p == nil || p.legacy == nil || p.legacy.Controller == nil {
-		return nil, errors.New("config: ControllerLegacy not supplied by component")
-	}
-	return p.legacy.Controller, nil
-}
-
-// ReconciliationTimeout returns the reconciliation / app-resync period.
-func (p *Provider) ReconciliationTimeout() time.Duration {
-	if p.legacy != nil && p.legacy.Controller != nil {
-		return p.legacy.Controller.LegacyStatusRefreshTimeout()
-	}
-	if p.legacy != nil && p.legacy.ReconciliationTimeout != nil {
-		return *p.legacy.ReconciliationTimeout
-	}
-	return 0
-}
-
-// HardReconciliationTimeout returns the hard resync period.
-func (p *Provider) HardReconciliationTimeout() time.Duration {
-	if p.legacy != nil && p.legacy.Controller != nil {
-		return p.legacy.Controller.LegacyStatusHardRefreshTimeout()
-	}
-	if p.legacy != nil && p.legacy.HardReconciliationTimeout != nil {
-		return *p.legacy.HardReconciliationTimeout
-	}
-	return 0
-}
-
-// ReconciliationJitter returns the resync jitter.
-func (p *Provider) ReconciliationJitter() time.Duration {
-	if p.legacy != nil && p.legacy.Controller != nil {
-		return p.legacy.Controller.LegacyStatusRefreshJitter()
-	}
-	if p.legacy != nil && p.legacy.ReconciliationJitter != nil {
-		return *p.legacy.ReconciliationJitter
-	}
-	return 0
-}
-
-// ResourceOverrides returns resource customization overrides.
-func (p *Provider) ResourceOverrides() (map[string]v1alpha1.ResourceOverride, error) {
-	mgr, err := p.requireSettingsMgr()
-	if err != nil {
-		return nil, err
-	}
-	return mgr.GetResourceOverrides()
+	return zero, ErrNotConfigured
 }
