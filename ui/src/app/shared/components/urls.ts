@@ -21,14 +21,14 @@ function supportedSource(parsed: GitUrl): boolean {
 //   clone:  https://HOST/scm/~user/repo.git  or  https://HOST/scm/PROJECTKEY/repo.git
 //   browse: https://HOST/users/user/repos/repo  or  https://HOST/projects/PROJECTKEY/repos/repo
 function bitbucketServerBrowseUrl(parsed: GitUrl): string {
-    const host = `https://${parsed.resource}`;
-    const repoName = parsed.name;
+    const port = parsed.port ? `:${parsed.port}` : '';
+    const host = `${protocol(parsed.protocol)}://${parsed.resource}${port}`;
     const owner = parsed.owner;
     // Personal repos use the ~ prefix in the clone URL owner
     if (owner.startsWith('~')) {
-        return `${host}/users/${owner.slice(1)}/repos/${repoName}`;
+        return `${host}/users/${owner.slice(1)}/repos/${parsed.name}`;
     }
-    return `${host}/projects/${owner}/repos/${repoName}`;
+    return `${host}/projects/${owner}/repos/${parsed.name}`;
 }
 
 function protocol(proto: string): string {
@@ -84,12 +84,10 @@ export function revisionUrl(url: string, revision: string, forPath: boolean): st
         if (isSHA(revision) && !forPath) {
             return `${base}/commits/${revision}`;
         }
-        const ref = revision || '';
-        if (!ref || ref === 'HEAD') {
+        if (!revision || revision === 'HEAD') {
             return `${base}/browse`;
         }
-        const atRef = isSHA(revision) ? revision : `refs/heads/${revision}`;
-        return `${base}/browse?at=${encodeURIComponent(atRef)}`;
+        return `${base}/browse?at=${encodeURIComponent(revision)}`;
     }
 
     let urlSubPath = isSHA(revision) ? 'commit' : 'tree';

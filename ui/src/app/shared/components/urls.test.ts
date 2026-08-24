@@ -54,47 +54,62 @@ test('bitbucket.org', () => {
 // for self-hosted Bitbucket Server installations
 // Clone URLs use /scm/ prefix; browse URLs use /users/ or /projects/ prefix.
 test('bitbucket server (self-hosted, personal repo, HTTPS)', () => {
-    expect(repoUrl('https://bitbucket.gob.amadeus.net/scm/~paraj5/helm-repo.git')).toBe(
-        'https://bitbucket.gob.amadeus.net/users/paraj5/repos/helm-repo',
+    expect(repoUrl('https://bitbucket.example.com/scm/~user/repo-name.git')).toBe(
+        'https://bitbucket.example.com/users/user/repos/repo-name',
     );
-    expect(revisionUrl('https://bitbucket.gob.amadeus.net/scm/~paraj5/helm-repo.git', 'abc1234', false)).toBe(
-        'https://bitbucket.gob.amadeus.net/users/paraj5/repos/helm-repo/commits/abc1234',
+    expect(revisionUrl('https://bitbucket.example.com/scm/~user/repo-name.git', 'abc1234', false)).toBe(
+        'https://bitbucket.example.com/users/user/repos/repo-name/commits/abc1234',
     );
-    expect(revisionUrl('https://bitbucket.gob.amadeus.net/scm/~paraj5/helm-repo.git', 'main', false)).toBe(
-        'https://bitbucket.gob.amadeus.net/users/paraj5/repos/helm-repo/browse?at=refs%2Fheads%2Fmain',
+    expect(revisionUrl('https://bitbucket.example.com/scm/~user/repo-name.git', 'main', false)).toBe(
+        'https://bitbucket.example.com/users/user/repos/repo-name/browse?at=main',
     );
-    expect(revisionUrl('https://bitbucket.gob.amadeus.net/scm/~paraj5/helm-repo.git', '', false)).toBe(
-        'https://bitbucket.gob.amadeus.net/users/paraj5/repos/helm-repo/browse',
+    expect(revisionUrl('https://bitbucket.example.com/scm/~user/repo-name.git', 'v1.0.0', false)).toBe(
+        'https://bitbucket.example.com/users/user/repos/repo-name/browse?at=v1.0.0',
     );
-    expect(revisionUrl('https://bitbucket.gob.amadeus.net/scm/~paraj5/helm-repo.git', 'HEAD', false)).toBe(
-        'https://bitbucket.gob.amadeus.net/users/paraj5/repos/helm-repo/browse',
+    expect(revisionUrl('https://bitbucket.example.com/scm/~user/repo-name.git', '', false)).toBe(
+        'https://bitbucket.example.com/users/user/repos/repo-name/browse',
+    );
+    expect(revisionUrl('https://bitbucket.example.com/scm/~user/repo-name.git', 'HEAD', false)).toBe(
+        'https://bitbucket.example.com/users/user/repos/repo-name/browse',
     );
 });
 
 test('bitbucket server (self-hosted, project repo, HTTPS)', () => {
-    expect(repoUrl('https://bitbucket.gob.amadeus.net/scm/MYPROJECT/helm-repo.git')).toBe(
-        'https://bitbucket.gob.amadeus.net/projects/MYPROJECT/repos/helm-repo',
+    expect(repoUrl('https://bitbucket.example.com/scm/MYPROJECT/repo-name.git')).toBe(
+        'https://bitbucket.example.com/projects/MYPROJECT/repos/repo-name',
     );
-    expect(revisionUrl('https://bitbucket.gob.amadeus.net/scm/MYPROJECT/helm-repo.git', 'abc1234', false)).toBe(
-        'https://bitbucket.gob.amadeus.net/projects/MYPROJECT/repos/helm-repo/commits/abc1234',
+    expect(revisionUrl('https://bitbucket.example.com/scm/MYPROJECT/repo-name.git', 'abc1234', false)).toBe(
+        'https://bitbucket.example.com/projects/MYPROJECT/repos/repo-name/commits/abc1234',
     );
-    expect(revisionUrl('https://bitbucket.gob.amadeus.net/scm/MYPROJECT/helm-repo.git', 'main', false)).toBe(
-        'https://bitbucket.gob.amadeus.net/projects/MYPROJECT/repos/helm-repo/browse?at=refs%2Fheads%2Fmain',
+    expect(revisionUrl('https://bitbucket.example.com/scm/MYPROJECT/repo-name.git', 'main', false)).toBe(
+        'https://bitbucket.example.com/projects/MYPROJECT/repos/repo-name/browse?at=main',
     );
-    expect(revisionUrl('https://bitbucket.gob.amadeus.net/scm/MYPROJECT/helm-repo.git', '', false)).toBe(
-        'https://bitbucket.gob.amadeus.net/projects/MYPROJECT/repos/helm-repo/browse',
+    expect(revisionUrl('https://bitbucket.example.com/scm/MYPROJECT/repo-name.git', 'v1.0.0', false)).toBe(
+        'https://bitbucket.example.com/projects/MYPROJECT/repos/repo-name/browse?at=v1.0.0',
     );
-    expect(revisionUrl('https://bitbucket.gob.amadeus.net/scm/MYPROJECT/helm-repo.git', 'HEAD', false)).toBe(
-        'https://bitbucket.gob.amadeus.net/projects/MYPROJECT/repos/helm-repo/browse',
+    expect(revisionUrl('https://bitbucket.example.com/scm/MYPROJECT/repo-name.git', '', false)).toBe(
+        'https://bitbucket.example.com/projects/MYPROJECT/repos/repo-name/browse',
+    );
+    expect(revisionUrl('https://bitbucket.example.com/scm/MYPROJECT/repo-name.git', 'HEAD', false)).toBe(
+        'https://bitbucket.example.com/projects/MYPROJECT/repos/repo-name/browse',
     );
 });
 
 test('bitbucket server (self-hosted, SSH)', () => {
-    expect(repoUrl('git@bitbucket.gob.amadeus.net:scm/~paraj5/helm-repo.git')).toBe(
-        'https://bitbucket.gob.amadeus.net/users/paraj5/repos/helm-repo',
+    expect(repoUrl('git@bitbucket.example.com:scm/~user/repo-name.git')).toBe(
+        'https://bitbucket.example.com/users/user/repos/repo-name',
     );
-    expect(repoUrl('git@bitbucket.gob.amadeus.net:scm/MYPROJECT/helm-repo.git')).toBe(
-        'https://bitbucket.gob.amadeus.net/projects/MYPROJECT/repos/helm-repo',
+    expect(repoUrl('git@bitbucket.example.com:scm/MYPROJECT/repo-name.git')).toBe(
+        'https://bitbucket.example.com/projects/MYPROJECT/repos/repo-name',
+    );
+});
+
+test('bitbucket server (self-hosted, HTTP with explicit port)', () => {
+    expect(repoUrl('http://bitbucket.example.com:7990/scm/MYPROJECT/repo-name.git')).toBe(
+        'http://bitbucket.example.com:7990/projects/MYPROJECT/repos/repo-name',
+    );
+    expect(revisionUrl('http://bitbucket.example.com:7990/scm/MYPROJECT/repo-name.git', 'main', false)).toBe(
+        'http://bitbucket.example.com:7990/projects/MYPROJECT/repos/repo-name/browse?at=main',
     );
 });
 
