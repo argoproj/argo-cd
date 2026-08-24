@@ -469,7 +469,7 @@ func trackingKey(appLabelKey string, trackingMethod string) string {
 
 // LogDebugManifestCacheKeyFields logs all the information included in a manifest cache key. It's intended to be run
 // before every manifest cache operation to help debug cache misses.
-func LogDebugManifestCacheKeyFields(message string, reason string, manifestKey ManifestKey) {
+func LogDebugManifestCacheKeyFields(message string, reason string, manifestKey manifestKey) {
 	if log.IsLevelEnabled(log.DebugLevel) {
 		log.WithFields(log.Fields{
 			"revision":    manifestKey.Revision,
@@ -483,7 +483,7 @@ func LogDebugManifestCacheKeyFields(message string, reason string, manifestKey M
 	}
 }
 
-func (c *Cache) SetNewRevisionManifests(oldKey, newKey ManifestKey) error {
+func (c *Cache) SetNewRevisionManifests(oldKey, newKey manifestKey) error {
 	expiration, err := c.repoCacheExpirationResolved()
 	if err != nil {
 		return fmt.Errorf("failed to resolve repo cache expiration: %w", err)

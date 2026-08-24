@@ -160,7 +160,7 @@ type RepoServerInitConstants struct {
 var manifestGenerateLock = sync.NewKeyLock()
 
 // NewService returns a new instance of the Manifest service
-func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, initConstants RepoServerInitConstants, gitCredsStore git.CredsStore, rootDir string) *Service {
+func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, initConstants RepoServerInitConstants, gitCredsStore git.CredsStore, rootDir string, crd configbus.CRDSource) *Service {
 	if cache == nil {
 		panic("reposerver NewService requires a non-nil cache")
 	}
@@ -186,6 +186,7 @@ func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, initCo
 	}
 	//nolint:staticcheck // SA1019: StaticFields capture construction-time opts once at wire-up
 	s.configProvider = configbus.NewChainProvider(
+		configbus.NewCRDProvider(crd),
 		&configbus.StaticProvider{Fields: configbus.StaticFields{
 			AllowOutOfBoundsSymlinks:                     configbus.Ptr(initConstants.AllowOutOfBoundsSymlinks),
 			CMPTarExcludedGlobs:                          configbus.Ptr(initConstants.CMPTarExcludedGlobs),
@@ -3862,21 +3863,6 @@ func (s *Service) updateCachedRevision(logCtx *log.Entry, oldRev string, newRev 
 
 	logCtx.Infof("manifest cache moved")
 	return nil
-}
-
-func getManifestCacheKeyFromUpdateRevisionRequest(request *apiclient.UpdateRevisionForPathsRequest, revision string, refSourceCommitSHAs cache.ResolvedRevisions) cache.ManifestKey {
-	return cache.ManifestKey{
-		Revision:            revision,
-		AppSource:           request.ApplicationSource,
-		RefSources:          request.RefSources,
-		ClusterInfo:         request,
-		Namespace:           request.Namespace,
-		TrackingMethod:      request.TrackingMethod,
-		AppLabelKey:         request.AppLabelKey,
-		AppName:             request.AppName,
-		RefSourceCommitSHAs: refSourceCommitSHAs,
-		InstallationID:      request.InstallationID,
-	}
 }
 
 func (s *Service) helmClientStandardOpts() ([]helm.ClientOpts, error) {
