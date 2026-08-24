@@ -116,9 +116,9 @@ func convertLabelSelector(ls *metav1.LabelSelector) (labels.Selector, error) {
 	return metav1.LabelSelectorAsSelector(ls)
 }
 
-// definitionToSyncWindow converts a SyncWindowDefinition from a CRD into the existing SyncWindow type.
-func definitionToSyncWindow(def *v1alpha1.SyncWindowDefinition) *v1alpha1.SyncWindow {
-	return &v1alpha1.SyncWindow{
+// definitionToSyncWindow converts a SyncWindowDefinition from a CRD into the existing InlineSyncWindow type.
+func definitionToSyncWindow(def *v1alpha1.SyncWindowDefinition) *v1alpha1.InlineSyncWindow {
+	return &v1alpha1.InlineSyncWindow{
 		Kind:           def.Kind,
 		Schedule:       def.Schedule,
 		Duration:       def.Duration,
