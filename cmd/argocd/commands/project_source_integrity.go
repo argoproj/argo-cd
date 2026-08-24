@@ -623,7 +623,7 @@ func printGitGpgSourceIntegrityResponse(w io.Writer, items []*applicationpkg.Ins
 		}
 
 		// no need to inspect repository if there are no problems or there are problems with source integrity config
-		if hasSourceIntegrityProblems && item.GetErrorMessage() == "" {
+		if len(item.GetCommits()) > 0 && item.GetErrorMessage() == "" {
 			fmt.Fprintln(w)
 			fmt.Fprintln(w, "To inspect repository:")
 			fmt.Fprintln(w, "  git fetch --tags")
