@@ -32,8 +32,8 @@ import (
 	testcore "k8s.io/client-go/testing"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube/kubetest"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube/kubetest"
 )
 
 func init() {
@@ -933,7 +933,9 @@ func TestResyncClearsStaleNamespaceIndex(t *testing.T) {
 	))
 
 	// A full resync (periodic cluster resync or Invalidate + EnsureSynced) rebuilds the cache.
-	require.NoError(t, cluster.sync())
+	// Use this instead of directly calling cluster.sync() to avoid races.
+	cluster.Invalidate()
+	require.NoError(t, cluster.EnsureSynced())
 
 	cluster.lock.RLock()
 	_, inResources = cluster.resources[podKey]

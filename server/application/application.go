@@ -17,12 +17,12 @@ import (
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
 
-	kubecache "github.com/argoproj/argo-cd/gitops-engine/pkg/cache"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/text"
+	kubecache "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/text"
 	"github.com/argoproj/pkg/v2/sync"
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
@@ -67,12 +67,11 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/session"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 
-	resourceutil "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/resource"
+	resourceutil "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/resource"
 
 	applicationType "github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	argodiff "github.com/argoproj/argo-cd/v3/util/argo/diff"
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
-	kubeutil "github.com/argoproj/argo-cd/v3/util/kube"
 )
 
 type AppResourceTreeFn func(ctx context.Context, app *v1alpha1.Application) (*v1alpha1.ApplicationTree, error)
@@ -1146,8 +1145,7 @@ func (s *Server) getAppProject(ctx context.Context, a *v1alpha1.Application, log
 		return nil, vagueError
 	}
 
-	var applicationNotAllowedToUseProjectErr *argo.ErrApplicationNotAllowedToUseProject
-	if errors.As(err, &applicationNotAllowedToUseProjectErr) {
+	if _, ok := errors.AsType[*argo.ErrApplicationNotAllowedToUseProject](err); ok {
 		return nil, vagueError
 	}
 
@@ -1418,16 +1416,31 @@ func (s *Server) getApplicationClusterConfig(ctx context.Context, a *v1alpha1.Ap
 		return config, nil
 	}
 
-	user, err := settings.DeriveServiceAccountToImpersonate(p, a, cluster)
+	serviceAccountToImpersonate, err := settings.DeriveServiceAccountToImpersonate(p, a, cluster)
 	if err != nil {
 		return nil, fmt.Errorf("error deriving service account to impersonate: %w", err)
 	}
+	if serviceAccountToImpersonate == "" {
+		// No matching service account found - check enforcement
+		impersonationEnforced, enforcedErr := s.settingsMgr.IsImpersonationEnforced()
+		if enforcedErr != nil {
+			return nil, fmt.Errorf("error getting impersonation enforcement setting: %w", enforcedErr)
+		}
 
-	config.Impersonate = rest.ImpersonationConfig{
-		UserName: user,
+		if impersonationEnforced {
+			return nil, fmt.Errorf("no matching service account found for destination server %s and namespace %s", cluster.Server, a.Spec.Destination.Namespace)
+		}
+
+		// Service Account is not enforced
+		log.Infof("no matching service account found for impersonation for app %s/%s (project: %s, server: %s, namespace: %s), falling back to controller service account", a.Namespace, a.Name, p.Name, cluster.Server, a.Spec.Destination.Namespace)
+		return config, nil
 	}
 
-	return config, err
+	config.Impersonate = rest.ImpersonationConfig{
+		UserName: serviceAccountToImpersonate,
+	}
+
+	return config, nil
 }
 
 // getCachedAppState loads the cached state and trigger app refresh if cache is missing
@@ -2249,7 +2262,15 @@ func (s *Server) resolveSourceRevisions(ctx context.Context, a *v1alpha1.Applica
 }
 
 func (s *Server) Rollback(ctx context.Context, rollbackReq *application.ApplicationRollbackRequest) (*v1alpha1.Application, error) {
-	a, _, err := s.getApplicationEnforceRBACClient(ctx, rbac.ActionSync, rollbackReq.GetProject(), rollbackReq.GetAppNamespace(), rollbackReq.GetName(), "")
+	rollbackEnforceEnable, err := s.settingsMgr.GetServerRBACRollbackEnforceEnable()
+	if err != nil {
+		return nil, fmt.Errorf("error getting server.rbac.rollback.enforce.enable config: %w", err)
+	}
+	action := rbac.ActionSync
+	if rollbackEnforceEnable {
+		action = rbac.ActionRollback
+	}
+	a, _, err := s.getApplicationEnforceRBACClient(ctx, action, rollbackReq.GetProject(), rollbackReq.GetAppNamespace(), rollbackReq.GetName(), "")
 	if err != nil {
 		return nil, err
 	}
@@ -2963,6 +2984,16 @@ func getProjectsFromApplicationQuery(q application.ApplicationQuery) []string {
 	return q.Projects
 }
 
+// isCoreSecret reports whether the given object is a core/v1 Secret. It is used to decide
+// Secret data masking from server-parsed objects rather than caller-supplied metadata.
+func isCoreSecret(obj *unstructured.Unstructured) bool {
+	if obj == nil {
+		return false
+	}
+	gvk := obj.GroupVersionKind()
+	return gvk.Group == "" && gvk.Kind == kube.SecretKind
+}
+
 // ServerSideDiff gets the destination cluster and creates a server-side dry run applier and performs the diff
 // It returns the diff result in the form of a list of ResourceDiffs.
 func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationServerSideDiffQuery) (*application.ApplicationServerSideDiffResponse, error) {
@@ -3002,9 +3033,7 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 		return nil, fmt.Errorf("failed to get OpenAPI schema: %w", err)
 	}
 
-	applier, cleanup, err := kubeutil.ManageServerSideDiffDryRuns(clusterConfig, func(_ string) (kube.CleanupFunc, error) {
-		return func() {}, nil
-	})
+	applier, cleanup, err := s.kubectl.ManageServerSideDiffDryRuns(clusterConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error creating server-side dry run applier: %w", err)
 	}
@@ -3141,7 +3170,17 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 		targetState := string(diffRes.PredictedLive)
 		liveState := string(diffRes.NormalizedLive)
 
-		if kind == kube.SecretKind && group == "" {
+		// Whether to mask Secret data must be decided from the objects the server
+		// itself parsed (targetObjs[i]/liveObjs[i]), never from the caller-supplied
+		// kind/group metadata. Otherwise a request can pair a spoofed non-Secret
+		// liveResources[i].Kind with a Secret target manifest to bypass masking and
+		// leak the dry-run result's Secret data. The live side is checked too as
+		// defense-in-depth, in case the live-resource consistency validation above
+		// is ever relaxed.
+		isSecret := (i < len(targetObjs) && isCoreSecret(targetObjs[i])) ||
+			(i < len(liveObjs) && isCoreSecret(liveObjs[i]))
+
+		if isSecret {
 			var targetObj, liveObj *unstructured.Unstructured
 			if len(diffRes.PredictedLive) > 0 && string(diffRes.PredictedLive) != "null" {
 				targetObj = &unstructured.Unstructured{}
@@ -3176,12 +3215,13 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 		}
 
 		responseDiffs = append(responseDiffs, &v1alpha1.ResourceDiff{
-			Group:           group,
-			Kind:            kind,
-			Namespace:       namespace,
-			Name:            name,
-			TargetState:     targetState,
-			LiveState:       liveState,
+			Group:       group,
+			Kind:        kind,
+			Namespace:   namespace,
+			Name:        name,
+			TargetState: targetState,
+			LiveState:   liveState,
+			//nolint:staticcheck // SA1019: Diff is deprecated, but we still need to support it for backward compatibility.
 			Diff:            "", // Diff string is generated client-side
 			Hook:            hook,
 			Modified:        diffRes.Modified,

@@ -13,7 +13,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -64,6 +64,7 @@ type AppOptions struct {
 	namePrefix                      string
 	nameSuffix                      string
 	directoryRecurse                bool
+	directoryDisableExtensionFilter bool
 	configManagementPlugin          string
 	jsonnetTlaStr                   []string
 	jsonnetTlaCode                  []string
@@ -145,6 +146,7 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringVar(&opts.nameSuffix, "namesuffix", "", "Kustomize namesuffix")
 	command.Flags().StringVar(&opts.kustomizeVersion, "kustomize-version", "", "Kustomize version")
 	command.Flags().BoolVar(&opts.directoryRecurse, "directory-recurse", false, "Recurse directory")
+	command.Flags().BoolVar(&opts.directoryDisableExtensionFilter, "directory-disable-extension-filter", false, "Disable the built-in file-extension filter so that include/exclude patterns can match files with custom extensions (e.g. *.yaml.sealed). By default (false), only files with a .yaml, .yml, .json, or .jsonnet extension are considered manifests")
 	command.Flags().StringVar(&opts.configManagementPlugin, "config-management-plugin", "", "Config management plugin name")
 	command.Flags().StringArrayVar(&opts.jsonnetTlaStr, "jsonnet-tla-str", []string{}, "Jsonnet top level string arguments")
 	command.Flags().StringArrayVar(&opts.jsonnetTlaCode, "jsonnet-tla-code", []string{}, "Jsonnet top level code arguments")
@@ -734,6 +736,12 @@ func ConstructSource(source *argoappv1.ApplicationSource, appOpts AppOptions, fl
 				source.Directory.Recurse = appOpts.directoryRecurse
 			} else {
 				source.Directory = &argoappv1.ApplicationSourceDirectory{Recurse: appOpts.directoryRecurse}
+			}
+		case "directory-disable-extension-filter":
+			if source.Directory != nil {
+				source.Directory.DisableExtensionFilter = appOpts.directoryDisableExtensionFilter
+			} else {
+				source.Directory = &argoappv1.ApplicationSourceDirectory{DisableExtensionFilter: appOpts.directoryDisableExtensionFilter}
 			}
 		case "directory-exclude":
 			if source.Directory != nil {

@@ -279,6 +279,33 @@ func TestApplicationFineGrainedRBACInheritanceDisabled(t *testing.T) {
 	assert.False(t, flag)
 }
 
+func TestGetServerRBACRollbackEnforceEnable(t *testing.T) {
+	t.Run("defaults to false when key absent", func(t *testing.T) {
+		_, settingsManager := fixtures(t.Context(), nil)
+		enabled, err := settingsManager.GetServerRBACRollbackEnforceEnable()
+		require.NoError(t, err)
+		assert.False(t, enabled)
+	})
+
+	t.Run("returns true when set to true", func(t *testing.T) {
+		_, settingsManager := fixtures(t.Context(), map[string]string{
+			"server.rbac.rollback.enforce.enable": "true",
+		})
+		enabled, err := settingsManager.GetServerRBACRollbackEnforceEnable()
+		require.NoError(t, err)
+		assert.True(t, enabled)
+	})
+
+	t.Run("returns false when explicitly set to false", func(t *testing.T) {
+		_, settingsManager := fixtures(t.Context(), map[string]string{
+			"server.rbac.rollback.enforce.enable": "false",
+		})
+		enabled, err := settingsManager.GetServerRBACRollbackEnforceEnable()
+		require.NoError(t, err)
+		assert.False(t, enabled)
+	})
+}
+
 func TestGetIsIgnoreResourceUpdatesEnabled(t *testing.T) {
 	_, settingsManager := fixtures(t.Context(), nil)
 	ignoreResourceUpdatesEnabled, err := settingsManager.GetIsIgnoreResourceUpdatesEnabled()
@@ -1497,7 +1524,7 @@ func Test_GetTLSConfiguration(t *testing.T) {
 		_, err = kubeClient.CoreV1().Secrets("default").Update(t.Context(), tlsSecret, metav1.UpdateOptions{})
 		require.NoError(t, err)
 
-		// allow time for the udpate to resolve to avoid timing issues below
+		// allow time for the update to resolve to avoid timing issues below
 		time.Sleep(250 * time.Millisecond)
 
 		// should be called again after secret update resolves
@@ -2369,6 +2396,60 @@ func TestIsImpersonationEnabled(t *testing.T) {
 		"when user enables the flag in argocd-cm config map, IsImpersonationEnabled() must not return any error")
 }
 
+func TestIsImpersonationEnforced(t *testing.T) {
+	// When there is no argocd-cm itself,
+	// Then IsImpersonationEnforced() must return true (default value) and an error with appropriate error message.
+	kubeClient := fake.NewClientset()
+	settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
+	enforced, err := settingsManager.IsImpersonationEnforced()
+	require.True(t, enforced,
+		"with no argocd-cm config map, IsImpersonationEnforced() must return true (default value)")
+	require.ErrorContains(t, err, "configmap \"argocd-cm\" not found",
+		"with no argocd-cm config map, IsImpersonationEnforced() must return an error")
+
+	// When there is no enforcement flag present in the argocd-cm,
+	// Then IsImpersonationEnforced() must return true (default value) and nil error.
+	_, settingsManager = fixtures(t.Context(), map[string]string{})
+	enforced, err = settingsManager.IsImpersonationEnforced()
+	require.True(t, enforced,
+		"with empty argocd-cm config map, IsImpersonationEnforced() must return true (default value)")
+	require.NoError(t, err,
+		"with empty argocd-cm config map, IsImpersonationEnforced() must not return any error")
+
+	// When user disables enforcement explicitly,
+	// Then IsImpersonationEnforced() must return false and nil error.
+	_, settingsManager = fixtures(t.Context(), map[string]string{
+		"application.sync.impersonation.enforced": "false",
+	})
+	enforced, err = settingsManager.IsImpersonationEnforced()
+	require.False(t, enforced,
+		"when user disables enforcement in argocd-cm config map, IsImpersonationEnforced() must return false")
+	require.NoError(t, err,
+		"when user disables enforcement in argocd-cm config map, IsImpersonationEnforced() must not return any error")
+
+	// When user enables enforcement explicitly,
+	// Then IsImpersonationEnforced() must return true and nil error.
+	_, settingsManager = fixtures(t.Context(), map[string]string{
+		"application.sync.impersonation.enforced": "true",
+	})
+	enforced, err = settingsManager.IsImpersonationEnforced()
+	require.True(t, enforced,
+		"when user enables enforcement in argocd-cm config map, IsImpersonationEnforced() must return true")
+	require.NoError(t, err,
+		"when user enables enforcement in argocd-cm config map, IsImpersonationEnforced() must not return any error")
+
+	// When user sets enforcement to an invalid value,
+	// Then IsImpersonationEnforced() must return true (default value) and nil error.
+	_, settingsManager = fixtures(t.Context(), map[string]string{
+		"application.sync.impersonation.enforced": "something",
+	})
+	enforced, err = settingsManager.IsImpersonationEnforced()
+	require.True(t, enforced,
+		"when user specify invalid value for enforcement in argocd-cm config map, IsImpersonationEnforced() must return true (default value)")
+	require.NoError(t, err,
+		"when user specify invalid value for enforcement in argocd-cm config map, IsImpersonationEnforced() must not return any error")
+}
+
 func TestIsInClusterEnabled(t *testing.T) {
 	// When there is no argocd-cm itself,
 	// Then IsInClusterEnabled() must return true (default value) and an error with appropriate error message.
@@ -2910,6 +2991,101 @@ func TestSettingsManager_GetWebhookRefreshJitter(t *testing.T) {
 			_, settingsManager := fixtures(t.Context(), configMap)
 			jitter := settingsManager.GetWebhookRefreshJitter()
 			assert.Equal(t, tt.output, jitter)
+		})
+	}
+}
+
+func Test_getDexAuthConnectorID(t *testing.T) {
+	tests := []struct {
+		name              string
+		cmData            map[string]string
+		expectedConnector string
+	}{
+		{
+			name:              "dexConfig missing",
+			cmData:            map[string]string{},
+			expectedConnector: "",
+		},
+		{
+			name: "dexConfig invalid YAML",
+			cmData: map[string]string{
+				settingDexConfigKey:          "invalid: [",
+				settingDexAuthConnectorIDKey: "github",
+			},
+			expectedConnector: "",
+		},
+		{
+			name: "connectors not a slice",
+			cmData: map[string]string{
+				settingDexConfigKey:          "connectors: foo",
+				settingDexAuthConnectorIDKey: "github",
+			},
+			expectedConnector: "",
+		},
+		{
+			name: "connector not a map",
+			cmData: map[string]string{
+				settingDexConfigKey:          "connectors: [github]",
+				settingDexAuthConnectorIDKey: "github",
+			},
+			expectedConnector: "",
+		},
+		{
+			name: "connector id matches",
+			cmData: map[string]string{
+				settingDexConfigKey:          "connectors: [{id: github}]",
+				settingDexAuthConnectorIDKey: "github",
+			},
+			expectedConnector: "github",
+		},
+		{
+			name: "connector id does not match",
+			cmData: map[string]string{
+				settingDexConfigKey:          "connectors: [{id: github}]",
+				settingDexAuthConnectorIDKey: "gitlab",
+			},
+			expectedConnector: "",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := getDexAuthConnectorID(tc.cmData)
+			assert.Equal(t, tc.expectedConnector, got)
+		})
+	}
+}
+
+func Test_updateSettingsFromConfigMap_DexAuthConnectorID(t *testing.T) {
+	tests := []struct {
+		name                string
+		cmData              map[string]string
+		expectedConnectorID string
+	}{
+		{
+			name: "bundled Dex active, connector forced",
+			cmData: map[string]string{
+				settingDexConfigKey:          "connectors: [{id: github}]",
+				settingDexAuthConnectorIDKey: "github",
+			},
+			expectedConnectorID: "github",
+		},
+		{
+			name: "external OIDC configured takes precedence over Dex, connector not forced",
+			cmData: map[string]string{
+				settingsOIDCConfigKey:        "name: Okta\nissuer: https://example.com\nclientID: aaa\nclientSecret: bbb\n",
+				settingDexConfigKey:          "connectors: [{id: github}]",
+				settingDexAuthConnectorIDKey: "github",
+			},
+			expectedConnectorID: "",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			settings := &ArgoCDSettings{}
+			updateSettingsFromConfigMap(settings, &corev1.ConfigMap{Data: tc.cmData})
+			assert.Equal(t, tc.expectedConnectorID, settings.DexAuthConnectorID)
 		})
 	}
 }

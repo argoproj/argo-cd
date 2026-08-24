@@ -16,11 +16,11 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
-	synccommon "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube/kubetest"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube/kubetest"
 	"github.com/argoproj/pkg/v2/sync"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
@@ -212,7 +212,7 @@ func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer),
 			SyncWindows:  v1alpha1.SyncWindows{},
 		},
 	}
-	matchingWindow := &v1alpha1.SyncWindow{
+	matchingWindow := &v1alpha1.InlineSyncWindow{
 		Kind:         "allow",
 		Schedule:     "* * * * *",
 		Duration:     "1h",
@@ -397,7 +397,7 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(b *testing.B, f func(*rb
 			SyncWindows:  v1alpha1.SyncWindows{},
 		},
 	}
-	matchingWindow := &v1alpha1.SyncWindow{
+	matchingWindow := &v1alpha1.InlineSyncWindow{
 		Kind:         "allow",
 		Schedule:     "* * * * *",
 		Duration:     "1h",
@@ -4830,6 +4830,140 @@ func TestServerSideDiff(t *testing.T) {
 		assert.False(t, applierCalled, "applier should not be called for new objects with null LiveState")
 	})
 
+	t.Run("SecretMaskingNotBypassedBySpoofedLiveKind", func(t *testing.T) {
+		// A caller with get access to the app must not be able to bypass Secret
+		// data masking by pairing a spoofed non-Secret liveResources[i].Kind with a
+		// Secret target manifest. The masking decision must key off the server's own
+		// parsed target/live objects, not the caller-supplied kind/group envelope.
+
+		// Register a decoy ConfigMap as managed so the spoofed live entry passes the
+		// managed-resources membership check.
+		decoyConfigMap := &corev1.ConfigMap{
+			TypeMeta:   metav1.TypeMeta{APIVersion: "v1", Kind: "ConfigMap"},
+			ObjectMeta: metav1.ObjectMeta{Name: "decoy-config", Namespace: "default"},
+			Data:       map[string]string{"key": "value"},
+		}
+		decoyJSON, err := json.Marshal(decoyConfigMap)
+		require.NoError(t, err)
+
+		// The dry-run returns a real Secret (with sensitive data) as the predicted
+		// live state, simulating a server-side apply of the Secret target manifest.
+		const leakedSecret = "czNjcjN0LWxlYWtlZA==" // base64("s3cr3t-leaked")
+		predictedSecret := `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"real-secret","namespace":"default"},"type":"Opaque","data":{"password":"` + leakedSecret + `"}}`
+		mockApplier := &kubetest.MockKubeApplier{
+			ApplyResourceFunc: func(_ context.Context, _ *unstructured.Unstructured, _ cmdutil.DryRunStrategy, _, _, _ bool, _ string) (string, error) {
+				return predictedSecret, nil
+			},
+		}
+		mockKubectl := &kubetest.MockKubectlCmd{}
+		mockKubectl.WithManageServerSideDiffDryRunFunc(func(_ *rest.Config) (diff.KubeApplier, func(), error) {
+			return mockApplier, func() {}, nil
+		})
+
+		// Skip webhook-mutation removal (which would require managedFields on the
+		// mock dry-run result); this test is about masking, not webhook handling.
+		spoofApp := newTestApp(func(app *v1alpha1.Application) {
+			app.Name = "spoof-app"
+			app.Namespace = testNamespace
+			app.Spec.Project = "test-project"
+			app.Annotations = map[string]string{
+				"argocd.argoproj.io/compare-options": "IncludeMutationWebhook=true",
+			}
+		})
+
+		appServerSpoof := newTestAppServer(t, testProj, spoofApp)
+		appServerSpoof.kubectl = mockKubectl
+		appServerSpoof.cache = newCachedManagedResources(t, appServerSpoof, spoofApp, kube.MustToUnstructured(decoyConfigMap))
+
+		// Target manifest is a real Secret, but liveResources[0].Kind is spoofed as
+		// ConfigMap to try to skip Secret masking.
+		targetSecret := `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"real-secret","namespace":"default"},"type":"Opaque","data":{"password":"` + leakedSecret + `"}}`
+		query := &application.ApplicationServerSideDiffQuery{
+			AppName:      new(spoofApp.Name),
+			AppNamespace: new(spoofApp.Namespace),
+			Project:      new(spoofApp.Spec.Project),
+			LiveResources: []*v1alpha1.ResourceDiff{
+				{
+					Group:     "",
+					Kind:      "ConfigMap", // spoofed - target is actually a Secret
+					Namespace: "default",
+					Name:      "decoy-config",
+					LiveState: string(decoyJSON),
+				},
+			},
+			TargetManifests: []string{targetSecret},
+		}
+
+		resp, err := appServerSpoof.ServerSideDiff(t.Context(), query)
+		require.NoError(t, err)
+		require.Len(t, resp.Items, 1)
+
+		assert.NotContains(t, resp.Items[0].TargetState, leakedSecret,
+			"raw secret data from the dry-run must not leak into TargetState even when liveResources[i].Kind is spoofed")
+		assert.NotContains(t, resp.Items[0].LiveState, leakedSecret,
+			"raw secret data from the dry-run must not leak into LiveState even when liveResources[i].Kind is spoofed")
+	})
+
+	t.Run("NonSecretIsNotMasked", func(t *testing.T) {
+		// Guard against over-masking: a genuine ConfigMap on both sides must have its
+		// data returned unmasked. The fix keys masking off the real parsed GVK, so
+		// non-Secret resources must be unaffected.
+		configMap := &corev1.ConfigMap{
+			TypeMeta:   metav1.TypeMeta{APIVersion: "v1", Kind: "ConfigMap"},
+			ObjectMeta: metav1.ObjectMeta{Name: "plain-config", Namespace: "default"},
+			Data:       map[string]string{"key": "not-a-secret"},
+		}
+		configJSON, err := json.Marshal(configMap)
+		require.NoError(t, err)
+
+		predictedConfig := `{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"plain-config","namespace":"default"},"data":{"key":"not-a-secret"}}`
+		mockApplier := &kubetest.MockKubeApplier{
+			ApplyResourceFunc: func(_ context.Context, _ *unstructured.Unstructured, _ cmdutil.DryRunStrategy, _, _, _ bool, _ string) (string, error) {
+				return predictedConfig, nil
+			},
+		}
+		mockKubectl := &kubetest.MockKubectlCmd{}
+		mockKubectl.WithManageServerSideDiffDryRunFunc(func(_ *rest.Config) (diff.KubeApplier, func(), error) {
+			return mockApplier, func() {}, nil
+		})
+
+		plainApp := newTestApp(func(app *v1alpha1.Application) {
+			app.Name = "plain-app"
+			app.Namespace = testNamespace
+			app.Spec.Project = "test-project"
+			app.Annotations = map[string]string{
+				"argocd.argoproj.io/compare-options": "IncludeMutationWebhook=true",
+			}
+		})
+
+		appServerPlain := newTestAppServer(t, testProj, plainApp)
+		appServerPlain.kubectl = mockKubectl
+		appServerPlain.cache = newCachedManagedResources(t, appServerPlain, plainApp, kube.MustToUnstructured(configMap))
+
+		query := &application.ApplicationServerSideDiffQuery{
+			AppName:      new(plainApp.Name),
+			AppNamespace: new(plainApp.Namespace),
+			Project:      new(plainApp.Spec.Project),
+			LiveResources: []*v1alpha1.ResourceDiff{
+				{
+					Group:     "",
+					Kind:      "ConfigMap",
+					Namespace: "default",
+					Name:      "plain-config",
+					LiveState: string(configJSON),
+				},
+			},
+			TargetManifests: []string{predictedConfig},
+		}
+
+		resp, err := appServerPlain.ServerSideDiff(t.Context(), query)
+		require.NoError(t, err)
+		require.Len(t, resp.Items, 1)
+
+		assert.Contains(t, resp.Items[0].TargetState, "not-a-secret",
+			"ConfigMap data must not be masked")
+	})
+
 	t.Run("LiveObjectConsistency", func(t *testing.T) {
 		// Test that ServerSideDiff validates that the JSON object in LiveState
 		// matches the Group, Kind, Namespace, Name fields of the ResourceDiff
@@ -5121,6 +5255,76 @@ func TestGetApplicationClusterConfig(t *testing.T) {
 		assert.Nil(t, config)
 		assert.ErrorContains(t, err, "no matching service account found")
 	})
+
+	t.Run("ImpersonationEnabledWithNoMatchEnforcementDisabled", func(t *testing.T) {
+		f := func(enf *rbac.Enforcer) {
+			_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+			enf.SetDefaultRole("role:admin")
+		}
+
+		app := newTestApp()
+		appServer := newTestAppServerWithEnforcerConfigure(t, f,
+			map[string]string{
+				"application.sync.impersonation.enabled":  "true",
+				"application.sync.impersonation.enforced": "false",
+			},
+			app,
+		)
+
+		// "default" project has no DestinationServiceAccounts
+		project := &v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "default"},
+			Spec: v1alpha1.AppProjectSpec{
+				SourceRepos:  []string{"*"},
+				Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+			},
+		}
+
+		config, err := appServer.getApplicationClusterConfig(t.Context(), app, project)
+		require.NoError(t, err)
+		assert.NotNil(t, config)
+		// Should not have impersonation set (uses controller SA)
+		assert.Empty(t, config.Impersonate.UserName)
+	})
+
+	t.Run("ImpersonationEnabledWithMatchEnforcementDisabled", func(t *testing.T) {
+		f := func(enf *rbac.Enforcer) {
+			_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+			enf.SetDefaultRole("role:admin")
+		}
+
+		projWithSA := &v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: "proj-impersonate", Namespace: "default"},
+			Spec: v1alpha1.AppProjectSpec{
+				SourceRepos:  []string{"*"},
+				Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				DestinationServiceAccounts: []v1alpha1.ApplicationDestinationServiceAccount{
+					{
+						Server:                "https://cluster-api.example.com",
+						Namespace:             test.FakeDestNamespace,
+						DefaultServiceAccount: "test-sa",
+					},
+				},
+			},
+		}
+
+		app := newTestApp(func(a *v1alpha1.Application) {
+			a.Spec.Project = "proj-impersonate"
+		})
+
+		appServer := newTestAppServerWithEnforcerConfigure(t, f,
+			map[string]string{
+				"application.sync.impersonation.enabled":  "true",
+				"application.sync.impersonation.enforced": "false",
+			},
+			app, projWithSA,
+		)
+
+		config, err := appServer.getApplicationClusterConfig(t.Context(), app, projWithSA)
+		require.NoError(t, err)
+		// Should use impersonation since SA is configured
+		assert.Equal(t, "system:serviceaccount:"+test.FakeDestNamespace+":test-sa", config.Impersonate.UserName)
+	})
 }
 
 func TestGetUnstructuredLiveResourceOrAppWithImpersonation(t *testing.T) {
@@ -5167,4 +5371,248 @@ func TestGetUnstructuredLiveResourceOrAppWithImpersonation(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.Equal(t, "system:serviceaccount:"+test.FakeDestNamespace+":test-sa", config.Impersonate.UserName)
+}
+
+func TestRollbackRBACPermissions(t *testing.T) {
+	newTestAppWithRollbackHistory := func() *v1alpha1.Application {
+		app := newTestApp()
+		app.Spec.Project = "default"
+		app.Status.History = []v1alpha1.RevisionHistory{{
+			ID:        1,
+			Revision:  "abc",
+			Revisions: []string{"abc"},
+			Source:    *app.Spec.Source.DeepCopy(),
+			Sources:   []v1alpha1.ApplicationSource{*app.Spec.Source.DeepCopy()},
+		}}
+		return app
+	}
+
+	setupServer := func(t *testing.T, testApp *v1alpha1.Application, rollbackEnforce bool) *Server {
+		t.Helper()
+		f := func(enf *rbac.Enforcer) {
+			_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+			enf.SetDefaultRole("role:readonly")
+		}
+		additionalConfig := map[string]string{}
+		if rollbackEnforce {
+			additionalConfig["server.rbac.rollback.enforce.enable"] = "true"
+		}
+		return newTestAppServerWithEnforcerConfigure(t, f, additionalConfig, testApp)
+	}
+
+	t.Run("rollback permission allows rollback when feature flag enabled", func(t *testing.T) {
+		testApp := newTestAppWithRollbackHistory()
+		appServer := setupServer(t, testApp, true)
+
+		//nolint:staticcheck
+		userCtx := context.WithValue(t.Context(), "claims", &jwt.MapClaims{"sub": "user1"})
+		require.NoError(t, appServer.enf.SetUserPolicy("p, user1, applications, rollback, default/test-app, allow"))
+
+		updatedApp, err := appServer.Rollback(userCtx, &application.ApplicationRollbackRequest{
+			Name: &testApp.Name,
+			Id:   new(int64(1)),
+		})
+		require.NoError(t, err)
+		assert.NotNil(t, updatedApp.Operation)
+	})
+
+	t.Run("rollback permission denied without sync when feature flag disabled", func(t *testing.T) {
+		testApp := newTestAppWithRollbackHistory()
+		appServer := setupServer(t, testApp, false)
+		// flag=false (default): server checks sync, not rollback
+
+		//nolint:staticcheck
+		userCtx := context.WithValue(t.Context(), "claims", &jwt.MapClaims{"sub": "user1"})
+		require.NoError(t, appServer.enf.SetUserPolicy("p, user1, applications, rollback, default/test-app, allow"))
+
+		_, err := appServer.Rollback(userCtx, &application.ApplicationRollbackRequest{
+			Name: &testApp.Name,
+			Id:   new(int64(1)),
+		})
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "permission denied")
+	})
+
+	t.Run("sync permission allows rollback for backwards compatibility", func(t *testing.T) {
+		testApp := newTestAppWithRollbackHistory()
+		appServer := setupServer(t, testApp, false)
+		// flag=false (default): sync permission is sufficient for rollback
+
+		//nolint:staticcheck
+		userCtx := context.WithValue(t.Context(), "claims", &jwt.MapClaims{"sub": "user1"})
+		require.NoError(t, appServer.enf.SetUserPolicy("p, user1, applications, sync, default/test-app, allow"))
+
+		updatedApp, err := appServer.Rollback(userCtx, &application.ApplicationRollbackRequest{
+			Name: &testApp.Name,
+			Id:   new(int64(1)),
+		})
+		require.NoError(t, err)
+		assert.NotNil(t, updatedApp.Operation)
+	})
+
+	t.Run("rollback denied when feature flag enabled and only sync granted", func(t *testing.T) {
+		testApp := newTestAppWithRollbackHistory()
+		appServer := setupServer(t, testApp, true)
+
+		//nolint:staticcheck
+		userCtx := context.WithValue(t.Context(), "claims", &jwt.MapClaims{"sub": "user1"})
+		// user has sync but NOT rollback — with flag enabled, rollback is required
+		require.NoError(t, appServer.enf.SetUserPolicy("p, user1, applications, sync, default/test-app, allow"))
+
+		_, err := appServer.Rollback(userCtx, &application.ApplicationRollbackRequest{
+			Name: &testApp.Name,
+			Id:   new(int64(1)),
+		})
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "permission denied")
+	})
+
+	t.Run("no rollback or sync permission is denied", func(t *testing.T) {
+		testApp := newTestAppWithRollbackHistory()
+		appServer := setupServer(t, testApp, true)
+
+		//nolint:staticcheck
+		userCtx := context.WithValue(t.Context(), "claims", &jwt.MapClaims{"sub": "user1"})
+		require.NoError(t, appServer.enf.SetUserPolicy("p, user1, applications, get, default/test-app, allow"))
+
+		_, err := appServer.Rollback(userCtx, &application.ApplicationRollbackRequest{
+			Name: &testApp.Name,
+			Id:   new(int64(1)),
+		})
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "permission denied")
+	})
+}
+
+func TestRollbackRBACPermissions_ProjectScoped(t *testing.T) {
+	const projName = "rollback-proj"
+
+	newTestAppWithRollbackHistory := func() *v1alpha1.Application {
+		app := newTestApp()
+		app.Spec.Project = projName
+		app.Status.History = []v1alpha1.RevisionHistory{{
+			ID:        1,
+			Revision:  "abc",
+			Revisions: []string{"abc"},
+			Source:    *app.Spec.Source.DeepCopy(),
+			Sources:   []v1alpha1.ApplicationSource{*app.Spec.Source.DeepCopy()},
+		}}
+		return app
+	}
+
+	newProjectWithRole := func(roleName string, policies []string) *v1alpha1.AppProject {
+		return &v1alpha1.AppProject{
+			ObjectMeta: metav1.ObjectMeta{Name: projName, Namespace: testNamespace},
+			Spec: v1alpha1.AppProjectSpec{
+				SourceRepos:  []string{"*"},
+				Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				Roles: []v1alpha1.ProjectRole{
+					{Name: roleName, Policies: policies},
+				},
+			},
+		}
+	}
+
+	setupServer := func(t *testing.T, testApp *v1alpha1.Application, proj *v1alpha1.AppProject, rollbackEnforce bool) *Server {
+		t.Helper()
+		f := func(enf *rbac.Enforcer) {
+			_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+			enf.SetDefaultRole("role:readonly")
+		}
+		additionalConfig := map[string]string{}
+		if rollbackEnforce {
+			additionalConfig["server.rbac.rollback.enforce.enable"] = "true"
+		}
+		return newTestAppServerWithEnforcerConfigure(t, f, additionalConfig, testApp, proj)
+	}
+
+	t.Run("project-scoped rollback policy allows rollback when feature flag enabled", func(t *testing.T) {
+		testApp := newTestAppWithRollbackHistory()
+		proj := newProjectWithRole("rollback-role", []string{
+			"p, proj:rollback-proj:rollback-role, applications, rollback, rollback-proj/test-app, allow",
+		})
+		appServer := setupServer(t, testApp, proj, true)
+
+		//nolint:staticcheck
+		userCtx := context.WithValue(t.Context(), "claims", &jwt.MapClaims{"sub": "proj:rollback-proj:rollback-role"})
+
+		updatedApp, err := appServer.Rollback(userCtx, &application.ApplicationRollbackRequest{
+			Name: &testApp.Name,
+			Id:   new(int64(1)),
+		})
+		require.NoError(t, err)
+		assert.NotNil(t, updatedApp.Operation)
+	})
+
+	t.Run("project-scoped rollback policy denied without sync when feature flag disabled", func(t *testing.T) {
+		testApp := newTestAppWithRollbackHistory()
+		proj := newProjectWithRole("rollback-role", []string{
+			"p, proj:rollback-proj:rollback-role, applications, rollback, rollback-proj/test-app, allow",
+		})
+		appServer := setupServer(t, testApp, proj, false)
+
+		//nolint:staticcheck
+		userCtx := context.WithValue(t.Context(), "claims", &jwt.MapClaims{"sub": "proj:rollback-proj:rollback-role"})
+
+		_, err := appServer.Rollback(userCtx, &application.ApplicationRollbackRequest{
+			Name: &testApp.Name,
+			Id:   new(int64(1)),
+		})
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "permission denied")
+	})
+
+	t.Run("project-scoped sync policy allows rollback for backwards compatibility", func(t *testing.T) {
+		testApp := newTestAppWithRollbackHistory()
+		proj := newProjectWithRole("sync-role", []string{
+			"p, proj:rollback-proj:sync-role, applications, sync, rollback-proj/test-app, allow",
+		})
+		appServer := setupServer(t, testApp, proj, false)
+
+		//nolint:staticcheck
+		userCtx := context.WithValue(t.Context(), "claims", &jwt.MapClaims{"sub": "proj:rollback-proj:sync-role"})
+
+		updatedApp, err := appServer.Rollback(userCtx, &application.ApplicationRollbackRequest{
+			Name: &testApp.Name,
+			Id:   new(int64(1)),
+		})
+		require.NoError(t, err)
+		assert.NotNil(t, updatedApp.Operation)
+	})
+
+	t.Run("project-scoped rollback denied when feature flag enabled and only sync granted", func(t *testing.T) {
+		testApp := newTestAppWithRollbackHistory()
+		proj := newProjectWithRole("sync-role", []string{
+			"p, proj:rollback-proj:sync-role, applications, sync, rollback-proj/test-app, allow",
+		})
+		appServer := setupServer(t, testApp, proj, true)
+
+		//nolint:staticcheck
+		userCtx := context.WithValue(t.Context(), "claims", &jwt.MapClaims{"sub": "proj:rollback-proj:sync-role"})
+
+		_, err := appServer.Rollback(userCtx, &application.ApplicationRollbackRequest{
+			Name: &testApp.Name,
+			Id:   new(int64(1)),
+		})
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "permission denied")
+	})
+
+	t.Run("project-scoped no rollback or sync permission is denied", func(t *testing.T) {
+		testApp := newTestAppWithRollbackHistory()
+		proj := newProjectWithRole("readonly-role", []string{
+			"p, proj:rollback-proj:readonly-role, applications, get, rollback-proj/test-app, allow",
+		})
+		appServer := setupServer(t, testApp, proj, true)
+
+		//nolint:staticcheck
+		userCtx := context.WithValue(t.Context(), "claims", &jwt.MapClaims{"sub": "proj:rollback-proj:readonly-role"})
+
+		_, err := appServer.Rollback(userCtx, &application.ApplicationRollbackRequest{
+			Name: &testApp.Name,
+			Id:   new(int64(1)),
+		})
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "permission denied")
+	})
 }

@@ -32,9 +32,9 @@ import (
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/io"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/tracing"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/io"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/tracing"
 )
 
 type outputMode int
@@ -96,12 +96,21 @@ func (f *realKubectlOptionsRunner) Replace(opts *replace.ReplaceOptions, fact cm
 }
 
 // AuthReconcile will perform https://kubernetes.io/docs/reference/kubectl/generated/kubectl_auth/kubectl_auth_reconcile/
-func (f *realKubectlOptionsRunner) AuthReconcile(opts *auth.ReconcileOptions) error {
+func (f *realKubectlOptionsRunner) AuthReconcile(opts *auth.ReconcileOptions) (retErr error) {
 	cleanup, err := f.processKubectlRun("auth")
 	if err != nil {
 		return err
 	}
 	defer cleanup()
+	// kubectl panics instead of returning an error when the impersonated
+	// ServiceAccount is forbidden (see GitHub #28607, k8s#140338). Catch
+	// any panic so the controller can surface a SyncFailed status rather
+	// than crashing.
+	defer func() {
+		if r := recover(); r != nil {
+			retErr = fmt.Errorf("error running kubectl auth reconcile: %v", r)
+		}
+	}()
 	return opts.RunReconcile()
 }
 
@@ -412,6 +421,12 @@ func (k *kubectlResourceOperations) newApplyOptions(ioStreams genericiooptions.I
 	}
 
 	flags := apply.NewApplyFlags(ioStreams)
+	openAPIPatch := true
+	if dryRunStrategy == cmdutil.DryRunClient {
+		// workaround for https://github.com/kubernetes/kubernetes/issues/139538
+		// in kubectl v1.36
+		openAPIPatch = false
+	}
 	o := &apply.ApplyOptions{
 		IOStreams:         ioStreams,
 		VisitedUids:       sets.Set[types.UID]{},
@@ -419,7 +434,7 @@ func (k *kubectlResourceOperations) newApplyOptions(ioStreams genericiooptions.I
 		Recorder:          genericclioptions.NoopRecorder{},
 		PrintFlags:        flags.PrintFlags,
 		Overwrite:         true,
-		OpenAPIPatch:      true,
+		OpenAPIPatch:      openAPIPatch,
 		ServerSideApply:   serverSideApply,
 	}
 	dynamicClient, err := dynamic.NewForConfig(k.config)

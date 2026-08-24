@@ -15,7 +15,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 	glob "github.com/bmatcuk/doublestar/v4"
 	"github.com/golang/groupcache/lru"
 	lua "github.com/yuin/gopher-lua"
@@ -179,8 +179,7 @@ func (vm VM) runLuaWithResourceActionParameters(obj *unstructured.Unstructured, 
 
 	// Remove the default lua stack trace from execution errors since these
 	// errors will make it back to the user
-	var apiErr *lua.ApiError
-	if errors.As(err, &apiErr) {
+	if apiErr, ok := errors.AsType[*lua.ApiError](err); ok {
 		if apiErr.Type == lua.ApiErrorRun {
 			apiErr.StackTrace = ""
 			err = apiErr
