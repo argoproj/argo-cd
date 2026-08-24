@@ -690,14 +690,13 @@ func printGitGpgSourceIntegrityItemHeader(w io.Writer, item *applicationpkg.Insp
 
 func formatCommitDate(date string) string {
 	const gitRFC2822Layout = "Mon, _2 Jan 2006 15:04:05 -0700"
-	const RFC2822FixedWidthLayout = "Mon, 02 Jan 2006 15:04:05 -0700"
 
 	parsed, err := time.Parse(gitRFC2822Layout, date)
 	if err != nil {
 		log.Warnf("failed parsing commit date %s: %v", date, err)
 		return date
 	}
-	return parsed.Format(RFC2822FixedWidthLayout)
+	return parsed.Format(time.RFC1123Z)
 }
 
 // warnOnProblems checks if a policy has empty repo URLs or GPG keys and prints warnings
