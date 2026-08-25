@@ -11,6 +11,19 @@ $ curl -H "Content-Type: application/json" $ARGOCD_SERVER/api/v1/session -d $'{"
 {"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE1Njc4MTIzODcsImlzcyI6ImFyZ29jZCIsIm5iZiI6MTU2NzgxMjM4Nywic3ViIjoiYWRtaW4ifQ.ejyTgFxLhuY9mOBtKhcnvobg3QZXJ4_RusN_KIdVwao"} 
 ```
 
+> [!NOTE]
+> `/api/v1/session` authenticates local accounts only — `admin` and any `accounts.<name>`
+> entry in `argocd-cm`. It does not authenticate SSO identities. If Argo CD is configured with
+> Dex (LDAP, SAML, GitHub, ...) or an external OIDC provider, posting an SSO user's username and
+> password here returns `Invalid username or password`, which is expected: those identities are
+> verified by the identity provider through a browser redirect flow, not by Argo CD.
+>
+> For headless and CI use with SSO, obtain a token by one of the methods in
+> [CI/CD Pipeline Authentication](../operator-manual/user-management/index.md#cicd-pipeline-authentication):
+> a [project role token](../operator-manual/user-management/index.md#project-role-tokens), a
+> [local user API token](../operator-manual/user-management/index.md#local-user-api-token), or
+> [Dex Token Exchange](../operator-manual/user-management/index.md#dex-token-exchange).
+
 Then pass using the HTTP `Authorization` header, prefixing it with `Bearer `:
 
 ```bash
