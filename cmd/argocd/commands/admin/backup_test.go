@@ -132,6 +132,7 @@ func Test_exportResources(t *testing.T) {
 		object              *unstructured.Unstructured
 		namespace           string
 		enabledNamespaces   []string
+		stripStatus         bool
 		expectedFileContent string
 		expectExport        bool
 	}{
@@ -322,6 +323,129 @@ status:
 			expectExport:        false,
 			expectedFileContent: ``,
 		},
+		{
+			name:         "App Project status should be stripped from the exported manifest when strip-status is set",
+			object:       newAppProject(),
+			stripStatus:  true,
+			expectExport: true,
+			expectedFileContent: `apiVersion: ""
+kind: ""
+metadata:
+  name: default
+spec:
+  clusterResourceWhitelist:
+  - group: '*'
+    kind: '*'
+  destinations:
+  - namespace: '*'
+    server: '*'
+  sourceRepos:
+  - '*'
+---
+`,
+		},
+		{
+			name:         "Application status should be stripped from the exported manifest when strip-status is set",
+			object:       newApplication("argocd"),
+			namespace:    "argocd",
+			stripStatus:  true,
+			expectExport: true,
+			expectedFileContent: `apiVersion: ""
+kind: Application
+metadata:
+  name: test
+spec:
+  destination:
+    namespace: default
+    server: https://kubernetes.default.svc
+  project: default
+  source:
+    repoURL: ""
+---
+`,
+		},
+		{
+			name:              "Application status should be stripped from the exported manifest when created in enabled namespace and strip-status is set",
+			object:            newApplication("dev"),
+			namespace:         "dev",
+			enabledNamespaces: []string{"dev", "prod"},
+			stripStatus:       true,
+			expectExport:      true,
+			expectedFileContent: `apiVersion: ""
+kind: Application
+metadata:
+  name: test
+  namespace: dev
+spec:
+  destination:
+    namespace: default
+    server: https://kubernetes.default.svc
+  project: default
+  source:
+    repoURL: ""
+---
+`,
+		},
+		{
+			name:         "ApplicationSet status should be stripped from the exported manifest when strip-status is set",
+			object:       newApplicationSet("argocd"),
+			namespace:    "argocd",
+			stripStatus:  true,
+			expectExport: true,
+			expectedFileContent: `apiVersion: ""
+kind: ApplicationSet
+metadata:
+  name: test-appset
+spec:
+  generators:
+  - git:
+      repoURL: https://github.com/org/repo
+      revision: ""
+      template:
+        metadata: {}
+        spec:
+          destination: {}
+          project: ""
+  template:
+    metadata: {}
+    spec:
+      destination: {}
+      project: ""
+---
+`,
+		},
+		{
+			name:         "ConfigMap should be unaffected by strip-status since it has no status field",
+			object:       newConfigmapObject(),
+			stripStatus:  true,
+			expectExport: true,
+			expectedFileContent: `apiVersion: ""
+kind: ""
+metadata:
+  labels:
+    app.kubernetes.io/part-of: argocd
+  name: argocd-cm
+---
+`,
+		},
+		{
+			name:         "Secret should be unaffected by strip-status since it has no status field",
+			object:       newSecretsObject(),
+			stripStatus:  true,
+			expectExport: true,
+			expectedFileContent: `apiVersion: ""
+data:
+  admin.password: null
+  server.secretkey: null
+kind: ""
+metadata:
+  labels:
+    app.kubernetes.io/part-of: argocd
+  name: argocd-secret
+  namespace: default
+---
+`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -331,10 +455,10 @@ status:
 			kind := tt.object.GetKind()
 			if kind == "Application" || kind == "ApplicationSet" {
 				if security.IsNamespaceEnabled(tt.namespace, "argocd", tt.enabledNamespaces) {
-					export(&buf, *tt.object, ArgoCDNamespace)
+					export(&buf, *tt.object, ArgoCDNamespace, tt.stripStatus)
 				}
 			} else {
-				export(&buf, *tt.object, ArgoCDNamespace)
+				export(&buf, *tt.object, ArgoCDNamespace, tt.stripStatus)
 			}
 
 			content := buf.String()
