@@ -754,9 +754,10 @@ func TestClusterSharding_Run_DebouncesRecomputes(t *testing.T) {
 		return shardCalls.Load() > 0
 	}, 5*time.Second, 10*time.Millisecond, "worker should recompute after the debounce window")
 
-	// The burst of n adds collapsed into just a handful of recomputes, not one
-	// per app (which would be n). A synchronous recompute per AddApp would make
-	// shardCalls == n.
-	assert.Less(t, int(shardCalls.Load()), n/2,
-		"debounced worker should coalesce the burst into far fewer recomputes than apps")
+	// The burst of n adds should collapse into a single debounce window and
+	// fire at most a handful of recomputes (one per window that spans the
+	// adds). A bound close to n/2 would still pass even in a near-unbatched
+	// case; a small constant proves the design intent.
+	assert.Less(t, int(shardCalls.Load()), 5,
+		"debounced worker should coalesce the burst into a single recompute")
 }
