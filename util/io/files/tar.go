@@ -13,10 +13,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-// globMetaChars are the characters that make filepath.Match treat a pattern as
-// a glob rather than a literal path.
-const globMetaChars = `*?[`
-
 type tgz struct {
 	srcPath      string
 	inclusions   []string
@@ -89,7 +85,7 @@ func writeFile(srcPath string, opts TarOptions, writer io.Writer) (int, error) {
 	t := &tgz{
 		srcPath:      srcPath,
 		inclusions:   opts.Inclusions,
-		includePaths: opts.IncludePaths,
+		includePaths: cleanPaths(opts.IncludePaths),
 		exclusions:   opts.Exclusions,
 		tarWriter:    tw,
 	}
@@ -222,23 +218,16 @@ func untar(dstPath string, r io.Reader, preserveFileMode bool) error {
 // pathSelected reports whether relativePath, a path relative to the archive
 // root, is selected by one of the given include paths. An include path selects
 // itself, anything below it, and anything its glob matches. A glob may name a
-// directory, so it is matched against the parent directories as well.
+// directory, so it selects that whole subtree as well.
 func pathSelected(relativePath string, includePaths []string) bool {
-	sep := string(filepath.Separator)
+	pathSegments := splitPath(relativePath)
 	for _, includePath := range includePaths {
 		if includePath == "" || includePath == "." {
 			return true
 		}
-		if relativePath == includePath || strings.HasPrefix(relativePath, includePath+sep) {
+		patternSegments := splitPath(includePath)
+		if len(patternSegments) <= len(pathSegments) && segmentsMatch(patternSegments, pathSegments) {
 			return true
-		}
-		if !strings.ContainsAny(includePath, globMetaChars) {
-			continue
-		}
-		for p := relativePath; p != "." && p != sep; p = filepath.Dir(p) {
-			if matched, err := filepath.Match(includePath, p); err == nil && matched {
-				return true
-			}
 		}
 	}
 	return false
@@ -246,41 +235,68 @@ func pathSelected(relativePath string, includePaths []string) bool {
 
 // dirMayHoldSelected reports whether the directory at dirRel can hold anything
 // selected by includePaths, which lets the walk skip unrelated subtrees instead
-// of scanning them. Globs are pruned by the literal prefix preceding their first
-// metacharacter, as that is the most that can be compared without matching.
+// of scanning them. The directory is walked as long as it agrees with an include
+// path down to their common depth: a shallower directory is on the way down to
+// the include path, a deeper one is inside what it selects.
 func dirMayHoldSelected(dirRel string, includePaths []string) bool {
 	if dirRel == "." {
 		return true
 	}
-	sep := string(filepath.Separator)
+	dirSegments := splitPath(dirRel)
 	for _, includePath := range includePaths {
 		if includePath == "" || includePath == "." {
 			return true
 		}
-		literal := includePath
-		if i := strings.IndexAny(includePath, globMetaChars); i >= 0 {
-			literal = strings.TrimSuffix(includePath[:i], sep)
-			if literal == "" {
-				// The pattern may match at any depth.
-				return true
-			}
-		}
-		// The directory either holds the include path, is the include path, or
-		// is on the way down to it.
-		if dirRel == literal ||
-			strings.HasPrefix(dirRel, literal+sep) ||
-			strings.HasPrefix(literal, dirRel+sep) {
+		if segmentsMatch(splitPath(includePath), dirSegments) {
 			return true
 		}
 	}
 	return false
 }
 
+// segmentsMatch reports whether the pattern and the path agree on every segment
+// they both have, each pattern segment being a filepath.Match pattern. Matching
+// segment by segment is what filepath.Match does for a whole path, as its
+// wildcards never cross a separator, and it is also what allows a path shorter
+// than the pattern to be compared with it.
+func segmentsMatch(patternSegments, pathSegments []string) bool {
+	for i := 0; i < len(patternSegments) && i < len(pathSegments); i++ {
+		// The comparison also covers patterns filepath.Match rejects, so a path
+		// holding a metacharacter can still be selected by naming it literally.
+		if patternSegments[i] == pathSegments[i] {
+			continue
+		}
+		if matched, err := filepath.Match(patternSegments[i], pathSegments[i]); err != nil || !matched {
+			return false
+		}
+	}
+	return true
+}
+
+func splitPath(path string) []string {
+	return strings.Split(path, string(filepath.Separator))
+}
+
+// cleanPaths brings the given paths in the form the walk compares them in, so
+// that a trailing separator or a redundant element does not keep a path from
+// selecting anything. filepath.Clean leaves glob metacharacters alone.
+func cleanPaths(paths []string) []string {
+	if paths == nil {
+		return nil
+	}
+	cleaned := make([]string, 0, len(paths))
+	for _, path := range paths {
+		cleaned = append(cleaned, filepath.Clean(path))
+	}
+	return cleaned
+}
+
 // tgzFile is used as a filepath.WalkFunc implementing the logic to write
 // the given file in the tgz.tarWriter applying the exclusion pattern defined
 // in tgz.exclusions, or the inclusion patterns defined in tgz.inclusions and
 // tgz.includePaths.
-// Only regular files will be added in the tarball.
+// Regular files are added with their content, directories and symlinks are
+// added as header only entries, and any other file mode is skipped.
 func (t *tgz) tgzFile(path string, fi os.FileInfo, err error) error {
 	if err != nil {
 		return fmt.Errorf("error walking in %q: %w", t.srcPath, err)

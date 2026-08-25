@@ -144,11 +144,35 @@ func TestTgzWithOptions(t *testing.T) {
 			unexpected:   []string{"README.md", "applicationset/latest", "applicationset/latest/kustomization.yaml"},
 		},
 		{
+			name:         "will include a directory named with a trailing separator",
+			opts:         files.TarOptions{IncludePaths: []string{"applicationset/stable/"}},
+			filesWritten: 1,
+			expected:     []string{"applicationset/stable/kustomization.yaml"},
+			unexpected:   []string{"README.md", "applicationset/latest/kustomization.yaml"},
+		},
+		{
 			name:         "will include a single file",
 			opts:         files.TarOptions{IncludePaths: []string{"README.md"}},
 			filesWritten: 1,
 			expected:     []string{"README.md"},
 			unexpected:   []string{"applicationset", "applicationset/stable/kustomization.yaml"},
+		},
+		{
+			name:         "will include everything below a directory matched by a glob within a segment",
+			opts:         files.TarOptions{IncludePaths: []string{"app*"}},
+			filesWritten: 2,
+			expected: []string{
+				"applicationset/latest/kustomization.yaml",
+				"applicationset/stable/kustomization.yaml",
+			},
+			unexpected: []string{"README.md"},
+		},
+		{
+			name:         "will include the files matched by a glob within a segment",
+			opts:         files.TarOptions{IncludePaths: []string{"app*/latest/kustomization.yaml"}},
+			filesWritten: 1,
+			expected:     []string{"applicationset/latest/kustomization.yaml"},
+			unexpected:   []string{"README.md", "applicationset/stable/kustomization.yaml"},
 		},
 		{
 			name:         "will include the files matched by a glob",
@@ -193,6 +217,20 @@ func TestTgzWithOptions(t *testing.T) {
 			opts:         files.TarOptions{IncludePaths: []string{"does-not-exist"}},
 			filesWritten: 0,
 			unexpected:   []string{"README.md", "applicationset", "applicationset/stable/kustomization.yaml"},
+		},
+		{
+			name: "will write no file for a path filepath.Match rejects",
+			opts: files.TarOptions{IncludePaths: []string{"applicationset/[latest"}},
+			// The path names no file either, so nothing is left to select.
+			filesWritten: 0,
+			unexpected:   []string{"applicationset/latest/kustomization.yaml"},
+		},
+		{
+			name: "will not include a directory a path is only a prefix of",
+			opts: files.TarOptions{IncludePaths: []string{"application"}},
+			// Only a glob selects more than the path it names.
+			filesWritten: 0,
+			unexpected:   []string{"applicationset", "applicationset/stable/kustomization.yaml"},
 		},
 		{
 			name: "will exclude files from an included path",
