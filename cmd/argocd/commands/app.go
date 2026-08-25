@@ -2533,20 +2533,25 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 	// error carries actionable information.
 	hydrationFinished := appHydrationFinished(app)
 	if len(selectedResources) > 0 {
-		// The selected-resources wait gate evaluates checkResourceStatus per
-		// resource state (the same states, including hooks, it gates on), so
-		// mirror that here to keep the message consistent with the condition
-		// that actually failed.
-		var pending []string
-		for _, state := range getResourceStates(app, selectedResources) {
-			if !checkResourceStatus(watch, state.Health, state.Status, app.Operation, hydrationFinished) {
-				pending = append(pending, fmt.Sprintf("%s (sync: %s, health: %s)", state.Key(), state.Status, state.Health))
-			}
+		// The selected-resources wait gates checkResourceStatus per resource,
+		// so mirror that here (see notReadyResources, which also filters out
+		// completed hooks). Operation and hydration are app-level conditions,
+		// not resource-specific, so report them too; the sync/health aggregate
+		// is intentionally omitted for a selected-resource wait.
+		var parts []string
+		if watch.operation {
+			parts = append(parts, "operation: "+operationStatus(app))
 		}
-		if len(pending) > 0 {
-			return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q to match desired state. resources not ready: %s", timeout, appName, formatPendingResources(pending))
+		if watch.hydrated {
+			parts = append(parts, fmt.Sprintf("hydrated: %t", hydrationFinished))
 		}
-		return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q to match desired state", timeout, appName)
+		if pending := notReadyResources(app, watch, selectedResources, hydrationFinished); len(pending) > 0 {
+			parts = append(parts, "resources not ready: "+formatPendingResources(pending))
+		}
+		if len(parts) == 0 {
+			return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q to match desired state", timeout, appName)
+		}
+		return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q to match desired state. %s", timeout, appName, strings.Join(parts, ", "))
 	}
 
 	// Without selected resources the wait condition is evaluated against the
@@ -2560,30 +2565,49 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 	if watch.health || watch.suspended || watch.degraded {
 		conditions = append(conditions, fmt.Sprintf("health status: %s", app.Status.Health.Status))
 	}
-	if watch.operation && app.Operation != nil {
-		conditions = append(conditions, "operation: still in progress")
+	if watch.operation {
+		conditions = append(conditions, "operation: "+operationStatus(app))
 	}
 	if watch.hydrated {
 		conditions = append(conditions, fmt.Sprintf("hydrated: %t", hydrationFinished))
 	}
 	detail := "app " + strings.Join(conditions, ", ")
 
+	if pending := notReadyResources(app, watch, nil, hydrationFinished); len(pending) > 0 {
+		detail += ", resources not ready: " + formatPendingResources(pending)
+	}
+	return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q to match desired state. %s", timeout, appName, detail)
+}
+
+// operationStatus describes the app's operation for a timeout message. The
+// requested operation (app.Operation) is cleared once the controller starts
+// processing it, so fall back to the recorded OperationState phase.
+func operationStatus(app *argoappv1.Application) string {
+	switch {
+	case app.Status.OperationState != nil:
+		return string(app.Status.OperationState.Phase)
+	case app.Operation != nil:
+		return "still in progress"
+	default:
+		return "none"
+	}
+}
+
+// notReadyResources returns the resources that kept the wait from completing,
+// skipping completed hooks. A hook reports its terminal phase (Succeeded,
+// Failed or Error) in Status, which checkResourceStatus treats as not-Synced;
+// such a hook is done, not pending, so it must not be listed as "not ready".
+func notReadyResources(app *argoappv1.Application, watch watchOpts, selectedResources []*argoappv1.SyncOperationResource, hydrationFinished bool) []string {
 	var pending []string
-	for _, state := range getResourceStates(app, nil) {
-		// A completed hook reports its hook phase (e.g. Succeeded) in Status,
-		// which checkResourceStatus treats as not-Synced. It isn't part of the
-		// desired-state wait, so don't surface it as "not ready".
-		if state.Hook != "" && state.Status == string(common.OperationSucceeded) {
+	for _, state := range getResourceStates(app, selectedResources) {
+		if state.Hook != "" && common.OperationPhase(state.Status).Completed() {
 			continue
 		}
 		if !checkResourceStatus(watch, state.Health, state.Status, app.Operation, hydrationFinished) {
 			pending = append(pending, fmt.Sprintf("%s (sync: %s, health: %s)", state.Key(), state.Status, state.Health))
 		}
 	}
-	if len(pending) > 0 {
-		detail += ", resources not ready: " + formatPendingResources(pending)
-	}
-	return nil, finalOperationState, fmt.Errorf("timed out (%ds) waiting for app %q to match desired state. %s", timeout, appName, detail)
+	return pending
 }
 
 // appHydrationFinished reports whether the app's current hydration operation

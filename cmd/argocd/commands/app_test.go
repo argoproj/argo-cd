@@ -2440,17 +2440,19 @@ func TestWaitOnApplicationStatus_TimeoutErrorAppLevelWithoutPendingResources(t *
 
 func TestWaitOnApplicationStatus_TimeoutErrorOnlyReportsWatchedConditions(t *testing.T) {
 	// An --operation-only wait must not mention sync/health status, since
-	// those were not the conditions being waited on.
+	// those were not the conditions being waited on. The operation phase is
+	// reported from OperationState even though app.Operation is nil (the
+	// controller clears it once it starts processing the operation).
 	status := aggregateOnlyAppStatus()
 	status.OperationState = &v1alpha1.OperationState{Phase: synccommon.OperationRunning}
 	acdClient := newStatusAcdClient(status)
-	// Give the app an in-flight operation so the operation wait is unmet.
 	watch := watchOpts{operation: true}
 
 	_, _, err := waitOnApplicationStatus(t.Context(), acdClient, "app-name", 0, watch, nil, "wide")
 	require.Error(t, err)
 	errMsg := err.Error()
 	assert.Contains(t, errMsg, "timed out")
+	assert.Contains(t, errMsg, "operation: Running")
 	assert.NotContains(t, errMsg, "sync status")
 	assert.NotContains(t, errMsg, "health status")
 }
@@ -2484,6 +2486,57 @@ func TestWaitOnApplicationStatus_TimeoutErrorSkipsCompletedHooks(t *testing.T) {
 	assert.Contains(t, errMsg, "timed out")
 	assert.NotContains(t, errMsg, "migrate")
 	assert.NotContains(t, errMsg, "resources not ready")
+}
+
+func TestWaitOnApplicationStatus_TimeoutErrorSkipsFailedHooks(t *testing.T) {
+	// A failed hook is terminal, not pending, so it must not be listed as a
+	// not-ready resource either. Its failure surfaces via the operation phase.
+	status := aggregateOnlyAppStatus()
+	status.OperationState = &v1alpha1.OperationState{
+		Phase: synccommon.OperationFailed,
+		SyncResult: &v1alpha1.SyncOperationResult{
+			Resources: []*v1alpha1.ResourceResult{
+				{
+					Group:     "batch",
+					Kind:      "Job",
+					Namespace: "prod",
+					Name:      "migrate",
+					HookType:  synccommon.HookTypePreSync,
+					HookPhase: synccommon.OperationFailed,
+					Status:    synccommon.ResultCodeSynced,
+				},
+			},
+		},
+	}
+	acdClient := newStatusAcdClient(status)
+	watch := getWatchOpts(watchOpts{sync: true})
+
+	_, _, err := waitOnApplicationStatus(t.Context(), acdClient, "app-name", 0, watch, nil, "wide")
+	require.Error(t, err)
+	errMsg := err.Error()
+	assert.Contains(t, errMsg, "timed out")
+	assert.NotContains(t, errMsg, "migrate")
+	assert.NotContains(t, errMsg, "resources not ready")
+}
+
+func TestWaitOnApplicationStatus_TimeoutErrorSelectedResourcesReportsOperation(t *testing.T) {
+	// A selected-resource wait with --operation must still report the
+	// operation phase even when app.Operation is nil and no selected resource
+	// is pending; otherwise the message says nothing about what was awaited.
+	status := aggregateOnlyAppStatus()
+	status.OperationState = &v1alpha1.OperationState{Phase: synccommon.OperationRunning}
+	acdClient := newStatusAcdClient(status)
+	selected := []*v1alpha1.SyncOperationResource{
+		{Kind: "Service", Name: "web"},
+	}
+	watch := watchOpts{operation: true}
+
+	_, _, err := waitOnApplicationStatus(t.Context(), acdClient, "app-name", 0, watch, selected, "wide")
+	require.Error(t, err)
+	errMsg := err.Error()
+	assert.Contains(t, errMsg, "timed out")
+	assert.Contains(t, errMsg, "operation: Running")
+	assert.NotContains(t, errMsg, "app sync status")
 }
 
 func TestFormatPendingResources(t *testing.T) {
