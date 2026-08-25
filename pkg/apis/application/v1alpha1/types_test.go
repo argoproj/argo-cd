@@ -699,8 +699,8 @@ func TestAppProject_RemoveGroupFromRole(t *testing.T) {
 
 func newTestProject() *AppProject {
 	p := AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: "my-proj"},
-		Spec:       AppProjectSpec{Roles: []ProjectRole{{Name: "my-role"}}, Destinations: []ApplicationDestination{{}}},
+		Name: "my-proj",
+		Spec: AppProjectSpec{Roles: []ProjectRole{{Name: "my-role"}}, Destinations: []ApplicationDestination{{}}},
 	}
 	return &p
 }
@@ -2491,7 +2491,7 @@ func TestAppProject_EffectiveSourceIntegrity(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			appProj := &AppProject{Spec: tt.spec, ObjectMeta: metav1.ObjectMeta{Name: "sut"}}
+			appProj := &AppProject{Spec: tt.spec, Name: "sut"}
 			assert.Equal(t, tt.expected, appProj.EffectiveSourceIntegrity())
 		})
 	}
@@ -3437,7 +3437,7 @@ func newTestProjectWithSyncWindowsAndOperator() *AppProject {
 
 func newTestApp() *Application {
 	a := &Application{
-		ObjectMeta: metav1.ObjectMeta{Name: "test-app"},
+		Name: "test-app",
 		Spec: ApplicationSpec{
 			Destination: ApplicationDestination{
 				Namespace: "default",
@@ -3840,15 +3840,13 @@ func TestSourceAllowsConcurrentProcessing_KustomizeParams(t *testing.T) {
 
 func TestUnSetCascadedDeletion(t *testing.T) {
 	a := &Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "test",
-			Finalizers: []string{
-				"alpha",
-				ForegroundPropagationPolicyFinalizer,
-				"beta",
-				BackgroundPropagationPolicyFinalizer,
-				"gamma",
-			},
+		Name: "test",
+		Finalizers: []string{
+			"alpha",
+			ForegroundPropagationPolicyFinalizer,
+			"beta",
+			BackgroundPropagationPolicyFinalizer,
+			"gamma",
 		},
 	}
 	a.UnSetCascadedDeletion()
@@ -4129,60 +4127,44 @@ func TestGetCAPath(t *testing.T) {
 
 func TestAppProjectIsSourceNamespacePermitted(t *testing.T) {
 	app1 := &Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app1",
-			Namespace: "argocd",
-		},
-		Spec: ApplicationSpec{},
+		Name:      "app1",
+		Namespace: "argocd",
+		Spec:      ApplicationSpec{},
 	}
 	app2 := &Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app2",
-			Namespace: "some-ns",
-		},
-		Spec: ApplicationSpec{},
+		Name:      "app2",
+		Namespace: "some-ns",
+		Spec:      ApplicationSpec{},
 	}
 	app3 := &Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app2",
-			Namespace: "",
-		},
-		Spec: ApplicationSpec{},
+		Name:      "app2",
+		Namespace: "",
+		Spec:      ApplicationSpec{},
 	}
 	app4 := &Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app2",
-			Namespace: "other-ns",
-		},
-		Spec: ApplicationSpec{},
+		Name:      "app2",
+		Namespace: "other-ns",
+		Spec:      ApplicationSpec{},
 	}
 	app5 := &Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app2",
-			Namespace: "some-ns1",
-		},
-		Spec: ApplicationSpec{},
+		Name:      "app2",
+		Namespace: "some-ns1",
+		Spec:      ApplicationSpec{},
 	}
 	app6 := &Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app2",
-			Namespace: "some-ns2",
-		},
-		Spec: ApplicationSpec{},
+		Name:      "app2",
+		Namespace: "some-ns2",
+		Spec:      ApplicationSpec{},
 	}
 	app7 := &Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app2",
-			Namespace: "someotherns",
-		},
-		Spec: ApplicationSpec{},
+		Name:      "app2",
+		Namespace: "someotherns",
+		Spec:      ApplicationSpec{},
 	}
 	t.Run("App in same namespace as controller", func(t *testing.T) {
 		proj := &AppProject{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "default",
-				Namespace: "argocd",
-			},
+			Name:      "default",
+			Namespace: "argocd",
 			Spec: AppProjectSpec{
 				SourceNamespaces: []string{"other-ns"},
 			},
@@ -4196,10 +4178,8 @@ func TestAppProjectIsSourceNamespacePermitted(t *testing.T) {
 	})
 	t.Run("App not permitted when sourceNamespaces is empty", func(t *testing.T) {
 		proj := &AppProject{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "default",
-				Namespace: "argocd",
-			},
+			Name:      "default",
+			Namespace: "argocd",
 			Spec: AppProjectSpec{
 				SourceNamespaces: []string{},
 			},
@@ -4212,10 +4192,8 @@ func TestAppProjectIsSourceNamespacePermitted(t *testing.T) {
 
 	t.Run("App permitted when sourceNamespaces has app namespace", func(t *testing.T) {
 		proj := &AppProject{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "default",
-				Namespace: "argocd",
-			},
+			Name:      "default",
+			Namespace: "argocd",
 			Spec: AppProjectSpec{
 				SourceNamespaces: []string{"some-ns"},
 			},
@@ -4228,10 +4206,8 @@ func TestAppProjectIsSourceNamespacePermitted(t *testing.T) {
 
 	t.Run("App permitted by glob pattern", func(t *testing.T) {
 		proj := &AppProject{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "default",
-				Namespace: "argocd",
-			},
+			Name:      "default",
+			Namespace: "argocd",
 			Spec: AppProjectSpec{
 				SourceNamespaces: []string{"some-*"},
 			},
@@ -4248,10 +4224,8 @@ func TestAppProjectIsSourceNamespacePermitted(t *testing.T) {
 func Test_RBACName(t *testing.T) {
 	testApp := func(namespace, project string) *Application {
 		return &Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-app",
-				Namespace: namespace,
-			},
+			Name:      "test-app",
+			Namespace: namespace,
 			Spec: ApplicationSpec{
 				Project: project,
 			},
@@ -4304,7 +4278,7 @@ func TestGetAppOfAppSummary(t *testing.T) {
 	app := newTestApp()
 	standardTree := &ApplicationTree{
 		Nodes: []ResourceNode{
-			{ResourceRef: ResourceRef{Name: "any-service", Kind: "Service"}},
+			{Name: "any-service", Kind: "Service"},
 		},
 	}
 
@@ -4315,8 +4289,8 @@ func TestGetAppOfAppSummary(t *testing.T) {
 
 	appOfAppsTree := &ApplicationTree{
 		Nodes: []ResourceNode{
-			{ResourceRef: ResourceRef{Name: "children-app", Kind: "Application", Group: "argoproj.io"}},
-			{ResourceRef: ResourceRef{Name: "any-service", Kind: "Service", Group: ""}},
+			{Name: "children-app", Kind: "Application", Group: "argoproj.io"},
+			{Name: "any-service", Kind: "Service", Group: ""},
 		},
 	}
 	summary = appOfAppsTree.GetSummary(app)
@@ -4687,10 +4661,10 @@ func TestApplicationSpec_GetSourcePtrByIndex(t *testing.T) {
 func TestApplicationTree_GetShards(t *testing.T) {
 	tree := &ApplicationTree{
 		Nodes: []ResourceNode{
-			{ResourceRef: ResourceRef{Name: "node 1"}}, {ResourceRef: ResourceRef{Name: "node 2"}}, {ResourceRef: ResourceRef{Name: "node 3"}},
+			{Name: "node 1"}, {Name: "node 2"}, {Name: "node 3"},
 		},
 		OrphanedNodes: []ResourceNode{
-			{ResourceRef: ResourceRef{Name: "orph-node 1"}}, {ResourceRef: ResourceRef{Name: "orph-node 2"}}, {ResourceRef: ResourceRef{Name: "orph-node 3"}},
+			{Name: "orph-node 1"}, {Name: "orph-node 2"}, {Name: "orph-node 3"},
 		},
 		Hosts: []HostInfo{
 			{Name: "host 1"}, {Name: "host 2"}, {Name: "host 3"},
@@ -4702,15 +4676,15 @@ func TestApplicationTree_GetShards(t *testing.T) {
 	require.Equal(t, &ApplicationTree{
 		ShardsCount: 5,
 		Nodes: []ResourceNode{
-			{ResourceRef: ResourceRef{Name: "node 1"}}, {ResourceRef: ResourceRef{Name: "node 2"}},
+			{Name: "node 1"}, {Name: "node 2"},
 		},
 	}, shards[0])
 	require.Equal(t, &ApplicationTree{
-		Nodes:         []ResourceNode{{ResourceRef: ResourceRef{Name: "node 3"}}},
-		OrphanedNodes: []ResourceNode{{ResourceRef: ResourceRef{Name: "orph-node 1"}}},
+		Nodes:         []ResourceNode{{Name: "node 3"}},
+		OrphanedNodes: []ResourceNode{{Name: "orph-node 1"}},
 	}, shards[1])
 	require.Equal(t, &ApplicationTree{
-		OrphanedNodes: []ResourceNode{{ResourceRef: ResourceRef{Name: "orph-node 2"}}, {ResourceRef: ResourceRef{Name: "orph-node 3"}}},
+		OrphanedNodes: []ResourceNode{{Name: "orph-node 2"}, {Name: "orph-node 3"}},
 	}, shards[2])
 	require.Equal(t, &ApplicationTree{
 		Hosts: []HostInfo{{Name: "host 1"}, {Name: "host 2"}},
@@ -4725,15 +4699,15 @@ func TestApplicationTree_Merge(t *testing.T) {
 	tree.Merge(&ApplicationTree{
 		ShardsCount: 5,
 		Nodes: []ResourceNode{
-			{ResourceRef: ResourceRef{Name: "node 1"}}, {ResourceRef: ResourceRef{Name: "node 2"}},
+			{Name: "node 1"}, {Name: "node 2"},
 		},
 	})
 	tree.Merge(&ApplicationTree{
-		Nodes:         []ResourceNode{{ResourceRef: ResourceRef{Name: "node 3"}}},
-		OrphanedNodes: []ResourceNode{{ResourceRef: ResourceRef{Name: "orph-node 1"}}},
+		Nodes:         []ResourceNode{{Name: "node 3"}},
+		OrphanedNodes: []ResourceNode{{Name: "orph-node 1"}},
 	})
 	tree.Merge(&ApplicationTree{
-		OrphanedNodes: []ResourceNode{{ResourceRef: ResourceRef{Name: "orph-node 2"}}, {ResourceRef: ResourceRef{Name: "orph-node 3"}}},
+		OrphanedNodes: []ResourceNode{{Name: "orph-node 2"}, {Name: "orph-node 3"}},
 	})
 	tree.Merge(&ApplicationTree{
 		Hosts: []HostInfo{{Name: "host 1"}, {Name: "host 2"}},
@@ -4743,10 +4717,10 @@ func TestApplicationTree_Merge(t *testing.T) {
 	})
 	require.Equal(t, &ApplicationTree{
 		Nodes: []ResourceNode{
-			{ResourceRef: ResourceRef{Name: "node 1"}}, {ResourceRef: ResourceRef{Name: "node 2"}}, {ResourceRef: ResourceRef{Name: "node 3"}},
+			{Name: "node 1"}, {Name: "node 2"}, {Name: "node 3"},
 		},
 		OrphanedNodes: []ResourceNode{
-			{ResourceRef: ResourceRef{Name: "orph-node 1"}}, {ResourceRef: ResourceRef{Name: "orph-node 2"}}, {ResourceRef: ResourceRef{Name: "orph-node 3"}},
+			{Name: "orph-node 1"}, {Name: "orph-node 2"}, {Name: "orph-node 3"},
 		},
 		Hosts: []HostInfo{
 			{Name: "host 1"}, {Name: "host 2"}, {Name: "host 3"},
