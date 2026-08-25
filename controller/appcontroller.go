@@ -285,7 +285,13 @@ func NewApplicationController(
 						return err
 					}
 					for _, app := range apps {
-						ctrl.clusterSharding.AddApp(app)
+						// Guard with isAppNamespaceAllowed (same filter used by
+						// Init and the informer event handlers) so that non-allowed
+						// namespace apps do not inflate per-cluster app counts and
+						// diverge from the Init-time map (#24515).
+						if ctrl.isAppNamespaceAllowed(app) {
+							ctrl.clusterSharding.AddApp(app)
+						}
 						if !ctrl.canProcessApp(app) {
 							continue
 						}
