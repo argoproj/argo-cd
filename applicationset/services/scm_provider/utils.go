@@ -20,24 +20,29 @@ func compileFilters(filters []argoprojiov1alpha1.SCMProviderGeneratorFilter) ([]
 			if err != nil {
 				return nil, fmt.Errorf("error compiling RepositoryMatch regexp %q: %w", *filter.RepositoryMatch, err)
 			}
+			outFilter.FilterType = FilterTypeRepo
 		}
 		if filter.LabelMatch != nil {
 			outFilter.LabelMatch, err = regexp.Compile(*filter.LabelMatch)
 			if err != nil {
 				return nil, fmt.Errorf("error compiling LabelMatch regexp %q: %w", *filter.LabelMatch, err)
 			}
+			outFilter.FilterType = FilterTypeRepo
 		}
 		if filter.PathsExist != nil {
 			outFilter.PathsExist = filter.PathsExist
+			outFilter.FilterType = FilterTypeBranch
 		}
 		if filter.PathsDoNotExist != nil {
 			outFilter.PathsDoNotExist = filter.PathsDoNotExist
+			outFilter.FilterType = FilterTypeBranch
 		}
 		if filter.BranchMatch != nil {
 			outFilter.BranchMatch, err = regexp.Compile(*filter.BranchMatch)
 			if err != nil {
 				return nil, fmt.Errorf("error compiling BranchMatch regexp %q: %w", *filter.BranchMatch, err)
 			}
+			outFilter.FilterType = FilterTypeBranch
 		}
 		outFilters = append(outFilters, outFilter)
 	}
@@ -110,12 +115,38 @@ func matchBranchFilter(ctx context.Context, provider SCMProviderService, repo *R
 //     ANY one filter.
 //   - No filters at all: every repo/branch is kept.
 //
+// Those are the documented semantics, but they are only implemented when
+// enableNewFiltering is true. The legacy evaluation, still the default, splits
+// filters into repo-level and branch-level groups and evaluates the groups
+// independently, which accidentally AND's unrelated filters together. It is kept
+// so that upgrading Argo CD does not silently change or delete which Applications an
+// existing ApplicationSet generates. Operators opt in with
+// `--enable-new-scm-provider-filtering` on the applicationset controller.
+//
+// See listReposNewFiltering and listReposLegacyFiltering.
+func ListRepos(ctx context.Context, provider SCMProviderService, filters []argoprojiov1alpha1.SCMProviderGeneratorFilter, cloneProtocol string, enableNewFiltering bool) ([]*Repository, error) {
+	compiledFilters, err := compileFilters(filters)
+	if err != nil {
+		return nil, err
+	}
+	repos, err := provider.ListRepos(ctx, cloneProtocol)
+	if err != nil {
+		return nil, err
+	}
+	if enableNewFiltering {
+		return listReposNewFiltering(ctx, provider, repos, compiledFilters)
+	}
+	return listReposLegacyFiltering(ctx, provider, repos, compiledFilters)
+}
+
+// listReposNewFiltering implements the documented filter semantics.
+//
 // A single filter may mix repo-level conditions (repositoryMatch, labelMatch)
 // with branch-level conditions (branchMatch, pathsExist, pathsDoNotExist). Both
 // halves of a filter must be checked against the SAME filter; that is the key
 // to correct OR behavior. Evaluating all repo-level conditions and all
-// branch-level conditions as two independent groups (the previous approach)
-// accidentally AND'd unrelated filters together.
+// branch-level conditions as two independent groups (the legacy approach)
+// accidentally AND's unrelated filters together.
 //
 // Example — two filters:
 //
@@ -136,15 +167,7 @@ func matchBranchFilter(ctx context.Context, provider SCMProviderService, repo *R
 //     least one filter. This pass re-checks the repo-level conditions, so
 //     correctness never depends on the pre-filter, the pre-filter is only an
 //     optimization.
-func ListRepos(ctx context.Context, provider SCMProviderService, filters []argoprojiov1alpha1.SCMProviderGeneratorFilter, cloneProtocol string) ([]*Repository, error) {
-	compiledFilters, err := compileFilters(filters)
-	if err != nil {
-		return nil, err
-	}
-	repos, err := provider.ListRepos(ctx, cloneProtocol)
-	if err != nil {
-		return nil, err
-	}
+func listReposNewFiltering(ctx context.Context, provider SCMProviderService, repos []*Repository, compiledFilters []*Filter) ([]*Repository, error) {
 	// OPTIMIZATION: pre-filter repos by their repo-level conditions so
 	// we don't fetch branches for repos that cannot satisfy any filter. A repo is
 	// a candidate if it matches the repo-level conditions of at least one filter
@@ -208,4 +231,144 @@ func ListRepos(ctx context.Context, provider SCMProviderService, filters []argop
 		}
 	}
 	return filtered, nil
+}
+
+// listReposLegacyFiltering is the pre-fix evaluation, kept behind the default of
+// `--enable-new-scm-provider-filtering=false` so that upgrading does not change
+// which Applications an existing ApplicationSet generates.
+//
+// It classifies each filter as repo-level or branch-level (see
+// compileFilters/FilterType) and evaluates the two groups independently. That is
+// wrong in two ways, both of which listReposNewFiltering fixes:
+//
+//  1. A filter mixing repo-level and branch-level conditions is classified by
+//     whichever condition was assigned last, so half of it is evaluated against
+//     the wrong group.
+//  2. Because the groups are applied in sequence, a repo must satisfy some
+//     repo-level filter AND some branch-level filter, turning what the docs
+//     describe as OR into AND across unrelated filters.
+//
+// Deprecated: remove together with FilterType once the corrected evaluation
+// becomes the default.
+func listReposLegacyFiltering(ctx context.Context, provider SCMProviderService, repos []*Repository, compiledFilters []*Filter) ([]*Repository, error) {
+	repoFilters := getApplicableFilters(compiledFilters)[FilterTypeRepo]
+	if len(repoFilters) == 0 {
+		return getBranchesLegacy(ctx, provider, repos, compiledFilters)
+	}
+	filteredRepos := make([]*Repository, 0, len(repos))
+	for _, repo := range repos {
+		for _, filter := range repoFilters {
+			matches, err := matchFilterLegacy(ctx, provider, repo, filter)
+			if err != nil {
+				return nil, err
+			}
+			if matches {
+				filteredRepos = append(filteredRepos, repo)
+				break
+			}
+		}
+	}
+
+	return getBranchesLegacy(ctx, provider, filteredRepos, compiledFilters)
+}
+
+// matchFilterLegacy evaluates every condition of a filter against a single
+// repo/branch, regardless of whether the condition is repo-level or
+// branch-level.
+//
+// Deprecated: only used by listReposLegacyFiltering.
+func matchFilterLegacy(ctx context.Context, provider SCMProviderService, repo *Repository, filter *Filter) (bool, error) {
+	if filter.RepositoryMatch != nil && !filter.RepositoryMatch.MatchString(repo.Repository) {
+		return false, nil
+	}
+
+	if filter.BranchMatch != nil && !filter.BranchMatch.MatchString(repo.Branch) {
+		return false, nil
+	}
+
+	if filter.LabelMatch != nil {
+		found := slices.ContainsFunc(repo.Labels, filter.LabelMatch.MatchString)
+		if !found {
+			return false, nil
+		}
+	}
+
+	if len(filter.PathsExist) != 0 {
+		for _, path := range filter.PathsExist {
+			path = strings.TrimRight(path, "/")
+			hasPath, err := provider.RepoHasPath(ctx, repo, path)
+			if err != nil {
+				return false, err
+			}
+			if !hasPath {
+				return false, nil
+			}
+		}
+	}
+	if len(filter.PathsDoNotExist) != 0 {
+		for _, path := range filter.PathsDoNotExist {
+			path = strings.TrimRight(path, "/")
+			hasPath, err := provider.RepoHasPath(ctx, repo, path)
+			if err != nil {
+				return false, err
+			}
+			if hasPath {
+				return false, nil
+			}
+		}
+	}
+
+	return true, nil
+}
+
+// getBranchesLegacy expands repos into branches and applies only the
+// branch-level filter group.
+//
+// Deprecated: only used by listReposLegacyFiltering.
+func getBranchesLegacy(ctx context.Context, provider SCMProviderService, repos []*Repository, compiledFilters []*Filter) ([]*Repository, error) {
+	reposWithBranches := []*Repository{}
+	for _, repo := range repos {
+		reposFilled, err := provider.GetBranches(ctx, repo)
+		if err != nil {
+			return nil, err
+		}
+		reposWithBranches = append(reposWithBranches, reposFilled...)
+	}
+	branchFilters := getApplicableFilters(compiledFilters)[FilterTypeBranch]
+	if len(branchFilters) == 0 {
+		return reposWithBranches, nil
+	}
+	filteredRepos := make([]*Repository, 0, len(reposWithBranches))
+	for _, repo := range reposWithBranches {
+		for _, filter := range branchFilters {
+			matches, err := matchFilterLegacy(ctx, provider, repo, filter)
+			if err != nil {
+				return nil, err
+			}
+			if matches {
+				filteredRepos = append(filteredRepos, repo)
+				break
+			}
+		}
+	}
+	return filteredRepos, nil
+}
+
+// getApplicableFilters returns a map of filters separated by type.
+//
+// Deprecated: only used by listReposLegacyFiltering.
+func getApplicableFilters(filters []*Filter) map[FilterType][]*Filter {
+	filterMap := map[FilterType][]*Filter{
+		FilterTypeBranch: {},
+		FilterTypeRepo:   {},
+	}
+	for _, filter := range filters {
+		switch filter.FilterType {
+		case FilterTypeBranch:
+			filterMap[FilterTypeBranch] = append(filterMap[FilterTypeBranch], filter)
+		case FilterTypeRepo:
+			filterMap[FilterTypeRepo] = append(filterMap[FilterTypeRepo], filter)
+		}
+	}
+	return filterMap
 }
