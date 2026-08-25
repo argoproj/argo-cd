@@ -627,7 +627,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		for i, manifest := range manifestInfo.Manifests {
 			meta, err := kubemeta.NewKubeJson([]byte(manifest))
 			if err != nil {
-				return nil, fmt.Errorf("error unmarshaling manifest into unstructured: %w", err)
+				return nil, fmt.Errorf("error parsing manifest metadata: %w", err)
 			}
 			if meta.GetKind() == kube.SecretKind && meta.GroupVersionKind().Group == "" {
 				// Only Secrets need the full object, for HideSecretData.
@@ -760,7 +760,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 	for i, manifest := range manifestInfo.Manifests {
 		meta, err := kubemeta.NewKubeJson([]byte(manifest))
 		if err != nil {
-			return fmt.Errorf("error unmarshaling manifest into unstructured: %w", err)
+			return fmt.Errorf("error parsing manifest metadata: %w", err)
 		}
 		if meta.GetKind() == kube.SecretKind && meta.GroupVersionKind().Group == "" {
 			// Only Secrets need the full object, for HideSecretData.

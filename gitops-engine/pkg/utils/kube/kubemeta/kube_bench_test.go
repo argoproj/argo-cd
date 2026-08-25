@@ -7,9 +7,8 @@ import (
 )
 
 // largeObject synthesises a manifest the size real syncs diff: a Deployment
-// whose pod template carries many env vars, plus a status blob. Only
-// apiVersion/kind/metadata.{name,namespace} are read — everything else is bulk
-// the decoder skips. nKB controls how much of it there is.
+// whose pod template carries many env vars. Everything outside the four fields
+// read is bulk the decoder skips; nKB controls how much of it there is.
 func largeObject(nKB int) []byte {
 	var env strings.Builder
 	for i := 0; env.Len() < nKB*1024; i++ {
@@ -25,9 +24,9 @@ func largeObject(nKB int) []byte {
 }
 
 // wideConfigMap is the adversarial shape for a skipping decoder: thousands of
-// members in one object, and because json.Marshal sorts map keys, "data" comes
-// before the "kind"/"metadata" we want. Duplicate-name rejection would allocate
-// proportionally to the member count here even though every one is skipped.
+// members in one object, and json.Marshal sorts keys, so "data" precedes the
+// "kind"/"metadata" we want. Duplicate-name rejection would allocate per member
+// here even though every one is skipped.
 func wideConfigMap(nKB int) []byte {
 	var data strings.Builder
 	for i := 0; data.Len() < nKB*1024; i++ {

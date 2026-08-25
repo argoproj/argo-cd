@@ -319,14 +319,14 @@ func groupResources(reconciliationResult ReconciliationResult) map[kubeutil.Reso
 func groupDiffResults(diffResultList *diff.DiffResultList) map[kubeutil.ResourceKey]bool {
 	modifiedResources := make(map[kubeutil.ResourceKey]bool)
 	for _, res := range diffResultList.Diffs {
-		// Only the resource key is needed here, so parse just the identifying
-		// fields rather than unmarshalling the full object.
+		// Only the resource key is needed, so skip the full unmarshal.
 		state := res.NormalizedLive
 		if string(state) == "null" {
 			state = res.PredictedLive
 		}
 		obj, err := kubemeta.NewKubeJson(state)
-		if err != nil {
+		if err != nil || obj.IsEmpty() {
+			// Absent state has no key; the unmarshal this replaced skipped it too.
 			continue
 		}
 		modifiedResources[kubemeta.GetResourceKey(obj)] = res.Modified
