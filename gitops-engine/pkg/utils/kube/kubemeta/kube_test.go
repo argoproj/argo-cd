@@ -4,37 +4,14 @@ import (
 	"testing"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube/kubemeta/internal/benchfixtures"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-// guestbook keeps nested objects/arrays/escapes so the skip path is exercised.
-const guestbook = `{
-  "apiVersion": "argoproj.io/v1alpha1",
-  "kind": "Application",
-  "metadata": {
-    "name": "guestbook",
-    "namespace": "argocd",
-    "finalizers": ["resources-finalizer.argocd.argoproj.io"],
-    "labels": {"name": "guestbook"}
-  },
-  "spec": {
-    "project": "default",
-    "source": {
-      "repoURL": "https://github.com/argoproj/argocd-example-apps.git",
-      "path": "guestbook",
-      "helm": {
-        "values": "ingress:\n  enabled: true\n  tls:\n    - secretName: mydomain-tls\n",
-        "parameters": [{"name": "a\\.b/c", "value": "x", "forceString": true}]
-      }
-    },
-    "destination": {"server": "https://kubernetes.default.svc", "namespace": "guestbook"}
-  }
-}`
-
 func TestKube(t *testing.T) {
-	k, err := NewKubeJson([]byte(guestbook))
+	k, err := NewKubeJson([]byte(benchfixtures.Guestbook))
 	require.NoError(t, err)
 
 	assert.Equal(t, "argoproj.io/v1alpha1", k.GetAPIVersion())
