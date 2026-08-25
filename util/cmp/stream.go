@@ -99,7 +99,7 @@ func WithTarDoneChan(ch chan<- bool) SenderOption {
 
 // WithIncludePaths restricts the files sent to the cmp-server to the given
 // paths, relative to rootPath. Directories are sent with everything below them.
-// If none of the paths match a file, the whole rootPath is sent instead.
+// If the paths select no file at all, the whole rootPath is sent instead.
 func WithIncludePaths(includePaths []string) SenderOption {
 	return func(opt *senderOption) {
 		opt.includePaths = includePaths
@@ -154,10 +154,13 @@ func GetCompressedRepoAndMetadata(rootPath string, appPath string, env []string,
 	if err != nil {
 		return nil, nil, fmt.Errorf("error compressing repo files: %w", err)
 	}
+	// An archive without a file in it is rejected below and gives a plugin
+	// nothing to render, so a selection that picked up no file is treated like a
+	// selection that matched nothing at all, including one that only picked up
+	// directories and symlinks. Falling back keeps such an application working
+	// exactly as it does without the include paths instead of failing it.
 	if filesWritten == 0 && len(includePaths) > 0 {
-		// Sending an empty archive fails manifest generation, so fall back to
-		// the whole rootPath rather than trusting the selected paths blindly.
-		log.Warnf("no files under %q matched %v, sending all of them instead", rootPath, includePaths)
+		log.Warnf("no file under %q was selected by %v, sending everything under it instead", rootPath, includePaths)
 		tgzstream.CloseAndDelete(tgz)
 		tgz, filesWritten, checksum, err = tgzstream.CompressFilesWithOptions(rootPath, files.TarOptions{Exclusions: excludedGlobs})
 		if err != nil {

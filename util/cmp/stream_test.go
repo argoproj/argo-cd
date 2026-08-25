@@ -163,6 +163,34 @@ func TestSendRepoStreamWithIncludePaths(t *testing.T) {
 		assert.FileExists(t, filepath.Join(workdir, "applicationset", "stable", "kustomization.yaml"))
 		assert.NoFileExists(t, filepath.Join(workdir, "README.md"))
 	})
+
+	t.Run("will send everything when the included paths select no file", func(t *testing.T) {
+		// given
+		t.Parallel()
+		streamMock := newStreamMock()
+		basedir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(basedir, "README.md"), []byte("read me"), 0o600))
+		require.NoError(t, os.Mkdir(filepath.Join(basedir, "links"), 0o700))
+		require.NoError(t, os.Symlink(filepath.Join("..", "README.md"), filepath.Join(basedir, "links", "readme-symlink")))
+		workdir, err := files.CreateTempDir("")
+		require.NoError(t, err)
+		defer func() {
+			close(streamMock.messages)
+			os.RemoveAll(workdir)
+		}()
+		// The selected directory holds a symlink and nothing else, which leaves
+		// the plugin without a file to render, so the fallback kicks in as it
+		// does for a selection that matched nothing.
+		go streamMock.sendFile(t.Context(), t, basedir, streamMock, nil, nil, cmp.WithIncludePaths([]string{"links"}))
+
+		// when
+		_, err = cmp.ReceiveRepoStream(t.Context(), streamMock, workdir, false)
+
+		// then
+		require.NoError(t, err)
+		assert.FileExists(t, filepath.Join(workdir, "README.md"))
+		assert.FileExists(t, filepath.Join(workdir, "links", "readme-symlink"))
+	})
 }
 
 func (m *streamMock) sendFile(ctx context.Context, t *testing.T, basedir string, sender cmp.StreamSender, env []string, excludedGlobs []string, opts ...cmp.SenderOption) {
