@@ -316,7 +316,7 @@ require (
 )
 
 require (
-	github.com/go-openapi/runtime/server-middleware v0.33.0
+	github.com/go-openapi/runtime/server-middleware v0.33.1
 	k8s.io/streaming v0.36.1
 )
 
