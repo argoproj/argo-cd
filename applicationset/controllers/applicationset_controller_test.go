@@ -4048,7 +4048,7 @@ func TestSetApplicationSetApplicationStatus(t *testing.T) {
 			expectedAppStatuses: nil,
 		},
 		{
-			name: "updates status when only the transition time changed while waiting",
+			name: "updates status when transition time and target revision changed while waiting",
 			appSet: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
