@@ -1301,7 +1301,7 @@ func (m *nativeGitClient) LsSignatures(ctx context.Context, unresolvedRevision s
 			return nil, "", fmt.Errorf("failed listing signatures: %w", err)
 		}
 		if shallow {
-			return nil, "", errors.New("shallow repository lacks history required for deep signature listing")
+			return nil, "", errors.New("shallow repository lacks history required for deep signature verification, use full clone")
 		}
 	}
 

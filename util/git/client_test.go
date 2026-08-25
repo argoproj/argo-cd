@@ -2146,7 +2146,7 @@ func Test_LsSignatures_ShallowRepo(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, client.Init())
 
-	shallowExpectedMsg := "shallow repository lacks history required for deep signature listing"
+	shallowExpectedMsg := "shallow repository lacks history required for deep signature verification, use full clone"
 
 	t.Run("deep fails on shallow repo", func(t *testing.T) {
 		_, _, err := client.LsSignatures(t.Context(), "HEAD", true)

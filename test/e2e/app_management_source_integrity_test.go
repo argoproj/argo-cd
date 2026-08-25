@@ -382,7 +382,7 @@ func TestSyncStrictModeFailsOnShallowRepo(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationError)).
 		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
-		Expect(Condition(ApplicationConditionComparisonError, "shallow repository lacks history required for deep signature listing"))
+		Expect(Condition(ApplicationConditionComparisonError, "shallow repository lacks history required for deep signature verification, use full clone"))
 }
 
 func TestNamespacedSyncToUnsignedCommit(t *testing.T) {
