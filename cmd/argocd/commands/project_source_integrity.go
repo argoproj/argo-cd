@@ -541,7 +541,10 @@ func NewProjectSourceIntegrityGitPoliciesUpdateCommand(clientOpts *argocdclient.
 func NewProjectSourceIntegrityGitGpgInspectRepoCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	const shortDescription = "Inspect the Git/GPG source integrity of an application in a project"
 
-	var appNamespace string
+	var (
+		appNamespace string
+		output       string
+	)
 	command := &cobra.Command{
 		Use:   "gpg-inspect-repo PROJECT APPNAME",
 		Short: shortDescription,
@@ -563,6 +566,11 @@ Exit codes:
 			if len(args) != 2 {
 				c.HelpFunc()(c, args)
 				return NewExitError(1, nil)
+			}
+
+			validOutputFormats := []string{"yaml", "json", "wide", ""}
+			if !slices.Contains(validOutputFormats, output) {
+				return NewExitError(1, fmt.Errorf("unknown output format: %s", output))
 			}
 
 			return nil
@@ -590,7 +598,19 @@ Exit codes:
 				return NewExitError(3, nil)
 			}
 
-			hasSourceIntegrityProblems := printGitGpgSourceIntegrityResponse(c.OutOrStdout(), data.GetItems())
+			hasSourceIntegrityProblems := hasSourceIntegrityProblems(data.GetItems())
+
+			switch output {
+			// invalid output format already handled in Args function
+			case "yaml", "json":
+				err := PrintResourceList(data.GetItems(), output, false)
+				if err != nil {
+					return NewExitError(1, fmt.Errorf("failed printing git gpg source integrity response in %s format: %w", output, err))
+				}
+			case "wide", "":
+				printGitGpgSourceIntegrityResponse(c.OutOrStdout(), data.GetItems())
+			}
+
 			if hasSourceIntegrityProblems {
 				return NewExitError(2, nil)
 			}
@@ -599,7 +619,17 @@ Exit codes:
 		}),
 	}
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only inspect application in namespace")
+	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide")
 	return command
+}
+
+func hasSourceIntegrityProblems(items []*applicationpkg.InspectGitGPGSourceIntegrityResponse) bool {
+	for _, item := range items {
+		if item.GetErrorMessage() != "" || len(item.GetCommits()) > 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func printGitGpgSourceIntegrityResponse(w io.Writer, items []*applicationpkg.InspectGitGPGSourceIntegrityResponse) bool {

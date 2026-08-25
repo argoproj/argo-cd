@@ -917,7 +917,35 @@ func TestProjectSourceIntegrityGpgInspectRepoCommand_WarningsAndReturnCodes(t *t
 			assertContainsAllParts(t, test.expectedStderr, stderr)
 			assertContainsAllParts(t, test.expectedStdout, stdout)
 		})
+
+		t.Run(test.name+" json output flag", func(t *testing.T) {
+			cmd := NewProjectSourceIntegrityGitGpgInspectRepoCommand(&argocdclient.ClientOptions{})
+			_, stderr, err := runCmd(t, cmd, append([]string{"-o", "json"}, test.args...)...)
+
+			assert.Equal(t, ExitCodeForError(test.expectedError), ExitCodeForError(err))
+			assert.Equal(t, CLIErrorMessage(test.expectedError), CLIErrorMessage(err))
+			assertContainsAllParts(t, test.expectedStderr, stderr)
+			// cannot assert stdout as the print function does not use c.OutOrStdout()
+		})
+
+		t.Run(test.name+" yaml output flag", func(t *testing.T) {
+			cmd := NewProjectSourceIntegrityGitGpgInspectRepoCommand(&argocdclient.ClientOptions{})
+			_, stderr, err := runCmd(t, cmd, append([]string{"-o", "yaml"}, test.args...)...)
+
+			assert.Equal(t, ExitCodeForError(test.expectedError), ExitCodeForError(err))
+			assert.Equal(t, CLIErrorMessage(test.expectedError), CLIErrorMessage(err))
+			assertContainsAllParts(t, test.expectedStderr, stderr)
+			// cannot assert stdout as the print function does not use c.OutOrStdout()
+		})
 	}
+}
+
+func TestProjectSourceIntegrityGpgInspectRepoCommand_UnknownOutputFormat(t *testing.T) {
+	cmd := NewProjectSourceIntegrityGitGpgInspectRepoCommand(&argocdclient.ClientOptions{})
+	_, _, err := runCmd(t, cmd, "test-project", "test-app", "-o", "unknown")
+
+	assert.Equal(t, ExitCodeForError(NewExitError(1, errors.New("unknown output format: unknown"))), ExitCodeForError(err))
+	assert.Equal(t, CLIErrorMessage(NewExitError(1, errors.New("unknown output format: unknown"))), CLIErrorMessage(err))
 }
 
 func TestProjectSourceIntegrityGpgInspectRepoCommand_SinglePassingSource(t *testing.T) {

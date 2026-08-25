@@ -30,6 +30,7 @@ argocd proj source-integrity git gpg-inspect-repo PROJECT APPNAME [flags]
 ```
   -N, --app-namespace string   Only inspect application in namespace
   -h, --help                   help for gpg-inspect-repo
+  -o, --output string          Output format. One of: json|yaml|wide (default "wide")
 ```
 
 ### Options inherited from parent commands
