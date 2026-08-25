@@ -160,9 +160,12 @@ oidc.config: |
 `tokenFileEnv: AZURE_FEDERATED_TOKEN_FILE` and `audience: api://AzureADTokenExchange`, which keeps
 the Entra ID configuration valid and puts both providers on one code path.
 
-`audience` is what the token's `aud` claim is checked against before the assertion is sent. It
-defaults to the configured `issuer`, which is right for Keycloak and wrong for Entra ID, hence the
-alias supplying its own. Nobody configuring Keycloak needs to set it.
+`audience` is what the token's `aud` claim is checked against before the assertion leaves the
+process, so that a projected volume missing its `audience:` fails with something better than an
+opaque `invalid_client`. It defaults to the configured `issuer`, which is right for Keycloak and
+wrong for Entra ID, whose tokens carry `api://AzureADTokenExchange` while `issuer` points at
+`login.microsoftonline.com`. Hence the alias supplying its own. Nobody configuring Keycloak needs to
+set it.
 
 `oidc.config` is an opaque string in `argocd-cm` parsed by `util/settings`, so this needs no API
 type change and no `make codegen`. It must not reach `settingspkg.OIDCConfig`, the struct the API
@@ -179,55 +182,16 @@ refuses to authenticate instead of quietly falling back.
 
 #### Where the assertion is injected
 
-Today the Azure assertion is appended as an `oauth2.AuthCodeOption` at the one call site that
-performs the code exchange, in `HandleCallback`. That is why refresh does not work:
-`GetTokenSourceFromCache` builds an `oauth2.Config` from `getOauth2ConfigForRedirectURI` and calls
-`config.TokenSource(...)`, which knows nothing about assertions and authenticates with an empty
-client secret. Against Keycloak that is an `invalid_client`.
+Today the Azure assertion is attached at the single call site that performs the code exchange, in
+`HandleCallback`. That is why the refresh grant authenticates with an empty client secret, which
+Keycloak answers with `invalid_client`.
 
-That is worse than a session quietly failing to extend. `CheckAndRefreshToken` is called from the
-gRPC auth interceptor, twice, and both call sites swallow the error into a log line. The first one
-fires reactively whenever `VerifyToken` rejects an expired ID token, so once a user's token lapses,
-every request they make produces another failing POST to the token endpoint. There is no backoff
-anywhere in `util/oidc`. The result is IdP load proportional to request rate, a stream of warnings
-in the server log, and a user who just sees their session end. Setting `refreshTokenThreshold`, as
-the tracking issue's example does, makes it proactive as well.
-
-We could add the same options at the second call site. Better to wrap the HTTP transport in a
+We could attach it at the second call site too. Better to wrap the HTTP transport in a
 `RoundTripper` that injects the assertion into form-encoded POSTs bound for the token endpoint, and
 leaves every other request over that client alone. `ClientApp.client` already reaches every OIDC
 call through `gooidc.ClientContext(ctx, a.client)`, so wrapping it once in `NewClientApp` covers the
 code exchange, the refresh grant, and whatever gets added later. The Azure `AuthCodeOption` block
 then goes away.
-
-Several details around that are easy to get wrong: the token endpoint is not known when the
-transport is built, `RoundTripper` may not mutate the request it is handed, and an empty
-`ClientSecret` can still produce a Basic auth header that Keycloak rejects. They are implementation
-notes on the tracking issue, not design decisions.
-
-#### Reading and caching the token
-
-The kubelet rewrites the projected token periodically, so `argocd-server` must re-read the file
-instead of caching the first value it saw. The existing Azure helper caches for a flat ten minutes,
-on the reasoning that the shortest token lifetime is an hour. That doesn't survive a ten-minute
-token: cache a 600-second token for 600 seconds from the moment you read it and it expires before
-the cache does. Parse `exp` from the file and cache until shortly before it.
-
-Two checks should not wait for the first login. At startup, confirm the file exists and parses as a
-JWT. Before the token is ever sent, confirm its `aud` is the one the provider expects, since
-forgetting `audience:` on the projected volume turns into an opaque `invalid_client`.
-
-Both should log instead of failing. `server.go` wraps `NewClientApp` in `errorsutil.CheckError`, so
-an error there kills the process, and `argocd admin dashboard` and `--core` build a `ClientApp` on
-the operator's laptop from the cluster's real `argocd-cm`, where the projected token will never
-exist. A
-fatal check breaks those commands on a perfectly good configuration.
-
-"The one the provider expects" is why `federatedJWT.audience` exists at all. Keycloak wants the
-realm issuer URL, so the default is right there. Entra ID does not: an Azure Workload Identity token
-carries `aud: api://AzureADTokenExchange` while `issuer` points at `login.microsoftonline.com`.
-Compare against `issuer` unconditionally and every existing `azure.useWorkloadIdentity` user stops
-being able to log in the moment they upgrade.
 
 #### What does not change
 
@@ -245,18 +209,18 @@ note that the Entra ID setup can be written in the provider-neutral form too.
 
 ### Detailed examples
 
-**Keycloak realm setup** (26.6 or later), summarized. These steps are reconstructed from Keycloak's
+These steps are reconstructed from Keycloak's
 announcement and design issue, not transcribed from the admin guide, so the exact console labels
 should be confirmed against a 26.6 instance before any of this reaches user docs:
 
-1. Create an identity provider of type *Kubernetes* in the realm, pointing at the cluster's service
+1. Create an identity provider of type Kubernetes in the realm, pointing at the cluster's service
    account issuer URL. Keycloak fetches the JWKS from the issuer's discovery document; for clusters
    whose issuer is not reachable from Keycloak, supply the JWKS manually.
 2. On the `argocd` client, set client authentication to federated, select the identity provider
    above, and set the external subject to `system:serviceaccount:argocd:argocd-server`.
 3. Leave replay protection off for this identity provider, since Kubernetes tokens have no `jti`.
 
-**Projecting the token into `argocd-server`** (Helm values):
+Projecting the token into `argocd-server` (Helm values):
 
 ```yaml
 server:
@@ -288,7 +252,17 @@ is verified.
 
 ### Security Considerations
 
-The token path is the one part of this design with a real attack against it.
+Only one item below is new, and that is the token path, which comes first. The others come with the
+decision to authenticate using a Kubernetes ServiceAccount token. Some originate in Keycloak's
+design, some in Kubernetes, one in the two meeting, and none are fixable in Argo CD code. An
+operator takes them on when enabling the feature.
+
+Some baseline first. `oidc.config.issuer` already decides where Argo CD sends its client
+credentials: `settings.IssuerURL()` is passed to `NewOIDCProvider`, discovery resolves the token
+endpoint from that issuer, and `getOauth2ConfigForRedirectURI` posts the client secret there. An
+attacker who can edit `argocd-cm` can therefore redirect a login and capture the SSO client secret
+today. With the configuration this proposal recommends, `tokenFileEnv` and no `clientSecret` at all,
+that same attack gets them a ten-minute token tied to one audience instead of a permanent secret.
 
 `argocd-cm` is a ConfigMap, and editing one takes less privilege than editing the `argocd-server`
 Deployment or reading `argocd-secret`. An attacker with that access can set
@@ -299,45 +273,43 @@ the path comes from the Pod spec, the way Entra ID already does it. It needs an 
 (`/var/run/secrets/`), no traversal, no symlink escapes, and a refusal to send any token whose
 audience is not the one the provider expects.
 
-`tokenFileEnv` is better, not safe. The path lives in the Pod spec, but which environment variable
-gets dereferenced still comes from `argocd-cm`, so an attacker picks from whatever the pod has set.
-Same validation, both forms.
+Using `tokenFileEnv` helps but does not close it. The path lives in the Pod spec, but which
+environment variable gets dereferenced still comes from `argocd-cm`, so an attacker picks from
+whatever the pod happens to have set. The same validation needs to apply to both forms.
 
 The rest:
 
-* The credential becomes "who can run a Pod as this ServiceAccount". Anyone who can create a Pod in
-  the Argo CD namespace with `serviceAccountName: argocd-server` can get an assertion. Roughly the
-  same people can read `argocd-secret` today, so it's not a regression. The credential moved. It
-  didn't disappear.
-* That comparison assumes the Keycloak client only does authorization-code flow. Turn on service
-  account roles and the assertion also buys a `client_credentials` grant; turn on token exchange and
-  it buys more. That belongs in the docs as a requirement on the Keycloak client.
+* Anyone who can create a Pod in the Argo CD namespace with `serviceAccountName: argocd-server` can
+  get an assertion. Usually the same people can read `argocd-secret` today, so it is not a
+  regression, though the credential has moved and not gone away.
+* That comparison assumes the Keycloak client only does authorization-code flow. With service
+  account roles enabled, the same assertion also works for a `client_credentials` grant, and token
+  exchange allows more still. That belongs in the docs as a requirement on the Keycloak client.
 * Keycloak now trusts the cluster's signing keys, which means a compromised control plane can mint
   an assertion for any client whose external subject is a ServiceAccount in that cluster. Keycloak's
   own docs flag this.
 * No replay protection. Kubernetes tokens have no `jti`, so an intercepted assertion works until it
-  expires. TLS and the ten-minute lifetime are all that limit the window, and only one of those is
-  enforced: `ValidateExternalURL` accepts `http` as readily as `https`, so `issuer:
-  http://keycloak.internal` ships the assertion in cleartext with nothing objecting. Either require
-  `https` for `federated_jwt`, or stop counting TLS as a control.
+  expires. TLS to the provider and the ten-minute lifetime are all that limit the window, which is
+  the argument for requiring `https` when `method` is `federated_jwt`.
 * Exposing the cluster issuer publishes public keys and nothing else, but plenty of security teams
   will still want to sign off on it.
 
 ### Risks and Mitigations
 
-Everything fails the same way. Missing file, wrong audience, wrong external subject, expired token,
-Keycloak older than [26.6][kc-release-notes], clock skew outside the 300 second `iat` window: it
-all comes back as a
-bare `invalid_client`. The local checks catch the two likeliest causes before the request leaves the
-process. The rest needs a troubleshooting table in the docs, and a counter would help, since there
-is nothing today that says which authentication method is live or how often assertions are being
-rejected.
+Almost every misconfiguration produces the same error. A missing file, a wrong audience, a wrong
+external subject, an expired token, a Keycloak older than [26.6][kc-release-notes], clock skew
+outside the 300 second `iat` window: they all come back as an `invalid_client`. The local checks
+catch the two likeliest causes before the request leaves the process. The rest needs a
+troubleshooting table in the docs, and a counter would help, since there is nothing today that says
+which authentication method is live or how often assertions are being rejected.
 
 The worst failure mode is a crash loop. Any `oidc.config` edit restarts the API server by design,
 and `NewClientApp` errors are fatal, so a startup check that returns an error on a missing token
 file turns one bad `argocd-cm` edit into a restart loop with the operator locked out of the UI and
-CLI they would use to revert it. Hence logging instead of failing, and a test for it: break the
-mount, confirm the server still serves.
+CLI they would use to revert it. Headless makes the same point on a correct configuration: `argocd
+admin dashboard` and `--core` build a `ClientApp` on the operator's laptop from the cluster's real
+`argocd-cm`, where the projected token will never exist. So the checks log, and never fail, and that
+gets a test: break the mount, confirm the server still serves.
 
 Folding `azure.useWorkloadIdentity` into the shared path means touching code that works today. The
 flag stays an alias and nothing changes for existing users except that refresh starts working, but a
@@ -350,31 +322,21 @@ whether it tolerates both is not documented anywhere I could find.
 ### Upgrade / Downgrade Strategy
 
 There is nothing to upgrade. `clientAuthentication` is absent from every existing configuration and
-defaults to `client_secret`, which is exactly today's behavior, and there are no API type or
-manifest changes.
+defaults to `client_secret`, which is exactly today's behavior. There are no API type or manifest
+changes either.
 
-Adopting the feature is a two-step migration an operator can spread out:
-
-1. Configure the identity provider and the client in Keycloak, project the token into
-   `argocd-server`, and switch `oidc.config` to `method: federated_jwt`. Both halves cost a restart:
-   the projected volume needs a rollout, and any `oidc.config` edit makes `watchSettings` restart
-   the API server on purpose.
-2. Once logins work, delete the client secret from `argocd-secret` and from the Keycloak client.
-
-Rolling back is the reverse and equally safe: restore the client secret, remove the
-`clientAuthentication` block. Nothing persists any state tied to the authentication method. Existing
-sessions do keep working, though not because they are left alone: an expired ID token gets
-re-exchanged through the refresh grant in the auth interceptor, and once the client secret is back
-that exchange authenticates the old way again.
-
-Downgrading with `method: federated_jwt` still set fails logins until the client secret is
-restored, like any other unknown `oidc.config` key.
+Adoption is opt-in and requires a restart: the projected volume needs a rollout, and `watchSettings`
+restarts the API server on any `oidc.config` edit by design. Delete the client secret only once
+logins work on the new path. Rolling back means putting it back and removing the block, since
+nothing persists any state tied to the authentication method. Downgrading to a version that does not
+know `method: federated_jwt` fails logins until the secret is restored, like any other unknown
+`oidc.config` key.
 
 ## Drawbacks
 
 * One more authentication mode in code that already has several: client secret, PKCE, Azure workload
-  identity, Dex. It replaces the Azure branch instead of adding to it, so the count holds steady,
-  but it only works on Kubernetes, and only with providers that take third-party assertions.
+  identity, Dex. It replaces the Azure branch instead of adding to it, so the number stays the
+  same, but it only works on Kubernetes, and only with providers that take third-party assertions.
 * When it breaks, it breaks somewhere else. Debugging a rejected assertion means reading Keycloak
   logs, which most Argo CD operators never have to do.
 * Configuration ends up in three places. The projected volume, the audience and the ServiceAccount
