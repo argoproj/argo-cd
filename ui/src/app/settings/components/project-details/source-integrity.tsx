@@ -122,7 +122,7 @@ const SourceIntegrityContent: React.FC<{sourceIntegrity?: ProjectSourceIntegrity
     return configuredSections.map(section => <section.View key={section.key} {...section.getProps(sourceIntegrity)} />);
 };
 
-export const SourceIntegrityPanel: React.FC<{proj: Project}> = ({proj}) => {
+const SourceIntegrityPanel: React.FC<{proj: Project}> = ({proj}) => {
     return (
         <EditablePanel
             values={proj}
@@ -130,5 +130,13 @@ export const SourceIntegrityPanel: React.FC<{proj: Project}> = ({proj}) => {
             view={<SourceIntegrityContent sourceIntegrity={proj.spec.sourceIntegrity} />}
             items={[]}
         />
+    );
+};
+
+export const SourceIntegrityTab: React.FC<{proj: Project}> = ({proj}) => {
+    return (
+        <div className='argo-container'>
+            <SourceIntegrityPanel proj={proj} />
+        </div>
     );
 };

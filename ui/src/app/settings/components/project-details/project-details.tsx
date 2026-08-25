@@ -17,7 +17,7 @@ import {ProjectRoleEditPanel} from '../project-role-edit-panel/project-role-edit
 import {ProjectSyncWindowsEditPanel} from '../project-sync-windows-edit-panel/project-sync-windows-edit-panel';
 import {ResourceListsPanel} from './resource-lists-panel';
 import {DeepLinks} from '../../../shared/components/deep-links';
-import {SourceIntegrityPanel} from './source-integrity-panel';
+import {SourceIntegrityTab} from './source-integrity';
 
 require('./project-details.scss');
 
@@ -681,8 +681,6 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                     />
                 )}
 
-                <SourceIntegrityPanel proj={proj} />
-
                 {(proj.spec.signatureKeys?.length ?? 0) > 0 && (
                     <EditablePanel
                         save={item => saveProject(item)}
@@ -694,6 +692,7 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                         }
                         view={
                             <React.Fragment>
+                                <p>This feature is deprecated, migrate to Source Integrity instead.</p>
                                 {proj.spec.signatureKeys
                                     ? proj.spec.signatureKeys.map((key, i) => (
                                           <div className='row white-box__details-row' key={i}>
@@ -707,6 +706,7 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                             <DataLoader load={() => services.gpgkeys.list()}>
                                 {keys => (
                                     <React.Fragment>
+                                        <p>This feature is deprecated, migrate to Source Integrity instead.</p>
                                         {(formApi.values.spec.signatureKeys || []).map((_: Project, i: number) => (
                                             <div className='row white-box__details-row' key={i}>
                                                 <div className='columns small-12'>
@@ -931,6 +931,11 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                                                 key: 'events',
                                                 title: 'Events',
                                                 content: eventsTab(proj)
+                                            },
+                                            {
+                                                key: 'source-integrity',
+                                                title: 'Source Integrity',
+                                                content: <SourceIntegrityTab proj={proj} />
                                             }
                                         ].map(tab => ({...tab, isOnlyContentScrollable: true, extraVerticalScrollPadding: 160}))}
                                     />
