@@ -916,7 +916,7 @@ func (m *nativeGitClient) LsRemote(revision string) (res string, err error) {
 			// Formula: timeToWait = duration * factor^retry_number
 			// Note that timeToWait should equal to duration for the first retry attempt.
 			// When timeToWait is more than maxDuration retry should be performed at maxDuration.
-			timeToWait := float64(retryDuration) * (math.Pow(float64(factor), float64(attempt)))
+			timeToWait := float64(retryDuration) * math.Pow(float64(factor), float64(attempt))
 			if maxRetryDuration > 0 {
 				timeToWait = math.Min(float64(maxRetryDuration), timeToWait)
 			}
