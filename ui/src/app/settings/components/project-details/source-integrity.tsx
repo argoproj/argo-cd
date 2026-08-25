@@ -8,14 +8,14 @@ require('./source-integrity-panel.scss');
 type SourceIntegritySection<T> = {
     key: string;
     isConfigured: (si?: ProjectSourceIntegrity) => boolean;
-    View: React.FC<T>;
+    View: React.ComponentType<T>;
     getProps: (si?: ProjectSourceIntegrity) => T;
 };
 
 const getIncludedRepoUrlsOnly = (repos?: string[]) => repos?.filter(repo => !repo.startsWith('!'));
 const getExcludedRepoUrlsOnly = (repos?: string[]) => repos?.filter(repo => repo.startsWith('!')).map(repo => repo.slice(1));
 
-const GitSourceIntegrityView: React.FC<{git?: SourceIntegrityGit}> = ({git}) => {
+const GitSourceIntegrityView = ({git}: {git?: SourceIntegrityGit}) => {
     return (
         <>
             <p className='project-details__list-title'>GIT</p>
@@ -61,7 +61,7 @@ const GitSourceIntegrityView: React.FC<{git?: SourceIntegrityGit}> = ({git}) => 
     );
 };
 
-const HelmMockView: React.FC<{}> = () => {
+const HelmMockView = () => {
     return (
         <>
             <p className='project-details__list-title'>HELM</p>
@@ -104,7 +104,7 @@ const SOURCE_INTEGRITY_SECTIONS: SourceIntegritySection<ProjectSourceIntegrity>[
     }
 ];
 
-const SourceIntegrityContent: React.FC<{sourceIntegrity?: ProjectSourceIntegrity}> = ({sourceIntegrity}) => {
+const SourceIntegrityContent = ({sourceIntegrity}: {sourceIntegrity?: ProjectSourceIntegrity}) => {
     const configuredSections = SOURCE_INTEGRITY_SECTIONS.filter(section => section.isConfigured(sourceIntegrity));
 
     if (configuredSections.length === 0) {
@@ -122,7 +122,7 @@ const SourceIntegrityContent: React.FC<{sourceIntegrity?: ProjectSourceIntegrity
     return configuredSections.map(section => <section.View key={section.key} {...section.getProps(sourceIntegrity)} />);
 };
 
-const SourceIntegrityPanel: React.FC<{proj: Project}> = ({proj}) => {
+const SourceIntegrityPanel = ({proj}: {proj: Project}) => {
     return (
         <EditablePanel
             values={proj}
@@ -133,7 +133,7 @@ const SourceIntegrityPanel: React.FC<{proj: Project}> = ({proj}) => {
     );
 };
 
-export const SourceIntegrityTab: React.FC<{proj: Project}> = ({proj}) => {
+export const SourceIntegrityTab = ({proj}: {proj: Project}) => {
     return (
         <div className='argo-container'>
             <SourceIntegrityPanel proj={proj} />
