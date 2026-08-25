@@ -438,6 +438,56 @@ spec:
 * `labelMatch`: A regexp matched against repository labels. If any label matches, the repository is included.
 * `branchMatch`: A regexp matched against branch names.
 
+### Enabling the corrected filter evaluation
+
+The behaviour described above — conditions within one filter AND'd, separate filters OR'd — is what
+Argo CD has always documented, but it is not what the SCM Provider generator has historically done.
+
+Conditions are split into two groups by the level they apply to:
+
+* Repository-level: `repositoryMatch`, `labelMatch`
+* Branch-level: `branchMatch`, `pathsExist`, `pathsDoNotExist`
+
+The generator evaluates the two groups in sequence and independently of which filter each condition
+came from. A repository therefore has to satisfy *some* repository-level filter **and** *some*
+branch-level filter, which turns the documented OR between separate filters into an AND. For
+example:
+
+```yaml
+filters:
+- repositoryMatch: ^my-      # repository-level only
+- pathsExist: [helm]         # branch-level only
+```
+
+This is documented to include any repository starting with `my-`, plus any repository containing a
+`helm` directory. In practice it selects only repositories that are *both* named `my-*` *and*
+contain `helm`. A filter that mixes both levels in a single entry is affected too: it is classified
+by whichever condition comes last, so the other half is evaluated against the wrong group.
+
+A corrected evaluation is available, which checks each filter as a whole and OR's the results. It
+can be enabled in any of these ways:
+
+1. Pass `--enable-new-scm-provider-filtering` to the ApplicationSet controller args.
+1. Set `ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_SCM_PROVIDER_FILTERING=true` in the ApplicationSet controller environment variables.
+1. Set `applicationsetcontroller.enable.new.scm.provider.filtering: "true"` in the `argocd-cmd-params-cm` ConfigMap.
+
+> [!WARNING]
+> Enabling this changes which repositories and branches an existing `ApplicationSet` selects, so it
+> changes which Applications are generated. If `spec.syncPolicy.applicationsSync` permits deletion,
+> Applications that the corrected evaluation no longer selects are pruned. Review the effect on your
+> `ApplicationSet` resources before enabling it in a cluster you care about — `argocd appset generate`
+> reports the generated Applications without applying them.
+
+> [!NOTE]
+> Set the same value on `argocd-server` (`--appset-enable-new-scm-provider-filtering`, or the same
+> environment variable and ConfigMap key), otherwise `argocd appset generate` and the UI preview will
+> not agree with what the controller produces. The default manifests wire the ConfigMap key into both
+> components, so setting the ConfigMap key covers this.
+
+`ApplicationSet` resources using a single filter, or only repository-level conditions, or only
+branch-level conditions, are unaffected either way. Note that the default may change in a future
+release.
+
 ## Template
 
 As with all generators, several parameters are generated for use within the `ApplicationSet` resource template.

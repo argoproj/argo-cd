@@ -32,6 +32,7 @@ argocd-server [flags]
       --appset-allowed-scm-providers strings            The list of allowed custom SCM provider API URLs. This restriction does not apply to SCM or PR generators which do not accept a custom API URL. (Default: Empty = all)
       --appset-enable-github-api-metrics                Enable GitHub API metrics for generators that use the GitHub API
       --appset-enable-new-git-file-globbing             Enable new globbing in Git files generator.
+      --appset-enable-new-scm-provider-filtering        Enable corrected filter evaluation in the SCM Provider generator. Must match the applicationset controller setting so that dry-run generation agrees with what the controller produces.
       --appset-enable-scm-providers                     Enable retrieving information from SCM providers, used by the SCM and PR generators (Default: true) (default true)
       --appset-scm-root-ca-path string                  Provide Root CA Path for self-signed TLS Certificates
       --as string                                       Username to impersonate for the operation
