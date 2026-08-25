@@ -220,6 +220,13 @@ func (sharding *ClusterSharding) scheduleRecompute() {
 // Cluster-level changes (Init/Add/Delete/Update) keep recomputing synchronously.
 // Run returns immediately; the worker stops when ctx is cancelled. Calling Run
 // more than once is a no-op.
+//
+// Staleness note: after Run is called, GetDistribution and IsManagedCluster
+// may lag up to recomputeDebounceInterval behind the current Apps map.
+// GetAppDistribution always reflects the Apps map immediately (it does not
+// depend on the recomputed Shards). Callers that need a guaranteed-current
+// view of cluster assignments should call Init or use a cluster-level
+// mutator (Add/Update/Delete), which recompute synchronously.
 func (sharding *ClusterSharding) Run(ctx context.Context) {
 	sharding.lock.Lock()
 	if sharding.async {
