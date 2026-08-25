@@ -37,10 +37,8 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			steps = append(steps, v1alpha1.ApplicationSetRolloutStep{MatchExpressions: []v1alpha1.ApplicationMatchExpression{}})
 		}
 		return v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "name",
-				Namespace: "argocd",
-			},
+			Name:      "name",
+			Namespace: "argocd",
 			Spec: v1alpha1.ApplicationSetSpec{
 				Strategy: &v1alpha1.ApplicationSetStrategy{
 					Type: "RollingSync",
@@ -57,9 +55,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 
 	newApp := func(name string, health health.HealthStatusCode, sync v1alpha1.SyncStatusCode, revision string, opState *v1alpha1.OperationState) v1alpha1.Application {
 		return v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: name,
-			},
+			Name: name,
 			Status: v1alpha1.ApplicationStatus{
 				ReconciledAt: &metav1.Time{Time: time.Now()},
 				Health: v1alpha1.AppHealthStatus{
@@ -422,9 +418,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			}),
 			apps: []v1alpha1.Application{
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
-					},
+					Name: "app1",
 					Status: v1alpha1.ApplicationStatus{
 						ReconciledAt: nil,
 						Conditions: []v1alpha1.ApplicationCondition{
@@ -504,9 +498,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			}),
 			apps: []v1alpha1.Application{
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
-					},
+					Name: "app1",
 					Status: v1alpha1.ApplicationStatus{
 						ReconciledAt: &nowMinus5, // This means data is stale and we cannot trust the information in the status.
 						Health: v1alpha1.AppHealthStatus{
@@ -792,9 +784,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			// Desired apps have identical spec
 			desiredApps: []v1alpha1.Application{
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
-					},
+					Name: "app1",
 					Spec: v1alpha1.ApplicationSpec{
 						Source: &v1alpha1.ApplicationSource{
 							RepoURL:        "https://example.com/repo.git",

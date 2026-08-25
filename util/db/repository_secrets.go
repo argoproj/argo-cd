@@ -33,9 +33,7 @@ func (s *secretsRepositoryBackend) CreateRepository(ctx context.Context, reposit
 	secName := RepoURLToSecretName(secretPrefix, repository.Repo, repository.Project)
 
 	repositorySecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: secName,
-		},
+		Name: secName,
 	}
 
 	updatedSecret := s.repositoryToSecret(repository, repositorySecret)
@@ -186,9 +184,7 @@ func (s *secretsRepositoryBackend) CreateRepoCreds(ctx context.Context, repoCred
 	secName := RepoURLToSecretName(secretPrefix, repoCreds.URL, "")
 
 	repoCredsSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: secName,
-		},
+		Name: secName,
 	}
 
 	updatedSecret := s.repoCredsToSecret(repoCreds, repoCredsSecret)
