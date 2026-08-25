@@ -53,38 +53,39 @@ var gitSubmoduleEnabled = env.ParseBoolFromEnv(common.EnvGitSubmoduleEnabled, tr
 
 func NewCommand() *cobra.Command {
 	var (
-		clientConfig                 clientcmd.ClientConfig
-		metricsAddr                  string
-		probeBindAddr                string
-		webhookAddr                  string
-		enableLeaderElection         bool
-		applicationSetNamespaces     []string
-		argocdRepoServer             string
-		policy                       string
-		enablePolicyOverride         bool
-		debugLog                     bool
-		dryRun                       bool
-		enableProgressiveSyncs       bool
-		enableNewGitFileGlobbing     bool
-		repoServerPlaintext          bool
-		repoServerStrictTLS          bool
-		repoServerTimeoutSeconds     int
-		maxConcurrentReconciliations int
-		scmRootCAPath                string
-		allowedScmProviders          []string
-		globalPreservedAnnotations   []string
-		globalPreservedLabels        []string
-		enableGitHubAPIMetrics       bool
-		metricsAplicationsetLabels   []string
-		enableScmProviders           bool
-		webhookParallelism           int
-		tokenRefStrictMode           bool
-		maxResourcesStatusCount      int
-		cacheSyncPeriod              time.Duration
-		concurrentApplicationUpdates int
-		repoServerClientTLSConfigSrc func() (tls.Configuration, error)
-		scmProxyURL                  string
-		scmNoProxy                   string
+		clientConfig                  clientcmd.ClientConfig
+		metricsAddr                   string
+		probeBindAddr                 string
+		webhookAddr                   string
+		enableLeaderElection          bool
+		applicationSetNamespaces      []string
+		argocdRepoServer              string
+		policy                        string
+		enablePolicyOverride          bool
+		debugLog                      bool
+		dryRun                        bool
+		enableProgressiveSyncs        bool
+		enableNewGitFileGlobbing      bool
+		enableNewSCMProviderFiltering bool
+		repoServerPlaintext           bool
+		repoServerStrictTLS           bool
+		repoServerTimeoutSeconds      int
+		maxConcurrentReconciliations  int
+		scmRootCAPath                 string
+		allowedScmProviders           []string
+		globalPreservedAnnotations    []string
+		globalPreservedLabels         []string
+		enableGitHubAPIMetrics        bool
+		metricsAplicationsetLabels    []string
+		enableScmProviders            bool
+		webhookParallelism            int
+		tokenRefStrictMode            bool
+		maxResourcesStatusCount       int
+		cacheSyncPeriod               time.Duration
+		concurrentApplicationUpdates  int
+		repoServerClientTLSConfigSrc  func() (tls.Configuration, error)
+		scmProxyURL                   string
+		scmNoProxy                    string
 	)
 	scheme := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
@@ -214,7 +215,8 @@ func NewCommand() *cobra.Command {
 				enableGitHubAPIMetrics,
 				github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)),
 				tokenRefStrictMode, generators.WithProxyURL(scmProxyURL),
-				generators.WithNoProxyList(scmNoProxy))
+				generators.WithNoProxyList(scmNoProxy),
+				generators.WithNewSCMProviderFiltering(enableNewSCMProviderFiltering))
 
 			tlsConfig, err := repoServerClientTLSConfigSrc()
 			errors.CheckError(err)
@@ -310,6 +312,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&tokenRefStrictMode, "token-ref-strict-mode", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_TOKENREF_STRICT_MODE", false), fmt.Sprintf("Set to true to require secrets referenced by SCM providers to have the %s=%s label set (Default: false)", common.LabelKeySecretType, common.LabelValueSecretTypeSCMCreds))
 	command.Flags().BoolVar(&enableProgressiveSyncs, "enable-progressive-syncs", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS", false), "Enable use of the experimental progressive syncs feature.")
 	command.Flags().BoolVar(&enableNewGitFileGlobbing, "enable-new-git-file-globbing", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_GIT_FILE_GLOBBING", false), "Enable new globbing in Git files generator.")
+	command.Flags().BoolVar(&enableNewSCMProviderFiltering, "enable-new-scm-provider-filtering", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_SCM_PROVIDER_FILTERING", false), "Enable corrected filter evaluation in the SCM Provider generator. Multiple filters are OR'd as documented, instead of repo-level and branch-level filters being AND'd together. Enabling this may change which Applications an existing ApplicationSet generates.")
 	command.Flags().BoolVar(&repoServerPlaintext, "repo-server-plaintext", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_PLAINTEXT", false), "Disable TLS on connections to repo server")
 	command.Flags().BoolVar(&repoServerStrictTLS, "repo-server-strict-tls", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_STRICT_TLS", false), "Whether to use strict validation of the TLS cert presented by the repo server")
 	errors.CheckError(command.Flags().MarkDeprecated("repo-server-strict-tls", "use --repo-server-ca-cert-path instead"))
