@@ -3932,6 +3932,9 @@ func TestSetApplicationSetApplicationStatus(t *testing.T) {
 
 	kubeclientset := kubefake.NewClientset([]runtime.Object{}...)
 
+	previousTransitionTime := &metav1.Time{Time: time.Now().Add(-5 * time.Minute).Truncate(time.Second)}
+	newTransitionTime := &metav1.Time{Time: time.Now().Truncate(time.Second)}
+
 	for _, cc := range []struct {
 		name                string
 		appSet              v1alpha1.ApplicationSet
@@ -4043,6 +4046,60 @@ func TestSetApplicationSetApplicationStatus(t *testing.T) {
 			},
 			appStatuses:         []v1alpha1.ApplicationSetApplicationStatus{},
 			expectedAppStatuses: nil,
+		},
+		{
+			name: "updates status when only the transition time changed while waiting",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Generators: []v1alpha1.ApplicationSetGenerator{
+						{List: &v1alpha1.ListGenerator{
+							Elements: []apiextensionsv1.JSON{{
+								Raw: []byte(`{"cluster": "my-cluster","url": "https://kubernetes.default.svc"}`),
+							}},
+						}},
+					},
+					Template: v1alpha1.ApplicationSetTemplate{},
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application:        "app1",
+							Message:            "revisionChangedMsg",
+							Status:             v1alpha1.ProgressiveSyncWaiting,
+							Step:               "1",
+							LastTransitionTime: previousTransitionTime,
+							TargetRevisions:    []string{"revision1"},
+						},
+					},
+				},
+			},
+			// Same Status/Step/Message as the persisted status above (simulating a second
+			// revision change while the app is still Waiting), but a newer LastTransitionTime
+			// and TargetRevisions. The update must still be persisted.
+			appStatuses: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					Message:            "revisionChangedMsg",
+					Status:             v1alpha1.ProgressiveSyncWaiting,
+					Step:               "1",
+					LastTransitionTime: newTransitionTime,
+					TargetRevisions:    []string{"revision2"},
+				},
+			},
+			expectedAppStatuses: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					Message:            "revisionChangedMsg",
+					Status:             v1alpha1.ProgressiveSyncWaiting,
+					Step:               "1",
+					LastTransitionTime: newTransitionTime,
+					TargetRevisions:    []string{"revision2"},
+				},
+			},
 		},
 	} {
 		t.Run(cc.name, func(t *testing.T) {

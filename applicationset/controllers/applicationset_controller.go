@@ -1159,8 +1159,9 @@ func (r *ApplicationSetReconciler) setAppSetApplicationStatus(ctx context.Contex
 			statusChanged := currentStatus.Status != appStatus.Status
 			stepChanged := currentStatus.Step != appStatus.Step
 			messageChanged := currentStatus.Message != appStatus.Message
+			transitionTimeChanged := !currentStatus.LastTransitionTime.Equal(appStatus.LastTransitionTime)
 
-			if statusChanged || stepChanged || messageChanged {
+			if statusChanged || stepChanged || messageChanged || transitionTimeChanged {
 				if statusChanged {
 					logCtx.WithFields(log.Fields{"application": appStatus.Application, "previous_status": currentStatus.Status, "new_status": appStatus.Status}).
 						Debug("application status changed")
@@ -1171,6 +1172,9 @@ func (r *ApplicationSetReconciler) setAppSetApplicationStatus(ctx context.Contex
 				}
 				if messageChanged {
 					logCtx.WithFields(log.Fields{"application": appStatus.Application}).Debug("application message changed")
+				}
+				if transitionTimeChanged {
+					logCtx.WithFields(log.Fields{"application": appStatus.Application}).Debug("application transition time changed")
 				}
 				needToUpdateStatus = true
 				break
