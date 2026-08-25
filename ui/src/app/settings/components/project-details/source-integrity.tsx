@@ -18,7 +18,7 @@ const getExcludedRepoUrlsOnly = (repos?: string[]) => repos?.filter(repo => repo
 const GitSourceIntegrityView = ({git}: {git?: SourceIntegrityGit}) => {
     return (
         <>
-            <p className='project-details__list-title'>GIT</p>
+            {/* <p className='project-details__list-title'>GIT</p> */}
             {git?.policies?.map((policy, policyIndex) => {
                 const includedRepoUrls = getIncludedRepoUrlsOnly(policy?.repos?.map(repo => repo.url));
                 const excludedRepoUrls = getExcludedRepoUrlsOnly(policy?.repos?.map(repo => repo.url));
@@ -64,7 +64,7 @@ const GitSourceIntegrityView = ({git}: {git?: SourceIntegrityGit}) => {
 const HelmMockView = () => {
     return (
         <>
-            <p className='project-details__list-title'>HELM</p>
+            {/* <p className='project-details__list-title'>HELM</p> */}
             <div key={1} className='white-box source-integrity-panel__policy'>
                 <div className='row white-box__details-row'>
                     <div className='columns small-2'>PROVENANCE</div>
@@ -123,13 +123,43 @@ const SourceIntegrityContent = ({sourceIntegrity}: {sourceIntegrity?: ProjectSou
 };
 
 const SourceIntegrityPanel = ({proj}: {proj: Project}) => {
+    const configuredSections = SOURCE_INTEGRITY_SECTIONS.filter(section => section.isConfigured(proj?.spec?.sourceIntegrity));
     return (
-        <EditablePanel
-            values={proj}
-            title={<React.Fragment>SOURCE INTEGRITY {helpTip('Verification criteria that application sources must meet before they can be synced and applied.')}</React.Fragment>}
-            view={<SourceIntegrityContent sourceIntegrity={proj.spec.sourceIntegrity} />}
-            items={[]}
-        />
+        <>
+            {/* <EditablePanel
+                values={proj}
+                title={
+                    <React.Fragment>SOURCE INTEGRITY {helpTip('Verification criteria that application sources must meet before they can be synced and applied.')}</React.Fragment>
+                }
+                view={<SourceIntegrityContent sourceIntegrity={proj.spec.sourceIntegrity} />}
+                items={[]}
+            /> */}
+
+            {configuredSections.length === 0 && (
+                <EditablePanel
+                    values={{}}
+                    view={
+                        <p className='source-integrity-panel--empty'>
+                            Source Integrity is not configured. Use the <code> argocd proj source-integrity</code>{' '}
+                            <a href='https://argo-cd.readthedocs.io/en/stable/user-guide/commands/argocd_proj_source-integrity/' target='_blank' rel='noopener noreferrer'>
+                                <i className='fa fa-external-link' /> CLI command
+                            </a>{' '}
+                            to configure it.
+                        </p>
+                    }
+                    items={[]}
+                />
+            )}
+
+            {configuredSections.map(section => (
+                <EditablePanel
+                    values={proj}
+                    title={<React.Fragment>{section.key.toUpperCase()}</React.Fragment>}
+                    view={<section.View {...section.getProps(proj?.spec?.sourceIntegrity)} />}
+                    items={[]}
+                />
+            ))}
+        </>
     );
 };
 
