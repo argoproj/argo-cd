@@ -61,6 +61,7 @@ const (
 	svgWidthWithRevision      = 192
 	svgWidthWithFullRevision  = 400
 	svgWidthWithoutRevision   = 131
+	shortRevisionLen          = 7
 	svgHeightWithAppName      = 40
 	badgeRowHeight            = 20
 	statusRowYCoodWithAppName = 330
@@ -207,10 +208,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 		adjustWidth = true
 		displayedRevision = revision
-		if keepFullRevisionParam, ok := r.URL.Query()["keepFullRevision"]; (!ok || !strings.EqualFold(keepFullRevisionParam[0], "true")) && len(revision) > 7 {
-			displayedRevision = revision[:7]
+		if keepFullRevisionParam, ok := r.URL.Query()["keepFullRevision"]; (!ok || !strings.EqualFold(keepFullRevisionParam[0], "true")) && len(revision) > shortRevisionLen {
+			displayedRevision = revision[:shortRevisionLen]
 		}
-		if len(displayedRevision) > 7 {
+		if len(displayedRevision) > shortRevisionLen {
 			svgWidth = svgWidthWithFullRevision
 		} else {
 			svgWidth = svgWidthWithRevision
