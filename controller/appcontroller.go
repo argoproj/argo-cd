@@ -2898,10 +2898,11 @@ func (ctrl *ApplicationController) appProjectEventHandlerFuncs() cache.ResourceE
 }
 
 // applicationEventHandlerFuncs returns the informer event handlers for Application
-// objects. Events for applications this controller cannot process (per canProcessApp)
-// are ignored. DeleteFunc unwraps cache.DeletedFinalStateUnknown tombstones and
-// immediately enqueues a refresh, while add/update use the rate-limited queues. The
-// cluster sharding cache is updated to reflect the application's lifecycle.
+// objects. The cluster sharding cache is updated for every application in an allowed
+// namespace so that all shards compute the same cluster->shard mapping (#24515); only
+// queueing is gated by canProcessApp. DeleteFunc unwraps
+// cache.DeletedFinalStateUnknown tombstones and immediately enqueues a refresh, while
+// add/update use the rate-limited queues.
 func (ctrl *ApplicationController) applicationEventHandlerFuncs() cache.ResourceEventHandlerFuncs {
 	return cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj any) {
