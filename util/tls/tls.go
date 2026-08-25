@@ -179,7 +179,7 @@ func getTLSConfigCustomizer(minVersionStr, maxVersionStr, tlsCiphersStr, tlsCurv
 	if tlsCurvePreferences != "" {
 		curvePreferences, err = getTLSCurvePreferencesByString(strings.Split(tlsCurvePreferences, ":"))
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error retrieving TLS curve preferences: %w", err)
 		}
 	}
 	return func(config *tls.Config) {
@@ -216,9 +216,13 @@ func getTLSCurvePreferencesByString(curves []string) ([]tls.CurveID, error) {
 	}
 	ids := make([]tls.CurveID, 0, len(curves))
 	for _, curve := range curves {
-		id, ok := tlsCurveByString[strings.TrimSpace(curve)]
+		trimmedCurve := strings.TrimSpace(curve)
+		if trimmedCurve == "" {
+			continue
+		}
+		id, ok := tlsCurveByString[trimmedCurve]
 		if !ok {
-			return nil, fmt.Errorf("invalid TLS curve preference: %s", strings.TrimSpace(curve))
+			return nil, fmt.Errorf("invalid TLS curve preference: %s", trimmedCurve)
 		}
 		ids = append(ids, id)
 	}
