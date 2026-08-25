@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"encoding/json/jsontext"
 	jsonv2 "encoding/json/v2"
+	"fmt"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -48,13 +49,13 @@ func NewKubeJson(data []byte) (*KubeJson, error) {
 	// Duplicates are last-wins as before. Rejecting them would mean tracking
 	// every name seen in an object even while skipping it: 178KB/1161 allocs to
 	// read four fields out of a 64KB ConfigMap, versus 64B/1.
-	if err := jsonv2.Unmarshal(trimmed, &k.meta, jsontext.AllowDuplicateNames(true)); err != nil {
+	if v2Err := jsonv2.Unmarshal(trimmed, &k.meta, jsontext.AllowDuplicateNames(true)); v2Err != nil {
 		// v2 rejects a non-string identifying field where v1 read it as "".
 		// SplitYAML accepts `name: 123` and it survives json.Marshal as a
 		// number, so erroring would fail a whole resource tree over one object
 		// that used to render.
 		if err := k.unmarshalUnstructured(trimmed); err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to unmarshal object metadata: %w (strict decode: %w)", err, v2Err)
 		}
 	}
 
