@@ -31050,8 +31050,8 @@ spec:
                 description: SyncWindows controls when syncs can be run for apps in
                   this project
                 items:
-                  description: SyncWindow contains the kind, time, duration and attributes
-                    that are used to assign the syncWindows to apps
+                  description: InlineSyncWindow contains the kind, time, duration
+                    and attributes that are used to assign the syncWindows to apps
                   properties:
                     andOperator:
                       description: UseAndOperator use AND operator for matching applications,
@@ -32752,7 +32752,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:8.10.0-alpine
+        image: public.ecr.aws/docker/library/redis:8.10.1-alpine
         imagePullPolicy: Always
         name: redis
         ports:

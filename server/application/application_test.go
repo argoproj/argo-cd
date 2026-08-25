@@ -212,7 +212,7 @@ func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer),
 			SyncWindows:  v1alpha1.SyncWindows{},
 		},
 	}
-	matchingWindow := &v1alpha1.SyncWindow{
+	matchingWindow := &v1alpha1.InlineSyncWindow{
 		Kind:         "allow",
 		Schedule:     "* * * * *",
 		Duration:     "1h",
@@ -397,7 +397,7 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(b *testing.B, f func(*rb
 			SyncWindows:  v1alpha1.SyncWindows{},
 		},
 	}
-	matchingWindow := &v1alpha1.SyncWindow{
+	matchingWindow := &v1alpha1.InlineSyncWindow{
 		Kind:         "allow",
 		Schedule:     "* * * * *",
 		Duration:     "1h",

@@ -479,7 +479,7 @@ func createAndConfigGlobalProject(ctx context.Context, testName string) error {
 	}
 
 	projGlobal.Spec.SyncWindows = v1alpha1.SyncWindows{}
-	win := &v1alpha1.SyncWindow{Kind: "deny", Schedule: "* * * * *", Duration: "1h", Applications: []string{"*"}}
+	win := &v1alpha1.InlineSyncWindow{Kind: "deny", Schedule: "* * * * *", Duration: "1h", Applications: []string{"*"}}
 	projGlobal.Spec.SyncWindows = append(projGlobal.Spec.SyncWindows, win)
 
 	_, err = fixture.AppClientset.ArgoprojV1alpha1().AppProjects(fixture.TestNamespace()).Update(ctx, projGlobal, metav1.UpdateOptions{})
