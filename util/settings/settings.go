@@ -727,9 +727,7 @@ func (mgr *SettingsManager) updateSecret(callback func(*corev1.Secret) error) er
 			return err
 		}
 		argoCDSecret = &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: common.ArgoCDSecretName,
-			},
+			Name: common.ArgoCDSecretName,
 			Data: make(map[string][]byte),
 		}
 		createSecret = true
@@ -765,9 +763,7 @@ func (mgr *SettingsManager) updateConfigMap(callback func(*corev1.ConfigMap) err
 			return err
 		}
 		argoCDCM = &corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: common.ArgoCDConfigMapName,
-			},
+			Name: common.ArgoCDConfigMapName,
 			Data: make(map[string]string),
 		}
 		createCM = true
