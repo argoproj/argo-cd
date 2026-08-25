@@ -86,13 +86,10 @@ We already solved this once with `azure.useWorkloadIdentity` which reads a proje
 1. Dex. Deployments that reach Keycloak through the bundled Dex keep a client secret in the Dex
    connector config. Dex has no federated assertion support, and this proposal does not add
    one. Only the direct `oidc.config` path is covered.
-2. The CLI. `argocd login --sso` already authenticates as a public client with PKCE using
-   `cliClientID`, and the client secret is never sent to it. Nothing changes here.
-3. SPIFFE. Keycloak's SPIFFE variant is still a preview feature while the spec is a draft. A JWT
+2. SPIFFE. Keycloak's SPIFFE variant is still a preview feature while the spec is a draft. A JWT
    SVID would drop into the file-based design unchanged, but nothing here is built or tested for
    it.
-4. Self-signed client assertions (`private_key_jwt`). Still a long-lived private key, so it doesn't
-   solve the problem.
+3. Self-signed client assertions (`private_key_jwt`), which are covered under Alternatives.
 
 ## Proposal
 
@@ -288,9 +285,9 @@ The rest:
 * Keycloak now trusts the cluster's signing keys, which means a compromised control plane can mint
   an assertion for any client whose external subject is a ServiceAccount in that cluster. Keycloak's
   own docs flag this.
-* No replay protection. Kubernetes tokens have no `jti`, so an intercepted assertion works until it
-  expires. TLS to the provider and the ten-minute lifetime are all that limit the window, which is
-  the argument for requiring `https` when `method` is `federated_jwt`.
+* No replay protection, for the missing `jti` reason above, so an intercepted assertion works until
+  it expires. TLS to the provider and the ten-minute lifetime are all that limit the window, which
+  is the argument for requiring `https` when `method` is `federated_jwt`.
 * Exposing the cluster issuer publishes public keys and nothing else, but plenty of security teams
   will still want to sign off on it.
 
@@ -334,28 +331,30 @@ know `method: federated_jwt` fails logins until the secret is restored, like any
 
 ## Drawbacks
 
-* One more authentication mode in code that already has several: client secret, PKCE, Azure workload
-  identity, Dex. It replaces the Azure branch instead of adding to it, so the number stays the
-  same, but it only works on Kubernetes, and only with providers that take third-party assertions.
-* When it breaks, it breaks somewhere else. Debugging a rejected assertion means reading Keycloak
-  logs, which most Argo CD operators never have to do.
 * Configuration ends up in three places. The projected volume, the audience and the ServiceAccount
-  name all have to line up with the Keycloak client, and none of that lives in `argocd-cm`.
-* Direct-to-provider deployments only. Anyone reaching Keycloak through Dex gets nothing.
+  name all have to line up with the Keycloak client, and none of that lives in `argocd-cm`. Nothing
+  checks that they agree until a login fails.
+* When something goes wrong, it might be challenging to figure out why an assertion was rejected,
+  and it might require digging in Keycloak's logs, which most Argo CD operators never have to
+  touch.
 
 ## Alternatives
 
 * Keep the issue's `keycloak.clientAuthentication` shape. It matches how `azure.useWorkloadIdentity`
-  reads today, and it's probably easier to find if you got here from the Keycloak docs. The cost is
-  a third vendor block the next time some provider ships this, and no shared path with Entra ID. The
-  implementation underneath is identical either way; only the parsing differs.
-* `private_key_jwt` with a cert-manager-managed key. Keycloak has supported self-signed assertions
-  for years and cert-manager could rotate the key. You still hold a long-lived private key, and now
-  you own a certificate lifecycle too. That's more to run for a smaller gain.
-* Rotate the client secret through Keycloak's admin API. That means handing Argo CD admin
-  credentials on the realm, a bigger credential than the one being rotated.
-* Do nothing. Client secrets work and the Keycloak feature is new, so it's a fair position. The
-  counter is that we already ship this mechanism for one provider, so the marginal cost is small.
+  is written today, and someone arriving from the Keycloak documentation would look for it there
+  first. The problem shows up with whichever provider supports this next, since that one needs a
+  vendor block of its own and shares no code with the other two. Only the parsing differs between
+  the two options, so this can be decided late without holding up the rest.
+* `private_key_jwt` with a key managed by cert-manager. Keycloak has supported self-signed
+  assertions for years, and cert-manager could handle the rotation. There is still a long-lived
+  private key sitting somewhere, though, and now a certificate lifecycle to operate as well. The
+  thing we were trying to get rid of does not actually go away.
+* Rotate the client secret automatically through Keycloak's admin API. Argo CD would need admin
+  credentials on the realm to do that, and those are more dangerous to hold than the secret they
+  would rotate.
+* Do nothing. Client secrets work, and the Keycloak feature is new enough that waiting is a
+  reasonable position. The argument the other way is that most of this code already exists for
+  Entra ID.
 
 [rfc7521]: https://datatracker.ietf.org/doc/html/rfc7521
 [rfc7523]: https://datatracker.ietf.org/doc/html/rfc7523
