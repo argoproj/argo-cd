@@ -205,6 +205,10 @@ data:
 
 In this example we give the role _role:admin_ to all users in the group _ArgoCDAdmins_.
 
+The group name in `policy.csv` must match the `groups` claim in the JWT **exactly**.
+With Keycloak's "Full group path" disabled (recommended above), the claim is `ArgoCDAdmins`.
+If your IdP includes a leading slash in the claim, use that exact value (for example `/ArgoCDAdmins`).
+
 ## Login
 
 You can now login using our new Keycloak OIDC authentication:

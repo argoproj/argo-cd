@@ -25,7 +25,7 @@ const (
 	succeeded = "succeeded"
 )
 
-// Expectation returns succeeded on succes condition, or pending/failed on failure, along with
+// Expectation returns succeeded on success condition, or pending/failed on failure, along with
 // a message to describe the success/failure condition.
 type Expectation func(c *Consequences) (state state, message string)
 

@@ -23,8 +23,8 @@ type Consequences struct {
 }
 
 func (c *Consequences) Expect(e Expectation) *Consequences {
-	// this invocation makes sure this func is not reported as the cause of the failure - we are a "test helper"
 	c.context.T().Helper()
+
 	var message string
 	var state state
 	sleepIntervals := []time.Duration{
@@ -61,7 +61,6 @@ func (c *Consequences) Expect(e Expectation) *Consequences {
 // ExpectConsistently will continuously evaluate a condition. Once true, it must be true each time it is evaluated, otherwise the test is failed.
 // The condition will be repeatedly evaluated once it is true,until 'expirationDuration' is met, waiting 'waitDuration' after each success.
 func (c *Consequences) ExpectConsistently(e Expectation, waitDuration time.Duration, expirationDuration time.Duration) *Consequences {
-	// this invocation makes sure this func is not reported as the cause of the failure - we are a "test helper"
 	c.context.T().Helper()
 
 	c.Expect(e) // ensure the condition is true before expecting consistency

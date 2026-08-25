@@ -181,6 +181,14 @@ spec:
                       directory:
                         description: Directory holds path/directory specific options
                         properties:
+                          disableExtensionFilter:
+                            description: |-
+                              DisableExtensionFilter controls whether the built-in file-extension filter is skipped during
+                              manifest generation. When false (the default), only files with a .yaml, .yml, .json, or
+                              .jsonnet extension are considered as potential manifests. Set it to true to disable the filter
+                              so that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude
+                              glob patterns instead.
+                            type: boolean
                           exclude:
                             description: Exclude contains a glob pattern to match
                               paths against that should be explicitly excluded from
@@ -573,6 +581,14 @@ spec:
                         directory:
                           description: Directory holds path/directory specific options
                           properties:
+                            disableExtensionFilter:
+                              description: |-
+                                DisableExtensionFilter controls whether the built-in file-extension filter is skipped during
+                                manifest generation. When false (the default), only files with a .yaml, .yml, .json, or
+                                .jsonnet extension are considered as potential manifests. Set it to true to disable the filter
+                                so that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude
+                                glob patterns instead.
+                              type: boolean
                             exclude:
                               description: Exclude contains a glob pattern to match
                                 paths against that should be explicitly excluded from
@@ -1087,6 +1103,14 @@ spec:
                   directory:
                     description: Directory holds path/directory specific options
                     properties:
+                      disableExtensionFilter:
+                        description: |-
+                          DisableExtensionFilter controls whether the built-in file-extension filter is skipped during
+                          manifest generation. When false (the default), only files with a .yaml, .yml, .json, or
+                          .jsonnet extension are considered as potential manifests. Set it to true to disable the filter
+                          so that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude
+                          glob patterns instead.
+                        type: boolean
                       exclude:
                         description: Exclude contains a glob pattern to match paths
                           against that should be explicitly excluded from being used
@@ -1467,6 +1491,14 @@ spec:
                       directory:
                         description: Directory specifies path/directory specific options
                         properties:
+                          disableExtensionFilter:
+                            description: |-
+                              DisableExtensionFilter controls whether the built-in file-extension filter is skipped during
+                              manifest generation. When false (the default), only files with a .yaml, .yml, .json, or
+                              .jsonnet extension are considered as potential manifests. Set it to true to disable the filter
+                              so that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude
+                              glob patterns instead.
+                            type: boolean
                           exclude:
                             description: Exclude contains a glob pattern to match
                               paths against that should be explicitly excluded from
@@ -1884,6 +1916,14 @@ spec:
                     directory:
                       description: Directory holds path/directory specific options
                       properties:
+                        disableExtensionFilter:
+                          description: |-
+                            DisableExtensionFilter controls whether the built-in file-extension filter is skipped during
+                            manifest generation. When false (the default), only files with a .yaml, .yml, .json, or
+                            .jsonnet extension are considered as potential manifests. Set it to true to disable the filter
+                            so that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude
+                            glob patterns instead.
+                          type: boolean
                         exclude:
                           description: Exclude contains a glob pattern to match paths
                             against that should be explicitly excluded from being
@@ -2382,10 +2422,8 @@ spec:
                     format: date-time
                     type: string
                   message:
-                    description: |-
-                      Message is a human-readable informational message describing the health status
-
-                      Deprecated: this field is not used and will be removed in a future release.
+                    description: Message is a human-readable informational message
+                      describing the health status
                     type: string
                   status:
                     description: Status holds the status code of the application
@@ -2445,6 +2483,14 @@ spec:
                         directory:
                           description: Directory holds path/directory specific options
                           properties:
+                            disableExtensionFilter:
+                              description: |-
+                                DisableExtensionFilter controls whether the built-in file-extension filter is skipped during
+                                manifest generation. When false (the default), only files with a .yaml, .yml, .json, or
+                                .jsonnet extension are considered as potential manifests. Set it to true to disable the filter
+                                so that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude
+                                glob patterns instead.
+                              type: boolean
                             exclude:
                               description: Exclude contains a glob pattern to match
                                 paths against that should be explicitly excluded from
@@ -2840,6 +2886,14 @@ spec:
                           directory:
                             description: Directory holds path/directory specific options
                             properties:
+                              disableExtensionFilter:
+                                description: |-
+                                  DisableExtensionFilter controls whether the built-in file-extension filter is skipped during
+                                  manifest generation. When false (the default), only files with a .yaml, .yml, .json, or
+                                  .jsonnet extension are considered as potential manifests. Set it to true to disable the filter
+                                  so that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude
+                                  glob patterns instead.
+                                type: boolean
                               exclude:
                                 description: Exclude contains a glob pattern to match
                                   paths against that should be explicitly excluded
@@ -3387,6 +3441,14 @@ spec:
                                 description: Directory holds path/directory specific
                                   options
                                 properties:
+                                  disableExtensionFilter:
+                                    description: |-
+                                      DisableExtensionFilter controls whether the built-in file-extension filter is skipped during
+                                      manifest generation. When false (the default), only files with a .yaml, .yml, .json, or
+                                      .jsonnet extension are considered as potential manifests. Set it to true to disable the filter
+                                      so that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude
+                                      glob patterns instead.
+                                    type: boolean
                                   exclude:
                                     description: Exclude contains a glob pattern to
                                       match paths against that should be explicitly
@@ -3804,6 +3866,14 @@ spec:
                                   description: Directory holds path/directory specific
                                     options
                                   properties:
+                                    disableExtensionFilter:
+                                      description: |-
+                                        DisableExtensionFilter controls whether the built-in file-extension filter is skipped during
+                                        manifest generation. When false (the default), only files with a .yaml, .yml, .json, or
+                                        .jsonnet extension are considered as potential manifests. Set it to true to disable the filter
+                                        so that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude
+                                        glob patterns instead.
+                                      type: boolean
                                     exclude:
                                       description: Exclude contains a glob pattern
                                         to match paths against that should be explicitly
@@ -4353,6 +4423,14 @@ spec:
                           directory:
                             description: Directory holds path/directory specific options
                             properties:
+                              disableExtensionFilter:
+                                description: |-
+                                  DisableExtensionFilter controls whether the built-in file-extension filter is skipped during
+                                  manifest generation. When false (the default), only files with a .yaml, .yml, .json, or
+                                  .jsonnet extension are considered as potential manifests. Set it to true to disable the filter
+                                  so that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude
+                                  glob patterns instead.
+                                type: boolean
                               exclude:
                                 description: Exclude contains a glob pattern to match
                                   paths against that should be explicitly excluded
@@ -4757,6 +4835,14 @@ spec:
                               description: Directory holds path/directory specific
                                 options
                               properties:
+                                disableExtensionFilter:
+                                  description: |-
+                                    DisableExtensionFilter controls whether the built-in file-extension filter is skipped during
+                                    manifest generation. When false (the default), only files with a .yaml, .yml, .json, or
+                                    .jsonnet extension are considered as potential manifests. Set it to true to disable the filter
+                                    so that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude
+                                    glob patterns instead.
+                                  type: boolean
                                 exclude:
                                   description: Exclude contains a glob pattern to
                                     match paths against that should be explicitly
@@ -5286,6 +5372,14 @@ spec:
                                 description: Directory specifies path/directory specific
                                   options
                                 properties:
+                                  disableExtensionFilter:
+                                    description: |-
+                                      DisableExtensionFilter controls whether the built-in file-extension filter is skipped during
+                                      manifest generation. When false (the default), only files with a .yaml, .yml, .json, or
+                                      .jsonnet extension are considered as potential manifests. Set it to true to disable the filter
+                                      so that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude
+                                      glob patterns instead.
+                                    type: boolean
                                   exclude:
                                     description: Exclude contains a glob pattern to
                                       match paths against that should be explicitly
@@ -5749,6 +5843,14 @@ spec:
                                 description: Directory specifies path/directory specific
                                   options
                                 properties:
+                                  disableExtensionFilter:
+                                    description: |-
+                                      DisableExtensionFilter controls whether the built-in file-extension filter is skipped during
+                                      manifest generation. When false (the default), only files with a .yaml, .yml, .json, or
+                                      .jsonnet extension are considered as potential manifests. Set it to true to disable the filter
+                                      so that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude
+                                      glob patterns instead.
+                                    type: boolean
                                   exclude:
                                     description: Exclude contains a glob pattern to
                                       match paths against that should be explicitly
@@ -6281,6 +6383,14 @@ spec:
                           directory:
                             description: Directory holds path/directory specific options
                             properties:
+                              disableExtensionFilter:
+                                description: |-
+                                  DisableExtensionFilter controls whether the built-in file-extension filter is skipped during
+                                  manifest generation. When false (the default), only files with a .yaml, .yml, .json, or
+                                  .jsonnet extension are considered as potential manifests. Set it to true to disable the filter
+                                  so that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude
+                                  glob patterns instead.
+                                type: boolean
                               exclude:
                                 description: Exclude contains a glob pattern to match
                                   paths against that should be explicitly excluded
@@ -6685,6 +6795,14 @@ spec:
                               description: Directory holds path/directory specific
                                 options
                               properties:
+                                disableExtensionFilter:
+                                  description: |-
+                                    DisableExtensionFilter controls whether the built-in file-extension filter is skipped during
+                                    manifest generation. When false (the default), only files with a .yaml, .yml, .json, or
+                                    .jsonnet extension are considered as potential manifests. Set it to true to disable the filter
+                                    so that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude
+                                    glob patterns instead.
+                                  type: boolean
                                 exclude:
                                   description: Exclude contains a glob pattern to
                                     match paths against that should be explicitly
@@ -7264,6 +7382,8 @@ spec:
                                       type: string
                                     directory:
                                       properties:
+                                        disableExtensionFilter:
+                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -7505,6 +7625,8 @@ spec:
                                       properties:
                                         directory:
                                           properties:
+                                            disableExtensionFilter:
+                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -7768,6 +7890,8 @@ spec:
                                         type: string
                                       directory:
                                         properties:
+                                          disableExtensionFilter:
+                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -8178,6 +8302,8 @@ spec:
                                       type: string
                                     directory:
                                       properties:
+                                        disableExtensionFilter:
+                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -8419,6 +8545,8 @@ spec:
                                       properties:
                                         directory:
                                           properties:
+                                            disableExtensionFilter:
+                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -8682,6 +8810,8 @@ spec:
                                         type: string
                                       directory:
                                         properties:
+                                          disableExtensionFilter:
+                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -9093,6 +9223,8 @@ spec:
                                       type: string
                                     directory:
                                       properties:
+                                        disableExtensionFilter:
+                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -9334,6 +9466,8 @@ spec:
                                       properties:
                                         directory:
                                           properties:
+                                            disableExtensionFilter:
+                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -9597,6 +9731,8 @@ spec:
                                         type: string
                                       directory:
                                         properties:
+                                          disableExtensionFilter:
+                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -9986,6 +10122,8 @@ spec:
                                       type: string
                                     directory:
                                       properties:
+                                        disableExtensionFilter:
+                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -10227,6 +10365,8 @@ spec:
                                       properties:
                                         directory:
                                           properties:
+                                            disableExtensionFilter:
+                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -10490,6 +10630,8 @@ spec:
                                         type: string
                                       directory:
                                         properties:
+                                          disableExtensionFilter:
+                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -10904,6 +11046,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -11145,6 +11289,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -11408,6 +11554,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -11818,6 +11966,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -12059,6 +12209,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -12322,6 +12474,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -12733,6 +12887,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -12974,6 +13130,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -13237,6 +13395,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -13626,6 +13786,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -13867,6 +14029,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -14130,6 +14294,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -14527,6 +14693,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -14768,6 +14936,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -15031,6 +15201,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -15655,6 +15827,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -15896,6 +16070,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -16159,6 +16335,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -16780,6 +16958,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -17021,6 +17201,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -17284,6 +17466,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -17690,6 +17874,8 @@ spec:
                                       type: string
                                     directory:
                                       properties:
+                                        disableExtensionFilter:
+                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -17931,6 +18117,8 @@ spec:
                                       properties:
                                         directory:
                                           properties:
+                                            disableExtensionFilter:
+                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -18194,6 +18382,8 @@ spec:
                                         type: string
                                       directory:
                                         properties:
+                                          disableExtensionFilter:
+                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -18610,6 +18800,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -18851,6 +19043,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -19114,6 +19308,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -19524,6 +19720,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -19765,6 +19963,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -20028,6 +20228,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -20439,6 +20641,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -20680,6 +20884,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -20943,6 +21149,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -21332,6 +21540,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -21573,6 +21783,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -21836,6 +22048,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -22233,6 +22447,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -22474,6 +22690,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -22737,6 +22955,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -23361,6 +23581,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -23602,6 +23824,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -23865,6 +24089,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -24486,6 +24712,8 @@ spec:
                                                 type: string
                                               directory:
                                                 properties:
+                                                  disableExtensionFilter:
+                                                    type: boolean
                                                   exclude:
                                                     type: string
                                                   include:
@@ -24727,6 +24955,8 @@ spec:
                                                 properties:
                                                   directory:
                                                     properties:
+                                                      disableExtensionFilter:
+                                                        type: boolean
                                                       exclude:
                                                         type: string
                                                       include:
@@ -24990,6 +25220,8 @@ spec:
                                                   type: string
                                                 directory:
                                                   properties:
+                                                    disableExtensionFilter:
+                                                      type: boolean
                                                     exclude:
                                                       type: string
                                                     include:
@@ -25400,6 +25632,8 @@ spec:
                                       type: string
                                     directory:
                                       properties:
+                                        disableExtensionFilter:
+                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -25641,6 +25875,8 @@ spec:
                                       properties:
                                         directory:
                                           properties:
+                                            disableExtensionFilter:
+                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -25904,6 +26140,8 @@ spec:
                                         type: string
                                       directory:
                                         properties:
+                                          disableExtensionFilter:
+                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -26300,6 +26538,8 @@ spec:
                                       type: string
                                     directory:
                                       properties:
+                                        disableExtensionFilter:
+                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -26541,6 +26781,8 @@ spec:
                                       properties:
                                         directory:
                                           properties:
+                                            disableExtensionFilter:
+                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -26804,6 +27046,8 @@ spec:
                                         type: string
                                       directory:
                                         properties:
+                                          disableExtensionFilter:
+                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -27428,6 +27672,8 @@ spec:
                                       type: string
                                     directory:
                                       properties:
+                                        disableExtensionFilter:
+                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -27669,6 +27915,8 @@ spec:
                                       properties:
                                         directory:
                                           properties:
+                                            disableExtensionFilter:
+                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -27932,6 +28180,8 @@ spec:
                                         type: string
                                       directory:
                                         properties:
+                                          disableExtensionFilter:
+                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -28553,6 +28803,8 @@ spec:
                                       type: string
                                     directory:
                                       properties:
+                                        disableExtensionFilter:
+                                          type: boolean
                                         exclude:
                                           type: string
                                         include:
@@ -28794,6 +29046,8 @@ spec:
                                       properties:
                                         directory:
                                           properties:
+                                            disableExtensionFilter:
+                                              type: boolean
                                             exclude:
                                               type: string
                                             include:
@@ -29057,6 +29311,8 @@ spec:
                                         type: string
                                       directory:
                                         properties:
+                                          disableExtensionFilter:
+                                            type: boolean
                                           exclude:
                                             type: string
                                           include:
@@ -29540,6 +29796,8 @@ spec:
                             type: string
                           directory:
                             properties:
+                              disableExtensionFilter:
+                                type: boolean
                               exclude:
                                 type: string
                               include:
@@ -29781,6 +30039,8 @@ spec:
                             properties:
                               directory:
                                 properties:
+                                  disableExtensionFilter:
+                                    type: boolean
                                   exclude:
                                     type: string
                                   include:
@@ -30044,6 +30304,8 @@ spec:
                               type: string
                             directory:
                               properties:
+                                disableExtensionFilter:
+                                  type: boolean
                                 exclude:
                                   type: string
                                 include:
@@ -30788,8 +31050,8 @@ spec:
                 description: SyncWindows controls when syncs can be run for apps in
                   this project
                 items:
-                  description: SyncWindow contains the kind, time, duration and attributes
-                    that are used to assign the syncWindows to apps
+                  description: InlineSyncWindow contains the kind, time, duration
+                    and attributes that are used to assign the syncWindows to apps
                   properties:
                     andOperator:
                       description: UseAndOperator use AND operator for matching applications,
@@ -31175,7 +31437,9 @@ data:
     jqPathExpressions:
       - '.metadata.annotations."notified.notifications.argoproj.io"'
       - '.metadata.annotations."argocd.argoproj.io/refresh"'
+      - '.metadata.annotations."argocd.argoproj.io/refresh-timestamp"'
       - '.metadata.annotations."argocd.argoproj.io/hydrate"'
+      - '.metadata.annotations."argocd.argoproj.io/hydrate-timestamp"'
       - '.operation'
   resource.customizations.ignoreResourceUpdates.argoproj.io_Rollout: |
     jqPathExpressions:
@@ -31773,7 +32037,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:8.6.4-alpine
+        image: public.ecr.aws/docker/library/redis:8.10.1-alpine
         imagePullPolicy: Always
         name: redis
         ports:
@@ -32002,6 +32266,12 @@ spec:
               key: otlp.attrs
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_REPO_SERVER_OTLP_SAMPLE_RATIO
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.sample.ratio
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE
           valueFrom:
             configMapKeyRef:
@@ -32170,6 +32440,8 @@ spec:
           name: helm-working-dir
         - mountPath: /home/argocd/cmp-server/plugins
           name: plugins
+        - mountPath: /home/argocd/params
+          name: argocd-cmd-params-cm
       initContainers:
       - args:
         - /bin/cp /usr/local/bin/argocd /var/run/argocd/argocd && /bin/ln -sf /var/run/argocd/argocd
@@ -32577,6 +32849,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: otlp.attrs
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_OTLP_SAMPLE_RATIO
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.sample.ratio
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATION_NAMESPACES

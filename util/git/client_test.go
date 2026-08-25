@@ -8,6 +8,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"net/mail"
 	"os"
 	"os/exec"
@@ -2126,4 +2128,58 @@ func Test_LsSignatures_Error(t *testing.T) {
 		assert.Nil(t, signatures)
 		assert.Empty(t, legacy)
 	}
+}
+
+func Test_humanizeAuthPromptError(t *testing.T) {
+	repoURL := "https://github.com/argoproj/argo-cd.git"
+
+	t.Run("nil error is passed through", func(t *testing.T) {
+		require.NoError(t, humanizeAuthPromptError(repoURL, nil))
+	})
+
+	t.Run("unrelated error is left unchanged", func(t *testing.T) {
+		orig := errors.New("fatal: not a git repository")
+		require.Equal(t, orig, humanizeAuthPromptError(repoURL, orig))
+	})
+
+	t.Run("terminal-prompt failure is rewritten but keeps the cause", func(t *testing.T) {
+		orig := errors.New("`git fetch origin` failed exit status 128: fatal: could not read Username for 'https://github.com': terminal prompts disabled")
+		got := humanizeAuthPromptError(repoURL, orig)
+		require.ErrorIs(t, got, orig, "original error must be wrapped for debugging")
+		assert.Contains(t, got.Error(), "failed to authenticate to git repository")
+		assert.Contains(t, got.Error(), "no credentials matched this URL")
+		assert.Contains(t, got.Error(), repoURL)
+	})
+}
+
+// Test_fetch_authPromptRewrite reproduces issue #22750 end-to-end: a credentialed
+// git fetch against a repository that requires auth but has no matching credentials
+// makes git emit the misleading "terminal prompts disabled" message. It proves the
+// fix rewrites that into an actionable authentication error while preserving the
+// original cause.
+func Test_fetch_authPromptRewrite(t *testing.T) {
+	// A remote that always demands basic auth, mimicking a private repo whose
+	// credentials no longer match (e.g. after a rename/move or token rotation).
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("WWW-Authenticate", `Basic realm="git"`)
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer srv.Close()
+
+	tmp := t.TempDir()
+	ctx := t.Context()
+	require.NoError(t, runCmd(ctx, tmp, "git", "init", "--initial-branch=master"))
+	// Reset the credential helper list so no system/keychain helper interferes.
+	require.NoError(t, runCmd(ctx, tmp, "git", "config", "--local", "credential.helper", ""))
+	require.NoError(t, runCmd(ctx, tmp, "git", "remote", "add", "origin", srv.URL))
+
+	// NopCreds => no credentials injected, exactly like a repo URL that matched no secret.
+	client := &nativeGitClient{repoURL: srv.URL, root: tmp, creds: NopCreds{}}
+
+	err := client.fetch(ctx, "", 0)
+	require.Error(t, err)
+	// The raw git failure really happened (reproduction) ...
+	assert.Contains(t, err.Error(), "terminal prompts disabled", "expected to reproduce the raw git auth-prompt failure")
+	// ... and the fix surfaces it as an actionable authentication error (the fix).
+	assert.Contains(t, err.Error(), "failed to authenticate to git repository", "expected the humanized authentication error")
 }
