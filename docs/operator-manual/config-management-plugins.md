@@ -381,21 +381,6 @@ You can set it one of three ways:
 2. The `reposerver.plugin.use.manifest.generate.paths` key if you are using `argocd-cmd-params-cm`
 3. Directly setting `ARGOCD_REPO_SERVER_PLUGIN_USE_MANIFEST_GENERATE_PATHS` environment variable on the repo server to `true`.
 
-The tar stream sent to the plugin contains the application path and the paths listed in the annotation, matched the same way as for
-[webhook and cache filtering](high_availability.md#manifest-paths-annotation): a path selects itself, everything below it when it is a
-directory, and everything matching it when it contains a
-[filepath.Match](https://pkg.go.dev/path/filepath#Match) glob. The stream is rooted at the common root path of those paths, so
-relative paths (`../`) keep resolving as they do in the repository. Everything else under that common root is left out, which is where
-the speedup for monorepos comes from.
-
-Two consequences are worth knowing about:
-
-* The annotation has to list every path the plugin reads, including the targets of the symlinks it follows. A symlink is sent like any
-  other file, so its target is only sent when the annotation selects it as well. This is the same requirement the annotation already
-  has for refresh and cache filtering, which match the paths reported by Git and never resolve symlinks.
-* If none of the paths match a file, the whole common root is sent instead and a warning is logged, so a misconfigured annotation
-  degrades performance rather than breaking manifest generation.
-
 ## Migrating from argocd-cm plugins
 
 Installing plugins by modifying the argocd-cm ConfigMap is deprecated as of v2.4 and has been completely removed starting in v2.8.

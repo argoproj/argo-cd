@@ -359,8 +359,7 @@ unrelated change happens in the external source.
 > revision, so it treats the application as potentially changed and proceeds with normal refresh and manifest generation.
 > This does not affect webhook payload filtering, which uses the changed files reported by the webhook event. The
 > annotation can also still be used to reduce the repository content sent to a Config Management Plugin sidecar when
-> `--plugin-use-manifest-generate-paths` is enabled, as described in
-> [Application manifests generation using argocd.argoproj.io/manifest-generate-paths](config-management-plugins.md#application-manifests-generation-using-argocdargoprojiomanifest-generate-paths).
+> `--plugin-use-manifest-generate-paths` is enabled.
 
 For webhooks, the comparison is done using the files specified in the webhook event payload instead.
 
