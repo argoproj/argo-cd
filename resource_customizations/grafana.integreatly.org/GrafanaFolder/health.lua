@@ -19,7 +19,9 @@ function getStatusFromConditions(obj, hs)
               end
             end
 
-            if condition.status == "False" then
+            -- FolderUIDMismatch is a negative-polarity condition: False means
+            -- the UIDs are consistent, not that the resource is unhealthy.
+            if condition.status == "False" and condition.type ~= "FolderUIDMismatch" then
               hs.status = "Degraded"
               return hs
             end

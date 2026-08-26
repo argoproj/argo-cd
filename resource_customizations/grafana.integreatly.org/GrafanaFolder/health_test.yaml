@@ -14,3 +14,8 @@ tests:
 
       - grafana-operator/grafana: Get "https://dashboards.grafana.com/api/folders?limit=10000&page=1": net/http: request canceled while waiting for connection (Client.Timeout exceeded while awaiting headers)
   inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Healthy
+    message: >-
+      ApplySuccessful for FolderSynchronized because Folder was successfully applied to 1 instances, ConsistentUID for FolderUIDMismatch because UIDs consistent across all 1 instances
+  inputPath: testdata/healthy-negative-polarity-condition.yaml
