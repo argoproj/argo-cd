@@ -339,6 +339,17 @@ func (k *KubectlCmd) ManageServerSideDiffDryRuns(config *rest.Config) (diff.Kube
 	}, cleanup, nil
 }
 
+// Deprecated: Use KubectlCmd.ManageServerSideDiffDryRuns instead. Retained for compatibility with the archived standalone gitops-engine module.
+func ManageServerSideDiffDryRuns(config *rest.Config, openAPISchema openapi.Resources, tracer tracing.Tracer, log logr.Logger, onKubectlRun OnKubectlRunFunc) (diff.KubeApplier, func(), error) {
+	_ = openAPISchema
+	k := &KubectlCmd{
+		Tracer:       tracer,
+		Log:          log,
+		OnKubectlRun: onKubectlRun,
+	}
+	return k.ManageServerSideDiffDryRuns(config)
+}
+
 // ConvertToVersion converts an unstructured object into the specified group/version
 func (k *KubectlCmd) ConvertToVersion(obj *unstructured.Unstructured, group string, version string) (*unstructured.Unstructured, error) {
 	span := k.Tracer.StartSpan("ConvertToVersion")
