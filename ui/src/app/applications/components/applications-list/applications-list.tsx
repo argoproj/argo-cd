@@ -52,6 +52,7 @@ const APP_FIELDS = [
     'status.sync.revision',
     'status.health',
     'status.operationState.phase',
+    'status.operationState.operation.sync',
     'status.operationState.startedAt',
     'status.operationState.finishedAt'
 ];
@@ -254,7 +255,10 @@ const ApplicationsListSearchBar = (props: {content: string; searchRegex: boolean
                 },
                 renderItem: item => (
                     <React.Fragment>
-                        <i className='icon argo-icon-application' /> {item.label}
+                        <i className='icon argo-icon-application' style={{flexShrink: 0}} />
+                        <span title={item.label} style={{overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>
+                            {item.label}
+                        </span>
                     </React.Fragment>
                 )
             }}
