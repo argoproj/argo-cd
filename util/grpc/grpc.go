@@ -36,18 +36,18 @@ func LoggerRecoveryHandler(log *logrus.Entry) recovery.RecoveryHandlerFunc {
 // connection will be insecure (plain-text).
 // Lifted from: https://github.com/fullstorydev/grpcurl/blob/master/grpcurl.go
 func BlockingNewClient(ctx context.Context, network, address string, creds credentials.TransportCredentials, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
-	rawConn, err := proxy.Dial(ctx, network, address)
-	if err != nil {
-		return nil, fmt.Errorf("error dial proxy: %w", err)
-	}
-
-	if creds != nil {
-		rawConn, _, err = creds.ClientHandshake(ctx, address, rawConn)
+	customDialer := func(dialCtx context.Context, _ string) (net.Conn, error) {
+		rawConn, err := proxy.Dial(dialCtx, network, address)
 		if err != nil {
-			return nil, fmt.Errorf("error creating connection: %w", err)
+			return nil, fmt.Errorf("error dial proxy: %w", err)
 		}
-	}
-	customDialer := func(_ context.Context, _ string) (net.Conn, error) {
+
+		if creds != nil {
+			rawConn, _, err = creds.ClientHandshake(dialCtx, address, rawConn)
+			if err != nil {
+				return nil, fmt.Errorf("error creating connection: %w", err)
+			}
+		}
 		return rawConn, nil
 	}
 
