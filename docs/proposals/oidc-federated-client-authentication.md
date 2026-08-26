@@ -33,10 +33,12 @@ something else, in practice a projected Kubernetes ServiceAccount token, instead
   `tokenFileEnv` as well, and recommending it, puts the path back in the Pod spec for the price of
   one extra key. So: both, or only the env var that Entra ID already uses? I lean toward both, but
   not strongly.
-* Should the refresh-grant fix land separately? The assertion has to go on the `refresh_token` grant
-  as well as the code exchange because currently there's an existing bug for Azure Workload
-  Identity users and has nothing to do with Keycloak. This fix can be done in a separate PR and also
-  backported. That would leave this proposal as a configuration and nothing else.
+
+The refresh grant was a third question and is no longer open. The assertion has to go on
+`refresh_token` as well as on the code exchange, and today it goes on neither, which is a live bug
+for Azure Workload Identity users and has nothing to do with Keycloak.
+[#29300](https://github.com/argoproj/argo-cd/pull/29300) fixes it there and can be backported. This
+proposal assumes that lands, and covers the providers it does not reach.
 
 ## Summary
 
@@ -73,8 +75,8 @@ We already solved this once with `azure.useWorkloadIdentity` which reads a proje
 1. Authenticate to the OIDC provider's token endpoint with an externally issued JWT read from a
    file, with no client secret configured.
 2. Send the assertion on every grant Argo CD uses against the token endpoint, including the
-   `refresh_token` grant that backs `refreshTokenThreshold`. This currently does not happen for
-   Azure Workload Identity either, so this proposal treats fixing it as in scope.
+   `refresh_token` grant that backs `refreshTokenThreshold`. #29300 does this for Azure Workload
+   Identity; the same has to hold for any other provider.
 3. Re-read the token from disk as the kubelet rotates it, without restarting `argocd-server`.
 4. Express the feature so that it works for any provider accepting third-party client assertions,
    and fold the existing Entra ID support into it without breaking existing configuration.
@@ -179,16 +181,17 @@ refuses to authenticate instead of quietly falling back.
 
 #### Where the assertion is injected
 
-Today the Azure assertion is attached at the single call site that performs the code exchange, in
-`HandleCallback`. That is why the refresh grant authenticates with an empty client secret, which
-Keycloak answers with `invalid_client`.
+Today the Azure assertion is attached at the call site that performs the code exchange, in
+`HandleCallback`, and nowhere else. That is why the refresh grant authenticates with an empty client
+secret, which Keycloak answers with `invalid_client`. #29300 fixes the refresh grant by attaching
+the assertion at that second call site as well, behind a check on `useAzureWorkloadIdentity`.
 
-We could attach it at the second call site too. Better to wrap the HTTP transport in a
-`RoundTripper` that injects the assertion into form-encoded POSTs bound for the token endpoint, and
-leaves every other request over that client alone. `ClientApp.client` already reaches every OIDC
-call through `gooidc.ClientContext(ctx, a.client)`, so wrapping it once in `NewClientApp` covers the
-code exchange, the refresh grant, and whatever gets added later. The Azure `AuthCodeOption` block
-then goes away.
+A federated method could follow the same pattern, which would leave three places to keep in step.
+Better to wrap the HTTP transport in a `RoundTripper` that injects the assertion into form-encoded
+POSTs bound for the token endpoint, and leaves every other request over that client alone.
+`ClientApp.client` already reaches every OIDC call through `gooidc.ClientContext(ctx, a.client)`, so
+wrapping it once in `NewClientApp` covers the code exchange, the refresh grant, and whatever gets
+added later. Both Azure-specific injection points then go away.
 
 #### What does not change
 
@@ -308,9 +311,10 @@ admin dashboard` and `--core` build a `ClientApp` on the operator's laptop from 
 `argocd-cm`, where the projected token will never exist. So the checks log, and never fail, and that
 gets a test: break the mount, confirm the server still serves.
 
-Folding `azure.useWorkloadIdentity` into the shared path means touching code that works today. The
-flag stays an alias and nothing changes for existing users except that refresh starts working, but a
-test should assert the alias still produces the request it produces now.
+Folding `azure.useWorkloadIdentity` into the shared path means touching code that works today, and
+once #29300 lands it works on the refresh grant too. So Entra ID users see no change at all, and
+the payoff is one injection point to maintain instead of two. The flag stays an alias, and a test
+should assert it still produces the request it produces now.
 
 One thing needs checking against a live 26.6 instance before implementation: `oauth2` keeps sending
 `client_id` from the config while Keycloak looks the client up from the assertion's `sub`, and
