@@ -2,11 +2,16 @@ package grpc
 
 import (
 	"context"
+	"net"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	grpcgo "google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/health"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 )
 
 var proxyEnvKeys = []string{"ALL_PROXY", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY"}
@@ -112,4 +117,59 @@ func TestBlockingNewClient_CancelledContextAbortsDial(t *testing.T) {
 	cancel()
 	_, err := BlockingNewClient(ctx, "tcp", "10.255.255.1:443", nil)
 	require.ErrorIs(t, err, context.Canceled)
+}
+
+func TestBlockingNewClientReconnectsAfterIdle(t *testing.T) {
+	clearProxyEnv(t)
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+
+	server := grpcgo.NewServer()
+	healthpb.RegisterHealthServer(server, health.NewServer())
+
+	go func() {
+		_ = server.Serve(listener)
+	}()
+	t.Cleanup(server.Stop)
+
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+
+	conn, err := BlockingNewClient(
+		ctx,
+		"tcp",
+		listener.Addr().String(),
+		nil,
+		// Default is 30 minutes
+		grpcgo.WithIdleTimeout(200*time.Millisecond),
+	)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = conn.Close()
+	})
+
+	client := healthpb.NewHealthClient(conn)
+
+	// The initial transport works.
+	_, err = client.Check(ctx, &healthpb.HealthCheckRequest{})
+	require.NoError(t, err)
+
+	// Wait for idle.
+	require.Eventually(t, func() bool {
+		return conn.GetState() == connectivity.Idle
+	}, 2*time.Second, 10*time.Millisecond)
+
+	// This must create a new transport using the same ClientConn.
+	rpcCtx, rpcCancel := context.WithTimeout(
+		t.Context(),
+		2*time.Second,
+	)
+	defer rpcCancel()
+
+	_, err = client.Check(
+		rpcCtx,
+		&healthpb.HealthCheckRequest{},
+		grpcgo.WaitForReady(true),
+	)
+	require.NoError(t, err)
 }
