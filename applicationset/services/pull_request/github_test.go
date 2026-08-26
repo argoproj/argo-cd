@@ -91,6 +91,7 @@ func TestGetGitHubPRLabelNames(t *testing.T) {
 }
 
 func TestGitHubListFiltersLabels(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		Name           string
 		Labels         []string
@@ -125,6 +126,7 @@ func TestGitHubListFiltersLabels(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
+			t.Parallel()
 			mux := http.NewServeMux()
 			server := httptest.NewServer(mux)
 			defer server.Close()
