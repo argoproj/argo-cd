@@ -398,7 +398,7 @@ func testApp(name string, op *v1alpha1.Operation) *v1alpha1.Application {
 
 func fullAppSetOp() *v1alpha1.Operation {
 	return &v1alpha1.Operation{
-		InitiatedBy: v1alpha1.OperationInitiator{Username: "applicationset-controller", Automated: true},
+		InitiatedBy: v1alpha1.OperationInitiator{Username: AppSetControllerUsername, Automated: true},
 		Info: []*v1alpha1.Info{{
 			Name:  "Reason",
 			Value: "ApplicationSet RollingSync triggered a sync of this Application resource",
@@ -410,7 +410,7 @@ func fullAppSetOp() *v1alpha1.Operation {
 
 func filteredOp(username string) *v1alpha1.Operation {
 	return &v1alpha1.Operation{
-		InitiatedBy: v1alpha1.OperationInitiator{Username: username, Automated: username == "applicationset-controller"},
+		InitiatedBy: v1alpha1.OperationInitiator{Username: username, Automated: username == AppSetControllerUsername},
 		Sync: &v1alpha1.SyncOperation{
 			Resources: []v1alpha1.SyncOperationResource{{
 				Group: "batch", Kind: "Job", Name: "cilium-post-sync", Namespace: "kube-system",
@@ -448,7 +448,7 @@ func TestCreateOrUpdate_StaleBaseClearsFilteredOperation(t *testing.T) {
 	require.NotNil(t, got.Operation)
 	require.NotNil(t, got.Operation.Sync)
 	assert.Empty(t, got.Operation.Sync.Resources)
-	assert.Equal(t, "applicationset-controller", got.Operation.InitiatedBy.Username)
+	assert.Equal(t, AppSetControllerUsername, got.Operation.InitiatedBy.Username)
 }
 
 func TestCreateOrUpdate_OperationGuard(t *testing.T) {
@@ -472,7 +472,7 @@ func TestCreateOrUpdate_OperationGuard(t *testing.T) {
 			name:      "2 live nil generated set -> live gets generated",
 			liveOp:    nil,
 			desiredOp: fullAppSetOp(),
-			wantUser:  "applicationset-controller",
+			wantUser:  AppSetControllerUsername,
 			wantRes:   0,
 		},
 		{
@@ -484,9 +484,9 @@ func TestCreateOrUpdate_OperationGuard(t *testing.T) {
 		},
 		{
 			name:      "4 live AppSet-initiated filtered + generated full -> filter gone",
-			liveOp:    filteredOp("applicationset-controller"),
+			liveOp:    filteredOp(AppSetControllerUsername),
 			desiredOp: fullAppSetOp(),
-			wantUser:  "applicationset-controller",
+			wantUser:  AppSetControllerUsername,
 			wantRes:   0,
 		},
 		{
@@ -497,14 +497,14 @@ func TestCreateOrUpdate_OperationGuard(t *testing.T) {
 			wantRes:   1,
 		},
 		{
-			name: "6 live already-full AppSet op + generated full -> do not re-add",
+			name:   "6 live already-full AppSet op + generated full -> do not re-add",
 			liveOp: fullAppSetOp(),
 			desiredOp: func() *v1alpha1.Operation {
 				op := fullAppSetOp()
 				op.Retry.Limit = 9
 				return op
 			}(),
-			wantUser:       "applicationset-controller",
+			wantUser:       AppSetControllerUsername,
 			wantRes:        0,
 			wantResult:     controllerutil.OperationResultNone,
 			checkResult:    true,
