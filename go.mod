@@ -321,18 +321,6 @@ require (
 	sigs.k8s.io/randfill v1.0.0 // indirect
 )
 
-require (
-	github.com/go-openapi/runtime/server-middleware v0.33.0
-	github.com/go-openapi/runtime/server-middleware v0.32.6
-	k8s.io/streaming v0.36.1
-)
-
-require (
-	github.com/go-openapi/swag/pools v0.27.3 // indirect
-	github.com/google/go-github/v88 v88.0.0 // indirect
-	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
-)
-
 replace (
 	github.com/golang/protobuf => github.com/golang/protobuf v1.5.4
 	github.com/grpc-ecosystem/grpc-gateway => github.com/grpc-ecosystem/grpc-gateway v1.16.0
