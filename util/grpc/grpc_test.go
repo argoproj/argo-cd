@@ -2,11 +2,17 @@ package grpc
 
 import (
 	"context"
+	"net"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
 var proxyEnvKeys = []string{"ALL_PROXY", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY"}
@@ -23,6 +29,89 @@ func applyProxyEnv(t *testing.T, envs map[string]string) {
 	for k, v := range envs {
 		t.Setenv(k, v)
 	}
+}
+
+type trackingListener struct {
+	net.Listener
+	accepted chan net.Conn
+}
+
+func (l *trackingListener) Accept() (net.Conn, error) {
+	conn, err := l.Listener.Accept()
+	if err == nil {
+		l.accepted <- conn
+	}
+	return conn, err
+}
+
+func startHealthServer(t *testing.T) *trackingListener {
+	t.Helper()
+
+	lis, err := new(net.ListenConfig).Listen(t.Context(), "tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	trackingLis := &trackingListener{
+		Listener: lis,
+		accepted: make(chan net.Conn, 2),
+	}
+
+	srv := grpc.NewServer()
+	hsvc := health.NewServer()
+	hsvc.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
+	grpc_health_v1.RegisterHealthServer(srv, hsvc)
+
+	go func() {
+		_ = srv.Serve(trackingLis)
+	}()
+
+	t.Cleanup(func() {
+		srv.Stop()
+		_ = lis.Close()
+	})
+
+	return trackingLis
+}
+
+func TestBlockingNewClientReconnectsAfterConnectionClose(t *testing.T) {
+	clearProxyEnv(t)
+	lis := startHealthServer(t)
+
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+
+	conn, err := BlockingNewClient(ctx, "tcp", lis.Addr().String(), nil)
+	require.NoError(t, err)
+	defer conn.Close()
+
+	healthClient := grpc_health_v1.NewHealthClient(conn)
+
+	_, err = healthClient.Check(ctx, &grpc_health_v1.HealthCheckRequest{})
+	require.NoError(t, err)
+
+	var firstConn net.Conn
+	select {
+	case firstConn = <-lis.accepted:
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for initial connection")
+	}
+
+	require.NoError(t, firstConn.Close())
+
+	require.Eventually(t, func() bool {
+		return conn.GetState() == connectivity.Idle
+	}, time.Second, 10*time.Millisecond)
+
+	conn.Connect()
+
+	var secondConn net.Conn
+	select {
+	case secondConn = <-lis.accepted:
+		defer secondConn.Close()
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed out waiting for reconnect")
+	}
+
+	_, err = healthClient.Check(ctx, &grpc_health_v1.HealthCheckRequest{})
+	require.NoError(t, err)
 }
 
 func TestBlockingDial_ProxyEnvironmentHandling(t *testing.T) {
