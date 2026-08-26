@@ -5386,7 +5386,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 			// URL and fail with "repository not found" (issue #28890). The mocks below make
 			// any git resolution fail so that the test only passes when the git path is skipped.
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
-				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything).Return("", nil)
 				gitClient.EXPECT().LsRemote(mock.Anything).Return("", errors.New("failed to list refs: repository not found"))
 				gitClient.EXPECT().Root().Return("")
 				paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
