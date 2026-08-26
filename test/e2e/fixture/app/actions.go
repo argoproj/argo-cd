@@ -152,10 +152,8 @@ func (a *Actions) CreateFromPartialFile(data string, flags ...string) *Actions {
 func (a *Actions) CreateFromFile(handler func(app *v1alpha1.Application), flags ...string) *Actions {
 	a.context.T().Helper()
 	app := &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      a.context.AppName(),
-			Namespace: a.context.AppNamespace(),
-		},
+		Name:      a.context.AppName(),
+		Namespace: a.context.AppNamespace(),
 		Spec: v1alpha1.ApplicationSpec{
 			Project: a.context.project,
 			Source: &v1alpha1.ApplicationSource{
@@ -216,10 +214,8 @@ func (a *Actions) CreateMultiSourceAppFromFile(handler func(app *v1alpha1.Applic
 	a.context.T().Helper()
 
 	app := &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      a.context.AppName(),
-			Namespace: a.context.AppNamespace(),
-		},
+		Name:      a.context.AppName(),
+		Namespace: a.context.AppNamespace(),
 		Spec: v1alpha1.ApplicationSpec{
 			Project: a.context.project,
 			Sources: a.context.sources,
@@ -637,18 +633,14 @@ func (a *Actions) GetHelmTemplateProcess() *Actions {
 // TODO: This function should be moved to the project context since impersonation is a project concept, not application.
 func createRBACResourcesForImpersonation(namespace string, serviceAccountName string, policyRules []rbacv1.PolicyRule) error {
 	sa := &corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: serviceAccountName,
-		},
+		Name: serviceAccountName,
 	}
 	_, err := fixture.KubeClientset.CoreV1().ServiceAccounts(namespace).Create(context.Background(), sa, metav1.CreateOptions{})
 	if err != nil {
 		return err
 	}
 	role := &rbacv1.Role{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("%s-%s", serviceAccountName, "role"),
-		},
+		Name:  fmt.Sprintf("%s-%s", serviceAccountName, "role"),
 		Rules: policyRules,
 	}
 	_, err = fixture.KubeClientset.RbacV1().Roles(namespace).Create(context.Background(), role, metav1.CreateOptions{})
@@ -656,9 +648,7 @@ func createRBACResourcesForImpersonation(namespace string, serviceAccountName st
 		return err
 	}
 	rolebinding := &rbacv1.RoleBinding{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("%s-%s", serviceAccountName, "rolebinding"),
-		},
+		Name: fmt.Sprintf("%s-%s", serviceAccountName, "rolebinding"),
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
 			Kind:     "Role",

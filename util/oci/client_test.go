@@ -19,7 +19,6 @@ import (
 	"testing"
 
 	"github.com/opencontainers/go-digest"
-	"github.com/opencontainers/image-spec/specs-go"
 	imagev1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -53,9 +52,9 @@ func generateManifestWithConfig(t *testing.T, store *memory.Store, configMediaTy
 	}
 
 	manifestBlob, err := json.Marshal(imagev1.Manifest{
-		Config:    configDesc,
-		Layers:    layers,
-		Versioned: specs.Versioned{SchemaVersion: 2},
+		Config:        configDesc,
+		Layers:        layers,
+		SchemaVersion: 2,
 	})
 	require.NoError(t, err)
 	manifestDesc := content.NewDescriptorFromBytes(imagev1.MediaTypeImageManifest, manifestBlob)
@@ -778,9 +777,9 @@ func Test_nativeOCIClient_DigestMetadata(t *testing.T) {
 		configBlob := []byte("config")
 		configDesc := content.NewDescriptorFromBytes("application/vnd.cncf.helm.config.v1+json", configBlob)
 		manifestBlob, err := json.Marshal(imagev1.Manifest{
-			Versioned:   specs.Versioned{SchemaVersion: 2},
-			Config:      configDesc,
-			Annotations: annotations,
+			SchemaVersion: 2,
+			Config:        configDesc,
+			Annotations:   annotations,
 		})
 		require.NoError(t, err)
 		manifestDesc := content.NewDescriptorFromBytes(imagev1.MediaTypeImageManifest, manifestBlob)

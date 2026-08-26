@@ -877,9 +877,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 			_, err = AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Create(
 				t.Context(),
 				&v1alpha1.AppProject{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "gpg",
-					},
+					Name: "gpg",
 					Spec: v1alpha1.AppProjectSpec{
 						OrphanedResources:        nil,
 						SourceRepos:              []string{"*"},

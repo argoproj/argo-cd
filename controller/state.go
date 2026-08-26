@@ -877,7 +877,7 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 			// targetNsExists == true implies that it already exists as a target, so no need to add the namespace to the
 			// targetObjs array.
 			if isManagedNamespace(liveObj, app) && !targetNsExists {
-				nsSpec := &corev1.Namespace{TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: kubeutil.NamespaceKind}, ObjectMeta: metav1.ObjectMeta{Name: liveObj.GetName()}}
+				nsSpec := &corev1.Namespace{APIVersion: "v1", Kind: kubeutil.NamespaceKind, Name: liveObj.GetName()}
 				managedNs, err := kubeutil.ToUnstructured(nsSpec)
 				if err != nil {
 					conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionComparisonError, Message: err.Error(), LastTransitionTime: &now})

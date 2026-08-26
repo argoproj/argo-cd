@@ -212,13 +212,11 @@ func filterFields(input v1alpha1.Application) v1alpha1.Application {
 	metaCopy := input.ObjectMeta.DeepCopy()
 
 	output := v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Labels:      metaCopy.Labels,
-			Annotations: metaCopy.Annotations,
-			Name:        metaCopy.Name,
-			Namespace:   metaCopy.Namespace,
-			Finalizers:  metaCopy.Finalizers,
-		},
+		Labels:      metaCopy.Labels,
+		Annotations: metaCopy.Annotations,
+		Name:        metaCopy.Name,
+		Namespace:   metaCopy.Namespace,
+		Finalizers:  metaCopy.Finalizers,
 		Spec: v1alpha1.ApplicationSpec{
 			Source: &v1alpha1.ApplicationSource{
 				Path:           spec.GetSource().Path,
