@@ -9,7 +9,7 @@ label. For example `#sync-wave` for `argocd.argoproj.io/sync-wave`, or `#notice-
 | Annotation key | Target resource(s) | Summary |
 |----------------|--------------------|---------|
 | [`argocd.argoproj.io/application-set-refresh`](#application-set-refresh) | ApplicationSet | Requests a refresh of an ApplicationSet. |
-| [`argocd.argoproj.io/client-side-apply-migration-manager`](#client-side-apply-migration-manager) | Application, any | Sets the field manager used for client-side apply migration. |
+| [`argocd.argoproj.io/client-side-apply-migration-manager`](#client-side-apply-migration-manager) | Application | Sets the field manager used for client-side apply migration. |
 | [`argocd.argoproj.io/compare-options`](#compare-options) | any | Configures how current state is compared to desired state. |
 | [`argocd.argoproj.io/deletion-approved`](#deletion-approved) | Application | Confirms a pruning or deletion that requires manual approval. |
 | [`argocd.argoproj.io/hook`](#hook) | any | Configures a resource hook. |
@@ -49,11 +49,12 @@ controller will remove this annotation at the end of reconciliation.
 
 ### `argocd.argoproj.io/client-side-apply-migration-manager` { #client-side-apply-migration-manager }
 
-- **Target resource(s):** Application, any
+- **Target resource(s):** Application
 - **Possible values:** a field manager name (default `kubectl-client-side-apply`)
 
 Specifies a custom field manager to use for client-side apply migration during a server-side apply
-sync. Useful when another operator owns fields that Argo CD should take over. See
+sync. Useful when another operator owns fields that Argo CD should take over. Must be set on the
+Application; it has no effect on the resources the Application manages. See
 [client-side apply migration docs](sync-options.md#client-side-apply-migration).
 
 ### `argocd.argoproj.io/compare-options` { #compare-options }
