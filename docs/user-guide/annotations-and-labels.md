@@ -67,7 +67,7 @@ Configures how an app's current state is compared to its desired state.
 ### `argocd.argoproj.io/deletion-approved` { #deletion-approved }
 
 - **Target resource(s):** Application
-- **Possible values:** an RFC3339 timestamp
+- **Possible values:** an [RFC3339](https://pkg.go.dev/time#pkg-constants) timestamp
 
 Confirms a pruning or deletion that was made to require manual approval via the
 `Prune=confirm` or `Delete=confirm` [sync options](sync-options.md). Normally set for you by the
@@ -103,7 +103,7 @@ runs if a change is found. Only used when `spec.sourceHydrator` is configured.
 ### `argocd.argoproj.io/hydrate-timestamp` { #hydrate-timestamp }
 
 - **Target resource(s):** Application
-- **Possible values:** an RFC3339Nano timestamp
+- **Possible values:** an [RFC3339Nano](https://pkg.go.dev/time#pkg-constants) timestamp
 
 Set together with [`hydrate`](#hydrate) to identify a particular hydration request. Lets the
 application controller detect that a new hydration request arrived while the current one was still
@@ -185,7 +185,7 @@ cluster state cache should be invalidated before refresh.
 ### `argocd.argoproj.io/refresh-timestamp` { #refresh-timestamp }
 
 - **Target resource(s):** Application
-- **Possible values:** an RFC3339Nano timestamp
+- **Possible values:** an [RFC3339Nano](https://pkg.go.dev/time#pkg-constants) timestamp
 
 Set together with [`refresh`](#refresh) to identify a particular refresh request. Lets the
 application controller detect that a new refresh request arrived while the current one was still
