@@ -385,15 +385,13 @@ func (s staleGetClient) Get(ctx context.Context, key client.ObjectKey, obj clien
 }
 
 func testApp(name string, op *v1alpha1.Operation) *v1alpha1.Application {
-	return &v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "argoproj.io/v1alpha1",
-			Kind:       "Application",
-		},
-		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "argocd"},
-		Spec:       v1alpha1.ApplicationSpec{Project: "default"},
-		Operation:  op,
+	app := &v1alpha1.Application{
+		Spec:      v1alpha1.ApplicationSpec{Project: "default"},
+		Operation: op,
 	}
+	app.Name = name
+	app.Namespace = "argocd"
+	return app
 }
 
 func fullAppSetOp() *v1alpha1.Operation {
