@@ -133,7 +133,9 @@ func TestNewAzureDevOpsService(t *testing.T) {
 	t.Parallel()
 	svc, err := NewAzureDevOpsService("", "https://dev.azure.com/", "myorg", "myproject", "myrepo", nil, []string{"stale"})
 	require.NoError(t, err)
-	assert.NotNil(t, svc)
+	azureSvc, ok := svc.(*AzureDevOpsService)
+	require.True(t, ok)
+	assert.Equal(t, []string{"stale"}, azureSvc.excludedLabels)
 }
 
 func TestConvertLabes(t *testing.T) {
