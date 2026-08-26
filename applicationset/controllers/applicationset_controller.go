@@ -719,14 +719,10 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 			appLog := logCtx.WithFields(applog.GetAppLogFields(&generatedApp))
 
 			found := &argov1alpha1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      generatedApp.Name,
-					Namespace: generatedApp.Namespace,
-				},
-				TypeMeta: metav1.TypeMeta{
-					Kind:       application.ApplicationKind,
-					APIVersion: "argoproj.io/v1alpha1",
-				},
+				Name:       generatedApp.Name,
+				Namespace:  generatedApp.Namespace,
+				Kind:       application.ApplicationKind,
+				APIVersion: "argoproj.io/v1alpha1",
 			}
 
 			action, err := utils.CreateOrUpdate(ctx, appLog, r.Client, diffConfig, found, func() error {

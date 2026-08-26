@@ -597,13 +597,11 @@ func (ctrl *ApplicationController) getResourceTree(destCluster *appv1.Cluster, a
 				return nil, fmt.Errorf("failed to unmarshal target state of managed resources: %w", err)
 			}
 			nodes = append(nodes, appv1.ResourceNode{
-				ResourceRef: appv1.ResourceRef{
-					Version:   target.GroupVersionKind().Version,
-					Name:      managedResource.Name,
-					Kind:      managedResource.Kind,
-					Group:     managedResource.Group,
-					Namespace: managedResource.Namespace,
-				},
+				Version:   target.GroupVersionKind().Version,
+				Name:      managedResource.Name,
+				Kind:      managedResource.Kind,
+				Group:     managedResource.Group,
+				Namespace: managedResource.Namespace,
 				Health: &appv1.HealthStatus{
 					Status: health.HealthStatusMissing,
 				},

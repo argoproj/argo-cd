@@ -335,10 +335,8 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*v1
 	})
 
 	appList := v1alpha1.ApplicationList{
-		ListMeta: metav1.ListMeta{
-			ResourceVersion: s.appInformer.LastSyncResourceVersion(),
-		},
-		Items: newItems,
+		ResourceVersion: s.appInformer.LastSyncResourceVersion(),
+		Items:           newItems,
 	}
 	return &appList, nil
 }

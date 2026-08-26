@@ -76,7 +76,9 @@ const config = {
         filename: '[name].[contenthash].js',
         chunkFilename: '[name].[contenthash].chunk.js',
         path: __dirname + '/../../dist/app',
-        clean: true
+        // `gitkeep` (and assets/images/resources/.gitkeep) are tracked in git so ui/embed.go
+        // has something to embed before the UI is built; clean would otherwise delete them.
+        clean: {keep: /(^|\/)\.?gitkeep$/}
     },
     cache: { type: 'filesystem' },
 
@@ -161,8 +163,9 @@ const config = {
                     to: 'assets/fonts'
                 },
                 {
-                    from: 'node_modules/redoc/bundles/redoc.standalone.js',
-                    to: 'assets/scripts/redoc.standalone.js'
+                    // consumed by the server-rendered /swagger-ui page; keep in sync with swaggerUIAssetsPath in util/swagger
+                    from: 'node_modules/swagger-ui-dist/{swagger-ui-bundle.js,swagger-ui-standalone-preset.js,swagger-ui.css,favicon-16x16.png,favicon-32x32.png}',
+                    to: 'assets/swagger-ui/[name][ext]'
                 },
                 {
                     from: 'node_modules/monaco-editor/min/vs/base/browser/ui/codicons/codicon',
