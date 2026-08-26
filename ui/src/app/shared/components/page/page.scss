@@ -48,6 +48,28 @@
     }
 }
 
+// The top bar's first row lays out the breadcrumbs and the page title as flex items. The
+// breadcrumb column is `white-space: nowrap` with visible overflow, so on a narrow window a long
+// breadcrumb runs out of its column and underneath the right-aligned title instead of shrinking
+// (issue #29292). Let both sides shrink and ellipsize, and cap the title so the breadcrumbs keep
+// a usable share of the row.
+.page__top-bar .top-bar > .row {
+    > .top-bar__left-side {
+        min-width: 0;
+    }
+
+    .top-bar__breadcrumbs {
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    > .top-bar__title {
+        min-width: 0;
+        max-width: 50%;
+    }
+}
+
 .login-logout-button {
     border-radius: 3px;
     @include themify($themes) {
