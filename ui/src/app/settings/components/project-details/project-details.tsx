@@ -878,7 +878,8 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                                                 title: 'Source Integrity',
                                                 content: (
                                                     <SourceIntegrityTab proj={proj} loadSignatureKeys={() => services.gpgkeys.list()} saveProject={item => saveProject(item)} />
-                                                )
+                                                ),
+                                                noPadding: true
                                             }
                                         ].map(tab => ({...tab, isOnlyContentScrollable: true, extraVerticalScrollPadding: 160}))}
                                     />

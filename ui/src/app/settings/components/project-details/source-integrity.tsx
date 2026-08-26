@@ -211,7 +211,7 @@ export const SourceIntegrityTab = ({
             </span>
         </div>
 
-        <div className='argo-container'>
+        <div className='argo-container source-integrity-tab-container'>
             <SourceIntegrityPanel proj={proj} />
             <LegacyGPGSignatureKeysPanel proj={proj} saveProject={saveProject} loadSignatureKeys={loadSignatureKeys} />
         </div>

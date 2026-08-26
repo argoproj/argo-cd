@@ -25,14 +25,15 @@
         }
     }
 }
-.source-integrity-panel--empty code {
-    font-family: monospace;
-    padding: 0 0.35em;
-}
+
 .source-integrity {
+    &-tab-container {
+        padding: 2em;
+        width: calc(1184px + 2em);
+    }
+
     &__info-banner {
-        margin: -16px -16px 0;
-        position: relative;
+        position: sticky;
         right: 0;
         top: 0;
         left: 0;
