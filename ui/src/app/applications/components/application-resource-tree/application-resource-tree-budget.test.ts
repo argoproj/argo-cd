@@ -112,6 +112,11 @@ describe('rootStrategy', () => {
         expect(rootStrategy(1500, 4000, CAP, false)).toEqual({clusterKinds: true, rankRoots: true});
     });
 
+    test('does not cluster while a filter is active, however crowded', () => {
+        // The user has already said what they want; grouping it again puts a hop in front of their query.
+        expect(rootStrategy(1500, 4000, CAP, true)).toEqual({clusterKinds: false, rankRoots: true});
+    });
+
     test('drilling into a kind shows it flat, and ranked', () => {
         expect(rootStrategy(1500, 4000, CAP, false, 'ConfigMap')).toEqual({clusterKinds: false, rankRoots: true});
     });

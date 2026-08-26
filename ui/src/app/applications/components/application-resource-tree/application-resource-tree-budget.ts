@@ -65,7 +65,10 @@ export function filterIsActive(filters?: string[]): boolean {
  */
 export function rootStrategy(rootCount: number, nodeCount: number, cap: number, hasFilter: boolean, bucket?: string | null): {clusterKinds: boolean; rankRoots: boolean} {
     return {
-        clusterKinds: rootCount > cap && !bucket,
+        // Never while filtering: clustering exists to stop bulk kinds crowding out workloads at the top
+        // level, and a user who has filtered has already said what they want to see. Grouping it again
+        // puts a hop in front of their own query.
+        clusterKinds: rootCount > cap && !bucket && !hasFilter,
         // A filter always forces ordering: without it a match cannot outrank whatever sorts first.
         rankRoots: hasFilter || !!bucket || rootCount > cap || nodeCount > cap
     };
