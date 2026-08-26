@@ -212,10 +212,8 @@ func SetProjSpecOptions(flags *pflag.FlagSet, spec *v1alpha1.AppProjectSpec, pro
 
 func ConstructAppProj(fileURL string, args []string, opts ProjectOpts, c *cobra.Command) (*v1alpha1.AppProject, error) {
 	proj := v1alpha1.AppProject{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.AppProjectKind,
-			APIVersion: application.Group + "/v1alpha1",
-		},
+		Kind:       application.AppProjectKind,
+		APIVersion: application.Group + "/v1alpha1",
 	}
 	switch {
 	case fileURL == "-":
