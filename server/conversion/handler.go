@@ -57,8 +57,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// the payload in memory at once.
 	var review apiextensionsv1.ConversionReview
 	if err := json.NewDecoder(r.Body).Decode(&review); err != nil {
-		var maxBytesErr *http.MaxBytesError
-		if errors.As(err, &maxBytesErr) {
+		if maxBytesErr, ok := errors.AsType[*http.MaxBytesError](err); ok {
 			log.WithError(err).Error("Conversion webhook request body exceeds the configured size limit")
 			http.Error(w, fmt.Sprintf("request body exceeds the %d byte limit (configurable via ARGOCD_CONVERSION_WEBHOOK_MAX_REQUEST_BODY_SIZE)", maxBytesErr.Limit), http.StatusRequestEntityTooLarge)
 			return

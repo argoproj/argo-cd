@@ -90,10 +90,8 @@ func TestHandler_ConvertV1alpha1ToV1beta1(t *testing.T) {
 	appBytes, _ := json.Marshal(v1alpha1App)
 
 	review := apiextensionsv1.ConversionReview{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apiextensions.k8s.io/v1",
-			Kind:       "ConversionReview",
-		},
+		APIVersion: "apiextensions.k8s.io/v1",
+		Kind:       "ConversionReview",
 		Request: &apiextensionsv1.ConversionRequest{
 			UID:               "test-uid",
 			DesiredAPIVersion: "argoproj.io/v1beta1",
@@ -162,10 +160,8 @@ func TestHandler_ConvertV1beta1ToV1alpha1(t *testing.T) {
 	appBytes, _ := json.Marshal(v1beta1App)
 
 	review := apiextensionsv1.ConversionReview{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apiextensions.k8s.io/v1",
-			Kind:       "ConversionReview",
-		},
+		APIVersion: "apiextensions.k8s.io/v1",
+		Kind:       "ConversionReview",
 		Request: &apiextensionsv1.ConversionRequest{
 			UID:               "test-uid",
 			DesiredAPIVersion: "argoproj.io/v1alpha1",

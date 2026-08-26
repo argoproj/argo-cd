@@ -119,13 +119,11 @@ func createSecretCert(ctx context.Context, kubeClient kubernetes.Interface, name
 	}
 	certPEM, keyPEM := tlsutil.EncodeX509KeyPair(*cert)
 	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      TLSSecretName,
-			Namespace: namespace,
-			Labels: map[string]string{
-				"app.kubernetes.io/name":    "argocd-conversion-webhook",
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Name:      TLSSecretName,
+		Namespace: namespace,
+		Labels: map[string]string{
+			"app.kubernetes.io/name":    "argocd-conversion-webhook",
+			"app.kubernetes.io/part-of": "argocd",
 		},
 		Type: corev1.SecretTypeTLS,
 		Data: map[string][]byte{

@@ -63,14 +63,10 @@ func randomString(n int) string {
 
 func newV1beta1App(name, namespace string) *v1beta1.Application {
 	return &v1beta1.Application{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "argoproj.io/v1beta1",
-			Kind:       "Application",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
+		APIVersion: "argoproj.io/v1beta1",
+		Kind:       "Application",
+		Name:       name,
+		Namespace:  namespace,
 		Spec: v1beta1.ApplicationSpec{
 			Project: "default",
 			Sources: v1beta1.ApplicationSources{

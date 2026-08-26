@@ -34,8 +34,8 @@ func tlsSecret(t *testing.T, cert *tls.Certificate) *corev1.Secret {
 	t.Helper()
 	certPEM, keyPEM := tlsutil.EncodeX509KeyPair(*cert)
 	return &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: TLSSecretName, Namespace: testNamespace},
-		Type:       corev1.SecretTypeTLS,
+		Name: TLSSecretName, Namespace: testNamespace,
+		Type: corev1.SecretTypeTLS,
 		Data: map[string][]byte{
 			corev1.TLSCertKey:       certPEM,
 			corev1.TLSPrivateKeyKey: keyPEM,
@@ -125,8 +125,8 @@ func TestEnsureSecretCert_RotatesCertMissingHost(t *testing.T) {
 
 func TestEnsureSecretCert_RotatesGarbageSecret(t *testing.T) {
 	garbage := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: TLSSecretName, Namespace: testNamespace},
-		Data:       map[string][]byte{corev1.TLSCertKey: []byte("not a cert"), corev1.TLSPrivateKeyKey: []byte("not a key")},
+		Name: TLSSecretName, Namespace: testNamespace,
+		Data: map[string][]byte{corev1.TLSCertKey: []byte("not a cert"), corev1.TLSPrivateKeyKey: []byte("not a key")},
 	}
 	client := kubefake.NewSimpleClientset(garbage)
 

@@ -5,21 +5,16 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func TestConvertFromV1alpha1_BasicApplication(t *testing.T) {
 	src := &v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "argoproj.io/v1alpha1",
-			Kind:       "Application",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-app",
-			Namespace: "argocd",
-		},
+		APIVersion: "argoproj.io/v1alpha1",
+		Kind:       "Application",
+		Name:       "test-app",
+		Namespace:  "argocd",
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Destination: v1alpha1.ApplicationDestination{
@@ -52,14 +47,10 @@ func TestConvertFromV1alpha1_BasicApplication(t *testing.T) {
 func TestConvertFromV1alpha1_SourceToSources(t *testing.T) {
 	// Test conversion of legacy Source field to Sources
 	src := &v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "argoproj.io/v1alpha1",
-			Kind:       "Application",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-app",
-			Namespace: "argocd",
-		},
+		APIVersion: "argoproj.io/v1alpha1",
+		Kind:       "Application",
+		Name:       "test-app",
+		Namespace:  "argocd",
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Destination: v1alpha1.ApplicationDestination{
@@ -87,14 +78,10 @@ func TestConvertFromV1alpha1_SourceToSources(t *testing.T) {
 func TestConvertFromV1alpha1_SourcesPreferredOverSource(t *testing.T) {
 	// If both Source and Sources are set, Sources takes precedence
 	src := &v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "argoproj.io/v1alpha1",
-			Kind:       "Application",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-app",
-			Namespace: "argocd",
-		},
+		APIVersion: "argoproj.io/v1alpha1",
+		Kind:       "Application",
+		Name:       "test-app",
+		Namespace:  "argocd",
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Destination: v1alpha1.ApplicationDestination{
@@ -124,14 +111,10 @@ func TestConvertFromV1alpha1_SourcesPreferredOverSource(t *testing.T) {
 
 func TestConvertFromV1alpha1_SyncPolicy(t *testing.T) {
 	src := &v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "argoproj.io/v1alpha1",
-			Kind:       "Application",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-app",
-			Namespace: "argocd",
-		},
+		APIVersion: "argoproj.io/v1alpha1",
+		Kind:       "Application",
+		Name:       "test-app",
+		Namespace:  "argocd",
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Destination: v1alpha1.ApplicationDestination{
@@ -177,14 +160,10 @@ func TestConvertFromV1alpha1_SyncPolicy(t *testing.T) {
 func TestConvertSyncOptions_AllFields(t *testing.T) {
 	// Test conversion of all SyncOptions fields from v1alpha1 string format to v1beta1 structured format
 	src := &v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "argoproj.io/v1alpha1",
-			Kind:       "Application",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-app",
-			Namespace: "argocd",
-		},
+		APIVersion: "argoproj.io/v1alpha1",
+		Kind:       "Application",
+		Name:       "test-app",
+		Namespace:  "argocd",
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Destination: v1alpha1.ApplicationDestination{
@@ -303,9 +282,7 @@ func TestConvertDoesNotAliasInput(t *testing.T) {
 	// Mutating the converted v1alpha1 result must not mutate the v1beta1 input
 	// (previously dst.Source aliased src.Sources[0]).
 	src := &Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Annotations: map[string]string{SourceFormatAnnotation: SourceFormatSingular},
-		},
+		Annotations: map[string]string{SourceFormatAnnotation: SourceFormatSingular},
 		Spec: ApplicationSpec{
 			Sources: ApplicationSources{
 				{RepoURL: "https://original.example.com/repo", Path: "manifests"},
@@ -323,14 +300,10 @@ func TestConvertDoesNotAliasInput(t *testing.T) {
 
 func TestConvertToV1alpha1_BasicApplication(t *testing.T) {
 	src := &Application{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "argoproj.io/v1beta1",
-			Kind:       "Application",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-app",
-			Namespace: "argocd",
-		},
+		APIVersion: "argoproj.io/v1beta1",
+		Kind:       "Application",
+		Name:       "test-app",
+		Namespace:  "argocd",
 		Spec: ApplicationSpec{
 			Project: "default",
 			Destination: v1alpha1.ApplicationDestination{
@@ -365,14 +338,10 @@ func TestConvertToV1alpha1_BasicApplication(t *testing.T) {
 
 func TestConvertToV1alpha1_MultipleSources(t *testing.T) {
 	src := &Application{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "argoproj.io/v1beta1",
-			Kind:       "Application",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-app",
-			Namespace: "argocd",
-		},
+		APIVersion: "argoproj.io/v1beta1",
+		Kind:       "Application",
+		Name:       "test-app",
+		Namespace:  "argocd",
 		Spec: ApplicationSpec{
 			Project: "default",
 			Destination: v1alpha1.ApplicationDestination{
@@ -404,17 +373,13 @@ func TestConvertToV1alpha1_MultipleSources(t *testing.T) {
 func TestConvertRoundTrip_V1alpha1ToV1beta1ToV1alpha1(t *testing.T) {
 	// Test with Source (not Sources) - the common case for single-source apps
 	original := &v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "argoproj.io/v1alpha1",
-			Kind:       "Application",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:       "test-app",
-			Namespace:  "argocd",
-			Generation: 5,
-			Labels: map[string]string{
-				"app": "test",
-			},
+		APIVersion: "argoproj.io/v1alpha1",
+		Kind:       "Application",
+		Name:       "test-app",
+		Namespace:  "argocd",
+		Generation: 5,
+		Labels: map[string]string{
+			"app": "test",
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
@@ -490,14 +455,10 @@ func TestConvertRoundTrip_V1alpha1ToV1beta1ToV1alpha1(t *testing.T) {
 
 func TestConvertRoundTrip_V1beta1ToV1alpha1ToV1beta1(t *testing.T) {
 	original := &Application{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "argoproj.io/v1beta1",
-			Kind:       "Application",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-app",
-			Namespace: "argocd",
-		},
+		APIVersion: "argoproj.io/v1beta1",
+		Kind:       "Application",
+		Name:       "test-app",
+		Namespace:  "argocd",
 		Spec: ApplicationSpec{
 			Project: "default",
 			Destination: v1alpha1.ApplicationDestination{
@@ -549,11 +510,9 @@ func TestConvertStatus_ObservedGeneration(t *testing.T) {
 
 	t.Run("v1alpha1 to v1beta1 - ObservedGeneration is preserved", func(t *testing.T) {
 		src := &v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       "test-app",
-				Namespace:  "argocd",
-				Generation: 5,
-			},
+			Name:       "test-app",
+			Namespace:  "argocd",
+			Generation: 5,
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Destination: v1alpha1.ApplicationDestination{
@@ -580,11 +539,9 @@ func TestConvertStatus_ObservedGeneration(t *testing.T) {
 
 	t.Run("v1beta1 to v1alpha1 - ObservedGeneration is preserved", func(t *testing.T) {
 		src := &Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       "test-app",
-				Namespace:  "argocd",
-				Generation: 5,
-			},
+			Name:       "test-app",
+			Namespace:  "argocd",
+			Generation: 5,
 			Spec: ApplicationSpec{
 				Project: "default",
 				Destination: v1alpha1.ApplicationDestination{
@@ -613,11 +570,9 @@ func TestConvertStatus_ObservedGeneration(t *testing.T) {
 
 	t.Run("round-trip preserves ObservedGeneration", func(t *testing.T) {
 		src := &Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       "test-app",
-				Namespace:  "argocd",
-				Generation: 5,
-			},
+			Name:       "test-app",
+			Namespace:  "argocd",
+			Generation: 5,
 			Spec: ApplicationSpec{
 				Project: "default",
 				Destination: v1alpha1.ApplicationDestination{
@@ -655,7 +610,7 @@ func TestConvertOperation_RelocatedUnderStatus(t *testing.T) {
 
 	t.Run("v1alpha1 top-level operation -> v1beta1 status.operation", func(t *testing.T) {
 		src := &v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-app", Namespace: "argocd"},
+			Name: "test-app", Namespace: "argocd",
 			Spec: v1alpha1.ApplicationSpec{
 				Project:     "default",
 				Destination: v1alpha1.ApplicationDestination{Server: "https://kubernetes.default.svc"},
@@ -672,7 +627,7 @@ func TestConvertOperation_RelocatedUnderStatus(t *testing.T) {
 
 	t.Run("v1beta1 status.operation -> v1alpha1 top-level operation", func(t *testing.T) {
 		src := &Application{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-app", Namespace: "argocd"},
+			Name: "test-app", Namespace: "argocd",
 			Spec: ApplicationSpec{
 				Project:     "default",
 				Destination: v1alpha1.ApplicationDestination{Server: "https://kubernetes.default.svc"},
@@ -689,7 +644,7 @@ func TestConvertOperation_RelocatedUnderStatus(t *testing.T) {
 
 	t.Run("nil operation round-trips as nil", func(t *testing.T) {
 		src := &v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-app", Namespace: "argocd"},
+			Name: "test-app", Namespace: "argocd",
 			Spec: v1alpha1.ApplicationSpec{
 				Project:     "default",
 				Destination: v1alpha1.ApplicationDestination{Server: "https://kubernetes.default.svc"},
@@ -707,14 +662,10 @@ func TestConvertFromV1alpha1_SourceHydratorDoesNotSetSources(t *testing.T) {
 	// A hydrator-only app (no source/sources in v1alpha1) converts with empty
 	// Sources — there is nothing to merge.
 	src := &v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "argoproj.io/v1alpha1",
-			Kind:       "Application",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-hydrator-app",
-			Namespace: "argocd",
-		},
+		APIVersion: "argoproj.io/v1alpha1",
+		Kind:       "Application",
+		Name:       "test-hydrator-app",
+		Namespace:  "argocd",
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Destination: v1alpha1.ApplicationDestination{
@@ -751,14 +702,10 @@ func TestConvertFromV1alpha1_SourceHydratorKeepsSourcesIfBothSet(t *testing.T) {
 	// be lossless: dropping sources here would permanently erase them from
 	// storage on any v1beta1 round-trip.
 	src := &v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "argoproj.io/v1alpha1",
-			Kind:       "Application",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-hydrator-app",
-			Namespace: "argocd",
-		},
+		APIVersion: "argoproj.io/v1alpha1",
+		Kind:       "Application",
+		Name:       "test-hydrator-app",
+		Namespace:  "argocd",
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Destination: v1alpha1.ApplicationDestination{
@@ -805,14 +752,10 @@ func TestConvertFromV1alpha1_SourceHydratorKeepsSourcesIfBothSet(t *testing.T) {
 func TestConvertToV1alpha1_SourceHydratorPreserved(t *testing.T) {
 	// Test that SourceHydrator is preserved when converting from v1beta1 to v1alpha1
 	src := &Application{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "argoproj.io/v1beta1",
-			Kind:       "Application",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-hydrator-app",
-			Namespace: "argocd",
-		},
+		APIVersion: "argoproj.io/v1beta1",
+		Kind:       "Application",
+		Name:       "test-hydrator-app",
+		Namespace:  "argocd",
 		Spec: ApplicationSpec{
 			Project: "default",
 			Destination: v1alpha1.ApplicationDestination{
@@ -918,7 +861,7 @@ func TestConvertRoundTrip_SourceFormPreserved(t *testing.T) {
 
 	newApp := func(mutate func(*v1alpha1.ApplicationSpec)) *v1alpha1.Application {
 		app := &v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-app", Namespace: "argocd"},
+			Name: "test-app", Namespace: "argocd",
 			Spec: v1alpha1.ApplicationSpec{
 				Project:     "default",
 				Destination: v1alpha1.ApplicationDestination{Server: "https://kubernetes.default.svc"},
@@ -975,7 +918,7 @@ func TestConvertRoundTrip_SourceFormPreserved(t *testing.T) {
 func TestConvertRoundTrip_SyncOptionsPreservedVerbatim(t *testing.T) {
 	newApp := func(opts ...string) *v1alpha1.Application {
 		return &v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{Name: "test-app", Namespace: "argocd"},
+			Name: "test-app", Namespace: "argocd",
 			Spec: v1alpha1.ApplicationSpec{
 				Project:     "default",
 				Destination: v1alpha1.ApplicationDestination{Server: "https://kubernetes.default.svc"},

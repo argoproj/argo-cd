@@ -46,7 +46,7 @@ func newAppCRD(caBundle []byte) *apiextensionsv1.CustomResourceDefinition {
 	path := "/convert"
 	port := int32(443)
 	return &apiextensionsv1.CustomResourceDefinition{
-		ObjectMeta: metav1.ObjectMeta{Name: application.ApplicationFullName},
+		Name: application.ApplicationFullName,
 		Spec: apiextensionsv1.CustomResourceDefinitionSpec{
 			Conversion: &apiextensionsv1.CustomResourceConversion{
 				Strategy: apiextensionsv1.WebhookConverter,
