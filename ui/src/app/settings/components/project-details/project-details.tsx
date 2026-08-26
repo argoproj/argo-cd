@@ -681,65 +681,6 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                     />
                 )}
 
-                {(proj.spec.signatureKeys?.length ?? 0) > 0 && (
-                    <EditablePanel
-                        save={item => saveProject(item)}
-                        values={proj}
-                        title={
-                            <React.Fragment>
-                                [DEPRECATED] GPG SIGNATURE KEYS {helpTip('IDs of GnuPG keys that commits must be signed with in order to be allowed to sync to')}
-                            </React.Fragment>
-                        }
-                        view={
-                            <React.Fragment>
-                                <p>This feature is deprecated, migrate to Source Integrity instead.</p>
-                                {proj.spec.signatureKeys
-                                    ? proj.spec.signatureKeys.map((key, i) => (
-                                          <div className='row white-box__details-row' key={i}>
-                                              <div className='columns small-12'>{key.keyID}</div>
-                                          </div>
-                                      ))
-                                    : emptyMessage('signature keys')}
-                            </React.Fragment>
-                        }
-                        edit={formApi => (
-                            <DataLoader load={() => services.gpgkeys.list()}>
-                                {keys => (
-                                    <React.Fragment>
-                                        <p>This feature is deprecated, migrate to Source Integrity instead.</p>
-                                        {(formApi.values.spec.signatureKeys || []).map((_: Project, i: number) => (
-                                            <div className='row white-box__details-row' key={i}>
-                                                <div className='columns small-12'>
-                                                    <FormField
-                                                        formApi={formApi}
-                                                        field={`spec.signatureKeys[${i}].keyID`}
-                                                        component={AutocompleteField}
-                                                        componentProps={{items: keys.map(key => key.keyID)}}
-                                                    />
-                                                </div>
-                                                <i className='fa fa-times' onClick={() => formApi.setValue('spec.signatureKeys', removeEl(formApi.values.spec.signatureKeys, i))} />
-                                            </div>
-                                        ))}
-                                        <button
-                                            className='argo-button argo-button--short'
-                                            onClick={() =>
-                                                formApi.setValue(
-                                                    'spec.signatureKeys',
-                                                    (formApi.values.spec.signatureKeys || []).concat({
-                                                        keyID: ''
-                                                    })
-                                                )
-                                            }>
-                                            ADD KEY
-                                        </button>
-                                    </React.Fragment>
-                                )}
-                            </DataLoader>
-                        )}
-                        items={[]}
-                    />
-                )}
-
                 <EditablePanel
                     save={item => saveProject(item)}
                     values={proj}
@@ -935,7 +876,9 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                                             {
                                                 key: 'source-integrity',
                                                 title: 'Source Integrity',
-                                                content: <SourceIntegrityTab proj={proj} />
+                                                content: (
+                                                    <SourceIntegrityTab proj={proj} loadSignatureKeys={() => services.gpgkeys.list()} saveProject={item => saveProject(item)} />
+                                                )
                                             }
                                         ].map(tab => ({...tab, isOnlyContentScrollable: true, extraVerticalScrollPadding: 160}))}
                                     />
