@@ -130,11 +130,9 @@ func newSpiedClient(t *testing.T, repoURL string, cache gitRefCache, loadRefFrom
 	t.Helper()
 	lsRemoteCalls := 0
 	return &nativeGitClient{
-		EventHandlers: EventHandlers{
-			OnLsRemote: func(string) func() {
-				lsRemoteCalls++
-				return func() {}
-			},
+		OnLsRemote: func(string) func() {
+			lsRemoteCalls++
+			return func() {}
 		},
 		repoURL:          repoURL,
 		creds:            NopCreds{},
