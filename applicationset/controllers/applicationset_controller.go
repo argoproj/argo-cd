@@ -644,6 +644,18 @@ func (r *ApplicationSetReconciler) getMinRequeueAfter(applicationSetInfo *argov1
 		}
 	}
 
+	if r.EnableProgressiveSyncs && r.RefreshGracePeriodSeconds > 0 && progressivesync.RollingSyncStrategyEnabled(applicationSetInfo) {
+		if latest := progressivesync.GetLatestWaitingTransitionTimeOfAppset(applicationSetInfo); latest != nil {
+			remaining := time.Duration(r.RefreshGracePeriodSeconds)*time.Second - time.Since(latest.Time)
+			if remaining <= 0 {
+				remaining = time.Second // grace period already elapsed; force a near-immediate recheck rather than falling through to no-requeue
+			}
+			if res == 0 || remaining < res {
+				res = remaining
+			}
+		}
+	}
+
 	return res
 }
 

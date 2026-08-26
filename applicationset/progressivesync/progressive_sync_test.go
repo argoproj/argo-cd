@@ -1695,7 +1695,7 @@ func TestGetLatestWaitingTransitionTimeOfAppset(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := getLatestWaitingTransitionTimeOfAppset(tt.appset)
+			result := GetLatestWaitingTransitionTimeOfAppset(tt.appset)
 			if tt.expected == nil {
 				assert.Nil(t, result)
 			} else {

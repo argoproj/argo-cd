@@ -121,7 +121,7 @@ func (m *Manager) PerformProgressiveSyncs(ctx context.Context, logCtx *log.Entry
 
 	// Capture the previous transition time BEFORE updating status to avoid checking against
 	// the transition time that will be set in the current reconcile loop
-	previousWaitingTime := getLatestWaitingTransitionTimeOfAppset(&appset)
+	previousWaitingTime := GetLatestWaitingTransitionTimeOfAppset(&appset)
 
 	updatedAppsetApplicationStatus, err := m.UpdateApplicationSetApplicationStatus(ctx, logCtx, &appset, applications, desiredApplications, appStepMap)
 	if err != nil {
@@ -656,7 +656,7 @@ func isApplicationWithError(app argov1alpha1.Application) bool {
 	return false
 }
 
-// getLatestWaitingTransitionTimeOfAppset extracts the latest (most recent) LastTransitionTime from
+// GetLatestWaitingTransitionTimeOfAppset extracts the latest (most recent) LastTransitionTime from
 // ApplicationSet status for Applications in Waiting state that have pending changes (not new apps).
 // New apps are excluded because they have no prior revision; their LastTransitionTime doesn't represent a change requiring reconcile window
 // Returns nil if first reconcile of Appset, since ApplicationStatus would be empty.
@@ -664,7 +664,7 @@ func isApplicationWithError(app argov1alpha1.Application) bool {
 // Using the latest time anchors the reconcile window so all apps must reconcile after the last
 // detected change, not after the first (which can let apps through that reconciled before they
 // were marked Waiting).
-func getLatestWaitingTransitionTimeOfAppset(appset *argov1alpha1.ApplicationSet) *metav1.Time {
+func GetLatestWaitingTransitionTimeOfAppset(appset *argov1alpha1.ApplicationSet) *metav1.Time {
 	var latest *metav1.Time
 	for _, appStatus := range appset.Status.ApplicationStatus {
 		// Only consider apps in Waiting state that have a transition time
@@ -776,7 +776,7 @@ func (m *Manager) ensureApplicationsReconciled(logCtx *log.Entry, appset *argov1
 		latestWaitingTime = previousWaitingTime
 	} else {
 		// apps didn't have pending changes before this reconcile, but check if the status update before this call changed anything
-		latestWaitingTime = getLatestWaitingTransitionTimeOfAppset(appset)
+		latestWaitingTime = GetLatestWaitingTransitionTimeOfAppset(appset)
 	}
 
 	if latestWaitingTime == nil {
