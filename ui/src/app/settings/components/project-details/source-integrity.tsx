@@ -186,6 +186,23 @@ const LegacyGPGSignatureKeysPanel = ({
     />
 );
 
+const SourceIntegrityInfoBanner = () => (
+    <div className='source-integrity__info-banner'>
+        <i className='fa fa-info-circle' />
+        <span>
+            Source Integrity is configured via CLI or manifests. See{' '}
+            <a href='https://argo-cd.readthedocs.io/en/stable/user-guide/source-integrity/' target='_blank' rel='noopener noreferrer'>
+                <i className='fa fa-external-link-alt' /> documentation
+            </a>{' '}
+            or{' '}
+            <a href='https://argo-cd.readthedocs.io/en/stable/user-guide/commands/argocd_proj_source-integrity/' target='_blank' rel='noopener noreferrer'>
+                <i className='fa fa-external-link-alt' /> CLI reference
+            </a>
+            .
+        </span>
+    </div>
+);
+
 export const SourceIntegrityTab = ({
     proj,
     loadSignatureKeys,
@@ -196,21 +213,7 @@ export const SourceIntegrityTab = ({
     saveProject: (proj: Project) => Promise<void>;
 }) => (
     <>
-        <div className='source-integrity__info-banner'>
-            <i className='fa fa-info-circle' />
-            <span>
-                Source Integrity is configured via CLI or manifests. See{' '}
-                <a href='https://argo-cd.readthedocs.io/en/stable/user-guide/source-integrity/' target='_blank' rel='noopener noreferrer'>
-                    documentation
-                </a>{' '}
-                or{' '}
-                <a href='https://argo-cd.readthedocs.io/en/stable/user-guide/commands/argocd_proj_source-integrity/' target='_blank' rel='noopener noreferrer'>
-                    CLI reference
-                </a>
-                .
-            </span>
-        </div>
-
+        <SourceIntegrityInfoBanner />
         <div className='argo-container source-integrity-tab-container'>
             <SourceIntegrityPanel proj={proj} />
             <LegacyGPGSignatureKeysPanel proj={proj} saveProject={saveProject} loadSignatureKeys={loadSignatureKeys} />
