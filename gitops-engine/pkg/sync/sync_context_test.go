@@ -22,6 +22,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
 	fakedisco "k8s.io/client-go/discovery/fake"
 	"k8s.io/client-go/dynamic/fake"
@@ -2355,6 +2356,13 @@ func TestPruneCRDsAreNotDeleted(t *testing.T) {
 			},
 		},
 	}
+
+	patchResourceCalled := false
+	mockKubectl = mockKubectl.WithPatchResourceFunc(func(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, patchType types.PatchType, patch []byte, _ ...string) (*unstructured.Unstructured, error) {
+		patchResourceCalled = true
+		return nil, nil
+	})
+
 	syncCtx.kubectl = mockKubectl
 
 	syncCtx.resources = groupResources(ReconciliationResult{
@@ -2369,6 +2377,7 @@ func TestPruneCRDsAreNotDeleted(t *testing.T) {
 	assert.Len(t, resources, 1)
 	assert.Equal(t, synccommon.ResultCodePruned, resources[0].Status)
 	assert.Equal(t, "pruned (orphaned CRD)", resources[0].Message)
+	assert.True(t, patchResourceCalled)
 }
 
 func diffResultList() *diff.DiffResultList {

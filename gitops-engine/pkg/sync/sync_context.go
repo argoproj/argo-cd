@@ -242,9 +242,9 @@ func WithClientSideApplyMigration(enabled bool, manager string) SyncOpt {
 	}
 }
 
-func WithAppAnnotationKey(method string) SyncOpt {
+func WithAppAnnotationKey(annotationKey string) SyncOpt {
 	return func(ctx *syncContext) {
-		ctx.appAnnotationKey = method
+		ctx.appAnnotationKey = annotationKey
 	}
 }
 
@@ -1526,12 +1526,16 @@ func (sc *syncContext) pruneObject(ctx context.Context, t *syncTask, prune, dryR
 			return common.ResultCodeSyncFailed, err.Error()
 		}
 		_, err = sc.kubectl.PatchResource(ctx, sc.config, liveObj.GroupVersionKind(), liveObj.GetName(), liveObj.GetNamespace(), types.JSONPatchType, jsonPatch)
+		if err != nil {
+			return common.ResultCodeSyncFailed, err.Error()
+		}
+
 		return common.ResultCodePruned, "pruned (orphaned CRD)"
 	}
 
 	// Skip deletion if object is already marked for deletion, so we don't cause a resource update hotloop
 	deletionTimestamp := liveObj.GetDeletionTimestamp()
-	if (deletionTimestamp == nil || deletionTimestamp.IsZero()) && !isCRD {
+	if deletionTimestamp == nil || deletionTimestamp.IsZero() {
 		err := sc.kubectl.DeleteResource(ctx, sc.config, liveObj.GroupVersionKind(), liveObj.GetName(), liveObj.GetNamespace(), sc.getDeleteOptions())
 		if err != nil {
 			return common.ResultCodeSyncFailed, err.Error()
