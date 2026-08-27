@@ -2135,50 +2135,34 @@ func Test_NormalizeTargetObjects_NamespacedResourceWithTracking(t *testing.T) {
 func Test_NormalizeTargetObjects_IgnoreDuplicateResources(t *testing.T) {
 	// Create duplicate resources: ClusterRole and ConfigMap
 	cr1 := kube.MustToUnstructured(&rbacv1.ClusterRole{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "ClusterRole",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "my-cluster-role",
-		},
+		APIVersion: "rbac.authorization.k8s.io/v1",
+		Kind:       "ClusterRole",
+		Name:       "my-cluster-role",
 		Rules: []rbacv1.PolicyRule{
 			{Verbs: []string{"get"}, Resources: []string{"pods"}},
 		},
 	})
 	cr2 := kube.MustToUnstructured(&rbacv1.ClusterRole{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "ClusterRole",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "my-cluster-role",
-		},
+		APIVersion: "rbac.authorization.k8s.io/v1",
+		Kind:       "ClusterRole",
+		Name:       "my-cluster-role",
 		Rules: []rbacv1.PolicyRule{
 			{Verbs: []string{"list"}, Resources: []string{"pods"}},
 		},
 	})
 	cm1 := kube.MustToUnstructured(&corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "my-config",
-			Namespace: test.FakeDestNamespace,
-		},
-		Data: map[string]string{"key": "value1"},
+		APIVersion: "v1",
+		Kind:       "ConfigMap",
+		Name:       "my-config",
+		Namespace:  test.FakeDestNamespace,
+		Data:       map[string]string{"key": "value1"},
 	})
 	cm2 := kube.MustToUnstructured(&corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "my-config",
-			Namespace: test.FakeDestNamespace,
-		},
-		Data: map[string]string{"key": "value2"},
+		APIVersion: "v1",
+		Kind:       "ConfigMap",
+		Name:       "my-config",
+		Namespace:  test.FakeDestNamespace,
+		Data:       map[string]string{"key": "value2"},
 	})
 
 	// Ignore duplicates for ClusterRole but not for ConfigMap
@@ -2213,48 +2197,32 @@ func Test_NormalizeTargetObjects_IgnoreDuplicateResources(t *testing.T) {
 func Test_NormalizeTargetObjects_IgnoreDuplicateResources_MatchByName(t *testing.T) {
 	// Create duplicates of two ConfigMaps with different names
 	cm1a := kube.MustToUnstructured(&corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "ignored-config",
-			Namespace: test.FakeDestNamespace,
-		},
-		Data: map[string]string{"key": "value1"},
+		APIVersion: "v1",
+		Kind:       "ConfigMap",
+		Name:       "ignored-config",
+		Namespace:  test.FakeDestNamespace,
+		Data:       map[string]string{"key": "value1"},
 	})
 	cm1b := kube.MustToUnstructured(&corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "ignored-config",
-			Namespace: test.FakeDestNamespace,
-		},
-		Data: map[string]string{"key": "value2"},
+		APIVersion: "v1",
+		Kind:       "ConfigMap",
+		Name:       "ignored-config",
+		Namespace:  test.FakeDestNamespace,
+		Data:       map[string]string{"key": "value2"},
 	})
 	cm2a := kube.MustToUnstructured(&corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "warned-config",
-			Namespace: test.FakeDestNamespace,
-		},
-		Data: map[string]string{"key": "value3"},
+		APIVersion: "v1",
+		Kind:       "ConfigMap",
+		Name:       "warned-config",
+		Namespace:  test.FakeDestNamespace,
+		Data:       map[string]string{"key": "value3"},
 	})
 	cm2b := kube.MustToUnstructured(&corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "warned-config",
-			Namespace: test.FakeDestNamespace,
-		},
-		Data: map[string]string{"key": "value4"},
+		APIVersion: "v1",
+		Kind:       "ConfigMap",
+		Name:       "warned-config",
+		Namespace:  test.FakeDestNamespace,
+		Data:       map[string]string{"key": "value4"},
 	})
 
 	// Ignore only the specific named ConfigMap
