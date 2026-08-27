@@ -19,3 +19,10 @@ tests:
     message: >-
       ApplySuccessful for FolderSynchronized because Folder was successfully applied to 1 instances, ConsistentUID for FolderUIDMismatch because UIDs consistent across all 1 instances
   inputPath: testdata/healthy-negative-polarity-condition.yaml
+- healthStatus:
+    status: Degraded
+    message: >-
+      ApplySuccessful for FolderSynchronized because Folder was successfully applied to 1 instances, FolderUIDInferred for FolderUIDMismatch because UID was inferred for 1 out of 1 instances:
+
+      - grafana-operator/grafana: inferred bar-folder
+  inputPath: testdata/degraded-folder-uid-mismatch.yaml
