@@ -161,6 +161,9 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 
 	env = append(env, environ...)
 
+	// capture rename entries before `kustomize edit set image` mutates the kustomization, so rendered images can be keyed by their original name
+	aliases := k.imageAliases(opts)
+
 	if opts != nil {
 		if opts.NamePrefix != "" {
 			cmd := exec.CommandContext(ctx, k.getBinaryPath(), "edit", "set", "nameprefix", "--", opts.NamePrefix)
@@ -406,7 +409,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 		redactedCommands[i] = strings.ReplaceAll(c, k.repoRoot, ".")
 	}
 
-	return objs, getImageParameters(objs), redactedCommands, nil
+	return objs, restoreImageAliases(getImageParameters(objs), aliases), redactedCommands, nil
 }
 
 func parseKustomizeBuildOptions(ctx context.Context, k *kustomize, buildOptions string, buildOpts *BuildOpts) []string {
@@ -500,6 +503,89 @@ func versionWithBinaryPath(ctx context.Context, k *kustomize) (string, error) {
 	// remove extra 'kustomize/' before version
 	version = strings.TrimPrefix(version, "kustomize/")
 	return version, nil
+}
+
+// kustomizationImages captures only the images field of a kustomization file.
+type kustomizationImages struct {
+	Images []struct {
+		Name    string `json:"name"`
+		NewName string `json:"newName"`
+		NewTag  string `json:"newTag"`
+		Digest  string `json:"digest"`
+	} `json:"images"`
+}
+
+// imageAliases maps the reference kustomize renders for a renamed image back to the original images[].name it stays keyed by.
+// A reference claimed by more than one name is ambiguous and maps to an empty name, so it is reported as rendered.
+func (k *kustomize) imageAliases(opts *v1alpha1.ApplicationSourceKustomize) map[string]string {
+	aliases := map[string]string{}
+	add := func(name, ref string) {
+		if ref == "" || ref == name {
+			return
+		}
+		if claimed, taken := aliases[ref]; taken && claimed != name {
+			aliases[ref] = ""
+			return
+		}
+		aliases[ref] = name
+	}
+
+	if file := findKustomizeFile(k.path); file != "" {
+		var kust kustomizationImages
+		if data, err := os.ReadFile(filepath.Join(k.path, file)); err == nil && yaml.Unmarshal(data, &kust) == nil {
+			for _, image := range kust.Images {
+				switch {
+				case image.NewName == "":
+				case image.Digest != "":
+					add(image.Name, image.NewName+"@"+image.Digest)
+				case image.NewTag != "":
+					add(image.Name, image.NewName+":"+image.NewTag)
+				default:
+					add(image.Name, image.NewName)
+				}
+			}
+		}
+	}
+	if opts != nil {
+		for _, image := range opts.Images {
+			if name, newImage, found := strings.Cut(string(image), "="); found {
+				add(name, newImage)
+			}
+		}
+	}
+	return aliases
+}
+
+// restoreImageAliases rewrites renamed images as <name>=<image> so overrides stay keyed by the original kustomize image name.
+func restoreImageAliases(images []Image, aliases map[string]string) []Image {
+	if len(aliases) == 0 {
+		return images
+	}
+	perRepo := map[string]int{}
+	for _, image := range images {
+		perRepo[imageRepo(image)]++
+	}
+	for i, image := range images {
+		name, ok := aliases[image]
+		// a rename that sets no tag renders with the original one, so it can only be recognised by its repository
+		if !ok && perRepo[imageRepo(image)] == 1 {
+			name, ok = aliases[imageRepo(image)]
+		}
+		if ok && name != "" {
+			images[i] = name + "=" + image
+		}
+	}
+	sort.Strings(images)
+	return images
+}
+
+// imageRepo strips the tag and digest from a container image reference.
+func imageRepo(image string) string {
+	repo, _, _ := strings.Cut(image, "@")
+	if i := strings.LastIndex(repo, ":"); i > strings.LastIndex(repo, "/") {
+		repo = repo[:i]
+	}
+	return repo
 }
 
 func getImageParameters(objs []*unstructured.Unstructured) []Image {
