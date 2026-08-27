@@ -214,3 +214,21 @@ func fakeHTTPServer(info version.Info, err error) *httptest.Server {
 		http.NotFound(w, r)
 	}))
 }
+
+func TestManageServerSideDiffDryRuns_LegacyWrapper(t *testing.T) {
+	t.Parallel()
+	config := mockConfig("https://localhost")
+
+	applier, cleanup, err := ManageServerSideDiffDryRuns(config, nil, tracing.NopTracer{}, textlogger.NewLogger(textlogger.NewConfig()), nil)
+	require.NoError(t, err)
+	require.NotNil(t, applier)
+	require.NotNil(t, cleanup)
+	defer cleanup()
+
+	directApplier, directCleanup, err := kubectlCmd().ManageServerSideDiffDryRuns(config)
+	require.NoError(t, err)
+	require.NotNil(t, directApplier)
+	defer directCleanup()
+
+	assert.IsType(t, directApplier, applier, "legacy wrapper should delegate to KubectlCmd.ManageServerSideDiffDryRuns")
+}
