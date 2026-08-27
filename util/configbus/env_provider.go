@@ -28,3 +28,6 @@ var _ Provider = (*EnvProvider)(nil)
 func (p *EnvProvider) GitRequestTimeout(_ context.Context) (time.Duration, error) {
 	return env.ParseDurationFromEnv("ARGOCD_GIT_REQUEST_TIMEOUT", 15*time.Second, 0, math.MaxInt64), nil
 }
+func (p *EnvProvider) ApplicationsetRequeueAfter(_ context.Context) (time.Duration, error) {
+	return env.ParseDurationFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_REQUEUE_AFTER", 3*time.Minute, 1*time.Second, 8760*time.Hour), nil
+}

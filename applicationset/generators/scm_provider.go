@@ -21,6 +21,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/applicationset/utils"
 	"github.com/argoproj/argo-cd/v3/common"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 )
 
 var _ Generator = (*SCMProviderGenerator)(nil)
@@ -36,14 +37,114 @@ type SCMProviderGenerator struct {
 	SCMConfig
 }
 type SCMConfig struct {
-	scmRootCAPath          string
-	allowedSCMProviders    []string
-	enableSCMProviders     bool
+	configProvider configbus.Provider
+	// Deprecated: use configProvider.ApplicationsetScmRootCAPath.
+	scmRootCAPath string
+	// Deprecated: use configProvider.ApplicationsetAllowedScmProviders.
+	allowedSCMProviders []string
+	// Deprecated: use configProvider.ApplicationsetEnableScmProviders.
+	enableSCMProviders bool
+	// Deprecated: use configProvider.ApplicationsetEnableGitHubAPIMetrics.
 	enableGitHubAPIMetrics bool
 	GitHubApps             github_app_auth.Credentials
+	// Deprecated: use configProvider.ApplicationsetTokenRefStrictMode.
+	tokenRefStrictMode bool
+	// Deprecated: use configProvider.ApplicationsetScmProxyURL.
+	scmProxyURL string
+	// Deprecated: use configProvider.ApplicationsetScmNoProxy.
+	scmNoProxy string
+}
+
+// SetConfigProvider attaches the configbus Provider used for SCM setting reads.
+func (c *SCMConfig) SetConfigProvider(p configbus.Provider) {
+	c.configProvider = p
+}
+
+func (c *SCMConfig) enableSCMProvidersResolved() (bool, error) {
+	if c.configProvider != nil {
+		return c.configProvider.ApplicationsetEnableScmProviders(context.Background())
+	}
+	return c.LegacyEnableSCMProviders(), nil
+}
+
+func (c *SCMConfig) allowedSCMProvidersResolved() ([]string, error) {
+	if c.configProvider != nil {
+		return c.configProvider.ApplicationsetAllowedScmProviders(context.Background())
+	}
+	return c.LegacyAllowedSCMProviders(), nil
+}
+
+func (c *SCMConfig) tokenRefStrictModeResolved() (bool, error) {
+	if c.configProvider != nil {
+		return c.configProvider.ApplicationsetTokenRefStrictMode(context.Background())
+	}
+	return c.LegacyTokenRefStrictMode(), nil
+}
+
+func (c *SCMConfig) scmRootCAPathResolved() (string, error) {
+	if c.configProvider != nil {
+		return c.configProvider.ApplicationsetScmRootCAPath(context.Background())
+	}
+	return c.LegacyScmRootCAPath(), nil
+}
+
+func (c *SCMConfig) scmProxyURLResolved() (string, error) {
+	if c.configProvider != nil {
+		return c.configProvider.ApplicationsetScmProxyURL(context.Background())
+	}
+	return c.LegacyScmProxyURL(), nil
+}
+
+func (c *SCMConfig) scmNoProxyResolved() (string, error) {
+	if c.configProvider != nil {
+		return c.configProvider.ApplicationsetScmNoProxy(context.Background())
+	}
+	return c.LegacyScmNoProxy(), nil
+}
+
+func (c *SCMConfig) enableGitHubAPIMetricsResolved() (bool, error) {
+	if c.configProvider != nil {
+		return c.configProvider.ApplicationsetEnableGitHubAPIMetrics(context.Background())
+	}
+	return c.LegacyEnableGitHubAPIMetrics(), nil
+}
+
+// scmResolvedSettings holds SCM settings resolved once per generator invocation.
+type scmResolvedSettings struct {
+	enableSCMProviders     bool
+	allowedSCMProviders    []string
 	tokenRefStrictMode     bool
+	scmRootCAPath          string
 	scmProxyURL            string
 	scmNoProxy             string
+	enableGitHubAPIMetrics bool
+}
+
+func (c *SCMConfig) resolveSCMSettings() (scmResolvedSettings, error) {
+	var s scmResolvedSettings
+	var err error
+	if s.enableSCMProviders, err = c.enableSCMProvidersResolved(); err != nil {
+		return s, fmt.Errorf("failed to resolve enable SCM providers: %w", err)
+	}
+	if s.allowedSCMProviders, err = c.allowedSCMProvidersResolved(); err != nil {
+		return s, fmt.Errorf("failed to resolve allowed SCM providers: %w", err)
+	}
+	if s.tokenRefStrictMode, err = c.tokenRefStrictModeResolved(); err != nil {
+		return s, fmt.Errorf("failed to resolve token ref strict mode: %w", err)
+	}
+	if s.scmRootCAPath, err = c.scmRootCAPathResolved(); err != nil {
+		return s, fmt.Errorf("failed to resolve SCM root CA path: %w", err)
+	}
+	if s.scmProxyURL, err = c.scmProxyURLResolved(); err != nil {
+		return s, fmt.Errorf("failed to resolve SCM proxy URL: %w", err)
+	}
+	if s.scmNoProxy, err = c.scmNoProxyResolved(); err != nil {
+		return s, fmt.Errorf("failed to resolve SCM no-proxy: %w", err)
+	}
+	if s.enableGitHubAPIMetrics, err = c.enableGitHubAPIMetricsResolved(); err != nil {
+		return s, fmt.Errorf("failed to resolve enable GitHub API metrics: %w", err)
+	}
+	return s, nil
 }
 
 func NewSCMConfig(scmRootCAPath string, allowedSCMProviders []string, enableSCMProviders bool, enableGitHubAPIMetrics bool, gitHubApps github_app_auth.Credentials, tokenRefStrictMode bool, opts ...SCMConfigOpts) SCMConfig {
@@ -151,26 +252,30 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		return nil, ErrEmptyAppSetGenerator
 	}
 
-	if !g.enableSCMProviders {
+	scmSettings, err := g.resolveSCMSettings()
+	if err != nil {
+		return nil, err
+	}
+
+	if !scmSettings.enableSCMProviders {
 		return nil, ErrSCMProvidersDisabled
 	}
 
 	// Create the SCM provider helper.
 	providerConfig := appSetGenerator.SCMProvider
 
-	if err := ScmProviderAllowed(applicationSetInfo, providerConfig, g.allowedSCMProviders); err != nil {
+	if err := ScmProviderAllowed(applicationSetInfo, providerConfig, scmSettings.allowedSCMProviders); err != nil {
 		return nil, fmt.Errorf("scm provider not allowed: %w", err)
 	}
 
 	ctx := context.Background()
-	scmHTTPClient := g.newSCMHTTPClient()
+	scmHTTPClient := newSCMHTTPClient(scmSettings.scmProxyURL, scmSettings.scmNoProxy)
 	var provider scm_provider.SCMProviderService
 	switch {
 	case g.overrideProvider != nil:
 		provider = g.overrideProvider
 	case providerConfig.Github != nil:
-		var err error
-		provider, err = g.githubProvider(ctx, providerConfig.Github, applicationSetInfo, scmHTTPClient)
+		provider, err = g.githubProvider(ctx, providerConfig.Github, applicationSetInfo, scmHTTPClient, scmSettings)
 		if err != nil {
 			return nil, fmt.Errorf("scm provider: %w", err)
 		}
@@ -184,20 +289,20 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 				return nil, fmt.Errorf("error fetching CA certificates from ConfigMap: %w", scmError)
 			}
 		}
-		token, err := utils.GetSecretRef(ctx, g.client, providerConfig.TokenRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
+		token, err := utils.GetSecretRef(ctx, g.client, providerConfig.TokenRef, applicationSetInfo.Namespace, scmSettings.tokenRefStrictMode)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Gitlab token: %w", err)
 		}
-		provider, err = scm_provider.NewGitlabProvider(providerConfig.Group, token, providerConfig.API, providerConfig.AllBranches, providerConfig.IncludeSubgroups, providerConfig.WillIncludeSharedProjects(), providerConfig.IncludeArchivedRepos, providerConfig.Insecure, g.scmRootCAPath, providerConfig.Topic, caCerts, g.scmProxyURL, g.scmNoProxy)
+		provider, err = scm_provider.NewGitlabProvider(providerConfig.Group, token, providerConfig.API, providerConfig.AllBranches, providerConfig.IncludeSubgroups, providerConfig.WillIncludeSharedProjects(), providerConfig.IncludeArchivedRepos, providerConfig.Insecure, scmSettings.scmRootCAPath, providerConfig.Topic, caCerts, scmSettings.scmProxyURL, scmSettings.scmNoProxy)
 		if err != nil {
 			return nil, fmt.Errorf("error initializing Gitlab service: %w", err)
 		}
 	case providerConfig.Gitea != nil:
-		token, err := utils.GetSecretRef(ctx, g.client, providerConfig.Gitea.TokenRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
+		token, err := utils.GetSecretRef(ctx, g.client, providerConfig.Gitea.TokenRef, applicationSetInfo.Namespace, scmSettings.tokenRefStrictMode)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Gitea token: %w", err)
 		}
-		provider, err = scm_provider.NewGiteaProvider(providerConfig.Gitea.Owner, token, providerConfig.Gitea.API, providerConfig.Gitea.AllBranches, providerConfig.Gitea.Insecure, providerConfig.Gitea.ExcludeArchivedRepos, g.scmProxyURL, g.scmNoProxy)
+		provider, err = scm_provider.NewGiteaProvider(providerConfig.Gitea.Owner, token, providerConfig.Gitea.API, providerConfig.Gitea.AllBranches, providerConfig.Gitea.Insecure, providerConfig.Gitea.ExcludeArchivedRepos, scmSettings.scmProxyURL, scmSettings.scmNoProxy)
 		if err != nil {
 			return nil, fmt.Errorf("error initializing Gitea service: %w", err)
 		}
@@ -213,25 +318,25 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 		}
 		switch {
 		case providerConfig.BearerToken != nil:
-			appToken, err := utils.GetSecretRef(ctx, g.client, providerConfig.BearerToken.TokenRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
+			appToken, err := utils.GetSecretRef(ctx, g.client, providerConfig.BearerToken.TokenRef, applicationSetInfo.Namespace, scmSettings.tokenRefStrictMode)
 			if err != nil {
 				return nil, fmt.Errorf("error fetching Secret Bearer token: %w", err)
 			}
-			provider, scmError = scm_provider.NewBitbucketServerProviderBearerToken(ctx, appToken, providerConfig.API, providerConfig.Project, providerConfig.AllBranches, g.scmRootCAPath, providerConfig.Insecure, caCerts, g.scmProxyURL, g.scmNoProxy)
+			provider, scmError = scm_provider.NewBitbucketServerProviderBearerToken(ctx, appToken, providerConfig.API, providerConfig.Project, providerConfig.AllBranches, scmSettings.scmRootCAPath, providerConfig.Insecure, caCerts, scmSettings.scmProxyURL, scmSettings.scmNoProxy)
 		case providerConfig.BasicAuth != nil:
-			password, err := utils.GetSecretRef(ctx, g.client, providerConfig.BasicAuth.PasswordRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
+			password, err := utils.GetSecretRef(ctx, g.client, providerConfig.BasicAuth.PasswordRef, applicationSetInfo.Namespace, scmSettings.tokenRefStrictMode)
 			if err != nil {
 				return nil, fmt.Errorf("error fetching Secret token: %w", err)
 			}
-			provider, scmError = scm_provider.NewBitbucketServerProviderBasicAuth(ctx, providerConfig.BasicAuth.Username, password, providerConfig.API, providerConfig.Project, providerConfig.AllBranches, g.scmRootCAPath, providerConfig.Insecure, caCerts, g.scmProxyURL, g.scmNoProxy)
+			provider, scmError = scm_provider.NewBitbucketServerProviderBasicAuth(ctx, providerConfig.BasicAuth.Username, password, providerConfig.API, providerConfig.Project, providerConfig.AllBranches, scmSettings.scmRootCAPath, providerConfig.Insecure, caCerts, scmSettings.scmProxyURL, scmSettings.scmNoProxy)
 		default:
-			provider, scmError = scm_provider.NewBitbucketServerProviderNoAuth(ctx, providerConfig.API, providerConfig.Project, providerConfig.AllBranches, g.scmRootCAPath, providerConfig.Insecure, caCerts, g.scmProxyURL, g.scmNoProxy)
+			provider, scmError = scm_provider.NewBitbucketServerProviderNoAuth(ctx, providerConfig.API, providerConfig.Project, providerConfig.AllBranches, scmSettings.scmRootCAPath, providerConfig.Insecure, caCerts, scmSettings.scmProxyURL, scmSettings.scmNoProxy)
 		}
 		if scmError != nil {
 			return nil, fmt.Errorf("error initializing Bitbucket Server service: %w", scmError)
 		}
 	case providerConfig.AzureDevOps != nil:
-		token, err := utils.GetSecretRef(ctx, g.client, providerConfig.AzureDevOps.AccessTokenRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
+		token, err := utils.GetSecretRef(ctx, g.client, providerConfig.AzureDevOps.AccessTokenRef, applicationSetInfo.Namespace, scmSettings.tokenRefStrictMode)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Azure Devops access token: %w", err)
 		}
@@ -240,7 +345,7 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 			return nil, fmt.Errorf("error initializing Azure Devops service: %w", err)
 		}
 	case providerConfig.Bitbucket != nil:
-		appPassword, err := utils.GetSecretRef(ctx, g.client, providerConfig.Bitbucket.AppPasswordRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
+		appPassword, err := utils.GetSecretRef(ctx, g.client, providerConfig.Bitbucket.AppPasswordRef, applicationSetInfo.Namespace, scmSettings.tokenRefStrictMode)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Bitbucket cloud appPassword: %w", err)
 		}
@@ -294,9 +399,9 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 	return paramsArray, nil
 }
 
-func (g *SCMProviderGenerator) githubProvider(ctx context.Context, github *argoprojiov1alpha1.SCMProviderGeneratorGithub, applicationSetInfo *argoprojiov1alpha1.ApplicationSet, baseHTTPClient *http.Client) (scm_provider.SCMProviderService, error) {
+func (g *SCMProviderGenerator) githubProvider(ctx context.Context, github *argoprojiov1alpha1.SCMProviderGeneratorGithub, applicationSetInfo *argoprojiov1alpha1.ApplicationSet, baseHTTPClient *http.Client, scmSettings scmResolvedSettings) (scm_provider.SCMProviderService, error) {
 	httpClient := baseHTTPClient
-	if g.enableGitHubAPIMetrics {
+	if scmSettings.enableGitHubAPIMetrics {
 		metricsCtx := &services.MetricsContext{
 			AppSetNamespace: applicationSetInfo.Namespace,
 			AppSetName:      applicationSetInfo.Name,
@@ -312,18 +417,18 @@ func (g *SCMProviderGenerator) githubProvider(ctx context.Context, github *argop
 		return scm_provider.NewGithubAppProviderFor(ctx, *auth, github.Organization, github.API, github.AllBranches, github.ExcludeArchivedRepos, httpClient)
 	}
 
-	token, err := utils.GetSecretRef(ctx, g.client, github.TokenRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
+	token, err := utils.GetSecretRef(ctx, g.client, github.TokenRef, applicationSetInfo.Namespace, scmSettings.tokenRefStrictMode)
 	if err != nil {
 		return nil, fmt.Errorf("error fetching Github token: %w", err)
 	}
 	return scm_provider.NewGithubProvider(github.Organization, token, github.API, github.AllBranches, github.ExcludeArchivedRepos, httpClient)
 }
 
-func (g *SCMConfig) newSCMHTTPClient() *http.Client {
-	if g.scmProxyURL == "" {
+func newSCMHTTPClient(scmProxyURL, scmNoProxy string) *http.Client {
+	if scmProxyURL == "" {
 		return &http.Client{}
 	}
 	tr := http.DefaultTransport.(*http.Transport).Clone()
-	tr.Proxy = proxy.GetCallback(g.scmProxyURL, g.scmNoProxy)
+	tr.Proxy = proxy.GetCallback(scmProxyURL, scmNoProxy)
 	return &http.Client{Transport: tr}
 }

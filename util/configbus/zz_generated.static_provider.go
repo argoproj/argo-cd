@@ -33,6 +33,28 @@ type StaticFields struct {
 	ApplicationDeepLinks                          *[]settings.DeepLink
 	ApplicationFineGrainedRBACInheritanceDisabled *bool
 	ApplicationNamespaces                         *[]string
+	ApplicationsetAllowedScmProviders             *[]string
+	ApplicationsetConcurrentApplicationUpdates    *int
+	ApplicationsetEnableGitHubAPIMetrics          *bool
+	ApplicationsetEnableNewGitFileGlobbing        *bool
+	ApplicationsetEnablePolicyOverride            *bool
+	ApplicationsetEnableProgressiveSyncs          *bool
+	ApplicationsetEnableScmProviders              *bool
+	ApplicationsetGitSubmoduleEnabled             *bool
+	ApplicationsetGlobalPreservedAnnotations      *[]string
+	ApplicationsetGlobalPreservedLabels           *[]string
+	ApplicationsetMaxResourcesStatusCount         *int
+	ApplicationsetMetricsAddr                     *string
+	ApplicationsetMetricsApplicationsetLabels     *[]string
+	ApplicationsetNamespaces                      *[]string
+	ApplicationsetPolicy                          *string
+	ApplicationsetProbeAddr                       *string
+	ApplicationsetRequeueAfter                    *time.Duration
+	ApplicationsetScmNoProxy                      *string
+	ApplicationsetScmProxyURL                     *string
+	ApplicationsetScmRootCAPath                   *string
+	ApplicationsetTokenRefStrictMode              *bool
+	ApplicationsetWebhookAddr                     *string
 	BaseHRef                                      *string
 	CMPTarExcludedGlobs                           *[]string
 	CMPUseManifestGeneratePaths                   *bool
@@ -218,6 +240,160 @@ func (p *StaticProvider) ApplicationNamespaces(_ context.Context) ([]string, err
 		return nil, ErrNotConfigured
 	}
 	return *p.Fields.ApplicationNamespaces, nil
+}
+
+func (p *StaticProvider) ApplicationsetAllowedScmProviders(_ context.Context) ([]string, error) {
+	if p == nil || p.Fields.ApplicationsetAllowedScmProviders == nil {
+		return nil, ErrNotConfigured
+	}
+	return *p.Fields.ApplicationsetAllowedScmProviders, nil
+}
+
+func (p *StaticProvider) ApplicationsetConcurrentApplicationUpdates(_ context.Context) (int, error) {
+	if p == nil || p.Fields.ApplicationsetConcurrentApplicationUpdates == nil {
+		return 0, ErrNotConfigured
+	}
+	return *p.Fields.ApplicationsetConcurrentApplicationUpdates, nil
+}
+
+func (p *StaticProvider) ApplicationsetEnableGitHubAPIMetrics(_ context.Context) (bool, error) {
+	if p == nil || p.Fields.ApplicationsetEnableGitHubAPIMetrics == nil {
+		return false, ErrNotConfigured
+	}
+	return *p.Fields.ApplicationsetEnableGitHubAPIMetrics, nil
+}
+
+func (p *StaticProvider) ApplicationsetEnableNewGitFileGlobbing(_ context.Context) (bool, error) {
+	if p == nil || p.Fields.ApplicationsetEnableNewGitFileGlobbing == nil {
+		return false, ErrNotConfigured
+	}
+	return *p.Fields.ApplicationsetEnableNewGitFileGlobbing, nil
+}
+
+func (p *StaticProvider) ApplicationsetEnablePolicyOverride(_ context.Context) (bool, error) {
+	if p == nil || p.Fields.ApplicationsetEnablePolicyOverride == nil {
+		return false, ErrNotConfigured
+	}
+	return *p.Fields.ApplicationsetEnablePolicyOverride, nil
+}
+
+func (p *StaticProvider) ApplicationsetEnableProgressiveSyncs(_ context.Context) (bool, error) {
+	if p == nil || p.Fields.ApplicationsetEnableProgressiveSyncs == nil {
+		return false, ErrNotConfigured
+	}
+	return *p.Fields.ApplicationsetEnableProgressiveSyncs, nil
+}
+
+func (p *StaticProvider) ApplicationsetEnableScmProviders(_ context.Context) (bool, error) {
+	if p == nil || p.Fields.ApplicationsetEnableScmProviders == nil {
+		return false, ErrNotConfigured
+	}
+	return *p.Fields.ApplicationsetEnableScmProviders, nil
+}
+
+func (p *StaticProvider) ApplicationsetGitSubmoduleEnabled(_ context.Context) (bool, error) {
+	if p == nil || p.Fields.ApplicationsetGitSubmoduleEnabled == nil {
+		return false, ErrNotConfigured
+	}
+	return *p.Fields.ApplicationsetGitSubmoduleEnabled, nil
+}
+
+func (p *StaticProvider) ApplicationsetGlobalPreservedAnnotations(_ context.Context) ([]string, error) {
+	if p == nil || p.Fields.ApplicationsetGlobalPreservedAnnotations == nil {
+		return nil, ErrNotConfigured
+	}
+	return *p.Fields.ApplicationsetGlobalPreservedAnnotations, nil
+}
+
+func (p *StaticProvider) ApplicationsetGlobalPreservedLabels(_ context.Context) ([]string, error) {
+	if p == nil || p.Fields.ApplicationsetGlobalPreservedLabels == nil {
+		return nil, ErrNotConfigured
+	}
+	return *p.Fields.ApplicationsetGlobalPreservedLabels, nil
+}
+
+func (p *StaticProvider) ApplicationsetMaxResourcesStatusCount(_ context.Context) (int, error) {
+	if p == nil || p.Fields.ApplicationsetMaxResourcesStatusCount == nil {
+		return 0, ErrNotConfigured
+	}
+	return *p.Fields.ApplicationsetMaxResourcesStatusCount, nil
+}
+
+func (p *StaticProvider) ApplicationsetMetricsAddr(_ context.Context) (string, error) {
+	if p == nil || p.Fields.ApplicationsetMetricsAddr == nil {
+		return "", ErrNotConfigured
+	}
+	return *p.Fields.ApplicationsetMetricsAddr, nil
+}
+
+func (p *StaticProvider) ApplicationsetMetricsApplicationsetLabels(_ context.Context) ([]string, error) {
+	if p == nil || p.Fields.ApplicationsetMetricsApplicationsetLabels == nil {
+		return nil, ErrNotConfigured
+	}
+	return *p.Fields.ApplicationsetMetricsApplicationsetLabels, nil
+}
+
+func (p *StaticProvider) ApplicationsetNamespaces(_ context.Context) ([]string, error) {
+	if p == nil || p.Fields.ApplicationsetNamespaces == nil {
+		return nil, ErrNotConfigured
+	}
+	return *p.Fields.ApplicationsetNamespaces, nil
+}
+
+func (p *StaticProvider) ApplicationsetPolicy(_ context.Context) (string, error) {
+	if p == nil || p.Fields.ApplicationsetPolicy == nil {
+		return "", ErrNotConfigured
+	}
+	return *p.Fields.ApplicationsetPolicy, nil
+}
+
+func (p *StaticProvider) ApplicationsetProbeAddr(_ context.Context) (string, error) {
+	if p == nil || p.Fields.ApplicationsetProbeAddr == nil {
+		return "", ErrNotConfigured
+	}
+	return *p.Fields.ApplicationsetProbeAddr, nil
+}
+
+func (p *StaticProvider) ApplicationsetRequeueAfter(_ context.Context) (time.Duration, error) {
+	if p == nil || p.Fields.ApplicationsetRequeueAfter == nil {
+		return 0, ErrNotConfigured
+	}
+	return *p.Fields.ApplicationsetRequeueAfter, nil
+}
+
+func (p *StaticProvider) ApplicationsetScmNoProxy(_ context.Context) (string, error) {
+	if p == nil || p.Fields.ApplicationsetScmNoProxy == nil {
+		return "", ErrNotConfigured
+	}
+	return *p.Fields.ApplicationsetScmNoProxy, nil
+}
+
+func (p *StaticProvider) ApplicationsetScmProxyURL(_ context.Context) (string, error) {
+	if p == nil || p.Fields.ApplicationsetScmProxyURL == nil {
+		return "", ErrNotConfigured
+	}
+	return *p.Fields.ApplicationsetScmProxyURL, nil
+}
+
+func (p *StaticProvider) ApplicationsetScmRootCAPath(_ context.Context) (string, error) {
+	if p == nil || p.Fields.ApplicationsetScmRootCAPath == nil {
+		return "", ErrNotConfigured
+	}
+	return *p.Fields.ApplicationsetScmRootCAPath, nil
+}
+
+func (p *StaticProvider) ApplicationsetTokenRefStrictMode(_ context.Context) (bool, error) {
+	if p == nil || p.Fields.ApplicationsetTokenRefStrictMode == nil {
+		return false, ErrNotConfigured
+	}
+	return *p.Fields.ApplicationsetTokenRefStrictMode, nil
+}
+
+func (p *StaticProvider) ApplicationsetWebhookAddr(_ context.Context) (string, error) {
+	if p == nil || p.Fields.ApplicationsetWebhookAddr == nil {
+		return "", ErrNotConfigured
+	}
+	return *p.Fields.ApplicationsetWebhookAddr, nil
 }
 
 func (p *StaticProvider) BaseHRef(_ context.Context) (string, error) {

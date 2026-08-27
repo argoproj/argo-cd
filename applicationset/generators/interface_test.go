@@ -8,6 +8,9 @@ import (
 )
 
 func Test_getDefaultRequeueAfter(t *testing.T) {
+	t.Cleanup(func() { SetDefaultRequeueProvider(nil) })
+	SetDefaultRequeueProvider(nil)
+
 	tests := []struct {
 		name            string
 		requeueAfterEnv string
