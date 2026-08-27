@@ -1,3 +1,4 @@
+//nolint:staticcheck // SA1019: admin settings CLI intentionally uses SettingsManager; remaining getters deprecate on later layers
 package admin
 
 import (

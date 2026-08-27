@@ -32,6 +32,7 @@ import (
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
 	"github.com/argoproj/argo-cd/v3/util/cli"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	kubeutil "github.com/argoproj/argo-cd/v3/util/kube"
@@ -137,6 +138,7 @@ func NewCommand() *cobra.Command {
 
 			kubeClient := kubernetes.NewForConfigOrDie(config)
 			appClient := appclientset.NewForConfigOrDie(config)
+			crdSource := configbus.NewOptionalInformerCRDSource(ctx, appClient, namespace)
 
 			hardResyncDuration := time.Duration(appHardResyncPeriod) * time.Second
 
@@ -193,6 +195,7 @@ func NewCommand() *cobra.Command {
 			appController, err = controller.NewApplicationController(
 				namespace,
 				settingsMgr,
+				crdSource,
 				kubeClient,
 				appClient,
 				repoClientset,
