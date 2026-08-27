@@ -5251,12 +5251,10 @@ func TestPerformProgressiveSyncsWithReconciliationCheck(t *testing.T) {
 			},
 			applications: []v1alpha1.Application{
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "app1",
-						Namespace: "argocd",
-						Labels: map[string]string{
-							"env": "dev",
-						},
+					Name:      "app1",
+					Namespace: "argocd",
+					Labels: map[string]string{
+						"env": "dev",
 					},
 					Status: v1alpha1.ApplicationStatus{
 						ReconciledAt: &before,
@@ -5268,12 +5266,10 @@ func TestPerformProgressiveSyncsWithReconciliationCheck(t *testing.T) {
 			},
 			desiredApplications: []v1alpha1.Application{
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "app1",
-						Namespace: "argocd",
-						Labels: map[string]string{
-							"env": "dev",
-						},
+					Name:      "app1",
+					Namespace: "argocd",
+					Labels: map[string]string{
+						"env": "dev",
 					},
 				},
 			},
@@ -5310,12 +5306,10 @@ func TestPerformProgressiveSyncsWithReconciliationCheck(t *testing.T) {
 			},
 			applications: []v1alpha1.Application{
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "app1",
-						Namespace: "argocd",
-						Labels: map[string]string{
-							"env": "dev",
-						},
+					Name:      "app1",
+					Namespace: "argocd",
+					Labels: map[string]string{
+						"env": "dev",
 					},
 					Status: v1alpha1.ApplicationStatus{
 						ReconciledAt: &after,
@@ -5331,12 +5325,10 @@ func TestPerformProgressiveSyncsWithReconciliationCheck(t *testing.T) {
 			},
 			desiredApplications: []v1alpha1.Application{
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "app1",
-						Namespace: "argocd",
-						Labels: map[string]string{
-							"env": "dev",
-						},
+					Name:      "app1",
+					Namespace: "argocd",
+					Labels: map[string]string{
+						"env": "dev",
 					},
 					Status: v1alpha1.ApplicationStatus{
 						Sync: v1alpha1.SyncStatus{

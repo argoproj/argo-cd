@@ -1754,7 +1754,7 @@ func TestCheckAllApplicationsReconciled(t *testing.T) {
 			name: "all applications reconciled after sinceTime with matching revisions",
 			applications: []v1alpha1.Application{
 				{
-					ObjectMeta: metav1.ObjectMeta{Name: "app1"},
+					Name: "app1",
 					Status: v1alpha1.ApplicationStatus{
 						ReconciledAt: &after,
 						Sync: v1alpha1.SyncStatus{
@@ -1763,7 +1763,7 @@ func TestCheckAllApplicationsReconciled(t *testing.T) {
 					},
 				},
 				{
-					ObjectMeta: metav1.ObjectMeta{Name: "app2"},
+					Name: "app2",
 					Status: v1alpha1.ApplicationStatus{
 						ReconciledAt: &after,
 						Sync: v1alpha1.SyncStatus{
@@ -1790,11 +1790,9 @@ func TestCheckAllApplicationsReconciled(t *testing.T) {
 			name: "If application reconciledAt after latest transition time, function returns true even if has refreshAnnotation",
 			applications: []v1alpha1.Application{
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
-						Annotations: map[string]string{
-							v1alpha1.AnnotationKeyRefresh: string(v1alpha1.RefreshTypeNormal),
-						},
+					Name: "app1",
+					Annotations: map[string]string{
+						v1alpha1.AnnotationKeyRefresh: string(v1alpha1.RefreshTypeNormal),
 					},
 					Status: v1alpha1.ApplicationStatus{
 						ReconciledAt: &after,
@@ -1815,7 +1813,7 @@ func TestCheckAllApplicationsReconciled(t *testing.T) {
 			name: "application without ReconciledAt not reconciled",
 			applications: []v1alpha1.Application{
 				{
-					ObjectMeta: metav1.ObjectMeta{Name: "app1"},
+					Name: "app1",
 					Status: v1alpha1.ApplicationStatus{
 						ReconciledAt: nil,
 					},
@@ -1825,7 +1823,7 @@ func TestCheckAllApplicationsReconciled(t *testing.T) {
 			expected:  false,
 			expectedAppsNeedReconcile: []v1alpha1.Application{
 				{
-					ObjectMeta: metav1.ObjectMeta{Name: "app1"},
+					Name: "app1",
 					Status: v1alpha1.ApplicationStatus{
 						ReconciledAt: nil,
 					},
@@ -1842,7 +1840,7 @@ func TestCheckAllApplicationsReconciled(t *testing.T) {
 			name: "application reconciled before sinceTime not reconciled",
 			applications: []v1alpha1.Application{
 				{
-					ObjectMeta: metav1.ObjectMeta{Name: "app1"},
+					Name: "app1",
 					Status: v1alpha1.ApplicationStatus{
 						ReconciledAt: &before,
 					},
@@ -1852,7 +1850,7 @@ func TestCheckAllApplicationsReconciled(t *testing.T) {
 			expected:  false,
 			expectedAppsNeedReconcile: []v1alpha1.Application{
 				{
-					ObjectMeta: metav1.ObjectMeta{Name: "app1"},
+					Name: "app1",
 					Status: v1alpha1.ApplicationStatus{
 						ReconciledAt: &before,
 					},
@@ -1869,7 +1867,7 @@ func TestCheckAllApplicationsReconciled(t *testing.T) {
 			name: "mixed reconciliation states returns false",
 			applications: []v1alpha1.Application{
 				{
-					ObjectMeta: metav1.ObjectMeta{Name: "app1"},
+					Name: "app1",
 					Status: v1alpha1.ApplicationStatus{
 						ReconciledAt: &after,
 						Sync: v1alpha1.SyncStatus{
@@ -1878,7 +1876,7 @@ func TestCheckAllApplicationsReconciled(t *testing.T) {
 					},
 				},
 				{
-					ObjectMeta: metav1.ObjectMeta{Name: "app2"},
+					Name: "app2",
 					Status: v1alpha1.ApplicationStatus{
 						ReconciledAt: &before,
 						Sync: v1alpha1.SyncStatus{
@@ -1891,7 +1889,7 @@ func TestCheckAllApplicationsReconciled(t *testing.T) {
 			expected:  false,
 			expectedAppsNeedReconcile: []v1alpha1.Application{
 				{
-					ObjectMeta: metav1.ObjectMeta{Name: "app2"},
+					Name: "app2",
 					Status: v1alpha1.ApplicationStatus{
 						ReconciledAt: &before,
 						Sync: v1alpha1.SyncStatus{
@@ -1915,11 +1913,9 @@ func TestCheckAllApplicationsReconciled(t *testing.T) {
 			name: "application already has refreshAnnotation, but hasn't been reconciled yet, returns false doesn't add annotation again",
 			applications: []v1alpha1.Application{
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "app1",
-						Annotations: map[string]string{
-							v1alpha1.AnnotationKeyRefresh: string(v1alpha1.RefreshTypeNormal),
-						},
+					Name: "app1",
+					Annotations: map[string]string{
+						v1alpha1.AnnotationKeyRefresh: string(v1alpha1.RefreshTypeNormal),
 					},
 					Status: v1alpha1.ApplicationStatus{
 						ReconciledAt: &before,
@@ -1986,10 +1982,8 @@ func TestEnsureApplicationsReconciled(t *testing.T) {
 			},
 			applications: []v1alpha1.Application{
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "app1",
-						Namespace: "argocd",
-					},
+					Name:      "app1",
+					Namespace: "argocd",
 					Status: v1alpha1.ApplicationStatus{
 						ReconciledAt: &after,
 					},
@@ -2019,12 +2013,10 @@ func TestEnsureApplicationsReconciled(t *testing.T) {
 			},
 			applications: []v1alpha1.Application{
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "app1",
-						Namespace: "argocd",
-						Annotations: map[string]string{
-							v1alpha1.AnnotationKeyRefresh: string(v1alpha1.RefreshTypeNormal),
-						},
+					Name:      "app1",
+					Namespace: "argocd",
+					Annotations: map[string]string{
+						v1alpha1.AnnotationKeyRefresh: string(v1alpha1.RefreshTypeNormal),
 					},
 					Status: v1alpha1.ApplicationStatus{
 						ReconciledAt: &after,
@@ -2055,10 +2047,8 @@ func TestEnsureApplicationsReconciled(t *testing.T) {
 			},
 			applications: []v1alpha1.Application{
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "app1",
-						Namespace: "argocd",
-					},
+					Name:      "app1",
+					Namespace: "argocd",
 					Status: v1alpha1.ApplicationStatus{
 						ReconciledAt: &before,
 					},
@@ -2088,10 +2078,8 @@ func TestEnsureApplicationsReconciled(t *testing.T) {
 			},
 			applications: []v1alpha1.Application{
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "app1",
-						Namespace: "argocd",
-					},
+					Name:      "app1",
+					Namespace: "argocd",
 					Status: v1alpha1.ApplicationStatus{
 						ReconciledAt: nil,
 					},
@@ -2146,10 +2134,8 @@ func TestAddRefreshAnnotationToApplications(t *testing.T) {
 			name: "adds annotation to application without annotations",
 			applications: []v1alpha1.Application{
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "app1",
-						Namespace: "argocd",
-					},
+					Name:      "app1",
+					Namespace: "argocd",
 				},
 			},
 			expectError:            false,
@@ -2159,12 +2145,10 @@ func TestAddRefreshAnnotationToApplications(t *testing.T) {
 			name: "adds annotation to applications with other existing annotations",
 			applications: []v1alpha1.Application{
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "app1",
-						Namespace: "argocd",
-						Annotations: map[string]string{
-							"other-annotation": "value",
-						},
+					Name:      "app1",
+					Namespace: "argocd",
+					Annotations: map[string]string{
+						"other-annotation": "value",
 					},
 				},
 			},
@@ -2175,12 +2159,10 @@ func TestAddRefreshAnnotationToApplications(t *testing.T) {
 			name: "skips application that already has refresh annotation",
 			applications: []v1alpha1.Application{
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "app1",
-						Namespace: "argocd",
-						Annotations: map[string]string{
-							v1alpha1.AnnotationKeyRefresh: string(v1alpha1.RefreshTypeNormal),
-						},
+					Name:      "app1",
+					Namespace: "argocd",
+					Annotations: map[string]string{
+						v1alpha1.AnnotationKeyRefresh: string(v1alpha1.RefreshTypeNormal),
 					},
 				},
 			},
@@ -2191,16 +2173,12 @@ func TestAddRefreshAnnotationToApplications(t *testing.T) {
 			name: "adds annotation to multiple applications",
 			applications: []v1alpha1.Application{
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "app1",
-						Namespace: "argocd",
-					},
+					Name:      "app1",
+					Namespace: "argocd",
 				},
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "app2",
-						Namespace: "argocd",
-					},
+					Name:      "app2",
+					Namespace: "argocd",
 				},
 			},
 			expectError:            false,
@@ -2211,10 +2189,8 @@ func TestAddRefreshAnnotationToApplications(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			appset := v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-appset",
-					Namespace: "argocd",
-				},
+				Name:      "test-appset",
+				Namespace: "argocd",
 			}
 
 			initObjs := []runtime.Object{&appset}

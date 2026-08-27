@@ -5,8 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/utils/ptr"
-
 	"github.com/stretchr/testify/require"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -536,7 +534,7 @@ func TestProgressiveSyncRefreshAnnotationOnRevisionChange(t *testing.T) {
 		When().
 		AddAppAnnotation("refresh-dev-app1", common.AnnotationKeyAppSkipReconcile, "true").
 		And(func() {
-			changeTime = ptr.To(metav1.Now())
+			changeTime = new(metav1.Now())
 			t.Log("Updating targetRevision to new revision by patching git")
 			fixture.Patch(t, "progressive-sync/updateRevision/deployment.yaml", `[{"op": "replace", "path": "/spec/replicas", "value": 3}]`)
 			t.Log("Git revision changed to revisionB")
@@ -725,9 +723,7 @@ var appSetWithReverseDeletionOrder = v1alpha1.ApplicationSet{
 }
 
 var appSetForRefreshAnnotation = v1alpha1.ApplicationSet{
-	ObjectMeta: metav1.ObjectMeta{
-		Name: "progressive-sync-refresh-test",
-	},
+	Name: "progressive-sync-refresh-test",
 	Spec: v1alpha1.ApplicationSetSpec{
 		GoTemplate: true,
 		Template: v1alpha1.ApplicationSetTemplate{
