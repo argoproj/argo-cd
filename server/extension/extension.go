@@ -528,15 +528,15 @@ func NewProxy(targetURL string, headers []Header, config ProxyConfig) (*httputil
 	}
 	proxy := &httputil.ReverseProxy{
 		Transport: newTransport(config),
-		Director: func(req *http.Request) {
-			req.Host = url.Host
-			req.URL.Scheme = url.Scheme
-			req.URL.Host = url.Host
-			req.Header.Set("Host", url.Host)
-			req.Header.Del("Authorization")
-			req.Header.Del("Cookie")
+		Rewrite: func(req *httputil.ProxyRequest) {
+			req.SetXForwarded()
+			req.Out.Host = url.Host
+			req.Out.URL.Scheme = url.Scheme
+			req.Out.URL.Host = url.Host
+			req.Out.Header.Del("Authorization")
+			req.Out.Header.Del("Cookie")
 			for _, header := range headers {
-				req.Header.Set(header.Name, header.Value)
+				req.Out.Header.Set(header.Name, header.Value)
 			}
 		},
 	}

@@ -8,7 +8,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -26,7 +25,7 @@ import (
 // helper: a progressive-sync ApplicationSet with a single RollingSync step.
 func regressionAppSet(ignore argov1alpha1.ApplicationSetIgnoreDifferences) argov1alpha1.ApplicationSet {
 	return argov1alpha1.ApplicationSet{
-		ObjectMeta: metav1.ObjectMeta{Name: "storm", Namespace: "argocd"},
+		Name: "storm", Namespace: "argocd",
 		Spec: argov1alpha1.ApplicationSetSpec{
 			IgnoreApplicationDifferences: ignore,
 			Strategy: &argov1alpha1.ApplicationSetStrategy{
@@ -53,8 +52,8 @@ func regressionAppSet(ignore argov1alpha1.ApplicationSetIgnoreDifferences) argov
 // helper: an Application that is deliberately not Synced, so a Waiting status is not overwritten.
 func regressionApp(rev string, automatedEnabled *bool) argov1alpha1.Application {
 	app := argov1alpha1.Application{
-		TypeMeta:   metav1.TypeMeta{APIVersion: "argoproj.io/v1alpha1", Kind: "Application"},
-		ObjectMeta: metav1.ObjectMeta{Name: "storm-a", Namespace: "argocd"},
+		APIVersion: "argoproj.io/v1alpha1", Kind: "Application",
+		Name: "storm-a", Namespace: "argocd",
 		Spec: argov1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &argov1alpha1.ApplicationSource{
@@ -99,7 +98,7 @@ func regressionManager(t *testing.T, appSet *argov1alpha1.ApplicationSet) *Manag
 	require.NoError(t, argov1alpha1.AddToScheme(scheme))
 
 	c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(appSet).WithStatusSubresource(appSet).Build()
-	return NewManager(c, c, regressionDeps{})
+	return NewManager(c, c, nil, regressionDeps{})
 }
 
 // Defect 1: the status path must honour ignoreApplicationDifferences, exactly as

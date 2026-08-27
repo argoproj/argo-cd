@@ -69,8 +69,6 @@ const (
 	//   https://github.com/argoproj-labs/argocd-notifications/blob/33d345fa838829bb50fca5c08523aba380d2c12b/pkg/controller/state.go#L17
 	NotifiedAnnotationKey             = "notified.notifications.argoproj.io"
 	ReconcileRequeueOnValidationError = time.Minute * 3
-	ReverseDeletionOrder              = "Reverse"
-	AllAtOnceDeletionOrder            = "AllAtOnce"
 	revisionAndSpecChangedMsg         = "Application has pending changes (revision and spec differ), setting status to Waiting"
 	revisionChangedMsg                = "Application has pending changes, setting status to Waiting"
 	specChangedMsg                    = "Application has pending changes (spec differs), setting status to Waiting"
@@ -109,6 +107,7 @@ type ApplicationSetReconciler struct {
 	ClusterInformer              *settings.ClusterInformer
 	ConcurrentApplicationUpdates int
 	ProgressiveSyncManager       *progressivesync.Manager
+	RefreshGracePeriodSeconds    int
 }
 
 var _ progressivesync.Dependencies = (*ApplicationSetReconciler)(nil)
@@ -274,8 +273,10 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				)
 				return ctrl.Result{RequeueAfter: ReconcileRequeueOnValidationError}, nil
 			}
+
 			timeBeforePerformProgressiveSync = time.Now()
-			appSyncMap, err = r.ProgressiveSyncManager.PerformProgressiveSyncs(ctx, logCtx, applicationSetInfo, currentApplications, generatedApplications)
+			appSyncMap, err = r.ProgressiveSyncManager.PerformProgressiveSyncs(ctx, logCtx, applicationSetInfo, currentApplications, generatedApplications, r.RefreshGracePeriodSeconds)
+      
 			if err != nil {
 				return ctrl.Result{}, fmt.Errorf("failed to perform progressive sync reconciliation for application set: %w", err)
 			}
@@ -649,6 +650,18 @@ func (r *ApplicationSetReconciler) getMinRequeueAfter(applicationSetInfo *argov1
 		}
 	}
 
+	if r.EnableProgressiveSyncs && r.RefreshGracePeriodSeconds > 0 && progressivesync.RollingSyncStrategyEnabled(applicationSetInfo) {
+		if latest := progressivesync.GetLatestWaitingTransitionTimeOfAppset(applicationSetInfo); latest != nil {
+			remaining := time.Duration(r.RefreshGracePeriodSeconds)*time.Second - time.Since(latest.Time)
+			if remaining <= 0 {
+				remaining = time.Second // grace period already elapsed; force a near-immediate recheck rather than falling through to no-requeue
+			}
+			if res == 0 || remaining < res {
+				res = remaining
+			}
+		}
+	}
+
 	return res
 }
 
@@ -723,14 +736,10 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 			appLog := logCtx.WithFields(applog.GetAppLogFields(&generatedApp))
 
 			found := &argov1alpha1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      generatedApp.Name,
-					Namespace: generatedApp.Namespace,
-				},
-				TypeMeta: metav1.TypeMeta{
-					Kind:       application.ApplicationKind,
-					APIVersion: "argoproj.io/v1alpha1",
-				},
+				Name:       generatedApp.Name,
+				Namespace:  generatedApp.Namespace,
+				Kind:       application.ApplicationKind,
+				APIVersion: "argoproj.io/v1alpha1",
 			}
 
 			action, err := utils.CreateOrUpdate(ctx, appLog, r.Client, diffConfig, found, func() error {
@@ -1164,8 +1173,9 @@ func (r *ApplicationSetReconciler) setAppSetApplicationStatus(ctx context.Contex
 			statusChanged := currentStatus.Status != appStatus.Status
 			stepChanged := currentStatus.Step != appStatus.Step
 			messageChanged := currentStatus.Message != appStatus.Message
+			transitionTimeChanged := !currentStatus.LastTransitionTime.Equal(appStatus.LastTransitionTime)
 
-			if statusChanged || stepChanged || messageChanged {
+			if statusChanged || stepChanged || messageChanged || transitionTimeChanged {
 				if statusChanged {
 					logCtx.WithFields(log.Fields{"application": appStatus.Application, "previous_status": currentStatus.Status, "new_status": appStatus.Status}).
 						Debug("application status changed")
@@ -1176,6 +1186,9 @@ func (r *ApplicationSetReconciler) setAppSetApplicationStatus(ctx context.Contex
 				}
 				if messageChanged {
 					logCtx.WithFields(log.Fields{"application": appStatus.Application}).Debug("application message changed")
+				}
+				if transitionTimeChanged {
+					logCtx.WithFields(log.Fields{"application": appStatus.Application}).Debug("application transition time changed")
 				}
 				needToUpdateStatus = true
 				break

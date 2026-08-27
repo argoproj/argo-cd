@@ -1,7 +1,7 @@
-import {DropDownMenu, NotificationType, Tooltip} from 'argo-ui';
+import {NotificationType, Tooltip} from 'argo-ui';
 import * as React from 'react';
 import Moment from 'react-moment';
-import {Cluster} from '../../../shared/components';
+import {ActionMenu, Cluster} from '../../../shared/components';
 import {AuthSettingsCtx, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {NoticeIcon} from '../application-notice/notice-icon';
@@ -11,7 +11,7 @@ import {getAppDefaultSource, OperationState, getApplicationLinkURL, getManagedBy
 import {isValidManagedByURL} from '../../../shared/utils';
 import {ApplicationsLabels} from './applications-labels';
 import {ApplicationsSource} from './applications-source';
-import {CellLink} from './cell-link';
+import {CellLink} from '../../../shared/components';
 import {services} from '../../../shared/services';
 import {ViewPreferences} from '../../../shared/services';
 
@@ -81,7 +81,7 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                     onClick={appLink.onClick}
                     aria-label={AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)}
                 />
-                {/* First column: Favorite, URLs, Project, Name */}
+                {/* First column: Favorite, Project, Name, URLs */}
                 <div className='columns small-4'>
                     <div className='applications-list__meta-column'>
                         <div className='applications-list__fav-col'>
@@ -96,7 +96,6 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                                     />
                                 </button>
                             </Tooltip>
-                            <ApplicationURLs urls={app.status.summary?.externalURLs} />
                         </div>
                         <div className='applications-list__meta-rows'>
                             <div className='applications-list__meta-row'>
@@ -105,10 +104,8 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                             </div>
                             <div className='applications-list__meta-row'>
                                 <div className='show-for-xxlarge applications-list__meta-label'>Name:</div>
-                                <div className='applications-list__meta-value'>
-                                    {/* Rendered before the name so it stays visible when the name truncates with ellipsis;
-                                        the column's `overflow:hidden; white-space:nowrap` (argo-ui table-list) clips trailing
-                                        inline children. The tile view does the opposite because there the title wraps. */}
+                                <div className='applications-list__meta-value applications-list__name-value'>
+                                    {/* Keep the notice before the truncatable name and the link actions after it. */}
                                     <NoticeIcon annotations={app.metadata.annotations} />
                                     <Tooltip
                                         content={
@@ -124,11 +121,11 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                                             {app.metadata.name}
                                         </a>
                                     </Tooltip>
+                                    <ApplicationURLs urls={app.status.summary?.externalURLs} />
                                     <button
                                         type='button'
-                                        className={managedByURLInvalid ? 'managed-by-url-invalid' : undefined}
+                                        className={`applications-list__open-app-button${managedByURLInvalid ? ' managed-by-url-invalid' : ''}`}
                                         onClick={handleExternalLinkClick}
-                                        style={{marginLeft: '0.5em', cursor: managedByURLInvalid ? 'not-allowed' : undefined}}
                                         title={managedByURLInvalid ? MANAGED_BY_URL_INVALID_TEXT : `Link: ${linkInfo.url}\nmanaged-by-url: ${managedByURL || 'none'}`}>
                                         <i className='fa fa-window-maximize' />
                                     </button>
@@ -169,7 +166,7 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                 <div className='columns small-2'>
                     {/* Status text/icons wrapped in CellLink so clicking the cell navigates (the icons
                         carry a `title` and would otherwise sit above the overlay as click dead-zones).
-                        The `…` DropDownMenu below stays OUTSIDE — a <button> nested in an <a> is invalid. */}
+                        The `…` ActionMenu below stays OUTSIDE — a <button> nested in an <a> is invalid. */}
                     <CellLink href={appLink.href} onClick={appLink.onClick}>
                         <AppUtils.HealthStatusIcon state={app.status.health} /> <span>{app.status.health.status}</span> <br />
                         {app.status.sourceHydrator?.currentOperation && (
@@ -181,12 +178,7 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                         <AppUtils.ComparisonStatusIcon status={app.status.sync.status} />
                         <span>{app.status.sync.status}</span> <OperationState app={app} quiet={true} />
                     </CellLink>
-                    <DropDownMenu
-                        anchor={() => (
-                            <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
-                                <i className='fa fa-ellipsis-v' />
-                            </button>
-                        )}
+                    <ActionMenu
                         items={[
                             {
                                 title: 'Sync',

@@ -56,9 +56,7 @@ func NewGithubService(token, url, owner, repo string, labels []string, optionalH
 
 func (g *GithubService) List(ctx context.Context) ([]*PullRequest, error) {
 	opts := &github.PullRequestListOptions{
-		ListOptions: github.ListOptions{
-			PerPage: 100,
-		},
+		PerPage: 100,
 	}
 	pullRequests := []*PullRequest{}
 	for {
