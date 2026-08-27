@@ -1764,7 +1764,7 @@ func TestCheckAllApplicationsReconciled(t *testing.T) {
 			},
 		},
 		{
-			name: "application has refresh annotation but is already reconciled since time, function returns false",
+			name: "If application reconciledAt after latest transition time, function returns true even if has refreshAnnotation",
 			applications: []v1alpha1.Application{
 				{
 					ObjectMeta: metav1.ObjectMeta{
@@ -1779,7 +1779,7 @@ func TestCheckAllApplicationsReconciled(t *testing.T) {
 				},
 			},
 			sinceTime:                 &now,
-			expected:                  false,
+			expected:                  true,
 			expectedAppsNeedReconcile: nil, // does not add refresh
 			updatedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
 				{
@@ -1889,39 +1889,6 @@ func TestCheckAllApplicationsReconciled(t *testing.T) {
 			},
 		},
 		{
-			name: "application reconciled but wrong revision returns false",
-			applications: []v1alpha1.Application{
-				{
-					ObjectMeta: metav1.ObjectMeta{Name: "app1"},
-					Status: v1alpha1.ApplicationStatus{
-						ReconciledAt: &after,
-						Sync: v1alpha1.SyncStatus{
-							Revision: "old-revision",
-						},
-					},
-				},
-			},
-			sinceTime: &now,
-			expected:  false,
-			expectedAppsNeedReconcile: []v1alpha1.Application{
-				{
-					ObjectMeta: metav1.ObjectMeta{Name: "app1"},
-					Status: v1alpha1.ApplicationStatus{
-						ReconciledAt: &after,
-						Sync: v1alpha1.SyncStatus{
-							Revision: "old-revision",
-						},
-					},
-				},
-			},
-			updatedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
-				{
-					Application:     "app1",
-					TargetRevisions: []string{"new-revision"},
-				},
-			},
-		},
-		{
 			name: "application already has refreshAnnotation, but hasn't been reconciled yet, returns false doesn't add annotation again",
 			applications: []v1alpha1.Application{
 				{
@@ -1953,7 +1920,7 @@ func TestCheckAllApplicationsReconciled(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, appsNeedReconcile := checkAllApplicationsReconciled(tt.applications, log.NewEntry(log.StandardLogger()), tt.sinceTime, tt.updatedAppStatus)
+			result, appsNeedReconcile := checkAllApplicationsReconciled(tt.applications, log.NewEntry(log.StandardLogger()), tt.sinceTime)
 			assert.Equal(t, tt.expected, result)
 			assert.ElementsMatch(t, tt.expectedAppsNeedReconcile, appsNeedReconcile)
 		})
@@ -1976,7 +1943,6 @@ func TestEnsureApplicationsReconciled(t *testing.T) {
 		expectedReconciled   bool
 		expectError          bool
 		latestTransitionTime *metav1.Time
-		updatedAppStatus     []v1alpha1.ApplicationSetApplicationStatus
 	}{
 		{
 			name: "no applications in waiting state returns true",
@@ -2009,15 +1975,9 @@ func TestEnsureApplicationsReconciled(t *testing.T) {
 			expectedReconciled:   true,
 			expectError:          false,
 			latestTransitionTime: nil,
-			updatedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
-				{
-					Application:     "app1",
-					TargetRevisions: []string{"new-revision"},
-				},
-			},
 		},
 		{
-			name: "any applications in waiting, and has refresh annotation, allReconciled returns false",
+			name: "application in waiting and has refresh annotation, allReconciled returns true if reconciledAt after latestTransitionTime",
 			appset: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-appset",
@@ -2048,15 +2008,9 @@ func TestEnsureApplicationsReconciled(t *testing.T) {
 					},
 				},
 			},
-			expectedReconciled:   false,
+			expectedReconciled:   true,
 			expectError:          false,
 			latestTransitionTime: &before,
-			updatedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
-				{
-					Application:     "app1",
-					TargetRevisions: []string{"new-revision"},
-				},
-			},
 		},
 		{
 			name: "applications in waiting and not reconciled adds annotations",
@@ -2090,12 +2044,6 @@ func TestEnsureApplicationsReconciled(t *testing.T) {
 			expectedReconciled:   false,
 			expectError:          false,
 			latestTransitionTime: &now,
-			updatedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
-				{
-					Application:     "app1",
-					TargetRevisions: []string{"new-revision"},
-				},
-			},
 		},
 		{
 			name: "applications without ReconciledAt adds annotations and returns false",
@@ -2129,12 +2077,6 @@ func TestEnsureApplicationsReconciled(t *testing.T) {
 			expectedReconciled:   false,
 			expectError:          false,
 			latestTransitionTime: &now,
-			updatedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
-				{
-					Application:     "app1",
-					TargetRevisions: []string{"new-revision"},
-				},
-			},
 		},
 	}
 
@@ -2154,7 +2096,7 @@ func TestEnsureApplicationsReconciled(t *testing.T) {
 				AppClientset: appclientSet,
 			}
 
-			reconciled, err := manager.ensureApplicationsReconciled(log.NewEntry(log.StandardLogger()), &tt.appset, tt.applications, tt.latestTransitionTime, tt.updatedAppStatus, 0)
+			reconciled, err := manager.ensureApplicationsReconciled(log.NewEntry(log.StandardLogger()), &tt.appset, tt.applications, tt.latestTransitionTime, 0)
 
 			if tt.expectError {
 				assert.Error(t, err)

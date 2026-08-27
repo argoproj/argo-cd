@@ -260,7 +260,7 @@ func TestGetMinRequeueAfterDuringGracePeriod(t *testing.T) {
 		name                      string
 		appset                    *argov1alpha1.ApplicationSet
 		enableProgressiveSyncs    bool
-		refreshGracePeriodSeconds int //default is 30s, can explicitly set to be different
+		refreshGracePeriodSeconds int // default is 30s, can explicitly set to be different
 		want                      time.Duration
 		wantDelta                 float64
 	}{
