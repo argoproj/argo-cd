@@ -1,7 +1,7 @@
 import * as React from 'react';
 import {DataLoader, EditablePanel} from '../../../shared/components';
 import {helpTip} from '../../../applications/components/utils';
-import {GnuPGPublicKey, Project, ProjectSourceIntegrity, SourceIntegrityGit} from '../../../shared/models';
+import {GnuPGPublicKey, Project, ProjectSignatureKey, ProjectSourceIntegrity, SourceIntegrityGit} from '../../../shared/models';
 import {AutocompleteField, FormField} from 'argo-ui';
 
 require('./source-integrity.scss');
@@ -21,8 +21,8 @@ const GitSourceIntegritySection = ({git}: {git?: SourceIntegrityGit}) => (
     <>
         <p className='project-details__list-title'>GIT</p>
         {git?.policies?.map((policy, policyIndex) => {
-            const includedRepoUrls = getIncludedRepoUrlsOnly(policy?.repos?.map(repo => repo.url));
-            const excludedRepoUrls = getExcludedRepoUrlsOnly(policy?.repos?.map(repo => repo.url));
+            const includedRepoUrls = getIncludedRepoUrlsOnly(policy.repos?.map(repo => repo.url));
+            const excludedRepoUrls = getExcludedRepoUrlsOnly(policy.repos?.map(repo => repo.url));
             return (
                 <div key={policyIndex} className='white-box source-integrity-panel__policy'>
                     {policy.gpg && (
@@ -75,7 +75,7 @@ const SourceIntegrityContent = ({sourceIntegrity}: {sourceIntegrity?: ProjectSou
     const configuredSections = SOURCE_INTEGRITY_SECTIONS.filter(section => section.isConfigured(sourceIntegrity));
 
     if (configuredSections.length === 0) {
-        return <p className={'source-integrity-panel--empty'}>Source Integrity is not configured.</p>;
+        return <p>Source Integrity is not configured.</p>;
     }
 
     return configuredSections.map(section => <section.View key={section.key} {...section.getProps(sourceIntegrity)} />);
@@ -127,7 +127,7 @@ const LegacyGPGSignatureKeysPanel = ({
                     {(keys: GnuPGPublicKey[]) => (
                         <React.Fragment>
                             <p>{deprecatedFeatureMessage}</p>
-                            {(formApi.values.spec.signatureKeys || []).map((_: Project, i: number) => (
+                            {(formApi.values.spec.signatureKeys || []).map((_: ProjectSignatureKey, i: number) => (
                                 <div className='row white-box__details-row' key={i}>
                                     <div className='columns small-12'>
                                         <FormField
