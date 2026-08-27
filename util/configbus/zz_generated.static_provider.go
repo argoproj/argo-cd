@@ -6,6 +6,8 @@ import (
 	"context"
 	"time"
 
+	"k8s.io/apimachinery/pkg/api/resource"
+
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
@@ -23,6 +25,7 @@ import (
 type StaticFields struct {
 	Accounts                                      *map[string]settings.Account
 	AdditionalURLs                                *[]string
+	AllowOutOfBoundsSymlinks                      *bool
 	AllowedNodeLabels                             *[]string
 	AllowedScmProviders                           *[]string
 	AnonymousUserEnabled                          *bool
@@ -31,6 +34,8 @@ type StaticFields struct {
 	ApplicationFineGrainedRBACInheritanceDisabled *bool
 	ApplicationNamespaces                         *[]string
 	BaseHRef                                      *string
+	CMPTarExcludedGlobs                           *[]string
+	CMPUseManifestGeneratePaths                   *bool
 	CommitAuthorEmail                             *string
 	CommitAuthorName                              *string
 	ContentSecurityPolicy                         *string
@@ -39,6 +44,9 @@ type StaticFields struct {
 	DexServerPlaintext                            *bool
 	DexServerStrictTLS                            *bool
 	DisableAuth                                   *bool
+	DisableHelmManifestMaxExtractedSize           *bool
+	DisableOCIManifestMaxExtractedSize            *bool
+	EnableBuiltinGitConfig                        *bool
 	EnableGZip                                    *bool
 	EnableGitHubAPIMetrics                        *bool
 	EnableNewGitFileGlobbing                      *bool
@@ -54,7 +62,11 @@ type StaticFields struct {
 	GlobalProjectsSettings                        *[]settings.GlobalProjectSettings
 	GoogleAnalytics                               *settings.GoogleAnalytics
 	HardReconciliationTimeout                     *time.Duration
+	HelmChartCacheExpiration                      *time.Duration
+	HelmManifestMaxExtractedSize                  *int64
+	HelmRegistryMaxIndexSize                      *int64
 	HelmSettings                                  *v1alpha1.HelmOptions
+	HelmUserAgent                                 *string
 	Help                                          *settings.Help
 	HydratorEnabled                               *bool
 	HydratorReadmeTemplate                        *string
@@ -62,6 +74,7 @@ type StaticFields struct {
 	IgnoreResourceUpdatesOverrides                *map[string]v1alpha1.ResourceOverride
 	InClusterEnabled                              *bool
 	IncludeEventLabelKeys                         *[]string
+	IncludeHiddenDirectories                      *bool
 	Insecure                                      *bool
 	InstallationID                                *string
 	IsIgnoreResourceUpdatesEnabled                *bool
@@ -70,18 +83,26 @@ type StaticFields struct {
 	KustomizeSettings                             *v1alpha1.KustomizeOptions
 	ListenHost                                    *string
 	ListenPort                                    *int
+	MaxCombinedDirectoryManifestsSize             *resource.Quantity
 	MaxPodLogsToRender                            *int64
 	MaxWebhookPayloadSize                         *int64
 	MetricsClusterLabels                          *[]string
 	MetricsHost                                   *string
 	MetricsPort                                   *int
 	NotificationsApplicationNamespaces            *[]string
+	OCIManifestMaxExtractedSize                   *int64
+	OCIMediaTypes                                 *[]string
 	OIDCLogoutURL                                 *string
+	ParallelismLimit                              *int64
 	PasswordPattern                               *string
+	PauseGenerationAfterFailedGenerationAttempts  *int
+	PauseGenerationOnFailureForMinutes            *int
+	PauseGenerationOnFailureForRequests           *int
 	PersistResourceHealth                         *bool
 	ProjectDeepLinks                              *[]settings.DeepLink
 	ReconciliationJitter                          *time.Duration
 	ReconciliationTimeout                         *time.Duration
+	RepoCacheExpiration                           *time.Duration
 	RepoErrorGracePeriod                          *time.Duration
 	RequireOverridePrivilegeForRevisionSync       *bool
 	ResourceCompareOptions                        *settings.ArgoCDDiffOptions
@@ -90,6 +111,8 @@ type StaticFields struct {
 	ResourceOverrides                             *map[string]v1alpha1.ResourceOverride
 	ResourcesFilter                               *settings.ResourcesFilter
 	RespectRBAC                                   *int
+	RevisionCacheExpiration                       *time.Duration
+	RevisionCacheLockTimeout                      *time.Duration
 	RootPath                                      *string
 	ScmRootCAPath                                 *string
 	SelfHealRetry                                 *SelfHealRetry
@@ -100,6 +123,9 @@ type StaticFields struct {
 	SourceHydratorCommitMessageTemplate           *string
 	StaticAssetsDir                               *string
 	StatusBadgeEnabled                            *bool
+	StreamedManifestMaxExtractedSize              *int64
+	StreamedManifestMaxTarSize                    *int64
+	SubmoduleEnabled                              *bool
 	SyncTimeout                                   *time.Duration
 	SyncWithReplaceAllowed                        *bool
 	TrackingMethod                                *string
@@ -136,6 +162,13 @@ func (p *StaticProvider) AdditionalURLs(_ context.Context) ([]string, error) {
 		return nil, ErrNotConfigured
 	}
 	return *p.Fields.AdditionalURLs, nil
+}
+
+func (p *StaticProvider) AllowOutOfBoundsSymlinks(_ context.Context) (bool, error) {
+	if p == nil || p.Fields.AllowOutOfBoundsSymlinks == nil {
+		return false, ErrNotConfigured
+	}
+	return *p.Fields.AllowOutOfBoundsSymlinks, nil
 }
 
 func (p *StaticProvider) AllowedNodeLabels(_ context.Context) ([]string, error) {
@@ -194,6 +227,20 @@ func (p *StaticProvider) BaseHRef(_ context.Context) (string, error) {
 	return *p.Fields.BaseHRef, nil
 }
 
+func (p *StaticProvider) CMPTarExcludedGlobs(_ context.Context) ([]string, error) {
+	if p == nil || p.Fields.CMPTarExcludedGlobs == nil {
+		return nil, ErrNotConfigured
+	}
+	return *p.Fields.CMPTarExcludedGlobs, nil
+}
+
+func (p *StaticProvider) CMPUseManifestGeneratePaths(_ context.Context) (bool, error) {
+	if p == nil || p.Fields.CMPUseManifestGeneratePaths == nil {
+		return false, ErrNotConfigured
+	}
+	return *p.Fields.CMPUseManifestGeneratePaths, nil
+}
+
 func (p *StaticProvider) CommitAuthorEmail(_ context.Context) (string, error) {
 	if p == nil || p.Fields.CommitAuthorEmail == nil {
 		return "", ErrNotConfigured
@@ -248,6 +295,27 @@ func (p *StaticProvider) DisableAuth(_ context.Context) (bool, error) {
 		return false, ErrNotConfigured
 	}
 	return *p.Fields.DisableAuth, nil
+}
+
+func (p *StaticProvider) DisableHelmManifestMaxExtractedSize(_ context.Context) (bool, error) {
+	if p == nil || p.Fields.DisableHelmManifestMaxExtractedSize == nil {
+		return false, ErrNotConfigured
+	}
+	return *p.Fields.DisableHelmManifestMaxExtractedSize, nil
+}
+
+func (p *StaticProvider) DisableOCIManifestMaxExtractedSize(_ context.Context) (bool, error) {
+	if p == nil || p.Fields.DisableOCIManifestMaxExtractedSize == nil {
+		return false, ErrNotConfigured
+	}
+	return *p.Fields.DisableOCIManifestMaxExtractedSize, nil
+}
+
+func (p *StaticProvider) EnableBuiltinGitConfig(_ context.Context) (bool, error) {
+	if p == nil || p.Fields.EnableBuiltinGitConfig == nil {
+		return false, ErrNotConfigured
+	}
+	return *p.Fields.EnableBuiltinGitConfig, nil
 }
 
 func (p *StaticProvider) EnableGZip(_ context.Context) (bool, error) {
@@ -355,11 +423,39 @@ func (p *StaticProvider) HardReconciliationTimeout(_ context.Context) (time.Dura
 	return *p.Fields.HardReconciliationTimeout, nil
 }
 
+func (p *StaticProvider) HelmChartCacheExpiration(_ context.Context) (time.Duration, error) {
+	if p == nil || p.Fields.HelmChartCacheExpiration == nil {
+		return 0, ErrNotConfigured
+	}
+	return *p.Fields.HelmChartCacheExpiration, nil
+}
+
+func (p *StaticProvider) HelmManifestMaxExtractedSize(_ context.Context) (int64, error) {
+	if p == nil || p.Fields.HelmManifestMaxExtractedSize == nil {
+		return 0, ErrNotConfigured
+	}
+	return *p.Fields.HelmManifestMaxExtractedSize, nil
+}
+
+func (p *StaticProvider) HelmRegistryMaxIndexSize(_ context.Context) (int64, error) {
+	if p == nil || p.Fields.HelmRegistryMaxIndexSize == nil {
+		return 0, ErrNotConfigured
+	}
+	return *p.Fields.HelmRegistryMaxIndexSize, nil
+}
+
 func (p *StaticProvider) HelmSettings(_ context.Context) (v1alpha1.HelmOptions, error) {
 	if p == nil || p.Fields.HelmSettings == nil {
 		return v1alpha1.HelmOptions{}, ErrNotConfigured
 	}
 	return *p.Fields.HelmSettings, nil
+}
+
+func (p *StaticProvider) HelmUserAgent(_ context.Context) (string, error) {
+	if p == nil || p.Fields.HelmUserAgent == nil {
+		return "", ErrNotConfigured
+	}
+	return *p.Fields.HelmUserAgent, nil
 }
 
 func (p *StaticProvider) Help(_ context.Context) (settings.Help, error) {
@@ -409,6 +505,13 @@ func (p *StaticProvider) IncludeEventLabelKeys(_ context.Context) ([]string, err
 		return nil, ErrNotConfigured
 	}
 	return *p.Fields.IncludeEventLabelKeys, nil
+}
+
+func (p *StaticProvider) IncludeHiddenDirectories(_ context.Context) (bool, error) {
+	if p == nil || p.Fields.IncludeHiddenDirectories == nil {
+		return false, ErrNotConfigured
+	}
+	return *p.Fields.IncludeHiddenDirectories, nil
 }
 
 func (p *StaticProvider) Insecure(_ context.Context) (bool, error) {
@@ -467,6 +570,13 @@ func (p *StaticProvider) ListenPort(_ context.Context) (int, error) {
 	return *p.Fields.ListenPort, nil
 }
 
+func (p *StaticProvider) MaxCombinedDirectoryManifestsSize(_ context.Context) (resource.Quantity, error) {
+	if p == nil || p.Fields.MaxCombinedDirectoryManifestsSize == nil {
+		return resource.Quantity{}, ErrNotConfigured
+	}
+	return *p.Fields.MaxCombinedDirectoryManifestsSize, nil
+}
+
 func (p *StaticProvider) MaxPodLogsToRender(_ context.Context) (int64, error) {
 	if p == nil || p.Fields.MaxPodLogsToRender == nil {
 		return 0, ErrNotConfigured
@@ -509,6 +619,20 @@ func (p *StaticProvider) NotificationsApplicationNamespaces(_ context.Context) (
 	return *p.Fields.NotificationsApplicationNamespaces, nil
 }
 
+func (p *StaticProvider) OCIManifestMaxExtractedSize(_ context.Context) (int64, error) {
+	if p == nil || p.Fields.OCIManifestMaxExtractedSize == nil {
+		return 0, ErrNotConfigured
+	}
+	return *p.Fields.OCIManifestMaxExtractedSize, nil
+}
+
+func (p *StaticProvider) OCIMediaTypes(_ context.Context) ([]string, error) {
+	if p == nil || p.Fields.OCIMediaTypes == nil {
+		return nil, ErrNotConfigured
+	}
+	return *p.Fields.OCIMediaTypes, nil
+}
+
 func (p *StaticProvider) OIDCLogoutURL(_ context.Context) (string, error) {
 	if p == nil || p.Fields.OIDCLogoutURL == nil {
 		return "", ErrNotConfigured
@@ -516,11 +640,39 @@ func (p *StaticProvider) OIDCLogoutURL(_ context.Context) (string, error) {
 	return *p.Fields.OIDCLogoutURL, nil
 }
 
+func (p *StaticProvider) ParallelismLimit(_ context.Context) (int64, error) {
+	if p == nil || p.Fields.ParallelismLimit == nil {
+		return 0, ErrNotConfigured
+	}
+	return *p.Fields.ParallelismLimit, nil
+}
+
 func (p *StaticProvider) PasswordPattern(_ context.Context) (string, error) {
 	if p == nil || p.Fields.PasswordPattern == nil {
 		return "", ErrNotConfigured
 	}
 	return *p.Fields.PasswordPattern, nil
+}
+
+func (p *StaticProvider) PauseGenerationAfterFailedGenerationAttempts(_ context.Context) (int, error) {
+	if p == nil || p.Fields.PauseGenerationAfterFailedGenerationAttempts == nil {
+		return 0, ErrNotConfigured
+	}
+	return *p.Fields.PauseGenerationAfterFailedGenerationAttempts, nil
+}
+
+func (p *StaticProvider) PauseGenerationOnFailureForMinutes(_ context.Context) (int, error) {
+	if p == nil || p.Fields.PauseGenerationOnFailureForMinutes == nil {
+		return 0, ErrNotConfigured
+	}
+	return *p.Fields.PauseGenerationOnFailureForMinutes, nil
+}
+
+func (p *StaticProvider) PauseGenerationOnFailureForRequests(_ context.Context) (int, error) {
+	if p == nil || p.Fields.PauseGenerationOnFailureForRequests == nil {
+		return 0, ErrNotConfigured
+	}
+	return *p.Fields.PauseGenerationOnFailureForRequests, nil
 }
 
 func (p *StaticProvider) PersistResourceHealth(_ context.Context) (bool, error) {
@@ -549,6 +701,13 @@ func (p *StaticProvider) ReconciliationTimeout(_ context.Context) (time.Duration
 		return 0, ErrNotConfigured
 	}
 	return *p.Fields.ReconciliationTimeout, nil
+}
+
+func (p *StaticProvider) RepoCacheExpiration(_ context.Context) (time.Duration, error) {
+	if p == nil || p.Fields.RepoCacheExpiration == nil {
+		return 0, ErrNotConfigured
+	}
+	return *p.Fields.RepoCacheExpiration, nil
 }
 
 func (p *StaticProvider) RepoErrorGracePeriod(_ context.Context) (time.Duration, error) {
@@ -605,6 +764,20 @@ func (p *StaticProvider) RespectRBAC(_ context.Context) (int, error) {
 		return 0, ErrNotConfigured
 	}
 	return *p.Fields.RespectRBAC, nil
+}
+
+func (p *StaticProvider) RevisionCacheExpiration(_ context.Context) (time.Duration, error) {
+	if p == nil || p.Fields.RevisionCacheExpiration == nil {
+		return 0, ErrNotConfigured
+	}
+	return *p.Fields.RevisionCacheExpiration, nil
+}
+
+func (p *StaticProvider) RevisionCacheLockTimeout(_ context.Context) (time.Duration, error) {
+	if p == nil || p.Fields.RevisionCacheLockTimeout == nil {
+		return 0, ErrNotConfigured
+	}
+	return *p.Fields.RevisionCacheLockTimeout, nil
 }
 
 func (p *StaticProvider) RootPath(_ context.Context) (string, error) {
@@ -675,6 +848,27 @@ func (p *StaticProvider) StatusBadgeEnabled(_ context.Context) (bool, error) {
 		return false, ErrNotConfigured
 	}
 	return *p.Fields.StatusBadgeEnabled, nil
+}
+
+func (p *StaticProvider) StreamedManifestMaxExtractedSize(_ context.Context) (int64, error) {
+	if p == nil || p.Fields.StreamedManifestMaxExtractedSize == nil {
+		return 0, ErrNotConfigured
+	}
+	return *p.Fields.StreamedManifestMaxExtractedSize, nil
+}
+
+func (p *StaticProvider) StreamedManifestMaxTarSize(_ context.Context) (int64, error) {
+	if p == nil || p.Fields.StreamedManifestMaxTarSize == nil {
+		return 0, ErrNotConfigured
+	}
+	return *p.Fields.StreamedManifestMaxTarSize, nil
+}
+
+func (p *StaticProvider) SubmoduleEnabled(_ context.Context) (bool, error) {
+	if p == nil || p.Fields.SubmoduleEnabled == nil {
+		return false, ErrNotConfigured
+	}
+	return *p.Fields.SubmoduleEnabled, nil
 }
 
 func (p *StaticProvider) SyncTimeout(_ context.Context) (time.Duration, error) {

@@ -207,8 +207,8 @@ func newServiceWithOpt(t *testing.T, cf clientFunc, root string) (*Service, *git
 	service.newGitClient = func(_ string, _ string, _ git.Creds, _ bool, _ bool, _ string, _ string, _ ...git.ClientOpts) (client git.Client, e error) {
 		return gitClient, nil
 	}
-	service.newHelmClient = func(_ string, _ helm.Creds, _ bool, _ string, _ string, _ ...helm.ClientOpts) helm.Client {
-		return helmClient
+	service.newHelmClient = func(_ string, _ helm.Creds, _ bool, _ string, _ string, _ ...helm.ClientOpts) (helm.Client, error) {
+		return helmClient, nil
 	}
 	service.newOCIClient = func(_ string, _ oci.Creds, _ string, _ string, _ []string, _ ...oci.ClientOpts) (oci.Client, error) {
 		return ociClient, nil
@@ -991,7 +991,7 @@ func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 				PauseGenerationOnFailureForRequests:          tt.PauseGenerationOnFailureForRequests,
 			}
 
-			totalAttempts := service.initConstants.PauseGenerationAfterFailedGenerationAttempts + service.initConstants.PauseGenerationOnFailureForRequests
+			totalAttempts := tt.PauseGenerationAfterFailedGenerationAttempts + tt.PauseGenerationOnFailureForRequests
 
 			for invocationCount := 0; invocationCount < tt.TotalCacheInvocations; invocationCount++ {
 				adjustedInvocation := invocationCount % totalAttempts
@@ -1019,7 +1019,7 @@ func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 
 				isCachedError := err != nil && strings.HasPrefix(err.Error(), cachedManifestGenerationPrefix)
 
-				if adjustedInvocation < service.initConstants.PauseGenerationAfterFailedGenerationAttempts {
+				if adjustedInvocation < tt.PauseGenerationAfterFailedGenerationAttempts {
 					// GenerateManifest should not return cached errors for the first X responses, where X is the FailGenAttempts constants
 					require.False(t, isCachedError)
 
@@ -1039,8 +1039,8 @@ func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 					assert.NotEqual(t, 0, cachedManifestResponse.FirstFailureTimestamp)
 
 					// Internal cache values should update correctly based on number of return cache entries, consecutive failures should stay the same
-					assert.Equal(t, cachedManifestResponse.NumberOfConsecutiveFailures, service.initConstants.PauseGenerationAfterFailedGenerationAttempts)
-					assert.Equal(t, cachedManifestResponse.NumberOfCachedResponsesReturned, (adjustedInvocation - service.initConstants.PauseGenerationAfterFailedGenerationAttempts + 1))
+					assert.Equal(t, cachedManifestResponse.NumberOfConsecutiveFailures, tt.PauseGenerationAfterFailedGenerationAttempts)
+					assert.Equal(t, cachedManifestResponse.NumberOfCachedResponsesReturned, (adjustedInvocation - tt.PauseGenerationAfterFailedGenerationAttempts + 1))
 				}
 			}
 		})
