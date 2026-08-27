@@ -31,11 +31,11 @@ import (
 	serverevents "github.com/argoproj/argo-cd/v3/server/events"
 	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 	"github.com/argoproj/argo-cd/v3/util/session"
-	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 const (
@@ -45,28 +45,34 @@ const (
 
 // Server provides a Project service
 type Server struct {
-	ns            string
-	enf           *rbac.Enforcer
-	policyEnf     *rbacpolicy.RBACPolicyEnforcer
-	appclientset  appclientset.Interface
-	kubeclientset kubernetes.Interface
-	auditLogger   *argo.AuditLogger
-	projectLock   sync.KeyLock
-	sessionMgr    *session.SessionManager
-	projInformer  cache.SharedIndexInformer
-	settingsMgr   *settings.SettingsManager
-	db            db.ArgoDB
+	ns             string
+	enf            *rbac.Enforcer
+	policyEnf      *rbacpolicy.RBACPolicyEnforcer
+	appclientset   appclientset.Interface
+	kubeclientset  kubernetes.Interface
+	projectLock    sync.KeyLock
+	sessionMgr     *session.SessionManager
+	projInformer   cache.SharedIndexInformer
+	db             db.ArgoDB
+	configProvider configbus.Provider
 }
 
 // NewServer returns a new instance of the Project service
 func NewServer(ns string, kubeclientset kubernetes.Interface, appclientset appclientset.Interface, enf *rbac.Enforcer, projectLock sync.KeyLock, sessionMgr *session.SessionManager, policyEnf *rbacpolicy.RBACPolicyEnforcer,
-	projInformer cache.SharedIndexInformer, settingsMgr *settings.SettingsManager, db db.ArgoDB, enableK8sEvent []string,
+	projInformer cache.SharedIndexInformer, db db.ArgoDB, configProvider configbus.Provider,
 ) *Server {
-	auditLogger := argo.NewAuditLogger(kubeclientset, ns, "argocd-server", enableK8sEvent)
 	return &Server{
-		enf: enf, policyEnf: policyEnf, appclientset: appclientset, kubeclientset: kubeclientset, ns: ns, projectLock: projectLock, auditLogger: auditLogger, sessionMgr: sessionMgr,
-		projInformer: projInformer, settingsMgr: settingsMgr, db: db,
+		enf: enf, policyEnf: policyEnf, appclientset: appclientset, kubeclientset: kubeclientset, ns: ns, projectLock: projectLock, sessionMgr: sessionMgr,
+		projInformer: projInformer, db: db, configProvider: configProvider,
 	}
+}
+
+func (s *Server) auditLogger(ctx context.Context) (*argo.AuditLogger, error) {
+	enableK8sEvent, err := s.configProvider.EnableK8sEvent(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve EnableK8sEvent: %w", err)
+	}
+	return argo.NewAuditLogger(s.kubeclientset, s.ns, "argocd-server", enableK8sEvent), nil
 }
 
 func validateProject(proj *v1alpha1.AppProject) error {
@@ -186,9 +192,9 @@ func (s *Server) ListLinks(ctx context.Context, q *project.ListProjectLinksReque
 		return nil, fmt.Errorf("error getting application: %w", err)
 	}
 
-	deepLinks, err := s.settingsMgr.GetDeepLinks(settings.ProjectDeepLinks)
+	deepLinks, err := s.configProvider.ProjectDeepLinks(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read application deep links from configmap: %w", err)
+		return nil, fmt.Errorf("failed to resolve ProjectDeepLinks: %w", err)
 	}
 
 	deeplinksObj := deeplinks.CreateDeepLinksObject(nil, nil, nil, obj)
@@ -306,12 +312,12 @@ func (s *Server) GetDetailedProject(ctx context.Context, q *project.ProjectQuery
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceProjects, rbac.ActionGet, q.Name); err != nil {
 		return nil, err
 	}
-	proj, repositories, clusters, err := argo.GetAppProjectWithScopedResources(ctx, q.Name, listersv1alpha1.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db)
+	proj, repositories, clusters, err := argo.GetAppProjectWithScopedResources(ctx, q.Name, listersv1alpha1.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.configProvider, s.db)
 	if err != nil {
 		return nil, err
 	}
 	proj.NormalizeJWTTokens()
-	globalProjects := argo.GetGlobalProjects(proj, listersv1alpha1.NewAppProjectLister(s.projInformer.GetIndexer()), s.settingsMgr)
+	globalProjects := argo.GetGlobalProjects(ctx, proj, listersv1alpha1.NewAppProjectLister(s.projInformer.GetIndexer()), s.configProvider)
 	var apiRepos []*v1alpha1.Repository
 	for _, repo := range repositories {
 		apiRepos = append(apiRepos, repo.Normalize().Sanitized())
@@ -349,7 +355,7 @@ func (s *Server) GetGlobalProjects(ctx context.Context, q *project.ProjectQuery)
 		return nil, err
 	}
 
-	globalProjects := argo.GetGlobalProjects(projOrig, listersv1alpha1.NewAppProjectLister(s.projInformer.GetIndexer()), s.settingsMgr)
+	globalProjects := argo.GetGlobalProjects(ctx, projOrig, listersv1alpha1.NewAppProjectLister(s.projInformer.GetIndexer()), s.configProvider)
 
 	res := &project.GlobalProjectsResponse{}
 	res.Items = globalProjects
@@ -520,7 +526,12 @@ func (s *Server) logEvent(ctx context.Context, a *v1alpha1.AppProject, reason st
 		user = "Unknown user"
 	}
 	message := fmt.Sprintf("%s %s", user, action)
-	s.auditLogger.LogAppProjEvent(a, eventInfo, message, user)
+	auditLogger, err := s.auditLogger(ctx)
+	if err != nil {
+		log.Errorf("failed to resolve audit logger: %v", err)
+		return
+	}
+	auditLogger.LogAppProjEvent(a, eventInfo, message, user)
 }
 
 func (s *Server) GetSyncWindowsState(ctx context.Context, q *project.SyncWindowsQuery) (*project.SyncWindowsResponse, error) {

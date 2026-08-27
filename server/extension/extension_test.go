@@ -22,7 +22,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/server/extension"
 	"github.com/argoproj/argo-cd/v3/server/extension/mocks"
 	dbmocks "github.com/argoproj/argo-cd/v3/util/db/mocks"
-	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 func TestValidateHeaders(t *testing.T) {
@@ -150,13 +149,13 @@ func TestRegisterExtensions(t *testing.T) {
 		// given
 		t.Parallel()
 		f := setup()
-		settings := &settings.ArgoCDSettings{
+		settings := &extension.ExtensionSettings{
 			ExtensionConfig: map[string]string{
 				"":            getExtensionConfigString(),
 				"another-ext": getSingleExtensionConfigString(),
 			},
 		}
-		f.settingsGetterMock.EXPECT().Get().Return(settings, nil)
+		f.settingsGetterMock.EXPECT().Get(mock.Anything).Return(settings, nil)
 		expectedProxyRegistries := []string{
 			"external-backend",
 			"some-backend",
@@ -214,12 +213,12 @@ func TestRegisterExtensions(t *testing.T) {
 				// given
 				t.Parallel()
 				f := setup()
-				settings := &settings.ArgoCDSettings{
+				settings := &extension.ExtensionSettings{
 					ExtensionConfig: map[string]string{
 						"": tc.configYaml,
 					},
 				}
-				f.settingsGetterMock.EXPECT().Get().Return(settings, nil)
+				f.settingsGetterMock.EXPECT().Get(mock.Anything).Return(settings, nil)
 
 				// when
 				err := f.manager.RegisterExtensions()
@@ -362,14 +361,14 @@ func TestCallExtension(t *testing.T) {
 		secrets["extension.auth.header"] = "Bearer some-bearer-token"
 		secrets["extension.auth.header2"] = "Bearer another-bearer-token"
 
-		settings := &settings.ArgoCDSettings{
+		settings := &extension.ExtensionSettings{
 			ExtensionConfig: map[string]string{
 				"ephemeral": "services:\n- url: http://some-server.com",
 				"":          configYaml,
 			},
 			Secrets: secrets,
 		}
-		f.settingsGetterMock.EXPECT().Get().Return(settings, nil).Maybe()
+		f.settingsGetterMock.EXPECT().Get(mock.Anything).Return(settings, nil).Maybe()
 	}
 
 	startTestServer := func(t *testing.T, f *fixture) *httptest.Server {

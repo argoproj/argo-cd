@@ -16,21 +16,20 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/assets"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/security"
-	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 // NewHandler creates handler serving to do api/badge endpoint
-func NewHandler(appClientset versioned.Interface, settingsMrg *settings.SettingsManager, namespace string, enabledNamespaces []string) http.Handler {
-	return &Handler{appClientset: appClientset, namespace: namespace, settingsMgr: settingsMrg, enabledNamespaces: enabledNamespaces}
+func NewHandler(appClientset versioned.Interface, namespace string, configProvider configbus.Provider) http.Handler {
+	return &Handler{appClientset: appClientset, namespace: namespace, configProvider: configProvider}
 }
 
 // Handler used to get application in order to access health/sync
 type Handler struct {
-	namespace         string
-	appClientset      versioned.Interface
-	settingsMgr       *settings.SettingsManager
-	enabledNamespaces []string
+	namespace      string
+	appClientset   versioned.Interface
+	configProvider configbus.Provider
 }
 
 var (
@@ -101,8 +100,16 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	notFound := false
 	adjustWidth := false
 	svgWidth := svgWidthWithoutRevision
-	if sets, err := h.settingsMgr.GetSettings(); err == nil {
-		enabled = sets.StatusBadgeEnabled
+	enabled, err := h.configProvider.StatusBadgeEnabled(r.Context())
+	if err != nil {
+		http.Error(w, "Failed to resolve status badge enabled: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	applicationNamespaces, err := h.configProvider.ApplicationNamespaces(r.Context())
+	if err != nil {
+		http.Error(w, "Failed to resolve application namespaces: "+err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	reqNs := ""
@@ -111,7 +118,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		if security.IsNamespaceEnabled(ns[0], h.namespace, h.enabledNamespaces) {
+		if security.IsNamespaceEnabled(ns[0], h.namespace, applicationNamespaces) {
 			reqNs = ns[0]
 		} else {
 			notFound = true

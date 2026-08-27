@@ -22,6 +22,7 @@ import (
 	applisters "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/security"
 	"github.com/argoproj/argo-cd/v3/util/session"
@@ -234,26 +235,47 @@ type ProxyConfig struct {
 	MaxIdleConnections int `yaml:"maxIdleConnections"`
 }
 
-// SettingsGetter defines the contract to retrieve Argo CD Settings.
+// SettingsGetter defines the contract to retrieve extension configuration.
 type SettingsGetter interface {
-	Get() (*settings.ArgoCDSettings, error)
+	Get(ctx context.Context) (*ExtensionSettings, error)
+}
+
+// ExtensionSettings is the subset of Argo CD settings needed to register proxy extensions.
+type ExtensionSettings struct {
+	ExtensionConfig map[string]string
+	Secrets         map[string]string
 }
 
 // DefaultSettingsGetter is the real settings getter implementation.
 type DefaultSettingsGetter struct {
-	settingsMgr *settings.SettingsManager
+	configProvider configbus.Provider
+	settingsMgr    *settings.SettingsManager
 }
 
 // NewDefaultSettingsGetter returns a new default settings getter.
-func NewDefaultSettingsGetter(mgr *settings.SettingsManager) *DefaultSettingsGetter {
+func NewDefaultSettingsGetter(configProvider configbus.Provider, mgr *settings.SettingsManager) *DefaultSettingsGetter {
 	return &DefaultSettingsGetter{
-		settingsMgr: mgr,
+		configProvider: configProvider,
+		settingsMgr:    mgr,
 	}
 }
 
-// Get will retrieve the Argo CD settings.
-func (s *DefaultSettingsGetter) Get() (*settings.ArgoCDSettings, error) {
-	return s.settingsMgr.GetSettings()
+// Get will retrieve the extension configuration and secret values used for $secret substitution.
+func (s *DefaultSettingsGetter) Get(ctx context.Context) (*ExtensionSettings, error) {
+	extConfig, err := s.configProvider.ExtensionConfig(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve ExtensionConfig: %w", err)
+	}
+	// Secret materialization still comes from SettingsManager until CRD providers
+	// resolve secret refs when returning ExtensionConfig.
+	sett, err := s.settingsMgr.GetSettings()
+	if err != nil {
+		return nil, err
+	}
+	return &ExtensionSettings{
+		ExtensionConfig: extConfig,
+		Secrets:         sett.Secrets,
+	}, nil
 }
 
 // ProjectGetter defines the contract to retrieve Argo CD Project.
@@ -426,7 +448,7 @@ func proxyKey(extName, cName, cServer string) ProxyKey {
 	}
 }
 
-func parseAndValidateConfig(s *settings.ArgoCDSettings) (*ExtensionConfigs, error) {
+func parseAndValidateConfig(s *ExtensionSettings) (*ExtensionConfigs, error) {
 	if len(s.ExtensionConfig) == 0 {
 		return nil, errors.New("no extensions configurations found")
 	}
@@ -577,7 +599,7 @@ func applyProxyConfigDefaults(c *ProxyConfig) {
 // RegisterExtensions will retrieve all extensions configurations
 // and update the extension registry.
 func (m *Manager) RegisterExtensions() error {
-	settings, err := m.settings.Get()
+	settings, err := m.settings.Get(context.Background())
 	if err != nil {
 		return fmt.Errorf("error getting settings: %w", err)
 	}
@@ -596,7 +618,7 @@ func (m *Manager) RegisterExtensions() error {
 // configurations from the given settings. If no errors are found, it will
 // iterate over the given configurations building a new extension registry.
 // At the end, it will update the manager with the newly created registry.
-func (m *Manager) UpdateExtensionRegistry(s *settings.ArgoCDSettings) error {
+func (m *Manager) UpdateExtensionRegistry(s *ExtensionSettings) error {
 	extConfigs, err := parseAndValidateConfig(s)
 	if err != nil {
 		return fmt.Errorf("error parsing extension config: %w", err)

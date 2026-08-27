@@ -5,7 +5,9 @@
 package mocks
 
 import (
-	"github.com/argoproj/argo-cd/v3/util/settings"
+	"context"
+
+	"github.com/argoproj/argo-cd/v3/server/extension"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -37,27 +39,27 @@ func (_m *SettingsGetter) EXPECT() *SettingsGetter_Expecter {
 }
 
 // Get provides a mock function for the type SettingsGetter
-func (_mock *SettingsGetter) Get() (*settings.ArgoCDSettings, error) {
-	ret := _mock.Called()
+func (_mock *SettingsGetter) Get(ctx context.Context) (*extension.ExtensionSettings, error) {
+	ret := _mock.Called(ctx)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Get")
 	}
 
-	var r0 *settings.ArgoCDSettings
+	var r0 *extension.ExtensionSettings
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func() (*settings.ArgoCDSettings, error)); ok {
-		return returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (*extension.ExtensionSettings, error)); ok {
+		return returnFunc(ctx)
 	}
-	if returnFunc, ok := ret.Get(0).(func() *settings.ArgoCDSettings); ok {
-		r0 = returnFunc()
+	if returnFunc, ok := ret.Get(0).(func(context.Context) *extension.ExtensionSettings); ok {
+		r0 = returnFunc(ctx)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*settings.ArgoCDSettings)
+			r0 = ret.Get(0).(*extension.ExtensionSettings)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func() error); ok {
-		r1 = returnFunc()
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -70,23 +72,30 @@ type SettingsGetter_Get_Call struct {
 }
 
 // Get is a helper method to define mock.On call
-func (_e *SettingsGetter_Expecter) Get() *SettingsGetter_Get_Call {
-	return &SettingsGetter_Get_Call{Call: _e.mock.On("Get")}
+//   - ctx context.Context
+func (_e *SettingsGetter_Expecter) Get(ctx any) *SettingsGetter_Get_Call {
+	return &SettingsGetter_Get_Call{Call: _e.mock.On("Get", ctx)}
 }
 
-func (_c *SettingsGetter_Get_Call) Run(run func()) *SettingsGetter_Get_Call {
+func (_c *SettingsGetter_Get_Call) Run(run func(ctx context.Context)) *SettingsGetter_Get_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run()
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
 
-func (_c *SettingsGetter_Get_Call) Return(argoCDSettings *settings.ArgoCDSettings, err error) *SettingsGetter_Get_Call {
-	_c.Call.Return(argoCDSettings, err)
+func (_c *SettingsGetter_Get_Call) Return(extensionSettings *extension.ExtensionSettings, err error) *SettingsGetter_Get_Call {
+	_c.Call.Return(extensionSettings, err)
 	return _c
 }
 
-func (_c *SettingsGetter_Get_Call) RunAndReturn(run func() (*settings.ArgoCDSettings, error)) *SettingsGetter_Get_Call {
+func (_c *SettingsGetter_Get_Call) RunAndReturn(run func(ctx context.Context) (*extension.ExtensionSettings, error)) *SettingsGetter_Get_Call {
 	_c.Call.Return(run)
 	return _c
 }

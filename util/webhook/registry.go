@@ -1,6 +1,7 @@
 package webhook
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -64,7 +65,12 @@ func (a *ArgoCDWebhookHandler) HandleRegistryEvent(event *RegistryEvent) {
 
 	// Determine namespaces to search
 	nsFilter := a.ns
-	if len(a.appNs) > 0 {
+	applicationNamespaces, err := a.configProvider.ApplicationNamespaces(context.Background())
+	if err != nil {
+		log.Errorf("Failed to resolve application namespaces: %v", err)
+		return
+	}
+	if len(applicationNamespaces) > 0 {
 		nsFilter = ""
 	}
 	appIf := a.appsLister.Applications(nsFilter)
@@ -76,7 +82,7 @@ func (a *ArgoCDWebhookHandler) HandleRegistryEvent(event *RegistryEvent) {
 
 	var filteredApps []v1alpha1.Application
 	for _, app := range apps {
-		if app.Namespace == a.ns || glob.MatchStringInList(a.appNs, app.Namespace, glob.REGEXP) {
+		if app.Namespace == a.ns || glob.MatchStringInList(applicationNamespaces, app.Namespace, glob.REGEXP) {
 			filteredApps = append(filteredApps, *app)
 		}
 	}

@@ -4,25 +4,25 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/argoproj/argo-cd/v3/util/settings"
-
 	"github.com/google/uuid"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	sessionmgr "github.com/argoproj/argo-cd/v3/util/session"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 // Server provides a Session service
 type Server struct {
 	mgr                *sessionmgr.SessionManager
-	settingsMgr        *settings.SettingsManager
 	authenticator      Authenticator
 	policyEnf          *rbacpolicy.RBACPolicyEnforcer
 	limitLoginAttempts func() (utilio.Closer, error)
+	configProvider     configbus.Provider
 }
 
 type Authenticator interface {
@@ -35,13 +35,13 @@ const (
 )
 
 // NewServer returns a new instance of the Session service
-func NewServer(mgr *sessionmgr.SessionManager, settingsMgr *settings.SettingsManager, authenticator Authenticator, policyEnf *rbacpolicy.RBACPolicyEnforcer, rateLimiter func() (utilio.Closer, error)) *Server {
-	return &Server{mgr, settingsMgr, authenticator, policyEnf, rateLimiter}
+func NewServer(mgr *sessionmgr.SessionManager, authenticator Authenticator, policyEnf *rbacpolicy.RBACPolicyEnforcer, rateLimiter func() (utilio.Closer, error), configProvider configbus.Provider) *Server {
+	return &Server{mgr, authenticator, policyEnf, rateLimiter, configProvider}
 }
 
 // Create generates a JWT token signed by Argo CD intended for web/CLI logins of the admin user
 // using username/password
-func (s *Server) Create(_ context.Context, q *session.SessionCreateRequest) (*session.SessionResponse, error) {
+func (s *Server) Create(ctx context.Context, q *session.SessionCreateRequest) (*session.SessionResponse, error) {
 	if s.limitLoginAttempts != nil {
 		closer, err := s.limitLoginAttempts()
 		if err != nil {
@@ -69,15 +69,16 @@ func (s *Server) Create(_ context.Context, q *session.SessionCreateRequest) (*se
 		s.mgr.IncLoginRequestCounter(failure)
 		return nil, err
 	}
-	argoCDSettings, err := s.settingsMgr.GetSettings()
+	userSessionDuration, err := s.configProvider.UserSessionDuration(ctx)
 	if err != nil {
 		s.mgr.IncLoginRequestCounter(failure)
-		return nil, err
+		return nil, fmt.Errorf("failed to resolve UserSessionDuration: %w", err)
 	}
 	jwtToken, err := s.mgr.Create(
 		fmt.Sprintf("%s:%s", q.Username, settings.AccountCapabilityLogin),
-		int64(argoCDSettings.UserSessionDuration.Seconds()),
-		uniqueId.String())
+		int64(userSessionDuration.Seconds()),
+		uniqueId.String(),
+	)
 	if err != nil {
 		s.mgr.IncLoginRequestCounter(failure)
 		return nil, err

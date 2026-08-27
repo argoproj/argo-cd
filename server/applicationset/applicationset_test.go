@@ -28,6 +28,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/test"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/assets"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 	"github.com/argoproj/argo-cd/v3/util/settings"
@@ -39,6 +40,19 @@ const (
 )
 
 var testEnableEventList []string = argo.DefaultEnableEventList()
+
+func testAppSetConfigProvider(applicationNamespaces []string) configbus.Provider {
+	return &configbus.StaticProvider{Fields: configbus.StaticFields{
+		ApplicationNamespaces:    configbus.Ptr(applicationNamespaces),
+		EnableK8sEvent:           configbus.Ptr(testEnableEventList),
+		GitSubmoduleEnabled:      configbus.Ptr(true),
+		EnableNewGitFileGlobbing: configbus.Ptr(true),
+		ScmRootCAPath:            configbus.Ptr(""),
+		AllowedScmProviders:      configbus.Ptr([]string{}),
+		EnableScmProviders:       configbus.Ptr(true),
+		EnableGitHubAPIMetrics:   configbus.Ptr(true),
+	}}
+}
 
 func fakeRepo() *appsv1.Repository {
 	return &appsv1.Repository{
@@ -206,14 +220,7 @@ func newTestAppSetServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforce
 		nil,
 		testNamespace,
 		sync.NewKeyLock(),
-		[]string{testNamespace, "external-namespace"},
-		true,
-		true,
-		"",
-		[]string{},
-		true,
-		true,
-		testEnableEventList,
+		testAppSetConfigProvider([]string{testNamespace, "external-namespace"}),
 		clusterInformer,
 	)
 	return server.(*Server), kubeclientset
@@ -336,7 +343,7 @@ func TestListAppSetsInNamespaceWithLabels(t *testing.T) {
 		appset.Namespace = testNamespace
 		appset.SetLabels(map[string]string{"key1": "value3"})
 	}))
-	appSetServer.enabledNamespaces = []string{testNamespace}
+	appSetServer.configProvider = testAppSetConfigProvider([]string{testNamespace})
 	appsetQuery := applicationset.ApplicationSetListQuery{AppsetNamespace: testNamespace}
 
 	testListAppsetsWithLabels(t, appsetQuery, appSetServer)
@@ -376,7 +383,7 @@ func TestListAppSetsWithoutNamespace(t *testing.T) {
 		appset.Namespace = testNamespace
 		appset.SetLabels(map[string]string{"key1": "value3"})
 	}))
-	appSetServer.enabledNamespaces = []string{testNamespace}
+	appSetServer.configProvider = testAppSetConfigProvider([]string{testNamespace})
 	appsetQuery := applicationset.ApplicationSetListQuery{}
 
 	res, err := appSetServer.List(t.Context(), &appsetQuery)

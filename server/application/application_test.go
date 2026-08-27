@@ -58,6 +58,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/assets"
 	"github.com/argoproj/argo-cd/v3/util/cache"
 	"github.com/argoproj/argo-cd/v3/util/cache/appstate"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/grpc"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
@@ -70,6 +71,17 @@ const (
 )
 
 var testEnableEventList []string = argo.DefaultEnableEventList()
+
+func testConfigProvider(applicationNamespaces []string, settingsMgr *settings.SettingsManager) configbus.Provider {
+	return configbus.NewChainProvider(
+		&configbus.StaticProvider{Fields: configbus.StaticFields{
+			ApplicationNamespaces:  configbus.Ptr(applicationNamespaces),
+			EnableK8sEvent:         configbus.Ptr(testEnableEventList),
+			SyncWithReplaceAllowed: configbus.Ptr(true),
+		}},
+		configbus.NewSettingsManagerProvider(settingsMgr),
+	)
+}
 
 type broadcasterMock struct {
 	objects []runtime.Object
@@ -308,9 +320,7 @@ func newTestAppServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforcer),
 		sync.NewKeyLock(),
 		settingsMgr,
 		projInformer,
-		[]string{},
-		testEnableEventList,
-		true,
+		testConfigProvider([]string{}, settingsMgr),
 	)
 	return server.(*Server)
 }
@@ -492,9 +502,7 @@ func newTestAppServerWithEnforcerConfigureWithBenchmark(b *testing.B, f func(*rb
 		sync.NewKeyLock(),
 		settingsMgr,
 		projInformer,
-		[]string{},
-		testEnableEventList,
-		true,
+		testConfigProvider([]string{}, settingsMgr),
 	)
 	return server.(*Server)
 }
@@ -2413,6 +2421,7 @@ func TestSyncRBACSettingsError(t *testing.T) {
 		},
 	})
 	appServer.settingsMgr = settings.NewSettingsManager(ctx, brokenclientset, testNamespace)
+	appServer.configProvider = testConfigProvider([]string{}, appServer.settingsMgr)
 	// and sync to different revision
 	syncReq := &application.ApplicationSyncRequest{
 		Name:     &app.Name,
@@ -2421,7 +2430,7 @@ func TestSyncRBACSettingsError(t *testing.T) {
 
 	_, err2 := appServer.Sync(ctx, syncReq)
 	require.Error(t, err2)
-	require.ErrorContains(t, err2, "error getting setting")
+	require.ErrorContains(t, err2, "failed to resolve RequireOverridePrivilegeForRevisionSync")
 }
 
 func TestSyncRBACOverrideFalse_DiffRevNoOverrideAllowed(t *testing.T) {
@@ -3164,7 +3173,9 @@ func TestLogsGetSelectedPod(t *testing.T) {
 }
 
 func TestMaxPodLogsRender(t *testing.T) {
-	defaultMaxPodLogsToRender, _ := newTestAppServer(t).settingsMgr.GetMaxPodLogsToRender()
+	appServer := newTestAppServer(t)
+	defaultMaxPodLogsToRender, err := appServer.configProvider.MaxPodLogsToRender(t.Context())
+	require.NoError(t, err)
 
 	// Case: number of pods to view logs is less than defaultMaxPodLogsToRender
 	podNumber := int(defaultMaxPodLogsToRender - 1)
@@ -3275,7 +3286,8 @@ func refreshAnnotationRemover(t *testing.T, ctx context.Context, patched *int32,
 			a.SetAnnotations(map[string]string{})
 			a.SetResourceVersion("999")
 			_, err = appServer.appclientset.ArgoprojV1alpha1().Applications(a.Namespace).Update(
-				t.Context(), a, metav1.UpdateOptions{})
+				t.Context(), a, metav1.UpdateOptions{},
+			)
 			require.NoError(t, err)
 			atomic.AddInt32(patched, 1)
 			ch <- ""
@@ -3729,7 +3741,8 @@ func TestIsApplicationPermitted(t *testing.T) {
 		testApp := newTestApp()
 		appServer := newTestAppServer(t, testApp)
 		projects := map[string]bool{"test-app": false}
-		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, "test", "default", projects, *testApp)
+		permitted, err := appServer.isApplicationPermitted(t.Context(), labels.Everything(), 0, nil, "test", "default", projects, *testApp)
+		require.NoError(t, err)
 		assert.False(t, permitted)
 	})
 
@@ -3738,7 +3751,8 @@ func TestIsApplicationPermitted(t *testing.T) {
 		appServer := newTestAppServer(t, testApp)
 		minVersion := 100000
 		testApp.ResourceVersion = strconv.Itoa(minVersion - 1)
-		permitted := appServer.isApplicationPermitted(labels.Everything(), minVersion, nil, "test", "default", nil, *testApp)
+		permitted, err := appServer.isApplicationPermitted(t.Context(), labels.Everything(), minVersion, nil, "test", "default", nil, *testApp)
+		require.NoError(t, err)
 		assert.False(t, permitted)
 	})
 
@@ -3746,14 +3760,16 @@ func TestIsApplicationPermitted(t *testing.T) {
 		testApp := newTestApp()
 		appServer := newTestAppServer(t, testApp)
 		appName := "test"
-		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, appName, "default", nil, *testApp)
+		permitted, err := appServer.isApplicationPermitted(t.Context(), labels.Everything(), 0, nil, appName, "default", nil, *testApp)
+		require.NoError(t, err)
 		assert.False(t, permitted)
 	})
 
 	t.Run("Application namespace is incorrect", func(t *testing.T) {
 		testApp := newTestApp()
 		appServer := newTestAppServer(t, testApp)
-		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, testApp.Name, "demo", nil, *testApp)
+		permitted, err := appServer.isApplicationPermitted(t.Context(), labels.Everything(), 0, nil, testApp.Name, "demo", nil, *testApp)
+		require.NoError(t, err)
 		assert.False(t, permitted)
 	})
 
@@ -3761,8 +3777,9 @@ func TestIsApplicationPermitted(t *testing.T) {
 		testApp := newTestApp()
 		appServer := newTestAppServer(t, testApp)
 		appServer.ns = "server-ns"
-		appServer.enabledNamespaces = []string{"demo"}
-		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, testApp.Name, testApp.Namespace, nil, *testApp)
+		appServer.configProvider = testConfigProvider([]string{"demo"}, appServer.settingsMgr)
+		permitted, err := appServer.isApplicationPermitted(t.Context(), labels.Everything(), 0, nil, testApp.Name, testApp.Namespace, nil, *testApp)
+		require.NoError(t, err)
 		assert.False(t, permitted)
 	})
 
@@ -3770,8 +3787,9 @@ func TestIsApplicationPermitted(t *testing.T) {
 		testApp := newTestApp()
 		appServer := newTestAppServer(t, testApp)
 		appServer.ns = "server-ns"
-		appServer.enabledNamespaces = []string{testApp.Namespace}
-		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, testApp.Name, testApp.Namespace, nil, *testApp)
+		appServer.configProvider = testConfigProvider([]string{testApp.Namespace}, appServer.settingsMgr)
+		permitted, err := appServer.isApplicationPermitted(t.Context(), labels.Everything(), 0, nil, testApp.Name, testApp.Namespace, nil, *testApp)
+		require.NoError(t, err)
 		assert.True(t, permitted)
 	})
 }
@@ -3814,7 +3832,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 		testApp1 := newTestApp()
 		testApp1.Namespace = "argocd-1"
 		appServer := newTestAppServer(t, testApp1)
-		appServer.enabledNamespaces = []string{"argocd-1"}
+		appServer.configProvider = testConfigProvider([]string{"argocd-1"}, appServer.settingsMgr)
 		apps, err := appServer.List(t.Context(), &application.ApplicationQuery{})
 		require.NoError(t, err)
 		require.Len(t, apps.Items, 1)
@@ -3856,7 +3874,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 			},
 		}
 		appServer := newTestAppServer(t, testApp, otherNsProj)
-		appServer.enabledNamespaces = []string{"argocd-1"}
+		appServer.configProvider = testConfigProvider([]string{"argocd-1"}, appServer.settingsMgr)
 		app, err := appServer.Get(t.Context(), &application.ApplicationQuery{
 			Name:         new("test-app"),
 			AppNamespace: new("argocd-1"),
@@ -3880,7 +3898,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 			},
 		}
 		appServer := newTestAppServer(t, testApp, otherNsProj)
-		appServer.enabledNamespaces = []string{"argocd-1"}
+		appServer.configProvider = testConfigProvider([]string{"argocd-1"}, appServer.settingsMgr)
 		app, err := appServer.Get(t.Context(), &application.ApplicationQuery{
 			Name:         new("test-app"),
 			AppNamespace: new("argocd-1"),
@@ -3903,7 +3921,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 			},
 		}
 		appServer := newTestAppServer(t, otherNsProj)
-		appServer.enabledNamespaces = []string{"argocd-1"}
+		appServer.configProvider = testConfigProvider([]string{"argocd-1"}, appServer.settingsMgr)
 		app, err := appServer.Create(t.Context(), &application.ApplicationCreateRequest{
 			Application: testApp,
 		})
@@ -3927,7 +3945,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 			},
 		}
 		appServer := newTestAppServer(t, otherNsProj)
-		appServer.enabledNamespaces = []string{"argocd-1"}
+		appServer.configProvider = testConfigProvider([]string{"argocd-1"}, appServer.settingsMgr)
 		app, err := appServer.Create(t.Context(), &application.ApplicationCreateRequest{
 			Application: testApp,
 		})
@@ -3950,7 +3968,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 			},
 		}
 		appServer := newTestAppServer(t, otherNsProj)
-		appServer.enabledNamespaces = []string{"argocd-2"}
+		appServer.configProvider = testConfigProvider([]string{"argocd-2"}, appServer.settingsMgr)
 		app, err := appServer.Create(t.Context(), &application.ApplicationCreateRequest{
 			Application: testApp,
 		})
@@ -3972,7 +3990,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 			},
 		}
 		appServer := newTestAppServer(t, testApp, otherNsProj)
-		appServer.enabledNamespaces = []string{"argocd-1"}
+		appServer.configProvider = testConfigProvider([]string{"argocd-1"}, appServer.settingsMgr)
 		active, err := appServer.GetApplicationSyncWindows(t.Context(), &application.ApplicationSyncWindowsQuery{Name: &testApp.Name, AppNamespace: &testApp.Namespace})
 		require.NoError(t, err)
 		assert.Empty(t, active.ActiveWindows)
@@ -3991,7 +4009,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 			},
 		}
 		appServer := newTestAppServer(t, testApp, otherNsProj)
-		appServer.enabledNamespaces = []string{"argocd-1"}
+		appServer.configProvider = testConfigProvider([]string{"argocd-1"}, appServer.settingsMgr)
 		active, err := appServer.GetApplicationSyncWindows(t.Context(), &application.ApplicationSyncWindowsQuery{Name: &testApp.Name, AppNamespace: &testApp.Namespace})
 		require.Error(t, err)
 		require.Nil(t, active)
@@ -4011,7 +4029,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 			},
 		}
 		appServer := newTestAppServer(t, testApp, otherNsProj)
-		appServer.enabledNamespaces = []string{"argocd-1"}
+		appServer.configProvider = testConfigProvider([]string{"argocd-1"}, appServer.settingsMgr)
 		links, err := appServer.ListLinks(t.Context(), &application.ListAppLinksRequest{
 			Name:      new("test-app"),
 			Namespace: new("argocd-1"),
@@ -4034,7 +4052,7 @@ func TestAppNamespaceRestrictions(t *testing.T) {
 			},
 		}
 		appServer := newTestAppServer(t, testApp, otherNsProj)
-		appServer.enabledNamespaces = []string{"argocd-1"}
+		appServer.configProvider = testConfigProvider([]string{"argocd-1"}, appServer.settingsMgr)
 		links, err := appServer.ListLinks(t.Context(), &application.ListAppLinksRequest{
 			Name:      new("test-app"),
 			Namespace: new("argocd-1"),
@@ -5220,7 +5238,8 @@ func TestGetApplicationClusterConfig(t *testing.T) {
 			a.Spec.Project = "proj-impersonate"
 		})
 
-		appServer := newTestAppServerWithEnforcerConfigure(t, f,
+		appServer := newTestAppServerWithEnforcerConfigure(
+			t, f,
 			map[string]string{"application.sync.impersonation.enabled": "true"},
 			app, projWithSA,
 		)
@@ -5237,7 +5256,8 @@ func TestGetApplicationClusterConfig(t *testing.T) {
 		}
 
 		app := newTestApp()
-		appServer := newTestAppServerWithEnforcerConfigure(t, f,
+		appServer := newTestAppServerWithEnforcerConfigure(
+			t, f,
 			map[string]string{"application.sync.impersonation.enabled": "true"},
 			app,
 		)
@@ -5263,7 +5283,8 @@ func TestGetApplicationClusterConfig(t *testing.T) {
 		}
 
 		app := newTestApp()
-		appServer := newTestAppServerWithEnforcerConfigure(t, f,
+		appServer := newTestAppServerWithEnforcerConfigure(
+			t, f,
 			map[string]string{
 				"application.sync.impersonation.enabled":  "true",
 				"application.sync.impersonation.enforced": "false",
@@ -5312,7 +5333,8 @@ func TestGetApplicationClusterConfig(t *testing.T) {
 			a.Spec.Project = "proj-impersonate"
 		})
 
-		appServer := newTestAppServerWithEnforcerConfigure(t, f,
+		appServer := newTestAppServerWithEnforcerConfigure(
+			t, f,
 			map[string]string{
 				"application.sync.impersonation.enabled":  "true",
 				"application.sync.impersonation.enforced": "false",
@@ -5352,7 +5374,8 @@ func TestGetUnstructuredLiveResourceOrAppWithImpersonation(t *testing.T) {
 		a.Spec.Project = "proj-impersonate"
 	})
 
-	appServer := newTestAppServerWithEnforcerConfigure(t, f,
+	appServer := newTestAppServerWithEnforcerConfigure(
+		t, f,
 		map[string]string{"application.sync.impersonation.enabled": "true"},
 		app, projWithSA,
 	)

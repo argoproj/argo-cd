@@ -1,3 +1,4 @@
+//nolint:staticcheck // SA1019: tests exercise deprecated SettingsManager product getters until removed.
 package settings
 
 import (

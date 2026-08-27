@@ -56,6 +56,7 @@ import (
 	applog "github.com/argoproj/argo-cd/v3/util/app/log"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/collections"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/git"
@@ -88,23 +89,21 @@ var (
 
 // Server provides an Application service
 type Server struct {
-	ns                     string
-	kubeclientset          kubernetes.Interface
-	appclientset           appclientset.Interface
-	appLister              applisters.ApplicationLister
-	appInformer            cache.SharedIndexInformer
-	appBroadcaster         broadcast.Broadcaster[v1alpha1.ApplicationWatchEvent]
-	repoClientset          apiclient.Clientset
-	kubectl                kube.Kubectl
-	db                     db.ArgoDB
-	enf                    *rbac.Enforcer
-	projectLock            sync.KeyLock
-	auditLogger            *argo.AuditLogger
-	settingsMgr            *settings.SettingsManager
-	cache                  *servercache.Cache
-	projInformer           cache.SharedIndexInformer
-	enabledNamespaces      []string
-	syncWithReplaceAllowed bool
+	ns             string
+	kubeclientset  kubernetes.Interface
+	appclientset   appclientset.Interface
+	appLister      applisters.ApplicationLister
+	appInformer    cache.SharedIndexInformer
+	appBroadcaster broadcast.Broadcaster[v1alpha1.ApplicationWatchEvent]
+	repoClientset  apiclient.Clientset
+	kubectl        kube.Kubectl
+	db             db.ArgoDB
+	enf            *rbac.Enforcer
+	projectLock    sync.KeyLock
+	settingsMgr    *settings.SettingsManager
+	cache          *servercache.Cache
+	projInformer   cache.SharedIndexInformer
+	configProvider configbus.Provider
 }
 
 // NewServer returns a new instance of the Application service
@@ -123,9 +122,7 @@ func NewServer(
 	projectLock sync.KeyLock,
 	settingsMgr *settings.SettingsManager,
 	projInformer cache.SharedIndexInformer,
-	enabledNamespaces []string,
-	enableK8sEvent []string,
-	syncWithReplaceAllowed bool,
+	configProvider configbus.Provider,
 ) (application.ApplicationServiceServer, AppResourceTreeFn) {
 	if appBroadcaster == nil {
 		appBroadcaster = broadcast.NewHandler[v1alpha1.Application, v1alpha1.ApplicationWatchEvent](
@@ -142,25 +139,31 @@ func NewServer(
 		log.Error(err)
 	}
 	s := &Server{
-		ns:                     namespace,
-		appclientset:           &deepCopyAppClientset{appclientset},
-		appLister:              &deepCopyApplicationLister{appLister},
-		appInformer:            appInformer,
-		appBroadcaster:         appBroadcaster,
-		kubeclientset:          kubeclientset,
-		cache:                  cache,
-		db:                     db,
-		repoClientset:          repoClientset,
-		kubectl:                kubectl,
-		enf:                    enf,
-		projectLock:            projectLock,
-		auditLogger:            argo.NewAuditLogger(kubeclientset, namespace, "argocd-server", enableK8sEvent),
-		settingsMgr:            settingsMgr,
-		projInformer:           projInformer,
-		enabledNamespaces:      enabledNamespaces,
-		syncWithReplaceAllowed: syncWithReplaceAllowed,
+		ns:             namespace,
+		appclientset:   &deepCopyAppClientset{appclientset},
+		appLister:      &deepCopyApplicationLister{appLister},
+		appInformer:    appInformer,
+		appBroadcaster: appBroadcaster,
+		kubeclientset:  kubeclientset,
+		cache:          cache,
+		db:             db,
+		repoClientset:  repoClientset,
+		kubectl:        kubectl,
+		enf:            enf,
+		projectLock:    projectLock,
+		settingsMgr:    settingsMgr,
+		projInformer:   projInformer,
+		configProvider: configProvider,
 	}
 	return s, s.getAppResources
+}
+
+func (s *Server) auditLogger(ctx context.Context) (*argo.AuditLogger, error) {
+	enableK8sEvent, err := s.configProvider.EnableK8sEvent(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return argo.NewAuditLogger(s.kubeclientset, s.ns, "argocd-server", enableK8sEvent), nil
 }
 
 // getAppEnforceRBAC gets the Application with the given name in the given namespace. If no namespace is
@@ -258,7 +261,11 @@ func (s *Server) getAppEnforceRBAC(ctx context.Context, action, project, namespa
 func (s *Server) getApplicationEnforceRBACInformer(ctx context.Context, action, project, namespace, name string) (*v1alpha1.Application, *v1alpha1.AppProject, error) {
 	namespaceOrDefault := s.appNamespaceOrDefault(namespace)
 	return s.getAppEnforceRBAC(ctx, action, project, namespaceOrDefault, name, func() (*v1alpha1.Application, error) {
-		if !s.isNamespaceEnabled(namespaceOrDefault) {
+		enabled, err := s.isNamespaceEnabled(ctx, namespaceOrDefault)
+		if err != nil {
+			return nil, err
+		}
+		if !enabled {
 			return nil, security.NamespaceNotPermittedError(namespaceOrDefault)
 		}
 		return s.appLister.Applications(namespaceOrDefault).Get(name)
@@ -271,7 +278,11 @@ func (s *Server) getApplicationEnforceRBACInformer(ctx context.Context, action, 
 func (s *Server) getApplicationEnforceRBACClient(ctx context.Context, action, project, namespace, name, resourceVersion string) (*v1alpha1.Application, *v1alpha1.AppProject, error) {
 	namespaceOrDefault := s.appNamespaceOrDefault(namespace)
 	return s.getAppEnforceRBAC(ctx, action, project, namespaceOrDefault, name, func() (*v1alpha1.Application, error) {
-		if !s.isNamespaceEnabled(namespaceOrDefault) {
+		enabled, err := s.isNamespaceEnabled(ctx, namespaceOrDefault)
+		if err != nil {
+			return nil, err
+		}
+		if !enabled {
 			return nil, security.NamespaceNotPermittedError(namespaceOrDefault)
 		}
 		app, err := s.appclientset.ArgoprojV1alpha1().Applications(namespaceOrDefault).Get(ctx, name, metav1.GetOptions{
@@ -316,7 +327,11 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*v1
 	for _, a := range filteredApps {
 		// Skip any application that is neither in the control plane's namespace
 		// nor in the list of enabled namespaces.
-		if !s.isNamespaceEnabled(a.Namespace) {
+		enabled, err := s.isNamespaceEnabled(ctx, a.Namespace)
+		if err != nil {
+			return nil, err
+		}
+		if !enabled {
 			continue
 		}
 		if s.enf.Enforce(ctx.Value("claims"), rbac.ResourceApplications, rbac.ActionGet, a.RBACName(s.ns)) {
@@ -375,7 +390,11 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 
 	appNs := s.appNamespaceOrDefault(a.Namespace)
 
-	if !s.isNamespaceEnabled(appNs) {
+	enabled, err := s.isNamespaceEnabled(ctx, appNs)
+	if err != nil {
+		return nil, err
+	}
+	if !enabled {
 		return nil, security.NamespaceNotPermittedError(appNs)
 	}
 
@@ -455,7 +474,7 @@ func (s *Server) queryRepoServer(ctx context.Context, proj *v1alpha1.AppProject,
 	if err != nil {
 		return fmt.Errorf("error getting helm repository credentials: %w", err)
 	}
-	helmOptions, err := s.settingsMgr.GetHelmSettings()
+	helmOptions, err := s.configProvider.HelmSettings(ctx)
 	if err != nil {
 		return fmt.Errorf("error getting helm settings: %w", err)
 	}
@@ -463,7 +482,7 @@ func (s *Server) queryRepoServer(ctx context.Context, proj *v1alpha1.AppProject,
 	if err != nil {
 		return fmt.Errorf("error getting permitted repos credentials: %w", err)
 	}
-	enabledSourceTypes, err := s.settingsMgr.GetEnabledSourceTypes()
+	enabledSourceTypes, err := s.configProvider.EnabledSourceTypes(ctx)
 	if err != nil {
 		return fmt.Errorf("error getting settings enabled source types: %w", err)
 	}
@@ -484,7 +503,7 @@ func (s *Server) queryRepoServer(ctx context.Context, proj *v1alpha1.AppProject,
 		return fmt.Errorf("failed to get permitted OCI credentials for project %q: %w", proj.Name, err)
 	}
 
-	return action(client, permittedHelmRepos, permittedHelmCredentials, permittedOCIRepos, permittedOCICredentials, helmOptions, enabledSourceTypes)
+	return action(client, permittedHelmRepos, permittedHelmCredentials, permittedOCIRepos, permittedOCICredentials, &helmOptions, enabledSourceTypes)
 }
 
 // GetManifests returns application manifests
@@ -497,7 +516,11 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		return nil, err
 	}
 
-	if !s.isNamespaceEnabled(a.Namespace) {
+	enabled, err := s.isNamespaceEnabled(ctx, a.Namespace)
+	if err != nil {
+		return nil, err
+	}
+	if !enabled {
 		return nil, security.NamespaceNotPermittedError(a.Namespace)
 	}
 
@@ -505,7 +528,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	err = s.queryRepoServer(ctx, proj, func(
 		client apiclient.RepoServerServiceClient, helmRepos []*v1alpha1.Repository, helmCreds []*v1alpha1.RepoCreds, ociRepos []*v1alpha1.Repository, ociCreds []*v1alpha1.RepoCreds, helmOptions *v1alpha1.HelmOptions, enableGenerateManifests map[string]bool,
 	) error {
-		appInstanceLabelKey, err := s.settingsMgr.GetAppInstanceLabelKey()
+		appInstanceLabelKey, err := s.configProvider.AppInstanceLabelKey(ctx)
 		if err != nil {
 			return fmt.Errorf("error getting app instance label key from settings: %w", err)
 		}
@@ -563,16 +586,16 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 				return fmt.Errorf("error getting repository: %w", err)
 			}
 
-			kustomizeSettings, err := s.settingsMgr.GetKustomizeSettings()
+			kustomizeSettings, err := s.configProvider.KustomizeSettings(ctx)
 			if err != nil {
 				return fmt.Errorf("error getting kustomize settings: %w", err)
 			}
 
-			installationID, err := s.settingsMgr.GetInstallationID()
+			installationID, err := s.configProvider.InstallationID(ctx)
 			if err != nil {
 				return fmt.Errorf("error getting installation ID: %w", err)
 			}
-			trackingMethod, err := s.settingsMgr.GetTrackingMethod()
+			trackingMethod, err := s.configProvider.TrackingMethod(ctx)
 			if err != nil {
 				return fmt.Errorf("error getting trackingMethod from settings: %w", err)
 			}
@@ -597,7 +620,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 				Namespace:                       a.Spec.Destination.Namespace,
 				ApplicationSource:               &source,
 				Repos:                           repos,
-				KustomizeOptions:                kustomizeSettings,
+				KustomizeOptions:                &kustomizeSettings,
 				KubeVersion:                     serverVersion,
 				ApiVersions:                     argo.APIResourcesToStrings(apiResources, true),
 				HelmRepoCreds:                   helmRepoCreds,
@@ -632,7 +655,11 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 				return nil, fmt.Errorf("error unmarshaling manifest into unstructured: %w", err)
 			}
 			if obj.GetKind() == kube.SecretKind && obj.GroupVersionKind().Group == "" {
-				obj, _, err = diff.HideSecretData(obj, nil, s.settingsMgr.GetSensitiveAnnotations())
+				sensitiveAnnotations, err := s.configProvider.SensitiveAnnotations(ctx)
+				if err != nil {
+					return nil, fmt.Errorf("failed to resolve SensitiveAnnotations: %w", err)
+				}
+				obj, _, err = diff.HideSecretData(obj, nil, sensitiveAnnotations)
 				if err != nil {
 					return nil, fmt.Errorf("error hiding secret data: %w", err)
 				}
@@ -669,12 +696,12 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 	err = s.queryRepoServer(ctx, proj, func(
 		client apiclient.RepoServerServiceClient, helmRepos []*v1alpha1.Repository, helmCreds []*v1alpha1.RepoCreds, _ []*v1alpha1.Repository, _ []*v1alpha1.RepoCreds, helmOptions *v1alpha1.HelmOptions, enableGenerateManifests map[string]bool,
 	) error {
-		appInstanceLabelKey, err := s.settingsMgr.GetAppInstanceLabelKey()
+		appInstanceLabelKey, err := s.configProvider.AppInstanceLabelKey(ctx)
 		if err != nil {
 			return fmt.Errorf("error getting app instance label key from settings: %w", err)
 		}
 
-		trackingMethod, err := s.settingsMgr.GetTrackingMethod()
+		trackingMethod, err := s.configProvider.TrackingMethod(ctx)
 		if err != nil {
 			return fmt.Errorf("error getting trackingMethod from settings: %w", err)
 		}
@@ -696,7 +723,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 
 		source := a.Spec.GetSource()
 
-		proj, err := argo.GetAppProject(ctx, a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db)
+		proj, err := argo.GetAppProject(ctx, a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.configProvider, s.db)
 		if err != nil {
 			return fmt.Errorf("error getting app project: %w", err)
 		}
@@ -706,7 +733,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 			return fmt.Errorf("error getting repository: %w", err)
 		}
 
-		kustomizeSettings, err := s.settingsMgr.GetKustomizeSettings()
+		kustomizeSettings, err := s.configProvider.KustomizeSettings(ctx)
 		if err != nil {
 			return fmt.Errorf("error getting kustomize settings: %w", err)
 		}
@@ -719,7 +746,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 			Namespace:                       a.Spec.Destination.Namespace,
 			ApplicationSource:               &source,
 			Repos:                           helmRepos,
-			KustomizeOptions:                kustomizeSettings,
+			KustomizeOptions:                &kustomizeSettings,
 			KubeVersion:                     serverVersion,
 			ApiVersions:                     argo.APIResourcesToStrings(apiResources, true),
 			HelmRepoCreds:                   helmCreds,
@@ -760,7 +787,11 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 			return fmt.Errorf("error unmarshaling manifest into unstructured: %w", err)
 		}
 		if obj.GetKind() == kube.SecretKind && obj.GroupVersionKind().Group == "" {
-			obj, _, err = diff.HideSecretData(obj, nil, s.settingsMgr.GetSensitiveAnnotations())
+			sensitiveAnnotations, err := s.configProvider.SensitiveAnnotations(ctx)
+			if err != nil {
+				return fmt.Errorf("failed to resolve SensitiveAnnotations: %w", err)
+			}
+			obj, _, err = diff.HideSecretData(obj, nil, sensitiveAnnotations)
 			if err != nil {
 				return fmt.Errorf("error hiding secret data: %w", err)
 			}
@@ -845,11 +876,11 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*v1a
 			if err != nil {
 				return fmt.Errorf("error getting repository: %w", err)
 			}
-			kustomizeSettings, err := s.settingsMgr.GetKustomizeSettings()
+			kustomizeSettings, err := s.configProvider.KustomizeSettings(ctx)
 			if err != nil {
 				return fmt.Errorf("error getting kustomize settings: %w", err)
 			}
-			trackingMethod, err := s.settingsMgr.GetTrackingMethod()
+			trackingMethod, err := s.configProvider.TrackingMethod(ctx)
 			if err != nil {
 				return fmt.Errorf("error getting trackingMethod from settings: %w", err)
 			}
@@ -857,7 +888,7 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*v1a
 				Repo:               repo,
 				Source:             &source,
 				AppName:            appName,
-				KustomizeOptions:   kustomizeSettings,
+				KustomizeOptions:   &kustomizeSettings,
 				Repos:              helmRepos,
 				NoCache:            true,
 				TrackingMethod:     trackingMethod,
@@ -1133,7 +1164,7 @@ func (s *Server) Patch(ctx context.Context, q *application.ApplicationPatchReque
 }
 
 func (s *Server) getAppProject(ctx context.Context, a *v1alpha1.Application, logCtx *log.Entry) (*v1alpha1.AppProject, error) {
-	proj, err := argo.GetAppProject(ctx, a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db)
+	proj, err := argo.GetAppProject(ctx, a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.configProvider, s.db)
 	if err == nil {
 		return proj, nil
 	}
@@ -1222,29 +1253,33 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 	return &application.ApplicationResponse{}, nil
 }
 
-func (s *Server) isApplicationPermitted(selector labels.Selector, minVersion int, claims any, appName, appNs string, projects map[string]bool, a v1alpha1.Application) bool {
+func (s *Server) isApplicationPermitted(ctx context.Context, selector labels.Selector, minVersion int, claims any, appName, appNs string, projects map[string]bool, a v1alpha1.Application) (bool, error) {
 	if len(projects) > 0 && !projects[a.Spec.GetProject()] {
-		return false
+		return false, nil
 	}
 
 	if appVersion, err := strconv.Atoi(a.ResourceVersion); err == nil && appVersion < minVersion {
-		return false
+		return false, nil
 	}
 	matchedEvent := (appName == "" || (a.Name == appName && a.Namespace == appNs)) && selector.Matches(labels.Set(a.Labels))
 	if !matchedEvent {
-		return false
+		return false, nil
 	}
 
-	if !s.isNamespaceEnabled(a.Namespace) {
-		return false
+	enabled, err := s.isNamespaceEnabled(ctx, a.Namespace)
+	if err != nil {
+		return false, err
+	}
+	if !enabled {
+		return false, nil
 	}
 
 	if !s.enf.Enforce(claims, rbac.ResourceApplications, rbac.ActionGet, a.RBACName(s.ns)) {
 		// do not emit apps user does not have accessing
-		return false
+		return false, nil
 	}
 
-	return true
+	return true, nil
 }
 
 func (s *Server) Watch(q *application.ApplicationQuery, ws application.ApplicationService_WatchServer) error {
@@ -1273,12 +1308,16 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 	// sendIfPermitted is a helper to send the application to the client's streaming channel if the
 	// caller has RBAC privileges permissions to view it
 	sendIfPermitted := func(a v1alpha1.Application, eventType watch.EventType) {
-		permitted := s.isApplicationPermitted(selector, minVersion, claims, appName, appNs, projects, a)
+		permitted, err := s.isApplicationPermitted(ws.Context(), selector, minVersion, claims, appName, appNs, projects, a)
+		if err != nil {
+			logCtx.Warnf("Unable to evaluate watch permissions: %v", err)
+			return
+		}
 		if !permitted {
 			return
 		}
 		s.inferResourcesStatusHealth(&a)
-		err := ws.Send(&v1alpha1.ApplicationWatchEvent{
+		err = ws.Send(&v1alpha1.ApplicationWatchEvent{
 			Type:        eventType,
 			Application: a,
 		})
@@ -1369,7 +1408,7 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *v1alpha1.Appl
 
 	if validate {
 		conditions := make([]v1alpha1.ApplicationCondition, 0)
-		condition, err := argo.ValidateRepo(ctx, app, s.repoClientset, s.db, s.kubectl, proj, s.settingsMgr)
+		condition, err := argo.ValidateRepo(ctx, app, s.repoClientset, s.db, s.kubectl, proj, s.configProvider)
 		if err != nil {
 			return fmt.Errorf("error validating the repo: %w", err)
 		}
@@ -1407,7 +1446,7 @@ func (s *Server) getApplicationClusterConfig(ctx context.Context, a *v1alpha1.Ap
 		return nil, fmt.Errorf("error getting cluster REST config: %w", err)
 	}
 
-	impersonationEnabled, err := s.settingsMgr.IsImpersonationEnabled()
+	impersonationEnabled, err := s.configProvider.IsImpersonationEnabled(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error getting impersonation setting: %w", err)
 	}
@@ -1422,7 +1461,7 @@ func (s *Server) getApplicationClusterConfig(ctx context.Context, a *v1alpha1.Ap
 	}
 	if serviceAccountToImpersonate == "" {
 		// No matching service account found - check enforcement
-		impersonationEnforced, enforcedErr := s.settingsMgr.IsImpersonationEnforced()
+		impersonationEnforced, enforcedErr := s.configProvider.IsImpersonationEnforced(ctx)
 		if enforcedErr != nil {
 			return nil, fmt.Errorf("error getting impersonation enforcement setting: %w", enforcedErr)
 		}
@@ -1482,9 +1521,9 @@ func (s *Server) getAppResources(ctx context.Context, a *v1alpha1.Application) (
 }
 
 func (s *Server) getAppLiveResource(ctx context.Context, action string, q *application.ApplicationResourceRequest) (*v1alpha1.ResourceNode, *rest.Config, *v1alpha1.Application, error) {
-	fineGrainedInheritanceDisabled, err := s.settingsMgr.ApplicationFineGrainedRBACInheritanceDisabled()
+	fineGrainedInheritanceDisabled, err := s.configProvider.ApplicationFineGrainedRBACInheritanceDisabled(ctx)
 	if err != nil {
-		return nil, nil, nil, err
+		return nil, nil, nil, fmt.Errorf("failed to resolve ApplicationFineGrainedRBACInheritanceDisabled: %w", err)
 	}
 
 	if fineGrainedInheritanceDisabled && (action == rbac.ActionDelete || action == rbac.ActionUpdate) {
@@ -1530,7 +1569,7 @@ func (s *Server) GetResource(ctx context.Context, q *application.ApplicationReso
 	if err != nil {
 		return nil, fmt.Errorf("error getting resource: %w", err)
 	}
-	obj, err = s.replaceSecretValues(obj)
+	obj, err = s.replaceSecretValues(ctx, obj)
 	if err != nil {
 		return nil, fmt.Errorf("error replacing secret values: %w", err)
 	}
@@ -1542,9 +1581,13 @@ func (s *Server) GetResource(ctx context.Context, q *application.ApplicationReso
 	return &application.ApplicationResourceResponse{Manifest: &manifest}, nil
 }
 
-func (s *Server) replaceSecretValues(obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+func (s *Server) replaceSecretValues(ctx context.Context, obj *unstructured.Unstructured) (*unstructured.Unstructured, error) {
 	if obj.GetKind() == kube.SecretKind && obj.GroupVersionKind().Group == "" {
-		_, obj, err := diff.HideSecretData(nil, obj, s.settingsMgr.GetSensitiveAnnotations())
+		sensitiveAnnotations, err := s.configProvider.SensitiveAnnotations(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve SensitiveAnnotations: %w", err)
+		}
+		_, obj, err := diff.HideSecretData(nil, obj, sensitiveAnnotations)
 		if err != nil {
 			return nil, err
 		}
@@ -1581,7 +1624,7 @@ func (s *Server) PatchResource(ctx context.Context, q *application.ApplicationRe
 	if manifest == nil {
 		return nil, errors.New("failed to patch resource: manifest was nil")
 	}
-	manifest, err = s.replaceSecretValues(manifest)
+	manifest, err = s.replaceSecretValues(ctx, manifest)
 	if err != nil {
 		return nil, fmt.Errorf("error replacing secret values: %w", err)
 	}
@@ -1915,9 +1958,9 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 		return nil
 	}
 
-	maxPodLogsToRender, err := s.settingsMgr.GetMaxPodLogsToRender()
+	maxPodLogsToRender, err := s.configProvider.MaxPodLogsToRender(ws.Context())
 	if err != nil {
-		return fmt.Errorf("error getting MaxPodLogsToRender config: %w", err)
+		return fmt.Errorf("failed to resolve MaxPodLogsToRender: %w", err)
 	}
 
 	if int64(len(pods)) > maxPodLogsToRender {
@@ -2130,8 +2173,14 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		syncOptions = syncReq.SyncOptions.Items
 	}
 
-	if syncOptions.HasOption(common.SyncOptionReplace) && !s.syncWithReplaceAllowed {
-		return nil, status.Error(codes.FailedPrecondition, "sync with replace was disabled on the API Server level via the server configuration")
+	if syncOptions.HasOption(common.SyncOptionReplace) {
+		syncWithReplaceAllowed, err := s.configProvider.SyncWithReplaceAllowed(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if !syncWithReplaceAllowed {
+			return nil, status.Error(codes.FailedPrecondition, "sync with replace was disabled on the API Server level via the server configuration")
+		}
 	}
 
 	if syncReq.Manifests != nil && sourceintegrity.HasCriteria(proj.EffectiveSourceIntegrity(), a.Spec.GetSources()...) {
@@ -2197,11 +2246,9 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 }
 
 func (s *Server) resolveSourceRevisions(ctx context.Context, a *v1alpha1.Application, syncReq *application.ApplicationSyncRequest) (string, string, []string, []string, error) {
-	requireOverridePrivilegeForRevisionSync, err := s.settingsMgr.RequireOverridePrivilegeForRevisionSync()
+	requireOverridePrivilegeForRevisionSync, err := s.configProvider.RequireOverridePrivilegeForRevisionSync(ctx)
 	if err != nil {
-		// give up, and return the error
-		return "", "", nil, nil,
-			fmt.Errorf("error getting setting 'RequireOverridePrivilegeForRevisionSync' from configmap: : %w", err)
+		return "", "", nil, nil, fmt.Errorf("failed to resolve RequireOverridePrivilegeForRevisionSync: %w", err)
 	}
 	if a.Spec.HasMultipleSources() {
 		numOfSources := int64(len(a.Spec.GetSources()))
@@ -2342,7 +2389,7 @@ func (s *Server) ListLinks(ctx context.Context, req *application.ListAppLinksReq
 		return nil, fmt.Errorf("error getting application: %w", err)
 	}
 
-	deepLinks, err := s.settingsMgr.GetDeepLinks(settings.ApplicationDeepLinks)
+	deepLinks, err := s.configProvider.ApplicationDeepLinks(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read application deep links from configmap: %w", err)
 	}
@@ -2357,11 +2404,11 @@ func (s *Server) ListLinks(ctx context.Context, req *application.ListAppLinksReq
 
 	// If no managed-by URL is set, use the current instance's URL
 	if deepLinksObject[deeplinks.ManagedByURLKey] == nil {
-		settings, err := s.settingsMgr.GetSettings()
+		serverURL, err := s.configProvider.ServerURL(ctx)
 		if err != nil {
-			log.Warnf("Failed to get settings: %v", err)
-		} else if settings.URL != "" {
-			deepLinksObject[deeplinks.ManagedByURLKey] = settings.URL
+			log.Warnf("Failed to resolve ServerURL: %v", err)
+		} else if serverURL != "" {
+			deepLinksObject[deeplinks.ManagedByURLKey] = serverURL
 		}
 	}
 
@@ -2412,12 +2459,12 @@ func (s *Server) ListResourceLinks(ctx context.Context, req *application.Applica
 	if err != nil {
 		return nil, err
 	}
-	deepLinks, err := s.settingsMgr.GetDeepLinks(settings.ResourceDeepLinks)
+	deepLinks, err := s.configProvider.ResourceDeepLinks(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read application deep links from configmap: %w", err)
 	}
 
-	obj, err = s.replaceSecretValues(obj)
+	obj, err = s.replaceSecretValues(ctx, obj)
 	if err != nil {
 		return nil, fmt.Errorf("error replacing secret values: %w", err)
 	}
@@ -2551,8 +2598,13 @@ func (s *Server) logAppEvent(ctx context.Context, a *v1alpha1.Application, reaso
 		user = "Unknown user"
 	}
 	message := fmt.Sprintf("%s %s", user, action)
-	eventLabels := argo.GetAppEventLabels(ctx, a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.settingsMgr, s.db)
-	s.auditLogger.LogAppEvent(a, eventInfo, message, user, eventLabels)
+	eventLabels := argo.GetAppEventLabels(ctx, a, applisters.NewAppProjectLister(s.projInformer.GetIndexer()), s.ns, s.configProvider, s.db)
+	auditLogger, err := s.auditLogger(ctx)
+	if err != nil {
+		log.Errorf("failed to resolve audit logger: %v", err)
+		return
+	}
+	auditLogger.LogAppEvent(a, eventInfo, message, user, eventLabels)
 }
 
 func (s *Server) logResourceEvent(ctx context.Context, res *v1alpha1.ResourceNode, reason string, action string) {
@@ -2562,7 +2614,12 @@ func (s *Server) logResourceEvent(ctx context.Context, res *v1alpha1.ResourceNod
 		user = "Unknown user"
 	}
 	message := fmt.Sprintf("%s %s", user, action)
-	s.auditLogger.LogResourceEvent(res, eventInfo, message, user)
+	auditLogger, err := s.auditLogger(ctx)
+	if err != nil {
+		log.Errorf("failed to resolve audit logger: %v", err)
+		return
+	}
+	auditLogger.LogResourceEvent(res, eventInfo, message, user)
 }
 
 func (s *Server) ListResourceActions(ctx context.Context, q *application.ApplicationResourceRequest) (*application.ResourceActionsListResponse, error) {
@@ -2570,7 +2627,7 @@ func (s *Server) ListResourceActions(ctx context.Context, q *application.Applica
 	if err != nil {
 		return nil, err
 	}
-	resourceOverrides, err := s.settingsMgr.GetResourceOverrides()
+	resourceOverrides, err := s.configProvider.ResourceOverrides(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error getting resource overrides: %w", err)
 	}
@@ -2688,7 +2745,7 @@ func (s *Server) RunResourceActionV2(ctx context.Context, q *application.Resourc
 		return nil, fmt.Errorf("error marshaling live object: %w", err)
 	}
 
-	resourceOverrides, err := s.settingsMgr.GetResourceOverrides()
+	resourceOverrides, err := s.configProvider.ResourceOverrides(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error getting resource overrides: %w", err)
 	}
@@ -2971,8 +3028,12 @@ func (s *Server) appNamespaceOrDefault(appNs string) string {
 	return appNs
 }
 
-func (s *Server) isNamespaceEnabled(namespace string) bool {
-	return security.IsNamespaceEnabled(namespace, s.ns, s.enabledNamespaces)
+func (s *Server) isNamespaceEnabled(ctx context.Context, namespace string) (bool, error) {
+	applicationNamespaces, err := s.configProvider.ApplicationNamespaces(ctx)
+	if err != nil {
+		return false, err
+	}
+	return security.IsNamespaceEnabled(namespace, s.ns, applicationNamespaces), nil
 }
 
 // getProjectsFromApplicationQuery gets the project names from a query. If the legacy "project" field was specified, use
@@ -3007,7 +3068,7 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 		return nil, fmt.Errorf("error getting ArgoCD settings: %w", err)
 	}
 
-	resourceOverrides, err := s.settingsMgr.GetResourceOverrides()
+	resourceOverrides, err := s.configProvider.ResourceOverrides(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error getting resource overrides: %w", err)
 	}
@@ -3041,7 +3102,7 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 
 	dryRunner := diff.NewK8sServerSideDryRunner(applier)
 
-	appLabelKey, err := s.settingsMgr.GetAppInstanceLabelKey()
+	appLabelKey, err := s.configProvider.AppInstanceLabelKey(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("error getting app instance label key: %w", err)
 	}
@@ -3194,7 +3255,11 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 					return nil, fmt.Errorf("error unmarshaling normalized live for secret masking: %w", err)
 				}
 			}
-			maskedTarget, maskedLive, err := diff.HideSecretData(targetObj, liveObj, s.settingsMgr.GetSensitiveAnnotations())
+			sensitiveAnnotations, err := s.configProvider.SensitiveAnnotations(ctx)
+			if err != nil {
+				return nil, fmt.Errorf("failed to resolve SensitiveAnnotations: %w", err)
+			}
+			maskedTarget, maskedLive, err := diff.HideSecretData(targetObj, liveObj, sensitiveAnnotations)
 			if err != nil {
 				return nil, fmt.Errorf("error masking secret data: %w", err)
 			}

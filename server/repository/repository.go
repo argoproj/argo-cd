@@ -22,6 +22,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	servercache "github.com/argoproj/argo-cd/v3/server/cache"
 	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/git"
@@ -32,15 +33,15 @@ import (
 
 // Server provides a Repository service
 type Server struct {
-	db              db.ArgoDB
-	repoClientset   apiclient.Clientset
-	enf             *rbac.Enforcer
-	cache           *servercache.Cache
-	appLister       applisters.ApplicationLister
-	projLister      cache.SharedIndexInformer
-	settings        *settings.SettingsManager
-	namespace       string
-	hydratorEnabled bool
+	db             db.ArgoDB
+	repoClientset  apiclient.Clientset
+	enf            *rbac.Enforcer
+	cache          *servercache.Cache
+	appLister      applisters.ApplicationLister
+	projLister     cache.SharedIndexInformer
+	settings       *settings.SettingsManager
+	namespace      string
+	configProvider configbus.Provider
 }
 
 // NewServer returns a new instance of the Repository service
@@ -53,18 +54,18 @@ func NewServer(
 	projLister cache.SharedIndexInformer,
 	namespace string,
 	settings *settings.SettingsManager,
-	hydratorEnabled bool,
+	configProvider configbus.Provider,
 ) *Server {
 	return &Server{
-		db:              db,
-		repoClientset:   repoClientset,
-		enf:             enf,
-		cache:           cache,
-		appLister:       appLister,
-		projLister:      projLister,
-		namespace:       namespace,
-		settings:        settings,
-		hydratorEnabled: hydratorEnabled,
+		db:             db,
+		repoClientset:  repoClientset,
+		enf:            enf,
+		cache:          cache,
+		appLister:      appLister,
+		projLister:     projLister,
+		namespace:      namespace,
+		settings:       settings,
+		configProvider: configProvider,
 	}
 }
 
@@ -157,7 +158,11 @@ func (s *Server) Get(ctx context.Context, q *repositorypkg.RepoQuery) (*v1alpha1
 }
 
 func (s *Server) GetWrite(ctx context.Context, q *repositorypkg.RepoQuery) (*v1alpha1.Repository, error) {
-	if !s.hydratorEnabled {
+	hydratorEnabled, err := s.configProvider.HydratorEnabled(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve HydratorEnabled: %w", err)
+	}
+	if !hydratorEnabled {
 		return nil, status.Error(codes.Unimplemented, "hydrator is disabled")
 	}
 
@@ -197,7 +202,11 @@ func (s *Server) ListRepositories(ctx context.Context, q *repositorypkg.RepoQuer
 // ListWriteRepositories returns a list of all configured repositories where the user has write access and the state of
 // their connections
 func (s *Server) ListWriteRepositories(ctx context.Context, q *repositorypkg.RepoQuery) (*v1alpha1.RepositoryList, error) {
-	if !s.hydratorEnabled {
+	hydratorEnabled, err := s.configProvider.HydratorEnabled(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve HydratorEnabled: %w", err)
+	}
+	if !hydratorEnabled {
 		return nil, status.Error(codes.Unimplemented, "hydrator is disabled")
 	}
 
@@ -379,13 +388,13 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 	if err != nil {
 		return nil, err
 	}
-	kustomizeSettings, err := s.settings.GetKustomizeSettings()
+	kustomizeSettings, err := s.configProvider.KustomizeSettings(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to resolve KustomizeSettings: %w", err)
 	}
-	helmOptions, err := s.settings.GetHelmSettings()
+	helmOptions, err := s.configProvider.HelmSettings(ctx)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to resolve HelmSettings: %w", err)
 	}
 
 	refSources := make(v1alpha1.RefTargetRevisionMapping)
@@ -401,8 +410,8 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 		Repo:             repo,
 		Source:           q.Source,
 		Repos:            helmRepos,
-		KustomizeOptions: kustomizeSettings,
-		HelmOptions:      helmOptions,
+		KustomizeOptions: &kustomizeSettings,
+		HelmOptions:      &helmOptions,
 		AppName:          q.AppName,
 		RefSources:       refSources,
 	})
@@ -493,7 +502,11 @@ func (s *Server) CreateRepository(ctx context.Context, q *repositorypkg.RepoCrea
 
 // CreateWriteRepository creates a repository configuration with write credentials
 func (s *Server) CreateWriteRepository(ctx context.Context, q *repositorypkg.RepoCreateRequest) (*v1alpha1.Repository, error) {
-	if !s.hydratorEnabled {
+	hydratorEnabled, err := s.configProvider.HydratorEnabled(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve HydratorEnabled: %w", err)
+	}
+	if !hydratorEnabled {
 		return nil, status.Error(codes.Unimplemented, "hydrator is disabled")
 	}
 
@@ -509,7 +522,7 @@ func (s *Server) CreateWriteRepository(ctx context.Context, q *repositorypkg.Rep
 		return nil, status.Errorf(codes.InvalidArgument, "missing credentials in request")
 	}
 
-	err := s.testRepo(ctx, q.Repo)
+	err = s.testRepo(ctx, q.Repo)
 	if err != nil {
 		return nil, err
 	}
@@ -568,7 +581,11 @@ func (s *Server) UpdateRepository(ctx context.Context, q *repositorypkg.RepoUpda
 
 // UpdateWriteRepository updates a repository configuration with write credentials
 func (s *Server) UpdateWriteRepository(ctx context.Context, q *repositorypkg.RepoUpdateRequest) (*v1alpha1.Repository, error) {
-	if !s.hydratorEnabled {
+	hydratorEnabled, err := s.configProvider.HydratorEnabled(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve HydratorEnabled: %w", err)
+	}
+	if !hydratorEnabled {
 		return nil, status.Error(codes.Unimplemented, "hydrator is disabled")
 	}
 
@@ -622,7 +639,11 @@ func (s *Server) DeleteRepository(ctx context.Context, q *repositorypkg.RepoQuer
 
 // DeleteWriteRepository removes a repository from the configuration
 func (s *Server) DeleteWriteRepository(ctx context.Context, q *repositorypkg.RepoQuery) (*repositorypkg.RepoResponse, error) {
-	if !s.hydratorEnabled {
+	hydratorEnabled, err := s.configProvider.HydratorEnabled(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve HydratorEnabled: %w", err)
+	}
+	if !hydratorEnabled {
 		return nil, status.Error(codes.Unimplemented, "hydrator is disabled")
 	}
 
@@ -732,7 +753,11 @@ func (s *Server) ValidateAccess(ctx context.Context, q *repositorypkg.RepoAccess
 // ValidateWriteAccess checks whether write access to a repository is possible with the
 // given URL and credentials.
 func (s *Server) ValidateWriteAccess(ctx context.Context, q *repositorypkg.RepoAccessQuery) (*repositorypkg.RepoResponse, error) {
-	if !s.hydratorEnabled {
+	hydratorEnabled, err := s.configProvider.HydratorEnabled(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve HydratorEnabled: %w", err)
+	}
+	if !hydratorEnabled {
 		return nil, status.Error(codes.Unimplemented, "hydrator is disabled")
 	}
 
@@ -765,7 +790,7 @@ func (s *Server) ValidateWriteAccess(ctx context.Context, q *repositorypkg.RepoA
 		AzureActiveDirectoryEndpoint:      q.AzureActiveDirectoryEndpoint,
 	}
 
-	err := s.testRepo(ctx, repo)
+	err = s.testRepo(ctx, repo)
 	if err != nil {
 		return nil, err
 	}
@@ -786,7 +811,7 @@ func (s *Server) testRepo(ctx context.Context, repo *v1alpha1.Repository) error 
 }
 
 func (s *Server) isRepoPermittedInProject(ctx context.Context, repo string, projName string) error {
-	proj, err := argo.GetAppProjectByName(ctx, projName, applisters.NewAppProjectLister(s.projLister.GetIndexer()), s.namespace, s.settings, s.db)
+	proj, err := argo.GetAppProjectByName(ctx, projName, applisters.NewAppProjectLister(s.projLister.GetIndexer()), s.namespace, s.configProvider, s.db)
 	if err != nil {
 		return err
 	}
