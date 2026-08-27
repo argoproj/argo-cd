@@ -5364,6 +5364,66 @@ func (_c *Provider_MetricsPort_Call) RunAndReturn(run func(ctx context.Context) 
 	return _c
 }
 
+// NotificationsAppLabelSelector provides a mock function for the type Provider
+func (_mock *Provider) NotificationsAppLabelSelector(ctx context.Context) (string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for NotificationsAppLabelSelector")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_NotificationsAppLabelSelector_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'NotificationsAppLabelSelector'
+type Provider_NotificationsAppLabelSelector_Call struct {
+	*mock.Call
+}
+
+// NotificationsAppLabelSelector is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) NotificationsAppLabelSelector(ctx any) *Provider_NotificationsAppLabelSelector_Call {
+	return &Provider_NotificationsAppLabelSelector_Call{Call: _e.mock.On("NotificationsAppLabelSelector", ctx)}
+}
+
+func (_c *Provider_NotificationsAppLabelSelector_Call) Run(run func(ctx context.Context)) *Provider_NotificationsAppLabelSelector_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_NotificationsAppLabelSelector_Call) Return(s string, err error) *Provider_NotificationsAppLabelSelector_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *Provider_NotificationsAppLabelSelector_Call) RunAndReturn(run func(ctx context.Context) (string, error)) *Provider_NotificationsAppLabelSelector_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NotificationsApplicationNamespaces provides a mock function for the type Provider
 func (_mock *Provider) NotificationsApplicationNamespaces(ctx context.Context) ([]string, error) {
 	ret := _mock.Called(ctx)
@@ -5422,6 +5482,186 @@ func (_c *Provider_NotificationsApplicationNamespaces_Call) Return(strings []str
 }
 
 func (_c *Provider_NotificationsApplicationNamespaces_Call) RunAndReturn(run func(ctx context.Context) ([]string, error)) *Provider_NotificationsApplicationNamespaces_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// NotificationsConfigMapName provides a mock function for the type Provider
+func (_mock *Provider) NotificationsConfigMapName(ctx context.Context) (string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for NotificationsConfigMapName")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_NotificationsConfigMapName_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'NotificationsConfigMapName'
+type Provider_NotificationsConfigMapName_Call struct {
+	*mock.Call
+}
+
+// NotificationsConfigMapName is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) NotificationsConfigMapName(ctx any) *Provider_NotificationsConfigMapName_Call {
+	return &Provider_NotificationsConfigMapName_Call{Call: _e.mock.On("NotificationsConfigMapName", ctx)}
+}
+
+func (_c *Provider_NotificationsConfigMapName_Call) Run(run func(ctx context.Context)) *Provider_NotificationsConfigMapName_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_NotificationsConfigMapName_Call) Return(s string, err error) *Provider_NotificationsConfigMapName_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *Provider_NotificationsConfigMapName_Call) RunAndReturn(run func(ctx context.Context) (string, error)) *Provider_NotificationsConfigMapName_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// NotificationsSecretName provides a mock function for the type Provider
+func (_mock *Provider) NotificationsSecretName(ctx context.Context) (string, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for NotificationsSecretName")
+	}
+
+	var r0 string
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (string, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) string); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_NotificationsSecretName_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'NotificationsSecretName'
+type Provider_NotificationsSecretName_Call struct {
+	*mock.Call
+}
+
+// NotificationsSecretName is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) NotificationsSecretName(ctx any) *Provider_NotificationsSecretName_Call {
+	return &Provider_NotificationsSecretName_Call{Call: _e.mock.On("NotificationsSecretName", ctx)}
+}
+
+func (_c *Provider_NotificationsSecretName_Call) Run(run func(ctx context.Context)) *Provider_NotificationsSecretName_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_NotificationsSecretName_Call) Return(s string, err error) *Provider_NotificationsSecretName_Call {
+	_c.Call.Return(s, err)
+	return _c
+}
+
+func (_c *Provider_NotificationsSecretName_Call) RunAndReturn(run func(ctx context.Context) (string, error)) *Provider_NotificationsSecretName_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// NotificationsSelfserviceEnabled provides a mock function for the type Provider
+func (_mock *Provider) NotificationsSelfserviceEnabled(ctx context.Context) (bool, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for NotificationsSelfserviceEnabled")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (bool, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) bool); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// Provider_NotificationsSelfserviceEnabled_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'NotificationsSelfserviceEnabled'
+type Provider_NotificationsSelfserviceEnabled_Call struct {
+	*mock.Call
+}
+
+// NotificationsSelfserviceEnabled is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *Provider_Expecter) NotificationsSelfserviceEnabled(ctx any) *Provider_NotificationsSelfserviceEnabled_Call {
+	return &Provider_NotificationsSelfserviceEnabled_Call{Call: _e.mock.On("NotificationsSelfserviceEnabled", ctx)}
+}
+
+func (_c *Provider_NotificationsSelfserviceEnabled_Call) Run(run func(ctx context.Context)) *Provider_NotificationsSelfserviceEnabled_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *Provider_NotificationsSelfserviceEnabled_Call) Return(b bool, err error) *Provider_NotificationsSelfserviceEnabled_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *Provider_NotificationsSelfserviceEnabled_Call) RunAndReturn(run func(ctx context.Context) (bool, error)) *Provider_NotificationsSelfserviceEnabled_Call {
 	_c.Call.Return(run)
 	return _c
 }

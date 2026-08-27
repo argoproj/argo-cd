@@ -194,7 +194,7 @@ func TestInit(t *testing.T) {
 
 	selfServiceNotificationEnabledFlags := []bool{false, true}
 	for _, selfServiceNotificationEnabled := range selfServiceNotificationEnabledFlags {
-		nc := NewController(
+		nc, err := NewController(
 			k8sClient,
 			dynamicClient,
 			nil,
@@ -206,6 +206,7 @@ func TestInit(t *testing.T) {
 			"my-configmap",
 			selfServiceNotificationEnabled,
 		)
+		require.NoError(t, err)
 
 		assert.NotNil(t, nc)
 
@@ -226,7 +227,7 @@ func TestInitTimeout(t *testing.T) {
 	k8sClient := k8sfake.NewSimpleClientset()
 	appLabelSelector := "app=test"
 
-	nc := NewController(
+	nc, err := NewController(
 		k8sClient,
 		dynamicClient,
 		nil,
@@ -238,6 +239,7 @@ func TestInitTimeout(t *testing.T) {
 		"my-configmap",
 		false,
 	)
+	require.NoError(t, err)
 
 	assert.NotNil(t, nc)
 

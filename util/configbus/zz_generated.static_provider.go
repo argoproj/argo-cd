@@ -111,7 +111,11 @@ type StaticFields struct {
 	MetricsClusterLabels                          *[]string
 	MetricsHost                                   *string
 	MetricsPort                                   *int
+	NotificationsAppLabelSelector                 *string
 	NotificationsApplicationNamespaces            *[]string
+	NotificationsConfigMapName                    *string
+	NotificationsSecretName                       *string
+	NotificationsSelfserviceEnabled               *bool
 	OCIManifestMaxExtractedSize                   *int64
 	OCIMediaTypes                                 *[]string
 	OIDCLogoutURL                                 *string
@@ -788,11 +792,39 @@ func (p *StaticProvider) MetricsPort(_ context.Context) (int, error) {
 	return *p.Fields.MetricsPort, nil
 }
 
+func (p *StaticProvider) NotificationsAppLabelSelector(_ context.Context) (string, error) {
+	if p == nil || p.Fields.NotificationsAppLabelSelector == nil {
+		return "", ErrNotConfigured
+	}
+	return *p.Fields.NotificationsAppLabelSelector, nil
+}
+
 func (p *StaticProvider) NotificationsApplicationNamespaces(_ context.Context) ([]string, error) {
 	if p == nil || p.Fields.NotificationsApplicationNamespaces == nil {
 		return nil, ErrNotConfigured
 	}
 	return *p.Fields.NotificationsApplicationNamespaces, nil
+}
+
+func (p *StaticProvider) NotificationsConfigMapName(_ context.Context) (string, error) {
+	if p == nil || p.Fields.NotificationsConfigMapName == nil {
+		return "", ErrNotConfigured
+	}
+	return *p.Fields.NotificationsConfigMapName, nil
+}
+
+func (p *StaticProvider) NotificationsSecretName(_ context.Context) (string, error) {
+	if p == nil || p.Fields.NotificationsSecretName == nil {
+		return "", ErrNotConfigured
+	}
+	return *p.Fields.NotificationsSecretName, nil
+}
+
+func (p *StaticProvider) NotificationsSelfserviceEnabled(_ context.Context) (bool, error) {
+	if p == nil || p.Fields.NotificationsSelfserviceEnabled == nil {
+		return false, ErrNotConfigured
+	}
+	return *p.Fields.NotificationsSelfserviceEnabled, nil
 }
 
 func (p *StaticProvider) OCIManifestMaxExtractedSize(_ context.Context) (int64, error) {
