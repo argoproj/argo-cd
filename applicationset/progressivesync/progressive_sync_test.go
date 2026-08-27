@@ -16,6 +16,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
@@ -1702,3 +1704,100 @@ func TestPerformReverseDeletionTerminatingApp(t *testing.T) {
 		})
 	}
 }
+
+func TestDelayedStatusUpdateComparedToRegression(t *testing.T) {
+	t.Parallel()
+	scheme := runtime.NewScheme()
+	require.NoError(t, v1alpha1.AddToScheme(scheme))
+
+	appSet := v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-appset",
+			Namespace: "argocd",
+		},
+		Spec: v1alpha1.ApplicationSetSpec{
+			Strategy: &v1alpha1.ApplicationSetStrategy{
+				Type: "RollingSync",
+				RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+					Steps: []v1alpha1.ApplicationSetRolloutStep{
+						{
+							MatchExpressions: []v1alpha1.ApplicationMatchExpression{
+								{Key: "env", Operator: "In", Values: []string{"dev"}},
+							},
+						},
+					},
+				},
+			},
+		},
+		Status: v1alpha1.ApplicationSetStatus{
+			ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "app-dev",
+					Status:          v1alpha1.ProgressiveSyncHealthy,
+					Step:            "1",
+					TargetRevisions: []string{"v1.0.0"},
+				},
+			},
+		},
+	}
+
+	liveApp := v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "app-dev",
+			Namespace: "argocd",
+			Labels:    map[string]string{"env": "dev"},
+		},
+		Spec: v1alpha1.ApplicationSpec{
+			Source: &v1alpha1.ApplicationSource{
+				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+				Path:           "guestbook",
+				TargetRevision: "v1.0.0",
+			},
+			Destination: v1alpha1.ApplicationDestination{
+				Server:    "https://kubernetes.default.svc",
+				Namespace: "default",
+			},
+		},
+		Status: v1alpha1.ApplicationStatus{
+			Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
+			Sync: v1alpha1.SyncStatus{
+				Status:   v1alpha1.SyncStatusCodeSynced,
+				Revision: "v1.0.0",
+				ComparedTo: v1alpha1.ComparedTo{
+					Source: v1alpha1.ApplicationSource{
+						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+						Path:           "guestbook",
+						TargetRevision: "v1.0.0",
+					},
+					Destination: v1alpha1.ApplicationDestination{
+						Server:    "https://kubernetes.default.svc",
+						Namespace: "default",
+					},
+				},
+			},
+		},
+	}
+
+	desiredApp := *liveApp.DeepCopy()
+	desiredApp.Spec.Source.TargetRevision = "v2.0.0"
+
+	c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithStatusSubresource(&appSet).Build()
+	m := NewManager(c, c, regressionDeps{})
+
+	statuses, err := m.UpdateApplicationSetApplicationStatus(
+		t.Context(),
+		log.NewEntry(log.New()),
+		&appSet,
+		[]v1alpha1.Application{liveApp},
+		[]v1alpha1.Application{desiredApp},
+		map[string]int{"app-dev": 0},
+	)
+
+	require.NoError(t, err)
+	require.Len(t, statuses, 1)
+
+	// With Option A fix: stale status prevents premature progression to Healthy
+	assert.Equal(t, v1alpha1.ProgressiveSyncWaiting, statuses[0].Status,
+		"stale ComparedTo must not be trusted as Healthy for new desired revision")
+}
+

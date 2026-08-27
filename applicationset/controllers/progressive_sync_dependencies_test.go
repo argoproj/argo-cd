@@ -872,6 +872,321 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "delayed status update: does not move waiting app to healthy when ComparedTo is stale for git revision",
+			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					Message:            "",
+					Status:             v1alpha1.ProgressiveSyncHealthy,
+					Step:               "1",
+					TargetRevisions:    []string{"v1.0.0"},
+					LastTransitionTime: &nowMinus5,
+				},
+			}),
+			apps: []v1alpha1.Application{
+				{
+					Name: "app1",
+					Spec: v1alpha1.ApplicationSpec{
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://example.com/repo.git",
+							TargetRevision: "v1.0.0",
+						},
+						Destination: v1alpha1.ApplicationDestination{
+							Server:    "https://kubernetes.default.svc",
+							Namespace: "default",
+						},
+					},
+					Status: v1alpha1.ApplicationStatus{
+						ReconciledAt: &metav1.Time{Time: time.Now()},
+						Health: v1alpha1.AppHealthStatus{
+							Status: health.HealthStatusHealthy,
+						},
+						Sync: v1alpha1.SyncStatus{
+							Status:   v1alpha1.SyncStatusCodeSynced,
+							Revision: "v1.0.0",
+							ComparedTo: v1alpha1.ComparedTo{
+								Source: v1alpha1.ApplicationSource{
+									RepoURL:        "https://example.com/repo.git",
+									TargetRevision: "v1.0.0", // Stale: points to v1.0.0
+								},
+								Destination: v1alpha1.ApplicationDestination{
+									Server:    "https://kubernetes.default.svc",
+									Namespace: "default",
+								},
+							},
+						},
+					},
+				},
+			},
+			desiredApps: []v1alpha1.Application{
+				{
+					Name: "app1",
+					Spec: v1alpha1.ApplicationSpec{
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://example.com/repo.git",
+							TargetRevision: "v2.0.0", // Desired target revision
+						},
+						Destination: v1alpha1.ApplicationDestination{
+							Server:    "https://kubernetes.default.svc",
+							Namespace: "default",
+						},
+					},
+				},
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "app1",
+					Message:         specChangedMsg,
+					Status:          v1alpha1.ProgressiveSyncWaiting,
+					Step:            "1",
+					TargetRevisions: []string{"v1.0.0"},
+				},
+			},
+		},
+		{
+			name: "delayed status update: does not move waiting app to healthy when ComparedTo is stale for helm parameter",
+			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					Message:            "",
+					Status:             v1alpha1.ProgressiveSyncHealthy,
+					Step:               "1",
+					TargetRevisions:    []string{"main"},
+					LastTransitionTime: &nowMinus5,
+				},
+			}),
+			apps: []v1alpha1.Application{
+				{
+					Name: "app1",
+					Spec: v1alpha1.ApplicationSpec{
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://example.com/repo.git",
+							TargetRevision: "main",
+							Helm: &v1alpha1.ApplicationSourceHelm{
+								Parameters: []v1alpha1.HelmParameter{
+									{Name: "image.tag", Value: "v1.0.0"},
+								},
+							},
+						},
+						Destination: v1alpha1.ApplicationDestination{
+							Server:    "https://kubernetes.default.svc",
+							Namespace: "default",
+						},
+					},
+					Status: v1alpha1.ApplicationStatus{
+						ReconciledAt: &metav1.Time{Time: time.Now()},
+						Health: v1alpha1.AppHealthStatus{
+							Status: health.HealthStatusHealthy,
+						},
+						Sync: v1alpha1.SyncStatus{
+							Status:   v1alpha1.SyncStatusCodeSynced,
+							Revision: "main",
+							ComparedTo: v1alpha1.ComparedTo{
+								Source: v1alpha1.ApplicationSource{
+									RepoURL:        "https://example.com/repo.git",
+									TargetRevision: "main",
+									Helm: &v1alpha1.ApplicationSourceHelm{
+										Parameters: []v1alpha1.HelmParameter{
+											{Name: "image.tag", Value: "v1.0.0"}, // Stale parameter value
+										},
+									},
+								},
+								Destination: v1alpha1.ApplicationDestination{
+									Server:    "https://kubernetes.default.svc",
+									Namespace: "default",
+								},
+							},
+						},
+					},
+				},
+			},
+			desiredApps: []v1alpha1.Application{
+				{
+					Name: "app1",
+					Spec: v1alpha1.ApplicationSpec{
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://example.com/repo.git",
+							TargetRevision: "main",
+							Helm: &v1alpha1.ApplicationSourceHelm{
+								Parameters: []v1alpha1.HelmParameter{
+									{Name: "image.tag", Value: "v2.0.0"},
+								},
+							},
+						},
+						Destination: v1alpha1.ApplicationDestination{
+							Server:    "https://kubernetes.default.svc",
+							Namespace: "default",
+						},
+					},
+				},
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "app1",
+					Message:         specChangedMsg,
+					Status:          v1alpha1.ProgressiveSyncWaiting,
+					Step:            "1",
+					TargetRevisions: []string{"main"},
+				},
+			},
+		},
+		{
+			name: "delayed status update: does not move progressing app to healthy when ComparedTo is stale",
+			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					Message:            "",
+					Status:             v1alpha1.ProgressiveSyncProgressing,
+					Step:               "1",
+					TargetRevisions:    []string{"v2.0.0"},
+					LastTransitionTime: &nowMinus5,
+				},
+			}),
+			apps: []v1alpha1.Application{
+				{
+					Name: "app1",
+					Spec: v1alpha1.ApplicationSpec{
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://example.com/repo.git",
+							TargetRevision: "v2.0.0",
+						},
+						Destination: v1alpha1.ApplicationDestination{
+							Server:    "https://kubernetes.default.svc",
+							Namespace: "default",
+						},
+					},
+					Status: v1alpha1.ApplicationStatus{
+						ReconciledAt: &metav1.Time{Time: time.Now()},
+						Health: v1alpha1.AppHealthStatus{
+							Status: health.HealthStatusHealthy,
+						},
+						Sync: v1alpha1.SyncStatus{
+							Status:   v1alpha1.SyncStatusCodeSynced,
+							Revision: "v2.0.0",
+							ComparedTo: v1alpha1.ComparedTo{
+								Source: v1alpha1.ApplicationSource{
+									RepoURL:        "https://example.com/repo.git",
+									TargetRevision: "v1.0.0", // Stale
+								},
+								Destination: v1alpha1.ApplicationDestination{
+									Server:    "https://kubernetes.default.svc",
+									Namespace: "default",
+								},
+							},
+						},
+					},
+				},
+			},
+			desiredApps: []v1alpha1.Application{
+				{
+					Name: "app1",
+					Spec: v1alpha1.ApplicationSpec{
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://example.com/repo.git",
+							TargetRevision: "v2.0.0",
+						},
+						Destination: v1alpha1.ApplicationDestination{
+							Server:    "https://kubernetes.default.svc",
+							Namespace: "default",
+						},
+					},
+				},
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "app1",
+					Message:         "",
+					Status:          v1alpha1.ProgressiveSyncProgressing,
+					Step:            "1",
+					TargetRevisions: []string{"v2.0.0"},
+				},
+			},
+		},
+		{
+			name: "fresh status update: moves waiting app to healthy when ComparedTo matches desired revision",
+			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					Message:            "",
+					Status:             v1alpha1.ProgressiveSyncWaiting,
+					Step:               "1",
+					TargetRevisions:    []string{"v1.0.0"},
+					LastTransitionTime: &nowMinus5,
+				},
+			}),
+			apps: []v1alpha1.Application{
+				{
+					Name: "app1",
+					Spec: v1alpha1.ApplicationSpec{
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://example.com/repo.git",
+							TargetRevision: "v2.0.0",
+						},
+						Destination: v1alpha1.ApplicationDestination{
+							Server:    "https://kubernetes.default.svc",
+							Namespace: "default",
+						},
+					},
+					Status: v1alpha1.ApplicationStatus{
+						ReconciledAt: &metav1.Time{Time: time.Now()},
+						Health: v1alpha1.AppHealthStatus{
+							Status: health.HealthStatusHealthy,
+						},
+						Sync: v1alpha1.SyncStatus{
+							Status:   v1alpha1.SyncStatusCodeSynced,
+							Revision: "v2.0.0",
+							ComparedTo: v1alpha1.ComparedTo{
+								Source: v1alpha1.ApplicationSource{
+									RepoURL:        "https://example.com/repo.git",
+									TargetRevision: "v2.0.0", // Fresh: matches desired v2.0.0
+								},
+								Destination: v1alpha1.ApplicationDestination{
+									Server:    "https://kubernetes.default.svc",
+									Namespace: "default",
+								},
+							},
+						},
+					},
+				},
+			},
+			desiredApps: []v1alpha1.Application{
+				{
+					Name: "app1",
+					Spec: v1alpha1.ApplicationSpec{
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        "https://example.com/repo.git",
+							TargetRevision: "v2.0.0",
+						},
+						Destination: v1alpha1.ApplicationDestination{
+							Server:    "https://kubernetes.default.svc",
+							Namespace: "default",
+						},
+					},
+				},
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "app1",
+					Message:         "Application resource has synced, updating status to Healthy",
+					Status:          v1alpha1.ProgressiveSyncHealthy,
+					Step:            "1",
+					TargetRevisions: []string{"v2.0.0"},
+				},
+			},
+		},
 	} {
 		t.Run(cc.name, func(t *testing.T) {
 			t.Parallel()

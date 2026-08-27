@@ -414,6 +414,13 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 		appHealthStatus := app.Status.Health.Status
 		appSyncStatus := app.Status.Sync.Status
 
+		desiredSpec := app.Spec
+		if desiredApp, ok := desiredAppsMap[app.Name]; ok {
+			desiredSpec = desiredApp.Spec
+		}
+		desiredComparedTo := desiredSpec.BuildComparedToStatus(desiredSpec.GetSources())
+		statusIsFresh := desiredComparedTo.Equals(&app.Status.Sync.ComparedTo)
+
 		currentAppStatus := argov1alpha1.ApplicationSetApplicationStatus{}
 		idx := utils.FindApplicationStatusIndex(applicationSet.Status.ApplicationStatus, app.Name)
 		if idx == -1 {
@@ -486,7 +493,7 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 			// App has changed to waiting because the TargetRevisions changed or it is a new selected app
 			// This does not mean we should always sync the app. The app may not be OutOfSync
 			// and may not require a sync if it does not have differences.
-			if appSyncStatus == argov1alpha1.SyncStatusCodeSynced {
+			if appSyncStatus == argov1alpha1.SyncStatusCodeSynced && statusIsFresh {
 				if app.Status.Health.Status == health.HealthStatusHealthy {
 					newAppStatus.LastTransitionTime = &now
 					newAppStatus.Status = argov1alpha1.ProgressiveSyncHealthy
@@ -530,7 +537,7 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 			if currentAppStatus.Status == argov1alpha1.ProgressiveSyncProgressing {
 				// If the status has reached progressing, we know a sync has been triggered. No matter the result of that operation,
 				// we want an the app to reach the Healthy state for the current revision.
-				if appHealthStatus == health.HealthStatusHealthy && appSyncStatus == argov1alpha1.SyncStatusCodeSynced {
+				if appHealthStatus == health.HealthStatusHealthy && appSyncStatus == argov1alpha1.SyncStatusCodeSynced && statusIsFresh {
 					newAppStatus.LastTransitionTime = &now
 					newAppStatus.Status = argov1alpha1.ProgressiveSyncHealthy
 					newAppStatus.Message = "Application resource became Healthy, updating status from Progressing to Healthy"
