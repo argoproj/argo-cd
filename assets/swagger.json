@@ -8458,6 +8458,13 @@
             "$ref": "#/definitions/v1alpha1ResourceIgnoreDifferences"
           }
         },
+        "ignoreDuplicateResources": {
+          "type": "array",
+          "title": "IgnoreDuplicateResources is a reference to the application's ignored duplicate resources used for comparison",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ResourceIgnoreDuplicate"
+          }
+        },
         "source": {
           "$ref": "#/definitions/v1alpha1ApplicationSource"
         },
@@ -10124,10 +10131,12 @@
       "type": "object",
       "properties": {
         "group": {
-          "type": "string"
+          "type": "string",
+          "title": "+kubebuilder:validation:MinLength=1"
         },
         "kind": {
-          "type": "string"
+          "type": "string",
+          "title": "+kubebuilder:validation:MinLength=1"
         },
         "name": {
           "type": "string"
