@@ -262,9 +262,9 @@ Runs inside the application controller when the mode is `crd` or `hybrid`. Flags
   entry-without-aggregate and aggregate-without-entry, and the client-side skip check would never match the cache, so
   every probe would write twice — exactly the amplification transition-only writing exists to avoid.
 * Two SSA properties the design leans on: **omission deletes** — fields a manager stops asserting are removed, provided
-  no other manager still owns them, which is what makes prune and eviction possible (take over the doomed entry, then
-  apply without it) and why every apply must assert the full set of fields this controlplane still owns; and **the
-  aggregate and `Ready` are shared, last-writer-wins** — deliberately not partitioned per manager, since both derive
+  no other manager still owns them, which is why every apply must assert the full set of fields this controlplane still
+  owns (and why prune and eviction are *not* applies; see below); and **the aggregate and `Ready` are shared,
+  last-writer-wins** — deliberately not partitioned per manager, since both derive
   from the merged entry list and so converge regardless of write order. Controlplane-specific detail stays in that
   controlplane's entry. Each writer also adds a `metadata.managedFields` entry, part of why the list needs a cap.
 * **Status is written on transition, not on probe.** Probing stays at the test interval; writing does not. This falls
@@ -313,7 +313,7 @@ Runs inside the application controller when the mode is `crd` or `hybrid`. Flags
 * **Stale-entry garbage collection:** the periodic refresh doubles as a heartbeat, so every controlplane re-asserts its
   `attemptedAt` at least once per refresh period regardless of outcome (the probe backoff cap above guarantees this
   for failing repositories too). Entries silent for longer than the entry TTL are treated as decommissioned and pruned
-  by whichever controlplane notices, via the prune applies described below. The TTL must comfortably exceed the
+  by whichever controlplane notices, via the prune update described below. The TTL must comfortably exceed the
   refresh period — not the test interval, which no longer governs the heartbeat.
 
   A controlplane that outlives its own pruning (down longer than the TTL, then back) needs no special handling: its
@@ -324,17 +324,15 @@ Runs inside the application controller when the mode is `crd` or `hybrid`. Flags
   controlplane wedged rather than gone is indistinguishable from a decommissioned one, which is what the TTL ≥ 4×
   refresh margin is for.
 
-  **The prune applies.** Removing an entry another manager owns takes two properties of SSA together: `force` transfers
-  ownership of a *conflicting* field to the applier — an apply with identical content merely shares ownership, and a
-  shared field survives omission by one owner — so the takeover apply must change the doomed entry (it sets `reason:
-  Pruned`), and only then does omitting it delete it. A controlplane already holding a slot needs two applies: (1)
-  force-apply the doomed entries together with its own entry and the aggregate, (2) apply its own entry and aggregate
-  without them. Item count never grows, its own entry is never relinquished, and peers rolling up in between see a
-  consistent list. A controlplane holding no slot in a full list cannot include its own entry in (1) without tripping
-  `maxItems` — asserting `stale + 1` items would be rejected by the very apply meant to free a slot — so it asserts
-  *only* the doomed entries in (1), applies without them in (2), and adds its own entry and aggregate in a third apply
-  once the slot is free. It had no entry to relinquish, and the aggregate is co-owned by peers, so nothing is lost in
-  between.
+  **The prune update.** SSA cannot cheaply remove an entry another manager owns: applying it with identical content
+  merely *shares* ownership (and a shared field survives omission by one owner), while `force` transfers only the
+  *conflicting* fields, so deleting the item would mean conflicting on every field of it. Prune is therefore a plain
+  status **update**, not an apply: the object returned by the entry apply, minus the doomed entries, is written back
+  with `UpdateStatus`. An update may remove fields any manager owns and the server drops them from `managedFields` in
+  the same write, so there is no takeover step, no window in which this controlplane's own entry is missing, and no
+  `maxItems` problem for a controlplane that holds no slot. The update's `resourceVersion` precondition is the guard
+  against clobbering a peer's concurrent entry apply: a conflict is logged and the prune simply retried on the next
+  probe, since the stale entries are still there. The aggregate is then rolled up from the pruned object as usual.
 * **Bounded status:** one entry per controlplane means an unbounded list grows with the fleet, and large agent-based
   deployments have hundreds or thousands of controlplanes. The list has a hard `maxItems` (100) and each `message` a
   `maxLength` of 1024 (the controller truncates; repo-server errors are otherwise unbounded), capping worst-case status
@@ -352,9 +350,9 @@ Runs inside the application controller when the mode is `crd` or `hybrid`. Flags
     from the entries, so after eviction they describe the retained sample; a `truncated: true` marker keeps "2 of 2
     clusters" distinguishable from "2 of 2 *retained* clusters".
 
-  Eviction reuses the prune applies: the victim's entry belongs to another field manager, so it must be taken over
-  (with a changed value) before being dropped, and the evictor by definition holds no slot, so it is the three-apply
-  form. It bounds the object but does not by itself make an over-cap fleet behave well; see the open question above.
+  Eviction reuses the prune update: the victim's entry is removed with `UpdateStatus` (resourceVersion-guarded), after
+  which the evictor's entry apply fits. It bounds the object but does not by itself make an over-cap fleet behave well;
+  see the open question above.
 * Spec changes (generation bumps) trigger prompt re-tests via the informer; the controller's own status writes do not
   bump the generation and are filtered out, so there is no self-triggering loop. A `RepositoryCredential` generation
   bump enqueues every repository it covers *and* every repository it covered before the change (the URL prefix or
@@ -390,7 +388,8 @@ resource on each controller restart, and every controlplane would duplicate even
 
 ##### Connection health events (emitted by the repository controller on state *transitions* of its own entry)
 
-New reasons, added to the default `--enable-k8s-event` allowlist.
+New reasons. The default `--enable-k8s-event` allowlist is `all`, so they are emitted unless an operator has narrowed
+the list, in which case they must be added explicitly.
 
   - `ConnectionSuccessful`: repository became accessible (first result, or from unknown state)
   - `ConnectionFailed`: cannot connect to repository (unclassified failure)
