@@ -312,8 +312,6 @@ export function compareNodes(first: ResourceTreeNode, second: ResourceTreeNode) 
 const RELEVANCE_WORKLOAD = 4;
 const RELEVANCE_EXPOSURE = 5;
 const RELEVANCE_UNREMARKABLE = 6;
-// One past the last tier, so adding it to a rank orders every non-match after every match.
-const RELEVANCE_TIERS = 7;
 const WORKLOAD_KINDS = new Set(['Deployment', 'StatefulSet', 'DaemonSet', 'Job', 'CronJob', 'Rollout', 'ReplicationController']);
 const EXPOSURE_KINDS = new Set(['Service', 'Ingress', 'Gateway', 'HTTPRoute', 'GRPCRoute', 'Route']);
 
@@ -1504,19 +1502,34 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     // application, however small, would be reordered by relevance instead of keeping the order it has
     // always had, and every node would pay for a subtree walk that can only ever return true.
     const filterActive = filterIsActive(props.filters);
-    const matchMemo = new Map<string, boolean>();
-    const matchVisiting = new Set<string>();
-    const rankOf = (node: ResourceTreeNode) =>
-        relevanceOf(node) + (!filterActive || subtreeMatches(node, props.nodeFilter, childrenByParentKey, matchMemo, matchVisiting) ? 0 : RELEVANCE_TIERS);
+    // What the filter keeps is now decided before the budget is spent, so ranking needs no term of its
+    // own for it: everything it ranks is already something the filter kept.
+    const rankOf = relevanceOf;
     // A clustered kind only ever holds childless roots, so its members need neither walk.
-    const clusterRankOf = (node: ResourceTreeNode) => ownRelevance(node) + (!filterActive || props.nodeFilter(node) ? 0 : RELEVANCE_TIERS);
+    const clusterRankOf = ownRelevance;
 
     // While a filter is active the budget applies to what the filter keeps, not to the whole application.
     // Bounding the unfiltered tree and filtering afterwards left the synthetic nodes behind -- they carry no
     // root, so filterGraph cannot remove them -- and a filter matching nothing still drew a kind node and an
     // overflow marker per kind. Deciding candidacy here means a filtered view that fits is drawn whole, with
     // none of the scaffolding, while a filter that still matches more than the budget is bounded honestly.
-    const keptByFilter = (node: ResourceTreeNode) => !filterActive || subtreeMatches(node, props.nodeFilter, childrenByParentKey, matchMemo, matchVisiting);
+    // The predicate reads node.root -- a sync filter compares root.status -- and root is attached by the
+    // traversal, not present on the raw nodes. Evaluating the filter before traversal therefore has to
+    // supply the root the traversal would have given, or a sync filter matches nothing at all.
+    const keepMemo = new Map<string, boolean>();
+    const keptByFilter = (node: ResourceTreeNode, root: ResourceTreeNode = node) => {
+        if (!filterActive) {
+            return true;
+        }
+        const key = treeNodeKey(root) + '\u0000' + treeNodeKey(node);
+        const cached = keepMemo.get(key);
+        if (cached !== undefined) {
+            return cached;
+        }
+        const kept = subtreeMatches(node, candidate => props.nodeFilter({...candidate, root}), childrenByParentKey, new Map(), new Set());
+        keepMemo.set(key, kept);
+        return kept;
+    };
 
     // Roots draw against an allowance of their own rather than against the graph's whole budget. Raising
     // the budget for one overflow marker has to reach that marker: while roots shared the budget they
@@ -1646,7 +1659,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         // Ranked as one set against the one budget they share. Selecting each bucket separately let the
         // external roots, which are placed first, spend the whole allowance and starve an internal root
         // the active search had matched.
-        roots = filterActive ? roots.filter(keptByFilter) : roots;
+        roots = filterActive ? roots.filter(node => keptByFilter(node)) : roots;
         const {rankRoots: rankNetworkRoots} = rootStrategy(roots.length, nodes.length, DEFAULT_VISIBLE_CAP, filterActive);
         const admittedRoots = rankNetworkRoots ? new Set(mostRelevantFirst(roots, rootAllowance, rankOf).map(treeNodeKey)) : null;
         const admitted = (root: ResourceTreeNode) => !admittedRoots || admittedRoots.has(treeNodeKey(root));
@@ -1790,8 +1803,8 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         // application that fits keeps the ordering it has always had.
         // Decided from the size of the application rather than the running budget, so expanding a marker
         // cannot push the cap past the root count and reshape the whole top level mid-session.
-        const candidateRoots = filterActive ? roots.filter(keptByFilter) : roots;
-        const candidateNodes = filterActive ? nodes.filter(keptByFilter).length : nodes.length;
+        const candidateRoots = filterActive ? roots.filter(node => keptByFilter(node)) : roots;
+        const candidateNodes = filterActive ? nodes.filter(node => keptByFilter(node)).length : nodes.length;
         const {clusterKinds, rankRoots} = rootStrategy(candidateRoots.length, candidateNodes, DEFAULT_VISIBLE_CAP, filterActive, capBucketKind);
 
         // Past the budget the bulk kinds get a parent of their own rather than competing for one
@@ -1802,7 +1815,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         const kindTotals = new Map<string, number>();
         // Drilling into a kind shows that kind's resources at the top level, which is what was asked for.
         const ofKind = capBucketKind ? roots.filter(r => r.kind === capBucketKind) : roots;
-        const inBucket = filterActive ? ofKind.filter(keptByFilter) : ofKind;
+        const inBucket = filterActive ? ofKind.filter(node => keptByFilter(node)) : ofKind;
         inBucket.forEach(r => kindTotals.set(r.kind, (kindTotals.get(r.kind) || 0) + 1));
         let orderedRoots: ResourceTreeNode[];
         // What the card counts as "not drawn one at a time". Ordering yields only a prefix now, so the
@@ -1981,7 +1994,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
             if (treeNodeKey(child) === treeNodeKey(root)) {
                 return;
             }
-            if (!keptByFilter(child)) {
+            if (!keptByFilter(child, root)) {
                 return;
             }
             // In the network view each service below an ingress gets its own colour, and that colour has
