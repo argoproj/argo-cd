@@ -1,5 +1,7 @@
 package settings
 
+import "strings"
+
 // The core exclusion list are K8s resources that we assume will never be managed by operators,
 // and are never child objects of managed resources that need to be presented in the resource tree.
 // This list contains high volume and  high churn metadata objects which we exclude for performance
@@ -15,6 +17,9 @@ type ResourcesFilter struct {
 	ResourceExclusions []FilteredResource
 	// ResourceInclusions holds the only api groups, kinds per cluster that Argo CD will watch
 	ResourceInclusions []FilteredResource
+	// ResourceSelectors holds the label selectors, per api group, kind and cluster, that narrow
+	// down the objects Argo CD will watch
+	ResourceSelectors []FilteredResource
 }
 
 func (rf *ResourcesFilter) getExcludedResources() []FilteredResource {
@@ -81,4 +86,19 @@ func (rf *ResourcesFilter) IsExcludedResource(apiGroup, kind, cluster string) bo
 
 	// if no inclusion rules defined for cluster, default is allow
 	return false
+}
+
+// GetLabelSelector returns the label selector that must be applied to the list/watch calls of the
+// given resource so that the API server only returns the objects Argo CD is interested in. The
+// selectors of all the matching ResourceSelectors rules are ANDed together. An empty string is
+// returned if no rule matches, in which case all the objects of the resource are listed.
+func (rf *ResourcesFilter) GetLabelSelector(apiGroup, kind, cluster string) string {
+	selectors := make([]string, 0)
+	for _, resourceSelector := range rf.ResourceSelectors {
+		if resourceSelector.Selector == "" || !resourceSelector.Match(apiGroup, kind, cluster) {
+			continue
+		}
+		selectors = append(selectors, resourceSelector.Selector)
+	}
+	return strings.Join(selectors, ",")
 }
