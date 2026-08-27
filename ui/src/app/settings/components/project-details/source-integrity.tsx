@@ -137,7 +137,7 @@ const LegacyGPGSignatureKeysPanel = ({
         view={
             <React.Fragment>
                 <p>This feature is deprecated, migrate to Source Integrity instead.</p>
-                {proj.spec.signatureKeys ? (
+                {(proj.spec.signatureKeys?.length ?? 0) > 0 ? (
                     proj.spec.signatureKeys.map((key, i) => (
                         <div className='row white-box__details-row' key={i}>
                             <div className='columns small-12'>{key.keyID}</div>
