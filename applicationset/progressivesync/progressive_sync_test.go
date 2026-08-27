@@ -1801,3 +1801,216 @@ func TestDelayedStatusUpdateComparedToRegression(t *testing.T) {
 		"stale ComparedTo must not be trusted as Healthy for new desired revision")
 }
 
+func TestProgressiveSyncQodoFinding1_IgnoreDifferences(t *testing.T) {
+	t.Parallel()
+	scheme := runtime.NewScheme()
+	require.NoError(t, v1alpha1.AddToScheme(scheme))
+
+	// AppSet declares IgnoreApplicationDifferences for targetRevision.
+	// The generated desired app has a different targetRevision from the live app.
+	// SpecsEquivalent sees them as equivalent (because the difference is ignored), so
+	// the write path will never correct targetRevision. The freshness check must use the
+	// same ignore rule via diffConfig so it does not report a permanent stale status.
+	appSet := v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-appset",
+			Namespace: "argocd",
+		},
+		Spec: v1alpha1.ApplicationSetSpec{
+			IgnoreApplicationDifferences: v1alpha1.ApplicationSetIgnoreDifferences{
+				{JSONPointers: []string{"/spec/source/targetRevision"}},
+			},
+			Strategy: &v1alpha1.ApplicationSetStrategy{
+				Type: "RollingSync",
+				RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+					Steps: []v1alpha1.ApplicationSetRolloutStep{
+						{
+							MatchExpressions: []v1alpha1.ApplicationMatchExpression{
+								{Key: "env", Operator: "In", Values: []string{"dev"}},
+							},
+						},
+					},
+				},
+			},
+		},
+		Status: v1alpha1.ApplicationSetStatus{
+			ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "app-dev",
+					Status:          v1alpha1.ProgressiveSyncWaiting,
+					Step:            "1",
+					TargetRevisions: []string{"v1.0.0"},
+				},
+			},
+		},
+	}
+
+	liveApp := v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "app-dev",
+			Namespace: "argocd",
+			Labels:    map[string]string{"env": "dev"},
+		},
+		Spec: v1alpha1.ApplicationSpec{
+			Source: &v1alpha1.ApplicationSource{
+				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+				Path:           "guestbook",
+				TargetRevision: "v1.0.0",
+			},
+			Destination: v1alpha1.ApplicationDestination{
+				Server:    "https://kubernetes.default.svc",
+				Namespace: "default",
+			},
+		},
+		Status: v1alpha1.ApplicationStatus{
+			Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
+			Sync: v1alpha1.SyncStatus{
+				Status:   v1alpha1.SyncStatusCodeSynced,
+				Revision: "v1.0.0",
+				ComparedTo: v1alpha1.ComparedTo{
+					Source: v1alpha1.ApplicationSource{
+						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+						Path:           "guestbook",
+						TargetRevision: "v1.0.0",
+					},
+					Destination: v1alpha1.ApplicationDestination{
+						Server:    "https://kubernetes.default.svc",
+						Namespace: "default",
+					},
+				},
+			},
+		},
+	}
+
+	// Desired has a different targetRevision, but the AppSet ignore rule covers that field.
+	desiredApp := *liveApp.DeepCopy()
+	desiredApp.Spec.Source.TargetRevision = "v2.0.0"
+
+	c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithStatusSubresource(&appSet).Build()
+	m := NewManager(c, c, regressionDeps{})
+
+	statuses, err := m.UpdateApplicationSetApplicationStatus(
+		t.Context(),
+		log.NewEntry(log.New()),
+		&appSet,
+		[]v1alpha1.Application{liveApp},
+		[]v1alpha1.Application{desiredApp},
+		map[string]int{"app-dev": 0},
+	)
+
+	require.NoError(t, err)
+	require.Len(t, statuses, 1)
+
+	// IgnoreApplicationDifferences ignores the targetRevision field on the AppSet level.
+	// SpecsEquivalent sees the live and desired apps as equivalent. The freshness check must
+	// then use the live app's normalized spec (targetRevision=v1.0.0) against ComparedTo
+	// (which also records v1.0.0), so statusIsFresh=true and the app advances to Healthy.
+	// Without the fix, the raw desired spec (v2.0.0) would not match ComparedTo (v1.0.0),
+	// leaving the app permanently stuck in Waiting.
+	assert.Equal(t, v1alpha1.ProgressiveSyncHealthy, statuses[0].Status,
+		"a field covered by IgnoreApplicationDifferences must not cause a false stale-status: %s", statuses[0].Message)
+}
+
+func TestProgressiveSyncQodoFinding2_Normalization(t *testing.T) {
+	t.Parallel()
+	scheme := runtime.NewScheme()
+	require.NoError(t, v1alpha1.AddToScheme(scheme))
+
+	// The generated desired app has an empty-but-present Kustomize struct (kustomize: {}).
+	// NormalizeApplicationSpec collapses it to nil before writing to ComparedTo.
+	// The freshness check must normalize before building expectedComparedTo so it matches the
+	// Application controller's recorded nil ComparedTo.Source.Kustomize.
+	appSet := v1alpha1.ApplicationSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-appset",
+			Namespace: "argocd",
+		},
+		Spec: v1alpha1.ApplicationSetSpec{
+			Strategy: &v1alpha1.ApplicationSetStrategy{
+				Type: "RollingSync",
+				RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+					Steps: []v1alpha1.ApplicationSetRolloutStep{
+						{
+							MatchExpressions: []v1alpha1.ApplicationMatchExpression{
+								{Key: "env", Operator: "In", Values: []string{"dev"}},
+							},
+						},
+					},
+				},
+			},
+		},
+		Status: v1alpha1.ApplicationSetStatus{
+			ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "app-dev",
+					Status:          v1alpha1.ProgressiveSyncWaiting,
+					Step:            "1",
+					TargetRevisions: []string{"v1.0.0"},
+				},
+			},
+		},
+	}
+
+	// Live app has nil Kustomize (as the Application controller stored it).
+	liveApp := v1alpha1.Application{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "app-dev",
+			Namespace: "argocd",
+			Labels:    map[string]string{"env": "dev"},
+		},
+		Spec: v1alpha1.ApplicationSpec{
+			Source: &v1alpha1.ApplicationSource{
+				RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+				Path:           "guestbook",
+				TargetRevision: "v1.0.0",
+			},
+			Destination: v1alpha1.ApplicationDestination{
+				Server:    "https://kubernetes.default.svc",
+				Namespace: "default",
+			},
+		},
+		Status: v1alpha1.ApplicationStatus{
+			Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
+			Sync: v1alpha1.SyncStatus{
+				Status:   v1alpha1.SyncStatusCodeSynced,
+				Revision: "v1.0.0",
+				ComparedTo: v1alpha1.ComparedTo{
+					Source: v1alpha1.ApplicationSource{
+						RepoURL:        "https://github.com/argoproj/argocd-example-apps.git",
+						Path:           "guestbook",
+						TargetRevision: "v1.0.0",
+					},
+					Destination: v1alpha1.ApplicationDestination{
+						Server:    "https://kubernetes.default.svc",
+						Namespace: "default",
+					},
+				},
+			},
+		},
+	}
+
+	desiredApp := *liveApp.DeepCopy()
+	// Generated desired app has an unnormalized empty Kustomize struct.
+	desiredApp.Spec.Source.Kustomize = &v1alpha1.ApplicationSourceKustomize{}
+
+	c := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithStatusSubresource(&appSet).Build()
+	m := NewManager(c, c, regressionDeps{})
+
+	statuses, err := m.UpdateApplicationSetApplicationStatus(
+		t.Context(),
+		log.NewEntry(log.New()),
+		&appSet,
+		[]v1alpha1.Application{liveApp},
+		[]v1alpha1.Application{desiredApp},
+		map[string]int{"app-dev": 0},
+	)
+
+	require.NoError(t, err)
+	require.Len(t, statuses, 1)
+
+	// After NormalizeApplicationSpec, the empty Kustomize struct becomes nil, making the desired
+	// spec identical to the live spec. The freshness check normalizes before comparing to
+	// ComparedTo, so statusIsFresh=true and the app advances to Healthy instead of staying Waiting.
+	assert.Equal(t, v1alpha1.ProgressiveSyncHealthy, statuses[0].Status,
+		"unnormalized empty struct (kustomize: {}) must not cause a permanent ComparedTo mismatch: %s", statuses[0].Message)
+}

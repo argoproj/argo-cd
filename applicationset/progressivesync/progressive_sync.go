@@ -20,6 +20,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/applicationset/utils"
 	argov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -414,12 +415,7 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 		appHealthStatus := app.Status.Health.Status
 		appSyncStatus := app.Status.Sync.Status
 
-		desiredSpec := app.Spec
-		if desiredApp, ok := desiredAppsMap[app.Name]; ok {
-			desiredSpec = desiredApp.Spec
-		}
-		desiredComparedTo := desiredSpec.BuildComparedToStatus(desiredSpec.GetSources())
-		statusIsFresh := desiredComparedTo.Equals(&app.Status.Sync.ComparedTo)
+		var statusIsFresh bool
 
 		currentAppStatus := argov1alpha1.ApplicationSetApplicationStatus{}
 		idx := utils.FindApplicationStatusIndex(applicationSet.Status.ApplicationStatus, app.Name)
@@ -469,9 +465,25 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 				// Failures here are persistent (for example a malformed jsonPointer), so reporting
 				// "changed" would loop forever. Leave the status alone and surface it.
 				statusLogCtx.WithError(cmpErr).Warn("could not compare desired and live specs; leaving progressive sync status unchanged")
+				statusIsFresh = false
 			} else {
 				specChanged = !equivalent
+				if equivalent {
+					// The live spec matches the desired spec (after normalization and ignoreApplicationDifferences).
+					// Ensure the Application controller has reconciled this live spec by checking if it matches the recorded ComparedTo.
+					normalizedLiveSpec := *argo.NormalizeApplicationSpec(app.Spec.DeepCopy())
+					expectedComparedTo := normalizedLiveSpec.BuildComparedToStatus(normalizedLiveSpec.GetSources())
+					statusIsFresh = expectedComparedTo.Equals(&app.Status.Sync.ComparedTo)
+				} else {
+					// If they are not equivalent, the live app is stale by definition.
+					statusIsFresh = false
+				}
 			}
+		} else {
+			// If not in desiredAppsMap, default to checking freshness against the live app's own spec
+			normalizedLiveSpec := *argo.NormalizeApplicationSpec(app.Spec.DeepCopy())
+			expectedComparedTo := normalizedLiveSpec.BuildComparedToStatus(normalizedLiveSpec.GetSources())
+			statusIsFresh = expectedComparedTo.Equals(&app.Status.Sync.ComparedTo)
 		}
 
 		if revisionsChanged || specChanged {
