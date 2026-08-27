@@ -1,6 +1,7 @@
 package git
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -117,13 +118,13 @@ func (g *gpgReadyRepo) cmd(args ...string) error {
 }
 
 func (g *gpgReadyRepo) commitSHA() string {
-	sha, err := g.git.CommitSHA()
+	sha, err := g.git.CommitSHA(context.Background())
 	require.NoError(g.t, err)
 	return sha
 }
 
 func (g *gpgReadyRepo) assertSignedAs(revision string, expectedSign ...string) {
-	info, _, err := g.git.LsSignatures(revision, true)
+	info, _, err := g.git.LsSignatures(context.Background(), revision, true)
 	require.NoError(g.t, err)
 
 	var actualSign []string
@@ -208,7 +209,7 @@ func Test_LsSignatures_UnsignedSealedCommitDoesNotStopHistorySearch(t *testing.T
 	require.NoError(t, repo.cmd("commit", "--allow-empty", "--no-edit", "--message=signed", "--gpg-sign="+trustedKeyID))
 	signedSha := repo.commitSHA()
 
-	info, _, err := repo.git.LsSignatures(signedSha, true)
+	info, _, err := repo.git.LsSignatures(t.Context(), signedSha, true)
 	require.NoError(t, err)
 
 	assert.Len(t, info, 4)
@@ -239,7 +240,7 @@ func Test_SignedTag(t *testing.T) {
 	require.NoError(t, repo.cmd("tag", "--message=signed tag", "--local-user="+tagKeyId, "2.0", "HEAD"))
 	require.NoError(t, repo.cmd("tag", "--message=unsigned tag", "dev", "HEAD"))
 
-	info, legacy, err := repo.git.LsSignatures("1.0", false)
+	info, legacy, err := repo.git.LsSignatures(t.Context(), "1.0", false)
 	require.NoError(t, err)
 	require.Len(t, info, 1)
 	assert.Equal(t, "1.0", info[0].Revision)
@@ -250,7 +251,7 @@ func Test_SignedTag(t *testing.T) {
 	assert.Contains(t, legacy, tagKeyId)
 	assert.Contains(t, legacy, `gpg: Good signature from "tag gpg User <tag gpg@example.com>" [ultimate]`)
 
-	info, legacy, err = repo.git.LsSignatures("2.0", false)
+	info, legacy, err = repo.git.LsSignatures(t.Context(), "2.0", false)
 	require.NoError(t, err)
 	require.Len(t, info, 1)
 	assert.Equal(t, "2.0", info[0].Revision)
@@ -261,7 +262,7 @@ func Test_SignedTag(t *testing.T) {
 	assert.Contains(t, legacy, tagKeyId)
 	assert.Contains(t, legacy, `gpg: Good signature from "tag gpg User <tag gpg@example.com>" [ultimate]`)
 
-	info, legacy, err = repo.git.LsSignatures("dev", false)
+	info, legacy, err = repo.git.LsSignatures(t.Context(), "dev", false)
 	require.NoError(t, err)
 	require.Len(t, info, 1)
 	assert.Equal(t, "dev", info[0].Revision)

@@ -18,15 +18,11 @@ import (
 func TestListMergeGenerator(t *testing.T) {
 	generateExpectedApp := func(name, nameSuffix string) v1alpha1.Application {
 		return v1alpha1.Application{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: "argoproj.io/v1alpha1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       fmt.Sprintf("%s-%s", name, nameSuffix),
-				Namespace:  utils.TestNamespace(),
-				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			},
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+			Name:       fmt.Sprintf("%s-%s", name, nameSuffix),
+			Namespace:  utils.TestNamespace(),
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{
@@ -136,15 +132,11 @@ func TestListMergeGenerator(t *testing.T) {
 func TestClusterMergeGenerator(t *testing.T) {
 	generateExpectedApp := func(cluster, name, nameSuffix string) v1alpha1.Application {
 		return v1alpha1.Application{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: "argoproj.io/v1alpha1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       fmt.Sprintf("%s-%s-%s", cluster, name, nameSuffix),
-				Namespace:  utils.TestNamespace(),
-				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			},
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+			Name:       fmt.Sprintf("%s-%s-%s", cluster, name, nameSuffix),
+			Namespace:  utils.TestNamespace(),
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{
@@ -277,15 +269,11 @@ func TestClusterMergeGenerator(t *testing.T) {
 func TestMergeTerminalMergeGeneratorSelector(t *testing.T) {
 	generateExpectedApp := func(name, nameSuffix string) v1alpha1.Application {
 		return v1alpha1.Application{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: "argoproj.io/v1alpha1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:       fmt.Sprintf("%s-%s", name, nameSuffix),
-				Namespace:  utils.TestNamespace(),
-				Finalizers: []string{v1alpha1.ResourcesFinalizerName},
-			},
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
+			Name:       fmt.Sprintf("%s-%s", name, nameSuffix),
+			Namespace:  utils.TestNamespace(),
+			Finalizers: []string{v1alpha1.ResourcesFinalizerName},
 			Spec: v1alpha1.ApplicationSpec{
 				Project: "default",
 				Source: &v1alpha1.ApplicationSource{

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -25,7 +25,7 @@ const (
 	succeeded = "succeeded"
 )
 
-// Expectation returns succeeded on succes condition, or pending/failed on failure, along with
+// Expectation returns succeeded on success condition, or pending/failed on failure, along with
 // a message to describe the success/failure condition.
 type Expectation func(c *Consequences) (state state, message string)
 
@@ -212,13 +212,11 @@ func filterFields(input v1alpha1.Application) v1alpha1.Application {
 	metaCopy := input.ObjectMeta.DeepCopy()
 
 	output := v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Labels:      metaCopy.Labels,
-			Annotations: metaCopy.Annotations,
-			Name:        metaCopy.Name,
-			Namespace:   metaCopy.Namespace,
-			Finalizers:  metaCopy.Finalizers,
-		},
+		Labels:      metaCopy.Labels,
+		Annotations: metaCopy.Annotations,
+		Name:        metaCopy.Name,
+		Namespace:   metaCopy.Namespace,
+		Finalizers:  metaCopy.Finalizers,
 		Spec: v1alpha1.ApplicationSpec{
 			Source: &v1alpha1.ApplicationSource{
 				Path:           spec.GetSource().Path,
