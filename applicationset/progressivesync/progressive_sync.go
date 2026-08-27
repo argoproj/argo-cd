@@ -124,16 +124,16 @@ func (m *Manager) PerformProgressiveSyncs(ctx context.Context, logCtx *log.Entry
 
 	// Capture the previous transition time BEFORE updating status to avoid checking against
 	// the transition time that will be set in the current reconcile loop
-	previousWaitingTime := getLatestWaitingTransitionTimeOfAppset(&appset)
+	previousWaitingTime := GetLatestWaitingTransitionTimeOfAppset(&appset)
 
-	updatedAppsetApplicationStatus, err := m.UpdateApplicationSetApplicationStatus(ctx, logCtx, &appset, applications, desiredApplications, appStepMap)
+	_, err := m.UpdateApplicationSetApplicationStatus(ctx, logCtx, &appset, applications, desiredApplications, appStepMap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update applicationset app status: %w", err)
 	}
 
 	// Ensure all applications are reconciled before proceeding with progressive sync
 	// Use the previous transition time to check, not the one we just set
-	allReconciled, err := m.ensureApplicationsReconciled(logCtx, &appset, applications, previousWaitingTime, updatedAppsetApplicationStatus, refreshGracePeriodSeconds, appStepMap)
+	allReconciled, err := m.ensureApplicationsReconciled(logCtx, &appset, applications, previousWaitingTime, refreshGracePeriodSeconds)
 	if err != nil {
 		return nil, fmt.Errorf("failed to ensure applications reconciled: %w", err)
 	}
@@ -659,7 +659,7 @@ func isApplicationWithError(app argov1alpha1.Application) bool {
 	return false
 }
 
-// getLatestWaitingTransitionTimeOfAppset extracts the latest (most recent) LastTransitionTime from
+// GetLatestWaitingTransitionTimeOfAppset extracts the latest (most recent) LastTransitionTime from
 // ApplicationSet status for Applications in Waiting state that have pending changes (not new apps).
 // New apps are excluded because they have no prior revision; their LastTransitionTime doesn't represent a change requiring reconcile window
 // Returns nil if first reconcile of Appset, since ApplicationStatus would be empty.
@@ -667,7 +667,7 @@ func isApplicationWithError(app argov1alpha1.Application) bool {
 // Using the latest time anchors the reconcile window so all apps must reconcile after the last
 // detected change, not after the first (which can let apps through that reconciled before they
 // were marked Waiting).
-func getLatestWaitingTransitionTimeOfAppset(appset *argov1alpha1.ApplicationSet) *metav1.Time {
+func GetLatestWaitingTransitionTimeOfAppset(appset *argov1alpha1.ApplicationSet) *metav1.Time {
 	var latest *metav1.Time
 	for _, appStatus := range appset.Status.ApplicationStatus {
 		// Only consider apps in Waiting state that have a transition time
@@ -690,7 +690,7 @@ func hasPendingChanges(appStatus argov1alpha1.ApplicationSetApplicationStatus) b
 }
 
 // addRefreshAnnotationToApplications adds the refresh annotation to all Applications owned by the ApplicationSet
-func (m *Manager) addRefreshAnnotationToApplications(logCtx *log.Entry, appset *argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, appStepMap map[string]int) error {
+func (m *Manager) addRefreshAnnotationToApplications(logCtx *log.Entry, applications []argov1alpha1.Application) error {
 	for _, app := range applications {
 		// Check if annotation already exists
 		if app.Annotations != nil && app.Annotations[argov1alpha1.AnnotationKeyRefresh] != "" {
@@ -714,20 +714,15 @@ func (m *Manager) addRefreshAnnotationToApplications(logCtx *log.Entry, appset *
 }
 
 // checkAllApplicationsReconciled verifies that all Applications have been reconciled since the given time,
-// that no refresh annotations are present, and that the reconciled revision matches the target revision
-// returns list of applications that need to be reconciled
-func checkAllApplicationsReconciled(applications []argov1alpha1.Application, logCtx *log.Entry, sinceTime *metav1.Time, appSetAppStatus []argov1alpha1.ApplicationSetApplicationStatus) (bool, []argov1alpha1.Application) {
+// if all applications not reconciled, returns list of applications that need to be reconciled by adding refresh annotation
+func checkAllApplicationsReconciled(applications []argov1alpha1.Application, logCtx *log.Entry, sinceTime *metav1.Time) (bool, []argov1alpha1.Application) {
 	if sinceTime == nil {
 		return true, nil
 	}
 	var addAnnotations []argov1alpha1.Application
-	statusMap := make(map[string]argov1alpha1.ApplicationSetApplicationStatus)
-	for _, appStatus := range appSetAppStatus {
-		statusMap[appStatus.Application] = appStatus
-	}
 	allReconciled := true
 	for _, app := range applications {
-		if needsReconcile(logCtx, app, statusMap, sinceTime) {
+		if needsReconcile(logCtx, app, sinceTime) {
 			allReconciled = false
 			if _, requested := app.IsRefreshRequested(); !requested {
 				addAnnotations = append(addAnnotations, app)
@@ -738,7 +733,7 @@ func checkAllApplicationsReconciled(applications []argov1alpha1.Application, log
 	return allReconciled, addAnnotations
 }
 
-func needsReconcile(logCtx *log.Entry, app argov1alpha1.Application, statusMap map[string]argov1alpha1.ApplicationSetApplicationStatus, sinceTime *metav1.Time) bool {
+func needsReconcile(logCtx *log.Entry, app argov1alpha1.Application, sinceTime *metav1.Time) bool {
 	if app.Status.ReconciledAt == nil {
 		logCtx.Debug("Application ReconciledAt is nil, not yet reconciled")
 		return true
@@ -753,20 +748,6 @@ func needsReconcile(logCtx *log.Entry, app argov1alpha1.Application, statusMap m
 		return true
 	}
 
-	// This ensures the app actually picked up the new revision
-	if appStatus, ok := statusMap[app.Name]; ok {
-		currentRevisions := app.Status.GetRevisions()
-
-		if !reflect.DeepEqual(currentRevisions, appStatus.TargetRevisions) {
-			logCtx.WithFields(log.Fields{
-				"app":              app.Name,
-				"currentRevisions": currentRevisions,
-				"targetRevisions":  appStatus.TargetRevisions,
-			}).Debug("Application reconciled but revision doesn't match target - waiting for correct revision")
-			return true
-		}
-	}
-
 	return false
 }
 
@@ -774,7 +755,7 @@ func needsReconcile(logCtx *log.Entry, app argov1alpha1.Application, statusMap m
 // It adds refresh annotations if needed and checks if all apps have been reconciled
 // previousWaitingTime is the transition time captured before updateApplicationSetApplicationStatus ran,
 // to avoid checking against the transition time that was just set in the current reconcile loop
-func (m *Manager) ensureApplicationsReconciled(logCtx *log.Entry, appset *argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, previousWaitingTime *metav1.Time, appSetAppStatus []argov1alpha1.ApplicationSetApplicationStatus, refreshGracePeriodSeconds int, appStepMap map[string]int) (bool, error) {
+func (m *Manager) ensureApplicationsReconciled(logCtx *log.Entry, appset *argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, previousWaitingTime *metav1.Time, refreshGracePeriodSeconds int) (bool, error) {
 	// Use the provided previous transition time to check reconciliation status
 	// This prevents the endless loop where apps can never catch up to a transition time
 	// that was just set in the current reconcile loop
@@ -783,7 +764,7 @@ func (m *Manager) ensureApplicationsReconciled(logCtx *log.Entry, appset *argov1
 		latestWaitingTime = previousWaitingTime
 	} else {
 		// apps didn't have pending changes before this reconcile, but check if the status update before this call changed anything
-		latestWaitingTime = getLatestWaitingTransitionTimeOfAppset(appset)
+		latestWaitingTime = GetLatestWaitingTransitionTimeOfAppset(appset)
 	}
 
 	if latestWaitingTime == nil {
@@ -802,14 +783,14 @@ func (m *Manager) ensureApplicationsReconciled(logCtx *log.Entry, appset *argov1
 		}
 	}
 	// Check if all applications have been reconciled since the latestWaitingTime
-	allReconciled, appsNeedReconcile := checkAllApplicationsReconciled(applications, logCtx, latestWaitingTime, appSetAppStatus)
+	allReconciled, appsNeedReconcile := checkAllApplicationsReconciled(applications, logCtx, latestWaitingTime)
 	if allReconciled {
 		logCtx.Info("All Applications have been reconciled, proceeding with progressive sync")
 		return true, nil
 	}
 
 	// add refresh annotations to trigger reconciliation
-	err := m.addRefreshAnnotationToApplications(logCtx, appset, appsNeedReconcile, appStepMap)
+	err := m.addRefreshAnnotationToApplications(logCtx, appsNeedReconcile)
 	if err != nil {
 		return false, fmt.Errorf("failed to add refresh annotations: %w", err)
 	}
@@ -1030,16 +1011,22 @@ func (m *Manager) SyncDesiredApplications(logCtx *log.Entry, applicationSet *arg
 		disableAutomatedSync(&desiredApplications[i])
 
 		appSetStatusPending := false
+		var pinnedRevisions []string
 		idx := utils.FindApplicationStatusIndex(applicationSet.Status.ApplicationStatus, desiredApplications[i].Name)
 		if idx > -1 && applicationSet.Status.ApplicationStatus[idx].Status == argov1alpha1.ProgressiveSyncPending {
 			// only trigger a sync for Applications that are in Pending status, since this is governed by maxUpdate
 			appSetStatusPending = true
+			// Pin the sync to the revision recorded when this step was unblocked, so a commit that
+			// lands mid-rollout cannot hijack a step that is already in flight. See needsReconcile /
+			// UpdateApplicationSetApplicationStatus for how TargetRevisions is kept in sync with
+			// app.Status.Sync.Revision(s) independent of RollingSync gating.
+			pinnedRevisions = applicationSet.Status.ApplicationStatus[idx].TargetRevisions
 		}
 
 		// check appsToSync to determine which Applications are ready to be updated and which should be skipped
 		if appsToSync[desiredApplications[i].Name] && appSetStatusPending {
 			logCtx.Infof("triggering sync for application: %v, prune enabled: %v", desiredApplications[i].Name, pruneEnabled)
-			desiredApplications[i] = syncApplication(desiredApplications[i], pruneEnabled)
+			desiredApplications[i] = syncApplication(desiredApplications[i], pruneEnabled, pinnedRevisions)
 		}
 
 		rolloutApps = append(rolloutApps, desiredApplications[i])
@@ -1048,7 +1035,10 @@ func (m *Manager) SyncDesiredApplications(logCtx *log.Entry, applicationSet *arg
 }
 
 // used by the RollingSync Progressive Sync strategy to trigger a sync of a particular Application resource
-func syncApplication(application argov1alpha1.Application, prune bool) argov1alpha1.Application {
+// revisions pins the sync to the revision(s) recorded on the appset's ApplicationStatus at the time this
+// step was unblocked, so a commit landing while this step is queued or in flight cannot cause it to sync
+// against a newer, unvalidated revision than the one the rollout is progressing.
+func syncApplication(application argov1alpha1.Application, prune bool, revisions []string) argov1alpha1.Application {
 	operation := argov1alpha1.Operation{
 		InitiatedBy: argov1alpha1.OperationInitiator{
 			Username:  "applicationset-controller",
@@ -1065,6 +1055,12 @@ func syncApplication(application argov1alpha1.Application, prune bool) argov1alp
 		// This provides consistency for retry behavior across controllers.
 		// See: https://github.com/argoproj/argo-cd/blob/af9ebac0bb35dc16eb034c1cefaf7c92d1029927/controller/appcontroller.go#L2126
 		Retry: argov1alpha1.RetryStrategy{Limit: 5},
+	}
+
+	if application.Spec.HasMultipleSources() {
+		operation.Sync.Revisions = revisions
+	} else if len(revisions) > 0 {
+		operation.Sync.Revision = revisions[0]
 	}
 
 	if application.Spec.SyncPolicy != nil {

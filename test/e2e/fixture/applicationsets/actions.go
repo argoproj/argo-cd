@@ -121,13 +121,11 @@ func (a *Actions) CreateClusterSecret(secretName string, clusterName string, clu
 
 		// bearerToken
 		secret := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      secretName,
-				Namespace: fixture.TestNamespace(),
-				Labels: map[string]string{
-					common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-					utils.TestingLabel:        "true",
-				},
+			Name:      secretName,
+			Namespace: fixture.TestNamespace(),
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+				utils.TestingLabel:        "true",
 			},
 			Data: map[string][]byte{
 				"name":   []byte(clusterName),
@@ -199,7 +197,7 @@ func (a *Actions) CreateNamespace(namespace string) *Actions {
 	fixtureClient := utils.GetE2EFixtureK8sClient(a.context.T())
 
 	_, err := fixtureClient.KubeClientset.CoreV1().Namespaces().Create(context.Background(),
-		&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}, metav1.CreateOptions{})
+		&corev1.Namespace{Name: namespace}, metav1.CreateOptions{})
 
 	a.describeAction = fmt.Sprintf("creating namespace '%s'", namespace)
 	a.lastOutput, a.lastError = "", err
@@ -267,7 +265,7 @@ func (a *Actions) CreatePlacementRoleAndRoleBinding() *Actions {
 	var err error
 
 	_, err = fixtureClient.KubeClientset.RbacV1().Roles(fixture.TestNamespace()).Create(context.Background(), &rbacv1.Role{
-		ObjectMeta: metav1.ObjectMeta{Name: "placement-role", Namespace: fixture.TestNamespace()},
+		Name: "placement-role", Namespace: fixture.TestNamespace(),
 		Rules: []rbacv1.PolicyRule{
 			{
 				Verbs:     []string{"get", "list", "watch"},
@@ -283,7 +281,7 @@ func (a *Actions) CreatePlacementRoleAndRoleBinding() *Actions {
 	if err == nil {
 		_, err = fixtureClient.KubeClientset.RbacV1().RoleBindings(fixture.TestNamespace()).Create(context.Background(),
 			&rbacv1.RoleBinding{
-				ObjectMeta: metav1.ObjectMeta{Name: "placement-role-binding", Namespace: fixture.TestNamespace()},
+				Name: "placement-role-binding", Namespace: fixture.TestNamespace(),
 				Subjects: []rbacv1.Subject{
 					{
 						Name:      "argocd-applicationset-controller",
@@ -324,9 +322,7 @@ func (a *Actions) CreatePlacementDecisionConfigMap(configMapName string) *Action
 
 	_, err = fixtureClient.KubeClientset.CoreV1().ConfigMaps(fixture.TestNamespace()).Create(context.Background(),
 		&corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: configMapName,
-			},
+			Name: configMapName,
 			Data: map[string]string{
 				"apiVersion":    "cluster.open-cluster-management.io/v1alpha1",
 				"kind":          "placementdecisions",

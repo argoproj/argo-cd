@@ -29,19 +29,15 @@ func TestApplicationSetProgressiveSyncStep(t *testing.T) {
 		t.Skip("Skipping progressive sync tests - env variable not set to enable progressive sync")
 	}
 	expectedDevApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "app1-dev",
+		Namespace:  fixture.TestNamespace(),
+		Labels: map[string]string{
+			"environment": "dev",
 		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app1-dev",
-			Namespace: fixture.TestNamespace(),
-			Labels: map[string]string{
-				"environment": "dev",
-			},
-			Finalizers: []string{
-				"resources-finalizer.argocd.argoproj.io",
-			},
+		Finalizers: []string{
+			"resources-finalizer.argocd.argoproj.io",
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
@@ -58,19 +54,15 @@ func TestApplicationSetProgressiveSyncStep(t *testing.T) {
 	}
 
 	expectedStageApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "app2-staging",
+		Namespace:  fixture.TestNamespace(),
+		Labels: map[string]string{
+			"environment": "staging",
 		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app2-staging",
-			Namespace: fixture.TestNamespace(),
-			Labels: map[string]string{
-				"environment": "staging",
-			},
-			Finalizers: []string{
-				"resources-finalizer.argocd.argoproj.io",
-			},
+		Finalizers: []string{
+			"resources-finalizer.argocd.argoproj.io",
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
@@ -86,19 +78,15 @@ func TestApplicationSetProgressiveSyncStep(t *testing.T) {
 		},
 	}
 	expectedProdApp := v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: "argoproj.io/v1alpha1",
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "app3-prod",
+		Namespace:  fixture.TestNamespace(),
+		Labels: map[string]string{
+			"environment": "prod",
 		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app3-prod",
-			Namespace: fixture.TestNamespace(),
-			Labels: map[string]string{
-				"environment": "prod",
-			},
-			Finalizers: []string{
-				"resources-finalizer.argocd.argoproj.io",
-			},
+		Finalizers: []string{
+			"resources-finalizer.argocd.argoproj.io",
 		},
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
@@ -117,9 +105,7 @@ func TestApplicationSetProgressiveSyncStep(t *testing.T) {
 	Given(t).
 		When().
 		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "progressive-sync-apps",
-			},
+			Name: "progressive-sync-apps",
 			Spec: v1alpha1.ApplicationSetSpec{
 				GoTemplate: true,
 				Template: v1alpha1.ApplicationSetTemplate{
@@ -254,9 +240,7 @@ func TestProgressiveSyncHealthGating(t *testing.T) {
 	Given(t).
 		When().
 		Create(v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "progressive-sync-gating",
-			},
+			Name: "progressive-sync-gating",
 			Spec: v1alpha1.ApplicationSetSpec{
 				GoTemplate: true,
 				Template: v1alpha1.ApplicationSetTemplate{
@@ -552,7 +536,7 @@ func TestProgressiveSyncRefreshAnnotationOnRevisionChange(t *testing.T) {
 		When().
 		AddAppAnnotation("refresh-dev-app1", common.AnnotationKeyAppSkipReconcile, "true").
 		And(func() {
-			changeTime = ptr.To(metav1.Now())
+			changeTime = new(metav1.Now())
 			t.Log("Updating targetRevision to new revision by patching git")
 			fixture.Patch(t, "progressive-sync/updateRevision/deployment.yaml", `[{"op": "replace", "path": "/spec/replicas", "value": 3}]`)
 			t.Log("Git revision changed to revisionB")
@@ -583,13 +567,9 @@ func TestProgressiveSyncRefreshAnnotationOnRevisionChange(t *testing.T) {
 }
 
 var appSetInvalidStepConfiguration = v1alpha1.ApplicationSet{
-	ObjectMeta: metav1.ObjectMeta{
-		Name: "invalid-step-configuration",
-	},
-	TypeMeta: metav1.TypeMeta{
-		Kind:       "ApplicationSet",
-		APIVersion: "argoproj.io/v1alpha1",
-	},
+	Name:       "invalid-step-configuration",
+	Kind:       "ApplicationSet",
+	APIVersion: "argoproj.io/v1alpha1",
 	Spec: v1alpha1.ApplicationSetSpec{
 		GoTemplate: true,
 		Template: v1alpha1.ApplicationSetTemplate{
@@ -639,13 +619,9 @@ var appSetInvalidStepConfiguration = v1alpha1.ApplicationSet{
 }
 
 var appSetWithEmptyGenerator = v1alpha1.ApplicationSet{
-	ObjectMeta: metav1.ObjectMeta{
-		Name: "appset-empty-generator",
-	},
-	TypeMeta: metav1.TypeMeta{
-		Kind:       "ApplicationSet",
-		APIVersion: "argoproj.io/v1alpha1",
-	},
+	Name:       "appset-empty-generator",
+	Kind:       "ApplicationSet",
+	APIVersion: "argoproj.io/v1alpha1",
 	Spec: v1alpha1.ApplicationSetSpec{
 		GoTemplate: true,
 		Template: v1alpha1.ApplicationSetTemplate{
@@ -691,13 +667,9 @@ var appSetWithEmptyGenerator = v1alpha1.ApplicationSet{
 }
 
 var appSetWithReverseDeletionOrder = v1alpha1.ApplicationSet{
-	ObjectMeta: metav1.ObjectMeta{
-		Name: "appset-reverse-deletion-order",
-	},
-	TypeMeta: metav1.TypeMeta{
-		Kind:       "ApplicationSet",
-		APIVersion: "argoproj.io/v1alpha1",
-	},
+	Name:       "appset-reverse-deletion-order",
+	Kind:       "ApplicationSet",
+	APIVersion: "argoproj.io/v1alpha1",
 	Spec: v1alpha1.ApplicationSetSpec{
 		GoTemplate: true,
 		Template: v1alpha1.ApplicationSetTemplate{
@@ -753,9 +725,7 @@ var appSetWithReverseDeletionOrder = v1alpha1.ApplicationSet{
 }
 
 var appSetForRefreshAnnotation = v1alpha1.ApplicationSet{
-	ObjectMeta: metav1.ObjectMeta{
-		Name: "progressive-sync-refresh-test",
-	},
+	Name: "progressive-sync-refresh-test",
 	Spec: v1alpha1.ApplicationSetSpec{
 		GoTemplate: true,
 		Template: v1alpha1.ApplicationSetTemplate{
@@ -820,18 +790,14 @@ func generateExpectedApp(prefix string, path string, name string, envVar string,
 		finalPath = path + name
 	}
 	return v1alpha1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Application",
-			APIVersion: "argoproj.io/v1alpha1",
+		Kind:       "Application",
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       prefix + name,
+		Namespace:  fixture.TestNamespace(),
+		Labels: map[string]string{
+			"environment": envVar,
 		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      prefix + name,
-			Namespace: fixture.TestNamespace(),
-			Labels: map[string]string{
-				"environment": envVar,
-			},
-			Finalizers: finalizers,
-		},
+		Finalizers: finalizers,
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
