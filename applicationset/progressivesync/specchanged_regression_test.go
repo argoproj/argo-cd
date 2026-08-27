@@ -90,6 +90,9 @@ func (regressionDeps) SetApplicationSetStatusCondition(_ context.Context, _ *arg
 	return nil
 }
 
+func (regressionDeps) RecordProgressiveSyncTriggered(*argov1alpha1.ApplicationSet, string) {
+}
+
 func regressionManager(t *testing.T, appSet *argov1alpha1.ApplicationSet) *Manager {
 	t.Helper()
 	scheme := runtime.NewScheme()

@@ -551,13 +551,6 @@ argocd_appset_reconcile_count{name="test1",namespace="argocd"} 1
 `)
 }
 
-//func TestMetricsRegistered(t *testing.T) {
-//	appsetList := newFakeAppsets(fakeAppsetList)
-//	client := initializeClient(appsetList)
-//	m := NewApplicationsetMetrics(utils.NewAppsetLister(client), collectedLabels, filter)
-//	testutil.CollectAndCount()
-//}
-
 func initializeClient(appsets []argoappv1.ApplicationSet) ctrlclient.WithWatch {
 	scheme := runtime.NewScheme()
 	err := argoappv1.AddToScheme(scheme)
