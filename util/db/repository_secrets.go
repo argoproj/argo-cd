@@ -462,6 +462,14 @@ func (s *secretsRepositoryBackend) repositoryToSecret(repository *appsv1.Reposit
 
 func (s *secretsRepositoryBackend) secretToRepoCred(secret *corev1.Secret) (*appsv1.RepoCreds, error) {
 	secretCopy := secret.DeepCopy()
+	azureServicePrincipalClientID, ok := secretCopy.Data["azureServicePrincipalClientID"]
+	if !ok {
+		azureServicePrincipalClientID = secretCopy.Data["azureServicePrincipalClientId"]
+	}
+	azureServicePrincipalTenantID, ok := secretCopy.Data["azureServicePrincipalTenantID"]
+	if !ok {
+		azureServicePrincipalTenantID = secretCopy.Data["azureServicePrincipalTenantId"]
+	}
 
 	repository := &appsv1.RepoCreds{
 		URL:                               string(secretCopy.Data["url"]),
@@ -477,9 +485,9 @@ func (s *secretsRepositoryBackend) secretToRepoCred(secret *corev1.Secret) (*app
 		GCPServiceAccountKey:              string(secretCopy.Data["gcpServiceAccountKey"]),
 		Proxy:                             string(secretCopy.Data["proxy"]),
 		NoProxy:                           string(secretCopy.Data["noProxy"]),
-		AzureServicePrincipalClientId:     string(secretCopy.Data["azureServicePrincipalClientID"]),
+		AzureServicePrincipalClientId:     string(azureServicePrincipalClientID),
 		AzureServicePrincipalClientSecret: string(secretCopy.Data["azureServicePrincipalClientSecret"]),
-		AzureServicePrincipalTenantId:     string(secretCopy.Data["azureServicePrincipalTenantID"]),
+		AzureServicePrincipalTenantId:     string(azureServicePrincipalTenantID),
 		AzureActiveDirectoryEndpoint:      string(secretCopy.Data["azureActiveDirectoryEndpoint"]),
 	}
 
