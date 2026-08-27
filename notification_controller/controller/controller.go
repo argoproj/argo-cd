@@ -88,6 +88,7 @@ func NewController(
 	secretName string,
 	configMapName string,
 	selfServiceNotificationEnabled bool,
+	crd configbus.CRDSource,
 ) (*notificationController, error) {
 	res := &notificationController{
 		selfServiceNotificationEnabled: selfServiceNotificationEnabled,
@@ -97,7 +98,7 @@ func NewController(
 		appLabelSelector:               appLabelSelector,
 		controllerNamespace:            namespace,
 	}
-	res.InitConfigProvider()
+	res.InitConfigProvider(crd)
 
 	applicationNamespacesCfg, err := res.configProvider.ApplicationNamespaces(context.Background())
 	if err != nil {

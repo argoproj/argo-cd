@@ -25,8 +25,10 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 	notificationscontroller "github.com/argoproj/argo-cd/v3/notification_controller/controller"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v3/util/cli"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	service "github.com/argoproj/argo-cd/v3/util/notification/argocd"
@@ -98,6 +100,8 @@ func NewCommand() *cobra.Command {
 					return fmt.Errorf("failed to determine controller's host namespace: %w", err)
 				}
 			}
+			appClient := appclientset.NewForConfigOrDie(restConfig)
+			crdSource := configbus.NewOptionalInformerCRDSource(ctx, appClient, namespace)
 			level, err := log.ParseLevel(logLevel)
 			if err != nil {
 				return fmt.Errorf("failed to parse log level: %w", err)
@@ -155,7 +159,10 @@ func NewCommand() *cobra.Command {
 			log.Infof("serving metrics on port %d", metricsPort)
 			log.Infof("loading configuration %d", metricsPort)
 
-			ctrl := notificationscontroller.NewController(k8sClient, dynamicClient, argocdService, namespace, applicationNamespaces, appLabelSelector, registry, secretName, configMapName, selfServiceNotificationEnabled)
+			ctrl, err := notificationscontroller.NewController(k8sClient, dynamicClient, argocdService, namespace, applicationNamespaces, appLabelSelector, registry, secretName, configMapName, selfServiceNotificationEnabled, crdSource)
+			if err != nil {
+				return fmt.Errorf("failed to create notifications controller: %w", err)
+			}
 			err = ctrl.Init(ctx)
 			if err != nil {
 				return fmt.Errorf("failed to initialize controller: %w", err)

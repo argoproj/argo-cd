@@ -25,3 +25,11 @@ type ApplicationSetListerExpansion interface{}
 // ApplicationSetNamespaceListerExpansion allows custom methods to be added to
 // ApplicationSetNamespaceLister.
 type ApplicationSetNamespaceListerExpansion interface{}
+
+// ArgoCDConfigurationListerExpansion allows custom methods to be added to
+// ArgoCDConfigurationLister.
+type ArgoCDConfigurationListerExpansion interface{}
+
+// ArgoCDConfigurationNamespaceListerExpansion allows custom methods to be added to
+// ArgoCDConfigurationNamespaceLister.
+type ArgoCDConfigurationNamespaceListerExpansion interface{}

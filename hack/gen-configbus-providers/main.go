@@ -23,8 +23,17 @@ const providerPath = "util/configbus/provider.go"
 // Non-field methods: lifecycle / escape hatches routed specially by ChainProvider
 // and left as no-ops on leaves via the embedded empty ChainProvider.
 var specialMethods = map[string]bool{
-	"Subscribe":   true,
-	"Unsubscribe": true,
+	"Configuration":   true,
+	"Subscribe":       true,
+	"Unsubscribe":     true,
+	"SubscribeCRD":    true,
+	"UnsubscribeCRD":  true,
+}
+
+// aliasMethods maps deprecated/alternate getters onto a canonical shared getter.
+// Aliases are not StaticFields; Static and Chain route them to the canonical method.
+var aliasMethods = map[string]string{
+	"NotificationsApplicationNamespaces": "ApplicationNamespaces",
 }
 
 type method struct {
@@ -128,6 +137,9 @@ func parseProvider(path string) ([]method, map[string]string) {
 					m.Results = ""
 				}
 				if specialMethods[name] {
+					m.IsField = false
+				}
+				if _, ok := aliasMethods[name]; ok {
 					m.IsField = false
 				}
 				methods = append(methods, m)
@@ -305,7 +317,40 @@ func writeChainMethod(b *strings.Builder, m method) {
 }
 
 `)
+	case "SubscribeCRD":
+		b.WriteString(`func (c *ChainProvider) SubscribeCRD(subCh chan<- struct{}) {
+	for _, l := range c.links {
+		l.SubscribeCRD(subCh)
+	}
+}
+
+`)
+	case "UnsubscribeCRD":
+		b.WriteString(`func (c *ChainProvider) UnsubscribeCRD(subCh chan<- struct{}) {
+	for _, l := range c.links {
+		l.UnsubscribeCRD(subCh)
+	}
+}
+
+`)
+	case "Configuration":
+		fmt.Fprintf(b, `func (c *ChainProvider) Configuration(%s) %s {
+	return firstConfigured(func(p Provider) %s {
+		return p.Configuration(%s)
+	}, c.links)
+}
+
+`, m.Params, m.Results, m.Results, callArgs(m.Params))
 	default:
+		if canon, ok := aliasMethods[m.Name]; ok {
+			fmt.Fprintf(b, `// %s is an alias for %s for call sites that predate the shared getter.
+func (c *ChainProvider) %s(%s) %s {
+	return c.%s(%s)
+}
+
+`, m.Name, canon, m.Name, m.Params, m.Results, canon, callArgs(m.Params))
+			return
+		}
 		if !m.IsField {
 			return
 		}
@@ -368,6 +413,16 @@ var _ Provider = (*StaticProvider)(nil)
 			continue
 		}
 		writeStaticGetter(&b, m)
+	}
+	for _, m := range methods {
+		if canon, ok := aliasMethods[m.Name]; ok {
+			fmt.Fprintf(&b, `// %s is an alias for %s for call sites that predate the shared getter.
+func (p *StaticProvider) %s(%s) %s {
+	return p.%s(%s)
+}
+
+`, m.Name, canon, m.Name, m.Params, m.Results, canon, callArgs(m.Params))
+		}
 	}
 	return b.String()
 }

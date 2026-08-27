@@ -32,6 +32,30 @@ func NewChainProvider(links ...Provider) *ChainProvider {
 // Ensure ChainProvider implements Provider.
 var _ Provider = (*ChainProvider)(nil)
 
+func (c *ChainProvider) Subscribe(subCh chan<- *settings.ArgoCDSettings) {
+	for _, l := range c.links {
+		l.Subscribe(subCh)
+	}
+}
+
+func (c *ChainProvider) SubscribeCRD(subCh chan<- struct{}) {
+	for _, l := range c.links {
+		l.SubscribeCRD(subCh)
+	}
+}
+
+func (c *ChainProvider) Unsubscribe(subCh chan<- *settings.ArgoCDSettings) {
+	for _, l := range c.links {
+		l.Unsubscribe(subCh)
+	}
+}
+
+func (c *ChainProvider) UnsubscribeCRD(subCh chan<- struct{}) {
+	for _, l := range c.links {
+		l.UnsubscribeCRD(subCh)
+	}
+}
+
 func (c *ChainProvider) Accounts(ctx context.Context) (map[string]settings.Account, error) {
 	return firstConfigured(func(p Provider) (map[string]settings.Account, error) {
 		return p.Accounts(ctx)
@@ -296,6 +320,12 @@ func (c *ChainProvider) CommitserverMetricsPort(ctx context.Context) (int, error
 	}, c.links)
 }
 
+func (c *ChainProvider) Configuration(ctx context.Context) (*v1alpha1.ArgoCDConfiguration, error) {
+	return firstConfigured(func(p Provider) (*v1alpha1.ArgoCDConfiguration, error) {
+		return p.Configuration(ctx)
+	}, c.links)
+}
+
 func (c *ChainProvider) ContentSecurityPolicy(ctx context.Context) (string, error) {
 	return firstConfigured(func(p Provider) (string, error) {
 		return p.ContentSecurityPolicy(ctx)
@@ -359,6 +389,12 @@ func (c *ChainProvider) EnableGZip(ctx context.Context) (bool, error) {
 func (c *ChainProvider) EnableGitHubAPIMetrics(ctx context.Context) (bool, error) {
 	return firstConfigured(func(p Provider) (bool, error) {
 		return p.EnableGitHubAPIMetrics(ctx)
+	}, c.links)
+}
+
+func (c *ChainProvider) EnableK8sEvent(ctx context.Context) ([]string, error) {
+	return firstConfigured(func(p Provider) ([]string, error) {
+		return p.EnableK8sEvent(ctx)
 	}, c.links)
 }
 
@@ -608,10 +644,9 @@ func (c *ChainProvider) NotificationsAppLabelSelector(ctx context.Context) (stri
 	}, c.links)
 }
 
+// NotificationsApplicationNamespaces is an alias for ApplicationNamespaces for call sites that predate the shared getter.
 func (c *ChainProvider) NotificationsApplicationNamespaces(ctx context.Context) ([]string, error) {
-	return firstConfigured(func(p Provider) ([]string, error) {
-		return p.NotificationsApplicationNamespaces(ctx)
-	}, c.links)
+	return c.ApplicationNamespaces(ctx)
 }
 
 func (c *ChainProvider) NotificationsConfigMapName(ctx context.Context) (string, error) {
@@ -848,12 +883,6 @@ func (c *ChainProvider) SubmoduleEnabled(ctx context.Context) (bool, error) {
 	}, c.links)
 }
 
-func (c *ChainProvider) Subscribe(subCh chan<- *settings.ArgoCDSettings) {
-	for _, l := range c.links {
-		l.Subscribe(subCh)
-	}
-}
-
 func (c *ChainProvider) SyncTimeout(ctx context.Context) (time.Duration, error) {
 	return firstConfigured(func(p Provider) (time.Duration, error) {
 		return p.SyncTimeout(ctx)
@@ -870,12 +899,6 @@ func (c *ChainProvider) TrackingMethod(ctx context.Context) (string, error) {
 	return firstConfigured(func(p Provider) (string, error) {
 		return p.TrackingMethod(ctx)
 	}, c.links)
-}
-
-func (c *ChainProvider) Unsubscribe(subCh chan<- *settings.ArgoCDSettings) {
-	for _, l := range c.links {
-		l.Unsubscribe(subCh)
-	}
 }
 
 func (c *ChainProvider) UserSessionDuration(ctx context.Context) (time.Duration, error) {

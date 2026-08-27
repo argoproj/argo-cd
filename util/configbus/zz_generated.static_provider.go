@@ -78,6 +78,7 @@ type StaticFields struct {
 	EnableBuiltinGitConfig                        *bool
 	EnableGZip                                    *bool
 	EnableGitHubAPIMetrics                        *bool
+	EnableK8sEvent                                *[]string
 	EnableNewGitFileGlobbing                      *bool
 	EnableProxyExtension                          *bool
 	EnableScmProviders                            *bool
@@ -119,7 +120,6 @@ type StaticFields struct {
 	MetricsHost                                   *string
 	MetricsPort                                   *int
 	NotificationsAppLabelSelector                 *string
-	NotificationsApplicationNamespaces            *[]string
 	NotificationsConfigMapName                    *string
 	NotificationsSecretName                       *string
 	NotificationsSelfserviceEnabled               *bool
@@ -568,6 +568,13 @@ func (p *StaticProvider) EnableGitHubAPIMetrics(_ context.Context) (bool, error)
 	return *p.Fields.EnableGitHubAPIMetrics, nil
 }
 
+func (p *StaticProvider) EnableK8sEvent(_ context.Context) ([]string, error) {
+	if p == nil || p.Fields.EnableK8sEvent == nil {
+		return nil, ErrNotConfigured
+	}
+	return *p.Fields.EnableK8sEvent, nil
+}
+
 func (p *StaticProvider) EnableNewGitFileGlobbing(_ context.Context) (bool, error) {
 	if p == nil || p.Fields.EnableNewGitFileGlobbing == nil {
 		return false, ErrNotConfigured
@@ -853,13 +860,6 @@ func (p *StaticProvider) NotificationsAppLabelSelector(_ context.Context) (strin
 		return "", ErrNotConfigured
 	}
 	return *p.Fields.NotificationsAppLabelSelector, nil
-}
-
-func (p *StaticProvider) NotificationsApplicationNamespaces(_ context.Context) ([]string, error) {
-	if p == nil || p.Fields.NotificationsApplicationNamespaces == nil {
-		return nil, ErrNotConfigured
-	}
-	return *p.Fields.NotificationsApplicationNamespaces, nil
 }
 
 func (p *StaticProvider) NotificationsConfigMapName(_ context.Context) (string, error) {
@@ -1196,4 +1196,9 @@ func (p *StaticProvider) XFrameOptions(_ context.Context) (string, error) {
 		return "", ErrNotConfigured
 	}
 	return *p.Fields.XFrameOptions, nil
+}
+
+// NotificationsApplicationNamespaces is an alias for ApplicationNamespaces for call sites that predate the shared getter.
+func (p *StaticProvider) NotificationsApplicationNamespaces(ctx context.Context) ([]string, error) {
+	return p.ApplicationNamespaces(ctx)
 }

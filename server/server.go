@@ -342,7 +342,7 @@ func initializeDefaultProject(opts ArgoCDServerOpts) error {
 
 // NewServer returns a new instance of the Argo CD API server.
 // The config provider is wired from the server itself as the legacy source.
-func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts ApplicationSetOpts) *ArgoCDServer {
+func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts ApplicationSetOpts, crd configbus.CRDSource) *ArgoCDServer {
 	settingsMgr := settings_util.NewSettingsManager(ctx, opts.KubeClientset, opts.Namespace)
 	settings, err := settingsMgr.InitializeSettings(opts.Insecure)
 	errorsutil.CheckError(err)
@@ -454,6 +454,7 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	}
 	//nolint:staticcheck // SA1019: StaticFields capture construction-time opts once at wire-up
 	a.configProvider = configbus.NewChainProvider(
+		configbus.NewCRDProvider(crd),
 		&configbus.StaticProvider{Fields: configbus.StaticFields{
 			AllowedScmProviders:      configbus.Ptr(a.AllowedScmProviders),
 			ApplicationNamespaces:    configbus.Ptr(a.ApplicationNamespaces),
@@ -509,6 +510,7 @@ func (a *ArgoCDServer) ensureConfigProvider() {
 	}
 	//nolint:staticcheck // SA1019: StaticFields capture construction-time opts once at wire-up
 	a.configProvider = configbus.NewChainProvider(
+		configbus.NewCRDProvider(nil),
 		&configbus.StaticProvider{Fields: configbus.StaticFields{
 			ApplicationNamespaces: configbus.Ptr(a.ApplicationNamespaces),
 			BaseHRef:              configbus.Ptr(a.BaseHRef),
@@ -518,6 +520,56 @@ func (a *ArgoCDServer) ensureConfigProvider() {
 		configbus.NewEnvProvider(),
 	)
 }
+
+// rebuildConfigProviderFromFields rebuilds the production chain from the
+// current struct fields. Tests that mutate deprecated fields after NewServer
+// must call this so StaticProvider sees the updated values.
+func (a *ArgoCDServer) rebuildConfigProviderFromFields() {
+	settingsMgr := a.settingsMgr
+	dexPlaintext, dexStrictTLS := false, false
+	if a.DexTLSConfig != nil {
+		dexPlaintext = a.DexTLSConfig.DisableTLS
+		dexStrictTLS = a.DexTLSConfig.StrictValidation
+	}
+	//nolint:staticcheck // SA1019: StaticFields capture current fields for tests
+	a.configProvider = configbus.NewChainProvider(
+		configbus.NewCRDProvider(nil),
+		&configbus.StaticProvider{Fields: configbus.StaticFields{
+			AllowedScmProviders:       configbus.Ptr(a.AllowedScmProviders),
+			ApplicationNamespaces:     configbus.Ptr(a.ApplicationNamespaces),
+			BaseHRef:                  configbus.Ptr(a.BaseHRef),
+			ContentSecurityPolicy:     configbus.Ptr(a.ContentSecurityPolicy),
+			ContentTypes:              configbus.Ptr(a.ContentTypes),
+			DexServerAddr:             configbus.Ptr(a.DexServerAddr),
+			DexServerPlaintext:        configbus.Ptr(dexPlaintext),
+			DexServerStrictTLS:        configbus.Ptr(dexStrictTLS),
+			DisableAuth:               configbus.Ptr(a.DisableAuth),
+			EnableGZip:                configbus.Ptr(a.EnableGZip),
+			EnableGitHubAPIMetrics:    configbus.Ptr(a.EnableGitHubAPIMetrics),
+			EnableK8sEvent:            configbus.Ptr(a.EnableK8sEvent),
+			EnableNewGitFileGlobbing:  configbus.Ptr(a.EnableNewGitFileGlobbing),
+			EnableProxyExtension:      configbus.Ptr(a.EnableProxyExtension),
+			EnableScmProviders:        configbus.Ptr(a.EnableScmProviders),
+			GitSubmoduleEnabled:       configbus.Ptr(a.GitSubmoduleEnabled),
+			HydratorEnabled:           configbus.Ptr(a.HydratorEnabled),
+			Insecure:                  configbus.Ptr(a.Insecure),
+			ListenHost:                configbus.Ptr(a.ListenHost),
+			ListenPort:                configbus.Ptr(a.ListenPort),
+			MetricsHost:               configbus.Ptr(a.MetricsHost),
+			MetricsPort:               configbus.Ptr(a.MetricsPort),
+			RootPath:                  configbus.Ptr(a.RootPath),
+			ScmRootCAPath:             configbus.Ptr(a.ScmRootCAPath),
+			StaticAssetsDir:           configbus.Ptr(a.StaticAssetsDir),
+			SyncWithReplaceAllowed:    configbus.Ptr(a.SyncWithReplaceAllowed),
+			WebhookParallelism:        configbus.Ptr(a.WebhookParallelism),
+			WebhookRefreshWorkers:     configbus.Ptr(a.WebhookRefreshWorkers),
+			XFrameOptions:             configbus.Ptr(a.XFrameOptions),
+		}},
+		configbus.NewSettingsManagerProvider(settingsMgr),
+		configbus.NewEnvProvider(),
+	)
+}
+
 
 const (
 	// catches corrupted informer state; see https://github.com/argoproj/argo-cd/issues/4960 for more information

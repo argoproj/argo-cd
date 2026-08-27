@@ -31,6 +31,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 	"github.com/argoproj/argo-cd/v3/util/cli"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/dex"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/errors"
@@ -176,6 +177,8 @@ func NewCommand() *cobra.Command {
 			controllerClient = client.NewDryRunClient(controllerClient)
 			controllerClient = client.NewNamespacedClient(controllerClient, namespace)
 
+			crdSource := configbus.NewOptionalInformerCRDSource(ctx, appClientSet, namespace)
+
 			// Load CA information to use for validating connections to the repository server, if strict TLS validation
 			// was requested.
 			// Skip loading the embedded cert if the operator already provided anδ explicit CA via --repo-server-ca-cert;
@@ -274,7 +277,7 @@ func NewCommand() *cobra.Command {
 			stats.RegisterStackDumper()
 			stats.StartStatsTicker(10 * time.Minute)
 			stats.RegisterHeapDumper("memprofile")
-			argocd := server.NewServer(ctx, argoCDOpts, appsetOpts)
+			argocd := server.NewServer(ctx, argoCDOpts, appsetOpts, crdSource)
 			argocd.Init(ctx)
 			for {
 				var closer func()

@@ -47,7 +47,7 @@ type ArgoCDRepoServer struct {
 var tlsHostList = []string{"localhost", "reposerver"}
 
 // NewServer returns a new instance of the Argo CD Repo server
-func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cache, tlsConfCustomizer tlsutil.ConfigCustomizer, initConstants repository.RepoServerInitConstants, gitCredsStore git.CredsStore, clientCAPath string, disableTLS bool) (*ArgoCDRepoServer, error) {
+func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cache, tlsConfCustomizer tlsutil.ConfigCustomizer, initConstants repository.RepoServerInitConstants, gitCredsStore git.CredsStore, clientCAPath string, disableTLS bool, crd configbus.CRDSource) (*ArgoCDRepoServer, error) {
 	var tlsConfig *tls.Config
 	var healthCheckClientCert *tls.Certificate
 
@@ -123,7 +123,7 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 	if tlsConfig != nil {
 		serverOpts = append(serverOpts, grpc.Creds(credentials.NewTLS(tlsConfig)))
 	}
-	repoService := repository.NewService(metricsServer, cache, initConstants, gitCredsStore, filepath.Join(os.TempDir(), "_argocd-repo"))
+	repoService := repository.NewService(metricsServer, cache, initConstants, gitCredsStore, filepath.Join(os.TempDir(), "_argocd-repo"), crd)
 	if err := repoService.Init(); err != nil {
 		return nil, fmt.Errorf("failed to initialize the repo service: %w", err)
 	}

@@ -38,6 +38,17 @@ type SelfHealRetry struct {
 // SettingsManagerProvider / Env; CRD is inserted once wired). Tests typically
 // inject mocks.Provider from mockery, or a StaticProvider literal.
 type Provider interface {
+	// Subscribe registers for argocd-cm/secret change notifications when the
+	// backing implementation supports it (SettingsManagerProvider / ChainProvider).
+	Subscribe(subCh chan<- *settings.ArgoCDSettings)
+	// SubscribeCRD registers for ArgoCDConfiguration change notifications when
+	// the CRD source supports it (InformerCRDSource). No-op otherwise.
+	SubscribeCRD(subCh chan<- struct{})
+	// Unsubscribe unregisters a settings change subscriber.
+	Unsubscribe(subCh chan<- *settings.ArgoCDSettings)
+	// UnsubscribeCRD unregisters an ArgoCDConfiguration change subscriber.
+	UnsubscribeCRD(subCh chan<- struct{})
+
 	Accounts(ctx context.Context) (map[string]settings.Account, error)
 	AdditionalURLs(ctx context.Context) ([]string, error)
 	AllowOutOfBoundsSymlinks(ctx context.Context) (bool, error)
@@ -82,6 +93,7 @@ type Provider interface {
 	CommitserverLogLevel(ctx context.Context) (string, error)
 	CommitserverMetricsListenAddress(ctx context.Context) (string, error)
 	CommitserverMetricsPort(ctx context.Context) (int, error)
+	Configuration(ctx context.Context) (*v1alpha1.ArgoCDConfiguration, error)
 	ContentSecurityPolicy(ctx context.Context) (string, error)
 	ContentTypes(ctx context.Context) ([]string, error)
 	DexServerAddr(ctx context.Context) (string, error)
@@ -93,6 +105,7 @@ type Provider interface {
 	EnableBuiltinGitConfig(ctx context.Context) (bool, error)
 	EnableGZip(ctx context.Context) (bool, error)
 	EnableGitHubAPIMetrics(ctx context.Context) (bool, error)
+	EnableK8sEvent(ctx context.Context) ([]string, error)
 	EnableNewGitFileGlobbing(ctx context.Context) (bool, error)
 	EnableProxyExtension(ctx context.Context) (bool, error)
 	EnableScmProviders(ctx context.Context) (bool, error)
@@ -174,14 +187,9 @@ type Provider interface {
 	StreamedManifestMaxExtractedSize(ctx context.Context) (int64, error)
 	StreamedManifestMaxTarSize(ctx context.Context) (int64, error)
 	SubmoduleEnabled(ctx context.Context) (bool, error)
-	// Subscribe registers for argocd-cm/secret change notifications when the
-	// backing implementation supports it (SettingsManagerProvider / ChainProvider).
-	Subscribe(subCh chan<- *settings.ArgoCDSettings)
 	SyncTimeout(ctx context.Context) (time.Duration, error)
 	SyncWithReplaceAllowed(ctx context.Context) (bool, error)
 	TrackingMethod(ctx context.Context) (string, error)
-	// Unsubscribe unregisters a settings change subscriber.
-	Unsubscribe(subCh chan<- *settings.ArgoCDSettings)
 	UserSessionDuration(ctx context.Context) (time.Duration, error)
 	WebhookParallelism(ctx context.Context) (int, error)
 	WebhookRefreshJitter(ctx context.Context) (time.Duration, error)

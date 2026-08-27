@@ -19,6 +19,7 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/client-go/tools/clientcmd"
 
 	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
 	reposervercache "github.com/argoproj/argo-cd/v3/reposerver/cache"
@@ -26,12 +27,15 @@ import (
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 
 	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 	"github.com/argoproj/argo-cd/v3/reposerver"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v3/reposerver/metrics"
 	"github.com/argoproj/argo-cd/v3/reposerver/repository"
 	"github.com/argoproj/argo-cd/v3/util/askpass"
 	"github.com/argoproj/argo-cd/v3/util/cli"
+	"github.com/argoproj/argo-cd/v3/util/configbus"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/healthz"
@@ -44,6 +48,7 @@ import (
 )
 
 var (
+		clientConfig                       clientcmd.ClientConfig
 	gnuPGSourcePath                              = env.StringFromEnv(common.EnvGPGDataPath, "/app/config/gpg/source")
 	pauseGenerationAfterFailedGenerationAttempts = env.ParseNumFromEnv(common.EnvPauseGenerationAfterFailedAttempts, 3, 0, math.MaxInt32)
 	pauseGenerationOnFailureForMinutes           = env.ParseNumFromEnv(common.EnvPauseGenerationMinutes, 60, 0, math.MaxInt32)
@@ -146,6 +151,17 @@ func NewCommand() *cobra.Command {
 				return stderrors.New("--client-ca-path cannot be used when --disable-tls is enabled")
 			}
 
+			var crdSource configbus.CRDSource
+			if restConfig, err := clientConfig.ClientConfig(); err != nil {
+				log.WithError(err).Warn("kubeconfig unavailable; continuing without CRD config source")
+			} else {
+				errors.CheckError(v1alpha1.SetK8SConfigDefaults(restConfig))
+				namespace, _, err := clientConfig.Namespace()
+				errors.CheckError(err)
+				appClient := appclientset.NewForConfigOrDie(restConfig)
+				crdSource = configbus.NewOptionalInformerCRDSource(ctx, appClient, namespace)
+			}
+
 			server, err := reposerver.NewServer(metricsServer, cache, tlsConfigCustomizer, repository.RepoServerInitConstants{
 				ParallelismLimit: parallelismLimit,
 				PauseGenerationAfterFailedGenerationAttempts: pauseGenerationAfterFailedGenerationAttempts,
@@ -168,7 +184,7 @@ func NewCommand() *cobra.Command {
 				EnableBuiltinGitConfig:                       enableBuiltinGitConfig,
 				HelmUserAgent:                                helmUserAgent,
 				HelmChartCacheExpiration:                     repoCacheExpiration,
-			}, askPassServer, clientCAPath, disableTLS)
+			}, askPassServer, clientCAPath, disableTLS, crdSource)
 			errors.CheckError(err)
 
 			if otlpAddress != "" {
@@ -255,6 +271,7 @@ func NewCommand() *cobra.Command {
 			return nil
 		},
 	}
+	clientConfig = cli.AddKubectlFlagsToCmd(&command)
 	command.Flags().StringVar(&cmdutil.LogFormat, "logformat", env.StringFromEnv("ARGOCD_REPO_SERVER_LOGFORMAT", "json"), "Set the logging format. One of: json|text")
 	command.Flags().StringVar(&cmdutil.LogLevel, "loglevel", env.StringFromEnv("ARGOCD_REPO_SERVER_LOGLEVEL", "info"), "Set the logging level. One of: debug|info|warn|error")
 	command.Flags().Int64Var(&parallelismLimit, "parallelismlimit", int64(env.ParseNumFromEnv("ARGOCD_REPO_SERVER_PARALLELISM_LIMIT", 0, 0, math.MaxInt32)), "Limit on number of concurrent manifests generate requests. Any value less the 1 means no limit.")
