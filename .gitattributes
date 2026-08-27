@@ -17,4 +17,6 @@ manifests/namespace-install.yaml linguist-generated=true
 manifests/namespace-install-with-hydrator.yaml linguist-generated=true
 pkg/apis/api-rules/violation_exceptions.list linguist-generated=true
 
-.github/workflows/*.lock.yml linguist-generated=true merge=ours
+.github/workflows/*.lock.yml linguist-generated=true merge=oursutil/configbus/zz_generated.*.go linguist-generated=true
+pkg/apis/application/v1alpha1/openapi_generated.go linguist-generated=true
+pkg/apis/application/v1alpha1/zz_generated.deepcopy.go linguist-generated=true
