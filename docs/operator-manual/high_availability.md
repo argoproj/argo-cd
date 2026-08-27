@@ -104,7 +104,7 @@ get the actual cluster state.
   a [duration string](https://pkg.go.dev/time#ParseDuration) e.g `60s`, `1m` or `1h`.
 
   > [!NOTE]
-  > Restart the application-server `StatefulSet` to apply this change. You can do so by running
+  > Restart the argocd-application-controller to apply this change. You can do so by running
   > `kubectl rollout restart -n argocd statefulset argocd-application-controller`
 
 * If the controller is managing too many clusters and uses too much memory then you can shard clusters across multiple
