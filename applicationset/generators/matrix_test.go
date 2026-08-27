@@ -137,9 +137,7 @@ func TestMatrixGenerate(t *testing.T) {
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			genMock := &generatorsMock.Generator{}
 			appSet := &v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: v1alpha1.ApplicationSetSpec{},
 			}
 
@@ -344,9 +342,7 @@ func TestMatrixGenerateGoTemplate(t *testing.T) {
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			genMock := &generatorsMock.Generator{}
 			appSet := &v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: v1alpha1.ApplicationSetSpec{
 					GoTemplate: true,
 				},
@@ -583,17 +579,13 @@ func TestInterpolatedMatrixGenerate(t *testing.T) {
 	}
 	clusters := []client.Object{
 		&corev1.Secret{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Secret",
-				APIVersion: "v1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "dev-01",
-				Namespace: "namespace",
-				Labels: map[string]string{
-					"argocd.argoproj.io/secret-type": "cluster",
-					"environment":                    "dev",
-				},
+			Kind:       "Secret",
+			APIVersion: "v1",
+			Name:       "dev-01",
+			Namespace:  "namespace",
+			Labels: map[string]string{
+				"argocd.argoproj.io/secret-type": "cluster",
+				"environment":                    "dev",
 			},
 			Data: map[string][]byte{
 				"config": []byte("{}"),
@@ -603,17 +595,13 @@ func TestInterpolatedMatrixGenerate(t *testing.T) {
 			Type: corev1.SecretType("Opaque"),
 		},
 		&corev1.Secret{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Secret",
-				APIVersion: "v1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "prod-01",
-				Namespace: "namespace",
-				Labels: map[string]string{
-					"argocd.argoproj.io/secret-type": "cluster",
-					"environment":                    "prod",
-				},
+			Kind:       "Secret",
+			APIVersion: "v1",
+			Name:       "prod-01",
+			Namespace:  "namespace",
+			Labels: map[string]string{
+				"argocd.argoproj.io/secret-type": "cluster",
+				"environment":                    "prod",
 			},
 			Data: map[string][]byte{
 				"config": []byte("{}"),
@@ -756,17 +744,13 @@ func TestInterpolatedMatrixGenerateGoTemplate(t *testing.T) {
 	}
 	clusters := []client.Object{
 		&corev1.Secret{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Secret",
-				APIVersion: "v1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "dev-01",
-				Namespace: "namespace",
-				Labels: map[string]string{
-					"argocd.argoproj.io/secret-type": "cluster",
-					"environment":                    "dev",
-				},
+			Kind:       "Secret",
+			APIVersion: "v1",
+			Name:       "dev-01",
+			Namespace:  "namespace",
+			Labels: map[string]string{
+				"argocd.argoproj.io/secret-type": "cluster",
+				"environment":                    "dev",
 			},
 			Data: map[string][]byte{
 				"config": []byte("{}"),
@@ -776,17 +760,13 @@ func TestInterpolatedMatrixGenerateGoTemplate(t *testing.T) {
 			Type: corev1.SecretType("Opaque"),
 		},
 		&corev1.Secret{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Secret",
-				APIVersion: "v1",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "prod-01",
-				Namespace: "namespace",
-				Labels: map[string]string{
-					"argocd.argoproj.io/secret-type": "cluster",
-					"environment":                    "prod",
-				},
+			Kind:       "Secret",
+			APIVersion: "v1",
+			Name:       "prod-01",
+			Namespace:  "namespace",
+			Labels: map[string]string{
+				"argocd.argoproj.io/secret-type": "cluster",
+				"environment":                    "prod",
 			},
 			Data: map[string][]byte{
 				"config": []byte("{}"),
@@ -958,9 +938,7 @@ func TestMatrixGenerateListElementsYaml(t *testing.T) {
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			genMock := &generatorsMock.Generator{}
 			appSet := &v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: v1alpha1.ApplicationSetSpec{
 					GoTemplate: true,
 				},
@@ -1284,10 +1262,8 @@ func TestInterpolatedMatrixGenerateGoTemplate_ClusterValuesFromFirstGenerator(t 
 
 func appSet() *v1alpha1.ApplicationSet {
 	appSet := &v1alpha1.ApplicationSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "repro",
-			Namespace: "argocd",
-		},
+		Name:      "repro",
+		Namespace: "argocd",
 		Spec: v1alpha1.ApplicationSetSpec{
 			GoTemplate: true,
 			// This is the most important part of the test because this is telling the code to return an error
@@ -1299,17 +1275,13 @@ func appSet() *v1alpha1.ApplicationSet {
 
 func clusterSecret() *corev1.Secret {
 	clusterSecret := &corev1.Secret{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "Secret",
-			APIVersion: "v1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "guestbook-cluster",
-			Namespace: "argocd",
-			Labels: map[string]string{
-				"argocd.argoproj.io/secret-type": "cluster",
-				"environment":                    "guestbook",
-			},
+		Kind:       "Secret",
+		APIVersion: "v1",
+		Name:       "guestbook-cluster",
+		Namespace:  "argocd",
+		Labels: map[string]string{
+			"argocd.argoproj.io/secret-type": "cluster",
+			"environment":                    "guestbook",
 		},
 		Data: map[string][]byte{
 			"config": []byte("{}"),
