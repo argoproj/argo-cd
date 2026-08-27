@@ -357,11 +357,9 @@ func AddWriteCredentials(t *testing.T, name string, insecure bool, repoURLType f
 	_, err := fixture.KubeClientset.CoreV1().Secrets(fixture.ArgoCDNamespace).Create(
 		context.Background(),
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: secretName,
-				Labels: map[string]string{
-					common.LabelKeySecretType: common.LabelValueSecretTypeRepositoryWrite,
-				},
+			Name: secretName,
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeRepositoryWrite,
 			},
 			StringData: map[string]string{
 				"url":      repoURL,
