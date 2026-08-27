@@ -276,7 +276,6 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 			timeBeforePerformProgressiveSync = time.Now()
 			appSyncMap, err = r.ProgressiveSyncManager.PerformProgressiveSyncs(ctx, logCtx, applicationSetInfo, currentApplications, generatedApplications, r.RefreshGracePeriodSeconds)
-      
 			if err != nil {
 				return ctrl.Result{}, fmt.Errorf("failed to perform progressive sync reconciliation for application set: %w", err)
 			}

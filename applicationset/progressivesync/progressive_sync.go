@@ -1024,7 +1024,7 @@ func (m *Manager) SyncDesiredApplications(logCtx *log.Entry, applicationSet *arg
 			logCtx.Infof("triggering sync for application: %v, prune enabled: %v", desiredApplications[i].Name, pruneEnabled)
 
 			desiredApplications[i] = syncApplication(desiredApplications[i], pruneEnabled, pinnedRevisions)
-      m.dependencies.RecordProgressiveSyncTriggered(applicationSet, applicationSet.Status.ApplicationStatus[idx].Step)
+			m.dependencies.RecordProgressiveSyncTriggered(applicationSet, applicationSet.Status.ApplicationStatus[idx].Step)
 		}
 
 		rolloutApps = append(rolloutApps, desiredApplications[i])
