@@ -44,6 +44,9 @@ type SCMConfig struct {
 	tokenRefStrictMode     bool
 	scmProxyURL            string
 	scmNoProxy             string
+	// enableNewSCMProviderFiltering opts in to the corrected filter evaluation.
+	// See scm_provider.ListRepos.
+	enableNewSCMProviderFiltering bool
 }
 
 func NewSCMConfig(scmRootCAPath string, allowedSCMProviders []string, enableSCMProviders bool, enableGitHubAPIMetrics bool, gitHubApps github_app_auth.Credentials, tokenRefStrictMode bool, opts ...SCMConfigOpts) SCMConfig {
@@ -73,6 +76,15 @@ func WithNoProxyList(noProxyList string) SCMConfigOpts {
 func WithProxyURL(scmProxyURL string) SCMConfigOpts {
 	return func(config *SCMConfig) {
 		config.scmProxyURL = scmProxyURL
+	}
+}
+
+// WithNewSCMProviderFiltering enables the corrected SCM provider filter
+// evaluation. It is opt-in because turning it on changes which repositories and
+// branches an existing ApplicationSet selects. See scm_provider.ListRepos.
+func WithNewSCMProviderFiltering(enabled bool) SCMConfigOpts {
+	return func(config *SCMConfig) {
+		config.enableNewSCMProviderFiltering = enabled
 	}
 }
 
@@ -260,7 +272,7 @@ func (g *SCMProviderGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha
 	}
 
 	// Find all the available repos.
-	repos, err := scm_provider.ListRepos(ctx, provider, providerConfig.Filters, providerConfig.CloneProtocol)
+	repos, err := scm_provider.ListRepos(ctx, provider, providerConfig.Filters, providerConfig.CloneProtocol, g.enableNewSCMProviderFiltering)
 	if err != nil {
 		return nil, fmt.Errorf("error listing repos: %w", err)
 	}

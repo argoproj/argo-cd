@@ -26,3 +26,14 @@ func TestNewCommand_ConcurrentApplicationUpdatesFlagValue(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 5, val)
 }
+
+func TestNewCommand_EnableNewSCMProviderFilteringFlag(t *testing.T) {
+	cmd := NewCommand()
+
+	flag := cmd.Flags().Lookup("enable-new-scm-provider-filtering")
+	require.NotNil(t, flag, "expected --enable-new-scm-provider-filtering flag to be registered")
+	assert.Equal(t, "bool", flag.Value.Type())
+	// Opt-in: enabling it changes which Applications an existing ApplicationSet
+	// generates, so upgrading must not turn it on.
+	assert.Equal(t, "false", flag.DefValue, "default should be false")
+}

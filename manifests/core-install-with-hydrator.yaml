@@ -31853,6 +31853,12 @@ spec:
               key: applicationsetcontroller.enable.new.git.file.globbing
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_SCM_PROVIDER_FILTERING
+          valueFrom:
+            configMapKeyRef:
+              key: applicationsetcontroller.enable.new.scm.provider.filtering
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_PLAINTEXT
           valueFrom:
             configMapKeyRef:

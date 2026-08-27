@@ -812,7 +812,7 @@ func TestGiteaListRepos(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 			provider, _ := NewGiteaProvider("test-argocd", "", ts.URL, c.allBranches, false, c.excludeArchivedRepos, "", "")
-			rawRepos, err := ListRepos(t.Context(), provider, c.filters, c.proto)
+			rawRepos, err := ListRepos(t.Context(), provider, c.filters, c.proto, true)
 
 			if c.hasError {
 				require.Error(t, err)

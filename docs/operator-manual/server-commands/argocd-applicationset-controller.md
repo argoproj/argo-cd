@@ -31,6 +31,7 @@ argocd-applicationset-controller [flags]
       --enable-github-api-metrics                 Enable GitHub API metrics for generators that use the GitHub API
       --enable-leader-election                    Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.
       --enable-new-git-file-globbing              Enable new globbing in Git files generator.
+      --enable-new-scm-provider-filtering         Enable corrected filter evaluation in the SCM Provider generator. Multiple filters are OR'd as documented, instead of repo-level and branch-level filters being AND'd together. Enabling this may change which Applications an existing ApplicationSet generates.
       --enable-policy-override                    For security reason if 'policy' is set, it is not possible to override it at applicationSet level. 'allow-policy-override' allows user to define their own policy (default true)
       --enable-progressive-syncs                  Enable use of the experimental progressive syncs feature.
       --enable-scm-providers                      Enable retrieving information from SCM providers, used by the SCM and PR generators (Default: true) (default true)
