@@ -61,31 +61,6 @@ const GitSourceIntegrityView = ({git}: {git?: SourceIntegrityGit}) => (
     </>
 );
 
-// const HelmMockView = () => (
-//     <>
-//         <p className='project-details__list-title'>HELM</p>
-//         <div key={1} className='white-box source-integrity-panel__policy'>
-//             <div className='row white-box__details-row'>
-//                 <div className='columns small-2'>PROVENANCE</div>
-//                 <div className='columns small-2'>KEYS</div>
-//                 <div className='columns small-8'>FACE1234FFFFAAAA, 88882222FFFFAAAA</div>
-//             </div>
-//             <div className='row white-box__details-row'>
-//                 <div className='columns small-4'>REPO-URLS</div>
-//                 <div className='columns small-8'>
-//                     <div>*</div>
-//                 </div>
-//             </div>
-//             <div className='row white-box__details-row'>
-//                 <div className='columns small-4'>EXCLUDED REPO-URLS</div>
-//                 <div className='columns small-8'>
-//                     <div>https://github.com/argoproj/argo-cd.git</div>
-//                 </div>
-//             </div>
-//         </div>
-//     </>
-// );
-
 const SOURCE_INTEGRITY_SECTIONS: SourceIntegritySection<ProjectSourceIntegrity>[] = [
     {
         key: 'git',
@@ -93,13 +68,7 @@ const SOURCE_INTEGRITY_SECTIONS: SourceIntegritySection<ProjectSourceIntegrity>[
         View: GitSourceIntegrityView,
         getProps: (si?: ProjectSourceIntegrity) => ({git: si?.git})
     }
-    // {
-    //     key: 'helm',
-    //     isConfigured: (si?: ProjectSourceIntegrity) => (si?.git?.policies?.length ?? 0) > 0, // show with git to mock the helm section
-    //     View: HelmMockView,
-    //     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    //     getProps: (_si?: ProjectSourceIntegrity) => ({})
-    // }
+    // Add other sections here as new source integrity types are added
 ];
 
 const SourceIntegrityContent = ({sourceIntegrity}: {sourceIntegrity?: ProjectSourceIntegrity}) => {
