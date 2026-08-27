@@ -1406,10 +1406,11 @@ func TestIsRollingSyncStrategy(t *testing.T) {
 func TestSyncApplication(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
-		name     string
-		input    v1alpha1.Application
-		prune    bool
-		expected v1alpha1.Application
+		name      string
+		input     v1alpha1.Application
+		prune     bool
+		revisions []string
+		expected  v1alpha1.Application
 	}{
 		{
 			name: "Default retry limit with no SyncPolicy",
@@ -1482,12 +1483,86 @@ func TestSyncApplication(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "single-source application pins Sync.Revision from the recorded target revision",
+			input: v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					Source: &v1alpha1.ApplicationSource{RepoURL: "https://example.com/repo.git"},
+				},
+			},
+			prune:     false,
+			revisions: []string{"abc123"},
+			expected: v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					Source: &v1alpha1.ApplicationSource{RepoURL: "https://example.com/repo.git"},
+				},
+				Operation: &v1alpha1.Operation{
+					InitiatedBy: v1alpha1.OperationInitiator{
+						Username:  "applicationset-controller",
+						Automated: true,
+					},
+					Info: []*v1alpha1.Info{
+						{
+							Name:  "Reason",
+							Value: "ApplicationSet RollingSync triggered a sync of this Application resource",
+						},
+					},
+					Sync: &v1alpha1.SyncOperation{
+						Revision: "abc123",
+						Prune:    false,
+					},
+					Retry: v1alpha1.RetryStrategy{
+						Limit: 5,
+					},
+				},
+			},
+		},
+		{
+			name: "multi-source application pins Sync.Revisions from the recorded target revisions",
+			input: v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					Sources: v1alpha1.ApplicationSources{
+						{RepoURL: "https://example.com/repo1.git"},
+						{RepoURL: "https://example.com/repo2.git"},
+					},
+				},
+			},
+			prune:     false,
+			revisions: []string{"abc123", "def456"},
+			expected: v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					Sources: v1alpha1.ApplicationSources{
+						{RepoURL: "https://example.com/repo1.git"},
+						{RepoURL: "https://example.com/repo2.git"},
+					},
+				},
+				Operation: &v1alpha1.Operation{
+					InitiatedBy: v1alpha1.OperationInitiator{
+						Username:  "applicationset-controller",
+						Automated: true,
+					},
+					Info: []*v1alpha1.Info{
+						{
+							Name:  "Reason",
+							Value: "ApplicationSet RollingSync triggered a sync of this Application resource",
+						},
+					},
+					Sync: &v1alpha1.SyncOperation{
+						Revisions: []string{"abc123", "def456"},
+						Prune:     false,
+					},
+					Retry: v1alpha1.RetryStrategy{
+						Limit: 5,
+					},
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			result := syncApplication(tt.input, tt.prune)
+			result := syncApplication(tt.input, tt.prune, tt.revisions)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
