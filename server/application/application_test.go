@@ -5566,7 +5566,8 @@ func (d *repositoryFailingDB) GetRepository(_ context.Context, _, _ string) (*v1
 
 func getBaseInspectAppProject(name string) *v1alpha1.AppProject {
 	return &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: testNamespace},
+		Name:      name,
+		Namespace: testNamespace,
 		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos:  []string{"*"},
 			Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
