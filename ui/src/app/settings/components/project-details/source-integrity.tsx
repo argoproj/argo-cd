@@ -17,7 +17,7 @@ const removeEl = (items: any[], index: number) => items.slice(0, index).concat(i
 const getIncludedRepoUrlsOnly = (repos?: string[]) => repos?.filter(repo => !repo.startsWith('!'));
 const getExcludedRepoUrlsOnly = (repos?: string[]) => repos?.filter(repo => repo.startsWith('!')).map(repo => repo.slice(1));
 
-const GitSourceIntegrityView = ({git}: {git?: SourceIntegrityGit}) => (
+const GitSourceIntegritySection = ({git}: {git?: SourceIntegrityGit}) => (
     <>
         <p className='project-details__list-title'>GIT</p>
         {git?.policies?.map((policy, policyIndex) => {
@@ -65,7 +65,7 @@ const SOURCE_INTEGRITY_SECTIONS: SourceIntegritySection<ProjectSourceIntegrity>[
     {
         key: 'git',
         isConfigured: (si?: ProjectSourceIntegrity) => (si?.git?.policies?.length ?? 0) > 0,
-        View: GitSourceIntegrityView,
+        View: GitSourceIntegritySection,
         getProps: (si?: ProjectSourceIntegrity) => ({git: si?.git})
     }
     // Add other sections here as new source integrity types are added
@@ -98,62 +98,68 @@ const LegacyGPGSignatureKeysPanel = ({
     proj: Project;
     saveProject: (proj: Project) => Promise<void>;
     loadSignatureKeys: () => Promise<GnuPGPublicKey[]>;
-}) => (
-    <EditablePanel
-        save={saveProject}
-        values={proj}
-        title={<React.Fragment>[DEPRECATED] GPG SIGNATURE KEYS {helpTip('IDs of GnuPG keys that commits must be signed with in order to be allowed to sync to')}</React.Fragment>}
-        view={
-            <React.Fragment>
-                <p>This feature is deprecated, migrate to Source Integrity instead.</p>
-                {(proj.spec.signatureKeys?.length ?? 0) > 0 ? (
-                    proj.spec.signatureKeys.map((key, i) => (
-                        <div className='row white-box__details-row' key={i}>
-                            <div className='columns small-12'>{key.keyID}</div>
-                        </div>
-                    ))
-                ) : (
-                    <p>Project has no signature keys</p>
-                )}
-            </React.Fragment>
-        }
-        edit={formApi => (
-            <DataLoader load={loadSignatureKeys}>
-                {(keys: GnuPGPublicKey[]) => (
-                    <React.Fragment>
-                        <p>This feature is deprecated, migrate to Source Integrity instead.</p>
-                        {(formApi.values.spec.signatureKeys || []).map((_: Project, i: number) => (
+}) => {
+    const deprecatedFeatureMessage = 'This feature is deprecated, migrate to Source Integrity instead.';
+
+    return (
+        <EditablePanel
+            save={saveProject}
+            values={proj}
+            title={
+                <React.Fragment>[DEPRECATED] GPG SIGNATURE KEYS {helpTip('IDs of GnuPG keys that commits must be signed with in order to be allowed to sync to')}</React.Fragment>
+            }
+            view={
+                <React.Fragment>
+                    <p>{deprecatedFeatureMessage}</p>
+                    {(proj.spec.signatureKeys?.length ?? 0) > 0 ? (
+                        proj.spec.signatureKeys.map((key, i) => (
                             <div className='row white-box__details-row' key={i}>
-                                <div className='columns small-12'>
-                                    <FormField
-                                        formApi={formApi}
-                                        field={`spec.signatureKeys[${i}].keyID`}
-                                        component={AutocompleteField}
-                                        componentProps={{items: keys.map(key => key.keyID)}}
-                                    />
-                                </div>
-                                <i className='fa fa-times' onClick={() => formApi.setValue('spec.signatureKeys', removeEl(formApi.values.spec.signatureKeys, i))} />
+                                <div className='columns small-12'>{key.keyID}</div>
                             </div>
-                        ))}
-                        <button
-                            className='argo-button argo-button--short'
-                            onClick={() =>
-                                formApi.setValue(
-                                    'spec.signatureKeys',
-                                    (formApi.values.spec.signatureKeys || []).concat({
-                                        keyID: ''
-                                    })
-                                )
-                            }>
-                            ADD KEY
-                        </button>
-                    </React.Fragment>
-                )}
-            </DataLoader>
-        )}
-        items={[]}
-    />
-);
+                        ))
+                    ) : (
+                        <p>Project has no signature keys</p>
+                    )}
+                </React.Fragment>
+            }
+            edit={formApi => (
+                <DataLoader load={loadSignatureKeys}>
+                    {(keys: GnuPGPublicKey[]) => (
+                        <React.Fragment>
+                            <p>{deprecatedFeatureMessage}</p>
+                            {(formApi.values.spec.signatureKeys || []).map((_: Project, i: number) => (
+                                <div className='row white-box__details-row' key={i}>
+                                    <div className='columns small-12'>
+                                        <FormField
+                                            formApi={formApi}
+                                            field={`spec.signatureKeys[${i}].keyID`}
+                                            component={AutocompleteField}
+                                            componentProps={{items: keys.map(key => key.keyID)}}
+                                        />
+                                    </div>
+                                    <i className='fa fa-times' onClick={() => formApi.setValue('spec.signatureKeys', removeEl(formApi.values.spec.signatureKeys, i))} />
+                                </div>
+                            ))}
+                            <button
+                                className='argo-button argo-button--short'
+                                onClick={() =>
+                                    formApi.setValue(
+                                        'spec.signatureKeys',
+                                        (formApi.values.spec.signatureKeys || []).concat({
+                                            keyID: ''
+                                        })
+                                    )
+                                }>
+                                ADD KEY
+                            </button>
+                        </React.Fragment>
+                    )}
+                </DataLoader>
+            )}
+            items={[]}
+        />
+    );
+};
 
 const SourceIntegrityInfoBanner = () => (
     <div className='source-integrity__info-banner'>
