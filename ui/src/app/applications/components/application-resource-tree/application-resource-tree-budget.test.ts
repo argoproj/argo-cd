@@ -112,9 +112,18 @@ describe('rootStrategy', () => {
         expect(rootStrategy(1500, 4000, CAP, false)).toEqual({clusterKinds: true, rankRoots: true});
     });
 
-    test('does not cluster while a filter is active, however crowded', () => {
-        // The user has already said what they want; grouping it again puts a hop in front of their query.
-        expect(rootStrategy(1500, 4000, CAP, true)).toEqual({clusterKinds: false, rankRoots: true});
+    test('does not cluster a single kind, which grouping would only put a hop in front of', () => {
+        expect(rootStrategy(4000, 4000, CAP, true, null, 1)).toEqual({clusterKinds: false, rankRoots: true});
+    });
+
+    test('clusters several kinds even while filtering, so none is starved', () => {
+        // Filtering a large application by health matches Services, Ingresses and PodDisruptionBudgets.
+        // Left flat, whichever sorts first takes the whole budget and the others draw nothing at all.
+        expect(rootStrategy(2507, 2558, CAP, true, null, 5)).toEqual({clusterKinds: true, rankRoots: true});
+    });
+
+    test('does not cluster what already fits, however many kinds', () => {
+        expect(rootStrategy(40, 40, CAP, true, null, 5)).toEqual({clusterKinds: false, rankRoots: true});
     });
 
     test('drilling into a kind shows it flat, and ranked', () => {

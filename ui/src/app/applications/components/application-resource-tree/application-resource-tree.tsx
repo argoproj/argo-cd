@@ -1805,7 +1805,8 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
         // cannot push the cap past the root count and reshape the whole top level mid-session.
         const candidateRoots = filterActive ? roots.filter(node => keptByFilter(node)) : roots;
         const candidateNodes = filterActive ? nodes.filter(node => keptByFilter(node)).length : nodes.length;
-        const {clusterKinds, rankRoots} = rootStrategy(candidateRoots.length, candidateNodes, DEFAULT_VISIBLE_CAP, filterActive, capBucketKind);
+        const distinctCandidateKinds = new Set(candidateRoots.map(root => root.kind)).size;
+        const {clusterKinds, rankRoots} = rootStrategy(candidateRoots.length, candidateNodes, DEFAULT_VISIBLE_CAP, filterActive, capBucketKind, distinctCandidateKinds);
 
         // Past the budget the bulk kinds get a parent of their own rather than competing for one
         // shared allowance. The top level then holds the workloads, whose hierarchy is the reason this

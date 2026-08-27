@@ -63,12 +63,20 @@ export function filterIsActive(filters?: string[]): boolean {
  * deployments with their replica sets and pods is fewer roots than the cap and far more nodes, and
  * ordering those by name drops the later chains unranked and hides filter matches inside them.
  */
-export function rootStrategy(rootCount: number, nodeCount: number, cap: number, hasFilter: boolean, bucket?: string | null): {clusterKinds: boolean; rankRoots: boolean} {
+export function rootStrategy(
+    rootCount: number,
+    nodeCount: number,
+    cap: number,
+    hasFilter: boolean,
+    bucket?: string | null,
+    distinctKinds = 2
+): {clusterKinds: boolean; rankRoots: boolean} {
     return {
-        // Never while filtering: clustering exists to stop bulk kinds crowding out workloads at the top
-        // level, and a user who has filtered has already said what they want to see. Grouping it again
-        // puts a hop in front of their own query.
-        clusterKinds: rootCount > cap && !bucket && !hasFilter,
+        // Decided by how many kinds are competing, not by whether a filter is active. Grouping a single
+        // kind puts a hop in front of a query that already named it, but declining to group several kinds
+        // lets whichever sorts first take the whole budget: filtering a large application by health drew
+        // 194 Services and not one of its 600 Ingresses or 400 PodDisruptionBudgets.
+        clusterKinds: rootCount > cap && !bucket && distinctKinds > 1,
         // A filter always forces ordering: without it a match cannot outrank whatever sorts first.
         rankRoots: hasFilter || !!bucket || rootCount > cap || nodeCount > cap
     };
