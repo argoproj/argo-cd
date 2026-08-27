@@ -310,14 +310,12 @@ func asResourceNode(r *clustercache.Resource, namespaceResources map[kube.Resour
 		resHealth = &appv1.HealthStatus{Status: resourceInfo.Health.Status, Message: resourceInfo.Health.Message}
 	}
 	return appv1.ResourceNode{
-		ResourceRef: appv1.ResourceRef{
-			UID:       string(r.Ref.UID),
-			Name:      r.Ref.Name,
-			Group:     gv.Group,
-			Version:   gv.Version,
-			Kind:      r.Ref.Kind,
-			Namespace: r.Ref.Namespace,
-		},
+		UID:             string(r.Ref.UID),
+		Name:            r.Ref.Name,
+		Group:           gv.Group,
+		Version:         gv.Version,
+		Kind:            r.Ref.Kind,
+		Namespace:       r.Ref.Namespace,
 		ParentRefs:      parentRefs,
 		Info:            resourceInfo.Info,
 		ResourceVersion: r.ResourceVersion,

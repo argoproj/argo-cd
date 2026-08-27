@@ -420,11 +420,9 @@ func getOrUpdateShardNumberForController(shardMappingData []shardApplicationCont
 // generateDefaultShardMappingCM creates a default shard mapping configMap. Assigns current controller to shard 0.
 func generateDefaultShardMappingCM(namespace, hostname string, replicas, shard int) (*corev1.ConfigMap, error) {
 	shardingCM := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ArgoCDAppControllerShardConfigMapName,
-			Namespace: namespace,
-		},
-		Data: map[string]string{},
+		Name:      common.ArgoCDAppControllerShardConfigMapName,
+		Namespace: namespace,
+		Data:      map[string]string{},
 	}
 
 	shardMappingData := getDefaultShardMappingData(replicas)

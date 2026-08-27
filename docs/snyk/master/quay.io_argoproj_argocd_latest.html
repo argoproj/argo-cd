@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="46 known vulnerabilities found in 143 vulnerable dependency paths.">
+  <meta name="description" content="46 known vulnerabilities found in 141 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -492,7 +492,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">August 9th 2026, 12:20:41 am (UTC+00:00)</p>
+                <p class="timestamp">August 23rd 2026, 12:15:58 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -508,8 +508,8 @@
     
               <div class="meta-counts">
                 <div class="meta-count"><span>46</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>143 vulnerable dependency paths</span></div>
-                <div class="meta-count"><span>2508</span> <span>dependencies</span></div>
+                <div class="meta-count"><span>141 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>2523</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
@@ -868,6 +868,81 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGOGITGOGITV5PLUMBING-18593988">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Symlink Attack</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            github.com/go-git/go-git/v5
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/argoproj/argo-cd/v3@* and github.com/go-git/go-git/v5@v5.19.1
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-git/go-git/v5@v5.19.1
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Symlink Attack in <code>worktree_fs.go</code> and <code>worktree.go</code> are vulnerable to symlink traversal in filesystem-backed worktrees. An attacker can modify or overwrite files outside the intended worktree by placing a symlink in the tree and then triggering a worktree operation, such as checkout, create, rename, or remove, against a path that resolves through that link. This can redirect writes into the repository’s <code>.git</code> metadata or another external target, leading to arbitrary file write and corruption of repository state, which can break subsequent Git operations and expose or alter files the application did not intend to touch.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>github.com/go-git/go-git/v5</code> to version 5.19.2 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/go-git/go-git/commit/008a78f2dd86f52544ddff8b8e8ddeecdf3f7aab">GitHub Commit</a></li>
+        <li><a href="https://github.com/go-git/go-git/commit/661d1c7f101d34e002a3cfcf8dbea5b7421d07ac">GitHub Commit</a></li>
+        <li><a href="https://github.com/go-git/go-git/security/advisories/GHSA-hc8v-wwc9-vgxm">Maintainer&#39;s Advisory</a></li>
+        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2512562">Red Hat Bugzilla Bug</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGOGITGOGITV5-18857903">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -3279,7 +3354,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.53.0-1ubuntu1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.18.0-1ubuntu2.3
+                                        curl/libcurl3t64-gnutls@8.18.0-1ubuntu2.4
                                          <span class="list-paths__item__arrow">›</span> 
                                         gnutls28/libgnutls30t64@3.8.12-2ubuntu1.1
                                          <span class="list-paths__item__arrow">›</span> 
@@ -3310,6 +3385,9 @@
         <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2494556">https://bugzilla.redhat.com/show_bug.cgi?id=2494556</a></li>
         <li><a href="https://github.com/advisories/GHSA-p2wm-69qx-x25w">https://github.com/advisories/GHSA-p2wm-69qx-x25w</a></li>
         <li><a href="https://access.redhat.com/errata/RHSA-2026:49667">https://access.redhat.com/errata/RHSA-2026:49667</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2026:53371">https://access.redhat.com/errata/RHSA-2026:53371</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2026:54387">https://access.redhat.com/errata/RHSA-2026:54387</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2026:54760">https://access.redhat.com/errata/RHSA-2026:54760</a></li>
         </ul>
         
               <hr/>
@@ -3390,105 +3468,13 @@
         <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2462250">https://bugzilla.redhat.com/show_bug.cgi?id=2462250</a></li>
         <li><a href="https://access.redhat.com/errata/RHSA-2026:47756">https://access.redhat.com/errata/RHSA-2026:47756</a></li>
         <li><a href="https://access.redhat.com/errata/RHSA-2026:47757">https://access.redhat.com/errata/RHSA-2026:47757</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2026:54387">https://access.redhat.com/errata/RHSA-2026:54387</a></li>
         </ul>
         
               <hr/>
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-OPENSSH-17427926">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">CVE-2026-4437</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:26.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            glibc/libc-bin
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                docker-image|quay.io/argoproj/argocd@latest and glibc/libc-bin@2.43-2ubuntu2.3
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        glibc/libc-bin@2.43-2ubuntu2.3
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        glibc/libc-gconv-modules-extra@2.43-2ubuntu2.3
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        glibc/libc6@2.43-2ubuntu2.3
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>glibc</code> package and not the <code>glibc</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:26.04</code> relevant fixed versions and status.</em></p>
-        <p>Calling gethostbyaddr or gethostbyaddr_r with a configured nsswitch.conf that specifies the library&#39;s DNS backend in the GNU C Library version 2.34 to version 2.43 could, with a crafted response from the configured DNS server, result in a violation of the DNS specification that causes the application to treat a non-answer section of the DNS response as a valid answer.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>glibc</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-4437">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-4437</a></li>
-        <li><a href="https://sourceware.org/bugzilla/show_bug.cgi?id=34014">https://sourceware.org/bugzilla/show_bug.cgi?id=34014</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-GLIBC-16238947">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -4323,7 +4309,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.53.0-1ubuntu1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.18.0-1ubuntu2.3
+                                        curl/libcurl3t64-gnutls@8.18.0-1ubuntu2.4
                                          <span class="list-paths__item__arrow">›</span> 
                                         zlib/zlib1g@1:1.3.dfsg+really1.3.1-1ubuntu3
                                         
@@ -4364,7 +4350,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.53.0-1ubuntu1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.18.0-1ubuntu2.3
+                                        curl/libcurl3t64-gnutls@8.18.0-1ubuntu2.4
                                          <span class="list-paths__item__arrow">›</span> 
                                         libssh2/libssh2-1t64@1.11.1-1ubuntu0.26.04.3
                                          <span class="list-paths__item__arrow">›</span> 
@@ -4379,7 +4365,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.53.0-1ubuntu1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.18.0-1ubuntu2.3
+                                        curl/libcurl3t64-gnutls@8.18.0-1ubuntu2.4
                                          <span class="list-paths__item__arrow">›</span> 
                                         rtmpdump/librtmp1@2.4+20151223.gitfa8646d.1-3
                                          <span class="list-paths__item__arrow">›</span> 
@@ -4462,7 +4448,7 @@
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|quay.io/argoproj/argocd@latest and systemd/libsystemd0@259.5-0ubuntu3.3
+                                docker-image|quay.io/argoproj/argocd@latest and systemd/libsystemd0@259.5-0ubuntu3.4
         
                     </li>
                 </ul>
@@ -4477,7 +4463,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        systemd/libsystemd0@259.5-0ubuntu3.3
+                                        systemd/libsystemd0@259.5-0ubuntu3.4
                                         
                                 </span>
         
@@ -4488,7 +4474,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         apt@3.2.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        systemd/libsystemd0@259.5-0ubuntu3.3
+                                        systemd/libsystemd0@259.5-0ubuntu3.4
                                         
                                 </span>
         
@@ -4499,7 +4485,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         procps/libproc2-0@2:4.0.4-9ubuntu1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        systemd/libsystemd0@259.5-0ubuntu3.3
+                                        systemd/libsystemd0@259.5-0ubuntu3.4
                                         
                                 </span>
         
@@ -4510,7 +4496,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         procps@2:4.0.4-9ubuntu1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        systemd/libsystemd0@259.5-0ubuntu3.3
+                                        systemd/libsystemd0@259.5-0ubuntu3.4
                                         
                                 </span>
         
@@ -4521,7 +4507,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         util-linux@2.41.3-3ubuntu2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        systemd/libsystemd0@259.5-0ubuntu3.3
+                                        systemd/libsystemd0@259.5-0ubuntu3.4
                                         
                                 </span>
         
@@ -4532,7 +4518,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         util-linux/bsdutils@1:2.41.3-3ubuntu2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        systemd/libsystemd0@259.5-0ubuntu3.3
+                                        systemd/libsystemd0@259.5-0ubuntu3.4
                                         
                                 </span>
         
@@ -4545,7 +4531,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         apt/libapt-pkg7.0@3.2.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        systemd/libsystemd0@259.5-0ubuntu3.3
+                                        systemd/libsystemd0@259.5-0ubuntu3.4
                                         
                                 </span>
         
@@ -4560,7 +4546,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         coreutils/gnu-coreutils@9.7-3ubuntu2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        systemd/libsystemd0@259.5-0ubuntu3.3
+                                        systemd/libsystemd0@259.5-0ubuntu3.4
                                         
                                 </span>
         
@@ -4577,7 +4563,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         pam/libpam-modules@1.7.0-5ubuntu3.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        systemd/libsystemd0@259.5-0ubuntu3.3
+                                        systemd/libsystemd0@259.5-0ubuntu3.4
                                         
                                 </span>
         
@@ -4596,7 +4582,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         pam/libpam-modules-bin@1.7.0-5ubuntu3.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        systemd/libsystemd0@259.5-0ubuntu3.3
+                                        systemd/libsystemd0@259.5-0ubuntu3.4
                                         
                                 </span>
         
@@ -4605,7 +4591,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        systemd/libudev1@259.5-0ubuntu3.3
+                                        systemd/libudev1@259.5-0ubuntu3.4
                                         
                                 </span>
         
@@ -4616,7 +4602,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         util-linux@2.41.3-3ubuntu2
                                          <span class="list-paths__item__arrow">›</span> 
-                                        systemd/libudev1@259.5-0ubuntu3.3
+                                        systemd/libudev1@259.5-0ubuntu3.4
                                         
                                 </span>
         
@@ -4629,7 +4615,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         apt/libapt-pkg7.0@3.2.0
                                          <span class="list-paths__item__arrow">›</span> 
-                                        systemd/libudev1@259.5-0ubuntu3.3
+                                        systemd/libudev1@259.5-0ubuntu3.4
                                         
                                 </span>
         
@@ -4642,7 +4628,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         libfido2/libfido2-1@1.16.0-2build1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        systemd/libudev1@259.5-0ubuntu3.3
+                                        systemd/libudev1@259.5-0ubuntu3.4
                                         
                                 </span>
         
@@ -4879,6 +4865,7 @@
         <li><a href="https://access.redhat.com/errata/RHSA-2026:47757">https://access.redhat.com/errata/RHSA-2026:47757</a></li>
         <li><a href="https://access.redhat.com/security/cve/CVE-2026-55654">https://access.redhat.com/security/cve/CVE-2026-55654</a></li>
         <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2462493">https://bugzilla.redhat.com/show_bug.cgi?id=2462493</a></li>
+        <li><a href="https://access.redhat.com/errata/RHSA-2026:54387">https://access.redhat.com/errata/RHSA-2026:54387</a></li>
         </ul>
         
               <hr/>
@@ -5063,7 +5050,7 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.53.0-1ubuntu1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.18.0-1ubuntu2.3
+                                        curl/libcurl3t64-gnutls@8.18.0-1ubuntu2.4
                                         
                                 </span>
         
