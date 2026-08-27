@@ -218,6 +218,14 @@ data:
       clusters:
       - "*.local"
 
+  # Append extra exclusions to the current resource.exclusions value (optional).
+  # This preserves defaults supplied in the installed argocd-cm.
+  resource.additionalExclusions: |
+    - apiGroups:
+      - my.custom.io
+      kinds:
+      - "*"
+
   # By default all resource group/kinds are included. The resource.inclusions setting allows customizing
   # list of included group/kinds.
   resource.inclusions: |

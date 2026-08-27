@@ -159,6 +159,53 @@ func TestGetResourceFilter(t *testing.T) {
 	}, filter)
 }
 
+func TestGetResourceFilterAdditionalExclusions(t *testing.T) {
+	data := map[string]string{
+		"resource.exclusions":           "\n  - apiGroups: [\"group1\"]\n    kinds: [\"kind1\"]\n    clusters: [\"cluster1\"]\n",
+		"resource.additionalExclusions": "\n  - apiGroups: [\"group3\"]\n    kinds: [\"kind3\"]\n    clusters: [\"cluster3\"]\n",
+	}
+	_, settingsManager := fixtures(t.Context(), data)
+	filter, err := settingsManager.GetResourcesFilter()
+	require.NoError(t, err)
+	assert.Equal(t, &ResourcesFilter{
+		ResourceExclusions: []FilteredResource{
+			{APIGroups: []string{"group1"}, Kinds: []string{"kind1"}, Clusters: []string{"cluster1"}},
+			{APIGroups: []string{"group3"}, Kinds: []string{"kind3"}, Clusters: []string{"cluster3"}},
+		},
+	}, filter)
+}
+
+func TestGetResourceFilterAdditionalExclusionsOnly(t *testing.T) {
+	data := map[string]string{
+		"resource.additionalExclusions": "\n  - apiGroups: [\"group3\"]\n    kinds: [\"kind3\"]\n",
+	}
+	_, settingsManager := fixtures(t.Context(), data)
+	filter, err := settingsManager.GetResourcesFilter()
+	require.NoError(t, err)
+	assert.Equal(t, &ResourcesFilter{
+		ResourceExclusions: []FilteredResource{
+			{APIGroups: []string{"group3"}, Kinds: []string{"kind3"}},
+		},
+	}, filter)
+}
+
+func TestGetResourceFilterInvalidConfiguration(t *testing.T) {
+	for _, key := range []string{
+		"resource.inclusions",
+		"resource.exclusions",
+		"resource.additionalExclusions",
+	} {
+		t.Run(key, func(t *testing.T) {
+			_, settingsManager := fixtures(t.Context(), map[string]string{
+				key: "invalid: yaml: value",
+			})
+			filter, err := settingsManager.GetResourcesFilter()
+			require.ErrorContains(t, err, "error unmarshalling "+key)
+			assert.Nil(t, filter)
+		})
+	}
+}
+
 func TestInClusterServerAddressEnabled(t *testing.T) {
 	_, settingsManager := fixtures(t.Context(), map[string]string{
 		"cluster.inClusterEnabled": "true",
