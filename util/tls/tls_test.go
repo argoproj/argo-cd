@@ -390,6 +390,13 @@ func TestGetTLSConfigCustomizer(t *testing.T) {
 		require.Error(t, err)
 		assert.Nil(t, cfunc)
 	})
+
+	t.Run("Invalid curve preferences", func(t *testing.T) {
+		t.Parallel()
+		cfunc, err := getTLSConfigCustomizer("1.3", "1.2", DefaultTLSCipherSuite, "invalid_curve")
+		require.Error(t, err)
+		assert.Nil(t, cfunc)
+	})
 }
 
 func TestBestEffortSystemCertPool(t *testing.T) {
