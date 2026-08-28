@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/util/io/files"
 )
 
 func TestGetCommonRootPath(t *testing.T) {
@@ -75,8 +76,21 @@ func TestGetManifestGenerateIncludePaths(t *testing.T) {
 
 			req := &apiclient.ManifestRequest{AnnotationManifestGeneratePaths: tt.annotation}
 			rootPath := getApplicationRootPath(req, tt.appPath, repoRoot)
-			includePaths := getManifestGenerateIncludePaths(req, tt.appPath, rootPath, repoRoot)
+			includePaths, err := getManifestGenerateIncludePaths(req, tt.appPath, rootPath, repoRoot)
+			assert.NoError(t, err)
 			assert.Equal(t, tt.expected, includePaths)
 		})
 	}
+}
+
+func TestGetManifestGenerateIncludePathsError(t *testing.T) {
+	t.Parallel()
+
+	repoRoot := "/tmp/_argocd-repo/7a58c52a-0030-4fd9-8cc5-35b2d8b4e731"
+	appPath := repoRoot + "/services/helloworld"
+	req := &apiclient.ManifestRequest{AnnotationManifestGeneratePaths: "."}
+
+	_, err := getManifestGenerateIncludePaths(req, appPath, "/somewhere/else", repoRoot)
+	assert.Error(t, err)
+	assert.ErrorIs(t, err, files.ErrRelativeOutOfBound)
 }

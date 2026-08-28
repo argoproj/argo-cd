@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -92,11 +93,12 @@ func getPaths(q *apiclient.ManifestRequest, appPath, repoPath string) []string {
 // config management plugin needs to generate the application manifests, based on
 // the manifest generate paths annotation. Returns nil when the annotation is
 // empty, as rootPath is then the whole repository and there is nothing to narrow
-// down.
-func getManifestGenerateIncludePaths(q *apiclient.ManifestRequest, appPath, rootPath, repoPath string) []string {
+// down. An error is returned if a selected path cannot be made relative to
+// rootPath; dropping it would pack an incomplete tree for the plugin.
+func getManifestGenerateIncludePaths(q *apiclient.ManifestRequest, appPath, rootPath, repoPath string) ([]string, error) {
 	paths := getPaths(q, appPath, repoPath)
 	if len(paths) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	// The application path is always needed, it is the plugin working directory.
@@ -105,8 +107,7 @@ func getManifestGenerateIncludePaths(q *apiclient.ManifestRequest, appPath, root
 	for _, path := range append([]string{appPath}, paths...) {
 		relPath, err := files.RelativePath(path, rootPath)
 		if err != nil {
-			log.Errorf("error building relative path for %q under %q: %v", path, rootPath, err)
-			continue
+			return nil, fmt.Errorf("error building relative path for %q under %q: %w", path, rootPath, err)
 		}
 		if seen[relPath] {
 			continue
@@ -114,5 +115,5 @@ func getManifestGenerateIncludePaths(q *apiclient.ManifestRequest, appPath, root
 		seen[relPath] = true
 		includePaths = append(includePaths, relPath)
 	}
-	return includePaths
+	return includePaths, nil
 }

@@ -99,7 +99,10 @@ func WithTarDoneChan(ch chan<- bool) SenderOption {
 
 // WithIncludePaths restricts the files sent to the cmp-server to the given
 // paths, relative to rootPath. Directories are sent with everything below them.
-// If the paths select no file at all, the whole rootPath is sent instead.
+// A selection that contains no regular file fails with "no files to send"
+// instead of sending the rest of rootPath: directories and symlinks are
+// header-only, so they cannot be rendered, and filling the archive from the
+// common root would leak files the annotation did not name.
 func WithIncludePaths(includePaths []string) SenderOption {
 	return func(opt *senderOption) {
 		opt.includePaths = includePaths
@@ -154,21 +157,11 @@ func GetCompressedRepoAndMetadata(rootPath string, appPath string, env []string,
 	if err != nil {
 		return nil, nil, fmt.Errorf("error compressing repo files: %w", err)
 	}
-	// An archive without a file in it is rejected below and gives a plugin
-	// nothing to render, so a selection that picked up no file is treated like a
-	// selection that matched nothing at all, including one that only picked up
-	// directories and symlinks. Falling back keeps such an application working
-	// exactly as it does without the include paths instead of failing it.
-	if filesWritten == 0 && len(includePaths) > 0 {
-		log.Warnf("no file under %q was selected by %v, sending everything under it instead", rootPath, includePaths)
-		tgzstream.CloseAndDelete(tgz)
-		tgz, filesWritten, checksum, err = tgzstream.CompressFilesWithOptions(rootPath, files.TarOptions{Exclusions: excludedGlobs})
-		if err != nil {
-			return nil, nil, fmt.Errorf("error compressing repo files: %w", err)
-		}
-	}
 	if filesWritten == 0 {
 		tgzstream.CloseAndDelete(tgz)
+		if len(includePaths) > 0 {
+			return nil, nil, fmt.Errorf("no files to send(%s): include paths %v selected no regular file", rootPath, includePaths)
+		}
 		return nil, nil, fmt.Errorf("no files to send(%s)", rootPath)
 	}
 	if opt != nil && opt.tarDoneChan != nil {

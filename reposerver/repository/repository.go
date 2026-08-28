@@ -2376,7 +2376,10 @@ func runConfigManagementPluginSidecars(ctx context.Context, appPath, repoPath, p
 		// Transmit the paths related to the manifest generate paths annotation,
 		// rooted at their common root path so that relative paths keep working.
 		rootPath = getApplicationRootPath(q, appPath, repoPath)
-		includePaths = getManifestGenerateIncludePaths(q, appPath, rootPath, repoPath)
+		includePaths, err = getManifestGenerateIncludePaths(q, appPath, rootPath, repoPath)
+		if err != nil {
+			return nil, fmt.Errorf("error computing manifest generate include paths: %w", err)
+		}
 		log.Debugf("common root path calculated for application %s: %s (included paths: %v)", q.AppName, rootPath, includePaths)
 	}
 
