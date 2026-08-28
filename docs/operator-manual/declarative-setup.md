@@ -1442,10 +1442,6 @@ Notes:
 
 * Selectors of all the matching rules are ANDed together.
 * An invalid selector is rejected when the config map is loaded.
-* Objects filtered out by a selector are not in the controller cache, so they are not shown in the resource tree and
-  managed objects that no longer match appear as `OutOfSync`.
-* Some filtered out objects may already be in the controller cache. A restart of the controller will be necessary to
-  remove them from the Application View.
 
 ## Mask sensitive Annotations on Secrets
 
