@@ -2252,6 +2252,9 @@ func (ctrl *ApplicationController) noteReconciled(qualifiedName string, t time.T
 
 // forgetReconciled drops an app's in-memory reconcile time, bounding the map.
 func (ctrl *ApplicationController) forgetReconciled(qualifiedName string) {
+	if ctrl.reconciledAtHeartbeat <= 0 {
+		return
+	}
 	ctrl.lastReconciledAtMutex.Lock()
 	defer ctrl.lastReconciledAtMutex.Unlock()
 	delete(ctrl.lastReconciledAt, qualifiedName)
