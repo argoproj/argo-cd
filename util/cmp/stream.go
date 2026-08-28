@@ -99,10 +99,7 @@ func WithTarDoneChan(ch chan<- bool) SenderOption {
 
 // WithIncludePaths restricts the files sent to the cmp-server to the given
 // paths, relative to rootPath. Directories are sent with everything below them.
-// A selection that contains no regular file fails with "no files to send"
-// instead of sending the rest of rootPath: directories and symlinks are
-// header-only, so they cannot be rendered, and filling the archive from the
-// common root would leak files the annotation did not name.
+// Fails if no regular file is selected.
 func WithIncludePaths(includePaths []string) SenderOption {
 	return func(opt *senderOption) {
 		opt.includePaths = includePaths

@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v3/util/io/files"
@@ -77,7 +78,7 @@ func TestGetManifestGenerateIncludePaths(t *testing.T) {
 			req := &apiclient.ManifestRequest{AnnotationManifestGeneratePaths: tt.annotation}
 			rootPath := getApplicationRootPath(req, tt.appPath, repoRoot)
 			includePaths, err := getManifestGenerateIncludePaths(req, tt.appPath, rootPath, repoRoot)
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, tt.expected, includePaths)
 		})
 	}
@@ -91,6 +92,6 @@ func TestGetManifestGenerateIncludePathsError(t *testing.T) {
 	req := &apiclient.ManifestRequest{AnnotationManifestGeneratePaths: "."}
 
 	_, err := getManifestGenerateIncludePaths(req, appPath, "/somewhere/else", repoRoot)
-	assert.Error(t, err)
-	assert.ErrorIs(t, err, files.ErrRelativeOutOfBound)
+	require.Error(t, err)
+	require.ErrorIs(t, err, files.ErrRelativeOutOfBound)
 }

@@ -93,8 +93,7 @@ func getPaths(q *apiclient.ManifestRequest, appPath, repoPath string) []string {
 // config management plugin needs to generate the application manifests, based on
 // the manifest generate paths annotation. Returns nil when the annotation is
 // empty, as rootPath is then the whole repository and there is nothing to narrow
-// down. An error is returned if a selected path cannot be made relative to
-// rootPath; dropping it would pack an incomplete tree for the plugin.
+// down.
 func getManifestGenerateIncludePaths(q *apiclient.ManifestRequest, appPath, rootPath, repoPath string) ([]string, error) {
 	paths := getPaths(q, appPath, repoPath)
 	if len(paths) == 0 {
