@@ -35149,6 +35149,12 @@ spec:
               key: controller.metrics.cluster.labels
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_RECONCILED_AT_HEARTBEAT
+          valueFrom:
+            configMapKeyRef:
+              key: controller.reconciled.at.heartbeat
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_TIMEOUT_SECONDS
           valueFrom:
             configMapKeyRef:

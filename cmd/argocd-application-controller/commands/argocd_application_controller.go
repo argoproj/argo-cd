@@ -58,6 +58,7 @@ func NewCommand() *cobra.Command {
 		appResyncPeriod                  int64
 		appHardResyncPeriod              int64
 		appResyncJitter                  int64
+		reconciledAtHeartbeat            time.Duration
 		repoErrorGracePeriod             int64
 		repoServerAddress                string
 		repoServerTimeoutSeconds         int
@@ -202,6 +203,7 @@ func NewCommand() *cobra.Command {
 				resyncDuration,
 				hardResyncDuration,
 				time.Duration(appResyncJitter)*time.Second,
+				reconciledAtHeartbeat,
 				time.Duration(selfHealTimeoutSeconds)*time.Second,
 				selfHealBackoff,
 				time.Duration(syncTimeout)*time.Second,
@@ -260,6 +262,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().Int64Var(&appResyncPeriod, "app-resync", int64(env.ParseDurationFromEnv("ARGOCD_RECONCILIATION_TIMEOUT", defaultAppResyncPeriod*time.Second, 0, math.MaxInt64).Seconds()), "Time period in seconds for application resync.")
 	command.Flags().Int64Var(&appHardResyncPeriod, "app-hard-resync", int64(env.ParseDurationFromEnv("ARGOCD_HARD_RECONCILIATION_TIMEOUT", defaultAppHardResyncPeriod*time.Second, 0, math.MaxInt64).Seconds()), "Time period in seconds for application hard resync.")
 	command.Flags().Int64Var(&appResyncJitter, "app-resync-jitter", int64(env.ParseDurationFromEnv("ARGOCD_RECONCILIATION_JITTER", defaultAppResyncPeriodJitter*time.Second, 0, math.MaxInt64).Seconds()), "Maximum time period in seconds to add as a delay jitter for application resync.")
+	command.Flags().DurationVar(&reconciledAtHeartbeat, "reconciled-at-heartbeat", env.ParseDurationFromEnv(common.EnvControllerReconciledAtHeartbeat, 0, 0, math.MaxInt64), "How stale the Application status.reconciledAt field may become while nothing else in status changes. Zero (the default) writes it on every reconciliation; a positive value (e.g. 10m) trades staleness of that one field for far fewer API server writes.")
 	command.Flags().Int64Var(&repoErrorGracePeriod, "repo-error-grace-period-seconds", int64(env.ParseDurationFromEnv("ARGOCD_REPO_ERROR_GRACE_PERIOD_SECONDS", defaultRepoErrorGracePeriod*time.Second, 0, math.MaxInt64).Seconds()), "Grace period in seconds for ignoring consecutive errors while communicating with repo server.")
 	command.Flags().StringVar(&repoServerAddress, "repo-server", env.StringFromEnv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER", common.DefaultRepoServerAddr), "Repo server address.")
 	command.Flags().IntVar(&repoServerTimeoutSeconds, "repo-server-timeout-seconds", env.ParseNumFromEnv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS", 60, 0, math.MaxInt64), "Repo server RPC call timeout seconds.")

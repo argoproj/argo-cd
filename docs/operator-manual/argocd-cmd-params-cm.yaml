@@ -79,6 +79,10 @@ data:
   controller.metrics.application.conditions: "OrphanedResourceWarning"
   # List of Cluster labels added to the argocd_cluster_labels metric (comma separated)
   controller.metrics.cluster.labels: "environment"
+  # How stale the Application status.reconciledAt field may become while nothing else in status
+  # changes. "0" (the default) writes it on every reconciliation; a positive value trades staleness
+  # of that one field for far fewer API server writes on large, steady fleets.
+  controller.reconciled.at.heartbeat: "0"
   # Specifies timeout between application self heal attempts
   controller.self.heal.timeout.seconds: "0"
   # Specifies exponential backoff timeout parameters between application self heal attempts
