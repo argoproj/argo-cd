@@ -597,10 +597,10 @@ func TestIsSkipLabelMatches(t *testing.T) {
 
 func TestCheckAppHasNoNeedToStopOperation(t *testing.T) {
 	tests := []struct {
-		name         string
-		liveObj      *unstructured.Unstructured
+		name          string
+		liveObj       *unstructured.Unstructured
 		stopOperation bool
-		expected     bool
+		expected      bool
 	}{
 		{
 			name:          "stopOperation false returns true",
@@ -624,7 +624,7 @@ func TestCheckAppHasNoNeedToStopOperation(t *testing.T) {
 			name: "stopOperation true with Application having operation returns false",
 			liveObj: func() *unstructured.Unstructured {
 				app := newApplication("argocd")
-				app.Object["operation"] = map[string]interface{}{}
+				app.Object["operation"] = map[string]any{}
 				return app
 			}(),
 			stopOperation: true,
@@ -652,22 +652,24 @@ func TestUpdateLive(t *testing.T) {
 			backup: newBackupObject("backup", false, true),
 			live:   newBackupObject("live", false, true),
 			validateFn: func(t *testing.T, result *unstructured.Unstructured) {
+				t.Helper()
 				backupData := newBackupObject("backup", false, true).Object["data"]
 				resultData := result.Object["data"]
 				assert.Equal(t, backupData, resultData)
 			},
 		},
 		{
-			name: "Application spec is updated from backup",
+			name:   "Application spec is updated from backup",
 			backup: newApplication("argocd"),
-			live:   func() *unstructured.Unstructured {
+			live: func() *unstructured.Unstructured {
 				app := newApplication("argocd")
-				app.Object["spec"] = map[string]interface{}{"project": "modified"}
+				app.Object["spec"] = map[string]any{"project": "modified"}
 				return app
 			}(),
 			validateFn: func(t *testing.T, result *unstructured.Unstructured) {
+				t.Helper()
 				assert.NotNil(t, result.Object["spec"])
-				spec, ok := result.Object["spec"].(map[string]interface{})
+				spec, ok := result.Object["spec"].(map[string]any)
 				assert.True(t, ok)
 				assert.Equal(t, "default", spec["project"])
 			},
@@ -680,25 +682,27 @@ func TestUpdateLive(t *testing.T) {
 			}(),
 			live: func() *unstructured.Unstructured {
 				app := newApplication("argocd")
-				app.Object["operation"] = map[string]interface{}{"sync": map[string]interface{}{}}
+				app.Object["operation"] = map[string]any{"sync": map[string]any{}}
 				return app
 			}(),
 			stopOperation: true,
 			validateFn: func(t *testing.T, result *unstructured.Unstructured) {
+				t.Helper()
 				assert.Nil(t, result.Object["operation"])
 			},
 		},
 		{
-			name: "ApplicationSet spec is updated from backup",
+			name:   "ApplicationSet spec is updated from backup",
 			backup: newApplicationSet("argocd"),
 			live: func() *unstructured.Unstructured {
 				appset := newApplicationSet("argocd")
-				appset.Object["spec"] = map[string]interface{}{"modified": true}
+				appset.Object["spec"] = map[string]any{"modified": true}
 				return appset
 			}(),
 			validateFn: func(t *testing.T, result *unstructured.Unstructured) {
+				t.Helper()
 				assert.NotNil(t, result.Object["spec"])
-				spec, ok := result.Object["spec"].(map[string]interface{})
+				spec, ok := result.Object["spec"].(map[string]any)
 				assert.True(t, ok)
 				assert.NotNil(t, spec["generators"])
 			},
@@ -708,6 +712,7 @@ func TestUpdateLive(t *testing.T) {
 			backup: newBackupObject("backup-id", true, true),
 			live:   newBackupObject("live-id", true, true),
 			validateFn: func(t *testing.T, result *unstructured.Unstructured) {
+				t.Helper()
 				labels := result.GetLabels()
 				assert.NotNil(t, labels)
 				annotations := result.GetAnnotations()
