@@ -2213,7 +2213,7 @@ func TestStaleGitLockPath(t *testing.T) {
 		{
 			name:   "nested ref lock under .git is removable",
 			output: fmt.Sprintf("fatal: Unable to create '%s/refs/heads/main.lock': File exists.", gitDir),
-			want:   filepath.Join(gitDir, "refs/heads/main.lock"),
+			want:   filepath.Join(gitDir, "refs", "heads", "main.lock"),
 			wantOk: true,
 		},
 		{
@@ -2286,4 +2286,36 @@ func Test_nativeGitClient_CheckoutRecoversStaleLock(t *testing.T) {
 	out, err := client.Checkout(ctx, commitSHA, false, true)
 	require.NoError(t, err, "error output: %s", out)
 	require.NoFileExists(t, lockPath)
+}
+
+// Test_nativeGitClient_CheckoutLeavesNonRegularLock proves the recovery only ever
+// unlinks a plain file: a lock path that is a symlink is left alone and the
+// checkout still fails, so the symlink target can never be deleted.
+func Test_nativeGitClient_CheckoutLeavesNonRegularLock(t *testing.T) {
+	ctx := t.Context()
+
+	originDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+	require.NoError(t, runCmd(ctx, originDir, "git", "commit", "-m", "Second commit", "--allow-empty"))
+
+	client, err := NewClient("file://"+originDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	require.NoError(t, client.Init())
+	require.NoError(t, client.Fetch(ctx, "", 0))
+
+	commitSHA, err := client.LsRemote("HEAD")
+	require.NoError(t, err)
+
+	_, err = client.Checkout(ctx, commitSHA, false, true)
+	require.NoError(t, err)
+
+	target := filepath.Join(t.TempDir(), "innocent-bystander")
+	require.NoError(t, os.WriteFile(target, []byte("must survive"), 0o600))
+
+	lockPath := filepath.Join(client.Root(), ".git", "HEAD.lock")
+	require.NoError(t, os.Symlink(target, lockPath))
+
+	_, err = client.Checkout(ctx, commitSHA, false, true)
+	require.Error(t, err, "a non-regular lock path must not be recovered")
+	require.FileExists(t, target, "the symlink target must not be removed")
 }

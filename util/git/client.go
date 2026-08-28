@@ -1808,6 +1808,20 @@ func (m *nativeGitClient) reExecOnStaleLock(op func() (string, error)) (string, 
 	if !ok {
 		return out, err
 	}
+	// Lstat, not Stat: a symlink here would make os.Remove delete the link, but
+	// refuse anything that is not a plain file so a lock path that has been
+	// swapped for a link or a directory is never followed or unlinked.
+	fi, statErr := os.Lstat(lockPath)
+	if statErr != nil {
+		if !os.IsNotExist(statErr) {
+			log.Warnf("could not stat stale git lock %q: %v", lockPath, statErr)
+		}
+		return out, err
+	}
+	if !fi.Mode().IsRegular() {
+		log.Warnf("refusing to remove %q: git lock files are regular files, found mode %s", lockPath, fi.Mode())
+		return out, err
+	}
 	log.Warnf("git operation failed on a stale lock %q from a previously interrupted git process; removing it and retrying once", lockPath)
 	if rmErr := os.Remove(lockPath); rmErr != nil && !os.IsNotExist(rmErr) {
 		log.Warnf("could not remove stale git lock %q: %v", lockPath, rmErr)
