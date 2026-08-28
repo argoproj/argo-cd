@@ -1,6 +1,7 @@
 package db
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -12,16 +13,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
-
-const (
-	TestCert1CN = "CN=foo.example.com,OU=SpecOps,O=Capone\\, Inc,L=Chicago,ST=IL,C=US"
-	TestCert2CN = "CN=bar.example.com,OU=Testsuite,O=Testing Corp,L=Hanover,ST=Lower Saxony,C=DE"
-)
-
-var TestTLSSubjects = []string{
-	"CN=foo.example.com,OU=SpecOps,O=Capone\\, Inc,L=Chicago,ST=IL,C=US",
-	"CN=bar.example.com,OU=Testsuite,O=Testing Corp,L=Hanover,ST=Lower Saxony,C=DE",
-}
 
 const TestTLSValidSingleCert = `
 -----BEGIN CERTIFICATE-----
@@ -231,10 +222,21 @@ var TestSSHSubtypes = []string{
 	"ssh-rsa",
 }
 
-var TestTLSHostnames = []string{
-	"test.example.com",
-	"test.example.com",
-	"github.com",
+// A single valid SSH host key, in the format CreateRepoCertificate expects for
+// the CertData of an ssh entry.
+const TestSSHKnownHostsKey = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDioSMcGxdVkHaQzRjP71nY4mgVHXjuZiYN9NBiUxNZ0DYGjTIENI3uV45XxrS6PQfoyekUlVlHK2jwpcPrqAg6rlAdMD5WIxzvCnFjCuPA6Ljk8p0ZmYbvriDcgtj+UfGEdyUTgxH2gch6KwTY0eAbLue15IuXtoNzpLxk29iGRi5ZXNAbSBjeB3hm2PKLa6LnDqdkvc+nqoYqn1Fvx7ZJIh0apBCJpOtHPON4rnl7QQvNg9pWulZ5GKcpYMRfTpvHyFTEyrsVT5GH38l9s355GqU7GxQ/i6Tj1D0MKrIB2WmdjOnujM/ELLsrkYspMhn8ZRpCphN/LTcrOWsb0AM69drvYlhc6cnNAtC4UXp0GUy1HsBiJCsUm9/1Gz23VLDRvWop8yE8+PE3Ho5eL7ad9wmOG0mSOYEqVvAstmd8vzbD6oRuY8qV8X3tt9ph2tMAve0Qbo0NN3c51c9OfdXtJaSyckjEjaK7zjnArnYfladZZVlf2Tv8FsV0sJmfSAE="
+
+// Fingerprints of the keys in TestValidSSHKnownHostsData, in the order they
+// appear there. These are the fingerprints published by the respective
+// providers and can be reproduced with "ssh-keygen -lf <known_hosts>".
+var TestSSHFingerprints = []string{
+	"SHA256:46OSHA1Rmj8E8ERTC6xkNcmGOw9oFxYr0WF6zWW8l1E",
+	"SHA256:uNiVztksCsDhcc0u9e8BujQXVUpKZIDTMczCvj3tD2s",
+	"SHA256:HbW3g8zUjNSksFbqTiUWPWg2Bq1x8xdGUrliXFzSnUw",
+	"SHA256:eUXGGm1YGsMAS7vkcx6JOJdOGHPem5gQp4taiCfCLB8",
+	"SHA256:ROQFvPThGrW4RuWLoL9tq9I9zJ42fK4XywyRtbOz/EQ",
+	"SHA256:ohD8VZEXGWo6Ez8GSEJQ9WpafgLFsOfLOtGGQCQo6Og",
+	"SHA256:ohD8VZEXGWo6Ez8GSEJQ9WpafgLFsOfLOtGGQCQo6Og",
 }
 
 const (
@@ -243,6 +245,10 @@ const (
 )
 
 func getCertClientset() *fake.Clientset {
+	return certClientsetWithKnownHosts(TestValidSSHKnownHostsData)
+}
+
+func certClientsetWithKnownHosts(knownHosts string) *fake.Clientset {
 	cm := corev1.ConfigMap{
 		Name:      "argocd-cm",
 		Namespace: testNamespace,
@@ -259,7 +265,7 @@ func getCertClientset() *fake.Clientset {
 			"app.kubernetes.io/part-of": "argocd",
 		},
 		Data: map[string]string{
-			"ssh_known_hosts": TestValidSSHKnownHostsData,
+			"ssh_known_hosts": knownHosts,
 		},
 	}
 
@@ -294,8 +300,12 @@ func TestListCertificate(t *testing.T) {
 	assert.NotNil(t, certList)
 	assert.Len(t, certList.Items, TestNumSSHKnownHostsExpected)
 	for idx, entry := range certList.Items {
-		assert.Equal(t, entry.ServerName, TestSSHHostnameEntries[idx])
-		assert.Equal(t, entry.CertSubType, TestSSHSubtypes[idx])
+		assert.Equal(t, TestSSHHostnameEntries[idx], entry.ServerName)
+		assert.Equal(t, TestSSHSubtypes[idx], entry.CertSubType)
+		assert.Equal(t, TestSSHFingerprints[idx], entry.CertInfo,
+			"wrong fingerprint for %s key of %s", entry.CertSubType, entry.ServerName)
+		assert.NotEqual(t, "SHA256:", entry.CertInfo,
+			"fingerprint for %s key of %s is nothing but the prefix", entry.CertSubType, entry.ServerName)
 	}
 
 	// List all TLS certificates from configuration.
@@ -348,6 +358,54 @@ func TestListCertificate(t *testing.T) {
 	assert.Len(t, certList.Items, 1)
 	assert.Equal(t, "gitlab.com", certList.Items[0].ServerName)
 	assert.Equal(t, "https", certList.Items[0].CertType)
+}
+
+// Known hosts entries are only validated syntactically when they are read from
+// the ConfigMap, so key data that cannot be parsed reaches the listing. Such an
+// entry must not be reported with a bare "SHA256:" prefix, which would look
+// like a real fingerprint that happens to be cut off.
+func TestListCertificateSSHUnparseableKey(t *testing.T) {
+	t.Parallel()
+	clientset := certClientsetWithKnownHosts("foo.example.com ssh-rsa bm90LWEta2V5\n")
+	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
+
+	certList, err := db.ListRepoCertificates(t.Context(), &CertificateListSelector{CertType: "ssh"})
+	require.NoError(t, err)
+	require.Len(t, certList.Items, 1)
+	assert.Equal(t, "foo.example.com", certList.Items[0].ServerName)
+	assert.Empty(t, certList.Items[0].CertInfo)
+}
+
+// CreateRepoCertificate reports the fingerprint of the entries it created, and
+// it must do so in the same format ListRepoCertificates uses. It used to return
+// the bare hash without the "SHA256:" prefix that the listing adds.
+func TestCreateSSHKnownHostEntriesFingerprintFormat(t *testing.T) {
+	t.Parallel()
+	clientset := getCertClientset()
+	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
+
+	created, err := db.CreateRepoCertificate(t.Context(), &v1alpha1.RepositoryCertificateList{
+		Items: []v1alpha1.RepositoryCertificate{
+			{
+				ServerName: "foo.example.com",
+				CertType:   "ssh",
+				CertData:   []byte(TestSSHKnownHostsKey),
+			},
+		},
+	}, false)
+	require.NoError(t, err)
+	require.Len(t, created.Items, 1)
+	assert.True(t, strings.HasPrefix(created.Items[0].CertInfo, "SHA256:"),
+		"created entry reports %q, which is not in ssh-keygen fingerprint format", created.Items[0].CertInfo)
+
+	listed, err := db.ListRepoCertificates(t.Context(), &CertificateListSelector{
+		HostNamePattern: "foo.example.com",
+		CertType:        "ssh",
+	})
+	require.NoError(t, err)
+	require.Len(t, listed.Items, 1)
+	assert.Equal(t, listed.Items[0].CertInfo, created.Items[0].CertInfo,
+		"CreateRepoCertificate and ListRepoCertificates disagree on the fingerprint")
 }
 
 func TestCreateSSHKnownHostEntries(t *testing.T) {
