@@ -15,6 +15,24 @@ import './application-node-info.scss';
 import {ReadinessGatesNotPassedWarning} from './readiness-gates-not-passed-warning';
 import Moment from 'react-moment';
 
+// Annotations that Argo CD injects into live resources for its own bookkeeping. These are hidden, alongside
+// metadata.managedFields, when the "Hide Managed Fields" checkbox is enabled.
+export const ArgoCDManagedAnnotations = ['argocd.argoproj.io/tracking-id'];
+
+export const stripManagedFields = (resource: any): any => {
+    if (!resource?.metadata) {
+        return resource;
+    }
+    const metadata = {...resource.metadata};
+    delete metadata.managedFields;
+    if (metadata.annotations && ArgoCDManagedAnnotations.some(key => key in metadata.annotations)) {
+        const annotations = {...metadata.annotations};
+        ArgoCDManagedAnnotations.forEach(key => delete annotations[key]);
+        metadata.annotations = annotations;
+    }
+    return {...resource, metadata};
+};
+
 const RenderContainerState = (props: {container: any}) => {
     const state = (props.container.state?.waiting && 'waiting') || (props.container.state?.terminated && 'terminated') || (props.container.state?.running && 'running');
     const status = props.container.state.waiting?.reason || props.container.state.terminated?.reason || props.container.state.running?.reason;
@@ -246,14 +264,7 @@ export const ApplicationNodeInfo = (props: {
                         const merged = deepMerge(props.live, {}) as any;
                         const showLiveState = Object.keys(merged).length !== 0;
 
-                        const live =
-                            merged?.metadata?.managedFields && pref.appDetails.hideManagedFields
-                                ? (() => {
-                                      const metadata = {...merged.metadata};
-                                      delete metadata.managedFields;
-                                      return {...merged, metadata};
-                                  })()
-                                : merged;
+                        const live = pref.appDetails.hideManagedFields ? stripManagedFields(merged) : merged;
                         return (
                             <React.Fragment>
                                 {showLiveState ? (
