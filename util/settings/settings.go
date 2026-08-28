@@ -885,35 +885,32 @@ func (mgr *SettingsManager) GetResourcesFilter() (*ResourcesFilter, error) {
 		return nil, fmt.Errorf("error retrieving argocd-cm: %w", err)
 	}
 
-	inclusions, err := parseFilteredResources(argoCDCM.Data, resourceInclusionsKey)
-	if err != nil {
-		return nil, err
+	rf := &ResourcesFilter{}
+	if err := parseFilteredResources(argoCDCM.Data, resourceInclusionsKey, &rf.ResourceInclusions); err != nil {
+		return nil, fmt.Errorf("error parsing resource filters: %w", err)
 	}
-	exclusions, err := parseFilteredResources(argoCDCM.Data, resourceExclusionsKey)
-	if err != nil {
-		return nil, err
+	if err := parseFilteredResources(argoCDCM.Data, resourceExclusionsKey, &rf.ResourceExclusions); err != nil {
+		return nil, fmt.Errorf("error parsing resource filters: %w", err)
 	}
-	additionalExclusions, err := parseFilteredResources(argoCDCM.Data, resourceAdditionalExclusionsKey)
-	if err != nil {
-		return nil, err
+	var additionalExclusions []FilteredResource
+	if err := parseFilteredResources(argoCDCM.Data, resourceAdditionalExclusionsKey, &additionalExclusions); err != nil {
+		return nil, fmt.Errorf("error parsing resource filters: %w", err)
 	}
 
-	return &ResourcesFilter{
-		ResourceInclusions: inclusions,
-		ResourceExclusions: append(exclusions, additionalExclusions...),
-	}, nil
+	rf.ResourceExclusions = append(rf.ResourceExclusions, additionalExclusions...)
+	return rf, nil
 }
 
-func parseFilteredResources(data map[string]string, key string) ([]FilteredResource, error) {
+func parseFilteredResources(data map[string]string, key string, resources *[]FilteredResource) error {
 	value, ok := data[key]
 	if !ok {
-		return nil, nil
+		return nil
 	}
-	resources := make([]FilteredResource, 0)
-	if err := yaml.Unmarshal([]byte(value), &resources); err != nil {
-		return nil, fmt.Errorf("error unmarshalling %s: %w", key, err)
+	*resources = make([]FilteredResource, 0)
+	if err := yaml.Unmarshal([]byte(value), resources); err != nil {
+		return fmt.Errorf("error unmarshalling %s: %w", key, err)
 	}
-	return resources, nil
+	return nil
 }
 
 func (mgr *SettingsManager) GetAppInstanceLabelKey() (string, error) {

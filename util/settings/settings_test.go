@@ -200,7 +200,7 @@ func TestGetResourceFilterInvalidConfiguration(t *testing.T) {
 				key: "invalid: yaml: value",
 			})
 			filter, err := settingsManager.GetResourcesFilter()
-			require.ErrorContains(t, err, "error unmarshalling "+key)
+			require.ErrorContains(t, err, "error parsing resource filters: error unmarshalling "+key)
 			assert.Nil(t, filter)
 		})
 	}
