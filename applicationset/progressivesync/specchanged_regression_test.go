@@ -13,6 +13,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	argov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 )
 
 // Regression tests for the progressive-sync reconcile loop: updateApplicationSetApplicationStatus
@@ -239,4 +240,48 @@ func TestOutOfSyncHealthyAppTransitionsToWaiting(t *testing.T) {
 	assert.Equal(t, argov1alpha1.ProgressiveSyncWaiting, statuses[0].Status,
 		"an OutOfSync application that was ProgressiveSyncHealthy must transition to ProgressiveSyncWaiting so progressive sync can schedule a sync operation")
 	assert.Equal(t, outOfSyncMsg, statuses[0].Message)
+}
+
+func TestOutOfSyncHealthyAppDefersWhenActiveOperation(t *testing.T) {
+	t.Parallel()
+
+	t.Run("defers transition when app.Operation is non-nil", func(t *testing.T) {
+		t.Parallel()
+		appSet := regressionAppSet(nil)
+		live := regressionApp("HEAD", new(false))
+		live.Status.Sync = argov1alpha1.SyncStatus{Status: argov1alpha1.SyncStatusCodeOutOfSync, Revision: "abc123"}
+		live.Operation = &argov1alpha1.Operation{Sync: &argov1alpha1.SyncOperation{}}
+		desired := regressionApp("HEAD", nil)
+
+		m := regressionManager(t, &appSet)
+		statuses, err := m.UpdateApplicationSetApplicationStatus(t.Context(), log.NewEntry(log.New()),
+			&appSet, []argov1alpha1.Application{live}, []argov1alpha1.Application{desired},
+			map[string]int{"storm-a": 0})
+		require.NoError(t, err)
+		require.Len(t, statuses, 1)
+
+		assert.Equal(t, argov1alpha1.ProgressiveSyncHealthy, statuses[0].Status,
+			"an OutOfSync application with an active Operation must defer transition to ProgressiveSyncWaiting")
+	})
+
+	t.Run("defers transition when app.Status.OperationState is active", func(t *testing.T) {
+		t.Parallel()
+		appSet := regressionAppSet(nil)
+		live := regressionApp("HEAD", new(false))
+		live.Status.Sync = argov1alpha1.SyncStatus{Status: argov1alpha1.SyncStatusCodeOutOfSync, Revision: "abc123"}
+		live.Status.OperationState = &argov1alpha1.OperationState{
+			Phase: synccommon.OperationRunning,
+		}
+		desired := regressionApp("HEAD", nil)
+
+		m := regressionManager(t, &appSet)
+		statuses, err := m.UpdateApplicationSetApplicationStatus(t.Context(), log.NewEntry(log.New()),
+			&appSet, []argov1alpha1.Application{live}, []argov1alpha1.Application{desired},
+			map[string]int{"storm-a": 0})
+		require.NoError(t, err)
+		require.Len(t, statuses, 1)
+
+		assert.Equal(t, argov1alpha1.ProgressiveSyncHealthy, statuses[0].Status,
+			"an OutOfSync application with an active OperationState must defer transition to ProgressiveSyncWaiting")
+	})
 }

@@ -524,6 +524,74 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			},
 		},
 		{
+			name: "Ensure that generatedApp.Operation does not overwrite existing active operation on found Application",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "namespace",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Template: v1alpha1.ApplicationSetTemplate{
+						Spec: v1alpha1.ApplicationSpec{
+							Project: "project",
+						},
+					},
+				},
+			},
+			existingApps: []v1alpha1.Application{
+				{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       application.ApplicationKind,
+						APIVersion: "argoproj.io/v1alpha1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            "app1",
+						Namespace:       "namespace",
+						ResourceVersion: "2",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "project",
+					},
+					Operation: &v1alpha1.Operation{
+						Sync: &v1alpha1.SyncOperation{Revision: "manual-revision"},
+					},
+				},
+			},
+			desiredApps: []v1alpha1.Application{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "app1",
+						Namespace: "namespace",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "project",
+					},
+					Operation: &v1alpha1.Operation{
+						Sync: &v1alpha1.SyncOperation{Revision: "rollingsync-revision"},
+					},
+				},
+			},
+			expected: []v1alpha1.Application{
+				{
+					TypeMeta: metav1.TypeMeta{
+						Kind:       application.ApplicationKind,
+						APIVersion: "argoproj.io/v1alpha1",
+					},
+					ObjectMeta: metav1.ObjectMeta{
+						Name:            "app1",
+						Namespace:       "namespace",
+						ResourceVersion: "2",
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "project",
+					},
+					Operation: &v1alpha1.Operation{
+						Sync: &v1alpha1.SyncOperation{Revision: "manual-revision"},
+					},
+				},
+			},
+		},
+		{
 			name: "Ensure that argocd notifications state and refresh annotation is preserved from an existing app",
 			appSet: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
