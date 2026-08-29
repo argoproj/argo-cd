@@ -277,7 +277,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				},
 			}),
 			apps: []v1alpha1.Application{
-				newApp("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeOutOfSync, "next", newOperationState(common.OperationSucceeded)),
+				newApp("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeSynced, "next", newOperationState(common.OperationSucceeded)),
 			},
 			appStepMap: map[string]int{
 				"app1": 0,

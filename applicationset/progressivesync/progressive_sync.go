@@ -31,6 +31,7 @@ const (
 	revisionAndSpecChangedMsg = "Application has pending changes (revision and spec differ), setting status to Waiting"
 	revisionChangedMsg        = "Application has pending changes, setting status to Waiting"
 	specChangedMsg            = "Application has pending changes (spec differs), setting status to Waiting"
+	outOfSyncMsg              = "Application resource is OutOfSync, setting status to Waiting"
 )
 
 type deleteInOrder struct {
@@ -467,7 +468,9 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 			}
 		}
 
-		if revisionsChanged || specChanged {
+		outOfSyncAndHealthy := appSyncStatus == argov1alpha1.SyncStatusCodeOutOfSync && currentAppStatus.Status == argov1alpha1.ProgressiveSyncHealthy
+
+		if revisionsChanged || specChanged || outOfSyncAndHealthy {
 			newAppStatus.TargetRevisions = app.Status.GetRevisions()
 
 			switch {
@@ -475,8 +478,10 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 				newAppStatus.Message = revisionAndSpecChangedMsg
 			case revisionsChanged:
 				newAppStatus.Message = revisionChangedMsg
-			default:
+			case specChanged:
 				newAppStatus.Message = specChangedMsg
+			default:
+				newAppStatus.Message = outOfSyncMsg
 			}
 			newAppStatus.Status = argov1alpha1.ProgressiveSyncWaiting
 			newAppStatus.LastTransitionTime = &now

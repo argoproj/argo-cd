@@ -216,3 +216,27 @@ func TestDisableAutomatedSyncIsIdempotentAcrossEnabledStates(t *testing.T) {
 		})
 	}
 }
+
+// https://github.com/argoproj/argo-cd/issues/29240
+//
+// An application whose status was ProgressiveSyncHealthy that becomes OutOfSync must transition
+// to ProgressiveSyncWaiting so Progressive Sync can schedule its sync operation.
+func TestOutOfSyncHealthyAppTransitionsToWaiting(t *testing.T) {
+	t.Parallel()
+
+	appSet := regressionAppSet(nil)
+	live := regressionApp("HEAD", new(false))
+	live.Status.Sync = argov1alpha1.SyncStatus{Status: argov1alpha1.SyncStatusCodeOutOfSync, Revision: "abc123"}
+	desired := regressionApp("HEAD", nil)
+
+	m := regressionManager(t, &appSet)
+	statuses, err := m.UpdateApplicationSetApplicationStatus(t.Context(), log.NewEntry(log.New()),
+		&appSet, []argov1alpha1.Application{live}, []argov1alpha1.Application{desired},
+		map[string]int{"storm-a": 0})
+	require.NoError(t, err)
+	require.Len(t, statuses, 1)
+
+	assert.Equal(t, argov1alpha1.ProgressiveSyncWaiting, statuses[0].Status,
+		"an OutOfSync application that was ProgressiveSyncHealthy must transition to ProgressiveSyncWaiting so progressive sync can schedule a sync operation")
+	assert.Equal(t, outOfSyncMsg, statuses[0].Message)
+}
