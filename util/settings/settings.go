@@ -2132,20 +2132,29 @@ func unmarshalOIDCConfig(configStr string) (oidcConfig, error) {
 	return config, err
 }
 
+// isSecretReference reports whether the value is a secret key reference
+// (e.g. $my-secret:key). References are resolved at use time, so they
+// cannot be validated as URLs here.
+func isSecretReference(val string) bool {
+	return strings.HasPrefix(val, "$")
+}
+
 func ValidateOIDCConfig(configStr string) error {
 	settings, err := unmarshalOIDCConfig(configStr)
 	if err != nil {
 		return err
 	}
-	err = ValidateExternalURL(settings.Issuer)
-	if err != nil {
-		return err
+	if !isSecretReference(settings.Issuer) {
+		if err := ValidateExternalURL(settings.Issuer); err != nil {
+			return err
+		}
 	}
-	err = ValidateExternalURL(settings.UserInfoBaseURL)
-	if err != nil {
-		return err
+	if !isSecretReference(settings.UserInfoBaseURL) {
+		if err := ValidateExternalURL(settings.UserInfoBaseURL); err != nil {
+			return err
+		}
 	}
-	if settings.Azure != nil && settings.Azure.GraphAPIEndpoint != "" {
+	if settings.Azure != nil && settings.Azure.GraphAPIEndpoint != "" && !isSecretReference(settings.Azure.GraphAPIEndpoint) {
 		if err := ValidateAzureGraphAPIEndpoint(settings.Azure.GraphAPIEndpoint); err != nil {
 			return err
 		}
