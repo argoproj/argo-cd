@@ -75,7 +75,7 @@ func getSignedRequestWithRetry(ctx context.Context, timeout, interval time.Durat
 		case <-ctx.Done():
 			return "", fmt.Errorf("timeout while trying to get signed aws request: last error: %w", err)
 		case <-time.After(interval):
-			verboseLog(ctx, "argocd-k8s-auth aws: retrying after error: %v", err)
+			verboseLog(ctx, "argocd-k8s-auth aws: retrying after error: %s", redactARNsInText(err.Error()))
 		}
 	}
 }
