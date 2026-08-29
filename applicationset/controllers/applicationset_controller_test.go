@@ -471,6 +471,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			},
 			existingApps: []v1alpha1.Application{
 				{
+					//nolint:modernize // embedded field struct literal format required for Go compiler compatibility
 					TypeMeta: metav1.TypeMeta{
 						Kind:       application.ApplicationKind,
 						APIVersion: "argoproj.io/v1alpha1",
@@ -490,6 +491,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			},
 			desiredApps: []v1alpha1.Application{
 				{
+					//nolint:modernize
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      "app1",
 						Namespace: "namespace",
@@ -504,6 +506,7 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 			},
 			expected: []v1alpha1.Application{
 				{
+					//nolint:modernize
 					TypeMeta: metav1.TypeMeta{
 						Kind:       application.ApplicationKind,
 						APIVersion: "argoproj.io/v1alpha1",
