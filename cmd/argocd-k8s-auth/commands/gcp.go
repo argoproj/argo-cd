@@ -2,7 +2,6 @@ package commands
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 	"golang.org/x/oauth2/google"
@@ -25,18 +24,20 @@ func newGCPCommand() *cobra.Command {
 	command := &cobra.Command{
 		Use: "gcp",
 		Run: func(c *cobra.Command, _ []string) {
-			verbose, _ := c.Flags().GetBool("verbose")
-			ctx := contextWithVerbose(c.Context(), verbose)
+			ctx, err := contextWithVerboseFromCmd(c)
+			errors.CheckError(err)
 			verboseLog(ctx, "argocd-k8s-auth gcp: requesting default application credentials")
 
 			// Preferred way to retrieve GCP credentials
 			// https://github.com/golang/oauth2/blob/9780585627b5122c8cc9c6a378ac9861507e7551/google/doc.go#L54-L68
 			cred, err := google.FindDefaultCredentials(ctx, defaultGCPScopes...)
 			errors.CheckError(err)
+			verboseLog(ctx, "argocd-k8s-auth gcp: obtained default credentials project-id=%q", cred.ProjectID)
+			verboseLog(ctx, "argocd-k8s-auth gcp: requesting access token from credential token source")
 			token, err := cred.TokenSource.Token()
 			errors.CheckError(err)
 			verboseLog(ctx, "argocd-k8s-auth gcp: obtained access token expiring at %s", token.Expiry)
-			_, _ = fmt.Fprint(os.Stdout, formatJSON(token.AccessToken, token.Expiry))
+			_, _ = fmt.Fprint(c.OutOrStdout(), formatJSON(token.AccessToken, token.Expiry))
 		},
 	}
 	return command

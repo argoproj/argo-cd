@@ -56,16 +56,19 @@ func newAzureCommand() *cobra.Command {
 	command := &cobra.Command{
 		Use: "azure",
 		Run: func(c *cobra.Command, _ []string) {
-			verbose, _ := c.Flags().GetBool("verbose")
-			ctx := contextWithVerbose(c.Context(), verbose)
+			ctx, err := contextWithVerboseFromCmd(c)
+			errors.CheckError(err)
 			o, err := buildAzureTokenOptions()
 			errors.CheckError(err)
 			verboseLog(ctx, "argocd-k8s-auth azure: login-method=%q server-id=%q environment=%q", o.LoginMethod, o.ServerID, o.Environment)
+			verboseLog(ctx, "argocd-k8s-auth azure: creating token provider")
 			tp, err := token.GetTokenProvider(o)
 			errors.CheckError(err)
+			verboseLog(ctx, "argocd-k8s-auth azure: requesting access token")
 			tok, err := tp.GetAccessToken(ctx)
 			errors.CheckError(err)
-			_, _ = fmt.Fprint(os.Stdout, formatJSON(tok.Token, tok.ExpiresOn))
+			verboseLog(ctx, "argocd-k8s-auth azure: obtained access token expiring at %s", tok.ExpiresOn)
+			_, _ = fmt.Fprint(c.OutOrStdout(), formatJSON(tok.Token, tok.ExpiresOn))
 		},
 	}
 	return command
