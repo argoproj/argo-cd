@@ -116,7 +116,7 @@ func TestAWSVerboseLogRedactsARNAndUsesStderrWriter(t *testing.T) {
 	verboseLog(ctx, "argocd-k8s-auth aws: assuming role %q", redactARN(roleARN))
 	_, _ = fmt.Fprint(cmd.OutOrStdout(), `{"kind":"ExecCredential"}`)
 
-	assert.Equal(t, `{"kind":"ExecCredential"}`, stdout.String())
+	assert.JSONEq(t, `{"kind":"ExecCredential"}`, stdout.String())
 	assert.Contains(t, stderr.String(), "argocd-k8s-auth aws:")
 	assert.Contains(t, stderr.String(), "role/MyRole")
 	assert.NotContains(t, stderr.String(), "arn:aws:iam::123456789012:role/MyRole")
