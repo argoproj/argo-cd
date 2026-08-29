@@ -14,7 +14,7 @@ on:
 env:
   # Golang version to use across CI steps
   # renovate: datasource=golang-version packageName=golang
-  GOLANG_VERSION: '1.26.6'
+  GOLANG_VERSION: '1.27.0'
   # a workaround to disable harden runner
   STEP_SECURITY_HARDEN_RUNNER: ${{ vars.disable_harden_runner }}
 
@@ -152,7 +152,7 @@ jobs:
         uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
           # renovate: datasource=go packageName=github.com/golangci/golangci-lint/v2 versioning=regex:^v(?<major>\d+)\.(?<minor>\d+)\.(?<patch>\d+)?$
-          version: v2.12.2
+          version: v2.13.2
           args: --verbose
 
   test-go:
@@ -662,7 +662,7 @@ jobs:
           docker pull ghcr.io/dexidp/dex:v2.45.1
           docker pull argoproj/argo-cd-ci-builder:v1.0.0
           # renovate: datasource=docker packageName=docker.io/library/redis
-          docker pull redis:8.10.0-alpine
+          docker pull redis:8.10.1-alpine
       - name: Create target directory for binaries in the build-process
         run: |
           mkdir -p dist
