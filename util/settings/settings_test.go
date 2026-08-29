@@ -1048,6 +1048,15 @@ func TestValidateOIDCConfig(t *testing.T) {
 			config: "name: Test\nissuer: $oidc-secret:issuer\nuserInfoBaseURL: $oidc-secret:userInfoBaseURL",
 		},
 		{
+			name:   "azure graph API endpoint secret reference is skipped",
+			config: "name: Test\nissuer: https://idp.example.com\nazure:\n  graphAPIEndpoint: $oidc-secret:graphAPIEndpoint",
+		},
+		{
+			name:      "invalid literal azure graph API endpoint",
+			config:    "name: Test\nissuer: https://idp.example.com\nazure:\n  graphAPIEndpoint: http://graph.microsoft.com",
+			expectErr: "must use https",
+		},
+		{
 			name:      "invalid literal issuer",
 			config:    "name: Test\nissuer: idp_internal:9999/path",
 			expectErr: "failed to parse URL",
