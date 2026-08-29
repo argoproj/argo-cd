@@ -35,7 +35,6 @@ func TestRedactARN(t *testing.T) {
 	}
 }
 
-
 func TestRedactARNsInText(t *testing.T) {
 	t.Parallel()
 	in := `AccessDenied: User: arn:aws:sts::123456789012:assumed-role/MyRole/session is not authorized to perform: sts:AssumeRole on resource: arn:aws:iam::123456789012:role/TargetRole`
