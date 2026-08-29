@@ -111,7 +111,23 @@ func (f *realKubectlOptionsRunner) AuthReconcile(opts *auth.ReconcileOptions) (r
 			retErr = fmt.Errorf("error running kubectl auth reconcile: %v", r)
 		}
 	}()
+	opts.Visitor = panicRecoveringVisitor{Visitor: opts.Visitor}
 	return opts.RunReconcile()
+}
+
+type panicRecoveringVisitor struct {
+	resource.Visitor
+}
+
+func (v panicRecoveringVisitor) Visit(fn resource.VisitorFunc) error {
+	return v.Visitor.Visit(func(info *resource.Info, err error) (retErr error) {
+		defer func() {
+			if r := recover(); r != nil {
+				retErr = fmt.Errorf("error running kubectl auth reconcile: %v", r)
+			}
+		}()
+		return fn(info, err)
+	})
 }
 
 func (f *realKubectlOptionsRunner) processKubectlRun(cmd string) (CleanupFunc, error) {
