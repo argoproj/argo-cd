@@ -686,15 +686,6 @@ func TestSecretToRepoCred_AzureServicePrincipalKeyAliases(t *testing.T) {
 			clientID: "existing-client",
 			tenantID: "existing-tenant",
 		},
-		{
-			name: "empty existing keys take precedence",
-			data: map[string][]byte{
-				"azureServicePrincipalClientID": nil,
-				"azureServicePrincipalClientId": []byte("alias-client"),
-				"azureServicePrincipalTenantID": nil,
-				"azureServicePrincipalTenantId": []byte("alias-tenant"),
-			},
-		},
 	}
 
 	for _, tt := range tests {

@@ -409,7 +409,7 @@ The following keys are valid to refer to credential secrets:
 * `azureActiveDirectoryEndpoint` optionally specifies the Microsoft Entra authority endpoint.
 
 > [!NOTE]
-> If both forms of a client or tenant ID key are set, the uppercase-`ID` form takes precedence.
+> If both forms of a client or tenant ID key have values, the uppercase-`ID` form takes precedence.
 
 #### Helm Chart repositories
 

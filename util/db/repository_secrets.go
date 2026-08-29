@@ -462,12 +462,12 @@ func (s *secretsRepositoryBackend) repositoryToSecret(repository *appsv1.Reposit
 
 func (s *secretsRepositoryBackend) secretToRepoCred(secret *corev1.Secret) (*appsv1.RepoCreds, error) {
 	secretCopy := secret.DeepCopy()
-	azureServicePrincipalClientID, ok := secretCopy.Data["azureServicePrincipalClientID"]
-	if !ok {
+	azureServicePrincipalClientID := secretCopy.Data["azureServicePrincipalClientID"]
+	if len(azureServicePrincipalClientID) == 0 {
 		azureServicePrincipalClientID = secretCopy.Data["azureServicePrincipalClientId"]
 	}
-	azureServicePrincipalTenantID, ok := secretCopy.Data["azureServicePrincipalTenantID"]
-	if !ok {
+	azureServicePrincipalTenantID := secretCopy.Data["azureServicePrincipalTenantID"]
+	if len(azureServicePrincipalTenantID) == 0 {
 		azureServicePrincipalTenantID = secretCopy.Data["azureServicePrincipalTenantId"]
 	}
 
