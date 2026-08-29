@@ -15,7 +15,7 @@ func TestBuildAzureTokenOptions(t *testing.T) {
 		// given: no AAD_LOGIN_METHOD env var
 
 		// when
-		o, err := buildAzureTokenOptions()
+		o, err := buildAzureTokenOptions(false)
 
 		// then
 		require.NoError(t, err)
@@ -26,7 +26,7 @@ func TestBuildAzureTokenOptions(t *testing.T) {
 		// given: no AAD_SERVER_APPLICATION_ID env var
 
 		// when
-		o, err := buildAzureTokenOptions()
+		o, err := buildAzureTokenOptions(false)
 
 		// then
 		require.NoError(t, err)
@@ -38,7 +38,7 @@ func TestBuildAzureTokenOptions(t *testing.T) {
 		t.Setenv(envServerApplicationID, "custom-server-id")
 
 		// when
-		o, err := buildAzureTokenOptions()
+		o, err := buildAzureTokenOptions(false)
 
 		// then
 		require.NoError(t, err)
@@ -50,7 +50,7 @@ func TestBuildAzureTokenOptions(t *testing.T) {
 		t.Setenv(envEnvironmentName, "AzureUSGovernmentCloud")
 
 		// when
-		o, err := buildAzureTokenOptions()
+		o, err := buildAzureTokenOptions(false)
 
 		// then
 		require.NoError(t, err)
@@ -63,7 +63,7 @@ func TestBuildAzureTokenOptions(t *testing.T) {
 		t.Setenv(envPoPTokenClaims, "u=https://mycluster")
 
 		// when
-		o, err := buildAzureTokenOptions()
+		o, err := buildAzureTokenOptions(false)
 
 		// then
 		require.NoError(t, err)
@@ -77,7 +77,7 @@ func TestBuildAzureTokenOptions(t *testing.T) {
 		t.Setenv("AAD_LOGIN_METHOD", token.ServicePrincipalLogin)
 
 		// when
-		o, err := buildAzureTokenOptions()
+		o, err := buildAzureTokenOptions(false)
 
 		// then
 		require.NoError(t, err)
@@ -92,7 +92,7 @@ func TestBuildAzureTokenOptions(t *testing.T) {
 		t.Setenv(envPoPTokenClaims, "u=https://mycluster")
 
 		// when
-		o, err := buildAzureTokenOptions()
+		o, err := buildAzureTokenOptions(false)
 
 		// then
 		require.NoError(t, err)
@@ -107,7 +107,7 @@ func TestBuildAzureTokenOptions(t *testing.T) {
 		t.Setenv(envPoPTokenClaims, "u=https://mycluster")
 
 		// when
-		o, err := buildAzureTokenOptions()
+		o, err := buildAzureTokenOptions(false)
 
 		// then
 		require.NoError(t, err)
@@ -121,7 +121,7 @@ func TestBuildAzureTokenOptions(t *testing.T) {
 		t.Setenv(envIsPoPTokenEnabled, "true")
 
 		// when
-		o, err := buildAzureTokenOptions()
+		o, err := buildAzureTokenOptions(false)
 
 		// then
 		require.Error(t, err)
@@ -135,7 +135,7 @@ func TestBuildAzureTokenOptions(t *testing.T) {
 		t.Setenv(envPoPTokenClaims, "")
 
 		// when
-		o, err := buildAzureTokenOptions()
+		o, err := buildAzureTokenOptions(false)
 
 		// then
 		require.Error(t, err)
@@ -149,7 +149,7 @@ func TestBuildAzureTokenOptions(t *testing.T) {
 		t.Setenv(envPoPTokenClaims, "u=https://mycluster")
 
 		// when
-		o, err := buildAzureTokenOptions()
+		o, err := buildAzureTokenOptions(false)
 
 		// then
 		require.NoError(t, err)
@@ -164,7 +164,7 @@ func TestBuildAzureTokenOptions(t *testing.T) {
 		t.Setenv(envPoPTokenClaims, "u=https://mycluster")
 
 		// when
-		o, err := buildAzureTokenOptions()
+		o, err := buildAzureTokenOptions(false)
 
 		// then
 		require.NoError(t, err)
@@ -179,7 +179,7 @@ func TestBuildAzureTokenOptions(t *testing.T) {
 		t.Setenv(envPoPTokenClaims, "u=https://mycluster")
 
 		// when
-		o, err := buildAzureTokenOptions()
+		o, err := buildAzureTokenOptions(false)
 
 		// then
 		require.NoError(t, err)
@@ -187,14 +187,28 @@ func TestBuildAzureTokenOptions(t *testing.T) {
 		assert.Equal(t, "u=https://mycluster", o.PoPTokenClaims)
 	})
 
-	t.Run("returns error when AAD_IS_POP_TOKEN_ENABLED is an invalid value", func(t *testing.T) {
+	t.Run("treats invalid AAD_IS_POP_TOKEN_ENABLED as disabled when not verbose", func(t *testing.T) {
 		// given
 		t.Setenv("AAD_LOGIN_METHOD", token.ServicePrincipalLogin)
 		t.Setenv(envIsPoPTokenEnabled, "garbage")
 		t.Setenv(envPoPTokenClaims, "u=https://mycluster")
 
 		// when
-		o, err := buildAzureTokenOptions()
+		o, err := buildAzureTokenOptions(false)
+
+		// then
+		require.NoError(t, err)
+		assert.False(t, o.IsPoPTokenEnabled)
+	})
+
+	t.Run("returns error for invalid AAD_IS_POP_TOKEN_ENABLED when verbose", func(t *testing.T) {
+		// given
+		t.Setenv("AAD_LOGIN_METHOD", token.ServicePrincipalLogin)
+		t.Setenv(envIsPoPTokenEnabled, "garbage")
+		t.Setenv(envPoPTokenClaims, "u=https://mycluster")
+
+		// when
+		o, err := buildAzureTokenOptions(true)
 
 		// then
 		require.Error(t, err)

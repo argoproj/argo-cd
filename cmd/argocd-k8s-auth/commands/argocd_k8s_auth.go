@@ -5,12 +5,16 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/argoproj/argo-cd/v3/common"
 )
+
+// Matches AWS ARN shapes commonly present in SDK error messages (IAM roles, STS, etc.).
+var arnInTextPattern = regexp.MustCompile(`arn:[a-zA-Z0-9-]+:[a-zA-Z0-9-]+:[^:\s]*:[^:\s]*:[^\s,"']+`)
 
 type verboseContextKey struct{}
 
@@ -76,6 +80,12 @@ func redactARN(arn string) string {
 		return arn[i+1:]
 	}
 	return "<redacted>"
+}
+
+// redactARNsInText replaces any AWS ARNs embedded in free-form text (e.g. SDK
+// error messages) using redactARN so verbose logs do not leak account IDs.
+func redactARNsInText(s string) string {
+	return arnInTextPattern.ReplaceAllStringFunc(s, redactARN)
 }
 
 func NewCommand() *cobra.Command {
