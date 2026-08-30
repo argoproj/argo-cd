@@ -305,12 +305,12 @@ func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, en
 
 var gitClientTimeout = env.ParseDurationFromEnv("ARGOCD_GIT_REQUEST_TIMEOUT", 15*time.Second, 0, math.MaxInt64)
 
-// gitCleanupGracePeriod is the minimum age a temporary pack file must reach
-// before cleanupOrphanedTempPackfiles will remove it. A fetch is killed at
-// ARGOCD_EXEC_TIMEOUT (plus the fatal-timeout grace), so twice that comfortably
-// exceeds the longest a fetch can be in flight; anything older cannot belong to
-// a live fetch (for example a concurrent fetch from another repo-server replica
-// sharing an RWX cache volume).
+// gitCleanupGracePeriod is the minimum age a file left behind by a killed git
+// process must reach before cleanupOrphanedTempPackfiles or reExecOnStaleLock
+// will remove it. A git command is killed at ARGOCD_EXEC_TIMEOUT (plus the
+// fatal-timeout grace), so twice that comfortably exceeds the longest one can be
+// in flight; anything older cannot belong to a live command (for example one
+// from another repo-server replica sharing an RWX cache volume).
 var gitCleanupGracePeriod = 2 * env.ParseDurationFromEnv("ARGOCD_EXEC_TIMEOUT", 90*time.Second, 0, math.MaxInt64)
 
 // Returns a HTTP client object suitable for go-git to use using the following
@@ -1731,21 +1731,14 @@ func isRetryableNotePushError(errStr string) bool {
 		strings.Contains(errStr, "cannot lock ref") // Server could not lock the notes ref because a concurrent push from another shard holds it
 }
 
-// gitLockFileErrRe captures the path git prints when a *.lock file blocks a
-// ref/index update, e.g.:
-//
-//	cannot lock ref 'HEAD': Unable to create '/path/.git/HEAD.lock': File exists.
-//	fatal: Unable to create '/path/.git/index.lock': File exists.
-//	fatal: Unable to create '/path/.git/shallow.lock': File exists.
+// gitLockFileErrRe captures the path git names when a *.lock blocks a ref or
+// index update: "Unable to create '<path>': File exists".
 var gitLockFileErrRe = regexp.MustCompile(`Unable to create '([^']+)': File exists`)
 
-// staleGitLockPath extracts the lock file path from a failed git command's
-// output when the failure is a leftover *.lock from a previously interrupted
-// git process. It returns a path ONLY when it is safe to remove: a *.lock file
-// inside this repository's own .git metadata directory. This deliberately
-// excludes working-tree files (a chart's own Chart.lock is never under .git/)
-// and anything outside root, so a malformed or adversarial error string can
-// never cause an arbitrary file to be deleted.
+// staleGitLockPath returns the lock path named in a failed git command's output,
+// and only when removing it would be safe: a *.lock inside this repository's own
+// .git directory. A working-tree file such as a chart's Chart.lock is therefore
+// never eligible, and a malformed error string cannot reach outside root.
 func staleGitLockPath(root string, outputs ...string) (string, bool) {
 	var match []string
 	for _, out := range outputs {
@@ -1765,13 +1758,10 @@ func staleGitLockPath(root string, outputs ...string) (string, bool) {
 	if err != nil {
 		return "", false
 	}
-	// Canonicalize both sides before the containment check: git reports the
-	// real path, while root may still contain a symlinked component (e.g. macOS
-	// /var -> /private/var), which a purely lexical prefix check would wrongly
-	// reject. Resolve both together (via the lock's parent dir, since the lock
-	// file itself may be a regular file we are about to remove) so they stay
-	// comparable; if either can't be resolved, fall back to the lexical form on
-	// both sides.
+	// git reports the real path while root may still hold a symlinked component
+	// (e.g. macOS /var -> /private/var), which a lexical prefix check would
+	// wrongly reject. Resolve via the lock's parent, since the lock itself is
+	// the file about to be removed; fall back to the lexical form on both sides.
 	if pDir, derr := filepath.EvalSymlinks(filepath.Dir(p)); derr == nil {
 		if rootResolved, rerr := filepath.EvalSymlinks(rootAbs); rerr == nil {
 			p = filepath.Join(pDir, filepath.Base(p))
@@ -1787,18 +1777,18 @@ func staleGitLockPath(root string, outputs ...string) (string, bool) {
 	return p, true
 }
 
-// reExecOnStaleLock runs op and, if it fails solely because a stale *.lock file
-// (left by a previously SIGKILL'd git process) blocks a ref/index update,
-// removes that single lock file and runs op exactly once more.
+// reExecOnStaleLock runs op and, if it failed only because a *.lock left by an
+// interrupted git process blocks a ref or index update, removes that one file
+// and runs op once more. Without this a cache directory wedged by a killed git
+// child (exec timeout, gRPC context cancel, OOM) fails every later operation
+// with exit 128 until the pod is recreated.
 //
-// This recovers a repo-server cache that would otherwise stay wedged forever: a
-// git child killed mid-checkout/fetch (exec timeout, gRPC context cancel, OOM)
-// leaves a regular-file lock that git never reclaims, so every later operation
-// on that cached repo fails with exit 128 until the pod is restarted. The
-// removal is reactive (only after a failure that names the lock) and surgical
-// (only that file, only inside .git/), so it never races a live operation — the
-// holder has already failed — and never touches working-tree content. Compare
-// cleanupOrphanedTempPackfiles, which handles the leftover-packfile sibling.
+// The lock must be older than gitCleanupGracePeriod, for the same reason
+// cleanupOrphanedTempPackfiles applies it: repo-server replicas can share an RWX
+// cache volume, and unlinking a lock a live git still holds lets both processes
+// write the working tree, leaving it inconsistent with the checked-out revision.
+// A lock younger than that returns git's original error, and the next reconcile
+// retries once the window has passed.
 func (m *nativeGitClient) reExecOnStaleLock(op func() (string, error)) (string, error) {
 	out, err := op()
 	if err == nil {
@@ -1808,9 +1798,8 @@ func (m *nativeGitClient) reExecOnStaleLock(op func() (string, error)) (string, 
 	if !ok {
 		return out, err
 	}
-	// Lstat, not Stat: a symlink here would make os.Remove delete the link, but
-	// refuse anything that is not a plain file so a lock path that has been
-	// swapped for a link or a directory is never followed or unlinked.
+	// Lstat, not Stat: os.Remove would delete a symlink placed here, so refuse
+	// anything that is not a plain file rather than follow or unlink it.
 	fi, statErr := os.Lstat(lockPath)
 	if statErr != nil {
 		if !os.IsNotExist(statErr) {
@@ -1820,6 +1809,10 @@ func (m *nativeGitClient) reExecOnStaleLock(op func() (string, error)) (string, 
 	}
 	if !fi.Mode().IsRegular() {
 		log.Warnf("refusing to remove %q: git lock files are regular files, found mode %s", lockPath, fi.Mode())
+		return out, err
+	}
+	if age := time.Since(fi.ModTime()); age < gitCleanupGracePeriod {
+		log.Warnf("not removing git lock %q: age %s is within the %s grace period, so a live git process may still hold it", lockPath, age, gitCleanupGracePeriod)
 		return out, err
 	}
 	log.Warnf("git operation failed on a stale lock %q from a previously interrupted git process; removing it and retrying once", lockPath)

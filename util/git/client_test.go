@@ -2276,6 +2276,7 @@ func Test_nativeGitClient_CheckoutRecoversStaleLock(t *testing.T) {
 	// simulate a git child killed between creating HEAD.lock and renaming it
 	lockPath := filepath.Join(client.Root(), ".git", "HEAD.lock")
 	require.NoError(t, os.WriteFile(lockPath, nil, 0o600))
+	ageStaleLock(t, lockPath)
 
 	// precondition: the stale lock wedges a raw checkout with exit 128 and the
 	// lock survives, exactly as in the wedged repo-server cache
@@ -2286,6 +2287,46 @@ func Test_nativeGitClient_CheckoutRecoversStaleLock(t *testing.T) {
 	out, err := client.Checkout(ctx, commitSHA, false, true)
 	require.NoError(t, err, "error output: %s", out)
 	require.NoFileExists(t, lockPath)
+}
+
+// ageStaleLock backdates a lock past gitCleanupGracePeriod. In production the
+// window simply elapses before the next reconcile; a test cannot wait it out.
+func ageStaleLock(t *testing.T, lockPath string) {
+	t.Helper()
+	old := time.Now().Add(-2 * gitCleanupGracePeriod)
+	require.NoError(t, os.Chtimes(lockPath, old, old))
+}
+
+// Test_nativeGitClient_CheckoutLeavesFreshLock covers the case that separates a
+// wedged cache from a busy one: repo-server replicas can share an RWX cache
+// volume, so a lock younger than the grace period may still be held by a live
+// git process in another replica. Unlinking it lets both processes write the
+// working tree and leaves it inconsistent with the checked-out revision, so the
+// recovery must decline and surface git's own error instead.
+func Test_nativeGitClient_CheckoutLeavesFreshLock(t *testing.T) {
+	ctx := t.Context()
+
+	originDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+	require.NoError(t, runCmd(ctx, originDir, "git", "commit", "-m", "Second commit", "--allow-empty"))
+
+	client, err := NewClient("file://"+originDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	require.NoError(t, client.Init())
+	require.NoError(t, client.Fetch(ctx, "", 0))
+
+	commitSHA, err := client.LsRemote("HEAD")
+	require.NoError(t, err)
+
+	_, err = client.Checkout(ctx, commitSHA, false, true)
+	require.NoError(t, err)
+
+	lockPath := filepath.Join(client.Root(), ".git", "HEAD.lock")
+	require.NoError(t, os.WriteFile(lockPath, nil, 0o600))
+
+	_, err = client.Checkout(ctx, commitSHA, false, true)
+	require.Error(t, err, "a lock inside the grace period must not be recovered")
+	require.FileExists(t, lockPath, "a lock a live git process may hold must survive")
 }
 
 // Test_nativeGitClient_CheckoutLeavesNonRegularLock proves the recovery only ever

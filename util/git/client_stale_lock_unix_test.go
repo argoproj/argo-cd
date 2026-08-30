@@ -86,6 +86,11 @@ func Test_nativeGitClient_CheckoutRecoversLockFromKilledGit(t *testing.T) {
 	require.FileExists(t, lockPath)
 	require.Error(t, runCmd(ctx, root, "git", "checkout", "--force", tipSHA))
 
+	// The lock is genuinely stranded, but a just-killed one is indistinguishable
+	// by age from one a live process holds, so recovery waits out the grace
+	// period; backdate rather than sleep for it.
+	ageStaleLock(t, lockPath)
+
 	out, err := client.Checkout(ctx, tipSHA, false, true)
 	require.NoError(t, err, "repo stayed wedged after a killed git process; output: %s", out)
 	require.NoFileExists(t, lockPath)
