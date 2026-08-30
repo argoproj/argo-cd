@@ -14,12 +14,13 @@ import (
 
 	cdcommon "github.com/argoproj/argo-cd/v3/common"
 
-	gitopsDiff "github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	gitopsDiff "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
+	otel_codes "go.opentelemetry.io/otel/codes"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -66,16 +67,63 @@ func (m *appStateManager) getGVKParser(server *v1alpha1.Cluster) (*managedfields
 // interface that provides functionality to dry run apply kubernetes resources. Returns a
 // cleanup function that must be called to remove the generated kube config for this
 // server.
-func (m *appStateManager) getServerSideDiffDryRunApplier(cluster *v1alpha1.Cluster) (gitopsDiff.KubeApplier, func(), error) {
+func (m *appStateManager) getServerSideDiffDryRunApplier(cluster *v1alpha1.Cluster, project *v1alpha1.AppProject, app *v1alpha1.Application) (gitopsDiff.KubeApplier, func(), error) {
 	rawConfig, err := cluster.RawRestConfig()
 	if err != nil {
 		return nil, nil, fmt.Errorf("error getting cluster REST config: %w", err)
+	}
+	// When impersonation is enabled, the dry-run apply is executed as the ServiceAccount
+	// derived from the AppProject's destinationServiceAccounts, matching the identity used
+	// by the sync operation.
+	if err := m.applyDiffImpersonationConfig(rawConfig, project, app, cluster); err != nil {
+		return nil, nil, err
 	}
 	ops, cleanup, err := kubeutil.ManageServerSideDiffDryRuns(rawConfig, m.onKubectlRun)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error creating kubectl ResourceOperations: %w", err)
 	}
 	return ops, cleanup, nil
+}
+
+// applyDiffImpersonationConfig sets the impersonation headers on the given REST config
+// so that the server-side diff dry-run runs as the same ServiceAccount used by sync.
+// It mirrors the sync path's behaviour, including honoring the impersonation-enforced
+// setting: when impersonation is enabled but no matching destinationServiceAccount is
+// found, enforcement causes the diff to fail rather than silently fall back to the
+// controller credential (the dry-run apply is authorized by the API server as a patch,
+// so falling back would require the standing cluster credential to hold patch authority).
+func (m *appStateManager) applyDiffImpersonationConfig(config *rest.Config, project *v1alpha1.AppProject, app *v1alpha1.Application, destCluster *v1alpha1.Cluster) error {
+	logEntry := log.WithFields(applog.GetAppLogFields(app))
+
+	impersonationEnabled, err := m.settingsMgr.IsImpersonationEnabled()
+	if err != nil {
+		return fmt.Errorf("error getting impersonation setting: %w", err)
+	}
+	if !impersonationEnabled {
+		return nil
+	}
+	serviceAccountToImpersonate, err := settings.DeriveServiceAccountToImpersonate(project, app, destCluster)
+	if err != nil {
+		return fmt.Errorf("error deriving service account to impersonate: %w", err)
+	}
+	if serviceAccountToImpersonate == "" {
+		// No matching service account found - check enforcement.
+		impersonationEnforced, err := m.settingsMgr.IsImpersonationEnforced()
+		if err != nil {
+			return fmt.Errorf("error getting impersonation enforcement setting: %w", err)
+		}
+		if impersonationEnforced {
+			return fmt.Errorf("no matching service account found for destination server %s and namespace %s", destCluster.Server, app.Spec.Destination.Namespace)
+		}
+		// Non-enforced mode: fall back to the controller credential, consistent with sync.
+		logEntry.Debugf("server-side diff: no matching service account found for impersonation (project: %s, server: %s, namespace: %s), falling back to controller service account", project.Name, destCluster.Server, app.Spec.Destination.Namespace)
+		return nil
+	}
+	logEntry.Debugf("server-side diff: impersonating service account %q, matching sync", serviceAccountToImpersonate)
+	config.Impersonate = rest.ImpersonationConfig{
+		UserName: serviceAccountToImpersonate,
+	}
+	return nil
 }
 
 func NewOperationState(operation v1alpha1.Operation) *v1alpha1.OperationState {
@@ -110,6 +158,16 @@ func newSyncOperationResult(app *v1alpha1.Application, op v1alpha1.SyncOperation
 }
 
 func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Application, project *v1alpha1.AppProject, state *v1alpha1.OperationState) {
+	ctx, span := tracer.Start(ctx, "controller.SyncAppState")
+	setAppTraceAttrs(span, app)
+	// SyncAppState is void; it signals failure through state.Phase rather than a return value, so
+	// map a terminal failed phase onto the span status at exit (mirroring traceutil.EndSpan).
+	defer func() {
+		if state.Phase.Failed() {
+			span.SetStatus(otel_codes.Error, state.Message)
+		}
+		span.End()
+	}()
 	syncId, err := syncid.Generate()
 	if err != nil {
 		state.Phase = common.OperationError
@@ -283,16 +341,37 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 		serviceAccountToImpersonate, err := settings.DeriveServiceAccountToImpersonate(project, app, destCluster)
 		if err != nil {
 			state.Phase = common.OperationError
-			state.Message = fmt.Sprintf("failed to find a matching service account to impersonate: %v", err)
+			state.Message = fmt.Sprintf("failed to derive service account to impersonate: %v", err)
 			return
 		}
-		logEntry = logEntry.WithFields(log.Fields{"impersonationEnabled": "true", "serviceAccount": serviceAccountToImpersonate})
-		// set the impersonation headers.
-		rawConfig.Impersonate = rest.ImpersonationConfig{
-			UserName: serviceAccountToImpersonate,
-		}
-		restConfig.Impersonate = rest.ImpersonationConfig{
-			UserName: serviceAccountToImpersonate,
+
+		if serviceAccountToImpersonate == "" {
+			// No matching service account found - check enforcement
+			impersonationEnforced, enforcedErr := m.settingsMgr.IsImpersonationEnforced()
+			if enforcedErr != nil {
+				log.Errorf("could not get impersonation enforcement flag: %v", enforcedErr)
+				state.Phase = common.OperationError
+				state.Message = fmt.Sprintf("failed to check impersonation enforcement setting: %v", enforcedErr)
+				return
+			}
+
+			if impersonationEnforced {
+				state.Phase = common.OperationError
+				state.Message = fmt.Sprintf("no matching service account found for destination server %s and namespace %s", destCluster.Server, app.Spec.Destination.Namespace)
+				return
+			}
+
+			// Non-enforced mode: log info and continue with controller SA
+			logEntry.Infof("no matching service account found for impersonation (project: %s, server: %s, namespace: %s), falling back to controller service account", project.Name, destCluster.Server, app.Spec.Destination.Namespace)
+		} else {
+			logEntry = logEntry.WithFields(log.Fields{"impersonationEnabled": "true", "serviceAccount": serviceAccountToImpersonate})
+			// set the impersonation headers.
+			rawConfig.Impersonate = rest.ImpersonationConfig{
+				UserName: serviceAccountToImpersonate,
+			}
+			restConfig.Impersonate = rest.ImpersonationConfig{
+				UserName: serviceAccountToImpersonate,
+			}
 		}
 	}
 

@@ -13,8 +13,8 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/util/db/mocks"
 
-	gitopsCache "github.com/argoproj/argo-cd/gitops-engine/pkg/cache"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+	gitopsCache "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -386,28 +386,24 @@ func TestMetricLabels(t *testing.T) {
 		{
 			description:  "will return the labels metrics successfully",
 			metricLabels: []string{"team-name", "team-bu", "argoproj.io/cluster"},
-			testCombination: testCombination{
-				applications: []string{fakeApp, fakeApp2, fakeApp3},
-				responseContains: `
+			applications: []string{fakeApp, fakeApp2, fakeApp3},
+			responseContains: `
 # TYPE argocd_app_labels gauge
 argocd_app_labels{label_argoproj_io_cluster="test-cluster",label_team_bu="bu-id",label_team_name="my-team",name="my-app",namespace="argocd",project="important-project"} 1
 argocd_app_labels{label_argoproj_io_cluster="test-cluster",label_team_bu="bu-id",label_team_name="my-team",name="my-app-2",namespace="argocd",project="important-project"} 1
 argocd_app_labels{label_argoproj_io_cluster="test-cluster",label_team_bu="bu-id",label_team_name="my-team",name="my-app-3",namespace="argocd",project="important-project"} 1
 `,
-			},
 		},
 		{
 			description:  "metric will have empty label value if not present in the application",
 			metricLabels: []string{"non-existing"},
-			testCombination: testCombination{
-				applications: []string{fakeApp, fakeApp2, fakeApp3},
-				responseContains: `
+			applications: []string{fakeApp, fakeApp2, fakeApp3},
+			responseContains: `
 # TYPE argocd_app_labels gauge
 argocd_app_labels{label_non_existing="",name="my-app",namespace="argocd",project="important-project"} 1
 argocd_app_labels{label_non_existing="",name="my-app-2",namespace="argocd",project="important-project"} 1
 argocd_app_labels{label_non_existing="",name="my-app-3",namespace="argocd",project="important-project"} 1
 `,
-			},
 		},
 	}
 
@@ -428,39 +424,33 @@ func TestMetricConditions(t *testing.T) {
 		{
 			description:      "metric will only output OrphanedResourceWarning",
 			metricConditions: []string{"OrphanedResourceWarning"},
-			testCombination: testCombination{
-				applications: []string{fakeApp4},
-				responseContains: `
+			applications:     []string{fakeApp4},
+			responseContains: `
 # HELP argocd_app_condition Report application conditions.
 # TYPE argocd_app_condition gauge
 argocd_app_condition{condition="OrphanedResourceWarning",name="my-app-4",namespace="argocd",project="important-project"} 1
 `,
-			},
 		},
 		{
 			description:      "metric will only output ExcludedResourceWarning",
 			metricConditions: []string{"ExcludedResourceWarning"},
-			testCombination: testCombination{
-				applications: []string{fakeApp4},
-				responseContains: `
+			applications:     []string{fakeApp4},
+			responseContains: `
 # HELP argocd_app_condition Report application conditions.
 # TYPE argocd_app_condition gauge
 argocd_app_condition{condition="ExcludedResourceWarning",name="my-app-4",namespace="argocd",project="important-project"} 2
 `,
-			},
 		},
 		{
 			description:      "metric will only output both OrphanedResourceWarning and ExcludedResourceWarning",
 			metricConditions: []string{"ExcludedResourceWarning", "OrphanedResourceWarning"},
-			testCombination: testCombination{
-				applications: []string{fakeApp4},
-				responseContains: `
+			applications:     []string{fakeApp4},
+			responseContains: `
 # HELP argocd_app_condition Report application conditions.
 # TYPE argocd_app_condition gauge
 argocd_app_condition{condition="OrphanedResourceWarning",name="my-app-4",namespace="argocd",project="important-project"} 1
 argocd_app_condition{condition="ExcludedResourceWarning",name="my-app-4",namespace="argocd",project="important-project"} 2
 `,
-			},
 		},
 	}
 

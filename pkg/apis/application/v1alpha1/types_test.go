@@ -13,7 +13,7 @@ import (
 
 	argocdcommon "github.com/argoproj/argo-cd/v3/common"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -395,6 +395,24 @@ func TestAppProject_IsNegatedDestinationPermitted(t *testing.T) {
 		}},
 		appDest:     ApplicationDestination{Server: "https://other-test-server", Namespace: "other"},
 		isPermitted: true,
+	}, {
+		// Name deny pattern should NOT apply when namespace doesn't match (regression test for operator precedence fix)
+		projDest: []ApplicationDestination{{
+			Name: "*", Namespace: "*",
+		}, {
+			Name: "!bad", Namespace: "other",
+		}},
+		appDest:     ApplicationDestination{Name: "bad", Namespace: "test"},
+		isPermitted: true,
+	}, {
+		// Name deny pattern should apply when namespace matches
+		projDest: []ApplicationDestination{{
+			Name: "*", Namespace: "*",
+		}, {
+			Name: "!bad", Namespace: "test",
+		}},
+		appDest:     ApplicationDestination{Name: "bad", Namespace: "test"},
+		isPermitted: false,
 	}}
 
 	for _, data := range testData {
@@ -699,8 +717,8 @@ func TestAppProject_RemoveGroupFromRole(t *testing.T) {
 
 func newTestProject() *AppProject {
 	p := AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: "my-proj"},
-		Spec:       AppProjectSpec{Roles: []ProjectRole{{Name: "my-role"}}, Destinations: []ApplicationDestination{{}}},
+		Name: "my-proj",
+		Spec: AppProjectSpec{Roles: []ProjectRole{{Name: "my-role"}}, Destinations: []ApplicationDestination{{}}},
 	}
 	return &p
 }
@@ -2026,8 +2044,8 @@ func TestSyncWindows_Active(t *testing.T) {
 		assert.Len(t, *activeWindows, 1)
 	})
 
-	syncWindow := func(kind string, schedule string, duration string, timeZone string) *SyncWindow {
-		return &SyncWindow{
+	syncWindow := func(kind string, schedule string, duration string, timeZone string) *InlineSyncWindow {
+		return &InlineSyncWindow{
 			Kind:         kind,
 			Schedule:     schedule,
 			Duration:     duration,
@@ -2209,8 +2227,8 @@ func TestSyncWindows_InactiveAllows(t *testing.T) {
 		assert.Len(t, *inactiveAllowWindows, 1)
 	})
 
-	syncWindow := func(kind string, schedule string, duration string, timeZone string) *SyncWindow {
-		return &SyncWindow{
+	syncWindow := func(kind string, schedule string, duration string, timeZone string) *InlineSyncWindow {
+		return &InlineSyncWindow{
 			Kind:         kind,
 			Schedule:     schedule,
 			Duration:     duration,
@@ -2491,7 +2509,7 @@ func TestAppProject_EffectiveSourceIntegrity(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			appProj := &AppProject{Spec: tt.spec, ObjectMeta: metav1.ObjectMeta{Name: "sut"}}
+			appProj := &AppProject{Spec: tt.spec, Name: "sut"}
 			assert.Equal(t, tt.expected, appProj.EffectiveSourceIntegrity())
 		})
 	}
@@ -2510,7 +2528,7 @@ func TestAppProjectSpecWindowWithDescription(t *testing.T) {
 
 func TestAppProjectSpec_DeleteWindow(t *testing.T) {
 	proj := newTestProjectWithSyncWindows()
-	window2 := &SyncWindow{Schedule: "1 * * * *", Duration: "2h"}
+	window2 := &InlineSyncWindow{Schedule: "1 * * * *", Duration: "2h"}
 	proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, window2)
 	t.Run("CannotFind", func(t *testing.T) {
 		err := proj.Spec.DeleteWindow(3)
@@ -3073,7 +3091,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 		// given
 		proj := newTestProject()
 		// Add an inactive allow window with invalid cron schedule
-		invalidWindow := &SyncWindow{
+		invalidWindow := &InlineSyncWindow{
 			Kind:         "allow",
 			Schedule:     "invalid-cron-schedule",
 			Duration:     "1h",
@@ -3096,7 +3114,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 		// given
 		proj := newTestProject()
 		// Add an inactive allow window with invalid duration
-		invalidWindow := &SyncWindow{
+		invalidWindow := &InlineSyncWindow{
 			Kind:         "allow",
 			Schedule:     inactiveCronSchedule(),
 			Duration:     "invalid-duration",
@@ -3120,7 +3138,7 @@ func TestSyncWindows_CanSync(t *testing.T) {
 func TestSyncWindows_hasDeny(t *testing.T) {
 	t.Run("True", func(t *testing.T) {
 		proj := newTestProjectWithSyncWindows()
-		deny := &SyncWindow{Kind: "deny"}
+		deny := &InlineSyncWindow{Kind: "deny"}
 		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny)
 		hasDeny, manualEnabled := proj.Spec.SyncWindows.hasDeny()
 		assert.True(t, hasDeny)
@@ -3128,7 +3146,7 @@ func TestSyncWindows_hasDeny(t *testing.T) {
 	})
 	t.Run("TrueManualEnabled", func(t *testing.T) {
 		proj := newTestProjectWithSyncWindows()
-		deny := &SyncWindow{Kind: "deny", ManualSync: true}
+		deny := &InlineSyncWindow{Kind: "deny", ManualSync: true}
 		proj.Spec.SyncWindows = append(proj.Spec.SyncWindows, deny)
 		hasDeny, manualEnabled := proj.Spec.SyncWindows.hasDeny()
 		assert.True(t, hasDeny)
@@ -3160,15 +3178,15 @@ func TestSyncWindows_hasAllow(t *testing.T) {
 }
 
 func TestSyncWindow_Active(t *testing.T) {
-	window := &SyncWindow{Schedule: "* * * * *", Duration: "1h"}
+	window := &InlineSyncWindow{Schedule: "* * * * *", Duration: "1h"}
 	t.Run("ActiveWindow", func(t *testing.T) {
 		isActive, err := window.Active()
 		require.NoError(t, err)
 		assert.True(t, isActive)
 	})
 
-	syncWindow := func(kind string, schedule string, duration string) SyncWindow {
-		return SyncWindow{
+	syncWindow := func(kind string, schedule string, duration string) InlineSyncWindow {
+		return InlineSyncWindow{
 			Kind:         kind,
 			Schedule:     schedule,
 			Duration:     duration,
@@ -3186,7 +3204,7 @@ func TestSyncWindow_Active(t *testing.T) {
 
 	tests := []struct {
 		name           string
-		syncWindow     SyncWindow
+		syncWindow     InlineSyncWindow
 		currentTime    time.Time
 		expectedResult bool
 		isErr          bool
@@ -3283,7 +3301,7 @@ func TestSyncWindow_Active(t *testing.T) {
 }
 
 func TestSyncWindow_Update(t *testing.T) {
-	e := SyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "1h", Applications: []string{"app1"}}
+	e := InlineSyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "1h", Applications: []string{"app1"}}
 	t.Run("AddApplication", func(t *testing.T) {
 		err := e.Update("", "", []string{"app1", "app2"}, []string{}, []string{}, "", "")
 		require.NoError(t, err)
@@ -3321,7 +3339,7 @@ func TestSyncWindow_Update(t *testing.T) {
 }
 
 func TestSyncWindow_Validate(t *testing.T) {
-	window := &SyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "1h"}
+	window := &InlineSyncWindow{Kind: "allow", Schedule: "* * * * *", Duration: "1h"}
 	t.Run("Validates", func(t *testing.T) {
 		require.NoError(t, window.Validate())
 	})
@@ -3415,8 +3433,8 @@ func inactiveCronSchedule() string {
 	return fmt.Sprintf("0 %d * * *", hourPlus10)
 }
 
-func newSyncWindow(kind, schedule string, allowManual bool, andOperator bool) *SyncWindow {
-	return &SyncWindow{
+func newSyncWindow(kind, schedule string, allowManual bool, andOperator bool) *InlineSyncWindow {
+	return &InlineSyncWindow{
 		Kind:           kind,
 		Schedule:       schedule,
 		Duration:       "1h",
@@ -3437,7 +3455,7 @@ func newTestProjectWithSyncWindowsAndOperator() *AppProject {
 
 func newTestApp() *Application {
 	a := &Application{
-		ObjectMeta: metav1.ObjectMeta{Name: "test-app"},
+		Name: "test-app",
 		Spec: ApplicationSpec{
 			Destination: ApplicationDestination{
 				Namespace: "default",
@@ -3840,15 +3858,13 @@ func TestSourceAllowsConcurrentProcessing_KustomizeParams(t *testing.T) {
 
 func TestUnSetCascadedDeletion(t *testing.T) {
 	a := &Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "test",
-			Finalizers: []string{
-				"alpha",
-				ForegroundPropagationPolicyFinalizer,
-				"beta",
-				BackgroundPropagationPolicyFinalizer,
-				"gamma",
-			},
+		Name: "test",
+		Finalizers: []string{
+			"alpha",
+			ForegroundPropagationPolicyFinalizer,
+			"beta",
+			BackgroundPropagationPolicyFinalizer,
+			"gamma",
 		},
 	}
 	a.UnSetCascadedDeletion()
@@ -4129,60 +4145,44 @@ func TestGetCAPath(t *testing.T) {
 
 func TestAppProjectIsSourceNamespacePermitted(t *testing.T) {
 	app1 := &Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app1",
-			Namespace: "argocd",
-		},
-		Spec: ApplicationSpec{},
+		Name:      "app1",
+		Namespace: "argocd",
+		Spec:      ApplicationSpec{},
 	}
 	app2 := &Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app2",
-			Namespace: "some-ns",
-		},
-		Spec: ApplicationSpec{},
+		Name:      "app2",
+		Namespace: "some-ns",
+		Spec:      ApplicationSpec{},
 	}
 	app3 := &Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app2",
-			Namespace: "",
-		},
-		Spec: ApplicationSpec{},
+		Name:      "app2",
+		Namespace: "",
+		Spec:      ApplicationSpec{},
 	}
 	app4 := &Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app2",
-			Namespace: "other-ns",
-		},
-		Spec: ApplicationSpec{},
+		Name:      "app2",
+		Namespace: "other-ns",
+		Spec:      ApplicationSpec{},
 	}
 	app5 := &Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app2",
-			Namespace: "some-ns1",
-		},
-		Spec: ApplicationSpec{},
+		Name:      "app2",
+		Namespace: "some-ns1",
+		Spec:      ApplicationSpec{},
 	}
 	app6 := &Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app2",
-			Namespace: "some-ns2",
-		},
-		Spec: ApplicationSpec{},
+		Name:      "app2",
+		Namespace: "some-ns2",
+		Spec:      ApplicationSpec{},
 	}
 	app7 := &Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "app2",
-			Namespace: "someotherns",
-		},
-		Spec: ApplicationSpec{},
+		Name:      "app2",
+		Namespace: "someotherns",
+		Spec:      ApplicationSpec{},
 	}
 	t.Run("App in same namespace as controller", func(t *testing.T) {
 		proj := &AppProject{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "default",
-				Namespace: "argocd",
-			},
+			Name:      "default",
+			Namespace: "argocd",
 			Spec: AppProjectSpec{
 				SourceNamespaces: []string{"other-ns"},
 			},
@@ -4196,10 +4196,8 @@ func TestAppProjectIsSourceNamespacePermitted(t *testing.T) {
 	})
 	t.Run("App not permitted when sourceNamespaces is empty", func(t *testing.T) {
 		proj := &AppProject{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "default",
-				Namespace: "argocd",
-			},
+			Name:      "default",
+			Namespace: "argocd",
 			Spec: AppProjectSpec{
 				SourceNamespaces: []string{},
 			},
@@ -4212,10 +4210,8 @@ func TestAppProjectIsSourceNamespacePermitted(t *testing.T) {
 
 	t.Run("App permitted when sourceNamespaces has app namespace", func(t *testing.T) {
 		proj := &AppProject{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "default",
-				Namespace: "argocd",
-			},
+			Name:      "default",
+			Namespace: "argocd",
 			Spec: AppProjectSpec{
 				SourceNamespaces: []string{"some-ns"},
 			},
@@ -4228,10 +4224,8 @@ func TestAppProjectIsSourceNamespacePermitted(t *testing.T) {
 
 	t.Run("App permitted by glob pattern", func(t *testing.T) {
 		proj := &AppProject{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "default",
-				Namespace: "argocd",
-			},
+			Name:      "default",
+			Namespace: "argocd",
 			Spec: AppProjectSpec{
 				SourceNamespaces: []string{"some-*"},
 			},
@@ -4248,10 +4242,8 @@ func TestAppProjectIsSourceNamespacePermitted(t *testing.T) {
 func Test_RBACName(t *testing.T) {
 	testApp := func(namespace, project string) *Application {
 		return &Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-app",
-				Namespace: namespace,
-			},
+			Name:      "test-app",
+			Namespace: namespace,
 			Spec: ApplicationSpec{
 				Project: project,
 			},
@@ -4304,7 +4296,7 @@ func TestGetAppOfAppSummary(t *testing.T) {
 	app := newTestApp()
 	standardTree := &ApplicationTree{
 		Nodes: []ResourceNode{
-			{ResourceRef: ResourceRef{Name: "any-service", Kind: "Service"}},
+			{Name: "any-service", Kind: "Service"},
 		},
 	}
 
@@ -4315,8 +4307,8 @@ func TestGetAppOfAppSummary(t *testing.T) {
 
 	appOfAppsTree := &ApplicationTree{
 		Nodes: []ResourceNode{
-			{ResourceRef: ResourceRef{Name: "children-app", Kind: "Application", Group: "argoproj.io"}},
-			{ResourceRef: ResourceRef{Name: "any-service", Kind: "Service", Group: ""}},
+			{Name: "children-app", Kind: "Application", Group: "argoproj.io"},
+			{Name: "any-service", Kind: "Service", Group: ""},
 		},
 	}
 	summary = appOfAppsTree.GetSummary(app)
@@ -4687,10 +4679,10 @@ func TestApplicationSpec_GetSourcePtrByIndex(t *testing.T) {
 func TestApplicationTree_GetShards(t *testing.T) {
 	tree := &ApplicationTree{
 		Nodes: []ResourceNode{
-			{ResourceRef: ResourceRef{Name: "node 1"}}, {ResourceRef: ResourceRef{Name: "node 2"}}, {ResourceRef: ResourceRef{Name: "node 3"}},
+			{Name: "node 1"}, {Name: "node 2"}, {Name: "node 3"},
 		},
 		OrphanedNodes: []ResourceNode{
-			{ResourceRef: ResourceRef{Name: "orph-node 1"}}, {ResourceRef: ResourceRef{Name: "orph-node 2"}}, {ResourceRef: ResourceRef{Name: "orph-node 3"}},
+			{Name: "orph-node 1"}, {Name: "orph-node 2"}, {Name: "orph-node 3"},
 		},
 		Hosts: []HostInfo{
 			{Name: "host 1"}, {Name: "host 2"}, {Name: "host 3"},
@@ -4702,15 +4694,15 @@ func TestApplicationTree_GetShards(t *testing.T) {
 	require.Equal(t, &ApplicationTree{
 		ShardsCount: 5,
 		Nodes: []ResourceNode{
-			{ResourceRef: ResourceRef{Name: "node 1"}}, {ResourceRef: ResourceRef{Name: "node 2"}},
+			{Name: "node 1"}, {Name: "node 2"},
 		},
 	}, shards[0])
 	require.Equal(t, &ApplicationTree{
-		Nodes:         []ResourceNode{{ResourceRef: ResourceRef{Name: "node 3"}}},
-		OrphanedNodes: []ResourceNode{{ResourceRef: ResourceRef{Name: "orph-node 1"}}},
+		Nodes:         []ResourceNode{{Name: "node 3"}},
+		OrphanedNodes: []ResourceNode{{Name: "orph-node 1"}},
 	}, shards[1])
 	require.Equal(t, &ApplicationTree{
-		OrphanedNodes: []ResourceNode{{ResourceRef: ResourceRef{Name: "orph-node 2"}}, {ResourceRef: ResourceRef{Name: "orph-node 3"}}},
+		OrphanedNodes: []ResourceNode{{Name: "orph-node 2"}, {Name: "orph-node 3"}},
 	}, shards[2])
 	require.Equal(t, &ApplicationTree{
 		Hosts: []HostInfo{{Name: "host 1"}, {Name: "host 2"}},
@@ -4725,15 +4717,15 @@ func TestApplicationTree_Merge(t *testing.T) {
 	tree.Merge(&ApplicationTree{
 		ShardsCount: 5,
 		Nodes: []ResourceNode{
-			{ResourceRef: ResourceRef{Name: "node 1"}}, {ResourceRef: ResourceRef{Name: "node 2"}},
+			{Name: "node 1"}, {Name: "node 2"},
 		},
 	})
 	tree.Merge(&ApplicationTree{
-		Nodes:         []ResourceNode{{ResourceRef: ResourceRef{Name: "node 3"}}},
-		OrphanedNodes: []ResourceNode{{ResourceRef: ResourceRef{Name: "orph-node 1"}}},
+		Nodes:         []ResourceNode{{Name: "node 3"}},
+		OrphanedNodes: []ResourceNode{{Name: "orph-node 1"}},
 	})
 	tree.Merge(&ApplicationTree{
-		OrphanedNodes: []ResourceNode{{ResourceRef: ResourceRef{Name: "orph-node 2"}}, {ResourceRef: ResourceRef{Name: "orph-node 3"}}},
+		OrphanedNodes: []ResourceNode{{Name: "orph-node 2"}, {Name: "orph-node 3"}},
 	})
 	tree.Merge(&ApplicationTree{
 		Hosts: []HostInfo{{Name: "host 1"}, {Name: "host 2"}},
@@ -4743,10 +4735,10 @@ func TestApplicationTree_Merge(t *testing.T) {
 	})
 	require.Equal(t, &ApplicationTree{
 		Nodes: []ResourceNode{
-			{ResourceRef: ResourceRef{Name: "node 1"}}, {ResourceRef: ResourceRef{Name: "node 2"}}, {ResourceRef: ResourceRef{Name: "node 3"}},
+			{Name: "node 1"}, {Name: "node 2"}, {Name: "node 3"},
 		},
 		OrphanedNodes: []ResourceNode{
-			{ResourceRef: ResourceRef{Name: "orph-node 1"}}, {ResourceRef: ResourceRef{Name: "orph-node 2"}}, {ResourceRef: ResourceRef{Name: "orph-node 3"}},
+			{Name: "orph-node 1"}, {Name: "orph-node 2"}, {Name: "orph-node 3"},
 		},
 		Hosts: []HostInfo{
 			{Name: "host 1"}, {Name: "host 2"}, {Name: "host 3"},
@@ -4944,13 +4936,13 @@ func TestCluster_ParseProxyUrl(t *testing.T) {
 func TestSyncWindow_Hash(t *testing.T) {
 	tests := []struct {
 		name        string
-		window      *SyncWindow
+		window      *InlineSyncWindow
 		expectError bool
 		errorMsg    string
 	}{
 		{
 			name: "valid sync window should hash successfully",
-			window: &SyncWindow{
+			window: &InlineSyncWindow{
 				Kind:           "allow",
 				Schedule:       "0 0 * * *",
 				Duration:       "1h",
@@ -4966,7 +4958,7 @@ func TestSyncWindow_Hash(t *testing.T) {
 		},
 		{
 			name: "empty sync window should hash successfully",
-			window: &SyncWindow{
+			window: &InlineSyncWindow{
 				Kind:     "deny",
 				Schedule: "0 0 * * *",
 				Duration: "30m",
@@ -4975,7 +4967,7 @@ func TestSyncWindow_Hash(t *testing.T) {
 		},
 		{
 			name: "sync window with nil should hash successfully",
-			window: &SyncWindow{
+			window: &InlineSyncWindow{
 				Kind:     "allow",
 				Schedule: "0 0 * * *",
 				Duration: "1h",
@@ -5002,17 +4994,17 @@ func TestSyncWindow_Hash(t *testing.T) {
 
 	// Test that different sync windows produce different hashes
 	t.Run("different sync windows should have different hashes", func(t *testing.T) {
-		window1 := &SyncWindow{
+		window1 := &InlineSyncWindow{
 			Kind:     "allow",
 			Schedule: "0 0 * * *",
 			Duration: "1h",
 		}
-		window2 := &SyncWindow{
+		window2 := &InlineSyncWindow{
 			Kind:     "deny",
 			Schedule: "0 0 * * *",
 			Duration: "1h",
 		}
-		window3 := &SyncWindow{
+		window3 := &InlineSyncWindow{
 			Kind:     "allow",
 			Schedule: "0 1 * * *",
 			Duration: "1h",
@@ -5033,13 +5025,13 @@ func TestSyncWindow_Hash(t *testing.T) {
 
 	// Test that identical sync windows produce the same hash
 	t.Run("identical sync windows should have same hash", func(t *testing.T) {
-		window1 := &SyncWindow{
+		window1 := &InlineSyncWindow{
 			Kind:     "allow",
 			Schedule: "0 0 * * *",
 			Duration: "1h",
 			TimeZone: "UTC",
 		}
-		window2 := &SyncWindow{
+		window2 := &InlineSyncWindow{
 			Kind:     "allow",
 			Schedule: "0 0 * * *",
 			Duration: "1h",
@@ -5056,14 +5048,14 @@ func TestSyncWindow_Hash(t *testing.T) {
 
 	// Test that windows with different ManualSync or Description but same core identity produce same hash
 	t.Run("windows with different metadata should have same identity hash", func(t *testing.T) {
-		window1 := &SyncWindow{
+		window1 := &InlineSyncWindow{
 			Kind:        "allow",
 			Schedule:    "0 0 * * *",
 			Duration:    "1h",
 			ManualSync:  false,
 			Description: "first window",
 		}
-		window2 := &SyncWindow{
+		window2 := &InlineSyncWindow{
 			Kind:        "allow",
 			Schedule:    "0 0 * * *",
 			Duration:    "1h",
@@ -5366,7 +5358,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 	t.Run("DenyWindowWithoutOverrunBlocksContinuingSync", func(t *testing.T) {
 		// given - a deny window without allowSyncOverrun
 		proj := newTestProjectWithSyncWindows()
-		deny := &SyncWindow{
+		deny := &InlineSyncWindow{
 			Kind:         "deny",
 			Schedule:     "* * * * *",
 			Duration:     "1h",
@@ -5388,7 +5380,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 	t.Run("DenyWindowWithOverrunBlocksNewSync", func(t *testing.T) {
 		// given - a deny window with allowSyncOverrun enabled
 		proj := newTestProjectWithSyncWindows()
-		deny := &SyncWindow{
+		deny := &InlineSyncWindow{
 			Kind:         "deny",
 			Schedule:     "* * * * *",
 			Duration:     "1h",
@@ -5408,7 +5400,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 	t.Run("DenyWindowWithOverrunBlocksSyncThatStartedDuringDeny", func(t *testing.T) {
 		// given - a deny window with allowSyncOverrun enabled
 		proj := newTestProjectWithSyncWindows()
-		deny := &SyncWindow{
+		deny := &InlineSyncWindow{
 			Kind:         "deny",
 			Schedule:     "* * * * *", // Always active
 			Duration:     "1h",
@@ -5431,8 +5423,8 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 	t.Run("AllowsOverrunWhenAllDenyWindowsHaveIt", func(t *testing.T) {
 		// given - all deny windows have syncOverrun enabled
 		windows := SyncWindows{
-			&SyncWindow{Kind: "deny", SyncOverrun: true},
-			&SyncWindow{Kind: "deny", SyncOverrun: true},
+			&InlineSyncWindow{Kind: "deny", SyncOverrun: true},
+			&InlineSyncWindow{Kind: "deny", SyncOverrun: true},
 		}
 
 		// when - checking if overrun is allowed
@@ -5445,8 +5437,8 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 	t.Run("DisallowsOverrunWhenOneDenyWindowDoesntHaveIt", func(t *testing.T) {
 		// given - mixed deny windows, one without syncOverrun
 		windows := SyncWindows{
-			&SyncWindow{Kind: "deny", SyncOverrun: false},
-			&SyncWindow{Kind: "deny", SyncOverrun: true},
+			&InlineSyncWindow{Kind: "deny", SyncOverrun: false},
+			&InlineSyncWindow{Kind: "deny", SyncOverrun: true},
 		}
 
 		// when - checking if overrun is allowed
@@ -5459,7 +5451,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 	t.Run("DisallowsOverrunWhenNoDenyWindowsHaveIt", func(t *testing.T) {
 		// given - deny windows without syncOverrun
 		windows := SyncWindows{
-			&SyncWindow{Kind: "deny", SyncOverrun: false},
+			&InlineSyncWindow{Kind: "deny", SyncOverrun: false},
 		}
 
 		// when - checking if overrun is allowed
@@ -5472,8 +5464,8 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 	t.Run("AllowsOverrunIgnoresAllowWindows", func(t *testing.T) {
 		// given - deny window with syncOverrun and allow windows
 		windows := SyncWindows{
-			&SyncWindow{Kind: "allow", SyncOverrun: false},
-			&SyncWindow{Kind: "deny", SyncOverrun: true},
+			&InlineSyncWindow{Kind: "allow", SyncOverrun: false},
+			&InlineSyncWindow{Kind: "deny", SyncOverrun: true},
 		}
 
 		// when - checking if overrun is allowed
@@ -5492,7 +5484,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 		now := time.Now().In(time.UTC)
 		// Duration of 15 minutes means it will be active for 15 minutes starting from this minute
 		schedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
-		deny := &SyncWindow{
+		deny := &InlineSyncWindow{
 			Kind:         "deny",
 			Schedule:     schedule,
 			Duration:     "15m",
@@ -5521,7 +5513,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 		// This creates a scenario where at operation start time (1 hour ago),
 		// there were no active windows but inactive allows were present
 		inactiveAllowSchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-3*time.Hour).Hour())
-		inactiveAllow := &SyncWindow{
+		inactiveAllow := &InlineSyncWindow{
 			Kind:         "allow",
 			Schedule:     inactiveAllowSchedule,
 			Duration:     "30m", // Was active 3 hours ago for 30 minutes
@@ -5531,7 +5523,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Create a deny window that's currently active (just started)
 		activeDenySchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
-		activeDeny := &SyncWindow{
+		activeDeny := &InlineSyncWindow{
 			Kind:         "deny",
 			Schedule:     activeDenySchedule,
 			Duration:     "1h",
@@ -5561,7 +5553,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Create an allow window with manual sync enabled that's was ACTIVE 1h ago
 		allowSchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-1*time.Hour).Hour())
-		allow := &SyncWindow{
+		allow := &InlineSyncWindow{
 			Kind:         "allow",
 			Schedule:     allowSchedule,
 			Duration:     "30m",
@@ -5589,7 +5581,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Create an allow window with manual sync enabled that's was ACTIVE 1h ago
 		allowSchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-1*time.Hour).Hour())
-		allow := &SyncWindow{
+		allow := &InlineSyncWindow{
 			Kind:         "allow",
 			Schedule:     allowSchedule,
 			Duration:     "30m",
@@ -5618,7 +5610,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Create an allow window that WAS active 1 hour ago for 30 minutes, with overrun
 		allowSchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-1*time.Hour).Hour())
-		allow := &SyncWindow{
+		allow := &InlineSyncWindow{
 			Kind:         "allow",
 			Schedule:     allowSchedule,
 			Duration:     "30m",
@@ -5628,7 +5620,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Create a deny window that's currently ACTIVE (without overrun)
 		denySchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
-		deny := &SyncWindow{
+		deny := &InlineSyncWindow{
 			Kind:         "deny",
 			Schedule:     denySchedule,
 			Duration:     "1h",
@@ -5658,7 +5650,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Create an allow window that WAS active 1 hour ago for 30 minutes (no overrun)
 		allowSchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-1*time.Hour).Hour())
-		allow := &SyncWindow{
+		allow := &InlineSyncWindow{
 			Kind:         "allow",
 			Schedule:     allowSchedule,
 			Duration:     "30m",
@@ -5667,7 +5659,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Create a deny window that's currently ACTIVE (with overrun)
 		denySchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
-		deny := &SyncWindow{
+		deny := &InlineSyncWindow{
 			Kind:         "deny",
 			Schedule:     denySchedule,
 			Duration:     "1h",
@@ -5697,7 +5689,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Create an allow window that WAS active 1 hour ago for 30 minutes (with overrun)
 		allowSchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-1*time.Hour).Hour())
-		allow := &SyncWindow{
+		allow := &InlineSyncWindow{
 			Kind:         "allow",
 			Schedule:     allowSchedule,
 			Duration:     "30m",
@@ -5707,7 +5699,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Create a deny window that's currently ACTIVE (with overrun)
 		denySchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
-		deny := &SyncWindow{
+		deny := &InlineSyncWindow{
 			Kind:         "deny",
 			Schedule:     denySchedule,
 			Duration:     "1h",
@@ -5737,7 +5729,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Create an allow window that WAS active 1 hour ago for 30 minutes (no overrun)
 		allowSchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-1*time.Hour).Hour())
-		allow := &SyncWindow{
+		allow := &InlineSyncWindow{
 			Kind:         "allow",
 			Schedule:     allowSchedule,
 			Duration:     "30m",
@@ -5746,7 +5738,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Create a deny window that's currently ACTIVE (without overrun)
 		denySchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
-		deny := &SyncWindow{
+		deny := &InlineSyncWindow{
 			Kind:         "deny",
 			Schedule:     denySchedule,
 			Duration:     "1h",
@@ -5775,7 +5767,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Create an allow window that WAS active 1 hour ago
 		allowSchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-1*time.Hour).Hour())
-		allow := &SyncWindow{
+		allow := &InlineSyncWindow{
 			Kind:         "allow",
 			Schedule:     allowSchedule,
 			Duration:     "30m",
@@ -5785,7 +5777,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Create first deny window that's currently ACTIVE with overrun
 		deny1Schedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
-		deny1 := &SyncWindow{
+		deny1 := &InlineSyncWindow{
 			Kind:         "deny",
 			Schedule:     deny1Schedule,
 			Duration:     "1h",
@@ -5795,7 +5787,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Create second deny window that's also currently ACTIVE with overrun
 		deny2Schedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
-		deny2 := &SyncWindow{
+		deny2 := &InlineSyncWindow{
 			Kind:         "deny",
 			Schedule:     deny2Schedule,
 			Duration:     "2h",
@@ -5825,7 +5817,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Create an allow window that WAS active 1 hour ago
 		allowSchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-1*time.Hour).Hour())
-		allow := &SyncWindow{
+		allow := &InlineSyncWindow{
 			Kind:         "allow",
 			Schedule:     allowSchedule,
 			Duration:     "30m",
@@ -5835,7 +5827,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Create first deny window that's currently ACTIVE with overrun
 		deny1Schedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
-		deny1 := &SyncWindow{
+		deny1 := &InlineSyncWindow{
 			Kind:         "deny",
 			Schedule:     deny1Schedule,
 			Duration:     "1h",
@@ -5845,7 +5837,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Create second deny window that's also currently ACTIVE WITHOUT overrun
 		deny2Schedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
-		deny2 := &SyncWindow{
+		deny2 := &InlineSyncWindow{
 			Kind:         "deny",
 			Schedule:     deny2Schedule,
 			Duration:     "2h",
@@ -5874,7 +5866,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Create first allow window that WAS active 1 hour ago WITH overrun
 		allow1Schedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-1*time.Hour).Hour())
-		allow1 := &SyncWindow{
+		allow1 := &InlineSyncWindow{
 			Kind:         "allow",
 			Schedule:     allow1Schedule,
 			Duration:     "30m",
@@ -5884,7 +5876,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Create second allow window that WAS active 1 hour ago WITHOUT overrun
 		allow2Schedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-1*time.Hour).Hour())
-		allow2 := &SyncWindow{
+		allow2 := &InlineSyncWindow{
 			Kind:         "allow",
 			Schedule:     allow2Schedule,
 			Duration:     "30m",
@@ -5913,7 +5905,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Create first allow window that WAS active 1 hour ago WITH overrun
 		allow1Schedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-1*time.Hour).Hour())
-		allow1 := &SyncWindow{
+		allow1 := &InlineSyncWindow{
 			Kind:         "allow",
 			Schedule:     allow1Schedule,
 			Duration:     "30m",
@@ -5923,7 +5915,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Create second allow window that WAS active 1 hour ago WITH overrun
 		allow2Schedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-1*time.Hour).Hour())
-		allow2 := &SyncWindow{
+		allow2 := &InlineSyncWindow{
 			Kind:         "allow",
 			Schedule:     allow2Schedule,
 			Duration:     "30m",
@@ -5953,7 +5945,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Create first allow window that WAS active 1 hour ago and ended (WITHOUT overrun)
 		allow1Schedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-1*time.Hour).Hour())
-		allow1 := &SyncWindow{
+		allow1 := &InlineSyncWindow{
 			Kind:         "allow",
 			Schedule:     allow1Schedule,
 			Duration:     "30m", // Ended 30 minutes ago
@@ -5963,7 +5955,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Create second allow window that's still ACTIVE (WITH overrun)
 		allow2Schedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-1*time.Hour).Hour())
-		allow2 := &SyncWindow{
+		allow2 := &InlineSyncWindow{
 			Kind:         "allow",
 			Schedule:     allow2Schedule,
 			Duration:     "90m", // Still active for another 30 minutes
@@ -5993,7 +5985,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Sync started 2 hours ago during this allow window (which has since ended)
 		pastAllowSchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-2*time.Hour).Hour())
-		pastAllow := &SyncWindow{
+		pastAllow := &InlineSyncWindow{
 			Kind:         "allow",
 			Schedule:     pastAllowSchedule,
 			Duration:     "30m",
@@ -6003,7 +5995,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Currently active allow window (WITH overrun)
 		activeAllowSchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
-		activeAllow := &SyncWindow{
+		activeAllow := &InlineSyncWindow{
 			Kind:         "allow",
 			Schedule:     activeAllowSchedule,
 			Duration:     "2h",
@@ -6013,7 +6005,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Currently active deny window (WITHOUT overrun)
 		activeDenySchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
-		activeDeny := &SyncWindow{
+		activeDeny := &InlineSyncWindow{
 			Kind:         "deny",
 			Schedule:     activeDenySchedule,
 			Duration:     "1h",
@@ -6043,7 +6035,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Sync started 2 hours ago during this allow window (which has since ended)
 		pastAllowSchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Add(-2*time.Hour).Hour())
-		pastAllow := &SyncWindow{
+		pastAllow := &InlineSyncWindow{
 			Kind:         "allow",
 			Schedule:     pastAllowSchedule,
 			Duration:     "30m",
@@ -6053,7 +6045,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Currently active allow window (WITH overrun)
 		activeAllowSchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
-		activeAllow := &SyncWindow{
+		activeAllow := &InlineSyncWindow{
 			Kind:         "allow",
 			Schedule:     activeAllowSchedule,
 			Duration:     "2h",
@@ -6063,7 +6055,7 @@ func TestSyncWindows_SyncOverrun(t *testing.T) {
 
 		// Currently active deny window (WITH overrun)
 		activeDenySchedule := fmt.Sprintf("%d %d * * *", now.Minute(), now.Hour())
-		activeDeny := &SyncWindow{
+		activeDeny := &InlineSyncWindow{
 			Kind:         "deny",
 			Schedule:     activeDenySchedule,
 			Duration:     "1h",

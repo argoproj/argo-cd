@@ -1,0 +1,27 @@
+apiVersion: pulumi.com/v1
+kind: Stack
+metadata:
+  name: my-stack
+  namespace: default
+  generation: 1
+spec:
+  stack: dev
+  programRef:
+    name: my-stack
+status:
+  observedGeneration: 1
+  conditions:
+  - lastTransitionTime: "2024-07-16T12:00:00Z"
+    observedGeneration: 1
+    reason: ProcessingCompleted
+    status: "True"
+    type: Ready
+    message: the stack has been processed and is up to date
+  lastUpdate:
+    generation: 1
+    name: my-stack-19f06320a9e
+    type: up
+    state: succeeded
+    permalink: https://app.pulumi.com/org/my-stack/dev/updates/1
+  outputs:
+    endpoint: https://example.com
