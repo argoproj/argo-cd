@@ -230,17 +230,40 @@ function tryJsonParse(input: string) {
     }
 }
 
-const ApplicationsListSearchBar = (props: {content: string; searchRegex: boolean; ctx: ContextApis; apps: models.Application[]}) => {
+export const ApplicationsListSearchBar = (props: {content: string; searchRegex: boolean; ctx: ContextApis; apps: models.Application[]}) => {
     const {content, searchRegex, ctx, apps} = props;
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
+
+    const [search, setSearch] = React.useState(content || '');
+    const debounceTimeout = React.useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+    React.useEffect(() => {
+        return () => {
+            if (debounceTimeout.current) {
+                clearTimeout(debounceTimeout.current);
+            }
+        };
+    }, []);
+
+    const handleSearchChange = (value: string) => {
+        setSearch(value);
+
+        if (debounceTimeout.current) {
+            clearTimeout(debounceTimeout.current);
+        }
+
+        debounceTimeout.current = setTimeout(() => {
+            ctx.navigation.goto('.', {search: value}, {replace: true});
+        }, 200);
+    };
 
     const query = new URLSearchParams(window.location.search);
     const appInput = tryJsonParse(query.get('new'));
 
     return (
         <SearchBar
-            value={content || ''}
-            onChange={value => ctx.navigation.goto('.', {search: value}, {replace: true})}
+            value={search}
+            onChange={handleSearchChange}
             placeholder={searchRegex ? 'Regex search (e.g. ^foo-.*-prod$)' : 'Search applications...'}
             disableKeyboardShortcuts={!!appInput}
             regexEnabled={searchRegex}
