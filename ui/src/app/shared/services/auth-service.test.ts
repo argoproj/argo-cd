@@ -33,4 +33,16 @@ describe('AuthService', () => {
         expect(res).toEqual({execEnabled: true});
         expect(requests.get).toHaveBeenCalledTimes(2);
     });
+
+    it('clears settings cache on clearCache call', async () => {
+        (requests.get as jest.Mock).mockResolvedValue({body: {execEnabled: true}});
+
+        await service.settings();
+        expect(requests.get).toHaveBeenCalledTimes(1);
+
+        service.clearCache();
+
+        await service.settings();
+        expect(requests.get).toHaveBeenCalledTimes(2);
+    });
 });

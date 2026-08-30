@@ -30,6 +30,10 @@ export class AccountsService {
 
     private canICache = new Map<string, Promise<boolean>>();
 
+    public clearCache(): void {
+        this.canICache.clear();
+    }
+
     public canI(resource: string, action: string, subresource: string): Promise<boolean> {
         const key = `${resource}:${action}:${subresource}`;
         if (!this.canICache.has(key)) {

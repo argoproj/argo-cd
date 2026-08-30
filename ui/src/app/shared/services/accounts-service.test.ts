@@ -41,4 +41,16 @@ describe('AccountsService', () => {
         expect(res).toBe(true);
         expect(requests.get).toHaveBeenCalledTimes(2);
     });
+
+    it('clears cache on clearCache call', async () => {
+        (requests.get as jest.Mock).mockResolvedValue({body: {value: 'yes'}});
+
+        await service.canI('logs', 'get', 'app1');
+        expect(requests.get).toHaveBeenCalledTimes(1);
+
+        service.clearCache();
+
+        await service.canI('logs', 'get', 'app1');
+        expect(requests.get).toHaveBeenCalledTimes(2);
+    });
 });
