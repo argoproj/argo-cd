@@ -1420,9 +1420,9 @@ func TestValuesOnlyParams(t *testing.T) {
 // metadata (e.g. metadata.annotations) must be resolved using the *second* cluster's own
 // annotations, not the first cluster's.
 func TestMatrixGenerator_ClusterXCluster_ValuesFromOwnAnnotations(t *testing.T) {
-	devopsSecret := &corev1.Secret{
-		TypeMeta: metav1.TypeMeta{Kind: "Secret", APIVersion: "v1"}, //nolint:modernize
-		ObjectMeta: metav1.ObjectMeta{ //nolint:modernize
+	devopsSecret := &corev1.Secret{ //nolint:modernize
+		TypeMeta: metav1.TypeMeta{Kind: "Secret", APIVersion: "v1"},
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      "devops-cluster",
 			Namespace: "argocd",
 			Labels: map[string]string{
@@ -1443,9 +1443,9 @@ func TestMatrixGenerator_ClusterXCluster_ValuesFromOwnAnnotations(t *testing.T) 
 		Type: corev1.SecretType("Opaque"),
 	}
 
-	developSecret := &corev1.Secret{
-		TypeMeta: metav1.TypeMeta{Kind: "Secret", APIVersion: "v1"}, //nolint:modernize
-		ObjectMeta: metav1.ObjectMeta{ //nolint:modernize
+	developSecret := &corev1.Secret{ //nolint:modernize
+		TypeMeta: metav1.TypeMeta{Kind: "Secret", APIVersion: "v1"},
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      "develop-cluster",
 			Namespace: "argocd",
 			Labels: map[string]string{
@@ -1472,8 +1472,8 @@ func TestMatrixGenerator_ClusterXCluster_ValuesFromOwnAnnotations(t *testing.T) 
 		"Clusters": clusterGenerator,
 	})
 
-	appSet := &v1alpha1.ApplicationSet{
-		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "argocd"}, //nolint:modernize
+	appSet := &v1alpha1.ApplicationSet{ //nolint:modernize
+		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "argocd"},
 		Spec: v1alpha1.ApplicationSetSpec{
 			GoTemplate:        true,
 			GoTemplateOptions: []string{"missingkey=error"},
