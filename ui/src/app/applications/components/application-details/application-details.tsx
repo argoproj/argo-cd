@@ -5,7 +5,7 @@ import * as ReactDOM from 'react-dom';
 import * as models from '../../../shared/models';
 import {RouteComponentProps} from 'react-router';
 import {BehaviorSubject, combineLatest, from, merge, Observable} from 'rxjs';
-import {delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
+import {filter, map, mergeMap, repeat, retry} from 'rxjs/operators';
 
 import {DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Revision, Timestamp} from '../../../shared/components';
 import {AppContext, Context, ContextApis} from '../../../shared/context';
@@ -1537,7 +1537,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                             })
                                         )
                                         .pipe(repeat())
-                                        .pipe(retryWhen(errors => errors.pipe(delay(500))))
+                                        .pipe(retry({delay: 500}))
                                 )
                             ),
                             merge(
@@ -1547,7 +1547,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                     services.applications
                                         .watchResourceTree(name, appNamespace, objectListKind)
                                         .pipe(repeat())
-                                        .pipe(retryWhen(errors => errors.pipe(delay(500))))
+                                        .pipe(retry({delay: 500}))
                                 )
                             )
                         );
