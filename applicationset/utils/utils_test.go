@@ -1581,19 +1581,14 @@ func TestRenderGeneratorParams_ValuesInterpolation(t *testing.T) {
 		},
 		{
 			// Regression test for https://github.com/argoproj/argo-cd/issues/28546.
-			// When a Matrix has two ClusterGenerators, the second generator's Values templates
-			// that reference cluster-own metadata (metadata.annotations.*) must NOT be
-			// pre-resolved using the first cluster's params, because the keys overlap.
-			// Cross-generator values (e.g. values.* from the first cluster) may still pre-resolve.
-			name: "GoTemplate: cluster own metadata keys are not pre-resolved from cross-gen cluster params",
+			// When a Matrix has two ClusterGenerators, matrix.go filters cross-gen params to
+			// values.* only before calling RenderGeneratorParams. This test verifies that
+			// RenderGeneratorParams correctly handles that filtered param set: own-namespace keys
+			// (metadata, name) are absent so their templates are deferred, while values.* keys
+			// are present and do resolve.
+			name: "GoTemplate: values.* cross-gen keys resolve; missing own-namespace keys are deferred",
 			params: map[string]any{
-				"name": "DevOps",
-				"metadata": map[string]any{
-					"annotations": map[string]any{
-						"cluster_name": "DevOps",
-						"baseurl":      "devops.example.com",
-					},
-				},
+				// Only values.* keys are passed — matrix.go strips own-namespace keys for same-type.
 				"values": map[string]string{
 					"applicationsBranch": "main",
 				},
@@ -1601,10 +1596,9 @@ func TestRenderGeneratorParams_ValuesInterpolation(t *testing.T) {
 			gen: &argoappsv1.ApplicationSetGenerator{
 				Clusters: &argoappsv1.ClusterGenerator{
 					Values: map[string]string{
-						// This must be deferred — 'metadata' is a cluster own key.
-						// The Develop cluster's own annotations should be used, not DevOps's.
+						// metadata.annotations not in params → missing key → deferred to own generator.
 						"clusterName": `{{ index .metadata.annotations "cluster_name" }}`,
-						// This may be resolved — 'values' is a cross-generator key.
+						// values.* is present → resolves from cross-gen params.
 						"branch": "{{.values.applicationsBranch}}",
 					},
 				},

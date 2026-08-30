@@ -3,6 +3,8 @@ package generators
 import (
 	"errors"
 	"fmt"
+	"reflect"
+	"strings"
 	"time"
 
 	"dario.cat/mergo"
@@ -47,12 +49,25 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 
 	res := []map[string]any{}
 
-	g0, err := m.getParams(appSetGenerator.Matrix.Generators[0], appSet, nil, client)
+	gen0 := appSetGenerator.Matrix.Generators[0]
+	gen1 := appSetGenerator.Matrix.Generators[1]
+	type0, type1 := activeNestedGeneratorTypeName(gen0), activeNestedGeneratorTypeName(gen1)
+	sameType := type0 != "" && type0 == type1
+
+	g0, err := m.getParams(gen0, appSet, nil, client)
 	if err != nil {
 		return nil, fmt.Errorf("error failed to get params for first generator in matrix generator: %w", err)
 	}
 	for _, a := range g0 {
-		g1, err := m.getParams(appSetGenerator.Matrix.Generators[1], appSet, a, client)
+		crossGenParams := a
+		if sameType {
+			// When both generators are the same type (e.g. ClusterGenerator × ClusterGenerator),
+			// restrict cross-generator params to the "values.*" namespace to prevent the first
+			// generator's own-namespace keys (e.g. cluster metadata) from pre-resolving the second
+			// generator's Values templates. The second generator resolves its own metadata itself.
+			crossGenParams = valuesOnlyParams(a)
+		}
+		g1, err := m.getParams(gen1, appSet, crossGenParams, client)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get params for second generator in the matrix generator: %w", err)
 		}
@@ -172,4 +187,36 @@ func getMatrixGenerator(r argoprojiov1alpha1.ApplicationSetNestedGenerator) (*ar
 
 func (m *MatrixGenerator) GetTemplate(appSetGenerator *argoprojiov1alpha1.ApplicationSetGenerator) *argoprojiov1alpha1.ApplicationSetTemplate {
 	return &appSetGenerator.Matrix.Template
+}
+
+// activeNestedGeneratorTypeName returns the Go struct type name of the active generator field
+// inside an ApplicationSetNestedGenerator (e.g. "ClusterGenerator", "GitGenerator").
+// Only fields whose element type name ends with "Generator" are considered, which excludes
+// Selector (*metav1.LabelSelector) and the raw Matrix/Merge fields (*apiextensionsv1.JSON).
+// Returns "" if no matching generator field is set.
+func activeNestedGeneratorTypeName(gen argoprojiov1alpha1.ApplicationSetNestedGenerator) string {
+	v := reflect.ValueOf(gen)
+	t := v.Type()
+	for i := range t.NumField() {
+		f := v.Field(i)
+		if f.Kind() == reflect.Pointer && !f.IsNil() {
+			if name := t.Field(i).Type.Elem().Name(); strings.HasSuffix(name, "Generator") {
+				return name
+			}
+		}
+	}
+	return ""
+}
+
+// valuesOnlyParams returns a shallow copy of params containing only keys in the "values" namespace
+// (the "values" key itself and any "values." prefixed flat keys). Used when same-type generators
+// are paired in a Matrix to prevent own-namespace key collision during Values pre-resolution.
+func valuesOnlyParams(params map[string]any) map[string]any {
+	filtered := make(map[string]any, 2)
+	for k, v := range params {
+		if k == "values" || strings.HasPrefix(k, "values.") {
+			filtered[k] = v
+		}
+	}
+	return filtered
 }
