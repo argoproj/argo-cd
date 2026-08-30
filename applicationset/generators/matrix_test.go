@@ -1402,7 +1402,7 @@ func TestValuesOnlyParams(t *testing.T) {
 		"metadata": map[string]any{
 			"annotations": map[string]any{"cluster_name": "DevOps"},
 		},
-		"values": map[string]string{"branch": "main"},
+		"values":      map[string]string{"branch": "main"},
 		"values.flat": "yes",
 	}
 	got := valuesOnlyParams(params)
@@ -1421,8 +1421,8 @@ func TestValuesOnlyParams(t *testing.T) {
 // annotations, not the first cluster's.
 func TestMatrixGenerator_ClusterXCluster_ValuesFromOwnAnnotations(t *testing.T) {
 	devopsSecret := &corev1.Secret{
-		TypeMeta: metav1.TypeMeta{Kind: "Secret", APIVersion: "v1"},
-		ObjectMeta: metav1.ObjectMeta{
+		TypeMeta: metav1.TypeMeta{Kind: "Secret", APIVersion: "v1"}, //nolint:modernize
+		ObjectMeta: metav1.ObjectMeta{ //nolint:modernize
 			Name:      "devops-cluster",
 			Namespace: "argocd",
 			Labels: map[string]string{
@@ -1444,8 +1444,8 @@ func TestMatrixGenerator_ClusterXCluster_ValuesFromOwnAnnotations(t *testing.T) 
 	}
 
 	developSecret := &corev1.Secret{
-		TypeMeta: metav1.TypeMeta{Kind: "Secret", APIVersion: "v1"},
-		ObjectMeta: metav1.ObjectMeta{
+		TypeMeta: metav1.TypeMeta{Kind: "Secret", APIVersion: "v1"}, //nolint:modernize
+		ObjectMeta: metav1.ObjectMeta{ //nolint:modernize
 			Name:      "develop-cluster",
 			Namespace: "argocd",
 			Labels: map[string]string{
@@ -1473,7 +1473,7 @@ func TestMatrixGenerator_ClusterXCluster_ValuesFromOwnAnnotations(t *testing.T) 
 	})
 
 	appSet := &v1alpha1.ApplicationSet{
-		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "argocd"},
+		ObjectMeta: metav1.ObjectMeta{Name: "test", Namespace: "argocd"}, //nolint:modernize
 		Spec: v1alpha1.ApplicationSetSpec{
 			GoTemplate:        true,
 			GoTemplateOptions: []string{"missingkey=error"},
