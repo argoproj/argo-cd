@@ -2236,6 +2236,11 @@ func TestStaleGitLockPath(t *testing.T) {
 			output: "fatal: could not read from remote repository",
 			wantOk: false,
 		},
+		{
+			name:   "sibling directory sharing the .git prefix is NOT removable",
+			output: fmt.Sprintf("Unable to create '%s.backup/HEAD.lock': File exists.", gitDir),
+			wantOk: false,
+		},
 	}
 
 	for _, tt := range tests {
@@ -2247,6 +2252,21 @@ func TestStaleGitLockPath(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestStaleGitLockPathRootContainingGitDir covers a root whose own path has a
+// .git component. Matching on a ".git" path component anywhere would make every
+// working-tree file under such a root eligible for removal.
+func TestStaleGitLockPathRootContainingGitDir(t *testing.T) {
+	root := filepath.Join(t.TempDir(), ".git", "worktree")
+	require.NoError(t, os.MkdirAll(filepath.Join(root, "charts"), 0o755))
+
+	_, ok := staleGitLockPath(root, fmt.Sprintf("Unable to create '%s/charts/Chart.lock': File exists.", root))
+	assert.False(t, ok, "a working-tree lock must stay ineligible under a root that contains .git")
+
+	got, ok := staleGitLockPath(root, fmt.Sprintf("Unable to create '%s/.git/HEAD.lock': File exists.", root))
+	assert.True(t, ok, "the repository's own .git lock is still removable")
+	assert.Equal(t, filepath.Join(root, ".git", "HEAD.lock"), got)
 }
 
 // Test_nativeGitClient_CheckoutRecoversStaleLock exercises the full recovery
@@ -2295,6 +2315,33 @@ func ageStaleLock(t *testing.T, lockPath string) {
 	t.Helper()
 	old := time.Now().Add(-2 * gitCleanupGracePeriod)
 	require.NoError(t, os.Chtimes(lockPath, old, old))
+}
+
+// Test_nativeGitClient_FetchRecoversStaleLock covers the fetch half of the
+// recovery. fetch's wrapped operation yields no output, so the lock path has to
+// come from the error alone; this fails if git's stderr ever stops reaching it.
+func Test_nativeGitClient_FetchRecoversStaleLock(t *testing.T) {
+	ctx := t.Context()
+
+	originDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+	require.NoError(t, runCmd(ctx, originDir, "git", "commit", "-m", "Second commit", "--allow-empty"))
+
+	client, err := NewClient("file://"+originDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	require.NoError(t, client.Init())
+	require.NoError(t, client.Fetch(ctx, "", 0))
+
+	lockPath := filepath.Join(client.Root(), ".git", "shallow.lock")
+	require.NoError(t, os.WriteFile(lockPath, nil, 0o600))
+	ageStaleLock(t, lockPath)
+
+	// precondition: the stale lock wedges a shallow fetch and survives it
+	require.Error(t, runCmd(ctx, client.Root(), "git", "fetch", "origin", "--depth", "1", "--force", "--prune"))
+	require.FileExists(t, lockPath)
+
+	require.NoError(t, client.Fetch(ctx, "", 1))
+	require.NoFileExists(t, lockPath)
 }
 
 // Test_nativeGitClient_CheckoutLeavesFreshLock covers the case that separates a

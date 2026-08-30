@@ -310,8 +310,10 @@ var gitClientTimeout = env.ParseDurationFromEnv("ARGOCD_GIT_REQUEST_TIMEOUT", 15
 // will remove it. A git command is killed at ARGOCD_EXEC_TIMEOUT (plus the
 // fatal-timeout grace), so twice that comfortably exceeds the longest one can be
 // in flight; anything older cannot belong to a live command (for example one
-// from another repo-server replica sharing an RWX cache volume).
-var gitCleanupGracePeriod = 2 * env.ParseDurationFromEnv("ARGOCD_EXEC_TIMEOUT", 90*time.Second, 0, math.MaxInt64)
+// from another repo-server replica sharing an RWX cache volume). The floor keeps
+// a zero ARGOCD_EXEC_TIMEOUT, which the parser accepts, from disabling the window
+// altogether and making every file eligible the moment it appears.
+var gitCleanupGracePeriod = max(2*env.ParseDurationFromEnv("ARGOCD_EXEC_TIMEOUT", 90*time.Second, 0, math.MaxInt64), time.Minute)
 
 // Returns a HTTP client object suitable for go-git to use using the following
 // pattern:
@@ -1768,10 +1770,11 @@ func staleGitLockPath(root string, outputs ...string) (string, bool) {
 			rootAbs = rootResolved
 		}
 	}
-	sep := string(os.PathSeparator)
-	if !strings.HasSuffix(p, ".lock") ||
-		!strings.HasPrefix(p, filepath.Clean(rootAbs)+sep) ||
-		!strings.Contains(p, sep+".git"+sep) {
+	// Anchor on this repository's own .git directory rather than searching the
+	// path for a ".git" component: a root that itself contains one would let a
+	// working-tree file match.
+	gitDir := filepath.Join(rootAbs, ".git") + string(os.PathSeparator)
+	if !strings.HasSuffix(p, ".lock") || !strings.HasPrefix(p, gitDir) {
 		return "", false
 	}
 	return p, true
