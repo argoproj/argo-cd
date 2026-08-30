@@ -168,6 +168,29 @@ Then log in using that password and username `admin`:
 dist/argocd login localhost:8080
 ```
 
+### Validate the local setup with a sample app
+
+Once Argo CD is running locally, you can test it end-to-end against the example application repository at [https://github.com/argoproj/argocd-example-apps](https://github.com/argoproj/argocd-example-apps). This repository contains a simple guestbook app that is commonly used to validate sync, health, and UI behavior.
+
+Create the sample app from the CLI:
+
+```shell
+dist/argocd app create guestbook \
+  --repo https://github.com/argoproj/argocd-example-apps.git \
+  --path guestbook \
+  --dest-server https://kubernetes.default.svc \
+  --dest-namespace default
+```
+
+Then sync and inspect it:
+
+```shell
+dist/argocd app sync guestbook
+dist/argocd app get guestbook
+```
+
+You can also verify the same flow in the UI by opening `http://localhost:4000`, logging in as `admin`, and confirming the `guestbook` application appears and reaches a healthy state. This is a good way to validate that your local Argo CD setup can connect to the cluster, read a Git repository, and deploy an application successfully.
+
 ## Running Argo CD inside of K8s cluster
 ### Scale up Argo CD in your cluster
 
