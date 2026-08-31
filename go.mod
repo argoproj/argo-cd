@@ -12,6 +12,7 @@ require (
 	github.com/Azure/kubelogin v0.2.19
 	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/Masterminds/sprig/v3 v3.3.0
+	github.com/ProtonMail/go-crypto v1.1.6
 	github.com/TomOnTime/utfutil v1.0.0
 	github.com/alicebob/miniredis/v2 v2.38.0
 	github.com/argoproj/argo-cd/gitops-engine/v3 v3.0.0-00010101000000-000000000000 // Tagged as gitops-engine/vX.Y.Z at release time
@@ -136,8 +137,6 @@ require (
 	sigs.k8s.io/structured-merge-diff/v6 v6.4.2
 	sigs.k8s.io/yaml v1.6.0
 )
-
-require github.com/ProtonMail/go-crypto v1.1.6
 
 require (
 	cloud.google.com/go v0.121.6 // indirect
