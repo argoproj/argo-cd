@@ -68,7 +68,9 @@ COPY --from=builder /usr/local/bin/kustomize /usr/local/bin/kustomize
 COPY --from=builder /usr/local/bin/git-lfs /usr/local/bin/git-lfs
 
 # Initialize git-lfs system configuration (/etc/gitconfig) so LFS filters are active
-RUN git lfs install --system
+# The --skip-repo option prevents failure if / is a Git repository with existing
+# non-git-lfs hooks.
+RUN git lfs install --skip-repo --system
 
 # keep uid_entrypoint.sh for backward compatibility
 RUN ln -s /usr/local/bin/entrypoint.sh /usr/local/bin/uid_entrypoint.sh
