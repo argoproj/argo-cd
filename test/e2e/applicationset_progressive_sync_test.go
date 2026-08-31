@@ -5,8 +5,6 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/utils/ptr"
-
 	"github.com/stretchr/testify/require"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"

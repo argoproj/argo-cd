@@ -36,7 +36,6 @@ func (testDeps) SetApplicationSetStatusCondition(_ context.Context, _ *v1alpha1.
 
 func (testDeps) IncRefreshTriggeredCount(_ *v1alpha1.ApplicationSet, _ string) {}
 
-
 func TestBuildAppDependencyList(t *testing.T) {
 	t.Parallel()
 	scheme := runtime.NewScheme()

@@ -21,7 +21,7 @@ func NewFakeAppsetMetrics() *ApplicationsetMetrics {
 	}, []string{"namespace", "name", "step"})
 
 	return &ApplicationsetMetrics{
-		reconcileHistogram:                       reconcileHistogram,
+		reconcileHistogram:                        reconcileHistogram,
 		progressiveSyncAppRefreshTriggeredCounter: refreshCounter,
 	}
 }

@@ -790,7 +790,7 @@ func (m *Manager) ensureApplicationsReconciled(logCtx *log.Entry, appset *argov1
 	}
 
 	// add refresh annotations to trigger reconciliation
-	err := m.addRefreshAnnotationToApplications(logCtx, appsNeedReconcile, appStepMap,appset)
+	err := m.addRefreshAnnotationToApplications(logCtx, appsNeedReconcile, appStepMap, appset)
 	if err != nil {
 		return false, fmt.Errorf("failed to add refresh annotations: %w", err)
 	}
