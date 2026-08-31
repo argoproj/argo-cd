@@ -23,7 +23,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/codecommit v1.38.2
 	github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi v1.36.2
 	github.com/aws/aws-sdk-go-v2/service/sts v1.45.7
-	github.com/aws/smithy-go v1.27.9
+	github.com/aws/smithy-go v1.28.1
 	github.com/bmatcuk/doublestar/v4 v4.10.0
 	github.com/bombsimon/logrusr/v4 v4.1.0
 	github.com/bradleyfalzon/ghinstallation/v2 v2.19.0
