@@ -48,9 +48,12 @@ func VerifyCleartextSignedMessage(ctx context.Context, clearsigned []byte) (sign
 	if err := cmd.Start(); err != nil {
 		return "", err
 	}
+	// Close the write end before reading so the child can finish writing status-fd
+	// output and EOF. Do not use executil.Run here: it Wait()s before draining the
+	// ExtraFiles pipe and can deadlock when the status-fd buffer fills.
 	pw.Close()
 	statusBytes, readErr := io.ReadAll(pr)
-	_ = cmd.Wait()
+	waitErr := cmd.Wait()
 	if readErr != nil {
 		return "", readErr
 	}
@@ -58,13 +61,22 @@ func VerifyCleartextSignedMessage(ctx context.Context, clearsigned []byte) (sign
 	status := string(statusBytes)
 	code, keyID, err := ParseStatusOutputStrict(status)
 	if err != nil {
+		if waitErr != nil {
+			return "", waitErr
+		}
 		if errors.Is(err, ErrNoStatusFound) {
 			return "", fmt.Errorf("gpg verify did not report GOODSIG (status-fd output: %q)", status)
 		}
 		return "", err
 	}
 	if code == "GOODSIG" {
+		if waitErr != nil {
+			return "", fmt.Errorf("gpg reported GOODSIG but did not exit cleanly: %w", waitErr)
+		}
 		return keyID, nil
+	}
+	if waitErr != nil {
+		return "", waitErr
 	}
 	return "", errors.New(VerificationFailureMessage(code, keyID))
 }

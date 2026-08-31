@@ -31077,7 +31077,7 @@ spec:
                 type: object
                 x-kubernetes-validations:
                 - message: sourceIntegrity must specify at least one of git or helm
-                  rule: self.git != null || self.helm != null
+                  rule: has(self.git) || has(self.helm)
               sourceNamespaces:
                 description: SourceNamespaces defines the namespaces application resources
                   are allowed to be created in

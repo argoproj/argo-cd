@@ -10757,7 +10757,7 @@
     },
     "v1alpha1SourceIntegrity": {
       "type": "object",
-      "title": "+kubebuilder:validation:XValidation:rule=\"self.git != null || self.helm != null\",message=\"sourceIntegrity must specify at least one of git or helm\"",
+      "title": "+kubebuilder:validation:XValidation:rule=\"has(self.git) || has(self.helm)\",message=\"sourceIntegrity must specify at least one of git or helm\"",
       "properties": {
         "git": {
           "$ref": "#/definitions/v1alpha1SourceIntegrityGit"
