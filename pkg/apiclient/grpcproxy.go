@@ -156,7 +156,15 @@ func (c *client) startGRPCProxy(ctx context.Context) (*grpc.Server, net.Listener
 				utilio.Close(resp.Body)
 			}()
 			defer utilio.Close(resp.Body)
-			c.httpClient.CloseIdleConnections()
+			// When retries are enabled, httpClient wraps a retryablehttp
+			// RoundTripper that does not implement CloseIdleConnections, so
+			// closing on httpClient would be a no-op. Close idle connections on
+			// the underlying TLS transport directly when we have one.
+			if c.tlsTransport != nil {
+				c.tlsTransport.CloseIdleConnections()
+			} else {
+				c.httpClient.CloseIdleConnections()
+			}
 
 			for {
 				header := make([]byte, frameHeaderLength)

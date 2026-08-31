@@ -324,8 +324,9 @@ func TestNewClient_HttpRetryMax_TLSTransport(t *testing.T) {
 	})
 }
 
-// TestExecuteRequest_RetriesOn502 proves that with HttpRetryMax set, a
-// transient 502 is retried rather than returned fatally on the first attempt.
+// TestExecuteRequest_RetriesOn502 covers executeRequest's handling of a response
+// delivered through a retrying transport. The regression test for the TLS bug is
+// TestNewClient_RetriesOn502_OverTLS.
 func TestExecuteRequest_RetriesOn502(t *testing.T) {
 	var attempts atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -357,6 +358,60 @@ func TestExecuteRequest_RetriesOn502(t *testing.T) {
 	require.NotNil(t, resp)
 	defer resp.Body.Close()
 	assert.Equal(t, int32(3), attempts.Load(), "expected two 502 retries before success")
+}
+
+// TestNewClient_RetryPath_ExposesTLSTransport verifies that when retries are
+// enabled, NewClient keeps a direct reference to the underlying *http.Transport.
+// The grpc-web proxy relies on this to close idle connections, since the
+// retryablehttp RoundTripper wrapping httpClient does not implement
+// CloseIdleConnections (so calling it on httpClient would be a silent no-op).
+func TestNewClient_RetryPath_ExposesTLSTransport(t *testing.T) {
+	ci, err := NewClient(&ClientOptions{
+		ServerAddr:   "argocd.example.com:443",
+		HttpRetryMax: 4,
+		Insecure:     true,
+		GRPCWeb:      true,
+	})
+	require.NoError(t, err)
+	c := ci.(*client)
+
+	require.NotNil(t, c.tlsTransport, "retry path should retain the *http.Transport for idle-conn cleanup")
+	// The retry RoundTripper's inner transport must be the same one we can close.
+	rt, ok := c.httpClient.Transport.(*retryablehttp.RoundTripper)
+	require.True(t, ok, "expected retryablehttp.RoundTripper, got %T", c.httpClient.Transport)
+	assert.Same(t, c.tlsTransport, rt.Client.HTTPClient.Transport,
+		"tlsTransport should be the retry client's underlying transport")
+}
+
+// TestNewClient_PersistentError_PreservesStatus ensures that when retries are
+// exhausted against a persistent 502, the returned error still carries the
+// status code. This relies on ErrorPropagatedRetryPolicy; the default policy
+// would strip it, leaving only "giving up after N attempt(s)".
+func TestNewClient_PersistentError_PreservesStatus(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusBadGateway) // always 502
+	}))
+	defer server.Close()
+
+	ci, err := NewClient(&ClientOptions{
+		ServerAddr:   server.Listener.Addr().String(),
+		HttpRetryMax: 2,
+		Insecure:     true,
+		GRPCWeb:      true,
+	})
+	require.NoError(t, err)
+	c := ci.(*client)
+
+	rt, ok := c.httpClient.Transport.(*retryablehttp.RoundTripper)
+	require.True(t, ok, "expected retryablehttp.RoundTripper, got %T", c.httpClient.Transport)
+	rt.Client.RetryWaitMin = time.Millisecond
+	rt.Client.RetryWaitMax = 5 * time.Millisecond
+
+	ctx := t.Context()
+	md := metadata.New(map[string]string{})
+	_, err = c.executeRequest(ctx, "/test.Service/Method", []byte("test"), md)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "502", "exhausted-retry error should preserve the HTTP status")
 }
 
 // TestNewClient_RetriesOn502_OverTLS is the end-to-end regression test for the
