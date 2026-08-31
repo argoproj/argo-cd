@@ -3849,10 +3849,64 @@ func TestUpdateResourceStatus(t *testing.T) {
 		apps                    []v1alpha1.Application
 		generatedApps           []v1alpha1.Application
 		expectedResources       []v1alpha1.ResourceStatus
+		expectedOrphanedCount   int64
 		maxResourcesStatusCount int
 	}{
 		{
-			name: "marks applications no longer generated as requiring pruning",
+			name: "counts orphaned applications even when truncated out of the resources status",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					Resources: []v1alpha1.ResourceStatus{},
+				},
+			},
+			apps: []v1alpha1.Application{
+				{
+					Name: "app1",
+					Status: v1alpha1.ApplicationStatus{
+						Sync: v1alpha1.SyncStatus{
+							Status: v1alpha1.SyncStatusCodeSynced,
+						},
+						Health: v1alpha1.AppHealthStatus{
+							Status: health.HealthStatusHealthy,
+						},
+					},
+				},
+				{
+					Name: "app2",
+					Status: v1alpha1.ApplicationStatus{
+						Sync: v1alpha1.SyncStatus{
+							Status: v1alpha1.SyncStatusCodeSynced,
+						},
+						Health: v1alpha1.AppHealthStatus{
+							Status: health.HealthStatusHealthy,
+						},
+					},
+				},
+			},
+			generatedApps: []v1alpha1.Application{
+				{
+					Name: "app1",
+				},
+			},
+			// app2 is orphaned and truncated out of the resources status, but still counted.
+			expectedResources: []v1alpha1.ResourceStatus{
+				{
+					Name:   "app1",
+					Status: v1alpha1.SyncStatusCodeSynced,
+					Health: &v1alpha1.HealthStatus{
+						Status: health.HealthStatusHealthy,
+					},
+				},
+			},
+			expectedOrphanedCount:   1,
+			maxResourcesStatusCount: 1,
+		},
+		{
+			name: "marks applications no longer generated as orphaned",
 			appSet: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
@@ -3883,9 +3937,10 @@ func TestUpdateResourceStatus(t *testing.T) {
 					Health: &v1alpha1.HealthStatus{
 						Status: health.HealthStatusHealthy,
 					},
-					RequiresPruning: true,
+					Orphaned: true,
 				},
 			},
+			expectedOrphanedCount: 1,
 		},
 		{
 			name: "handles an empty application list",
@@ -3902,7 +3957,8 @@ func TestUpdateResourceStatus(t *testing.T) {
 			expectedResources: nil,
 		},
 		{
-			name: "adds status if no existing statuses",
+			name:          "adds status if no existing statuses",
+			generatedApps: []v1alpha1.Application{{Name: "app1"}},
 			appSet: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
@@ -3936,7 +3992,8 @@ func TestUpdateResourceStatus(t *testing.T) {
 			},
 		},
 		{
-			name: "handles an applicationset with existing and up-to-date status",
+			name:          "handles an applicationset with existing and up-to-date status",
+			generatedApps: []v1alpha1.Application{{Name: "app1"}},
 			appSet: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
@@ -3978,7 +4035,8 @@ func TestUpdateResourceStatus(t *testing.T) {
 			},
 		},
 		{
-			name: "updates an applicationset with existing and out of date status",
+			name:          "updates an applicationset with existing and out of date status",
+			generatedApps: []v1alpha1.Application{{Name: "app1"}},
 			appSet: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
@@ -4044,7 +4102,8 @@ func TestUpdateResourceStatus(t *testing.T) {
 			expectedResources: nil,
 		},
 		{
-			name: "truncates resources status list to",
+			name:          "truncates resources status list to",
+			generatedApps: []v1alpha1.Application{{Name: "app1"}, {Name: "app2"}},
 			appSet: v1alpha1.ApplicationSet{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "name",
@@ -4126,14 +4185,11 @@ func TestUpdateResourceStatus(t *testing.T) {
 				MaxResourcesStatusCount: cc.maxResourcesStatusCount,
 			}
 
-			generatedApps := cc.generatedApps
-			if generatedApps == nil {
-				generatedApps = cc.apps
-			}
-			err := r.updateResourcesStatus(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps, generatedApps)
+			err := r.updateResourcesStatus(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps, cc.generatedApps)
 
 			require.NoError(t, err, "expected no errors, but errors occurred")
 			assert.Equal(t, cc.expectedResources, cc.appSet.Status.Resources, "expected resources did not match actual")
+			assert.Equal(t, cc.expectedOrphanedCount, cc.appSet.Status.OrphanedCount, "expected orphaned count did not match actual")
 		})
 	}
 }

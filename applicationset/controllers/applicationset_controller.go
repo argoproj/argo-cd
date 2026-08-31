@@ -1103,8 +1103,14 @@ func (r *ApplicationSetReconciler) updateResourcesStatus(ctx context.Context, lo
 	statusMap = status.BuildResourceStatus(statusMap, apps, generatedApps)
 
 	statuses := []argov1alpha1.ResourceStatus{}
+	// Count orphaned Applications before truncation so the count stays correct even when their
+	// entries do not fit into the truncated resource status list.
+	orphanedCount := int64(0)
 	for _, status := range statusMap {
 		statuses = append(statuses, status)
+		if status.Orphaned {
+			orphanedCount++
+		}
 	}
 	sort.Slice(statuses, func(i, j int) bool {
 		return statuses[i].Name < statuses[j].Name
@@ -1116,6 +1122,7 @@ func (r *ApplicationSetReconciler) updateResourcesStatus(ctx context.Context, lo
 	}
 	appset.Status.Resources = statuses
 	appset.Status.ResourcesCount = resourcesCount
+	appset.Status.OrphanedCount = orphanedCount
 	// DefaultRetry will retry 5 times with a backoff factor of 1, jitter of 0.1 and a duration of 10ms
 	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
 		namespacedName := types.NamespacedName{Namespace: appset.Namespace, Name: appset.Name}
@@ -1129,6 +1136,7 @@ func (r *ApplicationSetReconciler) updateResourcesStatus(ctx context.Context, lo
 
 		updatedAppset.Status.Resources = appset.Status.Resources
 		updatedAppset.Status.ResourcesCount = resourcesCount
+		updatedAppset.Status.OrphanedCount = orphanedCount
 
 		// Update the newly fetched object with new status resources
 		err := r.Client.Status().Update(ctx, updatedAppset)

@@ -23431,6 +23431,9 @@ spec:
                   status:
                     type: string
                 type: object
+              orphanedCount:
+                format: int64
+                type: integer
               resources:
                 items:
                   properties:
@@ -23454,6 +23457,8 @@ spec:
                       type: string
                     namespace:
                       type: string
+                    orphaned:
+                      type: boolean
                     requiresDeletionConfirmation:
                       type: boolean
                     requiresPruning:

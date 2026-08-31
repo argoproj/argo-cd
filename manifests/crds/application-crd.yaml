@@ -5303,6 +5303,12 @@ spec:
                       description: Namespace defines the Kubernetes namespace where
                         the resource is located.
                       type: string
+                    orphaned:
+                      description: |-
+                        Orphaned is true for an Application that is owned by an ApplicationSet but no longer generated
+                        by it, for example after a generator change under a non-deleting applicationsSync policy.
+                        It is only set on the entries of an ApplicationSet's resource status, never on an Application's.
+                      type: boolean
                     requiresDeletionConfirmation:
                       description: RequiresDeletionConfirmation is true if the resource
                         requires explicit user confirmation before deletion.

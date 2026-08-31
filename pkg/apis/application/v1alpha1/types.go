@@ -2256,6 +2256,10 @@ type ResourceStatus struct {
 	SyncWave int64 `json:"syncWave,omitempty" protobuf:"bytes,10,opt,name=syncWave"`
 	// RequiresDeletionConfirmation is true if the resource requires explicit user confirmation before deletion.
 	RequiresDeletionConfirmation bool `json:"requiresDeletionConfirmation,omitempty" protobuf:"bytes,11,opt,name=requiresDeletionConfirmation"`
+	// Orphaned is true for an Application that is owned by an ApplicationSet but no longer generated
+	// by it, for example after a generator change under a non-deleting applicationsSync policy.
+	// It is only set on the entries of an ApplicationSet's resource status, never on an Application's.
+	Orphaned bool `json:"orphaned,omitempty" protobuf:"bytes,12,opt,name=orphaned"`
 }
 
 // GroupVersionKind returns the GVK schema type for given resource status

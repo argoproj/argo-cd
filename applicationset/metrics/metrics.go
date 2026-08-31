@@ -138,14 +138,15 @@ func collectAppset(appset *argoappv1.ApplicationSet, labelsToCollect []string, c
 		ch <- prometheus.MustNewConstMetric(descAppsetLabels, prometheus.GaugeValue, 1, append(commonLabelValues, labelValues...)...)
 	}
 
-	orphanedCount := 0
-	for _, resource := range appset.Status.Resources {
-		if resource.RequiresPruning {
-			orphanedCount++
-		}
+	// Read the dedicated counts rather than counting status.resources entries: the resource status
+	// list may be truncated to --max-resources-status-count, the counts are not. Fall back to the
+	// list length for appsets that have not been reconciled since resourcesCount was introduced.
+	ownedCount := appset.Status.ResourcesCount
+	if ownedCount == 0 {
+		ownedCount = int64(len(appset.Status.Resources))
 	}
 
 	ch <- prometheus.MustNewConstMetric(descAppsetInfo, prometheus.GaugeValue, 1, appset.Namespace, appset.Name, resourceUpdateStatus)
-	ch <- prometheus.MustNewConstMetric(descAppsetGeneratedApps, prometheus.GaugeValue, float64(len(appset.Status.Resources)), appset.Namespace, appset.Name)
-	ch <- prometheus.MustNewConstMetric(descAppsetOrphanedApps, prometheus.GaugeValue, float64(orphanedCount), appset.Namespace, appset.Name)
+	ch <- prometheus.MustNewConstMetric(descAppsetGeneratedApps, prometheus.GaugeValue, float64(ownedCount), appset.Namespace, appset.Name)
+	ch <- prometheus.MustNewConstMetric(descAppsetOrphanedApps, prometheus.GaugeValue, float64(appset.Status.OrphanedCount), appset.Namespace, appset.Name)
 }

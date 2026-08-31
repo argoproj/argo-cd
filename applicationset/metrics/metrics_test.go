@@ -78,7 +78,9 @@ status:
     namespace: argocd
     status: OutOfSync
     version: v1alpha1
-    requiresPruning: true
+    orphaned: true
+  orphanedCount: 1
+  resourcesCount: 3
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
     message: Successfully generated parameters for all Applications
@@ -186,8 +188,9 @@ func TestApplicationsetCollector(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), `
 argocd_appset_info{name="test1",namespace="argocd",resource_update_status="ApplicationSetUpToDate"} 1
 `)
+	// resourcesCount wins over the (possibly truncated) resources list length
 	assert.Contains(t, rr.Body.String(), `
-argocd_appset_owned_applications{name="test1",namespace="argocd"} 2
+argocd_appset_owned_applications{name="test1",namespace="argocd"} 3
 `)
 	// Test labels collection - should not include labels not included in the list of collected labels and include the ones that do.
 	assert.Contains(t, rr.Body.String(), `
@@ -206,7 +209,7 @@ argocd_appset_info{name="test2",namespace="argocd",resource_update_status="Unkno
 	assert.Contains(t, rr.Body.String(), `
 argocd_appset_owned_applications{name="test2",namespace="argocd"} 0
 `)
-	// Resources marked with requiresPruning are counted as orphaned
+	// The orphaned applications gauge reports status.orphanedCount
 	assert.Contains(t, rr.Body.String(), `
 argocd_appset_orphaned_applications{name="test1",namespace="argocd"} 1
 `)

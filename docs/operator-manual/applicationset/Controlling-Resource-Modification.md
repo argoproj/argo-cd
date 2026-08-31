@@ -45,10 +45,18 @@ Under the non-deleting policies (`create-only`, `create-update`), an Application
 parameters disappear (for example after a selector change) is left in place, stays owned by the
 ApplicationSet, and keeps reporting its own sync and health status as if nothing happened. To make
 these orphaned Applications visible, the controller marks their entry in the ApplicationSet's
-`status.resources` with `requiresPruning: true`. The mark clears automatically if the Application is
-generated again, and the `argocd_appset_orphaned_applications` metric exposes the count per
+`status.resources` with `orphaned: true` and records the total in `status.orphanedCount` (which,
+unlike the resource status list, is not truncated). The mark clears automatically if the Application
+is generated again, and the `argocd_appset_orphaned_applications` metric exposes the count per
 ApplicationSet for alerting. The controller never modifies the orphaned Application itself; deleting
 it remains an operator action.
+
+Two caveats when alerting on the metric. The count reflects the last successful generation: while a
+generator is erroring, the status is not recomputed, so the count can be stale in either direction.
+And a generator that transiently succeeds with empty output (for example a cluster generator whose
+selector briefly matches no cluster secrets) marks every owned Application orphaned until the next
+successful generation — the same window in which the delete-capable policies would have deleted
+them. Give alerts a tolerance (`for:`) rather than paging on the instant value.
 
 ### Policy - `create-only`: Prevent ApplicationSet controller from modifying and deleting Applications
 
