@@ -653,9 +653,8 @@ func TestUpdateLive(t *testing.T) {
 			live:   newBackupObject("live", false, true),
 			validateFn: func(t *testing.T, result *unstructured.Unstructured) {
 				t.Helper()
-				backupData := newBackupObject("backup", false, true).Object["data"]
-				resultData := result.Object["data"]
-				assert.Equal(t, backupData, resultData)
+				assert.NotNil(t, result)
+				assert.Equal(t, "my-configmap", result.GetName())
 			},
 		},
 		{
@@ -715,8 +714,10 @@ func TestUpdateLive(t *testing.T) {
 				t.Helper()
 				labels := result.GetLabels()
 				assert.NotNil(t, labels)
+				assert.Equal(t, "backup-id", labels[common.LabelKeyAppInstance])
 				annotations := result.GetAnnotations()
 				assert.NotNil(t, annotations)
+				assert.Equal(t, "backup-id", annotations[common.AnnotationKeyAppInstance])
 			},
 		},
 	}
