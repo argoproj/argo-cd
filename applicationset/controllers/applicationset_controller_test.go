@@ -5355,10 +5355,11 @@ func TestPerformProgressiveSyncsWithReconciliationCheck(t *testing.T) {
 
 			// Create appClientSet with Application objects for RefreshApp to use
 			appClientSet := appfake.NewSimpleClientset(appObjs...)
-
+			metrics := appsetmetrics.NewFakeAppsetMetrics()
 			r := ApplicationSetReconciler{
-				Client: client,
-				Scheme: scheme,
+				Client:  client,
+				Scheme:  scheme,
+				Metrics: metrics,
 			}
 			manager := progressivesync.NewManager(client, client, appClientSet, &r)
 

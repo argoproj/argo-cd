@@ -22,6 +22,21 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
+// testDeps is a no-op Dependencies: these tests assert on the statuses returned by
+// UpdateApplicationSetApplicationStatus, not on their persistence.
+type testDeps struct{}
+
+func (testDeps) SetAppSetApplicationStatus(_ context.Context, _ *log.Entry, _ *v1alpha1.ApplicationSet, _ []v1alpha1.ApplicationSetApplicationStatus) error {
+	return nil
+}
+
+func (testDeps) SetApplicationSetStatusCondition(_ context.Context, _ *v1alpha1.ApplicationSet, _ []v1alpha1.ApplicationSetCondition, _ bool) error {
+	return nil
+}
+
+func (testDeps) IncRefreshTriggeredCount(_ *v1alpha1.ApplicationSet, _ string) {}
+
+
 func TestBuildAppDependencyList(t *testing.T) {
 	t.Parallel()
 	scheme := runtime.NewScheme()
@@ -2102,12 +2117,9 @@ func TestEnsureApplicationsReconciled(t *testing.T) {
 
 			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(initObjs...).Build()
 			appclientSet := appfake.NewSimpleClientset(appObjs...)
-			manager := &Manager{
-				Client:       client,
-				AppClientset: appclientSet,
-			}
+			manager := NewManager(client, client, appclientSet, testDeps{})
 
-			reconciled, err := manager.ensureApplicationsReconciled(log.NewEntry(log.StandardLogger()), &tt.appset, tt.applications, tt.latestTransitionTime, 0)
+			reconciled, err := manager.ensureApplicationsReconciled(log.NewEntry(log.StandardLogger()), &tt.appset, tt.applications, tt.latestTransitionTime, 0, nil)
 
 			if tt.expectError {
 				assert.Error(t, err)
@@ -2199,11 +2211,9 @@ func TestAddRefreshAnnotationToApplications(t *testing.T) {
 			}
 
 			appClientSet := appfake.NewSimpleClientset(initObjs...)
-			manager := &Manager{
-				AppClientset: appClientSet,
-			}
+			manager := NewManager(nil, nil, appClientSet, testDeps{})
 
-			err := manager.addRefreshAnnotationToApplications(log.NewEntry(log.StandardLogger()), tt.applications)
+			err := manager.addRefreshAnnotationToApplications(log.NewEntry(log.StandardLogger()), tt.applications, nil, nil)
 
 			if tt.expectError {
 				assert.Error(t, err)
