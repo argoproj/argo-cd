@@ -46,7 +46,7 @@
     "react-router-dom": "^5.3.4",
     "react-svg-piechart": "^2.4.2",
     "react-virtualized": "^9.22.3",
-    "rxjs": "^6.6.6",
+    "rxjs": "^7.8.2",
     "superagent": "^8.1.2",
     "swagger-ui-dist": "^5.32.11",
     "timezones-list": "3.0.1",
@@ -59,7 +59,7 @@
     "overrides": {
       "@types/react": "^19.0.0",
       "@types/react-dom": "^19.0.0",
-      "rxjs": "6.6.7",
+      "rxjs": "7.8.2",
       "dompurify": "3.4.7"
     }
   },

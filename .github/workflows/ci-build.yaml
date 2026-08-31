@@ -152,7 +152,7 @@ jobs:
         uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
           # renovate: datasource=go packageName=github.com/golangci/golangci-lint/v2 versioning=regex:^v(?<major>\d+)\.(?<minor>\d+)\.(?<patch>\d+)?$
-          version: v2.13.1
+          version: v2.13.2
           args: --verbose
 
   test-go:
