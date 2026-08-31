@@ -80,7 +80,6 @@ status:
     version: v1alpha1
     orphaned: true
   orphanedCount: 1
-  resourcesCount: 3
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
     message: Successfully generated parameters for all Applications
@@ -188,9 +187,8 @@ func TestApplicationsetCollector(t *testing.T) {
 	assert.Contains(t, rr.Body.String(), `
 argocd_appset_info{name="test1",namespace="argocd",resource_update_status="ApplicationSetUpToDate"} 1
 `)
-	// resourcesCount wins over the (possibly truncated) resources list length
 	assert.Contains(t, rr.Body.String(), `
-argocd_appset_owned_applications{name="test1",namespace="argocd"} 3
+argocd_appset_owned_applications{name="test1",namespace="argocd"} 2
 `)
 	// Test labels collection - should not include labels not included in the list of collected labels and include the ones that do.
 	assert.Contains(t, rr.Body.String(), `
