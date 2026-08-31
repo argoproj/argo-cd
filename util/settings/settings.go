@@ -551,8 +551,12 @@ const (
 	externalServerTLSSecretName = "argocd-server-tls"
 	// annotationTLSManagedByArgoCD defines that the self-signed certificate is managed by Argo CD itself
 	annotationTLSManagedByArgoCD = "argocd.argoproj.io/self-signed"
+	// partOfLabelKey is the label key that identifies objects participating in Argo CD's settings system
+	partOfLabelKey = "app.kubernetes.io/part-of"
+	// partOfArgoCDValue is the expected value of partOfLabelKey for Argo CD settings objects
+	partOfArgoCDValue = "argocd"
 	// partOfArgoCDSelector holds label selector that should be applied to config maps and secrets used to manage Argo CD
-	partOfArgoCDSelector = "app.kubernetes.io/part-of=argocd"
+	partOfArgoCDSelector = partOfLabelKey + "=" + partOfArgoCDValue
 	// settingsPasswordPatternKey is the key to configure user password regular expression
 	settingsPasswordPatternKey = "passwordPattern"
 	// inClusterEnabledKey is the key to configure whether to allow in-cluster server address
@@ -747,10 +751,14 @@ func (mgr *SettingsManager) saveServerTLSSecret(cert, key []byte) error {
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      externalServerTLSSecretName,
 				Namespace: mgr.namespace,
+				Labels: map[string]string{
+					partOfLabelKey: partOfArgoCDValue,
+				},
 				Annotations: map[string]string{
 					annotationTLSManagedByArgoCD: "true",
 				},
 			},
+			Type: corev1.SecretTypeTLS,
 			Data: map[string][]byte{
 				settingServerCertificate: cert,
 				settingServerPrivateKey:  key,
@@ -761,20 +769,45 @@ func (mgr *SettingsManager) saveServerTLSSecret(cert, key []byte) error {
 			secret,
 			metav1.CreateOptions{},
 		)
-		return err
+		if err == nil {
+			return mgr.ResyncInformers()
+		}
+		if !apierrors.IsAlreadyExists(err) {
+			return err
+		}
+		// Another replica created the secret between our Get and Create. Re-read it
+		// and fall through to the checks below, so we neither fail startup nor
+		// overwrite a secret we are not allowed to touch.
+		existing, err = mgr.clientset.CoreV1().Secrets(mgr.namespace).Get(
+			context.Background(),
+			externalServerTLSSecretName,
+			metav1.GetOptions{},
+		)
+		if err != nil {
+			return err
+		}
 	}
 
 	// If the secret exists but is NOT marked as managed by Argo CD, it is
-	// operator-provided (e.g. cert-manager). Refuse to overwrite it so we
-	// don't silently destroy an admin's certificate.
+	// operator-provided (e.g. cert-manager) or a placeholder that has not been
+	// populated yet. Don't overwrite it, so we never silently destroy an admin's
+	// certificate. This is not fatal: the caller keeps using the certificate it
+	// generated in memory, so the server still starts and serves TLS.
 	if !isManagedByArgoCD(existing) {
-		return fmt.Errorf("secret %q already exists without the %s=true annotation; "+
-			"Argo CD will not overwrite an operator-managed TLS certificate. "+
-			"To let Argo CD manage this secret, add the annotation or delete the secret",
-			externalServerTLSSecretName, annotationTLSManagedByArgoCD)
+		log.Warnf("secret %s/%s exists without the %s=true annotation, so Argo CD will not overwrite it. "+
+			"Serving an in-memory self-signed certificate that is not persisted and will be regenerated on restart. "+
+			"To let Argo CD manage this secret, add the annotation or delete the secret; "+
+			"to use your own certificate, populate it with a valid tls.crt/tls.key pair",
+			mgr.namespace, externalServerTLSSecretName, annotationTLSManagedByArgoCD)
+		return nil
 	}
 
-	existing = existing.DeepCopy()
+	// Ensure the settings label is present so that updates to this secret notify
+	// settings subscribers (see isSettingsObject), without clobbering user labels.
+	if existing.Labels == nil {
+		existing.Labels = make(map[string]string)
+	}
+	existing.Labels[partOfLabelKey] = partOfArgoCDValue
 	if existing.Data == nil {
 		existing.Data = make(map[string][]byte)
 	}
@@ -785,7 +818,10 @@ func (mgr *SettingsManager) saveServerTLSSecret(cert, key []byte) error {
 		existing,
 		metav1.UpdateOptions{},
 	)
-	return err
+	if err != nil {
+		return err
+	}
+	return mgr.ResyncInformers()
 }
 
 func (mgr *SettingsManager) updateSecret(callback func(*corev1.Secret) error) error {
@@ -1517,7 +1553,7 @@ func isRepositorySecret(obj any) bool {
 // settings system (OIDC config, webhook secrets, $secretName:key template references).
 // Unknown types return false (fail-closed).
 func isSettingsObject(obj any) bool {
-	settingsSelector := labels.SelectorFromSet(labels.Set{"app.kubernetes.io/part-of": "argocd"})
+	settingsSelector := labels.SelectorFromSet(labels.Set{partOfLabelKey: partOfArgoCDValue})
 	if s, ok := obj.(metav1.Object); ok {
 		return settingsSelector.Matches(labels.Set(s.GetLabels()))
 	}
@@ -1906,7 +1942,9 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 		errs = append(errs, &incompleteSettingsError{message: "server.secretkey is missing"})
 	}
 
-	if _, hasCert := argoCDSecret.Data[settingServerCertificate]; hasCert {
+	_, hasLegacyCert := argoCDSecret.Data[settingServerCertificate]
+	_, hasLegacyKey := argoCDSecret.Data[settingServerPrivateKey]
+	if hasLegacyCert || hasLegacyKey {
 		log.Warn("Storing TLS certificates in argocd-secret is deprecated and will be removed in a future major version. " +
 			"Please move tls.crt and tls.key to the argocd-server-tls secret and remove them from argocd-secret.")
 	}

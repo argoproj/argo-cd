@@ -14,13 +14,18 @@ import (
 	"testing"
 	"time"
 
+	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/yaml"
 	"k8s.io/client-go/kubernetes/fake"
+	k8stesting "k8s.io/client-go/testing"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -1771,6 +1776,8 @@ func TestInitializeSettings_SavesCertToServerTLSSecret(t *testing.T) {
 		assert.NotEmpty(t, tlsSecret.Data[settingServerCertificate])
 		assert.NotEmpty(t, tlsSecret.Data[settingServerPrivateKey])
 		assert.Equal(t, "true", tlsSecret.Annotations[annotationTLSManagedByArgoCD])
+		// the label is what makes cert renewals notify settings subscribers
+		assert.True(t, isSettingsObject(tlsSecret), "generated TLS secret must trigger settings notifications")
 
 		// argocd-secret must not contain tls.crt or tls.key
 		argocdSecret, err := kubeClient.CoreV1().Secrets("default").Get(t.Context(), common.ArgoCDSecretName, metav1.GetOptions{})
@@ -1781,7 +1788,7 @@ func TestInitializeSettings_SavesCertToServerTLSSecret(t *testing.T) {
 }
 
 func TestInitializeSettings_RefusesToOverwriteOperatorManagedSecret(t *testing.T) {
-	t.Run("returns error when argocd-server-tls exists without annotation and has no valid cert", func(t *testing.T) {
+	t.Run("starts with an in-memory cert when argocd-server-tls exists without annotation and has no valid cert", func(t *testing.T) {
 		kubeClient := fake.NewClientset(
 			&corev1.ConfigMap{
 				ObjectMeta: metav1.ObjectMeta{
@@ -1813,15 +1820,23 @@ func TestInitializeSettings_RefusesToOverwriteOperatorManagedSecret(t *testing.T
 			},
 		)
 		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
-		_, err := settingsManager.InitializeSettings(false)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), annotationTLSManagedByArgoCD)
+		settings, err := settingsManager.InitializeSettings(false)
+		// Startup must not fail: an unpopulated operator-managed secret is a normal
+		// transient state (placeholder, cert-manager issuance in flight), and a fatal
+		// error here would put argocd-server into CrashLoopBackOff.
+		require.NoError(t, err)
+		require.NotNil(t, settings.Certificate, "server must still come up with a usable certificate")
 
 		// The secret must not have been modified.
 		tlsSecret, getErr := kubeClient.CoreV1().Secrets("default").Get(t.Context(), externalServerTLSSecretName, metav1.GetOptions{})
 		require.NoError(t, getErr)
 		assert.Empty(t, tlsSecret.Data[settingServerCertificate], "operator-managed secret must not be overwritten")
 		assert.Empty(t, tlsSecret.Annotations[annotationTLSManagedByArgoCD], "annotation must not be stamped on operator-managed secret")
+
+		// ...and nothing must have leaked into the deprecated argocd-secret location.
+		argocdSecret, err := kubeClient.CoreV1().Secrets("default").Get(t.Context(), common.ArgoCDSecretName, metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.Empty(t, argocdSecret.Data[settingServerCertificate])
 	})
 }
 
@@ -3282,6 +3297,181 @@ func Test_updateSettingsFromConfigMap_DexAuthConnectorID(t *testing.T) {
 			settings := &ArgoCDSettings{}
 			updateSettingsFromConfigMap(settings, &corev1.ConfigMap{Data: tc.cmData})
 			assert.Equal(t, tc.expectedConnectorID, settings.DexAuthConnectorID)
+		})
+	}
+}
+
+func TestSaveServerTLSSecret_LabelsSecretForSettingsNotifications(t *testing.T) {
+	// Settings subscribers are only notified for objects carrying
+	// app.kubernetes.io/part-of=argocd (see isSettingsObject). Without the label,
+	// argocd-server-tls updates — including Argo CD's own cert renewals — never
+	// reach argocd-server, so a rotated certificate is not hot-reloaded.
+	cert, key := []byte("cert-pem"), []byte("key-pem")
+
+	t.Run("created secret carries the settings label", func(t *testing.T) {
+		kubeClient := fake.NewClientset()
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
+		require.NoError(t, settingsManager.saveServerTLSSecret(cert, key))
+
+		tlsSecret, err := kubeClient.CoreV1().Secrets("default").Get(t.Context(), externalServerTLSSecretName, metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.Equal(t, partOfArgoCDValue, tlsSecret.Labels[partOfLabelKey])
+		assert.True(t, isSettingsObject(tlsSecret), "created secret must trigger settings notifications")
+		assert.Equal(t, corev1.SecretTypeTLS, tlsSecret.Type)
+		assert.Equal(t, "true", tlsSecret.Annotations[annotationTLSManagedByArgoCD])
+		assert.Equal(t, cert, tlsSecret.Data[settingServerCertificate])
+		assert.Equal(t, key, tlsSecret.Data[settingServerPrivateKey])
+	})
+
+	t.Run("update adds the settings label without clobbering user labels", func(t *testing.T) {
+		// An Argo CD-managed secret created before this label was applied.
+		kubeClient := fake.NewClientset(&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      externalServerTLSSecretName,
+				Namespace: "default",
+				Labels: map[string]string{
+					"example.com/owner": "platform-team",
+				},
+				Annotations: map[string]string{
+					annotationTLSManagedByArgoCD: "true",
+				},
+			},
+			Data: map[string][]byte{
+				settingServerCertificate: []byte("old-cert"),
+				settingServerPrivateKey:  []byte("old-key"),
+			},
+		})
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
+		require.NoError(t, settingsManager.saveServerTLSSecret(cert, key))
+
+		tlsSecret, err := kubeClient.CoreV1().Secrets("default").Get(t.Context(), externalServerTLSSecretName, metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.Equal(t, partOfArgoCDValue, tlsSecret.Labels[partOfLabelKey])
+		assert.True(t, isSettingsObject(tlsSecret), "renewed secret must trigger settings notifications")
+		assert.Equal(t, "platform-team", tlsSecret.Labels["example.com/owner"], "user labels must be preserved")
+		assert.Equal(t, cert, tlsSecret.Data[settingServerCertificate])
+		assert.Equal(t, key, tlsSecret.Data[settingServerPrivateKey])
+	})
+
+	t.Run("operator-managed secret is left untouched", func(t *testing.T) {
+		kubeClient := fake.NewClientset(&corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      externalServerTLSSecretName,
+				Namespace: "default",
+			},
+			Data: map[string][]byte{
+				settingServerCertificate: []byte("operator-cert"),
+				settingServerPrivateKey:  []byte("operator-key"),
+			},
+		})
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
+		// Not an error: the caller keeps serving its in-memory certificate.
+		require.NoError(t, settingsManager.saveServerTLSSecret(cert, key))
+
+		tlsSecret, err := kubeClient.CoreV1().Secrets("default").Get(t.Context(), externalServerTLSSecretName, metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.Equal(t, []byte("operator-cert"), tlsSecret.Data[settingServerCertificate])
+		assert.Empty(t, tlsSecret.Labels[partOfLabelKey], "Argo CD must not relabel an operator-managed secret")
+	})
+}
+
+func TestSaveServerTLSSecret_HARaceOnCreate(t *testing.T) {
+	// Two replicas can both see argocd-server-tls missing and race to create it.
+	// The loser gets AlreadyExists and must not fail startup.
+	cert, key := []byte("our-cert"), []byte("our-key")
+
+	// simulateLoser makes the first Create of argocd-server-tls fail with AlreadyExists,
+	// as if a peer replica had created winner in between our Get and our Create.
+	simulateLoser := func(kubeClient *fake.Clientset, winner *corev1.Secret) {
+		raced := false
+		kubeClient.PrependReactor("create", "secrets", func(action k8stesting.Action) (bool, runtime.Object, error) {
+			secret, ok := action.(k8stesting.CreateAction).GetObject().(*corev1.Secret)
+			if !ok || secret.Name != externalServerTLSSecretName || raced {
+				return false, nil, nil
+			}
+			raced = true
+			require.NoError(t, kubeClient.Tracker().Add(winner))
+			return true, nil, apierrors.NewAlreadyExists(schema.GroupResource{Resource: "secrets"}, secret.Name)
+		})
+	}
+
+	t.Run("adopts and updates a peer-created managed secret", func(t *testing.T) {
+		kubeClient := fake.NewClientset()
+		simulateLoser(kubeClient, &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        externalServerTLSSecretName,
+				Namespace:   "default",
+				Annotations: map[string]string{annotationTLSManagedByArgoCD: "true"},
+			},
+			Data: map[string][]byte{
+				settingServerCertificate: []byte("peer-cert"),
+				settingServerPrivateKey:  []byte("peer-key"),
+			},
+		})
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
+		require.NoError(t, settingsManager.saveServerTLSSecret(cert, key))
+
+		tlsSecret, err := kubeClient.CoreV1().Secrets("default").Get(t.Context(), externalServerTLSSecretName, metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.Equal(t, cert, tlsSecret.Data[settingServerCertificate])
+		assert.Equal(t, partOfArgoCDValue, tlsSecret.Labels[partOfLabelKey])
+	})
+
+	t.Run("does not overwrite a peer-created operator-managed secret", func(t *testing.T) {
+		kubeClient := fake.NewClientset()
+		simulateLoser(kubeClient, &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      externalServerTLSSecretName,
+				Namespace: "default",
+			},
+			Data: map[string][]byte{
+				settingServerCertificate: []byte("operator-cert"),
+				settingServerPrivateKey:  []byte("operator-key"),
+			},
+		})
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
+		require.NoError(t, settingsManager.saveServerTLSSecret(cert, key))
+
+		tlsSecret, err := kubeClient.CoreV1().Secrets("default").Get(t.Context(), externalServerTLSSecretName, metav1.GetOptions{})
+		require.NoError(t, err)
+		assert.Equal(t, []byte("operator-cert"), tlsSecret.Data[settingServerCertificate])
+	})
+}
+
+func TestUpdateSettingsFromSecret_LegacyTLSDeprecationWarning(t *testing.T) {
+	// The warning must fire for either half of the legacy key pair, so that a
+	// half-migrated argocd-secret is still reported.
+	const warning = "Storing TLS certificates in argocd-secret is deprecated"
+
+	for _, tc := range []struct {
+		name     string
+		data     map[string][]byte
+		expected bool
+	}{
+		{name: "both keys", data: map[string][]byte{settingServerCertificate: []byte("c"), settingServerPrivateKey: []byte("k")}, expected: true},
+		{name: "only tls.crt", data: map[string][]byte{settingServerCertificate: []byte("c")}, expected: true},
+		{name: "only tls.key", data: map[string][]byte{settingServerPrivateKey: []byte("k")}, expected: true},
+		{name: "neither key", data: map[string][]byte{}, expected: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			hook := logtest.NewGlobal()
+			defer hook.Reset()
+
+			_, settingsManager := fixtures(t.Context(), nil)
+			argoCDSecret := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{Name: common.ArgoCDSecretName, Namespace: "default"},
+				Data:       tc.data,
+			}
+			argoCDSecret.Data[settingServerSignatureKey] = []byte("signature")
+			_ = settingsManager.updateSettingsFromSecret(&ArgoCDSettings{}, argoCDSecret, nil)
+
+			logged := false
+			for _, entry := range hook.AllEntries() {
+				if strings.Contains(entry.Message, warning) {
+					logged = true
+				}
+			}
+			assert.Equal(t, tc.expected, logged)
 		})
 	}
 }
