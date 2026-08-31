@@ -21,4 +21,5 @@ spec:
 status:
   finishTime: '2026-04-27T15:16:33Z'
   startTime: '2026-04-27T14:02:48Z'
+  observedGeneration: 1
 

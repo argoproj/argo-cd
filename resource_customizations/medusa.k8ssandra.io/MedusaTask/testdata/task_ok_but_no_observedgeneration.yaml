@@ -2,7 +2,7 @@ apiVersion: medusa.k8ssandra.io/v1alpha1
 kind: MedusaTask
 metadata:
   creationTimestamp: '2026-05-03T00:00:30Z'
-  generation: 1
+  generation: 3
   labels:
     cassandra.datastax.com/cluster: test-cluster
     cassandra.datastax.com/datacenter: stage0-test
@@ -23,4 +23,3 @@ status:
   finished:
     - podName: test-cluster-stage0-test-default-sts-0
   startTime: '2026-05-03T00:00:45Z'
-  observedGeneration: 1
