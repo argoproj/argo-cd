@@ -3601,23 +3601,18 @@ func (s *Service) UpdateRevisionForPaths(ctx context.Context, request *apiclient
 	// No changes detected, update the cache using resolved revisions
 	err := s.updateCachedRevision(logCtx, sRevision, rRevision, request, oldRepoRefs, newRepoRefs)
 	if err != nil {
+		// Path filtering already established that no relevant files changed. A cache
+		// rename failure (miss, Redis unreachable, etc.) must not flip Changes to true,
+		// or automated sync will treat the revision advance as an application change
+		// and sync unrelated sibling apps in a mono-repo (issue #29430).
 		if errors.Is(err, cache.ErrCacheMiss) {
-			// No relevant path changes were detected above. A cache miss here only means the
-			// prior manifest entry could not be renamed (for example it was evicted or the
-			// caller has not yet persisted the resolved revision). Treat this as a no-change
-			// revision advance so automated sync does not run for sibling applications in a
-			// mono-repo when another app's path changed (issue #29430).
 			logCtx.Info("manifest cache miss while moving manifests cache to the new revision")
-			return &apiclient.UpdateRevisionForPathsResponse{
-				Revision: rRevision,
-				Changes:  false,
-			}, nil
+		} else {
+			logCtx.Warnf("error updating cached revision for source %s with revision %s: %v", request.ApplicationSource.RepoURL, rRevision, err)
 		}
-		// Only warn with the error, no need to block anything if there is a caching error.
-		logCtx.Warnf("error updating cached revision for source %s with revision %s: %v", request.ApplicationSource.RepoURL, rRevision, err)
 		return &apiclient.UpdateRevisionForPathsResponse{
 			Revision: rRevision,
-			Changes:  true,
+			Changes:  false,
 		}, nil
 	}
 

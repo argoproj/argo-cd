@@ -5350,8 +5350,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				KubeVersion:       "v1.16.0",
 			},
 		}, want: &apiclient.UpdateRevisionForPathsResponse{
-			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0", Changes: true, // FIXME: need to fix changes=true, because now test can't mock Rename cache
-
+			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0", Changes: false,
 		}, wantErr: assert.NoError, cacheHit: &cacheHit{
 			previousRevision: "1e67a504d03def3a6a1125d934cb511680f72555",
 			revision:         "632039659e542ed7de0c170a4fcc1c571b288fc0",
@@ -5397,7 +5396,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				HasMultipleSources: true,
 			},
 		}, want: &apiclient.UpdateRevisionForPathsResponse{
-			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0", Changes: true, // FIXME: need to fix changes=true, because now test can't mock Rename cache
+			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0", Changes: false,
 		}, wantErr: assert.NoError, cacheHit: &cacheHit{
 			previousRevision: "1e67a504d03def3a6a1125d934cb511680f72555",
 			revision:         "632039659e542ed7de0c170a4fcc1c571b288fc0",
@@ -5454,7 +5453,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				HasMultipleSources: true,
 			},
 		}, want: &apiclient.UpdateRevisionForPathsResponse{
-			Revision: "0.0.1", Changes: true, // FIXME: need to fix changes=true, because now test can't mock Rename cache
+			Revision: "0.0.1", Changes: false,
 		}, wantErr: assert.NoError, cacheHit: &cacheHit{
 			previousRevision: "0.0.1",
 			revision:         "0.0.1",
@@ -5509,7 +5508,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				HasMultipleSources: true,
 			},
 		}, want: &apiclient.UpdateRevisionForPathsResponse{
-			Revision: "0.0.1", Changes: true, // FIXME: need to fix changes=true, because now test can't mock Rename cache
+			Revision: "0.0.1", Changes: false,
 		}, wantErr: assert.NoError, cacheHit: &cacheHit{
 			previousRevision: "0.0.1",
 			revision:         "0.0.1",
@@ -5615,7 +5614,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 				HasMultipleSources: true,
 			},
 		}, want: &apiclient.UpdateRevisionForPathsResponse{
-			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0", Changes: true, // FIXME: need to fix changes=true, because now test can't mock Rename cache
+			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0", Changes: false,
 		}, wantErr: assert.NoError, cacheHit: &cacheHit{
 			previousRevision: "632039659e542ed7de0c170a4fcc1c571b288fc0",
 			revision:         "1e67a504d03def3a6a1125d934cb511680f72555",
