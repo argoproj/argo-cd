@@ -90,7 +90,7 @@ message AppProjectSpec {
   optional OrphanedResourcesMonitorSettings orphanedResources = 7;
 
   // SyncWindows controls when syncs can be run for apps in this project
-  repeated SyncWindow syncWindows = 8;
+  repeated InlineSyncWindow syncWindows = 8;
 
   // NamespaceResourceWhitelist contains list of whitelisted namespace level resources
   repeated .k8s.io.apimachinery.pkg.apis.meta.v1.GroupKind namespaceResourceWhitelist = 9;
@@ -532,6 +532,13 @@ message ApplicationSourceDirectory {
 
   // Include contains a glob pattern to match paths against that should be explicitly included during manifest generation
   optional string include = 4;
+
+  // DisableExtensionFilter controls whether the built-in file-extension filter is skipped during
+  // manifest generation. When false (the default), only files with a .yaml, .yml, .json, or
+  // .jsonnet extension are considered as potential manifests. Set it to true to disable the filter
+  // so that files with custom extensions (e.g. *.yaml.sealed) can be matched by the include/exclude
+  // glob patterns instead.
+  optional bool disableExtensionFilter = 5;
 }
 
 // ApplicationSourceHelm holds helm specific options
@@ -1339,6 +1346,44 @@ message InfoItem {
 
   // Value is human readable content.
   optional string value = 2;
+}
+
+// InlineSyncWindow contains the kind, time, duration and attributes that are used to assign the syncWindows to apps
+message InlineSyncWindow {
+  // Kind defines if the window allows or blocks syncs
+  optional string kind = 1;
+
+  // Schedule is the time the window will begin, specified in cron format
+  optional string schedule = 2;
+
+  // Duration is the amount of time the sync window will be open
+  optional string duration = 3;
+
+  // Applications contains a list of applications that the window will apply to
+  repeated string applications = 4;
+
+  // Namespaces contains a list of namespaces that the window will apply to
+  repeated string namespaces = 5;
+
+  // Clusters contains a list of clusters that the window will apply to
+  repeated string clusters = 6;
+
+  // ManualSync enables manual syncs when they would otherwise be blocked
+  optional bool manualSync = 7;
+
+  // TimeZone of the sync that will be applied to the schedule
+  optional string timeZone = 8;
+
+  // UseAndOperator use AND operator for matching applications, namespaces and clusters instead of the default OR operator
+  optional bool andOperator = 9;
+
+  // Description of the sync that will be applied to the schedule, can be used to add any information such as a ticket number for example
+  optional string description = 10;
+
+  // SyncOverrun allows ongoing syncs to continue in two scenarios:
+  // For deny windows: allows syncs that started before the deny window became active to continue running
+  // For allow windows: allows syncs that started during the allow window to continue after the window ends
+  optional bool syncOverrun = 11;
 }
 
 // JWTToken holds the issuedAt and expiresAt values of a token
@@ -2879,44 +2924,6 @@ message SyncStrategyHook {
   // Embed SyncStrategyApply type to inherit any `apply` options
   // +optional
   optional SyncStrategyApply syncStrategyApply = 1;
-}
-
-// SyncWindow contains the kind, time, duration and attributes that are used to assign the syncWindows to apps
-message SyncWindow {
-  // Kind defines if the window allows or blocks syncs
-  optional string kind = 1;
-
-  // Schedule is the time the window will begin, specified in cron format
-  optional string schedule = 2;
-
-  // Duration is the amount of time the sync window will be open
-  optional string duration = 3;
-
-  // Applications contains a list of applications that the window will apply to
-  repeated string applications = 4;
-
-  // Namespaces contains a list of namespaces that the window will apply to
-  repeated string namespaces = 5;
-
-  // Clusters contains a list of clusters that the window will apply to
-  repeated string clusters = 6;
-
-  // ManualSync enables manual syncs when they would otherwise be blocked
-  optional bool manualSync = 7;
-
-  // TimeZone of the sync that will be applied to the schedule
-  optional string timeZone = 8;
-
-  // UseAndOperator use AND operator for matching applications, namespaces and clusters instead of the default OR operator
-  optional bool andOperator = 9;
-
-  // Description of the sync that will be applied to the schedule, can be used to add any information such as a ticket number for example
-  optional string description = 10;
-
-  // SyncOverrun allows ongoing syncs to continue in two scenarios:
-  // For deny windows: allows syncs that started before the deny window became active to continue running
-  // For allow windows: allows syncs that started during the allow window to continue after the window ends
-  optional bool syncOverrun = 11;
 }
 
 // TLSClientConfig contains settings to enable transport layer security
