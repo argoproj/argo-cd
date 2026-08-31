@@ -52,7 +52,7 @@ You won't need a fully blown multi-master, multi-node cluster, but you will need
 > [!WARNING]
 > **Windows users:** The local development workflow is designed primarily for Linux. If you are using Windows, run **all commands in this guide, including the commands that create or delete clusters, from inside WSL 2**. Do not create the Kind cluster from PowerShell or Command Prompt and then run the Argo CD commands from WSL 2.
 >
-> Docker Desktop must be running and configured to use the WSL 2 engine, with your WSL 2 distribution enabled under Docker Desktop's WSL integration settings. The following additional steps allow the Docker container used by Argo CD's virtualized toolchain to reach a Kind API server created in WSL 2.
+> Docker Desktop must be running and configured to use the WSL 2 engine, with your WSL 2 distribution enabled under Docker Desktop's WSL integration settings. This is only needed when the Argo CD toolchain runs in Docker Desktop while the Kind cluster is created inside WSL 2, because the two environments live on different network stacks and cannot reach each other through the default kubeconfig. The following additional steps allow the Docker container used by Argo CD's virtualized toolchain to reach a Kind API server created in WSL 2.
 
 #### Windows and WSL 2 networking setup
 
