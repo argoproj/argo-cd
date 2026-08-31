@@ -95,10 +95,11 @@ func (rf *ResourcesFilter) IsExcludedResource(apiGroup, kind, cluster string) bo
 func (rf *ResourcesFilter) GetLabelSelector(apiGroup, kind, cluster string) string {
 	selectors := make([]string, 0)
 	for _, resourceSelector := range rf.ResourceSelectors {
-		if resourceSelector.Selector == "" || !resourceSelector.Match(apiGroup, kind, cluster) {
+		selector := strings.TrimSpace(resourceSelector.Selector)
+		if selector == "" || !resourceSelector.Match(apiGroup, kind, cluster) {
 			continue
 		}
-		selectors = append(selectors, resourceSelector.Selector)
+		selectors = append(selectors, selector)
 	}
 	return strings.Join(selectors, ",")
 }
