@@ -1,38 +1,335 @@
 # Annotations and Labels used by Argo CD
 
+Every key on this page has a stable anchor, so you can link directly to an individual annotation or
+label. For example `#sync-wave` for `argocd.argoproj.io/sync-wave`, or `#notice-severity` for
+`notice.argocd.argoproj.io/severity`.
+
 ## Annotations
 
-| Annotation key                             | Target resource(es) | Possible values                                                                                   | Description                                                                                                                                                                                                  |
-|--------------------------------------------|---------------------|---------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| argocd.argoproj.io/application-set-refresh | ApplicationSet      | `"true"`                                                                                          | Added when an ApplicationSet is requested to be refreshed by a webhook. The ApplicationSet controller will remove this annotation at the end of reconciliation.                                              |
-| argocd.argoproj.io/compare-options         | any                 | [see compare options docs](compare-options.md)                                                    | Configures how an app's current state is compared to its desired state.                                                                                                                                      |
-| argocd.argoproj.io/hook                    | any                 | [see hooks docs](sync-waves.md)                                                                   | Used to configure [resource hooks](sync-waves.md).                                                                                                                                                           |
-| argocd.argoproj.io/hook-delete-policy      | any                 | [see sync waves docs](sync-waves.md#hook-lifecycle-and-cleanup)                               | Used to set a [resource hook's deletion policy](sync-waves.md#hook-lifecycle-and-cleanup).                                                                                                                   |
-| argocd.argoproj.io/hydrate                 | Application         | `normal`, `hard`                                                                                  | Indicates that an Application's dry source needs to be (re-)hydrated. Removed by the application controller once consumed, unless a newer hydration request arrived while it was processing this one (see `hydrate-timestamp` below). Value `"hard"` forces hydration even if the dry source revision hasn't changed; `"normal"` forces a check for dry source changes, hydration only runs if a change is found. Only used when `spec.sourceHydrator` configured. |
-| argocd.argoproj.io/hydrate-timestamp       | Application         | An RFC3339Nano timestamp                                                                           | Set together with `hydrate` to identify a particular hydration request. Lets the application controller detect that a new hydration request arrived while the current one was still being processed, so that request isn't dropped. Removed together with `hydrate` once consumed. Not meant to be set manually. |
-| argocd.argoproj.io/manifest-generate-paths | Application         | [see scaling docs](../operator-manual/high_availability.md#manifest-paths-annotation) | Used to avoid unnecessary Application refreshes, especially in mono-repos. On Applications with `spec.sourceHydrator`, also controls whether dry-source commits trigger hydration; see [source hydrator docs](source-hydrator.md#manifest-generate-paths) for git note implications. |
-| argocd.argoproj.io/managed-by-url          | Application         | A valid http(s) URL                                                                               | Specifies the URL of the Argo CD instance managing the application. Used to correctly link to applications managed by a different Argo CD instance. See [managed-by-url docs](../operator-manual/managed-by-url.md) for details. |
-| argocd.argoproj.io/refresh                 | Application         | `normal`, `hard`                                                                                  | Indicates that app needs to be refreshed. Removed by application controller after app is refreshed, unless a newer refresh request arrived while it was processing this one (see `refresh-timestamp` below). Value `"hard"` means manifest cache and target cluster state cache should be invalidated before refresh. |
-| argocd.argoproj.io/refresh-timestamp       | Application         | An RFC3339Nano timestamp                                                                           | Set together with `refresh` to identify a particular refresh request. Lets the application controller detect that a new refresh request arrived while the current one was still being processed, so that request isn't dropped. Removed together with `refresh` once consumed. Not meant to be set manually. |
-| argocd.argoproj.io/skip-reconcile          | Application, Cluster Secret | `"true"`                                                                                    | On an Application, skips reconciliation for that app. On a cluster secret, skips reconciliation for all apps targeting that cluster. See [skip reconcile docs](skip_reconcile.md).                            |
-| argocd.argoproj.io/sync-options            | any                 | [see sync options docs](sync-options.md)                                                          | Provides a variety of settings to determine how an Application's resources are synced.                                                                                                                       |
-| argocd.argoproj.io/sync-wave               | any                 | [see sync waves docs](sync-waves.md)                                                              |                                                                                                                                                                                                              |
-| argocd.argoproj.io/tracking-id             | any                 | any                                                                                               | Used by Argo CD to track resources it manages. See [resource tracking docs](resource_tracking.md) for details.                                                                                               |
-| argocd.argoproj.io/ignore-default-links    | any                 | `"true"`, `false`                                                                                 | Do not add autogenerated links to the ArgoCD UI from this resource. [external URL docs](external-url.md) for details.                                                                                        |
-| argocd.argoproj.io/ignore-resource-updates | any                 | `"true"`, `false`                                                                                 | Used by Argo CD to ignore resource updates. See [reconcile docs](../operator-manual/reconcile.md) for details.                                                                             |
-| link.argocd.argoproj.io/{some link name}   | any                 | An http(s) URL                                                                                    | Adds a link to the Argo CD UI for the resource. See [external URL docs](external-url.md) for details.                                                                                                        |
-| notice.argocd.argoproj.io/content          | Application         | Plain text (truncated at 500 chars)                                                               | Enables a per-application notice banner on the details page and an icon on the application list/tile. See [application notice docs](application-notice.md).                                                  |
-| notice.argocd.argoproj.io/severity         | Application         | `info`, `warning`, `critical` (default `info`)                                                    | Selects the predefined banner/icon styling for the notice.                                                                                                                                                   |
-| notice.argocd.argoproj.io/url              | Application         | An http(s) URL                                                                                    | If set, the notice banner text and icon link to this URL.                                                                                                                                                    |
-| notice.argocd.argoproj.io/permanent        | Application         | `"true"`, `"false"` (default `false`)                                                             | When `true`, the notice banner cannot be dismissed by users.                                                                                                                                                 |
-| notice.argocd.argoproj.io/icon             | Application         | An allowlisted FontAwesome class (e.g. `fa-bell`)                                                 | Overrides the severity-derived default icon. Unknown values fall back to the severity default.                                                                                                               |
-| notice.argocd.argoproj.io/scope            | Application         | `banner`, `icon`, `both` (default `both`)                                                         | Restricts where the notice is shown: details-page banner only, list/tile icon only, or both.                                                                                                                 |
-| pref.argocd.argoproj.io/default-pod-sort   | Application         | [see UI customization docs](../operator-manual/ui-customization.md)                               | Sets the Application's default grouping mechanism.                                                                                                                                                           |
-| pref.argocd.argoproj.io/default-view       | Application         | [see UI customization docs](../operator-manual/ui-customization.md)                               | Sets the Application's default view mode (e.g. "tree" or "list")                                                                                                                                             |
+| Annotation key | Target resource(s) | Summary |
+|----------------|--------------------|---------|
+| [`argocd.argoproj.io/application-set-refresh`](#application-set-refresh) | ApplicationSet | Requests a refresh of an ApplicationSet. |
+| [`argocd.argoproj.io/client-side-apply-migration-manager`](#client-side-apply-migration-manager) | Application | Sets the field manager used for client-side apply migration. |
+| [`argocd.argoproj.io/compare-options`](#compare-options) | any | Configures how current state is compared to desired state. |
+| [`argocd.argoproj.io/deletion-approved`](#deletion-approved) | Application | Confirms a pruning or deletion that requires manual approval. |
+| [`argocd.argoproj.io/hook`](#hook) | any | Configures a resource hook. |
+| [`argocd.argoproj.io/hook-delete-policy`](#hook-delete-policy) | any | Sets a resource hook's deletion policy. |
+| [`argocd.argoproj.io/hydrate`](#hydrate) | Application | Requests (re-)hydration of an Application's dry source. |
+| [`argocd.argoproj.io/hydrate-timestamp`](#hydrate-timestamp) | Application | Identifies a particular hydration request. Not set manually. |
+| [`argocd.argoproj.io/ignore-default-links`](#ignore-default-links) | any | Suppresses autogenerated links in the UI. |
+| [`argocd.argoproj.io/ignore-healthcheck`](#ignore-healthcheck) | any | Excludes an immediate child resource from Application health. |
+| [`argocd.argoproj.io/ignore-resource-updates`](#ignore-resource-updates) | any | Ignores updates to the resource. |
+| [`argocd.argoproj.io/ignore-restart-policy`](#ignore-restart-policy) | Pod | Assesses a `Never`/`OnFailure` Pod like a long-running Pod. |
+| [`argocd.argoproj.io/installation-id`](#installation-id) | any | Identifies the Argo CD instance managing the resource. |
+| [`argocd.argoproj.io/managed-by-url`](#managed-by-url) | Application | URL of the Argo CD instance managing the Application. |
+| [`argocd.argoproj.io/manifest-generate-paths`](#manifest-generate-paths) | Application | Limits which repository paths trigger a refresh. |
+| [`argocd.argoproj.io/refresh`](#refresh) | Application | Requests a refresh of an Application. |
+| [`argocd.argoproj.io/refresh-timestamp`](#refresh-timestamp) | Application | Identifies a particular refresh request. Not set manually. |
+| [`argocd.argoproj.io/skip-reconcile`](#skip-reconcile) | Application, Cluster Secret | Skips reconciliation. |
+| [`argocd.argoproj.io/sync-options`](#sync-options) | any | Settings that determine how resources are synced. |
+| [`argocd.argoproj.io/sync-wave`](#sync-wave) | any | Orders resources within a sync. |
+| [`argocd.argoproj.io/tracking-id`](#tracking-id) | any | Used by Argo CD to track the resources it manages. |
+| [`link.argocd.argoproj.io/{name}`](#link) | any | Adds a link to the resource in the Argo CD UI. |
+| [`notice.argocd.argoproj.io/content`](#notice-content) | Application | Text of a per-application notice banner. |
+| [`notice.argocd.argoproj.io/severity`](#notice-severity) | Application | Banner/icon styling for the notice. |
+| [`notice.argocd.argoproj.io/url`](#notice-url) | Application | Makes the notice link to a URL. |
+| [`notice.argocd.argoproj.io/permanent`](#notice-permanent) | Application | Makes the notice non-dismissible. |
+| [`notice.argocd.argoproj.io/icon`](#notice-icon) | Application | Overrides the notice's default icon. |
+| [`notice.argocd.argoproj.io/scope`](#notice-scope) | Application | Restricts where the notice is shown. |
+| [`pref.argocd.argoproj.io/default-pod-sort`](#pref-default-pod-sort) | Application | Sets the Application's default grouping mechanism. |
+| [`pref.argocd.argoproj.io/default-view`](#pref-default-view) | Application | Sets the Application's default view mode. |
+
+### `argocd.argoproj.io/application-set-refresh` { #application-set-refresh }
+
+- **Target resource(s):** ApplicationSet
+- **Possible values:** `"true"`
+
+Added when an ApplicationSet is requested to be refreshed by a webhook. The ApplicationSet
+controller will remove this annotation at the end of reconciliation.
+
+### `argocd.argoproj.io/client-side-apply-migration-manager` { #client-side-apply-migration-manager }
+
+- **Target resource(s):** Application
+- **Possible values:** a field manager name (default `kubectl-client-side-apply`)
+
+Specifies a custom field manager to use for client-side apply migration during a server-side apply
+sync. Useful when another operator owns fields that Argo CD should take over. Must be set on the
+Application; it has no effect on the resources the Application manages. See
+[client-side apply migration docs](sync-options.md#client-side-apply-migration).
+
+### `argocd.argoproj.io/compare-options` { #compare-options }
+
+- **Target resource(s):** any
+- **Possible values:** [see compare options docs](compare-options.md)
+
+Configures how an app's current state is compared to its desired state.
+
+### `argocd.argoproj.io/deletion-approved` { #deletion-approved }
+
+- **Target resource(s):** Application
+- **Possible values:** an [RFC3339](https://pkg.go.dev/time#pkg-constants) timestamp
+
+Confirms a pruning or deletion that was made to require manual approval via the
+`Prune=confirm` or `Delete=confirm` [sync options](sync-options.md). Normally set for you by the
+Argo CD UI or CLI rather than by hand. See
+[resource pruning with confirmation](sync-options.md#resource-pruning-with-confirmation) and
+[resource deletion with confirmation](sync-options.md#resource-deletion-with-confirmation).
+
+### `argocd.argoproj.io/hook` { #hook }
+
+- **Target resource(s):** any
+- **Possible values:** [see hooks docs](sync-waves.md)
+
+Used to configure [resource hooks](sync-waves.md).
+
+### `argocd.argoproj.io/hook-delete-policy` { #hook-delete-policy }
+
+- **Target resource(s):** any
+- **Possible values:** [see sync waves docs](sync-waves.md#hook-lifecycle-and-cleanup)
+
+Used to set a [resource hook's deletion policy](sync-waves.md#hook-lifecycle-and-cleanup).
+
+### `argocd.argoproj.io/hydrate` { #hydrate }
+
+- **Target resource(s):** Application
+- **Possible values:** `normal`, `hard`
+
+Indicates that an Application's dry source needs to be (re-)hydrated. Removed by the application
+controller once consumed, unless a newer hydration request arrived while it was processing this one
+(see [`hydrate-timestamp`](#hydrate-timestamp) below). Value `"hard"` forces hydration even if the
+dry source revision hasn't changed; `"normal"` forces a check for dry source changes, hydration only
+runs if a change is found. Only used when `spec.sourceHydrator` is configured.
+
+### `argocd.argoproj.io/hydrate-timestamp` { #hydrate-timestamp }
+
+- **Target resource(s):** Application
+- **Possible values:** an [RFC3339Nano](https://pkg.go.dev/time#pkg-constants) timestamp
+
+Set together with [`hydrate`](#hydrate) to identify a particular hydration request. Lets the
+application controller detect that a new hydration request arrived while the current one was still
+being processed, so that request isn't dropped. Removed together with `hydrate` once consumed. Not
+meant to be set manually.
+
+### `argocd.argoproj.io/ignore-default-links` { #ignore-default-links }
+
+- **Target resource(s):** any
+- **Possible values:** `"true"`, `"false"`
+
+Do not add autogenerated links to the Argo CD UI from this resource. This only disables links
+generated from the resource spec; it does not disable [`link.argocd.argoproj.io/{name}`](#link).
+See [external URL docs](external-url.md) for details.
+
+### `argocd.argoproj.io/ignore-healthcheck` { #ignore-healthcheck }
+
+- **Target resource(s):** any
+- **Possible values:** `"true"`
+
+Set on an Application's immediate child resource to exclude that resource's health from the
+Application's overall health. See
+[ignoring child resource health check docs](../operator-manual/health.md#ignoring-child-resource-health-check-in-applications).
+
+### `argocd.argoproj.io/ignore-resource-updates` { #ignore-resource-updates }
+
+- **Target resource(s):** any
+- **Possible values:** `"true"`, `"false"`
+
+Used by Argo CD to ignore resource updates. See
+[reconcile docs](../operator-manual/reconcile.md) for details.
+
+### `argocd.argoproj.io/ignore-restart-policy` { #ignore-restart-policy }
+
+- **Target resource(s):** Pod
+- **Possible values:** `"true"`
+
+Assesses the health of a running Pod with a `restartPolicy` of `Never` or `OnFailure` like a
+long-running Pod instead of considering it "Progressing" until completion. Has no effect on hook
+Pods. See [resource health docs](../operator-manual/health.md#pod) for details.
+
+### `argocd.argoproj.io/installation-id` { #installation-id }
+
+- **Target resource(s):** any
+- **Possible values:** the configured installation ID
+
+Added to every managed resource when `installationID` is set in the Argo CD ConfigMap. It lets
+several Argo CD instances manage the same cluster — including Applications with the same name —
+without conflicting. See [resource tracking docs](resource_tracking.md).
+
+### `argocd.argoproj.io/managed-by-url` { #managed-by-url }
+
+- **Target resource(s):** Application
+- **Possible values:** a valid http(s) URL
+
+Specifies the URL of the Argo CD instance managing the application. Used to correctly link to
+applications managed by a different Argo CD instance. See
+[managed-by-url docs](../operator-manual/managed-by-url.md) for details.
+
+### `argocd.argoproj.io/manifest-generate-paths` { #manifest-generate-paths }
+
+- **Target resource(s):** Application
+- **Possible values:** [see scaling docs](../operator-manual/high_availability.md#manifest-paths-annotation)
+
+Used to avoid unnecessary Application refreshes, especially in mono-repos. On Applications with
+`spec.sourceHydrator`, also controls whether dry-source commits trigger hydration; see
+[source hydrator docs](source-hydrator.md#manifest-generate-paths) for git note implications.
+
+### `argocd.argoproj.io/refresh` { #refresh }
+
+- **Target resource(s):** Application
+- **Possible values:** `normal`, `hard`
+
+Indicates that app needs to be refreshed. Removed by application controller after app is refreshed,
+unless a newer refresh request arrived while it was processing this one (see
+[`refresh-timestamp`](#refresh-timestamp) below). Value `"hard"` means manifest cache and target
+cluster state cache should be invalidated before refresh.
+
+### `argocd.argoproj.io/refresh-timestamp` { #refresh-timestamp }
+
+- **Target resource(s):** Application
+- **Possible values:** an [RFC3339Nano](https://pkg.go.dev/time#pkg-constants) timestamp
+
+Set together with [`refresh`](#refresh) to identify a particular refresh request. Lets the
+application controller detect that a new refresh request arrived while the current one was still
+being processed, so that request isn't dropped. Removed together with `refresh` once consumed. Not
+meant to be set manually.
+
+### `argocd.argoproj.io/skip-reconcile` { #skip-reconcile }
+
+- **Target resource(s):** Application, Cluster Secret
+- **Possible values:** `"true"`
+
+On an Application, skips reconciliation for that app. On a cluster secret, skips reconciliation for
+all apps targeting that cluster. See [skip reconcile docs](skip_reconcile.md).
+
+### `argocd.argoproj.io/sync-options` { #sync-options }
+
+- **Target resource(s):** any
+- **Possible values:** [see sync options docs](sync-options.md)
+
+Provides a variety of settings to determine how an Application's resources are synced.
+
+### `argocd.argoproj.io/sync-wave` { #sync-wave }
+
+- **Target resource(s):** any
+- **Possible values:** an integer (default `0`)
+
+Orders the resource within a sync. Resources are applied in ascending wave order, and Argo CD waits
+for each wave to become healthy before starting the next. See [sync waves docs](sync-waves.md).
+
+### `argocd.argoproj.io/tracking-id` { #tracking-id }
+
+- **Target resource(s):** any
+- **Possible values:** any
+
+Used by Argo CD to track resources it manages. See
+[resource tracking docs](resource_tracking.md) for details.
+
+### `link.argocd.argoproj.io/{name}` { #link }
+
+- **Target resource(s):** any
+- **Possible values:** an http(s) URL, optionally prefixed with a title and `|`
+
+Adds a link to the Argo CD UI for the resource. The key suffix is an arbitrary unique identifier, so
+a resource may carry several of these. See [external URL docs](external-url.md) for details.
+
+### `notice.argocd.argoproj.io/content` { #notice-content }
+
+- **Target resource(s):** Application
+- **Possible values:** plain text (truncated at 500 chars)
+
+Enables a per-application notice banner on the details page and an icon on the application
+list/tile. See [application notice docs](application-notice.md).
+
+### `notice.argocd.argoproj.io/severity` { #notice-severity }
+
+- **Target resource(s):** Application
+- **Possible values:** `info`, `warning`, `critical` (default `info`)
+
+Selects the predefined banner/icon styling for the notice.
+
+### `notice.argocd.argoproj.io/url` { #notice-url }
+
+- **Target resource(s):** Application
+- **Possible values:** an http(s) URL
+
+If set, the notice banner text and icon link to this URL.
+
+### `notice.argocd.argoproj.io/permanent` { #notice-permanent }
+
+- **Target resource(s):** Application
+- **Possible values:** `"true"`, `"false"` (default `false`)
+
+When `true`, the notice banner cannot be dismissed by users.
+
+### `notice.argocd.argoproj.io/icon` { #notice-icon }
+
+- **Target resource(s):** Application
+- **Possible values:** an allowlisted FontAwesome class (e.g. `fa-bell`)
+
+Overrides the severity-derived default icon. Unknown values fall back to the severity default.
+
+### `notice.argocd.argoproj.io/scope` { #notice-scope }
+
+- **Target resource(s):** Application
+- **Possible values:** `banner`, `icon`, `both` (default `both`)
+
+Restricts where the notice is shown: details-page banner only, list/tile icon only, or both.
+
+### `pref.argocd.argoproj.io/default-pod-sort` { #pref-default-pod-sort }
+
+- **Target resource(s):** Application
+- **Possible values:** [see UI customization docs](../operator-manual/ui-customization.md)
+
+Sets the Application's default grouping mechanism.
+
+### `pref.argocd.argoproj.io/default-view` { #pref-default-view }
+
+- **Target resource(s):** Application
+- **Possible values:** [see UI customization docs](../operator-manual/ui-customization.md)
+
+Sets the Application's default view mode (e.g. `tree` or `list`).
 
 ## Labels
 
-| Label key                      | Target resource(es) | Possible values                                      | Description                                                                                                                                                                                                                                                                       |
-|--------------------------------|---------------------|------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| argocd.argoproj.io/instance    | Application         | any                                                  | Recommended tracking label to [avoid conflicts with other tools which use `app.kubernetes.io/instance`](../faq.md#why-is-my-app-out-of-sync-even-after-syncing).                                                                                                                  |
-| argocd.argoproj.io/secret-type | Secret              | `cluster`, `repository`, `repo-creds`, `scm-creds` | Identifies certain types of Secrets used by Argo CD. See the [Declarative Setup docs](../operator-manual/declarative-setup.md) for details about the first three, and [AppSet-in-any-namespace docs](../operator-manual/applicationset/Appset-Any-Namespace.md) for the last one. |
+| Label key | Target resource(s) | Summary |
+|-----------|--------------------|---------|
+| [`argocd.argoproj.io/auto-label-cluster-info`](#auto-label-cluster-info) | Cluster Secret | Opts the cluster secret into dynamic cluster-info labels. |
+| [`argocd.argoproj.io/instance`](#instance) | any | Recommended tracking label. |
+| [`argocd.argoproj.io/kubernetes-version`](#kubernetes-version) | Cluster Secret | The cluster's Kubernetes version. Set by Argo CD. |
+| [`argocd.argoproj.io/secret-type`](#secret-type) | Secret | Identifies Secrets used by Argo CD. |
+
+### `argocd.argoproj.io/auto-label-cluster-info` { #auto-label-cluster-info }
+
+- **Target resource(s):** Cluster Secret
+- **Possible values:** `"true"`
+
+When `true`, the controller dynamically labels the cluster secret with information about the
+cluster — currently just [`kubernetes-version`](#kubernetes-version). See
+[the cluster generator docs](../operator-manual/applicationset/Generators-Cluster.md#fetch-clusters-based-on-their-k8s-version)
+for an example of selecting clusters on that label.
+
+### `argocd.argoproj.io/instance` { #instance }
+
+- **Target resource(s):** any
+- **Possible values:** any
+
+Recommended tracking label to
+[avoid conflicts with other tools which use `app.kubernetes.io/instance`](../faq.md#why-is-my-app-out-of-sync-even-after-syncing).
+
+### `argocd.argoproj.io/kubernetes-version` { #kubernetes-version }
+
+- **Target resource(s):** Cluster Secret
+- **Possible values:** a Kubernetes version, e.g. `1.30`
+
+The Kubernetes version of the cluster the secret points at. Set by Argo CD, and only present when
+[`auto-label-cluster-info`](#auto-label-cluster-info) is enabled on the secret. Not meant to be set
+manually.
+
+### `argocd.argoproj.io/secret-type` { #secret-type }
+
+- **Target resource(s):** Secret
+- **Possible values:** `cluster`, `repository`, `repo-creds`, `scm-creds`
+
+Identifies certain types of Secrets used by Argo CD. See the
+[Declarative Setup docs](../operator-manual/declarative-setup.md) for details about the first three,
+and [AppSet-in-any-namespace docs](../operator-manual/applicationset/Appset-Any-Namespace.md) for
+the last one.
