@@ -4573,6 +4573,35 @@ func TestIsOperationStatePayloadTooLargeError(t *testing.T) {
 	})
 }
 
+// newFakeControllerWithTooLargeFirstPatch builds a fake controller for app whose first
+// application patch fails with a 413 (request entity too large) and whose second patch
+// succeeds normally. It returns the controller, a pointer to the running patch call
+// count, and a pointer that's set to the raw bytes of the second (fallback) patch once
+// it happens.
+func newFakeControllerWithTooLargeFirstPatch(t *testing.T, app *v1alpha1.Application) (*ApplicationController, *int, *[]byte) {
+	t.Helper()
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+
+	patchCallCount := 0
+	var capturedPatch []byte
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	defaultReactor := fakeAppCs.ReactionChain[0]
+	fakeAppCs.ReactionChain = nil
+	fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		return defaultReactor.React(action)
+	})
+	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		patchCallCount++
+		if patchCallCount == 1 {
+			return true, nil, apierrors.NewRequestEntityTooLargeError("limit is 3145728")
+		}
+		capturedPatch = action.(kubetesting.PatchAction).GetPatch()
+		return defaultReactor.React(action)
+	})
+
+	return ctrl, &patchCallCount, &capturedPatch
+}
+
 func TestSetOperationStateTooLargeRequest(t *testing.T) {
 	newState := &v1alpha1.OperationState{
 		Operation: v1alpha1.Operation{
@@ -4623,31 +4652,14 @@ func TestSetOperationStateTooLargeRequest(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			app := tt.setupApp()
-			ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
-
-			patchCallCount := 0
-			fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-			defaultReactor := fakeAppCs.ReactionChain[0]
-			fakeAppCs.ReactionChain = nil
-			fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-				return defaultReactor.React(action)
-			})
-			var capturedPatch []byte
-			fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-				patchCallCount++
-				if patchCallCount == 1 {
-					return true, nil, apierrors.NewRequestEntityTooLargeError("limit is 3145728")
-				}
-				capturedPatch = action.(kubetesting.PatchAction).GetPatch()
-				return defaultReactor.React(action)
-			})
+			ctrl, patchCallCount, capturedPatch := newFakeControllerWithTooLargeFirstPatch(t, app)
 
 			ctrl.setOperationState(t.Context(), app, newState)
 
-			assert.Equal(t, 2, patchCallCount)
+			assert.Equal(t, 2, *patchCallCount)
 
 			var patchedObj map[string]any
-			require.NoError(t, json.Unmarshal(capturedPatch, &patchedObj))
+			require.NoError(t, json.Unmarshal(*capturedPatch, &patchedObj))
 			phase, _, _ := unstructured.NestedString(patchedObj, "status", "operationState", "phase")
 			message, _, _ := unstructured.NestedString(patchedObj, "status", "operationState", "message")
 			assert.Equal(t, tt.wantPhase, phase)
@@ -4685,31 +4697,14 @@ func TestSetOperationStateTooLargeRequest_PreservesFinishedAtOnCompletion(t *tes
 	app.Status.OperationState.Phase = synccommon.OperationRunning
 	app.Status.OperationState.FinishedAt = nil
 
-	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
-
-	patchCallCount := 0
-	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-	defaultReactor := fakeAppCs.ReactionChain[0]
-	fakeAppCs.ReactionChain = nil
-	fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		return defaultReactor.React(action)
-	})
-	var capturedPatch []byte
-	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		patchCallCount++
-		if patchCallCount == 1 {
-			return true, nil, apierrors.NewRequestEntityTooLargeError("limit is 3145728")
-		}
-		capturedPatch = action.(kubetesting.PatchAction).GetPatch()
-		return defaultReactor.React(action)
-	})
+	ctrl, patchCallCount, capturedPatch := newFakeControllerWithTooLargeFirstPatch(t, app)
 
 	ctrl.setOperationState(t.Context(), app, newState)
 
-	assert.Equal(t, 2, patchCallCount)
+	assert.Equal(t, 2, *patchCallCount)
 
 	var patchedObj map[string]any
-	require.NoError(t, json.Unmarshal(capturedPatch, &patchedObj))
+	require.NoError(t, json.Unmarshal(*capturedPatch, &patchedObj))
 
 	finishedAtStr, _, _ := unstructured.NestedString(patchedObj, "status", "operationState", "finishedAt")
 	assert.NotEmpty(t, finishedAtStr, "fallback patch must retain FinishedAt from the attempted (completed) state")
@@ -4730,26 +4725,11 @@ func TestSetOperationStateTooLargeRequest_EmitsCompletionTelemetryOnFinalFallbac
 	app.Name = "too-large-request-completion-telemetry-test"
 	app.Status.OperationState.Phase = synccommon.OperationTerminating
 
-	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
-
-	patchCallCount := 0
-	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-	defaultReactor := fakeAppCs.ReactionChain[0]
-	fakeAppCs.ReactionChain = nil
-	fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		return defaultReactor.React(action)
-	})
-	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		patchCallCount++
-		if patchCallCount == 1 {
-			return true, nil, apierrors.NewRequestEntityTooLargeError("limit is 3145728")
-		}
-		return defaultReactor.React(action)
-	})
+	ctrl, patchCallCount, _ := newFakeControllerWithTooLargeFirstPatch(t, app)
 
 	ctrl.setOperationState(t.Context(), app, newState)
 
-	assert.Equal(t, 2, patchCallCount)
+	assert.Equal(t, 2, *patchCallCount)
 
 	// The fallback finalized as OperationError (the "already terminating, giving up"
 	// branch), so it should have emitted the same completion event and sync metrics as
